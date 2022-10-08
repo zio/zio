@@ -84,8 +84,131 @@ The ZIO ecosystem defines all data types in such a way, including ZIO, Fiber, Re
 
 There are two main encoding styles in functional domain modeling:
 
-1. Executable Encoding
-2. Declarative Encoding
+1. **Executable Encoding** is a functional domain modeling where we use operators and constructors to provide the "final" solution to the domain problems.
+
+2. **Declarative Encoding** is a functional domain modeling where we use constructors and operators to provide the "description" of the solution to the domain problems. Later, we interpret the description to get the "final" solution.
+
+A real-life example will help you understand the differences between these two approaches. Let's say we want to write an effect system from scratch. To keep things simple we will create an effect system that only supports sequencial effects. So at the end, we would like to write a program like this:
+
+```scala
+object Main extends scala.App {
+  val app =
+    for {
+      _    <- IO.succeed(print("Enter your name: "))
+      name <- IO.succeed(scala.io.StdIn.readLine())
+      _    <- IO.succeed(println(s"Hello, $name"))
+    } yield ()
+
+  app.unsafeRunSync()
+}
+```
+
+#### Executable Encoding
+
+The executable encoding is straightforward. After defining the core model, we just need to think about the execution steps for each operator.
+
+In the following example, we describe the core model as `IO` case class, which has a `thunk` of code that is going to be executed when we call `unsafeRunSync`: `case class IO[+A](private val thunk: () => A)`.
+
+We should provide a set of operators: `IO#map`, `IO#flatMap`, and `IO#unsafeRunSync`. We have also one constructor: `IO.succeed`. Implementing these operators requires us to think about how they should actually executed to produce the desired result.
+
+For example, when we implement `map`,  should execute the `thunk` of the current `IO` and then apply the `f` function to the result. The same applies to `flatMap` and `unsafeRunSync`:
+
+```scala mdoc:compile-only
+final case class IO[+A](private val thunk: () => A) {
+  def map[B](f: A => B): IO[B]         = IO.succeed(f(thunk()))
+  def flatMap[B](f: A => IO[B]): IO[B] = IO.succeed(f(thunk()).unsafeRun())
+  def unsafeRunSync(): A                   = thunk()
+}
+
+object IO {
+  def succeed[A](value: => A): IO[A] = IO(() => value)
+}
+```
+
+Now we can run the greeting program with the above encoding.
+
+#### Declarative Encoding
+
+In contrast to the executable encoding, the declarative encoding is lazy. This means that the definition of the language is separate from how it is interpreted.
+
+In this example, we describe the problem of sequencing effects as a data type called `FlatMap` that contains two information: the first effect to be executed and the function that should be applied to the result of the first effect. To describe the thunk of code that will be executed by the interpreter, we create another data type called `Succeed`. Similarly, we need another data type called `SucceedNow` to describe the already evaluated values.
+
+```scala
+sealed trait IO[+A]
+object IO {
+  final case class SucceedNow[A](value: A)                    extends IO[A]
+  final case class Succeed[A](thunk: () => A)                 extends IO[A]
+  final case class FlatMap[A, B](io: IO[A], cont: A => IO[B]) extends IO[B]
+}
+```
+
+Assume we have written the following program:
+
+```scala
+val app: IO[Int] = 
+  for {
+    a <- IO.succeed(scala.io.StdIn.readLine("Enter the first number: ").toInt)
+    b <- IO.succeed(scala.io.StdIn.readLine("Enter the second number: ").toInt) 
+  } yield (a + b)
+```
+
+This program will be translated into the following tree data structure using the declarative encoding:
+
+```scala
+val app: IO[Int] = 
+  IO.FlatMap(
+    IO.Succeed(() => scala.io.StdIn.readLine("Enter the first number: ").toInt),
+    (a: Int) =>
+      IO.FlatMap(
+        IO.Succeed(() => scala.io.StdIn.readLine("Enter the second number: ").toInt),
+        (b: Int) => IO.SucceedNow(a + b)
+      )
+  )
+```
+
+The only operator that deals with the interpretation of the program is `unsafeRunSync`. Let's see how the whole encoding looks like:
+
+```scala mdoc:compile-only
+sealed trait IO[+A] { self =>
+  def map[B](f: A => B): IO[B] = flatMap(f andThen IO.succeedNow)
+
+  def flatMap[B](f: A => IO[B]): IO[B] = IO.FlatMap(self, f)
+
+  def unsafeRunSync(): A = {
+    type Cont = Any => IO[Any]
+
+    def run(stack: List[Cont], currentIO: IO[Any]): A = {
+      def continue(value: Any) =
+        stack match {
+          case ::(cont, next) => run(next, cont(value))
+          case Nil            => value.asInstanceOf[A]
+        }
+
+      currentIO match {
+        case IO.SucceedNow(value) => continue(value)
+        case IO.Succeed(thunk)    => continue(thunk())
+        case IO.FlatMap(io, cont) => run(stack appended cont, io)
+      }
+    }
+
+    run(stack = Nil, currentIO = self)
+  }
+}
+
+object IO {
+
+  def succeedNow[A](value: A): IO[A] = IO.SucceedNow(value)
+
+  def succeed[A](value: => A): IO[A] = IO.Succeed(() => value)
+
+  final case class SucceedNow[A](value: A) extends IO[A]
+
+  final case class Succeed[A](thunk: () => A) extends IO[A]
+
+  final case class FlatMap[A, B](io: IO[A], cont: A => IO[B]) extends IO[B]
+
+}
+```
 
 ## Design Techniques
 
