@@ -198,7 +198,7 @@ module.exports = {
     {
       type: "category",
       label: "State Management",
-      link: { type: "doc", id: "reference/state/index" },
+      link: { type: "doc", id: "reference/state-management/index" },
       collapsed: true,
       items:
         [
