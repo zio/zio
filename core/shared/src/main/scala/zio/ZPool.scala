@@ -212,10 +212,10 @@ object ZPool {
         }
 
       for {
-        releaseAndAttempted <- ZIO.acquireRelease(acquire)(release(_)).withEarlyRelease
+        releaseAndAttempted <- ZIO.acquireRelease(acquire)(release(_)).withEarlyRelease.disconnect
         (release, attempted) = releaseAndAttempted
         _                   <- release.when(attempted.isFailure)
-        item                <- attempted.toZIO.disconnect
+        item                <- attempted.toZIO
       } yield item
     }
 

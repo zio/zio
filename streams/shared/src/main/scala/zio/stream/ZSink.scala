@@ -725,13 +725,21 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def collectAllWhile[In](p: In => Boolean)(implicit
     trace: Trace
-  ): ZSink[Any, Nothing, In, In, Chunk[In]] =
-    fold[In, (List[In], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
-      if (p(a)) (a :: as, true)
-      else (as, false)
-    }.map { case (is, _) =>
-      Chunk.fromIterable(is.reverse)
-    }
+  ): ZSink[Any, Nothing, In, In, Chunk[In]] = {
+
+    def channel(done: Chunk[In]): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Chunk[In]] =
+      ZChannel.readWith(
+        in => {
+          val (collected, leftovers) = in.span(p)
+          if (leftovers.isEmpty) channel(done ++ collected)
+          else ZChannel.write(leftovers) *> ZChannel.succeed(done ++ collected)
+        },
+        ZChannel.fail,
+        _ => ZChannel.succeed(done)
+      )
+
+    ZSink.fromChannel(channel(Chunk.empty))
+  }
 
   /**
    * Accumulates incoming elements into a chunk as long as they verify effectful
@@ -739,12 +747,23 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def collectAllWhileZIO[Env, Err, In](p: In => ZIO[Env, Err, Boolean])(implicit
     trace: Trace
-  ): ZSink[Env, Err, In, In, Chunk[In]] =
-    foldZIO[Env, Err, In, (List[In], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
-      p(a).map(if (_) (a :: as, true) else (as, false))
-    }.map { case (is, _) =>
-      Chunk.fromIterable(is.reverse)
-    }
+  ): ZSink[Env, Err, In, In, Chunk[In]] = {
+
+    def channel(done: Chunk[In]): ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[In], Chunk[In]] =
+      ZChannel.readWith(
+        in => {
+          ZChannel.fromZIO(in.takeWhileZIO(p)).flatMap { collected =>
+            val leftovers = in.drop(collected.length)
+            if (leftovers.isEmpty) channel(done ++ collected)
+            else ZChannel.write(leftovers) *> ZChannel.succeed(done ++ collected)
+          }
+        },
+        ZChannel.fail,
+        _ => ZChannel.succeed(done)
+      )
+
+    ZSink.fromChannel(channel(Chunk.empty))
+  }
 
   /**
    * A sink that counts the number of elements fed to it.

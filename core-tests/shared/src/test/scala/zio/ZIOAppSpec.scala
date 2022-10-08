@@ -67,6 +67,18 @@ object ZIOAppSpec extends ZIOBaseSpec {
         _         <- fiber.interrupt
         finalized <- ref.get
       } yield assertTrue(finalized)
+    },
+    test("finalizers are run in scope of bootstrap layer") {
+      for {
+        ref1 <- Ref.make(false)
+        ref2 <- Ref.make(false)
+        app = new ZIOAppDefault {
+                override val bootstrap = ZLayer.scoped(ZIO.acquireRelease(ref1.set(true))(_ => ref1.set(false)))
+                val run                = ZIO.acquireRelease(ZIO.unit)(_ => ref1.get.flatMap(ref2.set))
+              }
+        _     <- app.invoke(Chunk.empty)
+        value <- ref2.get
+      } yield assertTrue(value)
     }
   )
 }

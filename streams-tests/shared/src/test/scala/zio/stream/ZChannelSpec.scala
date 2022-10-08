@@ -443,7 +443,11 @@ object ZChannelSpec extends ZIOBaseSpec {
               )
 
           conduit.runCollect.map { case (chunk, _) =>
-            assert(chunk.toSet)(equalTo(Set(1, 4, 9)))
+            assert(chunk.toSet)(equalTo(Set(1, 4, 9))) ||
+              assert(chunk.toSet)(equalTo(Set(1, 6))) ||
+              assert(chunk.toSet)(equalTo(Set(2, 3, 6))) ||
+              assert(chunk.toSet)(equalTo(Set(2, 9))) ||
+              assert(chunk.toSet)(equalTo(Set(3, 4)))
           }
         }
       ),

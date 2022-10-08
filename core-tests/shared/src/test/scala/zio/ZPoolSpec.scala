@@ -138,6 +138,6 @@ object ZPoolSpec extends ZIOBaseSpec {
             fiber <- pool.get.fork
             _     <- fiber.interrupt
           } yield assertCompletes
-        }
+        } @@ nonFlaky
     }
 }

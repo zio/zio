@@ -36,7 +36,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * A layer that manages the acquisition and release of services necessary for
    * the application to run.
    */
-  def bootstrap: ZLayer[ZIOAppArgs with Scope, Any, Environment]
+  def bootstrap: ZLayer[ZIOAppArgs, Any, Environment]
 
   /**
    * The main function of the application, which can access the command-line
@@ -82,13 +82,13 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
   final def invoke(args: Chunk[String])(implicit trace: Trace): ZIO[Any, Any, Any] =
     ZIO.suspendSucceed {
       val newLayer =
-        Scope.default +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
-          bootstrap +!+ ZLayer.environment[ZIOAppArgs with Scope]
+        ZLayer.succeed(ZIOAppArgs(args)) >>>
+          bootstrap +!+ ZLayer.environment[ZIOAppArgs]
 
       (for {
-        runtime <- ZIO.runtime[Environment with ZIOAppArgs with Scope]
+        runtime <- ZIO.runtime[Environment with ZIOAppArgs]
         _       <- installSignalHandlers(runtime)
-        result  <- runtime.run(run)
+        result  <- runtime.run(ZIO.scoped[Environment with ZIOAppArgs](run))
       } yield result).provideLayer(newLayer)
     }
 
@@ -119,7 +119,7 @@ object ZIOApp {
    */
   class Proxy(val app: ZIOApp) extends ZIOApp {
     type Environment = app.Environment
-    final def bootstrap: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
+    final def bootstrap: ZLayer[ZIOAppArgs, Any, Environment] =
       app.bootstrap
     override final def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Any] =
       app.run
@@ -133,7 +133,7 @@ object ZIOApp {
    */
   def apply[R](
     run0: ZIO[R with ZIOAppArgs with Scope, Any, Any],
-    bootstrap0: ZLayer[ZIOAppArgs with Scope, Any, R]
+    bootstrap0: ZLayer[ZIOAppArgs, Any, R]
   )(implicit tagged: EnvironmentTag[R]): ZIOApp =
     new ZIOApp {
       type Environment = R

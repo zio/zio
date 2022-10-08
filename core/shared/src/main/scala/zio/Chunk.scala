@@ -386,11 +386,11 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       dropping as builder.result()
     }
 
-  override final def equals(that: Any): Boolean =
-    that match {
+  override def equals(that: Any): Boolean =
+    (self eq that.asInstanceOf[AnyRef]) || (that match {
       case that: Seq[_] => self.corresponds(that)(_ == _)
       case _            => false
-    }
+    })
 
   /**
    * Determines whether a predicate is satisfied for at least one element of
@@ -2401,6 +2401,13 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     override def apply(n: Int): Nothing =
       throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
+
+    override def equals(that: Any): Boolean =
+      that match {
+        case chunk: Chunk[_] => self eq chunk
+        case seq: Seq[_]     => seq.isEmpty
+        case _               => false
+      }
 
     override def foreach[B](f: Nothing => B): Unit = {
       val _ = f

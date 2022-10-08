@@ -348,19 +348,20 @@ object ZSinkSpec extends ZIOBaseSpec {
         )
       },
       test("collectAllWhile") {
-        val sink   = ZSink.collectAllWhile[Int](_ < 5)
+        val sink   = ZSink.collectAllWhile[Int](_ < 5) <* ZSink.collectAllWhile[Int](_ >= 5)
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
         val result = ZStream.fromChunks(input: _*).transduce(sink).runCollect
         assertZIO(result)(
-          equalTo(Chunk(Chunk(3, 4), Chunk(), Chunk(), Chunk(2, 3, 4), Chunk(), Chunk(), Chunk(4, 3, 2)))
+          equalTo(Chunk(Chunk(3, 4), Chunk(2, 3, 4), Chunk(4, 3, 2)))
         )
       },
       test("collectAllWhileZIO") {
-        val sink   = ZSink.collectAllWhileZIO[Any, Nothing, Int]((i: Int) => ZIO.succeed(i < 5))
+        val sink = ZSink.collectAllWhileZIO[Any, Nothing, Int]((i: Int) => ZIO.succeed(i < 5)) <* ZSink
+          .collectAllWhileZIO[Any, Nothing, Int]((i: Int) => ZIO.succeed(i >= 5))
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
         val result = ZStream.fromChunks(input: _*).transduce(sink).runCollect
         assertZIO(result)(
-          equalTo(Chunk(Chunk(3, 4), Chunk(), Chunk(), Chunk(2, 3, 4), Chunk(), Chunk(), Chunk(4, 3, 2)))
+          equalTo(Chunk(Chunk(3, 4), Chunk(2, 3, 4), Chunk(4, 3, 2)))
         )
       },
       test("foldLeft equivalence with Chunk#foldLeft")(
@@ -949,7 +950,24 @@ object ZSinkSpec extends ZIOBaseSpec {
             r <- f.join
           } yield assert(r)(isGreaterThanEqualTo(100.millis))
         }
-      )
+      ),
+      test("error propagation") {
+        case object ErrorStream
+        case object ErrorMapped
+        case object ErrorSink
+
+        for {
+          exit <- ZStream
+                    .fail(ErrorStream)
+                    .mapError(_ => ErrorMapped)
+                    .run(
+                      ZSink.drain
+                        .contramapZIO((in: Any) => ZIO.attempt(in))
+                        .mapError(_ => ErrorSink)
+                    )
+                    .exit
+        } yield assert(exit)(fails(equalTo(ErrorMapped)))
+      }
     )
   }
 }

@@ -9,7 +9,7 @@ object Blocking {
   val blockingExecutor: zio.Executor =
     zio.Executor.fromThreadPoolExecutor {
       val corePoolSize  = 0
-      val maxPoolSize   = 1000
+      val maxPoolSize   = Int.MaxValue
       val keepAliveTime = 60000L
       val timeUnit      = TimeUnit.MILLISECONDS
       val workQueue     = new SynchronousQueue[Runnable]()

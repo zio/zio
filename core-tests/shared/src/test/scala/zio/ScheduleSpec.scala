@@ -621,6 +621,16 @@ object ScheduleSpec extends ZIOBaseSpec {
         expected <- wednesday.delays.run(now, in)
       } yield assert(actual)(equalTo(expected))
     },
+    test("chooses") {
+      val s1: Schedule[Any, Int, (Duration, Long)]    = Schedule.exponential(1.second) && Schedule.recurs(3)
+      val s2: Schedule[Any, String, (Duration, Long)] = Schedule.exponential(8.second) && Schedule.recurs(3)
+      val schedule                                    = s1 +++ s2
+      for {
+        now    <- ZIO.succeed(OffsetDateTime.now)
+        in      = Chunk(Left(1), Right("a"), Left(2), Right("b"), Left(3), Left(4), Right("c"))
+        actual <- schedule.delays.run(now, in)
+      } yield assert(actual)(equalTo(Chunk(1.second, 8.seconds, 2.seconds, 16.seconds, 4.seconds, 0.seconds)))
+    },
     test("passthrough") {
       for {
         ref   <- Ref.make(0)

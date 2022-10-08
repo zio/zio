@@ -154,7 +154,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("simple example") {
             assertZIO(
               ZStream('1', '2', ',', '3', '4')
-                .transduce(ZSink.collectAllWhile((_: Char).isDigit))
+                .transduce(ZSink.collectAllWhile((_: Char).isDigit) <* ZSink.collectAllWhile(!(_: Char).isDigit))
                 .map(_.mkString.toInt)
                 .runCollect
             )(equalTo(Chunk(12, 34)))
@@ -1650,7 +1650,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                         ).flatMapParSwitch(2)(identity).runDrain.either
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-          } @@ flaky,
+          } @@ nonFlaky,
           test("outer errors interrupt all fibers") {
             for {
               substreamCancelled <- Ref.make[Boolean](false)
