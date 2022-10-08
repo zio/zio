@@ -1215,7 +1215,7 @@ There is also a work-in-progress implementation of the Raft protocol called [ZIO
 [18]: ../../reference/test
 [19]: https://doc.akka.io/docs/akka/current/stream/stream-testkit.html
 [20]: https://doc.akka.io/docs/akka/current/cluster-metrics.html
-[21]: ../../reference/metrics
+[21]: ../../reference/observability/metrics
 [22]: https://doc.akka.io/docs/akka/current/general/supervision.html
 [23]: https://doc.akka.io/docs/akka-grpc/current/index.html
 [24]: ../../ecosystem/community/zio-grpc.md
