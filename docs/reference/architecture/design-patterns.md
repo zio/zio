@@ -12,7 +12,7 @@ When designing an API, there are patterns that are commonly used. In this sectio
      1. Declarative Encoding
      2. Executable Encoding
 
-### Functional Data Modeling
+## Functional Data Modeling
 
 Before we start talking about functional data modeling, let's first recap the object-oriented way of modeling data.
 
@@ -61,7 +61,7 @@ The product and sum types are called "Algebraic Data Types" (ADT). They are the 
 - **Product types** are the cartesian product of the types they contain. For example, `Event` is the product of `String`, `Long`, and `EventType`. In scala, we use `case class` to model product types.
 - **Sum types** are the disjoint union of the types they represent. For example, `EventType` is the either `ClickEvent` or `ViewEvent`. In scala 2, we use `sealed trait`s and In Scala 3, we use `enum`s to model sum types.
 
-### Functional Domain Modeling
+## Functional Domain Modeling
 
 Functional domain modeling is the process of modeling solutions to problems in a specific domain using functional programming. It is a very broad topic, and we are not going to cover all the details here. However, we are going to talk about the general patterns that are commonly used in functional domain modeling, in a nutshell.
 
@@ -103,7 +103,7 @@ object Main extends scala.App {
 }
 ```
 
-#### Executable Encoding
+### Executable Encoding
 
 The executable encoding is straightforward. After defining the core model, we just need to think about the execution steps for each operator.
 
@@ -127,7 +127,7 @@ object IO {
 
 Now we can run the greeting program with the above encoding.
 
-#### Declarative Encoding
+### Declarative Encoding
 
 In contrast to the executable encoding, the declarative encoding is lazy. This means that the definition of the language is separate from how it is interpreted.
 
@@ -204,14 +204,3 @@ object IO {
   final case class FlatMap[A, B](io: IO[A], cont: A => IO[B]) extends IO[B]
 }
 ```
-
-## Design Techniques
-
-  1. Contextual Eliminators
-  2. Implicit Traces
-  3. Unsafe Markers
-  4. Descriptive Errors Using Implicit Evidence
-  5. Partial Application of Type Parameters
-  6. Double Evaluation Prevention
-  7. Method Naming Conventions
-  8. Path Dependent Types
