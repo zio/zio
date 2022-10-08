@@ -1,11 +1,9 @@
 ---
-id: design-patterns
-title: "Design Patterns"
+id: functional-design-patterns
+title: "Functional Design Patterns"
 ---
 
-When designing an API, there are patterns that are commonly used. In this section, we are going to talk about some of these patterns.
-
-## Functional Design Patterns
+When designing an API, there are patterns that are commonly used. In this section, we are going to talk about some of these patterns:
 
   1. Functional Data Modeling
   2. Functional Domain Modeling

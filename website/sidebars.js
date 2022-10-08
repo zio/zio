@@ -126,6 +126,7 @@ module.exports = {
         "reference/architecture/programming-paradigms-in-zio",
         "reference/architecture/non-functional-requirements",
         "reference/architecture/architectural-patterns",
+        "reference/architecture/functional-design-patterns",
       ]
     },
     {
