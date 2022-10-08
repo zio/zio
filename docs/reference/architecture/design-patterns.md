@@ -117,7 +117,7 @@ For example, when we implement `map`,  should execute the `thunk` of the current
 final case class IO[+A](private val thunk: () => A) {
   def map[B](f: A => B): IO[B]         = IO.succeed(f(thunk()))
   def flatMap[B](f: A => IO[B]): IO[B] = IO.succeed(f(thunk()).unsafeRun())
-  def unsafeRunSync(): A                   = thunk()
+  def unsafeRunSync(): A               = thunk()
 }
 
 object IO {
@@ -196,17 +196,12 @@ sealed trait IO[+A] { self =>
 }
 
 object IO {
-
   def succeedNow[A](value: A): IO[A] = IO.SucceedNow(value)
-
   def succeed[A](value: => A): IO[A] = IO.Succeed(() => value)
 
-  final case class SucceedNow[A](value: A) extends IO[A]
-
-  final case class Succeed[A](thunk: () => A) extends IO[A]
-
+  final case class SucceedNow[A](value: A)                    extends IO[A]
+  final case class Succeed[A](thunk: () => A)                 extends IO[A]
   final case class FlatMap[A, B](io: IO[A], cont: A => IO[B]) extends IO[B]
-
 }
 ```
 
