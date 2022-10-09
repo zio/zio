@@ -126,7 +126,7 @@ IO supports 5 types of Metrics:
 
 ## Miscellaneous
 
-- **[Chunk](misc/chunk.md)**— `Chunk` is a fast, pure alternative to Arrays.
-- **[Supervisor](misc/supervisor.md)**— `Supervisor[A]` is allowed to supervise the launching and termination of fibers, producing some visible value of type `A` from the supervision.
+- **[Chunk](stream/chunk.md)**— `Chunk` is a fast, pure alternative to Arrays.
+- **[Supervisor](observability/supervisor.md)**— `Supervisor[A]` is allowed to supervise the launching and termination of fibers, producing some visible value of type `A` from the supervision.
 
 To learn more about these data types, please explore the pages above, or check out the Scaladoc documentation.

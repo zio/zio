@@ -305,6 +305,7 @@ module.exports = {
       link: { type: "doc", id: "reference/stream/index" },
       items: [
         "reference/stream/installation",
+        "reference/stream/chunk",
         {
           type: "category",
           label: "ZStream",
@@ -367,10 +368,11 @@ module.exports = {
                 "reference/observability/metrics/setcount"
               ]
             },
-            "reference/metrics/metriclabel",
-            "reference/metrics/jvm",
+            "reference/observability/metrics/metriclabel",
+            "reference/observability/metrics/jvm",
           ]
-        }
+        },
+        "reference/observability/supervisor",
       ]
     },
     {
@@ -459,8 +461,6 @@ module.exports = {
       type: "category",
       label: "Miscellaneous",
       items: [
-        "reference/misc/chunk",
-        "reference/misc/supervisor",
       ]
     }
   ],
