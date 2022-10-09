@@ -767,6 +767,22 @@ object QueueSpec extends ZIOBaseSpec {
           _        <- ZIO.foreach(takers)(_.join)
         } yield assertCompletes
       }
+    },
+    test("isEmpty") {
+      for {
+        queue <- Queue.bounded[Int](2)
+        _     <- queue.take.fork
+        _     <- waitForSize(queue, -1)
+        empty <- queue.isEmpty
+      } yield assertTrue(empty)
+    },
+    test("isFull") {
+      for {
+        queue <- Queue.bounded[Int](2)
+        _     <- queue.offerAll(Chunk(1, 2, 3)).fork
+        _     <- waitForSize(queue, 3)
+        full  <- queue.isFull
+      } yield assertTrue(full)
     }
   )
 }
