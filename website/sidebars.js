@@ -108,6 +108,7 @@ module.exports = {
           "reference/error-management/examples"
         ]
     },
+    "reference/interruption/index",
     {
       type: "category",
       label: "Built-in Services",
