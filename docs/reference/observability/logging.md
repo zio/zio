@@ -8,7 +8,15 @@ ZIO preliminary supports a lightweight built-in logging facade that standardized
 We can easily log using the `ZIO.log` function:
 
 ```scala mdoc:silent:nest
-ZIO.log("Application started!")
+import zio._
+
+val app = 
+  for {
+    _    <- ZIO.log("Application started!")
+    name <- Console.readLine("Please enter your name: ")
+    _    <- ZIO.log("User entered its name: $name")
+    _    <- Console.printLine("Hello, $name")
+  } yield ()
 ```
 
 ## Logging Levels
