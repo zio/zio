@@ -1115,8 +1115,7 @@ object MainApp extends ZIOAppDefault {
       _ <- ZIO.debug(s"stateful app started with $state")
       _ <- Console.printLine("please enter 5 names:")
       task = (i: Int) => for {
-        _ <- Console.print(s"$i. ")
-        name <- Console.readLine
+        name <- Console.readLine(s"$i. ")
         _ <- state.update(_ + name)
       } yield ()
       _ <- ZIO.foreach(1 to 5)(task)
@@ -1142,10 +1141,9 @@ def getNames(state: Ref[State]) =
     _ <- ZIO.debug(s"stateful app started with $state")
     _ <- Console.printLine("please enter 5 names:")
     task = (i: Int) => for {
-      _ <- Console.print(s"$i. ")
       _ <- ZIO.uninterruptible(
         for {
-          name <- Console.readLine  
+          name <- Console.readLine("s"$i. ") 
           _ <- state.update(_ + name)
         } yield ()
       )
@@ -1169,6 +1167,41 @@ for {
 ```
 
 By timing out the `getNames`, if the user doesn't enter all 5 names in 10 seconds the `Console.readLine` cannot be interrupted and the application will block indefinitely.
+
+So we when using `uninterruptible` we should care about blocking operations, turning any blocking operation to uninterruptible is dangerous and makes our application unresponsive.
+
+So, let's try a better approach. We can make sure that the blocking operation can be interrupted by using the `interruptible` combinator. By using this combinator, we can turn an uninterruptible operation into an interruptible operation inside an uninterruptible block:
+
+```scala
+// effect1 is inside uninterruptible region
+// effect2 is inside interruptible region
+// effect3 is inside uninterruptible region
+ZIO.uninterruptible(
+  effect1 *>
+   ZIO.interruptible(effect2) *> 
+   effect3
+)
+```
+
+So we can say that `ZIO.interruptible` combinator, makes a hole inside an uninterruptible region. So if an interruption occurs inside the hole, that interruption will be executed immediately.
+
+```scala mdoc:compile-only
+def getNames(state: Ref[State]) =
+  for {
+    _ <- ZIO.debug(s"stateful app started with an initial state")
+    _ <- Console.printLine("please enter 5 names:")
+    task = (i: Int) => for {
+      _ <- Console.print(s"$i. ")
+      _ <- ZIO.uninterruptible(
+        for {
+          name <- ZIO.interruptible(Console.readLine)
+          _ <- state.update(_ + name)
+        } yield ()
+      )
+    } yield ()
+    _ <- ZIO.foreach(1 to 5)(task)
+  } yield ()
+```
 
 ## Blocking Operations
 
