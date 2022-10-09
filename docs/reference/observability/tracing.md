@@ -1,6 +1,7 @@
 ---
 id: tracing
 title: "Introduction to Tracing in ZIO"
+sidebar_label: "Tracing"
 ---
 
 Although logs and metrics are useful to understand the behavior of individual services, they are not enough to provide a complete overview of the lifetime of a request in a distributed system.

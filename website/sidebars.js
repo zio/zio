@@ -458,12 +458,6 @@ module.exports = {
           ]
         }
       ]
-    },
-    {
-      type: "category",
-      label: "Miscellaneous",
-      items: [
-      ]
     }
   ],
   "guides-sidebar": [

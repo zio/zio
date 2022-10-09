@@ -1,6 +1,7 @@
 ---
 id: logging 
 title: "Introduction to Logging in ZIO"
+sidebar_label: "Logging"
 ---
 
 ZIO preliminary supports a lightweight built-in logging facade that standardized the interface to logging functionality. So it doesn't replace existing logging libraries, but also we can plug it into one of the existing logging backends.
