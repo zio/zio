@@ -352,6 +352,7 @@ module.exports = {
       type: "category",
       label: "Observability",
       items: [
+        "reference/observability/logging",
         {
           type: "category",
           label: "Metrics",
@@ -372,6 +373,7 @@ module.exports = {
             "reference/observability/metrics/jvm",
           ]
         },
+        "reference/observability/tracing",
         "reference/observability/supervisor",
       ]
     },
