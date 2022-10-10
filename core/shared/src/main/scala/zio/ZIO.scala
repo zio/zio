@@ -3789,10 +3789,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def logAnnotate(logAnnotations: => Set[LogAnnotation]): LogAnnotate =
     new LogAnnotate(() => logAnnotations)
 
-  /**
-   * Sets the implementation of the random service to the specified value and
-   * restores it to its original value when the scope is closed.
-   */
   def logAnnotateScoped(key: => String, value: => String)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
     logAnnotateScoped(LogAnnotation(key, value))
 
