@@ -1524,11 +1524,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def logAnnotate[R, E, In, L, Z](annotations: => Set[LogAnnotation])(sink: ZSink[R, E, In, L, Z])(implicit
     trace: Trace
   ): ZSink[R, E, In, L, Z] =
-    ZSink.unwrapScoped {
-      FiberRef.currentLogAnnotations
-        .locallyScopedWith(_ ++ annotations.map { case LogAnnotation(key, value) => key -> value })
-        .as(sink)
-    }
+    ZSink.unwrapScoped(ZIO.logAnnotateScoped(annotations).as(sink))
 
   /**
    * Retrieves the log annotations associated with the current scope.
@@ -1572,7 +1568,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def logLevel[R, E, In, L, Z](level: LogLevel)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: Trace
   ): ZSink[R, E, In, L, Z] =
-    ZSink.unwrapScoped(FiberRef.currentLogLevel.locallyScoped(level).as(sink))
+    ZSink.unwrapScoped(ZIO.logLevelScoped(level).as(sink))
 
   /**
    * Adjusts the label for the logging span for streams composed after this.
@@ -1580,14 +1576,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def logSpan[R, E, In, L, Z](label: => String)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: Trace
   ): ZSink[R, E, In, L, Z] =
-    ZSink.unwrapScoped {
-      FiberRef.currentLogSpan.get.flatMap { stack =>
-        val instant = java.lang.System.currentTimeMillis()
-        val logSpan = LogSpan(label, instant)
-
-        FiberRef.currentLogSpan.locallyScoped(logSpan :: stack).as(sink)
-      }
-    }
+    ZSink.unwrapScoped(ZIO.logSpanScoped(label).as(sink))
 
   /**
    * Logs the specified message at the trace log level.

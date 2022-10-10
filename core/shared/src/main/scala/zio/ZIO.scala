@@ -3789,6 +3789,19 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def logAnnotate(logAnnotations: => Set[LogAnnotation]): LogAnnotate =
     new LogAnnotate(() => logAnnotations)
 
+  def logAnnotateScoped(key: => String, value: => String)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+    logAnnotateScoped(LogAnnotation(key, value))
+
+  def logAnnotateScoped(logAnnotation: => LogAnnotation, logAnnotations: LogAnnotation*)(implicit
+    trace: Trace
+  ): ZIO[Scope, Nothing, Unit] =
+    logAnnotateScoped(Set(logAnnotation) ++ logAnnotations.toSet)
+
+  def logAnnotateScoped(logAnnotations: => Set[LogAnnotation])(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+    FiberRef.currentLogAnnotations.locallyScopedWith(_ ++ logAnnotations.map { case LogAnnotation(key, value) =>
+      key -> value
+    })
+
   /**
    * Retrieves the log annotations associated with the current scope.
    */
@@ -3894,6 +3907,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def logLevel(level: LogLevel): LogLevel =
     level
 
+  def logLevelScoped(level: LogLevel)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+    FiberRef.currentLogLevel.locallyScoped(level)
+
   /**
    * Adjusts the label for the current logging span.
    * {{{
@@ -3901,6 +3917,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * }}}
    */
   def logSpan(label: => String): LogSpan = new LogSpan(() => label)
+
+  def logSpanScoped(label: => String)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+    FiberRef.currentLogSpan.get.flatMap { stack =>
+      val instant = java.lang.System.currentTimeMillis()
+      val logSpan = zio.LogSpan(label, instant)
+
+      FiberRef.currentLogSpan.locallyScoped(logSpan :: stack)
+    }
 
   /**
    * Logs the specified message at the trace log level.

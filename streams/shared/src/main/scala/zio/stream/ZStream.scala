@@ -4705,11 +4705,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def logAnnotate(annotations: => Set[LogAnnotation])(implicit
     trace: Trace
   ): ZStream[Any, Nothing, Unit] =
-    ZStream.scoped {
-      FiberRef.currentLogAnnotations.locallyScopedWith(_ ++ annotations.map { case LogAnnotation(key, value) =>
-        key -> value
-      })
-    }
+    ZStream.scoped(ZIO.logAnnotateScoped(annotations))
 
   /**
    * Retrieves the log annotations associated with the current scope.
@@ -4751,20 +4747,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Sets the log level for streams composed after this.
    */
   def logLevel(level: LogLevel)(implicit trace: Trace): ZStream[Any, Nothing, Unit] =
-    ZStream.scoped(FiberRef.currentLogLevel.locallyScoped(level))
+    ZStream.scoped(ZIO.logLevelScoped(level))
 
   /**
    * Adjusts the label for the logging span for streams composed after this.
    */
   def logSpan(label: => String)(implicit trace: Trace): ZStream[Any, Nothing, Unit] =
-    ZStream.scoped {
-      FiberRef.currentLogSpan.get.flatMap { stack =>
-        val instant = java.lang.System.currentTimeMillis()
-        val logSpan = LogSpan(label, instant)
-
-        FiberRef.currentLogSpan.locallyScoped(logSpan :: stack)
-      }
-    }
+    ZStream.scoped(ZIO.logSpanScoped(label))
 
   /**
    * Logs the specified message at the trace log level.
