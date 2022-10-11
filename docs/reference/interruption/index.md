@@ -23,13 +23,13 @@ Other than the very simple kill solution, there are two popular valid solutions 
 
   1. **Semi-asynchronous Interruption (Polling for Interruption)**— Imperative languages often use polling to implement a semi-asynchronous signaling mechanism, such as Java. In this model, a fiber sends a request for interruption of other fiber. The target fiber keep polling the interrupt status, and based on the interrupt status will find out that weather there is an interruption request from other fibers received or not. Then it should terminate itself as soon as possible.
 
-  Using this solution, the fiber itself takes care of critical sections. So while a fiber is in the middle of a critical section, if it receives an interruption request, it should postpone the termination until leaving the critical section.
+  Using this solution, the fiber itself takes care of critical sections. So while a fiber is in the middle of a critical section, if it receives an interruption request, it should ignore the interruption and postpone the delivery of interruption during the critical section.
 
   The drawback of this solution is that, if the programmer forget to poll regularly enough, then the target fiber become unresponsive and cause deadlocks. Another problem with this solution is that polling a global flag is not a functional operation, that doesn't fit with ZIO's paradigm.
 
-  2. **Asynchronous Interruption**— In asynchronous interruption a fiber allows to terminate another fiber. So the target fiber is not responsible for polling the status, instead in critical sections the target fiber postpone the interruptibility of these regions. This is a purely-functional solution and doesn't require to poll a global state. ZIO uses this solution for its interruption model. It is a fully asynchronous signalling mechanism.
+  2. **Asynchronous Interruption**— In asynchronous interruption a fiber allows to terminate another fiber. So the target fiber is not responsible for polling the status, instead in critical sections the target fiber disable the interruptibility of these regions. This is a purely-functional solution and doesn't require to poll a global state. ZIO uses this solution for its interruption model. It is a fully asynchronous signalling mechanism.
 
-  This mechanism doesn't have the drawback of forgetting to poll regularly. And also its fully compatible with functional paradigm because in a purely-functional computation, at any point we can abort the computation, (except for critical sections that should be postponed).
+  This mechanism doesn't have the drawback of forgetting to poll regularly. And also its fully compatible with functional paradigm because in a purely-functional computation, at any point we can abort the computation, except for critical sections.
 
 ## When Does a Fiber Get Interrupted?
 
@@ -356,7 +356,7 @@ def accept(ss: ServerSocket): Task[Socket] =
   ZIO.attemptBlockingCancelable(ss.accept())(ZIO.succeed(ss.close()))
 ```
 
-## Postponing Interruption of Fibers
+## Disabling Interruption of Fibers
 
 As we discussed earlier, it is dangerous for fibers to interrupt others. The danger with such an interruption is that:
 
@@ -366,118 +366,55 @@ As we discussed earlier, it is dangerous for fibers to interrupt others. The dan
 
 - It is also a threat to _resource safety_. If the fiber is in the middle of acquiring a resource and is interrupted, the application will leak resources.
 
-In the following code, we have a _stateful_ application. The state is a set of names. We have a function that gets names from the user and adds them to the state. Finally, we have a function that persists all names in the state to the database:
+
+By default, ZIO fibers are interruptible. But we can disable the interruption of a fiber by using `ZIO.uninterruptible`/`ZIO#uninterruptible` combinators. By applying `uninterruptible` to a ZIO effect, we can make sure that the fibers created by this effect will not be interrupted by other fibers.
+
+For example, assume we have a `transfer` method which transfers money from one account to another. We have implemented this operation in terms of `withdraw` and `deposit` operations:
+
+```scala mdoc:silent
+def withdraw(account: Ref[Int], amount: Int) =
+  for {
+    balance <- account.get
+    _ <- if (balance < amount)
+      ZIO.fail("Insufficient funds in you account")
+    else
+      account.update(_ - amount)
+  } yield ()
+
+def deposit(account: Ref[Int], amount: Int): UIO[Unit] =
+  account.update(_ + amount)
+
+def transfer(from: Ref[Int], to: Ref[Int], amount: Int) =
+  for {
+    _ <- withdraw(from, amount)
+    _ <- deposit(to, amount)
+  } yield ()
+```
+
+The problem with this implementation is that if the transfer is interrupted after `withdraw` but before `deposit` operation completes, the state of the application will be inconsistent. The money will be withdrawn from the source account but not deposited to the destination account.
+
+There are several ways to fix this problem. In this example, we will make the `transfer` operation uninterruptible to make sure that there is no interruption in the middle of the transfer operation:
 
 ```scala mdoc:compile-only
-import zio._
-
-object MainApp extends ZIOAppDefault {
-  type State = Set[String]
-
-  def run =
+def transfer(from: Ref[Int], to: Ref[Int], amount: Int) = {
+  ZIO.uninterruptible {
     for {
-      state <- Ref.make[State](Set.empty)
-      _ <- getNames(state)
-      _ <- persistNames(state)
+      _ <- withdraw(from, amount)
+      _ <- deposit(to, amount)
     } yield ()
-
-  def getNames(state: Ref[State]) =
-    for {
-      _ <- ZIO.debug(s"stateful app started with $state")
-      _ <- Console.printLine("please enter 5 names:")
-      task = (i: Int) => for {
-        name <- Console.readLine(s"$i. ")
-        _ <- state.update(_ + name)
-      } yield ()
-      _ <- ZIO.foreach(1 to 5)(task)
-    } yield ()
-
-  def persistNames(state: Ref[State]) =
-    for {
-      _ <- ZIO.debug(s"persist started with $state")
-      names <- state.get
-      _ <- ZIO.foreach(names)(name => ZIO.debug(s"persist $name"))
-    } yield ()
-
+  }
 }
 ```
 
-So what happens if the `getNames` function is interrupted after the user entered a name and before it is added to the state? We will miss the name that the user entered. So we might need to retry the input operation and ask the user to enter the name again. But this is not user-friendly.
-
-Instead, we can fix this by postponing the interruption of the `getNames` function by using the `uninterruptible` combinator:
-
-```scala mdoc:compile-only
-import zio._
-
-type State = Set[String]
-
-def getNames(state: Ref[State]) =
-  for {
-    _ <- ZIO.debug(s"stateful app started with $state")
-    _ <- Console.printLine("please enter 5 names:")
-    task = (i: Int) => for {
-      _ <- ZIO.uninterruptible(
-        for {
-          name <- Console.readLine(s"$i. ") 
-          _ <- state.update(_ + name)
-        } yield ()
-      )
-    } yield ()
-    _ <- ZIO.foreach(1 to 5)(task)
-  } yield ()
-```
-
-Using this approach, we can avoid the problem of missing a name that the user entered. In this way, if in between the line `Console.readLine` and the line `state.update(_ + name)` the interruption occurs, the interruption will be postponed until the line `state.update(_ + name)` is executed. So we don't miss the name that the user entered.
-
-But this approach causes another problem. The `Console.readLine` is a blocking operation (semantic blocking). So if the interruption occurs while the `Console.readLine` is executing, the interruption gets stuck and the application will block indefinitely.
-
-To reproduce this scenario, we can use the `timeout` combinator to limit the time of the `getNames` function:
-
-```scala
-for {
-  state <- Ref.make[State](Set.empty)
-  _ <- getNames(state).timeout(10.seconds)
-  _ <- persistNames(state)
-} yield ()
-```
-
-By timing out the `getNames`, if the user doesn't enter all 5 names in 10 seconds the `Console.readLine` cannot be interrupted and the application will block indefinitely.
-
-So we when using `uninterruptible` we should care about blocking operations, turning any blocking operation to uninterruptible is dangerous and makes our application unresponsive.
-
-So, let's try a better approach. We can make sure that the blocking operation can be interrupted by using the `interruptible` combinator. By using this combinator, we can turn an uninterruptible operation into an interruptible operation inside an uninterruptible block:
-
-```scala
-// effect1 is inside uninterruptible region
-// effect2 is inside interruptible region
-// effect3 is inside uninterruptible region
-ZIO.uninterruptible(
-  effect1 *>
-   ZIO.interruptible(effect2) *> 
-   effect3
-)
-```
-
-So we can say that `ZIO.interruptible` combinator, makes a hole inside an uninterruptible region. So if an interruption occurs inside the hole, that interruption will be executed immediately.
+:::note
+The `uninterruptible` combinator just disables those interruptions which are created by other fibers. It does not disable all interruptions. So, if the fiber interrupts itself, it will be interrupted even if it is in the middle of an uninterruptible operation:
 
 ```scala mdoc:compile-only
-import zio._
-
-type State = Set[String]
-
-def getNames(state: Ref[State]) =
-  for {
-    _ <- ZIO.debug(s"stateful app started with an initial state")
-    _ <- Console.printLine("please enter 5 names:")
-    task = (i: Int) => for {
-      _ <- Console.print(s"$i. ")
-      _ <- ZIO.uninterruptible(
-        for {
-          name <- ZIO.interruptible(Console.readLine)
-          _ <- state.update(_ + name)
-        } yield ()
-      )
-    } yield ()
-    _ <- ZIO.foreach(1 to 5)(task)
-  } yield ()
+ZIO.uninterruptible {
+  ZIO.never.timeout(1.second) 
+}
 ```
+
+:::
+
+Note that to make an interruptible effect uninterruptible, we can use `ZIO.interruptible`/`ZIO#interruptible` combinators.
