@@ -1394,28 +1394,28 @@ sealed trait ZIO[-R, +E, +A]
       val leftFiber  = ZIO.unsafe.makeChildFiber(trace, self, parentState, parentRuntimeFlags, null)(Unsafe.unsafe)
       val rightFiber = ZIO.unsafe.makeChildFiber(trace, right, parentState, parentRuntimeFlags, null)(Unsafe.unsafe)
 
+      val startLeftFiber  = leftFiber.startSuspended()(Unsafe.unsafe)
+      val startRightFiber = rightFiber.startSuspended()(Unsafe.unsafe)
+
       leftFiber.setFiberRef(FiberRef.forkScopeOverride, Some(parentState.scope))(Unsafe.unsafe)
       rightFiber.setFiberRef(FiberRef.forkScopeOverride, Some(parentState.scope))(Unsafe.unsafe)
 
       ZIO
         .async[R1, E2, C](
           { cb =>
-            leftFiber.addObserver {
-              _ => // TODO: Thread this exit value up, so higher-levels don't need to await on left side
-                complete(leftFiber, rightFiber, leftWins, raceIndicator, cb)
+            leftFiber.addObserver { _ =>
+              complete(leftFiber, rightFiber, leftWins, raceIndicator, cb)
             }(Unsafe.unsafe)
 
-            rightFiber.addObserver {
-              _ => // TODO: Thread this exit value up, so higher-levels don't need to await on right side
-                complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
+            rightFiber.addObserver { _ =>
+              complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
             }(Unsafe.unsafe)
 
-            leftFiber.startFork(self)(Unsafe.unsafe)
-            rightFiber.startFork(right)(Unsafe.unsafe)
+            startLeftFiber(self)
+            startRightFiber(right)
           },
           leftFiber.id <> rightFiber.id
         )
-        .onInterrupt(leftFiber.interrupt <&> rightFiber.interrupt)
     }
 
   /**
@@ -2496,7 +2496,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
       val childFiber = ZIO.unsafe.makeChildFiber(trace, effect, parentFiber, parentRuntimeFlags, overrideScope)
 
-      childFiber.startFork(effect)
+      childFiber.resume(effect)
 
       childFiber
     }
