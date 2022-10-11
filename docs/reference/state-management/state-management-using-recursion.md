@@ -1,7 +1,7 @@
 ---
-id: sequential 
-title: "Sequential State Management"
-sidebar_label: "Sequential"
+id: recursion
+title: "State Management Using Recursion"
+sidebar_label: "Recursion"
 ---
 
 This is a very common pattern to use variables to keep track of the state. For example, to calculate the length of a list, we can store intermediate results inside the `count` variable:

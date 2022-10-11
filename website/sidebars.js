@@ -198,29 +198,23 @@ module.exports = {
     {
       type: "category",
       label: "State Management",
-      link: { type: "doc", id: "reference/state/index" },
+      link: { type: "doc", id: "reference/state-management/index" },
+      collapsed: true,
       items:
         [
-          "reference/state/sequential",
+          "reference/state-management/recursion",
+          "reference/state-management/global-shared-state",
           {
             type: "category",
-            label: "Concurrent",
-            link: { type: "doc", id: "reference/state/concurrent" },
+            label: "Fiber-local State",
+            link: { type: "doc", id: "reference/state-management/fiber-local-state" },
+            collapsed: true,
             items:
               [
-                "reference/state/global-shared-state",
-                {
-                  type: "category",
-                  label: "Fiber-local State",
-                  link: { type: "doc", id: "reference/state/fiber-local-state" },
-                  items:
-                    [
-                      "reference/state/fiberref",
-                      "reference/state/zstate",
-                    ]
-                }
+                "reference/state-management/fiberref",
+                "reference/state-management/zstate",
               ]
-          },
+          }
         ]
     },
     {
