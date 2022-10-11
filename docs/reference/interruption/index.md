@@ -346,7 +346,7 @@ val myApp =
   } yield ()
 ```
 
-Here is another example of the cancelation of a blocking operation. When we `accept` a server socket, this blocking operation will never be interrupted until we close that using `ServerSocket#close` method:
+Here is another example of the cancellation of a blocking operation. When we `accept` a server socket, this blocking operation will never be interrupted until we close that using `ServerSocket#close` method:
 
 ```scala mdoc:compile-only
 import java.net.{Socket, ServerSocket}
