@@ -147,7 +147,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       }
     }
 
-  def scope: FiberScope = FiberScope.make(this)
+  lazy val scope: FiberScope = FiberScope.make(this)
 
   def status(implicit trace: Trace): UIO[zio.Fiber.Status] =
     ask[zio.Fiber.Status]((_, currentStatus) => currentStatus)
@@ -165,8 +165,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private[zio] def addChild(child: FiberRuntime[_, _])(implicit unsafe: Unsafe): Unit =
+  private[zio] def addChild(child: FiberRuntime[_, _])(implicit unsafe: Unsafe): Unit = {
     getChildren().add(child)
+
+    if (isInterrupted()) child.tell(FiberMessage.InterruptSignal(getInterruptedCause()))
+  }
 
   /**
    * Adds an interruptor to the set of interruptors that are interrupting this

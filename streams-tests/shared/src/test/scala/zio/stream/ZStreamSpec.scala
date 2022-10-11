@@ -1697,7 +1697,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .exit
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
-          } @@ nonFlaky,
+          } @@ nonFlaky(10000),
           test("finalizer ordering") {
             for {
               execution <- Ref.make(List.empty[String])

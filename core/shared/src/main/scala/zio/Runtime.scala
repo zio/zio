@@ -126,7 +126,7 @@ trait Runtime[+R] { self =>
       if (fastExit != null) fastExit
       else {
         import internal.{FiberMessage, OneShot}
-        FiberScope.global.add(runtimeFlags, fiber)
+        FiberScope.global.add(null, runtimeFlags, fiber)
         val result = OneShot.make[Exit[E, A]]
         fiber.tell(
           FiberMessage.Stateful((fiber, _) => fiber.addObserver(exit => result.set(exit.asInstanceOf[Exit[E, A]])))
@@ -142,7 +142,7 @@ trait Runtime[+R] { self =>
       val fiberRefs = self.fiberRefs.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
       val fiber     = FiberRuntime[E, A](fiberId, fiberRefs.forkAs(fiberId), runtimeFlags)
 
-      FiberScope.global.add(runtimeFlags, fiber)
+      FiberScope.global.add(null, runtimeFlags, fiber)
 
       val supervisor = fiber.getSupervisor()
 

@@ -1416,6 +1416,7 @@ sealed trait ZIO[-R, +E, +A]
           },
           leftFiber.id <> rightFiber.id
         )
+        .onInterrupt(leftFiber.await <*> rightFiber.await)
     }
 
   /**
@@ -2534,7 +2535,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         if (overrideScope ne null) overrideScope
         else parentFiber.getFiberRef(FiberRef.forkScopeOverride).getOrElse(parentFiber.scope)
 
-      parentScope.add(parentRuntimeFlags, childFiber)(trace, unsafe)
+      parentScope.add(parentFiber, parentRuntimeFlags, childFiber)(trace, unsafe)
 
       childFiber
     }
