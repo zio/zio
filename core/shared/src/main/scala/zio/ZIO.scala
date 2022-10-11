@@ -1416,7 +1416,7 @@ sealed trait ZIO[-R, +E, +A]
           },
           leftFiber.id <> rightFiber.id
         )
-        .onInterrupt(leftFiber.await <*> rightFiber.await)
+        .onInterrupt(leftFiber.interruptAs(parentState.id) <*> rightFiber.interruptAs(parentState.id))
     }
 
   /**
