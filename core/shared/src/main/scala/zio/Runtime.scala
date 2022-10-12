@@ -241,6 +241,9 @@ object Runtime extends RuntimePlatformSpecific {
   def setExecutor(executor: Executor)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.overrideExecutor.locallyScoped(Some(executor)))
 
+  def setUnhandledErrorLogLevel(logLevel: LogLevel)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped(FiberRef.unhandledErrorLogLevel.locallyScoped(Some(logLevel)))
+
   def setReportFatal(reportFatal: Throwable => Nothing)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentReportFatal.locallyScoped(reportFatal))
 
