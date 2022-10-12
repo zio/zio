@@ -366,55 +366,6 @@ As we discussed earlier, it is dangerous for fibers to interrupt others. The dan
 
 - It is also a threat to _resource safety_. If the fiber is in the middle of acquiring a resource and is interrupted, the application will leak resources.
 
+ZIO introduces the `uninterruptible` and `uninterruptibleMask` operations for this purpose. These operators are primitives and very low-level; so we don't use them in regularly in application development unless we know what we are as library designers.
 
-By default, ZIO fibers are interruptible. But we can disable the interruption of a fiber by using `ZIO.uninterruptible`/`ZIO#uninterruptible` combinators. By applying `uninterruptible` to a ZIO effect, we can make sure that the fibers created by this effect will not be interrupted by other fibers.
-
-For example, assume we have a `transfer` method which transfers money from one account to another. We have implemented this operation in terms of `withdraw` and `deposit` operations:
-
-```scala mdoc:silent
-def withdraw(account: Ref[Int], amount: Int) =
-  for {
-    balance <- account.get
-    _ <- if (balance < amount)
-      ZIO.fail("Insufficient funds in you account")
-    else
-      account.update(_ - amount)
-  } yield ()
-
-def deposit(account: Ref[Int], amount: Int): UIO[Unit] =
-  account.update(_ + amount)
-
-def transfer(from: Ref[Int], to: Ref[Int], amount: Int) =
-  for {
-    _ <- withdraw(from, amount)
-    _ <- deposit(to, amount)
-  } yield ()
-```
-
-The problem with this implementation is that if the transfer is interrupted after `withdraw` but before `deposit` operation completes, the state of the application will be inconsistent. The money will be withdrawn from the source account but not deposited to the destination account.
-
-There are several ways to fix this problem. In this example, we will make the `transfer` operation uninterruptible to make sure that there is no interruption in the middle of the transfer operation:
-
-```scala mdoc:compile-only
-def transfer(from: Ref[Int], to: Ref[Int], amount: Int) = {
-  ZIO.uninterruptible {
-    for {
-      _ <- withdraw(from, amount)
-      _ <- deposit(to, amount)
-    } yield ()
-  }
-}
-```
-
-:::note
-The `uninterruptible` combinator just disables those interruptions which are created by other fibers. It does not disable all interruptions. So, if the fiber interrupts itself, it will be interrupted even if it is in the middle of an uninterruptible operation:
-
-```scala mdoc:compile-only
-ZIO.uninterruptible {
-  ZIO.never.timeout(1.second) 
-}
-```
-
-:::
-
-Note that to make an interruptible effect uninterruptible, we can use `ZIO.interruptible`/`ZIO#interruptible` combinators.
+If you find yourself using these operators, think again to refactor your code using high-level operators like `ZIO#onInterrupt`, `ZIO#onDone`, `ZIO#ensuring`, `ZIO.requireRelease*` and many other concurrent operators like `race`, `foreachPar`, etc.
