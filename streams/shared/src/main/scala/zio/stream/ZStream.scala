@@ -1066,7 +1066,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     zippable: Zippable[A, B],
     trace: Trace
   ): ZStream[R1, E1, zippable.Out] =
-    new ZStream(self.channel.concatMap(a => that.channel.mapOut(b => a.flatMap(a => b.map(b => zippable.zip(a, b))))))
+    crossWith(that)((a, b) => zippable.zip(a, b))
 
   /**
    * Composes this stream with the specified stream to create a cartesian
@@ -1079,7 +1079,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def crossLeft[R1 <: R, E1 >: E, B](that: => ZStream[R1, E1, B])(implicit
     trace: Trace
   ): ZStream[R1, E1, A] =
-    (self cross that).map(_._1)
+    crossWith((a, _) => a)
 
   /**
    * Composes this stream with the specified stream to create a cartesian
@@ -1091,7 +1091,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * variant.
    */
   def crossRight[R1 <: R, E1 >: E, B](that: => ZStream[R1, E1, B])(implicit trace: Trace): ZStream[R1, E1, B] =
-    (self cross that).map(_._2)
+    crossWith((_, b) => b)
 
   /**
    * Composes this stream with the specified stream to create a cartesian
