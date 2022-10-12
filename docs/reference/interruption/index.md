@@ -4,9 +4,6 @@ title: "Introduction to ZIO's Interruption Model"
 sidebar_label: Interruption Model
 ---
 
-
-## Interruption
-
 While developing concurrent applications, there are several cases that we need to _interrupt_ the execution of other fibers, for example:
 
 1. A parent fiber might start some child fibers to perform a task, and later the parent might decide that, it doesn't need the result of some or all of the child fibers.
