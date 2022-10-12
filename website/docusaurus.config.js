@@ -9,6 +9,21 @@ const config = {
   organizationName: 'zio',
   projectName: 'zio',
   themeConfig: {
+    algolia: {
+      // The application ID provided by Algolia
+      appId: 'IAX8GRSWEQ',
+
+      // Public API key: it is safe to commit it
+      apiKey: '6d38dc1ca6f0305c6e883ef79f82523d',
+
+      indexName: 'zio',
+
+      // Optional: see doc section below
+      contextualSearch: true,
+
+      // Optional: path for search page that enabled by default (`false` to disable it)
+      searchPagePath: 'search',
+    },
     docs: {
       sidebar: {
         autoCollapseCategories: true,
