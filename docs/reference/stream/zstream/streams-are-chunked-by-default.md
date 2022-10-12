@@ -14,4 +14,4 @@ So let's talk a bit about Chunk. Chunk is a ZIOs immutable array-backed collecti
 
 The `Chunk` data type is an immutable array-backed collection. Most importantly it tries to keep primitives unboxed. This is super important for the efficient processing of files and sockets. They are also very useful and efficient for encoding and decoding and writing transducers. 
 
-To learn more about this data type, we have introduced that at the [Chunk](../../misc/chunk.md) section.
+To learn more about this data type, we have introduced that at the [Chunk](../chunk.md) section.

@@ -299,6 +299,7 @@ module.exports = {
       link: { type: "doc", id: "reference/stream/index" },
       items: [
         "reference/stream/installation",
+        "reference/stream/chunk",
         {
           type: "category",
           label: "ZStream",
@@ -343,22 +344,31 @@ module.exports = {
     },
     {
       type: "category",
-      label: "Metrics",
-      link: { type: "doc", id: "reference/metrics/index" },
+      label: "Observability",
       items: [
+        "reference/observability/logging",
         {
           type: "category",
-          label: "Metric Types",
+          label: "Metrics",
+          link: { type: "doc", id: "reference/observability/metrics/index" },
           items: [
-            "reference/metrics/counter",
-            "reference/metrics/gauge",
-            "reference/metrics/histogram",
-            "reference/metrics/summary",
-            "reference/metrics/setcount"
+            {
+              type: "category",
+              label: "Metric Types",
+              items: [
+                "reference/observability/metrics/counter",
+                "reference/observability/metrics/gauge",
+                "reference/observability/metrics/histogram",
+                "reference/observability/metrics/summary",
+                "reference/observability/metrics/setcount"
+              ]
+            },
+            "reference/observability/metrics/metriclabel",
+            "reference/observability/metrics/jvm",
           ]
         },
-        "reference/metrics/metriclabel",
-        "reference/metrics/jvm",
+        "reference/observability/tracing",
+        "reference/observability/supervisor",
       ]
     },
     {
@@ -442,14 +452,6 @@ module.exports = {
           ]
         }
       ]
-    },
-    {
-      type: "category",
-      label: "Miscellaneous",
-      items: [
-        "reference/misc/chunk",
-        "reference/misc/supervisor",
-      ]
     }
   ],
   "guides-sidebar": [
@@ -511,66 +513,66 @@ module.exports = {
   ],
   "ecosystem-sidebar": [
     "ecosystem/index",
-      {
-        type: "category",
-        label: "Official Libraries",
-        collapsed: false,
-        link: { type: "doc", id: "ecosystem/officials/index" },
-        items: [
-          "ecosystem/officials/zio-actors",
-          "ecosystem/officials/zio-akka-cluster",
-          "ecosystem/officials/zio-aws",
-          "ecosystem/officials/zio-cache",
-          "ecosystem/officials/zio-config",
-          "ecosystem/officials/zio-ftp",
-          "ecosystem/officials/zio-json",
-          "ecosystem/officials/zio-kafka",
-          "ecosystem/officials/zio-logging",
-          "ecosystem/officials/zio-metrics",
-          "ecosystem/officials/zio-mock",
-          "ecosystem/officials/zio-nio",
-          "ecosystem/officials/zio-optics",
-          "ecosystem/officials/zio-prelude",
-          "ecosystem/officials/zio-process",
-          "ecosystem/officials/zio-query",
-          "ecosystem/officials/zio-redis",
-          "ecosystem/officials/zio-rocksdb",
-          "ecosystem/officials/zio-s3",
-          "ecosystem/officials/zio-schema",
-          "ecosystem/officials/zio-sqs",
-          "ecosystem/officials/zio-telemetry",
-          "ecosystem/officials/zio-zmx",
-        ]
-      },
-      {
-        type: "category",
-        label: "Community Libraries",
-        link: { type: "doc", id: "ecosystem/community/index" },
-        items: [
-          "ecosystem/community/caliban",
-          "ecosystem/community/distage",
-          "ecosystem/community/logstage",
-          "ecosystem/community/munit-zio",
-          "ecosystem/community/quill",
-          "ecosystem/community/rezilience",
-          "ecosystem/community/tamer",
-          "ecosystem/community/tranzactio",
-          "ecosystem/community/zio-amqp",
-          "ecosystem/community/zio-arrow",
-          "ecosystem/community/zio-aws-s3",
-          "ecosystem/community/zio-grpc",
-          "ecosystem/community/zio-http",
-          "ecosystem/community/zio-k8s",
-          "ecosystem/community/zio-kinesis",
-          "ecosystem/community/zio-pulsar",
-          "ecosystem/community/zio-saga",
-          "ecosystem/community/zio-slick-interop",
-          "ecosystem/community/zio-test-akka-http",
-        ],
-      },
-      "ecosystem/compatible",
-      "ecosystem/tools",
-      "ecosystem/templates"
+    {
+      type: "category",
+      label: "Official Libraries",
+      collapsed: false,
+      link: { type: "doc", id: "ecosystem/officials/index" },
+      items: [
+        "ecosystem/officials/zio-actors",
+        "ecosystem/officials/zio-akka-cluster",
+        "ecosystem/officials/zio-aws",
+        "ecosystem/officials/zio-cache",
+        "ecosystem/officials/zio-config",
+        "ecosystem/officials/zio-ftp",
+        "ecosystem/officials/zio-json",
+        "ecosystem/officials/zio-kafka",
+        "ecosystem/officials/zio-logging",
+        "ecosystem/officials/zio-metrics",
+        "ecosystem/officials/zio-mock",
+        "ecosystem/officials/zio-nio",
+        "ecosystem/officials/zio-optics",
+        "ecosystem/officials/zio-prelude",
+        "ecosystem/officials/zio-process",
+        "ecosystem/officials/zio-query",
+        "ecosystem/officials/zio-redis",
+        "ecosystem/officials/zio-rocksdb",
+        "ecosystem/officials/zio-s3",
+        "ecosystem/officials/zio-schema",
+        "ecosystem/officials/zio-sqs",
+        "ecosystem/officials/zio-telemetry",
+        "ecosystem/officials/zio-zmx",
+      ]
+    },
+    {
+      type: "category",
+      label: "Community Libraries",
+      link: { type: "doc", id: "ecosystem/community/index" },
+      items: [
+        "ecosystem/community/caliban",
+        "ecosystem/community/distage",
+        "ecosystem/community/logstage",
+        "ecosystem/community/munit-zio",
+        "ecosystem/community/quill",
+        "ecosystem/community/rezilience",
+        "ecosystem/community/tamer",
+        "ecosystem/community/tranzactio",
+        "ecosystem/community/zio-amqp",
+        "ecosystem/community/zio-arrow",
+        "ecosystem/community/zio-aws-s3",
+        "ecosystem/community/zio-grpc",
+        "ecosystem/community/zio-http",
+        "ecosystem/community/zio-k8s",
+        "ecosystem/community/zio-kinesis",
+        "ecosystem/community/zio-pulsar",
+        "ecosystem/community/zio-saga",
+        "ecosystem/community/zio-slick-interop",
+        "ecosystem/community/zio-test-akka-http",
+      ],
+    },
+    "ecosystem/compatible",
+    "ecosystem/tools",
+    "ecosystem/templates"
   ],
   "resources-sidebar": [
     "resources/index",

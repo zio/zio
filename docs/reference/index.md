@@ -103,11 +103,11 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 IO supports 5 types of Metrics:
 
-- **[Counter](metrics/counter.md)** — The Counter is used for any value that increases over time like _request counts_.
-- **[Gauge](metrics/gauge.md)** — The gauge is a single numerical value that can arbitrary goes up or down over time like _memory usage_.
-- **[Histogram](metrics/histogram.md)** — The Histogram is used to track the distribution of a set of observed values across a set of buckets like _request latencies_.
-- **[Summary](metrics/summary.md)** — The Summary represents a sliding window of a time series along with metrics for certain percentiles of the time series, referred to as quantiles like _request latencies_.
-- **[Frequency](metrics/setcount.md)** — The Frequency is a metric that counts the number of occurrences of distinct string values.
+- **[Counter](observability/metrics/counter.md)** — The Counter is used for any value that increases over time like _request counts_.
+- **[Gauge](observability/metrics/gauge.md)** — The gauge is a single numerical value that can arbitrary goes up or down over time like _memory usage_.
+- **[Histogram](observability/metrics/histogram.md)** — The Histogram is used to track the distribution of a set of observed values across a set of buckets like _request latencies_.
+- **[Summary](observability/metrics/summary.md)** — The Summary represents a sliding window of a time series along with metrics for certain percentiles of the time series, referred to as quantiles like _request latencies_.
+- **[Frequency](observability/metrics/setcount.md)** — The Frequency is a metric that counts the number of occurrences of distinct string values.
 
 ## Testing
 
@@ -126,7 +126,7 @@ IO supports 5 types of Metrics:
 
 ## Miscellaneous
 
-- **[Chunk](misc/chunk.md)**— `Chunk` is a fast, pure alternative to Arrays.
-- **[Supervisor](misc/supervisor.md)**— `Supervisor[A]` is allowed to supervise the launching and termination of fibers, producing some visible value of type `A` from the supervision.
+- **[Chunk](stream/chunk.md)**— `Chunk` is a fast, pure alternative to Arrays.
+- **[Supervisor](observability/supervisor.md)**— `Supervisor[A]` is allowed to supervise the launching and termination of fibers, producing some visible value of type `A` from the supervision.
 
 To learn more about these data types, please explore the pages above, or check out the Scaladoc documentation.
