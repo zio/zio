@@ -18,10 +18,10 @@ trait ZIOCompanionVersionSpecific {
    * diagnostics, but not affect the behavior of the returned effect.
    */
   def async[R, E, A](
-    register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Any,
+    register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Unit,
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    Async(trace, Unsafe.unsafe(register), () => blockingOn)
+    Async(trace, { k => Unsafe.unsafe(register)(k); null.asInstanceOf[ZIO[R, E, A]] }, () => blockingOn)
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -43,21 +43,23 @@ trait ZIOCompanionVersionSpecific {
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.suspendSucceed {
-      val cancelerRef = Ref.unsafe.make[URIO[R, Any]](ZIO.unit)(Unsafe.unsafe)
+      given Unsafe = Unsafe.unsafe
+      val cancelerRef = new java.util.concurrent.atomic.AtomicReference[URIO[R, Any]](ZIO.unit)
 
       ZIO
-        .async[R, E, A](
+        .Async[R, E, A](
+          trace,
           { k =>
             val result = register(k(_))
 
             result match {
-              case Left(canceler) => cancelerRef.unsafe.set(canceler)
-              case Right(done)    => k(done)
+              case Left(canceler) => cancelerRef.set(canceler); null.asInstanceOf[ZIO[R, E, A]]
+              case Right(done)    => done
             }
           },
-          blockingOn
+          () => blockingOn
         )
-        .onInterrupt(cancelerRef.unsafe.get(Unsafe.unsafe))
+        .onInterrupt(cancelerRef.get())
     }
 
   /**
@@ -79,13 +81,7 @@ trait ZIOCompanionVersionSpecific {
     register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    asyncInterrupt(
-      register(_) match {
-        case None      => Left(ZIO.unit)
-        case Some(now) => Right(now)
-      },
-      blockingOn
-    )
+    Async(trace, { k => Unsafe.unsafe(register)(k).orNull }, () => blockingOn)
 
   /**
    * Returns an effect that, when executed, will cautiously run the provided

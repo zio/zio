@@ -2233,7 +2233,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                             .runDrain
                             .either
               } yield assert(result)(isLeft(equalTo("Fail")))
-            } @@ zioTag(errors) @@ nonFlaky(1000)
+            } @@ zioTag(errors) @@ nonFlaky
           ) @@ zioTag(interruption),
           test("preserves scope of inner fibers") {
             for {
@@ -4167,7 +4167,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- left.offerAll(List(Chunk(1), Chunk(2)))
               chunk2 <- ZIO.replicateZIO(2)(out.take.flatMap(_.done)).map(_.flatten)
             } yield assert(chunk1)(equalTo(List((0, 0), (0, 1)))) && assert(chunk2)(equalTo(List((1, 1), (2, 1))))
-          } @@ nonFlaky(1000),
+          } @@ nonFlaky,
           test("handle empty pulls properly") {
             val stream0 = ZStream.fromChunks(Chunk(), Chunk(), Chunk(2))
             val stream1 = ZStream.fromChunks(Chunk(1), Chunk(1))
@@ -4186,7 +4186,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 result <- fiber.join
               } yield result
             )(equalTo(Chunk(1, 1, 1)))
-          } @@ nonFlaky(1000),
+          } @@ nonFlaky,
           test("handle empty pulls properly (JVM Only)") {
             assertZIO(
               ZStream

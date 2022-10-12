@@ -27,7 +27,7 @@ object IsFatal {
     Empty
 
   private final case class Single(tag: Class[_ <: Throwable])  extends IsFatal
-  private final case object Empty                              extends IsFatal
+  private case object Empty                                    extends IsFatal
   private final case class Both(left: IsFatal, right: IsFatal) extends IsFatal
 
   sealed trait Patch { self =>

@@ -89,6 +89,9 @@ object RuntimeFlags {
   def windDown(flags: RuntimeFlags): Boolean =
     isEnabled(flags)(RuntimeFlag.WindDown)
 
+  def workStealing(flags: RuntimeFlags): Boolean =
+    isEnabled(flags)(RuntimeFlag.WorkStealing)
+
   type Patch = Long
 
   object Patch {
@@ -158,7 +161,12 @@ object RuntimeFlags {
    * The default set of runtime flags, recommended for most applications.
    */
   val default: RuntimeFlags =
-    RuntimeFlags(RuntimeFlag.FiberRoots, RuntimeFlag.Interruption, RuntimeFlag.CooperativeYielding)
+    RuntimeFlags(
+      RuntimeFlag.WorkStealing,
+      RuntimeFlag.FiberRoots,
+      RuntimeFlag.Interruption,
+      RuntimeFlag.CooperativeYielding
+    )
 
   /**
    * Creates a patch that disables the specified runtime flag.
