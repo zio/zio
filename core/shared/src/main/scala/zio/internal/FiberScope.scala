@@ -67,11 +67,21 @@ private[zio] object FiberScope {
       val parent = parentRef.get()
 
       if (parent ne null) {
+        // Parent is not GC'd. Let's check to see if the parent is the current
+        // fiber:
         if (currentFiber eq parent) {
+          // The parent is the current fiber so it is safe to directly add the
+          // child to the parent:
           parent.addChild(child)
         } else {
+          // The parent is not the current fiber. So we need to send a message
+          // to the parent so it will add the child to itself:
           parent.tell(FiberMessage.Stateful((parentFiber, _) => parentFiber.addChild(child)))
         }
+      } else {
+        // Parent was GC'd. We immediately interrupt the child fiber using the id
+        // of the current fiber (which is adding the child to the parent):
+        child.tell(FiberMessage.InterruptSignal(Cause.interrupt(currentFiber.id)))
       }
     }
   }
