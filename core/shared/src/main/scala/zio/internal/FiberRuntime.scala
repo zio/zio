@@ -165,11 +165,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private[zio] def addChild(child: FiberRuntime[_, _])(implicit unsafe: Unsafe): Unit = {
-    getChildren().add(child)
+  private[zio] def addChild(child: FiberRuntime[_, _])(implicit unsafe: Unsafe): Unit =
+    if (isAlive()) {
+      getChildren().add(child)
 
-    if (isInterrupted()) child.tell(FiberMessage.InterruptSignal(getInterruptedCause()))
-  }
+      if (isInterrupted()) child.tell(FiberMessage.InterruptSignal(getInterruptedCause()))
+    } else {
+      child.tell(FiberMessage.InterruptSignal(getInterruptedCause()))
+    }
 
   /**
    * Adds an interruptor to the set of interruptors that are interrupting this
@@ -1389,7 +1392,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       }
     }
 
-    self.asyncTrace = FiberRuntime.unstartedFiberTrace.asInstanceOf[Trace]
+    self.asyncTrace = id.location
     self.asyncInterruptor = callback.asInstanceOf[ZIO[Any, Any, Any] => Any]
     self.asyncBlockingOn = FiberRuntime.notBlockingOn
 
@@ -1490,8 +1493,6 @@ object FiberRuntime {
       def thenCase(context: Unit, left: Unit, right: Unit): Unit                       = ()
       def stacklessCase(context: Unit, value: Unit, stackless: Boolean): Unit          = ()
     }
-
-  private val unstartedFiberTrace: Trace = "<unstarted fibers have no trace>".asInstanceOf[Trace]
 
   private val notBlockingOn: () => FiberId = () => FiberId.None
 }

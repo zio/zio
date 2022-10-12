@@ -1373,7 +1373,7 @@ sealed trait ZIO[-R, +E, +A]
     leftWins: (Fiber.Runtime[E, A], Fiber.Runtime[ER, B]) => ZIO[R1, E2, C],
     rightWins: (Fiber.Runtime[ER, B], Fiber.Runtime[E, A]) => ZIO[R1, E2, C]
   )(implicit trace: Trace): ZIO[R1, E2, C] =
-    ZIO.withFiberRuntime[R1, E2, C] { (parentState, parentStatus) =>
+    ZIO.withFiberRuntime[R1, E2, C] { (parentFiber, parentStatus) =>
       import java.util.concurrent.atomic.AtomicBoolean
 
       val parentRuntimeFlags = parentStatus.runtimeFlags
@@ -1391,14 +1391,14 @@ sealed trait ZIO[-R, +E, +A]
 
       val raceIndicator = new AtomicBoolean(true)
 
-      val leftFiber  = ZIO.unsafe.makeChildFiber(trace, self, parentState, parentRuntimeFlags, null)(Unsafe.unsafe)
-      val rightFiber = ZIO.unsafe.makeChildFiber(trace, right, parentState, parentRuntimeFlags, null)(Unsafe.unsafe)
+      val leftFiber  = ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, null)(Unsafe.unsafe)
+      val rightFiber = ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, null)(Unsafe.unsafe)
 
       val startLeftFiber  = leftFiber.startSuspended()(Unsafe.unsafe)
       val startRightFiber = rightFiber.startSuspended()(Unsafe.unsafe)
 
-      leftFiber.setFiberRef(FiberRef.forkScopeOverride, Some(parentState.scope))(Unsafe.unsafe)
-      rightFiber.setFiberRef(FiberRef.forkScopeOverride, Some(parentState.scope))(Unsafe.unsafe)
+      leftFiber.setFiberRef(FiberRef.forkScopeOverride, Some(parentFiber.scope))(Unsafe.unsafe)
+      rightFiber.setFiberRef(FiberRef.forkScopeOverride, Some(parentFiber.scope))(Unsafe.unsafe)
 
       ZIO
         .async[R1, E2, C](
@@ -1416,7 +1416,11 @@ sealed trait ZIO[-R, +E, +A]
           },
           leftFiber.id <> rightFiber.id
         )
-        .onInterrupt(leftFiber.interruptAs(parentState.id) <*> rightFiber.interruptAs(parentState.id))
+        .onInterrupt(
+          leftFiber.interruptAsFork(parentFiber.id) *> rightFiber.interruptAsFork(
+            parentFiber.id
+          ) *> leftFiber.await *> rightFiber.await
+        ) // TODO: .onInterrupt(leftFiber.await *> rightFiber.await)
     }
 
   /**

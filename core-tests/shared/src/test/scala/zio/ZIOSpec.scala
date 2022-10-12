@@ -2344,7 +2344,7 @@ object ZIOSpec extends ZIOBaseSpec {
             for {
               promise <- Promise.make[Nothing, Unit]
               _       <- promise.succeed(())
-              _       <- start.succeed(()).withFinalizer(_ => promise.await.timeout(10.seconds) *> end.succeed(()))
+              _       <- start.succeed(()).withFinalizer(_ => promise.await.timeout(10.seconds).disconnect *> end.succeed(()))
               _       <- ZIO.never
             } yield ()
           }
@@ -2356,7 +2356,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- fiber.interrupt
           _     <- end.await
         } yield assertCompletes
-      } @@ nonFlaky,
+      },
       test("catchAllCause") {
         val io =
           for {
