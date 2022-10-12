@@ -1079,7 +1079,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def crossLeft[R1 <: R, E1 >: E, B](that: => ZStream[R1, E1, B])(implicit
     trace: Trace
   ): ZStream[R1, E1, A] =
-    crossWith((a, _) => a)
+    crossWith(that)((a, _) => a)
 
   /**
    * Composes this stream with the specified stream to create a cartesian
@@ -1091,7 +1091,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * variant.
    */
   def crossRight[R1 <: R, E1 >: E, B](that: => ZStream[R1, E1, B])(implicit trace: Trace): ZStream[R1, E1, B] =
-    crossWith((_, b) => b)
+    crossWith(that)((_, b) => b)
 
   /**
    * Composes this stream with the specified stream to create a cartesian
