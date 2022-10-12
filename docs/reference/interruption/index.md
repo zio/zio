@@ -366,6 +366,6 @@ As we discussed earlier, it is dangerous for fibers to interrupt others. The dan
 
 - It is also a threat to _resource safety_. If the fiber is in the middle of acquiring a resource and is interrupted, the application will leak resources.
 
-ZIO introduces the `uninterruptible` and `uninterruptibleMask` operations for this purpose. These operators are primitives and very low-level; so we don't use them in regularly in application development unless we know what we are as library designers.
+ZIO introduces the `uninterruptible` and `uninterruptibleMask` operations for this purpose. The former creates a region of code uninterruptible and the latter has the same functionality but gives us a `restore` function that can be applied to any region of code, to restore the interruptibility of that region.
 
-If you find yourself using these operators, think again to refactor your code using high-level operators like `ZIO#onInterrupt`, `ZIO#onDone`, `ZIO#ensuring`, `ZIO.requireRelease*` and many other concurrent operators like `race`, `foreachPar`, etc.
+These operators are advanced and very low-level; so we don't use them in regularly in application development unless we know what we are as library designers. If you find yourself using these operators, think again to refactor your code using high-level operators like `ZIO#onInterrupt`, `ZIO#onDone`, `ZIO#ensuring`, `ZIO.requireRelease*` and many other concurrent operators like `race`, `foreachPar`, etc.
