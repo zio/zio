@@ -491,6 +491,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     }
 
   /**
+   * Accesses the environment of the pipeline in the context of a pipeline.
+   */
+  def environmentWithPipeline[Env]: EnvironmentWithPipelinePartiallyApplied[Env] =
+    new EnvironmentWithPipelinePartiallyApplied[Env]
+
+  /**
    * Creates a pipeline that filters elements according to the specified
    * predicate.
    */
@@ -804,6 +810,13 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           mapAccumZIO[Env, Err, In, Out, Out](s)((s, a) => f(s, a).map(s => (s, s))).channel
       )
     }
+
+  /**
+   * Accesses the specified service in the environment of the pipeline in the
+   * context of a pipeline.
+   */
+  def serviceWithPipeline[Service]: ServiceWithPipelinePartiallyApplied[Service] =
+    new ServiceWithPipelinePartiallyApplied[Service]
 
   /**
    * Splits strings on a delimiter.
@@ -1286,6 +1299,21 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   private def utf8DecodeNoBom(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(StandardCharsets.UTF_8)
+
+  final class EnvironmentWithPipelinePartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Env1 <: Env, Err, In, Out](f: ZEnvironment[Env] => ZPipeline[Env1, Err, In, Out])(implicit
+      trace: Trace
+    ): ZPipeline[Env with Env1, Err, In, Out] =
+      ZPipeline.unwrap(ZIO.environmentWith(f))
+  }
+
+  final class ServiceWithPipelinePartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Env <: Service, Err, In, Out](f: Service => ZPipeline[Env, Err, In, Out])(implicit
+      tag: Tag[Service],
+      trace: Trace
+    ): ZPipeline[Env with Service, Err, In, Out] =
+      ZPipeline.unwrap(ZIO.serviceWith[Service](f))
+  }
 
   final class UnwrapScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
     def apply[Err, In, Out](scoped: => ZIO[Scope with Env, Err, ZPipeline[Env, Err, In, Out]])(implicit
