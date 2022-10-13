@@ -1312,7 +1312,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       tag: Tag[Service],
       trace: Trace
     ): ZPipeline[Env with Service, Err, In, Out] =
-      ZPipeline.unwrap(ZIO.serviceWith(f))
+      ZPipeline.unwrap(ZIO.serviceWith[Service](f))
   }
 
   final class UnwrapScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
