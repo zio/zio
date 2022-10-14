@@ -25,6 +25,9 @@ object BenchmarkUtil extends Runtime[Any] { self =>
   def catsForeach[A, B](as: List[A])(f: A => CIO[B]): CIO[List[B]] =
     Traverse[List].traverse(as)(f)
 
+  def catsForeachDiscard[A, B](as: List[A])(f: A => CIO[B]): CIO[Unit] =
+    Traverse[List].traverse_(as)(f)
+
   def catsForkAll[A](as: Iterable[CIO[A]]): CIO[CFiber[CIO, Throwable, List[A]]] = ???
 
   def catsRepeat[A](n: Int)(io: CIO[A]): CIO[A] =

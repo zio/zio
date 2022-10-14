@@ -1066,7 +1066,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     zippable: Zippable[A, B],
     trace: Trace
   ): ZStream[R1, E1, zippable.Out] =
-    new ZStream(self.channel.concatMap(a => that.channel.mapOut(b => a.flatMap(a => b.map(b => zippable.zip(a, b))))))
+    crossWith(that)((a, b) => zippable.zip(a, b))
 
   /**
    * Composes this stream with the specified stream to create a cartesian
@@ -1079,7 +1079,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def crossLeft[R1 <: R, E1 >: E, B](that: => ZStream[R1, E1, B])(implicit
     trace: Trace
   ): ZStream[R1, E1, A] =
-    (self cross that).map(_._1)
+    crossWith(that)((a, _) => a)
 
   /**
    * Composes this stream with the specified stream to create a cartesian
@@ -1091,7 +1091,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * variant.
    */
   def crossRight[R1 <: R, E1 >: E, B](that: => ZStream[R1, E1, B])(implicit trace: Trace): ZStream[R1, E1, B] =
-    (self cross that).map(_._2)
+    crossWith(that)((_, b) => b)
 
   /**
    * Composes this stream with the specified stream to create a cartesian
@@ -4705,11 +4705,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def logAnnotate(annotations: => Set[LogAnnotation])(implicit
     trace: Trace
   ): ZStream[Any, Nothing, Unit] =
-    ZStream.scoped {
-      FiberRef.currentLogAnnotations.locallyScopedWith(_ ++ annotations.map { case LogAnnotation(key, value) =>
-        key -> value
-      })
-    }
+    ZStream.scoped(ZIO.logAnnotateScoped(annotations))
 
   /**
    * Retrieves the log annotations associated with the current scope.
@@ -4751,20 +4747,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Sets the log level for streams composed after this.
    */
   def logLevel(level: LogLevel)(implicit trace: Trace): ZStream[Any, Nothing, Unit] =
-    ZStream.scoped(FiberRef.currentLogLevel.locallyScoped(level))
+    ZStream.scoped(ZIO.logLevelScoped(level))
 
   /**
    * Adjusts the label for the logging span for streams composed after this.
    */
   def logSpan(label: => String)(implicit trace: Trace): ZStream[Any, Nothing, Unit] =
-    ZStream.scoped {
-      FiberRef.currentLogSpan.get.flatMap { stack =>
-        val instant = java.lang.System.currentTimeMillis()
-        val logSpan = LogSpan(label, instant)
-
-        FiberRef.currentLogSpan.locallyScoped(logSpan :: stack)
-      }
-    }
+    ZStream.scoped(ZIO.logSpanScoped(label))
 
   /**
    * Logs the specified message at the trace log level.

@@ -6,60 +6,76 @@ import java.util.concurrent.atomic.AtomicReferenceArray
 import scala.annotation.tailrec
 
 /**
- * A [[WeakConcurrentBag]] stores a collection of values, each wrapped in a
- * `WeakReference`. The structure is optimized for addition, and will achieve
- * zero allocations in the happy path (aside from the allocation of the
- * `WeakReference`, which is unavoidable). To remove a value from the bag, it is
- * sufficient to clear the corresponding weak reference, at which point the weak
- * reference will be removed from the bag during the next garbage collection.
+ * A [[WeakConcurrentBag]] stores a collection of values that will ultimately be
+ * wrapped in a `WeakReference`, if they are survive long enough in a 'nursery'.
+ * The structure is optimized for addition, and will achieve zero allocations in
+ * the happy path. There is no way to remove values from the bag, as they will
+ * be automatically removed assuming they become unreachable.
  *
- * Garbage collection happens regularly during the `add` operation. Assuming
- * uniform distribution of hash codes of values added to the bag, the chance of
- * garbage collection occurring during an `add` operation is 1/n, where `n` is
- * the capacity of the table backing the bag.
+ * The larger the nursery size, the less weak references will be created,
+ * because the more values will die before they are forced out of the nursery.
+ * However, larger nursery sizes use more memory, and increase the worst
+ * possible performance of the `add` method, which has to do maintenance of the
+ * nursery and occassional garbage collection.
  */
-private[zio] class WeakConcurrentBag[A](tableSize: Int) {
-  import zio.internal.FastList._
-
-  private[this] val contents: AtomicReferenceArray[List[WeakReference[A]]] = new AtomicReferenceArray(tableSize)
+private[zio] class WeakConcurrentBag[A](nurserySize: Int, isAlive: A => Boolean) {
+  val nursery   = RingBuffer[A](nurserySize)
+  val graduates = Platform.newConcurrentSet[WeakReference[A]]()(zio.Unsafe.unsafe)
 
   /**
-   * Adds the specified value to the concurrent bag, returning a `WeakReference`
-   * that wraps the value.
+   * Adds a new value to the weak concurrent bag, graduating nursery occupants
+   * if necessary to make room.
    */
-  final def add(value: A): WeakReference[A] = {
-    val hashCode = value.hashCode.abs
-    val bucket   = hashCode % tableSize
-
-    @tailrec
-    def loop(newRef: WeakReference[A]): WeakReference[A] = {
-      val oldValue = contents.get(bucket)
-      val newValue = newRef :: oldValue
-
-      if (!contents.compareAndSet(bucket, oldValue, newValue)) loop(newRef)
-      else newRef
+  final def add(a: A): Unit =
+    if (!nursery.offer(a)) {
+      graduate()
+      add(a)
     }
 
-    if (bucket == 0) gc()
+  /**
+   * Performs a garbage collection, which consists of traversing long-term
+   * storage, identifying dead or GC'd values, and removing them.
+   */
+  final def gc(): Unit = {
+    val iterator = graduates.iterator()
 
-    loop(new WeakReference[A](value))
+    while (iterator.hasNext()) {
+      val weakRef = iterator.next()
+      val value   = weakRef.get()
+
+      if (value == null) {
+        graduates.remove(weakRef) // TODO: Reuse weakref
+      } else {
+        if (!isAlive(value)) graduates.remove(weakRef)
+      }
+    }
   }
 
   /**
-   * Performs garbage collection, removing any empty weak references.
+   * Moves all occupants of the nursery into long-term storage in a concurrent
+   * set, wrapped in a weak reference to avoid interfering with GC.
+   *
+   * This method will occassionally perform garbage collection, but only when it
+   * succeeds in moving 1/10th or more of the nursery occupants to long- term
+   * storage.
    */
-  final def gc(): Unit = {
-    val predicate: WeakReference[A] => Boolean =
-      ref => (ref ne null) && (ref.get() != null)
+  final def graduate(): Unit = {
+    var graduateCount = 0
+    var element       = nursery.poll(null.asInstanceOf[A])
 
-    (0 until tableSize).foreach { bucket =>
-      val oldValue = contents.get(bucket)
+    while (element != null) {
+      if (isAlive(element)) {
+        val weakRef = new WeakReference[A](element)
 
-      if (!oldValue.forall(predicate)) {
-        val newValue = oldValue.filter(predicate)
-
-        contents.compareAndSet(bucket, oldValue, newValue)
+        graduates.add(weakRef)
       }
+
+      element = nursery.poll(null.asInstanceOf[A])
+      graduateCount += 1
+    }
+
+    if (graduateCount > nurserySize / 10) {
+      gc()
     }
   }
 
@@ -67,60 +83,47 @@ private[zio] class WeakConcurrentBag[A](tableSize: Int) {
    * Returns a weakly consistent iterator over the bag. This iterator will never
    * throw exceptions even in the presence of concurrent modifications.
    */
-  final def iterator: Iterator[A] =
+  final def iterator: Iterator[A] = {
+    graduate()
+
     new Iterator[A] {
-      var _currentBucket = 0
-      var _currentList   = List.empty[WeakReference[A]]
-      var _nextElement   = null.asInstanceOf[A]
+      val it    = graduates.iterator()
+      var _next = prefetch()
 
-      prefetchNext()
+      @tailrec
+      def prefetch(): A =
+        if (it.hasNext()) {
+          val next = it.next().get()
 
-      override def hasNext: Boolean = _nextElement != null
-
-      override def next(): A = {
-        val value = _nextElement
-
-        if (value == null) throw new NoSuchElementException()
-        else prefetchNext()
-
-        value
-      }
-
-      private def prefetchNext(): Unit = {
-        val bucketCount = tableSize
-
-        var nextElement   = null.asInstanceOf[A]
-        var currentList   = _currentList
-        var currentBucket = _currentBucket
-
-        while ((currentBucket < bucketCount || currentList.nonEmpty) && (nextElement == null)) {
-          if (currentList.isEmpty) {
-            currentList = contents.get(currentBucket)
-            currentBucket = currentBucket + 1
-          } else {
-            nextElement = currentList.head.get()
-            currentList = currentList.tail
-          }
+          if (next == null) prefetch()
+          else next
+        } else {
+          null.asInstanceOf[A]
         }
 
-        _nextElement = nextElement
-        _currentList = currentList
-        _currentBucket = currentBucket
-      }
+      def hasNext() = _next != null
+
+      def next(): A =
+        if (_next == null)
+          throw new NoSuchElementException("There is no more element in the weak concurrent bag iterator")
+        else {
+          val result = _next
+
+          _next = prefetch()
+
+          result
+        }
     }
+  }
 
   /**
-   * Returns the size of the bag. Due to concurrent modification, this is only
-   * an estimate. Note this operation is O(n.max(m)), where n is the number of
-   * elements in the collection, and m is the table size.
+   * Returns the approximate size of the bag.
    */
-  final def size: Int =
-    (0 until tableSize).foldLeft(0) { case (sum, bucket) =>
-      sum + contents.get(bucket).size
-    }
+  def size = graduates.size() + nursery.size()
 
   override final def toString(): String = iterator.mkString("WeakConcurrentBag(", ",", ")")
 }
 private[zio] object WeakConcurrentBag {
-  def apply[A](tableSize: Int): WeakConcurrentBag[A] = new WeakConcurrentBag(tableSize)
+  def apply[A](capacity: Int, isAlive: A => Boolean = (_: A) => true): WeakConcurrentBag[A] =
+    new WeakConcurrentBag(capacity, isAlive)
 }

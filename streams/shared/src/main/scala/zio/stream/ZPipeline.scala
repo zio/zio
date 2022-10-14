@@ -212,6 +212,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     }
 
   /**
+   * Creates a pipeline that exposes the chunk structure of the stream.
+   */
+  def chunks[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, Chunk[In]] =
+    mapChunks(Chunk.single)
+
+  /**
    * Creates a pipeline that collects elements with the specified partial
    * function.
    *
@@ -485,11 +491,23 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     }
 
   /**
+   * Accesses the environment of the pipeline in the context of a pipeline.
+   */
+  def environmentWithPipeline[Env]: EnvironmentWithPipelinePartiallyApplied[Env] =
+    new EnvironmentWithPipelinePartiallyApplied[Env]
+
+  /**
    * Creates a pipeline that filters elements according to the specified
    * predicate.
    */
   def filter[In](f: In => Boolean)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(_.filter(f)))
+
+  /**
+   * Creates a pipeline that submerges chunks into the structure of the stream.
+   */
+  def flattenChunks[In](implicit trace: Trace): ZPipeline[Any, Nothing, Chunk[In], In] =
+    ZPipeline.mapChunks(_.flatten)
 
   /**
    * Creates a pipeline that groups on adjacent keys, calculated by function f.
@@ -794,6 +812,13 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     }
 
   /**
+   * Accesses the specified service in the environment of the pipeline in the
+   * context of a pipeline.
+   */
+  def serviceWithPipeline[Service]: ServiceWithPipelinePartiallyApplied[Service] =
+    new ServiceWithPipelinePartiallyApplied[Service]
+
+  /**
    * Splits strings on a delimiter.
    */
   def splitOn(delimiter: => String)(implicit trace: Trace): ZPipeline[Any, Nothing, String, String] =
@@ -994,6 +1019,20 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
     new ZPipeline(loop)
   }
+
+  /**
+   * Creates a pipeline produced from an effect.
+   */
+  def unwrap[Env, Err, In, Out](zio: ZIO[Env, Err, ZPipeline[Env, Err, In, Out]])(implicit
+    trace: Trace
+  ): ZPipeline[Env, Err, In, Out] =
+    new ZPipeline(ZChannel.unwrap(zio.map(_.channel)))
+
+  /**
+   * Created a pipeline produced from a scoped effect.
+   */
+  def unwrapScoped[Env]: UnwrapScopedPartiallyApplied[Env] =
+    new UnwrapScopedPartiallyApplied[Env]
 
   /**
    * Creates a pipeline that converts a stream of bytes into a stream of strings
@@ -1260,4 +1299,26 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   private def utf8DecodeNoBom(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(StandardCharsets.UTF_8)
+
+  final class EnvironmentWithPipelinePartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Env1 <: Env, Err, In, Out](f: ZEnvironment[Env] => ZPipeline[Env1, Err, In, Out])(implicit
+      trace: Trace
+    ): ZPipeline[Env with Env1, Err, In, Out] =
+      ZPipeline.unwrap(ZIO.environmentWith(f))
+  }
+
+  final class ServiceWithPipelinePartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Env <: Service, Err, In, Out](f: Service => ZPipeline[Env, Err, In, Out])(implicit
+      tag: Tag[Service],
+      trace: Trace
+    ): ZPipeline[Env with Service, Err, In, Out] =
+      ZPipeline.unwrap(ZIO.serviceWith[Service](f))
+  }
+
+  final class UnwrapScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Err, In, Out](scoped: => ZIO[Scope with Env, Err, ZPipeline[Env, Err, In, Out]])(implicit
+      trace: Trace
+    ): ZPipeline[Env, Err, In, Out] =
+      new ZPipeline(ZChannel.unwrapScoped[Env](scoped.map(_.channel)))
+  }
 }

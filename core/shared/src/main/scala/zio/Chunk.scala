@@ -386,11 +386,11 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       dropping as builder.result()
     }
 
-  override final def equals(that: Any): Boolean =
-    that match {
+  override def equals(that: Any): Boolean =
+    (self eq that.asInstanceOf[AnyRef]) || (that match {
       case that: Seq[_] => self.corresponds(that)(_ == _)
       case _            => false
-    }
+    })
 
   /**
    * Determines whether a predicate is satisfied for at least one element of
@@ -1873,7 +1873,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def |(x: T, y: T): T
     def &(x: T, y: T): T
     def ^(x: T, y: T): T
-    def unary_~(x: T): T
+    def invert(x: T): T
     def classTag: ClassTag[T]
   }
 
@@ -1888,7 +1888,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       def |(x: Byte, y: Byte): Byte = (x | y).toByte
       def &(x: Byte, y: Byte): Byte = (x & y).toByte
       def ^(x: Byte, y: Byte): Byte = (x ^ y).toByte
-      def unary_~(x: Byte): Byte    = (~x).toByte
+      def invert(x: Byte): Byte     = (~x).toByte
       def classTag: ClassTag[Byte]  = ClassTag.Byte
     }
     implicit val IntOps: BitOps[Int] = new BitOps[Int] {
@@ -1900,7 +1900,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       def |(x: Int, y: Int): Int  = x | y
       def &(x: Int, y: Int): Int  = x & y
       def ^(x: Int, y: Int): Int  = x ^ y
-      def unary_~(x: Int): Int    = ~x
+      def invert(x: Int): Int     = ~x
       def classTag: ClassTag[Int] = ClassTag.Int
     }
     implicit val LongOps: BitOps[Long] = new BitOps[Long] {
@@ -1912,7 +1912,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       def |(x: Long, y: Long): Long = x | y
       def &(x: Long, y: Long): Long = x & y
       def ^(x: Long, y: Long): Long = x ^ y
-      def unary_~(x: Long): Long    = ~x
+      def invert(x: Long): Long     = ~x
       def classTag: ClassTag[Long]  = ClassTag.Long
     }
   }
@@ -2401,6 +2401,13 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     override def apply(n: Int): Nothing =
       throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
+
+    override def equals(that: Any): Boolean =
+      that match {
+        case chunk: Chunk[_] => self eq chunk
+        case seq: Seq[_]     => seq.isEmpty
+        case _               => false
+      }
 
     override def foreach[B](f: Nothing => B): Unit = {
       val _ = f

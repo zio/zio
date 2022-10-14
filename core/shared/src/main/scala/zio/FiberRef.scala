@@ -370,6 +370,11 @@ object FiberRef {
   )(implicit trace: Trace): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
     makeWith(unsafe.makePatch(initial, differ, fork)(Unsafe.unsafe))
 
+  def makeRuntimeFlags(initial: RuntimeFlags)(implicit
+    trace: Trace
+  ): ZIO[Scope, Nothing, FiberRef.WithPatch[RuntimeFlags, RuntimeFlags.Patch]] =
+    makeWith(unsafe.makeRuntimeFlags(initial)(Unsafe.unsafe))
+
   def makeSet[A](initial: => Set[A])(implicit
     trace: Trace
   ): ZIO[Scope, Nothing, FiberRef.WithPatch[Set[A], SetPatch[A]]] =
@@ -461,6 +466,15 @@ object FiberRef {
           }
       }
 
+    def makeRuntimeFlags(
+      initial: RuntimeFlags
+    )(implicit unsafe: Unsafe): FiberRef.WithPatch[RuntimeFlags, RuntimeFlags.Patch] =
+      makePatch[RuntimeFlags, RuntimeFlags.Patch](
+        initial,
+        Differ.runtimeFlags,
+        RuntimeFlags.Patch.empty
+      )
+
     def makeSet[A](
       initial: Set[A]
     )(implicit unsafe: Unsafe): FiberRef.WithPatch[Set[A], SetPatch[A]] =
@@ -503,6 +517,9 @@ object FiberRef {
 
   private[zio] val currentReportFatal: FiberRef[Throwable => Nothing] =
     FiberRef.unsafe.make(Runtime.defaultReportFatal)(Unsafe.unsafe)
+
+  private[zio] val currentRuntimeFlags: FiberRef.WithPatch[RuntimeFlags, RuntimeFlags.Patch] =
+    FiberRef.unsafe.makeRuntimeFlags(RuntimeFlags.none)(Unsafe.unsafe)
 
   private[zio] val currentSupervisor: FiberRef.WithPatch[Supervisor[Any], Supervisor.Patch] =
     FiberRef.unsafe.makeSupervisor(Runtime.defaultSupervisor)(Unsafe.unsafe)

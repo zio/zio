@@ -1215,7 +1215,7 @@ There is also a work-in-progress implementation of the Raft protocol called [ZIO
 [18]: ../../reference/test
 [19]: https://doc.akka.io/docs/akka/current/stream/stream-testkit.html
 [20]: https://doc.akka.io/docs/akka/current/cluster-metrics.html
-[21]: ../../reference/metrics
+[21]: ../../reference/observability/metrics
 [22]: https://doc.akka.io/docs/akka/current/general/supervision.html
 [23]: https://doc.akka.io/docs/akka-grpc/current/index.html
 [24]: ../../ecosystem/community/zio-grpc.md
@@ -1269,9 +1269,9 @@ There is also a work-in-progress implementation of the Raft protocol called [ZIO
 [72]: ../../ecosystem/officials/zio-cache.md
 [73]: https://devsisters.github.io/shardcake/ 
 [74]: https://doc.akka.io/docs/akka/current/typed/cluster-sharding.html
-[75]: ../../reference/state/global-shared-state.md
-[76]: ../../reference/state/fiberref.md
-[77]: ../../reference/state/zstate.md
+[75]: ../../reference/state-management/global-shared-state.md
+[76]: ../../reference/state-management/fiberref.md
+[77]: ../../reference/state-management/zstate.md
 [78]: https://doc.akka.io/docs/akka/current/typed/mailboxes.html
 [79]: ../../reference/concurrency/queue.md
 [80]: ../../reference/fiber/fiber.md

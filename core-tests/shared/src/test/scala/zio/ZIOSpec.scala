@@ -2344,7 +2344,7 @@ object ZIOSpec extends ZIOBaseSpec {
             for {
               promise <- Promise.make[Nothing, Unit]
               _       <- promise.succeed(())
-              _       <- start.succeed(()).withFinalizer(_ => promise.await.timeout(10.seconds) *> end.succeed(()))
+              _       <- start.succeed(()).withFinalizer(_ => promise.await.timeout(10.seconds).disconnect *> end.succeed(()))
               _       <- ZIO.never
             } yield ()
           }
@@ -2356,7 +2356,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- fiber.interrupt
           _     <- end.await
         } yield assertCompletes
-      } @@ nonFlaky,
+      },
       test("catchAllCause") {
         val io =
           for {
@@ -2606,6 +2606,7 @@ object ZIOSpec extends ZIOBaseSpec {
                           step.await *> ZIO.succeed(k(unexpectedPlace.update(1 :: _)))
                         }
                       }
+                      ()
                     }
                     .ensuring(ZIO.async[Any, Nothing, Unit] { _ =>
                       Unsafe.unsafe { implicit unsafe =>
@@ -2613,6 +2614,7 @@ object ZIOSpec extends ZIOBaseSpec {
                           step.succeed(())
                         }
                       }
+                      ()
                     //never complete
                     })
                     .ensuring(unexpectedPlace.update(2 :: _))
@@ -2762,7 +2764,7 @@ object ZIOSpec extends ZIOBaseSpec {
             _      <- started.await *> fiber.interruptFork *> latch.succeed(()) *> fiber.await
             result <- finalized.get
           } yield assertTrue(result == false)
-        } +
+        } @@ nonFlaky +
         test("interruption can be caught at the beginning of uninterruptible regions") {
           for {
             started   <- Promise.make[Nothing, Unit]
@@ -2930,28 +2932,6 @@ object ZIOSpec extends ZIOBaseSpec {
       test("race in uninterruptible region") {
         val effect = (ZIO.unit.race(ZIO.infinity)).uninterruptible
         assertZIO(effect)(isUnit)
-      },
-      test("race of two forks does not interrupt winner") {
-        def forkWaiter(interrupted: Ref[Int], latch: Promise[Nothing, Unit], done: Promise[Nothing, Unit]) =
-          ZIO.uninterruptibleMask { restore =>
-            restore(latch.await)
-              .onInterrupt(interrupted.update(_ + 1) *> done.succeed(()))
-              .fork
-          }
-
-        for {
-          interrupted <- Ref.make(0)
-          fibers      <- Ref.make(Set.empty[Fiber[Any, Any]])
-          latch1      <- Promise.make[Nothing, Unit]
-          latch2      <- Promise.make[Nothing, Unit]
-          done1       <- Promise.make[Nothing, Unit]
-          done2       <- Promise.make[Nothing, Unit]
-          forkWaiter1  = forkWaiter(interrupted, latch1, done1)
-          forkWaiter2  = forkWaiter(interrupted, latch2, done2)
-          awaitAll     = fibers.get.flatMap(Fiber.awaitAll(_))
-          _           <- forkWaiter1.race(forkWaiter2)
-          count       <- latch1.succeed(()) *> done1.await *> done2.await *> interrupted.get
-        } yield assertTrue(count == 2)
       },
       test("firstSuccessOf of values") {
         val io = ZIO.firstSuccessOf(ZIO.fail(0), List(ZIO.succeed(100))).either
@@ -4126,11 +4106,11 @@ object ZIOSpec extends ZIOBaseSpec {
           promise1 <- Promise.make[Nothing, Unit]
           promise2 <- Promise.make[Nothing, Unit]
           left      = promise2.await
-          right1    = promise1.await *> ZIO.fail("fail")
+          right1    = (promise1.await *> ZIO.fail("fail")).uninterruptible
           right2    = (promise1.succeed(()) *> ZIO.never).ensuring(promise2.interrupt *> ZIO.never.interruptible)
           exit     <- left.zipPar(right1.zipPar(right2)).exit
         } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
-      } @@ nonFlaky,
+      } @@ nonFlaky(1000),
       test("is interruptible") {
         for {
           promise1 <- Promise.make[Nothing, Unit]

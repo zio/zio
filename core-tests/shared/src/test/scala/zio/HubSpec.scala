@@ -1,7 +1,9 @@
 package zio
 
-import zio.test.Assertion._
 import zio.test._
+import zio.test.Assertion._
+import zio.test.TestAspect._
+
 object HubSpec extends ZIOBaseSpec {
 
   val smallInt: Gen[Any, Int] =
@@ -362,7 +364,7 @@ object HubSpec extends ZIOBaseSpec {
             assert(values2.filter(_ > 0))(isSorted) &&
             assert(values2.filter(_ < 0))(isSorted)
         }
-      }
+      } @@ ignore
     ),
     suite("unbounded")(
       test("one to one") {

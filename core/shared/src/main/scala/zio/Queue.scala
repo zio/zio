@@ -31,13 +31,13 @@ abstract class Queue[A] extends Dequeue[A] with Enqueue[A] {
    * Checks whether the queue is currently empty.
    */
   override final def isEmpty(implicit trace: Trace): UIO[Boolean] =
-    size.map(_ == 0)
+    size.map(_ <= 0)
 
   /**
    * Checks whether the queue is currently full.
    */
   override final def isFull(implicit trace: Trace): UIO[Boolean] =
-    size.map(_ == capacity)
+    size.map(_ >= capacity)
 }
 
 object Queue {

@@ -538,6 +538,12 @@ object ZLayerSpec extends ZIOBaseSpec {
           environment <- layer3.build
           value        = environment.get[Boolean]
         } yield assertTrue(value)
+      } @@ nonFlaky,
+      test("runtimeFlags") {
+        for {
+          runtimeFlags <- ZIO.runtimeFlags.provideLayer(Runtime.enableCurrentFiber ++ Runtime.enableOpLog)
+        } yield assertTrue(RuntimeFlags.isEnabled(runtimeFlags)(RuntimeFlag.CurrentFiber)) &&
+          assertTrue(RuntimeFlags.isEnabled(runtimeFlags)(RuntimeFlag.OpLog))
       } @@ nonFlaky
     )
 }

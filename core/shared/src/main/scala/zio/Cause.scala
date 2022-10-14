@@ -284,11 +284,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Determines if the `Cause` contains only interruptions and not any `Die` or
    * `Fail` causes.
    */
-  final def isInterruptedOnly: Boolean =
-    find {
-      case Die(_, _)  => false
-      case Fail(_, _) => false
-    }.getOrElse(true)
+  final def isInterruptedOnly: Boolean = foldContext(())(Folder.IsInterruptedOnly)
 
   /**
    * Determines if the `Cause` is traced.
@@ -595,6 +591,17 @@ object Cause extends Serializable {
       def bothCase(context: Any, left: Int, right: Int): Int               = left + right
       def thenCase(context: Any, left: Int, right: Int): Int               = left + right
       def stacklessCase(context: Any, value: Int, stackless: Boolean): Int = value
+    }
+
+    case object IsInterruptedOnly extends Folder[Any, Any, Boolean] {
+      def empty(context: Any): Boolean                                                   = true
+      def failCase(context: Any, error: Any, stackTrace: StackTrace): Boolean            = false
+      def dieCase(context: Any, t: Throwable, stackTrace: StackTrace): Boolean           = false
+      def interruptCase(context: Any, fiberId: FiberId, stackTrace: StackTrace): Boolean = true
+
+      def bothCase(context: Any, left: Boolean, right: Boolean): Boolean           = left && right
+      def thenCase(context: Any, left: Boolean, right: Boolean): Boolean           = left && right
+      def stacklessCase(context: Any, value: Boolean, stackless: Boolean): Boolean = value
     }
 
     final case class Filter[E](p: Cause[E] => Boolean) extends Folder[Any, E, Cause[E]] {
