@@ -1,7 +1,7 @@
 package zio
 
 import zio.test._
-import zio.test.TestAspect.nonFlaky
+import zio.test.TestAspect._
 
 object ZPoolSpec extends ZIOBaseSpec {
   def spec =
@@ -139,5 +139,5 @@ object ZPoolSpec extends ZIOBaseSpec {
             _     <- fiber.interrupt
           } yield assertCompletes
         } @@ nonFlaky
-    }
+    } @@ sequential
 }
