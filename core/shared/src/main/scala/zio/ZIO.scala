@@ -1346,6 +1346,11 @@ sealed trait ZIO[-R, +E, +A]
   ): ZIO[R1, E1, A1] =
     (self.exit race that.exit).flatMap(ZIO.done(_))
 
+  final def raceFirstAwait[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit
+    trace: Trace
+  ): ZIO[R1, E1, A1] =
+    (self.exit raceAwait that.exit).flatMap(ZIO.done(_))
+
   /**
    * Returns an effect that races this effect with the specified effect,
    * yielding the first result to succeed. If neither effect succeeds, then the
