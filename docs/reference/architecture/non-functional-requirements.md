@@ -1,7 +1,6 @@
 ---
-id: non-functional-architecture-requirements
-title: "Non-functional Architecture Requirements"
-sidebar_label: "Non-functional Requirements"
+id: non-functional-requirements
+title: "Non-functional Requirements"
 ---
 
 ## Introduction
@@ -12,15 +11,15 @@ The functional requirements are the features of the system which are directly re
 
 Non-functional requirements are characteristics of the system that are used to qualify it in terms of "what should the system be" rather than "what should the system do," e.g.:
 
-  1. Correctness
-  2. Testability
-  3. Maintainability
-  4. Low Latency
-  5. High Throughput
-  6. Robustness
-  7. Resiliency
-  8. Efficiency
-  9. Developer Productivity
+  1. [Correctness](#1-correctness)
+  2. [Testability](#2-testability)
+  3. [Maintainability](#3-maintainability)
+  4. [Low Latency](#4-low-latency)
+  5. [High Throughput](#5-high-throughput)
+  6. [Robustness](#6-robustness)
+  7. [Resiliency](#7-resiliency)
+  8. [Efficiency](#8-efficiency)
+  9. [Developer Productivity](#9-developer-productivity)
 
 In this article, from the perspective of application architecture, we are going to look at some design elements that we can apply to our ZIO applications to make them more ergonomic and maintainable.
 
@@ -215,7 +214,7 @@ Developer experience and productivity are very important for choosing a technolo
   3. Type-safety and Compile time Error Checking
   4. Easy to Refactor
   5. Discoverability
-      1. Dot completion (useful for IDE developers)
+      1. Dot completion when developing with IDEs
       2. Consistent naming conventions
   6. Concise and Expressive API with Minimal Boilerplate
   7. Expressive Compiler Errors
