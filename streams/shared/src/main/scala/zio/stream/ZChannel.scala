@@ -653,41 +653,38 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
     ZChannel.unwrapScoped[Env1] {
-      ZIO.withChildren { getChildren =>
-        for {
-          _           <- ZIO.addFinalizer(getChildren.flatMap(Fiber.interruptAll(_)))
-          queue       <- ZIO.acquireRelease(Queue.bounded[ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]](n))(_.shutdown)
-          errorSignal <- Promise.make[OutErr1, Nothing]
-          permits     <- Semaphore.make(n.toLong)
-          pull        <- self.toPull
-          _ <- pull
-                 .foldCauseZIO(
-                   cause => queue.offer(ZIO.refailCause(cause)),
-                   {
-                     case Left(outDone) =>
-                       permits.withPermits(n.toLong)(ZIO.unit).interruptible *> queue.offer(ZIO.succeed(Left(outDone)))
-                     case Right(outElem) =>
-                       for {
-                         p     <- Promise.make[OutErr1, OutElem2]
-                         latch <- Promise.make[Nothing, Unit]
-                         _     <- queue.offer(p.await.map(Right(_)))
-                         _ <- permits.withPermit {
-                                latch.succeed(()) *>
-                                  ZIO.uninterruptibleMask { restore =>
-                                    restore(errorSignal.await) raceFirst restore(f(outElem))
-                                  }
-                                    .tapErrorCause(errorSignal.failCause)
-                                    .intoPromise(p)
-                              }.fork
-                         _ <- latch.await
-                       } yield ()
-                   }
-                 )
-                 .forever
-                 .interruptible
-                 .forkScoped
-        } yield queue
-      }.map { queue =>
+      for {
+        queue       <- ZIO.acquireRelease(Queue.bounded[ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]](n))(_.shutdown)
+        errorSignal <- Promise.make[OutErr1, Nothing]
+        permits     <- Semaphore.make(n.toLong)
+        pull        <- self.toPull
+        _ <- pull
+               .foldCauseZIO(
+                 cause => queue.offer(ZIO.refailCause(cause)),
+                 {
+                   case Left(outDone) =>
+                     permits.withPermits(n.toLong)(ZIO.unit).interruptible *> queue.offer(ZIO.succeed(Left(outDone)))
+                   case Right(outElem) =>
+                     for {
+                       p     <- Promise.make[OutErr1, OutElem2]
+                       latch <- Promise.make[Nothing, Unit]
+                       _     <- queue.offer(p.await.map(Right(_)))
+                       _ <- permits.withPermit {
+                              latch.succeed(()) *>
+                                ZIO.uninterruptibleMask { restore =>
+                                  restore(errorSignal.await) raceFirst restore(f(outElem))
+                                }
+                                  .tapErrorCause(errorSignal.failCause)
+                                  .intoPromise(p)
+                            }.fork
+                       _ <- latch.await
+                     } yield ()
+                 }
+               )
+               .forever
+               .interruptible
+               .forkScoped
+      } yield {
         lazy val consumer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
           ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
             queue.take.flatten.foldCause(
