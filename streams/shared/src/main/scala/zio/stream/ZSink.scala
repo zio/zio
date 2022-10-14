@@ -361,7 +361,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
    * Transforms the leftovers emitted by this sink using `f`.
    */
   def mapLeftover[L2](f: L => L2)(implicit trace: Trace): ZSink[R, E, In, L2, Z] =
-    new ZSink(channel.mapOut(f))
+    new ZSink(channel.mapOut(_.map(f)))
 
   /**
    * Effectfully transforms this sink's result.
