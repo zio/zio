@@ -676,7 +676,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                                 }
                                   .tapErrorCause(errorSignal.failCause)
                                   .intoPromise(p)
-                            }.fork
+                            }.forkScoped
                        _ <- latch.await
                      } yield ()
                  }
