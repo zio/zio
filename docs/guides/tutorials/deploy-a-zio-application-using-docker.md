@@ -96,10 +96,10 @@ However, it is possible to configure the docker image, and it has lots of option
 
 ### Exposing Container Ports
 
-For example, when we build a docker image, we can specify which ports the container will listen to, by using the `EXPOSE` instruction in the `Dockerfile`. In the similar way, we can expose the ports using _sbt-native-packager_, by using the `exposePorts` setting in the `build.sbt` file:
+For example, when we build a docker image, we can specify which ports the container will listen to, by using the `EXPOSE` instruction in the `Dockerfile`. In the similar way, we can expose the ports using _sbt-native-packager_, by using the `dockerExposedPorts` setting in the `build.sbt` file:
 
 ```scala
-dockerExposePorts := Seq(8080)
+dockerExposedPorts := Seq(8080)
 ```
 
 Now, when we build the docker image and create a container from it, the new container has the port `8080` exposed. So when we run the `docker ps` command, we can see that the new container has the port `8080` exposed under the `PORTS` column:
