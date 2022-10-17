@@ -913,126 +913,6 @@ def blockingTask(n: Int) = ZIO.attemptBlocking {
 }
 ```
 
-### Interruption of Blocking Operations
-
-By default, when we convert a blocking operation into the ZIO effects using `attemptBlocking`, there is no guarantee that if that effect is interrupted the underlying effect will be interrupted.
-
-Let's create a blocking effect from an endless loop:
-
-```scala mdoc:compile-only
-import zio._
-
-for {
-  _ <- Console.printLine("Starting a blocking operation")
-  fiber <- ZIO.attemptBlocking {
-    while (true) {
-      Thread.sleep(1000)
-      println("Doing some blocking operation")
-    }
-  }.ensuring(
-    Console.printLine("End of a blocking operation").orDie
-  ).fork
-  _ <- fiber.interrupt.schedule(
-    Schedule.delayed(
-      Schedule.duration(1.seconds)
-    )
-  )
-} yield ()
-```
-
-When we interrupt this loop after one second, it will still not stop. It will only stop when the entire JVM stops. So the `attemptBlocking` doesn't translate the ZIO interruption into thread interruption (`Thread.interrupt`).
-
-Instead, we should use `attemptBlockingInterrupt` to create interruptible blocking effects:
-
-```scala mdoc:compile-only
-import zio._
-
-for {
-  _ <- Console.printLine("Starting a blocking operation")
-  fiber <- ZIO.attemptBlockingInterrupt {
-    while(true) {
-      Thread.sleep(1000)
-      println("Doing some blocking operation")
-    }
-  }.ensuring(
-     Console.printLine("End of the blocking operation").orDie
-   ).fork
-  _ <- fiber.interrupt.schedule(
-    Schedule.delayed(
-      Schedule.duration(3.seconds)
-    )
-  )
-} yield ()
-```
-
-Notes:
-
-1. If we are converting a blocking I/O to the ZIO effect, it would be better to use `attemptBlockingIO` which refines the error type to the `java.io.IOException`.
-
-2. The `attemptBlockingInterrupt` method adds significant overhead. So for performance-sensitive applications, it is better to handle interruptions manually using `attemptBlockingCancelable`.
-
-### Cancellation of Blocking Operation
-
-Some blocking operations do not respect `Thread#interrupt` by swallowing `InterruptedException`. So, they will not be interrupted via `attemptBlockingInterrupt`. Instead, they may provide us an API to signal them to _cancel_ their operation.
-
-The following `BlockingService` will not be interrupted in case of `Thread#interrupt` call, but it checks the `released` flag constantly. If this flag becomes true, the blocking service will finish its job:
-
-```scala mdoc:silent
-import zio._
-import java.util.concurrent.atomic.AtomicReference
-
-final case class BlockingService() {
-  private val released = new AtomicReference(false)
-
-  def start(): Unit = {
-    while (!released.get()) {
-      println("Doing some blocking operation")
-      try Thread.sleep(1000)
-      catch {
-        case _: InterruptedException => () // Swallowing InterruptedException
-      }
-    }
-    println("Blocking operation closed.")
-  }
-
-  def close(): Unit = {
-    println("Releasing resources and ready to be closed.")
-    released.getAndSet(true)
-  }
-}
-```
-
-So, to translate ZIO interruption into cancellation of these types of blocking operations we should use `attemptBlockingCancelable`. This method takes a `cancel` effect which is responsible to signal the blocking code to close itself when ZIO interruption occurs:
-
-```scala mdoc:compile-only
-import zio._
-
-val myApp =
-  for {
-    service <- ZIO.attempt(BlockingService())
-    fiber   <- ZIO.attemptBlockingCancelable(
-      effect = service.start()
-    )(
-      cancel = ZIO.succeed(service.close())
-    ).fork
-    _       <- fiber.interrupt.schedule(
-      Schedule.delayed(
-        Schedule.duration(3.seconds)
-      )
-    )
-  } yield ()
-```
-
-Here is another example of the cancelation of a blocking operation. When we `accept` a server socket, this blocking operation will never be interrupted until we close that using `ServerSocket#close` method:
-
-```scala mdoc:compile-only
-import java.net.{Socket, ServerSocket}
-import zio._
-
-def accept(ss: ServerSocket): Task[Socket] =
-  ZIO.attemptBlockingCancelable(ss.accept())(ZIO.succeed(ss.close()))
-```
-
 ## Mapping
 
 ### map
@@ -1191,6 +1071,8 @@ If we want the first success or failure, rather than the first success, then we 
 ZIO lets us timeout any effect using the `ZIO#timeout` method, which returns a new effect that succeeds with an `Option`. A value of `None` indicates the timeout elapsed before the effect completed.
 
 ```scala mdoc:silent
+import zio._
+
 ZIO.succeed("Hello").timeout(10.seconds)
 ```
 
