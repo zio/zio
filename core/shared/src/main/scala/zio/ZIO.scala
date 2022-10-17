@@ -2942,6 +2942,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def cond[E, A](predicate: => Boolean, result: => A, error: => E)(implicit trace: Trace): IO[E, A] =
     ZIO.suspendSucceed(if (predicate) ZIO.succeedNow(result) else ZIO.fail(error))
 
+  def config[A: Tag](config: Config[A])(implicit trace: Trace): ZIO[Any, Config.Error, A] =
+    ZIO.configProviderWith(_.load(config))
+
+  def configProviderWith[R, E, A](f: ConfigProvider => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    DefaultServices.currentServices.getWith(services => f(services.get(ConfigProvider.tag)))
+
   /**
    * Retrieves the `Console` service for this workflow.
    */

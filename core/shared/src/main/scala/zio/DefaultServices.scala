@@ -24,16 +24,20 @@ object DefaultServices {
   /**
    * The default ZIO services.
    */
-  val live: ZEnvironment[Clock with Console with System with Random] =
-    ZEnvironment[Clock, Console, System, Random](
+  val live: ZEnvironment[Clock with Console with System with Random with ConfigProvider] =
+    ZEnvironment[Clock, Console, System, Random, ConfigProvider](
       Clock.ClockLive,
       Console.ConsoleLive,
       System.SystemLive,
-      Random.RandomLive
-    )(Clock.tag, Console.tag, System.tag, Random.tag)
+      Random.RandomLive,
+      ConfigProvider.ConfigProviderLive
+    )(Clock.tag, Console.tag, System.tag, Random.tag, ConfigProvider.tag)
 
   private[zio] val currentServices: FiberRef.WithPatch[ZEnvironment[
-    Clock with Console with System with Random
-  ], ZEnvironment.Patch[Clock with Console with System with Random, Clock with Console with System with Random]] =
+    Clock with Console with System with Random with ConfigProvider
+  ], ZEnvironment.Patch[
+    Clock with Console with System with Random with ConfigProvider,
+    Clock with Console with System with Random with ConfigProvider
+  ]] =
     FiberRef.unsafe.makeEnvironment(live)(Unsafe.unsafe)
 }
