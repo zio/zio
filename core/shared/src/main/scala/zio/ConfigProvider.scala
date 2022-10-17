@@ -16,30 +16,30 @@
 package zio
 
 trait ConfigProvider { self =>
-  def load[A: Tag](config: Config[A])(implicit trace: Trace): IO[Config.Error, A]
+  def load[A](config: Config[A])(implicit trace: Trace): IO[Config.Error, A]
 
   final def orElse(that: ConfigProvider): ConfigProvider =
     new ConfigProvider {
-      def load[A: Tag](config: Config[A])(implicit trace: Trace): IO[Config.Error, A] =
+      def load[A](config: Config[A])(implicit trace: Trace): IO[Config.Error, A] =
         self.load(config).orElse(that.load(config))
     }
 }
 object ConfigProvider {
   val ConsoleProviderLive: ConfigProvider =
     new ConfigProvider {
-      def load[A: Tag](config: Config[A])(implicit trace: Trace): IO[Config.Error, A] =
+      def load[A](config: Config[A])(implicit trace: Trace): IO[Config.Error, A] =
         ???
     }
 
   val EnvProviderLive: ConfigProvider =
     new ConfigProvider {
-      def load[A: Tag](config: Config[A])(implicit trace: Trace): IO[Config.Error, A] =
+      def load[A](config: Config[A])(implicit trace: Trace): IO[Config.Error, A] =
         ???
     }
 
   val PropsProviderLive: ConfigProvider =
     new ConfigProvider {
-      def load[A: Tag](config: Config[A])(implicit trace: Trace): IO[Config.Error, A] =
+      def load[A](config: Config[A])(implicit trace: Trace): IO[Config.Error, A] =
         ???
     }
 
