@@ -50,45 +50,51 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    * Returns the concatenation of this chunk with the specified chunk.
    */
   final def ++[A1 >: A](that: Chunk[A1]): Chunk[A1] =
-    (self, that) match {
-      case (Chunk.AppendN(start, buffer, bufferUsed, _), that) =>
-        val chunk = Chunk.fromArray(buffer.asInstanceOf[Array[A1]]).take(bufferUsed)
-        start ++ chunk ++ that
-      case (self, Chunk.PrependN(end, buffer, bufferUsed, _)) =>
-        val chunk = Chunk.fromArray(buffer.asInstanceOf[Array[A1]]).takeRight(bufferUsed)
-        self ++ chunk ++ end
-      case (self, that) =>
-        val diff = that.depth - self.depth
-        if (math.abs(diff) <= 1) Chunk.Concat(self, that)
-        else if (diff < -1) {
-          if (self.left.depth >= self.right.depth) {
-            val nr = self.right ++ that
-            Chunk.Concat(self.left, nr)
-          } else {
-            val nrr = self.right.right ++ that
-            if (nrr.depth == self.depth - 3) {
-              val nr = Chunk.Concat(self.right.left, nrr)
+    if (isEmpty) {
+      that
+    } else if (that.isEmpty) {
+      self
+    } else {
+      (self, that) match {
+        case (Chunk.AppendN(start, buffer, bufferUsed, _), that) =>
+          val chunk = Chunk.fromArray(buffer.asInstanceOf[Array[A1]]).take(bufferUsed)
+          start ++ chunk ++ that
+        case (self, Chunk.PrependN(end, buffer, bufferUsed, _)) =>
+          val chunk = Chunk.fromArray(buffer.asInstanceOf[Array[A1]]).takeRight(bufferUsed)
+          self ++ chunk ++ end
+        case (self, that) =>
+          val diff = that.depth - self.depth
+          if (math.abs(diff) <= 1) Chunk.Concat(self, that)
+          else if (diff < -1) {
+            if (self.left.depth >= self.right.depth) {
+              val nr = self.right ++ that
               Chunk.Concat(self.left, nr)
             } else {
-              val nl = Chunk.Concat(self.left, self.right.left)
-              Chunk.Concat(nl, nrr)
+              val nrr = self.right.right ++ that
+              if (nrr.depth == self.depth - 3) {
+                val nr = Chunk.Concat(self.right.left, nrr)
+                Chunk.Concat(self.left, nr)
+              } else {
+                val nl = Chunk.Concat(self.left, self.right.left)
+                Chunk.Concat(nl, nrr)
+              }
             }
-          }
-        } else {
-          if (that.right.depth >= that.left.depth) {
-            val nl = self ++ that.left
-            Chunk.Concat(nl, that.right)
           } else {
-            val nll = self ++ that.left.left
-            if (nll.depth == that.depth - 3) {
-              val nl = Chunk.Concat(nll, that.left.right)
+            if (that.right.depth >= that.left.depth) {
+              val nl = self ++ that.left
               Chunk.Concat(nl, that.right)
             } else {
-              val nr = Chunk.Concat(that.left.right, that.right)
-              Chunk.Concat(nll, nr)
+              val nll = self ++ that.left.left
+              if (nll.depth == that.depth - 3) {
+                val nl = Chunk.Concat(nll, that.left.right)
+                Chunk.Concat(nl, that.right)
+              } else {
+                val nr = Chunk.Concat(that.left.right, that.right)
+                Chunk.Concat(nll, nr)
+              }
             }
           }
-        }
+      }
     }
 
   final def ++[A1 >: A](that: NonEmptyChunk[A1]): NonEmptyChunk[A1] =
@@ -1340,7 +1346,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       case x: AppendN[A]     => x.classTag
       case x: Arr[A]         => x.classTag
       case x: Concat[A]      => x.classTag
-      case Empty             => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
+      case _: Empty.type     => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
       case x: PrependN[A]    => x.classTag
       case x: Singleton[A]   => x.classTag
       case x: Slice[A]       => x.classTag
@@ -1621,8 +1627,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     implicit val classTag: ClassTag[A] =
       left match {
-        case Empty => classTagOf(right)
-        case _     => classTagOf(left)
+        case _: Empty.type => classTagOf(right)
+        case _             => classTagOf(left)
       }
 
     override val depth: Int =
