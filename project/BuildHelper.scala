@@ -25,7 +25,7 @@ object BuildHelper {
   val Scala213: String = versions("2.13")
   val Scala3: String   = versions("3")
 
-  val SilencerVersion = "1.7.8"
+  val SilencerVersion = "1.7.11"
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -259,11 +259,12 @@ object BuildHelper {
   )
 
   def nativeSettings = Seq(
-    Test / test := (Test / compile).value
+    Test / test := (Test / compile).value,
+    Test / fork := crossProjectPlatform.value == JVMPlatform // set fork to `true` on JVM to improve log readability, JS and Native need `false`
   )
 
   def jsSettings: List[Def.Setting[_]] = List(
-    Test / fork := crossProjectPlatform.value != JSPlatform // set fork to `true` for non-JS platforms to improve log readability, JS needs `false`
+    Test / fork := crossProjectPlatform.value == JVMPlatform // set fork to `true` on JVM to improve log readability, JS and Native need `false`
   )
 
   def welcomeMessage = onLoadMessage := {

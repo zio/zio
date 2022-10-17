@@ -229,7 +229,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.1.3")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.2.0")
   .enablePlugins(BuildInfoPlugin)
   .jvmSettings(
     replSettings,
@@ -715,8 +715,8 @@ lazy val docs = project.module
       "org.http4s"                    %% "http4s-dsl"                    % http4sV,
       "com.github.ghostdogpr"         %% "caliban"                       % "1.2.0",
       "com.github.ghostdogpr"         %% "caliban-zio-http"              % "1.2.0",
-      "org.scalameta"                 %% "munit"                         % "0.7.29",
-      "com.github.poslegm"            %% "munit-zio"                     % "0.0.3",
+      "org.scalameta"                 %% "munit"                         % "1.0.0-M6",
+      "com.github.poslegm"            %% "munit-zio"                     % "0.1.1",
       "nl.vroste"                     %% "rezilience"                    % "0.7.0",
       "io.github.gaelrenoux"          %% "tranzactio"                    % "2.1.0",
       "io.github.neurodyne"           %% "zio-arrow"                     % "0.2.1",
