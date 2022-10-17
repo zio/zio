@@ -2942,9 +2942,18 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def cond[E, A](predicate: => Boolean, result: => A, error: => E)(implicit trace: Trace): IO[E, A] =
     ZIO.suspendSucceed(if (predicate) ZIO.succeedNow(result) else ZIO.fail(error))
 
+  /**
+   * Uses the default config provider to load the specified config, or fail with
+   * an error of type Config.Error.
+   */
   def config[A](config: Config[A])(implicit trace: Trace): ZIO[Any, Config.Error, A] =
     ZIO.configProviderWith(_.load(config))
 
+  /**
+   * Retrieves the default config provider, and passes it to the specified
+   * function, which may return an effect that uses the provider to perform some
+   * work or compute some value.
+   */
   def configProviderWith[R, E, A](f: ConfigProvider => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     DefaultServices.currentServices.getWith(services => f(services.get(ConfigProvider.tag)))
 

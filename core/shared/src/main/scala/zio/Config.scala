@@ -17,22 +17,39 @@ package zio
 
 import scala.util.control.NoStackTrace
 
+/**
+ * A [[zio.Config]] describes the structure of some configuration data.
+ */
 sealed trait Config[+A] { self =>
+
+  /**
+   * Returns a new config that is the composition of this config and the
+   * specified config.
+   */
   def ++[B](that: Config[B])(implicit zippable: Zippable[A, B]): Config[zippable.Out] =
     Config.Zipped[A, B, zippable.Out](self, that, zippable)
 
-  def <*>[B](that: Config[B])(implicit z: Zippable[A, B]): Config[z.Out] =
-    self.zip(that)
-
+  /**
+   * Returns a config whose structure is preferentially described by this
+   * config, but which falls back to the specified config if there is an issue
+   * reading from this config.
+   */
   def ||[A1 >: A](that: Config[A1]): Config[A1] = Config.Fallback(self, that)
 
+  /**
+   * Adds a description to this configuration.
+   */
   def ??(label: String): Config[A] = Config.Labelled(self, label)
 
+  /**
+   * Returns a new config whose structure is the same as this one, but which
+   * produces a different Scala value, constructed using the specified function.
+   */
   def map[B](f: A => B): Config[B] = self.mapOrFail(a => Right(f(a)))
 
   def mapOrFail[B](f: A => Either[Config.Error, B]): Config[B] = Config.MapOrFail(self, f)
 
-  def optional: Config[Option[A]] = Config.Optional(self)
+  def optional: Config[Option[A]] = self.map(Some(_)) || Config.succeed(None)
 
   def orElse[A1 >: A](that: Config[A1]): Config[A1] = self || that
 
@@ -60,7 +77,6 @@ object Config {
   final case class LocalTime(name: String)                                                             extends Config[java.time.LocalTime]
   final case class MapOrFail[A, B](original: Config[A], mapOrFail: A => Either[Config.Error, B])       extends Config[B]
   final case class OffsetDateTime(name: String)                                                        extends Config[java.time.OffsetDateTime]
-  final case class Optional[A](config: Config[A])                                                      extends Config[Option[A]]
   final case class Secret(name: String)                                                                extends Config[Chunk[Byte]]
   final case class Sequence[A](config: Config[A])                                                      extends Config[Chunk[A]]
   final case class Table[K, V](keyConfig: Config[K], valueConfig: Config[V])                           extends Config[Map[K, V]]

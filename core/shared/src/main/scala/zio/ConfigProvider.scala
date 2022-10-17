@@ -15,7 +15,15 @@
  */
 package zio
 
+/**
+ * A ConfigProvider is a service that provides configuration given a description
+ * of the structure of that configuration.
+ */
 trait ConfigProvider { self =>
+
+  /**
+   * Loads the specified configuration, or fails with a config error.
+   */
   def load[A](config: Config[A])(implicit trace: Trace): IO[Config.Error, A]
 
   final def orElse(that: ConfigProvider): ConfigProvider =
@@ -46,12 +54,24 @@ object ConfigProvider {
   val ConfigProviderLive: ConfigProvider =
     EnvProviderLive.orElse(PropsProviderLive)
 
-  val env: ZLayer[Any, Nothing, ConfigProvider] =
-    ZLayer.succeed(EnvProviderLive)
-
+  /**
+   * A config provider layer that loads configuration from interactive console
+   * prompts, using the default Console service.
+   */
   val console: ZLayer[Any, Nothing, ConfigProvider] =
     ZLayer.succeed(ConsoleProviderLive)
 
+  /**
+   * A config provider layer that loads configuration from environment
+   * variables, using the default System service.
+   */
+  val env: ZLayer[Any, Nothing, ConfigProvider] =
+    ZLayer.succeed(EnvProviderLive)
+
+  /**
+   * A config provider layer that loads configuration from system properties,
+   * using the default System service.
+   */
   val props: ZLayer[Any, Nothing, ConfigProvider] =
     ZLayer.succeed(PropsProviderLive)
 
