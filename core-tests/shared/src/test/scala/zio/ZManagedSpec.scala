@@ -140,7 +140,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           l.get <*> r.get
         }.map { case (l, r) =>
           assert(l)(equalTo(List(1, 2, 3))) &&
-            assert(r)(equalTo(List(1, 2, 3)))
+          assert(r)(equalTo(List(1, 2, 3)))
         }
       } @@ TestAspect.nonFlaky
     ),

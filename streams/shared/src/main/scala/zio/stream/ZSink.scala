@@ -444,7 +444,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
       p2  <- that.push
       push: Push[R1, E1, I1, L1, Z2] = { in =>
         ref.get.flatMap { state =>
-          val newState: ZIO[R1, (Either[E1, Z2], Chunk[L1]), State[Z, Z1]] = {
+          val newState: ZIO[R1, (Either[E1, Z2], Chunk[L1]), State[Z, Z1]] =
             state match {
               case BothRunning => {
                 val l: ZIO[R, (Either[E1, Z2], Chunk[L1]), Option[(Z, Chunk[L])]] = p1(in).foldM(
@@ -488,7 +488,6 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
                   .as(state)
               }
             }
-          }
           newState.flatMap(ns => if (ns eq state) ZIO.unit else ref.set(ns))
         }
       }

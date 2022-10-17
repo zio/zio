@@ -46,7 +46,7 @@ object ImpureModuleMock extends Mock[ImpureModule] {
           def manyParams(a: Int, b: String, c: Long): String     = rts.unsafeRunTask(proxy(ManyParams, (a, b, c)))
           def manyParamLists(a: Int)(b: String)(c: Long): String = rts.unsafeRunTask(proxy(ManyParamLists, a, b, c))
           @silent("side-effecting nullary methods")
-          def command: Unit = rts.unsafeRunTask(proxy(Command))
+          def command: Unit                                     = rts.unsafeRunTask(proxy(Command))
           def parameterizedCommand(a: Int): Unit                = rts.unsafeRunTask(proxy(ParameterizedCommand, a))
           def overloaded(n: Int): String                        = rts.unsafeRunTask(proxy(Overloaded._0, n))
           def overloaded(n: Long): String                       = rts.unsafeRunTask(proxy(Overloaded._1, n))

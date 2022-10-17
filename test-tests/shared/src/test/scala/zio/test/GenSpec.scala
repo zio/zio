@@ -49,9 +49,9 @@ object GenSpec extends ZIOBaseSpec {
           result.failures.fold(false) {
             case BoolAlgebra.Value(FailureDetailsResult(failureDetails, _)) =>
               failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
-                failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
-                failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
-                failureDetails.assertion.head.value.toString == "(List(-1),List(0))"
+              failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
+              failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
+              failureDetails.assertion.head.value.toString == "(List(-1),List(0))"
             case _ => false
           }
         })(isTrue)
@@ -693,7 +693,7 @@ object GenSpec extends ZIOBaseSpec {
       val exhaustive = Gen.fromIterable(1 until 6)
       val actual     = exhaustive.crossWith(exhaustive)(_ + _)
       checkFinite(actual)(equalTo(expected))
-    } @@ scala2Only, //todo fix when #2232 is resolved
+    } @@ scala2Only, // todo fix when #2232 is resolved
     testM("size can be modified locally") {
       val getSize = Gen.size.sample.map(_.value).runCollect.map(_.head)
       val result = for {

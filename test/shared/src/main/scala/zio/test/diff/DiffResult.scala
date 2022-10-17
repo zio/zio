@@ -25,15 +25,16 @@ sealed trait DiffResult {
         s"""
 $label(
   ${indent(
-          fields
-            .filter(_._2.hasDiff)
-            .map {
-              case (Some(label), Different(_, _, Some(custom))) => dim(label + " = ") + indent(custom, label.length + 3)
-              case (Some(label), diff)                          => dim(label + " = ") + diff.render
-              case (None, diff)                                 => diff.render
-            }
-            .mkString(",\n")
-        )}
+            fields
+              .filter(_._2.hasDiff)
+              .map {
+                case (Some(label), Different(_, _, Some(custom))) =>
+                  dim(label + " = ") + indent(custom, label.length + 3)
+                case (Some(label), diff) => dim(label + " = ") + diff.render
+                case (None, diff)        => diff.render
+              }
+              .mkString(",\n")
+          )}
 )
          """.trim
     case Different(_, _, Some(custom)) =>

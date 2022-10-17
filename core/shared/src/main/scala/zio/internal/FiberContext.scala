@@ -947,7 +947,6 @@ private[zio] final class FiberContext[E, A](
     oldState match {
       case Executing(_, observers: List[Callback[Nothing, Exit[E, A]]], _)
           if openScope.scope.unsafeClosed() => // TODO: Dotty doesn't infer this properly
-
         /*
          * We are truly "done" because the scope has been closed.
          */
@@ -964,7 +963,6 @@ private[zio] final class FiberContext[E, A](
             observers: List[Callback[Nothing, Exit[E, A]]],
             interrupted
           ) => // TODO: Dotty doesn't infer this properly
-
         /*
          * We are not done yet, because we have to close the scope of the fiber.
          */

@@ -2438,7 +2438,7 @@ object ZIOSpec extends ZIOBaseSpec {
                       runtime.unsafeRunAsync_ {
                         step.succeed(())
                       }
-                    //never complete
+                    // never complete
                     })
                     .ensuring(unexpectedPlace.update(2 :: _))
                     .forkDaemon
@@ -2466,7 +2466,7 @@ object ZIOSpec extends ZIOBaseSpec {
                         runtime.unsafeRunAsync_ {
                           step.succeed(())
                         }
-                      //never complete
+                      // never complete
                       }
                     }
                     .ensuring(unexpectedPlace.update(2 :: _))

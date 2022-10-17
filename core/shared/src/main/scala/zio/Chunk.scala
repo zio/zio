@@ -1042,7 +1042,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     builder.result()
   }
 
-  //noinspection AccessorLikeMethodIsUnit
+  // noinspection AccessorLikeMethodIsUnit
   protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
     if (isEmpty) () else materialize.toArray(n, dest)
 

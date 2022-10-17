@@ -125,11 +125,10 @@ package object clock {
     val live: Layer[Nothing, Clock] =
       ZLayer.succeed(Service.live)
 
-    val javaClock: ZLayer[Has[java.time.Clock], Nothing, Clock] = {
+    val javaClock: ZLayer[Has[java.time.Clock], Nothing, Clock] =
       (for {
         clock <- ZIO.service[java.time.Clock]
       } yield ClockJava(clock)).toLayer
-    }
   }
 
   /**

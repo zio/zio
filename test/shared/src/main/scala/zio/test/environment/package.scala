@@ -752,7 +752,7 @@ package object environment extends PlatformSpecific {
        * Takes the first value from the input buffer, if one exists, or else
        * fails with an `EOFException`.
        */
-      val getStrLn: IO[IOException, String] = {
+      val getStrLn: IO[IOException, String] =
         for {
           input <- consoleState.get.flatMap(d =>
                      IO.fromOption(d.input.headOption)
@@ -760,7 +760,6 @@ package object environment extends PlatformSpecific {
                    )
           _ <- consoleState.update(data => Data(data.input.tail, data.output, data.errOutput))
         } yield input
-      }
 
       /**
        * Returns the contents of the output buffer. The first value written to

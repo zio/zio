@@ -828,7 +828,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   ): ZStream[R1, E1, O3] =
     ZStream[R1, E1, O3] {
       for {
-        left <- self.process.mapM(BufferedPull.make[R, E, O](_)) // type annotation required for Dotty
+        left  <- self.process.mapM(BufferedPull.make[R, E, O](_)) // type annotation required for Dotty
         right <- that.process.mapM(BufferedPull.make[R1, E1, O2](_))
         pull <- ZStream
                   .unfoldM(s)(s => f(s, left.pullElement, right.pullElement).flatMap(ZIO.done(_).optional))

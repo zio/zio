@@ -245,9 +245,17 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[J1 >: J: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I], Has[J1]] = {
+    def toLayer[J1 >: J: Tag]: URLayer[Has[A]
+      with Has[B]
+      with Has[C]
+      with Has[D]
+      with Has[E]
+      with Has[F]
+      with Has[
+        G
+      ]
+      with Has[H]
+      with Has[I], Has[J1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -288,9 +296,18 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[K1 >: K: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J], Has[K1]] = {
+    def toLayer[K1 >: K: Tag]: URLayer[Has[A]
+      with Has[B]
+      with Has[C]
+      with Has[D]
+      with Has[E]
+      with Has[F]
+      with Has[
+        G
+      ]
+      with Has[H]
+      with Has[I]
+      with Has[J], Has[K1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -333,9 +350,19 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[L1 >: L: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K], Has[L1]] = {
+    def toLayer[L1 >: L: Tag]: URLayer[Has[A]
+      with Has[B]
+      with Has[C]
+      with Has[D]
+      with Has[E]
+      with Has[F]
+      with Has[
+        G
+      ]
+      with Has[H]
+      with Has[I]
+      with Has[J]
+      with Has[K], Has[L1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -380,9 +407,20 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[M1 >: M: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L], Has[M1]] = {
+    def toLayer[M1 >: M: Tag]: URLayer[Has[A]
+      with Has[B]
+      with Has[C]
+      with Has[D]
+      with Has[E]
+      with Has[F]
+      with Has[
+        G
+      ]
+      with Has[H]
+      with Has[I]
+      with Has[J]
+      with Has[K]
+      with Has[L], Has[M1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -428,9 +466,21 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[N1 >: N: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M], Has[N1]] = {
+    def toLayer[N1 >: N: Tag]: URLayer[Has[A]
+      with Has[B]
+      with Has[C]
+      with Has[D]
+      with Has[E]
+      with Has[F]
+      with Has[
+        G
+      ]
+      with Has[H]
+      with Has[I]
+      with Has[J]
+      with Has[K]
+      with Has[L]
+      with Has[M], Has[N1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -479,9 +529,22 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[O1 >: O: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N], Has[O1]] = {
+    def toLayer[O1 >: O: Tag]: URLayer[Has[A]
+      with Has[B]
+      with Has[C]
+      with Has[D]
+      with Has[E]
+      with Has[F]
+      with Has[
+        G
+      ]
+      with Has[H]
+      with Has[I]
+      with Has[J]
+      with Has[K]
+      with Has[L]
+      with Has[M]
+      with Has[N], Has[O1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -532,9 +595,23 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[P1 >: P: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O], Has[P1]] = {
+    def toLayer[P1 >: P: Tag]: URLayer[Has[A]
+      with Has[B]
+      with Has[C]
+      with Has[D]
+      with Has[E]
+      with Has[F]
+      with Has[
+        G
+      ]
+      with Has[H]
+      with Has[I]
+      with Has[J]
+      with Has[K]
+      with Has[L]
+      with Has[M]
+      with Has[N]
+      with Has[O], Has[P1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -587,9 +664,24 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[Q1 >: Q: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[P], Has[
+    def toLayer[Q1 >: Q: Tag]: URLayer[Has[A]
+      with Has[B]
+      with Has[C]
+      with Has[D]
+      with Has[E]
+      with Has[F]
+      with Has[
+        G
+      ]
+      with Has[H]
+      with Has[I]
+      with Has[J]
+      with Has[K]
+      with Has[L]
+      with Has[M]
+      with Has[N]
+      with Has[O]
+      with Has[P], Has[
       Q1
     ]] = {
       for {
@@ -646,11 +738,27 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[R1 >: R: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q], Has[
+    def toLayer[R1 >: R: Tag]: URLayer[Has[A]
+      with Has[B]
+      with Has[C]
+      with Has[D]
+      with Has[E]
+      with Has[F]
+      with Has[
+        G
+      ]
+      with Has[H]
+      with Has[I]
+      with Has[J]
+      with Has[K]
+      with Has[L]
+      with Has[M]
+      with Has[N]
+      with Has[O]
+      with Has[
+        P
+      ]
+      with Has[Q], Has[
       R1
     ]] = {
       for {
@@ -709,11 +817,28 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[S1 >: S: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R], Has[
+    def toLayer[S1 >: S: Tag]: URLayer[Has[A]
+      with Has[B]
+      with Has[C]
+      with Has[D]
+      with Has[E]
+      with Has[F]
+      with Has[
+        G
+      ]
+      with Has[H]
+      with Has[I]
+      with Has[J]
+      with Has[K]
+      with Has[L]
+      with Has[M]
+      with Has[N]
+      with Has[O]
+      with Has[
+        P
+      ]
+      with Has[Q]
+      with Has[R], Has[
       S1
     ]] = {
       for {
@@ -774,11 +899,29 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[T1 >: T: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R] with Has[S], Has[
+    def toLayer[T1 >: T: Tag]: URLayer[Has[A]
+      with Has[B]
+      with Has[C]
+      with Has[D]
+      with Has[E]
+      with Has[F]
+      with Has[
+        G
+      ]
+      with Has[H]
+      with Has[I]
+      with Has[J]
+      with Has[K]
+      with Has[L]
+      with Has[M]
+      with Has[N]
+      with Has[O]
+      with Has[
+        P
+      ]
+      with Has[Q]
+      with Has[R]
+      with Has[S], Has[
       T1
     ]] = {
       for {
@@ -841,11 +984,30 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[U1 >: U: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R] with Has[S] with Has[T], Has[
+    def toLayer[U1 >: U: Tag]: URLayer[Has[A]
+      with Has[B]
+      with Has[C]
+      with Has[D]
+      with Has[E]
+      with Has[F]
+      with Has[
+        G
+      ]
+      with Has[H]
+      with Has[I]
+      with Has[J]
+      with Has[K]
+      with Has[L]
+      with Has[M]
+      with Has[N]
+      with Has[O]
+      with Has[
+        P
+      ]
+      with Has[Q]
+      with Has[R]
+      with Has[S]
+      with Has[T], Has[
       U1
     ]] = {
       for {
@@ -910,11 +1072,31 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[V1 >: V: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R] with Has[S] with Has[T] with Has[U], Has[
+    def toLayer[V1 >: V: Tag]: URLayer[Has[A]
+      with Has[B]
+      with Has[C]
+      with Has[D]
+      with Has[E]
+      with Has[F]
+      with Has[
+        G
+      ]
+      with Has[H]
+      with Has[I]
+      with Has[J]
+      with Has[K]
+      with Has[L]
+      with Has[M]
+      with Has[N]
+      with Has[O]
+      with Has[
+        P
+      ]
+      with Has[Q]
+      with Has[R]
+      with Has[S]
+      with Has[T]
+      with Has[U], Has[
       V1
     ]] = {
       for {

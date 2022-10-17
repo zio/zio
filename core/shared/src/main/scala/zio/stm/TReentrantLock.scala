@@ -163,7 +163,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
             data.unsafeSet(journal, WriteLock(w, newTotal, fiberId))
           TExit.Succeed(newTotal)
 
-        case _ => TExit.Retry //another fiber is holding a write lock
+        case _ => TExit.Retry // another fiber is holding a write lock
       }
     )
 }

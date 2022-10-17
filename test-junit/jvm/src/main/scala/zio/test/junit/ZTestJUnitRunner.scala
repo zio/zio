@@ -43,12 +43,11 @@ import zio.test._
 class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with BootstrapRuntime {
   private val className = klass.getName.stripSuffix("$")
 
-  private lazy val spec: AbstractRunnableSpec = {
+  private lazy val spec: AbstractRunnableSpec =
     klass
       .getDeclaredConstructor()
       .newInstance()
       .asInstanceOf[AbstractRunnableSpec]
-  }
 
   private var filter = Filter.ALL
 

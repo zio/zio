@@ -3187,7 +3187,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         testM("toIterator") {
           (for {
-            counter <- Ref.make(0).toManaged_ //Increment and get the value
+            counter  <- Ref.make(0).toManaged_ // Increment and get the value
             effect    = counter.updateAndGet(_ + 1)
             iterator <- ZStream.repeatEffect(effect).toIterator
             n         = 2000

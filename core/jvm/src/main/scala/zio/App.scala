@@ -53,29 +53,30 @@ trait App extends BootstrapRuntime {
    */
   // $COVERAGE-OFF$ Bootstrap to `Unit`
   final def main(args0: Array[String]): Unit =
-    try sys.exit(
-      unsafeRun(
-        for {
-          fiber <- run(args0.toList).fork
-          _ <- IO.effectTotal(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
-                 override def run() =
-                   if (FiberContext.fatal.get) {
-                     println(
-                       "**** WARNING ***\n" +
-                         "Catastrophic JVM error encountered. " +
-                         "Application not safely interrupted. " +
-                         "Resources may be leaked. " +
-                         "Check the logs for more details and consider overriding `Platform.reportFatal` to capture context."
-                     )
-                   } else {
-                     val _ = unsafeRunSync(fiber.interrupt)
-                   }
-               }))
-          result <- fiber.join.catchAllCause(_ => ZIO.succeed(ExitCode.failure))
-          _      <- fiber.interrupt
-        } yield result.code
+    try
+      sys.exit(
+        unsafeRun(
+          for {
+            fiber <- run(args0.toList).fork
+            _ <- IO.effectTotal(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
+                   override def run() =
+                     if (FiberContext.fatal.get) {
+                       println(
+                         "**** WARNING ***\n" +
+                           "Catastrophic JVM error encountered. " +
+                           "Application not safely interrupted. " +
+                           "Resources may be leaked. " +
+                           "Check the logs for more details and consider overriding `Platform.reportFatal` to capture context."
+                       )
+                     } else {
+                       val _ = unsafeRunSync(fiber.interrupt)
+                     }
+                 }))
+            result <- fiber.join.catchAllCause(_ => ZIO.succeed(ExitCode.failure))
+            _      <- fiber.interrupt
+          } yield result.code
+        )
       )
-    )
     catch { case _: SecurityException => }
   // $COVERAGE-ON$
 }

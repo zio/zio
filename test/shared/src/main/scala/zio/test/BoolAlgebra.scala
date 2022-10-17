@@ -191,7 +191,7 @@ object BoolAlgebra {
     override def equals(that: Any): Boolean = that match {
       case other: BoolAlgebra[Any] =>
         equal(other) ||
-          doubleNegative(self, other)
+        doubleNegative(self, other)
       case _ => false
     }
     private def equal(that: BoolAlgebra[Any]): Boolean = (self, that) match {
@@ -204,11 +204,11 @@ object BoolAlgebra {
     override def equals(that: Any): Boolean = that match {
       case other: BoolAlgebra[Any] =>
         equal(other) ||
-          commutative(other) ||
-          symmetric(associative)(self, other) ||
-          symmetric(distributive)(self, other) ||
-          doubleNegative(self, other) ||
-          deMorgansLaws(other)
+        commutative(other) ||
+        symmetric(associative)(self, other) ||
+        symmetric(distributive)(self, other) ||
+        doubleNegative(self, other) ||
+        deMorgansLaws(other)
       case _ => false
     }
     private def equal(that: BoolAlgebra[Any]): Boolean = (self, that) match {
@@ -244,11 +244,11 @@ object BoolAlgebra {
     override def equals(that: Any): Boolean = that match {
       case other: BoolAlgebra[Any] =>
         equal(other) ||
-          commutative(other) ||
-          symmetric(associative)(self, other) ||
-          symmetric(distributive)(self, other) ||
-          doubleNegative(self, other) ||
-          deMorgansLaws(other)
+        commutative(other) ||
+        symmetric(associative)(self, other) ||
+        symmetric(distributive)(self, other) ||
+        doubleNegative(self, other) ||
+        deMorgansLaws(other)
       case _ => false
     }
     private def equal(that: BoolAlgebra[Any]): Boolean = (self, that) match {
@@ -283,8 +283,8 @@ object BoolAlgebra {
     override def equals(that: Any): Boolean = that match {
       case other: BoolAlgebra[Any] =>
         equal(other) ||
-          doubleNegative(other, self) ||
-          deMorgansLaws(other)
+        doubleNegative(other, self) ||
+        deMorgansLaws(other)
       case _ =>
         false
     }

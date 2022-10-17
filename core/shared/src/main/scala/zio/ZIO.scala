@@ -2770,12 +2770,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         effectAsyncMaybe(
           ZIOFn(register) { (k: UIO[ZIO[R, E, A]] => Unit) =>
             if (!started.getAndSet(true)) {
-              try register(io => k(ZIO.succeedNow(io))) match {
-                case Left(canceler) =>
-                  cancel.set(canceler)
-                  None
-                case Right(io) => Some(ZIO.succeedNow(io))
-              } finally if (!cancel.isSet) cancel.set(ZIO.unit)
+              try
+                register(io => k(ZIO.succeedNow(io))) match {
+                  case Left(canceler) =>
+                    cancel.set(canceler)
+                    None
+                  case Right(io) => Some(ZIO.succeedNow(io))
+                }
+              finally if (!cancel.isSet) cancel.set(ZIO.unit)
             } else None
           },
           blockingOn
@@ -3262,22 +3264,23 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     else {
       val size = as.size
       if (size == 0) ZIO.succeedNow(bf.newBuilder(as).result())
-      else {
+      else
+        {
 
-        def worker(queue: Queue[(A, Int)], array: Array[AnyRef]): ZIO[R, E, Unit] =
-          queue.poll.flatMap {
-            case Some((a, n)) =>
-              fn(a).tap(b => ZIO.effectTotal(array(n) = b.asInstanceOf[AnyRef])) *> worker(queue, array)
-            case None => ZIO.unit
-          }
+          def worker(queue: Queue[(A, Int)], array: Array[AnyRef]): ZIO[R, E, Unit] =
+            queue.poll.flatMap {
+              case Some((a, n)) =>
+                fn(a).tap(b => ZIO.effectTotal(array(n) = b.asInstanceOf[AnyRef])) *> worker(queue, array)
+              case None => ZIO.unit
+            }
 
-        for {
-          array <- ZIO.effectTotal(Array.ofDim[AnyRef](size))
-          queue <- Queue.bounded[(A, Int)](size)
-          _     <- queue.offerAll(as.zipWithIndex)
-          _     <- ZIO.collectAllPar_(ZIO.replicate(n)(worker(queue, array)))
-        } yield bf.fromSpecific(as)(array.asInstanceOf[Array[B]])
-      }.refailWithTrace
+          for {
+            array <- ZIO.effectTotal(Array.ofDim[AnyRef](size))
+            queue <- Queue.bounded[(A, Int)](size)
+            _     <- queue.offerAll(as.zipWithIndex)
+            _     <- ZIO.collectAllPar_(ZIO.replicate(n)(worker(queue, array)))
+          } yield bf.fromSpecific(as)(array.asInstanceOf[Array[B]])
+        }.refailWithTrace
     }
 
   /**
@@ -3289,20 +3292,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def foreachParN_[R, E, A](n: Int)(as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = {
     val size = as.size
     if (size == 0) ZIO.unit
-    else {
+    else
+      {
 
-      def worker(queue: Queue[A]): ZIO[R, E, Unit] =
-        queue.poll.flatMap {
-          case Some(a) => f(a) *> worker(queue)
-          case None    => ZIO.unit
-        }
+        def worker(queue: Queue[A]): ZIO[R, E, Unit] =
+          queue.poll.flatMap {
+            case Some(a) => f(a) *> worker(queue)
+            case None    => ZIO.unit
+          }
 
-      for {
-        queue <- Queue.bounded[A](size)
-        _     <- queue.offerAll(as)
-        _     <- ZIO.collectAllPar_(ZIO.replicate(n)(worker(queue)))
-      } yield ()
-    }.refailWithTrace
+        for {
+          queue <- Queue.bounded[A](size)
+          _     <- queue.offerAll(as)
+          _     <- ZIO.collectAllPar_(ZIO.replicate(n)(worker(queue)))
+        } yield ()
+      }.refailWithTrace
   }
 
   /**
