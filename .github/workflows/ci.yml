@@ -201,7 +201,7 @@ jobs:
       - name: Install libuv
         run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Test on different Scala target platforms
-        run: free --si -tmws 60 & ./sbt ++3.2.0 root${{ matrix.platform }}/test # TODO: remove Scala version from here
+        run: free --si -tmws 60 & ./sbt root${{ matrix.platform }}/test
 
   ci:
     runs-on: ubuntu-20.04
