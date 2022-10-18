@@ -37,9 +37,9 @@ sealed trait Config[+A] { self =>
   def ||[A1 >: A](that: Config[A1]): Config[A1] = Config.Fallback(self, that)
 
   /**
-   * Adds a description to this configuration.
+   * Adds a description to this configuration, which is intended for humans.
    */
-  def ??(label: String): Config[A] = Config.Labelled(self, label)
+  def ??(label: String): Config[A] = Config.Described(self, label)
 
   /**
    * Returns a new config whose structure is the same as this one, but which
@@ -47,30 +47,53 @@ sealed trait Config[+A] { self =>
    */
   def map[B](f: A => B): Config[B] = self.mapOrFail(a => Right(f(a)))
 
+  /**
+   * Returns a new config whose structure is the samea as this one, but which 
+   * may produce a different Scala value, constructed using the specified 
+   * fallible function.
+   */
   def mapOrFail[B](f: A => Either[Config.Error, B]): Config[B] = Config.MapOrFail(self, f)
 
+  /**
+   * Returns an optional version of this config, which will be `None` if the
+   * data is missing from configuration, and `Some` otherwise.
+   */
   def optional: Config[Option[A]] = self.map(Some(_)) || Config.succeed(None)
 
+  /**
+   * A named version of `||`.
+   */
   def orElse[A1 >: A](that: Config[A1]): Config[A1] = self || that
 
-  def sequence: Config[Chunk[A]] = Config.Sequence(self)
+  /**
+   * Returns a new config that describes a sequence of values, each of which
+   * has the structure of this config.
+   */
+  def repeat: Config[Chunk[A]] = Config.Sequence(self)
 
-  def validate[A1 >: A](f: A1 => Boolean): Config[A1] =
+  /**
+   * Returns a new config that describes the same structure as this one, but 
+   * which performs validation during loading.
+   */
+  def validate[A1 >: A](message: String)(f: A1 => Boolean): Config[A1] =
     self.mapOrFail(a =>
-      if (!f(a)) Left(Config.Error.Generic(Chunk.empty, "Validation of configuration data failed")) else Right(a)
+      if (!f(a)) Left(Config.Error.InvalidData(Chunk.empty, message)) else Right(a)
     )
 
+  /**
+   * A named version of `++`.
+   */
   def zip[B](that: Config[B])(implicit z: Zippable[A, B]): Config[z.Out] = self ++ that
 }
 object Config {
   final case class Bool(name: String)                                                                  extends Config[Boolean]
   final case class Constant[A](value: A)                                                               extends Config[A]
   final case class Decimal(name: String)                                                               extends Config[BigDecimal]
-  final case class Duration(name: String)                                                              extends Config[java.time.Duration]
+  final case class Duration(name: String)                                                              extends Config[zio.Duration]
   final case class Fail(message: String)                                                               extends Config[Nothing]
   final case class Fallback[A](first: Config[A], second: Config[A])                                    extends Config[A]
   final case class Integer(name: String)                                                               extends Config[BigInt]
-  final case class Labelled[A](config: Config[A], label: String)                                       extends Config[A]
+  final case class Described[A](config: Config[A], description: String)                                       extends Config[A]
   final case class Lazy[A](thunk: () => Config[A])                                                     extends Config[A]
   final case class LocalDateTime(name: String)                                                         extends Config[java.time.LocalDateTime]
   final case class LocalDate(name: String)                                                             extends Config[java.time.LocalDate]
@@ -81,9 +104,12 @@ object Config {
   final case class Sequence[A](config: Config[A])                                                      extends Config[Chunk[A]]
   final case class Table[K, V](keyConfig: Config[K], valueConfig: Config[V])                           extends Config[Map[K, V]]
   final case class Text(name: String)                                                                  extends Config[String]
-  final case class URL(name: String)                                                                   extends Config[java.net.URL]
+  final case class URI(name: String)                                                                   extends Config[java.net.URI]
   final case class Zipped[A, B, C](left: Config[A], right: Config[B], zippable: Zippable.Out[A, B, C]) extends Config[C]
 
+  /**
+   * The possible ways that loading configuration data may fail.
+   */
   sealed trait Error extends Exception with NoStackTrace {
     def prefixed(prefix: Chunk[String]): Error
   }
@@ -91,9 +117,6 @@ object Config {
     final case class And(left: Error, right: Error) extends Error {
       def prefixed(prefix: Chunk[String]): And =
         copy(left = left.prefixed(prefix), right = right.prefixed(prefix))
-    }
-    final case class Generic(path: Chunk[String], message: String) extends Error {
-      def prefixed(prefix: Chunk[String]): Generic = copy(path = prefix ++ path)
     }
     final case class InvalidData(path: Chunk[String], message: String) extends Error {
       def prefixed(prefix: Chunk[String]): InvalidData = copy(path = prefix ++ path)
@@ -105,8 +128,8 @@ object Config {
       def prefixed(prefix: Chunk[String]): Or =
         copy(left = left.prefixed(prefix), right = right.prefixed(prefix))
     }
-    final case class UnreachableSource(path: Chunk[String], message: String) extends Error {
-      def prefixed(prefix: Chunk[String]): UnreachableSource = copy(path = prefix ++ path)
+    final case class SourceUnavailable(path: Chunk[String], message: String, cause: Cause[Throwable]) extends Error {
+      def prefixed(prefix: Chunk[String]): SourceUnavailable = copy(path = prefix ++ path)
     }
   }
 
@@ -123,7 +146,7 @@ object Config {
 
   def double(name: String): Config[Double] = bigDecimal(name).map(_.toDouble)
 
-  def duration(name: String): Config[java.time.Duration] = Duration(name)
+  def duration(name: String): Config[zio.Duration] = Duration(name)
 
   def fail(error: => String): Config[Nothing] = defer(Fail(error))
 
@@ -153,7 +176,7 @@ object Config {
 
   def table[K, V](key: Config[K], value: Config[V]): Config[Map[K, V]] = Table(key, value)
 
-  def url(name: String): Config[java.net.URL] = URL(name)
+  def uri(name: String): Config[java.net.URI] = URI(name)
 
   def vectorOf[A](config: Config[A]): Config[Vector[A]] = chunkOf(config).map(_.toVector)
 }
