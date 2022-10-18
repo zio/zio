@@ -15,7 +15,7 @@
  */
 package zio
 
-import scala.util.control.NoStackTrace
+import scala.util.control.{NonFatal, NoStackTrace}
 
 /**
  * A [[zio.Config]] describes the structure of some configuration data.
@@ -54,6 +54,14 @@ sealed trait Config[+A] { self =>
    */
   def mapOrFail[B](f: A => Either[Config.Error, B]): Config[B] = Config.MapOrFail(self, f)
 
+  def mapOrThrow[B](f: A => B): Config[B] =
+    self.mapOrFail { a =>
+      try Right(f(a))
+      catch {
+        case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, e.getMessage))
+      }
+    }
+
   /**
    * Returns an optional version of this config, which will be `None` if the
    * data is missing from configuration, and `Some` otherwise.
@@ -84,31 +92,37 @@ sealed trait Config[+A] { self =>
   def zip[B](that: Config[B])(implicit z: Zippable[A, B]): Config[z.Out] = self ++ that
 }
 object Config {
-  final case class Bool(name: String)                                                                  extends Config[Boolean]
-  final case class Constant[A](value: A)                                                               extends Config[A]
-  final case class Decimal(name: String)                                                               extends Config[BigDecimal]
-  final case class Duration(name: String)                                                              extends Config[zio.Duration]
-  final case class Fail(message: String)                                                               extends Config[Nothing]
-  final case class Fallback[A](first: Config[A], second: Config[A])                                    extends Config[A]
-  final case class Integer(name: String)                                                               extends Config[BigInt]
-  final case class Described[A](config: Config[A], description: String)                                extends Config[A]
-  final case class Lazy[A](thunk: () => Config[A])                                                     extends Config[A]
-  final case class LocalDateTime(name: String)                                                         extends Config[java.time.LocalDateTime]
-  final case class LocalDate(name: String)                                                             extends Config[java.time.LocalDate]
-  final case class LocalTime(name: String)                                                             extends Config[java.time.LocalTime]
-  final case class MapOrFail[A, B](original: Config[A], mapOrFail: A => Either[Config.Error, B])       extends Config[B]
-  final case class OffsetDateTime(name: String)                                                        extends Config[java.time.OffsetDateTime]
-  final case class Secret(name: String)                                                                extends Config[Chunk[Byte]]
-  final case class Sequence[A](config: Config[A])                                                      extends Config[Chunk[A]]
-  final case class Table[K, V](keyConfig: Config[K], valueConfig: Config[V])                           extends Config[Map[K, V]]
-  final case class Text(name: String)                                                                  extends Config[String]
-  final case class URI(name: String)                                                                   extends Config[java.net.URI]
-  final case class Zipped[A, B, C](left: Config[A], right: Config[B], zippable: Zippable.Out[A, B, C]) extends Config[C]
+  sealed trait Atom[+A]      extends Config[A]
+  sealed trait Composite[+A] extends Config[A]
+
+  final case class Bool(name: String)                                                            extends Atom[Boolean]
+  final case class Constant[A](value: A)                                                         extends Atom[A]
+  final case class Decimal(name: String)                                                         extends Atom[BigDecimal]
+  final case class Duration(name: String)                                                        extends Atom[zio.Duration]
+  final case class Fail(message: String)                                                         extends Atom[Nothing]
+  final case class Fallback[A](first: Config[A], second: Config[A])                              extends Composite[A]
+  final case class Integer(name: String)                                                         extends Composite[BigInt]
+  final case class Described[A](config: Config[A], description: String)                          extends Composite[A]
+  final case class Lazy[A](thunk: () => Config[A])                                               extends Composite[A]
+  final case class LocalDateTime(name: String)                                                   extends Atom[java.time.LocalDateTime]
+  final case class LocalDate(name: String)                                                       extends Atom[java.time.LocalDate]
+  final case class LocalTime(name: String)                                                       extends Atom[java.time.LocalTime]
+  final case class MapOrFail[A, B](original: Config[A], mapOrFail: A => Either[Config.Error, B]) extends Composite[B]
+  final case class OffsetDateTime(name: String)                                                  extends Atom[java.time.OffsetDateTime]
+  final case class Secret(name: String)                                                          extends Atom[zio.Secret]
+  final case class Sequence[A](config: Config[A])                                                extends Composite[Chunk[A]]
+  final case class Table[V](valueConfig: Config[V])                                              extends Composite[Map[String, V]]
+  final case class Text(name: String)                                                            extends Atom[String]
+  final case class Zipped[A, B, C](left: Config[A], right: Config[B], zippable: Zippable.Out[A, B, C])
+      extends Composite[C]
 
   /**
    * The possible ways that loading configuration data may fail.
    */
-  sealed trait Error extends Exception with NoStackTrace {
+  sealed trait Error extends Exception with NoStackTrace { self =>
+    def &&(that: Error): Error = Error.And(self, that)
+    def ||(that: Error): Error = Error.And(self, that)
+
     def prefixed(prefix: Chunk[String]): Error
   }
   object Error {
@@ -128,6 +142,9 @@ object Config {
     }
     final case class SourceUnavailable(path: Chunk[String], message: String, cause: Cause[Throwable]) extends Error {
       def prefixed(prefix: Chunk[String]): SourceUnavailable = copy(path = prefix ++ path)
+    }
+    final case class Unsupported(path: Chunk[String], message: String) extends Error {
+      def prefixed(prefix: Chunk[String]): Unsupported = copy(path = prefix ++ path)
     }
   }
 
@@ -162,19 +179,17 @@ object Config {
 
   def offsetDateTime(name: String): Config[java.time.OffsetDateTime] = OffsetDateTime(name)
 
-  def secret(name: String): Config[Chunk[Byte]] = Secret(name)
+  def secret(name: String): Config[zio.Secret] = Secret(name)
 
   def setOf[A](config: Config[A]): Config[Set[A]] = chunkOf(config).map(_.toSet)
-
-  def simpleTable[V](value: Config[V]): Config[Map[String, V]] = table(string("key"), value)
 
   def string(name: String): Config[String] = Text(name)
 
   def succeed[A](value: => A): Config[A] = defer(Constant(value))
 
-  def table[K, V](key: Config[K], value: Config[V]): Config[Map[K, V]] = Table(key, value)
+  def table[V](value: Config[V]): Config[Map[String, V]] = Table(value)
 
-  def uri(name: String): Config[java.net.URI] = URI(name)
+  def uri(name: String): Config[java.net.URI] = string(name).mapOrThrow(java.net.URI.create(_))
 
   def vectorOf[A](config: Config[A]): Config[Vector[A]] = chunkOf(config).map(_.toVector)
 }
