@@ -2004,22 +2004,34 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    */
   def mapZIO[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: Trace): ZStream[R1, E1, A1] = {
 
-    def loop(chunkIterator: Chunk.ChunkIterator[A], index: Int): ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Any] =
-      if (chunkIterator.hasNextAt(index))
-        ZChannel.unwrap {
-          val a = chunkIterator.nextAt(index)
-          f(a).map { a1 =>
-            ZChannel.write(Chunk.single(a1)) *> loop(chunkIterator, index + 1)
-          }
-        }
-      else
-        ZChannel.readWithCause(
-          elem => loop(elem.chunkIterator, 0),
-          err => ZChannel.failCause(err),
-          done => ZChannel.succeed(done)
-        )
+    def map: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Any] =
+      ZChannel.readWithCause(
+        {
+          case chunk if chunk.isEmpty => ZChannel.write(Chunk.empty) *> map
+          case chunk =>
+            var i: Int          = 0
+            var err: E1         = null.asInstanceOf[E1]
+            var accu: Chunk[A1] = Chunk.empty
+            val loop =
+              ZIO
+                .whileLoop[R1, Nothing, Unit](i < chunk.size && err == null)(
+                  f(chunk(i))
+                    .fold(
+                      e1 => err = e1,
+                      { a1 =>
+                        accu = accu.appended(a1)
+                        i += 1
+                      }
+                    )
+                )(_ => ())
+                .as(ZChannel.write(accu) *> (if (err != null) ZChannel.fail(err) else map))
+            ZChannel.unwrap(loop)
+        },
+        err => ZChannel.failCause(err),
+        done => ZChannel.succeed(done)
+      )
 
-    new ZStream(self.channel >>> loop(Chunk.ChunkIterator.empty, 0))
+    new ZStream(self.channel >>> map)
   }
 
   /**
