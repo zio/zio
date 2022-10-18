@@ -163,6 +163,17 @@ const config = {
       },
     ],
   ],
+  plugins: [
+    [
+      '@docusaurus/plugin-content-docs',
+        {
+          id: 'zio-schema', 
+          path: './node_modules/@zio.dev/zio-schema',
+          routeBasePath: 'zio-schema',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-schema/sidebar.js'),
+        },
+    ],
+  ],
 }
 
 module.exports = config;
