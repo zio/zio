@@ -48,8 +48,8 @@ sealed trait Config[+A] { self =>
   def map[B](f: A => B): Config[B] = self.mapOrFail(a => Right(f(a)))
 
   /**
-   * Returns a new config whose structure is the samea as this one, but which 
-   * may produce a different Scala value, constructed using the specified 
+   * Returns a new config whose structure is the samea as this one, but which
+   * may produce a different Scala value, constructed using the specified
    * fallible function.
    */
   def mapOrFail[B](f: A => Either[Config.Error, B]): Config[B] = Config.MapOrFail(self, f)
@@ -66,19 +66,17 @@ sealed trait Config[+A] { self =>
   def orElse[A1 >: A](that: Config[A1]): Config[A1] = self || that
 
   /**
-   * Returns a new config that describes a sequence of values, each of which
-   * has the structure of this config.
+   * Returns a new config that describes a sequence of values, each of which has
+   * the structure of this config.
    */
   def repeat: Config[Chunk[A]] = Config.Sequence(self)
 
   /**
-   * Returns a new config that describes the same structure as this one, but 
+   * Returns a new config that describes the same structure as this one, but
    * which performs validation during loading.
    */
   def validate[A1 >: A](message: String)(f: A1 => Boolean): Config[A1] =
-    self.mapOrFail(a =>
-      if (!f(a)) Left(Config.Error.InvalidData(Chunk.empty, message)) else Right(a)
-    )
+    self.mapOrFail(a => if (!f(a)) Left(Config.Error.InvalidData(Chunk.empty, message)) else Right(a))
 
   /**
    * A named version of `++`.
@@ -93,7 +91,7 @@ object Config {
   final case class Fail(message: String)                                                               extends Config[Nothing]
   final case class Fallback[A](first: Config[A], second: Config[A])                                    extends Config[A]
   final case class Integer(name: String)                                                               extends Config[BigInt]
-  final case class Described[A](config: Config[A], description: String)                                       extends Config[A]
+  final case class Described[A](config: Config[A], description: String)                                extends Config[A]
   final case class Lazy[A](thunk: () => Config[A])                                                     extends Config[A]
   final case class LocalDateTime(name: String)                                                         extends Config[java.time.LocalDateTime]
   final case class LocalDate(name: String)                                                             extends Config[java.time.LocalDate]
