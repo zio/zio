@@ -41,6 +41,8 @@ sealed trait Config[+A] { self =>
    */
   def ??(label: String): Config[A] = Config.Described(self, label)
 
+  def apply(name: String): Config[A] = nested(name)
+
   /**
    * Returns a new config whose structure is the same as this one, but which
    * produces a different Scala value, constructed using the specified function.

@@ -43,9 +43,9 @@ object ConfigProvider {
   private val offsetTime     = DateTimeFormatter.ISO_OFFSET_TIME
 
   /**
-   * A simplified config provider that knows only how to deal with flat 
-   * (key/value) properties. Because these providers are common, there 
-   * is special support for implementing them.
+   * A simplified config provider that knows only how to deal with flat
+   * (key/value) properties. Because these providers are common, there is
+   * special support for implementing them.
    */
   trait Flat {
     def load[A](path: Chunk[String], config: Config.Atom[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]]
@@ -76,10 +76,10 @@ object ConfigProvider {
    * A config provider layer that loads configuration from interactive console
    * prompts, using the default Console service.
    */
-  val console: ZLayer[Any, Nothing, ConfigProvider] =
+  lazy val console: ZLayer[Any, Nothing, ConfigProvider] =
     ZLayer.succeed(consoleProvider)
 
-  val consoleProvider: ConfigProvider =
+  lazy val consoleProvider: ConfigProvider =
     fromFlat(new Flat {
       def load[A](path: Chunk[String], atom: Config.Atom[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
         val name        = path.lastOption.getOrElse("<unnamed>")
@@ -109,14 +109,14 @@ object ConfigProvider {
         )
     })
 
-  val defaultProvider: ConfigProvider =
+  lazy val defaultProvider: ConfigProvider =
     envProvider.orElse(propsProvider)
 
   /**
-   * A config provider that loads configuration from environment
-   * variables, using the default System service.
+   * A config provider that loads configuration from environment variables,
+   * using the default System service.
    */
-  val envProvider: ConfigProvider =
+  lazy val envProvider: ConfigProvider =
     fromFlat(new Flat {
       val sourceUnavailable = (path: Chunk[String]) =>
         (e: Throwable) =>
@@ -152,13 +152,13 @@ object ConfigProvider {
    * A config provider layer that loads configuration from environment
    * variables, using the default System service.
    */
-  val env: ZLayer[Any, Nothing, ConfigProvider] =
+  lazy val env: ZLayer[Any, Nothing, ConfigProvider] =
     ZLayer.succeed(envProvider)
 
   /**
-    * Constructs a new ConfigProvider from a key/value (flat) provider, where 
-    * nesting is embedded into the string keys.
-    */
+   * Constructs a new ConfigProvider from a key/value (flat) provider, where
+   * nesting is embedded into the string keys.
+   */
   def fromFlat(flat: Flat): ConfigProvider =
     new ConfigProvider {
       import Config._
@@ -240,10 +240,9 @@ object ConfigProvider {
     }
 
   /**
-    * Constructs a ConfigProvider using a map and the specified delimiter 
-    * string, which determines how to split the keys in the map into 
-    * path segments.
-    */
+   * Constructs a ConfigProvider using a map and the specified delimiter string,
+   * which determines how to split the keys in the map into path segments.
+   */
   def fromMap(map: Map[String, String], pathDelim: String = "."): ConfigProvider =
     fromFlat(new Flat {
       def makePathString(path: Chunk[String]): String = path.mkString(pathDelim).toLowerCase
@@ -275,14 +274,14 @@ object ConfigProvider {
    * A config provider layer that loads configuration from system properties,
    * using the default System service.
    */
-  val props: ZLayer[Any, Nothing, ConfigProvider] =
+  lazy val props: ZLayer[Any, Nothing, ConfigProvider] =
     ZLayer.succeed(propsProvider)
 
   /**
-    * A configuration provider that loads configuration from system properties,
-    * using the default System service.
-    */
-  val propsProvider: ConfigProvider =
+   * A configuration provider that loads configuration from system properties,
+   * using the default System service.
+   */
+  lazy val propsProvider: ConfigProvider =
     fromFlat(new Flat {
       val sourceUnavailable = (path: Chunk[String]) =>
         (e: Throwable) => Config.Error.SourceUnavailable(path, "There was a problem reading properties", Cause.fail(e))
@@ -313,7 +312,7 @@ object ConfigProvider {
     })
 
   /**
-    * The tag that describes the ConfigProvider service.
-    */
-  val tag: Tag[ConfigProvider] = Tag[ConfigProvider]
+   * The tag that describes the ConfigProvider service.
+   */
+  lazy val tag: Tag[ConfigProvider] = Tag[ConfigProvider]
 }
