@@ -30,7 +30,7 @@ object DefaultServices {
       Console.ConsoleLive,
       System.SystemLive,
       Random.RandomLive,
-      ConfigProvider.ConfigProviderLive
+      ConfigProvider.defaultProvider
     )(Clock.tag, Console.tag, System.tag, Random.tag, ConfigProvider.tag)
 
   private[zio] val currentServices: FiberRef.WithPatch[ZEnvironment[
