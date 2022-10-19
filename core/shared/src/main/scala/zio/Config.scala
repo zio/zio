@@ -220,27 +220,41 @@ object Config {
     def ||(that: Error): Error = Error.And(self, that)
 
     def prefixed(prefix: Chunk[String]): Error
+
+    override def getMessage(): String = toString()
   }
   object Error {
     final case class And(left: Error, right: Error) extends Error {
       def prefixed(prefix: Chunk[String]): And =
         copy(left = left.prefixed(prefix), right = right.prefixed(prefix))
+
+      override def toString(): String = s"(${left.toString()} and ${right.toString()})"
     }
     final case class InvalidData(path: Chunk[String], message: String) extends Error {
       def prefixed(prefix: Chunk[String]): InvalidData = copy(path = prefix ++ path)
+
+      override def toString(): String = s"(Invalid data at ${path.mkString(".")}: ${message})"
     }
     final case class MissingData(path: Chunk[String], message: String) extends Error {
       def prefixed(prefix: Chunk[String]): MissingData = copy(path = prefix ++ path)
+
+      override def toString(): String = s"(Missing data at ${path.mkString(".")}: ${message})"
     }
     final case class Or(left: Error, right: Error) extends Error {
       def prefixed(prefix: Chunk[String]): Or =
         copy(left = left.prefixed(prefix), right = right.prefixed(prefix))
+
+      override def toString(): String = s"(${left.toString()} or ${right.toString()})"
     }
     final case class SourceUnavailable(path: Chunk[String], message: String, cause: Cause[Throwable]) extends Error {
       def prefixed(prefix: Chunk[String]): SourceUnavailable = copy(path = prefix ++ path)
+
+      override def toString(): String = s"(Source unavailable at ${path.mkString(".")}: ${message})"
     }
     final case class Unsupported(path: Chunk[String], message: String) extends Error {
       def prefixed(prefix: Chunk[String]): Unsupported = copy(path = prefix ++ path)
+
+      override def toString(): String = s"(Unsupported operation at ${path.mkString(".")}: ${message})"
     }
   }
 

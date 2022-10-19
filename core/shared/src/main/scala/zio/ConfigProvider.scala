@@ -245,7 +245,7 @@ object ConfigProvider {
    */
   def fromMap(map: Map[String, String], pathDelim: String = "."): ConfigProvider =
     fromFlat(new Flat {
-      def makePathString(path: Chunk[String]): String = path.mkString(pathDelim).toLowerCase
+      def makePathString(path: Chunk[String]): String = path.mkString(pathDelim)
 
       def load[A](path: Chunk[String], atom: Config.Atom[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
         val pathString  = makePathString(path)

@@ -31,6 +31,6 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           value <- provider(Map("hostPort.host" -> "localhost", "hostPort.port" -> "8080", "timeout" -> "1000"))
                      .load(ServiceConfig.config)
         } yield assertTrue(value == ServiceConfig.default)
-      } @@ TestAspect.ignore
+      }
   }
 }
