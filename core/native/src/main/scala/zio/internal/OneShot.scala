@@ -41,7 +41,7 @@ private[zio] final class OneShot[A] private (var value: A) {
    * Retrieves the value of the variable, blocking if necessary.
    */
   def get(): A = {
-    scala.scalanative.loop.EventLoop.run()
+    if (value == null) scala.scalanative.loop.EventLoop.run()
     if (value == null) throw new Error("Cannot block for result to be set in Scala Native")
     value
   }
