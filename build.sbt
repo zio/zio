@@ -281,6 +281,7 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     }
   )
   .nativeSettings(nativeSettings)
+  .nativeSettings(Test / test := (Test / compile).value) // TODO: remove
 
 lazy val macros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("macros"))
