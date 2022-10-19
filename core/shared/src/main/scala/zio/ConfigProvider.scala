@@ -42,6 +42,11 @@ object ConfigProvider {
   private val offsetDate     = DateTimeFormatter.ISO_OFFSET_DATE
   private val offsetTime     = DateTimeFormatter.ISO_OFFSET_TIME
 
+  /**
+   * A simplified config provider that knows only how to deal with flat 
+   * (key/value) properties. Because these providers are common, there 
+   * is special support for implementing them.
+   */
   trait Flat {
     def load[A](path: Chunk[String], config: Config.Atom[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]]
 
@@ -66,6 +71,13 @@ object ConfigProvider {
       }
     }
   }
+
+  /**
+   * A config provider layer that loads configuration from interactive console
+   * prompts, using the default Console service.
+   */
+  val console: ZLayer[Any, Nothing, ConfigProvider] =
+    ZLayer.succeed(consoleProvider)
 
   val consoleProvider: ConfigProvider =
     fromFlat(new Flat {
@@ -97,6 +109,13 @@ object ConfigProvider {
         )
     })
 
+  val defaultProvider: ConfigProvider =
+    envProvider.orElse(propsProvider)
+
+  /**
+   * A config provider that loads configuration from environment
+   * variables, using the default System service.
+   */
   val envProvider: ConfigProvider =
     fromFlat(new Flat {
       val sourceUnavailable = (path: Chunk[String]) =>
@@ -129,36 +148,17 @@ object ConfigProvider {
         }.mapError(sourceUnavailable(path))
     })
 
-  val propsProvider: ConfigProvider =
-    fromFlat(new Flat {
-      val sourceUnavailable = (path: Chunk[String]) =>
-        (e: Throwable) => Config.Error.SourceUnavailable(path, "There was a problem reading properties", Cause.fail(e))
+  /**
+   * A config provider layer that loads configuration from environment
+   * variables, using the default System service.
+   */
+  val env: ZLayer[Any, Nothing, ConfigProvider] =
+    ZLayer.succeed(envProvider)
 
-      def makePathString(path: Chunk[String]): String = path.mkString(".").toLowerCase
-
-      def load[A](path: Chunk[String], atom: Config.Atom[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
-        val pathString  = makePathString(path)
-        val name        = path.lastOption.getOrElse("<unnamed>")
-        val description = atom.description
-
-        for {
-          valueOpt <- zio.System.property(pathString).mapError(sourceUnavailable(path))
-          value <- ZIO
-                     .fromOption(valueOpt)
-                     .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in properties"))
-          results <- Flat.util.parseAtom(value, path, name, atom)
-        } yield results
-      }
-
-      def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Chunk[String]] =
-        zio.System.properties.map { envs =>
-          val pathString = makePathString(path)
-          val keyStrings = Chunk.fromIterable(envs.keys).map(_.toUpperCase)
-
-          keyStrings.filter(_.startsWith(pathString))
-        }.mapError(sourceUnavailable(path))
-    })
-
+  /**
+    * Constructs a new ConfigProvider from a key/value (flat) provider, where 
+    * nesting is embedded into the string keys.
+    */
   def fromFlat(flat: Flat): ConfigProvider =
     new ConfigProvider {
       import Config._
@@ -239,22 +239,37 @@ object ConfigProvider {
         }
     }
 
-  val defaultProvider: ConfigProvider =
-    envProvider.orElse(propsProvider)
-
   /**
-   * A config provider layer that loads configuration from interactive console
-   * prompts, using the default Console service.
-   */
-  val console: ZLayer[Any, Nothing, ConfigProvider] =
-    ZLayer.succeed(consoleProvider)
+    * Constructs a ConfigProvider using a map and the specified delimiter 
+    * string, which determines how to split the keys in the map into 
+    * path segments.
+    */
+  def fromMap(map: Map[String, String], pathDelim: String = "."): ConfigProvider =
+    fromFlat(new Flat {
+      def makePathString(path: Chunk[String]): String = path.mkString(pathDelim).toLowerCase
 
-  /**
-   * A config provider layer that loads configuration from environment
-   * variables, using the default System service.
-   */
-  val env: ZLayer[Any, Nothing, ConfigProvider] =
-    ZLayer.succeed(envProvider)
+      def load[A](path: Chunk[String], atom: Config.Atom[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
+        val pathString  = makePathString(path)
+        val name        = path.lastOption.getOrElse("<unnamed>")
+        val description = atom.description
+        val valueOpt    = map.get(pathString)
+
+        for {
+          value <- ZIO
+                     .fromOption(valueOpt)
+                     .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in properties"))
+          results <- Flat.util.parseAtom(value, path, name, atom)
+        } yield results
+      }
+
+      def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Chunk[String]] =
+        ZIO.succeed {
+          val pathString = makePathString(path)
+          val keyStrings = Chunk.fromIterable(map.keys).map(_.toUpperCase)
+
+          keyStrings.filter(_.startsWith(pathString))
+        }
+    })
 
   /**
    * A config provider layer that loads configuration from system properties,
@@ -263,5 +278,42 @@ object ConfigProvider {
   val props: ZLayer[Any, Nothing, ConfigProvider] =
     ZLayer.succeed(propsProvider)
 
+  /**
+    * A configuration provider that loads configuration from system properties,
+    * using the default System service.
+    */
+  val propsProvider: ConfigProvider =
+    fromFlat(new Flat {
+      val sourceUnavailable = (path: Chunk[String]) =>
+        (e: Throwable) => Config.Error.SourceUnavailable(path, "There was a problem reading properties", Cause.fail(e))
+
+      def makePathString(path: Chunk[String]): String = path.mkString(".").toLowerCase
+
+      def load[A](path: Chunk[String], atom: Config.Atom[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
+        val pathString  = makePathString(path)
+        val name        = path.lastOption.getOrElse("<unnamed>")
+        val description = atom.description
+
+        for {
+          valueOpt <- zio.System.property(pathString).mapError(sourceUnavailable(path))
+          value <- ZIO
+                     .fromOption(valueOpt)
+                     .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in properties"))
+          results <- Flat.util.parseAtom(value, path, name, atom)
+        } yield results
+      }
+
+      def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Chunk[String]] =
+        zio.System.properties.map { envs =>
+          val pathString = makePathString(path)
+          val keyStrings = Chunk.fromIterable(envs.keys).map(_.toUpperCase)
+
+          keyStrings.filter(_.startsWith(pathString))
+        }.mapError(sourceUnavailable(path))
+    })
+
+  /**
+    * The tag that describes the ConfigProvider service.
+    */
   val tag: Tag[ConfigProvider] = Tag[ConfigProvider]
 }
