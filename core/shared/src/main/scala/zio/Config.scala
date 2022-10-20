@@ -26,15 +26,15 @@ sealed trait Config[+A] { self =>
    * Returns a new config that is the composition of this config and the
    * specified config.
    */
-  def ++[B](that: Config[B])(implicit zippable: Zippable[A, B]): Config[zippable.Out] =
-    Config.Zipped[A, B, zippable.Out](self, that, zippable)
+  def ++[B](that: => Config[B])(implicit zippable: Zippable[A, B]): Config[zippable.Out] =
+    Config.Zipped[A, B, zippable.Out](self, Config.defer(that), zippable)
 
   /**
    * Returns a config whose structure is preferentially described by this
    * config, but which falls back to the specified config if there is an issue
    * reading from this config.
    */
-  def ||[A1 >: A](that: Config[A1]): Config[A1] = Config.Fallback(self, that)
+  def ||[A1 >: A](that: => Config[A1]): Config[A1] = Config.Fallback(self, Config.defer(that))
 
   /**
    * Adds a description to this configuration, which is intended for humans.
@@ -100,7 +100,7 @@ sealed trait Config[+A] { self =>
   /**
    * A named version of `++`.
    */
-  def zip[B](that: Config[B])(implicit z: Zippable[A, B]): Config[z.Out] = self ++ that
+  def zip[B](that: => Config[B])(implicit z: Zippable[A, B]): Config[z.Out] = self ++ that
 }
 object Config {
   sealed trait Primitive[+A] extends Config[A] { self =>
