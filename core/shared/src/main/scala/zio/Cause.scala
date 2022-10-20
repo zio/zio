@@ -19,8 +19,12 @@ package zio
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.tailrec
+import scala.util.control.NoStackTrace
 
-sealed abstract class Cause[+E] extends Product with Serializable { self =>
+sealed abstract class Cause[+E](private[Cause] val message: String, private[Cause] val throwable: Option[Throwable])
+    extends Exception(message, throwable.orNull)
+    with NoStackTrace
+    with Product { self =>
   import Cause._
 
   /**
@@ -667,19 +671,29 @@ object Cause extends Serializable {
       (causeOption, stackless) => causeOption.map(Stackless(_, stackless))
     )
 
-  case object Empty extends Cause[Nothing]
+  case object Empty extends Cause[Nothing]("Cause.Empty", None)
 
-  final case class Fail[+E](value: E, override val trace: StackTrace) extends Cause[E]
+  final case class Fail[+E](value: E, override val trace: StackTrace)
+      extends Cause[E](s"Cause.Fail($value)", value match { case value: Throwable => Some(value); case _ => None })
 
-  final case class Die(value: Throwable, override val trace: StackTrace) extends Cause[Nothing]
+  final case class Die(value: Throwable, override val trace: StackTrace)
+      extends Cause[Nothing](s"Cause.Die($value)", Some(value))
 
-  final case class Interrupt(fiberId: FiberId, override val trace: StackTrace) extends Cause[Nothing]
+  final case class Interrupt(fiberId: FiberId, override val trace: StackTrace)
+      extends Cause[Nothing](s"Cause.Interrupt($fiberId)", None)
 
-  final case class Stackless[+E](cause: Cause[E], stackless: Boolean) extends Cause[E]
+  final case class Stackless[+E](cause: Cause[E], stackless: Boolean)
+      extends Cause[E]("Cause.Stackless", cause.throwable)
 
-  final case class Then[+E](left: Cause[E], right: Cause[E]) extends Cause[E]
+  final case class Then[+E](left: Cause[E], right: Cause[E])
+      extends Cause[E]("Cause.Then", left.throwable.orElse(right.throwable)) {
+    left.throwable.zip(right.throwable).foreach { case (_, right) => addSuppressed(right) }
+  }
 
-  final case class Both[+E](left: Cause[E], right: Cause[E]) extends Cause[E]
+  final case class Both[+E](left: Cause[E], right: Cause[E])
+      extends Cause[E]("Cause.Both", left.throwable.orElse(right.throwable)) {
+    left.throwable.zip(right.throwable).foreach { case (_, right) => addSuppressed(right) }
+  }
 
   private def equals(left: Cause[Any], right: Cause[Any]): Boolean = {
 
