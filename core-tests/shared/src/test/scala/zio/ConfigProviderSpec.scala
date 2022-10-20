@@ -15,9 +15,16 @@ object ConfigProviderSpec extends ZIOBaseSpec {
   final case class ServiceConfig(hostPort: HostPort, timeout: Int)
   object ServiceConfig {
     val config: Config[ServiceConfig] =
-      (HostPort.config("hostPort") ++ Config.int("timeout")).map { case (a, b) => ServiceConfig(a, b) }
+      (HostPort.config.nested("hostPort") ++ Config.int("timeout")).map { case (a, b) => ServiceConfig(a, b) }
 
     val default: ServiceConfig = ServiceConfig(HostPort.default, 1000)
+  }
+
+  final case class HostPorts(hostPorts: List[HostPort])
+  object HostPorts {
+    val config: Config[HostPorts] = Config.listOf("hostPorts", HostPort.config).map(HostPorts(_))
+
+    val default: HostPorts = HostPorts(List(HostPort.default))
   }
 
   def spec = suite("ConfigProviderSpec") {
@@ -31,6 +38,24 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           value <- provider(Map("hostPort.host" -> "localhost", "hostPort.port" -> "8080", "timeout" -> "1000"))
                      .load(ServiceConfig.config)
         } yield assertTrue(value == ServiceConfig.default)
+      } +
+      test("top-level list") {
+        for {
+          value <-
+            provider(Map("hostPorts.host" -> "localhost,localhost,localhost", "hostPorts.port" -> "8080,8080,8080"))
+              .load(HostPorts.config)
+        } yield assertTrue(value.hostPorts.length == 3)
+      } +
+      test("top-level missing list") {
+        for {
+          value <- provider(Map()).load(HostPorts.config)
+        } yield assertTrue(value.hostPorts.length == 0)
+      } +
+      test("simple map") {
+        for {
+          value <- provider(Map("name" -> "Sherlock Holmes", "address" -> "221B Baker Street"))
+                     .load(Config.table(Config.string))
+        } yield assertTrue(value == Map("name" -> "Sherlock Holmes", "address" -> "221B Baker Street"))
       }
   }
 }

@@ -41,8 +41,6 @@ sealed trait Config[+A] { self =>
    */
   def ??(label: String): Config[A] = Config.Described(self, label)
 
-  def apply(name: String): Config[A] = nested(name)
-
   /**
    * Returns a new config whose structure is the same as this one, but which
    * produces a different Scala value, constructed using the specified function.
@@ -108,32 +106,32 @@ object Config {
   sealed trait Atom[+A] extends Config[A] { self =>
     final def description: String =
       (self: Atom[_]) match {
-        case Bool           => "a boolean value"
-        case Constant(_)    => "a constant value"
-        case Decimal        => "a decimal value"
-        case Duration       => "a duration value"
-        case Fail(_)        => "a failure"
-        case Integer        => "an integer value"
-        case LocalDateTime  => "a local date-time value"
-        case LocalDate      => "a local date value"
-        case LocalTime      => "a local time value"
-        case OffsetDateTime => "an offset date-time value"
-        case Secret         => "a secret value"
-        case Text           => "a text value"
+        case Bool           => "a boolean property"
+        case Constant(_)    => "a constant property"
+        case Decimal        => "a decimal property"
+        case Duration       => "a duration property"
+        case Fail(_)        => "a static failure"
+        case Integer        => "an integer property"
+        case LocalDateTime  => "a local date-time property"
+        case LocalDate      => "a local date property"
+        case LocalTime      => "a local time property"
+        case OffsetDateTime => "an offset date-time property"
+        case Secret         => "a secret property"
+        case Text           => "a text property"
       }
 
     final def missingError(name: String): Config.Error =
-      Config.Error.MissingData(Chunk.empty, s"Expected a ${description} with name ${name}")
+      Config.Error.MissingData(Chunk.empty, s"Expected ${description} with name ${name}")
 
     def parse(text: String): Either[Config.Error, A]
   }
   sealed trait Composite[+A] extends Config[A]
 
   case object Bool extends Atom[Boolean] {
-    final def parse(text: String): Either[Config.Error, Boolean] = text match {
+    final def parse(text: String): Either[Config.Error, Boolean] = text.toLowerCase match {
       case "true" | "yes" | "on" | "1"  => Right(true)
       case "false" | "no" | "off" | "0" => Right(false)
-      case _                            => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a boolean value, but got ${text}"))
+      case _                            => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a boolean value, but found ${text}"))
     }
   }
   final case class Constant[A](value: A) extends Atom[A] {
@@ -142,13 +140,13 @@ object Config {
   case object Decimal extends Atom[BigDecimal] {
     final def parse(text: String): Either[Config.Error, BigDecimal] = try Right(BigDecimal(text))
     catch {
-      case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a decimal value, but got ${text}"))
+      case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a decimal value, but found ${text}"))
     }
   }
   case object Duration extends Atom[zio.Duration] {
     final def parse(text: String): Either[Config.Error, zio.Duration] = try Right(java.time.Duration.parse(text))
     catch {
-      case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a duration value, but got ${text}"))
+      case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a duration value, but found ${text}"))
     }
   }
   final case class Fail(message: String) extends Atom[Nothing] {
@@ -158,7 +156,7 @@ object Config {
   case object Integer extends Atom[BigInt] {
     final def parse(text: String): Either[Config.Error, BigInt] = try Right(BigInt(text))
     catch {
-      case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected an integer value, but got ${text}"))
+      case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected an integer value, but found ${text}"))
     }
   }
   final case class Described[A](config: Config[A], description: String) extends Composite[A]
@@ -169,7 +167,7 @@ object Config {
     )
     catch {
       case NonFatal(e) =>
-        Left(Config.Error.InvalidData(Chunk.empty, s"Expected a local date-time value, but got ${text}"))
+        Left(Config.Error.InvalidData(Chunk.empty, s"Expected a local date-time value, but found ${text}"))
     }
   }
   case object LocalDate extends Atom[java.time.LocalDate] {
@@ -177,7 +175,7 @@ object Config {
       java.time.LocalDate.parse(text)
     )
     catch {
-      case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a local date value, but got ${text}"))
+      case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a local date value, but found ${text}"))
     }
   }
   case object LocalTime extends Atom[java.time.LocalTime] {
@@ -185,7 +183,7 @@ object Config {
       java.time.LocalTime.parse(text)
     )
     catch {
-      case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a local time value, but got ${text}"))
+      case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a local time value, but found ${text}"))
     }
   }
   final case class MapOrFail[A, B](original: Config[A], mapOrFail: A => Either[Config.Error, B]) extends Composite[B]
@@ -196,7 +194,7 @@ object Config {
     )
     catch {
       case NonFatal(e) =>
-        Left(Config.Error.InvalidData(Chunk.empty, s"Expected an offset date-time value, but got ${text}"))
+        Left(Config.Error.InvalidData(Chunk.empty, s"Expected an offset date-time value, but found ${text}"))
     }
   }
   case object Secret extends Atom[zio.Secret] {
@@ -258,48 +256,86 @@ object Config {
     }
   }
 
-  def bigDecimal(name: String): Config[BigDecimal] = Decimal.nested(name)
+  def bigDecimal: Config[BigDecimal] = Decimal
 
-  def bigInteger(name: String): Config[BigInt] = Integer.nested(name)
+  def bigDecimal(name: String): Config[BigDecimal] = bigDecimal.nested(name)
 
-  def boolean(name: String): Config[Boolean] = Bool.nested(name)
+  def bigInt: Config[BigInt] = Integer
 
-  def chunkOf[A](name: String, config: Config[A]): Config[Chunk[A]] = Sequence(config).nested(name)
+  def bigInt(name: String): Config[BigInt] = Integer.nested(name)
+
+  def boolean: Config[Boolean] = Bool
+
+  def boolean(name: String): Config[Boolean] = boolean.nested(name)
+
+  def chunkOf[A](config: Config[A]): Config[Chunk[A]] = Sequence(config)
+
+  def chunkOf[A](name: String, config: Config[A]): Config[Chunk[A]] = chunkOf(config).nested(name)
 
   def defer[A](config: => Config[A]): Config[A] =
     Lazy(() => config)
 
-  def double(name: String): Config[Double] = bigDecimal(name).map(_.toDouble)
+  def double: Config[Double] = bigDecimal.map(_.toDouble)
 
-  def duration(name: String): Config[zio.Duration] = Duration.nested(name)
+  def double(name: String): Config[Double] = double.nested(name)
+
+  def duration: Config[zio.Duration] = Duration
+
+  def duration(name: String): Config[zio.Duration] = duration.nested(name)
 
   def fail(error: => String): Config[Nothing] = defer(Fail(error))
 
-  def float(name: String): Config[Float] = bigDecimal(name).map(_.toFloat)
+  def float: Config[Float] = bigDecimal.map(_.toFloat)
 
-  def int(name: String): Config[Int] = bigInteger(name).map(_.toInt)
+  def float(name: String): Config[Float] = float.nested(name)
 
-  def listOf[A](name: String, config: Config[A]): Config[List[A]] = chunkOf(name, config).map(_.toList)
+  def int: Config[Int] = bigInt.map(_.toInt)
+
+  def int(name: String): Config[Int] = int.nested(name)
+
+  def listOf[A](config: Config[A]): Config[List[A]] = chunkOf(config).map(_.toList)
+
+  def listOf[A](name: String, config: Config[A]): Config[List[A]] = listOf(config).nested(name)
+
+  def localDate: Config[java.time.LocalDate] = LocalDate
 
   def localDate(name: String): Config[java.time.LocalDate] = LocalDate.nested(name)
 
+  def localDateTime: Config[java.time.LocalDateTime] = LocalDateTime
+
   def localDateTime(name: String): Config[java.time.LocalDateTime] = LocalDateTime.nested(name)
 
-  def localTime(name: String): Config[java.time.LocalTime] = LocalTime.nested(name)
+  def localTime: Config[java.time.LocalTime] = LocalTime
 
-  def offsetDateTime(name: String): Config[java.time.OffsetDateTime] = OffsetDateTime.nested(name)
+  def localTime(name: String): Config[java.time.LocalTime] = localTime.nested(name)
 
-  def secret(name: String): Config[zio.Secret] = Secret.nested(name)
+  def offsetDateTime: Config[java.time.OffsetDateTime] = OffsetDateTime
 
-  def setOf[A](name: String, config: Config[A]): Config[Set[A]] = chunkOf(name, config).map(_.toSet)
+  def offsetDateTime(name: String): Config[java.time.OffsetDateTime] = offsetDateTime.nested(name)
 
-  def string(name: String): Config[String] = Text.nested(name)
+  def secret: Config[zio.Secret] = Secret
+
+  def secret(name: String): Config[zio.Secret] = secret.nested(name)
+
+  def setOf[A](config: Config[A]): Config[Set[A]] = chunkOf(config).map(_.toSet)
+
+  def setOf[A](name: String, config: Config[A]): Config[Set[A]] = setOf(config).nested(name)
+
+  def string: Config[String] = Text
+
+  def string(name: String): Config[String] = string.nested(name)
 
   def succeed[A](value: => A): Config[A] = defer(Constant(value))
 
-  def table[V](name: String, value: Config[V]): Config[Map[String, V]] = Table(value).nested(name)
+  def table[V](value: Config[V]): Config[Map[String, V]] = Table(value)
 
-  def uri(name: String): Config[java.net.URI] = string(name).mapOrThrow(java.net.URI.create(_))
+  def table[V](name: String, value: Config[V]): Config[Map[String, V]] = table(value).nested(name)
 
-  def vectorOf[A](name: String, config: Config[A]): Config[Vector[A]] = chunkOf(name, config).map(_.toVector)
+  def uri: Config[java.net.URI] = string.mapOrThrow(java.net.URI.create(_))
+
+  def uri(name: String): Config[java.net.URI] = uri.nested(name)
+
+  def vectorOf[A](config: Config[A]): Config[Vector[A]] = chunkOf(config).map(_.toVector)
+
+  def vectorOf[A](name: String, config: Config[A]): Config[Vector[A]] = vectorOf(config).nested(name)
 }

@@ -28,6 +28,22 @@ trait ConfigProvider { self =>
    */
   def load[A](config: Config[A])(implicit trace: Trace): IO[Config.Error, A]
 
+  /**
+   * Returns a new config provider that will automatically nest all
+   * configuration under the specified property name. This can be utilized to
+   * aggregate separate configuration sources that are all required to load a
+   * single configuration value.
+   */
+  final def nested(name: String): ConfigProvider =
+    new ConfigProvider {
+      def load[A](config: Config[A])(implicit trace: Trace): IO[Config.Error, A] = self.load(config.nested(name))
+    }
+
+  /**
+   * Returns a new config provider that preferentially loads configuration data
+   * from this one, but which will fall back to the specified alterate provider
+   * if there are any issues loading the configuration from this provider.
+   */
   final def orElse(that: ConfigProvider): ConfigProvider =
     new ConfigProvider {
       def load[A](config: Config[A])(implicit trace: Trace): IO[Config.Error, A] =
@@ -35,12 +51,6 @@ trait ConfigProvider { self =>
     }
 }
 object ConfigProvider {
-  private val localDateTime  = DateTimeFormatter.ISO_LOCAL_DATE_TIME
-  private val localDate      = DateTimeFormatter.ISO_LOCAL_DATE
-  private val localTime      = DateTimeFormatter.ISO_LOCAL_TIME
-  private val offsetDateTime = DateTimeFormatter.ISO_OFFSET_DATE_TIME
-  private val offsetDate     = DateTimeFormatter.ISO_OFFSET_DATE
-  private val offsetTime     = DateTimeFormatter.ISO_OFFSET_TIME
 
   /**
    * A simplified config provider that knows only how to deal with flat
@@ -58,15 +68,16 @@ object ConfigProvider {
         text: String,
         path: Chunk[String],
         name: String,
-        atom: Config.Atom[A]
+        atom: Config.Atom[A],
+        delim: String
       ): IO[Config.Error, Chunk[A]] = {
-        val name   = path.lastOption.getOrElse("<unnamed>")
-        val isText = atom == Config.Text || atom == Config.Secret
+        val name    = path.lastOption.getOrElse("<unnamed>")
+        val unsplit = atom == Config.Secret
 
-        if (isText) ZIO.fromEither(atom.parse(text)).map(Chunk(_))
+        if (unsplit) ZIO.fromEither(atom.parse(text)).map(Chunk(_))
         else
           ZIO
-            .foreach(Chunk.fromArray(text.split(",")))(s => ZIO.fromEither(atom.parse(s.trim)))
+            .foreach(Chunk.fromArray(text.split("\\s*" + delim + "\\s*")))(s => ZIO.fromEither(atom.parse(s.trim)))
             .mapError(_.prefixed(path))
       }
     }
@@ -95,7 +106,7 @@ object ConfigProvider {
         for {
           _       <- Console.printLine(s"Please enter ${description} for property ${name}:").mapError(sourceError)
           line    <- Console.readLine.mapError(sourceError)
-          results <- Flat.util.parseAtom(line, path, name, atom)
+          results <- Flat.util.parseAtom(line, path, name, atom, ",")
         } yield results
       }
 
@@ -135,7 +146,7 @@ object ConfigProvider {
             ZIO
               .fromOption(valueOpt)
               .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in the environment"))
-          results <- Flat.util.parseAtom(value, path, name, atom)
+          results <- Flat.util.parseAtom(value, path, name, atom, ":")
         } yield results
       }
 
@@ -163,12 +174,19 @@ object ConfigProvider {
     new ConfigProvider {
       import Config._
 
-      def extend[A, B](leftDef: A, rightDef: B)(left: Chunk[A], right: Chunk[B]): (Chunk[A], Chunk[B]) =
-        if (left.length < right.length) {
-          (left ++ Chunk.fill(right.length - left.length)(leftDef), right)
-        } else if (right.length < left.length) {
-          (left, right ++ Chunk.fill(left.length - right.length)(rightDef))
-        } else (left, right)
+      def extend[A, B](leftDef: Int => A, rightDef: Int => B)(left: Chunk[A], right: Chunk[B]): (Chunk[A], Chunk[B]) = {
+        val leftPad = Chunk.unfold(left.length) { index =>
+          if (index >= right.length) None else Some(leftDef(index) -> (index + 1))
+        }
+        val rightPad = Chunk.unfold(right.length) { index =>
+          if (index >= left.length) None else Some(rightDef(index) -> (index + 1))
+        }
+
+        val leftExtension  = left ++ leftPad
+        val rightExtension = right ++ rightPad
+
+        (leftExtension, rightExtension)
+      }
 
       def loop[A](prefix: Chunk[String], config: Config[A], isEmptyOk: Boolean)(implicit
         trace: Trace
@@ -196,7 +214,7 @@ object ConfigProvider {
             for {
               keys   <- flat.enumerateChildren(prefix)
               values <- ZIO.foreach(keys)(key => loop(prefix ++ Chunk(key), valueConfig, isEmptyOk))
-            } yield values.map(values => keys.zip(values).toMap)
+            } yield values.transpose.map(values => keys.zip(values).toMap)
 
           case zipped: Zipped[leftType, rightType, c] =>
             import zipped.{left, right, zippable}
@@ -208,22 +226,37 @@ object ConfigProvider {
                           case (Left(e1), Right(_)) => ZIO.fail(e1)
                           case (Right(_), Left(e2)) => ZIO.fail(e2)
                           case (Right(l), Right(r)) =>
-                            lazy val lfail: Config.Error =
-                              Config.Error.MissingData(prefix, "An element in a sequence was missing")
-                            lazy val rfail: Config.Error =
-                              Config.Error.MissingData(prefix, "An element in a sequence was missing")
-                            val (ls, rs) = extend[IO[Config.Error, leftType], IO[Config.Error, rightType]](
-                              ZIO.fail(lfail),
-                              ZIO.fail(rfail)
-                            )(l.map(ZIO.succeed(_)), r.map(ZIO.succeed(_)))
+                            val path = prefix.mkString(".")
 
-                            ZIO.foreach(ls.zip(rs)) { case (l, r) => l.zipWith(r)(zippable.zip(_, _)) }
+                            def lfail(index: Int): Either[Config.Error, leftType] =
+                              Left(
+                                Config.Error.MissingData(
+                                  prefix,
+                                  s"The element at index ${index} in a sequence at ${path} was missing"
+                                )
+                              )
+
+                            def rfail(index: Int): Either[Config.Error, rightType] =
+                              Left(
+                                Config.Error.MissingData(
+                                  prefix,
+                                  s"The element at index ${index} in a sequence at ${path} was missing"
+                                )
+                              )
+
+                            val (ls, rs) = extend(lfail, rfail)(l.map(Right(_)), r.map(Right(_)))
+
+                            ZIO.foreach(ls.zip(rs)) { case (l, r) =>
+                              ZIO.fromEither(l).zipWith(ZIO.fromEither(r))(zippable.zip(_, _))
+                            }
                         }
             } yield result
 
           case atom: Atom[A] =>
             for {
-              vs <- flat.load(prefix, atom)
+              vs <- flat.load(prefix, atom).catchSome {
+                      case Config.Error.MissingData(_, _) if isEmptyOk => ZIO.succeed(Chunk.empty)
+                    }
               result <- if (vs.isEmpty && !isEmptyOk) ZIO.fail(atom.missingError(prefix.lastOption.getOrElse("<n/a>")))
                         else ZIO.succeed(vs)
             } yield result
@@ -243,7 +276,7 @@ object ConfigProvider {
    * Constructs a ConfigProvider using a map and the specified delimiter string,
    * which determines how to split the keys in the map into path segments.
    */
-  def fromMap(map: Map[String, String], pathDelim: String = "."): ConfigProvider =
+  def fromMap(map: Map[String, String], pathDelim: String = ".", seqDelim: String = ","): ConfigProvider =
     fromFlat(new Flat {
       def makePathString(path: Chunk[String]): String = path.mkString(pathDelim)
 
@@ -257,14 +290,14 @@ object ConfigProvider {
           value <- ZIO
                      .fromOption(valueOpt)
                      .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in properties"))
-          results <- Flat.util.parseAtom(value, path, name, atom)
+          results <- Flat.util.parseAtom(value, path, name, atom, seqDelim)
         } yield results
       }
 
       def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Chunk[String]] =
         ZIO.succeed {
           val pathString = makePathString(path)
-          val keyStrings = Chunk.fromIterable(map.keys).map(_.toUpperCase)
+          val keyStrings = Chunk.fromIterable(map.keys)
 
           keyStrings.filter(_.startsWith(pathString))
         }
@@ -286,7 +319,7 @@ object ConfigProvider {
       val sourceUnavailable = (path: Chunk[String]) =>
         (e: Throwable) => Config.Error.SourceUnavailable(path, "There was a problem reading properties", Cause.fail(e))
 
-      def makePathString(path: Chunk[String]): String = path.mkString(".").toLowerCase
+      def makePathString(path: Chunk[String]): String = path.mkString(".")
 
       def load[A](path: Chunk[String], atom: Config.Atom[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
         val pathString  = makePathString(path)
@@ -298,14 +331,14 @@ object ConfigProvider {
           value <- ZIO
                      .fromOption(valueOpt)
                      .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in properties"))
-          results <- Flat.util.parseAtom(value, path, name, atom)
+          results <- Flat.util.parseAtom(value, path, name, atom, ",")
         } yield results
       }
 
       def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Chunk[String]] =
         zio.System.properties.map { envs =>
           val pathString = makePathString(path)
-          val keyStrings = Chunk.fromIterable(envs.keys).map(_.toUpperCase)
+          val keyStrings = Chunk.fromIterable(envs.keys)
 
           keyStrings.filter(_.startsWith(pathString))
         }.mapError(sourceUnavailable(path))
