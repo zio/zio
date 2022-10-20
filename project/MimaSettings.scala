@@ -14,6 +14,7 @@ object MimaSettings {
       mimaBinaryIssueFilters ++= Seq(
         exclude[Problem]("zio.internal.*"),
         exclude[FinalMethodProblem]("zio.ZIO#EvaluationStep#*"),
+        // This is OK, because it's a constructor of a sealed class which nobody else could really call
         exclude[DirectMissingMethodProblem]("zio.Cause.this")
       ),
       mimaFailOnProblem := failOnProblem
