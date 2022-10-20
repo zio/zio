@@ -21,7 +21,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.annotation.tailrec
 import scala.util.control.NoStackTrace
 
-sealed abstract class Cause[+E](message: String, protected val throwable: Option[Throwable])
+sealed abstract class Cause[+E] protected (message: String, protected val throwable: Option[Throwable])
     extends Exception(message, throwable.orNull)
     with NoStackTrace
     with Product { self =>
