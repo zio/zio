@@ -58,7 +58,7 @@ object ConfigProvider {
    * special support for implementing them.
    */
   trait Flat {
-    def load[A](path: Chunk[String], config: Config.Atom[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]]
+    def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]]
 
     def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Chunk[String]]
   }
@@ -68,7 +68,7 @@ object ConfigProvider {
         text: String,
         path: Chunk[String],
         name: String,
-        atom: Config.Atom[A],
+        atom: Config.Primitive[A],
         delim: String
       ): IO[Config.Error, Chunk[A]] = {
         val name    = path.lastOption.getOrElse("<unnamed>")
@@ -92,7 +92,7 @@ object ConfigProvider {
 
   lazy val consoleProvider: ConfigProvider =
     fromFlat(new Flat {
-      def load[A](path: Chunk[String], atom: Config.Atom[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
+      def load[A](path: Chunk[String], atom: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
         val name        = path.lastOption.getOrElse("<unnamed>")
         val description = atom.description
         val sourceError = (e: Throwable) =>
@@ -135,7 +135,7 @@ object ConfigProvider {
 
       def makePathString(path: Chunk[String]): String = path.mkString("_").toUpperCase
 
-      def load[A](path: Chunk[String], atom: Config.Atom[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
+      def load[A](path: Chunk[String], atom: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
         val pathString  = makePathString(path)
         val name        = path.lastOption.getOrElse("<unnamed>")
         val description = atom.description
@@ -252,7 +252,7 @@ object ConfigProvider {
                         }
             } yield result
 
-          case atom: Atom[A] =>
+          case atom: Primitive[A] =>
             for {
               vs <- flat.load(prefix, atom).catchSome {
                       case Config.Error.MissingData(_, _) if isEmptyOk => ZIO.succeed(Chunk.empty)
@@ -280,7 +280,7 @@ object ConfigProvider {
     fromFlat(new Flat {
       def makePathString(path: Chunk[String]): String = path.mkString(pathDelim)
 
-      def load[A](path: Chunk[String], atom: Config.Atom[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
+      def load[A](path: Chunk[String], atom: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
         val pathString  = makePathString(path)
         val name        = path.lastOption.getOrElse("<unnamed>")
         val description = atom.description
@@ -321,7 +321,7 @@ object ConfigProvider {
 
       def makePathString(path: Chunk[String]): String = path.mkString(".")
 
-      def load[A](path: Chunk[String], atom: Config.Atom[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
+      def load[A](path: Chunk[String], atom: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
         val pathString  = makePathString(path)
         val name        = path.lastOption.getOrElse("<unnamed>")
         val description = atom.description
