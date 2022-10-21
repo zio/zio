@@ -21,11 +21,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.annotation.tailrec
 import scala.util.control.NoStackTrace
 
-sealed abstract class Cause[+E] private (message: String, protected val throwable: Option[Throwable])
-    extends Exception(message, throwable.orNull)
-    with NoStackTrace
-    with Product
-    with Serializable { self =>
+sealed abstract class Cause[+E] extends Product with Serializable { self =>
   import Cause._
 
   /**
@@ -511,8 +507,14 @@ sealed abstract class Cause[+E] private (message: String, protected val throwabl
       stackless: Boolean,
       result: List[Unified]
     ): List[Unified] = {
-      def unifyFail(fail: Cause.Fail[E]): Unified =
-        Unified(fail.trace.fiberId, fail.value.getClass.getName(), fail.value.toString(), fail.trace.toJava)
+      def unifyFail(fail: Cause.Fail[E]): List[Unified] = {
+        val unified =
+          Unified(fail.trace.fiberId, fail.value.getClass.getName(), fail.value.toString(), fail.trace.toJava)
+        fail.value match {
+          case throwable: Throwable => unifyDie(Cause.Die(throwable, StackTrace.none)) ::: List(unified)
+          case _                    => List(unified)
+        }
+      }
 
       def unifyDie(die: Cause.Die): List[Unified] = {
 
@@ -545,7 +547,7 @@ sealed abstract class Cause[+E] private (message: String, protected val throwabl
         case Both(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
         case Stackless(cause, stackless) :: more => loop(cause :: more, fiberId, stackless, result)
         case Then(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
-        case (cause @ Fail(_, _)) :: more        => loop(more, fiberId, stackless, unifyFail(cause) :: result)
+        case (cause @ Fail(_, _)) :: more        => loop(more, fiberId, stackless, unifyFail(cause) ::: result)
         case (cause @ Die(_, _)) :: more         => loop(more, fiberId, stackless, unifyDie(cause) ::: result)
         case (cause @ Interrupt(_, _)) :: more =>
           loop(more, fiberId, stackless, unifyInterrupt(cause) :: result)
@@ -672,29 +674,19 @@ object Cause extends Serializable {
       (causeOption, stackless) => causeOption.map(Stackless(_, stackless))
     )
 
-  case object Empty extends Cause[Nothing]("Cause.Empty", None)
+  case object Empty extends Cause[Nothing]
 
-  final case class Fail[+E](value: E, override val trace: StackTrace)
-      extends Cause[E](s"Cause.Fail($value)", value match { case value: Throwable => Some(value); case _ => None })
+  final case class Fail[+E](value: E, override val trace: StackTrace) extends Cause[E]
 
-  final case class Die(value: Throwable, override val trace: StackTrace)
-      extends Cause[Nothing](s"Cause.Die($value)", Some(value))
+  final case class Die(value: Throwable, override val trace: StackTrace) extends Cause[Nothing]
 
-  final case class Interrupt(fiberId: FiberId, override val trace: StackTrace)
-      extends Cause[Nothing](s"Cause.Interrupt($fiberId)", None)
+  final case class Interrupt(fiberId: FiberId, override val trace: StackTrace) extends Cause[Nothing]
 
-  final case class Stackless[+E](cause: Cause[E], stackless: Boolean)
-      extends Cause[E]("Cause.Stackless", cause.throwable)
+  final case class Stackless[+E](cause: Cause[E], stackless: Boolean) extends Cause[E]
 
-  final case class Then[+E](left: Cause[E], right: Cause[E])
-      extends Cause[E]("Cause.Then", left.throwable.orElse(right.throwable)) {
-    left.throwable.zip(right.throwable).foreach { case (_, right) => addSuppressed(right) }
-  }
+  final case class Then[+E](left: Cause[E], right: Cause[E]) extends Cause[E]
 
-  final case class Both[+E](left: Cause[E], right: Cause[E])
-      extends Cause[E]("Cause.Both", left.throwable.orElse(right.throwable)) {
-    left.throwable.zip(right.throwable).foreach { case (_, right) => addSuppressed(right) }
-  }
+  final case class Both[+E](left: Cause[E], right: Cause[E]) extends Cause[E]
 
   private def equals(left: Cause[Any], right: Cause[Any]): Boolean = {
 

@@ -13,9 +13,7 @@ object MimaSettings {
       mimaPreviousArtifacts := Set(organization.value %% name.value % bincompatVersionToCompare),
       mimaBinaryIssueFilters ++= Seq(
         exclude[Problem]("zio.internal.*"),
-        exclude[FinalMethodProblem]("zio.ZIO#EvaluationStep#*"),
-        // This is OK, because it's a constructor of a sealed class which nobody else could really call
-        exclude[DirectMissingMethodProblem]("zio.Cause.this")
+        exclude[FinalMethodProblem]("zio.ZIO#EvaluationStep#*")
       ),
       mimaFailOnProblem := failOnProblem
     )
