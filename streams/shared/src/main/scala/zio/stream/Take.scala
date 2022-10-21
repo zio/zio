@@ -76,9 +76,6 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
   def map[B](f: A => B): Take[E, B] =
     Take(exit.mapExit(_.map(f)))
 
-  override def productIterator: Iterator[Exit[Option[E], Chunk[A]]] =
-    Iterator.single(exit)
-
   /**
    * Returns an effect that effectfully "peeks" at the success of this take.
    */
