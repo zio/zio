@@ -951,7 +951,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             case Cause.Die(value: ChannelFailure, _) if value == channelFailure => {
               ZChannel.failCause(channelFailure.err)
             }
-            case cause                                                          => ZChannel.failCause(cause)
+            case cause => ZChannel.failCause(cause)
           },
           done => ZChannel.succeedNow(done)
         )
