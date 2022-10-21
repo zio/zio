@@ -393,9 +393,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def drain(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, Nothing, OutDone] = {
     lazy val drainer: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, Nothing, OutDone] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         (_: OutElem) => drainer,
-        (e: OutErr) => ZChannel.fail(e),
+        (e: Cause[OutErr]) => ZChannel.failCause(e),
         (z: OutDone) => ZChannel.succeedNow(z)
       )
 
@@ -931,11 +931,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2] =
     ZChannel.suspend {
 
-      class ChannelFailure(val err: OutErr1) extends Throwable
+      class ChannelFailure(val err: Cause[OutErr1]) extends Throwable
       var channelFailure: ChannelFailure = null
 
       lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, Nothing, OutElem, OutDone] =
-        ZChannel.readWith(
+        ZChannel.readWithCause(
           elem => ZChannel.write(elem) *> reader,
           err => {
             channelFailure = new ChannelFailure(err)
@@ -948,7 +948,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         ZChannel.readWithCause(
           elem => ZChannel.write(elem) *> writer,
           {
-            case Cause.Die(value: ChannelFailure, _) if value == channelFailure => ZChannel.fail(channelFailure.err)
+            case Cause.Die(value: ChannelFailure, _) if value == channelFailure => {
+              ZChannel.failCause(channelFailure.err)
+            }
             case cause                                                          => ZChannel.failCause(cause)
           },
           done => ZChannel.succeedNow(done)
