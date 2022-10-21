@@ -59,6 +59,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Call Handling](https://www.callhandling.co.uk/)
 * [Carvana](https://www.carvana.com)
 * [Cellular](https://www.cellular.de)
+* [ChannelPilot](https://channelpilot.com/de)
 * [Cloudfarms](https://cloudfarms.com)
 * [CodeComprehension](https://codecomprehension.com)
 * [Codept](https://www.codept.de/)
