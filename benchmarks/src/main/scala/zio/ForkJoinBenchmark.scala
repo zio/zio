@@ -42,11 +42,7 @@ class ForkJoinBenchmark {
 
     val _ =
       unsafeRun(
-        forkAllFibers.flatMap(fibers =>
-          fibers.foldLeft[UIO[Any]](ZIO.unit) { case (acc, fiber) =>
-            acc.flatMap(_ => fiber.await)
-          }
-        )
+        forkAllFibers.flatMap(fibers => ZIO.foreach(fibers)(_.await))
       )
   }
 
@@ -59,11 +55,7 @@ class ForkJoinBenchmark {
     val forkAllFibers = catsForeach(range)(_ => forkFiber)
 
     val _ = forkAllFibers
-      .flatMap(fibers =>
-        fibers.foldLeft[IO[Any]](IO.unit) { case (acc, fiber) =>
-          acc.flatMap(_ => fiber.join)
-        }
-      )
+      .flatMap(fibers => catsForeach(fibers)(_.join))
       .unsafeRunSync()
   }
 

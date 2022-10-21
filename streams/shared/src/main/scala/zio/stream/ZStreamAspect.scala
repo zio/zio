@@ -1,6 +1,6 @@
 package zio.stream
 
-import zio.Trace
+import zio.{LogAnnotation, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait ZStreamAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>
@@ -56,6 +56,26 @@ trait ZStreamAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self
 }
 
 object ZStreamAspect {
+
+  /**
+   * An aspect that annotates each log in this stream with the specified log
+   * annotation.
+   */
+  def annotated(key: String, value: String): ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](stream: ZStream[R, E, A])(implicit trace: Trace): ZStream[R, E, A] =
+        ZStream.logAnnotate(key, value) *> stream
+    }
+
+  /**
+   * An aspect that annotates each log in this stream with the specified log
+   * annotations.
+   */
+  def annotated(annotations: (String, String)*): ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](stream: ZStream[R, E, A])(implicit trace: Trace): ZStream[R, E, A] =
+        ZStream.logAnnotate(annotations.map { case (key, value) => LogAnnotation(key, value) }.toSet) *> stream
+    }
 
   /**
    * An aspect that rechunks the stream into chunks of the specified size.

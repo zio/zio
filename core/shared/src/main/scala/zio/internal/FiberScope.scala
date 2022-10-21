@@ -31,7 +31,7 @@ private[zio] sealed trait FiberScope {
    * Adds the specified child fiber to the scope, returning `true` if the scope
    * is still open, and `false` if it has been closed already.
    */
-  private[zio] def add(runtimeFlags: RuntimeFlags, child: FiberRuntime[_, _])(implicit
+  private[zio] def add(currentFiber: FiberRuntime[_, _], runtimeFlags: RuntimeFlags, child: FiberRuntime[_, _])(implicit
     trace: Trace,
     unsafe: Unsafe
   ): Unit
@@ -47,27 +47,41 @@ private[zio] object FiberScope {
   object global extends FiberScope {
     def fiberId: FiberId = FiberId.None
 
-    private[zio] def add(runtimeFlags: RuntimeFlags, child: FiberRuntime[_, _])(implicit
+    private[zio] def add(currentFiber: FiberRuntime[_, _], runtimeFlags: RuntimeFlags, child: FiberRuntime[_, _])(
+      implicit
       trace: Trace,
       unsafe: Unsafe
     ): Unit =
       if (RuntimeFlags.fiberRoots(runtimeFlags)) {
-        val childRef = Fiber._roots.add(child)
-
-        child.addObserver(_ => childRef.clear())
+        Fiber._roots.add(child)
       }
   }
 
   private final class Local(val fiberId: FiberId, parentRef: WeakReference[FiberRuntime[_, _]]) extends FiberScope {
 
-    private[zio] def add(runtimeFlags: RuntimeFlags, child: FiberRuntime[_, _])(implicit
+    private[zio] def add(currentFiber: FiberRuntime[_, _], runtimeFlags: RuntimeFlags, child: FiberRuntime[_, _])(
+      implicit
       trace: Trace,
       unsafe: Unsafe
     ): Unit = {
       val parent = parentRef.get()
 
       if (parent ne null) {
-        parent.tell(FiberMessage.Stateful((parentFiber, _) => parentFiber.addChild(child)))
+        // Parent is not GC'd. Let's check to see if the parent is the current
+        // fiber:
+        if (currentFiber eq parent) {
+          // The parent is the current fiber so it is safe to directly add the
+          // child to the parent:
+          parent.addChild(child)
+        } else {
+          // The parent is not the current fiber. So we need to send a message
+          // to the parent so it will add the child to itself:
+          parent.tell(FiberMessage.Stateful((parentFiber, _) => parentFiber.addChild(child)))
+        }
+      } else {
+        // Parent was GC'd. We immediately interrupt the child fiber using the id
+        // of the current fiber (which is adding the child to the parent):
+        child.tell(FiberMessage.InterruptSignal(Cause.interrupt(currentFiber.id)))
       }
     }
   }

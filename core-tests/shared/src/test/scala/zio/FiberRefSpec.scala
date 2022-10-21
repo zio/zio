@@ -441,7 +441,7 @@ object FiberRefSpec extends ZIOBaseSpec {
         value <- promise.await
       } yield assertTrue(value)
     }
-  ) @@ TestAspect.fromLayer(Runtime.enableCurrentFiber)
+  ) @@ TestAspect.fromLayer(Runtime.enableCurrentFiber) @@ TestAspect.sequential
 }
 
 object FiberRefSpecUtil {

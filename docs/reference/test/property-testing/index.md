@@ -92,7 +92,6 @@ If we test all of these properties we can be sure that the `add` function works 
 
 ```scala mdoc:compile-only
 import zio.test._
-import zio.test._
 
 object AdditionSpec extends ZIOSpecDefault {
 

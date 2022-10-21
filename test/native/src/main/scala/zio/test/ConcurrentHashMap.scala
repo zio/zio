@@ -18,16 +18,23 @@ package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import scala.collection.mutable.Map
+import java.util.concurrent.{ConcurrentHashMap => JConcurrentHashMap}
 
-private[test] final case class ConcurrentHashMap[K, V] private (private val map: Map[K, V]) {
-  def foldLeft[B](z: B)(f: (B, (K, V)) => B): B =
-    map.foldLeft(z)(f)
+private[test] final case class ConcurrentHashMap[K, V] private (private val map: JConcurrentHashMap[K, V]) {
+  def foldLeft[B](z: B)(op: (B, (K, V)) => B): B = {
+    var result = z
+    val it     = map.entrySet.iterator
+    while (it.hasNext) {
+      val e = it.next()
+      result = op(result, (e.getKey, e.getValue))
+    }
+    result
+  }
   def getOrElseUpdate(key: K, op: => V): V =
-    map.getOrElseUpdate(key, op)
+    map.computeIfAbsent(key, _ => op)
 }
 
 private[test] object ConcurrentHashMap {
   def empty[K, V]: ConcurrentHashMap[K, V] =
-    new ConcurrentHashMap[K, V](Map.empty[K, V])
+    new ConcurrentHashMap[K, V](new JConcurrentHashMap[K, V]())
 }

@@ -582,11 +582,11 @@ object ZStreamSpec extends ZIOBaseSpec {
                     .range(1, 5)
                     .tap(i => ref.update(i :: _) *> latch.succeed(()).when(i == 4))
                     .bufferChunks(2)
-              l1 <- s.take(2).runCollect
+              l1 <- s.take(2).runScoped(ZSink.collectAll)
               _  <- latch.await
               l2 <- ref.get
             } yield assert(l1.toList)(equalTo((1 to 2).toList)) && assert(l2.reverse)(equalTo((1 to 4).toList))
-          }
+          } @@ TestAspect.nonFlaky
         ),
         suite("bufferChunksDropping")(
           test("buffer the Stream with Error") {
@@ -779,14 +779,17 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch2 <- Promise.make[Nothing, Unit]
               latch3 <- Promise.make[Nothing, Unit]
               latch4 <- Promise.make[Nothing, Unit]
+              latch5 <- Promise.make[Nothing, Unit]
               s1 = ZStream(0) ++ ZStream
                      .fromZIO(latch1.await)
                      .flatMap(_ => ZStream.range(1, 17).ensuring(latch2.succeed(())))
               s2 = ZStream
                      .fromZIO(latch3.await)
-                     .flatMap(_ => ZStream.range(17, 25).ensuring(latch4.succeed(())))
-              s3 = ZStream(-1)
-              s  = (s1 ++ s2 ++ s3).bufferSliding(8)
+                     .flatMap(_ => ZStream.range(17, 26).ensuring(latch4.succeed(())))
+              s3 = ZStream
+                     .fromZIO(latch5.await)
+                     .flatMap(_ => ZStream(-1))
+              s = (s1 ++ s2 ++ s3).bufferSliding(8)
               snapshots <- ZIO.scoped {
                              s.toPull.flatMap { as =>
                                for {
@@ -806,9 +809,9 @@ object ZStreamSpec extends ZIOBaseSpec {
               equalTo(List(16, 15, 14, 13, 12, 11, 10, 9))
             ) &&
               assert(snapshots._3)(
-                equalTo(List(-1, 24, 23, 22, 21, 20, 19, 18, 16, 15, 14, 13, 12, 11, 10, 9))
+                equalTo(List(25, 24, 23, 22, 21, 20, 19, 18, 16, 15, 14, 13, 12, 11, 10, 9))
               )
-          }
+          } @@ nonFlaky
         ),
         suite("bufferUnbounded")(
           test("buffer the Stream")(check(Gen.chunkOf(Gen.int)) { chunk =>
@@ -2233,7 +2236,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                             .runDrain
                             .either
               } yield assert(result)(isLeft(equalTo("Fail")))
-            } @@ zioTag(errors) @@ nonFlaky(1000)
+            } @@ zioTag(errors) @@ nonFlaky
           ) @@ zioTag(interruption),
           test("preserves scope of inner fibers") {
             for {
@@ -4167,7 +4170,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- left.offerAll(List(Chunk(1), Chunk(2)))
               chunk2 <- ZIO.replicateZIO(2)(out.take.flatMap(_.done)).map(_.flatten)
             } yield assert(chunk1)(equalTo(List((0, 0), (0, 1)))) && assert(chunk2)(equalTo(List((1, 1), (2, 1))))
-          } @@ nonFlaky(1000),
+          } @@ nonFlaky,
           test("handle empty pulls properly") {
             val stream0 = ZStream.fromChunks(Chunk(), Chunk(), Chunk(2))
             val stream1 = ZStream.fromChunks(Chunk(1), Chunk(1))
@@ -4186,7 +4189,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 result <- fiber.join
               } yield result
             )(equalTo(Chunk(1, 1, 1)))
-          } @@ nonFlaky(1000),
+          } @@ nonFlaky,
           test("handle empty pulls properly (JVM Only)") {
             assertZIO(
               ZStream

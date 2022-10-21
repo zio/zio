@@ -12,7 +12,8 @@ object MimaSettings {
     Seq(
       mimaPreviousArtifacts := Set(organization.value %% name.value % bincompatVersionToCompare),
       mimaBinaryIssueFilters ++= Seq(
-        exclude[Problem]("zio.internal.*")
+        exclude[Problem]("zio.internal.*"),
+        exclude[FinalMethodProblem]("zio.ZIO#EvaluationStep#*")
       ),
       mimaFailOnProblem := failOnProblem
     )

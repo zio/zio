@@ -596,13 +596,31 @@ object Fiber extends FiberPlatformSpecific {
 
     case object Done extends Status {
       def trace: Trace = Trace.empty
+
+      override def toString(): String = "Done"
     }
-    final case class Running(runtimeFlags: RuntimeFlags, trace: Trace) extends Unfinished
+    final case class Running(runtimeFlags: RuntimeFlags, trace: Trace) extends Unfinished {
+      override def toString(): String = {
+        val currentLocation =
+          if (trace == Trace.empty) "<trace unavailable>"
+          else trace
+
+        s"Running(${RuntimeFlags.render(runtimeFlags)}, ${currentLocation})"
+      }
+    }
     final case class Suspended(
       runtimeFlags: RuntimeFlags,
       trace: Trace,
       blockingOn: FiberId
-    ) extends Unfinished
+    ) extends Unfinished {
+      override def toString(): String = {
+        val currentLocation =
+          if (trace == Trace.empty) "<trace unavailable>"
+          else trace
+
+        s"Suspended(${RuntimeFlags.render(runtimeFlags)}, ${currentLocation}, ${blockingOn})"
+      }
+    }
   }
 
   /**
@@ -879,5 +897,5 @@ object Fiber extends FiberPlatformSpecific {
     new ThreadLocal[internal.FiberRuntime[_, _]]()
 
   private[zio] val _roots: WeakConcurrentBag[internal.FiberRuntime[_, _]] =
-    WeakConcurrentBag(10000)
+    WeakConcurrentBag(10000, _.isAlive()(Unsafe.unsafe))
 }
