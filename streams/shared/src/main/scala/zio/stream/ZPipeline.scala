@@ -788,7 +788,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         (_: Any) => rechunker.emitIfNotEmpty()
       )
 
-    val target = n
+    val target = scala.math.max(n, 1)
     new ZPipeline(ZChannel.suspend(process(new ZStream.Rechunker(target), target)))
   }
 
