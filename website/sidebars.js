@@ -37,6 +37,7 @@ module.exports = {
         "reference/core/cause"
       ]
     },
+    "reference/control-flow/index",
     {
       type: "category",
       label: "Error Management",
