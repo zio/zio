@@ -8,7 +8,13 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
         assertTrue(true)
       }
   }
-  override def spec = (suite("ZIOSpecAbstractSpec")(
+  private val basicFailSpec: ZIOSpecAbstract = new ZIOSpecDefault {
+    override def spec =
+      test("basic fail test") {
+        assertTrue(false)
+      }
+  }
+  override def spec = suite("ZIOSpecAbstractSpec")(
     test("highlighting composed layer failures") {
       // We must define this here rather than as a standalone spec, because it will prevent all the tests from running
       val specWithBrokenLayer = new ZIOSpec[Int] {
@@ -35,12 +41,12 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
         ) &&
         assertTrue(output.contains("ZIOSpecAbstractSpec.scala:23")) &&
         assertTrue(output.contains("java.lang.InterruptedException"))
-    } @@ TestAspect.flaky,
+    } @@ TestAspect.flaky @@ TestAspect.ignore,
     test("run method reports successes sanely")(
       for {
         res <- basicSpec.run.provideSome[zio.ZIOAppArgs with zio.Scope](basicSpec.bootstrap)
       } yield assertTrue(equalsTimeLess(res, Summary(1, 0, 0, "")))
-    ),
+    ) @@ TestAspect.ignore,
     test("runSpec produces a summary with fully-qualified failures") {
       val suiteName = "parent"
       val testName  = "failing test"
@@ -56,8 +62,13 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
           ZIO.consoleWith(console => failingSpec.runSpecAsApp(failingSpec.spec, TestArgs.empty, console))
       } yield assertTrue(res.fail == 1) &&
         assertTrue(res.failureDetails.contains(s"$suiteName - $testName"))
-    }
-  ) @@ TestAspect.ignore)
+    } @@ TestAspect.ignore,
+    test("run method reports exitcode=1 sanely")(
+      for {
+        exitCode <- basicFailSpec.run.provideSome[zio.ZIOAppArgs with zio.Scope](basicFailSpec.bootstrap).exitCode
+      } yield assertTrue(exitCode.code == 1)
+    )
+  )
     .provide(
       ZIOAppArgs.empty,
       testEnvironment,
