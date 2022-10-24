@@ -1,5 +1,6 @@
 package zio.test
 import zio.{Scope, ZIO, ZIOAppArgs, ZLayer}
+import zio.internal.ansi.AnsiStringOps
 
 object ZIOSpecAbstractSpec extends ZIOSpecDefault {
   private val basicSpec: ZIOSpecAbstract = new ZIOSpecDefault {
@@ -30,23 +31,30 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
                composedSpec
                  .runSpecAsApp(composedSpec.spec, TestArgs.empty, console)
                  .provideSome[zio.Scope with TestEnvironment](composedSpec.bootstrap)
+                 .catchAllCause(t => console.printLine(t.toString))
+                 .exitCode
              }
-        console <- testConsole
-        output  <- console.output.map(_.mkString("\n"))
+        output <- TestConsole.output.map(_.mkString("\n"))
       } yield assertTrue(output.contains("scala.NotImplementedError: an implementation is missing")) &&
         assertTrue(
-          output.contains( // Brittle with the line numbers
-            "ZIOSpecAbstractSpec.scala:15"
-          )
+          // Brittle with the line numbers
+          // number of line with "override val bootstrap = ZLayer.fromZIO(ZIO.attempt(???))"
+          output.contains("ZIOSpecAbstractSpec.scala:22")
         ) &&
-        assertTrue(output.contains("ZIOSpecAbstractSpec.scala:23")) &&
-        assertTrue(output.contains("java.lang.InterruptedException"))
-    } @@ TestAspect.flaky @@ TestAspect.ignore,
+        assertTrue(
+          // number of line with "_ <- ZIO.consoleWith { console =>"
+          output.contains("ZIOSpecAbstractSpec.scala:30")
+        ) &&
+        assertTrue(
+          // number of line with ".provideSome[zio.Scope with TestEnvironment](composedSpec.bootstrap)"
+          output.contains("ZIOSpecAbstractSpec.scala:33")
+        )
+    } @@ TestAspect.flaky,
     test("run method reports successes sanely")(
       for {
         res <- basicSpec.run.provideSome[zio.ZIOAppArgs with zio.Scope](basicSpec.bootstrap)
       } yield assertTrue(equalsTimeLess(res, Summary(1, 0, 0, "")))
-    ) @@ TestAspect.ignore,
+    ),
     test("runSpec produces a summary with fully-qualified failures") {
       val suiteName = "parent"
       val testName  = "failing test"
@@ -58,15 +66,19 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
         )
       }
       for {
-        res <-
-          ZIO.consoleWith(console => failingSpec.runSpecAsApp(failingSpec.spec, TestArgs.empty, console))
+        res <- ZIO.consoleWith(console => failingSpec.runSpecAsApp(failingSpec.spec, TestArgs.empty, console))
       } yield assertTrue(res.fail == 1) &&
-        assertTrue(res.failureDetails.contains(s"$suiteName - $testName"))
-    } @@ TestAspect.ignore,
+        assertTrue(res.failureDetails.contains(s"${suiteName.red}${" / ".red.faint}${testName.red}"))
+    },
     test("run method reports exitcode=1 sanely")(
       for {
         exitCode <- basicFailSpec.run.provideSome[zio.ZIOAppArgs with zio.Scope](basicFailSpec.bootstrap).exitCode
       } yield assertTrue(exitCode.code == 1)
+    ),
+    test("run method reports exitcode=0 sanely")(
+      for {
+        exitCode <- basicSpec.run.provideSome[zio.ZIOAppArgs with zio.Scope](basicSpec.bootstrap).exitCode
+      } yield assertTrue(exitCode.code == 0)
     )
   )
     .provide(
