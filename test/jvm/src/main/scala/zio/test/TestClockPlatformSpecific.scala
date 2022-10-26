@@ -60,11 +60,11 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
             final case class Running(cancelToken: Scheduler.CancelToken, end: Instant) extends State
             final case class Scheduling(end: Instant)                                  extends State
 
-            val state = new AtomicReference[State](Scheduling(initial))
-            val latch = new CountDownLatch(1)
+            val localState = new AtomicReference[State](Scheduling(initial))
+            val latch      = new CountDownLatch(1)
 
             def loop(end: Instant, s: S): Unit = {
-              val updatedState = state.updateAndGet {
+              val updatedState = localState.updateAndGet {
                 case Done(result) => Done(result)
                 case _            => Scheduling(end)
               }
@@ -77,7 +77,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
                       executor.submitOrThrow { () =>
                         compute(a) match {
                           case Left(t) =>
-                            state.set(Done(Left(t)))
+                            localState.set(Done(Left(t)))
                             latch.countDown()
                           case Right(a) =>
                             val end = now()
@@ -85,14 +85,14 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
                               case Some((interval, s)) =>
                                 loop(interval, s)
                               case None =>
-                                state.set(Done(Right(a)))
+                                localState.set(Done(Right(a)))
                                 latch.countDown()
                             }
                         }
                       }(Unsafe.unsafe),
                     interval
                   )(Unsafe.unsafe)
-                val currentState = state.getAndUpdate {
+                val currentState = localState.getAndUpdate {
                   case Scheduling(end) => Running(cancelToken, end)
                   case state           => state
                 }
@@ -110,7 +110,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
                 if (self eq that) 0
                 else self.getDelay(TimeUnit.NANOSECONDS).compareTo(that.getDelay(TimeUnit.NANOSECONDS))
               def getDelay(unit: TimeUnit): Long =
-                state.get match {
+                localState.get match {
                   case Done(_) => 0L
                   case Running(_, end) =>
                     unit.convert(Duration.fromInterval(now(), end).toMillis, TimeUnit.MILLISECONDS)
@@ -118,7 +118,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
                     unit.convert(Duration.fromInterval(now(), end).toMillis, TimeUnit.MILLISECONDS)
                 }
               def cancel(mayInterruptIfRunning: Boolean): Boolean = {
-                val currentState = state.getAndUpdate {
+                val currentState = localState.getAndUpdate {
                   case Done(result) => Done(result)
                   case _            => Done(Left(new InterruptedException))
                 }
@@ -129,7 +129,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
                 }
               }
               def isCancelled(): Boolean =
-                state.get match {
+                localState.get match {
                   case Done(Left(_: InterruptedException)) => true
                   case _                                   => false
                 }
@@ -137,14 +137,14 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
                 latch.getCount() == 0L
               def get(): A = {
                 latch.await()
-                state.get match {
+                localState.get match {
                   case Done(result) => result.fold(t => throw t, identity)
                   case _            => throw new Error(s"Defect in zio.internal.Timer#asScheduledExecutorService")
                 }
               }
               def get(timeout: Long, unit: TimeUnit): A = {
                 latch.await(timeout, unit)
-                state.get match {
+                localState.get match {
                   case Done(result) => result.fold(t => throw t, identity)
                   case _            => throw new Error(s"Defect in zio.internal.Timer#asScheduledExecutorService")
                 }
