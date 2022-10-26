@@ -16,7 +16,7 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
       }
   }
   override def spec = suite("ZIOSpecAbstractSpec")(
-    test("highlighting composed layer failures") {
+    test("highlighting composed layer failures - scala 2") {
       // We must define this here rather than as a standalone spec, because it will prevent all the tests from running
       val specWithBrokenLayer = new ZIOSpec[Int] {
         override val bootstrap = ZLayer.fromZIO(ZIO.attempt(???))
@@ -49,7 +49,41 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
           // number of line with ".provideSome[zio.Scope with TestEnvironment](composedSpec.bootstrap)"
           output.contains("ZIOSpecAbstractSpec.scala:33")
         )
-    } @@ TestAspect.flaky,
+    } @@ TestAspect.flaky @@ TestAspect.silent @@ TestAspect.scala2Only,
+    test("highlighting composed layer failures - scala 3") {
+      // We must define this here rather than as a standalone spec, because it will prevent all the tests from running
+      val specWithBrokenLayer = new ZIOSpec[Int] {
+        override val bootstrap = ZLayer.fromZIO(ZIO.attempt(???))
+        override def spec =
+          test("should never see this label printed") {
+            assertTrue(true)
+          }
+      }
+      val composedSpec: ZIOSpecAbstract = basicSpec <> specWithBrokenLayer <> basicSpec
+      for {
+        _ <- ZIO.consoleWith { console =>
+               composedSpec
+                 .runSpecAsApp(composedSpec.spec, TestArgs.empty, console)
+                 .provideSome[zio.Scope with TestEnvironment](composedSpec.bootstrap)
+                 .catchAllCause(t => console.printLine(t.toString))
+                 .exitCode
+             }
+        output <- TestConsole.output.map(_.mkString("\n"))
+      } yield assertTrue(output.contains("scala.NotImplementedError: an implementation is missing")) &&
+        assertTrue(
+          // Brittle with the line numbers
+          // number of line with "override val bootstrap = ZLayer.fromZIO(ZIO.attempt(???))"
+          output.contains("ZIOSpecAbstractSpec.scala:56")
+        ) &&
+        assertTrue(
+          // number of line next to "_ <- ZIO.consoleWith { console =>"
+          output.contains("ZIOSpecAbstractSpec.scala:65")
+        ) &&
+        assertTrue(
+          // number of line next to ".provideSome[zio.Scope with TestEnvironment](composedSpec.bootstrap)"
+          output.contains("ZIOSpecAbstractSpec.scala:68")
+        )
+    } @@ TestAspect.flaky @@ TestAspect.silent @@ TestAspect.scala3Only,
     test("run method reports successes sanely")(
       for {
         res <- basicSpec.run.provideSome[zio.ZIOAppArgs with zio.Scope](basicSpec.bootstrap)
