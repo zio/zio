@@ -116,8 +116,8 @@ trait ConsoleRenderer extends TestRenderer {
       }
 
       // TODO Stop doing this here?
-      val renderedAnnotations = renderAnnotations(result.annotations, TestAnnotationRenderer.default)
-      renderToStringLines(output ++ renderedAnnotations).mkString
+//      val renderedAnnotations = renderAnnotations(result.annotations, TestAnnotationRenderer.default)
+      renderToStringLines(output).mkString
     }
 
   private def renderOutput(output: List[ConsoleIO]): Message =

@@ -44,7 +44,6 @@ trait TestRenderer {
   ): (List[Line], List[Line]) = {
     val depth     = labels.length - 1
     val label     = labels.last
-    val flatLabel = labels.map(_.red).mkString(" / ".red.faint)
 
     val renderedResult = results match {
       case Right(TestSuccess.Succeeded(_)) =>
@@ -54,7 +53,7 @@ trait TestRenderer {
             label,
             Passed,
             depth,
-            fr(labels.last).toLine
+            fr(labels.last) + renderAnnotationsFrag(List(annotations), TestAnnotationRenderer.default)
           )
         )
       case Right(TestSuccess.Ignored(_)) =>
@@ -68,6 +67,7 @@ trait TestRenderer {
           )
         )
       case Left(TestFailure.Assertion(result, _)) =>
+        val flatLabel = labels.map(_.red).mkString(" / ".red.faint)
         result.failures.map { result =>
           renderedWithSummary(
             ResultType.Test,
@@ -197,8 +197,10 @@ trait TestRenderer {
     }
   }
 
+  // TODO Fix offset. Failures aren't indented enough currently
+  // TODO Should Annotations be red?
   private def renderFailure(label: String, offset: Int, details: TestTrace[Boolean], annotations: TestAnnotationMap): Message =
-    (renderFailureLabel(label, offset) + renderAnnotationsFrag(List(annotations), TestAnnotationRenderer.default)) +: renderAssertionResult(details, offset) :+ Line.empty
+    withOffset(offset)(renderFailureLabel(label, offset) + renderAnnotationsFrag(List(annotations), TestAnnotationRenderer.default)) +: renderAssertionResult(details, offset) :+ Line.empty
 
   private def renderAnnotationsFrag(
                                  annotations: List[TestAnnotationMap],
