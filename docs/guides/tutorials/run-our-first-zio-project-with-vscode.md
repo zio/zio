@@ -32,7 +32,7 @@ touch build.sbt
 Inside this file, let's add the following lines which include the version of Scala language, the name of our project, and the dependencies we want to use:
 
 ```scala
-scalaVersion := "2.13.8"
+scalaVersion := "2.13.10"
 name := "my-zio-project"
 version := "0.0.1"
 

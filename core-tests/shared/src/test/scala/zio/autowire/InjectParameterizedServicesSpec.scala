@@ -31,7 +31,7 @@ object InjectParameterizedServicesSpec extends ZIOSpecDefault {
   }
 
   object ParameterizedService {
-    def something[A: EnvironmentTag]: ZIO[ParameterizedService[A], Nothing, Unit] =
+    def something[A](implicit tag: EnvironmentTag[A]): ZIO[ParameterizedService[A], Nothing, Unit] =
       ZIO.serviceWithZIO[ParameterizedService[A]](_.something)
   }
 
