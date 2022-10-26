@@ -115,6 +115,7 @@ trait ConsoleRenderer extends TestRenderer {
           Message(result.streamingLines)
       }
 
+      // TODO Stop doing this here?
       val renderedAnnotations = renderAnnotations(result.annotations, TestAnnotationRenderer.default)
       renderToStringLines(output ++ renderedAnnotations).mkString
     }
@@ -221,15 +222,13 @@ trait ConsoleRenderer extends TestRenderer {
 //        println("Annotations: " + annotations)
         val rendered = annotationRenderer.run(ancestors, annotations)
         if (rendered.isEmpty) {
-          println("A")
           Message.empty
         }
         else {
-          println("B: " + rendered.mkString(" - ", ", ", ""))
+//          println("B: " + rendered.mkString(" - ", ", ", ""))
           Message(rendered.mkString(" - ", ", ", ""))
         }
       case Nil =>
-        println("C")
         Message.empty
     }
 

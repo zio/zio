@@ -68,7 +68,6 @@ trait TestRenderer {
           )
         )
       case Left(TestFailure.Assertion(result, _)) =>
-        println("Hi")
         result.failures.map { result =>
           renderedWithSummary(
             ResultType.Test,
@@ -201,46 +200,18 @@ trait TestRenderer {
   private def renderFailure(label: String, offset: Int, details: TestTrace[Boolean], annotations: TestAnnotationMap): Message =
     (renderFailureLabel(label, offset) + renderAnnotationsFrag(List(annotations), TestAnnotationRenderer.default)) +: renderAssertionResult(details, offset) :+ Line.empty
 
-
-  private def renderAnnotations(
-                                 annotations: List[TestAnnotationMap],
-                                 annotationRenderer: TestAnnotationRenderer
-                               ): Message =
-    annotations match {
-      case annotations :: ancestors =>
-        //        println("Annotations: " + annotations)
-        val rendered = annotationRenderer.run(ancestors, annotations)
-        if (rendered.isEmpty) {
-          println("A")
-          Message.empty
-        }
-        else {
-          println("B: " + rendered.mkString(" - ", ", ", ""))
-          Message(rendered.mkString(" - ", ", ", ""))
-        }
-      case Nil =>
-        println("C")
-        Message.empty
-    }
-
   private def renderAnnotationsFrag(
                                  annotations: List[TestAnnotationMap],
                                  annotationRenderer: TestAnnotationRenderer
                                ): Fragment =
     annotations match {
       case annotations :: ancestors =>
-        //        println("Annotations: " + annotations)
         val rendered = annotationRenderer.run(ancestors, annotations)
-        if (rendered.isEmpty) {
-          println("A")
+        if (rendered.isEmpty)
           Fragment("")
-        }
-        else {
-          println("B: " + rendered.mkString(" - ", ", ", ""))
+        else
           Fragment(rendered.mkString(" - ", ", ", ""))
-        }
       case Nil =>
-        println("C")
         Fragment("")
     }
 
