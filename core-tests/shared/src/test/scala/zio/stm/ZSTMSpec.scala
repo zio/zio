@@ -726,7 +726,7 @@ object ZSTMSpec extends ZIOBaseSpec {
             f       <- v.get.flatMap(v => STM.check(v == 0)).commit.fork
             _       <- f.interrupt
             observe <- f.join.sandbox.either
-          } yield assert(observe)(isLeft(equalTo(Cause.interrupt(selfId))))
+          } yield assert(observe)(isLeft(containsCause(Cause.interrupt(selfId))))
         } @@ zioTag(interruption)
       ),
       test("Using `collect` filter and map simultaneously the value produced by the transaction") {
