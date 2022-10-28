@@ -229,6 +229,104 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(_.collect(f)))
 
   /**
+   * Delays the emission of values by holding new values for a set duration. If
+   * no new values arrive during that time the value is emitted, however if a
+   * new value is received during the holding period the previous value is
+   * discarded and the process is repeated with the new value.
+   *
+   * This operator is useful if you have a stream of "bursty" events which
+   * eventually settle down and you only need the final event of the burst.
+   *
+   * @example
+   * A search engine may only want to initiate a search after a user has
+   * paused typing so as to not prematurely recommend results.
+   */
+  def debounce[Env, Err, In](d: => Duration)(implicit trace: Trace): ZPipeline[Env, Err, In, In] = {
+    import ZStream.DebounceState
+    import ZStream.DebounceState._
+    import ZStream.HandoffSignal
+    import ZStream.HandoffSignal._
+
+    ZPipeline.unwrap(
+      ZIO.transplant { grafter =>
+        for {
+          d <- ZIO.succeed(d)
+          handoff <- ZStream.Handoff.make[HandoffSignal[Err, In]]
+        } yield {
+          def enqueue(last: Chunk[In]) =
+            for {
+              f <- grafter(Clock.sleep(d).as(last).fork)
+            } yield consumer(Previous(f))
+
+          lazy val producer: ZChannel[Env, Err, Chunk[In], Any, Err, Nothing, Any] =
+            ZChannel.readWithCause(
+              (in: Chunk[In]) =>
+                in.lastOption.fold(producer) { last =>
+                  ZChannel.fromZIO(handoff.offer(Emit(Chunk.single(last)))) *> producer
+                },
+              (cause: Cause[Err]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
+              (_: Any) => ZChannel.fromZIO(handoff.offer(End(ZStream.SinkEndReason.UpstreamEnd)))
+            )
+
+          def consumer(state: DebounceState[Err, In]): ZChannel[Env, Any, Any, Any, Err, Chunk[In], Any] =
+            ZChannel.unwrap(
+              state match {
+                case NotStarted =>
+                  handoff.take.map {
+                    case Emit(last) =>
+                      ZChannel.unwrap(enqueue(last))
+                    case HandoffSignal.Halt(error) =>
+                      ZChannel.failCause(error)
+                    case HandoffSignal.End(_) =>
+                      ZChannel.unit
+                  }
+                case Current(fiber) =>
+                  fiber.join.map {
+                    case HandoffSignal.Emit(last) => ZChannel.unwrap(enqueue(last))
+                    case HandoffSignal.Halt(error) => ZChannel.failCause(error)
+                    case HandoffSignal.End(_) => ZChannel.unit
+                  }
+                case Previous(fiber) =>
+                  fiber.join
+                    .raceWith[Env, Err, Err, HandoffSignal[Err, In], ZChannel[
+                      Env,
+                      Any,
+                      Any,
+                      Any,
+                      Err,
+                      Chunk[In],
+                      Any
+                    ]](
+                      handoff.take
+                    )(
+                      {
+                        case (Exit.Success(a), current) =>
+                          ZIO.succeedNow(ZChannel.write(a) *> consumer(Current(current)))
+                        case (Exit.Failure(cause), current) =>
+                          current.interrupt as ZChannel.failCause(cause)
+                      },
+                      {
+                        case (Exit.Success(Emit(last)), previous) =>
+                          previous.interrupt *> enqueue(last)
+                        case (Exit.Success(Halt(cause)), previous) =>
+                          previous.interrupt as ZChannel.failCause(cause)
+                        case (Exit.Success(End(_)), previous) =>
+                          previous.join.map(ZChannel.write(_) *> ZChannel.unit)
+                        case (Exit.Failure(cause), previous) =>
+                          previous.interrupt as ZChannel.failCause(cause)
+                      }
+                    )
+              }
+            )
+
+          ZChannel.scoped[Env](producer.runScoped.forkScoped) *>
+            new ZPipeline(consumer(NotStarted))
+        }
+      }
+    )
+  }
+
+  /**
    * Creates a pipeline that decodes a stream of bytes into a stream of strings
    * using the given charset
    */
@@ -1029,6 +1127,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(ZChannel.unwrap(zio.map(_.channel)))
 
   /**
+   * Creates a single-valued pipeline from a scoped resource
+   */
+  def scoped[Env]: ScopedPartiallyApplied[Env] =
+    new ScopedPartiallyApplied[Env]
+
+  /**
    * Created a pipeline produced from a scoped effect.
    */
   def unwrapScoped[Env]: UnwrapScopedPartiallyApplied[Env] =
@@ -1320,5 +1424,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       trace: Trace
     ): ZPipeline[Env, Err, In, Out] =
       new ZPipeline(ZChannel.unwrapScoped[Env](scoped.map(_.channel)))
+  }
+
+  final class ScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Err, In](scoped: => ZIO[Scope with Env, Err, In])(implicit
+      trace: Trace
+    ): ZPipeline[Env, Err, In, In] =
+      new ZPipeline(ZChannel.scoped[Env](scoped.map(Chunk.single)))
   }
 }
