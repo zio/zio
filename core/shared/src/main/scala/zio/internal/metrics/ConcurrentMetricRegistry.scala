@@ -3,19 +3,12 @@ package zio.internal.metrics
 import zio._
 import zio.metrics._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.metrics.MetricClient.Listener
 
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 private[zio] class ConcurrentMetricRegistry {
-  trait Listener {
-    def updateHistogram(key: MetricKey[MetricKeyType.Histogram], value: Double): UIO[Unit]
-    def updateGauge(key: MetricKey[MetricKeyType.Gauge], value: Double): UIO[Unit]
-    def updateFrequency(key: MetricKey[MetricKeyType.Frequency], value: String): UIO[Unit]
-    def updateSummary(key: MetricKey[MetricKeyType.Summary], value: (Double, java.time.Instant)): UIO[Unit]
-    def updateCounter(key: MetricKey[MetricKeyType.Counter], value: Double): UIO[Unit]
-  }
-
   private val listeners: ConcurrentHashMap[MetricKeyType, Set[Listener]] =
     new ConcurrentHashMap[MetricKeyType, Set[Listener]]()
 

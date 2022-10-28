@@ -148,6 +148,11 @@ object PollingMetric {
                   pollingmetric.metric.unsafe.modify(input.asInstanceOf[pollingmetric.In])
                 }
             }
+
+          override private[zio] def notifyListeners(in: In, extraTags: Set[MetricLabel]): UIO[Unit] =
+            (ZIO.foreach(ins.zip(in)) { case (pollingmetric, input) =>
+              pollingmetric.metric.notifyListeners(input.asInstanceOf[pollingmetric.In])  
+            }).unit
         }
 
       def poll(implicit trace: Trace): ZIO[R, E, In] = ZIO.foreach(ins)(_.poll)
