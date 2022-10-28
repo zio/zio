@@ -173,7 +173,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
                        )
                      ).load(SNP500.config)
           } yield assertTrue(value == SNP500.default)
-        } @@ TestAspect.failing +
+        } +
         test("collection of atoms") {
           for {
             value <-

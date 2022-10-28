@@ -64,23 +64,23 @@ object ConfigProvider {
   }
   object Flat {
     object util {
+      def splitPathString(text: String, escapedDelim: String): Chunk[String] =
+        Chunk.fromArray(text.split("\\s*" + escapedDelim + "\\s*"))
+
       def parseAtom[A](
         text: String,
         path: Chunk[String],
         name: String,
         atom: Config.Primitive[A],
-        delim: String
+        escapedDelim: String
       ): IO[Config.Error, Chunk[A]] = {
-        val name         = path.lastOption.getOrElse("<unnamed>")
-        val unsplit      = atom == Config.Secret
-        val escapedDelim = java.util.regex.Pattern.quote(delim)
+        val name    = path.lastOption.getOrElse("<unnamed>")
+        val unsplit = atom == Config.Secret
 
         if (unsplit) ZIO.fromEither(atom.parse(text)).map(Chunk(_))
         else
           ZIO
-            .foreach(Chunk.fromArray(text.split("\\s*" + escapedDelim + "\\s*")))(s =>
-              ZIO.fromEither(atom.parse(s.trim))
-            )
+            .foreach(splitPathString(text, escapedDelim))(s => ZIO.fromEither(atom.parse(s.trim)))
             .mapError(_.prefixed(path))
       }
     }
@@ -281,7 +281,10 @@ object ConfigProvider {
    */
   def fromMap(map: Map[String, String], pathDelim: String = ".", seqDelim: String = ","): ConfigProvider =
     fromFlat(new Flat {
-      def makePathString(path: Chunk[String]): String = path.mkString(pathDelim)
+      val escapedSeqDelim                                     = java.util.regex.Pattern.quote(seqDelim)
+      val escapedPathDelim                                    = java.util.regex.Pattern.quote(pathDelim)
+      def makePathString(path: Chunk[String]): String         = path.mkString(pathDelim)
+      def unmakePathString(pathString: String): Chunk[String] = Chunk.fromArray(pathString.split(escapedPathDelim))
 
       def load[A](path: Chunk[String], atom: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
         val pathString  = makePathString(path)
@@ -293,16 +296,15 @@ object ConfigProvider {
           value <- ZIO
                      .fromOption(valueOpt)
                      .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in properties"))
-          results <- Flat.util.parseAtom(value, path, name, atom, seqDelim)
+          results <- Flat.util.parseAtom(value, path, name, atom, escapedSeqDelim)
         } yield results
       }
 
       def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Chunk[String]] =
         ZIO.succeed {
-          val pathString = makePathString(path)
-          val keyStrings = Chunk.fromIterable(map.keys)
+          val keyPaths = Chunk.fromIterable(map.keys).map(unmakePathString)
 
-          keyStrings.filter(_.startsWith(pathString))
+          Chunk.fromIterable(keyPaths.filter(_.startsWith(path)).map(_.drop(path.length).take(1)).flatten.toSet)
         }
     })
 
