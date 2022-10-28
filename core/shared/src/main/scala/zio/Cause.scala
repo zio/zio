@@ -684,20 +684,23 @@ object Cause extends Serializable {
   private def equals(left: Cause[Any], right: Cause[Any]): Boolean = {
 
     @tailrec
-    def loop(left: Cause[Any], right: Cause[Any], leftStack: List[Cause[Any]], rightStack: List[Cause[Any]]): Boolean =
-      (step(left), step(right)) match {
-        case ((leftParallel, leftSequential), (rightParallel, rightSequential)) =>
-          if (leftParallel != rightParallel) false
-          else
-            (leftStack, rightStack) match {
-              case (Nil, Nil)                               => true
-              case (Nil, _)                                 => false
-              case (_, Nil)                                 => false
-              case (left :: leftStack, right :: rightStack) => loop(left, right, leftStack, rightStack)
-            }
+    def loop(left: List[Cause[Any]], right: List[Cause[Any]]): Boolean = {
+      val (leftParallel, leftSequential) = left.foldLeft((Set.empty[Any], List.empty[Cause[Any]])) {
+        case ((parallel, sequential), cause) =>
+          val (set, seq) = step(cause)
+          (parallel ++ set, sequential ++ seq)
       }
+      val (rightParallel, rightSequential) = right.foldLeft((Set.empty[Any], List.empty[Cause[Any]])) {
+        case ((parallel, sequential), cause) =>
+          val (set, seq) = step(cause)
+          (parallel ++ set, sequential ++ seq)
+      }
+      if (leftParallel != rightParallel) false
+      else if (leftSequential.isEmpty && rightSequential.isEmpty) true
+      else loop(leftSequential, rightSequential)
+    }
 
-    loop(left, right, Nil, Nil)
+    loop(List(left), List(right))
   }
 
   /**

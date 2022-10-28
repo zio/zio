@@ -1,7 +1,6 @@
 package zio.managed
 
 import zio._
-import zio.Exit.Failure
 import zio.managed.ZManaged.ReleaseMap
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, scala2Only}
@@ -39,7 +38,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(values)(equalTo(List(1, 2, 3, 3, 2, 1)))
       },
       test("Constructs an uninterruptible Managed value") {
-        doInterrupt(io => ZManaged.acquireReleaseWith(io)(_ => ZIO.unit), _ => None)
+        doInterrupt(io => ZManaged.acquireReleaseWith(io)(_ => ZIO.unit), _ => isNone)
       },
       test("Infers the environment type correctly") {
         trait R
@@ -79,7 +78,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       test("Interruption is possible when using this form") {
         doInterrupt(
           io => ZManaged.fromReservation(Reservation(io, _ => ZIO.unit)),
-          selfId => Some(Failure(Cause.interrupt(selfId)))
+          selfId => isSome(failsCause(containsCause(Cause.interrupt(selfId))))
         )
       }
     ),
@@ -1366,15 +1365,14 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(r)(equalTo(1))
       } @@ zioTag(errors),
       test("Does not swallow acquisition if one acquisition fails") {
-        ZIO.fiberId.flatMap { selfId =>
-          (for {
-            latch <- Promise.make[Nothing, Unit]
-            first  = ZManaged.fromZIO(latch.succeed(()) *> ZIO.sleep(Duration.Infinity))
-            second = ZManaged.fromReservation(Reservation(latch.await *> ZIO.fail(()), _ => ZIO.unit))
-            _     <- first.zipPar(second).useDiscard(ZIO.unit)
-          } yield ()).exit
-            .map(assert(_)(equalTo(Exit.Failure(Cause.Both(Cause.Fail((), StackTrace.none), Cause.interrupt(selfId))))))
-        }
+        for {
+          selfId <- ZIO.fiberId
+          latch  <- Promise.make[Nothing, Unit]
+          first   = ZManaged.fromZIO(latch.succeed(()) *> ZIO.sleep(Duration.Infinity))
+          second  = ZManaged.fromReservation(Reservation(latch.await *> ZIO.fail(()), _ => ZIO.unit))
+          exit   <- first.zipPar(second).useDiscard(ZIO.unit).exit
+        } yield assert(exit)(failsCause(containsCause(Cause.fail((), StackTrace.none)))) &&
+          assert(exit)(failsCause(containsCause(Cause.interrupt(selfId))))
       } @@ zioTag(errors),
       test("Run finalizers if one reservation fails") {
         for {
@@ -1872,7 +1870,7 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
-    expected: FiberId => Option[Exit[Nothing, Unit]]
+    expected: FiberId => Assertion[Option[Exit[Nothing, Unit]]]
   ): ZIO[Any, Nothing, TestResult] =
     for {
       fiberId            <- ZIO.fiberId
@@ -1881,7 +1879,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       managedFiber       <- managed(reachedAcquisition.succeed(()) *> never.await).useDiscard(ZIO.unit).forkDaemon
       _                  <- reachedAcquisition.await
       interruption       <- Live.live(managedFiber.interruptAs(fiberId).timeout(5.seconds))
-    } yield assert(interruption.map(_.untraced))(equalTo(expected(fiberId)))
+    } yield assert(interruption)(expected(fiberId))
 
   def makeTestManaged(ref: Ref[Int]): Managed[Nothing, Unit] =
     ZManaged.fromReservationZIO {
