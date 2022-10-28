@@ -8,6 +8,16 @@ import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 private[zio] class ConcurrentMetricRegistry {
+  trait Listener {
+    def updateHistogram(key: MetricKey[MetricKeyType.Histogram], value: Double): UIO[Unit]
+    def updateGauge(key: MetricKey[MetricKeyType.Gauge], value: Double): UIO[Unit]
+    def updateFrequency(key: MetricKey[MetricKeyType.Frequency], value: String): UIO[Unit]
+    def updateSummary(key: MetricKey[MetricKeyType.Summary], value: (Double, java.time.Instant)): UIO[Unit]
+    def updateCounter(key: MetricKey[MetricKeyType.Counter], value: Double): UIO[Unit]
+  }
+
+  private val listeners: ConcurrentHashMap[MetricKeyType, Set[Listener]] =
+    new ConcurrentHashMap[MetricKeyType, Set[Listener]]()
 
   private val map: ConcurrentHashMap[MetricKey[MetricKeyType], MetricHook.Root] =
     new ConcurrentHashMap[MetricKey[MetricKeyType], MetricHook.Root]()
@@ -40,6 +50,38 @@ private[zio] class ConcurrentMetricRegistry {
         case MetricKeyType.Summary(_, _, _, _) => getSummary(key.asInstanceOf[MetricKey.Summary])
       }).asInstanceOf[Result]
     } else hook0.asInstanceOf[Result]
+  }
+
+  def addListener(keyType: MetricKeyType)(listener: Listener): Unit =
+    listeners.compute(
+      keyType,
+      { case (_, listeners) =>
+        listeners match {
+          case null      => Set(listener)
+          case listeners => listeners + listener
+        }
+      }
+    )
+
+  def removeListener(listener: Listener): Unit =
+    listeners.keySet().forEach { metricKeyType =>
+      listeners.computeIfPresent(metricKeyType, { case (a, b) => b - listener })
+    }
+
+  def update[T](key: MetricKey[MetricKeyType.Aux[T]], value: T)(implicit trace: Trace): ZIO[Any, Nothing, Unit] = {
+    val listenersForKey = listeners.get(key.keyType)
+    key.keyType match {
+      case MetricKeyType.Gauge =>
+        ZIO.foreach(listenersForKey)(_.updateGauge(key.asInstanceOf[MetricKey.Gauge], value)).unit
+      case MetricKeyType.Histogram(boundaries) =>
+        ZIO.foreach(listenersForKey)(_.updateHistogram(key.asInstanceOf[MetricKey.Histogram], value)).unit
+      case MetricKeyType.Frequency =>
+        ZIO.foreach(listenersForKey)(_.updateFrequency(key.asInstanceOf[MetricKey.Frequency], value)).unit
+      case MetricKeyType.Summary(maxAge, maxSize, error, quantiles) =>
+        ZIO.foreach(listenersForKey)(_.updateSummary(key.asInstanceOf[MetricKey.Summary], value)).unit
+      case MetricKeyType.Counter =>
+        ZIO.foreach(listenersForKey)(_.updateCounter(key.asInstanceOf[MetricKey.Counter], value)).unit
+    }
   }
 
   private def getCounter(key: MetricKey.Counter)(implicit unsafe: Unsafe): MetricHook.Counter = {
