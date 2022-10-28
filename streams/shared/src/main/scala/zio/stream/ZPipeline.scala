@@ -20,6 +20,7 @@ import zio._
 import zio.internal.SingleThreadedRingBuffer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
+import zio.stream.internal.SingleProducerAsyncInput
 
 import java.nio.{Buffer, ByteBuffer, CharBuffer}
 import java.nio.charset.{
@@ -743,6 +744,111 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           reader
         })
     }
+
+  /**
+   * Delays the emission of values by holding new values for a set duration. If
+   * no new values arrive during that time the value is emitted, however if a
+   * new value is received during the holding period the previous value is
+   * discarded and the process is repeated with the new value.
+   *
+   * This operator is useful if you have a stream of "bursty" events which
+   * eventually settle down and you only need the final event of the burst.
+   *
+   * @example
+   *   A search engine may only want to initiate a search after a user has
+   *   paused typing so as to not prematurely recommend results.
+   */
+  def debounce[In](d: => Duration)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] = {
+    import ZStream.DebounceState._
+    import ZStream.HandoffSignal._
+
+    ZPipeline.unwrap {
+      SingleProducerAsyncInput.make[ZNothing, Chunk[In], Any].flatMap { input =>
+        ZIO.transplant { grafter =>
+          for {
+            d       <- ZIO.succeed(d)
+            handoff <- ZStream.Handoff.make[ZStream.HandoffSignal[ZNothing, In]]
+          } yield {
+            def enqueue(last: Chunk[In]) =
+              for {
+                f <- grafter(Clock.sleep(d).as(last).fork)
+              } yield consumer(Previous(f))
+
+            lazy val producer: ZChannel[Any, ZNothing, Chunk[In], Any, ZNothing, Nothing, Any] =
+              ZChannel.readWithCause(
+                (in: Chunk[In]) =>
+                  in.lastOption.fold(producer) { last =>
+                    ZChannel.fromZIO(handoff.offer(Emit(Chunk.single(last)))) *> producer
+                  },
+                (cause: Cause[ZNothing]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
+                (_: Any) => ZChannel.fromZIO(handoff.offer(End(ZStream.SinkEndReason.UpstreamEnd)))
+              )
+
+            def consumer(
+              state: ZStream.DebounceState[Nothing, In]
+            ): ZChannel[Any, Any, Any, Any, Nothing, Chunk[In], Any] =
+              ZChannel.unwrap(
+                state match {
+                  case NotStarted =>
+                    handoff.take.map {
+                      case Emit(last) =>
+                        ZChannel.unwrap(enqueue(last))
+                      case ZStream.HandoffSignal.Halt(error) =>
+                        ZChannel.failCause(error)
+                      case ZStream.HandoffSignal.End(_) =>
+                        ZChannel.unit
+                    }
+                  case Current(fiber) =>
+                    fiber.join.map {
+                      case ZStream.HandoffSignal.Emit(last)  => ZChannel.unwrap(enqueue(last))
+                      case ZStream.HandoffSignal.Halt(error) => ZChannel.failCause(error)
+                      case ZStream.HandoffSignal.End(_)      => ZChannel.unit
+                    }
+                  case Previous(fiber) =>
+                    fiber.join
+                      .raceWith[Any, Nothing, Nothing, ZStream.HandoffSignal[ZNothing, In], ZChannel[
+                        Any,
+                        Any,
+                        Any,
+                        Any,
+                        Nothing,
+                        Chunk[In],
+                        Any
+                      ]](
+                        handoff.take
+                      )(
+                        {
+                          case (Exit.Success(a), current) =>
+                            ZIO.succeedNow(ZChannel.write(a) *> consumer(Current(current)))
+                          case (Exit.Failure(cause), current) =>
+                            current.interrupt as ZChannel.failCause(cause)
+                        },
+                        {
+                          case (Exit.Success(Emit(last)), previous) =>
+                            previous.interrupt *> enqueue(last)
+                          case (Exit.Success(Halt(cause)), previous) =>
+                            previous.interrupt as ZChannel.failCause(cause)
+                          case (Exit.Success(End(_)), previous) =>
+                            previous.join.map(ZChannel.write(_) *> ZChannel.unit)
+                          case (Exit.Failure(cause), previous) =>
+                            previous.interrupt as ZChannel.failCause(cause)
+                        }
+                      )
+                }
+              )
+
+            new ZPipeline(
+              ZChannel.unwrapScoped {
+                for {
+                  _ <- (ZChannel.fromInput(input) >>> producer).run.forkScoped
+                } yield consumer(NotStarted).embedInput(input)
+              }
+            )
+          }
+        }
+      }
+    }
+  }
 
   /**
    * Creates a pipeline that decodes a stream of bytes into a stream of strings
