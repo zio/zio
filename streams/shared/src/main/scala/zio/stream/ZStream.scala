@@ -639,24 +639,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * previous element emitted, using the specified function to determine whether
    * two elements are equal.
    */
-  def changesWith(f: (A, A) => Boolean)(implicit trace: Trace): ZStream[R, E, A] = {
-    def writer(last: Option[A]): ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Unit] =
-      ZChannel.readWithCause[R, E, Chunk[A], Any, E, Chunk[A], Unit](
-        chunk => {
-          val (newLast, newChunk) =
-            chunk.foldLeft[(Option[A], Chunk[A])]((last, Chunk.empty)) {
-              case ((Some(o), os), o1) if (f(o, o1)) => (Some(o1), os)
-              case ((_, os), o1)                     => (Some(o1), os :+ o1)
-            }
-
-          ZChannel.write(newChunk) *> writer(newLast)
-        },
-        cause => ZChannel.failCause(cause),
-        _ => ZChannel.unit
-      )
-
-    new ZStream(self.channel >>> writer(None))
-  }
+  def changesWith(f: (A, A) => Boolean)(implicit trace: Trace): ZStream[R, E, A] =
+    self >>> ZPipeline.changesWith(f)
 
   /**
    * Returns a new stream that only emits elements that are not equal to the
@@ -665,26 +649,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    */
   def changesWithZIO[R1 <: R, E1 >: E](
     f: (A, A) => ZIO[R1, E1, Boolean]
-  )(implicit trace: Trace): ZStream[R1, E1, A] = {
-    def writer(last: Option[A]): ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[A], Unit] =
-      ZChannel.readWithCause[R1, E1, Chunk[A], Any, E1, Chunk[A], Unit](
-        chunk =>
-          ZChannel.fromZIO {
-            chunk.foldZIO[R1, E1, (Option[A], Chunk[A])]((last, Chunk.empty)) {
-              case ((Some(o), os), o1) =>
-                f(o, o1).map(b => if (b) (Some(o1), os) else (Some(o1), os :+ o1))
-              case ((_, os), o1) =>
-                ZIO.succeedNow((Some(o1), os :+ o1))
-            }
-          }.flatMap { case (newLast, newChunk) =>
-            ZChannel.write(newChunk) *> writer(newLast)
-          },
-        cause => ZChannel.failCause(cause),
-        _ => ZChannel.unit
-      )
-
-    new ZStream(self.channel >>> writer(None))
-  }
+  )(implicit trace: Trace): ZStream[R1, E1, A] =
+    self >>> ZPipeline.changesWithZIO(f)
 
   /**
    * Exposes the underlying chunks of the stream as a stream of chunks of
@@ -711,34 +677,26 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   /**
    * Filters any `Right` values.
    */
-  def collectLeft[L1, A1](implicit ev: A <:< Either[L1, A1], trace: Trace): ZStream[R, E, L1] = {
-    val _ = ev
-    self.asInstanceOf[ZStream[R, E, Either[L1, A1]]].collect { case Left(a) => a }
-  }
+  def collectLeft[L1, A1](implicit ev: A <:< Either[L1, A1], trace: Trace): ZStream[R, E, L1] =
+    self.asInstanceOf[ZStream[R, E, Either[L1, A1]]] >>> ZPipeline.collectLeft
 
   /**
    * Filters any 'None' values.
    */
-  def collectSome[A1](implicit ev: A <:< Option[A1], trace: Trace): ZStream[R, E, A1] = {
-    val _ = ev
-    self.asInstanceOf[ZStream[R, E, Option[A1]]].collect { case Some(a) => a }
-  }
+  def collectSome[A1](implicit ev: A <:< Option[A1], trace: Trace): ZStream[R, E, A1] =
+    self.asInstanceOf[ZStream[R, E, Option[A1]]] >>> ZPipeline.collectSome[E, A1]
 
   /**
    * Filters any `Exit.Failure` values.
    */
-  def collectSuccess[L1, A1](implicit ev: A <:< Exit[L1, A1], trace: Trace): ZStream[R, E, A1] = {
-    val _ = ev
-    self.asInstanceOf[ZStream[R, E, Exit[L1, A1]]].collect { case Exit.Success(a) => a }
-  }
+  def collectSuccess[L1, A1](implicit ev: A <:< Exit[L1, A1], trace: Trace): ZStream[R, E, A1] =
+    self.asInstanceOf[ZStream[R, E, Exit[L1, A1]]] >>> ZPipeline.collectSuccess
 
   /**
    * Filters any `Left` values.
    */
-  def collectRight[L1, A1](implicit ev: A <:< Either[L1, A1], trace: Trace): ZStream[R, E, A1] = {
-    val _ = ev
-    self.asInstanceOf[ZStream[R, E, Either[L1, A1]]].collect { case Right(a) => a }
-  }
+  def collectRight[L1, A1](implicit ev: A <:< Either[L1, A1], trace: Trace): ZStream[R, E, A1] =
+    self.asInstanceOf[ZStream[R, E, Either[L1, A1]]] >>> ZPipeline.collectRight
 
   /**
    * Delays the emission of values by holding new values for a set duration. If
@@ -890,21 +848,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * Transforms all elements of the stream for as long as the specified partial
    * function is defined.
    */
-  def collectWhile[A1](pf: PartialFunction[A, A1])(implicit trace: Trace): ZStream[R, E, A1] = {
-    lazy val loop: ZChannel[R, E, Chunk[A], Any, E, Chunk[A1], Any] =
-      ZChannel.readWith[R, E, Chunk[A], Any, E, Chunk[A1], Any](
-        in => {
-          val mapped = in.collectWhile(pf)
-          if (mapped.size == in.size)
-            ZChannel.write(mapped) *> loop
-          else
-            ZChannel.write(mapped)
-        },
-        ZChannel.fail(_),
-        ZChannel.succeed(_)
-      )
-    new ZStream(self.channel >>> loop)
-  }
+  def collectWhile[A1](pf: PartialFunction[A, A1])(implicit trace: Trace): ZStream[R, E, A1] =
+    self >>> ZPipeline.collectWhile(pf)
 
   /**
    * Terminates the stream when encountering the first `Right`.
@@ -944,24 +889,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    */
   def collectWhileZIO[R1 <: R, E1 >: E, A1](
     pf: PartialFunction[A, ZIO[R1, E1, A1]]
-  )(implicit trace: Trace): ZStream[R1, E1, A1] = {
-
-    def loop(chunkIterator: Chunk.ChunkIterator[A], index: Int): ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Any] =
-      if (chunkIterator.hasNextAt(index))
-        ZChannel.unwrap {
-          val a = chunkIterator.nextAt(index)
-          pf.andThen(_.map(a1 => ZChannel.write(Chunk.single(a1)) *> loop(chunkIterator, index + 1)))
-            .applyOrElse(a, (_: A) => ZIO.succeed(ZChannel.unit))
-        }
-      else
-        ZChannel.readWithCause(
-          elem => loop(elem.chunkIterator, 0),
-          err => ZChannel.failCause(err),
-          done => ZChannel.succeed(done)
-        )
-
-    new ZStream(self.channel >>> loop(Chunk.ChunkIterator.empty, 0))
-  }
+  )(implicit trace: Trace): ZStream[R1, E1, A1] =
+    self >>> ZPipeline.collectWhileZIO(pf)
 
   /**
    * Combines the elements from this stream and the specified stream by
@@ -1257,30 +1186,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   numbers.
    */
   def dropRight(n: => Int)(implicit trace: Trace): ZStream[R, E, A] =
-    ZStream.succeed(n).flatMap { n =>
-      if (n <= 0) new ZStream(self.channel)
-      else
-        new ZStream({
-          val queue = SingleThreadedRingBuffer[A](n)
-
-          lazy val reader: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Unit] =
-            ZChannel.readWith(
-              (in: Chunk[A]) => {
-                val outs = in.flatMap { elem =>
-                  val head = queue.head
-                  queue.put(elem)
-                  head
-                }
-
-                ZChannel.write(outs) *> reader
-              },
-              ZChannel.fail(_),
-              (_: Any) => ZChannel.unit
-            )
-
-          self.channel >>> reader
-        })
-    }
+    self >>> ZPipeline.dropRight(n)
 
   /**
    * Drops all elements of the stream for as long as the specified predicate
@@ -1666,7 +1572,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   size of the chunk
    */
   def grouped(chunkSize: => Int)(implicit trace: Trace): ZStream[R, E, Chunk[A]] =
-    rechunk(chunkSize).chunks
+    self >>> ZPipeline.grouped(chunkSize)
 
   /**
    * Partitions the stream with the specified chunkSize or until the specified
@@ -1821,31 +1727,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * <code>List.mkString</code>.
    */
   def intersperse[A1 >: A](middle: => A1)(implicit trace: Trace): ZStream[R, E, A1] =
-    ZStream.succeed(middle).flatMap { middle =>
-      def writer(isFirst: Boolean): ZChannel[R, E, Chunk[A1], Any, E, Chunk[A1], Unit] =
-        ZChannel.readWith[R, E, Chunk[A1], Any, E, Chunk[A1], Unit](
-          chunk => {
-            val builder    = ChunkBuilder.make[A1]()
-            var flagResult = isFirst
-
-            chunk.foreach { o =>
-              if (flagResult) {
-                flagResult = false
-                builder += o
-              } else {
-                builder += middle
-                builder += o
-              }
-            }
-
-            ZChannel.write(builder.result()) *> writer(flagResult)
-          },
-          err => ZChannel.fail(err),
-          _ => ZChannel.unit
-        )
-
-      new ZStream(self.channel >>> writer(true))
-    }
+    self >>> ZPipeline.intersperse(middle)
 
   /**
    * Intersperse and also add a prefix and a suffix
