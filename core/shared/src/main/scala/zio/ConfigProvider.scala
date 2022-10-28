@@ -71,13 +71,16 @@ object ConfigProvider {
         atom: Config.Primitive[A],
         delim: String
       ): IO[Config.Error, Chunk[A]] = {
-        val name    = path.lastOption.getOrElse("<unnamed>")
-        val unsplit = atom == Config.Secret
+        val name         = path.lastOption.getOrElse("<unnamed>")
+        val unsplit      = atom == Config.Secret
+        val escapedDelim = java.util.regex.Pattern.quote(delim)
 
         if (unsplit) ZIO.fromEither(atom.parse(text)).map(Chunk(_))
         else
           ZIO
-            .foreach(Chunk.fromArray(text.split("\\s*" + delim + "\\s*")))(s => ZIO.fromEither(atom.parse(s.trim)))
+            .foreach(Chunk.fromArray(text.split("\\s*" + escapedDelim + "\\s*")))(s =>
+              ZIO.fromEither(atom.parse(s.trim))
+            )
             .mapError(_.prefixed(path))
       }
     }

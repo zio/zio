@@ -103,6 +103,17 @@ object ConfigProviderSpec extends ZIOBaseSpec {
               .load(HostPorts.config)
         } yield assertTrue(value.hostPorts.length == 3)
       } +
+      test("top-level lists with special regex multi-character sequence delimiter") {
+        for {
+          value <-
+            ConfigProvider
+              .fromMap(
+                Map("hostPorts.host" -> "localhost|||localhost|||localhost", "hostPorts.port" -> "8080|||8080|||8080"),
+                seqDelim = "|||"
+              )
+              .load(HostPorts.config)
+        } yield assertTrue(value.hostPorts.length == 3)
+      } +
       test("top-level lists with special regex character sequence delimiter") {
         for {
           value <-
@@ -113,7 +124,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
               )
               .load(HostPorts.config)
         } yield assertTrue(value.hostPorts.length == 3)
-      } @@ TestAspect.failing +
+      } +
       test("top-level list with different number of elements per key fails") {
         for {
           exit <-
