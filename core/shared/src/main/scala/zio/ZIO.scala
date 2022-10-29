@@ -4125,7 +4125,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Applies the specified changes to the `FiberRef` values for the fiber
    * running this workflow.
    */
-  def patchFiberRefs[R, E, A](patch: FiberRefs.Patch)(implicit trace: Trace): ZIO[Any, Nothing, Unit] =
+  def patchFiberRefs(patch: FiberRefs.Patch)(implicit trace: Trace): ZIO[Any, Nothing, Unit] =
     updateFiberRefs(patch)
 
   /**
