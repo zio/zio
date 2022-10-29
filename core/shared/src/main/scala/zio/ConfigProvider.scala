@@ -64,20 +64,20 @@ object ConfigProvider {
   }
   object Flat {
     object util {
-      def parseAtom[A](
+      def parsePrimitive[A](
         text: String,
         path: Chunk[String],
         name: String,
-        atom: Config.Primitive[A],
+        primitive: Config.Primitive[A],
         delim: String
       ): IO[Config.Error, Chunk[A]] = {
         val name    = path.lastOption.getOrElse("<unnamed>")
-        val unsplit = atom == Config.Secret
+        val unsplit = primitive == Config.Secret
 
-        if (unsplit) ZIO.fromEither(atom.parse(text)).map(Chunk(_))
+        if (unsplit) ZIO.fromEither(primitive.parse(text)).map(Chunk(_))
         else
           ZIO
-            .foreach(Chunk.fromArray(text.split("\\s*" + delim + "\\s*")))(s => ZIO.fromEither(atom.parse(s.trim)))
+            .foreach(Chunk.fromArray(text.split("\\s*" + delim + "\\s*")))(s => ZIO.fromEither(primitive.parse(s.trim)))
             .mapError(_.prefixed(path))
       }
     }
@@ -92,21 +92,23 @@ object ConfigProvider {
 
   lazy val consoleProvider: ConfigProvider =
     fromFlat(new Flat {
-      def load[A](path: Chunk[String], atom: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
+      def load[A](path: Chunk[String], primitive: Config.Primitive[A])(implicit
+        trace: Trace
+      ): IO[Config.Error, Chunk[A]] = {
         val name        = path.lastOption.getOrElse("<unnamed>")
-        val description = atom.description
+        val description = primitive.description
         val sourceError = (e: Throwable) =>
           Config.Error.SourceUnavailable(
             path :+ name,
             "There was a problem reading configuration from the console",
             Cause.fail(e)
           )
-        val isText = atom == Config.Text || atom == Config.Secret
+        val isText = primitive == Config.Text || primitive == Config.Secret
 
         for {
           _       <- Console.printLine(s"Please enter ${description} for property ${name}:").mapError(sourceError)
           line    <- Console.readLine.mapError(sourceError)
-          results <- Flat.util.parseAtom(line, path, name, atom, ",")
+          results <- Flat.util.parsePrimitive(line, path, name, primitive, ",")
         } yield results
       }
 
@@ -135,10 +137,12 @@ object ConfigProvider {
 
       def makePathString(path: Chunk[String]): String = path.mkString("_").toUpperCase
 
-      def load[A](path: Chunk[String], atom: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
+      def load[A](path: Chunk[String], primitive: Config.Primitive[A])(implicit
+        trace: Trace
+      ): IO[Config.Error, Chunk[A]] = {
         val pathString  = makePathString(path)
         val name        = path.lastOption.getOrElse("<unnamed>")
-        val description = atom.description
+        val description = primitive.description
 
         for {
           valueOpt <- zio.System.env(pathString).mapError(sourceUnavailable(path))
@@ -146,7 +150,7 @@ object ConfigProvider {
             ZIO
               .fromOption(valueOpt)
               .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in the environment"))
-          results <- Flat.util.parseAtom(value, path, name, atom, ":")
+          results <- Flat.util.parsePrimitive(value, path, name, primitive, ":")
         } yield results
       }
 
@@ -252,12 +256,13 @@ object ConfigProvider {
                         }
             } yield result
 
-          case atom: Primitive[A] =>
+          case primitive: Primitive[A] =>
             for {
-              vs <- flat.load(prefix, atom).catchSome {
+              vs <- flat.load(prefix, primitive).catchSome {
                       case Config.Error.MissingData(_, _) if isEmptyOk => ZIO.succeed(Chunk.empty)
                     }
-              result <- if (vs.isEmpty && !isEmptyOk) ZIO.fail(atom.missingError(prefix.lastOption.getOrElse("<n/a>")))
+              result <- if (vs.isEmpty && !isEmptyOk)
+                          ZIO.fail(primitive.missingError(prefix.lastOption.getOrElse("<n/a>")))
                         else ZIO.succeed(vs)
             } yield result
         }
@@ -280,17 +285,19 @@ object ConfigProvider {
     fromFlat(new Flat {
       def makePathString(path: Chunk[String]): String = path.mkString(pathDelim)
 
-      def load[A](path: Chunk[String], atom: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
+      def load[A](path: Chunk[String], primitive: Config.Primitive[A])(implicit
+        trace: Trace
+      ): IO[Config.Error, Chunk[A]] = {
         val pathString  = makePathString(path)
         val name        = path.lastOption.getOrElse("<unnamed>")
-        val description = atom.description
+        val description = primitive.description
         val valueOpt    = map.get(pathString)
 
         for {
           value <- ZIO
                      .fromOption(valueOpt)
                      .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in properties"))
-          results <- Flat.util.parseAtom(value, path, name, atom, seqDelim)
+          results <- Flat.util.parsePrimitive(value, path, name, primitive, seqDelim)
         } yield results
       }
 
@@ -321,17 +328,19 @@ object ConfigProvider {
 
       def makePathString(path: Chunk[String]): String = path.mkString(".")
 
-      def load[A](path: Chunk[String], atom: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] = {
+      def load[A](path: Chunk[String], primitive: Config.Primitive[A])(implicit
+        trace: Trace
+      ): IO[Config.Error, Chunk[A]] = {
         val pathString  = makePathString(path)
         val name        = path.lastOption.getOrElse("<unnamed>")
-        val description = atom.description
+        val description = primitive.description
 
         for {
           valueOpt <- zio.System.property(pathString).mapError(sourceUnavailable(path))
           value <- ZIO
                      .fromOption(valueOpt)
                      .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in properties"))
-          results <- Flat.util.parseAtom(value, path, name, atom, ",")
+          results <- Flat.util.parsePrimitive(value, path, name, primitive, ",")
         } yield results
       }
 
