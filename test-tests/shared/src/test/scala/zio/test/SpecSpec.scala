@@ -60,6 +60,21 @@ object SpecSpec extends ZIOBaseSpec {
         for {
           summary <- execute(spec)
         } yield assertTrue(summary.success == 1) && assertTrue(summary.fail == 2)
+      },
+      test("inner fiberRef changes override outer ones") {
+        val fiberRef = FiberRef.unsafe.make(0)(Unsafe.unsafe)
+        val inner    = ZLayer.scoped(ZIO.acquireRelease(fiberRef.set(1))(_ => fiberRef.set(-1)))
+        val outer    = ZLayer.scoped(ZIO.acquireRelease(fiberRef.set(2))(_ => fiberRef.set(-2)))
+        val spec = suite("suite")(
+          test("test") {
+            for {
+              value <- fiberRef.get
+            } yield assertTrue(value == 1)
+          }.provideLayerShared(inner).provideLayer(outer)
+        )
+        for {
+          summary <- execute(spec)
+        } yield assertTrue(summary.success == 1)
       }
     ),
     suite("provideSomeLayerShared")(

@@ -1717,8 +1717,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                 map.get(layer) match {
                   case Some((acquire, release)) =>
                     val cached: ZIO[Any, E, ZEnvironment[B]] = acquire
-                      .asInstanceOf[IO[E, (ZEnvironment[B], FiberRefs)]]
-                      .flatMap { case (b, fiberRefs) => ZIO.inheritFiberRefs(fiberRefs).as(b) }
+                      .asInstanceOf[IO[E, (FiberRefs.Patch, ZEnvironment[B])]]
+                      .flatMap { case (patch, b) => ZIO.patchFiberRefs(patch).as(b) }
                       .onExit {
                         case Exit.Success(_) => scope.addFinalizerExit(release)
                         case Exit.Failure(_) => ZIO.unit
@@ -1728,7 +1728,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                   case None =>
                     for {
                       observers    <- Ref.make(0)
-                      promise      <- Promise.make[E, (ZEnvironment[B], FiberRefs)]
+                      promise      <- Promise.make[E, (FiberRefs.Patch, ZEnvironment[B])]
                       finalizerRef <- Ref.make[Exit[Any, Any] => UIO[Any]](_ => ZIO.unit)
 
                       resource = ZIO.uninterruptibleMask { restore =>
@@ -1740,13 +1740,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                                        restore(
                                          layer
                                            .scope(innerScope)
-                                           .flatMap(_.apply(self) <*> ZIO.getFiberRefs)
+                                           .flatMap(_.apply(self).diffFiberRefs)
                                        ).exit.flatMap {
                                          case e @ Exit.Failure(cause) =>
                                            promise.failCause(cause) *> innerScope.close(e) *> ZIO
                                              .failCause(cause)
 
-                                         case Exit.Success((b, fiberRefs)) =>
+                                         case Exit.Success((patch, b)) =>
                                            for {
                                              _ <- finalizerRef.set { (e: Exit[Any, Any]) =>
                                                     ZIO.whenZIO(observers.modify(n => (n == 1, n - 1)))(
@@ -1756,7 +1756,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                                              _ <- observers.update(_ + 1)
                                              outerFinalizer <-
                                                outerScope.addFinalizerExit(e => finalizerRef.get.flatMap(_.apply(e)))
-                                             _ <- promise.succeed((b, fiberRefs))
+                                             _ <- promise.succeed((patch, b))
                                            } yield b
                                        }
                                    } yield tp

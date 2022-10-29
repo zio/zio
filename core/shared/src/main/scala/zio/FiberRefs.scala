@@ -181,4 +181,36 @@ object FiberRefs {
 
   private[zio] def apply(fiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]): FiberRefs =
     new FiberRefs(fiberRefLocals)
+
+  /**
+   * A `Patch` captures the changes in `FiberRef` values made by a single fiber
+   * as a value. This allows fibers to apply the changes made by a workflow
+   * without inheriting all the `FiberRef` values of the fiber that executed the
+   * workflow.
+   */
+  sealed abstract case class Patch private (private val patches: Map[FiberRef[_], Any])
+      extends Function2[FiberId.Runtime, FiberRefs, FiberRefs] {
+
+    /**
+     * Applies the changes described by this patch to the specified collection
+     * of `FiberRef` values.
+     */
+    def apply(fiberId: FiberId.Runtime, fiberRefs: FiberRefs): FiberRefs =
+      patches.foldLeft(fiberRefs) { case (fiberRefs, (fiberRef, patch)) =>
+        val value = fiberRefs.getOrDefault(fiberRef)
+        fiberRefs.updatedAs(fiberId)(
+          fiberRef.asInstanceOf[FiberRef[fiberRef.Value]],
+          fiberRef.patch(patch.asInstanceOf[fiberRef.Patch])(value.asInstanceOf[fiberRef.Value])
+        )
+      }
+  }
+
+  object Patch {
+
+    /**
+     * Constructs a patch from a collection of patches to `FiberRef` values.
+     */
+    private[zio] def apply(patches: Map[FiberRef[_], Any]): Patch =
+      new Patch(patches) {}
+  }
 }
