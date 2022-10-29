@@ -188,29 +188,88 @@ object FiberRefs {
    * without inheriting all the `FiberRef` values of the fiber that executed the
    * workflow.
    */
-  sealed abstract case class Patch private (private val patches: Map[FiberRef[_], Any])
-      extends Function2[FiberId.Runtime, FiberRefs, FiberRefs] {
+  sealed trait Patch extends Function2[FiberId.Runtime, FiberRefs, FiberRefs] { self =>
+    import Patch._
 
     /**
      * Applies the changes described by this patch to the specified collection
      * of `FiberRef` values.
      */
-    def apply(fiberId: FiberId.Runtime, fiberRefs: FiberRefs): FiberRefs =
-      patches.foldLeft(fiberRefs) { case (fiberRefs, (fiberRef, patch)) =>
-        val value = fiberRefs.getOrDefault(fiberRef)
-        fiberRefs.updatedAs(fiberId)(
-          fiberRef.asInstanceOf[FiberRef[fiberRef.Value]],
-          fiberRef.patch(patch.asInstanceOf[fiberRef.Patch])(value.asInstanceOf[fiberRef.Value])
-        )
-      }
+    def apply(fiberId: FiberId.Runtime, fiberRefs: FiberRefs): FiberRefs = {
+
+      @tailrec
+      def loop(fiberRefs: FiberRefs, patches: List[Patch]): FiberRefs =
+        patches match {
+          case Add(fiberRef, value) :: patches =>
+            loop(fiberRefs.updatedAs(fiberId)(fiberRef, value), patches)
+          case AndThen(first, second) :: patches =>
+            loop(fiberRefs, first :: second :: patches)
+          case Empty :: patches =>
+            loop(fiberRefs, patches)
+          case Remove(fiberRef) :: patches =>
+            loop(fiberRefs.delete(fiberRef), patches)
+          case Update(fiberRef, patch) :: patches =>
+            loop(
+              fiberRefs.updatedAs(fiberId)(fiberRef, fiberRef.patch(patch)(fiberRefs.getOrDefault(fiberRef))),
+              patches
+            )
+          case Nil =>
+            fiberRefs
+        }
+
+      loop(fiberRefs, List(self))
+    }
+
+    /**
+     * Combines this patch and the specified patch to create a new patch that
+     * describes applying the changes from this patch and the specified patch
+     * sequentially.
+     */
+    def combine(that: Patch): Patch =
+      AndThen(self, that)
   }
 
   object Patch {
 
     /**
-     * Constructs a patch from a collection of patches to `FiberRef` values.
+     * The empty patch that describes no changes to `FiberRef` values.
      */
-    private[zio] def apply(patches: Map[FiberRef[_], Any]): Patch =
-      new Patch(patches) {}
+    val empty: Patch =
+      Patch.Empty
+
+    /**
+     * Constructs a patch that describes the changes between the specified
+     * collections of `FiberRef`
+     */
+    def diff(oldValue: FiberRefs, newValue: FiberRefs): Patch = {
+      val (removed, patch) = newValue.fiberRefLocals.foldLeft[(FiberRefs, Patch)](oldValue -> empty) {
+        case ((fiberRefs, patch), (fiberRef, (_, newValue) :: _)) =>
+          fiberRefs.get(fiberRef) match {
+            case Some(oldValue) =>
+              if (oldValue == newValue)
+                fiberRefs.delete(fiberRef) -> patch
+              else {
+                fiberRefs.delete(fiberRef) -> patch.combine(
+                  Update(
+                    fiberRef.asInstanceOf[FiberRef.WithPatch[fiberRef.Value, fiberRef.Patch]],
+                    fiberRef.diff(oldValue.asInstanceOf[fiberRef.Value], newValue.asInstanceOf[fiberRef.Value])
+                  )
+                )
+              }
+            case _ =>
+              fiberRefs.delete(fiberRef) -> patch.combine(
+                Add(fiberRef.asInstanceOf[FiberRef[fiberRef.Value]], newValue.asInstanceOf[fiberRef.Value])
+              )
+          }
+      }
+      removed.fiberRefLocals.foldLeft(patch) { case (patch, (fiberRef, _)) => patch.combine(Remove(fiberRef)) }
+    }
+
+    private final case class Add[Value0](fiberRef: FiberRef[Value0], value: Value0) extends Patch
+    private final case class AndThen(first: Patch, second: Patch)                   extends Patch
+    private case object Empty                                                       extends Patch
+    private final case class Remove[Value0](fiberRef: FiberRef[Value0])             extends Patch
+    private final case class Update[Value0, Patch0](fiberRef: FiberRef.WithPatch[Value0, Patch0], patch: Patch0)
+        extends Patch
   }
 }
