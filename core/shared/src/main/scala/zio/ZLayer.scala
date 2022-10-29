@@ -242,7 +242,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * result of this layer.
    */
   final def memoize(implicit trace: Trace): ZIO[Scope, Nothing, ZLayer[RIn, E, ROut]] =
-    ZIO.serviceWithZIO[Scope](build(_)).memoize.map(ZLayer.scopedEnvironment[RIn](_))
+    ZIO.scopeWith(build(_).memoize.map(ZLayer.fromZIOEnvironment(_)))
 
   /**
    * Translates effect failure into death of the fiber, making all failures
