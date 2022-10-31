@@ -460,6 +460,18 @@ object ZStreamSpec extends ZIOBaseSpec {
                   .runCollect
               assertZIO(test.exit)(succeeds(equalTo(data)))
             }
+          },
+          test("applies the new flow once on remaining upstream") {
+            ZStream
+              .fromIterable(1 to 5)
+              .rechunk(2)
+              .via(ZPipeline.branchAfter(1) { chunk0 =>
+                ZPipeline.prepend(chunk0)
+              })
+              .runCollect
+              .map { res =>
+                zio.test.assert(res)(equalTo(Chunk.fromIterable(1 to 5)))
+              }
           }
         ),
         suite("broadcast")(

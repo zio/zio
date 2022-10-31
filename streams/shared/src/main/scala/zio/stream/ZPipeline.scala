@@ -560,36 +560,33 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     n: => Int
   )(f: Chunk[In] => ZPipeline[Env, Err, In, Out])(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     ZPipeline.suspend {
+      def bufferring(acc: Chunk[In]): ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
+        ZChannel
+          .readWith(
+            (inElem: Chunk[In]) => {
+              val nextSz = acc.size + inElem.size
+              if (nextSz >= n) {
+                val (b1, b2) = inElem.splitAt(n - acc.size)
+                running(acc ++ b1, b2)
+              } else {
+                bufferring(acc ++ inElem)
+              }
+            },
+            (err: Err) => ZChannel.fail(err),
+            (done: Any) => running(acc, Chunk.empty)
+          )
 
-      def collecting(buf: Chunk[In]): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
-        ZChannel.readWithCause(
-          (chunk: Chunk[In]) => {
-            val newBuf = buf ++ chunk
-            if (newBuf.length >= n) {
-              val (is, is1) = newBuf.splitAt(n)
-              val pipeline  = f(is)
-              pipeline(ZStream.fromChunk(is1)).channel *> emitting(pipeline)
-            } else
-              collecting(newBuf)
-          },
-          (cause: Cause[Err]) => ZChannel.failCause(cause),
-          (_: Any) =>
-            if (buf.isEmpty)
-              ZChannel.unit
-            else {
-              val pipeline = f(buf)
-              pipeline(ZStream.empty).channel
-            }
-        )
+      def running(
+        prefix: Chunk[In],
+        leftOver: Chunk[In]
+      ): ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] = {
+        val nextUpstream = ZPipeline.prepend(leftOver)
+        val pl           = f(prefix)
+        val resPl        = nextUpstream >>> pl
+        resPl.toChannel
+      }
 
-      def emitting(pipeline: ZPipeline[Env, Err, In, Out]): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
-        ZChannel.readWithCause(
-          (chunk: Chunk[In]) => pipeline(ZStream.fromChunk(chunk)).channel *> emitting(pipeline),
-          (cause: Cause[Err]) => ZChannel.failCause(cause),
-          (_: Any) => ZChannel.unit
-        )
-
-      new ZPipeline(collecting(Chunk.empty))
+      ZPipeline.fromChannel(bufferring(Chunk.empty))
     }
 
   def changes[Err, In](implicit trace: Trace): ZPipeline[Any, Err, In, In] =
