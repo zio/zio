@@ -462,7 +462,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             }
           },
           test("applies the new flow once on remaining upstream") {
-            ZStream.fromIterable(1 to 5)
+            ZStream
+              .fromIterable(1 to 5)
               .rechunk(2)
               .via(ZPipeline.branchAfter(1) { chunk0 =>
                 ZPipeline.prepend(chunk0)

@@ -560,7 +560,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     n: => Int
   )(f: Chunk[In] => ZPipeline[Env, Err, In, Out])(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     ZPipeline.suspend {
-      def bufferring(acc: Chunk[In]): ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] = {
+      def bufferring(acc: Chunk[In]): ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
         ZChannel
           .readWith(
             (inElem: Chunk[In]) => {
@@ -575,12 +575,14 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             (err: Err) => ZChannel.fail(err),
             (done: Any) => running(acc, Chunk.empty)
           )
-      }
 
-      def running(prefix: Chunk[In], leftOver: Chunk[In]): ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] = {
+      def running(
+        prefix: Chunk[In],
+        leftOver: Chunk[In]
+      ): ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] = {
         val nextUpstream = ZPipeline.prepend(leftOver)
-        val pl = f(prefix)
-        val resPl = nextUpstream >>> pl
+        val pl           = f(prefix)
+        val resPl        = nextUpstream >>> pl
         resPl.toChannel
       }
 
