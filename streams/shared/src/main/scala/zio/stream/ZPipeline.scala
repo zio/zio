@@ -447,9 +447,75 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
   ): ZPipeline[Env2, Err2, In, Out] =
     self >>> ZPipeline.tap(f)
 
+  /**
+   * Throttles the chunks of this pipeline according to the given bandwidth
+   * parameters using the token bucket algorithm. Allows for burst in the
+   * processing of elements by allowing the token bucket to accumulate tokens up
+   * to a `units + burst` threshold. Chunks that do not meet the bandwidth
+   * constraints are dropped. The weight of each chunk is determined by the
+   * `costFn` function.
+   */
+  def throttleEnforce(units: Long, duration: => Duration, burst: => Long = 0)(
+    costFn: Chunk[Out] => Long
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
+    self >>> ZPipeline.throttleEnforce(units, duration, burst)(costFn)
+
+  /**
+   * Throttles the chunks of this pipeline according to the given bandwidth
+   * parameters using the token bucket algorithm. Allows for burst in the
+   * processing of elements by allowing the token bucket to accumulate tokens up
+   * to a `units + burst` threshold. Chunks that do not meet the bandwidth
+   * constraints are dropped. The weight of each chunk is determined by the
+   * `costFn` effectful function.
+   */
+  def throttleEnforceZIO[Env2 <: Env, Err2 >: Err](units: => Long, duration: => Duration, burst: => Long = 0)(
+    costFn: Chunk[Out] => ZIO[Env2, Err2, Long]
+  )(implicit trace: Trace): ZPipeline[Env2, Err2, In, Out] =
+    self >>> ZPipeline.throttleEnforceZIO(units, duration, burst)(costFn)
+
+  /**
+   * Delays the chunks of this pipeline according to the given bandwidth
+   * parameters using the token bucket algorithm. Allows for burst in the
+   * processing of elements by allowing the token bucket to accumulate tokens up
+   * to a `units + burst` threshold. The weight of each chunk is determined by
+   * the `costFn` function.
+   */
+  def throttleShape(units: => Long, duration: => Duration, burst: Long = 0)(
+    costFn: Chunk[Out] => Long
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
+    self >>> ZPipeline.throttleShape(units, duration, burst)(costFn)
+
+  /**
+   * Delays the chunks of this pipeline according to the given bandwidth
+   * parameters using the token bucket algorithm. Allows for burst in the
+   * processing of elements by allowing the token bucket to accumulate tokens up
+   * to a `units + burst` threshold. The weight of each chunk is determined by
+   * the `costFn` effectful function.
+   */
+  def throttleShapeZIO[Env2 <: Env, Err2 >: Err](units: => Long, duration: => Duration, burst: => Long = 0)(
+    costFn: Chunk[Out] => ZIO[Env2, Err2, Long]
+  )(implicit trace: Trace): ZPipeline[Env2, Err2, In, Out] =
+    self >>> ZPipeline.throttleShapeZIO(units, duration, burst)(costFn)
+
   /** Converts this pipeline to its underlying channel */
   def toChannel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
     self.channel
+
+  /**
+   * Zips this pipeline together with the index of elements.
+   */
+  def zipWithIndex(implicit trace: Trace): ZPipeline[Env, Err, In, (Out, Long)] =
+    self >>> ZPipeline.zipWithIndex
+
+  def zipWithNext(implicit trace: Trace): ZPipeline[Env, Err, In, (Out, Option[Out])] =
+    self >>> ZPipeline.zipWithNext
+
+  def zipWithPrevious(implicit trace: Trace): ZPipeline[Env, Err, In, (Option[Out], Out)] =
+    self >>> ZPipeline.zipWithPrevious
+
+  def zipWithPreviousAndNext(implicit trace: Trace): ZPipeline[Env, Err, In, (Option[Out], Out, Option[Out])] =
+    self >>> ZPipeline.zipWithPreviousAndNext
+
 }
 
 object ZPipeline extends ZPipelinePlatformSpecificConstructors {
@@ -1530,6 +1596,122 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(ZChannel.identity[Err, Chunk[In], Any].mapOutZIO(_.mapZIO(in => f(in).as(in))))
 
   /**
+   * Throttles the chunks of this pipeline according to the given bandwidth
+   * parameters using the token bucket algorithm. Allows for burst in the
+   * processing of elements by allowing the token bucket to accumulate tokens up
+   * to a `units + burst` threshold. Chunks that do not meet the bandwidth
+   * constraints are dropped. The weight of each chunk is determined by the
+   * `costFn` function.
+   */
+  def throttleEnforce[In](units: Long, duration: => Duration, burst: => Long = 0)(
+    costFn: Chunk[In] => Long
+  )(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
+    throttleEnforceZIO(units, duration, burst)(costFn.andThen(ZIO.succeedNow))
+
+  /**
+   * Throttles the chunks of this pipeline according to the given bandwidth
+   * parameters using the token bucket algorithm. Allows for burst in the
+   * processing of elements by allowing the token bucket to accumulate tokens up
+   * to a `units + burst` threshold. Chunks that do not meet the bandwidth
+   * constraints are dropped. The weight of each chunk is determined by the
+   * `costFn` effectful function.
+   */
+  def throttleEnforceZIO[Env, Err, In](units: => Long, duration: => Duration, burst: => Long = 0)(
+    costFn: Chunk[In] => ZIO[Env, Err, Long]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, In] =
+    new ZPipeline(
+      ZChannel.succeed((units, duration, burst)).flatMap { case (units, duration, burst) =>
+        def loop(tokens: Long, timestamp: Long): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
+          ZChannel.readWithCause[Env, Err, Chunk[In], Any, Err, Chunk[In], Unit](
+            (in: Chunk[In]) =>
+              ZChannel.unwrap((costFn(in) <*> Clock.nanoTime).map { case (weight, current) =>
+                val elapsed = current - timestamp
+                val cycles  = elapsed.toDouble / duration.toNanos
+                val available = {
+                  val sum = tokens + (cycles * units).toLong
+                  val max =
+                    if (units + burst < 0) Long.MaxValue
+                    else units + burst
+
+                  if (sum < 0) max
+                  else math.min(sum, max)
+                }
+
+                if (weight <= available)
+                  ZChannel.write(in) *> loop(available - weight, current)
+                else
+                  loop(available, current)
+              }),
+            (e: Cause[Err]) => ZChannel.failCause(e),
+            (_: Any) => ZChannel.unit
+          )
+
+        ZChannel.unwrap(Clock.nanoTime.map(loop(units, _)))
+      }
+    )
+
+  /**
+   * Delays the chunks of this pipeline according to the given bandwidth
+   * parameters using the token bucket algorithm. Allows for burst in the
+   * processing of elements by allowing the token bucket to accumulate tokens up
+   * to a `units + burst` threshold. The weight of each chunk is determined by
+   * the `costFn` function.
+   */
+  def throttleShape[In](units: => Long, duration: => Duration, burst: Long = 0)(
+    costFn: Chunk[In] => Long
+  )(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
+    throttleShapeZIO(units, duration, burst)(costFn.andThen(ZIO.succeedNow))
+
+  /**
+   * Delays the chunks of this pipeline according to the given bandwidth
+   * parameters using the token bucket algorithm. Allows for burst in the
+   * processing of elements by allowing the token bucket to accumulate tokens up
+   * to a `units + burst` threshold. The weight of each chunk is determined by
+   * the `costFn` effectful function.
+   */
+  def throttleShapeZIO[Env, Err, In](units: => Long, duration: => Duration, burst: => Long = 0)(
+    costFn: Chunk[In] => ZIO[Env, Err, Long]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = new ZPipeline(
+    ZChannel.succeed((units, duration, burst)).flatMap { case (units, duration, burst) =>
+      def loop(tokens: Long, timestamp: Long): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
+        ZChannel.readWithCause(
+          (in: Chunk[In]) =>
+            ZChannel.unwrap(for {
+              weight  <- costFn(in)
+              current <- Clock.nanoTime
+            } yield {
+              val elapsed = current - timestamp
+              val cycles  = elapsed.toDouble / duration.toNanos
+              val available = {
+                val sum = tokens + (cycles * units).toLong
+                val max =
+                  if (units + burst < 0) Long.MaxValue
+                  else units + burst
+
+                if (sum < 0) max
+                else math.min(sum, max)
+              }
+
+              val remaining = available - weight
+              val waitCycles =
+                if (remaining >= 0) 0
+                else -remaining.toDouble / units
+
+              val delay = Duration.Finite((waitCycles * duration.toNanos).toLong)
+
+              if (delay > Duration.Zero)
+                ZChannel.fromZIO(Clock.sleep(delay)) *> ZChannel.write(in) *> loop(remaining, current)
+              else ZChannel.write(in) *> loop(remaining, current)
+            }),
+          (e: Cause[Err]) => ZChannel.failCause(e),
+          (_: Any) => ZChannel.unit
+        )
+
+      ZChannel.unwrap(Clock.nanoTime.map(loop(units, _)))
+    }
+  )
+
+  /**
    * Creates a pipeline produced from an effect.
    */
   def unwrap[Env, Err, In, Out](zio: ZIO[Env, Err, ZPipeline[Env, Err, In, Out]])(implicit
@@ -1766,6 +1948,42 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def utf32WithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     utf32BEWithBomEncode
+
+  /**
+   * Zips this pipeline together with the index of elements.
+   */
+  def zipWithIndex[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, (In, Long)] =
+    ZPipeline.mapAccum(0L)((index, a) => (index + 1, (a, index)))
+
+  /**
+   * Zips each element with the next element if present.
+   */
+  def zipWithNext[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, (In, Option[In])] = {
+    def process(last: Option[In]): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[(In, Option[In])], Unit] =
+      ZChannel.readWithCause(
+        (in: Chunk[In]) => {
+          val (newLast, chunk) = in.mapAccum(last)((prev, curr) => (Some(curr), prev.map((_, curr))))
+          val out              = chunk.collect { case Some((prev, curr)) => (prev, Some(curr)) }
+          ZChannel.write(out) *> process(newLast)
+        },
+        (err: Cause[ZNothing]) => ZChannel.failCause(err),
+        (_: Any) =>
+          last match {
+            case Some(value) =>
+              ZChannel.write(Chunk.single((value, None))) *> ZChannel.unit
+            case None =>
+              ZChannel.unit
+          }
+      )
+
+    new ZPipeline(process(None))
+  }
+
+  def zipWithPrevious[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, (Option[In], In)] =
+    mapAccum[In, Option[In], (Option[In], In)](None)((prev, curr) => (Some(curr), (prev, curr)))
+
+  def zipWithPreviousAndNext[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, (Option[In], In, Option[In])] =
+    (zipWithPrevious[In].zipWithNext).map { case ((prev, curr), next) => (prev, curr, next.map(_._2)) }
 
   private def utfDecodeDetectingBom(
     bomSize: => Int,
