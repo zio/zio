@@ -65,41 +65,19 @@ object FiberSpec extends ZIOBaseSpec {
           } yield assert(exit)(equalTo(Exit.interrupt(fiberId)))
         }
       ) @@ zioTag(interruption),
-      suite("if one composed fiber fails then all must fail")(
-        test("`await`") {
-          for {
-            exit <- Fiber.fail("fail").zip(Fiber.never).await
-          } yield assert(exit)(fails(equalTo("fail")))
-        },
-        test("`join`") {
-          for {
-            exit <- Fiber.fail("fail").zip(Fiber.never).join.exit
-          } yield assert(exit)(fails(equalTo("fail")))
-        },
-        test("`awaitAll`") {
-          for {
-            exit <- Fiber.awaitAll(Fiber.fail("fail") :: List.fill(100)(Fiber.never)).exit
-          } yield assert(exit)(succeeds(isUnit))
-        },
-        test("`joinAll`") {
-          for {
-            exit <- Fiber.awaitAll(Fiber.fail("fail") :: List.fill(100)(Fiber.never)).exit
-          } yield assert(exit)(succeeds(isUnit))
-        },
-        test("shard example") {
-          def shard[R, E, A](queue: Queue[A], n: Int, worker: A => ZIO[R, E, Unit]): ZIO[R, E, Nothing] = {
-            val worker1: ZIO[R, E, Unit] = queue.take.flatMap(a => worker(a).uninterruptible).forever
-            ZIO.forkAll(List.fill(n)(worker1)).flatMap(_.join) *> ZIO.never
-          }
-          for {
-            queue <- Queue.unbounded[Int]
-            _     <- queue.offerAll(1 to 100)
-            worker = (n: Int) => if (n == 100) ZIO.fail("fail") else queue.offer(n).unit
-            exit  <- shard(queue, 4, worker).exit
-            _     <- queue.shutdown
-          } yield assert(exit)(fails(equalTo("fail")))
+      test("shard example") {
+        def shard[R, E, A](queue: Queue[A], n: Int, worker: A => ZIO[R, E, Unit]): ZIO[R, E, Nothing] = {
+          val worker1: ZIO[R, E, Unit] = queue.take.flatMap(a => worker(a).uninterruptible).forever
+          ZIO.forkAll(List.fill(n)(worker1)).flatMap(_.join) *> ZIO.never
         }
-      ) @@ zioTag(errors),
+        for {
+          queue <- Queue.unbounded[Int]
+          _     <- queue.offerAll(1 to 100)
+          worker = (n: Int) => if (n == 100) queue.shutdown *> ZIO.fail("fail") else queue.offer(n).unit
+          exit  <- shard(queue, 4, worker).exit
+          _     <- queue.shutdown
+        } yield assert(exit)(fails(equalTo("fail")))
+      } @@ nonFlaky,
       test("child becoming interruptible is interrupted due to auto-supervision of uninterruptible parent") {
         for {
           latch <- Promise.make[Nothing, Unit]
@@ -166,7 +144,16 @@ object FiberSpec extends ZIOBaseSpec {
           _        <- Fiber.interruptAll(List(fiber2, fiber1))
           _        <- fiber2.await
         } yield assertCompletes
-      } @@ TestAspect.nonFlaky
+      } @@ TestAspect.nonFlaky,
+      test("await does not return until all fibers have completed execution") {
+        for {
+          ref   <- Ref.make(0)
+          fiber <- ZIO.forkAll(List.fill(100)(ref.set(10)))
+          _     <- fiber.interrupt
+          _     <- ref.set(-1)
+          value <- ref.get
+        } yield assertTrue(value == -1)
+      }
     )
 
   val (initial, update)                            = ("initial", "update")

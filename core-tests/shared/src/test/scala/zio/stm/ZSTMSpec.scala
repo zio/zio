@@ -718,7 +718,7 @@ object ZSTMSpec extends ZIOBaseSpec {
             _ <- tvar.set(-1).commit
             v <- liveClockSleep(10.millis) *> tvar.get.commit
           } yield assert(v)(equalTo(-1))
-        },
+        } @@ nonFlaky,
         test("interrupt the fiber and observe it, it should be resumed with Interrupted Cause") {
           for {
             selfId  <- ZIO.fiberId

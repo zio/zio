@@ -2451,40 +2451,41 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def zipWithPar[R1 <: R, E1 >: E, B, C](
     that: => ZIO[R1, E1, B]
-  )(f: (A, B) => C)(implicit trace: Trace): ZIO[R1, E1, C] = {
-    def coordinate[A, B](
-      fiberId: FiberId,
-      f: (A, B) => C,
-      leftWinner: Boolean
-    )(winner: Fiber[E1, A], loser: Fiber[E1, B])(implicit trace: Trace): ZIO[R1, E1, C] =
-      winner.await.flatMap {
-        case Exit.Success(a) =>
-          loser.await.flatMap {
-            case Exit.Success(b)     => winner.inheritAll *> loser.inheritAll *> ZIO.succeed(f(a, b))
-            case Exit.Failure(cause) => ZIO.refailCause(cause)
-          }
-        case Exit.Failure(cause) =>
-          loser.interruptAs(fiberId).flatMap {
-            case Exit.Success(_) => ZIO.refailCause(cause)
-            case Exit.Failure(loserCause) =>
-              if (leftWinner) ZIO.refailCause(cause && loserCause)
-              else ZIO.refailCause(loserCause && cause)
-          }
-      }
-
-    val g = (b: B, a: A) => f(a, b)
-
+  )(f: (A, B) => C)(implicit trace: Trace): ZIO[R1, E1, C] =
     ZIO.uninterruptibleMask { restore =>
       ZIO.transplant { graft =>
-        ZIO.fiberIdWith { fiberId =>
-          graft(restore(self)).raceFibersWith(graft(restore(that)))(
-            coordinate(fiberId, f, true),
-            coordinate(fiberId, g, false)
+        val promise = Promise.unsafe.make[Unit, Unit](FiberId.None)(Unsafe.unsafe)
+        val ref     = new java.util.concurrent.atomic.AtomicBoolean(false)
+
+        def fork[R, E, A](zio: => ZIO[R, E, A]): ZIO[R, Nothing, Fiber[E, A]] =
+          graft(restore(zio))
+            .foldCauseZIO(
+              cause => promise.fail(()) *> ZIO.refailCause(cause),
+              a =>
+                if (ref.getAndSet(true)) {
+                  promise.unsafe.done(ZIO.unit)(Unsafe.unsafe)
+                  ZIO.succeedNow(a)
+                } else {
+                  ZIO.succeedNow(a)
+                }
+            )
+            .forkDaemon
+
+        fork(self).zip(fork(that)).flatMap { case (left, right) =>
+          restore(promise.await).foldCauseZIO(
+            cause =>
+              left.interruptFork *> right.interruptFork *>
+                left.await.zip(right.await).flatMap { case (left, right) =>
+                  left.zipWith(right)(f, _ && _) match {
+                    case Exit.Failure(causes) => ZIO.refailCause(cause.stripFailures && causes)
+                    case _                    => ZIO.refailCause(cause.stripFailures)
+                  }
+                },
+            _ => left.join.zipWith(right.join)(f)
           )
         }
       }
     }
-  }
 
   private[this] final def tryOrElse[R1 <: R, E2, B](
     that: => ZIO[R1, E2, B],
