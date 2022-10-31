@@ -450,7 +450,7 @@ sealed abstract class Fiber[+E, +A] { self =>
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber.Synthetic[E1, C] =
     new Fiber.Synthetic[E1, C] {
       final def await(implicit trace: Trace): UIO[Exit[E1, C]] =
-        self.await.flatMap(ZIO.done(_)).zipWithPar(that.await.flatMap(ZIO.done(_)))(f).exit
+        self.await.zipWith(that.await)(_.zipWith(_)(f, _ && _))
 
       final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = self.children
 
@@ -643,7 +643,9 @@ object Fiber extends FiberPlatformSpecific {
   )(implicit bf: BuildFrom[Collection[Fiber[E, A]], A, Collection[A]]): Fiber.Synthetic[E, Collection[A]] =
     new Fiber.Synthetic[E, Collection[A]] {
       def await(implicit trace: Trace): UIO[Exit[E, Collection[A]]] =
-        ZIO.foreachPar(fibers)(_.await.flatMap(ZIO.done(_))).exit
+        ZIO
+          .foreach[Any, Nothing, Fiber[E, A], Exit[E, A], Iterable](fibers)(_.await)
+          .map(Exit.collectAllPar(_).getOrElse(Exit.succeed(Iterable.empty)).mapExit(bf.fromSpecific(fibers)))
       final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] =
         ZIO.foreachPar(Chunk.fromIterable(fibers))(_.children).map(_.flatten)
 
@@ -670,7 +672,9 @@ object Fiber extends FiberPlatformSpecific {
   def collectAllDiscard[E, A](fibers: Iterable[Fiber[E, A]]): Fiber.Synthetic[E, Unit] =
     new Fiber.Synthetic[E, Unit] {
       def await(implicit trace: Trace): UIO[Exit[E, Unit]] =
-        ZIO.foreachParDiscard(fibers)(_.await.flatMap(ZIO.done(_))).exit
+        ZIO
+          .foreach[Any, Nothing, Fiber[E, A], Exit[E, A], Iterable](fibers)(_.await)
+          .map(_.foldLeft[Exit[E, Unit]](Exit.unit)(_ <& _))
       final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] =
         ZIO.foreachPar(Chunk.fromIterable(fibers))(_.children).map(_.flatten)
 

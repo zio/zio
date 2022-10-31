@@ -1024,17 +1024,13 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           fiber1 <- ZIO.forkAll(List(die))
           fiber2 <- ZIO.forkAll(List(die, ZIO.succeed(42)))
-          fiber3 <- ZIO.forkAll(List(die, ZIO.succeed(42), ZIO.never))
 
           result1 <- joinDefect(fiber1).map(_.untraced)
           result2 <- joinDefect(fiber2).map(_.untraced)
-          result3 <- joinDefect(fiber3).map(_.untraced)
         } yield {
           assert(result1.dieOption)(isSome(equalTo(boom))) && {
             assert(result2.dieOption)(isSome(equalTo(boom))) ||
             (assert(result2.dieOption)(isSome(equalTo(boom))) && assert(result2.isInterrupted)(isTrue))
-          } && {
-            assert(result3.dieOption)(isSome(equalTo(boom))) && assert(result3.isInterrupted)(isTrue)
           }
         }
       } @@ nonFlaky,
@@ -4122,6 +4118,10 @@ object ZIOSpec extends ZIOBaseSpec {
           _        <- promise2.await
           _        <- fiber.interrupt
         } yield assertCompletes
+      },
+      test("propagates interruption") {
+        val zio = ZIO.never <&> ZIO.never <&> ZIO.fail("fail")
+        assertZIO(zio.exit)(fails(equalTo("fail")))
       }
     ),
     suite("toFuture")(
