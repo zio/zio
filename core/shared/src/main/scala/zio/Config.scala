@@ -20,7 +20,7 @@ import scala.util.control.{NonFatal, NoStackTrace}
 /**
  * A [[zio.Config]] describes the structure of some configuration data.
  */
-sealed trait Config[+A] { self =>
+private[zio] sealed trait Config[+A] { self =>
 
   /**
    * Returns a new config that is the composition of this config and the
@@ -102,7 +102,7 @@ sealed trait Config[+A] { self =>
    */
   def zip[B](that: => Config[B])(implicit z: Zippable[A, B]): Config[z.Out] = self ++ that
 }
-object Config {
+private[zio] object Config {
   sealed trait Primitive[+A] extends Config[A] { self =>
     final def description: String =
       (self: Primitive[_]) match {
