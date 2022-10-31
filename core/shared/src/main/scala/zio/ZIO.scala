@@ -462,6 +462,13 @@ sealed trait ZIO[-R, +E, +A]
     Clock.sleep(duration) *> self
 
   /**
+   * Returns a new workflow that executes this one and captures the changes in
+   * `FiberRef` values.
+   */
+  def diffFiberRefs(implicit trace: Trace): ZIO[R, E, (FiberRefs.Patch, A)] =
+    summarized(ZIO.getFiberRefs)(FiberRefs.Patch.diff)
+
+  /**
    * Returns an effect that is always interruptible, but whose interruption will
    * be performed in the background.
    *
@@ -972,9 +979,9 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def memoize(implicit trace: Trace): UIO[ZIO[R, E, A]] =
     for {
-      promise  <- Promise.make[E, A]
-      complete <- self.intoPromise(promise).once
-    } yield complete *> promise.await
+      promise  <- Promise.make[E, (FiberRefs.Patch, A)]
+      complete <- self.diffFiberRefs.intoPromise(promise).once
+    } yield complete *> promise.await.flatMap { case (patch, a) => ZIO.patchFiberRefs(patch).as(a) }
 
   /**
    * Returns a new effect where the error channel has been merged into the
@@ -4021,19 +4028,19 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Returns a memoized version of the specified effectual function.
    */
   def memoize[R, E, A, B](f: A => ZIO[R, E, B])(implicit trace: Trace): UIO[A => ZIO[R, E, B]] =
-    Ref.Synchronized.make(Map.empty[A, Promise[E, B]]).map { ref => a =>
+    Ref.Synchronized.make(Map.empty[A, Promise[E, (FiberRefs.Patch, B)]]).map { ref => a =>
       for {
         promise <- ref.modifyZIO { map =>
                      map.get(a) match {
                        case Some(promise) => ZIO.succeedNow((promise, map))
                        case None =>
                          for {
-                           promise <- Promise.make[E, B]
-                           _       <- f(a).intoPromise(promise).fork
+                           promise <- Promise.make[E, (FiberRefs.Patch, B)]
+                           _       <- f(a).diffFiberRefs.intoPromise(promise).fork
                          } yield (promise, map.updated(a, promise))
                      }
                    }
-        b <- promise.await
+        b <- promise.await.flatMap { case (patch, b) => ZIO.patchFiberRefs(patch).as(b) }
       } yield b
     }
 
@@ -4100,6 +4107,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       if (descriptor.isLocked) ZIO.acquireReleaseWith(ZIO.shift(newExecutor))(_ => ZIO.shift(oldExecutor))(_ => zio)
       else ZIO.acquireReleaseWith(ZIO.shift(newExecutor))(_ => ZIO.unshift)(_ => zio)
     }
+
+  /**
+   * Applies the specified changes to the `FiberRef` values for the fiber
+   * running this workflow.
+   */
+  def patchFiberRefs(patch: FiberRefs.Patch)(implicit trace: Trace): ZIO[Any, Nothing, Unit] =
+    updateFiberRefs(patch)
 
   /**
    * Returns a new scoped workflow that runs finalizers added to the scope of
