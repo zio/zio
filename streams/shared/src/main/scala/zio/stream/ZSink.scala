@@ -793,71 +793,28 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * A sink that ignores its inputs.
    */
-  def drain(implicit trace: Trace): ZSink[Any, Nothing, Any, Nothing, Unit] = {
-    lazy val loop: ZChannel[Any, ZNothing, Chunk[Any], Any, Nothing, Chunk[Nothing], Unit] =
-      ZChannel
-        .readWith(
-          (_: Chunk[Any]) => loop,
-          (error: ZNothing) => ZChannel.fail(error),
-          (_: Any) => ZChannel.unit
-        )
-    new ZSink(loop)
-  }
+  def drain(implicit trace: Trace): ZSink[Any, Nothing, Any, Nothing, Unit] =
+    new ZSink(ZPipeline.drain.toChannel.unit)
 
   /**
    * Drops incoming elements until the predicate `p` is satisfied.
    */
-  def dropUntil[In](p: In => Boolean)(implicit trace: Trace): ZSink[Any, Nothing, In, In, Any] = {
-    lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
-      ZChannel.readWith(
-        (in: Chunk[In]) => {
-          val leftover = in.dropUntil(p)
-          val more     = leftover.isEmpty
-          if (more) loop
-          else ZChannel.write(leftover) *> ZChannel.identity[ZNothing, Chunk[In], Any]
-        },
-        (e: ZNothing) => ZChannel.fail(e),
-        (_: Any) => ZChannel.unit
-      )
-    new ZSink(loop)
-  }
+  def dropUntil[In](p: In => Boolean)(implicit trace: Trace): ZSink[Any, Nothing, In, In, Any] =
+    new ZSink(ZPipeline.dropUntil(p).toChannel)
 
   /**
    * Drops incoming elements until the effectful predicate `p` is satisfied.
    */
   def dropUntilZIO[R, InErr, In](
     p: In => ZIO[R, InErr, Boolean]
-  )(implicit trace: Trace): ZSink[R, InErr, In, In, Any] = {
-    lazy val loop: ZChannel[R, InErr, Chunk[In], Any, InErr, Chunk[In], Any] = ZChannel.readWith(
-      (in: Chunk[In]) =>
-        ZChannel.unwrap(in.dropUntilZIO(p).map { leftover =>
-          val more = leftover.isEmpty
-          if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[InErr, Chunk[In], Any]
-        }),
-      (e: InErr) => ZChannel.fail(e),
-      (_: Any) => ZChannel.unit
-    )
-
-    new ZSink(loop)
-  }
+  )(implicit trace: Trace): ZSink[R, InErr, In, In, Any] =
+    new ZSink(ZPipeline.dropUntilZIO(p).toChannel)
 
   /**
    * Drops incoming elements as long as the predicate `p` is satisfied.
    */
-  def dropWhile[In](p: In => Boolean)(implicit trace: Trace): ZSink[Any, Nothing, In, In, Any] = {
-    lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
-      ZChannel.readWith(
-        (in: Chunk[In]) => {
-          val leftover = in.dropWhile(p)
-          val more     = leftover.isEmpty
-          if (more) loop
-          else ZChannel.write(leftover) *> ZChannel.identity[ZNothing, Chunk[In], Any]
-        },
-        (e: ZNothing) => ZChannel.fail(e),
-        (_: Any) => ZChannel.unit
-      )
-    new ZSink(loop)
-  }
+  def dropWhile[In](p: In => Boolean)(implicit trace: Trace): ZSink[Any, Nothing, In, In, Any] =
+    new ZSink(ZPipeline.dropWhile(p).toChannel)
 
   /**
    * Drops incoming elements as long as the effectful predicate `p` is
@@ -865,19 +822,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def dropWhileZIO[R, InErr, In](
     p: In => ZIO[R, InErr, Boolean]
-  )(implicit trace: Trace): ZSink[R, InErr, In, In, Any] = {
-    lazy val loop: ZChannel[R, InErr, Chunk[In], Any, InErr, Chunk[In], Any] = ZChannel.readWith(
-      (in: Chunk[In]) =>
-        ZChannel.unwrap(in.dropWhileZIO(p).map { leftover =>
-          val more = leftover.isEmpty
-          if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[InErr, Chunk[In], Any]
-        }),
-      (e: InErr) => ZChannel.fail(e),
-      (_: Any) => ZChannel.unit
-    )
-
-    new ZSink(loop)
-  }
+  )(implicit trace: Trace): ZSink[R, InErr, In, In, Any] =
+    new ZSink(ZPipeline.dropWhileZIO(p).toChannel)
 
   /**
    * Accesses the whole environment of the sink.

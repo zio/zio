@@ -253,6 +253,14 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self >>> ZPipeline.dropUntil(f)
 
   /**
+   * Drops incoming elements until the effectful predicate `p` is satisfied.
+   */
+  def dropUntilZIO[Env1 <: Env, Err1 >: Err](f: Out => ZIO[Env1, Err1, Boolean])(implicit
+    trace: Trace
+  ): ZPipeline[Env1, Err1, In, Out] =
+    self >>> ZPipeline.dropUntilZIO(f)
+
+  /**
    * Drops the last specified number of elements from this pipeline.
    *
    * @note
@@ -268,6 +276,15 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
    */
   def dropWhile(f: Out => Boolean)(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     self >>> ZPipeline.dropWhile(f)
+
+  /**
+   * Drops incoming elements as long as the effectful predicate `p` is
+   * satisfied.
+   */
+  def dropWhileZIO[Env1 <: Env, Err1 >: Err](f: Out => ZIO[Env1, Err1, Boolean])(implicit
+    trace: Trace
+  ): ZPipeline[Env1, Err1, In, Out] =
+    self >>> ZPipeline.dropWhileZIO(f)
 
   /**
    * Filters the elements emitted by this pipeline using the provided function.
@@ -860,6 +877,25 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     ZPipeline.dropWhile[In](!f(_)) >>> ZPipeline.drop(1)
 
   /**
+   * Drops incoming elements until the effectful predicate `p` is satisfied.
+   */
+  def dropUntilZIO[Env, Err, In](
+    p: In => ZIO[Env, Err, Boolean]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = {
+    lazy val loop: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Any] = ZChannel.readWith(
+      (in: Chunk[In]) =>
+        ZChannel.unwrap(in.dropUntilZIO(p).map { leftover =>
+          val more = leftover.isEmpty
+          if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[Err, Chunk[In], Any]
+        }),
+      (e: Err) => ZChannel.fail(e),
+      (_: Any) => ZChannel.unit
+    )
+
+    new ZPipeline(loop)
+  }
+
+  /**
    * Creates a pipeline that drops elements while the specified predicate
    * evaluates to true.
    *
@@ -874,13 +910,34 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         in => {
           val out = in.dropWhile(f)
           if (out.isEmpty) dropWhile(f)
-          else ZChannel.write(out) *> ZChannel.identity
+          else ZChannel.write(out) *> ZChannel.identity[ZNothing, Chunk[In], Any]
         },
         err => ZChannel.fail(err),
         out => ZChannel.succeedNow(out)
       )
 
     new ZPipeline(dropWhile(f))
+  }
+
+  /**
+   * Drops incoming elements as long as the effectful predicate `p` is
+   * satisfied.
+   */
+  def dropWhileZIO[Env, Err, In, Out](
+    p: In => ZIO[Env, Err, Boolean]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = {
+
+    lazy val loop: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Any] = ZChannel.readWith(
+      (in: Chunk[In]) =>
+        ZChannel.unwrap(in.dropWhileZIO(p).map { leftover =>
+          val more = leftover.isEmpty
+          if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[Err, Chunk[In], Any]
+        }),
+      (e: Err) => ZChannel.fail(e),
+      (_: Any) => ZChannel.unit
+    )
+
+    new ZPipeline(loop)
   }
 
   /**
