@@ -500,6 +500,22 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
   /** Converts this pipeline to its underlying channel */
   def toChannel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
     self.channel
+
+  /**
+   * Zips this pipeline together with the index of elements.
+   */
+  def zipWithIndex(implicit trace: Trace): ZPipeline[Env, Err, In, (Out, Long)] =
+    self >>> ZPipeline.zipWithIndex
+
+  def zipWithNext(implicit trace: Trace): ZPipeline[Env, Err, In, (Out, Option[Out])] =
+    self >>> ZPipeline.zipWithNext
+
+  def zipWithPrevious(implicit trace: Trace): ZPipeline[Env, Err, In, (Option[Out], Out)] =
+    self >>> ZPipeline.zipWithPrevious
+
+  def zipWithPreviousAndNext(implicit trace: Trace): ZPipeline[Env, Err, In, (Option[Out], Out, Option[Out])] =
+    self >>> ZPipeline.zipWithPreviousAndNext
+
 }
 
 object ZPipeline extends ZPipelinePlatformSpecificConstructors {
@@ -1603,7 +1619,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def throttleEnforceZIO[Env, Err, In](units: => Long, duration: => Duration, burst: => Long = 0)(
     costFn: Chunk[In] => ZIO[Env, Err, Long]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, In] =
-    ZPipeline.fromChannel {
+    new ZPipeline(
       ZChannel.succeed((units, duration, burst)).flatMap { case (units, duration, burst) =>
         def loop(tokens: Long, timestamp: Long): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
           ZChannel.readWithCause[Env, Err, Chunk[In], Any, Err, Chunk[In], Unit](
@@ -1632,7 +1648,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
         ZChannel.unwrap(Clock.nanoTime.map(loop(units, _)))
       }
-    }
+    )
 
   /**
    * Delays the chunks of this pipeline according to the given bandwidth
@@ -1655,7 +1671,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def throttleShapeZIO[Env, Err, In](units: => Long, duration: => Duration, burst: => Long = 0)(
     costFn: Chunk[In] => ZIO[Env, Err, Long]
-  )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = ZPipeline.fromChannel {
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = new ZPipeline(
     ZChannel.succeed((units, duration, burst)).flatMap { case (units, duration, burst) =>
       def loop(tokens: Long, timestamp: Long): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
         ZChannel.readWithCause(
@@ -1693,7 +1709,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
       ZChannel.unwrap(Clock.nanoTime.map(loop(units, _)))
     }
-  }
+  )
 
   /**
    * Creates a pipeline produced from an effect.
@@ -1932,6 +1948,42 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def utf32WithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     utf32BEWithBomEncode
+
+  /**
+   * Zips this pipeline together with the index of elements.
+   */
+  def zipWithIndex[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, (In, Long)] =
+    ZPipeline.mapAccum(0L)((index, a) => (index + 1, (a, index)))
+
+  /**
+   * Zips each element with the next element if present.
+   */
+  def zipWithNext[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, (In, Option[In])] = {
+    def process(last: Option[In]): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[(In, Option[In])], Unit] =
+      ZChannel.readWithCause(
+        (in: Chunk[In]) => {
+          val (newLast, chunk) = in.mapAccum(last)((prev, curr) => (Some(curr), prev.map((_, curr))))
+          val out              = chunk.collect { case Some((prev, curr)) => (prev, Some(curr)) }
+          ZChannel.write(out) *> process(newLast)
+        },
+        (err: Cause[ZNothing]) => ZChannel.failCause(err),
+        (_: Any) =>
+          last match {
+            case Some(value) =>
+              ZChannel.write(Chunk.single((value, None))) *> ZChannel.unit
+            case None =>
+              ZChannel.unit
+          }
+      )
+
+    new ZPipeline(process(None))
+  }
+
+  def zipWithPrevious[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, (Option[In], In)] =
+    mapAccum[In, Option[In], (Option[In], In)](None)((prev, curr) => (Some(curr), (prev, curr)))
+
+  def zipWithPreviousAndNext[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, (Option[In], In, Option[In])] =
+    (zipWithPrevious[In].zipWithNext).map { case ((prev, curr), next) => (prev, curr, next.map(_._2)) }
 
   private def utfDecodeDetectingBom(
     bomSize: => Int,

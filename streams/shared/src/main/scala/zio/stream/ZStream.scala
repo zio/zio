@@ -3803,39 +3803,21 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   /**
    * Zips each element with the next element if present.
    */
-  def zipWithNext(implicit trace: Trace): ZStream[R, E, (A, Option[A])] = {
-    def process(last: Option[A]): ZChannel[Any, E, Chunk[A], Any, E, Chunk[(A, Option[A])], Unit] =
-      ZChannel.readWith(
-        in => {
-          val (newLast, chunk) = in.mapAccum(last)((prev, curr) => (Some(curr), prev.map((_, curr))))
-          val out              = chunk.collect { case Some((prev, curr)) => (prev, Some(curr)) }
-          ZChannel.write(out) *> process(newLast)
-        },
-        err => ZChannel.fail(err),
-        _ =>
-          last match {
-            case Some(value) =>
-              ZChannel.write(Chunk.single((value, None))) *> ZChannel.unit
-            case None =>
-              ZChannel.unit
-          }
-      )
-
-    new ZStream(self.channel >>> process(None))
-  }
+  def zipWithNext(implicit trace: Trace): ZStream[R, E, (A, Option[A])] =
+    self >>> ZPipeline.zipWithNext[A]
 
   /**
    * Zips each element with the previous element. Initially accompanied by
    * `None`.
    */
   def zipWithPrevious(implicit trace: Trace): ZStream[R, E, (Option[A], A)] =
-    mapAccum[Option[A], (Option[A], A)](None)((prev, next) => (Some(next), (prev, next)))
+    self >>> ZPipeline.zipWithPrevious
 
   /**
    * Zips each element with both the previous and next element.
    */
   def zipWithPreviousAndNext(implicit trace: Trace): ZStream[R, E, (Option[A], A, Option[A])] =
-    zipWithPrevious.zipWithNext.map { case ((prev, curr), next) => (prev, curr, next.map(_._2)) }
+    self >>> ZPipeline.zipWithPreviousAndNext
 }
 
 object ZStream extends ZStreamPlatformSpecificConstructors {
