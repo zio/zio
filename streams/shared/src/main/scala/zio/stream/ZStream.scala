@@ -3156,7 +3156,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def throttleEnforce(units: => Long, duration: => Duration, burst: => Long = 0)(
     costFn: Chunk[A] => Long
   )(implicit trace: Trace): ZStream[R, E, A] =
-    throttleEnforceZIO(units, duration, burst)(as => ZIO.succeedNow(costFn(as)))
+    self >>> ZPipeline.throttleEnforce(units, duration, burst)(costFn)
 
   /**
    * Throttles the chunks of this stream according to the given bandwidth
@@ -3169,34 +3169,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def throttleEnforceZIO[R1 <: R, E1 >: E](units: => Long, duration: => Duration, burst: => Long = 0)(
     costFn: Chunk[A] => ZIO[R1, E1, Long]
   )(implicit trace: Trace): ZStream[R1, E1, A] =
-    ZStream.succeed((units, duration, burst)).flatMap { case (units, duration, burst) =>
-      def loop(tokens: Long, timestamp: Long): ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[A], Unit] =
-        ZChannel.readWith[R1, E1, Chunk[A], Any, E1, Chunk[A], Unit](
-          (in: Chunk[A]) =>
-            ZChannel.unwrap((costFn(in) <*> Clock.nanoTime).map { case (weight, current) =>
-              val elapsed = current - timestamp
-              val cycles  = elapsed.toDouble / duration.toNanos
-              val available = {
-                val sum = tokens + (cycles * units).toLong
-                val max =
-                  if (units + burst < 0) Long.MaxValue
-                  else units + burst
-
-                if (sum < 0) max
-                else math.min(sum, max)
-              }
-
-              if (weight <= available)
-                ZChannel.write(in) *> loop(available - weight, current)
-              else
-                loop(available, current)
-            }),
-          (e: E1) => ZChannel.fail(e),
-          (_: Any) => ZChannel.unit
-        )
-
-      new ZStream(ZChannel.fromZIO(Clock.nanoTime).flatMap(self.channel >>> loop(units, _)))
-    }
+    self >>> ZPipeline.throttleEnforceZIO(units, duration, burst)(costFn)
 
   /**
    * Delays the chunks of this stream according to the given bandwidth
@@ -3208,7 +3181,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def throttleShape(units: => Long, duration: => Duration, burst: => Long = 0)(
     costFn: Chunk[A] => Long
   )(implicit trace: Trace): ZStream[R, E, A] =
-    throttleShapeZIO(units, duration, burst)(os => ZIO.succeedNow(costFn(os)))
+    self >>> ZPipeline.throttleShape(units, duration, burst)(costFn)
 
   /**
    * Delays the chunks of this stream according to the given bandwidth
@@ -3220,43 +3193,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def throttleShapeZIO[R1 <: R, E1 >: E](units: => Long, duration: => Duration, burst: => Long = 0)(
     costFn: Chunk[A] => ZIO[R1, E1, Long]
   )(implicit trace: Trace): ZStream[R1, E1, A] =
-    ZStream.succeed((units, duration, burst)).flatMap { case (units, duration, burst) =>
-      def loop(tokens: Long, timestamp: Long): ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[A], Unit] =
-        ZChannel.readWith(
-          (in: Chunk[A]) =>
-            ZChannel.unwrap(for {
-              weight  <- costFn(in)
-              current <- Clock.nanoTime
-            } yield {
-              val elapsed = current - timestamp
-              val cycles  = elapsed.toDouble / duration.toNanos
-              val available = {
-                val sum = tokens + (cycles * units).toLong
-                val max =
-                  if (units + burst < 0) Long.MaxValue
-                  else units + burst
-
-                if (sum < 0) max
-                else math.min(sum, max)
-              }
-
-              val remaining = available - weight
-              val waitCycles =
-                if (remaining >= 0) 0
-                else -remaining.toDouble / units
-
-              val delay = Duration.Finite((waitCycles * duration.toNanos).toLong)
-
-              if (delay > Duration.Zero)
-                ZChannel.fromZIO(Clock.sleep(delay)) *> ZChannel.write(in) *> loop(remaining, current)
-              else ZChannel.write(in) *> loop(remaining, current)
-            }),
-          (e: E1) => ZChannel.fail(e),
-          (_: Any) => ZChannel.unit
-        )
-
-      new ZStream(ZChannel.fromZIO(Clock.nanoTime).flatMap(self.channel >>> loop(units, _)))
-    }
+    self >>> ZPipeline.throttleShapeZIO(units, duration, burst)(costFn)
 
   /**
    * Ends the stream if it does not produce a value after d duration.
