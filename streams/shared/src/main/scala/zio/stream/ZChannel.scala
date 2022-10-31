@@ -830,8 +830,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         def go(state: MergeState): ZChannel[Env1, Any, Any, Any, OutErr3, OutElem1, OutDone3] =
           state match {
             case BothRunning(leftFiber, rightFiber) =>
-              val lj: ZIO[Env1, OutErr, Either[OutDone, OutElem1]]   = leftFiber.join
-              val rj: ZIO[Env1, OutErr2, Either[OutDone2, OutElem1]] = rightFiber.join
+              val lj: ZIO[Env1, OutErr, Either[OutDone, OutElem1]]   = leftFiber.join.interruptible
+              val rj: ZIO[Env1, OutErr2, Either[OutDone2, OutElem1]] = rightFiber.join.interruptible
 
               ZChannel.unwrap {
                 lj.raceWith(rj)(
