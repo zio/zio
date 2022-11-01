@@ -21,7 +21,7 @@ import java.time.format.DateTimeFormatter
  * A ConfigProvider is a service that provides configuration given a description
  * of the structure of that configuration.
  */
-trait ConfigProvider { self =>
+private[zio] trait ConfigProvider { self =>
 
   /**
    * Loads the specified configuration, or fails with a config error.
@@ -50,7 +50,7 @@ trait ConfigProvider { self =>
         self.load(config).orElse(that.load(config))
     }
 }
-object ConfigProvider {
+private[zio] object ConfigProvider {
 
   /**
    * A simplified config provider that knows only how to deal with flat
