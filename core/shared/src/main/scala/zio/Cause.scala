@@ -402,7 +402,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       (if (isInterrupted)
          Some(
            new InterruptedException(
-             "Interrupted by fibers: " + interruptors.flatMap(_.ids.toString()).map("#" + _).mkString(", ")
+             "Interrupted by fibers: " + interruptors.flatMap(_.ids).map("#" + _).mkString(", ")
            )
          )
        else None) orElse
