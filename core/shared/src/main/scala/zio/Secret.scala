@@ -16,6 +16,6 @@
 
 package zio
 
-final case class Secret(value: Chunk[Byte]) {
+private[zio] final case class Secret(value: Chunk[Byte]) {
   override def toString(): String = "Secret(<redacted>)"
 }
