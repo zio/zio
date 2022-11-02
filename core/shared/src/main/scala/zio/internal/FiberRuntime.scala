@@ -429,7 +429,18 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             effect = null
 
           case GenerateTrace =>
-            effect = ZIO.succeedNow(generateStackTrace())
+            trampolines += 1
+
+            if (
+              (trampolines >= FiberRuntime.MaxTrampolinesBeforeYield) && RuntimeFlags.cooperativeYielding(_runtimeFlags)
+            ) {
+              tell(FiberMessage.YieldNow) // Signal to the outer loop to give us a break!
+              tell(FiberMessage.Resume(ZIO.succeedNow(generateStackTrace())))
+
+              effect = null
+            } else {
+              effect = ZIO.succeedNow(generateStackTrace())
+            }
 
           case t: Throwable =>
             if (isFatal(t)) {
