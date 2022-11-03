@@ -410,6 +410,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
             .getOrElseMemoize(scope)(self)
             .flatMap(r => memoMap.getOrElseMemoize(scope)(that).provideEnvironment(r)(trace))
         )
+      case ZLayer.ZipWith(self, that, f) =>
+        ZIO.succeed(memoMap => memoMap.getOrElseMemoize(scope)(self).zipWith(memoMap.getOrElseMemoize(scope)(that))(f))
       case ZLayer.ZipWithPar(self, that, f) =>
         ZIO.succeed(memoMap =>
           memoMap.getOrElseMemoize(scope)(self).zipWithPar(memoMap.getOrElseMemoize(scope)(that))(f)
@@ -440,6 +442,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     self: ZLayer[RIn, E, ROut],
     that: ZLayer[ROut, E, ROut1]
   ) extends ZLayer[RIn, E, ROut1]
+
+  private final case class ZipWith[-RIn, +E, ROut, ROut2, ROut3](
+    self: ZLayer[RIn, E, ROut],
+    that: ZLayer[RIn, E, ROut2],
+    f: (ZEnvironment[ROut], ZEnvironment[ROut2]) => ZEnvironment[ROut3]
+  ) extends ZLayer[RIn, E, ROut3]
 
   private final case class ZipWithPar[-RIn, +E, ROut, ROut2, ROut3](
     self: ZLayer[RIn, E, ROut],
@@ -1852,6 +1860,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       tagged: EnvironmentTag[ROut2],
       trace: Trace
     ): ZLayer[RIn, E1, ROut1 with ROut2] =
-      self.zipWithPar(self >>> that)(_.union[ROut2](_))
+      ZLayer.ZipWith[RIn, E1, ROut1, ROut2, ROut1 with ROut2](self, self >>> that, _.union[ROut2](_))
   }
 }
