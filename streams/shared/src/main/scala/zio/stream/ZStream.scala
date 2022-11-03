@@ -18,6 +18,7 @@ package zio.stream
 
 import zio._
 import zio.internal.{SingleThreadedRingBuffer, UniqueKey}
+import zio.metrics.MetricLabel
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm._
 import zio.stream.ZStream.{DebounceState, HandoffSignal, zipChunks}
@@ -4791,6 +4792,33 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def suspend[R, E, A](stream: => ZStream[R, E, A]): ZStream[R, E, A] =
     new ZStream(ZChannel.suspend(stream.channel))
+
+  /**
+   * Annotates each metric in streams composed after this with the specified
+   * tag.
+   */
+  def tagged(key: => String, value: => String)(implicit trace: Trace): ZStream[Any, Nothing, Unit] =
+    tagged(Set(MetricLabel(key, value)))
+
+  /**
+   * Annotates each metric in streams composed after this with the specified
+   * tag.
+   */
+  def tagged(tag: => MetricLabel, tags: MetricLabel*)(implicit trace: Trace): ZStream[Any, Nothing, Unit] =
+    tagged(Set(tag) ++ tags.toSet)
+
+  /**
+   * Annotates each metric in streams composed after this with the specified
+   * tag.
+   */
+  def tagged(tags: => Set[MetricLabel])(implicit trace: Trace): ZStream[Any, Nothing, Unit] =
+    ZStream.scoped(ZIO.taggedScoped(tags))
+
+  /**
+   * Retrieves the metric tags associated with the current scope.
+   */
+  def tags(implicit trace: Trace): ZStream[Any, Nothing, Set[MetricLabel]] =
+    ZStream.fromZIO(ZIO.tags)
 
   /**
    * A stream that emits Unit values spaced by the specified duration.
