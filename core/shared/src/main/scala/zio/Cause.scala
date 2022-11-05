@@ -365,23 +365,33 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   final def prettyPrint: String = {
     import Cause.Unified
 
-    def renderCause(cause: Cause[E]): String = {
-      def renderUnified(indent: Int, prefix: String, unified: Unified) = {
-        val baseIndent  = "\t" * indent
-        val traceIndent = baseIndent + "\t"
+    val builder = ChunkBuilder.make[String]()
+    var size    = 0
 
-        s"${baseIndent}${prefix}${unified.className}: ${unified.message}\n" +
-          unified.trace.map(trace => s"${traceIndent}at ${trace}").mkString("\n")
+    def append(string: String): Unit =
+      if (size <= 1024) {
+        builder += string
+        size += 1
       }
 
-      cause.unified.zipWithIndex.map {
+    def appendCause(cause: Cause[E]): Unit =
+      cause.unified.zipWithIndex.foreach {
         case (unified, 0) =>
-          renderUnified(0, "Exception in thread \"" + unified.fiberId.threadName + "\" ", unified)
-        case (unified, n) => renderUnified(n, s"Suppressed: ", unified)
-      }.mkString("\n")
+          appendUnified(0, "Exception in thread \"" + unified.fiberId.threadName + "\" ", unified)
+        case (unified, n) =>
+          appendUnified(n, s"Suppressed: ", unified)
+      }
+
+    def appendUnified(indent: Int, prefix: String, unified: Unified): Unit = {
+      val baseIndent  = "\t" * indent
+      val traceIndent = baseIndent + "\t"
+
+      append(s"${baseIndent}${prefix}${unified.className}: ${unified.message}")
+      unified.trace.foreach(trace => append(s"${traceIndent}at ${trace}"))
     }
 
-    self.linearize.map(renderCause).mkString("\n")
+    self.linearize.foreach(appendCause)
+    builder.result.mkString("\n")
   }
 
   def size: Int = self.foldContext(())(Cause.Folder.Size)
