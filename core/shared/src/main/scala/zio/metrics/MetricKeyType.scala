@@ -24,7 +24,7 @@ sealed trait MetricKeyType {
   type Out
 }
 object MetricKeyType {
-  type Aux[T] = MetricKeyType {
+  type WithIn[T] = MetricKeyType {
     type In = T
   }
   

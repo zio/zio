@@ -61,7 +61,7 @@ private[zio] class ConcurrentMetricRegistry {
       listeners.computeIfPresent(metricKeyType, { case (a, b) => b - listener })
     }
 
-  def update[T](key: MetricKey[MetricKeyType.Aux[T]], value: T)(implicit trace: Trace): Unit = {
+  def update[T](key: MetricKey[MetricKeyType.WithIn[T]], value: T)(implicit trace: Trace): Unit = {
     val listenersForKey = listeners.get(key.keyType)
     val iterator        = listenersForKey.iterator
     val updateNext = () =>
