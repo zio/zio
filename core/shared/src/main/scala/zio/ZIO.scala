@@ -1476,7 +1476,7 @@ sealed trait ZIO[-R, +E, +A]
   final def refineOrDieWith[E1](pf: PartialFunction[E, E1])(
     f: E => Throwable
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R, E1, A] =
-    mapErrorCause(_.flatMap(pf.andThen(Cause.fail(_)).orElse(e => Cause.die(f(e))))) 
+    mapErrorCause(_.flatMap(pf.andThen(Cause.fail(_)).applyOrElse(_, (e: E) => Cause.die(f(e)))))
 
   /**
    * Fail with the returned value if the `PartialFunction` matches, otherwise
