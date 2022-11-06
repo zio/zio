@@ -105,6 +105,8 @@ When a resource is out of service due to overload or contention, retrying and ba
 
 The form with parameters `min` and `max` creates a new schedule where the new interval size is randomly distributed between `min * old interval` and `max * old interval`.
 
+[Research](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/) shows that `Schedule.jittered(0.0, 1.0)` is very suitable for retrying.
+
 ## Collecting
 
 A `collectAll` is a combinator that when we call it on a schedule, produces a new schedule that collects the outputs of the first schedule into a chunk.
