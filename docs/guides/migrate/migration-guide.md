@@ -2477,9 +2477,12 @@ Pipelines are basically an abstraction for composing a bunch of operations toget
 
 ## ZIO Schedules
 
-`Schedule.jittered` in ZIO 1 is equivalent to `Schedule.jittered(0.0, 1.0)`. In ZIO this changed to `Schedule.jittered(0.8, 1.2)`.
+`Schedule.jittered` in ZIO 1 is equivalent to `Schedule.jittered(0.0, 1.0)`. In ZIO 2 this changed to `Schedule.jittered(0.8, 1.2)`.
 
-In ZIO 1 the average throughput of the updated schedule was twice the original schedule. In ZIO 2 the average thoughput of the updated schedule is the same as the orginal schedule.
+In ZIO 1 the average throughput of the updated schedule was twice the original schedule. In ZIO 2 the average throughput of the updated schedule is the same as the original schedule.
+
+The new behavior is more in line with the definition of 'jitter' as used in signal processing.
+Even so, [research](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/) shows that `Schedule.jittered(0.0, 1.0)` is better for retrying.
 
 ## ZIO Services
 
