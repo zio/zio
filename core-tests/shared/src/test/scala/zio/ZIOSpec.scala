@@ -2026,7 +2026,16 @@ object ZIOSpec extends ZIOBaseSpec {
         val expected =
           "type arguments [Error] do not conform to method refineToOrDie's type parameter bounds [E1 <: RuntimeException]"
         assertZIO(result)(isLeft(equalTo(expected)))
-      } @@ scala2Only
+      } @@ scala2Only,
+      test("preserves the cause") {
+        val task = ZIO.fail(new RuntimeException("fail"))
+        for {
+          leftCause  <- task.cause
+          rightCause <- task.refineToOrDie[RuntimeException].cause
+          leftTrace   = leftCause.trace.stackTrace.head
+          rightTrace  = rightCause.trace.stackTrace.head
+        } yield assertTrue(leftTrace == rightTrace)
+      }
     ) @@ zioTag(errors),
     suite("some")(
       test("extracts the value from Some") {
