@@ -597,7 +597,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * interval size`.
    *
    * [Research](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/)
-   * shows that `jittered(0.0, 1.0)` is a suitable range for a retrying schedule.
+   * shows that `jittered(0.0, 1.0)` is a suitable range for a retrying
+   * schedule.
    */
   def jittered(min: Double, max: Double)(implicit
     trace: Trace
