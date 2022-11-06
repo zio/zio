@@ -78,9 +78,6 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
           override def modify(in: In2, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
             self.unsafe.modify(f(in), extraTags)
         }
-
-      override private[zio] def notifyListeners(in: In2, extraTags: Set[MetricLabel]): UIO[Unit] =
-        self.notifyListeners(f(in), extraTags)
     }
 
   /**
@@ -111,9 +108,6 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
           override def modify(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
             self.unsafe.modify(in, extraTags)
         }
-
-      override private[zio] def notifyListeners(in: In, extraTags: Set[MetricLabel]): UIO[Unit] =
-        self.notifyListeners(in, extraTags)
     }
 
   final def mapType[Type2](f: Type => Type2): Metric[Type2, In, Out] =
@@ -131,9 +125,6 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
           override def modify(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
             self.unsafe.modify(in, extraTags)
         }
-
-      override private[zio] def notifyListeners(in: In, extraTags: Set[MetricLabel]): UIO[Unit] =
-        self.notifyListeners(in, extraTags)
     }
 
   /**
@@ -177,9 +168,6 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
           override def modify(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
             self.unsafe.modify(in, extraTags0 ++ extraTags)
         }
-
-      override private[zio] def notifyListeners(in: In, extraTags: Set[MetricLabel] = Set.empty): UIO[Unit] =
-        self.notifyListeners(in, extraTags0 ++ extraTags)
     }
 
   /**
@@ -205,9 +193,6 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
           override def modify(in: In1, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
             self.unsafe.modify(in, f(in) ++ extraTags)
         }
-
-      override private[zio] def notifyListeners(in: In1, extraTags: Set[MetricLabel] = Set.empty): UIO[Unit] =
-        self.notifyListeners(in, extraTags)
     }.map(_ => ())
 
   /**
@@ -325,7 +310,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
    * provided amount.
    */
   final def update(in: => In)(implicit trace: Trace): UIO[Unit] =
-    ZIO.succeed(unsafe.update(in, Set.empty)(Unsafe.unsafe)) *> notifyListeners(in)
+    ZIO.succeed(unsafe.update(in, Set.empty)(Unsafe.unsafe))
 
   /**
    * Retrieves a snapshot of the value of the metric at this moment in time.
@@ -343,8 +328,6 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
   }
 
   private[zio] def unsafe: UnsafeAPI
-
-  private[zio] def notifyListeners(in: In, extraTags: Set[MetricLabel] = Set.empty): UIO[Unit]
 }
 object Metric {
   type Counter[-In]   = Metric[MetricKeyType.Counter, In, MetricState.Counter]
@@ -379,11 +362,6 @@ object Metric {
               that.unsafe.modify(r, extraTags)
             }
           }
-
-        override private[zio] def notifyListeners(in: uz.In, extraTags: Set[MetricLabel] = Set.empty): UIO[Unit] = {
-          val (l, r) = uz.unzip(in)
-          self.notifyListeners(l, extraTags) *> that.notifyListeners(r, extraTags)
-        }
       }
   }
 
@@ -458,31 +436,28 @@ object Metric {
         new UnsafeAPI {
           def update(in: key.keyType.In, extraTags: Set[MetricLabel] = Set.empty)(implicit
             unsafe: Unsafe
-          ): Unit =
-            hook(extraTags).update(in)
+          ): Unit = {
+            val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
+            hook(fullKey).update(in)
+            metricRegistry.update(fullKey, in)
+          }
 
-          def value(extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): key.keyType.Out =
-            hook(extraTags).get()
+          def value(extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): key.keyType.Out = {
+            val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
+            hook(fullKey).get()
+          }
 
           def modify(in: key.keyType.In, extraTags: Set[MetricLabel] = Set.empty)(implicit
             unsafe: Unsafe
-          ): Unit =
-            hook(extraTags).modify(in)
+          ): Unit = {
+            val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
+            hook(fullKey).modify(in)
+          }
+
         }
 
-      override private[zio] def notifyListeners(
-        in: key.keyType.In,
-        extraTags: Set[MetricLabel] = Set.empty
-      ): UIO[Unit] = {
-        val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
-        metricRegistry.update(fullKey, in)
-      }
-
-      def hook(extraTags: Set[MetricLabel]): MetricHook[key.keyType.In, key.keyType.Out] = {
-        val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
-
+      def hook(fullKey: MetricKey[key.keyType.type]): MetricHook[key.keyType.In, key.keyType.Out] =
         metricRegistry.get(fullKey)(Unsafe.unsafe)
-      }
     }
 
   /**
@@ -518,8 +493,6 @@ object Metric {
             unsafe: Unsafe
           ): Unit = ()
         }
-
-      override private[zio] def notifyListeners(in: Any, extraTags: Set[MetricLabel]): UIO[Unit] = ZIO.unit
     }
 
   /**

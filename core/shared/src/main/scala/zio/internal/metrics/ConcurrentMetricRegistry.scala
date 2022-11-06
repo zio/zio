@@ -61,19 +61,24 @@ private[zio] class ConcurrentMetricRegistry {
       listeners.computeIfPresent(metricKeyType, { case (a, b) => b - listener })
     }
 
-  def update[T](key: MetricKey[MetricKeyType.Aux[T]], value: T)(implicit trace: Trace): ZIO[Any, Nothing, Unit] = {
+  def update[T](key: MetricKey[MetricKeyType.Aux[T]], value: T)(implicit trace: Trace): Unit = {
     val listenersForKey = listeners.get(key.keyType)
-    key.keyType match {
-      case MetricKeyType.Gauge =>
-        ZIO.foreach(listenersForKey)(_.updateGauge(key.asInstanceOf[MetricKey.Gauge], value)).unit
-      case MetricKeyType.Histogram(boundaries) =>
-        ZIO.foreach(listenersForKey)(_.updateHistogram(key.asInstanceOf[MetricKey.Histogram], value)).unit
-      case MetricKeyType.Frequency =>
-        ZIO.foreach(listenersForKey)(_.updateFrequency(key.asInstanceOf[MetricKey.Frequency], value)).unit
-      case MetricKeyType.Summary(maxAge, maxSize, error, quantiles) =>
-        ZIO.foreach(listenersForKey)(_.updateSummary(key.asInstanceOf[MetricKey.Summary], value)).unit
-      case MetricKeyType.Counter =>
-        ZIO.foreach(listenersForKey)(_.updateCounter(key.asInstanceOf[MetricKey.Counter], value)).unit
+    val iterator        = listenersForKey.iterator
+    val updateNext = () =>
+      key.keyType match {
+        case MetricKeyType.Gauge =>
+          iterator.next().updateGauge(key.asInstanceOf[MetricKey.Gauge], value)
+        case MetricKeyType.Histogram(boundaries) =>
+          iterator.next().updateHistogram(key.asInstanceOf[MetricKey.Histogram], value)
+        case MetricKeyType.Frequency =>
+          iterator.next().updateFrequency(key.asInstanceOf[MetricKey.Frequency], value)
+        case MetricKeyType.Summary(maxAge, maxSize, error, quantiles) =>
+          iterator.next().updateSummary(key.asInstanceOf[MetricKey.Summary], value)
+        case MetricKeyType.Counter =>
+          iterator.next().updateCounter(key.asInstanceOf[MetricKey.Counter], value)
+      }
+    while (iterator.hasNext) {
+      updateNext()
     }
   }
 

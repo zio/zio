@@ -46,11 +46,11 @@ private[zio] object MetricClient {
     metricRegistry.snapshot()
 
   trait Listener {
-    def updateHistogram(key: MetricKey[MetricKeyType.Histogram], value: Double): UIO[Unit]
-    def updateGauge(key: MetricKey[MetricKeyType.Gauge], value: Double): UIO[Unit]
-    def updateFrequency(key: MetricKey[MetricKeyType.Frequency], value: String): UIO[Unit]
-    def updateSummary(key: MetricKey[MetricKeyType.Summary], value: (Double, java.time.Instant)): UIO[Unit]
-    def updateCounter(key: MetricKey[MetricKeyType.Counter], value: Double): UIO[Unit]
+    def updateHistogram(key: MetricKey[MetricKeyType.Histogram], value: Double): Unit
+    def updateGauge(key: MetricKey[MetricKeyType.Gauge], value: Double): Unit
+    def updateFrequency(key: MetricKey[MetricKeyType.Frequency], value: String): Unit
+    def updateSummary(key: MetricKey[MetricKeyType.Summary], value: (Double, java.time.Instant)): Unit
+    def updateCounter(key: MetricKey[MetricKeyType.Counter], value: Double): Unit
   }
 
 }
