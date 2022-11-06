@@ -73,7 +73,7 @@ private[zio] class ConcurrentMetricRegistry {
         case MetricKeyType.Frequency =>
           iterator.next().updateFrequency(key.asInstanceOf[MetricKey.Frequency], value)
         case MetricKeyType.Summary(maxAge, maxSize, error, quantiles) =>
-          iterator.next().updateSummary(key.asInstanceOf[MetricKey.Summary], value)
+          iterator.next().updateSummary(key.asInstanceOf[MetricKey.Summary], value._1, value._2)
         case MetricKeyType.Counter =>
           iterator.next().updateCounter(key.asInstanceOf[MetricKey.Counter], value)
       }
