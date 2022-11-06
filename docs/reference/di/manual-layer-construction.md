@@ -125,7 +125,7 @@ import zio._
 val fooLayer: ZLayer[A    , Throwable, B] = ???   // A     ==> B
 val barLayer: ZLayer[B & C, Throwable, D] = ???   // B & C ==> D
 
-val finalLayer: ZLayer[A & B & C, Throwable, D] = // A & B & C ==> B & D
+val finalLayer: ZLayer[A & C, Throwable, D] = // A & C ==> B & D
   fooLayer >>> barLayer
 ```
 
