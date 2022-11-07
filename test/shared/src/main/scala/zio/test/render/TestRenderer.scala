@@ -57,13 +57,14 @@ trait TestRenderer {
           )
         )
       case Right(TestSuccess.Ignored(_)) =>
+        println("Should handle annotations here")
         Some(
           rendered(
             ResultType.Test,
             label,
             Ignored,
             depth,
-            warn(label).toLine
+            warn(label).toLine + renderAnnotationsFrag(List(annotations), TestAnnotationRenderer.default)
           )
         )
       case Left(TestFailure.Assertion(result, _)) =>

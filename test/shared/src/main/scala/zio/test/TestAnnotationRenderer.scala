@@ -79,10 +79,14 @@ object TestAnnotationRenderer {
   /**
    * A test annotation renderer that renders the number of ignored tests.
    */
+  // TODO Make sure this is triggered
   val ignored: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.ignored) { case (child :: _) =>
       if (child == 0) None
-      else Some(s"ignored: $child")
+      else {
+        println("Adding ignored text")
+        Some(s"ignored: $child")
+      }
     }
 
   /**

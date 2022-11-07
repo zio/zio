@@ -186,15 +186,12 @@ trait ConsoleRenderer extends TestRenderer {
         withOffset(offset)(Line.empty) +: message :+ fr(" - " + TestAnnotation.ignored.identifier + " suite").toLine
     }
 
-  private def renderTest(status: Status, offset: Int, message: Message) = {
-//    println("Test message: " + message)
+  private def renderTest(status: Status, offset: Int, message: Message) =
     status match {
       case Status.Passed  => withOffset(offset)(info("+") + sp) +: message
-      // TODO Hook in here to restore "Ignored" rendering? Seems a little off...
-      case Status.Ignored => withOffset(offset)(warn("-") + sp) +: (message :+ fr(" - " + TestAnnotation.ignored.identifier))
+      case Status.Ignored => withOffset(offset)(warn("-") + sp) +: message
       case Status.Failed  => message
     }
-  }
 
   def renderToStringLines(message: Message): Seq[String] = {
     def renderFragment(f: Fragment): String =

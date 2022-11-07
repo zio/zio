@@ -96,8 +96,7 @@ object TestAspect extends TimeoutVariants {
   val ignore: TestAspectPoly =
     new TestAspectPoly {
       def some[R, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
-//        Annotations.annotate(TestAnnotation.retried, 1)
-        spec.annotate(TestAnnotation.ignored, 1).when(false)
+        spec.when(false)
     }
 
   /**
