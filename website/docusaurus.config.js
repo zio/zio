@@ -167,6 +167,24 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-connect', 
+          path: './node_modules/@zio.dev/zio-connect',
+          routeBasePath: 'zio-connect',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-connect/sidebar.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
+          id: 'zio-logging', 
+          path: './node_modules/@zio.dev/zio-logging',
+          routeBasePath: 'zio-logging',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-logging/sidebar.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-schema', 
           path: './node_modules/@zio.dev/zio-schema',
           routeBasePath: 'zio-schema',
