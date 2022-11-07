@@ -3,14 +3,13 @@ package zio.internal.metrics
 import zio._
 import zio.metrics._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.metrics.MetricClient.Listener
 
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 private[zio] class ConcurrentMetricRegistry {
-  private val listeners: ConcurrentHashMap[MetricKeyType, Set[Listener]] =
-    new ConcurrentHashMap[MetricKeyType, Set[Listener]]()
+  private val listeners: ConcurrentHashMap[MetricKeyType, Set[MetricListener]] =
+    new ConcurrentHashMap[MetricKeyType, Set[MetricListener]]()
 
   private val map: ConcurrentHashMap[MetricKey[MetricKeyType], MetricHook.Root] =
     new ConcurrentHashMap[MetricKey[MetricKeyType], MetricHook.Root]()
@@ -45,7 +44,7 @@ private[zio] class ConcurrentMetricRegistry {
     } else hook0.asInstanceOf[Result]
   }
 
-  def addListener(keyType: MetricKeyType)(listener: Listener): Unit =
+  def addListener(keyType: MetricKeyType)(listener: MetricListener): Unit =
     listeners.compute(
       keyType,
       { case (_, listeners) =>
@@ -56,7 +55,7 @@ private[zio] class ConcurrentMetricRegistry {
       }
     )
 
-  def removeListener(listener: Listener): Unit =
+  def removeListener(listener: MetricListener): Unit =
     listeners.keySet().forEach { metricKeyType =>
       listeners.computeIfPresent(metricKeyType, { case (a, b) => b - listener })
     }

@@ -45,12 +45,4 @@ private[zio] object MetricClient {
   final def snapshot()(implicit unsafe: Unsafe): Set[MetricPair.Untyped] =
     metricRegistry.snapshot()
 
-  trait Listener {
-    def updateHistogram(key: MetricKey[MetricKeyType.Histogram], value: Double): Unit
-    def updateGauge(key: MetricKey[MetricKeyType.Gauge], value: Double): Unit
-    def updateFrequency(key: MetricKey[MetricKeyType.Frequency], value: String): Unit
-    def updateSummary(key: MetricKey[MetricKeyType.Summary], value: Double, instant: java.time.Instant): Unit
-    def updateCounter(key: MetricKey[MetricKeyType.Counter], value: Double): Unit
-  }
-
 }
