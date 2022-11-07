@@ -216,24 +216,20 @@ trait ConsoleRenderer extends TestRenderer {
   private def renderAnnotations(
     annotations: List[TestAnnotationMap],
     annotationRenderer: TestAnnotationRenderer
-  ): Message = {
-//    println("Raw annotations: " + annotations)
-    println("ignored annotations: " +  annotations.map(m => m.get(TestAnnotation.ignored)).mkString("\n"))
+  ): Message =
+    // TODO Reference this if needed
     annotations match {
       case annotations :: ancestors =>
-//        println("Annotations: " + annotations)
         val rendered = annotationRenderer.run(ancestors, annotations)
         if (rendered.isEmpty) {
           Message.empty
         }
         else {
-//          println("B: " + rendered.mkString(" - ", ", ", ""))
           Message(rendered.mkString(" - ", ", ", ""))
         }
       case Nil =>
         Message.empty
     }
-  }
 
   private def renderOffset(n: Int)(s: String) =
     " " * (n * tabSize) + s

@@ -3,6 +3,7 @@ package zio.test
 import zio.internal.stacktracer.SourceLocation
 import zio.test.Assertion._
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
+import zio.test.TestAspect.timed
 import zio.{Cause, Scope, Trace, ULayer, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.{Console => SConsole}
@@ -17,6 +18,9 @@ object ReportingTestUtils {
 
   def expectedFailureSummary(label: String): String =
     red("- " + label)
+
+  def expectedFailureSummaryWithAnnotations(label: String, annotations: String): String =
+    red("- " + label) + annotations
 
   def expectedIgnored(label: String): String =
     yellow("- " + label) + " - " + TestAnnotation.ignored.identifier + " suite" + "\n"
@@ -216,5 +220,23 @@ object ReportingTestUtils {
 
   def assertSourceLocation()(implicit sourceLocation: SourceLocation): String =
     cyan(s"at ${sourceLocation.path}:${sourceLocation.line}")
+
+  def testAnnotations(implicit sourceLocation: SourceLocation): Spec[Any, Nothing] =
+    test("Value falls within range")(assert(52)(equalTo(42) )) @@ timed
+
+  def testAnnotationsExpected(parents: String*)(implicit sourceLocation: SourceLocation): Vector[String] = {
+    val indent = " " * ((parents.length + 1) * 2)
+    val prefix =
+      if (parents.isEmpty)
+        ""
+      else
+        parents.mkString(" / ") + " / "
+    Vector(
+      expectedFailureSummaryWithAnnotations(s"${prefix}Value falls within range", " - ## ms"),
+      s"${indent}✗ 52 was not equal to 42",
+      s"${indent}52 did not satisfy equalTo(42)",
+//      s"${indent}" + assertSourceLocation(),
+    )
+  }
 
 }
