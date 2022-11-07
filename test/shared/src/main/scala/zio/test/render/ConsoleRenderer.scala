@@ -186,12 +186,15 @@ trait ConsoleRenderer extends TestRenderer {
         withOffset(offset)(Line.empty) +: message :+ fr(" - " + TestAnnotation.ignored.identifier + " suite").toLine
     }
 
-  private def renderTest(status: Status, offset: Int, message: Message) =
+  private def renderTest(status: Status, offset: Int, message: Message) = {
+//    println("Test message: " + message)
     status match {
       case Status.Passed  => withOffset(offset)(info("+") + sp) +: message
-      case Status.Ignored => withOffset(offset)(warn("-") + sp) +: message
+      // TODO Hook in here to restore "Ignored" rendering? Seems a little off...
+      case Status.Ignored => withOffset(offset)(warn("-") + sp) +: (message :+ fr(" - " + TestAnnotation.ignored.identifier))
       case Status.Failed  => message
     }
+  }
 
   def renderToStringLines(message: Message): Seq[String] = {
     def renderFragment(f: Fragment): String =
@@ -216,7 +219,9 @@ trait ConsoleRenderer extends TestRenderer {
   private def renderAnnotations(
     annotations: List[TestAnnotationMap],
     annotationRenderer: TestAnnotationRenderer
-  ): Message =
+  ): Message = {
+//    println("Raw annotations: " + annotations)
+    println("ignored annotations: " +  annotations.map(m => m.get(TestAnnotation.ignored)).mkString("\n"))
     annotations match {
       case annotations :: ancestors =>
 //        println("Annotations: " + annotations)
@@ -231,6 +236,7 @@ trait ConsoleRenderer extends TestRenderer {
       case Nil =>
         Message.empty
     }
+  }
 
   private def renderOffset(n: Int)(s: String) =
     " " * (n * tabSize) + s

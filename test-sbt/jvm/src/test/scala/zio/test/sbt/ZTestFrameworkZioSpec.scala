@@ -35,7 +35,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     test("renders suite names 1 time in plus-combined specs")(
       for {
         _      <- loadAndExecute(CombinedWithPlusSpec)
-        output <- testOutput
+        output <- testOutput.debug("Output:\n")
       } yield assertTrue(output.length == 3) && (
         // Look for more generic way of asserting on these lines that can be shuffled
         assertTrue(
