@@ -58,6 +58,6 @@ def validateNonNegative(input: Int): ZIO[Any, NegativeNumberException, Int] =
     ZIO.succeed(input)
 ```
 
-In the above examples, we can see that the type of the `validateNonNegaive` function is `ZIO[Any, NegativeNumberException, Int]`. It means this is an exceptional effect, which may fail with the type of `NegativeNumberException`.
+In the above examples, we can see that the type of the `validateNonNegative` function is `ZIO[Any, NegativeNumberException, Int]`. It means this is an exceptional effect, which may fail with the type of `NegativeNumberException`.
 
 The `ZIO.fail` constructor is somehow the moral equivalent of `throw` for pure codes. We will discuss this [further](../declarative.md).
