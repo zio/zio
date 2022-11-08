@@ -235,7 +235,6 @@ object ReportingTestUtils {
       expectedFailureSummaryWithAnnotations(s"${prefix}Value falls within range", " - ## ms"),
       s"${indent}✗ 52 was not equal to 42",
       s"${indent}52 did not satisfy equalTo(42)",
-//      s"${indent}" + assertSourceLocation(),
     )
   }
 

@@ -14,19 +14,6 @@ object ConsoleTestOutputSpec extends ZIOBaseSpec {
   ): TestResult =
     expected.map(ex => assertTrue(result.unstyled.contains(ex.unstyled))).reduce(_ && _)
 
-  def foo(r: String) = {
-    val outputTimeStripped =
-      r.split("\n").toList match {
-        case head :: rest =>
-          val regex = "[0-9]+ ms"
-          //                  println("Head: " + head + "Contains timing info: " + regex.matches(head))
-          (head.replaceAll(regex, "## ms") :: rest).mkString("\n")
-        case Nil => ???
-      }
-    println("R head: " + outputTimeStripped)
-    containsUnstyled(outputTimeStripped, testAnnotationsExpected())
-  }
-
   def spec =
     suite("ConsoleTestOutputSpec")(
       suite("reports")(
@@ -37,7 +24,17 @@ object ConsoleTestOutputSpec extends ZIOBaseSpec {
           runLog(test3).map(r => containsUnstyled(r, test3Expected()))
         },
         test("a failed test with annotations") {
-          runLog(testAnnotations).map(r => foo(r))
+          runLog(testAnnotations).map{r =>
+            val outputTimeStripped =
+              r.split("\n").toList match {
+                case head :: rest =>
+                  val regex = "[0-9]+ ms"
+//                  println("Head: " + head + "Contains timing info: " + regex.matches(head))
+                  (head.replaceAll(regex, "## ms") :: rest).mkString("\n")
+                case Nil => ???
+              }
+            println("R head: " + outputTimeStripped)
+            containsUnstyled(outputTimeStripped, testAnnotationsExpected())}
         },
         test("an error in a test") {
           runLog(test4).map(log => assertTrue(log.contains("Test 4 Fail")))
