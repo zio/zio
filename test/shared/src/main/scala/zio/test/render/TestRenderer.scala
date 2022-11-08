@@ -38,12 +38,12 @@ trait TestRenderer {
     labels: List[String],
     results: Either[TestFailure[Any], TestSuccess],
     includeCause: Boolean,
-    annotations: TestAnnotationMap,
+    annotations: TestAnnotationMap
   )(implicit
     trace: Trace
   ): (List[Line], List[Line]) = {
-    val depth     = labels.length - 1
-    val label     = labels.last
+    val depth = labels.length - 1
+    val label = labels.last
 
     val renderedResult = results match {
       case Right(TestSuccess.Succeeded(_)) =>
@@ -57,7 +57,6 @@ trait TestRenderer {
           )
         )
       case Right(TestSuccess.Ignored(_)) =>
-        println("Should handle annotations here")
         Some(
           rendered(
             ResultType.Test,
@@ -93,8 +92,12 @@ trait TestRenderer {
     (renderedResult.map(r => r.streamingLines).getOrElse(Nil), renderedResult.map(r => r.summaryLines).getOrElse(Nil))
   }
 
-  def renderAssertFailure(result: TestResult, labels: List[String], depth: Int, annotations: TestAnnotationMap,
-                         ): ExecutionResult = {
+  def renderAssertFailure(
+    result: TestResult,
+    labels: List[String],
+    depth: Int,
+    annotations: TestAnnotationMap
+  ): ExecutionResult = {
     val streamingLabel           = labels.lastOption.getOrElse("Top-level defect prevented test execution")
     val summaryLabel             = labels.mkString(" - ")
     val streamingRenderedFailure = renderFailure(streamingLabel, depth, result.result, annotations).lines.toList
@@ -198,15 +201,20 @@ trait TestRenderer {
     }
   }
 
-  // TODO Fix offset. Failures aren't indented enough currently
-  // TODO Should Annotations be red?
-  private def renderFailure(label: String, offset: Int, details: TestTrace[Boolean], annotations: TestAnnotationMap): Message =
-    withOffset(offset)(renderFailureLabel(label, offset) + renderAnnotationsFrag(List(annotations), TestAnnotationRenderer.default)) +: renderAssertionResult(details, offset) :+ Line.empty
+  private def renderFailure(
+    label: String,
+    offset: Int,
+    details: TestTrace[Boolean],
+    annotations: TestAnnotationMap
+  ): Message =
+    withOffset(offset)(
+      renderFailureLabel(label, offset) + renderAnnotationsFrag(List(annotations), TestAnnotationRenderer.default)
+    ) +: renderAssertionResult(details, offset) :+ Line.empty
 
   private def renderAnnotationsFrag(
-                                 annotations: List[TestAnnotationMap],
-                                 annotationRenderer: TestAnnotationRenderer
-                               ): Fragment =
+    annotations: List[TestAnnotationMap],
+    annotationRenderer: TestAnnotationRenderer
+  ): Fragment =
     annotations match {
       case annotations :: ancestors =>
         val rendered = annotationRenderer.run(ancestors, annotations)

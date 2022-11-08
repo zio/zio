@@ -30,7 +30,7 @@ trait ConsoleRenderer extends TestRenderer {
   private val tabSize = 2
 
   override def renderEvent(event: ExecutionEvent, includeCause: Boolean)(implicit
-                                                                         trace: Trace
+    trace: Trace
   ): Seq[ExecutionResult] =
     event match {
       case SectionStart(labelsReversed, _, _) =>
@@ -53,14 +53,10 @@ trait ConsoleRenderer extends TestRenderer {
         }
 
       case Test(labelsReversed, results, annotations, _, _, _) =>
-        val labels = labelsReversed.reverse
+        val labels       = labelsReversed.reverse
         val initialDepth = labels.length - 1
         val (streamingOutput, summaryOutput) =
           testCaseOutput(labels, results, includeCause, annotations)
-
-//        println("Streaming output: \n" + streamingOutput.mkString("\n"))
-        //        println("Annotations: " + renderAnnotations(annotations)
-
 
         Seq(
           ExecutionResult(
@@ -71,7 +67,7 @@ trait ConsoleRenderer extends TestRenderer {
               case Right(value: TestSuccess) =>
                 value match {
                   case TestSuccess.Succeeded(_) => Status.Passed
-                  case TestSuccess.Ignored(_) => Status.Ignored
+                  case TestSuccess.Ignored(_)   => Status.Ignored
                 }
             },
             initialDepth,
@@ -81,11 +77,11 @@ trait ConsoleRenderer extends TestRenderer {
             duration = None
           )
         )
-      case runtimeFailure@ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
+      case runtimeFailure @ ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
         val depth = event.labels.length
         failure match {
           case TestFailure.Assertion(result, annotations) =>
-            Seq(renderAssertFailureZ(result, runtimeFailure.labels, depth, annotations))
+            Seq(renderAssertFailure(result, runtimeFailure.labels, depth, annotations))
           case TestFailure.Runtime(cause, annotations) =>
             Seq(
               renderRuntimeCause(
@@ -115,8 +111,6 @@ trait ConsoleRenderer extends TestRenderer {
           Message(result.streamingLines)
       }
 
-      // TODO Stop doing this here?
-//      val renderedAnnotations = renderAnnotations(result.annotations, TestAnnotationRenderer.default)
       renderToStringLines(output).mkString
     }
 
@@ -132,17 +126,16 @@ trait ConsoleRenderer extends TestRenderer {
 
   private def renderConsoleIO(s: ConsoleIO) =
     s match {
-      case ConsoleIO.Input(line) => line.magenta
+      case ConsoleIO.Input(line)  => line.magenta
       case ConsoleIO.Output(line) => line.yellow
     }
 
   def renderForSummary(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
     results.map { result =>
       val testOutput: List[ConsoleIO] = result.annotations.flatMap(_.get(TestAnnotation.output))
-//      println("I'm in here!")
-      val renderedAnnotations = renderAnnotations(result.annotations, testAnnotationRenderer)
-//      println("Annotations: { \n" + renderedAnnotations + "\n}")
-      val message = (Message(result.summaryLines) ++ renderedAnnotations ++ renderOutput(testOutput)).intersperse(Line.fromString("\n"))
+      val renderedAnnotations         = renderAnnotations(result.annotations, testAnnotationRenderer)
+      val message = (Message(result.summaryLines) ++ renderedAnnotations ++ renderOutput(testOutput))
+        .intersperse(Line.fromString("\n"))
 
       val output = result.resultType match {
         case ResultType.Suite =>
@@ -156,27 +149,16 @@ trait ConsoleRenderer extends TestRenderer {
       renderToStringLines(output).mkString
     }
 
-  private def renderAssertFailureZ(result: TestResult, labels: List[String], depth: Int, annotations: TestAnnotationMap,
-                                 ): ExecutionResult = {
-    val streamingLabel = labels.lastOption.getOrElse("Top-level defect prevented test execution")
-    val summaryLabel = labels.mkString(" - ")
-    val streamingRenderedFailure = renderFailure(streamingLabel, depth, result.result, annotations).lines.toList
-    val summaryRenderedFailure = renderFailure(summaryLabel, depth, result.result, annotations).lines.toList
-    renderedWithSummary(
-      ResultType.Test,
-      streamingLabel,
-      Failed,
-      depth,
-      streamingRenderedFailure,
-      summaryRenderedFailure
-    )
-  }
-
-  private def renderFailure(label: String, offset: Int, details: TestTrace[Boolean], annotations: TestAnnotationMap): Message = {
-
-//    println("annotations: " + renderAnnotations(List(annotations), TestAnnotationRenderer.default))
-    renderFailureLabel(label, offset) +: ( renderAnnotations(List(annotations), TestAnnotationRenderer.default) ++ renderAssertionResult(details, offset) ) :+ Line.empty
-  }
+  private def renderFailure(
+    label: String,
+    offset: Int,
+    details: TestTrace[Boolean],
+    annotations: TestAnnotationMap
+  ): Message =
+    renderFailureLabel(label, offset) +: (renderAnnotations(
+      List(annotations),
+      TestAnnotationRenderer.default
+    ) ++ renderAssertionResult(details, offset)) :+ Line.empty
 
   private def renderSuite(status: Status, offset: Int, message: Message): Message =
     status match {
@@ -217,16 +199,13 @@ trait ConsoleRenderer extends TestRenderer {
     annotations: List[TestAnnotationMap],
     annotationRenderer: TestAnnotationRenderer
   ): Message =
-    // TODO Reference this if needed
     annotations match {
       case annotations :: ancestors =>
         val rendered = annotationRenderer.run(ancestors, annotations)
-        if (rendered.isEmpty) {
+        if (rendered.isEmpty)
           Message.empty
-        }
-        else {
+        else
           Message(rendered.mkString(" - ", ", ", ""))
-        }
       case Nil =>
         Message.empty
     }

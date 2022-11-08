@@ -222,7 +222,7 @@ object ReportingTestUtils {
     cyan(s"at ${sourceLocation.path}:${sourceLocation.line}")
 
   def testAnnotations(implicit sourceLocation: SourceLocation): Spec[Any, Nothing] =
-    test("Value falls within range")(assert(52)(equalTo(42) )) @@ tag("Important")
+    test("Value falls within range")(assert(52)(equalTo(42))) @@ tag("Important")
 
   def testAnnotationsExpected(parents: String*)(implicit sourceLocation: SourceLocation): Vector[String] = {
     val indent = " " * ((parents.length + 1) * 2)
@@ -235,7 +235,7 @@ object ReportingTestUtils {
       expectedFailureSummaryWithAnnotations(s"${prefix}Value falls within range", """ - tagged: "Important""""),
       s"${indent}✗ 52 was not equal to 42",
       s"${indent}52 did not satisfy equalTo(42)",
-      s"${indent}" + assertSourceLocation(),
+      s"${indent}" + assertSourceLocation()
     )
   }
 
