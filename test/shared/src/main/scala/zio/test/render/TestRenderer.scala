@@ -166,7 +166,7 @@ trait TestRenderer {
                 }
               }
             ) ++
-            Chunk(detail(s"at $location").toLine)
+            Chunk(detail(s"at $location ").toLine)
 
         result.map(_.withOffset(offset + 1))
     }
