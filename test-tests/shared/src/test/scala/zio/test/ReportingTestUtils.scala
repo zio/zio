@@ -215,6 +215,6 @@ object ReportingTestUtils {
   }
 
   def assertSourceLocation()(implicit sourceLocation: SourceLocation): String =
-    cyan(s"at ${sourceLocation.path}:${sourceLocation.line}")
+    cyan(s"at ${sourceLocation.path}:${sourceLocation.line} ")
 
 }
