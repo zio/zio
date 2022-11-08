@@ -62,22 +62,24 @@ private[zio] class ConcurrentMetricRegistry {
 
   def update[T](key: MetricKey[MetricKeyType.WithIn[T]], value: T)(implicit trace: Trace, unsafe: Unsafe): Unit = {
     val listenersForKey = listeners.get(key.keyType)
-    val iterator        = listenersForKey.iterator
-    val updateNext = () =>
-      key.keyType match {
-        case MetricKeyType.Gauge =>
-          iterator.next().updateGauge(key.asInstanceOf[MetricKey.Gauge], value)
-        case MetricKeyType.Histogram(boundaries) =>
-          iterator.next().updateHistogram(key.asInstanceOf[MetricKey.Histogram], value)
-        case MetricKeyType.Frequency =>
-          iterator.next().updateFrequency(key.asInstanceOf[MetricKey.Frequency], value)
-        case MetricKeyType.Summary(maxAge, maxSize, error, quantiles) =>
-          iterator.next().updateSummary(key.asInstanceOf[MetricKey.Summary], value._1, value._2)
-        case MetricKeyType.Counter =>
-          iterator.next().updateCounter(key.asInstanceOf[MetricKey.Counter], value)
+    if (listenersForKey.nonEmpty) {
+      val iterator = listenersForKey.iterator
+      val updateNext = () =>
+        key.keyType match {
+          case MetricKeyType.Gauge =>
+            iterator.next().updateGauge(key.asInstanceOf[MetricKey.Gauge], value)
+          case MetricKeyType.Histogram(boundaries) =>
+            iterator.next().updateHistogram(key.asInstanceOf[MetricKey.Histogram], value)
+          case MetricKeyType.Frequency =>
+            iterator.next().updateFrequency(key.asInstanceOf[MetricKey.Frequency], value)
+          case MetricKeyType.Summary(maxAge, maxSize, error, quantiles) =>
+            iterator.next().updateSummary(key.asInstanceOf[MetricKey.Summary], value._1, value._2)
+          case MetricKeyType.Counter =>
+            iterator.next().updateCounter(key.asInstanceOf[MetricKey.Counter], value)
+        }
+      while (iterator.hasNext) {
+        updateNext()
       }
-    while (iterator.hasNext) {
-      updateNext()
     }
   }
 
