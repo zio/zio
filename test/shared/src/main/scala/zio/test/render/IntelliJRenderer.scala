@@ -37,7 +37,7 @@ trait IntelliJRenderer extends TestRenderer {
         val labels       = labelsReversed.reverse
         val initialDepth = labels.length - 1
         val (streamingOutput, summaryOutput) =
-          testCaseOutput(labels, results, includeCause)
+          testCaseOutput(labels, results, includeCause, annotations)
 
         Seq(
           ExecutionResult(
@@ -61,8 +61,8 @@ trait IntelliJRenderer extends TestRenderer {
       case runtimeFailure @ ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
         val depth = event.labels.length
         failure match {
-          case TestFailure.Assertion(result, _) =>
-            Seq(renderAssertFailure(result, runtimeFailure.labels, depth))
+          case TestFailure.Assertion(result, annotations) =>
+            Seq(renderAssertFailure(result, runtimeFailure.labels, depth, annotations))
           case TestFailure.Runtime(cause, _) =>
             Seq(renderRuntimeCause(cause, runtimeFailure.labels, depth, includeCause))
         }

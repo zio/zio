@@ -24,6 +24,7 @@ import zio.test.render.LogLine.{Fragment, Line, Message}
 import zio.test._
 import zio.{Cause, Chunk, Trace}
 import zio.internal.ansi.AnsiStringOps
+import zio.test.render.ExecutionResult.Status.Failed
 
 trait ConsoleRenderer extends TestRenderer {
   private val tabSize = 2
@@ -55,7 +56,7 @@ trait ConsoleRenderer extends TestRenderer {
         val labels       = labelsReversed.reverse
         val initialDepth = labels.length - 1
         val (streamingOutput, summaryOutput) =
-          testCaseOutput(labels, results, includeCause)
+          testCaseOutput(labels, results, includeCause, annotations)
 
         Seq(
           ExecutionResult(
@@ -80,7 +81,7 @@ trait ConsoleRenderer extends TestRenderer {
         val depth = event.labels.length
         failure match {
           case TestFailure.Assertion(result, annotations) =>
-            Seq(renderAssertFailure(result, runtimeFailure.labels, depth))
+            Seq(renderAssertFailure(result, runtimeFailure.labels, depth, annotations))
           case TestFailure.Runtime(cause, annotations) =>
             Seq(
               renderRuntimeCause(
@@ -110,8 +111,7 @@ trait ConsoleRenderer extends TestRenderer {
           Message(result.streamingLines)
       }
 
-      val renderedAnnotations = renderAnnotations(result.annotations, TestAnnotationRenderer.default)
-      renderToStringLines(output ++ renderedAnnotations).mkString
+      renderToStringLines(output).mkString
     }
 
   private def renderOutput(output: List[ConsoleIO]): Message =
@@ -133,7 +133,9 @@ trait ConsoleRenderer extends TestRenderer {
   def renderForSummary(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
     results.map { result =>
       val testOutput: List[ConsoleIO] = result.annotations.flatMap(_.get(TestAnnotation.output))
-      val message                     = (Message(result.summaryLines) ++ renderOutput(testOutput)).intersperse(Line.fromString("\n"))
+      val renderedAnnotations         = renderAnnotations(result.annotations, testAnnotationRenderer)
+      val message = (Message(result.summaryLines) ++ renderedAnnotations ++ renderOutput(testOutput))
+        .intersperse(Line.fromString("\n"))
 
       val output = result.resultType match {
         case ResultType.Suite =>
@@ -144,9 +146,19 @@ trait ConsoleRenderer extends TestRenderer {
           Message(result.streamingLines)
       }
 
-      val renderedAnnotations = renderAnnotations(result.annotations, testAnnotationRenderer)
-      renderToStringLines(output ++ renderedAnnotations).mkString
+      renderToStringLines(output).mkString
     }
+
+  private def renderFailure(
+    label: String,
+    offset: Int,
+    details: TestTrace[Boolean],
+    annotations: TestAnnotationMap
+  ): Message =
+    renderFailureLabel(label, offset) +: (renderAnnotations(
+      List(annotations),
+      TestAnnotationRenderer.default
+    ) ++ renderAssertionResult(details, offset)) :+ Line.empty
 
   private def renderSuite(status: Status, offset: Int, message: Message): Message =
     status match {
@@ -190,9 +202,12 @@ trait ConsoleRenderer extends TestRenderer {
     annotations match {
       case annotations :: ancestors =>
         val rendered = annotationRenderer.run(ancestors, annotations)
-        if (rendered.isEmpty) Message.empty
-        else Message(rendered.mkString(" - ", ", ", ""))
-      case Nil => Message.empty
+        if (rendered.isEmpty)
+          Message.empty
+        else
+          Message(rendered.mkString(" - ", ", ", ""))
+      case Nil =>
+        Message.empty
     }
 
   private def renderOffset(n: Int)(s: String) =
