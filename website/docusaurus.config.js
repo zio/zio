@@ -167,6 +167,24 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-aws', 
+          path: './node_modules/@zio.dev/zio-aws',
+          routeBasePath: 'zio-aws',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-aws/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
+          id: 'zio-config', 
+          path: './node_modules/@zio.dev/zio-config',
+          routeBasePath: 'zio-config',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-config/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-connect', 
           path: './node_modules/@zio.dev/zio-connect',
           routeBasePath: 'zio-connect',
@@ -176,10 +194,55 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-http', 
+          path: './node_modules/@zio.dev/zio-http',
+          routeBasePath: 'zio-http',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-http/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
+          id: 'zio-jdbc', 
+          path: './node_modules/@zio.dev/zio-jdbc',
+          routeBasePath: 'zio-jdbc',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-jdbc/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
+          id: 'zio-json', 
+          path: './node_modules/@zio.dev/zio-json',
+          routeBasePath: 'zio-json',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-json/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
+          id: 'zio-kafka', 
+          path: './node_modules/@zio.dev/zio-kafka',
+          routeBasePath: 'zio-kafka',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-kafka/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-logging', 
           path: './node_modules/@zio.dev/zio-logging',
           routeBasePath: 'zio-logging',
           sidebarPath: require.resolve('./node_modules/@zio.dev/zio-logging/sidebar.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
+          id: 'zio-redis', 
+          path: './node_modules/@zio.dev/zio-redis',
+          routeBasePath: 'zio-redis',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-redis/sidebar.js'),
         },
     ],
     [
