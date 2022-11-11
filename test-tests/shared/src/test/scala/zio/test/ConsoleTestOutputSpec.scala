@@ -23,6 +23,9 @@ object ConsoleTestOutputSpec extends ZIOBaseSpec {
         test("a failed test") {
           runLog(test3).map(r => containsUnstyled(r, test3Expected()))
         },
+        test("a failed test with annotations") {
+          runLog(testAnnotations).map(r => containsUnstyled(r, testAnnotationsExpected()))
+        },
         test("an error in a test") {
           runLog(test4).map(log => assertTrue(log.contains("Test 4 Fail")))
         },

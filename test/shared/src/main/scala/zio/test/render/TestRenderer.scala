@@ -37,13 +37,13 @@ trait TestRenderer {
   def testCaseOutput(
     labels: List[String],
     results: Either[TestFailure[Any], TestSuccess],
-    includeCause: Boolean
+    includeCause: Boolean,
+    annotations: TestAnnotationMap
   )(implicit
     trace: Trace
   ): (List[Line], List[Line]) = {
-    val depth     = labels.length - 1
-    val label     = labels.last
-    val flatLabel = labels.map(_.red).mkString(" / ".red.faint)
+    val depth = labels.length - 1
+    val label = labels.last
 
     val renderedResult = results match {
       case Right(TestSuccess.Succeeded(_)) =>
@@ -53,7 +53,7 @@ trait TestRenderer {
             label,
             Passed,
             depth,
-            fr(labels.last).toLine
+            fr(labels.last) + renderAnnotationsFrag(List(annotations), TestAnnotationRenderer.default)
           )
         )
       case Right(TestSuccess.Ignored(_)) =>
@@ -63,18 +63,19 @@ trait TestRenderer {
             label,
             Ignored,
             depth,
-            warn(label).toLine
+            warn(label).toLine + renderAnnotationsFrag(List(annotations), TestAnnotationRenderer.default)
           )
         )
       case Left(TestFailure.Assertion(result, _)) =>
+        val flatLabel = labels.map(_.red).mkString(" / ".red.faint)
         result.failures.map { result =>
           renderedWithSummary(
             ResultType.Test,
             label,
             Failed,
             depth,
-            renderFailure(label, depth, result).lines.toList,
-            renderFailure(flatLabel, depth, result).lines.toList // Fully-qualified label
+            renderFailure(label, depth, result, annotations).lines.toList,
+            renderFailure(flatLabel, depth, result, annotations).lines.toList // Fully-qualified label
           )
         }
 
@@ -91,11 +92,16 @@ trait TestRenderer {
     (renderedResult.map(r => r.streamingLines).getOrElse(Nil), renderedResult.map(r => r.summaryLines).getOrElse(Nil))
   }
 
-  def renderAssertFailure(result: TestResult, labels: List[String], depth: Int): ExecutionResult = {
+  def renderAssertFailure(
+    result: TestResult,
+    labels: List[String],
+    depth: Int,
+    annotations: TestAnnotationMap
+  ): ExecutionResult = {
     val streamingLabel           = labels.lastOption.getOrElse("Top-level defect prevented test execution")
     val summaryLabel             = labels.mkString(" - ")
-    val streamingRenderedFailure = renderFailure(streamingLabel, depth, result.result).lines.toList
-    val summaryRenderedFailure   = renderFailure(summaryLabel, depth, result.result).lines.toList
+    val streamingRenderedFailure = renderFailure(streamingLabel, depth, result.result, annotations).lines.toList
+    val summaryRenderedFailure   = renderFailure(summaryLabel, depth, result.result, annotations).lines.toList
     renderedWithSummary(
       ResultType.Test,
       streamingLabel,
@@ -166,7 +172,7 @@ trait TestRenderer {
                 }
               }
             ) ++
-            Chunk(detail(s"at $location").toLine)
+            Chunk(detail(s"at $location ").toLine)
 
         result.map(_.withOffset(offset + 1))
     }
@@ -195,8 +201,30 @@ trait TestRenderer {
     }
   }
 
-  private def renderFailure(label: String, offset: Int, details: TestTrace[Boolean]): Message =
-    renderFailureLabel(label, offset) +: renderAssertionResult(details, offset) :+ Line.empty
+  private def renderFailure(
+    label: String,
+    offset: Int,
+    details: TestTrace[Boolean],
+    annotations: TestAnnotationMap
+  ): Message =
+    withOffset(offset)(
+      renderFailureLabel(label, offset) + renderAnnotationsFrag(List(annotations), TestAnnotationRenderer.default)
+    ) +: renderAssertionResult(details, offset) :+ Line.empty
+
+  private def renderAnnotationsFrag(
+    annotations: List[TestAnnotationMap],
+    annotationRenderer: TestAnnotationRenderer
+  ): Fragment =
+    annotations match {
+      case annotations :: ancestors =>
+        val rendered = annotationRenderer.run(ancestors, annotations)
+        if (rendered.isEmpty)
+          Fragment("")
+        else
+          Fragment(rendered.mkString(" - ", ", ", ""))
+      case Nil =>
+        Fragment("")
+    }
 
   def renderFailureLabel(label: String, offset: Int): Line =
     withOffset(offset)(error("- " + label).toLine)

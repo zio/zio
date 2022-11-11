@@ -17,6 +17,8 @@
     "@docusaurus/theme-search-algolia": "^2.1.0",
     "@material-ui/core": "4.12.4",
     "@mdx-js/react": "1.6.22",
+    "@zio.dev/zio-connect": "latest",
+    "@zio.dev/zio-logging": "latest",
     "@zio.dev/zio-schema": "latest",
     "babel": "^6.23.0",
     "blended-include-code-plugin": "0.1.2",
