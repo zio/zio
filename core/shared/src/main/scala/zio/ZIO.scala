@@ -849,7 +849,7 @@ sealed trait ZIO[-R, +E, +A]
         ZIO.logLevel(LogLevel.Debug) {
           ZIO.logCause("An error was silently ignored because it is not anticipated to be useful", cause)
         },
-      ZIO.unitFn
+      _ => ZIO.unit
     )
 
   /**
