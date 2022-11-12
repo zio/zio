@@ -257,6 +257,11 @@ object Runtime extends RuntimePlatformSpecific {
       ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.RuntimeMetrics))
     }
 
+  def enableWorkStealing(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped {
+      ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.WorkStealing))
+    }
+
   object unsafe {
 
     /**
