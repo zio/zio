@@ -3932,6 +3932,14 @@ object ZStreamSpec extends ZIOBaseSpec {
             )
           })
         ),
+        suite("toQueueOfElements")(
+          test("propagates defects") {
+            for {
+              queue <- ZStream.dieMessage("die").toQueueOfElements(1)
+              exit  <- queue.take
+            } yield assert(exit)(dies(hasMessage(equalTo("die"))))
+          }
+        ),
         suite("toReader")(
           test("read one-by-one") {
             check(tinyListOf(Gen.chunkOf(Gen.char))) { chunks =>

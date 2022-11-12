@@ -2756,13 +2756,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     queue: => Enqueue[Exit[Option[E], A]]
   )(implicit trace: Trace): ZIO[R with Scope, Nothing, Unit] = {
     lazy val writer: ZChannel[R, E, Chunk[A], Any, Nothing, Exit[Option[E], A], Any] =
-      ZChannel.readWith[R, E, Chunk[A], Any, Nothing, Exit[Option[E], A], Any](
+      ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Exit[Option[E], A], Any](
         in =>
           in.foldLeft[ZChannel[R, Any, Any, Any, Nothing, Exit[Option[E], A], Any]](ZChannel.unit) {
             case (channel, a) =>
               channel *> ZChannel.write(Exit.succeed(a))
           } *> writer,
-        err => ZChannel.write(Exit.fail(Some(err))),
+        err => ZChannel.write(Exit.failCause(err.map(Some(_)))),
         _ => ZChannel.write(Exit.fail(None))
       )
 
