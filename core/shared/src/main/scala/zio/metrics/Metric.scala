@@ -321,7 +321,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
    */
   final def value(implicit trace: Trace): UIO[Out] =
     FiberRef.currentTags.getWith { tags =>
-      ZIO.succeed(unsafe.value(tags)(Unsafe.unsafe))
+      ZIO.succeedNow(unsafe.value(tags)(Unsafe.unsafe))
     }
 
   final def withNow[In2](implicit ev: (In2, java.time.Instant) <:< In): Metric[Type, In2, Out] =
