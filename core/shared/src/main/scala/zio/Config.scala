@@ -20,7 +20,7 @@ import scala.util.control.{NonFatal, NoStackTrace}
 /**
  * A [[zio.Config]] describes the structure of some configuration data.
  */
-private[zio] sealed trait Config[+A] { self =>
+sealed trait Config[+A] { self =>
 
   /**
    * Returns a new config that is the composition of this config and the
@@ -39,7 +39,7 @@ private[zio] sealed trait Config[+A] { self =>
   /**
    * Adds a description to this configuration, which is intended for humans.
    */
-  def ??(label: String): Config[A] = Config.Described(self, label)
+  def ??(label: => String): Config[A] = Config.defer(Config.Described(self, label))
 
   /**
    * Returns a new config whose structure is the same as this one, but which
@@ -71,7 +71,7 @@ private[zio] sealed trait Config[+A] { self =>
    * Returns a new config that has this configuration nested as a property of
    * the specified name.
    */
-  def nested(name: String): Config[A] = Config.Nested(name, self)
+  def nested(name: => String): Config[A] = Config.defer(Config.Nested(name, self))
 
   /**
    * Returns an optional version of this config, which will be `None` if the
@@ -82,7 +82,7 @@ private[zio] sealed trait Config[+A] { self =>
   /**
    * A named version of `||`.
    */
-  def orElse[A1 >: A](that: Config[A1]): Config[A1] = self || that
+  def orElse[A1 >: A](that: => Config[A1]): Config[A1] = self || that
 
   /**
    * Returns a new config that describes a sequence of values, each of which has
@@ -94,15 +94,50 @@ private[zio] sealed trait Config[+A] { self =>
    * Returns a new config that describes the same structure as this one, but
    * which performs validation during loading.
    */
-  def validate[A1 >: A](message: String)(f: A1 => Boolean): Config[A1] =
+  def validate[A1 >: A](message: => String)(f: A1 => Boolean): Config[A1] =
     self.mapOrFail(a => if (!f(a)) Left(Config.Error.InvalidData(Chunk.empty, message)) else Right(a))
+
+  /**
+   * Returns a new config that describes the same structure as this one, but has
+   * the specified default value in case the information cannot be found.
+   */
+  def withDefault[A1 >: A](default: => A1): Config[A1] =
+    self || Config.succeed(default)
 
   /**
    * A named version of `++`.
    */
   def zip[B](that: => Config[B])(implicit z: Zippable[A, B]): Config[z.Out] = self ++ that
 }
-private[zio] object Config {
+object Config {
+  final class Secret private (private val raw: Array[Char]) { self =>
+    override def equals(that: Any): Boolean =
+      that match {
+        case that: Secret => self.value == that.value
+        case _            => false
+      }
+
+    override def hashCode(): Int = value.hashCode
+
+    override def toString(): String = "Secret(<redacted>)"
+
+    object unsafe {
+      def wipe(implicit unsafe: Unsafe): Unit =
+        (0 until raw.length).foreach(i => raw(i) = 0)
+    }
+
+    def value: Chunk[Char] = Chunk.fromArray(raw)
+  }
+  object Secret extends (Chunk[Char] => Secret) {
+    def apply(chunk: Chunk[Char]): Secret = new Secret(chunk.toArray)
+
+    def apply(cs: CharSequence): Secret = Secret(cs.toString())
+
+    def apply(s: String): Secret = Secret(Chunk.fromArray(s.toCharArray))
+
+    def unapply(secret: Secret): Some[Chunk[Char]] = Some(secret.value)
+  }
+
   sealed trait Primitive[+A] extends Config[A] { self =>
     final def description: String =
       (self: Primitive[_]) match {
@@ -116,7 +151,7 @@ private[zio] object Config {
         case LocalDate      => "a local date property"
         case LocalTime      => "a local time property"
         case OffsetDateTime => "an offset date-time property"
-        case Secret         => "a secret property"
+        case SecretType     => "a secret property"
         case Text           => "a text property"
       }
 
@@ -197,9 +232,9 @@ private[zio] object Config {
         Left(Config.Error.InvalidData(Chunk.empty, s"Expected an offset date-time value, but found ${text}"))
     }
   }
-  case object Secret extends Primitive[zio.Secret] {
-    final def parse(text: String): Either[Config.Error, zio.Secret] = Right(
-      zio.Secret(Chunk.fromIterable(text.getBytes()))
+  case object SecretType extends Primitive[Secret] {
+    final def parse(text: String): Either[Config.Error, Secret] = Right(
+      Secret(text)
     )
   }
   final case class Sequence[A](config: Config[A])   extends Composite[Chunk[A]]
@@ -313,9 +348,9 @@ private[zio] object Config {
 
   def offsetDateTime(name: String): Config[java.time.OffsetDateTime] = offsetDateTime.nested(name)
 
-  def secret: Config[zio.Secret] = Secret
+  def secret: Config[Secret] = SecretType
 
-  def secret(name: String): Config[zio.Secret] = secret.nested(name)
+  def secret(name: String): Config[Secret] = secret.nested(name)
 
   def setOf[A](config: Config[A]): Config[Set[A]] = chunkOf(config).map(_.toSet)
 
