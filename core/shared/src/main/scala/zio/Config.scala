@@ -110,7 +110,7 @@ sealed trait Config[+A] { self =>
   def zip[B](that: => Config[B])(implicit z: Zippable[A, B]): Config[z.Out] = self ++ that
 }
 object Config {
-  sealed abstract case class Secret private (private val raw: Array[Char]) { self =>
+  final class Secret private (private val raw: Array[Char]) { self =>
     override def equals(that: Any): Boolean =
       that match {
         case that: Secret => self.value == that.value
@@ -129,7 +129,7 @@ object Config {
     def value: Chunk[Char] = Chunk.fromArray(raw)
   }
   object Secret extends (Chunk[Char] => Secret) {
-    def apply(chunk: Chunk[Char]): Secret = new Secret(chunk.toArray) {}
+    def apply(chunk: Chunk[Char]): Secret = new Secret(chunk.toArray)
 
     def apply(cs: CharSequence): Secret = Secret(cs.toString())
 
