@@ -31,10 +31,6 @@ object ConfigSpec extends ZIOBaseSpec {
           Secret("abc": CharSequence)
           assertCompletes
         } +
-        test("Iterable constructor") {
-          Secret("abc".toIndexedSeq)
-          assertCompletes
-        } +
         test("toString") {
           assertTrue(Secret("secret").toString() == "Secret(<redacted>)")
         } +
