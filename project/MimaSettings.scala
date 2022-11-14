@@ -15,7 +15,8 @@ object MimaSettings {
         exclude[Problem]("zio.internal.*"),
         exclude[FinalMethodProblem]("zio.ZIO#EvaluationStep#*"),
         exclude[MissingClassProblem]("zio.Secret$"),
-        exclude[MissingClassProblem]("zio.Secret")
+        exclude[MissingClassProblem]("zio.Secret"),
+        exclude[MissingClassProblem]("zio.Config.*")
       ),
       mimaFailOnProblem := failOnProblem
     )
