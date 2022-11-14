@@ -162,7 +162,6 @@ object RuntimeFlags {
    */
   val default: RuntimeFlags =
     RuntimeFlags(
-      RuntimeFlag.WorkStealing,
       RuntimeFlag.FiberRoots,
       RuntimeFlag.Interruption,
       RuntimeFlag.CooperativeYielding
