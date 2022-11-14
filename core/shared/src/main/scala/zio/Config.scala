@@ -39,7 +39,7 @@ sealed trait Config[+A] { self =>
   /**
    * Adds a description to this configuration, which is intended for humans.
    */
-  def ??(label: String): Config[A] = Config.Described(self, label)
+  def ??(label: => String): Config[A] = Config.defer(Config.Described(self, label))
 
   /**
    * Returns a new config whose structure is the same as this one, but which
@@ -71,7 +71,7 @@ sealed trait Config[+A] { self =>
    * Returns a new config that has this configuration nested as a property of
    * the specified name.
    */
-  def nested(name: String): Config[A] = Config.Nested(name, self)
+  def nested(name: => String): Config[A] = Config.defer(Config.Nested(name, self))
 
   /**
    * Returns an optional version of this config, which will be `None` if the
@@ -82,7 +82,7 @@ sealed trait Config[+A] { self =>
   /**
    * A named version of `||`.
    */
-  def orElse[A1 >: A](that: Config[A1]): Config[A1] = self || that
+  def orElse[A1 >: A](that: => Config[A1]): Config[A1] = self || that
 
   /**
    * Returns a new config that describes a sequence of values, each of which has
@@ -94,14 +94,14 @@ sealed trait Config[+A] { self =>
    * Returns a new config that describes the same structure as this one, but
    * which performs validation during loading.
    */
-  def validate[A1 >: A](message: String)(f: A1 => Boolean): Config[A1] =
+  def validate[A1 >: A](message: => String)(f: A1 => Boolean): Config[A1] =
     self.mapOrFail(a => if (!f(a)) Left(Config.Error.InvalidData(Chunk.empty, message)) else Right(a))
 
   /**
    * Returns a new config that describes the same structure as this one, but has
    * the specified default value in case the information cannot be found.
    */
-  def withDefault[A1 >: A](default: A1): Config[A1] =
+  def withDefault[A1 >: A](default: => A1): Config[A1] =
     self || Config.succeed(default)
 
   /**
