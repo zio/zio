@@ -133,7 +133,9 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
    * amount.
    */
   final def modify(in: => In)(implicit trace: Trace): UIO[Unit] =
-    ZIO.succeed(unsafe.modify(in, Set.empty)(Unsafe.unsafe))
+    FiberRef.currentTags.getWith { tags =>
+      ZIO.succeedNow(unsafe.modify(in, tags)(Unsafe.unsafe))
+    }
 
   /**
    * Returns a new metric, which is identical in every way to this one, except
@@ -310,13 +312,17 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
    * provided amount.
    */
   final def update(in: => In)(implicit trace: Trace): UIO[Unit] =
-    ZIO.succeed(unsafe.update(in, Set.empty)(Unsafe.unsafe))
+    FiberRef.currentTags.getWith { tags =>
+      ZIO.succeedNow(unsafe.update(in, tags)(Unsafe.unsafe))
+    }
 
   /**
    * Retrieves a snapshot of the value of the metric at this moment in time.
    */
   final def value(implicit trace: Trace): UIO[Out] =
-    ZIO.succeed(unsafe.value(Set.empty)(Unsafe.unsafe))
+    FiberRef.currentTags.getWith { tags =>
+      ZIO.succeedNow(unsafe.value(tags)(Unsafe.unsafe))
+    }
 
   final def withNow[In2](implicit ev: (In2, java.time.Instant) <:< In): Metric[Type, In2, Out] =
     contramap[In2](in2 => ev((in2, java.time.Instant.now())))

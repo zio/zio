@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.{FiberScope, IsFatal}
+import zio.metrics.MetricLabel
 
 /**
  * A `FiberRef` is ZIO's equivalent of Java's `ThreadLocal`. The value of a
@@ -337,6 +338,9 @@ object FiberRef {
 
   lazy val currentLogAnnotations: FiberRef[Map[String, String]] =
     FiberRef.unsafe.make[Map[String, String]](Map.empty)(Unsafe.unsafe)
+
+  lazy val currentTags: FiberRef.WithPatch[Set[MetricLabel], SetPatch[MetricLabel]] =
+    FiberRef.unsafe.makeSet(Set.empty)(Unsafe.unsafe)
 
   /**
    * Creates a new `FiberRef` with given initial value.

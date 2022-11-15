@@ -177,6 +177,15 @@ object ZIOAspect {
     }
 
   /**
+   * An aspect that tags each metric in this effect with the specified tags.
+   */
+  def tagged(tags: (String, String)*): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+        ZIO.tagged(tags.map { case (key, value) => MetricLabel(key, value) }.toSet)(zio)
+    }
+
+  /**
    * An aspect that times out effects.
    */
   def timeoutFail[E1](e: => E1)(d: Duration): ZIOAspect[Nothing, Any, E1, Any, Nothing, Any] =

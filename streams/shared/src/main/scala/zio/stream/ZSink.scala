@@ -17,6 +17,7 @@
 package zio.stream
 
 import zio._
+import zio.metrics.MetricLabel
 import zio.stream.internal.CharacterSet._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -1606,6 +1607,36 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def sum[A](implicit A: Numeric[A], trace: Trace): ZSink[Any, Nothing, A, Nothing, A] =
     foldLeft(A.zero)(A.plus)
+
+  /**
+   * Tags each metric in this sink with the specific tag.
+   */
+  def tagged[R, E, In, L, Z](key: => String, value: => String)(sink: ZSink[R, E, In, L, Z])(implicit
+    trace: Trace
+  ): ZSink[R, E, In, L, Z] =
+    tagged(Set(MetricLabel(key, value)))(sink)
+
+  /**
+   * Tags each metric in this sink with the specific tag.
+   */
+  def tagged[R, E, In, L, Z](tag: => MetricLabel, tags: MetricLabel*)(sink: ZSink[R, E, In, L, Z])(implicit
+    trace: Trace
+  ): ZSink[R, E, In, L, Z] =
+    tagged(Set(tag) ++ tags.toSet)(sink)
+
+  /**
+   * Tags each metric in this sink with the specific tag.
+   */
+  def tagged[R, E, In, L, Z](tags: => Set[MetricLabel])(sink: ZSink[R, E, In, L, Z])(implicit
+    trace: Trace
+  ): ZSink[R, E, In, L, Z] =
+    ZSink.unwrapScoped(ZIO.taggedScoped(tags).as(sink))
+
+  /**
+   * Retrieves the metric tags associated with the current scope.
+   */
+  def tags(implicit trace: Trace): ZSink[Any, Nothing, Any, Nothing, Set[MetricLabel]] =
+    ZSink.fromZIO(ZIO.tags)
 
   /**
    * A sink that takes the specified number of values.

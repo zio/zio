@@ -85,4 +85,13 @@ object ZStreamAspect {
       def apply[R, E, A](stream: ZStream[R, E, A])(implicit trace: Trace): ZStream[R, E, A] =
         stream.rechunk(n)
     }
+
+  /**
+   * An aspect that tags each metric in this stream with the specified tag.
+   */
+  def tagged(key: String, value: String): ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](stream: ZStream[R, E, A])(implicit trace: Trace): ZStream[R, E, A] =
+        ZStream.tagged(key, value) *> stream
+    }
 }

@@ -1,5 +1,6 @@
 package zio
 
+import zio.ZIOAspect._
 import zio.metrics._
 import zio.metrics.MetricKeyType.Histogram
 import zio.test._
@@ -387,6 +388,13 @@ object MetricSpec extends ZIOBaseSpec {
           r2.occurrences.toSet == Set("world" -> 1L)
         )
       }
-    )
+    ),
+    test("tags are a region setting") {
+      val counter = Metric.counter("counter")
+      for {
+        _     <- counter.increment @@ tagged("key" -> "value")
+        state <- counter.tagged(MetricLabel("key", "value")).value
+      } yield assertTrue(state == MetricState.Counter(1L))
+    }
   )
 }

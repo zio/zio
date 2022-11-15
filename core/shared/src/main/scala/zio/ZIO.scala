@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.{FiberScope, Platform}
+import zio.metrics.MetricLabel
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
@@ -4471,6 +4472,39 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     GenerateStackTrace(trace)
 
   /**
+   * Tags each metric in this effect with the specific tag.
+   */
+  def tagged(key: => String, value: => String): Tagged =
+    tagged(Set(MetricLabel(key, value)))
+
+  /**
+   * Tags each metric in this effect with the specific tag.
+   */
+  def tagged(tag: => MetricLabel, tags: MetricLabel*): Tagged =
+    tagged(Set(tag) ++ tags.toSet)
+
+  /**
+   * Tags each metric in this effect with the specific tag.
+   */
+  def tagged(tags: => Set[MetricLabel]): Tagged =
+    new Tagged(() => tags)
+
+  def taggedScoped(key: => String, value: => String)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+    taggedScoped(Set(MetricLabel(key, value)))
+
+  def taggedScoped(tag: => MetricLabel, tags: MetricLabel*)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+    taggedScoped(Set(tag) ++ tags.toSet)
+
+  def taggedScoped(tags: => Set[MetricLabel])(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+    FiberRef.currentTags.locallyScopedWith(_ ++ tags)
+
+  /**
+   * Retrieves the metric tags associated with the current scope.
+   */
+  def tags(implicit trace: Trace): ZIO[Any, Nothing, Set[MetricLabel]] =
+    FiberRef.currentTags.get
+
+  /**
    * Transplants specified effects so that when those effects fork other
    * effects, the forked effects will be governed by the scope of the fiber that
    * executes this effect.
@@ -5106,6 +5140,11 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       FiberRef.currentLogAnnotations.locallyWith(_ ++ annotations().map { case LogAnnotation(key, value) =>
         key -> value
       })(zio)
+  }
+
+  final class Tagged(val tags: () => Set[MetricLabel]) { self =>
+    def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+      FiberRef.currentTags.locallyWith(_ ++ tags())(zio)
   }
 
   @inline
