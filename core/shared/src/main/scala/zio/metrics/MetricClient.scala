@@ -19,7 +19,6 @@ package zio.metrics
 import zio.Unsafe
 import zio.internal.metrics._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.UIO
 
 /**
  * A `MetricClient` provides the functionality to consume metrics produced by
@@ -44,5 +43,11 @@ private[zio] object MetricClient {
    */
   final def snapshot()(implicit unsafe: Unsafe): Set[MetricPair.Untyped] =
     metricRegistry.snapshot()
+
+  final def addListener(keyType: MetricKeyType, listener: MetricListener): Unit =
+    metricRegistry.addListener(keyType, listener)
+
+  final def removeListener(listener: MetricListener): Unit =
+    metricRegistry.removeListener(listener)
 
 }
