@@ -44,7 +44,7 @@ private[zio] class ConcurrentMetricRegistry {
     } else hook0.asInstanceOf[Result]
   }
 
-  def addListener(keyType: MetricKeyType)(listener: MetricListener): Unit =
+  def addListener(keyType: MetricKeyType, listener: MetricListener): Unit =
     listeners.compute(
       keyType,
       { case (_, listeners) =>
@@ -60,25 +60,33 @@ private[zio] class ConcurrentMetricRegistry {
       listeners.computeIfPresent(metricKeyType, { case (a, b) => b - listener })
     }
 
-  def update[T](key: MetricKey[MetricKeyType.WithIn[T]], value: T)(implicit trace: Trace, unsafe: Unsafe): Unit = {
-    val listenersForKey = listeners.get(key.keyType)
-    if (listenersForKey.nonEmpty) {
-      val iterator = listenersForKey.iterator
-      val updateNext = () =>
+  private[zio] def notifyListeners[T](key: MetricKey[MetricKeyType.WithIn[T]], value: T)(implicit trace: Trace, unsafe: Unsafe): Unit = {
+    if (!listeners.isEmpty) {
+      val listenersForKey = listeners.get(key.keyType)
+      if (listenersForKey.nonEmpty) {
+        val iterator = listenersForKey.iterator
         key.keyType match {
           case MetricKeyType.Gauge =>
-            iterator.next().updateGauge(key.asInstanceOf[MetricKey.Gauge], value)
+            while (iterator.hasNext) {
+              iterator.next().updateGauge(key.asInstanceOf[MetricKey.Gauge], value)
+            }
           case MetricKeyType.Histogram(boundaries) =>
-            iterator.next().updateHistogram(key.asInstanceOf[MetricKey.Histogram], value)
+            while (iterator.hasNext) {
+              iterator.next().updateHistogram(key.asInstanceOf[MetricKey.Histogram], value)
+            }
           case MetricKeyType.Frequency =>
-            iterator.next().updateFrequency(key.asInstanceOf[MetricKey.Frequency], value)
+            while (iterator.hasNext) {
+              iterator.next().updateFrequency(key.asInstanceOf[MetricKey.Frequency], value)
+            }
           case MetricKeyType.Summary(maxAge, maxSize, error, quantiles) =>
-            iterator.next().updateSummary(key.asInstanceOf[MetricKey.Summary], value._1, value._2)
+            while (iterator.hasNext) {
+              iterator.next().updateSummary(key.asInstanceOf[MetricKey.Summary], value._1, value._2)
+            }
           case MetricKeyType.Counter =>
-            iterator.next().updateCounter(key.asInstanceOf[MetricKey.Counter], value)
+            while (iterator.hasNext) {
+              iterator.next().updateCounter(key.asInstanceOf[MetricKey.Counter], value)
+            }
         }
-      while (iterator.hasNext) {
-        updateNext()
       }
     }
   }

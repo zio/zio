@@ -439,7 +439,7 @@ object Metric {
           ): Unit = {
             val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
             hook(fullKey).update(in)
-            metricRegistry.update(fullKey, in)
+            metricRegistry.notifyListeners(fullKey, in)
           }
 
           def value(extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): key.keyType.Out = {
