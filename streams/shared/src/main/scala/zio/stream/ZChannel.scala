@@ -2037,19 +2037,17 @@ object ZChannel {
     def apply[E, A](
       zio: => ZIO[Scope with R, E, A]
     )(implicit trace: Trace): ZChannel[R, Any, Any, Any, E, A, Any] =
-      acquireReleaseOutExitWith(
-        Scope.make.flatMap { scope =>
-          ZIO.uninterruptibleMask { restore =>
-            restore(scope.extend[R](zio))
-              .foldCauseZIO(
-                cause => scope.close(Exit.failCause(cause)) *> ZIO.refailCause(cause),
-                { case out => ZIO.succeedNow((out, scope)) }
-              )
+      ZChannel.unwrap {
+        ZIO.uninterruptibleMask { restore =>
+          Scope.make.map { scope =>
+            acquireReleaseOutExitWith {
+              restore(scope.extend[R](zio)).tapErrorCause(cause => scope.close(Exit.failCause(cause)))
+            } { (_, exit) =>
+              scope.close(exit)
+            }
           }
         }
-      ) { case ((_, scope), exit) =>
-        scope.close(exit)
-      }.mapOut(_._1)
+      }
   }
 
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
