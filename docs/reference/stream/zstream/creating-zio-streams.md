@@ -39,7 +39,13 @@ val unit: ZStream[Any, Nothing, Unit] = ZStream.unit
 val never: ZStream[Any, Nothing, Nothing] = ZStream.never
 ```
 
-**ZStream.repeat** — Takes an initial value and applies the given function to the initial value iteratively. The initial value is the first value produced by the stream, followed by f(init), f(f(init)), ...
+**ZStream.repeat** — A stream that repeats using the specified schedule:
+```scala mdoc:silent:nest
+val repeat: ZStream[Any, Nothing, Int] = 
+  ZStream(1).repeat(Schedule.forever)
+```
+
+**ZStream.iterate** — Takes an initial value and applies the given function to the initial value iteratively. The initial value is the first value produced by the stream, followed by f(init), f(f(init)), ...
 
 ```scala mdoc:silent:nest
 val nats: ZStream[Any, Nothing, Int] = 
