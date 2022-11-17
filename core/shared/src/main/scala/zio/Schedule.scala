@@ -673,8 +673,10 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
               val newStart = now.plusNanos(duration.toNanos)
               val delta    = java.time.Duration.between(oldStart, newStart)
               val newEnd =
-                try { interval.end.plus(delta) }
-                catch { case _: java.time.DateTimeException => OffsetDateTime.MAX }
+                if (interval.end == OffsetDateTime.MAX) OffsetDateTime.MAX
+                else
+                  try { interval.end.plus(delta) }
+                  catch { case _: java.time.DateTimeException => OffsetDateTime.MAX }
 
               val newInterval = Interval(newStart, newEnd)
 

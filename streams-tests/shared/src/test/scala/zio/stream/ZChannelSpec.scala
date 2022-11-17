@@ -787,6 +787,36 @@ object ZChannelSpec extends ZIOBaseSpec {
           _ <- finished.await // Note: interruption in race is now done in the background
           exit <- ref.get
         } yield assertTrue(exit.isInterrupted)
+      },
+      test("acquireReleaseOutWith acquire is executed uninterruptibly") {
+        for {
+          ref    <- Ref.make(0)
+          acquire = ref.update(_ + 1) *> ZIO.yieldNow
+          release = ref.update(_ - 1)
+          _ <- ZChannel
+                 .acquireReleaseOutWith(acquire)(_ => release)
+                 .as(ZChannel.never)
+                 .runDrain
+                 .fork
+                 .flatMap(fiber => ZIO.yieldNow *> fiber.interrupt)
+                 .repeatN(100000)
+          value <- ref.get
+        } yield assertTrue(value == 0)
+      },
+      test("scoped closes the scope") {
+        for {
+          ref    <- Ref.make(0)
+          acquire = ref.update(_ + 1) *> ZIO.yieldNow
+          release = ref.update(_ - 1)
+          scoped  = ZIO.acquireRelease(acquire)(_ => release)
+          _ <- ZChannel
+                 .unwrapScoped(scoped.as(ZChannel.never))
+                 .runDrain
+                 .fork
+                 .flatMap(fiber => ZIO.yieldNow *> fiber.interrupt)
+                 .repeatN(100000)
+          value <- ref.get
+        } yield assertTrue(value == 0)
       }
     )
   )
