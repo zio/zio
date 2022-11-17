@@ -12,11 +12,12 @@ import java.time.Instant
 
 object MetricListenerSpec extends ZIOBaseSpec {
 
-  case class HistogramListener(queue: Queue[(MetricKey[MetricKeyType.Histogram], Double)]) extends MetricListener {
+  case class HistogramListener(queue: Queue[(MetricKey[MetricKeyType.Histogram], Double)], runtime: Runtime[Any])
+      extends MetricListener {
     override def updateHistogram(key: MetricKey[MetricKeyType.Histogram], value: Double)(implicit
       unsafe: Unsafe
     ): Unit = {
-      val _ = Runtime.default.unsafe.run(queue.offer((key, value)))
+      val _ = runtime.unsafe.run(queue.offer((key, value)))
     }
 
     override def updateGauge(key: MetricKey[Gauge], value: Double)(implicit unsafe: Unsafe): Unit = ()
@@ -35,7 +36,8 @@ object MetricListenerSpec extends ZIOBaseSpec {
       test("listeners get notified") {
         for {
           listenerQueue <- Queue.bounded[(MetricKey[MetricKeyType.Histogram], Double)](1)
-          listener       = HistogramListener(listenerQueue)
+          runtime       <- ZIO.runtime[Any]
+          listener       = HistogramListener(listenerQueue, runtime)
           _              = MetricClient.addListener(listener)
           metric         = Metric.histogram("test", Boundaries(Chunk.empty))
           _             <- ZIO.succeed(3.3) @@ metric
