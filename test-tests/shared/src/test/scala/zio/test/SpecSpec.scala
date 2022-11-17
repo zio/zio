@@ -168,6 +168,34 @@ object SpecSpec extends ZIOBaseSpec {
             )
           ).provideLayerShared(ZLayer.scoped[Any](ZIO.acquireRelease(Ref.make(0))(_.set(-1))))
         assertZIO(succeeded(spec))(isTrue)
+      },
+      test("dependencies of shared service are scoped to lifetime of suite") {
+        trait Service {
+          def open: UIO[Boolean]
+        }
+        object Service {
+          val open: ZIO[Service, Nothing, Boolean] =
+            ZIO.serviceWithZIO(_.open)
+        }
+        val layer =
+          ZLayer {
+            for {
+              ref <- Ref.make(true)
+              _   <- ZIO.addFinalizer(ref.set(false))
+            } yield new Service {
+              def open: UIO[Boolean] =
+                ref.get
+            }
+          }
+        val spec = suite("suite")(
+          test("test1") {
+            assertZIO(Service.open)(isTrue)
+          },
+          test("test2") {
+            assertZIO(Service.open)(isTrue)
+          }
+        ).provideSomeLayerShared[Scope](layer).provideLayer(Scope.default) @@ sequential
+        assertZIO(succeeded(spec))(isTrue)
       }
     ),
     suite("iterable constructor") {
