@@ -34,17 +34,33 @@ object MetricListenerSpec extends ZIOBaseSpec {
   override def spec: Spec[Environment, Any] =
     suite("MetricListenerSpec")(
       test("listeners get notified") {
+        ZIO.scoped(
+          for {
+            listenerQueue <- Queue.bounded[(MetricKey[MetricKeyType.Histogram], Double)](1)
+            runtime       <- ZIO.runtime[Any]
+            listener       = HistogramListener(listenerQueue, runtime)
+            _ <- ZIO.acquireRelease(ZIO.succeed(MetricClient.addListener(listener)))(_ =>
+                   ZIO.succeed(MetricClient.removeListener(listener))
+                 )
+            metric       = Metric.histogram("test", Boundaries(Chunk.empty))
+            _           <- ZIO.succeed(3.3) @@ metric
+            event       <- listenerQueue.take
+            (key, value) = event
+          } yield assert(key.name)(equalTo("test")) && assert(value)(equalTo(3.3))
+        )
+      } @@ timeout(1.second),
+      test("can remove listeners") {
         for {
           listenerQueue <- Queue.bounded[(MetricKey[MetricKeyType.Histogram], Double)](1)
           runtime       <- ZIO.runtime[Any]
           listener       = HistogramListener(listenerQueue, runtime)
           _              = MetricClient.addListener(listener)
+          _              = MetricClient.removeListener(listener)
           metric         = Metric.histogram("test", Boundaries(Chunk.empty))
           _             <- ZIO.succeed(3.3) @@ metric
-          event         <- listenerQueue.take
-          (key, value)   = event
-        } yield assert(key.name)(equalTo("test")) && assert(value)(equalTo(3.3))
-      } @@ timeout(1.second)
+          isEmpty       <- listenerQueue.isEmpty
+        } yield assert(isEmpty)(isTrue)
+      }
     )
 
 }
