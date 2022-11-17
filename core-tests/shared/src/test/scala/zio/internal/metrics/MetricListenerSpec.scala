@@ -4,7 +4,6 @@ import zio.metrics.MetricKeyType.Histogram.Boundaries
 import zio.metrics.MetricKeyType.{Counter, Frequency, Gauge}
 import zio.metrics._
 import zio.test.Assertion._
-import zio.test.TestAspect.timeout
 import zio.test.{Spec, _}
 import zio.{ZIOBaseSpec, _}
 
