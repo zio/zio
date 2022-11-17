@@ -44,8 +44,8 @@ private[zio] object MetricClient {
   final def snapshot()(implicit unsafe: Unsafe): Set[MetricPair.Untyped] =
     metricRegistry.snapshot()
 
-  final def addListener(keyType: MetricKeyType, listener: MetricListener): Unit =
-    metricRegistry.addListener(keyType, listener)
+  final def addListener(listener: MetricListener): Unit =
+    metricRegistry.addListener(listener)
 
   final def removeListener(listener: MetricListener): Unit =
     metricRegistry.removeListener(listener)

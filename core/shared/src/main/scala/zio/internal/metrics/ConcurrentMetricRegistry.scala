@@ -2,14 +2,15 @@ package zio.internal.metrics
 
 import zio._
 import zio.metrics._
-import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicReference
+import scala.annotation.tailrec
 
 private[zio] class ConcurrentMetricRegistry {
-  private val listeners: ConcurrentHashMap[MetricKeyType, Set[MetricListener]] =
-    new ConcurrentHashMap[MetricKeyType, Set[MetricListener]]()
+
+  private val listeners: AtomicReference[Array[MetricListener]] =
+    new AtomicReference[Array[MetricListener]](Array.empty[MetricListener])
 
   private val map: ConcurrentHashMap[MetricKey[MetricKeyType], MetricHook.Root] =
     new ConcurrentHashMap[MetricKey[MetricKeyType], MetricHook.Root]()
@@ -44,49 +45,57 @@ private[zio] class ConcurrentMetricRegistry {
     } else hook0.asInstanceOf[Result]
   }
 
-  def addListener(keyType: MetricKeyType, listener: MetricListener): Unit =
-    listeners.compute(
-      keyType,
-      { case (_, listeners) =>
-        listeners match {
-          case null      => Set(listener)
-          case listeners => listeners + listener
-        }
-      }
-    )
+  @tailrec
+  final def addListener(listener: MetricListener): Unit = {
+    val oldListeners = listeners.get()
+    val newListeners = oldListeners :+ listener
+    if (!listeners.compareAndSet(oldListeners, newListeners)) addListener(listener)
+    else ()
+  }
 
-  def removeListener(listener: MetricListener): Unit =
-    listeners.keySet().forEach { metricKeyType =>
-      listeners.computeIfPresent(metricKeyType, { case (a, b) => b - listener })
-    }
+  @tailrec
+  final def removeListener(listener: MetricListener): Unit = {
+    val oldListeners = listeners.get()
+    val newListeners = oldListeners.filter(_ ne listener)
+    if (!listeners.compareAndSet(oldListeners, newListeners)) removeListener(listener)
+    else ()
+  }
 
-  private[zio] def notifyListeners[T](key: MetricKey[MetricKeyType.WithIn[T]], value: T)(implicit trace: Trace, unsafe: Unsafe): Unit = {
-    if (!listeners.isEmpty) {
-      val listenersForKey = listeners.get(key.keyType)
-      if (listenersForKey.nonEmpty) {
-        val iterator = listenersForKey.iterator
-        key.keyType match {
-          case MetricKeyType.Gauge =>
-            while (iterator.hasNext) {
-              iterator.next().updateGauge(key.asInstanceOf[MetricKey.Gauge], value)
-            }
-          case MetricKeyType.Histogram(boundaries) =>
-            while (iterator.hasNext) {
-              iterator.next().updateHistogram(key.asInstanceOf[MetricKey.Histogram], value)
-            }
-          case MetricKeyType.Frequency =>
-            while (iterator.hasNext) {
-              iterator.next().updateFrequency(key.asInstanceOf[MetricKey.Frequency], value)
-            }
-          case MetricKeyType.Summary(maxAge, maxSize, error, quantiles) =>
-            while (iterator.hasNext) {
-              iterator.next().updateSummary(key.asInstanceOf[MetricKey.Summary], value._1, value._2)
-            }
-          case MetricKeyType.Counter =>
-            while (iterator.hasNext) {
-              iterator.next().updateCounter(key.asInstanceOf[MetricKey.Counter], value)
-            }
-        }
+  private[zio] def notifyListeners[T](key: MetricKey[MetricKeyType.WithIn[T]], value: T)(implicit
+    trace: Trace,
+    unsafe: Unsafe
+  ): Unit = {
+    val listeners2 = listeners.get()
+    val len        = listeners2.length
+
+    if (len > 0) {
+      var i = 0
+      key.keyType match {
+        case MetricKeyType.Gauge =>
+          while (i < len) {
+            listeners2(i).updateGauge(key.asInstanceOf[MetricKey.Gauge], value)
+            i = i + 1
+          }
+        case MetricKeyType.Histogram(_) =>
+          while (i < len) {
+            listeners2(i).updateHistogram(key.asInstanceOf[MetricKey.Histogram], value)
+            i = i + 1
+          }
+        case MetricKeyType.Frequency =>
+          while (i < len) {
+            listeners2(i).updateFrequency(key.asInstanceOf[MetricKey.Frequency], value)
+            i = i + 1
+          }
+        case MetricKeyType.Summary(_, _, _, _) =>
+          while (i < len) {
+            listeners2(i).updateSummary(key.asInstanceOf[MetricKey.Summary], value._1, value._2)
+            i = i + 1
+          }
+        case MetricKeyType.Counter =>
+          while (i < len) {
+            listeners2(i).updateCounter(key.asInstanceOf[MetricKey.Counter], value)
+            i = i + 1
+          }
       }
     }
   }
