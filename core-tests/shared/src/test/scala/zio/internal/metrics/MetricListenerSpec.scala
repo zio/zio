@@ -48,7 +48,7 @@ object MetricListenerSpec extends ZIOBaseSpec {
             (key, value) = event
           } yield assert(key.name)(equalTo("test")) && assert(value)(equalTo(3.3))
         )
-      } @@ timeout(1.second),
+      },
       test("can remove listeners") {
         for {
           listenerQueue <- Queue.bounded[(MetricKey[MetricKeyType.Histogram], Double)](1)
