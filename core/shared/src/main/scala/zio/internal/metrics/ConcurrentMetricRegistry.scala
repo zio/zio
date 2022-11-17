@@ -66,7 +66,7 @@ private[zio] class ConcurrentMetricRegistry {
     unsafe: Unsafe
   ): Unit = {
     val listeners = listenersRef.get()
-    val len        = listeners.length
+    val len       = listeners.length
 
     if (len > 0) {
       var i = 0

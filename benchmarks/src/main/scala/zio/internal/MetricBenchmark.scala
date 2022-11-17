@@ -20,33 +20,34 @@ class MetricBenchmark {
   var registerListener: String = _
 
   @Setup
-  def setup(): Unit = {
+  def setup(): Unit =
     if (registerListener == "true") {
       MetricClient.addListener(listener)
     }
-  }
 
   @TearDown
-  def tearDown(): Unit = {
+  def tearDown(): Unit =
     MetricClient.removeListener(listener)
-  }
 
   private val metric = Metric.counter("Test counter")
 
   private val listener = new MetricListener {
-    override def updateHistogram(key: MetricKey[MetricKeyType.Histogram], value: Double)(implicit unsafe: Unsafe): Unit = ()
+    override def updateHistogram(key: MetricKey[MetricKeyType.Histogram], value: Double)(implicit
+      unsafe: Unsafe
+    ): Unit = ()
 
     override def updateGauge(key: MetricKey[MetricKeyType.Gauge], value: Double)(implicit unsafe: Unsafe): Unit = ()
 
     override def updateFrequency(key: MetricKey[Frequency], value: String)(implicit unsafe: Unsafe): Unit = ()
 
-    override def updateSummary(key: MetricKey[MetricKeyType.Summary], value: Double, instant: Instant)(implicit unsafe: Unsafe): Unit = ()
+    override def updateSummary(key: MetricKey[MetricKeyType.Summary], value: Double, instant: Instant)(implicit
+      unsafe: Unsafe
+    ): Unit = ()
 
     override def updateCounter(key: MetricKey[MetricKeyType.Counter], value: Double)(implicit unsafe: Unsafe): Unit = ()
   }
 
   @Benchmark
-  def updateMetric(): Unit = {
+  def updateMetric(): Unit =
     metric.unsafe.update(3L)(Unsafe.unsafe)
-  }
 }
