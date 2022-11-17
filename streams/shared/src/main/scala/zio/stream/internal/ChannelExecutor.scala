@@ -401,8 +401,8 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
     bracketOut: ZChannel.BracketOut[Env, Any, Any]
   )(implicit trace: Trace): ChannelState.Effect[Env, Any] =
     ChannelState.Effect {
-      ZIO.uninterruptibleMask { restore =>
-        restore(provide(bracketOut.acquire())).foldCauseZIO(
+      ZIO.uninterruptible {
+        provide(bracketOut.acquire()).foldCauseZIO(
           cause => ZIO.succeed { currentChannel = ZChannel.failCause(cause) },
           out =>
             ZIO.succeed {
