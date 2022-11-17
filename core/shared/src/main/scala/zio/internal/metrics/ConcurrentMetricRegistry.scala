@@ -9,7 +9,7 @@ import scala.annotation.tailrec
 
 private[zio] class ConcurrentMetricRegistry {
 
-  private val listeners: AtomicReference[Array[MetricListener]] =
+  private val listenersRef: AtomicReference[Array[MetricListener]] =
     new AtomicReference[Array[MetricListener]](Array.empty[MetricListener])
 
   private val map: ConcurrentHashMap[MetricKey[MetricKeyType], MetricHook.Root] =
@@ -47,17 +47,17 @@ private[zio] class ConcurrentMetricRegistry {
 
   @tailrec
   final def addListener(listener: MetricListener): Unit = {
-    val oldListeners = listeners.get()
+    val oldListeners = listenersRef.get()
     val newListeners = oldListeners :+ listener
-    if (!listeners.compareAndSet(oldListeners, newListeners)) addListener(listener)
+    if (!listenersRef.compareAndSet(oldListeners, newListeners)) addListener(listener)
     else ()
   }
 
   @tailrec
   final def removeListener(listener: MetricListener): Unit = {
-    val oldListeners = listeners.get()
+    val oldListeners = listenersRef.get()
     val newListeners = oldListeners.filter(_ ne listener)
-    if (!listeners.compareAndSet(oldListeners, newListeners)) removeListener(listener)
+    if (!listenersRef.compareAndSet(oldListeners, newListeners)) removeListener(listener)
     else ()
   }
 
@@ -65,35 +65,35 @@ private[zio] class ConcurrentMetricRegistry {
     trace: Trace,
     unsafe: Unsafe
   ): Unit = {
-    val listeners2 = listeners.get()
-    val len        = listeners2.length
+    val listeners = listenersRef.get()
+    val len        = listeners.length
 
     if (len > 0) {
       var i = 0
       key.keyType match {
         case MetricKeyType.Gauge =>
           while (i < len) {
-            listeners2(i).updateGauge(key.asInstanceOf[MetricKey.Gauge], value)
+            listeners(i).updateGauge(key.asInstanceOf[MetricKey.Gauge], value)
             i = i + 1
           }
         case MetricKeyType.Histogram(_) =>
           while (i < len) {
-            listeners2(i).updateHistogram(key.asInstanceOf[MetricKey.Histogram], value)
+            listeners(i).updateHistogram(key.asInstanceOf[MetricKey.Histogram], value)
             i = i + 1
           }
         case MetricKeyType.Frequency =>
           while (i < len) {
-            listeners2(i).updateFrequency(key.asInstanceOf[MetricKey.Frequency], value)
+            listeners(i).updateFrequency(key.asInstanceOf[MetricKey.Frequency], value)
             i = i + 1
           }
         case MetricKeyType.Summary(_, _, _, _) =>
           while (i < len) {
-            listeners2(i).updateSummary(key.asInstanceOf[MetricKey.Summary], value._1, value._2)
+            listeners(i).updateSummary(key.asInstanceOf[MetricKey.Summary], value._1, value._2)
             i = i + 1
           }
         case MetricKeyType.Counter =>
           while (i < len) {
-            listeners2(i).updateCounter(key.asInstanceOf[MetricKey.Counter], value)
+            listeners(i).updateCounter(key.asInstanceOf[MetricKey.Counter], value)
             i = i + 1
           }
       }
