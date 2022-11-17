@@ -22,12 +22,12 @@ class MetricBenchmark {
   @Setup
   def setup(): Unit =
     if (registerListener == "true") {
-      MetricClient.addListener(listener)
+      MetricClient.addListener(listener)(Unsafe.unsafe)
     }
 
   @TearDown
   def tearDown(): Unit =
-    MetricClient.removeListener(listener)
+    MetricClient.removeListener(listener)(Unsafe.unsafe)
 
   private val metric = Metric.counter("Test counter")
 
