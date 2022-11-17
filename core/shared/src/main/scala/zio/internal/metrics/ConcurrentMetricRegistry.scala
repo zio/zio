@@ -47,7 +47,7 @@ private[zio] class ConcurrentMetricRegistry {
   }
 
   @tailrec
-  final def addListener(listener: MetricListener): Unit = {
+  final def addListener(listener: MetricListener)(implicit unsafe: Unsafe): Unit = {
     val oldListeners = listenersRef.get()
     val newListeners = oldListeners :+ listener
     if (!listenersRef.compareAndSet(oldListeners, newListeners)) addListener(listener)
@@ -55,7 +55,7 @@ private[zio] class ConcurrentMetricRegistry {
   }
 
   @tailrec
-  final def removeListener(listener: MetricListener): Unit = {
+  final def removeListener(listener: MetricListener)(implicit unsafe: Unsafe): Unit = {
     val oldListeners = listenersRef.get()
     val newListeners = oldListeners.filter(_ ne listener)
     if (!listenersRef.compareAndSet(oldListeners, newListeners)) removeListener(listener)
