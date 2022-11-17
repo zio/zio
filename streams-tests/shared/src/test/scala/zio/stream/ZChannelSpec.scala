@@ -4,7 +4,7 @@ import zio._
 import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 import zio.test._
 import zio.test.Assertion._
-import zio.test.TestAspect.timeout
+import zio.test.TestAspect.{jvmOnly, timeout}
 
 object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
@@ -802,7 +802,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                  .repeatN(100000)
           value <- ref.get
         } yield assertTrue(value == 0)
-      },
+      } @@ jvmOnly,
       test("scoped closes the scope") {
         for {
           ref    <- Ref.make(0)
