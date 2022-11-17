@@ -11,12 +11,14 @@ import java.time.Instant
 
 object MetricListenerSpec extends ZIOBaseSpec {
 
-  case class HistogramListener(queue: Queue[(MetricKey[MetricKeyType.Histogram], Double)], runtime: Runtime[Any])
-      extends MetricListener {
+  case class HistogramListener(
+    promise: Promise[Nothing, (MetricKey[MetricKeyType.Histogram], Double)],
+    runtime: Runtime[Any]
+  ) extends MetricListener {
     override def updateHistogram(key: MetricKey[MetricKeyType.Histogram], value: Double)(implicit
       unsafe: Unsafe
     ): Unit = {
-      val _ = runtime.unsafe.run(queue.offer((key, value)))
+      val _ = runtime.unsafe.run(promise.succeed((key, value)))
     }
 
     override def updateGauge(key: MetricKey[Gauge], value: Double)(implicit unsafe: Unsafe): Unit = ()
@@ -36,15 +38,15 @@ object MetricListenerSpec extends ZIOBaseSpec {
         Unsafe.unsafe { implicit unsafe =>
           ZIO.scoped(
             for {
-              listenerQueue <- Queue.bounded[(MetricKey[MetricKeyType.Histogram], Double)](1)
-              runtime       <- ZIO.runtime[Any]
-              listener       = HistogramListener(listenerQueue, runtime)
+              listenerPromise <- Promise.make[Nothing, (MetricKey[MetricKeyType.Histogram], Double)]
+              runtime         <- ZIO.runtime[Any]
+              listener         = HistogramListener(listenerPromise, runtime)
               _ <- ZIO.acquireRelease(ZIO.succeed(MetricClient.addListener(listener)))(_ =>
                      ZIO.succeed(MetricClient.removeListener(listener))
                    )
               metric       = Metric.histogram("test", Boundaries(Chunk.empty))
               _           <- ZIO.succeed(3.3) @@ metric
-              event       <- listenerQueue.take
+              event       <- listenerPromise.await
               (key, value) = event
             } yield assert(key.name)(equalTo("test")) && assert(value)(equalTo(3.3))
           )
@@ -53,17 +55,17 @@ object MetricListenerSpec extends ZIOBaseSpec {
       test("can remove listeners") {
         Unsafe.unsafe { implicit unsafe =>
           for {
-            listenerQueue <- Queue.bounded[(MetricKey[MetricKeyType.Histogram], Double)](1)
-            runtime       <- ZIO.runtime[Any]
-            listener       = HistogramListener(listenerQueue, runtime)
-            _              = MetricClient.addListener(listener)
-            _              = MetricClient.removeListener(listener)
-            metric         = Metric.histogram("test", Boundaries(Chunk.empty))
-            _             <- ZIO.succeed(3.3) @@ metric
-            isEmpty       <- listenerQueue.isEmpty
-          } yield assert(isEmpty)(isTrue)
+            listenerPromise <- Promise.make[Nothing, (MetricKey[MetricKeyType.Histogram], Double)]
+            runtime         <- ZIO.runtime[Any]
+            listener         = HistogramListener(listenerPromise, runtime)
+            _                = MetricClient.addListener(listener)
+            _                = MetricClient.removeListener(listener)
+            metric           = Metric.histogram("test", Boundaries(Chunk.empty))
+            _               <- ZIO.succeed(3.3) @@ metric
+            isDone          <- listenerPromise.isDone
+          } yield assert(isDone)(isFalse)
         }
       }
-    )
+    ) @@ TestAspect.sequential
 
 }
