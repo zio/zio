@@ -3,6 +3,7 @@ package zio.internal.metrics
 import zio._
 import zio.metrics._
 
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
@@ -73,27 +74,28 @@ private[zio] class ConcurrentMetricRegistry {
       key.keyType match {
         case MetricKeyType.Gauge =>
           while (i < len) {
-            listeners(i).updateGauge(key.asInstanceOf[MetricKey.Gauge], value)
+            listeners(i).updateGauge(key.asInstanceOf[MetricKey.Gauge], value.asInstanceOf[Double])
             i = i + 1
           }
         case MetricKeyType.Histogram(_) =>
           while (i < len) {
-            listeners(i).updateHistogram(key.asInstanceOf[MetricKey.Histogram], value)
+            listeners(i).updateHistogram(key.asInstanceOf[MetricKey.Histogram], value.asInstanceOf[Double])
             i = i + 1
           }
         case MetricKeyType.Frequency =>
           while (i < len) {
-            listeners(i).updateFrequency(key.asInstanceOf[MetricKey.Frequency], value)
+            listeners(i).updateFrequency(key.asInstanceOf[MetricKey.Frequency], value.asInstanceOf[String])
             i = i + 1
           }
         case MetricKeyType.Summary(_, _, _, _) =>
           while (i < len) {
-            listeners(i).updateSummary(key.asInstanceOf[MetricKey.Summary], value._1, value._2)
+            val (v, instant) = value.asInstanceOf[(Double, Instant)]
+            listeners(i).updateSummary(key.asInstanceOf[MetricKey.Summary], v, instant)
             i = i + 1
           }
         case MetricKeyType.Counter =>
           while (i < len) {
-            listeners(i).updateCounter(key.asInstanceOf[MetricKey.Counter], value)
+            listeners(i).updateCounter(key.asInstanceOf[MetricKey.Counter], value.asInstanceOf[Double])
             i = i + 1
           }
       }
