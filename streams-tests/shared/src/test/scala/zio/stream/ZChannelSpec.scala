@@ -817,7 +817,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                  .repeatN(100000)
           value <- ref.get
         } yield assertTrue(value == 0)
-      }
+      } @@ jvmOnly
     )
   )
 
