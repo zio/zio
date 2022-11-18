@@ -10,7 +10,6 @@ title:  "Videos"
 ## Tour of ZIO
 - [The ZIO of the Future](https://www.youtube.com/watch?v=u3pgyEiu9eU) by John De Goes (May 2021)
 - [A Tour of ZIO](https://www.youtube.com/watch?v=TWdC7DhvD8M) by John De Goes (January 2020)
-- [Tour of ZIO](https://www.youtube.com/watch?v=5s0GOA3WQnY&t=1405s) by Oleksandra Holubitska (March 2019)
 
 ## ZIO Core
 - [The Death of Tagless Final](https://www.youtube.com/watch?v=p98W4bUtbO8) by John De Goes (February 2019)
