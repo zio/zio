@@ -2,12 +2,16 @@ package zio.internal.metrics
 
 import zio._
 import zio.metrics._
-import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicReference
+import scala.annotation.tailrec
 
 private[zio] class ConcurrentMetricRegistry {
+
+  private val listenersRef: AtomicReference[Array[MetricListener]] =
+    new AtomicReference[Array[MetricListener]](Array.empty[MetricListener])
 
   private val map: ConcurrentHashMap[MetricKey[MetricKeyType], MetricHook.Root] =
     new ConcurrentHashMap[MetricKey[MetricKeyType], MetricHook.Root]()
@@ -40,6 +44,62 @@ private[zio] class ConcurrentMetricRegistry {
         case MetricKeyType.Summary(_, _, _, _) => getSummary(key.asInstanceOf[MetricKey.Summary])
       }).asInstanceOf[Result]
     } else hook0.asInstanceOf[Result]
+  }
+
+  @tailrec
+  final def addListener(listener: MetricListener)(implicit unsafe: Unsafe): Unit = {
+    val oldListeners = listenersRef.get()
+    val newListeners = oldListeners :+ listener
+    if (!listenersRef.compareAndSet(oldListeners, newListeners)) addListener(listener)
+    else ()
+  }
+
+  @tailrec
+  final def removeListener(listener: MetricListener)(implicit unsafe: Unsafe): Unit = {
+    val oldListeners = listenersRef.get()
+    val newListeners = oldListeners.filter(_ ne listener)
+    if (!listenersRef.compareAndSet(oldListeners, newListeners)) removeListener(listener)
+    else ()
+  }
+
+  private[zio] def notifyListeners[T](key: MetricKey[MetricKeyType.WithIn[T]], value: T)(implicit
+    trace: Trace,
+    unsafe: Unsafe
+  ): Unit = {
+    val listeners = listenersRef.get()
+    val len       = listeners.length
+
+    if (len > 0) {
+      var i = 0
+      key.keyType match {
+        case MetricKeyType.Gauge =>
+          while (i < len) {
+            listeners(i).updateGauge(key.asInstanceOf[MetricKey.Gauge], value.asInstanceOf[Double])
+            i = i + 1
+          }
+        case MetricKeyType.Histogram(_) =>
+          while (i < len) {
+            listeners(i).updateHistogram(key.asInstanceOf[MetricKey.Histogram], value.asInstanceOf[Double])
+            i = i + 1
+          }
+        case MetricKeyType.Frequency =>
+          while (i < len) {
+            listeners(i).updateFrequency(key.asInstanceOf[MetricKey.Frequency], value.asInstanceOf[String])
+            i = i + 1
+          }
+        case MetricKeyType.Summary(_, _, _, _) =>
+          while (i < len) {
+            val (v, instant) = value.asInstanceOf[(Double, Instant)]
+            listeners(i).updateSummary(key.asInstanceOf[MetricKey.Summary], v, instant)
+            i = i + 1
+          }
+        case MetricKeyType.Counter =>
+          while (i < len) {
+            listeners(i).updateCounter(key.asInstanceOf[MetricKey.Counter], value.asInstanceOf[Double])
+            i = i + 1
+          }
+      }
+    }
   }
 
   private def getCounter(key: MetricKey.Counter)(implicit unsafe: Unsafe): MetricHook.Counter = {

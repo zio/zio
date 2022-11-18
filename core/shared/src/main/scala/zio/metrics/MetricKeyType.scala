@@ -24,6 +24,10 @@ sealed trait MetricKeyType {
   type Out
 }
 object MetricKeyType {
+  type WithIn[T] = MetricKeyType {
+    type In = T
+  }
+
   type Counter = Counter.type
 
   case object Counter extends MetricKeyType {

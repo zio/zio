@@ -442,23 +442,28 @@ object Metric {
         new UnsafeAPI {
           def update(in: key.keyType.In, extraTags: Set[MetricLabel] = Set.empty)(implicit
             unsafe: Unsafe
-          ): Unit =
-            hook(extraTags).update(in)
+          ): Unit = {
+            val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
+            hook(fullKey).update(in)
+            metricRegistry.notifyListeners(fullKey, in)
+          }
 
-          def value(extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): key.keyType.Out =
-            hook(extraTags).get()
+          def value(extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): key.keyType.Out = {
+            val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
+            hook(fullKey).get()
+          }
 
           def modify(in: key.keyType.In, extraTags: Set[MetricLabel] = Set.empty)(implicit
             unsafe: Unsafe
-          ): Unit =
-            hook(extraTags).modify(in)
+          ): Unit = {
+            val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
+            hook(fullKey).modify(in)
+          }
+
         }
 
-      def hook(extraTags: Set[MetricLabel]): MetricHook[key.keyType.In, key.keyType.Out] = {
-        val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
-
+      def hook(fullKey: MetricKey[key.keyType.type]): MetricHook[key.keyType.In, key.keyType.Out] =
         metricRegistry.get(fullKey)(Unsafe.unsafe)
-      }
     }
 
   /**
