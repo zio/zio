@@ -1732,6 +1732,11 @@ object ZStreamSpec extends ZIOBaseSpec {
             )
           }
         ),
+        test("flattenChunks") {
+          check(Gen.chunkOf(Gen.chunkOf(Gen.int))) { chunks =>
+            assertZIO(ZStream.fromChunks(chunks).flattenChunks.chunks.runCollect)(equalTo(chunks))
+          }
+        },
         suite("flattenExitOption")(
           test("happy path") {
             assertZIO(

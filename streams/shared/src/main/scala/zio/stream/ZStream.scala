@@ -1367,8 +1367,17 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * Submerges the chunks carried by this stream into the stream's structure,
    * while still preserving them.
    */
-  def flattenChunks[A1](implicit ev: A <:< Chunk[A1], trace: Trace): ZStream[R, E, A1] =
-    new ZStream(self.channel.mapOut(_.flatten))
+  def flattenChunks[A1](implicit ev: A <:< Chunk[A1], trace: Trace): ZStream[R, E, A1] = {
+
+    lazy val flatten: ZChannel[Any, E, Chunk[Chunk[A1]], Any, E, Chunk[A1], Any] =
+      ZChannel.readWithCause(
+        chunks => ZChannel.writeChunk(chunks) *> flatten,
+        cause => ZChannel.failCause(cause),
+        _ => ZChannel.unit
+      )
+
+    new ZStream(self.asInstanceOf[ZStream[R, E, Chunk[A1]]].channel >>> flatten)
+  }
 
   /**
    * Flattens [[Exit]] values. `Exit.Failure` values translate to stream
