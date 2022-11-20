@@ -1311,7 +1311,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
             val tags = getFiberRef(FiberRef.currentTags)
             Metric.runtime.fiberFailures.unsafe.update(1, tags)
-            cause.foldContext(())(FiberRuntime.fiberFailureTracker(tags))
+            cause.foldContext(tags)(FiberRuntime.fiberFailureTracker)
           }
         } catch {
           case throwable: Throwable =>
@@ -1494,19 +1494,19 @@ object FiberRuntime {
 
   private[zio] val catastrophicFailure: AtomicBoolean = new AtomicBoolean(false)
 
-  private def fiberFailureTracker(tags: Set[MetricLabel]): Cause.Folder[Unit, Any, Unit] =
-    new Cause.Folder[Unit, Any, Unit] {
-      def empty(context: Unit): Unit = ()
-      def failCase(context: Unit, error: Any, stackTrace: StackTrace): Unit =
-        Metric.runtime.fiberFailureCauses.unsafe.update(error.getClass.getName, tags)(Unsafe.unsafe)
+  private val fiberFailureTracker: Cause.Folder[Set[MetricLabel], Any, Unit] =
+    new Cause.Folder[Set[MetricLabel], Any, Unit] {
+      def empty(context: Set[MetricLabel]): Unit = ()
+      def failCase(context: Set[MetricLabel], error: Any, stackTrace: StackTrace): Unit =
+        Metric.runtime.fiberFailureCauses.unsafe.update(error.getClass.getName, context)(Unsafe.unsafe)
 
-      def dieCase(context: Unit, t: Throwable, stackTrace: StackTrace): Unit =
-        Metric.runtime.fiberFailureCauses.unsafe.update(t.getClass.getName, tags)(Unsafe.unsafe)
+      def dieCase(context: Set[MetricLabel], t: Throwable, stackTrace: StackTrace): Unit =
+        Metric.runtime.fiberFailureCauses.unsafe.update(t.getClass.getName, context)(Unsafe.unsafe)
 
-      def interruptCase(context: Unit, fiberId: FiberId, stackTrace: StackTrace): Unit = ()
-      def bothCase(context: Unit, left: Unit, right: Unit): Unit                       = ()
-      def thenCase(context: Unit, left: Unit, right: Unit): Unit                       = ()
-      def stacklessCase(context: Unit, value: Unit, stackless: Boolean): Unit          = ()
+      def interruptCase(context: Set[MetricLabel], fiberId: FiberId, stackTrace: StackTrace): Unit = ()
+      def bothCase(context: Set[MetricLabel], left: Unit, right: Unit): Unit                       = ()
+      def thenCase(context: Set[MetricLabel], left: Unit, right: Unit): Unit                       = ()
+      def stacklessCase(context: Set[MetricLabel], value: Unit, stackless: Boolean): Unit          = ()
     }
 
   private val notBlockingOn: () => FiberId = () => FiberId.None
