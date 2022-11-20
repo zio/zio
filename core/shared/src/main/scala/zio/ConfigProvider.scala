@@ -260,6 +260,12 @@ object ConfigProvider {
                         }
             } yield result
 
+          case Constant(value) =>
+            ZIO.succeed(Chunk(value))
+
+          case Fail(message) =>
+            ZIO.fail(Config.Error.MissingData(prefix, message))
+
           case primitive: Primitive[A] =>
             for {
               vs <- flat.load(prefix, primitive).catchSome {
