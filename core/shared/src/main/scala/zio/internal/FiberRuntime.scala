@@ -24,7 +24,7 @@ import java.util.{Set => JavaSet}
 import java.util.concurrent.atomic.AtomicBoolean
 
 import zio._
-import zio.metrics.Metric
+import zio.metrics.{Metric, MetricLabel}
 
 final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtimeFlags0: RuntimeFlags)
     extends Fiber.Runtime.Internal[E, A]
@@ -48,7 +48,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var asyncBlockingOn  = null.asInstanceOf[() => FiberId]
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-    val tags = getFiberRef(FiberRef.currentTags)
+    val tags = getFiberRef(FiberRef.currentTags)(Unsafe.unsafe)
     Metric.runtime.fibersStarted.unsafe.update(1, tags)(Unsafe.unsafe)
     Metric.runtime.fiberForkLocations.unsafe.update(fiberId.location.toString, tags)(Unsafe.unsafe)
   }
@@ -1311,7 +1311,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
             val tags = getFiberRef(FiberRef.currentTags)
             Metric.runtime.fiberFailures.unsafe.update(1, tags)
-            cause.foldContext(())(FiberRuntime.fiberFailureTracker)
+            cause.foldContext(())(FiberRuntime.fiberFailureTracker(tags))
           }
         } catch {
           case throwable: Throwable =>
@@ -1494,18 +1494,14 @@ object FiberRuntime {
 
   private[zio] val catastrophicFailure: AtomicBoolean = new AtomicBoolean(false)
 
-  private val fiberFailureTracker: Cause.Folder[Unit, Any, Unit] =
+  private def fiberFailureTracker(tags: Set[MetricLabel]): Cause.Folder[Unit, Any, Unit] =
     new Cause.Folder[Unit, Any, Unit] {
       def empty(context: Unit): Unit = ()
-      def failCase(context: Unit, error: Any, stackTrace: StackTrace): Unit = {
-        val tags = getFiberRef(FiberRef.currentTags)
+      def failCase(context: Unit, error: Any, stackTrace: StackTrace): Unit =
         Metric.runtime.fiberFailureCauses.unsafe.update(error.getClass.getName, tags)(Unsafe.unsafe)
-      }
 
-      def dieCase(context: Unit, t: Throwable, stackTrace: StackTrace): Unit = {
-        val tags = getFiberRef(FiberRef.currentTags)
+      def dieCase(context: Unit, t: Throwable, stackTrace: StackTrace): Unit =
         Metric.runtime.fiberFailureCauses.unsafe.update(t.getClass.getName, tags)(Unsafe.unsafe)
-      }
 
       def interruptCase(context: Unit, fiberId: FiberId, stackTrace: StackTrace): Unit = ()
       def bothCase(context: Unit, left: Unit, right: Unit): Unit                       = ()
