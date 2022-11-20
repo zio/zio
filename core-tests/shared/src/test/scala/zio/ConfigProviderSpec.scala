@@ -184,6 +184,11 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           for {
             exit <- provider(Map("k1.k3" -> "v")).load(Config.string("k2").nested("k1")).exit
           } yield assert(exit)(Assertion.failsWithA[Config.Error])
+        } +
+        test("accessing a constant value succeeds") {
+          for {
+            value <- provider(Map()).load(Config.succeed("value"))
+          } yield assertTrue(value == "value")
         }
     ) + suite("props")(
       test("flat atoms") {
@@ -283,6 +288,11 @@ object ConfigProviderSpec extends ZIOBaseSpec {
             )
           )
         )
+      },
+      test("succeed for constant value") {
+        for {
+          value <- propsProvider(Map()).load(Config.succeed("value"))
+        } yield assertTrue(value == "value")
       }
     )
   }
