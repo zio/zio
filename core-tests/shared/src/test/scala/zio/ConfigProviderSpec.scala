@@ -291,8 +291,9 @@ object ConfigProviderSpec extends ZIOBaseSpec {
       },
       test("succeed for constant value") {
         for {
-          value <- propsProvider(Map()).load(Config.succeed("value"))
-        } yield assertTrue(value == "value")
+          provider <- propsProvider(Map())
+          result   <- provider.load(Config.succeed("value"))
+        } yield assertTrue(result == "value")
       }
     )
   }
