@@ -516,26 +516,32 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       stackless: Boolean,
       result: List[Unified]
     ): List[Unified] = {
-      def unifyFail(fail: Cause.Fail[E]): Unified =
-        Unified(fail.trace.fiberId, fail.value.getClass.getName(), fail.value.toString(), fail.trace.toJava)
-
-      def unifyDie(die: Cause.Die): List[Unified] = {
+      def unifyThrowable(throwable: Throwable, trace: StackTrace): List[Unified] = {
 
         @tailrec
-        def loop(die: Cause.Die, result: List[Unified]): List[Unified] = {
+        def loop(throwable: Throwable, trace: StackTrace, result: List[Unified]): List[Unified] = {
           val extra =
             if (stackless) Chunk.empty
-            else Chunk.fromArray(die.value.getStackTrace.takeWhile(_.getClassName != "zio.internal.FiberRuntime"))
+            else Chunk.fromArray(throwable.getStackTrace.takeWhile(!_.getClassName.startsWith("zio.")))
 
           val unified =
-            Unified(die.trace.fiberId, die.value.getClass.getName(), die.value.getMessage(), extra ++ die.trace.toJava)
+            Unified(trace.fiberId, throwable.getClass.getName(), throwable.getMessage(), extra ++ trace.toJava)
 
-          if (die.value.getCause eq null) unified :: result
-          else loop(Cause.Die(die.value.getCause, StackTrace.none), unified :: result)
+          if (throwable.getCause eq null) unified :: result
+          else loop(throwable.getCause, StackTrace.none, unified :: result)
         }
 
-        loop(die, Nil)
+        loop(throwable, trace, Nil)
       }
+
+      def unifyFail(fail: Cause.Fail[E]): List[Unified] =
+        fail.value match {
+          case throwable: Throwable => unifyThrowable(throwable, fail.trace)
+          case value                => List(Unified(fail.trace.fiberId, value.getClass.getName(), value.toString(), fail.trace.toJava))
+        }
+
+      def unifyDie(die: Cause.Die): List[Unified] =
+        unifyThrowable(die.value, die.trace)
 
       def unifyInterrupt(interrupt: Cause.Interrupt): Unified = {
         val message = "Interrupted by thread \"" + interrupt.fiberId.threadName + "\""
@@ -550,7 +556,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
         case Both(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
         case Stackless(cause, stackless) :: more => loop(cause :: more, fiberId, stackless, result)
         case Then(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
-        case (cause @ Fail(_, _)) :: more        => loop(more, fiberId, stackless, unifyFail(cause) :: result)
+        case (cause @ Fail(_, _)) :: more        => loop(more, fiberId, stackless, unifyFail(cause) ::: result)
         case (cause @ Die(_, _)) :: more         => loop(more, fiberId, stackless, unifyDie(cause) ::: result)
         case (cause @ Interrupt(_, _)) :: more =>
           loop(more, fiberId, stackless, unifyInterrupt(cause) :: result)
