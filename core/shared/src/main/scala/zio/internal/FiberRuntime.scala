@@ -24,7 +24,7 @@ import java.util.{Set => JavaSet}
 import java.util.concurrent.atomic.AtomicBoolean
 
 import zio._
-import zio.metrics.Metric
+import zio.metrics.{Metric, MetricLabel}
 
 final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtimeFlags0: RuntimeFlags)
     extends Fiber.Runtime.Internal[E, A]
@@ -48,8 +48,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var asyncBlockingOn  = null.asInstanceOf[() => FiberId]
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-    Metric.runtime.fibersStarted.unsafe.update(1)(Unsafe.unsafe)
-    Metric.runtime.fiberForkLocations.unsafe.update(fiberId.location.toString)(Unsafe.unsafe)
+    val tags = getFiberRef(FiberRef.currentTags)(Unsafe.unsafe)
+    Metric.runtime.fibersStarted.unsafe.update(1, tags)(Unsafe.unsafe)
+    Metric.runtime.fiberForkLocations.unsafe.update(fiberId.location.toString, tags)(Unsafe.unsafe)
   }
 
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
@@ -1308,8 +1309,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           }
 
           if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-            Metric.runtime.fiberFailures.unsafe.update(1)
-            cause.foldContext(())(FiberRuntime.fiberFailureTracker)
+            val tags = getFiberRef(FiberRef.currentTags)
+            Metric.runtime.fiberFailures.unsafe.update(1, tags)
+            cause.foldContext(tags)(FiberRuntime.fiberFailureTracker)
           }
         } catch {
           case throwable: Throwable =>
@@ -1322,7 +1324,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         }
       case _ =>
         if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-          Metric.runtime.fiberSuccesses.unsafe.update(1)
+          val tags = getFiberRef(FiberRef.currentTags)
+          Metric.runtime.fiberSuccesses.unsafe.update(1, tags)
         }
     }
 
@@ -1333,7 +1336,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       val endTimeMillis   = java.lang.System.currentTimeMillis()
       val lifetime        = (endTimeMillis - startTimeMillis) / 1000.0
 
-      Metric.runtime.fiberLifetimes.unsafe.update(lifetime)
+      val tags = getFiberRef(FiberRef.currentTags)
+      Metric.runtime.fiberLifetimes.unsafe.update(lifetime, tags)
     }
 
     reportExitValue(e)
@@ -1490,19 +1494,19 @@ object FiberRuntime {
 
   private[zio] val catastrophicFailure: AtomicBoolean = new AtomicBoolean(false)
 
-  private val fiberFailureTracker: Cause.Folder[Unit, Any, Unit] =
-    new Cause.Folder[Unit, Any, Unit] {
-      def empty(context: Unit): Unit = ()
-      def failCase(context: Unit, error: Any, stackTrace: StackTrace): Unit =
-        Metric.runtime.fiberFailureCauses.unsafe.update(error.getClass.getName)(Unsafe.unsafe)
+  private val fiberFailureTracker: Cause.Folder[Set[MetricLabel], Any, Unit] =
+    new Cause.Folder[Set[MetricLabel], Any, Unit] {
+      def empty(context: Set[MetricLabel]): Unit = ()
+      def failCase(context: Set[MetricLabel], error: Any, stackTrace: StackTrace): Unit =
+        Metric.runtime.fiberFailureCauses.unsafe.update(error.getClass.getName, context)(Unsafe.unsafe)
 
-      def dieCase(context: Unit, t: Throwable, stackTrace: StackTrace): Unit =
-        Metric.runtime.fiberFailureCauses.unsafe.update(t.getClass.getName)(Unsafe.unsafe)
+      def dieCase(context: Set[MetricLabel], t: Throwable, stackTrace: StackTrace): Unit =
+        Metric.runtime.fiberFailureCauses.unsafe.update(t.getClass.getName, context)(Unsafe.unsafe)
 
-      def interruptCase(context: Unit, fiberId: FiberId, stackTrace: StackTrace): Unit = ()
-      def bothCase(context: Unit, left: Unit, right: Unit): Unit                       = ()
-      def thenCase(context: Unit, left: Unit, right: Unit): Unit                       = ()
-      def stacklessCase(context: Unit, value: Unit, stackless: Boolean): Unit          = ()
+      def interruptCase(context: Set[MetricLabel], fiberId: FiberId, stackTrace: StackTrace): Unit = ()
+      def bothCase(context: Set[MetricLabel], left: Unit, right: Unit): Unit                       = ()
+      def thenCase(context: Set[MetricLabel], left: Unit, right: Unit): Unit                       = ()
+      def stacklessCase(context: Set[MetricLabel], value: Unit, stackless: Boolean): Unit          = ()
     }
 
   private val notBlockingOn: () => FiberId = () => FiberId.None
