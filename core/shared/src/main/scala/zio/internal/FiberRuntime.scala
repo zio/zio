@@ -48,8 +48,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var asyncBlockingOn  = null.asInstanceOf[() => FiberId]
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-    Metric.runtime.fibersStarted.unsafe.update(1)(Unsafe.unsafe)
-    Metric.runtime.fiberForkLocations.unsafe.update(fiberId.location.toString)(Unsafe.unsafe)
+    val tags = getFiberRef(FiberRef.currentTags)
+    Metric.runtime.fibersStarted.unsafe.update(1, tags)(Unsafe.unsafe)
+    Metric.runtime.fiberForkLocations.unsafe.update(fiberId.location.toString, tags)(Unsafe.unsafe)
   }
 
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
@@ -1308,7 +1309,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           }
 
           if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-            Metric.runtime.fiberFailures.unsafe.update(1)
+            val tags = getFiberRef(FiberRef.currentTags)
+            Metric.runtime.fiberFailures.unsafe.update(1, tags)
             cause.foldContext(())(FiberRuntime.fiberFailureTracker)
           }
         } catch {
@@ -1322,7 +1324,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         }
       case _ =>
         if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-          Metric.runtime.fiberSuccesses.unsafe.update(1)
+          val tags = getFiberRef(FiberRef.currentTags)
+          Metric.runtime.fiberSuccesses.unsafe.update(1, tags)
         }
     }
 
@@ -1333,7 +1336,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       val endTimeMillis   = java.lang.System.currentTimeMillis()
       val lifetime        = (endTimeMillis - startTimeMillis) / 1000.0
 
-      Metric.runtime.fiberLifetimes.unsafe.update(lifetime)
+      val tags = getFiberRef(FiberRef.currentTags)
+      Metric.runtime.fiberLifetimes.unsafe.update(lifetime, tags)
     }
 
     reportExitValue(e)
@@ -1493,11 +1497,15 @@ object FiberRuntime {
   private val fiberFailureTracker: Cause.Folder[Unit, Any, Unit] =
     new Cause.Folder[Unit, Any, Unit] {
       def empty(context: Unit): Unit = ()
-      def failCase(context: Unit, error: Any, stackTrace: StackTrace): Unit =
-        Metric.runtime.fiberFailureCauses.unsafe.update(error.getClass.getName)(Unsafe.unsafe)
+      def failCase(context: Unit, error: Any, stackTrace: StackTrace): Unit = {
+        val tags = getFiberRef(FiberRef.currentTags)
+        Metric.runtime.fiberFailureCauses.unsafe.update(error.getClass.getName, tags)(Unsafe.unsafe)
+      }
 
-      def dieCase(context: Unit, t: Throwable, stackTrace: StackTrace): Unit =
-        Metric.runtime.fiberFailureCauses.unsafe.update(t.getClass.getName)(Unsafe.unsafe)
+      def dieCase(context: Unit, t: Throwable, stackTrace: StackTrace): Unit = {
+        val tags = getFiberRef(FiberRef.currentTags)
+        Metric.runtime.fiberFailureCauses.unsafe.update(t.getClass.getName, tags)(Unsafe.unsafe)
+      }
 
       def interruptCase(context: Unit, fiberId: FiberId, stackTrace: StackTrace): Unit = ()
       def bothCase(context: Unit, left: Unit, right: Unit): Unit                       = ()
