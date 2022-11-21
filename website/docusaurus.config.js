@@ -221,6 +221,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-ftp', 
+          path: './node_modules/@zio.dev/zio-ftp',
+          routeBasePath: 'zio-ftp',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-ftp/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-http', 
           path: './node_modules/@zio.dev/zio-http',
           routeBasePath: 'zio-http',
