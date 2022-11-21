@@ -212,6 +212,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-cli', 
+          path: './node_modules/@zio.dev/zio-cli',
+          routeBasePath: 'zio-cli',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-cli/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-config', 
           path: './node_modules/@zio.dev/zio-config',
           routeBasePath: 'zio-config',
