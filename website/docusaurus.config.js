@@ -257,6 +257,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-parser', 
+          path: './node_modules/@zio.dev/zio-parser',
+          routeBasePath: 'zio-parser',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-parser/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-redis', 
           path: './node_modules/@zio.dev/zio-redis',
           routeBasePath: 'zio-redis',
