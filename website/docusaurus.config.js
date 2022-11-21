@@ -266,6 +266,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-dynamodb', 
+          path: './node_modules/@zio.dev/zio-dynamodb',
+          routeBasePath: 'zio-dynamodb',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-dynamodb/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-flow', 
           path: './node_modules/@zio.dev/zio-flow',
           routeBasePath: 'zio-flow',
