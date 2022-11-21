@@ -167,6 +167,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'izumi-reflect', 
+          path: './node_modules/@zio.dev/izumi-reflect',
+          routeBasePath: 'izumi-reflect',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/izumi-reflect/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-actors', 
           path: './node_modules/@zio.dev/zio-actors',
           routeBasePath: 'zio-actors',
