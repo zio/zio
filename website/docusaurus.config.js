@@ -257,6 +257,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-interop-twitter', 
+          path: './node_modules/@zio.dev/zio-interop-twitter',
+          routeBasePath: 'zio-interop-twitter',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-interop-twitter/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-jdbc', 
           path: './node_modules/@zio.dev/zio-jdbc',
           routeBasePath: 'zio-jdbc',
