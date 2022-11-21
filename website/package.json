@@ -26,6 +26,7 @@
     "@zio.dev/zio-flow": "0.0.0--366-46081918-SNAPSHOT",
     "@zio.dev/zio-ftp": "^0.4.0",
     "@zio.dev/zio-http": "2.0.0-RC11",
+    "@zio.dev/zio-interop-guava": "^32.1.0",
     "@zio.dev/zio-jdbc": "0.0.1",
     "@zio.dev/zio-json": "0.3.0",
     "@zio.dev/zio-kafka": "2.0.1-alpha.0",

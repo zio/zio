@@ -248,6 +248,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-interop-guava', 
+          path: './node_modules/@zio.dev/zio-interop-guava',
+          routeBasePath: 'zio-interop-guava',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-interop-guava/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-jdbc', 
           path: './node_modules/@zio.dev/zio-jdbc',
           routeBasePath: 'zio-jdbc',
