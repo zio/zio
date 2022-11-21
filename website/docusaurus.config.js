@@ -383,6 +383,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-mock', 
+          path: './node_modules/@zio.dev/zio-mock',
+          routeBasePath: 'zio-mock',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-mock/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-nio', 
           path: './node_modules/@zio.dev/zio-nio',
           routeBasePath: 'zio-nio',
