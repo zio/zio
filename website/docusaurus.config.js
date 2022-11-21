@@ -167,6 +167,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-actors', 
+          path: './node_modules/@zio.dev/zio-actors',
+          routeBasePath: 'zio-actors',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-actors/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-akka-cluster', 
           path: './node_modules/@zio.dev/zio-akka-cluster',
           routeBasePath: 'zio-akka-cluster',

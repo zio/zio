@@ -17,6 +17,7 @@
     "@docusaurus/theme-search-algolia": "^2.1.0",
     "@material-ui/core": "4.12.4",
     "@mdx-js/react": "1.6.22",
+    "@zio.dev/zio-actors": "0.1.0",
     "@zio.dev/zio-akka-cluster": "^0.3.0",
     "@zio.dev/zio-aws": "5.17.29-5.4",
     "@zio.dev/zio-config": "3.0.4",
