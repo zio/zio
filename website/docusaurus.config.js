@@ -290,6 +290,15 @@ const config = {
           sidebarPath: require.resolve('./node_modules/@zio.dev/zio-schema/sidebar.js'),
         },
     ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
+          id: 'zio-telemetry', 
+          path: './node_modules/@zio.dev/zio-telemetry',
+          routeBasePath: 'zio-telemetry',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-telemetry/sidebars.js'),
+        },
+    ],
   ],
 }
 
