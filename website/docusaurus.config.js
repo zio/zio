@@ -293,6 +293,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-sqs', 
+          path: './node_modules/@zio.dev/zio-sqs',
+          routeBasePath: 'zio-sqs',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-sqs/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-telemetry', 
           path: './node_modules/@zio.dev/zio-telemetry',
           routeBasePath: 'zio-telemetry',
