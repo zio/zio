@@ -347,6 +347,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-keeper', 
+          path: './node_modules/@zio.dev/zio-keeper',
+          routeBasePath: 'zio-keeper',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-keeper/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-memberlist', 
           path: './node_modules/@zio.dev/zio-memberlist',
           routeBasePath: 'zio-memberlist',

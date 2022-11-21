@@ -37,6 +37,7 @@
     "@zio.dev/zio-jdbc": "0.0.1",
     "@zio.dev/zio-json": "0.3.0",
     "@zio.dev/zio-kafka": "2.0.1-alpha.0",
+    "@zio.dev/zio-keeper": "^0.0.0--215-0a9dd0ea-SNAPSHOT",
     "@zio.dev/zio-lambda": "1.0.0-RC6",
     "@zio.dev/zio-logging": "2.1.3",
     "@zio.dev/zio-memberlist": "^0.0.0--40-a85dc5a1--20221121-1416-SNAPSHOT",
