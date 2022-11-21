@@ -167,6 +167,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'caliban-deriving', 
+          path: './node_modules/@zio.dev/caliban-deriving',
+          routeBasePath: 'caliban-deriving',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/caliban-deriving/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'izumi-reflect', 
           path: './node_modules/@zio.dev/izumi-reflect',
           routeBasePath: 'izumi-reflect',
