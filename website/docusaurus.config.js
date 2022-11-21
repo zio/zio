@@ -365,6 +365,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-nio', 
+          path: './node_modules/@zio.dev/zio-nio',
+          routeBasePath: 'zio-nio',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-nio/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-lambda', 
           path: './node_modules/@zio.dev/zio-lambda',
           routeBasePath: 'zio-lambda',
