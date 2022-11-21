@@ -293,6 +293,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-sql', 
+          path: './node_modules/@zio.dev/zio-sql',
+          routeBasePath: 'zio-sql',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-sql/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-sqs', 
           path: './node_modules/@zio.dev/zio-sqs',
           routeBasePath: 'zio-sqs',
