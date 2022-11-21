@@ -194,6 +194,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-constraintless', 
+          path: './node_modules/@zio.dev/zio-constraintless',
+          routeBasePath: 'zio-constraintless',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-constraintless/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-connect', 
           path: './node_modules/@zio.dev/zio-connect',
           routeBasePath: 'zio-connect',

@@ -21,6 +21,7 @@
     "@zio.dev/zio-aws": "5.17.29-5.4",
     "@zio.dev/zio-config": "3.0.4",
     "@zio.dev/zio-connect": "0.3.0",
+    "@zio.dev/zio-constraintless": "^0.0.0--106-f043aafb--20221121-0804-SNAPSHOT",
     "@zio.dev/zio-http": "2.0.0-RC11",
     "@zio.dev/zio-jdbc": "0.0.1",
     "@zio.dev/zio-json": "0.3.0",
