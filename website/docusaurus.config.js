@@ -257,6 +257,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-interop-scalaz', 
+          path: './node_modules/@zio.dev/zio-interop-scalaz',
+          routeBasePath: 'zio-interop-scalaz',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-interop-scalaz/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-interop-twitter', 
           path: './node_modules/@zio.dev/zio-interop-twitter',
           routeBasePath: 'zio-interop-twitter',
