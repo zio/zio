@@ -302,6 +302,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-insight', 
+          path: './node_modules/@zio.dev/zio-insight',
+          routeBasePath: 'zio-insight',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-insight/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-interop-guava', 
           path: './node_modules/@zio.dev/zio-interop-guava',
           routeBasePath: 'zio-interop-guava',
