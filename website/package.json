@@ -23,6 +23,7 @@
     "@zio.dev/zio-config": "3.0.4",
     "@zio.dev/zio-connect": "0.3.0",
     "@zio.dev/zio-constraintless": "0.0.0--106-f043aafb--20221121-0804-SNAPSHOT",
+    "@zio.dev/zio-crypto": "^0.0.0--102-23de4b47--20221120-2038-SNAPSHOT",
     "@zio.dev/zio-flow": "0.0.0--366-46081918-SNAPSHOT",
     "@zio.dev/zio-ftp": "^0.4.0",
     "@zio.dev/zio-http": "2.0.0-RC11",

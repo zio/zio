@@ -221,6 +221,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-crypto', 
+          path: './node_modules/@zio.dev/zio-crypto',
+          routeBasePath: 'zio-crypto',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-crypto/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-flow', 
           path: './node_modules/@zio.dev/zio-flow',
           routeBasePath: 'zio-flow',
