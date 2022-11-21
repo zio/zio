@@ -401,6 +401,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-profiling', 
+          path: './node_modules/@zio.dev/zio-profiling',
+          routeBasePath: 'zio-optics',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-profiling/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-lambda', 
           path: './node_modules/@zio.dev/zio-lambda',
           routeBasePath: 'zio-lambda',
