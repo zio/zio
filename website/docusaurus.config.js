@@ -320,6 +320,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-metrics-connectors', 
+          path: './node_modules/@zio.dev/zio-metrics-connectors',
+          routeBasePath: 'zio-metrics-connectors',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-metrics-connectors/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-parser', 
           path: './node_modules/@zio.dev/zio-parser',
           routeBasePath: 'zio-parser',
