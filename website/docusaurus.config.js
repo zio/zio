@@ -230,6 +230,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-deriving', 
+          path: './node_modules/@zio.dev/zio-deriving',
+          routeBasePath: 'zio-deriving',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-deriving/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-flow', 
           path: './node_modules/@zio.dev/zio-flow',
           routeBasePath: 'zio-flow',
