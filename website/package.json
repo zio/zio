@@ -23,6 +23,7 @@
     "@zio.dev/zio-actors": "0.1.0",
     "@zio.dev/zio-akka-cluster": "^0.3.0",
     "@zio.dev/zio-aws": "5.17.29-5.4",
+    "@zio.dev/zio-cache": "^0.1.5",
     "@zio.dev/zio-cli": "^0.3.0-M01",
     "@zio.dev/zio-config": "3.0.4",
     "@zio.dev/zio-connect": "0.3.0",
