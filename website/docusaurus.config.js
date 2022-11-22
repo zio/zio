@@ -329,6 +329,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-interop-reactivestreams', 
+          path: './node_modules/@zio.dev/zio-interop-reactivestreams',
+          routeBasePath: 'zio-interop-reactivestreams',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-interop-reactivestreams/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-interop-twitter', 
           path: './node_modules/@zio.dev/zio-interop-twitter',
           routeBasePath: 'zio-interop-twitter',
