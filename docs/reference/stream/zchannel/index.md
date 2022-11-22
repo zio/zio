@@ -44,9 +44,9 @@ case class ZPipeline[-R, +E, -In, +Out] (
 
 So we can say that:
 
-- `ZStream[R, E, A]` is a channel that uses `R` as its environment, produce `Chunk[A]` to its output port, can terminate with `Any` success value or can terminate with a failure of type `E`.
+- `ZStream[R, E, A]` is a channel that requires an environment `R`, emits elements of type `Chunk[A]`, and terminates, if at all, with either an error of type `E` or a done value of type `Any`.
 
-- `ZPipeline[R, Err, In, Out]` is a channel that uses `R` as its environment, consumes `Chunk[Int]` from its input port, and produces `Chunk[Out]` to its output port.
+- `ZPipeline[R, Err, In, Out]` is a channel that uses `R` as its environment, consumes `Chunk[In]` from its input port, and produces `Chunk[Out]` to its output port.
 
 - `ZSink[R, E, In, L , Z]` is a channel that uses `R` as its environment, consumes `Chunk[In]` from its input port, and produces `Chunk[L]` to its output port as its leftovers, and can terminate with a success value of type `Z` or can terminate with a failure of type `E`.
 
