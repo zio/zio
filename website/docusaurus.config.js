@@ -176,6 +176,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'interop-monix', 
+          path: './node_modules/@zio.dev/interop-monix',
+          routeBasePath: 'interop-monix',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/interop-monix/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'izumi-reflect', 
           path: './node_modules/@zio.dev/izumi-reflect',
           routeBasePath: 'izumi-reflect',
@@ -207,6 +216,15 @@ const config = {
           path: './node_modules/@zio.dev/zio-aws',
           routeBasePath: 'zio-aws',
           sidebarPath: require.resolve('./node_modules/@zio.dev/zio-aws/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
+          id: 'zio-cache', 
+          path: './node_modules/@zio.dev/zio-cache',
+          routeBasePath: 'zio-cache',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-cache/sidebars.js'),
         },
     ],
     [
@@ -329,6 +347,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-interop-reactivestreams', 
+          path: './node_modules/@zio.dev/zio-interop-reactivestreams',
+          routeBasePath: 'zio-interop-reactivestreams',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-interop-reactivestreams/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-interop-twitter', 
           path: './node_modules/@zio.dev/zio-interop-twitter',
           routeBasePath: 'zio-interop-twitter',
@@ -378,6 +405,15 @@ const config = {
           path: './node_modules/@zio.dev/zio-memberlist',
           routeBasePath: 'zio-memberlist',
           sidebarPath: require.resolve('./node_modules/@zio.dev/zio-memberlist/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
+          id: 'zio-meta', 
+          path: './node_modules/@zio.dev/zio-meta',
+          routeBasePath: 'zio-meta',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-meta/sidebars.js'),
         },
     ],
     [
@@ -500,6 +536,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-rocksdb', 
+          path: './node_modules/@zio.dev/zio-rocksdb',
+          routeBasePath: 'zio-rocksdb',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-rocksdb/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-schema', 
           path: './node_modules/@zio.dev/zio-schema',
           routeBasePath: 'zio-schema',
@@ -540,6 +585,15 @@ const config = {
           path: './node_modules/@zio.dev/zio-telemetry',
           routeBasePath: 'zio-telemetry',
           sidebarPath: require.resolve('./node_modules/@zio.dev/zio-telemetry/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
+          id: 'zio-webhooks', 
+          path: './node_modules/@zio.dev/zio-webhooks',
+          routeBasePath: 'zio-webhooks',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-webhooks/sidebars.js'),
         },
     ],
   ],
