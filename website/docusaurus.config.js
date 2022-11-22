@@ -176,6 +176,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'interop-monix', 
+          path: './node_modules/@zio.dev/interop-monix',
+          routeBasePath: 'interop-monix',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/interop-monix/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'izumi-reflect', 
           path: './node_modules/@zio.dev/izumi-reflect',
           routeBasePath: 'izumi-reflect',
