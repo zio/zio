@@ -569,6 +569,15 @@ const config = {
           sidebarPath: require.resolve('./node_modules/@zio.dev/zio-telemetry/sidebars.js'),
         },
     ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
+          id: 'zio-webhooks', 
+          path: './node_modules/@zio.dev/zio-webhooks',
+          routeBasePath: 'zio-webhooks',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-webhooks/sidebars.js'),
+        },
+    ],
   ],
 }
 
