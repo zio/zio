@@ -401,6 +401,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-meta', 
+          path: './node_modules/@zio.dev/zio-meta',
+          routeBasePath: 'zio-meta',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-meta/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-mock', 
           path: './node_modules/@zio.dev/zio-mock',
           routeBasePath: 'zio-mock',
