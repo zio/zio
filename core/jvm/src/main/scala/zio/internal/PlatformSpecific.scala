@@ -20,6 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
+import java.util.function.{Function => JFunction}
 import java.util.{Collections, Map => JMap, Set => JSet, WeakHashMap}
 
 private[zio] trait PlatformSpecific {
@@ -107,4 +108,7 @@ private[zio] trait PlatformSpecific {
 
     () => ref.get()
   }
+
+  final def computeIfAbsent[A, B](map: JMap[A, B])(key: A, mappingFunction: JFunction[A, B]): B =
+    map.computeIfAbsent(key, mappingFunction)
 }
