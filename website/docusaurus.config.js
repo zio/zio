@@ -539,7 +539,7 @@ const config = {
           id: 'zio-rocksdb', 
           path: './node_modules/@zio.dev/zio-rocksdb',
           routeBasePath: 'zio-rocksdb',
-          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-rocksdb/sidebar.js'),
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-rocksdb/sidebars.js'),
         },
     ],
     [
