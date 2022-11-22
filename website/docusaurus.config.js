@@ -536,6 +536,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-rocksdb', 
+          path: './node_modules/@zio.dev/zio-rocksdb',
+          routeBasePath: 'zio-rocksdb',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-rocksdb/sidebar.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-schema', 
           path: './node_modules/@zio.dev/zio-schema',
           routeBasePath: 'zio-schema',
