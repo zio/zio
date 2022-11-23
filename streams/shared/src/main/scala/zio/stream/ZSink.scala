@@ -851,6 +851,12 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     new EnvironmentWithSinkPartiallyApplied[R]
 
   /**
+   * A sink that returns whether an element satisfies the specified predicate.
+   */
+  def exists[In](f: In => Boolean)(implicit trace: Trace): ZSink[Any, Nothing, In, In, Boolean] =
+    fold(false)(!_)(_ || f(_))
+
+  /**
    * A sink that always fails with the specified error.
    */
   def fail[E](e: => E)(implicit trace: Trace): ZSink[Any, E, Any, Nothing, Nothing] = new ZSink(
@@ -1245,6 +1251,12 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
 
       new ZSink(reader(z))
     }
+
+  /**
+   * A sink that returns whether all elements satisfy the specified predicate.
+   */
+  def forall[In](f: In => Boolean)(implicit trace: Trace): ZSink[Any, Nothing, In, In, Boolean] =
+    fold(true)(identity)(_ && f(_))
 
   /**
    * A sink that executes the provided effectful function for every element fed
