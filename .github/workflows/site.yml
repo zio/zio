@@ -1,6 +1,7 @@
 name: Website
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - series/2.x
@@ -12,16 +13,23 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout all branches
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: '0'
       - name: Setup Scala and Java
-        uses: olafurpg/setup-scala@v13
-      - run: |
-          ./scripts/createSite.sh ${{ github.ref }}
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - run: ./scripts/createSite.sh ${{ github.ref }}
       - name: Release to GitHub Pages
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/docs.') 
-        uses: JamesIves/github-pages-deploy-action@v4.3.3
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/docs.') || github.event_name == 'workflow_dispatch'
+        uses: JamesIves/github-pages-deploy-action@v4.4.1
         with:
           branch: gh-pages
           folder: ./website/build
+      - name: Print All Generated Files
+        run: find ./website/build -print
