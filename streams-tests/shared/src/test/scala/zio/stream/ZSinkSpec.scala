@@ -967,6 +967,18 @@ object ZSinkSpec extends ZIOBaseSpec {
                     )
                     .exit
         } yield assert(exit)(fails(equalTo(ErrorMapped)))
+      },
+      test("exists") {
+        check(Gen.chunkOf(Gen.int), Gen.function(Gen.boolean)) { (chunk, f) =>
+          val stream = ZStream.fromChunk(chunk)
+          assertZIO(stream.run(ZSink.exists(f)))(equalTo(chunk.exists(f)))
+        }
+      },
+      test("forall") {
+        check(Gen.chunkOf(Gen.int), Gen.function(Gen.boolean)) { (chunk, f) =>
+          val stream = ZStream.fromChunk(chunk)
+          assertZIO(stream.run(ZSink.forall(f)))(equalTo(chunk.forall(f)))
+        }
       }
     )
   }
