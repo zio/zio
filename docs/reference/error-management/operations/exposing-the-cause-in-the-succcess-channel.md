@@ -30,4 +30,4 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-Sometimes the [`ZIO#mapErrorCause`](map-and-flatmap.md) operator is a better choice when we just want to map the underlying cause without exposing the cause.
+Sometimes the [`ZIO#mapErrorCause`](map-operations.md#ziomaperrorziomaperrorcause) operator is a better choice when we just want to map the underlying cause without exposing the cause.

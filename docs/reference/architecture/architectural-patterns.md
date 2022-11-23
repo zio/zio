@@ -15,7 +15,7 @@ Onion architecture is a software architecture pattern that is used to create loo
 
 Onion architecture is based on the _inversion of control_ principle. So each layer is dependent on the underlying layer, but not on the layers above it. This means that the innermost layer is independent of any other layers.
 
-In ZIO by taking advantage of both functional and object-oriented programming, we can implement onion architecture in a very simple and elegant way. To implement this architecture, please refer to the [Writing ZIO Services](/index.md) section which empowers you to create layers (services) in the onion architecture. In order to assemble all layers and make the whole application work, please refer to the [Dependency Injection In ZIO](../di/index.md) section.
+In ZIO by taking advantage of both functional and object-oriented programming, we can implement onion architecture in a very simple and elegant way. To implement this architecture, please refer to the [Writing ZIO Services](../service-pattern/index.md) section which empowers you to create layers (services) in the onion architecture. In order to assemble all layers and make the whole application work, please refer to the [Dependency Injection In ZIO](../di/index.md) section.
 
 ## Streaming Architecture
 

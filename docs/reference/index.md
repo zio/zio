@@ -92,10 +92,10 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 ## Streaming
 
-- **[ZStream](stream/zstream/zstream.md)** — `ZStream` is a lazy, concurrent, asynchronous source of values.
-    + **[Stream](stream/zstream/stream.md)** — `Stream[E, A]` is a type alias for `ZStream[Any, E, A]`, which represents a ZIO stream that does not require any services, and may fail with an `E`, or produce elements with an `A`.
-- **[ZSink](stream/zsink/zsink.md)** — `ZSink` is a consumer of values from a `ZStream`, which may produce a value when it has consumed enough.
-    + **[Sink](stream/zsink/sink.md)** — `Sink[InErr, A, OutErr, L, B]` is a type alias for `ZSink[Any, InErr, A, OutErr, L, B]`.
+- **[ZStream](stream/zstream/index.md)** — `ZStream` is a lazy, concurrent, asynchronous source of values.
+    + **Stream** — `Stream[E, A]` is a type alias for `ZStream[Any, E, A]`, which represents a ZIO stream that does not require any services, and may fail with an `E`, or produce elements with an `A`.
+- **[ZSink](stream/zsink/index.md)** — `ZSink` is a consumer of values from a `ZStream`, which may produce a value when it has consumed enough.
+    + **[Sink](stream/zsink/index.md)** — `Sink[InErr, A, OutErr, L, B]` is a type alias for `ZSink[Any, InErr, A, OutErr, L, B]`.
 - **[ZPipeline](stream/zpipeline.md)** — `ZPipeline` is a polymorphic stream transformer.
 - **[SubscriptionRef](stream/subscriptionref.md)** — `SubscriptionRef[A]` contains a current value of type `A` and a stream that can be consumed to observe all changes to that value.
 
@@ -112,9 +112,9 @@ IO supports 5 types of Metrics:
 ## Testing
 
 - **[Spec](test/spec.md)**— A `Spec[R, E]` is the backbone of ZIO Test. All specs require an environment of type `R` and may potentially fail with an error of type `E`.
-- **[Assertion](test/assertion.md)**— An `Assertion[A]` is a test assertion that can be used to assert the predicate of type `A => Boolean`.
-- **[TestAspect](test/aspects/test-aspect.md)**— A `TestAspect` is an aspect that can be weaved into specs. We can think of an aspect as a polymorphic function, capable of transforming one test into another.
-- **[Gen](test/gen.md)**— A `Gen[R, A]` represents a generator of values of type `A`, which requires an environment `R`.
+- **[Assertion](test/assertions/index.md)**— An `Assertion[A]` is a test assertion that can be used to assert the predicate of type `A => Boolean`.
+- **[TestAspect](test/aspects/index.md)**— A `TestAspect` is an aspect that can be weaved into specs. We can think of an aspect as a polymorphic function, capable of transforming one test into another.
+- **[Gen](test/property-testing/built-in-generators.md)**— A `Gen[R, A]` represents a generator of values of type `A`, which requires an environment `R`.
 - **Test Service**— ZIO Test has the following out-of-the-box test services:
     - **[TestConsole](test/services/console.md)**— It allows testing of applications that interact with the console.
     - **[TestClock](test/services/clock.md)**— We can deterministically and efficiently test effects involving the passage of time without actually having to wait for the full amount of time to pass.
