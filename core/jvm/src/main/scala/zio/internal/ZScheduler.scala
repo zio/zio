@@ -299,6 +299,7 @@ private final class ZScheduler extends Executor {
             currentTime = java.lang.System.currentTimeMillis()
             loop = currentTime < deadline
           }
+          Fiber._roots.graduate()
         }
       }
     }
