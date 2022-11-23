@@ -62,7 +62,7 @@
     "@zio.dev/zio-s3": "^2022.11.21-367e7009c0f5",
     "@zio.dev/zio-schema": "0.2.1-15",
     "@zio.dev/zio-sql": "^0.0.3",
-    "@zio.dev/zio-sqs": "^0.5.0",
+    "@zio.dev/zio-sqs": "2022.11.23-5a814304824c",
     "@zio.dev/zio-telemetry": "^3.0.0-RC1",
     "@zio.dev/zio-webhooks": "^0.2.1",
     "babel": "^6.23.0",
