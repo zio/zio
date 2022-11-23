@@ -3,7 +3,7 @@ id: sized
 title: "Changing the Size of Sized Generators"
 ---
 
-To change the default _size_ used by [sized generators](../gen.md#sized-generators) we can use `size` test aspect:
+To change the default _size_ used by [sized generators](../property-testing/built-in-generators.md#sized-generators) we can use `size` test aspect:
 
 ```scala mdoc:compile-only
 import zio._
