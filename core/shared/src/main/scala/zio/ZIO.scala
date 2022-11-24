@@ -2322,6 +2322,14 @@ sealed trait ZIO[-R, +E, +A]
     ZIO.withClock(clock)(self)
 
   /**
+   * Executes this workflow with the specified configuration provider.
+   */
+  final def withConfigProvider[B <: ConfigProvider](
+    configProvider: => B
+  )(implicit tag: Tag[B], trace: Trace): ZIO[R, E, A] =
+    ZIO.withConfigProvider(configProvider)(self)
+
+  /**
    * Executes this workflow with the specified implementation of the console
    * service.
    */
@@ -4791,6 +4799,23 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def withClockScoped[A <: Clock](clock: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
     DefaultServices.currentServices.locallyScopedWith(_.add(clock))
+
+  /**
+   * Executes the specified workflow with the specified configuration provider.
+   */
+  def withConfigProvider[R, E, A <: ConfigProvider, B](configProvider: => A)(
+    zio: => ZIO[R, E, B]
+  )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
+    DefaultServices.currentServices.locallyWith(_.add(configProvider))(zio)
+
+  /**
+   * Sets the configuration provider to the specified value and restores it to
+   * its original value when the scope is closed.
+   */
+  def withConfigProviderScoped[A <: ConfigProvider](
+    configProvider: => A
+  )(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
+    DefaultServices.currentServices.locallyScopedWith(_.add(configProvider))
 
   /**
    * Executes the specified workflow with the specified implementation of the

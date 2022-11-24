@@ -200,9 +200,9 @@ object ConfigProvider {
         trace: Trace
       ): IO[Config.Error, Chunk[A]] =
         config match {
-          case Fallback(first, second) =>
-            loop(prefix, first, isEmptyOk).catchAll(e1 =>
-              loop(prefix, second, isEmptyOk).catchAll(e2 => ZIO.fail(e1 || e2))
+          case fallback: Fallback[A] =>
+            loop(prefix, fallback.first, isEmptyOk).catchAll(e1 =>
+              loop(prefix, fallback.second, isEmptyOk).catchAll(e2 => ZIO.fail(e1 || e2))
             )
 
           case Described(config, _) => loop(prefix, config, isEmptyOk)
