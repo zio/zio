@@ -77,7 +77,7 @@ sealed trait Config[+A] { self =>
    * Returns an optional version of this config, which will be `None` if the
    * data is missing from configuration, and `Some` otherwise.
    */
-  def optional: Config[Option[A]] = self.map(Some(_)) || Config.succeed(None)
+  def optional: Config[Option[A]] = Config.Optional(self)
 
   /**
    * A named version of `||`.
@@ -196,7 +196,33 @@ object Config {
   final case class Fail(message: String) extends Primitive[Nothing] {
     final def parse(text: String): Either[Config.Error, Nothing] = Left(Config.Error.Unsupported(Chunk.empty, message))
   }
-  final case class Fallback[A](first: Config[A], second: Config[A]) extends Composite[A]
+  sealed class Fallback[A] protected (val first: Config[A], val second: Config[A])
+      extends Composite[A]
+      with Product
+      with Serializable { self =>
+    def canEqual(that: Any): Boolean =
+      that.isInstanceOf[Fallback[_]]
+    override def equals(that: Any): Boolean =
+      that match {
+        case that: Fallback[_] => that.canEqual(self) && self.first == that.first && self.second == that.second
+        case _                 => false
+      }
+    override def hashCode: Int =
+      (first, second).##
+    def productArity: Int =
+      2
+    def productElement(n: Int): Any =
+      n match {
+        case 0 => first
+        case 1 => second
+        case _ => throw new IndexOutOfBoundsException(n.toString)
+      }
+  }
+  object Fallback {
+    def apply[A](first: Config[A], second: Config[A]): Fallback[A]        = new Fallback(first, second)
+    def unapply[A](fallback: Fallback[A]): Option[(Config[A], Config[A])] = Some((fallback.first, fallback.second))
+  }
+  final case class Optional[A](config: Config[A]) extends Fallback[Option[A]](config.map(Some(_)), Config.succeed(None))
   case object Integer extends Primitive[BigInt] {
     final def parse(text: String): Either[Config.Error, BigInt] = try Right(BigInt(text))
     catch {
