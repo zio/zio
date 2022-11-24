@@ -54,6 +54,12 @@ object MemoryPools {
         memoryMXBean <- ZIO.attempt(ManagementFactory.getMemoryMXBean)
         poolMXBeans  <- ZIO.attempt(ManagementFactory.getMemoryPoolMXBeans.asScala.toList)
 
+        objectsPendingFinalization = PollingMetric(
+                                       Metric
+                                         .gauge("jvm_memory_objects_pending_finalization")
+                                         .contramap[Int](_.toDouble),
+                                       ZIO.attempt(memoryMXBean.getObjectPendingFinalizationCount)
+                                     )
         memoryBytesUsed = pollingMemoryMetric(
                             "jvm_memory_bytes_used",
                             ZIO.attempt(memoryMXBean.getHeapMemoryUsage.getUsed),
@@ -113,6 +119,7 @@ object MemoryPools {
                         })
 
         schedule <- ZIO.service[JvmMetricsSchedule]
+        _        <- objectsPendingFinalization.launch(schedule.updateMetrics)
         _        <- memoryBytesUsed.launch(schedule.updateMetrics)
         _        <- memoryBytesCommitted.launch(schedule.updateMetrics)
         _        <- memoryBytesMax.launch(schedule.updateMetrics)
