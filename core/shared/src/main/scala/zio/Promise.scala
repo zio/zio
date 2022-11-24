@@ -48,32 +48,39 @@ final class Promise[E, A] private (
    * until the result is available.
    */
   def await(implicit trace: Trace): IO[E, A] =
-    ZIO.asyncInterrupt[Any, E, A](
-      k => {
-        var result = null.asInstanceOf[Either[UIO[Any], IO[E, A]]]
-        var retry  = true
+    ZIO.suspendSucceed {
+      state.get match {
+        case Done(value) =>
+          value
+        case _ =>
+          ZIO.asyncInterrupt[Any, E, A](
+            k => {
+              var result = null.asInstanceOf[Either[UIO[Any], IO[E, A]]]
+              var retry  = true
 
-        while (retry) {
-          val oldState = state.get
+              while (retry) {
+                val oldState = state.get
 
-          val newState = oldState match {
-            case Pending(joiners) =>
-              result = Left(interruptJoiner(k))
+                val newState = oldState match {
+                  case Pending(joiners) =>
+                    result = Left(interruptJoiner(k))
 
-              Pending(k :: joiners)
-            case s @ Done(value) =>
-              result = Right(value)
+                    Pending(k :: joiners)
+                  case s @ Done(value) =>
+                    result = Right(value)
 
-              s
-          }
+                    s
+                }
 
-          retry = !state.compareAndSet(oldState, newState)
-        }
+                retry = !state.compareAndSet(oldState, newState)
+              }
 
-        result
-      },
-      blockingOn
-    )
+              result
+            },
+            blockingOn
+          )
+      }
+    }
 
   /**
    * Kills the promise with the specified error, which will be propagated to all
