@@ -2324,7 +2324,9 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Executes this workflow with the specified configuration provider.
    */
-  final def withConfigProvider[B <: ConfigProvider](configProvider: => B)(implicit tag: Tag[B], trace: Trace): ZIO[R, E, A] =
+  final def withConfigProvider[B <: ConfigProvider](
+    configProvider: => B
+  )(implicit tag: Tag[B], trace: Trace): ZIO[R, E, A] =
     ZIO.withConfigProvider(configProvider)(self)
 
   /**
@@ -4810,7 +4812,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Sets the configuration provider to the specified value and restores it to
    * its original value when the scope is closed.
    */
-  def withConfigProviderScoped[A <: ConfigProvider](configProvider: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
+  def withConfigProviderScoped[A <: ConfigProvider](
+    configProvider: => A
+  )(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
     DefaultServices.currentServices.locallyScopedWith(_.add(configProvider))
 
   /**

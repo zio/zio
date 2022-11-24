@@ -288,7 +288,8 @@ object Config {
 
       override def toString(): String = s"(${left.toString()} or ${right.toString()})"
     }
-    final case class SourceUnavailable(path: Chunk[String] = Chunk.empty, message: String, cause: Cause[Throwable]) extends Error {
+    final case class SourceUnavailable(path: Chunk[String] = Chunk.empty, message: String, cause: Cause[Throwable])
+        extends Error {
       def prefixed(prefix: Chunk[String]): SourceUnavailable = copy(path = prefix ++ path)
 
       override def toString(): String = s"(Source unavailable at ${path.mkString(".")}: ${message})"
