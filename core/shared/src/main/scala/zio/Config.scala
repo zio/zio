@@ -94,8 +94,17 @@ sealed trait Config[+A] { self =>
    * Returns a new config that describes the same structure as this one, but
    * which performs validation during loading.
    */
-  def validate[A1 >: A](message: => String)(f: A1 => Boolean): Config[A1] =
+  def validate(message: => String)(f: A => Boolean): Config[A] =
     self.mapOrFail(a => if (!f(a)) Left(Config.Error.InvalidData(Chunk.empty, message)) else Right(a))
+
+  /**
+   * Returns a new config whose structure is the same as this one, but which may
+   * produce a different Scala value, constructed using the specified partial
+   * function, failing with the specified validation error if the partial
+   * function is not defined.
+   */
+  def validateWith[B](message: => String)(pf: PartialFunction[A, B]): Config[B] =
+    self.mapOrFail(a => pf.lift(a).toRight(Config.Error.InvalidData(Chunk.empty, message)))
 
   /**
    * Returns a new config that describes the same structure as this one, but has
@@ -263,12 +272,12 @@ object Config {
 
       override def toString(): String = s"(${left.toString()} and ${right.toString()})"
     }
-    final case class InvalidData(path: Chunk[String], message: String) extends Error {
+    final case class InvalidData(path: Chunk[String] = Chunk.empty, message: String) extends Error {
       def prefixed(prefix: Chunk[String]): InvalidData = copy(path = prefix ++ path)
 
       override def toString(): String = s"(Invalid data at ${path.mkString(".")}: ${message})"
     }
-    final case class MissingData(path: Chunk[String], message: String) extends Error {
+    final case class MissingData(path: Chunk[String] = Chunk.empty, message: String) extends Error {
       def prefixed(prefix: Chunk[String]): MissingData = copy(path = prefix ++ path)
 
       override def toString(): String = s"(Missing data at ${path.mkString(".")}: ${message})"
@@ -279,12 +288,12 @@ object Config {
 
       override def toString(): String = s"(${left.toString()} or ${right.toString()})"
     }
-    final case class SourceUnavailable(path: Chunk[String], message: String, cause: Cause[Throwable]) extends Error {
+    final case class SourceUnavailable(path: Chunk[String] = Chunk.empty, message: String, cause: Cause[Throwable]) extends Error {
       def prefixed(prefix: Chunk[String]): SourceUnavailable = copy(path = prefix ++ path)
 
       override def toString(): String = s"(Source unavailable at ${path.mkString(".")}: ${message})"
     }
-    final case class Unsupported(path: Chunk[String], message: String) extends Error {
+    final case class Unsupported(path: Chunk[String] = Chunk.empty, message: String) extends Error {
       def prefixed(prefix: Chunk[String]): Unsupported = copy(path = prefix ++ path)
 
       override def toString(): String = s"(Unsupported operation at ${path.mkString(".")}: ${message})"
