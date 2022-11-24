@@ -81,40 +81,76 @@ object MemoryPools {
                             ZIO.attempt(memoryMXBean.getNonHeapMemoryUsage.getInit)
                           )
 
-        poolBytesUsed = PollingMetric.collectAll(poolMXBeans.map { poolBean =>
-                          PollingMetric(
-                            Metric
-                              .gauge("jvm_memory_pool_bytes_used")
-                              .tagged("pool", poolBean.getName)
-                              .contramap[Long](_.toDouble),
-                            ZIO.attempt(poolBean.getUsage.getUsed)
+        poolBytesUsed = PollingMetric.collectAll(poolMXBeans.flatMap { poolBean =>
+                          Seq(
+                            PollingMetric(
+                              Metric
+                                .gauge("jvm_memory_pool_bytes_used")
+                                .tagged("pool", poolBean.getName)
+                                .contramap[Long](_.toDouble),
+                              ZIO.attempt(poolBean.getUsage.getUsed)
+                            ),
+                            PollingMetric(
+                              Metric
+                                .gauge("jvm_memory_pool_collection_used_bytes")
+                                .tagged("pool", poolBean.getName)
+                                .contramap[Long](_.toDouble),
+                              ZIO.attempt(poolBean.getCollectionUsage.getUsed)
+                            )
                           )
                         })
-        poolBytesCommitted = PollingMetric.collectAll(poolMXBeans.map { poolBean =>
-                               PollingMetric(
-                                 Metric
-                                   .gauge("jvm_memory_pool_bytes_committed")
-                                   .tagged("pool", poolBean.getName)
-                                   .contramap[Long](_.toDouble),
-                                 ZIO.attempt(poolBean.getUsage.getCommitted)
+        poolBytesCommitted = PollingMetric.collectAll(poolMXBeans.flatMap { poolBean =>
+                               Seq(
+                                 PollingMetric(
+                                   Metric
+                                     .gauge("jvm_memory_pool_bytes_committed")
+                                     .tagged("pool", poolBean.getName)
+                                     .contramap[Long](_.toDouble),
+                                   ZIO.attempt(poolBean.getUsage.getCommitted)
+                                 ),
+                                 PollingMetric(
+                                   Metric
+                                     .gauge("jvm_memory_pool_collection_committed_bytes")
+                                     .tagged("pool", poolBean.getName)
+                                     .contramap[Long](_.toDouble),
+                                   ZIO.attempt(poolBean.getCollectionUsage.getCommitted)
+                                 )
                                )
                              })
-        poolBytesMax = PollingMetric.collectAll(poolMXBeans.map { poolBean =>
-                         PollingMetric(
-                           Metric
-                             .gauge("jvm_memory_pool_bytes_max")
-                             .tagged("pool", poolBean.getName)
-                             .contramap[Long](_.toDouble),
-                           ZIO.attempt(poolBean.getUsage.getMax)
+        poolBytesMax = PollingMetric.collectAll(poolMXBeans.flatMap { poolBean =>
+                         Seq(
+                           PollingMetric(
+                             Metric
+                               .gauge("jvm_memory_pool_bytes_max")
+                               .tagged("pool", poolBean.getName)
+                               .contramap[Long](_.toDouble),
+                             ZIO.attempt(poolBean.getUsage.getMax)
+                           ),
+                           PollingMetric(
+                             Metric
+                               .gauge("jvm_memory_pool_collection_max_bytes")
+                               .tagged("pool", poolBean.getName)
+                               .contramap[Long](_.toDouble),
+                             ZIO.attempt(poolBean.getCollectionUsage.getMax)
+                           )
                          )
                        })
-        poolBytesInit = PollingMetric.collectAll(poolMXBeans.map { poolBean =>
-                          PollingMetric(
-                            Metric
-                              .gauge("jvm_memory_pool_bytes_init")
-                              .tagged("pool", poolBean.getName)
-                              .contramap[Long](_.toDouble),
-                            ZIO.attempt(poolBean.getUsage.getInit)
+        poolBytesInit = PollingMetric.collectAll(poolMXBeans.flatMap { poolBean =>
+                          Seq(
+                            PollingMetric(
+                              Metric
+                                .gauge("jvm_memory_pool_bytes_init")
+                                .tagged("pool", poolBean.getName)
+                                .contramap[Long](_.toDouble),
+                              ZIO.attempt(poolBean.getUsage.getInit)
+                            ),
+                            PollingMetric(
+                              Metric
+                                .gauge("jvm_memory_pool_collection_init_bytes")
+                                .tagged("pool", poolBean.getName)
+                                .contramap[Long](_.toDouble),
+                              ZIO.attempt(poolBean.getCollectionUsage.getInit)
+                            )
                           )
                         })
 
