@@ -1342,7 +1342,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
     reportExitValue(e)
 
-    val iterator = observers.iterator
+    // ensure we notify observers in the same order they subscribed to us
+    val iterator = observers.reverse.iterator
 
     while (iterator.hasNext) {
       val observer = iterator.next()
