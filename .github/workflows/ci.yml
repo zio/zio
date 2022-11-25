@@ -105,7 +105,7 @@ jobs:
         run: ./sbt ++${{ matrix.scala }} root3/publishLocal
 
   website:
-    uses: ./site.yml
+    uses: ./.github./workflows/site.yml
     with:
       deploy: false
         
