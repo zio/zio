@@ -106,24 +106,65 @@ jobs:
 
   website:
     runs-on: ubuntu-20.04
-    timeout-minutes: 60
     steps:
-      - name: Checkout current branch
-        uses: actions/checkout@v3.0.2
-      - name: Setup Java
-        uses: actions/setup-java@v2.5.0
+      - name: Checkout series/2.x Branch
+        uses: actions/checkout@v3
         with:
-          distribution: temurin
-          java-version: 17
-          check-latest: true
-      - name: Cache scala dependencies
-        uses: coursier/cache-action@v6
-      - name: Install libuv
-        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
-      - name: Check Website Generation
+          ref: ${{ github.ref }}
+          fetch-depth: '0'
+          path: 'series/2.x'
+
+      - name: Checkout series/1.x Branch
+        uses: actions/checkout@v3
+        with:
+          ref: 'series/1.x'
+          fetch-depth: '0'
+          path: 'series/1.x'
+
+      - name: Setup Scala and Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Generate Series 1.x Docs
+        working-directory: ./series/1.x
         run: |
-          ./scripts/createSite.sh ${{ github.ref }}
-        
+          sbt docs/mdoc
+          sbt docs/unidoc
+
+      - name: Generate Series 2.x Docs
+        working-directory: ./series/2.x
+        run: |
+          sbt docs/mdoc
+          sbt docs/unidoc
+    
+      - name: Move Series 1.x Docs To 2.x Docs
+        working-directory: ./
+        run: |
+          mkdir -p ./series/2.x/website/versioned_docs/version-1.x
+          mv ./series/1.x/zio-docs/target/mdoc/* ./series/2.x/website/versioned_docs/version-1.x
+          mkdir -p ./series/2.x/website/static/api/1.x
+          mv ./series/1.x/website/static/api ./series/2.x/website/static/api-1.x
+
+      - name: Install The Whole Website
+        working-directory: ./series/2.x/website
+        run: |
+          rm -Rf node_modules
+          yarn install 
+          yarn build 
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: website-artifact
+          path: ./series/2.x/website/build
+          
+      - name: Print All Generated Files
+        run: find ./series/2.x/website/build -print
+  
   test:
     runs-on: ubuntu-20.04
     timeout-minutes: 60

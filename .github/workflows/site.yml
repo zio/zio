@@ -1,7 +1,17 @@
 name: Website
 
+env:
+  JDK_JAVA_OPTIONS: -Xmx6G -Xss4M -XX:+UseG1GC
+  JVM_OPTS: -Xmx6G -Xss4M -XX:+UseG1GC
+  NODE_OPTIONS: --max_old_space_size=6144
+
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish to the Github Pages?'
+        required: false
+        default: 'false'
   push:
     branches:
       - series/2.x
@@ -9,13 +19,23 @@ on:
       - docs.*
 
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout all branches
+      - name: Checkout series/2.x Branch
         uses: actions/checkout@v3
         with:
+          ref: ${{ github.ref }}
           fetch-depth: '0'
+          path: 'series/2.x'
+
+      - name: Checkout series/1.x Branch
+        uses: actions/checkout@v3
+        with:
+          ref: 'series/1.x'
+          fetch-depth: '0'
+          path: 'series/1.x'
+
       - name: Setup Scala and Java
         uses: actions/setup-java@v3
         with:
@@ -24,12 +44,55 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 16
-      - run: ./scripts/createSite.sh ${{ github.ref }}
+
+      - name: Generate Series 1.x Docs
+        working-directory: ./series/1.x
+        run: |
+          sbt docs/mdoc
+          sbt docs/unidoc
+
+      - name: Generate Series 2.x Docs
+        working-directory: ./series/2.x
+        run: |
+          sbt docs/mdoc
+          sbt docs/unidoc
+
+      - name: Move Series 1.x Docs To 2.x Docs
+        working-directory: ./
+        run: |
+          mkdir -p ./series/2.x/website/versioned_docs/version-1.x
+          mv ./series/1.x/zio-docs/target/mdoc/* ./series/2.x/website/versioned_docs/version-1.x
+          mkdir -p ./series/2.x/website/static/api/1.x
+          mv ./series/1.x/website/static/api ./series/2.x/website/static/api-1.x
+
+      - name: Install The Whole Website
+        working-directory: ./series/2.x/website
+        run: |
+          rm -Rf node_modules
+          yarn install 
+          yarn build 
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: website-artifact
+          path: ./series/2.x/website/build
+  
+  publish:
+    needs: [build]
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: website-artifact
+
       - name: Release to GitHub Pages
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/docs.') || github.event_name == 'workflow_dispatch'
+        if: |
+          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/docs.')) || 
+            (github.event_name == 'workflow_dispatch' && github.event.inputs.publish)
         uses: JamesIves/github-pages-deploy-action@v4.4.1
         with:
           branch: gh-pages
-          folder: ./website/build
+          folder: ./
+
       - name: Print All Generated Files
-        run: find ./website/build -print
+        run: find ./ -print
