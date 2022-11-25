@@ -6,7 +6,6 @@ env:
   NODE_OPTIONS: --max_old_space_size=6144
 
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       publish:
@@ -93,9 +92,9 @@ jobs:
           path: website-artifact
 
       - name: Release to GitHub Pages
-#        if: |
-#          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/docs.')) || 
-#            (github.event_name == 'workflow_dispatch' && github.event.inputs.publish)
+        if: |
+          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/docs.')) || 
+            (github.event_name == 'workflow_dispatch' && github.event.inputs.publish)
         uses: JamesIves/github-pages-deploy-action@v4.4.1
         with:
           branch: gh-pages
