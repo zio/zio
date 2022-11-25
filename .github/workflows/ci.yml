@@ -105,6 +105,7 @@ jobs:
         run: ./sbt ++${{ matrix.scala }} root3/publishLocal
 
   website:
+    runs-on: ubuntu-20.04
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
