@@ -671,16 +671,15 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                        p     <- Promise.make[OutErr1, OutElem2]
                        latch <- Promise.make[Nothing, Unit]
                        _     <- queue.offer(p.await.map(Right(_)))
-                       fib <- permits.withPermit {
-                                latch.succeed(()) *>
-                                  ZIO.uninterruptibleMask { restore =>
-                                    restore(errorSignal.await) raceFirstAwait restore(f(outElem))
-                                  }
-                                    .tapErrorCause(errorSignal.failCause)
-                                    .intoPromise(p)
-                              }.fork
+                       _ <- permits.withPermit {
+                              latch.succeed(()) *>
+                                ZIO.uninterruptibleMask { restore =>
+                                  restore(errorSignal.await) raceFirstAwait restore(f(outElem))
+                                }
+                                  .tapErrorCause(errorSignal.failCause)
+                                  .intoPromise(p)
+                            }.fork
                        _ <- latch.await
-                       _ <- fib.join
                      } yield ()
                  }
                )
