@@ -148,7 +148,7 @@ jobs:
           mkdir -p ./series/2.x/website/versioned_docs/version-1.x
           mv ./series/1.x/zio-docs/target/mdoc/* ./series/2.x/website/versioned_docs/version-1.x
           mkdir -p ./series/2.x/website/static/api/1.x
-          mv website/static/api ./series/2.x/website/static/api-1.x
+          mv ./series/1.x/website/static/api ./series/2.x/website/static/api-1.x
 
       - name: Install The Whole Website
         working-directory: ./series/2.x/website
