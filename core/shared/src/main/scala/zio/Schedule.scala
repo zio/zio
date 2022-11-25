@@ -318,7 +318,71 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   def collectAll[Out1 >: Out](implicit
     trace: Trace
   ): Schedule.WithState[(self.State, Chunk[Out1]), Env, In, Chunk[Out1]] =
-    fold[Chunk[Out1]](Chunk.empty)((xs, x) => xs :+ x)
+    collectWhile(_ => true)
+
+  /**
+   * Returns a new schedule that collects the outputs of this one into a list as
+   * long as the condition f holds.
+   */
+  def collectWhile[Out1 >: Out](f: Out => Boolean)(implicit
+    trace: Trace
+  ): Schedule.WithState[(self.State, Chunk[Out1]), Env, In, Chunk[Out1]] =
+    collectWhileZIO(out => ZIO.succeedNow(f(out)))
+
+  /**
+   * Returns a new schedule that collects the outputs of this one into a list as
+   * long as the effectual condition f holds.
+   */
+  def collectWhileZIO[Env1 <: Env, Out1 >: Out](f: Out => URIO[Env1, Boolean])(implicit
+    trace: Trace
+  ): Schedule.WithState[(self.State, Chunk[Out1]), Env1, In, Chunk[Out1]] =
+    new Schedule[Env1, In, Chunk[Out1]] {
+      type State = (self.State, Chunk[Out1])
+      val initial = (self.initial, Chunk.empty)
+      def step(now: OffsetDateTime, in: In, state: State)(implicit
+        trace: Trace
+      ): ZIO[Env1, Nothing, (State, Chunk[Out1], Decision)] = {
+        val s = state._1
+        val z = state._2
+        self.step(now, in, s).flatMap {
+          case (s, out, Done) =>
+            f(out).map { b =>
+              if (!b) ((s, z), z, Done)
+              else {
+                val z2 = z :+ out
+                ((s, z2), z2, Done)
+              }
+            }
+          case (s, out, Continue(interval)) =>
+            f(out).map { b =>
+              if (!b) ((s, z), z, Done)
+              else {
+                val z2 = z :+ out
+                ((s, z2), z2, Continue(interval))
+              }
+
+            }
+        }
+      }
+    }
+
+  /**
+   * Returns a new schedule that collects the outputs of this one into a list
+   * until the condition f fails.
+   */
+  def collectUntil[Out1 >: Out](f: Out => Boolean)(implicit
+    trace: Trace
+  ): Schedule.WithState[(self.State, Chunk[Out1]), Env, In, Chunk[Out1]] =
+    collectUntilZIO(out => ZIO.succeedNow(f(out)))
+
+  /**
+   * Returns a new schedule that collects the outputs of this one into a list
+   * until the effectual condition f fails.
+   */
+  def collectUntilZIO[Env1 <: Env, Out1 >: Out](f: Out => URIO[Env1, Boolean])(implicit
+    trace: Trace
+  ): Schedule.WithState[(self.State, Chunk[Out1]), Env1, In, Chunk[Out1]] =
+    collectWhileZIO(!f(_))
 
   /**
    * A named alias for `<<<`.
@@ -1039,7 +1103,7 @@ object Schedule {
   def collectWhile[A](f: A => Boolean)(implicit
     trace: Trace
   ): Schedule.WithState[(Unit, Chunk[A]), Any, A, Chunk[A]] =
-    recurWhile(f).collectAll
+    identity[A].collectWhile(f)
 
   /**
    * A schedule that recurs as long as the effectful condition holds, collecting
@@ -1048,7 +1112,7 @@ object Schedule {
   def collectWhileZIO[Env, A](f: A => URIO[Env, Boolean])(implicit
     trace: Trace
   ): Schedule.WithState[(Unit, Chunk[A]), Env, A, Chunk[A]] =
-    recurWhileZIO(f).collectAll
+    identity[A].collectWhileZIO(f)
 
   /**
    * A schedule that recurs until the condition f fails, collecting all inputs
@@ -1057,7 +1121,7 @@ object Schedule {
   def collectUntil[A](f: A => Boolean)(implicit
     trace: Trace
   ): Schedule.WithState[(Unit, Chunk[A]), Any, A, Chunk[A]] =
-    recurUntil(f).collectAll
+    identity[A].collectUntil(f)
 
   /**
    * A schedule that recurs until the effectful condition f fails, collecting
@@ -1066,7 +1130,7 @@ object Schedule {
   def collectUntilZIO[Env, A](f: A => URIO[Env, Boolean])(implicit
     trace: Trace
   ): Schedule.WithState[(Unit, Chunk[A]), Env, A, Chunk[A]] =
-    recurUntilZIO(f).collectAll
+    identity[A].collectUntilZIO(f)
 
   /**
    * Takes a schedule that produces a delay, and returns a new schedule that
