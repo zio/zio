@@ -107,13 +107,26 @@ jobs:
   website:
     runs-on: ubuntu-20.04
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v3
-      - name: Run Site Action
-        uses: ./.github./workflows/site.yml
+      - name: Move Series 1.x Docs To 2.x Docs
+        working-directory: ./
+        run: |
+          mkdir -p ./series/2.x/website/versioned_docs/version-1.x
+          mv ./series/1.x/zio-docs/target/mdoc/* ./series/2.x/website/versioned_docs/version-1.x
+          mkdir -p ./series/2.x/website/static/api/1.x
+          mv website/static/api ./series/2.x/website/static/api-1.x
+
+      - name: Install The Whole Website
+        working-directory: ./series/2.x/website
+        run: |
+          rm -Rf node_modules
+          yarn install 
+          yarn build 
+
+      - uses: actions/upload-artifact@v3
         with:
-          deploy: false
-        
+          name: website-artifact
+          path: ./series/2.x/website/build
+  
   test:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
