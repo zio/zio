@@ -663,21 +663,24 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                  cause => queue.offer(ZIO.refailCause(cause)),
                  {
                    case Left(outDone) =>
-                     permits.withPermits(n.toLong)(ZIO.unit).interruptible *> queue.offer(ZIO.succeed(Left(outDone)))
+                     permits.withPermits(n.toLong)(ZIO.unit).interruptible *> queue.offer(
+                       ZIO.succeed(Left(outDone))
+                     )
                    case Right(outElem) =>
                      for {
                        p     <- Promise.make[OutErr1, OutElem2]
                        latch <- Promise.make[Nothing, Unit]
                        _     <- queue.offer(p.await.map(Right(_)))
-                       _ <- permits.withPermit {
-                              latch.succeed(()) *>
-                                ZIO.uninterruptibleMask { restore =>
-                                  restore(errorSignal.await) raceFirstAwait restore(f(outElem))
-                                }
-                                  .tapErrorCause(errorSignal.failCause)
-                                  .intoPromise(p)
-                            }.forkScoped
+                       fib <- permits.withPermit {
+                                latch.succeed(()) *>
+                                  ZIO.uninterruptibleMask { restore =>
+                                    restore(errorSignal.await) raceFirstAwait restore(f(outElem))
+                                  }
+                                    .tapErrorCause(errorSignal.failCause)
+                                    .intoPromise(p)
+                              }.fork
                        _ <- latch.await
+                       _ <- fib.join
                      } yield ()
                  }
                )
