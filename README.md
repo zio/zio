@@ -202,7 +202,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 
 ## Code of Conduct
 
-See the [Code of Conduct](./docs/about/code_of_conduct.md)
+See the [Code of Conduct](./docs/about/code-of-conduct.md)
 
 ---
 
