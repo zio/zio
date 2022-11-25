@@ -161,6 +161,9 @@ jobs:
         with:
           name: website-artifact
           path: ./series/2.x/website/build
+          
+      - name: Print All Generated Files
+        run: find ./series/2.x/website/build -print
   
   test:
     runs-on: ubuntu-20.04
