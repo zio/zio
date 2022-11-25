@@ -107,6 +107,41 @@ jobs:
   website:
     runs-on: ubuntu-20.04
     steps:
+      - name: Checkout series/2.x Branch
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: '0'
+          path: 'series/2.x'
+
+      - name: Checkout series/1.x Branch
+        uses: actions/checkout@v3
+        with:
+          ref: 'series/1.x'
+          fetch-depth: '0'
+          path: 'series/1.x'
+
+      - name: Setup Scala and Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Generate Series 1.x Docs
+        working-directory: ./series/1.x
+        run: |
+          sbt docs/mdoc
+          sbt docs/unidoc
+
+      - name: Generate Series 2.x Docs
+        working-directory: ./series/2.x
+        run: |
+          sbt docs/mdoc
+          sbt docs/unidoc
+    
       - name: Move Series 1.x Docs To 2.x Docs
         working-directory: ./
         run: |
