@@ -115,6 +115,12 @@ object AssertionSpec extends ZIOBaseSpec {
       test("exists must fail when iterable is empty") {
         assert(Seq[String]())(exists(hasField("length", _.length, isWithin(0, 3))))
       } @@ failing,
+      test("exists must fail when inner assertion throws an exception") {
+        assert(Seq(1, 2, 3))(exists(assertion("bad_assertion")(i => if (i == 1) ??? else i == 2)))
+      } @@ failing,
+      test("exists must not fail when inner assertion throws an exception after predicate is satisfied") {
+        assert(Seq(1, 2, 3))(exists(assertion("bad_assertion")(i => if (i == 3) ??? else i == 2)))
+      },
       test("fails must succeed when error value satisfy specified assertion") {
         assert(Exit.fail("Some Error"))(fails(equalTo("Some Error")))
       },

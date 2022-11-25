@@ -205,6 +205,12 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       val value = Seq(1, 42, 5)
       assertTrue(value.exists(_ == 423))
     } @@ failing,
+    test("exists must fail when predicate throws an exception") {
+      assertTrue(Seq(1, 2, 3).exists(i => if (i == 1) ??? else i == 2))
+    } @@ failing,
+    test("exists must not fail when predicate throws an exception after predicate is satisfied") {
+      assertTrue(Seq(1, 2, 3).exists(i => if (i == 3) ??? else i == 2))
+    },
     test("forall must succeed when all elements of iterable satisfy specified assertion") {
       assertTrue(Seq("a", "bb", "ccc").forall(l => l.nonEmpty && l.length <= 3))
     },
