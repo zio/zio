@@ -646,6 +646,12 @@ object ScheduleSpec extends ZIOBaseSpec {
         _       <- TestClock.adjust(2.minutes)
         seconds <- ref.get
       } yield assertTrue(seconds == Chunk(5L, 25L, 30L, 50L, 70L, 90L, 110L))
+    },
+    test("collectAll") {
+      val schedule = Schedule.recurs(5).collectAll
+      for {
+        chunk <- ZIO.unit.repeat(schedule)
+      } yield assertTrue(chunk == Chunk(0L, 1L, 2L, 3L, 4L, 5L))
     }
   )
 
