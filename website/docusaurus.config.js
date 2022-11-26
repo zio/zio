@@ -448,7 +448,7 @@ const config = {
         {
           id: 'zio-profiling', 
           path: './node_modules/@zio.dev/zio-profiling',
-          routeBasePath: 'zio-optics',
+          routeBasePath: 'zio-profiling',
           sidebarPath: require.resolve('./node_modules/@zio.dev/zio-profiling/sidebars.js'),
         },
     ],
