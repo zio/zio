@@ -29,11 +29,11 @@ import java.util.concurrent.locks.LockSupport
  * Lerche. [[https://tokio.rs/blog/2019-10-scheduler]]
  */
 private final class ZScheduler extends Executor {
-  private[this] val poolSize           = java.lang.Runtime.getRuntime.availableProcessors
-  private[this] val cache              = MutableConcurrentQueue.unbounded[ZScheduler.Worker]
-  private[this] val globalQueue        = MutableConcurrentQueue.unbounded[Runnable]
-  private[this] val idle               = MutableConcurrentQueue.bounded[ZScheduler.Worker](poolSize)
-  private[this] val state              = new AtomicInteger(poolSize << 16)
+  private[this] val poolSize    = java.lang.Runtime.getRuntime.availableProcessors
+  private[this] val cache       = MutableConcurrentQueue.unbounded[ZScheduler.Worker]
+  private[this] val globalQueue = MutableConcurrentQueue.unbounded[Runnable]
+  private[this] val idle        = MutableConcurrentQueue.bounded[ZScheduler.Worker](poolSize)
+  private[this] val state       = new AtomicInteger(poolSize << 16)
   // Each value will only ever have one element. The array is merely to prevent boxing each time we mutate the Long.
   private[this] val submittedLocations = new java.util.HashMap[Trace, Array[Long]]
   private[this] val workers            = Array.ofDim[ZScheduler.Worker](poolSize)
@@ -230,8 +230,8 @@ private final class ZScheduler extends Executor {
 
   private[this] def isBlocking(runnable: Runnable): Boolean =
     if (runnable.isInstanceOf[FiberRunnable]) {
-      val fiberRunnable  = runnable.asInstanceOf[FiberRunnable]
-      val location       = fiberRunnable.location
+      val fiberRunnable = runnable.asInstanceOf[FiberRunnable]
+      val location      = fiberRunnable.location
       submittedLocations.compute(
         location,
         (_, submittedCount) =>
