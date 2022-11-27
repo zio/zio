@@ -30,12 +30,12 @@ class StreamParBenchmark {
   @Param(Array("50"))
   var parChunkSize: Int = _
 
-  implicit val system: ActorSystem = ActorSystem("benchmarks")
+  implicit val system: ActorSystem          = ActorSystem("benchmarks")
   implicit val ec: ExecutionContextExecutor = system.dispatcher
 
-  var akkaChunks: IndexedSeq[Array[Int]] = _
+  var akkaChunks: IndexedSeq[Array[Int]]   = _
   var fs2Chunks: IndexedSeq[FS2Chunk[Int]] = _
-  var zioChunks: IndexedSeq[Chunk[Int]] = _
+  var zioChunks: IndexedSeq[Chunk[Int]]    = _
 
   @Setup
   def setup(): Unit = {
@@ -61,7 +61,7 @@ class StreamParBenchmark {
   }
 
   @Benchmark
-  def fs2MapPar: Long = {
+  def fs2MapPar: Long =
     FS2Stream(fs2Chunks: _*)
       .flatMap(FS2Stream.chunk(_))
       .mapAsync[CatsIO, BigDecimal](4)(i => CatsIO(BigDecimal.valueOf(i.toLong).pow(3)))
@@ -69,7 +69,6 @@ class StreamParBenchmark {
       .compile
       .fold(0L)((c, _) => c + 1L)
       .unsafeRunSync()
-  }
 
   @Benchmark
   def zioMapPar: Long = {
@@ -92,7 +91,7 @@ class StreamParBenchmark {
   }
 
   @Benchmark
-  def fs2MapParUnordered: Long = {
+  def fs2MapParUnordered: Long =
     FS2Stream(fs2Chunks: _*)
       .flatMap(FS2Stream.chunk(_))
       .mapAsyncUnordered[CatsIO, BigDecimal](4)(i => CatsIO(BigDecimal.valueOf(i.toLong).pow(3)))
@@ -100,7 +99,6 @@ class StreamParBenchmark {
       .compile
       .fold(0L)((c, _) => c + 1L)
       .unsafeRunSync()
-  }
 
   @Benchmark
   def zioMapParUnordered: Long = {
@@ -111,6 +109,5 @@ class StreamParBenchmark {
 
     unsafeRun(result)
   }
-
 
 }

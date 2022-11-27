@@ -30,10 +30,10 @@ class StreamBenchmarks {
   implicit val system: ActorSystem          = ActorSystem("benchmarks")
   implicit val ec: ExecutionContextExecutor = system.dispatcher
 
-  var akkaChunks: IndexedSeq[Array[Int]] = _
+  var akkaChunks: IndexedSeq[Array[Int]]   = _
   var fs2Chunks: IndexedSeq[FS2Chunk[Int]] = _
-  var zioChunks: IndexedSeq[Chunk[Int]] = _
-  var zioChunkChunk: Chunk[Int] = _
+  var zioChunks: IndexedSeq[Chunk[Int]]    = _
+  var zioChunkChunk: Chunk[Int]            = _
 
   @Setup
   def setup(): Unit = {
@@ -86,15 +86,14 @@ class StreamBenchmarks {
   }
 
   @Benchmark
-  def zioChunkChunkFilterMapSum: Long = {
+  def zioChunkChunkFilterMapSum: Long =
     zioChunkChunk
       .filter(_ % 2 == 0)
       .map(_.toLong)
       .fold(0L)(_ + _)
-  }
 
   @Benchmark
-  def fs2MapAccum: Option[(Long, Long)] = {
+  def fs2MapAccum: Option[(Long, Long)] =
     FS2Stream(fs2Chunks: _*)
       .flatMap(FS2Stream.chunk(_))
       .mapAccumulate(0L) { case (acc, i) =>
@@ -105,7 +104,6 @@ class StreamBenchmarks {
       .compile
       .last
       .unsafeRunSync()
-  }
 
   @Benchmark
   def zioMapAccum: Option[Long] = {
@@ -131,7 +129,7 @@ class StreamBenchmarks {
   }
 
   @Benchmark
-  def fs2Sliding: Long = {
+  def fs2Sliding: Long =
     FS2Stream(fs2Chunks: _*)
       .flatMap(FS2Stream.chunk(_))
       .sliding(100, 1)
@@ -139,7 +137,6 @@ class StreamBenchmarks {
       .compile
       .fold(0L)((c, _) => c + 1L)
       .unsafeRunSync()
-  }
 
   @Benchmark
   def zioSliding: Long = {
@@ -162,7 +159,7 @@ class StreamBenchmarks {
   }
 
   @Benchmark
-  def fs2TakeWhile: Option[Int] = {
+  def fs2TakeWhile: Option[Int] =
     FS2Stream(fs2Chunks: _*)
       .flatMap(FS2Stream.chunk(_))
       .takeWhile(i => (i < (chunkCount * chunkSize) / 2))
@@ -170,7 +167,6 @@ class StreamBenchmarks {
       .compile
       .last
       .unsafeRunSync()
-  }
 
   @Benchmark
   def zioTakeWhile: Option[Int] = {
@@ -193,7 +189,7 @@ class StreamBenchmarks {
   }
 
   @Benchmark
-  def fs2GroupWithin: Long = {
+  def fs2GroupWithin: Long =
     FS2Stream(fs2Chunks: _*)
       .flatMap(FS2Stream.chunk(_))
       .groupWithin[CatsIO](100, ScalaDuration(1, TimeUnit.SECONDS))
@@ -201,7 +197,6 @@ class StreamBenchmarks {
       .compile
       .fold(0L)((c, _) => c + 1L)
       .unsafeRunSync()
-  }
 
   @Benchmark
   def zioGroupWithin: Long = {
@@ -214,7 +209,7 @@ class StreamBenchmarks {
   }
 
   @Benchmark
-  def fs2GroupAdjecentBy: Long = {
+  def fs2GroupAdjecentBy: Long =
     FS2Stream(fs2Chunks: _*)
       .flatMap(FS2Stream.chunk(_))
       .groupAdjacentBy(_ % 2)
@@ -222,7 +217,6 @@ class StreamBenchmarks {
       .compile
       .fold(0L)((c, _) => c + 1L)
       .unsafeRunSync()
-  }
 
   @Benchmark
   def zioGroupAdjecentBy: Long = {
