@@ -314,7 +314,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
 
   private[this] var done: Exit[Any, Any] = _
 
-  private[this] var doneStack: Stack[ErasedContinuation[Env]] = Stack.empty
+  private[this] var doneStack: Stack[ErasedContinuation[Env]] = Stack.empty[ErasedContinuation[Env]]
 
   private[this] var emitted: Any = _
 
