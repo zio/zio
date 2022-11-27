@@ -7,6 +7,7 @@ import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, Upstream
 
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
+import scala.collection.mutable.Stack
 
 private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   initialChannel: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
@@ -31,33 +32,39 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
     @tailrec
     def unwind(
       acc: ZIO[Env, Nothing, Exit[Nothing, Any]],
-      conts: List[ErasedContinuation[Env]]
+      conts: Stack[ErasedContinuation[Env]]
     ): ZIO[Env, Nothing, Exit[Nothing, Any]] =
-      conts match {
-        case Nil                                => acc
-        case ZChannel.Fold.K(_, _) :: rest      => unwind(acc, rest)
-        case ZChannel.Fold.Finalizer(f) :: rest => unwind(acc *> f(exit).exit, rest)
+      if (conts.isEmpty) {
+        acc
+      } else {
+        conts.pop() match {
+          case ZChannel.Fold.K(_, _)      => unwind(acc, conts)
+          case ZChannel.Fold.Finalizer(f) => unwind(acc *> f(exit).exit, conts)
+        }
       }
 
     val effect = unwind(ZIO.succeed(Exit.unit), doneStack).flatMap(ZIO.done(_))
-    doneStack = Nil
+    doneStack.clear()
     storeInProgressFinalizer(effect)
     effect
   }
 
-  private[this] final def popNextFinalizers(): List[ZChannel.Fold.Finalizer[Env, Any, Any]] = {
-    val builder = List.newBuilder[ZChannel.Fold.Finalizer[Env, Any, Any]]
+  private[this] final def popNextFinalizers(): Stack[ZChannel.Fold.Finalizer[Env, Any, Any]] = {
+    val builder = Stack.newBuilder[ZChannel.Fold.Finalizer[Env, Any, Any]]
 
-    def go(stack: List[ErasedContinuation[Env]]): List[ErasedContinuation[Env]] =
-      stack match {
-        case Nil                        => Nil
-        case ZChannel.Fold.K(_, _) :: _ => stack
-        case (finalizer @ ZChannel.Fold.Finalizer(_)) :: rest =>
-          builder += finalizer.asInstanceOf[ZChannel.Fold.Finalizer[Env, Any, Any]]
-          go(rest)
+    @tailrec
+    def go(): Unit =
+      if (doneStack.nonEmpty) {
+        doneStack.head match {
+          case ZChannel.Fold.K(_, _) =>
+          case finalizer @ ZChannel.Fold.Finalizer(_) =>
+            builder += finalizer.asInstanceOf[ZChannel.Fold.Finalizer[Env, Any, Any]]
+            doneStack.pop()
+            go()
+        }
       }
 
-    doneStack = go(doneStack)
+    go()
     builder.result()
   }
 
@@ -277,7 +284,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
               currentChannel = null
 
             case ZChannel.Fold(value, k) =>
-              doneStack = k.asInstanceOf[ErasedContinuation[Env]] :: doneStack
+              doneStack.push(k.asInstanceOf[ErasedContinuation[Env]])
               currentChannel = value
 
             case bracketOut @ ZChannel.BracketOut(_, _) =>
@@ -307,7 +314,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
 
   private[this] var done: Exit[Any, Any] = _
 
-  private[this] var doneStack: List[ErasedContinuation[Env]] = Nil
+  private[this] var doneStack: Stack[ErasedContinuation[Env]] = Stack.empty
 
   private[this] var emitted: Any = _
 
@@ -324,70 +331,72 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
   private[this] var closeLastSubstream: URIO[Env, Any] = _
 
   private[this] def doneSucceed(z: Any)(implicit trace: Trace): ChannelState[Env, Any] =
-    doneStack match {
-      case Nil =>
-        done = Exit.succeed(z)
-        currentChannel = null
-        ChannelState.Done
+    if (doneStack.isEmpty) {
+      done = Exit.succeed(z)
+      currentChannel = null
+      ChannelState.Done
+    } else {
+      doneStack.head match {
+        case ZChannel.Fold.K(onSuccess, _) =>
+          doneStack.pop()
+          currentChannel = onSuccess(z)
+          null
 
-      case ZChannel.Fold.K(onSuccess, _) :: rest =>
-        doneStack = rest
-        currentChannel = onSuccess(z)
-        null
+        case ZChannel.Fold.Finalizer(_) =>
+          val finalizers = popNextFinalizers()
 
-      case ZChannel.Fold.Finalizer(_) :: _ =>
-        val finalizers = popNextFinalizers()
+          if (doneStack.isEmpty) {
+            doneStack = finalizers.asInstanceOf[Stack[ErasedContinuation[Env]]]
+            done = Exit.succeed(z)
+            currentChannel = null
+            ChannelState.Done
+          } else {
+            val finalizerEffect =
+              runFinalizers(finalizers.map(_.finalizer), Exit.succeed(z))
+            storeInProgressFinalizer(finalizerEffect)
 
-        if (doneStack.isEmpty) {
-          doneStack = finalizers
-          done = Exit.succeed(z)
-          currentChannel = null
-          ChannelState.Done
-        } else {
-          val finalizerEffect =
-            runFinalizers(finalizers.map(_.finalizer), Exit.succeed(z))
-          storeInProgressFinalizer(finalizerEffect)
-
-          ChannelState.Effect(
-            finalizerEffect
-              .ensuring(
-                ZIO.succeed(clearInProgressFinalizer())
-              )
-              .uninterruptible *> ZIO.succeed(doneSucceed(z))
-          )
-        }
+            ChannelState.Effect(
+              finalizerEffect
+                .ensuring(
+                  ZIO.succeed(clearInProgressFinalizer())
+                )
+                .uninterruptible *> ZIO.succeed(doneSucceed(z))
+            )
+          }
+      }
     }
 
   private[this] def doneHalt(cause: Cause[Any])(implicit trace: Trace): ChannelState[Env, Any] =
-    doneStack match {
-      case Nil =>
-        done = Exit.failCause(cause)
-        currentChannel = null
-        ChannelState.Done
+    if (doneStack.isEmpty) {
+      done = Exit.failCause(cause)
+      currentChannel = null
+      ChannelState.Done
+    } else {
+      doneStack.head match {
+        case ZChannel.Fold.K(_, onHalt) =>
+          doneStack.pop()
+          currentChannel = onHalt(cause)
+          null
 
-      case ZChannel.Fold.K(_, onHalt) :: rest =>
-        doneStack = rest
-        currentChannel = onHalt(cause)
-        null
+        case ZChannel.Fold.Finalizer(_) =>
+          val finalizers = popNextFinalizers()
 
-      case ZChannel.Fold.Finalizer(_) :: _ =>
-        val finalizers = popNextFinalizers()
+          if (doneStack.isEmpty) {
+            doneStack = finalizers.asInstanceOf[Stack[ErasedContinuation[Env]]]
+            done = Exit.failCause(cause)
+            currentChannel = null
+            ChannelState.Done
+          } else {
+            val finalizerEffect = runFinalizers(finalizers.map(_.finalizer), Exit.failCause(cause))
+            storeInProgressFinalizer(finalizerEffect)
 
-        if (doneStack.isEmpty) {
-          doneStack = finalizers
-          done = Exit.failCause(cause)
-          currentChannel = null
-          ChannelState.Done
-        } else {
-          val finalizerEffect = runFinalizers(finalizers.map(_.finalizer), Exit.failCause(cause))
-          storeInProgressFinalizer(finalizerEffect)
-
-          ChannelState.Effect(
-            finalizerEffect
-              .ensuring(ZIO.succeed(clearInProgressFinalizer()))
-              .uninterruptible *> ZIO.succeed(doneHalt(cause))
-          )
-        }
+            ChannelState.Effect(
+              finalizerEffect
+                .ensuring(ZIO.succeed(clearInProgressFinalizer()))
+                .uninterruptible *> ZIO.succeed(doneHalt(cause))
+            )
+          }
+      }
     }
 
   private[this] def processCancellation(): ChannelState[Env, Any] = {
@@ -427,9 +436,9 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
   }
 
   private[this] def addFinalizer(f: Finalizer[Env]): Unit =
-    doneStack = ZChannel.Fold.Finalizer(f) :: doneStack
+    doneStack.push(ZChannel.Fold.Finalizer(f))
 
-  private[this] def runFinalizers(finalizers: List[Finalizer[Env]], ex: Exit[Any, Any])(implicit
+  private[this] def runFinalizers(finalizers: Iterable[Finalizer[Env]], ex: Exit[Any, Any])(implicit
     trace: Trace
   ): URIO[Env, Any] =
     if (finalizers.isEmpty) null

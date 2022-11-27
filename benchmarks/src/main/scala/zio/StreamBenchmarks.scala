@@ -12,11 +12,14 @@ import zio.stream._
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{Duration => ScalaDuration}
-import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+import scala.concurrent.{Await, ExecutionContextExecutor}
 
-@State(JScope.Thread)
+@State(JScope.Benchmark)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
+@Measurement(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 1)
+@Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 1)
+@Fork(value = 1)
 class StreamBenchmarks {
   @Param(Array("10000"))
   var chunkCount: Int = _
@@ -24,11 +27,21 @@ class StreamBenchmarks {
   @Param(Array("5000"))
   var chunkSize: Int = _
 
-  @Param(Array("50"))
-  var parChunkSize: Int = _
-
   implicit val system: ActorSystem          = ActorSystem("benchmarks")
   implicit val ec: ExecutionContextExecutor = system.dispatcher
+
+  var akkaChunks: IndexedSeq[Array[Int]] = _
+  var fs2Chunks: IndexedSeq[FS2Chunk[Int]] = _
+  var zioChunks: IndexedSeq[Chunk[Int]] = _
+  var zioChunkChunk: Chunk[Int] = _
+
+  @Setup
+  def setup(): Unit = {
+    akkaChunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
+    fs2Chunks = (1 to chunkCount).map(i => FS2Chunk.array(Array.fill(chunkSize)(i)))
+    zioChunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
+    zioChunkChunk = Chunk.fromArray((1 to chunkCount).toArray).flatMap(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
+  }
 
   @TearDown
   def shutdown(): Unit = {
@@ -38,9 +51,8 @@ class StreamBenchmarks {
 
   @Benchmark
   def akkaChunkFilterMapSum: Long = {
-    val chunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
     val program = AkkaSource
-      .fromIterator(() => chunks.iterator.flatten)
+      .fromIterator(() => akkaChunks.iterator.flatten)
       .filter(_ % 2 == 0)
       .map(_.toLong)
       .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
@@ -50,8 +62,7 @@ class StreamBenchmarks {
 
   @Benchmark
   def fs2ChunkFilterMapSum: Long = {
-    val chunks = (1 to chunkCount).map(i => FS2Chunk.array(Array.fill(chunkSize)(i)))
-    val stream = FS2Stream(chunks: _*)
+    val stream = FS2Stream(fs2Chunks: _*)
       .flatMap(FS2Stream.chunk(_))
       .filter(_ % 2 == 0)
       .map(_.toLong)
@@ -63,9 +74,8 @@ class StreamBenchmarks {
 
   @Benchmark
   def zioChunkFilterMapSum: Long = {
-    val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
     val stream = ZStream
-      .fromChunks(chunks: _*)
+      .fromChunks(zioChunks: _*)
       .filter(_ % 2 == 0)
       .map(_.toLong)
 
@@ -77,8 +87,7 @@ class StreamBenchmarks {
 
   @Benchmark
   def zioChunkChunkFilterMapSum: Long = {
-    val chunks = Chunk.fromArray((1 to chunkCount).toArray).flatMap(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
-    chunks
+    zioChunkChunk
       .filter(_ % 2 == 0)
       .map(_.toLong)
       .fold(0L)(_ + _)
@@ -86,8 +95,7 @@ class StreamBenchmarks {
 
   @Benchmark
   def fs2MapAccum: Option[(Long, Long)] = {
-    val chunks = (1 to chunkCount).map(i => FS2Chunk.array(Array.fill(chunkSize)(i)))
-    FS2Stream(chunks: _*)
+    FS2Stream(fs2Chunks: _*)
       .flatMap(FS2Stream.chunk(_))
       .mapAccumulate(0L) { case (acc, i) =>
         val added = acc + i
@@ -101,9 +109,8 @@ class StreamBenchmarks {
 
   @Benchmark
   def zioMapAccum: Option[Long] = {
-    val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
     val result = ZStream
-      .fromChunks(chunks: _*)
+      .fromChunks(zioChunks: _*)
       .mapAccum(0L) { case (acc, i) =>
         val added = acc + i
         (added, added)
@@ -115,9 +122,8 @@ class StreamBenchmarks {
 
   @Benchmark
   def akkaSliding: Long = {
-    val chunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
     val program = AkkaSource
-      .fromIterator(() => chunks.iterator.flatten)
+      .fromIterator(() => akkaChunks.iterator.flatten)
       .sliding(100, 1)
       .toMat(AkkaSink.fold(0L)((c, _) => c + 1L))(Keep.right)
 
@@ -126,8 +132,7 @@ class StreamBenchmarks {
 
   @Benchmark
   def fs2Sliding: Long = {
-    val chunks = (1 to chunkCount).map(i => FS2Chunk.array(Array.fill(chunkSize)(i)))
-    FS2Stream(chunks: _*)
+    FS2Stream(fs2Chunks: _*)
       .flatMap(FS2Stream.chunk(_))
       .sliding(100, 1)
       .covary[CatsIO]
@@ -138,9 +143,8 @@ class StreamBenchmarks {
 
   @Benchmark
   def zioSliding: Long = {
-    val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
     val result = ZStream
-      .fromChunks(chunks: _*)
+      .fromChunks(zioChunks: _*)
       .sliding(100, 1)
       .runCount
 
@@ -149,9 +153,8 @@ class StreamBenchmarks {
 
   @Benchmark
   def akkaTakeWhile: Option[Int] = {
-    val chunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
     val program = AkkaSource
-      .fromIterator(() => chunks.iterator.flatten)
+      .fromIterator(() => akkaChunks.iterator.flatten)
       .takeWhile(i => (i < (chunkCount * chunkSize) / 2))
       .toMat(AkkaSink.lastOption)(Keep.right)
 
@@ -160,8 +163,7 @@ class StreamBenchmarks {
 
   @Benchmark
   def fs2TakeWhile: Option[Int] = {
-    val chunks = (1 to chunkCount).map(i => FS2Chunk.array(Array.fill(chunkSize)(i)))
-    FS2Stream(chunks: _*)
+    FS2Stream(fs2Chunks: _*)
       .flatMap(FS2Stream.chunk(_))
       .takeWhile(i => (i < (chunkCount * chunkSize) / 2))
       .covary[CatsIO]
@@ -172,9 +174,8 @@ class StreamBenchmarks {
 
   @Benchmark
   def zioTakeWhile: Option[Int] = {
-    val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
     val result = ZStream
-      .fromChunks(chunks: _*)
+      .fromChunks(zioChunks: _*)
       .takeWhile(i => (i < (chunkCount * chunkSize) / 2))
       .runLast
 
@@ -183,9 +184,8 @@ class StreamBenchmarks {
 
   @Benchmark
   def akkaGroupWithin: Long = {
-    val chunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
     val program = AkkaSource
-      .fromIterator(() => chunks.iterator.flatten)
+      .fromIterator(() => akkaChunks.iterator.flatten)
       .groupedWithin(100, ScalaDuration(1, TimeUnit.SECONDS))
       .toMat(AkkaSink.fold(0L)((c, _) => c + 1L))(Keep.right)
 
@@ -194,8 +194,7 @@ class StreamBenchmarks {
 
   @Benchmark
   def fs2GroupWithin: Long = {
-    val chunks = (1 to chunkCount).map(i => FS2Chunk.array(Array.fill(chunkSize)(i)))
-    FS2Stream(chunks: _*)
+    FS2Stream(fs2Chunks: _*)
       .flatMap(FS2Stream.chunk(_))
       .groupWithin[CatsIO](100, ScalaDuration(1, TimeUnit.SECONDS))
       .covary[CatsIO]
@@ -206,9 +205,8 @@ class StreamBenchmarks {
 
   @Benchmark
   def zioGroupWithin: Long = {
-    val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
     val result = ZStream
-      .fromChunks(chunks: _*)
+      .fromChunks(zioChunks: _*)
       .groupedWithin(100, Duration(1, TimeUnit.SECONDS))
       .runCount
 
@@ -217,8 +215,7 @@ class StreamBenchmarks {
 
   @Benchmark
   def fs2GroupAdjecentBy: Long = {
-    val chunks = (1 to chunkCount).map(i => FS2Chunk.array(Array.fill(chunkSize)(i)))
-    FS2Stream(chunks: _*)
+    FS2Stream(fs2Chunks: _*)
       .flatMap(FS2Stream.chunk(_))
       .groupAdjacentBy(_ % 2)
       .covary[CatsIO]
@@ -229,9 +226,8 @@ class StreamBenchmarks {
 
   @Benchmark
   def zioGroupAdjecentBy: Long = {
-    val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
     val result = ZStream
-      .fromChunks(chunks: _*)
+      .fromChunks(zioChunks: _*)
       .groupAdjacentBy(_ % 2)
       .runCount
 
@@ -240,114 +236,12 @@ class StreamBenchmarks {
 
   @Benchmark
   def zioGroupByKey: Long = {
-    val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
     val result = ZStream
-      .fromChunks(chunks: _*)
+      .fromChunks(zioChunks: _*)
       .groupByKey(_ % 2) { case (k, s) =>
         ZStream.fromZIO(s.runCollect.map(vs => k -> vs))
       }
       .runCount
-
-    unsafeRun(result)
-  }
-
-  @Benchmark
-  def akkaMapPar: Long = {
-    val chunks = (1 to chunkCount).map(i => Array.fill(parChunkSize)(i))
-    val program = AkkaSource
-      .fromIterator(() => chunks.iterator.flatten)
-      .mapAsync(4)(i => Future.successful(BigDecimal.valueOf(i.toLong).pow(3)))
-      .toMat(AkkaSink.fold(0L)((c, _) => c + 1L))(Keep.right)
-
-    Await.result(program.run(), ScalaDuration.Inf)
-  }
-
-  @Benchmark
-  def fs2MapPar: Long = {
-    val chunks = (1 to chunkCount).map(i => FS2Chunk.array(Array.fill(parChunkSize)(i)))
-    FS2Stream(chunks: _*)
-      .flatMap(FS2Stream.chunk(_))
-      .mapAsync[CatsIO, BigDecimal](4)(i => CatsIO(BigDecimal.valueOf(i.toLong).pow(3)))
-      .covary[CatsIO]
-      .compile
-      .fold(0L)((c, _) => c + 1L)
-      .unsafeRunSync()
-  }
-
-  @Benchmark
-  def zioMapPar: Long = {
-    val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(parChunkSize)(i)))
-    val result = ZStream
-      .fromChunks(chunks: _*)
-      .mapZIOPar(4)(i => ZIO.succeed(BigDecimal.valueOf(i.toLong).pow(3)))
-      .runCount
-
-    unsafeRun(result)
-  }
-
-  @Benchmark
-  def akkaMapParUnordered: Long = {
-    val chunks = (1 to chunkCount).map(i => Array.fill(parChunkSize)(i))
-    val program = AkkaSource
-      .fromIterator(() => chunks.iterator.flatten)
-      .mapAsyncUnordered(4)(i => Future.successful(BigDecimal.valueOf(i.toLong).pow(3)))
-      .toMat(AkkaSink.fold(0L)((c, _) => c + 1L))(Keep.right)
-
-    Await.result(program.run(), ScalaDuration.Inf)
-  }
-
-  @Benchmark
-  def fs2MapParUnordered: Long = {
-    val chunks = (1 to chunkCount).map(i => FS2Chunk.array(Array.fill(parChunkSize)(i)))
-    FS2Stream(chunks: _*)
-      .flatMap(FS2Stream.chunk(_))
-      .mapAsyncUnordered[CatsIO, BigDecimal](4)(i => CatsIO(BigDecimal.valueOf(i.toLong).pow(3)))
-      .covary[CatsIO]
-      .compile
-      .fold(0L)((c, _) => c + 1L)
-      .unsafeRunSync()
-  }
-
-  @Benchmark
-  def zioMapParUnordered: Long = {
-    val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(parChunkSize)(i)))
-    val result = ZStream
-      .fromChunks(chunks: _*)
-      .mapZIOParUnordered(4)(i => ZIO.succeed(BigDecimal.valueOf(i.toLong).pow(3)))
-      .runCount
-
-    unsafeRun(result)
-  }
-
-  @Benchmark
-  def akkaZipWith: Long = {
-    val chunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
-    val s1     = AkkaSource.fromIterator(() => chunks.iterator.flatten)
-    val s2     = AkkaSource.fromIterator(() => chunks.iterator.flatten).map(_ * 2L)
-    val program = s1
-      .zipWith(s2)(_ + _)
-      .toMat(AkkaSink.fold(0L)((acc, c) => acc + c))(Keep.right)
-    Await.result(program.run(), ScalaDuration.Inf)
-  }
-
-  @Benchmark
-  def fs2ZipWith: Long = {
-    val chunks = (1 to chunkCount).map(i => FS2Chunk.array(Array.fill(chunkSize)(i)))
-    val s1     = FS2Stream(chunks: _*).flatMap(FS2Stream.chunk(_))
-    val s2     = FS2Stream(chunks: _*).flatMap(FS2Stream.chunk(_)).map(_ * 2L)
-    s1.zipWith(s2)(_ + _)
-      .covary[CatsIO]
-      .compile
-      .fold(0L)((acc, c) => acc + c)
-      .unsafeRunSync()
-  }
-
-  @Benchmark
-  def zioZipWith: Long = {
-    val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
-    val s1     = ZStream.fromChunks(chunks: _*)
-    val s2     = ZStream.fromChunks(chunks: _*).map(_ * 2L)
-    val result = s1.zipWith(s2)(_ + _).runSum
 
     unsafeRun(result)
   }
