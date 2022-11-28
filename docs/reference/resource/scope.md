@@ -160,7 +160,7 @@ The `zipPar` operator on `ZIO` takes care of acquiring the resources in parallel
 
 So far we have seen that while `Scope` is the foundation of safe and composable resource handling in ZIO, we don't actually need to work with the `Scope` data type directly other than being able to inpect the type signature to see if a workflow is scoped.
 
-In most cases we just use the `acquireRelease` constructor or one of its variants to construct our resource and either work with the resource and close its scope using `ZIO.scoped` or convert the resource into another ZIO data type using an operator such as `ZSteam.scoped` or `ZLayer.scoped`. However, for more advanced use cases we may need to work with scopes directly and `Scope` has several useful operators for helping us do so.
+In most cases we just use the `acquireRelease` constructor or one of its variants to construct our resource and either work with the resource and close its scope using `ZIO.scoped` or convert the resource into another ZIO data type using an operator such as `ZStream.scoped` or `ZLayer.scoped`. However, for more advanced use cases we may need to work with scopes directly and `Scope` has several useful operators for helping us do so.
 
 First, we can `use` a `Scope` by providing it to a workflow that needs a `Scope` and closing the `Scope` immediately after. This is analogous to the `ZIO.scoped` operator.
 
