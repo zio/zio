@@ -34,7 +34,7 @@ private final class ZScheduler extends Executor {
   private[this] val globalQueue        = MutableConcurrentQueue.unbounded[Runnable]
   private[this] val idle               = MutableConcurrentQueue.bounded[ZScheduler.Worker](poolSize)
   private[this] val state              = new AtomicInteger(poolSize << 16)
-  private[this] val submittedLocations = new java.util.HashMap[Trace, Long]
+  private[this] val submittedLocations = makeLocations()
   private[this] val workers            = Array.ofDim[ZScheduler.Worker](poolSize)
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
@@ -229,20 +229,39 @@ private final class ZScheduler extends Executor {
 
   private[this] def isBlocking(runnable: Runnable): Boolean =
     if (runnable.isInstanceOf[FiberRunnable]) {
-      val fiberRunnable  = runnable.asInstanceOf[FiberRunnable]
-      val location       = fiberRunnable.location
-      val submittedCount = submittedLocations.getOrDefault(location, 0L)
-      submittedLocations.put(location, submittedCount + 1)
+      val fiberRunnable = runnable.asInstanceOf[FiberRunnable]
+      val location      = fiberRunnable.location
+      submittedLocations.put(location)
       blockingLocations.contains(location)
     } else {
       false
+    }
+
+  private[this] def makeLocations(): ZScheduler.Locations =
+    new ZScheduler.Locations {
+      private[this] val locations = new java.util.HashMap[Trace, Array[Long]]
+      def get(trace: Trace): Long = {
+        val array = locations.get(trace)
+        if (array eq null) 0L else array(0)
+      }
+      def put(trace: Trace): Long = {
+        val array = locations.get(trace)
+        if (array eq null) {
+          locations.put(trace, Array(1L))
+          0L
+        } else {
+          val value = array(0)
+          array(0) += 1
+          value
+        }
+      }
     }
 
   private[this] def makeSupervisor(): ZScheduler.Supervisor =
     new ZScheduler.Supervisor {
       override def run(): Unit = {
         var currentTime         = java.lang.System.currentTimeMillis()
-        val identifiedLocations = new java.util.HashMap[Trace, Long]()
+        val identifiedLocations = makeLocations()
         val previousOpCounts    = Array.fill(poolSize)(-1L)
         while (!isInterrupted) {
           var workerId = 0
@@ -257,9 +276,8 @@ private final class ZScheduler extends Executor {
                   val fiberRunnable = currentRunnable.asInstanceOf[FiberRunnable]
                   val location      = fiberRunnable.location
                   if (location ne Trace.empty) {
-                    val identifiedCount = identifiedLocations.getOrDefault(location, 0L)
-                    identifiedLocations.put(location, identifiedCount + 1L)
-                    val submittedCount = submittedLocations.getOrDefault(location, 0L)
+                    val identifiedCount = identifiedLocations.put(location)
+                    val submittedCount  = submittedLocations.get(location)
                     if (submittedCount > 64 && identifiedCount >= submittedCount / 2) {
                       blockingLocations += location
                     }
@@ -470,6 +488,26 @@ private final class ZScheduler extends Executor {
 }
 
 private[zio] object ZScheduler {
+
+  /**
+   * `Locations` tracks the number of observations of a fiber forked from a
+   * location.
+   */
+  private sealed abstract class Locations {
+
+    /**
+     * Returns the number of observations of a fiber forked from the specified
+     * location.
+     */
+    def get(trace: Trace): Long
+
+    /**
+     * Tracks a new observation of a fiber forked from the specified location
+     * and returns the previous number of observations of a fiber forked from
+     * that location.
+     */
+    def put(trace: Trace): Long
+  }
 
   /**
    * A `Supervisor` is a `Thread` that is responsible for monitoring workers and
