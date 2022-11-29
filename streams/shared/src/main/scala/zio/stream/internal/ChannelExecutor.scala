@@ -31,20 +31,18 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
 
     @tailrec
     def unwind(
-      acc: ZIO[Env, Nothing, Exit[Nothing, Any]],
-      conts: Stack[ErasedContinuation[Env]]
+      acc: ZIO[Env, Nothing, Exit[Nothing, Any]]
     ): ZIO[Env, Nothing, Exit[Nothing, Any]] =
-      if (conts.isEmpty) {
+      if (doneStack.isEmpty) {
         acc
       } else {
-        conts.pop() match {
-          case ZChannel.Fold.K(_, _)      => unwind(acc, conts)
-          case ZChannel.Fold.Finalizer(f) => unwind(acc *> f(exit).exit, conts)
+        doneStack.pop() match {
+          case ZChannel.Fold.K(_, _)      => unwind(acc)
+          case ZChannel.Fold.Finalizer(f) => unwind(acc *> f(exit).exit)
         }
       }
 
-    val effect = unwind(ZIO.succeed(Exit.unit), doneStack).flatMap(ZIO.done(_))
-    doneStack.clear()
+    val effect = unwind(ZIO.succeed(Exit.unit)).flatMap(ZIO.done(_))
     storeInProgressFinalizer(effect)
     effect
   }
