@@ -71,6 +71,24 @@ val groupedFileData: IO[IOException, Unit] =
 
 Like `ensuring`, `acquireReleaseWith` has compositional semantics, so if one `acquireReleaseWith` is nested inside another `acquireReleaseWith`, and the outer resource is acquired, then the outer release will always be called, even if, for example, the inner release fails.
 
+For resources which implement the AutoClosable interface, the convenience method `fromAutoClosable` can be used, which can be seen as the ZIO equivalent of try-with-resource.
+
+```scala mdoc:invisible
+import zio._
+import java.io.{FileInputStream, IOException}
+
+def openFileInputStream(name: String): IO[IOException, FileInputStream] = ZIO.attemptBlockingIO(new FileInputStream(name))
+```
+
+```scala mdoc:silent
+val bytesInFile: IO[IOException, Int]      = {
+  for {
+    stream <- ZIO.scoped(ZIO.fromAutoCloseable(openFileInputStream("data.json")))
+    data   <- ZIO.attemptBlockingIO(stream.readAllBytes())
+  } yield data.length
+}
+```
+
 ## Next Steps
 
 If you are comfortable with basic resource handling, the next step is to learn about [basic concurrency](basic_concurrency.md).
