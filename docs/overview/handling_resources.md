@@ -75,13 +75,12 @@ For resources which implement the AutoClosable interface, the convenience method
 
 ```scala mdoc:invisible
 import zio._
-import java.io.{FileInputStream, IOException}
-
-def openFileInputStream(name: String): IO[IOException, FileInputStream] = ZIO.attemptBlockingIO(new FileInputStream(name))
+import java.io.FileInputStream
+def openFileInputStream(name: String): IO[Throwable, FileInputStream] = ZIO.attemptBlocking(new FileInputStream(name))
 ```
 
 ```scala mdoc:silent
-val bytesInFile: IO[IOException, Int]      = {
+val bytesInFile: IO[Throwable, Int]      = {
   for {
     stream <- ZIO.scoped(ZIO.fromAutoCloseable(openFileInputStream("data.json")))
     data   <- ZIO.attemptBlockingIO(stream.readAllBytes())
