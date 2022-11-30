@@ -80,14 +80,13 @@ def openFileInputStream(name: String): IO[Throwable, FileInputStream] = ZIO.atte
 ```
 
 ```scala mdoc:silent
-val bytesInFile: IO[Throwable, Int] = {
-  ZIO.scoped(
+val bytesInFile: IO[Throwable, Int] =
+  ZIO.scoped {
     for {
       stream <- ZIO.fromAutoCloseable(openFileInputStream("data.json"))
       data   <- ZIO.attemptBlockingIO(stream.readAllBytes())
     } yield data.length
-  )
-}
+  }
 ```
 
 ## Next Steps
