@@ -1694,9 +1694,6 @@ object ZChannel {
           n             <- ZIO.succeed(n)
           bufferSize    <- ZIO.succeed(bufferSize)
           mergeStrategy <- ZIO.succeed(mergeStrategy)
-          childFibers   <- Ref.make[Map[FiberId, Fiber[Any, Unit]]](Map.empty)
-          getChildren    = childFibers.get.map(_.values)
-          _             <- ZIO.addFinalizer(getChildren.flatMap(Fiber.interruptAll(_)))
           queue         <- ZIO.acquireRelease(Queue.bounded[ZIO[Env, OutErr, Either[OutDone, OutElem]]](bufferSize))(_.shutdown)
           cancelers     <- ZIO.acquireRelease(Queue.unbounded[Promise[Nothing, Unit]])(_.shutdown)
           lastDone      <- Ref.make[Option[OutDone]](None)
@@ -1729,13 +1726,11 @@ object ZChannel {
                  .foldCauseZIO(
                    cause =>
                      queue.offer(ZIO.failCause(cause)) *>
-                       getChildren.flatMap(Fiber.interruptAll(_)) *>
                        ZIO.succeed(false),
                    {
                      case Left(outDone) =>
                        errorSignal.await.raceWith(permits.withPermits(n.toLong)(ZIO.unit))(
-                         leftDone = (_, permitAcquisition) =>
-                           getChildren.flatMap(Fiber.interruptAll(_)) *> permitAcquisition.interrupt.as(false),
+                         leftDone = (_, permitAcquisition) => permitAcquisition.interrupt.as(false),
                          rightDone = (_, failureAwait) =>
                            failureAwait.interrupt *>
                              lastDone.get.flatMap {
@@ -1754,9 +1749,7 @@ object ZChannel {
                                )
                              childFiber <- permits
                                              .withPermit(latch.succeed(()) *> raceIOs)
-                                             .ensuring(ZIO.fiberId.flatMap(id => childFibers.update(_ - id)))
-                                             .fork
-                             _       <- childFibers.update(_.updated(childFiber.id, childFiber))
+                                             .forkScoped
                              _       <- latch.await
                              errored <- errorSignal.isDone
                            } yield !errored
@@ -1775,9 +1768,7 @@ object ZChannel {
                                )
                              childFiber <- permits
                                              .withPermit(latch.succeed(()) *> raceIOs)
-                                             .ensuring(ZIO.fiberId.flatMap(id => childFibers.update(_ - id)))
-                                             .fork
-                             _       <- childFibers.update(_.updated(childFiber.id, childFiber))
+                                             .forkScoped
                              _       <- latch.await
                              errored <- errorSignal.isDone
                            } yield !errored
