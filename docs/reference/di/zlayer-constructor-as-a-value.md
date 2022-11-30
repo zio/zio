@@ -288,7 +288,7 @@ import scala.io.BufferedSource
 val fileLayer: ZLayer[Any, Throwable, BufferedSource] =
   ZLayer.scoped {
     ZIO.fromAutoCloseable(
-      ZIO.attempt(scala.io.Source.fromFile("file.txt"))
+      ZIO.attemptBlocking(scala.io.Source.fromFile("file.txt"))
     )
   }
 ```
