@@ -342,18 +342,20 @@ object UserRepositoyLive {
 We should avoid using blocking operations inside Scala constructors:
 
 ```scala mdoc:compile-only
-class KafkaProducer {
+class ProducerInput
+
+class KafkaProducer(input: ProducerInput) {
   def send(message: String): Unit = ???
 }
 
 object KafkaProducer {
   def apply() = {
     // Blocking operation, we should avoid it inside constructors
-    doSomeBlockingOperation() 
-    new KafkaProducer() 
+    val input = doSomeBlockingOperation()
+    new KafkaProducer(input)
   }
-  
-  private def doSomeBlockingOperation(): Unit = ???
+
+  private def doSomeBlockingOperation(): ProducerInput = ???
 }
 ```
 
@@ -362,24 +364,21 @@ While with `ZLayer`, we can easily use blocking operations:
 ```scala mdoc:compile-only
 import zio._
 
-class KafkaProducer {
-  def send(message: String): Task[Unit] = ???
+class ProducerInput
+
+class KafkaProducer(input: ProducerInput) {
+    def send(message: String): Task[Unit] = ???
 }
 
 object KafkaProducer {
-  def apply() = {
-    doSomeBlockingOperation() 
-    new KafkaProducer()
-  }
-  
   val layer =
     ZLayer {
       for {
-        _ <- ZIO.attemptBlocking(doSomeBlockingOperation())
-      } yield (new KafkaProducer())
+        input <- ZIO.attemptBlocking(doSomeBlockingOperation())
+      } yield (new KafkaProducer(input))
     }
 
-  private def doSomeBlockingOperation(): Unit = ???
+  private def doSomeBlockingOperation(): ProducerInput = ???
 }
 ```
 
