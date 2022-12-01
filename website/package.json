@@ -30,7 +30,7 @@
     "@zio.dev/zio-constraintless": "0.0.0--106-f043aafb--20221121-0804-SNAPSHOT",
     "@zio.dev/zio-crypto": "0.0.0--102-23de4b47--20221120-2038-SNAPSHOT",
     "@zio.dev/zio-deriving": "^0.1.0-SNAPSHOT",
-    "@zio.deb/zio-direct": "1.0.0-RC1",
+    "@zio.dev/zio-direct": "1.0.0-RC1",
     "@zio.dev/zio-dynamodb": "2022.11.23-04d605ee9bab",
     "@zio.dev/zio-flow": "1.0.0-RC1",
     "@zio.dev/zio-ftp": "^0.4.0",
