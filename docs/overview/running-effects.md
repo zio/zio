@@ -1,6 +1,6 @@
 ---
-id: overview_running_effects
-title:  "Running Effects"
+id: running-effects
+title: "Running Effects"
 ---
 
 ZIO effects are precise plans that _describe_ a computation or interaction. Ultimately, every effect must be _executed_ by the ZIO runtime.

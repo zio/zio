@@ -1,6 +1,6 @@
 ---
-id: overview_performance
-title:  "Performance"
+id: performance
+title: "Performance"
 ---
 
 ZIO is a high-performance framework that is powered by non-blocking fibers (_virtual threads_ under Loom).
