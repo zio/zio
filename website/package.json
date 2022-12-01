@@ -31,7 +31,7 @@
     "@zio.dev/zio-crypto": "0.0.0--102-23de4b47--20221120-2038-SNAPSHOT",
     "@zio.dev/zio-deriving": "^0.1.0-SNAPSHOT",
     "@zio.dev/zio-dynamodb": "2022.11.23-04d605ee9bab",
-    "@zio.dev/zio-flow": "0.0.0--366-46081918-SNAPSHOT",
+    "@zio.dev/zio-flow": "1.0.0-RC1",
     "@zio.dev/zio-ftp": "^0.4.0",
     "@zio.dev/zio-http": "2.0.0-RC11",
     "@zio.dev/zio-insight": "0.0.0--256-ef32e749-SNAPSHOT",
