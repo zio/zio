@@ -1,3 +1,5 @@
+const ecosystemSidebar = require("./ecosystem-sidebar");
+
 module.exports = {
   overview_sidebar:
     [
@@ -524,7 +526,7 @@ module.exports = {
       ]
     }
   ],
-  "ecosystem-sidebar": [
+  "ecosystem-sidebar": ecosystemSidebar.concat([
     "ecosystem/index",
     {
       type: "category",
@@ -586,7 +588,7 @@ module.exports = {
     "ecosystem/compatible",
     "ecosystem/tools",
     "ecosystem/templates"
-  ],
+  ]),
   "resources-sidebar": [
     "resources/index",
     "resources/articles",
