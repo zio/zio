@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkzio_site=self.webpackChunkzio_site||[]).push([[24994],{59749:e=>{e.exports=JSON.parse('{"name":"docusaurus-plugin-content-docs","id":"zio-deriving"}')}}]);
