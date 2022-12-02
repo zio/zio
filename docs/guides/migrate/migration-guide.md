@@ -128,7 +128,7 @@ object MainApp extends ZIOAppDefault {
 5. If we are exposing [unsafe operators](#unsafe-marker) in one of our interfaces we should use the `Unsafe` data type to indicate this. By convention we define these operators in an `UnsafeAPI` trait in our interface that can be accessed using as `unsafe` operator.
 
 ```diff
-def MyInterface {
+trait MyInterface {
 -  def unsafeDoSomething(): Unit
 +  def unsafe: UnsafeAPI
 +
