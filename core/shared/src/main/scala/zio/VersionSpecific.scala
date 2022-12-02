@@ -60,7 +60,13 @@ private[zio] trait VersionSpecific {
   type LightTypeTag = izumi.reflect.macrortti.LightTypeTag
 
   private[zio] def taggedIsSubtype(left: LightTypeTag, right: LightTypeTag): Boolean =
-    taggedSubtypes.computeIfAbsent((left, right), _ => left <:< right)
+    taggedSubtypes.computeIfAbsent(
+      (left, right),
+      new java.util.function.Function[(LightTypeTag, LightTypeTag), Boolean] {
+        override def apply(tags: (LightTypeTag, LightTypeTag)): Boolean =
+          tags._1 <:< tags._2
+      }
+    )
 
   private[zio] def taggedTagType[A](tagged: EnvironmentTag[A]): LightTypeTag =
     tagged.tag
