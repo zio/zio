@@ -928,8 +928,8 @@ sealed trait ZIO[-R, +E, +A]
     f(self.left).unleft
 
   /**
-    * Logs the error of this workflow.
-    */
+   * Logs the error of this workflow.
+   */
   final def logError(implicit trace: Trace): ZIO[R, E, A] =
     logError("")
 
@@ -950,8 +950,8 @@ sealed trait ZIO[-R, +E, +A]
     logErrorCause("")
 
   /**
-    * Logs the cause of failure of this workflow with the specified message.
-    */
+   * Logs the cause of failure of this workflow with the specified message.
+   */
   final def logErrorCause(message: => String)(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.uninterruptibleMask { restore =>
       restore(self).tapErrorCause { cause =>
