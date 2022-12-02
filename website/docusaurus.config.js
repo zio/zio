@@ -284,6 +284,15 @@ const config = {
     [
       '@docusaurus/plugin-content-docs',
         {
+          id: 'zio-direct', 
+          path: './node_modules/@zio.dev/zio-direct',
+          routeBasePath: 'zio-direct',
+          sidebarPath: require.resolve('./node_modules/@zio.dev/zio-direct/sidebars.js'),
+        },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+        {
           id: 'zio-dynamodb', 
           path: './node_modules/@zio.dev/zio-dynamodb',
           routeBasePath: 'zio-dynamodb',
