@@ -1642,7 +1642,24 @@ sealed trait ZIO[-R, +E, +A]
   final def retry[R1 <: R, S](
     policy: => Schedule[R1, E, S]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E, A] =
-    retryOrElse(policy, (e: E, _: S) => ZIO.fail(e))
+    ZIO.suspendSucceed {
+
+      def loop(driver: Schedule.Driver[Any, R1, E, S]): ZIO[R1, E, A] =
+        self.catchAllCause { cause =>
+          cause.failureOrCause.fold(
+            e =>
+              driver
+                .next(e)
+                .foldZIO(
+                  _ => driver.last.orDie.flatMap(_ => ZIO.refailCause(cause)),
+                  _ => loop(driver)
+                ),
+            cause => ZIO.refailCause(cause)
+          )
+        }
+
+      policy.driver.flatMap(loop(_))
+    }
 
   /**
    * Retries this effect the specified number of times.
@@ -1651,7 +1668,12 @@ sealed trait ZIO[-R, +E, +A]
     ZIO.suspendSucceed {
 
       def loop(n: Int): ZIO[R, E, A] =
-        self.catchAll(e => if (n <= 0) ZIO.fail(e) else ZIO.yieldNow *> loop(n - 1))
+        self.catchAllCause { cause =>
+          cause.failureOrCause.fold(
+            _ => if (n <= 0) ZIO.refailCause(cause) else ZIO.yieldNow *> loop(n - 1),
+            cause => ZIO.refailCause(cause)
+          )
+        }
 
       loop(n)
     }
