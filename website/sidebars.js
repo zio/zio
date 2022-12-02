@@ -1,3 +1,5 @@
+const ecosystemSidebar = require("./ecosystem-sidebar");
+
 module.exports = {
   overview_sidebar:
     [
@@ -532,31 +534,7 @@ module.exports = {
       label: "Official Libraries",
       collapsed: false,
       link: { type: "doc", id: "ecosystem/officials/index" },
-      items: [
-        "ecosystem/officials/zio-actors",
-        "ecosystem/officials/zio-akka-cluster",
-        "ecosystem/officials/zio-aws",
-        "ecosystem/officials/zio-cache",
-        "ecosystem/officials/zio-config",
-        "ecosystem/officials/zio-ftp",
-        "ecosystem/officials/zio-json",
-        "ecosystem/officials/zio-kafka",
-        "ecosystem/officials/zio-logging",
-        "ecosystem/officials/zio-metrics",
-        "ecosystem/officials/zio-mock",
-        "ecosystem/officials/zio-nio",
-        "ecosystem/officials/zio-optics",
-        "ecosystem/officials/zio-prelude",
-        "ecosystem/officials/zio-process",
-        "ecosystem/officials/zio-query",
-        "ecosystem/officials/zio-redis",
-        "ecosystem/officials/zio-rocksdb",
-        "ecosystem/officials/zio-s3",
-        "ecosystem/officials/zio-schema",
-        "ecosystem/officials/zio-sqs",
-        "ecosystem/officials/zio-telemetry",
-        "ecosystem/officials/zio-zmx",
-      ]
+      items: ecosystemSidebar
     },
     {
       type: "category",
