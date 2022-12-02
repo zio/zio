@@ -1,6 +1,6 @@
 ---
-id: overview_creating_effects
-title:  "Creating Effects"
+id: creating-effects
+title: "Creating Effects"
 ---
 
 This section explores some of the common ways to create ZIO effects from values, from computations, and from common Scala data types.
@@ -223,4 +223,4 @@ def accept(l: ServerSocket) =
 ```
 ## Next Steps
 
-If you are comfortable creating effects from values, converting from Scala types into effects, and converting synchronous and asynchronous code into effects, the next step is learning [basic operations](basic_operations.md) on effects.
+If you are comfortable creating effects from values, converting from Scala types into effects, and converting synchronous and asynchronous code into effects, the next step is learning [basic operations](basic-operations.md) on effects.

@@ -1,6 +1,6 @@
 ---
-id: overview_platforms
-title:  "Platforms"
+id: platforms
+title: "Platforms"
 ---
 
 ZIO provides a consistent interface across platforms to the maximum extent possible, allowing developers to write code once and deploy it everywhere. However, there are some unavoidable differences between platforms to be aware of.
@@ -9,7 +9,7 @@ ZIO provides a consistent interface across platforms to the maximum extent possi
 
 ZIO supports Java versions 8 and above and Scala versions 2.11, 2.12, 2.13, and 3.x.
 
-On the JVM, effects may be executed on a blocking thread pool using methods like `ZIO.blocking` and `ZIO.attemptBlocking`. See the documentation on [Creating Effects](../overview/creating_effects.md) for further discussion on blocking operations.
+On the JVM, effects may be executed on a blocking thread pool using methods like `ZIO.blocking` and `ZIO.attemptBlocking`. See the documentation on [Creating Effects](creating-effects.md) for further discussion on blocking operations.
 
 ## Scala.js
 

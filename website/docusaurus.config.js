@@ -47,12 +47,12 @@ const config = {
         src: '/img/navbar_brand.png',
       },
       items: [
-        { type: 'docsVersion', label: 'Overview', position: 'right' },
-        { type: 'doc', docId: 'reference/index', label: 'Reference', position: 'right' },
-        { type: 'doc', docId: 'guides/index', label: 'Guides', position: 'right' },
-        { type: 'doc', docId: 'ecosystem/index', label: 'Ecosystem', position: 'right' },
-        { type: 'doc', docId: 'resources/index', label: 'Resources', position: 'right' },
-        { type: 'doc', docId: 'about/about_index', label: 'About', position: 'right' },
+        { type: 'doc', docId: 'overview/getting-started', label: 'Overview', position: 'left' },
+        { type: 'doc', docId: 'reference/index', label: 'Reference', position: 'left' },
+        { type: 'doc', docId: 'guides/index', label: 'Guides', position: 'left' },
+        { type: 'doc', docId: 'ecosystem/index', label: 'Ecosystem', position: 'left' },
+        { type: 'doc', docId: 'resources/index', label: 'Resources', position: 'left' },
+        { type: 'doc', docId: 'about/index', label: 'About', position: 'right' },
         {
           type: 'docsVersionDropdown',
           position: 'right',

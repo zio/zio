@@ -1,15 +1,16 @@
 module.exports = {
   overview_sidebar:
     [
-      "overview/overview_index",
-      "overview/overview_creating_effects",
-      "overview/overview_basic_operations",
-      "overview/overview_handling_errors",
-      "overview/overview_handling_resources",
-      "overview/overview_basic_concurrency",
-      "overview/overview_running_effects",
-      "overview/overview_performance",
-      "overview/overview_platforms"
+      "overview/getting-started",
+      "overview/summary",
+      "overview/creating-effects",
+      "overview/basic-operations",
+      "overview/handling-errors",
+      "overview/handling-resources",
+      "overview/basic-concurrency",
+      "overview/running-effects",
+      "overview/performance",
+      "overview/platforms"
     ],
   "reference-sidebar": [
     "reference/index",
@@ -598,7 +599,7 @@ module.exports = {
   ],
   "about-sidebar":
     [
-      "about/about_index",
+      "about/index",
       "about/faq",
       "about/coding-guidelines",
       "about/contributing",
