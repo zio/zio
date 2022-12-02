@@ -147,14 +147,20 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   ): Spec[R, E] = {
     type ZSpecCase = Spec.SpecCase[R, E, Spec[R, E]]
     def instrumentTest(label: String, path: Vector[String], test: ZIO[R, TestFailure[E], TestSuccess]) =
-      notifier.fireTestStarted(label, path) *> test.tapBoth(
+      test.tapBoth(
         {
-          case Assertion(result, _) => reportAssertionFailure(notifier, path, label, result)
-          case Runtime(cause, _)    => reportRuntimeFailure(notifier, path, label, cause)
+          case Assertion(result, _) =>
+            notifier.fireTestStarted(label, path) *>
+              reportAssertionFailure(notifier, path, label, result)
+          case Runtime(cause, _) =>
+            notifier.fireTestStarted(label, path) *>
+              reportRuntimeFailure(notifier, path, label, cause)
         },
         {
-          case Succeeded(_) => notifier.fireTestFinished(label, path)
-          case Ignored(_)   => notifier.fireTestIgnored(label, path)
+          case Succeeded(_) =>
+            notifier.fireTestStarted(label, path) *>
+              notifier.fireTestFinished(label, path)
+          case Ignored(_) => notifier.fireTestIgnored(label, path)
         }
       )
     def loop(specCase: ZSpecCase, path: Vector[String] = Vector.empty): ZSpecCase =
