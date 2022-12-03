@@ -1,6 +1,6 @@
 ---
-id: overview_basic_operations
-title:  "Basic Operations"
+id: basic-operations
+title: "Basic Operations"
 ---
 
 Like the `String` data type, as well as the collection data types in Scala (such as `List`, `Map`, and `Set`), ZIO effects are _immutable_, and cannot be changed. 
@@ -95,4 +95,4 @@ val zipRight2: ZIO[Any, IOException, String] =
 
 ## Next Steps
 
-If you are comfortable with the basic operations on ZIO effects, the next step is to learn about [error handling](handling_errors.md).
+If you are comfortable with the basic operations on ZIO effects, the next step is to learn about [error handling](handling-errors.md).

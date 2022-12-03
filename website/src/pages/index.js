@@ -112,7 +112,7 @@ function Home() {
             <div className={styles.headerButtonContainer}>
               <Link
                 className={`${styles.headerButton}`}
-                to={useBaseUrl('getting_started')}>
+                to={useBaseUrl('overview/getting-started')}>
                 Get Started
               </Link>
             </div>

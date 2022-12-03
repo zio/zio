@@ -34,4 +34,7 @@ website/i18n/en.json
 website/yarn.lock
 website/package-lock.json
 website/static/api
+website/yarn-error.log
+website/ecosystem-sidebar.js
 .bsp/
+.vscode

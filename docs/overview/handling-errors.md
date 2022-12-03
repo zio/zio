@@ -1,6 +1,6 @@
 ---
-id: overview_handling_errors
-title:  "Handling Errors"
+id: handling-errors
+title: "Handling Errors"
 ---
 
 ZIO effects may fail due to foreseen or unforeseen problems. In order to help you build robust applications, ZIO tracks foreseen errors at compile-time, letting you know which effects can fail, and how they can fail. For non-recoverable problems, ZIO gives you full insight into the cause of failures (even if unexpected or catastrophic), preserving all information and automatically logging unhandled errors.
@@ -139,4 +139,4 @@ For more information on how to build schedules, see the documentation on [Schedu
 
 ## Next Steps
 
-If you are comfortable with basic error handling, including applying simple retry logic to effects, the next step is to learn about safe [resource handling](handling_resources.md).
+If you are comfortable with basic error handling, including applying simple retry logic to effects, the next step is to learn about safe [resource handling](handling-resources.md).

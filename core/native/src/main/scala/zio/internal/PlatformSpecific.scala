@@ -18,7 +18,6 @@ package zio.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.function.{Function => JFunction}
 import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
 
 private[zio] trait PlatformSpecific {
@@ -84,15 +83,5 @@ private[zio] trait PlatformSpecific {
   private def blackhole(a: Any): Unit = {
     val _ = a
     ()
-  }
-
-  final def computeIfAbsent[A, B](map: JMap[A, B])(key: A, mappingFunction: JFunction[A, B]): B = {
-    val value = map.get(key)
-    if (value != null) value
-    else {
-      val value = mappingFunction(key)
-      if (value != null) map.put(key, value)
-      value
-    }
   }
 }

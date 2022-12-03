@@ -1,6 +1,6 @@
 ---
-id: overview_handling_resources
-title:  "Handling Resources"
+id: handling-resources
+title: "Handling Resources"
 ---
 
 Ensuring that your applications never leak resources is one of the keys to maximizing application throughput, minimizing latency, and maximizing per-node uptime.
@@ -91,4 +91,4 @@ val bytesInFile: IO[Throwable, Int] =
 
 ## Next Steps
 
-If you are comfortable with basic resource handling, the next step is to learn about [basic concurrency](basic_concurrency.md).
+If you are comfortable with basic resource handling, the next step is to learn about [basic concurrency](basic-concurrency.md).

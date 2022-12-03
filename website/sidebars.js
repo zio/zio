@@ -1,15 +1,18 @@
+const ecosystemSidebar = require("./ecosystem-sidebar");
+
 module.exports = {
   overview_sidebar:
     [
-      "overview/overview_index",
-      "overview/overview_creating_effects",
-      "overview/overview_basic_operations",
-      "overview/overview_handling_errors",
-      "overview/overview_handling_resources",
-      "overview/overview_basic_concurrency",
-      "overview/overview_running_effects",
-      "overview/overview_performance",
-      "overview/overview_platforms"
+      "overview/getting-started",
+      "overview/summary",
+      "overview/creating-effects",
+      "overview/basic-operations",
+      "overview/handling-errors",
+      "overview/handling-resources",
+      "overview/basic-concurrency",
+      "overview/running-effects",
+      "overview/performance",
+      "overview/platforms"
     ],
   "reference-sidebar": [
     "reference/index",
@@ -531,31 +534,7 @@ module.exports = {
       label: "Official Libraries",
       collapsed: false,
       link: { type: "doc", id: "ecosystem/officials/index" },
-      items: [
-        "ecosystem/officials/zio-actors",
-        "ecosystem/officials/zio-akka-cluster",
-        "ecosystem/officials/zio-aws",
-        "ecosystem/officials/zio-cache",
-        "ecosystem/officials/zio-config",
-        "ecosystem/officials/zio-ftp",
-        "ecosystem/officials/zio-json",
-        "ecosystem/officials/zio-kafka",
-        "ecosystem/officials/zio-logging",
-        "ecosystem/officials/zio-metrics",
-        "ecosystem/officials/zio-mock",
-        "ecosystem/officials/zio-nio",
-        "ecosystem/officials/zio-optics",
-        "ecosystem/officials/zio-prelude",
-        "ecosystem/officials/zio-process",
-        "ecosystem/officials/zio-query",
-        "ecosystem/officials/zio-redis",
-        "ecosystem/officials/zio-rocksdb",
-        "ecosystem/officials/zio-s3",
-        "ecosystem/officials/zio-schema",
-        "ecosystem/officials/zio-sqs",
-        "ecosystem/officials/zio-telemetry",
-        "ecosystem/officials/zio-zmx",
-      ]
+      items: ecosystemSidebar
     },
     {
       type: "category",
@@ -598,7 +577,7 @@ module.exports = {
   ],
   "about-sidebar":
     [
-      "about/about_index",
+      "about/index",
       "about/faq",
       "about/coding-guidelines",
       "about/contributing",
