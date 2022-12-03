@@ -1,9 +1,11 @@
 ---
 id: index
-title: "Introduction"
+title: "ZIO Ecosystem Official Libraries"
 ---
 
 Official ZIO libraries are hosted in the [ZIO organization](https://github.com/zio/) on Github, and are generally maintained by core contributors to ZIO.
+
+## Development Status
 
 Each project in the ZIO organization namespace has a _Stage Badge_ which indicates the current status of that project:
 
@@ -18,3 +20,10 @@ Each project in the ZIO organization namespace has a _Stage Badge_ which indicat
 * **Concept** — The project is just an idea, development hasn't started yet.
 
 * **Deprecated** — The project is not maintained anymore, and we don't recommend its usage.
+
+
+## Official Libraries
+
+import DocCardList from '@theme/DocCardList';
+
+ <DocCardList />
