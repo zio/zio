@@ -123,15 +123,16 @@ object MockEmailService extends Mock[EmailService] {
   object Send extends Effect[(String, String), String, Unit]
 
   val compose: URLayer[Proxy, EmailService] =
-    ZIO
-      .service[Proxy]
-      .map { proxy =>
-        new EmailService {
-          override def send(to: String, body: String): IO[String, Unit] =
-            proxy(Send, to, body)
+    ZLayer.fromZIO(
+      ZIO
+        .service[Proxy]
+        .map { proxy =>
+          new EmailService {
+            override def send(to: String, body: String): IO[String, Unit] =
+              proxy(Send, to, body)
+          }
         }
-      }
-      .toLayer
+    )
 }
 ```
 
@@ -145,15 +146,16 @@ object MockUserRepository extends Mock[UserRepository] {
   object Save extends Effect[User, String, Unit]
 
   val compose: URLayer[Proxy, UserRepository] =
-    ZIO
-      .service[Proxy]
-      .map { proxy =>
-        new UserRepository {
-          override def save(user: User): IO[String, Unit] =
-            proxy(Save, user)
+    ZLayer.fromZIO(
+      ZIO
+        .service[Proxy]
+        .map { proxy =>
+          new UserRepository {
+            override def save(user: User): IO[String, Unit] =
+              proxy(Save, user)
+          }
         }
-      }
-      .toLayer
+    )
 }
 ```
 
@@ -476,16 +478,18 @@ object MockPolyService extends Mock[PolyService] {
 
   // We will learn about the compose layer in the next section
   val compose: URLayer[Proxy, PolyService] =
-    ZIO.serviceWithZIO[Proxy] { proxy =>
-      withRuntime[Any].map { rts =>
-        new PolyService {
-          def polyInput[I: Tag](input: I)               = proxy(PolyInput.of[I], input)
-          def polyError[E: Tag](input: Int)             = proxy(PolyError.of[E], input)
-          def polyOutput[A: Tag](input: Int)            = proxy(PolyOutput.of[A], input)
-          def polyAll[I: Tag, E: Tag, A: Tag](input: I) = proxy(PolyAll.of[I, E, A], input)
+    ZLayer.fromZIO(
+      ZIO.serviceWithZIO[Proxy] { proxy =>
+        withRuntime[Any].map { rts =>
+          new PolyService {
+            def polyInput[I: Tag](input: I)               = proxy(PolyInput.of[I], input)
+            def polyError[E: Tag](input: Int)             = proxy(PolyError.of[E], input)
+            def polyOutput[A: Tag](input: Int)            = proxy(PolyOutput.of[A], input)
+            def polyAll[I: Tag, E: Tag, A: Tag](input: I) = proxy(PolyAll.of[I, E, A], input)
+          }
         }
       }
-    }.toLayer
+    )
 }
 ```
 
@@ -552,23 +556,25 @@ object MockExampleService extends Mock[ExampleService] {
   object ExampleStream extends Stream[Int, Throwable, String]
 
   override val compose: URLayer[Proxy, ExampleService] =
-    ZIO.serviceWithZIO[Proxy] { proxy =>
-      withRuntime[Any].map { rts =>
-        new ExampleService {
-          override def exampleEffect(i: Int): Task[String] =
-            proxy(ExampleEffect, i)
+    ZLayer.fromZIO(
+      ZIO.serviceWithZIO[Proxy] { proxy =>
+        withRuntime[Any].map { rts =>
+          new ExampleService {
+            override def exampleEffect(i: Int): Task[String] =
+              proxy(ExampleEffect, i)
 
-          override def exampleMethod(i: Int): String =
-            rts.unsafeRunTask(proxy(ExampleMethod, i))
+            override def exampleMethod(i: Int): String =
+              rts.unsafeRunTask(proxy(ExampleMethod, i))
 
-          override def exampleSink(a: Int): stream.Sink[Throwable, Int, Nothing, List[Int]] =
-            rts.unsafeRun(proxy(ExampleSink, a))
+            override def exampleSink(a: Int): stream.Sink[Throwable, Int, Nothing, List[Int]] =
+              rts.unsafeRun(proxy(ExampleSink, a))
 
-          override def exampleStream(a: Int): stream.Stream[Throwable, String] =
-            rts.unsafeRun(proxy(ExampleStream, a))
+            override def exampleStream(a: Int): stream.Stream[Throwable, String] =
+              rts.unsafeRun(proxy(ExampleStream, a))
+          }
         }
       }
-    }.toLayer
+    )
 }
 ```
 
@@ -631,12 +637,14 @@ object AccountObserverMock extends Mock[AccountObserver] {
   object RunCommand   extends Effect[Unit, Nothing, Unit]
 
   val compose: URLayer[Proxy, AccountObserver] =
-    ZIO.service[Proxy].map { proxy =>
-      new AccountObserver {
-        def processEvent(event: AccountEvent) = proxy(ProcessEvent, event)
-        def runCommand(): UIO[Unit]           = proxy(RunCommand)
+    ZLayer.fromZIO(
+      ZIO.service[Proxy].map { proxy =>
+        new AccountObserver {
+          def processEvent(event: AccountEvent) = proxy(ProcessEvent, event)
+          def runCommand(): UIO[Unit]           = proxy(RunCommand)
+        }
       }
-    }.toLayer
+    )
 }
 ```
 
