@@ -764,64 +764,60 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
         if (isInvalid(journal)) exit = TExit.Retry
         else opCount = 0
       } else {
-        (curr.tag: @annotation.switch) match {
-          case Tags.Effect =>
-            try {
+        try {
+          (curr.tag: @annotation.switch) match {
+            case Tags.Effect =>
               val effect = curr.asInstanceOf[Effect[Any, Any, Any]]
               val a      = effect.f(journal, fiberId, envStack.peek())
+              if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
+
+            case Tags.OnSuccess =>
+              val onSuccess = curr.asInstanceOf[OnSuccess[Any, Any, Any, Any]]
+              contStack.push(onSuccess.k)
+              curr = onSuccess.stm
+
+            case Tags.OnFailure =>
+              val onFailure = curr.asInstanceOf[OnFailure[Any, Any, Any, Any]]
+              contStack.push(onFailure)
+              curr = onFailure.stm
+
+            case Tags.OnRetry =>
+              val onRetry = curr.asInstanceOf[OnRetry[Any, Any, Any]]
+              contStack.push(onRetry)
+              curr = onRetry.stm
+
+            case Tags.Provide =>
+              val provide = curr.asInstanceOf[Provide[Any, Any, Any, Any]]
+
+              envStack.push(provide.f.asInstanceOf[ZEnvironment[Any] => ZEnvironment[Any]](envStack.peek()))
+
+              val cleanup = ZSTM.succeed(envStack.pop())
+
+              curr = provide.effect.ensuring(cleanup).asInstanceOf[Erased]
+
+            case Tags.SucceedNow =>
+              val a = curr.asInstanceOf[SucceedNow[Any]].a
 
               if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
-            } catch {
-              case ZSTM.RetryException =>
-                curr = unwindStack(null, true)
 
-                if (curr eq null) exit = TExit.Retry
+            case Tags.Succeed =>
+              val a = curr.asInstanceOf[Succeed[Any]].a()
 
-              case ZSTM.FailException(e) =>
-                curr = unwindStack(e, false)
-
-                if (curr eq null) exit = TExit.Fail(e)
-
-              case ZSTM.DieException(t) =>
-                exit = TExit.Die(t)
-
-              case ZSTM.InterruptException(fiberId) =>
-                exit = TExit.Interrupt(fiberId)
-            }
-
-          case Tags.OnSuccess =>
-            val onSuccess = curr.asInstanceOf[OnSuccess[Any, Any, Any, Any]]
-            contStack.push(onSuccess.k)
-            curr = onSuccess.stm
-
-          case Tags.OnFailure =>
-            val onFailure = curr.asInstanceOf[OnFailure[Any, Any, Any, Any]]
-            contStack.push(onFailure)
-            curr = onFailure.stm
-
-          case Tags.OnRetry =>
-            val onRetry = curr.asInstanceOf[OnRetry[Any, Any, Any]]
-            contStack.push(onRetry)
-            curr = onRetry.stm
-
-          case Tags.Provide =>
-            val provide = curr.asInstanceOf[Provide[Any, Any, Any, Any]]
-
-            envStack.push(provide.f.asInstanceOf[ZEnvironment[Any] => ZEnvironment[Any]](envStack.peek()))
-
-            val cleanup = ZSTM.succeed(envStack.pop())
-
-            curr = provide.effect.ensuring(cleanup).asInstanceOf[Erased]
-
-          case Tags.SucceedNow =>
-            val a = curr.asInstanceOf[SucceedNow[Any]].a
-
-            if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
-
-          case Tags.Succeed =>
-            val a = curr.asInstanceOf[Succeed[Any]].a()
-
-            if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
+              if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
+          }
+        } catch {
+          case ZSTM.RetryException =>
+            curr = unwindStack(null, true)
+            if (curr eq null) exit = TExit.Retry
+          case ZSTM.FailException(e) =>
+            curr = unwindStack(e, false)
+            if (curr eq null) exit = TExit.Fail(e)
+          case ZSTM.DieException(t) =>
+            exit = TExit.Die(t)
+          case ZSTM.InterruptException(fiberId) =>
+            exit = TExit.Interrupt(fiberId)
+          case t: Throwable =>
+            exit = TExit.Die(t)
         }
 
         opCount += 1
