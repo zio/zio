@@ -287,7 +287,7 @@ In order to create a mock object, we should define an object which implements th
 
 Capabilities are service functionalities that are accessible from the client-side. For example, in the following service the `send` method is a service capability:
 
-```scala
+```scala mdoc:silent
 import zio._
 
 trait UserService {
@@ -311,7 +311,7 @@ We can have 4 types of capabilities inside a service:
 
 Let's say we have the following service:
 
-```scala
+```scala mdoc:silent
 import zio._
 import zio.mock._
 import zio.stream._
@@ -326,7 +326,7 @@ trait ExampleService {
 
 Therefore, the mock service should have the following _capability tags_:
 
-```scala
+```scala mdoc:silent:nest
 import zio.mock._
 
 object MockExampleService extends Mock[ExampleService] {
@@ -353,7 +353,7 @@ We encode service capabilities according to the following scheme:
 
 For zero arguments the type is `Unit`
 
-```scala
+```scala mdoc:silent
 import zio._
 
 trait ZeroParamService {
@@ -363,7 +363,7 @@ trait ZeroParamService {
 
 So the capability tag of `zeroParams` should be:
 
-```scala
+```scala mdoc:silent:nest
 import zio.mock._
 
 object MockZeroParamService extends Mock[ZeroParamService] {
@@ -387,7 +387,7 @@ For one or more arguments, regardless of how many parameter lists, the type is a
 
 If the capability has more than one argument, we should encode the argument types in the `Tuple` data type. For example, if we have the following service:
 
-```scala
+```scala mdoc:silent
 import zio._
 
 trait ManyParamsService {
@@ -398,7 +398,7 @@ trait ManyParamsService {
 
 We should encode that with the following capability tag:
 
-```scala
+```scala mdoc:silent:nest
 import zio.mock._
 
 trait MockExampleService extends Mock[ManyParamsService] {
@@ -413,7 +413,7 @@ trait MockExampleService extends Mock[ManyParamsService] {
 
 For overloaded methods, we nest a list of numbered objects, each representing subsequent overloads:
 
-```scala
+```scala mdoc:silent
 // Main sources
 
 import zio._
@@ -427,10 +427,9 @@ trait OverloadedService {
 
 We encode both overloaded capabilities by using numbered objects inside a nested object:
 
-```scala
+```scala mdoc:silent:nest
 // Test sources
 
-import zio._
 import zio.mock._
 
 object MockOervloadedService extends Mock[OverloadedService] {
@@ -451,7 +450,7 @@ object MockOervloadedService extends Mock[OverloadedService] {
 
 Mocking polymorphic methods is also supported, but the interface must require `zio.Tag` implicit evidence for each type parameter:
 
-```scala
+```scala mdoc:silent
 // main sources
 import zio._
 
@@ -465,7 +464,7 @@ trait PolyService {
 
 In the test sources we construct partially applied _capability tags_ by extending `Method.Poly` family. The unknown types must be provided at call site. To produce a final monomorphic `Method` tag we must use the `of` combinator and pass the missing types:
 
-```scala
+```scala mdoc:silent:nest
 // test sources
 import zio.mock._
 
@@ -479,14 +478,12 @@ object MockPolyService extends Mock[PolyService] {
   // We will learn about the compose layer in the next section
   val compose: URLayer[Proxy, PolyService] =
     ZLayer.fromZIO(
-      ZIO.serviceWithZIO[Proxy] { proxy =>
-        withRuntime[Any].map { rts =>
+      ZIO.service[Proxy].map { proxy =>
           new PolyService {
             def polyInput[I: Tag](input: I)               = proxy(PolyInput.of[I], input)
             def polyError[E: Tag](input: Int)             = proxy(PolyError.of[E], input)
             def polyOutput[A: Tag](input: Int)            = proxy(PolyOutput.of[A], input)
             def polyAll[I: Tag, E: Tag, A: Tag](input: I) = proxy(PolyAll.of[I, E, A], input)
-          }
         }
       }
     )
@@ -495,31 +492,30 @@ object MockPolyService extends Mock[PolyService] {
 
 Similarly, we use the same `of` combinator to refer to concrete monomorphic call in our test suite when building expectations:
 
-```scala
+```scala mdoc:silent:nest
 import zio.test._
-import MockPolyService._
 
-val exp06 = PolyInput.of[String](
+val exp06 = MockPolyService.PolyInput.of[String](
   Assertion.equalTo("foo"),
   Expectation.value("bar")
 )
 
-val exp07 = PolyInput.of[Int](
+val exp07 = MockPolyService.PolyInput.of[Int](
   Assertion.equalTo(42),
   Expectation.failure(new Exception)
 )
 
-val exp08 = PolyInput.of[Long](
+val exp08 = MockPolyService.PolyInput.of[Long](
   Assertion.equalTo(42L),
   Expectation.value("baz")
 )
 
-val exp09 = PolyAll.of[Int, Throwable, String](
+val exp09 = MockPolyService.PolyAll.of[Int, Throwable, String](
   Assertion.equalTo(42),
   Expectation.value("foo")
 )
 
-val exp10 = PolyAll.of[Int, Throwable, String](
+val exp10 = MockPolyService.PolyAll.of[Int, Throwable, String](
   Assertion.equalTo(42),
   Expectation.failure(new Exception)
 )
@@ -532,7 +528,7 @@ Finally, we need to define a _compose layer_ that can create our environment fro
 
 So again, assume we have the following service:
 
-```scala
+```scala 
 import zio._
 import zio.mock._
 
