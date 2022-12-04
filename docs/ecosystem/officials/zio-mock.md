@@ -67,12 +67,7 @@ case class UserServiceLive(emailService: EmailService, userRepository: UserRepos
 
 object UserServiceLive {
   val layer: URLayer[EmailService with UserRepository, UserService] =
-    ZLayer {
-      for {
-        emailService <- ZIO.service[EmailService]
-        userRepository <- ZIO.service[UserRepository]
-      } yield UserServiceLive(emailService, userRepository)
-    }
+    ZLayer.fromFunction(UserServiceLive.apply _)
 }
 ```
 
@@ -129,16 +124,16 @@ object MockEmailService extends Mock[EmailService] {
   object Send extends Effect[(String, String), String, Unit]
 
   val compose: URLayer[Proxy, EmailService] =
-    ZLayer.fromZIO(
-      ZIO
-        .service[Proxy]
-        .map { proxy =>
-          new EmailService {
-            override def send(to: String, body: String): IO[String, Unit] =
-              proxy(Send, to, body)
-          }
+    ZLayer {
+      for {
+         proxy <- ZIO.service[Proxy]
+      } yield (
+        new EmailService {
+          override def send(to: String, body: String): IO[String, Unit] =
+            proxy(Send, to, body)
         }
-    )
+      )
+    }
 }
 ```
 
@@ -149,16 +144,16 @@ object MockUserRepository extends Mock[UserRepository] {
   object Save extends Effect[User, String, Unit]
 
   val compose: URLayer[Proxy, UserRepository] =
-    ZLayer.fromZIO(
-      ZIO
-        .service[Proxy]
-        .map { proxy =>
-          new UserRepository {
-            override def save(user: User): IO[String, Unit] =
-              proxy(Save, user)
-          }
+    ZLayer {
+      for {
+        proxy <- ZIO.service[Proxy]
+      } yield (
+        new UserRepository {
+          override def save(user: User): IO[String, Unit] =
+            proxy(Save, user)
         }
-    )
+      )
+    }
 }
 ```
 
@@ -477,8 +472,10 @@ object MockPolyService extends Mock[PolyService] {
 
   // We will learn about the compose layer in the next section
   val compose: URLayer[Proxy, PolyService] =
-    ZLayer.fromZIO(
-      ZIO.service[Proxy].map { proxy =>
+    ZLayer(
+      for {
+        proxy <- ZIO.service[Proxy]
+      } yield { 
           new PolyService {
             def polyInput[I: Tag](input: I)               = proxy(PolyInput.of[I], input)
             def polyError[E: Tag](input: Int)             = proxy(PolyError.of[E], input)
