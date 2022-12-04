@@ -120,8 +120,9 @@ For example, to encode the `send` capability of `EmailService` we need to extend
 
 Let's see how we can mock the `EmailService`:
 
-```scala
+```scala mdoc:silent
 // Test Sources
+import zio._
 import zio.mock._
 
 object MockEmailService extends Mock[EmailService] {
@@ -143,10 +144,7 @@ object MockEmailService extends Mock[EmailService] {
 
 And, here is the mock version of the `UserRepository`:
 
-```scala
-import zio._
-import zio.mock._
-
+```scala mdoc:silent:nest
 object MockUserRepository extends Mock[UserRepository] {
   object Save extends Effect[User, String, Unit]
 
@@ -170,7 +168,7 @@ After writing the mock version of collaborators, now we can use their _capabilit
 
 For example, we can create an expectation from the `Send` capability tag of the `MockEmailService`:
 
-```scala
+```scala mdoc:silent:nest
 import zio.test._
 
 val sendEmailExpectation: Expectation[EmailService] =
@@ -184,7 +182,7 @@ The `sendEmailExpectation` is an expectation, which requires a call to `send` me
 
 There is an extension method called `Expectation#toLayer` which implicitly converts an expectation to the `ZLayer` environment:
 
-```scala
+```scala mdoc:silent:nest
 import zio.test._
 
 val mockEmailService: ULayer[EmailService] =
@@ -200,8 +198,7 @@ So we do not require to convert them to `ZLayer` explicitly. It will convert the
 
 > If we register a user with an age of less than 18, we expect that the `save` method of `UserRepository` shouldn't be called. Additionally, we expect that the `send` method of `EmailService` will be called with the following content: "You are not eligible to register."
 
-```scala
-import zio.test._
+```scala mdoc:silent:nest
 
 test("non-adult registration") {
   val sut              = UserService.register("john", 15, "john@doe")
@@ -224,8 +221,7 @@ We used `MockUserRepository.empty` since we expect no call to the `UserRepositor
 
 > If we register a user with a username of "admin", we expect that both `UserRepository` and `EmailService` should not be called. Instead, we expect that the `register` call will be failed with a proper failure value: "The admin user is already registered!"
 
-```scala
-import zio.test._
+```scala mdoc:silent:nest
 
 test("user cannot register pre-defined admin user") {
   val sut = UserService.register("admin", 30, "admin@doe")
@@ -253,8 +249,7 @@ test("user cannot register pre-defined admin user") {
 > We expect that the `save` method of `UserRepository` will be called with the corresponding `User` object, and the `send` method of `EmailService` will be called with this content: "Congratulation, you are registered!".
 
 
-```scala
-import zio.test._
+```scala mdoc:silent:nest
 
 test("a valid user can register to the user service") {
   val sut              = UserService.register("jane", 25, "jane@doe")
