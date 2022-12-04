@@ -641,14 +641,15 @@ object AccountObserverMock extends Mock[AccountObserver] {
   object RunCommand   extends Effect[Unit, Nothing, Unit]
 
   val compose: URLayer[Proxy, AccountObserver] =
-    ZLayer.fromZIO(
-      ZIO.service[Proxy].map { proxy =>
-        new AccountObserver {
-          def processEvent(event: AccountEvent) = proxy(ProcessEvent, event)
-          def runCommand(): UIO[Unit]           = proxy(RunCommand)
-        }
-      }
-    )
+    ZLayer {
+      for {
+        proxy <- ZIO.service[Proxy]
+      } yield
+          new AccountObserver {
+            def processEvent(event: AccountEvent) = proxy(ProcessEvent, event)
+            def runCommand(): UIO[Unit]           = proxy(RunCommand)
+          }
+    }
 }
 ```
 
@@ -723,9 +724,10 @@ object MockUserService extends Mock[UserService] {
   object RemoveAll   extends Effect[Unit, String, Unit]
 
   val compose: URLayer[mock.Proxy, UserService] =
-    ZLayer.fromZIO(
-      ZIO.service[mock.Proxy]
-        .map { proxy =>
+    ZLayer{
+      for {
+        proxy <- ZIO.service[mock.Proxy]
+      } yield
           new UserService {
             override def insert(user: User):  IO[String, Unit]       = proxy(Insert, user)
             override def remove(id: String):  IO[String, Unit]       = proxy(Remove, id)
@@ -733,9 +735,8 @@ object MockUserService extends Mock[UserService] {
             override def totalUsers:          IO[String, Int]        = proxy(TotalUsers)
             override def removeAll:           IO[String, Unit]       = proxy(RemoveAll)
           }
-        }
-    )
-      
+
+    }
 }
 ```
 
