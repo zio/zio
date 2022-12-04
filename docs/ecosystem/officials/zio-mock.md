@@ -968,7 +968,7 @@ test("expecting unit") {
 
 Expecting a failure:
 
-```scala mdoc/silent
+```scala mdoc:silent
 import zio._
 import zio.mock._
 import zio.test.{test, _}
@@ -996,7 +996,7 @@ There are also `failureF` and `failureZIO` variants like what we described for `
 
 This expectation simulates a never-ending loop:
 
-```scala mdoc/silent
+```scala mdoc:silent
 import zio._
 import zio.mock._
 import zio.test.{test, _}
