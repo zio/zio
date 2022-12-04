@@ -21,7 +21,7 @@ If the job of the _capability_ is to call on another _capability_, how should we
 
 Let's say we have a `Userservice` defined as follows:
 
-```scala
+```scala mdoc:silent
 import zio._
 
 trait UserService {
@@ -36,7 +36,7 @@ object UserService {
 
 The live implementation of the `UserService` has two collaborators, `EmailService` and `UserRepository`:
 
-```scala
+```scala mdoc:nest:silent
 trait EmailService {
   def send(to: String, body: String): IO[String, Unit]
 }
@@ -50,7 +50,7 @@ trait UserRepository {
 
 Following is how the live version of `UserService` is implemented:
 
-```scala
+```scala mdoc:nest:silent
 case class UserServiceLive(emailService: EmailService, userRepository: UserRepository) extends UserService {
   override def register(username: String, age: Int, email: String): IO[String, Unit] =
     if (age < 18) {
@@ -67,7 +67,12 @@ case class UserServiceLive(emailService: EmailService, userRepository: UserRepos
 
 object UserServiceLive {
   val layer: URLayer[EmailService with UserRepository, UserService] =
-    (UserServiceLive.apply _).toLayer[UserService]
+    ZLayer {
+      for {
+        emailService <- ZIO.service[EmailService]
+        userRepository <- ZIO.service[UserRepository]
+      } yield UserServiceLive(emailService, userRepository)
+    }
 }
 ```
 
