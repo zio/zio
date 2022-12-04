@@ -719,16 +719,18 @@ object MockUserService extends Mock[UserService] {
   object RemoveAll   extends Effect[Unit, String, Unit]
 
   val compose: URLayer[mock.Proxy, UserService] =
-    ZIO.service[mock.Proxy]
-      .map { proxy =>
-        new UserService {
-          override def insert(user: User):  IO[String, Unit]       = proxy(Insert, user)
-          override def remove(id: String):  IO[String, Unit]       = proxy(Remove, id)
-          override def recentUsers(n: Int): IO[String, List[User]] = proxy(RecentUsers, n)
-          override def totalUsers:          IO[String, Int]        = proxy(TotalUsers)
-          override def removeAll:           IO[String, Unit]       = proxy(RemoveAll)
+    ZLayer.fromZIO(
+      ZIO.service[mock.Proxy]
+        .map { proxy =>
+          new UserService {
+            override def insert(user: User):  IO[String, Unit]       = proxy(Insert, user)
+            override def remove(id: String):  IO[String, Unit]       = proxy(Remove, id)
+            override def recentUsers(n: Int): IO[String, List[User]] = proxy(RecentUsers, n)
+            override def totalUsers:          IO[String, Int]        = proxy(TotalUsers)
+            override def removeAll:           IO[String, Unit]       = proxy(RemoveAll)
+          }
         }
-      }.toLayer
+    )
       
 }
 ```
