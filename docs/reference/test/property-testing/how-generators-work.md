@@ -145,7 +145,7 @@ We can modify the default sample size by using the `samples` test aspect. So if 
 
 - `check(Gen.const(42))(n => ???)` it will repeatedly run the `Zstream.succeed(42)` stream, and then take `n` samples from it: 42, 42, 42, 42, 42.
 - `check(Gen.int)(n => ???)` it will repeatedly run the `ZStream.fromZIO(Random.nextInt)` stream, and then take `n` samples from it: e.g. 2, -3422, 33, 3991334, 98138.
-- `check(Gen.elements(1, 2, 3))(n => ???)` it will repeatedly run the `ZStream.fromIterable(List(1, 2, 3))` stream, and then take `n` samples from it: e.g. 3, 1, 1, 3, 2.
+- `check(Gen.elements(1, 2, 3))(n => ???)` it will repeatedly run the `ZStream.fromZIO(Random.nextInt(2).flatMap(Chunk(1, 2, 3)))` stream, and then take `n` samples from it: e.g. 3, 1, 1, 3, 2.
 - `check(Gen.fromIterable(List(1, 2, 3)))(n => ???)` it will repeatedly run the `ZStream.fromIterable(List(1, 2, 3))` stream, and then take `n` samples from it: 1, 2, 3, 1, 2.
 
 When we run the `check` function with multiple generators, the samples will be the cartesian product of their streams. Let's try some examples:
