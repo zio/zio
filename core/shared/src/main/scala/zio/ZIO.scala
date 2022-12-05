@@ -928,6 +928,22 @@ sealed trait ZIO[-R, +E, +A]
     f(self.left).unleft
 
   /**
+   * Logs the cause of failure of this workflow.
+   */
+  final def logError(implicit trace: Trace): ZIO[R, E, A] =
+    logError("")
+
+  /**
+   * Logs the cause of failure of this workflow with the specified message.
+   */
+  final def logError(message: => String)(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.uninterruptibleMask { restore =>
+      restore(self).tapErrorCause { cause =>
+        ZIO.logErrorCause(message, cause)
+      }
+    }
+
+  /**
    * Adjusts the label for the current logging span.
    * {{{
    * parseRequest(req).logSpan("parsing")
