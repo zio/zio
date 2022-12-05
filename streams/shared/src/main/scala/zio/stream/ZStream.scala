@@ -2173,7 +2173,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       )
 
       for {
-        _ <- self.tapErrorCause(cause => p.failCause(cause)).runScoped(consumer).forkScoped
+        _ <- self.tapErrorCause(cause => p.failCause(cause)).run(consumer).forkScoped
         z <- p.await
       } yield (z, new ZStream(producer))
     }).flatten
