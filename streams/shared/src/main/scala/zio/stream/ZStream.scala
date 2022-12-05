@@ -285,10 +285,10 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
 
           ZChannel.unwrap {
             sinkFiber.join.raceWith(scheduleFiber.join)(
-              (sinkExit, scheduleFiber) =>
+              (sinkExit, _) =>
                 scheduleFiber.interrupt *>
                   ZIO.done(sinkExit).map { case (leftovers, b) => handleSide(leftovers, b, None) },
-              (scheduleExit, sinkFiber) =>
+              (scheduleExit, _) =>
                 ZIO
                   .done(scheduleExit)
                   .foldCauseZIO(
