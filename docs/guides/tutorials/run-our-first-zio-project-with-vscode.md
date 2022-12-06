@@ -51,7 +51,7 @@ touch project/build.properties
 Now, let's add the following lines to the `project/build.properties` file:
 
 ```
-sbt.version = 1.6.2
+sbt.version = 1.8.0
 ```
 
 4. We are ready to open our project in VsCode. We can do this by opening the `my-zio-project` directory from the `File > Open Folder` menu.
