@@ -127,12 +127,10 @@ object MockEmailService extends Mock[EmailService] {
     ZLayer {
       for {
          proxy <- ZIO.service[Proxy]
-      } yield (
-        new EmailService {
-          override def send(to: String, body: String): IO[String, Unit] =
-            proxy(Send, to, body)
-        }
-      )
+      } yield new EmailService {
+        override def send(to: String, body: String): IO[String, Unit] =
+          proxy(Send, to, body)
+      }
     }
 }
 ```
@@ -147,12 +145,10 @@ object MockUserRepository extends Mock[UserRepository] {
     ZLayer {
       for {
         proxy <- ZIO.service[Proxy]
-      } yield (
-        new UserRepository {
-          override def save(user: User): IO[String, Unit] =
-            proxy(Save, user)
-        }
-      )
+      } yield new UserRepository {
+        override def save(user: User): IO[String, Unit] =
+          proxy(Save, user)
+      }
     }
 }
 ```
@@ -472,18 +468,16 @@ object MockPolyService extends Mock[PolyService] {
 
   // We will learn about the compose layer in the next section
   val compose: URLayer[Proxy, PolyService] =
-    ZLayer(
+    ZLayer {
       for {
         proxy <- ZIO.service[Proxy]
-      } yield { 
-          new PolyService {
+      } yield new PolyService {
             def polyInput[I: Tag](input: I)               = proxy(PolyInput.of[I], input)
             def polyError[E: Tag](input: Int)             = proxy(PolyError.of[E], input)
             def polyOutput[A: Tag](input: Int)            = proxy(PolyOutput.of[A], input)
             def polyAll[I: Tag, E: Tag, A: Tag](input: I) = proxy(PolyAll.of[I, E, A], input)
         }
-      }
-    )
+    }
 }
 ```
 
@@ -491,28 +485,29 @@ Similarly, we use the same `of` combinator to refer to concrete monomorphic call
 
 ```scala mdoc:silent:nest
 import zio.test._
+import MockPolyService._
 
-val exp06 = MockPolyService.PolyInput.of[String](
+val exp06 = PolyInput.of[String](
   Assertion.equalTo("foo"),
   Expectation.value("bar")
 )
 
-val exp07 = MockPolyService.PolyInput.of[Int](
+val exp07 = PolyInput.of[Int](
   Assertion.equalTo(42),
   Expectation.failure(new Exception)
 )
 
-val exp08 = MockPolyService.PolyInput.of[Long](
+val exp08 = PolyInput.of[Long](
   Assertion.equalTo(42L),
   Expectation.value("baz")
 )
 
-val exp09 = MockPolyService.PolyAll.of[Int, Throwable, String](
+val exp09 = PolyAll.of[Int, Throwable, String](
   Assertion.equalTo(42),
   Expectation.value("foo")
 )
 
-val exp10 = MockPolyService.PolyAll.of[Int, Throwable, String](
+val exp10 = PolyAll.of[Int, Throwable, String](
   Assertion.equalTo(42),
   Expectation.failure(new Exception)
 )
@@ -547,33 +542,33 @@ object MockExampleService extends Mock[ExampleService] {
   object ExampleStream extends Stream[Int, Throwable, String]
 
   override val compose: URLayer[Proxy, ExampleService] =
-    ZLayer.fromZIO(
+    ZLayer {
       ZIO.serviceWithZIO[Proxy] { proxy =>
-        withRuntime[Proxy, ExampleService] { rts =>
-          ZIO.succeed(
-            new ExampleService {
+        withRuntime[Proxy, ExampleService] { runtime =>
+          ZIO.succeed {
+            ExampleService {
               override def exampleEffect(i: Int): Task[String] =
                 proxy(ExampleEffect, i)
 
               override def exampleMethod(i: Int): String =
-                Unsafe.unsafe { implicit u =>
-                  rts.unsafe.run(proxy(ExampleMethod, i)).getOrThrow()
+                Unsafe.unsafe { implicit unsafe =>
+                  runtime.unsafe.run(proxy(ExampleMethod, i)).getOrThrow()
                 }
 
               override def exampleSink(a: Int): stream.Sink[Throwable, Int, Nothing, List[Int]] =
-                Unsafe.unsafe { implicit u =>
-                  rts.unsafe.run(proxy(ExampleSink, a)).getOrThrow()
+                Unsafe.unsafe { implicit unsafe =>
+                  runtime.unsafe.run(proxy(ExampleSink, a)).getOrThrow()
                 }
 
               override def exampleStream(a: Int): stream.Stream[Throwable, String] =
-                Unsafe.unsafe { implicit u =>
-                  rts.unsafe.run(proxy(ExampleStream, a)).getOrThrow()
+                Unsafe.unsafe { implicit unsafe =>
+                  runtime.unsafe.run(proxy(ExampleStream, a)).getOrThrow()
                 }
             }
-          )
+          }
         }
       }
-    )
+    }
 }
 ```
 
@@ -644,11 +639,10 @@ object AccountObserverMock extends Mock[AccountObserver] {
     ZLayer {
       for {
         proxy <- ZIO.service[Proxy]
-      } yield
-          new AccountObserver {
-            def processEvent(event: AccountEvent) = proxy(ProcessEvent, event)
-            def runCommand(): UIO[Unit]           = proxy(RunCommand)
-          }
+      } yield new AccountObserver {
+        def processEvent(event: AccountEvent) = proxy(ProcessEvent, event)
+        def runCommand(): UIO[Unit]           = proxy(RunCommand)
+      }
     }
 }
 ```
@@ -724,17 +718,16 @@ object MockUserService extends Mock[UserService] {
   object RemoveAll   extends Effect[Unit, String, Unit]
 
   val compose: URLayer[mock.Proxy, UserService] =
-    ZLayer{
+    ZLayer {
       for {
         proxy <- ZIO.service[mock.Proxy]
-      } yield
-          new UserService {
-            override def insert(user: User):  IO[String, Unit]       = proxy(Insert, user)
-            override def remove(id: String):  IO[String, Unit]       = proxy(Remove, id)
-            override def recentUsers(n: Int): IO[String, List[User]] = proxy(RecentUsers, n)
-            override def totalUsers:          IO[String, Int]        = proxy(TotalUsers)
-            override def removeAll:           IO[String, Unit]       = proxy(RemoveAll)
-          }
+      } yield new UserService {
+        override def insert(user: User):  IO[String, Unit]       = proxy(Insert, user)
+        override def remove(id: String):  IO[String, Unit]       = proxy(Remove, id)
+        override def recentUsers(n: Int): IO[String, List[User]] = proxy(RecentUsers, n)
+        override def totalUsers:          IO[String, Int]        = proxy(TotalUsers)
+        override def removeAll:           IO[String, Unit]       = proxy(RemoveAll)
+      }
 
     }
 }
