@@ -3,7 +3,7 @@ package zio.stream
 import zio._
 import zio.stream.SinkUtils._
 import zio.test.Assertion._
-import zio.test.TestAspect._
+import zio.test.TestAspect.jvmOnly
 import zio.test._
 
 object ZSinkSpec extends ZIOBaseSpec {
@@ -941,7 +941,7 @@ object ZSinkSpec extends ZIOBaseSpec {
                   }
               }
             }
-          ) @@ nonFlaky
+          )
         ),
         test("timed") {
           for {
