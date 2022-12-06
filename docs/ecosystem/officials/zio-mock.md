@@ -546,7 +546,7 @@ object MockExampleService extends Mock[ExampleService] {
       ZIO.serviceWithZIO[Proxy] { proxy =>
         withRuntime[Proxy, ExampleService] { runtime =>
           ZIO.succeed {
-            ExampleService {
+            new ExampleService {
               override def exampleEffect(i: Int): Task[String] =
                 proxy(ExampleEffect, i)
 
