@@ -37,7 +37,7 @@ name := "my-zio-project"
 version := "0.0.1"
 
 libraryDependencies ++= Seq(
-  "zio" %% "zio" % "2.0.0-RC6"
+  "zio" %% "zio" % "2.0.5"
 )
 ```
 
