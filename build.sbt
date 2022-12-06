@@ -877,6 +877,7 @@ lazy val docs = project.module
       "dev.zio"               %% "zio-interop-twitter"         % "20.10.0.0",
       "dev.zio"               %% "zio-zmx"                     % "0.0.9",
       "dev.zio"               %% "zio-query"                   % "0.2.10",
+      "dev.zio"               %% "zio-mock"                    % "1.0.0-RC9",
       "org.polynote"          %% "uzhttp"                      % "0.2.8",
       "org.tpolecat"          %% "doobie-core"                 % doobieV,
       "org.tpolecat"          %% "doobie-h2"                   % doobieV,
