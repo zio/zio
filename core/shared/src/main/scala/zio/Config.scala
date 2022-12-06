@@ -285,7 +285,7 @@ object Config {
    */
   sealed trait Error extends Exception with NoStackTrace { self =>
     def &&(that: Error): Error = Error.And(self, that)
-    def ||(that: Error): Error = Error.And(self, that)
+    def ||(that: Error): Error = Error.Or(self, that)
 
     def prefixed(prefix: Chunk[String]): Error
 
