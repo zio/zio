@@ -3448,7 +3448,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               elements <- stream.runCollect
               done     <- ref.get
             } yield assertTrue(elements == Chunk(1, 1, 2, 3, 5, 8) && done == 20)
-          } @@ flaky,
+          },
           test("sink that is done before stream") {
             for {
               ref      <- Ref.make(0)
@@ -3474,7 +3474,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- stream.tapSink(sink).take(3).runDrain
               result <- ref.get
             } yield assertTrue(result == 6)
-          } @@ flaky
+          }
         ),
         suite("throttleEnforce")(
           test("free elements") {
