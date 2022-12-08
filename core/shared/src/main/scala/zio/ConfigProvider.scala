@@ -94,6 +94,9 @@ object ConfigProvider {
     ZLayer.succeed(consoleProvider)
 
   lazy val consoleProvider: ConfigProvider =
+    consoleProvider()
+
+  def consoleProvider(seqDelim: String = ","): ConfigProvider =
     fromFlat(new Flat {
       def load[A](path: Chunk[String], primitive: Config.Primitive[A])(implicit
         trace: Trace
@@ -129,17 +132,34 @@ object ConfigProvider {
     envProvider.orElse(propsProvider)
 
   /**
+   * A config provider layer that loads configuration from environment
+   * variables, using the default System service.
+   */
+  lazy val env: ZLayer[Any, Nothing, ConfigProvider] =
+    ZLayer.succeed(envProvider)
+
+  /**
    * A config provider that loads configuration from environment variables,
    * using the default System service.
    */
   lazy val envProvider: ConfigProvider =
+    fromEnv()
+
+  /**
+   * Constructs a ConfigProvider that loads configuration information from
+   * environment variables, using the default System service and the specified
+   * delimiter strings.
+   */
+  def fromEnv(pathDelim: String = "_", seqDelim: String = ","): ConfigProvider =
     fromFlat(new Flat {
       val sourceUnavailable = (path: Chunk[String]) =>
         (e: Throwable) =>
           Config.Error.SourceUnavailable(path, "There was a problem reading environment variables", Cause.fail(e))
 
-      def makePathString(path: Chunk[String]): String         = path.mkString("_").toUpperCase
-      def unmakePathString(pathString: String): Chunk[String] = Chunk.fromArray(pathString.split("_"))
+      val escapedSeqDelim                                     = java.util.regex.Pattern.quote(seqDelim)
+      val escapedPathDelim                                    = java.util.regex.Pattern.quote(pathDelim)
+      def makePathString(path: Chunk[String]): String         = path.mkString(pathDelim).toUpperCase
+      def unmakePathString(pathString: String): Chunk[String] = Chunk.fromArray(pathString.split(escapedPathDelim))
 
       def load[A](path: Chunk[String], primitive: Config.Primitive[A])(implicit
         trace: Trace
@@ -154,7 +174,7 @@ object ConfigProvider {
             ZIO
               .fromOption(valueOpt)
               .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in the environment"))
-          results <- Flat.util.parsePrimitive(value, path, name, primitive, ":")
+          results <- Flat.util.parsePrimitive(value, path, name, primitive, escapedSeqDelim)
         } yield results
       }
 
@@ -166,13 +186,6 @@ object ConfigProvider {
 
         }.mapError(sourceUnavailable(path))
     })
-
-  /**
-   * A config provider layer that loads configuration from environment
-   * variables, using the default System service.
-   */
-  lazy val env: ZLayer[Any, Nothing, ConfigProvider] =
-    ZLayer.succeed(envProvider)
 
   /**
    * Constructs a new ConfigProvider from a key/value (flat) provider, where
@@ -323,24 +336,19 @@ object ConfigProvider {
     })
 
   /**
-   * A config provider layer that loads configuration from system properties,
-   * using the default System service.
+   * Constructs a ConfigProvider that loads configuration information from
+   * system properties, using the default System service and the specified
+   * delimiter strings.
    */
-  lazy val props: ZLayer[Any, Nothing, ConfigProvider] =
-    ZLayer.succeed(propsProvider)
-
-  /**
-   * A configuration provider that loads configuration from system properties,
-   * using the default System service.
-   */
-  lazy val propsProvider: ConfigProvider =
+  def fromProps(pathDelim: String = ".", seqDelim: String = ","): ConfigProvider =
     fromFlat(new Flat {
       val sourceUnavailable = (path: Chunk[String]) =>
         (e: Throwable) => Config.Error.SourceUnavailable(path, "There was a problem reading properties", Cause.fail(e))
 
-      val escapedDot                                          = java.util.regex.Pattern.quote(".")
-      def makePathString(path: Chunk[String]): String         = path.mkString(".")
-      def unmakePathString(pathString: String): Chunk[String] = Chunk.fromArray(pathString.split(escapedDot))
+      val escapedSeqDelim                                     = java.util.regex.Pattern.quote(seqDelim)
+      val escapedPathDelim                                    = java.util.regex.Pattern.quote(pathDelim)
+      def makePathString(path: Chunk[String]): String         = path.mkString(pathDelim)
+      def unmakePathString(pathString: String): Chunk[String] = Chunk.fromArray(pathString.split(escapedPathDelim))
 
       def load[A](path: Chunk[String], primitive: Config.Primitive[A])(implicit
         trace: Trace
@@ -354,7 +362,7 @@ object ConfigProvider {
           value <- ZIO
                      .fromOption(valueOpt)
                      .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in properties"))
-          results <- Flat.util.parsePrimitive(value, path, name, primitive, ",")
+          results <- Flat.util.parsePrimitive(value, path, name, primitive, escapedSeqDelim)
         } yield results
       }
 
@@ -365,6 +373,20 @@ object ConfigProvider {
           keyPaths.filter(_.startsWith(path)).map(_.drop(path.length).take(1)).flatten.toSet
         }.mapError(sourceUnavailable(path))
     })
+
+  /**
+   * A config provider layer that loads configuration from system properties,
+   * using the default System service.
+   */
+  lazy val props: ZLayer[Any, Nothing, ConfigProvider] =
+    ZLayer.succeed(propsProvider)
+
+  /**
+   * A configuration provider that loads configuration from system properties,
+   * using the default System service.
+   */
+  lazy val propsProvider: ConfigProvider =
+    fromProps()
 
   /**
    * The tag that describes the ConfigProvider service.
