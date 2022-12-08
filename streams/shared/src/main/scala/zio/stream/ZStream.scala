@@ -3069,7 +3069,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
               ZChannel.write(chunk) *>
               loop,
           cause => ZChannel.fromZIO(queue.offer(Take.failCause(cause))),
-          _ => ZChannel.fromZIO(queue.shutdown)
+          _ => ZChannel.fromZIO(queue.offer(Take.end))
         )
       new ZStream(self.channel >>> loop)
         .merge(ZStream.execute(right.run(sink)), HaltStrategy.Both)
