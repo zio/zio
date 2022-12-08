@@ -154,7 +154,7 @@ object ConfigProvider {
             ZIO
               .fromOption(valueOpt)
               .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in the environment"))
-          results <- Flat.util.parsePrimitive(value, path, name, primitive, ":")
+          results <- Flat.util.parsePrimitive(value, path, name, primitive, ",")
         } yield results
       }
 
