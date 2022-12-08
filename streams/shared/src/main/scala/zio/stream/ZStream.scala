@@ -3061,7 +3061,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     sink: => ZSink[R1, E1, A, Any, Any]
   )(implicit trace: Trace): ZStream[R1, E1, A] =
     ZStream.fromZIO(Queue.bounded[Take[E1, A]](1)).flatMap { queue =>
-      val right = ZStream.fromQueueWithShutdown(queue, 1).flattenTake
+      val right = ZStream.fromQueue(queue, 1).flattenTake
       lazy val loop: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
         ZChannel.readWithCause(
           chunk =>
