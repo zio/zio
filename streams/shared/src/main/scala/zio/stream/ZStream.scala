@@ -209,7 +209,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       case (handoff, sinkEndReason, sinkLeftovers, scheduleDriver, consumed, endAfterEmit) =>
         lazy val handoffProducer: ZChannel[Any, E1, Chunk[A], Any, Nothing, Nothing, Any] =
           ZChannel.readWithCause(
-            (in: Chunk[A]) => ZChannel.fromZIO(handoff.offer(Emit(in))) *> handoffProducer,
+            (in: Chunk[A]) => ZChannel.fromZIO(handoff.offer(Emit(in)).when(in.nonEmpty)) *> handoffProducer,
             (cause: Cause[E1]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
             (_: Any) => ZChannel.fromZIO(handoff.offer(End(UpstreamEnd)))
           )
