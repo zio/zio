@@ -4,11 +4,13 @@ sealed trait IsFatal extends (Throwable => Boolean) { self =>
   import IsFatal._
 
   def apply(t: Throwable): Boolean =
-    self match {
-      case Both(left, right) => left(t) || right(t)
-      case Empty             => false
-      case Single(tag)       => tag.isAssignableFrom(t.getClass)
-    }
+    if (t.isInstanceOf[StackOverflowError]) true
+    else
+      self match {
+        case Both(left, right) => left(t) || right(t)
+        case Empty             => false
+        case Single(tag)       => tag.isAssignableFrom(t.getClass)
+      }
 
   def |(that: IsFatal): IsFatal =
     (self, that) match {
