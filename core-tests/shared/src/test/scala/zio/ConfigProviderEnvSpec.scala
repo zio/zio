@@ -39,8 +39,8 @@ object ConfigProviderEnvSpec extends ZIOBaseSpec {
       } +
       test("top-level list env") {
         for {
-          _      <- TestSystem.putEnv("HOSTPORTS_HOST", "localhost:localhost:localhost")
-          _      <- TestSystem.putEnv("HOSTPORTS_PORT", "8080:8080:8080")
+          _      <- TestSystem.putEnv("HOSTPORTS_HOST", "localhost,localhost,localhost")
+          _      <- TestSystem.putEnv("HOSTPORTS_PORT", "8080,8080,8080")
           config <- ConfigProvider.envProvider.load(HostPorts.config)
         } yield assertTrue(config.hostPorts.length == 3)
       } +
