@@ -2348,14 +2348,20 @@ sealed trait ZIO[-R, +E, +A]
    * Executes this workflow when value of the specified `FiberRef` satisfies the
    * predicate.
    */
-  final def whenFiberRef[S](ref: => FiberRef[S])(f: S => Boolean)(implicit trace: Trace): ZIO[R, E, Option[A]] =
-    self.whenZIO(ref.get.map(f))
+  final def whenFiberRef[S](ref: => FiberRef[S])(f: S => Boolean)(implicit trace: Trace): ZIO[R, E, (S, Option[A])] =
+    ref.get.flatMap { s =>
+      if (f(s)) self.map(a => (s, Some(a)))
+      else ZIO.succeedNow((s, None))
+    }
 
   /**
    * Executes this workflow when the value of the `Ref` satisfies the predicate.
    */
-  final def whenRef[S](ref: => Ref[S])(f: S => Boolean)(implicit trace: Trace): ZIO[R, E, Option[A]] =
-    self.whenZIO(ref.get.map(f))
+  final def whenRef[S](ref: => Ref[S])(f: S => Boolean)(implicit trace: Trace): ZIO[R, E, (S, Option[A])] =
+    ref.get.flatMap { s =>
+      if (f(s)) self.map(a => (s, Some(a)))
+      else ZIO.succeedNow((s, None))
+    }
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
