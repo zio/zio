@@ -210,7 +210,9 @@ object ConfigProvider {
           case Lazy(thunk) => loop(prefix, thunk(), isEmptyOk)
 
           case MapOrFail(original, f) =>
-            loop(prefix, original, isEmptyOk).flatMap(as => ZIO.foreach(as)(a => ZIO.fromEither(f(a))))
+            loop(prefix, original, isEmptyOk).flatMap { as =>
+              ZIO.foreach(as)(a => ZIO.fromEither(f(a)).mapError(_.prefixed(prefix)))
+            }
 
           case Sequence(config) =>
             loop(prefix, config, true).map(Chunk(_))
