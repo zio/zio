@@ -237,7 +237,8 @@ object ConfigProvider {
             for {
               keys   <- flat.enumerateChildren(prefix)
               values <- ZIO.foreach(Chunk.fromIterable(keys))(key => loop(prefix ++ Chunk(key), valueConfig, isEmptyOk))
-            } yield if (values.isEmpty) Chunk(Map.empty)
+            } yield
+              if (values.isEmpty) Chunk(Map.empty)
               else values.transpose.map(values => keys.zip(values).toMap)
 
           case zipped: Zipped[leftType, rightType, c] =>
