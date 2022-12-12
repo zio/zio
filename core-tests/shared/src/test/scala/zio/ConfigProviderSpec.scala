@@ -57,6 +57,8 @@ object ConfigProviderSpec extends ZIOBaseSpec {
     val config: Config[SNP500] = Config.table(StockDay.config).map(SNP500(_))
 
     val default: SNP500 = SNP500(Map("ZIO" -> StockDay.default))
+
+    val empty: SNP500 = SNP500(Map.empty)
   }
 
   final case class WebScrapingTargets(targets: Set[java.net.URI])
@@ -173,6 +175,11 @@ object ConfigProviderSpec extends ZIOBaseSpec {
                        )
                      ).load(SNP500.config)
           } yield assertTrue(value == SNP500.default)
+        } +
+        test("empty tables") {
+          for {
+            value <- provider(Map()).load(SNP500.config)
+          } yield assertTrue(value == SNP500.empty)
         } +
         test("collection of atoms") {
           for {
