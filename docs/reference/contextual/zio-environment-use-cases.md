@@ -3,10 +3,12 @@ id: zio-environment-use-cases
 title: "ZIO Environment Use-cases"
 ---
 
-ZIO Environment has two major use-cases:
+ZIO Environment allows us to describe workflows which carry some context that is used in the course of executing the workflow. This context can be dived into two categories:
 
-1. Local Capabilities like scopes and transactions.
-2. Business Logic like services and repositories.
+1. Local Capabilities, e.g. scopes and transactions
+2. Business Logic, e.g. services and repositories
+
+Let's discuss each of these in turn.
 
 ## Local Capabilities
 
@@ -72,8 +74,7 @@ trait LowLevelService {
 }
 
 object LowLevelService {
-  val live: ZLayer[Any, Nothing, LowLevelService] =
-    ???
+  val live: ZLayer[Any, Nothing, LowLevelService] = ???
 }
 ```
 
@@ -87,12 +88,13 @@ There are two approaches to this.
 
 The first approach is just that everything is a service:
 
-```scala mdoc:compile-only
+```scala
 sealed trait ApplicationService {
   def run: ZIO[Any, Nothing, Unit]
 }
 
 object ApplicationService {
+  val live: ZLayer[Any, Nothing, LowLevelService] = ???
   
   final case class ApplicationServiceLive(highLevelService: HighLevelService) extends ApplicationService {
     val run: ZIO[Any, Nothing, Unit] = ??? // business logic implemented in terms of high level services
@@ -102,10 +104,10 @@ object ApplicationService {
 object Main extends ZIOAppDefault {
   val run =
     ZIO
-      .serviceWithZIO[ApplicationService(_.run)
+      .serviceWithZIO[ApplicationService](_.run)
       .provide(
         ApplicationService.live,
-        HighLevelSevice.live,
+        HighLevelService.live,
         LowLevelService.live
       )
 }
@@ -117,7 +119,7 @@ This style avoids any usage of the ZIO environment that is not a local capabilit
 
 However, there can be a feeling that defining this final `ApplicationLevelService` is unnecessary and we would like to be able to write our business logic in terms of high level services directly without making it another service:
 
-```scala mdoc:silent
+```scala
 import zio._
 
 object Main extends ZIOAppDefault {
