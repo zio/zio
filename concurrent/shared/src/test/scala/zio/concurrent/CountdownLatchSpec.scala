@@ -11,8 +11,8 @@ object CountdownLatchSpec extends ZIOSpecDefault {
         test("Creates a latch") {
           assertZIO(CountdownLatch.make(100).flatMap(_.count).exit)(succeeds(equalTo(100)))
         },
-        test("Fails with an invalid count") {
-          assertZIO(CountdownLatch.make(0).exit)(fails(equalTo(None)))
+        test("Dies with an invalid count") {
+          assertZIO(CountdownLatch.make(0).exit)(dies(anything))
         }
       ),
       suite("Operations")(

@@ -47,10 +47,9 @@ final class CountdownLatch private (_count: Ref[Int], _waiters: Promise[Nothing,
 }
 
 object CountdownLatch {
-  def make(n: Int): IO[Option[Nothing], CountdownLatch] =
+  def make(n: Int): UIO[CountdownLatch] =
     if (n <= 0)
-      // People calling this with a negative value deserve this
-      ZIO.none.flip
+      ZIO.die(new IllegalArgumentException("n must be positive"))
     else
       Ref.make(n).zipWith(Promise.make[Nothing, Unit])(new CountdownLatch(_, _))
 }
