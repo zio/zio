@@ -177,6 +177,7 @@ module.exports = {
       items:
         [
           "reference/contextual/zenvironment",
+          "reference/contextual/zio-environment-use-cases",
           {
             type: "category",
             label: "ZIO Layers",
