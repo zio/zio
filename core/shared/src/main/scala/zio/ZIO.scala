@@ -152,6 +152,7 @@ sealed trait ZIO[-R, +E, +A]
    * Returns the logical negation of the `Boolean` value returned by this
    * effect.
    */
+  @deprecated("use negate", "2.0.6")
   final def unary_![R1 <: R, E1 >: E](implicit ev: A <:< Boolean, trace: Trace): ZIO[R1, E1, Boolean] =
     self.map(a => !ev(a))
 

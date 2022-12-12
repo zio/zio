@@ -41,14 +41,6 @@ object ZIOSpec extends ZIOBaseSpec {
         assertZIO(ZIO.succeed(false) && ZIO.fail("fail"))(isFalse)
       }
     ),
-    suite("unary_!")(
-      test("not true is false") {
-        assertZIO(!ZIO.succeed(true))(isFalse)
-      },
-      test("not false is true") {
-        assertZIO(!ZIO.succeed(false))(isTrue)
-      }
-    ),
     suite("||")(
       test("true or true is true") {
         assertZIO(ZIO.succeed(true) || ZIO.succeed(true))(isTrue)
