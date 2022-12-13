@@ -2016,7 +2016,11 @@ sealed trait ZIO[-R, +E, +A]
   final def tapDefect[R1 <: R, E1 >: E](f: Cause[Nothing] => ZIO[R1, E1, Any])(implicit
     trace: Trace
   ): ZIO[R1, E1, A] =
-    self.foldCauseZIO(c => f(c.stripFailures) *> ZIO.refailCause(c), ZIO.succeedNow)
+    self.catchAllCause { cause =>
+      val defects = cause.stripFailures
+      if (defects.isEmpty) ZIO.refailCause(cause)
+      else f(defects) *> ZIO.refailCause(cause)
+    }
 
   /**
    * Returns an effect that effectfully "peeks" at the result of this effect.
