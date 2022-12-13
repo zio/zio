@@ -3609,13 +3609,21 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ),
     suite("tapDefect")(
-      test("effectually peeks at the cause of the failure of this effect") {
+      test("effectually peeks at defects") {
         for {
           ref    <- Ref.make(false)
           result <- ZIO.dieMessage("die").tapDefect(_ => ref.set(true)).exit
           effect <- ref.get
         } yield assert(result)(dies(hasMessage(equalTo("die")))) &&
           assert(effect)(isTrue)
+      },
+      test("leaves failures") {
+        for {
+          ref    <- Ref.make(false)
+          result <- ZIO.fail("fail").tapDefect(_ => ref.set(true)).exit
+          effect <- ref.get
+        } yield assert(result)(fails(equalTo("fail"))) &&
+          assert(effect)(isFalse)
       }
     ),
     suite("tapEither")(
