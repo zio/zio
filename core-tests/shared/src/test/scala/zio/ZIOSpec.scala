@@ -3627,7 +3627,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       test("leaves failures") {
         for {
-          ref <- Ref.make(false)
+          ref    <- Ref.make(false)
           result <- ZIO.fail("fail").tapDefect(_ => ref.set(true)).exit
           effect <- ref.get
         } yield assert(result)(fails(equalTo("fail"))) &&
