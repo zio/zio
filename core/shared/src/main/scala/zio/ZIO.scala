@@ -2017,9 +2017,7 @@ sealed trait ZIO[-R, +E, +A]
     trace: Trace
   ): ZIO[R1, E1, A] =
     self.catchAllCause { cause =>
-      val defects = cause.stripFailures
-      if (defects.isEmpty) ZIO.refailCause(cause)
-      else f(defects) *> ZIO.refailCause(cause)
+      cause.keepDefects.fold[ZIO[R1, E1, A]](ZIO.refailCause(cause))(f(_) *> ZIO.refailCause(cause))
     }
 
   /**
