@@ -226,7 +226,7 @@ object TestClock extends Serializable {
     def timeZone(implicit trace: Trace): UIO[ZoneId] =
       clockState.get.map(_.timeZone)
 
-    override private[zio] val unsafe: UnsafeAPI =
+    override val unsafe: UnsafeAPI =
       new UnsafeAPI {
         override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
           unit.convert(clockState.unsafe.get.instant.toEpochMilli, TimeUnit.MILLISECONDS)

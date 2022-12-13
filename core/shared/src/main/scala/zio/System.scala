@@ -47,7 +47,7 @@ trait System extends Serializable { self =>
     trace: Trace
   ): IO[Throwable, Option[String]]
 
-  private[zio] trait UnsafeAPI {
+  trait UnsafeAPI {
     def env(variable: String)(implicit unsafe: Unsafe): Option[String]
     def envOrElse(variable: String, alt: => String)(implicit unsafe: Unsafe): String
     def envOrOption(variable: String, alt: => Option[String])(implicit unsafe: Unsafe): Option[String]
@@ -59,7 +59,7 @@ trait System extends Serializable { self =>
     def propertyOrOption(prop: String, alt: => Option[String])(implicit unsafe: Unsafe): Option[String]
   }
 
-  private[zio] def unsafe: UnsafeAPI =
+  def unsafe: UnsafeAPI =
     new UnsafeAPI {
       def env(variable: String)(implicit unsafe: Unsafe): Option[String] =
         Runtime.default.unsafe.run(self.env(variable)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
@@ -138,7 +138,7 @@ object System extends Serializable {
     ): IO[Throwable, Option[String]] =
       ZIO.attempt(unsafe.propertyOrOption(prop, alt)(Unsafe.unsafe))
 
-    @transient override private[zio] val unsafe: UnsafeAPI =
+    @transient override val unsafe: UnsafeAPI =
       new UnsafeAPI {
         override def env(variable: String)(implicit unsafe: Unsafe): Option[String] =
           Option(JSystem.getenv(variable))

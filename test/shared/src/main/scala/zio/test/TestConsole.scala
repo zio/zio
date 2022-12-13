@@ -185,7 +185,7 @@ object TestConsole extends Serializable {
     def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       debugState.locally(false)(zio)
 
-    override private[zio] val unsafe: UnsafeAPI =
+    override val unsafe: UnsafeAPI =
       new UnsafeAPI {
         override def print(line: Any)(implicit unsafe: Unsafe): Unit =
           consoleState.unsafe.update { data =>
