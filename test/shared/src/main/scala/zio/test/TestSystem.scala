@@ -147,7 +147,7 @@ object TestSystem extends Serializable {
         systemData <- systemState.get
       } yield systemState.set(systemData)
 
-    override private[zio] val unsafe: UnsafeAPI =
+    override val unsafe: UnsafeAPI =
       new UnsafeAPI {
         override def env(variable: String)(implicit unsafe: Unsafe): Option[String] =
           systemState.unsafe.get.envs.get(variable)

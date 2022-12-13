@@ -47,7 +47,7 @@ trait Clock extends Serializable { self =>
 
   def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit]
 
-  private[zio] trait UnsafeAPI {
+  trait UnsafeAPI {
     def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long
     def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long
     def currentDateTime()(implicit unsafe: Unsafe): OffsetDateTime
@@ -56,7 +56,7 @@ trait Clock extends Serializable { self =>
     def nanoTime()(implicit unsafe: Unsafe): Long
   }
 
-  private[zio] def unsafe: UnsafeAPI =
+  def unsafe: UnsafeAPI =
     new UnsafeAPI {
       def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
         Runtime.default.unsafe.run(self.currentTime(unit)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
@@ -110,7 +110,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
     def scheduler(implicit trace: Trace): UIO[Scheduler] =
       ZIO.succeed(globalScheduler)
 
-    @transient override private[zio] val unsafe: UnsafeAPI =
+    @transient override val unsafe: UnsafeAPI =
       new UnsafeAPI {
         override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long = {
           val inst = instant()
@@ -182,7 +182,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
       ZIO.succeed(JavaClock(ZoneId.systemDefault))
     }
 
-    @transient override private[zio] val unsafe: UnsafeAPI =
+    @transient override val unsafe: UnsafeAPI =
       new UnsafeAPI {
         override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long = {
           val inst = instant()

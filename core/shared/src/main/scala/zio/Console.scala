@@ -38,7 +38,7 @@ trait Console extends Serializable { self =>
   def readLine(prompt: String)(implicit trace: Trace): IO[IOException, String] =
     print(prompt) *> readLine
 
-  private[zio] trait UnsafeAPI {
+  trait UnsafeAPI {
     def print(line: Any)(implicit unsafe: Unsafe): Unit
     def printError(line: Any)(implicit unsafe: Unsafe): Unit
     def printLine(line: Any)(implicit unsafe: Unsafe): Unit
@@ -46,7 +46,7 @@ trait Console extends Serializable { self =>
     def readLine()(implicit unsafe: Unsafe): String
   }
 
-  private[zio] def unsafe: UnsafeAPI =
+  def unsafe: UnsafeAPI =
     new UnsafeAPI {
       def print(line: Any)(implicit unsafe: Unsafe): Unit =
         Runtime.default.unsafe.run(self.print(line)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
@@ -86,7 +86,7 @@ object Console extends Serializable {
     def readLine(implicit trace: Trace): IO[IOException, String] =
       ZIO.attemptBlockingInterrupt(unsafe.readLine()(Unsafe.unsafe)).refineToOrDie[IOException]
 
-    @transient override private[zio] val unsafe: UnsafeAPI =
+    @transient override val unsafe: UnsafeAPI =
       new UnsafeAPI {
         override def print(line: Any)(implicit unsafe: Unsafe): Unit =
           print(SConsole.out)(line)
