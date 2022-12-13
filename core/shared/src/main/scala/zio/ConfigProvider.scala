@@ -233,12 +233,13 @@ object ConfigProvider {
           case Nested(name, config) =>
             loop(prefix ++ Chunk(name), config, isEmptyOk)
 
-          case Table(valueConfig) =>
+          case table: Table[valueType] =>
+            import table.valueConfig
             for {
               keys   <- flat.enumerateChildren(prefix)
               values <- ZIO.foreach(Chunk.fromIterable(keys))(key => loop(prefix ++ Chunk(key), valueConfig, isEmptyOk))
             } yield
-              if (values.isEmpty) Chunk(Map.empty)
+              if (values.isEmpty) Chunk(Map.empty[String, valueType])
               else values.transpose.map(values => keys.zip(values).toMap)
 
           case zipped: Zipped[leftType, rightType, c] =>
