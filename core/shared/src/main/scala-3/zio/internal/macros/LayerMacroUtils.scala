@@ -32,7 +32,7 @@ private [zio] object LayerMacroUtils {
 
     val builder = LayerBuilder[TypeRepr, LayerExpr[E]](
       target0 = targetTypes,
-      remainder = remainderTypes,
+      remainder = TypeRepr.of[R0],
       providedLayers0 = layers.toList,
       layerToDebug = layerToDebug,
       typeEquals = _ <:< _,
@@ -44,7 +44,8 @@ private [zio] object LayerMacroUtils {
       showExpr = expr => scala.util.Try(expr.asTerm.pos.sourceCode).toOption.flatten.getOrElse(expr.show),
       showType = _.show,
       reportWarn = report.warning(_),
-      reportError = report.errorAndAbort(_)
+      reportError = report.errorAndAbort(_),
+      intersectionTypes = getRequirements
     )
 
     builder.build.asInstanceOf[Expr[ZLayer[R0, E, R]]]
