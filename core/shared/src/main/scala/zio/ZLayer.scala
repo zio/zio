@@ -1823,7 +1823,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     def >>>[RIn2, E1 >: E, ROut2](
       that: => ZLayer[ROut with RIn2, E1, ROut2]
     )(implicit tag: EnvironmentTag[ROut], trace: Trace): ZLayer[RIn with RIn2, E1, ROut2] =
-      ZLayer.suspend(ZLayer.To(ZLayer.environment[RIn2] ++ self, that))
+      ZLayer.suspend(
+        ZLayer.To(
+          ZLayer.ZipWith[RIn with RIn2, E, RIn2, ROut, ROut with RIn2](
+            ZLayer.environment[RIn2],
+            self,
+            _.union[ROut](_)
+          ),
+          that
+        )
+      )
 
     /**
      * Feeds the output services of this layer into the input of the specified
