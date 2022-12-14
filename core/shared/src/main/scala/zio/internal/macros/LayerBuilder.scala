@@ -48,6 +48,7 @@ import scala.collection.{immutable, mutable}
 final case class LayerBuilder[Type, Expr](
   target0: List[Type],
   remainder: Type,
+  remainders: List[Type],
   providedLayers0: List[Expr],
   layerToDebug: PartialFunction[Expr, Debug],
   sideEffectType: Type,
@@ -59,16 +60,12 @@ final case class LayerBuilder[Type, Expr](
   showExpr: Expr => String,
   showType: Type => String,
   reportWarn: String => Unit,
-  reportError: String => Nothing,
-  intersectionTypes: Type => List[Type]
+  reportError: String => Nothing
 ) {
 
   lazy val target =
     if (method.isProvideSomeShared) target0.filterNot(t1 => remainders.exists(t2 => typeEquals(t1, t2)))
     else target0
-
-  private lazy val remainders: List[Type] =
-    intersectionTypes(remainder)
 
   private lazy val remainderNode: Node[Type, Expr] =
     typeToNode(remainder)

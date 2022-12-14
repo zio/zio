@@ -27,6 +27,7 @@ private[zio] trait LayerMacroUtils {
     val builder = LayerBuilder[c.Type, LayerExpr](
       target0 = targetTypes,
       remainder = c.weakTypeOf[R0],
+      remainders = remainderTypes,
       providedLayers0 = layers.toList,
       layerToDebug = debugMap,
       sideEffectType = c.weakTypeOf[Unit].dealias,
@@ -38,8 +39,7 @@ private[zio] trait LayerMacroUtils {
       showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
       showType = _.toString,
       reportWarn = c.warning(c.enclosingPosition, _),
-      reportError = c.abort(c.enclosingPosition, _),
-      intersectionTypes = getRequirements
+      reportError = c.abort(c.enclosingPosition, _)
     )
 
     builder.build.asInstanceOf[c.Expr[ZLayer[R0, E, R]]]
