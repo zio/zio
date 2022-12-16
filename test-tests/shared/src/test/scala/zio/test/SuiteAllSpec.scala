@@ -1,5 +1,6 @@
 package zio.test
 import zio._
+import zio.test.TestAspect.ignore
 
 object SuiteAllSpec extends ZIOSpecDefault {
 
@@ -28,6 +29,11 @@ object SuiteAllSpec extends ZIOSpecDefault {
         test("nest test 2")(
           assertCompletes
         )
+      }
+      suiteAll("a") {
+        test("b") {
+          ZIO.fail("boom").as(assertCompletes)
+        } @@ ignore
       }
 
     }
