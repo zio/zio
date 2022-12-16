@@ -101,8 +101,8 @@ sealed trait TestArrow[-A, +B] { self =>
   def span(span: (Int, Int)): TestArrow[A, B] =
     meta(span = Some(Span(span._1, span._2)))
 
-  def withCode(code: String): TestArrow[A, B] =
-    meta(code = Some(code))
+  def withCode(code: String, params: Any*): TestArrow[A, B] =
+    meta(code = Option.when(params.nonEmpty)(params).map(p => s"$code(${p.mkString(",")})").orElse(Some(code)))
 
   def withCompleteCode(completeCode: String): TestArrow[A, B] =
     meta(completeCode = Some(completeCode))

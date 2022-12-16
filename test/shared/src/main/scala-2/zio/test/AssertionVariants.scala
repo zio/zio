@@ -34,6 +34,6 @@ trait AssertionVariants {
             M.pretty(actual) + M.equals + M.pretty(expected)
           }
         }
-        .withCode("equalTo")
+        .withCode(s"equalTo", expected)
     )
 }

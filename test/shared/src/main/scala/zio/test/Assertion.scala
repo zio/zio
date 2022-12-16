@@ -116,7 +116,7 @@ object Assertion extends AssertionVariants {
 
   def hasAt[A](pos: Int)(assertion: Assertion[A]): Assertion[Seq[A]] =
     Assertion[Seq[A]](
-      SmartAssertions.hasAt(pos).withCode(s"hasAt($pos)") >>>
+      SmartAssertions.hasAt(pos).withCode(s"hasAt", pos) >>>
         assertion.arrow
     )
 
@@ -136,7 +136,7 @@ object Assertion extends AssertionVariants {
    */
   def contains[A](element: A): Assertion[Iterable[A]] =
     Assertion[Iterable[A]](
-      SmartAssertions.containsIterable(element).withCode(s"contains")
+      SmartAssertions.containsIterable(element).withCode(s"contains", element)
     )
 
   /**
@@ -144,7 +144,7 @@ object Assertion extends AssertionVariants {
    */
   def containsCause[E](cause: Cause[E]): Assertion[Cause[E]] =
     Assertion[Cause[E]] {
-      SmartAssertions.containsCause(cause).withCode("containsCause")
+      SmartAssertions.containsCause(cause).withCode("containsCause", cause)
     }
 
   /**
@@ -152,7 +152,7 @@ object Assertion extends AssertionVariants {
    */
   def containsString(element: String): Assertion[String] =
     Assertion[String](
-      SmartAssertions.containsString(element).withCode(s"containsString(${PrettyPrint(element)})")
+      SmartAssertions.containsString(element).withCode(s"containsString", element)
     )
 
   /**
@@ -546,7 +546,7 @@ object Assertion extends AssertionVariants {
             M.pretty(value) + M.was + "within" + M.pretty(min) + "and" + M.pretty(max)
           )
         }
-        .withCode("isWithin")
+        .withCode("isWithin", min, max)
     )
 
   /**
@@ -883,7 +883,7 @@ object Assertion extends AssertionVariants {
     Assertion[Seq[A]](
       SmartAssertions
         .startsWithSeq(prefix)
-        .withCode("startsWith")
+        .withCode("startsWith", prefix)
     )
 
   /**
@@ -892,7 +892,7 @@ object Assertion extends AssertionVariants {
    */
   def startsWithString(prefix: String): Assertion[String] =
     Assertion[String](
-      SmartAssertions.startsWithString(prefix).withCode("startsWithString")
+      SmartAssertions.startsWithString(prefix).withCode("startsWithString", prefix)
     )
 
   /**
