@@ -216,8 +216,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     assert(running.get)
 
     var evaluationSignal: EvaluationSignal = EvaluationSignal.Continue
+    var previousFiber                      = null.asInstanceOf[FiberRuntime[_, _]]
     try {
-      if (RuntimeFlags.currentFiber(_runtimeFlags)) Fiber._currentFiber.set(self)
+      if (RuntimeFlags.currentFiber(_runtimeFlags)) {
+        val previousFiber = Fiber._currentFiber.get()
+        Fiber._currentFiber.set(self)
+      }
 
       while (evaluationSignal == EvaluationSignal.Continue) {
         evaluationSignal =
@@ -227,7 +231,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     } finally {
       running.set(false)
 
-      if (RuntimeFlags.currentFiber(_runtimeFlags)) Fiber._currentFiber.set(null)
+      if (RuntimeFlags.currentFiber(_runtimeFlags)) Fiber._currentFiber.set(previousFiber)
     }
 
     // Maybe someone added something to the queue between us checking, and us
@@ -1379,12 +1383,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private[zio] def start[R](effect: ZIO[R, E, A])(implicit unsafe: Unsafe): Exit[E, A] =
     if (running.compareAndSet(false, true)) {
+      var previousFiber = null.asInstanceOf[FiberRuntime[_, _]]
       try {
-        if (RuntimeFlags.currentFiber(_runtimeFlags)) Fiber._currentFiber.set(self)
+        if (RuntimeFlags.currentFiber(_runtimeFlags)) {
+          previousFiber = Fiber._currentFiber.get()
+          Fiber._currentFiber.set(self)
+        }
 
         evaluateEffect(0, effect.asInstanceOf[ZIO[Any, Any, Any]])
       } finally {
-        if (RuntimeFlags.currentFiber(_runtimeFlags)) Fiber._currentFiber.set(null)
+        if (RuntimeFlags.currentFiber(_runtimeFlags)) Fiber._currentFiber.set(previousFiber)
 
         running.set(false)
 
