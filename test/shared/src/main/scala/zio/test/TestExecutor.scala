@@ -120,6 +120,7 @@ object TestExecutor {
                         )
                   } yield event).catchAllCause { e =>
                     val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
+                    // TODO Should this TestRenderer be configurable here?
                     ConsoleRenderer.render(e, labels).foreach(cr => println("CR: " + cr))
                     ZIO.succeed(event)
                   }

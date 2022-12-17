@@ -74,6 +74,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       testArgs = TestArgs.parse(args.getArgs.toArray)
       summary <- runSpecAsApp(spec, testArgs, console)
       _ <- ZIO.when(testArgs.printSummary) {
+            // TODO Should this TestRenderer be configurable here?
              console.printLine(ConsoleRenderer.renderSummary(summary)).orDie
            }
       _ <- ZIO.when(summary.status == Summary.Failure) {
@@ -145,6 +146,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     val castedRuntime: Runtime[Environment with ExecutionEventSink] =
       runtime.asInstanceOf[Runtime[Environment with ExecutionEventSink]]
 
+    ZIO.debug("TestRunner: " + testArgs.testRenderer) *>
     TestRunner(
       TestExecutor
         .default[Environment, Any](

@@ -89,6 +89,7 @@ trait IntelliJRenderer extends TestRenderer {
 
   override protected def renderOutput(results: Seq[ExecutionResult])(implicit trace: Trace): Seq[String] =
     results.foldLeft(List.empty[String]) { (acc, result) =>
+      println("yes")
       result match {
         case r @ ExecutionResult(ResultType.Suite, _, Status.Started, _, _, _, _, _) => acc :+ onSuiteStarted(r)
         case r @ ExecutionResult(ResultType.Suite, _, _, _, _, _, _, _)              => acc :+ onSuiteFinished(r)
@@ -106,10 +107,12 @@ trait IntelliJRenderer extends TestRenderer {
   private def onSuiteFinished(result: ExecutionResult) =
     tc(s"testSuiteFinished name='${escape(result.label)}'")
 
-  private def onTestStarted(result: ExecutionResult) =
+  private def onTestStarted(result: ExecutionResult) = {
+    println("intellij test started...")
     tc(
       s"testStarted name='${escape(result.label)}' locationHint='${escape(location(result))}' captureStandardOutput='true'"
     )
+  }
 
   private def onTestFinished(result: ExecutionResult, duration: Option[Long]) =
     tc(s"testFinished name='${escape(result.label)}' duration='${duration.map(_.toString).getOrElse("")}'")

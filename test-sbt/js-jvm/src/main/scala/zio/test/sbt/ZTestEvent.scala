@@ -1,7 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.render.ConsoleRenderer
+import zio.test.render.{ConsoleRenderer, IntelliJRenderer, TestRenderer}
 import zio.test.render.LogLine.{Line, Message}
 import zio.test.{ExecutionEvent, TestAnnotation, TestSuccess}
 
@@ -17,15 +17,27 @@ final case class ZTestEvent(
 }
 
 object ZTestEvent {
-  def convertEvent(test: ExecutionEvent.Test[_], taskDef: TaskDef): Event = {
+  def convertEvent(test: ExecutionEvent.Test[_], taskDef: TaskDef, renderer: TestRenderer): Event = {
     val status = statusFrom(test)
     val maybeThrowable = status match {
       case Status.Failure =>
         // Includes ansii colors
+
+
         val failureMsg =
-          ConsoleRenderer
-            .renderToStringLines(Message(ConsoleRenderer.render(test, true).map(Line.fromString(_))))
-            .mkString("\n")
+          renderer match {
+            case c: ConsoleRenderer =>
+              c
+                .renderToStringLines(Message(ConsoleRenderer.render(test, true).map(Line.fromString(_))))
+                .mkString("\n")
+            case i: IntelliJRenderer =>
+              println("Hitting my new renderer!")
+                i.render(test, includeCause = true) // TODO Should we actually includeCause here?
+                  .mkString("\n")
+
+            case r =>
+              throw new IllegalArgumentException("Unrecognized renderer: " + r)
+          }
         Some(new Exception(failureMsg))
       case _ => None
     }
