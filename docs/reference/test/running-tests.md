@@ -8,8 +8,9 @@ We can run ZIO Tests in two ways:
 1. If we [added](installation.md) `zio.test.sbt.ZTestFramework` to SBT's `testFrameworks`, our tests should be automatically picked up by SBT on invocation of `test`:
 
 ```bash
-sbt Test/test                      // run all tests
-sbt Test/testOnly HelloWorldSpec   // run a specific test
+// TODO Remove every Test/ prefix
+sbt test                      // run all tests
+sbt testOnly HelloWorldSpec   // run a specific test
 ```
 
 To run a specific test by their labels, we can use the `-t "<label>"` option. Assume we have multiple tests like the below:
@@ -33,15 +34,18 @@ object ExampleSpec extends ZIOSpecDefault {
 ```
 
 We can run those test that contains the "bar" label using the following SBT command:
-
-```scala
-sbt Test/runMain ExampleSpect -- -t "bar"
+```
+testOnly ExampleSpect -- -t "bar"
+```
+You can also execute the single SBT command directly from the shell with this command that properly quotes and escapes arguments:
+```
+sbt "testOnly ExampleSpect -- -t \"bar\""
 ```
 
 It will print the following results after running all tests containing the "bar" label:
 
 ```scala
-sbt:zio-2.0> Test/testOnly ExampleSpec -- -t "bar"
+sbt:zio-2.0> testOnly ExampleSpec -- -t "bar"
 + example suite
   + foo bar
   + foo bar baz
