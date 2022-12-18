@@ -8,7 +8,6 @@ We can run ZIO Tests in two ways:
 1. If we [added](installation.md) `zio.test.sbt.ZTestFramework` to SBT's `testFrameworks`, our tests should be automatically picked up by SBT on invocation of `test`:
 
 ```bash
-// TODO Remove every Test/ prefix
 sbt test                      // run all tests
 sbt testOnly HelloWorldSpec   // run a specific test
 ```
