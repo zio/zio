@@ -21,9 +21,6 @@ object ZTestEvent {
     val status = statusFrom(test)
     val maybeThrowable = status match {
       case Status.Failure =>
-        // Includes ansii colors
-
-
         val failureMsg =
           renderer match {
             case c: ConsoleRenderer =>

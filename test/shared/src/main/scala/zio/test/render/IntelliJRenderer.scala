@@ -89,7 +89,6 @@ trait IntelliJRenderer extends TestRenderer {
 
   override protected def renderOutput(results: Seq[ExecutionResult])(implicit trace: Trace): Seq[String] =
     results.foldLeft(List.empty[String]) { (acc, result) =>
-      println("yes")
       result match {
         case r @ ExecutionResult(ResultType.Suite, _, Status.Started, _, _, _, _, _) => acc :+ onSuiteStarted(r)
         case r @ ExecutionResult(ResultType.Suite, _, _, _, _, _, _, _)              => acc :+ onSuiteFinished(r)

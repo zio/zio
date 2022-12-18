@@ -82,12 +82,6 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
            }
     } yield summary
 
-  private def getTestEventRenderer(testArgs: TestArgs) =
-    testArgs.testRenderer match {
-      case Some("intellij") => IntelliJEventRenderer
-      case _                => ConsoleEventRenderer
-    }
-
   /*
    * Regardless of test assertion or runtime failures, this method will always return a summary
    * capturing this information
@@ -115,8 +109,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       perTestLayer = (ZLayer.succeedEnvironment(scopeEnv) ++ liveEnvironment) >>>
                        (TestEnvironment.live ++ ZLayer.environment[Scope])
 
-      eventRenderer           = getTestEventRenderer(testArgs)
-      executionEventSinkLayer = sinkLayer(console, eventRenderer)
+      executionEventSinkLayer = sinkLayer(console, testArgs.testEventRenderer)
       environment            <- ZIO.environment[Environment]
       runner =
         TestRunner(

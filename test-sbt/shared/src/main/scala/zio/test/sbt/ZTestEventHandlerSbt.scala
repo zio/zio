@@ -17,7 +17,8 @@ import zio.test.{ExecutionEvent, TestAnnotation, TestFailure, ZTestEventHandler}
 class ZTestEventHandlerSbt(eventHandler: EventHandler, taskDef: TaskDef, renderer: TestRenderer) extends ZTestEventHandler {
   def handle(event: ExecutionEvent): UIO[Unit] = {
     for {
-      rendererConfigSelection <- zio.System.envOrElse("ZIO_TEST_RENDERER", "DEFAULT").debug("Renderer").orDie
+      // TODO Delete when confirmed that TestArgs are the way to go here.
+//      rendererConfigSelection <- zio.System.envOrElse("ZIO_TEST_RENDERER", "DEFAULT").debug("Renderer").orDie
       res <- event match {
         case evt@ExecutionEvent.Test(_, _, _, _, _, _) =>
           ZIO.succeed(eventHandler.handle(ZTestEvent.convertEvent(evt, taskDef, renderer)))

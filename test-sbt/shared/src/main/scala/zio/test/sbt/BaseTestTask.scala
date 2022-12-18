@@ -36,16 +36,7 @@ abstract class BaseTestTask[T](
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
     implicit val trace = Trace.empty
-
-    println("TODO Is this the best spot for this?")
-    val renderer: TestRenderer =
-      args.testRenderer match {
-        case Some(value) if value == "intellij" => IntelliJRenderer
-        case Some(value) =>
-          throw new IllegalArgumentException("Unrecognized renderer: " + value)
-        case None => ConsoleRenderer
-      }
-    val zTestHandler                      = new ZTestEventHandlerSbt(eventHandler, taskDef(), renderer)
+    val zTestHandler                      = new ZTestEventHandlerSbt(eventHandler, taskDef(), args.testRenderer)
     var resOutter: CancelableFuture[Unit] = null
     try {
       val res: CancelableFuture[Unit] =

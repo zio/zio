@@ -22,7 +22,7 @@ import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract, sinkLay
 
 import java.util.concurrent.atomic.AtomicReference
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.ReporterEventRenderer.ConsoleEventRenderer
+import zio.test.ReporterEventRenderer.{ConsoleEventRenderer, IntelliJEventRenderer}
 import zio.test.render.{ConsoleRenderer, IntelliJRenderer, TestRenderer}
 
 final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
@@ -90,15 +90,8 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
   )(implicit trace: Trace): Array[ZTestTask[ExecutionEventSink]] = {
     val testArgs        = TestArgs.parse(args)
 
-    renderer =
-      testArgs.testRenderer match {
-        case Some(value) if value == "intellij" => IntelliJRenderer
-        case Some(value) =>
-          throw new IllegalArgumentException("Unrecognized renderer: " + value)
-        case None => ConsoleRenderer
-      }
-    // TODO Should this TestRenderer be configurable here?
-    val sharedSinkLayer = sinkLayer(console, ConsoleEventRenderer)
+    renderer = testArgs.testRenderer  // Ensures summary is pretty in same style as rest of the test output
+    val sharedSinkLayer = sinkLayer(console, testArgs.testEventRenderer)
 
     val specTasks: Array[ZIOSpecAbstract] = defs.map(disectTask(_, testClassLoader))
     val sharedLayerFromSpecs: ZLayer[Any, Any, Any] =
