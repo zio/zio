@@ -20,7 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.ReporterEventRenderer.{ConsoleEventRenderer, IntelliJEventRenderer}
 import zio.test.render.{ConsoleRenderer, IntelliJRenderer, TestRenderer}
 
-final case class TestArgs(
+private[test] final case class TestArgs(
   testSearchTerms: List[String],
   tagSearchTerms: List[String],
   tagIgnoreTerms: List[String],
@@ -67,16 +67,8 @@ object TestArgs {
     val typedTestRenderer =
         testRenderer match {
           case Some(value) if value == "intellij" => IntelliJRenderer
-          case Some(value) =>
-            throw new IllegalArgumentException("Unrecognized renderer: " + value)
-          case None => ConsoleRenderer
+          case _ => ConsoleRenderer
         }
-    val testEventRenderer =
-      typedTestRenderer match {
-        case renderer: ConsoleRenderer => ConsoleEventRenderer
-        case renderer: IntelliJRenderer => IntelliJEventRenderer
-        case _ => ???
-      }
     TestArgs(terms, tags, ignoreTags, testTaskPolicy, typedTestRenderer, printSummary)
   }
 }
