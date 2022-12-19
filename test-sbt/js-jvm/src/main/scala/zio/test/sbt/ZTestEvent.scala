@@ -3,7 +3,7 @@ package zio.test.sbt
 import sbt.testing._
 import zio.test.render.{ConsoleRenderer, IntelliJRenderer, TestRenderer}
 import zio.test.render.LogLine.{Line, Message}
-import zio.test.{ExecutionEvent, TestAnnotation, TestSuccess}
+import zio.test.{ExecutionEvent, TestAnnotation, TestFailure, TestSuccess}
 
 final case class ZTestEvent(
   fullyQualifiedName: String,
@@ -18,25 +18,13 @@ final case class ZTestEvent(
 
 object ZTestEvent {
   def convertEvent(test: ExecutionEvent.Test[_], taskDef: TaskDef, renderer: TestRenderer): Event = {
-    println("TaskDef.selectors: " + taskDef.selectors.toList)
-    println("test.duration" + test.duration)
     val status = statusFrom(test)
     val maybeThrowable = status match {
       case Status.Failure =>
         val failureMsg =
-          renderer match {
-            case c: ConsoleRenderer =>
-              // TODO Test this funky dance. Seems like what I'm doing in the Intellij branch should also work here
-              "BORK" + c
-                .renderToStringLines(Message(ConsoleRenderer.render(test, true).map(Line.fromString(_))))
-                .mkString("\n")
-            case i: IntelliJRenderer =>
-                i.render(test, includeCause = true) // TODO Should we actually includeCause here?
-                  .mkString("\n")
-
-            case r =>
-              throw new IllegalArgumentException("Unrecognized renderer: " + r)
-          }
+          renderer
+            .render(test, true)
+            .mkString("\n")
         Some(new Exception(failureMsg))
       case _ => None
     }

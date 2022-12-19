@@ -106,12 +106,10 @@ trait IntelliJRenderer extends TestRenderer {
   private def onSuiteFinished(result: ExecutionResult) =
     tc(s"testSuiteFinished name='${escape(result.label)}'")
 
-  private def onTestStarted(result: ExecutionResult) = {
-    println("intellij test started...")
+  private def onTestStarted(result: ExecutionResult) =
     tc(
       s"testStarted name='${escape(result.label)}' locationHint='${escape(location(result))}' captureStandardOutput='true'"
     )
-  }
 
   private def onTestFinished(result: ExecutionResult, duration: Option[Long]) =
     tc(s"testFinished name='${escape(result.label)}' duration='${duration.map(_.toString).getOrElse("")}'")
