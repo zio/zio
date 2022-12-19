@@ -19,7 +19,6 @@ object ZTestFrameworkSbtSpec {
 
   def tests: Seq[Try[Unit]] = Seq(
     test("should return correct fingerprints")(testFingerprints()),
-    test("should render exception from test failure")(testFailureRender()),
     // TODO restore once we are calculating durations again. Fix for #6482
     //test("should report durations")(testReportDurations()),
 //    test("should log messages")(testLogMessages()),
@@ -33,13 +32,6 @@ object ZTestFrameworkSbtSpec {
   def testFingerprints(): Unit = {
     val fingerprints = new ZTestFramework().fingerprints.toSeq
     assertEquals("fingerprints", fingerprints, Seq(ZioSpecFingerprint))
-  }
-
-  def testFailureRender(): Unit = {
-    val loggers = Seq(new MockLogger)
-    val reported = ArrayBuffer[ExecutionEvent]()
-
-    loadAndExecute(FrameworkSpecInstances.RuntimeExceptionSpec, loggers = loggers)
   }
 
   val dummyHandler: EventHandler = (_: Event) => ()

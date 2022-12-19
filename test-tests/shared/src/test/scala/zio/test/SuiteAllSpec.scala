@@ -36,9 +36,6 @@ object SuiteAllSpec extends ZIOSpecDefault {
         } @@ ignore
       }
 
-      test("kablooey") {
-        ???
-      }
     }
       .provide(ZLayer.succeed(123))
 

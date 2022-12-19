@@ -34,7 +34,6 @@ object ZTestEvent {
       selector = new TestSelector(test.labels.mkString(" - ")),
       status = status,
       maybeThrowable = maybeThrowable,
-      // Should we just be using test.duration here?
       duration = test.duration,
       fingerprint = ZioSpecFingerprint
     )
