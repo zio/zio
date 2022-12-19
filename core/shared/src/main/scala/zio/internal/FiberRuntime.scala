@@ -781,6 +781,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     val loggers     = getLoggers()
     val contextMap  = getFiberRefs()
 
+    Metric.runtime.loggedTotals.get(logLevel).foreach { counter =>
+      val tags = getFiberRef(FiberRef.currentTags)(Unsafe.unsafe)
+      counter.unsafe.update(1, tags)(Unsafe.unsafe)
+    }
+
     loggers.foreach { logger =>
       logger(trace, fiberId, logLevel, message, cause, contextMap, spans, annotations)
     }

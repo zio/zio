@@ -401,6 +401,9 @@ object Metric {
     val fiberFailures  = Metric.counter("zio_fiber_failures")
     val fiberLifetimes =
       Metric.histogram("zio_fiber_lifetimes", MetricKeyType.Histogram.Boundaries.exponential(1.0, 2.0, 100))
+
+    val loggedTotals =
+      LogLevel.allLogLevels.map(level => (level, Metric.counter(s"zio_logger_${level.label.toLowerCase}_total"))).toMap
   }
 
   /**

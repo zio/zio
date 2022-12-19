@@ -67,4 +67,6 @@ object LogLevel {
   val None: LogLevel    = LogLevel(Int.MaxValue, "OFF", 7)
 
   implicit val orderingLogLevel: Ordering[LogLevel] = Ordering.by(_.ordinal)
+
+  val allLogLevels: List[LogLevel] = List(All, Fatal, Error, Warning, Info, Debug, Trace, None)
 }
