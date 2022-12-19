@@ -17,14 +17,18 @@ final case class ZTestEvent(
 }
 
 object ZTestEvent {
+  // TODO Test this method directly
   def convertEvent(test: ExecutionEvent.Test[_], taskDef: TaskDef, renderer: TestRenderer): Event = {
+    println("Hi convert")
     val status = statusFrom(test)
     val maybeThrowable = status match {
       case Status.Failure =>
         val failureMsg =
           renderer match {
             case c: ConsoleRenderer =>
-              c
+              // TODO Test this funky dance. Seems like what I'm doing in the Intellij branch should also work here
+              println("rendering to console")
+              "BORK" + c
                 .renderToStringLines(Message(ConsoleRenderer.render(test, true).map(Line.fromString(_))))
                 .mkString("\n")
             case i: IntelliJRenderer =>
