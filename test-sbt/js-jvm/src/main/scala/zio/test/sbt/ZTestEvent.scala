@@ -17,9 +17,9 @@ final case class ZTestEvent(
 }
 
 object ZTestEvent {
-  // TODO Test this method directly
   def convertEvent(test: ExecutionEvent.Test[_], taskDef: TaskDef, renderer: TestRenderer): Event = {
-    println("Hi convert")
+    println("TaskDef.selectors: " + taskDef.selectors.toList)
+    println("test.duration" + test.duration)
     val status = statusFrom(test)
     val maybeThrowable = status match {
       case Status.Failure =>
@@ -27,12 +27,10 @@ object ZTestEvent {
           renderer match {
             case c: ConsoleRenderer =>
               // TODO Test this funky dance. Seems like what I'm doing in the Intellij branch should also work here
-              println("rendering to console")
               "BORK" + c
                 .renderToStringLines(Message(ConsoleRenderer.render(test, true).map(Line.fromString(_))))
                 .mkString("\n")
             case i: IntelliJRenderer =>
-              println("Hitting my new renderer!")
                 i.render(test, includeCause = true) // TODO Should we actually includeCause here?
                   .mkString("\n")
 
@@ -48,7 +46,8 @@ object ZTestEvent {
       selector = new TestSelector(test.labels.mkString(" - ")),
       status = status,
       maybeThrowable = maybeThrowable,
-      duration = test.annotations.get(TestAnnotation.timing).toMillis,
+      // Should we just be using test.duration here?
+      duration = test.duration,
       fingerprint = ZioSpecFingerprint
     )
   }
