@@ -220,6 +220,7 @@ trait ConsoleRenderer extends TestRenderer {
        |Executed in ${summary.duration.render}
        |""".stripMargin
 
+  // TODO Need a version in IntellijRenderer?
   def render(cause: Cause[_], labels: List[String]): Option[String] =
     cause match {
       case _: Cause.Interrupt =>

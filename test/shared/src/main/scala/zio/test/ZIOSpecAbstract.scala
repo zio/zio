@@ -19,7 +19,6 @@ package zio.test
 import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.ReporterEventRenderer.{ConsoleEventRenderer, IntelliJEventRenderer}
 import zio.test.render.ConsoleRenderer
 
 @EnableReflectiveInstantiation
@@ -139,7 +138,6 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     val castedRuntime: Runtime[Environment with ExecutionEventSink] =
       runtime.asInstanceOf[Runtime[Environment with ExecutionEventSink]]
 
-    ZIO.debug("TestRunner: " + testArgs.testRenderer) *>
     TestRunner(
       TestExecutor
         .default[Environment, Any](

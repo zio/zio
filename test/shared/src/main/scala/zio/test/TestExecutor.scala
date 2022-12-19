@@ -121,6 +121,9 @@ object TestExecutor {
                   } yield event).catchAllCause { e =>
                     val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
                     // TODO Should this TestRenderer be configurable here?
+                    // TODO Write a test that will hit this block.
+                    //    I think I need to manually interrupt them
+                    // TODO Should this be uninterruptible?
                     ConsoleRenderer.render(e, labels).foreach(cr => println("CR: " + cr))
                     ZIO.succeed(event)
                   }

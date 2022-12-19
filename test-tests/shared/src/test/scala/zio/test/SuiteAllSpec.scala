@@ -13,14 +13,6 @@ object SuiteAllSpec extends ZIOSpecDefault {
         assertTrue(hello.startsWith("h"))
       )
 
-      test("test die ")(
-        ???
-      )
-
-      test("test fail ")(
-        assertNever("Should not be here")
-      )
-
       val cool = 123
 
       test("another test")(
@@ -44,6 +36,9 @@ object SuiteAllSpec extends ZIOSpecDefault {
         } @@ ignore
       }
 
+      test("kablooey") {
+        ???
+      }
     }
       .provide(ZLayer.succeed(123))
 
