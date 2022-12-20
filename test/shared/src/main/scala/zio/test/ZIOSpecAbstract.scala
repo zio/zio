@@ -73,7 +73,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       testArgs = TestArgs.parse(args.getArgs.toArray)
       summary <- runSpecAsApp(spec, testArgs, console)
       _ <- ZIO.when(testArgs.printSummary) {
-             console.printLine(ConsoleRenderer.renderSummary(summary)).orDie
+             console.printLine(testArgs.testRenderer.renderSummary(summary)).orDie
            }
       _ <- ZIO.when(summary.status == Summary.Failure) {
              ZIO.fail(new RuntimeException())
