@@ -29,11 +29,11 @@ private[test] final case class TestArgs(
   printSummary: Boolean
 ) {
   val testEventRenderer: ReporterEventRenderer =
-      testRenderer match {
-        case renderer: ConsoleRenderer => ConsoleEventRenderer
-        case renderer: IntelliJRenderer => IntelliJEventRenderer
-        case _ => ???
-      }
+    testRenderer match {
+      case renderer: ConsoleRenderer  => ConsoleEventRenderer
+      case renderer: IntelliJRenderer => IntelliJEventRenderer
+      case _                          => ???
+    }
 }
 
 object TestArgs {
@@ -65,10 +65,10 @@ object TestArgs {
     val testRenderer   = parsedArgs.getOrElse("renderer", Nil).headOption.map(_.toLowerCase)
     val printSummary   = parsedArgs.getOrElse("summary", Nil).headOption.forall(_.toBoolean)
     val typedTestRenderer =
-        testRenderer match {
-          case Some(value) if value == "intellij" => IntelliJRenderer
-          case _ => ConsoleRenderer
-        }
+      testRenderer match {
+        case Some(value) if value == "intellij" => IntelliJRenderer
+        case _                                  => ConsoleRenderer
+      }
     TestArgs(terms, tags, ignoreTags, testTaskPolicy, typedTestRenderer, printSummary)
   }
 }

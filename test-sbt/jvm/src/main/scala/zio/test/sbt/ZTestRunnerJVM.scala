@@ -22,8 +22,7 @@ import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract, sinkLay
 
 import java.util.concurrent.atomic.AtomicReference
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.ReporterEventRenderer.{ConsoleEventRenderer, IntelliJEventRenderer}
-import zio.test.render.{ConsoleRenderer, IntelliJRenderer, TestRenderer}
+import zio.test.render.{ConsoleRenderer, TestRenderer}
 
 final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {
@@ -88,9 +87,9 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     defs: Array[TaskDef],
     console: zio.Console
   )(implicit trace: Trace): Array[ZTestTask[ExecutionEventSink]] = {
-    val testArgs        = TestArgs.parse(args)
+    val testArgs = TestArgs.parse(args)
 
-    renderer = testArgs.testRenderer  // Ensures summary is pretty in same style as rest of the test output
+    renderer = testArgs.testRenderer // Ensures summary is pretty in same style as rest of the test output
     val sharedSinkLayer = sinkLayer(console, testArgs.testEventRenderer)
 
     val specTasks: Array[ZIOSpecAbstract] = defs.map(disectTask(_, testClassLoader))

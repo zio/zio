@@ -8,12 +8,12 @@ import zio.test._
 import zio.test.sbt.TestingSupport._
 
 object ZTestEventSpec extends ZIOSpecDefault {
-  def spec = {
+  def spec =
     suite("exhaustive conversions")(
       test("just zio sleep")(
         ZIO.withClock(Clock.ClockLive)(ZIO.sleep(2.second)).as(assertCompletes)
       ),
-      test("succeeded"){
+      test("succeeded") {
         val test = ExecutionEvent.Test(
           labelsReversed = List("test", "specific", "realm"),
           test = Right(TestSuccess.Succeeded()),
@@ -29,16 +29,16 @@ object ZTestEventSpec extends ZIOSpecDefault {
             ConsoleRenderer
           )
         val expected: Event = ZTestEvent(
-            fullyQualifiedName = "zio.dev.test",
-            selector = new TestSelector("realm - specific - test"),
-            status = Status.Success,
-            maybeThrowable = None,
-            duration = 0L,
-            fingerprint = ZioSpecFingerprint
-          )
+          fullyQualifiedName = "zio.dev.test",
+          selector = new TestSelector("realm - specific - test"),
+          status = Status.Success,
+          maybeThrowable = None,
+          duration = 0L,
+          fingerprint = ZioSpecFingerprint
+        )
         assertEqualEvents(result, expected)
       },
-      test("test failure"){
+      test("test failure") {
         val test = ExecutionEvent.Test(
           labelsReversed = List("test", "specific", "realm"),
           test = Left(TestFailure.Assertion(TestResult(TestArrow.succeed(false)))),
@@ -57,18 +57,17 @@ object ZTestEventSpec extends ZIOSpecDefault {
           fullyQualifiedName = "zio.dev.test",
           selector = new TestSelector("realm - specific - test"),
           status = Status.Failure,
-          maybeThrowable = Some(new Exception(
-            s"""|    ${ConsoleUtils.bold(red("- test"))}
-                |      ✗ Result was false
-                |      <CODE>
-                |      at <LOCATION>
-                |""".stripMargin)),
+          maybeThrowable = Some(new Exception(s"""|    ${ConsoleUtils.bold(red("- test"))}
+                                                  |      ✗ Result was false
+                                                  |      <CODE>
+                                                  |      at <LOCATION>
+                                                  |""".stripMargin)),
           duration = 0L,
           fingerprint = ZioSpecFingerprint
         )
         assertEqualEvents(result, expected)
       },
-      test("runtime failure"){
+      test("runtime failure") {
         val test = ExecutionEvent.Test(
           labelsReversed = List("test", "specific", "realm"),
           test = Left(TestFailure.Runtime(Cause.fail("boom"))),
@@ -84,19 +83,17 @@ object ZTestEventSpec extends ZIOSpecDefault {
             ConsoleRenderer
           )
         val expected: Event = ZTestEvent(
-            fullyQualifiedName = "zio.dev.test",
-            selector = new TestSelector("realm - specific - test"),
-            status = Status.Failure,
-            maybeThrowable = Some(new Exception(
-                s"""|    ${ConsoleUtils.bold(red("- test"))}
-                  |      Exception in thread "zio-fiber-" java.lang.String: boom""".stripMargin)),
-            duration = 0L,
-            fingerprint = ZioSpecFingerprint
-          )
+          fullyQualifiedName = "zio.dev.test",
+          selector = new TestSelector("realm - specific - test"),
+          status = Status.Failure,
+          maybeThrowable = Some(new Exception(s"""|    ${ConsoleUtils.bold(red("- test"))}
+                                                  |      Exception in thread "zio-fiber-" java.lang.String: boom""".stripMargin)),
+          duration = 0L,
+          fingerprint = ZioSpecFingerprint
+        )
         assertEqualEvents(result, expected)
-      },
+      }
     )
-  }
   // Required because
   //  - `Selector` equality isn't working
   //  - Ansi colors make comparisons horrible to work with
@@ -110,21 +107,22 @@ object ZTestEventSpec extends ZIOSpecDefault {
     assertTrue(
       result.selector().toString == expected.selector().toString
     ) &&
-      assertTrue(
-        result.status() == expected.status()
-      ) &&
-      assertTrue(
-        stripAnsi(result.throwable())
-         == stripAnsi(expected.throwable())
-      ) &&
-      assertTrue(
-        result.duration() == expected.duration()
-      ) &&
-      assertCompletes
+    assertTrue(
+      result.status() == expected.status()
+    ) &&
+    assertTrue(
+      stripAnsi(result.throwable())
+        == stripAnsi(expected.throwable())
+    ) &&
+    assertTrue(
+      result.duration() == expected.duration()
+    ) &&
+    assertCompletes
   }
 
   private def stripAnsi(input: Any) =
-    input.toString.replaceAll("\\e\\[[\\d;]*[^\\d;]","")
-    .replaceAll("\\e\\[[\\d;]*[^\\d;]","")
+    input.toString
+      .replaceAll("\\e\\[[\\d;]*[^\\d;]", "")
+      .replaceAll("\\e\\[[\\d;]*[^\\d;]", "")
 
 }

@@ -39,7 +39,6 @@ object SummaryBuilder {
     val failures = extractFailures(reporterEvent)
 
     val rendered: String =
-    // TODO Should this TestRenderer be configurable here?
       ConsoleRenderer
         .renderForSummary(failures.flatMap(ConsoleRenderer.renderEvent(_, true)), TestAnnotationRenderer.silent)
         .mkString("\n")

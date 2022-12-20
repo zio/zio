@@ -1,9 +1,8 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.render.{ConsoleRenderer, IntelliJRenderer, TestRenderer}
-import zio.test.render.LogLine.{Line, Message}
-import zio.test.{ExecutionEvent, TestAnnotation, TestFailure, TestSuccess}
+import zio.test.render.TestRenderer
+import zio.test.{ExecutionEvent, TestSuccess}
 
 final case class ZTestEvent(
   fullyQualifiedName: String,
@@ -21,6 +20,7 @@ object ZTestEvent {
     val status = statusFrom(test)
     val maybeThrowable = status match {
       case Status.Failure =>
+        // Includes ansii colors
         val failureMsg =
           renderer
             .render(test, true)

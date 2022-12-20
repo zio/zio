@@ -73,7 +73,6 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       testArgs = TestArgs.parse(args.getArgs.toArray)
       summary <- runSpecAsApp(spec, testArgs, console)
       _ <- ZIO.when(testArgs.printSummary) {
-            // TODO Should this TestRenderer be configurable here?
              console.printLine(ConsoleRenderer.renderSummary(summary)).orDie
            }
       _ <- ZIO.when(summary.status == Summary.Failure) {

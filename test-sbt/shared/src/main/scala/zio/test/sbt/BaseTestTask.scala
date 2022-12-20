@@ -7,7 +7,6 @@ import zio.test._
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.render.{ConsoleRenderer, IntelliJRenderer, TestRenderer}
 
 abstract class BaseTestTask[T](
   taskDef0: TaskDef,
@@ -35,7 +34,7 @@ abstract class BaseTestTask[T](
       .provideLayer(sharedFilledTestLayer)
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
-    implicit val trace = Trace.empty
+    implicit val trace                    = Trace.empty
     val zTestHandler                      = new ZTestEventHandlerSbt(eventHandler, taskDef(), args.testRenderer)
     var resOutter: CancelableFuture[Unit] = null
     try {
