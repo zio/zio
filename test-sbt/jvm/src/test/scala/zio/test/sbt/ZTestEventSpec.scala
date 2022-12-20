@@ -3,6 +3,7 @@ package zio.test.sbt
 import sbt.testing.{Event, Status, TaskDef, TestSelector}
 import zio._
 import zio.test.Assertion.anything
+import zio.test.TestAspect.ignore
 import zio.test.render.ConsoleRenderer
 import zio.test._
 import zio.test.sbt.TestingSupport._
@@ -38,35 +39,6 @@ object ZTestEventSpec extends ZIOSpecDefault {
         )
         assertEqualEvents(result, expected)
       },
-      test("test failure") {
-        val test = ExecutionEvent.Test(
-          labelsReversed = List("test", "specific", "realm"),
-          test = Left(TestFailure.Assertion(TestResult(TestArrow.succeed(false)))),
-          annotations = TestAnnotationMap.empty,
-          ancestors = List.empty,
-          duration = 0L,
-          id = SuiteId(0)
-        )
-        val result: Event =
-          ZTestEvent.convertEvent(
-            test,
-            new TaskDef("zio.dev.test", ZioSpecFingerprint, false, Array.empty),
-            ConsoleRenderer
-          )
-        val expected: Event = ZTestEvent(
-          fullyQualifiedName = "zio.dev.test",
-          selector = new TestSelector("realm - specific - test"),
-          status = Status.Failure,
-          maybeThrowable = Some(new Exception(s"""|    ${ConsoleUtils.bold(red("- test"))}
-                                                  |      ✗ Result was false
-                                                  |      <CODE>
-                                                  |      at <LOCATION>
-                                                  |""".stripMargin)),
-          duration = 0L,
-          fingerprint = ZioSpecFingerprint
-        )
-        assertEqualEvents(result, expected)
-      },
       test("runtime failure") {
         val test = ExecutionEvent.Test(
           labelsReversed = List("test", "specific", "realm"),
@@ -86,8 +58,12 @@ object ZTestEventSpec extends ZIOSpecDefault {
           fullyQualifiedName = "zio.dev.test",
           selector = new TestSelector("realm - specific - test"),
           status = Status.Failure,
-          maybeThrowable = Some(new Exception(s"""|    ${ConsoleUtils.bold(red("- test"))}
-                                                  |      Exception in thread "zio-fiber-" java.lang.String: boom""".stripMargin)),
+          maybeThrowable = Some(
+            new Exception(
+              s"""|    ${ConsoleUtils.bold(red("- test"))}
+                  |      Exception in thread "zio-fiber-" java.lang.String: boom""".stripMargin
+            )
+          ),
           duration = 0L,
           fingerprint = ZioSpecFingerprint
         )
