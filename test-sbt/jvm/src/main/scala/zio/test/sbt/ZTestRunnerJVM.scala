@@ -22,11 +22,14 @@ import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract, sinkLay
 
 import java.util.concurrent.atomic.AtomicReference
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.ReporterEventRenderer.ConsoleEventRenderer
-import zio.test.render.ConsoleRenderer
+import zio.test.render.{ConsoleRenderer, TestRenderer}
 
 final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {
+
+  @volatile
+  var renderer: TestRenderer =
+    ConsoleRenderer
 
   @volatile
   var shutdownHook: Option[() => Unit] =
@@ -50,7 +53,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     val compositeSummary =
       allSummaries.foldLeft(Summary.empty)(_.add(_))
 
-    val renderedSummary = ConsoleRenderer.renderSummary(compositeSummary)
+    val renderedSummary = renderer.renderSummary(compositeSummary)
 
     val renderedResults =
       if (allSummaries.nonEmpty && total != ignore)
@@ -84,8 +87,10 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     defs: Array[TaskDef],
     console: zio.Console
   )(implicit trace: Trace): Array[ZTestTask[ExecutionEventSink]] = {
-    val testArgs        = TestArgs.parse(args)
-    val sharedSinkLayer = sinkLayer(console, ConsoleEventRenderer)
+    val testArgs = TestArgs.parse(args)
+
+    renderer = testArgs.testRenderer // Ensures summary is pretty in same style as rest of the test output
+    val sharedSinkLayer = sinkLayer(console, testArgs.testEventRenderer)
 
     val specTasks: Array[ZIOSpecAbstract] = defs.map(disectTask(_, testClassLoader))
     val sharedLayerFromSpecs: ZLayer[Any, Any, Any] =

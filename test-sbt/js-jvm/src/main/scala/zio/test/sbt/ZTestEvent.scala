@@ -1,9 +1,8 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.render.ConsoleRenderer
-import zio.test.render.LogLine.{Line, Message}
-import zio.test.{ExecutionEvent, TestAnnotation, TestSuccess}
+import zio.test.render.TestRenderer
+import zio.test.{ExecutionEvent, TestSuccess}
 
 final case class ZTestEvent(
   fullyQualifiedName: String,
@@ -17,14 +16,14 @@ final case class ZTestEvent(
 }
 
 object ZTestEvent {
-  def convertEvent(test: ExecutionEvent.Test[_], taskDef: TaskDef): Event = {
+  def convertEvent(test: ExecutionEvent.Test[_], taskDef: TaskDef, renderer: TestRenderer): Event = {
     val status = statusFrom(test)
     val maybeThrowable = status match {
       case Status.Failure =>
         // Includes ansii colors
         val failureMsg =
-          ConsoleRenderer
-            .renderToStringLines(Message(ConsoleRenderer.render(test, true).map(Line.fromString(_))))
+          renderer
+            .render(test, true)
             .mkString("\n")
         Some(new Exception(failureMsg))
       case _ => None
@@ -35,7 +34,7 @@ object ZTestEvent {
       selector = new TestSelector(test.labels.mkString(" - ")),
       status = status,
       maybeThrowable = maybeThrowable,
-      duration = test.annotations.get(TestAnnotation.timing).toMillis,
+      duration = test.duration,
       fingerprint = ZioSpecFingerprint
     )
   }

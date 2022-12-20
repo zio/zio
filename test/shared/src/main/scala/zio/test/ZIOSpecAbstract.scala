@@ -19,7 +19,6 @@ package zio.test
 import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.ReporterEventRenderer.{ConsoleEventRenderer, IntelliJEventRenderer}
 import zio.test.render.ConsoleRenderer
 
 @EnableReflectiveInstantiation
@@ -74,18 +73,12 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       testArgs = TestArgs.parse(args.getArgs.toArray)
       summary <- runSpecAsApp(spec, testArgs, console)
       _ <- ZIO.when(testArgs.printSummary) {
-             console.printLine(ConsoleRenderer.renderSummary(summary)).orDie
+             console.printLine(testArgs.testRenderer.renderSummary(summary)).orDie
            }
       _ <- ZIO.when(summary.status == Summary.Failure) {
              ZIO.fail(new RuntimeException())
            }
     } yield summary
-
-  private def getTestEventRenderer(testArgs: TestArgs) =
-    testArgs.testRenderer match {
-      case Some("intellij") => IntelliJEventRenderer
-      case _                => ConsoleEventRenderer
-    }
 
   /*
    * Regardless of test assertion or runtime failures, this method will always return a summary
@@ -114,8 +107,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       perTestLayer = (ZLayer.succeedEnvironment(scopeEnv) ++ liveEnvironment) >>>
                        (TestEnvironment.live ++ ZLayer.environment[Scope])
 
-      eventRenderer           = getTestEventRenderer(testArgs)
-      executionEventSinkLayer = sinkLayer(console, eventRenderer)
+      executionEventSinkLayer = sinkLayer(console, testArgs.testEventRenderer)
       environment            <- ZIO.environment[Environment]
       runner =
         TestRunner(
