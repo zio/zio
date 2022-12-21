@@ -792,8 +792,15 @@ package object test extends CompileVariants {
     trace: Trace
   ): ZLayer[Any, Nothing, ExecutionEventSink] =
     TestLogger.fromConsole(console) >>>
-//      ExecutionEventPrinter.live(eventRenderer) >>>
-      ExecutionEventJsonPrinter.live >>>
+      // TODO Do this check more properly somewhere else
+      (if (sys.env.get("ZIO_TEST_GITHUB_TOKEN").isDefined) {
+        println("Using github/json test result printer")
+        ExecutionEventJsonPrinter.live
+      } else {
+        println("Couldn't find token. Using default result printer")
+        ExecutionEventPrinter.live(eventRenderer)
+      }) >>>
+//      ExecutionEventJsonPrinter.live >>>
       TestOutput.live >>>
       ExecutionEventSink.live
 

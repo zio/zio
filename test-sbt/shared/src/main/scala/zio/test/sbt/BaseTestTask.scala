@@ -28,6 +28,7 @@ abstract class BaseTestTask[T](
     eventHandlerZ: ZTestEventHandler
   )(implicit trace: Trace): ZIO[Any, Throwable, Unit] =
     (for {
+      _ <- ZIO.debug("Test task info: " + taskDef0.fullyQualifiedName)
       summary <- spec.runSpecWithSharedRuntimeLayer(spec.spec, args, runtime, eventHandlerZ)
       _       <- sendSummary.provideEnvironment(ZEnvironment(summary))
     } yield ())

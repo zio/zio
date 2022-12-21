@@ -27,7 +27,6 @@ object ExecutionEventJsonPrinter {
       implicit val trace = Trace.empty
       event match {
         case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) =>
-          println("Attempting to remove comma")
           removeTrailingComma("output.json")
 
         case _ => ()
@@ -104,7 +103,6 @@ object ExecutionEventJsonPrinter {
     ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter(path, true)))(f =>
       ZIO.attemptBlocking(f.close()).orDie
     ) { f =>
-      ZIO.debug("Should write this to a file: " + content) <*
       ZIO.attemptBlockingIO(f.append(content))
     }
 
