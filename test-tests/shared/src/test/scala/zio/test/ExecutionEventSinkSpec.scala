@@ -13,7 +13,8 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
         TestAnnotationMap.empty,
         List.empty,
         0,
-        uuid
+        uuid,
+        "some.ClassName"
       )
       for {
         _       <- ExecutionEventSink.process(event)
@@ -27,7 +28,8 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
         TestAnnotationMap.empty,
         List.empty,
         0,
-        uuid
+        uuid,
+        "some.ClassName"
       )
       for {
         _       <- ExecutionEventSink.process(event)
@@ -41,7 +43,8 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
         TestAnnotationMap.empty,
         List(SuiteId(1)),
         0L,
-        uuid
+        uuid,
+        "some.ClassName"
       )
       for {
         _       <- ExecutionEventSink.process(event)

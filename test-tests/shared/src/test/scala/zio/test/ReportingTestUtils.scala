@@ -55,7 +55,7 @@ object ReportingTestUtils {
   )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[TestEnvironment, Nothing, String] =
     for {
       console <- ZIO.console
-      _       <- TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run(spec)
+      _       <- TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run("TODO Real name here", spec)
       output  <- TestConsole.output
     } yield output.mkString
 
@@ -64,7 +64,7 @@ object ReportingTestUtils {
   )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[TestEnvironment, Nothing, String] =
     for {
       console <- ZIO.console
-      summary <- TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run(spec)
+      summary <- TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run("TODO Real name here", spec)
     } yield summary.failureDetails
 
   private[test] def TestTestRunner(

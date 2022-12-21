@@ -178,7 +178,7 @@ object IntelliJRenderUtils {
   object TestRenderer extends ReporterEventRenderer {
     override def render(executionEvent: ExecutionEvent)(implicit trace: Trace): Chunk[String] = {
       val event = executionEvent match {
-        case t @ ExecutionEvent.Test(_, _, _, _, _, _) => t.copy(duration = 0L)
+        case t @ ExecutionEvent.Test(_, _, _, _, _, _, _) => t.copy(duration = 0L)
         case other                                     => other
       }
       Chunk.fromIterable(
@@ -194,7 +194,7 @@ object IntelliJRenderUtils {
     for {
       console <- ZIO.console
       _ <- TestTestRunner(testEnvironment, sinkLayer(console, TestRenderer))
-             .run(spec, ExecutionStrategy.Sequential) // to ensure deterministic output
+             .run("TODO Real name here", spec, ExecutionStrategy.Sequential) // to ensure deterministic output
       output <- TestConsole.output
     } yield output.mkString
 }

@@ -37,12 +37,12 @@ final case class TestRunner[R, E](
   /**
    * Runs the spec, producing the execution results.
    */
-  def run(spec: Spec[R, E], defExec: ExecutionStrategy = ExecutionStrategy.ParallelN(4))(implicit
+  def run(fullyQualifiedName: String, spec: Spec[R, E], defExec: ExecutionStrategy = ExecutionStrategy.ParallelN(4))(implicit
     trace: Trace
   ): UIO[Summary] =
     for {
       start    <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
-      summary  <- executor.run(spec, defExec)
+      summary  <- executor.run(fullyQualifiedName, spec, defExec)
       finished <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
       duration  = Duration.fromMillis(finished - start)
     } yield summary.copy(duration = duration)
@@ -60,13 +60,13 @@ final case class TestRunner[R, E](
        * An unsafe, synchronous run of the specified spec.
        */
       def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Unit =
-        runtime.unsafe.run(self.run(spec).provideLayer(bootstrap)).getOrThrowFiberFailure()
+        runtime.unsafe.run(self.run("TODO Real name here", spec).provideLayer(bootstrap)).getOrThrowFiberFailure()
 
       /**
        * An unsafe, asynchronous run of the specified spec.
        */
       def runAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace, unsafe: Unsafe): Unit = {
-        val fiber = runtime.unsafe.fork(self.run(spec).provideLayer(bootstrap))
+        val fiber = runtime.unsafe.fork(self.run("TODO Real name here", spec).provideLayer(bootstrap))
         fiber.unsafe.addObserver {
           case Exit.Success(_) => k
           case Exit.Failure(c) => throw FiberFailure(c)
@@ -77,7 +77,7 @@ final case class TestRunner[R, E](
        * An unsafe, synchronous run of the specified spec.
        */
       def runSync(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Exit[Nothing, Unit] =
-        runtime.unsafe.run(self.run(spec).unit.provideLayer(bootstrap))
+        runtime.unsafe.run(self.run("TODO Real name here", spec).unit.provideLayer(bootstrap))
     }
 
   private[test] def buildRuntime(implicit

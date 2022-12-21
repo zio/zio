@@ -33,7 +33,7 @@ trait IntelliJRenderer extends TestRenderer {
             )
         }
 
-      case Test(labelsReversed, results, annotations, _, duration, _) =>
+      case Test(labelsReversed, results, annotations, _, duration, _, _) =>
         val labels       = labelsReversed.reverse
         val initialDepth = labels.length - 1
         val (streamingOutput, summaryOutput) =

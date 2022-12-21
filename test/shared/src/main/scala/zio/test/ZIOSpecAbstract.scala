@@ -120,11 +120,12 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
             )
         )
       summary <-
-        runner.run(aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
+        runner.run("TODO Real name here", aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
     } yield summary
   }
 
   private[zio] def runSpecWithSharedRuntimeLayer(
+    fullyQualifiedName: String,
     spec: Spec[Environment with TestEnvironment with Scope, Any],
     testArgs: TestArgs,
     runtime: Runtime[_],
@@ -145,6 +146,6 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
           ZLayer.succeedEnvironment(castedRuntime.environment),
           testEventHandler
         )
-    ).run(aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
+    ).run(fullyQualifiedName, aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
   }
 }

@@ -43,10 +43,10 @@ object ExecutionEventJsonPrinter {
     }
 
     private def jsonify(executionEvent: ExecutionEvent): String = executionEvent match {
-      case ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id) =>
+      case ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
         s"""
           | {
-          |    "testName" : "${labelsReversed.reverse.mkString("/")}",
+          |    "testName" : "$fullyQualifiedName/${labelsReversed.reverse.mkString("/")}",
           |    "testStatus" : "${jsonify(test)}",
           |    "durationMillis" : "${duration}"
           | },""".stripMargin

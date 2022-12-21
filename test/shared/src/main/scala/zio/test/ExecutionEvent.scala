@@ -8,7 +8,8 @@ object ExecutionEvent {
     annotations: TestAnnotationMap,
     ancestors: List[SuiteId],
     duration: Long,
-    id: SuiteId
+    id: SuiteId,
+    fullyQualifiedName: String
   ) extends ExecutionEvent {
     val labels: List[String] = labelsReversed.reverse
   }
