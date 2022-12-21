@@ -25,17 +25,32 @@ object ExecutionEventJsonPrinter {
   class Live() extends ExecutionEventPrinter {
     override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] = {
       implicit val trace = Trace.empty
+      event match {
+        case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) =>
+          println("Attempting to remove comma")
+          removeTrailingComma("output.json")
+
+        case _ => ()
+      }
       writeFile("output.json", jsonify(event)).orDie
     }
 
-    private def jsonify(executionEvent: ExecutionEvent) = executionEvent match {
+    private def jsonify[E](test: Either[TestFailure[E], TestSuccess]): String = test match {
+      // TODO Render annotations
+      case Left(value) =>
+        "Failure"
+      case Right(value) =>
+        "Success"
+    }
+
+    private def jsonify(executionEvent: ExecutionEvent): String = executionEvent match {
       case ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id) =>
         s"""
           | {
           |    "testName" : "${labelsReversed.head}",
-          |    "testStatus" : "${test}"
-          | },
-          |""".stripMargin
+          |    "testStatus" : "${jsonify(test)}",
+          |    "durationMillis" : "${duration}"
+          | },""".stripMargin
       case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
         s"""{
            |   "suiteName" : "${labelsReversed.head}",
@@ -43,10 +58,9 @@ object ExecutionEventJsonPrinter {
            |""".stripMargin
       case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) =>
         // TODO Deal with trailing commas
-        """
+        s"""
           |   ]
-          |},
-          |""".stripMargin
+          |}${if(ancestors.head != SuiteId.global) "," else ""}""".stripMargin
       case ExecutionEvent.TopLevelFlush(id) => "TODO TopLevelFlush"
       case ExecutionEvent.RuntimeFailure(id, labelsReversed, failure, ancestors) =>
         "TODO RuntimeFailure"
@@ -59,6 +73,31 @@ object ExecutionEventJsonPrinter {
         ZIO.attemptBlockingIO(f.write(""))
       }
 
+    import java.io._
+
+
+    def removeTrailingComma(filePath: String): Unit = {
+      try {
+        val file = new RandomAccessFile(filePath, "rw")
+        // Move the file pointer to the last character
+        file.seek(file.length - 1)
+        // Read backwards from the end of the file until we find a non-whitespace character
+        var c = 0
+        do {
+          c = file.read
+          file.seek(file.getFilePointer - 2)
+        } while ( {
+          Character.isWhitespace(c)
+        })
+        // If the non-whitespace character is a comma, remove it
+        if (c == ',') file.setLength(file.length - 1)
+        file.close()
+      } catch {
+        case e: IOException =>
+          e.printStackTrace()
+      }
+    }
+
   }
 
   def writeFile(path: => String, content: => String)(implicit trace: Trace): ZIO[Any, IOException, Unit] =
@@ -66,7 +105,7 @@ object ExecutionEventJsonPrinter {
       ZIO.attemptBlocking(f.close()).orDie
     ) { f =>
       ZIO.debug("Should write this to a file: " + content) <*
-      ZIO.attemptBlockingIO(f.append(content + "\n"))
+      ZIO.attemptBlockingIO(f.append(content))
     }
 
   def writeFile(path: => Path, content: => String)(implicit
