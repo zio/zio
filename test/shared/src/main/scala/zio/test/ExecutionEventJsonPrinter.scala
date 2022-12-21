@@ -25,7 +25,31 @@ object ExecutionEventJsonPrinter {
   class Live() extends ExecutionEventPrinter {
     override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] = {
       implicit val trace = Trace.empty
-      writeFile("output.json", event.toString).orDie
+      writeFile("output.json", jsonify(event)).orDie
+    }
+
+    private def jsonify(executionEvent: ExecutionEvent) = executionEvent match {
+      case ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id) =>
+        s"""
+          | {
+          |    "testName" : "${labelsReversed.head}",
+          |    "testStatus" : "${test}"
+          | },
+          |""".stripMargin
+      case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
+        s"""{
+           |   "suiteName" : "${labelsReversed.head}",
+           |   "children" : [
+           |""".stripMargin
+      case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) =>
+        // TODO Deal with trailing commas
+        """
+          |   ]
+          |},
+          |""".stripMargin
+      case ExecutionEvent.TopLevelFlush(id) => "TODO TopLevelFlush"
+      case ExecutionEvent.RuntimeFailure(id, labelsReversed, failure, ancestors) =>
+        "TODO RuntimeFailure"
     }
 
     def clearFile(path: => String)(implicit trace: Trace): ZIO[Any, IOException, Unit] =
