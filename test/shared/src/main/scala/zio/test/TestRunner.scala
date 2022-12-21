@@ -91,7 +91,8 @@ object TestRunner {
     implicit val emptyTracer = Trace.empty
 
     ZLayer.make[TestOutput with ExecutionEventSink](
-      ExecutionEventPrinter.live(ConsoleEventRenderer),
+//      ExecutionEventPrinter.live(ConsoleEventRenderer),
+      ExecutionEventJsonPrinter.live,
       TestLogger.fromConsole(Console.ConsoleLive),
       TestOutput.live,
       ExecutionEventSink.live

@@ -792,7 +792,8 @@ package object test extends CompileVariants {
     trace: Trace
   ): ZLayer[Any, Nothing, ExecutionEventSink] =
     TestLogger.fromConsole(console) >>>
-      ExecutionEventPrinter.live(eventRenderer) >>>
+//      ExecutionEventPrinter.live(eventRenderer) >>>
+      ExecutionEventJsonPrinter.live >>>
       TestOutput.live >>>
       ExecutionEventSink.live
 
