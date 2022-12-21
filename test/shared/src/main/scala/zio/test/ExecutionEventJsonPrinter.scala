@@ -25,12 +25,12 @@ object ExecutionEventJsonPrinter {
   class Live() extends ExecutionEventPrinter {
     override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] = {
       implicit val trace = Trace.empty
-      event match {
-        case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) =>
-          removeTrailingComma("output.json")
-
-        case _ => ()
-      }
+//      event match {
+//        case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) =>
+//          removeTrailingComma("output.json")
+//
+//        case _ => ()
+//      }
       writeFile("output.json", jsonify(event)).orDie
     }
 
@@ -46,20 +46,22 @@ object ExecutionEventJsonPrinter {
       case ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id) =>
         s"""
           | {
-          |    "testName" : "${labelsReversed.head}",
+          |    "testName" : "${labelsReversed.reverse.mkString("/")}",
           |    "testStatus" : "${jsonify(test)}",
           |    "durationMillis" : "${duration}"
           | },""".stripMargin
       case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
-        s"""{
-           |   "suiteName" : "${labelsReversed.head}",
-           |   "children" : [
-           |""".stripMargin
+        ""
+//        s"""{
+//           |   "suiteName" : "${labelsReversed.head}",
+//           |   "children" : [
+//           |""".stripMargin
       case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) =>
         // TODO Deal with trailing commas
-        s"""
-          |   ]
-          |}${if(ancestors.head != SuiteId.global) "," else ""}""".stripMargin
+        ""
+//        s"""
+//          |   ]
+//          |}${if(ancestors.head != SuiteId.global) "," else ""}""".stripMargin
       case ExecutionEvent.TopLevelFlush(id) => "TODO TopLevelFlush"
       case ExecutionEvent.RuntimeFailure(id, labelsReversed, failure, ancestors) =>
         "TODO RuntimeFailure"
