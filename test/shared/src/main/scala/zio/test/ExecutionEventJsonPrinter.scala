@@ -42,13 +42,20 @@ object ExecutionEventJsonPrinter {
         "Success"
     }
 
+    private def jsonify(testAnnotationMap: TestAnnotationMap): String = {
+      TestAnnotationRenderer.default.run(List.empty, testAnnotationMap)
+        .map(s => s.replace("\"", "\\\""))
+        .mkString(" : ")
+    }
+
     private def jsonify(executionEvent: ExecutionEvent): String = executionEvent match {
       case ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
         s"""
           | {
           |    "testName" : "$fullyQualifiedName/${labelsReversed.reverse.mkString("/")}",
           |    "testStatus" : "${jsonify(test)}",
-          |    "durationMillis" : "${duration}"
+          |    "durationMillis" : "${duration}",
+          |    "annotations" : "${jsonify(annotations)}"
           | },""".stripMargin
       case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
         ""
