@@ -52,8 +52,8 @@ object ExecutionEventJsonPrinter {
       case ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
         s"""
           | {
-          |    "testName" : "$fullyQualifiedName/${labelsReversed.reverse.mkString("/")}",
-          |    "testStatus" : "${jsonify(test)}",
+          |    "name" : "$fullyQualifiedName/${labelsReversed.reverse.mkString("/")}",
+          |    "status" : "${jsonify(test)}",
           |    "durationMillis" : "${duration}",
           |    "annotations" : "${jsonify(annotations)}"
           | },""".stripMargin
