@@ -46,6 +46,7 @@ sealed abstract class TestAnnotationRenderer { self =>
     }
 }
 
+// TODO Use TestAnnotationRenderer.default
 object TestAnnotationRenderer {
 
   /**
