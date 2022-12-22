@@ -1,3 +1,8 @@
+User experience:
+    Configuration:
+        - Plug in environment variables
+        - Add zio-test-results Github action to ci.yml
+
 TODO
     Figure out where to store results in the cloud
         -Append only
