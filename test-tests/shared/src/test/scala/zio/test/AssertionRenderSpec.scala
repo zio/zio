@@ -19,8 +19,8 @@ object AssertionRenderSpec extends ZIOBaseSpec {
       assertionShouldRenderTo(isSubtype[Duration.Infinite](Assertion.anything))("isSubtype(Infinite)(anything)")
     }),
     test("list render")({
-      assertionShouldRenderTo(equalTo(List.fill(9)(10.0)))(
-        "equalTo(List(10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0))"
+      assertionShouldRenderTo(equalTo(List.fill(9)(10)))(
+        "equalTo(List(10, 10, 10, 10, 10, 10, 10, 10, 10))"
       )
     }),
     test("fields render")({
@@ -45,7 +45,7 @@ object AssertionRenderSpec extends ZIOBaseSpec {
       assertionShouldRenderTo(hasSameElements(List(1, 2, 3)))("hasSameElements(List(1, 2, 3))")
     }),
     test("approximately equals")({
-      assertionShouldRenderTo(approximatelyEquals(10, 0.1))("approximatelyEquals(10.0, tolerance=0.1)")
+      assertionShouldRenderTo(approximatelyEquals(100, 10))("approximatelyEquals(100, tolerance=10)")
     }),
     test("hasAt")({
       assertionShouldRenderTo(hasAt(1)(equalTo(40)))("hasAt(1)(equalTo(40))")

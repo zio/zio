@@ -119,7 +119,7 @@ object Assertion extends AssertionVariants {
 
   def hasAt[A](pos: Int)(assertion: Assertion[A]): Assertion[Seq[A]] =
     Assertion[Seq[A]](
-      SmartAssertions.hasAt(pos).withCode("hasAt", value(pos)) >>>
+      SmartAssertions.hasAt(pos).withCode("hasAt", valueArgument(pos)) >>>
         assertion.arrow
     )
 
@@ -131,7 +131,7 @@ object Assertion extends AssertionVariants {
     Assertion[A](
       SmartAssertions
         .approximatelyEquals(reference, tolerance)
-        .withCode("approximatelyEquals", value(reference), value(tolerance, name = Some("tolerance")))
+        .withCode("approximatelyEquals", valueArgument(reference), valueArgument(tolerance, name = Some("tolerance")))
     )
 
   /**
@@ -141,7 +141,7 @@ object Assertion extends AssertionVariants {
    */
   def contains[A](element: A): Assertion[Iterable[A]] =
     Assertion[Iterable[A]](
-      SmartAssertions.containsIterable(element).withCode("contains", value(element))
+      SmartAssertions.containsIterable(element).withCode("contains", valueArgument(element))
     )
 
   /**
@@ -149,7 +149,7 @@ object Assertion extends AssertionVariants {
    */
   def containsCause[E](cause: Cause[E]): Assertion[Cause[E]] =
     Assertion[Cause[E]] {
-      SmartAssertions.containsCause(cause).withCode("containsCause", value(cause))
+      SmartAssertions.containsCause(cause).withCode("containsCause", valueArgument(cause))
     }
 
   /**
@@ -157,7 +157,7 @@ object Assertion extends AssertionVariants {
    */
   def containsString(element: String): Assertion[String] =
     Assertion[String](
-      SmartAssertions.containsString(element).withCode("containsString", value(element))
+      SmartAssertions.containsString(element).withCode("containsString", valueArgument(element))
     )
 
   /**
@@ -172,8 +172,8 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires an exit value to die with an instance
    * of given type (or its subtype).
    */
-  def diesWithA[E](implicit C: ClassTag[E]): Assertion[Exit[E, Any]] =
-    dies(isSubtype[E](anything)).withCode("diesWithA", `type`)
+  def diesWithA[E: ClassTag]: Assertion[Exit[E, Any]] =
+    dies(isSubtype[E](anything)).withCode("diesWithA", typeArgument)
 
   /**
    * Makes a new assertion that requires a given string to end with the
@@ -181,7 +181,7 @@ object Assertion extends AssertionVariants {
    */
   def endsWith[A](suffix: Seq[A]): Assertion[Seq[A]] =
     Assertion[Seq[A]](
-      SmartAssertions.endsWithSeq(suffix).withCode("endsWith", value(suffix))
+      SmartAssertions.endsWithSeq(suffix).withCode("endsWith", valueArgument(suffix))
     )
 
   /**
@@ -190,7 +190,7 @@ object Assertion extends AssertionVariants {
    */
   def endsWithString(suffix: String): Assertion[String] =
     Assertion[String](
-      SmartAssertions.endsWithString(suffix).withCode("endsWithString", value(suffix))
+      SmartAssertions.endsWithString(suffix).withCode("endsWithString", valueArgument(suffix))
     )
 
   /**
@@ -207,7 +207,7 @@ object Assertion extends AssertionVariants {
             M.pretty(string) + M.equals + M.pretty(other) + "(ignoring case)"
           }
         }
-        .withCode("equalsIgnoreCase", value(other))
+        .withCode("equalsIgnoreCase", valueArgument(other))
     )
 
   /**
@@ -219,7 +219,7 @@ object Assertion extends AssertionVariants {
    */
   def hasField[A, B](name: String, proj: A => B, assertion: Assertion[B]): Assertion[A] =
     Assertion {
-      SmartAssertions.hasField(name, proj).withCode("hasField", value(field(name))) >>> assertion.arrow
+      SmartAssertions.hasField(name, proj).withCode("hasField", valueArgument(field(name))) >>> assertion.arrow
     }
 
   /**
@@ -313,7 +313,7 @@ object Assertion extends AssertionVariants {
    */
   def isSubtype[A](assertion: Assertion[A])(implicit C: ClassTag[A]): Assertion[Any] =
     Assertion[Any](
-      SmartAssertions.as[Any, A].withCode("isSubtype", `type`) >>> assertion.arrow
+      SmartAssertions.as[Any, A].withCode("isSubtype", typeArgument) >>> assertion.arrow
     )
 
   /**
@@ -394,7 +394,7 @@ object Assertion extends AssertionVariants {
             M.value(value) + M.was + M.value(values)
           }
         }
-        .withCode("isOneOf", value(values))
+        .withCode("isOneOf", valueArgument(values))
     }
 
   /**
@@ -475,7 +475,7 @@ object Assertion extends AssertionVariants {
    */
   def isLessThan[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
     Assertion[A](
-      SmartAssertions.lessThan(reference).withCode("isLessThan", value(reference))
+      SmartAssertions.lessThan(reference).withCode("isLessThan", valueArgument(reference))
     )
 
   /**
@@ -484,7 +484,7 @@ object Assertion extends AssertionVariants {
    */
   def isLessThanEqualTo[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
     Assertion[A](
-      SmartAssertions.lessThanOrEqualTo(reference).withCode("isLessThanEqualTo", value(reference))
+      SmartAssertions.lessThanOrEqualTo(reference).withCode("isLessThanEqualTo", valueArgument(reference))
     )
 
   /**
@@ -493,7 +493,7 @@ object Assertion extends AssertionVariants {
    */
   def isGreaterThan[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
     Assertion[A](
-      SmartAssertions.greaterThan(reference).withCode("isGreaterThan", value(reference))
+      SmartAssertions.greaterThan(reference).withCode("isGreaterThan", valueArgument(reference))
     )
 
   /**
@@ -502,7 +502,7 @@ object Assertion extends AssertionVariants {
    */
   def isGreaterThanEqualTo[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
     Assertion[A](
-      SmartAssertions.greaterThanOrEqualTo(reference).withCode("isGreaterThanEqualTo", value(reference))
+      SmartAssertions.greaterThanOrEqualTo(reference).withCode("isGreaterThanEqualTo", valueArgument(reference))
     )
 
   /**
@@ -526,7 +526,7 @@ object Assertion extends AssertionVariants {
         .make[A, Boolean] { value =>
           TestTrace.boolean(num.gt(value, num.zero))(M.pretty(value) + M.was + "positive")
         }
-        .withCode("isPositive", value(num))
+        .withCode("isPositive", valueArgument(num))
     )
 
   /**
@@ -551,7 +551,7 @@ object Assertion extends AssertionVariants {
             M.pretty(value) + M.was + "within" + M.pretty(min) + "and" + M.pretty(max)
           )
         }
-        .withCode("isWithin", value(min, name = Some("min")), value(max, name = Some("max")))
+        .withCode("isWithin", valueArgument(min, name = Some("min")), valueArgument(max, name = Some("max")))
     )
 
   /**
@@ -568,7 +568,7 @@ object Assertion extends AssertionVariants {
    */
   def failsWithA[E: ClassTag]: Assertion[Exit[E, Any]] = {
     val assertion = isSubtype[E](anything)
-    fails(assertion).withCode("failsWithA", `type`)
+    fails(assertion).withCode("failsWithA", typeArgument)
   }
 
   /**
@@ -601,7 +601,7 @@ object Assertion extends AssertionVariants {
             M.pretty(value) + M.had + "the same distinct elements as" + M.pretty(other)
           )
         }
-        .withCode("hasSameElementsDistinct", value(other))
+        .withCode("hasSameElementsDistinct", valueArgument(other))
     )
 
   /**
@@ -634,7 +634,7 @@ object Assertion extends AssertionVariants {
     Assertion[Iterable[A]](
       TestArrow
         .fromFunction[Iterable[A], Iterable[A]](value => value.toSeq.intersect(other.toSeq))
-        .withCode("hasIntersection", value(other)) >>> assertion.arrow
+        .withCode("hasIntersection", valueArgument(other)) >>> assertion.arrow
     )
 
   /**
@@ -642,14 +642,14 @@ object Assertion extends AssertionVariants {
    * specified elements.
    */
   def hasAtLeastOneOf[A](other: Iterable[A]): Assertion[Iterable[A]] =
-    hasIntersection(other)(hasSize(isGreaterThanEqualTo(1))).withCode("hasAtLeastOneOf", value(other))
+    hasIntersection(other)(hasSize(isGreaterThanEqualTo(1))).withCode("hasAtLeastOneOf", valueArgument(other))
 
   /**
    * Makes a new assertion that requires an Iterable contain at most one of the
    * specified elements.
    */
   def hasAtMostOneOf[A](other: Iterable[A]): Assertion[Iterable[A]] =
-    hasIntersection(other)(hasSize(isLessThanEqualTo(1))).withCode("hasAtMostOneOf", value(other))
+    hasIntersection(other)(hasSize(isLessThanEqualTo(1))).withCode("hasAtMostOneOf", valueArgument(other))
 
   /**
    * Makes a new assertion that requires an Iterable to contain the first
@@ -691,14 +691,16 @@ object Assertion extends AssertionVariants {
    */
   def hasKey[K, V](key: K, assertion: Assertion[V]): Assertion[Map[K, V]] =
     Assertion[Map[K, V]](
-      SmartAssertions.hasKey[K, V](key).withCode("hasKey", value(key), assertionArgument(assertion)) >>> assertion.arrow
+      SmartAssertions
+        .hasKey[K, V](key)
+        .withCode("hasKey", valueArgument(key), assertionArgument(assertion)) >>> assertion.arrow
     )
 
   /**
    * Makes a new assertion that requires a Map to have the specified key.
    */
   def hasKey[K, V](key: K): Assertion[Map[K, V]] =
-    hasKey(key, anything).withCode("hasKey", value(mapKey(key)))
+    hasKey(key, anything).withCode("hasKey", valueArgument(mapKey(key)))
 
   /**
    * Makes a new assertion that requires a Map have keys satisfying the
@@ -716,14 +718,14 @@ object Assertion extends AssertionVariants {
    * specified elements.
    */
   def hasNoneOf[A](other: Iterable[A]): Assertion[Iterable[A]] =
-    hasIntersection(other)(isEmpty).withCode("hasNoneOf", value(other))
+    hasIntersection(other)(isEmpty).withCode("hasNoneOf", valueArgument(other))
 
   /**
    * Makes a new assertion that requires an Iterable contain exactly one of the
    * specified elements.
    */
   def hasOneOf[A](other: Iterable[A]): Assertion[Iterable[A]] =
-    hasIntersection(other)(hasSize(equalTo(1))).withCode("hasOneOf", value(other))
+    hasIntersection(other)(hasSize(equalTo(1))).withCode("hasOneOf", valueArgument(other))
 
   /**
    * Makes a new assertion that requires an Iterable to have the same elements
@@ -742,7 +744,7 @@ object Assertion extends AssertionVariants {
           }
 
         }
-        .withCode("hasSameElements", value(other))
+        .withCode("hasSameElements", valueArgument(other))
     )
 
   /**
@@ -750,7 +752,7 @@ object Assertion extends AssertionVariants {
    * of the other Iterable.
    */
   def hasSubset[A](other: Iterable[A]): Assertion[Iterable[A]] =
-    hasIntersection(other)(hasSameElements(other)).withCode("hasSubset", value(other))
+    hasIntersection(other)(hasSameElements(other)).withCode("hasSubset", valueArgument(other))
 
   /**
    * Makes a new assertion that requires a Map have values satisfying the
@@ -782,7 +784,7 @@ object Assertion extends AssertionVariants {
             M.pretty(sum) + M.was + "a case of " + termName
           }
         }
-        .withCode("isCase", value(termName), value(unapplyTerm(termName))) >>> assertion.arrow
+        .withCode("isCase", valueArgument(termName), valueArgument(unapplyTerm(termName))) >>> assertion.arrow
     )
 
   /**
@@ -857,20 +859,20 @@ object Assertion extends AssertionVariants {
             M.pretty(s) + M.did + "match" + M.pretty(regex)
           }
         }
-        .withCode("matchesRegex", value(regex))
+        .withCode("matchesRegex", valueArgument(regex))
     )
 
   /**
    * Makes a new assertion that requires a numeric value is non negative.
    */
   def nonNegative[A](implicit num: Numeric[A]): Assertion[A] =
-    isGreaterThanEqualTo(num.zero).withCode("nonNegative", value(num))
+    isGreaterThanEqualTo(num.zero).withCode("nonNegative", valueArgument(num))
 
   /**
    * Makes a new assertion that requires a numeric value is non positive.
    */
   def nonPositive[A](implicit num: Numeric[A]): Assertion[A] =
-    isLessThanEqualTo(num.zero).withCode("nonPositive", value(num))
+    isLessThanEqualTo(num.zero).withCode("nonPositive", valueArgument(num))
 
   /**
    * Makes a new assertion that negates the specified assertion.
@@ -898,7 +900,7 @@ object Assertion extends AssertionVariants {
     Assertion[Seq[A]](
       SmartAssertions
         .startsWithSeq(prefix)
-        .withCode("startsWith", value(prefix))
+        .withCode("startsWith", valueArgument(prefix))
     )
 
   /**
@@ -907,7 +909,7 @@ object Assertion extends AssertionVariants {
    */
   def startsWithString(prefix: String): Assertion[String] =
     Assertion[String](
-      SmartAssertions.startsWithString(prefix).withCode("startsWithString", value(prefix))
+      SmartAssertions.startsWithString(prefix).withCode("startsWithString", valueArgument(prefix))
     )
 
   /**
@@ -969,10 +971,23 @@ object Assertion extends AssertionVariants {
         .withCode("isJustInterrupted")
     )
 
-  sealed trait Arguments
+  sealed trait Arguments { self =>
+    override final def toString: String = self match {
+      case AssertionArgument(assertion) =>
+        assertion.render
+      case TypeArgument(classTag) =>
+        className(classTag)
+      case ValueArgument(value, name) =>
+        name.map(n => s"$n=$value").getOrElse(value.toString)
+    }
+  }
   object Arguments {
-    def `type`[A](implicit C: ClassTag[A]): Arguments =
-      Type(C)
+
+    /**
+     * Construct a `TypeArgument` from a ClassTag.
+     */
+    def typeArgument[A](implicit C: ClassTag[A]): Arguments =
+      TypeArgument(C)
 
     /**
      * Creates a string representation of a field accessor.
@@ -991,6 +1006,7 @@ object Assertion extends AssertionVariants {
         case t: InternalError if t.getMessage == "Malformed class name" =>
           C.runtimeClass.getName
       }
+
     def mapKey[V](v: V): String =
       v match {
         case assertion: Assertion[_] =>
@@ -999,30 +1015,25 @@ object Assertion extends AssertionVariants {
       }
 
     /**
-     * Construct a `RenderParam` from an `Assertion`.
+     * Construct a `AssertionArgument` from an `Assertion`.
      */
     def assertionArgument[A]: Assertion[A] => Arguments =
       Arguments.AssertionArgument(_)
 
     /**
-     * Construct a `RenderParam` from a value.
+     * Construct a `ValueArgument` from a value.
      */
-    def value[A](a: A, name: Option[String] = None): Arguments =
-      Arguments.Value(a, name)
+    def valueArgument[A](a: A, name: Option[String] = None): Arguments =
+      Arguments.ValueArgument(a, name)
 
     /**
      * Creates a string representation of an unapply method for a term.
      */
     def unapplyTerm(termName: String): String =
       termName + ".unapply"
-    final case class AssertionArgument[A](assertion: Assertion[A]) extends Arguments {
-      override def toString: String = assertion.render
-    }
-    final case class Type[A](classTag: ClassTag[A]) extends Arguments {
-      override def toString: String = className(classTag)
-    }
-    final case class Value[A](value: A, name: Option[String] = None) extends Arguments {
-      override def toString: String = name.map(n => s"$n=$value").getOrElse(value.toString)
-    }
+
+    final case class AssertionArgument[A](assertion: Assertion[A])           extends Arguments
+    final case class TypeArgument[A](classTag: ClassTag[A])                  extends Arguments
+    final case class ValueArgument[A](value: A, name: Option[String] = None) extends Arguments
   }
 }
