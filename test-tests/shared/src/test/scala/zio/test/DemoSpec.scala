@@ -9,9 +9,9 @@ object DemoSpec extends ZIOSpecDefault {
   def spec = suite("outter suite")(
     // ignored, repeated, retried, tagged, timed
     suite("inner suite 1")(
-      durationTest("A", 1.seconds) @@ tag("important"),
+      durationTest("A", 1.seconds) @@ tag("extremely important"),
       durationTest("B", 2.seconds) @@ timed,
-    ),
+    ) @@ tag("Important"),
     suite("inner suite 2")(
       durationTest("C", 1.seconds) @@ ignore,
       durationTest("D", 1.seconds) @@ repeats(3),

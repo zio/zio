@@ -68,7 +68,6 @@ Questions:
    // TODO  stderr/stdout
    "durationMillis" : "1969",
    "timeOfExecution" : "2020-05-01T12:00:00Z",
-   // TODO Flattened annotations
 },
 {
          "suiteName" : "inner suite 2",

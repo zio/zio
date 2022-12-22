@@ -1,0 +1,13 @@
+# Github Personal Acccess for test result uploads
+
+
+DATE=$(date +%s)
+FORMATTED_TIMESTAMP=$(date -j -f '%s' ${DATE} '+%Y-%m-%d:%H:%M')
+TARGET_FILE=https://api.github.com/repos/swoogles/zio/contents/testResults_"$FORMATTED_TIMESTAMP".json
+
+curl \
+  -X PUT \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer $ZIO_TEST_GITHUB_TOKEN"\
+  -H "X-GitHub-Api-Version: 2022-11-28" $TARGET_FILE \
+  -d '{"message":"Upload test results","committer":{"name":"Billy Robot","email":"billfrasure@gmail.com"},"content":"WwogewogICAgInRlc3ROYW1lIiA6ICJ6aW8udGVzdC5EZW1vU3BlYy9vdXR0ZXIgc3VpdGUvaW5uZXIgc3VpdGUgMS9BIiwKICAgICJ0ZXN0U3RhdHVzIiA6ICJTdWNjZXNzIiwKICAgICJkdXJhdGlvbk1pbGxpcyIgOiAiMTU5MSIsCiAgICAiYW5ub3RhdGlvbnMiIDogInRhZ2dlZDogXCJpbXBvcnRhbnRcIiIKIH0sCiB7CiAgICAidGVzdE5hbWUiIDogInppby50ZXN0LkRlbW9TcGVjL291dHRlciBzdWl0ZS9pbm5lciBzdWl0ZSAxL0IiLAogICAgInRlc3RTdGF0dXMiIDogIlN1Y2Nlc3MiLAogICAgImR1cmF0aW9uTWlsbGlzIiA6ICIyNDg0IiwKICAgICJhbm5vdGF0aW9ucyIgOiAiMiBzIDIzIG1zIgogfSwKIHsKICAgICJ0ZXN0TmFtZSIgOiAiemlvLnRlc3QuRGVtb1NwZWMvb3V0dGVyIHN1aXRlL2lubmVyIHN1aXRlIDIvQyIsCiAgICAidGVzdFN0YXR1cyIgOiAiU3VjY2VzcyIsCiAgICAiZHVyYXRpb25NaWxsaXMiIDogIjQ1MiIsCiAgICAiYW5ub3RhdGlvbnMiIDogImlnbm9yZWQ6IDEiCiB9LAogewogICAgInRlc3ROYW1lIiA6ICJ6aW8udGVzdC5EZW1vU3BlYy9vdXR0ZXIgc3VpdGUvaW5uZXIgc3VpdGUgMi9EIiwKICAgICJ0ZXN0U3RhdHVzIiA6ICJTdWNjZXNzIiwKICAgICJkdXJhdGlvbk1pbGxpcyIgOiAiMTU5MSIsCiAgICAiYW5ub3RhdGlvbnMiIDogIiIKIH0sCiB7CiAgICAidGVzdE5hbWUiIDogInppby50ZXN0LkRlbW9TcGVjL291dHRlciBzdWl0ZS9pbm5lciBzdWl0ZSAyL0UiLAogICAgInRlc3RTdGF0dXMiIDogIlN1Y2Nlc3MiLAogICAgImR1cmF0aW9uTWlsbGlzIiA6ICIyNDg3IiwKICAgICJhbm5vdGF0aW9ucyIgOiAiIgogfQpd"}'
