@@ -228,17 +228,17 @@ object Assertion extends AssertionVariants {
    */
   def isLeft[A](assertion: Assertion[A]): Assertion[Either[A, Any]] =
     Assertion[Either[A, Any]](
-      SmartAssertions.asLeft[A].withCode("isLeft") >>> assertion.arrow
-    )
+      SmartAssertions.asLeft[A] >>> assertion.arrow
+    ).withCode("isLeft", assertionArgument(assertion))
 
   /**
    * Makes a new assertion that requires a Right value satisfying a specified
    * assertion.
    */
-  def isRight[A](assertion: Assertion[A]): Assertion[Either[Any, A]] =
-    Assertion[Either[Any, A]](
-      SmartAssertions.asRight[A].withCode("isRight") >>> assertion.arrow
-    )
+  def isRight[A](assertion: Assertion[A]) =
+    (Assertion[Either[Any, A]](
+      SmartAssertions.asRight[A] >>> assertion.arrow
+    )).withCode("isRight", assertionArgument(assertion))
 
   /**
    * Makes a new assertion that requires an Either is Right.
@@ -257,9 +257,9 @@ object Assertion extends AssertionVariants {
    * assertion.
    */
   def isSome[A](assertion: Assertion[A]): Assertion[Option[A]] =
-    Assertion[Option[A]](
-      SmartAssertions.isSome.withCode("isSome") >>> assertion.arrow
-    )
+    (Assertion[Option[A]](
+      SmartAssertions.isSome >>> assertion.arrow
+    )).withCode("isSome", assertionArgument(assertion))
 
   /**
    * Makes a new assertion that requires an Option is Some.

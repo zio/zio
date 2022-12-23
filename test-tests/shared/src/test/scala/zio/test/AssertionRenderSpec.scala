@@ -86,6 +86,14 @@ object AssertionRenderSpec extends ZIOBaseSpec {
       assertionShouldRenderTo(isSome)("isSome(anything)") &&
       assertionShouldRenderTo(isSome(equalTo(1)))("isSome(equalTo(1))")
 
+    }),
+    test("isLeft")({
+      assertionShouldRenderTo(isLeft)("isLeft(anything)") &&
+      assertionShouldRenderTo(isLeft(equalTo(30)))("isLeft(equalTo(30))")
+    }),
+    test("isRight")({
+      assertionShouldRenderTo(isRight)("isRight(anything)") &&
+      assertionShouldRenderTo(isRight(equalTo(30)))("isRight(equalTo(30))")
     })
   )
 
