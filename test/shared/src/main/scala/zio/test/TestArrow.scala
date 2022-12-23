@@ -72,7 +72,7 @@ sealed trait TestArrow[-A, +B] { self =>
           case Right(TestArrow.Or(left, right)) =>
             loop(Right(left) :: Left(" or ") :: Right(right) :: arrows.tail)
           case Right(TestArrow.Not(arrow)) =>
-            loop(Right(arrow) :: Left(" not ") :: arrows.tail)
+            loop(Left("not ") :: Right(arrow) :: arrows.tail)
           case Right(TestArrow.AndThen(left, right)) =>
             loop(Right(left) :: Left("(") :: Right(right) :: Left(")") :: arrows.tail)
           case Right(arrow: TestArrow.Meta[_, _]) =>

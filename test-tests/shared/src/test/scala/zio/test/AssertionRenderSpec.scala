@@ -15,6 +15,10 @@ object AssertionRenderSpec extends ZIOBaseSpec {
       assertionShouldRenderTo(isSome(equalTo(40)))("isSome(equalTo(40))") &&
       assertionShouldRenderTo(isSome(equalTo(40) && contains("a")))("isSome(equalTo(40) and contains(a))")
     }),
+    test("not assertions")({
+      assertionShouldRenderTo(!equalTo(50))("not equalTo(50)") &&
+      assertionShouldRenderTo(equalTo(30) && !isGreaterThan(50))("equalTo(30) and not isGreaterThan(50)")
+    }),
     test("class names render")({
       assertionShouldRenderTo(isSubtype[Duration.Infinite](Assertion.anything))("isSubtype(Infinite)(anything)")
     }),
