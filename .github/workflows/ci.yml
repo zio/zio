@@ -200,6 +200,13 @@ jobs:
     - name: Test 3
       if: ${{ startsWith(matrix.scala, '3.') }}
       run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}3/test
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: zio-test-output
+        # TODO Make sure this uploads files from all SBT projects without clashes
+        path: path/**/test-reports-zio/output.json
+
 
   testJvms:
     runs-on: ubuntu-20.04
