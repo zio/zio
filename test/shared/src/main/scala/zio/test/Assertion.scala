@@ -257,9 +257,9 @@ object Assertion extends AssertionVariants {
    * assertion.
    */
   def isSome[A](assertion: Assertion[A]): Assertion[Option[A]] =
-    (Assertion[Option[A]](
-      SmartAssertions.isSome >>> assertion.arrow
-    )).withCode("isSome", assertionArgument(assertion))
+    Assertion[Option[A]](
+      SmartAssertions.isSome.withCode("isSome") >>> assertion.arrow
+    )
 
   /**
    * Makes a new assertion that requires an Option is Some.
