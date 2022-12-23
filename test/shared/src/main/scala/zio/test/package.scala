@@ -22,6 +22,7 @@ import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, Upstream
 import zio.stream.{ZChannel, ZSink, ZStream}
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 import zio.test.Spec.LabeledCase
+import zio.test.results.ExecutionEventJsonPrinter
 
 import scala.language.implicitConversions
 

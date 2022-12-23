@@ -19,6 +19,7 @@ package zio.test
 import zio.Clock.ClockLive
 import zio._
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
+import zio.test.results.ExecutionEventJsonPrinter
 
 import java.util.concurrent.TimeUnit
 
