@@ -165,7 +165,7 @@ object Assertion extends AssertionVariants {
    */
   def dies(assertion: Assertion[Throwable]): Assertion[Exit[Any, Any]] =
     Assertion[Exit[Any, Any]](
-      SmartAssertions.asExitDie.withCode("dies", assertionArgument(assertion)) >>> assertion.arrow
+      SmartAssertions.asExitDie.withCode("dies") >>> assertion.arrow
     )
 
   /**
@@ -173,7 +173,7 @@ object Assertion extends AssertionVariants {
    * of given type (or its subtype).
    */
   def diesWithA[E: ClassTag]: Assertion[Exit[E, Any]] =
-    dies(isSubtype[E](anything)).withCode("diesWithA", typeArgument)
+    dies(isSubtype[E](anything)).withCode("diesWithA", typeArgument[E])
 
   /**
    * Makes a new assertion that requires a given string to end with the
@@ -313,7 +313,7 @@ object Assertion extends AssertionVariants {
    */
   def isSubtype[A](assertion: Assertion[A])(implicit C: ClassTag[A]): Assertion[Any] =
     Assertion[Any](
-      SmartAssertions.as[Any, A].withCode("isSubtype", typeArgument) >>> assertion.arrow
+      SmartAssertions.as[Any, A].withCode("isSubtype", typeArgument[A]) >>> assertion.arrow
     )
 
   /**
@@ -566,10 +566,8 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires the expression to fail with an instance
    * of given type (or its subtype).
    */
-  def failsWithA[E: ClassTag]: Assertion[Exit[E, Any]] = {
-    val assertion = isSubtype[E](anything)
-    fails(assertion).withCode("failsWithA", typeArgument)
-  }
+  def failsWithA[E: ClassTag]: Assertion[Exit[E, Any]] =
+    fails(isSubtype[E](anything)).withCode("failsWithA", typeArgument[E])
 
   /**
    * Makes a new assertion that requires an exit value to fail with a cause that
@@ -707,10 +705,15 @@ object Assertion extends AssertionVariants {
    * specified assertion.
    */
   def hasKeys[K, V](assertion: Assertion[Iterable[K]]): Assertion[Map[K, V]] =
-    Assertion[Map[K, V]](
-      TestArrow
-        .make[Map[K, V], Iterable[K]](map => TestTrace.succeed(map.keys))
-        .withCode("hasKeys") >>> assertion.arrow
+    (
+      Assertion[Map[K, V]](
+        TestArrow
+          .make[Map[K, V], Iterable[K]](map => TestTrace.succeed(map.keys))
+          >>> assertion.arrow
+      ).withCode(
+        "hasKeys",
+        assertionArgument(assertion)
+      )
     )
 
   /**

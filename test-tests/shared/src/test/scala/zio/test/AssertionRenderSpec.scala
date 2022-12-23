@@ -34,7 +34,7 @@ object AssertionRenderSpec extends ZIOBaseSpec {
       )
     }),
     test("map keys render")({
-      assertionShouldRenderTo(hasKey(equalTo("bar")))("hasKey(equalTo(bar))")
+      assertionShouldRenderTo(hasKey(exists(equalTo("bar"))))("hasKey(exists(equalTo(bar)))")
     }),
     test("map has keys render")({
       assertionShouldRenderTo(hasKeys[String, Int](equalTo(List("key1", "key2"))))("hasKeys(equalTo(List(key1, key2)))")
@@ -62,6 +62,30 @@ object AssertionRenderSpec extends ZIOBaseSpec {
     }),
     test("diesWithA")({
       assertionShouldRenderTo(diesWithA[RuntimeException])("diesWithA(RuntimeException)")
+    }),
+    test("dies")({
+      val exception = new RuntimeException("boom")
+      assertionShouldRenderTo(dies(equalTo(exception)))("dies(equalTo(java.lang.RuntimeException: boom))")
+    }),
+    test("containsString")({
+      assertionShouldRenderTo(containsString("a string"))("containsString(a string)")
+    }),
+    test("endsWithString")({
+      assertionShouldRenderTo(endsWithString("a string"))("endsWithString(a string)")
+    }),
+    test("startsWithString")({
+      assertionShouldRenderTo(startsWithString("a string"))("startsWithString(a string)")
+    }),
+    test("endsWith")({
+      assertionShouldRenderTo(endsWith(List(1, 2, 3)))("endsWith(List(1, 2, 3))")
+    }),
+    test("equalsIgnoreCase")({
+      assertionShouldRenderTo(equalsIgnoreCase("a String"))("equalsIgnoreCase(a String)")
+    }),
+    test("isSome")({
+      assertionShouldRenderTo(isSome)("isSome(anything)") &&
+      assertionShouldRenderTo(isSome(equalTo(1)))("isSome(equalTo(1))")
+
     })
   )
 
