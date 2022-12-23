@@ -3,6 +3,10 @@ User experience:
         - Plug in environment variables
         - Add zio-test-results Github action to ci.yml
 
+Architecture
+    External service for checking performance
+    Github action for uploading results and feeding to Github App
+
 TODO
     Figure out where to store results in the cloud
         -Append only

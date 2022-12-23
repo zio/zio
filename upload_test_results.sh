@@ -1,4 +1,4 @@
-# Github Personal Acccess for test result uploads
+# Github Personal Access for test result uploads
 
 
 DATE=$(date +%s)
