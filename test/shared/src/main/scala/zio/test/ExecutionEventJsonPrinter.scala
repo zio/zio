@@ -17,9 +17,14 @@ object ExecutionEventJsonPrinter {
     implicit val trace = Trace.empty
     val instance = new Live()
 
-    for {
-      _ <- ZLayer.fromZIO(instance.clearFile("output.json").orDie)
-    } yield ZEnvironment(instance)
+      ZLayer.scoped(ZIO.acquireRelease(
+        instance.reset("target/test-reports-zio/output.json") *>
+          instance.makeOutputDirectory().orDie *>
+          ZIO.succeed(instance)
+      )(_ =>
+        instance.removeTrailingComma("target/test-reports-zio/output.json") *>
+          instance.closeJsonStructure("target/test-reports-zio/output.json") *>
+        ZIO.debug("Should remove last command and add closing square bracket")))
   }
 
   class Live() extends ExecutionEventPrinter {
@@ -31,7 +36,7 @@ object ExecutionEventJsonPrinter {
 //
 //        case _ => ()
 //      }
-      writeFile("output.json", jsonify(event)).orDie
+      writeFile("target/test-reports-zio/output.json", jsonify(event)).orDie
     }
 
     private def jsonify[E](test: Either[TestFailure[E], TestSuccess]): String = test match {
@@ -51,12 +56,12 @@ object ExecutionEventJsonPrinter {
     private def jsonify(executionEvent: ExecutionEvent): String = executionEvent match {
       case ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
         s"""
-          | {
-          |    "name" : "$fullyQualifiedName/${labelsReversed.reverse.mkString("/")}",
-          |    "status" : "${jsonify(test)}",
-          |    "durationMillis" : "${duration}",
-          |    "annotations" : "${jsonify(annotations)}"
-          | },""".stripMargin
+          |  {
+          |     "name" : "$fullyQualifiedName/${labelsReversed.reverse.mkString("/")}",
+          |     "status" : "${jsonify(test)}",
+          |     "durationMillis" : "${duration}",
+          |     "annotations" : "${jsonify(annotations)}"
+          |  },""".stripMargin
       case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
         ""
 //        s"""{
@@ -74,17 +79,32 @@ object ExecutionEventJsonPrinter {
         "TODO RuntimeFailure"
     }
 
-    def clearFile(path: => String)(implicit trace: Trace): ZIO[Any, IOException, Unit] =
+    def reset(path: => String)(implicit trace: Trace): ZIO[Any, Nothing, Unit] =
       ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter(path, false)))(f =>
         ZIO.attemptBlocking(f.close()).orDie
       ) { f =>
-        ZIO.attemptBlockingIO(f.write(""))
-      }
+        ZIO.attemptBlockingIO(f.write("["))
+      }.orDie
+
+    def closeJsonStructure(path: => String)(implicit trace: Trace): ZIO[Any, Nothing, Unit] =
+      writeFile(path, "]").orDie
+
+    def makeOutputDirectory()(implicit trace: Trace) = ZIO.attempt {
+      import java.io.IOException
+      import java.nio.file.Files
+      import java.nio.file.Path
+      import java.nio.file.Paths
+
+      val fp = Paths.get("target/test-reports-zio/newfile.txt")
+      Files.createDirectories(fp.getParent)
+//      Files.createFile(fp)
+
+    }
 
     import java.io._
 
 
-    def removeTrailingComma(filePath: String): Unit = {
+    def removeTrailingComma(filePath: String)(implicit trace: Trace): ZIO[Any, Nothing, Unit] = ZIO.succeed{
       try {
         val file = new RandomAccessFile(filePath, "rw")
         // Move the file pointer to the last character
