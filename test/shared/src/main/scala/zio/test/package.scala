@@ -22,8 +22,7 @@ import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, Upstream
 import zio.stream.{ZChannel, ZSink, ZStream}
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 import zio.test.Spec.LabeledCase
-import zio.test.results.ExecutionEventJsonPrinter
-import zio.test.results.ResultFileOps
+import zio.test.results.{ExecutionEventJsonPrinter, ResultFileOpsJson, ResultSerializer}
 
 import scala.language.implicitConversions
 
@@ -797,7 +796,8 @@ package object test extends CompileVariants {
       // TODO Do this check more properly somewhere else
       (if (sys.env.get("ZIO_TEST_GITHUB_TOKEN").isDefined) {
         println("Using github/json test result printer")
-        ResultFileOps.live >>> ExecutionEventJsonPrinter.live
+
+        ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live
       } else {
         println("Couldn't find token. Using default result printer")
         ExecutionEventPrinter.live(eventRenderer)
