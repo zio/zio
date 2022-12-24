@@ -19,7 +19,7 @@ package zio.test
 import zio.Clock.ClockLive
 import zio._
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
-import zio.test.results.ExecutionEventJsonPrinter
+import zio.test.results.{ExecutionEventJsonPrinter, ResultFileOps}
 
 import java.util.concurrent.TimeUnit
 
@@ -93,6 +93,7 @@ object TestRunner {
 
     ZLayer.make[TestOutput with ExecutionEventSink](
 //      ExecutionEventPrinter.live(ConsoleEventRenderer),
+      ResultFileOps.live,
       ExecutionEventJsonPrinter.live,
       TestLogger.fromConsole(Console.ConsoleLive),
       TestOutput.live,
