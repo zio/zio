@@ -5,26 +5,22 @@ import zio._
 import java.io.IOException
 
 trait ResultFileOps {
-  def makeOutputDirectory(resultPath: String)(implicit trace: Trace): Task[Unit]
-  def writeFile(path: => String, content: => String, append: Boolean)(implicit
-    trace: Trace
-  ): ZIO[Any, IOException, Unit]
-  def removeTrailingComma(resultPath: String)(implicit trace: Trace): ZIO[Any, Nothing, Unit]
+  def makeOutputDirectory(resultPath: String): Task[Unit]
+  def writeFile(path: => String, content: => String, append: Boolean): ZIO[Any, IOException, Unit]
+  def removeTrailingComma(resultPath: String): ZIO[Any, Nothing, Unit]
 }
 
 object ResultFileOps {
   val live = ZLayer.succeed(Live())
   case class Live() extends ResultFileOps {
-    def makeOutputDirectory(resultPath: String)(implicit trace: Trace) = ZIO.attempt {
+    def makeOutputDirectory(resultPath: String) = ZIO.attempt {
       import java.nio.file.{Files, Paths}
 
       val fp = Paths.get(resultPath)
       Files.createDirectories(fp.getParent)
     }.unit
 
-    def writeFile(path: => String, content: => String, append: Boolean)(implicit
-      trace: Trace
-    ): ZIO[Any, IOException, Unit] =
+    def writeFile(path: => String, content: => String, append: Boolean): ZIO[Any, IOException, Unit] =
       ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter(path, append)))(f =>
         ZIO.attemptBlocking(f.close()).orDie
       ) { f =>
@@ -32,7 +28,7 @@ object ResultFileOps {
       }
 
     import java.io._
-    def removeTrailingComma(resultPath: String)(implicit trace: Trace): ZIO[Any, Nothing, Unit] = ZIO.succeed {
+    def removeTrailingComma(resultPath: String): ZIO[Any, Nothing, Unit] = ZIO.succeed {
       try {
         val file = new RandomAccessFile(resultPath, "rw")
         // Move the file pointer to the last character
