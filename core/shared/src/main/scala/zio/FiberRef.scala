@@ -384,7 +384,7 @@ object FiberRef {
   ): ZIO[Scope, Nothing, FiberRef.WithPatch[Set[A], SetPatch[A]]] =
     makeWith(unsafe.makeSet(initial)(Unsafe.unsafe))
 
-  private[zio] object unsafe {
+  object unsafe {
     def make[A](
       initial: A,
       fork: A => A = ZIO.identityFn[A],
