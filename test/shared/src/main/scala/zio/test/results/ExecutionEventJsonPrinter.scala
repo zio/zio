@@ -9,7 +9,7 @@ object ExecutionEventJsonPrinter {
 
   case class Live(serializer: ResultSerializer, resultFileOps: ResultFileOpsJson) extends ExecutionEventPrinter {
     override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] =
-      resultFileOps.writeFile(serializer.render(event), append = true).orDie
+      resultFileOps.write(serializer.render(event), append = true).orDie
 
   }
 }

@@ -14,12 +14,12 @@ object ResultSerializer {
     def render(executionEvent: ExecutionEvent): String = executionEvent match {
       case ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
         s"""
-           |  {
-           |     "name" : "$fullyQualifiedName/${labelsReversed.reverse.mkString("/")}",
-           |     "status" : "${jsonify(test)}",
-           |     "durationMillis" : "${duration}",
-           |     "annotations" : "${jsonify(annotations)}"
-           |  },""".stripMargin
+           |    {
+           |       "name" : "$fullyQualifiedName/${labelsReversed.reverse.mkString("/")}",
+           |       "status" : "${jsonify(test)}",
+           |       "durationMillis" : "${duration}",
+           |       "annotations" : "${jsonify(annotations)}"
+           |    },""".stripMargin
       case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
         ""
       case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) =>

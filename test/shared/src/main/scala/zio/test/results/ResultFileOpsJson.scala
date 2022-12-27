@@ -4,26 +4,26 @@ import zio._
 
 import java.io.IOException
 
-trait ResultFileOpsJson {
-  def writeFile(content: => String, append: Boolean): ZIO[Any, IOException, Unit]
+private[test] trait ResultFileOpsJson {
+  def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit]
 }
 
-object ResultFileOpsJson {
-  val opsLive = Live("target/test-reports-zio/output.json")
-  val live: ZLayer[Any, Nothing, ResultFileOpsJson] = {
+private[test] object ResultFileOpsJson {
+  object Live extends Live("target/test-reports-zio/output.json")
+  val live: ZLayer[Any, Nothing, ResultFileOpsJson] =
     ZLayer.scoped(
       ZIO.acquireRelease(
-      opsLive.writeFile("[", append = false).orDie *>
-        opsLive.makeOutputDirectory.orDie *>
-        ZIO.succeed(opsLive)
-      )(_ =>
-      opsLive.removeTrailingComma *>
-        opsLive.writeFile("\n]", append = true).orDie
-      )
+        Live.makeOutputDirectory.orDie *>
+        Live.writeJsonPreamble *>
+          ZIO.succeed(Live)
+        )(_ =>
+          Live.closeJson
+        )
     )
+
   }
 
-  case class Live private(resultPath: String) extends ResultFileOpsJson {
+  private[test] case class Live(resultPath: String) extends ResultFileOpsJson {
     val makeOutputDirectory = ZIO.attempt {
       import java.nio.file.{Files, Paths}
 
@@ -31,7 +31,17 @@ object ResultFileOpsJson {
       Files.createDirectories(fp.getParent)
     }.unit
 
-    def writeFile(content: => String, append: Boolean): ZIO[Any, IOException, Unit] =
+    def closeJson: URIO[Any, Unit] =
+      removeTrailingComma *>
+      write("\n  ]\n}", append = true).orDie
+
+    def writeJsonPreamble: URIO[Any, Unit] = {
+      write(
+        """|{
+           |  "results": [""".stripMargin, append = false).orDie
+    }
+
+    def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit] =
       ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter(resultPath, append)))(f =>
         ZIO.attemptBlocking(f.close()).orDie
       ) { f =>
@@ -39,7 +49,7 @@ object ResultFileOpsJson {
       }
 
     import java.io._
-    val removeTrailingComma: ZIO[Any, Nothing, Unit] = ZIO.succeed {
+    private val removeTrailingComma: ZIO[Any, Nothing, Unit] = ZIO.succeed {
       try {
         val file = new RandomAccessFile(resultPath, "rw")
         // Move the file pointer to the last character
@@ -60,6 +70,5 @@ object ResultFileOpsJson {
           e.printStackTrace()
       }
     }
-  }
 
 }
