@@ -17,7 +17,7 @@ private[test] object ResultFileOpsJson {
         Live.writeJsonPreamble *>
           ZIO.succeed(Live)
         )(_ =>
-          Live.closeJson
+          Live.closeJson.orDie
         )
     )
 
@@ -31,7 +31,7 @@ private[test] object ResultFileOpsJson {
       Files.createDirectories(fp.getParent)
     }.unit
 
-    def closeJson: URIO[Any, Unit] =
+    def closeJson: ZIO[Any, Throwable, Unit] =
       removeTrailingComma *>
       write("\n  ]\n}", append = true).orDie
 
@@ -49,26 +49,21 @@ private[test] object ResultFileOpsJson {
       }
 
     import java.io._
-    private val removeTrailingComma: ZIO[Any, Nothing, Unit] = ZIO.succeed {
-      try {
-        val file = new RandomAccessFile(resultPath, "rw")
-        // Move the file pointer to the last character
-        file.seek(file.length - 1)
-        // Read backwards from the end of the file until we find a non-whitespace character
-        var c = 0
-        do {
-          c = file.read
-          file.seek(file.getFilePointer - 2)
-        } while ({
-          Character.isWhitespace(c)
-        })
-        // If the non-whitespace character is a comma, remove it
-        if (c == ',') file.setLength(file.length - 1)
-        file.close()
-      } catch {
-        case e: IOException =>
-          e.printStackTrace()
-      }
+    private val removeTrailingComma: ZIO[Any, Throwable, Unit] = ZIO.attempt {
+      val file = new RandomAccessFile(resultPath, "rw")
+      // Move the file pointer to the last character
+      file.seek(file.length - 1)
+      // Read backwards from the end of the file until we find a non-whitespace character
+      var c = 0
+      do {
+        c = file.read
+        file.seek(file.getFilePointer - 2)
+      } while ({
+        Character.isWhitespace(c)
+      })
+      // If the non-whitespace character is a comma, remove it
+      if (c == ',') file.setLength(file.length - 1)
+      file.close()
     }
 
-}
+  }
