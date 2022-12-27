@@ -40,7 +40,7 @@ object ResultSerializer {
           "Success"
       }
 
-    private def jsonify(testAnnotationMap: TestAnnotationMap): String =
+    private[results] def jsonify(testAnnotationMap: TestAnnotationMap): String =
       TestAnnotationRenderer.default
         .run(List.empty, testAnnotationMap)
         .map(s => s.replace("\"", "\\\""))

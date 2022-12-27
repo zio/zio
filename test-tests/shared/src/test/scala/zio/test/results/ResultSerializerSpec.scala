@@ -1,10 +1,12 @@
 package zio.test.results
 
-import zio.test.{ExecutionEvent, SuiteId, TestAnnotationMap, TestSuccess, assertTrue}
+import zio.test._
+
+import java.time.Instant
 
 object ResultSerializerSpec extends zio.test.ZIOSpecDefault {
   override def spec =
-    suite("ResultSerializerSpec")(test("test") {
+    suite("ResultSerializerSpec")(suite("full")(test("test") {
       val input = ExecutionEvent.Test(
         List("testName", "suiteName"),
         Right(TestSuccess.Succeeded()),
@@ -27,4 +29,21 @@ object ResultSerializerSpec extends zio.test.ZIOSpecDefault {
             |    },""".stripMargin
       )
     })
+      ,
+      suite("annotations map")(
+        test("timed") {
+          assertTrue(
+          ResultSerializer.Json.jsonify(
+          TestAnnotationMap.empty.annotate(
+            TestAnnotation.timing,
+            TestDuration.fromInterval(
+              Instant.parse("2020-01-01T00:00:00Z"),
+              Instant.parse("2020-01-01T00:00:01Z"))
+          )
+          ) == "1 s"
+          )
+        }
+      )
+    )
+
 }
