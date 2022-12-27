@@ -18,7 +18,9 @@ object ResultSerializer {
            |       "name" : "$fullyQualifiedName/${labelsReversed.reverse.mkString("/")}",
            |       "status" : "${jsonify(test)}",
            |       "durationMillis" : "${duration}",
-           |       "annotations" : "${jsonify(annotations)}"
+           |       "annotations" : "${jsonify(annotations)}",
+           |       "fullyQualifiedClassName" : "$fullyQualifiedName",
+           |       "labels" : ["${labelsReversed.reverse.mkString("\", \"")}"],
            |    },""".stripMargin
       case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
         ""
