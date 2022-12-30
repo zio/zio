@@ -1,7 +1,7 @@
 package zio.test.results
-import zio.{ULayer, ZLayer}
-import zio.test.ExecutionEvent
-import zio.test.{ExecutionEvent, TestAnnotationMap, TestAnnotationRenderer, TestFailure, TestSuccess}
+
+import zio._
+import zio.test._
 
 trait ResultSerializer {
   def render(executionEvent: ExecutionEvent): String
@@ -25,7 +25,6 @@ object ResultSerializer {
       case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
         ""
       case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) =>
-        // TODO Deal with trailing commas
         ""
       case ExecutionEvent.TopLevelFlush(id) => "TODO TopLevelFlush"
       case ExecutionEvent.RuntimeFailure(id, labelsReversed, failure, ancestors) =>

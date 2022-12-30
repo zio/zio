@@ -16,28 +16,31 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
       } yield assertCompletes
     }
       .provide(ResultFileOpsJson.test)
-    @@ TestAspect.ignore
+      @@ TestAspect.ignore
     ,
     test("clobbered concurrent writes") {
-      val repetition = 10000
+      val linesToWrite =
+        List(
+          "a",
+          "b",
+          "c",
+          "d",
+          "e",
+        ).map( _ * 100)
       for {
         _ <-
           ZIO.serviceWithZIO[ResultFileOpsJson](instance =>
-            {
-              ZIO.foreachPar(
-                List(
-                    instance.write("a" * repetition + "\n", append = true),
-                    instance.write("b" * repetition + "\n", append = true)
-                  )
-              )( x => x)
-            }
+          {
+            ZIO.foreachPar(
+              linesToWrite
+            )( x => instance.write(x + "\n", append = true))
+          }
           )
-        results <- readFile.debug
-
-      } yield assertTrue(results.head == "a" * repetition || results.tail.head == "a" * repetition) &&
-        assertTrue(results.head == "b" * repetition || results.tail.head == "b" * repetition)
+        results <- readFile
+      } yield assertTrue(linesToWrite.forall(results.contains(_)))
     }
       .provide(ResultFileOpsJson.test)
+      @@ TestAspect.nonFlaky
   )
 
   val readFile: ZIO[Path, Nothing, List[String]] = {
@@ -46,8 +49,7 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
       lines <- ZIO.attempt{
         import java.nio.file.{Files}
         Files.readAllLines(tmpFilePath).asScala.toList
-      }.orDie.debug
-//      _ <- ZIO.attemptBlockingIO(tmpFilePath.toFile.deleteOnExit())
+      }.orDie
     } yield  lines
   }
 }
