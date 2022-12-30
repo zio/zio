@@ -37,8 +37,8 @@ object TestExecutor {
     eventHandlerZ: ZTestEventHandler
   ): TestExecutor[R with TestEnvironment with Scope, E] =
     new TestExecutor[R with TestEnvironment with Scope, E] {
-      def run(fullQualifiedName: String, spec: Spec[R with TestEnvironment with Scope, E], defExec: ExecutionStrategy)(implicit
-        trace: Trace
+      def run(fullQualifiedName: String, spec: Spec[R with TestEnvironment with Scope, E], defExec: ExecutionStrategy)(
+        implicit trace: Trace
       ): UIO[Summary] =
         (for {
           sink     <- ZIO.service[ExecutionEventSink]

@@ -16,70 +16,72 @@ private[test] object ResultFileOpsJson {
       ZIO.acquireRelease(
         for {
           reentrantLockImposter <- Ref.Synchronized.make[Unit](())
-          instance = Live("target/test-reports-zio/output.json", reentrantLockImposter)
-          _ <- instance.makeOutputDirectory.orDie
-          _ <- instance.writeJsonPreamble
+          instance               = Live("target/test-reports-zio/output.json", reentrantLockImposter)
+          _                     <- instance.makeOutputDirectory.orDie
+          _                     <- instance.writeJsonPreamble
         } yield instance
-      )(instance =>
-        instance.closeJson.orDie
-      )
+      )(instance => instance.closeJson.orDie)
     )
 
   val test: ZLayer[Any, Throwable, Path with Live] =
-    ZLayer.fromZIO{
+    ZLayer.fromZIO {
       for {
         reentrantLockImposter <- Ref.Synchronized.make[Unit](())
-        result <- ZIO.attempt(
-          java.nio.file.Files.createTempFile("zio-test", ".json")
-        ).map( path =>
-          (path, Live(path.toString, reentrantLockImposter))
-        )
+        result <- ZIO
+                    .attempt(
+                      java.nio.file.Files.createTempFile("zio-test", ".json")
+                    )
+                    .map(path => (path, Live(path.toString, reentrantLockImposter)))
       } yield result
-    }.flatMap( tup => ZLayer.succeed(tup.get._1) ++ ZLayer.succeed(tup.get._2))
-  }
+    }.flatMap(tup => ZLayer.succeed(tup.get._1) ++ ZLayer.succeed(tup.get._2))
+}
 
-  private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) extends ResultFileOpsJson {
-    val makeOutputDirectory = ZIO.attempt {
-      import java.nio.file.{Files, Paths}
+private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) extends ResultFileOpsJson {
+  val makeOutputDirectory = ZIO.attempt {
+    import java.nio.file.{Files, Paths}
 
-      val fp = Paths.get(resultPath)
-      Files.createDirectories(fp.getParent)
-    }.unit
+    val fp = Paths.get(resultPath)
+    Files.createDirectories(fp.getParent)
+  }.unit
 
-    def closeJson: ZIO[Any, Throwable, Unit] =
-      removeTrailingComma *>
-        write("\n  ]\n}", append = true).orDie
+  def closeJson: ZIO[Any, Throwable, Unit] =
+    removeTrailingComma *>
+      write("\n  ]\n}", append = true).orDie
 
-    def writeJsonPreamble: URIO[Any, Unit] =
-      write(
-        """|{
-           |  "results": [""".stripMargin, append = false).orDie
+  def writeJsonPreamble: URIO[Any, Unit] =
+    write(
+      """|{
+         |  "results": [""".stripMargin,
+      append = false
+    ).orDie
 
-    def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit] =
-      lock.updateZIO( _ =>
-        ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter(resultPath, append)))(f =>
+  def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit] =
+    lock.updateZIO(_ =>
+      ZIO
+        .acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter(resultPath, append)))(f =>
           ZIO.attemptBlocking(f.close()).orDie
         ) { f =>
           ZIO.attemptBlockingIO(f.append(content))
-        }.ignore
-      )
+        }
+        .ignore
+    )
 
-    import java.io._
-    private val removeTrailingComma: ZIO[Any, Throwable, Unit] = ZIO.attempt {
-      val file = new RandomAccessFile(resultPath, "rw")
-      // Move the file pointer to the last character
-      file.seek(file.length - 1)
-      // Read backwards from the end of the file until we find a non-whitespace character
-      var c = 0
-      do {
-        c = file.read
-        file.seek(file.getFilePointer - 2)
-      } while ({
-        Character.isWhitespace(c)
-      })
-      // If the non-whitespace character is a comma, remove it
-      if (c == ',') file.setLength(file.length - 1)
-      file.close()
-    }
-
+  import java.io._
+  private val removeTrailingComma: ZIO[Any, Throwable, Unit] = ZIO.attempt {
+    val file = new RandomAccessFile(resultPath, "rw")
+    // Move the file pointer to the last character
+    file.seek(file.length - 1)
+    // Read backwards from the end of the file until we find a non-whitespace character
+    var c = 0
+    do {
+      c = file.read
+      file.seek(file.getFilePointer - 2)
+    } while ({
+      Character.isWhitespace(c)
+    })
+    // If the non-whitespace character is a comma, remove it
+    if (c == ',') file.setLength(file.length - 1)
+    file.close()
   }
+
+}

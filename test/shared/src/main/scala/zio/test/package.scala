@@ -795,14 +795,14 @@ package object test extends CompileVariants {
     TestLogger.fromConsole(console) >>>
       // TODO Do this check more properly somewhere else
       (if (sys.env.get("ZIO_TEST_GITHUB_TOKEN").isDefined) {
-        println("Using github/json test result printer")
-        println("Token value: " + sys.env.get("ZIO_TEST_GITHUB_TOKEN").get)
+         println("ZZZ Using github/json test result printer")
+         println("Token value: " + sys.env.get("ZIO_TEST_GITHUB_TOKEN").get)
 
-        ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live
-      } else {
-        println("Couldn't find token. Using default result printer")
-        ExecutionEventPrinter.live(eventRenderer)
-      }) >>>
+         ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live
+       } else {
+         println("ZZZ Couldn't find token. Using default result printer")
+         ExecutionEventPrinter.live(eventRenderer)
+       }) >>>
 //      ExecutionEventJsonPrinter.live >>>
       TestOutput.live >>>
       ExecutionEventSink.live

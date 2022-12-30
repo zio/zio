@@ -16,8 +16,7 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
       } yield assertCompletes
     }
       .provide(ResultFileOpsJson.test)
-      @@ TestAspect.ignore
-    ,
+      @@ TestAspect.ignore,
     test("clobbered concurrent writes") {
       val linesToWrite =
         List(
@@ -25,17 +24,15 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
           "b",
           "c",
           "d",
-          "e",
-        ).map( _ * 100)
+          "e"
+        ).map(_ * 100)
       for {
         _ <-
-          ZIO.serviceWithZIO[ResultFileOpsJson](instance =>
-          {
+          ZIO.serviceWithZIO[ResultFileOpsJson] { instance =>
             ZIO.foreachPar(
               linesToWrite
-            )( x => instance.write(x + "\n", append = true))
+            )(x => instance.write(x + "\n", append = true))
           }
-          )
         results <- readFile
       } yield assertTrue(linesToWrite.forall(results.contains(_)))
     }
@@ -46,10 +43,10 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
   val readFile: ZIO[Path, Nothing, List[String]] = {
     for {
       tmpFilePath <- ZIO.service[Path]
-      lines <- ZIO.attempt{
-        import java.nio.file.{Files}
-        Files.readAllLines(tmpFilePath).asScala.toList
-      }.orDie
-    } yield  lines
+      lines <- ZIO.attempt {
+                 import java.nio.file.Files
+                 Files.readAllLines(tmpFilePath).asScala.toList
+               }.orDie
+    } yield lines
   }
 }

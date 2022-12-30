@@ -38,8 +38,8 @@ final case class TestRunner[R, E](
   /**
    * Runs the spec, producing the execution results.
    */
-  def run(fullyQualifiedName: String, spec: Spec[R, E], defExec: ExecutionStrategy = ExecutionStrategy.ParallelN(4))(implicit
-    trace: Trace
+  def run(fullyQualifiedName: String, spec: Spec[R, E], defExec: ExecutionStrategy = ExecutionStrategy.ParallelN(4))(
+    implicit trace: Trace
   ): UIO[Summary] =
     for {
       start    <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
