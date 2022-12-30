@@ -74,7 +74,7 @@ private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) 
     // Read backwards from the end of the file until we find a non-whitespace character
     var c = 0
     c = file.read
-    while({
+    while ({
       Character.isWhitespace(c)
     }) {
       file.seek(file.getFilePointer - 2)
