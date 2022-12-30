@@ -168,6 +168,8 @@ jobs:
   test:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
+    env:
+      ZIO_TEST_GITHUB_TOKEN: ${{ secrets.ZIO_TEST_GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -197,6 +199,8 @@ jobs:
     - name: Test 2.13
       if: ${{ startsWith(matrix.scala, '2.13.') }}
       run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}213/test
+      env:
+        ZIO_TEST_GITHUB_TOKEN: ${{ secrets.ZIO_TEST_GITHUB_TOKEN }}
     - name: Test 3
       if: ${{ startsWith(matrix.scala, '3.') }}
       run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}3/test
