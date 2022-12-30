@@ -5,22 +5,34 @@ import zio._
 import java.io.IOException
 
 private[test] trait ResultFileOpsJson {
+  // TODO Guarantee that file has been created by the time you are able to call this
   def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit]
 }
 
 private[test] object ResultFileOpsJson {
-  object Live extends Live("target/test-reports-zio/output.json")
-  val live: ZLayer[Any, Nothing, ResultFileOpsJson] =
+  val live: ZLayer[Any, Nothing, ResultFileOpsJson] = {
+    val instance = Live("target/test-reports-zio/output.json")
     ZLayer.scoped(
       ZIO.acquireRelease(
-        Live.makeOutputDirectory.orDie *>
-        Live.writeJsonPreamble *>
-          ZIO.succeed(Live)
-        )(_ =>
-          Live.closeJson.orDie
-        )
+        instance.makeOutputDirectory.orDie *>
+          instance.writeJsonPreamble *>
+          ZIO.succeed(instance)
+      )(_ =>
+        instance.closeJson.orDie
+      )
     )
+  }
 
+ val test = {
+    import java.nio.file.{Files}
+    ZLayer(
+      ZIO.attempt(
+        Files.createTempFile("zio-test", ".json")
+      ).map( path =>
+        (path, Live(path.toString))
+      )
+    ).flatMap( tup => ZLayer.succeed(tup.get._1) ++ ZLayer.succeed(tup.get._2))
+  }
   }
 
   private[test] case class Live(resultPath: String) extends ResultFileOpsJson {
