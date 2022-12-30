@@ -3,6 +3,9 @@ package zio.test.results
 import zio.test._
 import zio._
 
+/**
+ * Determines test results are written for later analysis.
+ */
 object ExecutionEventJsonPrinter {
   val live: ZLayer[ResultSerializer with ResultFileOpsJson, Nothing, Live] =
       ZLayer.fromFunction(ExecutionEventJsonPrinter.Live.apply _)
