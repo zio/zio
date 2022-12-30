@@ -21,7 +21,8 @@ object ZTestEventSpec extends ZIOSpecDefault {
           annotations = TestAnnotationMap.empty,
           ancestors = List.empty,
           duration = 0L,
-          id = SuiteId(0)
+          id = SuiteId(0),
+          fullyQualifiedName = "test.specific.realm"
         )
         val result: Event =
           ZTestEvent.convertEvent(
@@ -46,7 +47,8 @@ object ZTestEventSpec extends ZIOSpecDefault {
           annotations = TestAnnotationMap.empty,
           ancestors = List.empty,
           duration = 0L,
-          id = SuiteId(0)
+          id = SuiteId(0),
+          fullyQualifiedName = "test.specific.realm"
         )
         val result: Event =
           ZTestEvent.convertEvent(
