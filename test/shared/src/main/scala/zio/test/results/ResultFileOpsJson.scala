@@ -11,13 +11,15 @@ private[test] trait ResultFileOpsJson {
 
 private[test] object ResultFileOpsJson {
   val live: ZLayer[Any, Nothing, ResultFileOpsJson] = {
-    val instance = Live("target/test-reports-zio/output.json")
     ZLayer.scoped(
       ZIO.acquireRelease(
-        instance.makeOutputDirectory.orDie *>
-          instance.writeJsonPreamble *>
-          ZIO.succeed(instance)
-      )(_ =>
+        for {
+          reentrantLockImposter <- Ref.Synchronized.make[Unit](())
+          instance = Live("target/test-reports-zio/output.json", reentrantLockImposter)
+          _ <- instance.makeOutputDirectory.orDie
+          _ <- instance.writeJsonPreamble
+        } yield instance
+      )(instance =>
         instance.closeJson.orDie
       )
     )
@@ -25,17 +27,20 @@ private[test] object ResultFileOpsJson {
 
  val test = {
     import java.nio.file.{Files}
-    ZLayer(
-      ZIO.attempt(
-        Files.createTempFile("zio-test", ".json")
-      ).map( path =>
-        (path, Live(path.toString))
-      )
-    ).flatMap( tup => ZLayer.succeed(tup.get._1) ++ ZLayer.succeed(tup.get._2))
+   ZLayer{
+     for {
+       reentrantLockImposter <- Ref.Synchronized.make[Unit](())
+       result <- ZIO.attempt(
+         Files.createTempFile("zio-test", ".json")
+       ).map( path =>
+         (path, Live(path.toString, reentrantLockImposter))
+       )
+     } yield result
+   }.flatMap( tup => ZLayer.succeed(tup.get._1) ++ ZLayer.succeed(tup.get._2))
   }
   }
 
-  private[test] case class Live(resultPath: String) extends ResultFileOpsJson {
+  private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) extends ResultFileOpsJson {
     val makeOutputDirectory = ZIO.attempt {
       import java.nio.file.{Files, Paths}
 
@@ -53,12 +58,15 @@ private[test] object ResultFileOpsJson {
            |  "results": [""".stripMargin, append = false).orDie
     }
 
-    def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit] =
-      ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter(resultPath, append)))(f =>
-        ZIO.attemptBlocking(f.close()).orDie
-      ) { f =>
-        ZIO.attemptBlockingIO(f.append(content))
-      }
+    def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit] = {
+      lock.updateZIO( _ =>
+        ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter(resultPath, append)))(f =>
+          ZIO.attemptBlocking(f.close()).orDie
+        ) { f =>
+          ZIO.attemptBlockingIO(f.append(content))
+        }.ignore
+      )
+    }
 
     import java.io._
     private val removeTrailingComma: ZIO[Any, Throwable, Unit] = ZIO.attempt {

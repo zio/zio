@@ -19,40 +19,23 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
     @@ TestAspect.ignore
     ,
     test("clobbered concurrent writes") {
-      for {
-        _ <-
-          ZIO.serviceWithZIO[ResultFileOpsJson](instance =>
-            ZIO.foreachPar(Range(0,10000).toList)(
-              _ => instance.write("a", append = true)
-            )
-          )
-        results <- readFile.debug
-
-      } yield assertTrue(results.head.length == 1000)
-    }
-      .provide(ResultFileOpsJson.test)
-    ,
-    test("clobbered concurrent writes") {
+      val repetition = 10000
       for {
         _ <-
           ZIO.serviceWithZIO[ResultFileOpsJson](instance =>
             {
               ZIO.foreachPar(
                 List(
-                  ZIO.foreachPar(Range(0, 10000).toList)(
-                    _ => instance.write("a", append = true)
-                  ),
-                  ZIO.foreachPar(Range(0, 10000).toList)(
-                    _ => instance.write("b", append = true)
+                    instance.write("a" * repetition + "\n", append = true),
+                    instance.write("b" * repetition + "\n", append = true)
                   )
-                )
               )( x => x)
             }
           )
         results <- readFile.debug
 
-      } yield assertTrue(results.head == "a" * 10000 || results.tail.head == "a" * 10000) &&
-        assertTrue(results.head == "b" * 10000 || results.tail.head == "b" * 10000)
+      } yield assertTrue(results.head == "a" * repetition || results.tail.head == "a" * repetition) &&
+        assertTrue(results.head == "b" * repetition || results.tail.head == "b" * repetition)
     }
       .provide(ResultFileOpsJson.test)
   )
