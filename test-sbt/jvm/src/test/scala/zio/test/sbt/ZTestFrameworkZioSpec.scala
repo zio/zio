@@ -19,7 +19,14 @@ import zio.test.sbt.TestingSupport._
 
 object ZTestFrameworkZioSpec extends ZIOSpecDefault {
 
-  override def spec = suite("test framework in a more ZIO-centric way")(
+  override def spec = {
+    if (sys.env.get("ZIO_TEST_GITHUB_TOKEN").isDefined)
+      suite("CI renderer")(test("TODO real test")(
+        assertCompletes
+      )
+      )
+    else
+    suite("test framework in a more ZIO-centric way")(
     test("basic happy path")(
       for {
         _      <- loadAndExecute(SimpleSpec)
@@ -156,6 +163,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
       } yield assertTrue(output.equals(expected))
     }
   )
+  }
 
   private val durationPattern = "Executed in (\\d+) (.*)".r
   private def extractTestRunDuration(output: Vector[String]): zio.Duration = {
