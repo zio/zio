@@ -73,12 +73,13 @@ private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) 
     file.seek(file.length - 1)
     // Read backwards from the end of the file until we find a non-whitespace character
     var c = 0
-    do {
-      c = file.read
-      file.seek(file.getFilePointer - 2)
-    } while ({
+    c = file.read
+    while({
       Character.isWhitespace(c)
-    })
+    }) {
+      file.seek(file.getFilePointer - 2)
+      c = file.read
+    }
     // If the non-whitespace character is a comma, remove it
     if (c == ',') file.setLength(file.length - 1)
     file.close()
