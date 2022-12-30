@@ -796,6 +796,7 @@ package object test extends CompileVariants {
       // TODO Do this check more properly somewhere else
       (if (sys.env.get("ZIO_TEST_GITHUB_TOKEN").isDefined) {
         println("Using github/json test result printer")
+        println("Token value: " + sys.env.get("ZIO_TEST_GITHUB_TOKEN").get)
 
         ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live
       } else {
