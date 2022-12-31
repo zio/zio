@@ -44,7 +44,7 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
       tmpFilePath <- ZIO.service[Path]
       lines <- ZIO.attempt {
                  import scala.io.Source
-                 Source.fromFile(tmpFilePath.toString).getLines.toList
+                 Source.fromFile(tmpFilePath.toString()).getLines().toList
                }.orDie
     } yield lines
   }
