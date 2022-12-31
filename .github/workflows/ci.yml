@@ -211,7 +211,7 @@ jobs:
       with:
         name: zio-test-output
         # TODO Make sure this uploads files from all SBT projects without clashes
-        path: /**/test-reports-zio/output.json
+        path: ./**/test-reports-zio/output.json
 
 
   testJvms:
