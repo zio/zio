@@ -4,7 +4,6 @@ import zio._
 import zio.test._
 
 import java.nio.file.Path
-import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object ResultFileOpsJsonSpec extends ZIOSpecDefault {
   // TODO Can we provide an alternative of suite that defaults to using the class name?
@@ -44,8 +43,8 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
     for {
       tmpFilePath <- ZIO.service[Path]
       lines <- ZIO.attempt {
-                 import java.nio.file.Files
-                 Files.readAllLines(tmpFilePath).asScala.toList
+                 import scala.io.Source
+                 Source.fromFile(tmpFilePath.toString).getLines.toList
                }.orDie
     } yield lines
   }

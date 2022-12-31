@@ -4,7 +4,9 @@ import zio.test._
 import zio._
 
 /**
- * Determines test results are written for later analysis.
+ * Determines test results are written for later analysis. TODO Figure out what
+ * happens when we are cross building. I'm worried the artifacts get
+ * overwritten.
  */
 object ExecutionEventJsonPrinter {
   val live: ZLayer[ResultSerializer with ResultFileOpsJson, Nothing, Live] =
