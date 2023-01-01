@@ -8,7 +8,7 @@ import zio._
  * happens when we are cross building. I'm worried the artifacts get
  * overwritten.
  */
-object ExecutionEventJsonPrinter {
+private[test] object ExecutionEventJsonPrinter {
   val live: ZLayer[ResultSerializer with ResultFileOpsJson, Nothing, Live] =
     ZLayer.fromFunction(ExecutionEventJsonPrinter.Live.apply _)
 

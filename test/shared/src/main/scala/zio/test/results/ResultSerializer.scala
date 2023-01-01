@@ -20,7 +20,7 @@ object ResultSerializer {
            |       "durationMillis" : "${duration}",
            |       "annotations" : "${jsonify(annotations)}",
            |       "fullyQualifiedClassName" : "$fullyQualifiedName",
-           |       "labels" : ["${labelsReversed.reverse.mkString("\", \"")}"],
+           |       "labels" : ["${labelsReversed.reverse.mkString("\", \"")}"]
            |    },""".stripMargin
       case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
         ""

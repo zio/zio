@@ -799,11 +799,11 @@ package object test extends CompileVariants {
          println("Token value: " + sys.env.get("ZIO_TEST_GITHUB_TOKEN").get)
 
          ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live
+        ((ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live) ++ ExecutionEventPrinter.liveOg(eventRenderer))  >>> ExecutionEventPrinter.Composite.live
        } else {
          println("ZZZ Couldn't find token. Using default result printer")
-         ExecutionEventPrinter.live(eventRenderer)
+        ((ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live) ++ ExecutionEventPrinter.liveOg(eventRenderer))  >>> ExecutionEventPrinter.Composite.live
        }) >>>
-//      ExecutionEventJsonPrinter.live >>>
       TestOutput.live >>>
       ExecutionEventSink.live
 

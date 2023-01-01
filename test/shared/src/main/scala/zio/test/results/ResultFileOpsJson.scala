@@ -75,7 +75,7 @@ private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) 
     var c = 0
     c = file.read
     while ({
-      Character.isWhitespace(c)
+      Character.isWhitespace(c) && c < 0
     }) {
       file.seek(file.getFilePointer - 2)
       c = file.read

@@ -26,7 +26,7 @@ object ResultSerializerSpec extends zio.test.ZIOSpecDefault {
               |       "durationMillis" : "1",
               |       "annotations" : "",
               |       "fullyQualifiedClassName" : "dev.zio",
-              |       "labels" : ["suiteName", "testName"],
+              |       "labels" : ["suiteName", "testName"]
               |    },""".stripMargin
         )
       }),
