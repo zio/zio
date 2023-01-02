@@ -12,20 +12,20 @@ private[test] object ExecutionEventJsonPrinter {
   val live: ZLayer[ResultSerializer with ResultFileOpsJson, Nothing, Live] =
     ZLayer.fromZIO(
       for {
+        // TODO Unconditionally produce test report
         token <- System.env("ZIO_TEST_GITHUB_TOKEN").orDie // TODO Should we die here?
-        inCi  = token.isDefined
+        inCi = token.isDefined
         impl <-
-          // TODO Restore check for CI
-//          if (inCi) {
-          for {
-            _          <- ZIO.debug("Running in CI. Write test results to file.")
-            serializer <- ZIO.service[ResultSerializer]
-            fileOps    <- ZIO.service[ResultFileOpsJson]
-          } yield LiveImpl(serializer, fileOps)
-//          } else {
-//            ZIO.debug("Not running in CI. Do not write test results to file.") *>
-//              ZIO.succeed(NoOp)
-//          }
+          if (inCi) {
+            for {
+              _          <- ZIO.debug("Running in CI. Write test results to file.")
+              serializer <- ZIO.service[ResultSerializer]
+              fileOps    <- ZIO.service[ResultFileOpsJson]
+            } yield LiveImpl(serializer, fileOps)
+          } else {
+            ZIO.debug("Not running in CI. Do not write test results to file.") *>
+              ZIO.succeed(NoOp)
+          }
       } yield impl
     )
 
