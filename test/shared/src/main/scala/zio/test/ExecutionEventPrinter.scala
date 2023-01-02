@@ -7,14 +7,8 @@ trait ExecutionEventPrinter {
   def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit]
 }
 object ExecutionEventPrinter {
-  def live(renderer: ReporterEventRenderer): ZLayer[ExecutionEventJsonPrinter.Live, Nothing, ExecutionEventPrinter] = {
-    for {
-      jsonPrinter <- ZLayer.service[ExecutionEventJsonPrinter.Live]
-    } yield ZEnvironment[ExecutionEventPrinter](jsonPrinter.get)
-  }
-
-  // TODO Where to put environment variable check?
-  case class Composite(console: ExecutionEventPrinter.Live, file: ExecutionEventJsonPrinter.Live) extends ExecutionEventPrinter {
+  case class Composite(console: ExecutionEventPrinter.Live, file: ExecutionEventJsonPrinter.Live)
+      extends ExecutionEventPrinter {
     override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] =
       console.print(event) *> file.print(event)
   }

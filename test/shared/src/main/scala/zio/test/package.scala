@@ -790,10 +790,11 @@ package object test extends CompileVariants {
     new CheckVariants.CheckN(n)
 
   private[test] def sinkLayer(console: Console, eventRenderer: ReporterEventRenderer)(implicit
-                                                                                      trace: Trace
+    trace: Trace
   ): ZLayer[Any, Nothing, ExecutionEventSink] =
     TestLogger.fromConsole(console) >>>
-      ((ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live) ++ ExecutionEventPrinter.liveOg(eventRenderer))  >>>
+      ((ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live) ++ ExecutionEventPrinter
+        .liveOg(eventRenderer)) >>>
       ExecutionEventPrinter.Composite.live >>>
       TestOutput.live >>>
       ExecutionEventSink.live
