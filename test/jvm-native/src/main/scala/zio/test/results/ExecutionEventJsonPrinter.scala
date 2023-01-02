@@ -1,7 +1,7 @@
 package zio.test.results
 
-import zio.test._
 import zio._
+import zio.test._
 
 /**
  * Determines test results are written for later analysis. TODO Figure out what
@@ -10,23 +10,8 @@ import zio._
  */
 private[test] object ExecutionEventJsonPrinter {
   val live: ZLayer[ResultSerializer with ResultFileOpsJson, Nothing, Live] =
-    ZLayer.fromZIO(
-      for {
-        // TODO Unconditionally produce test report
-        token <- System.env("ZIO_TEST_GITHUB_TOKEN").orDie // TODO Should we die here?
-        inCi = token.isDefined
-        impl <-
-          if (inCi) {
-            for {
-              _          <- ZIO.debug("Running in CI. Write test results to file.")
-              serializer <- ZIO.service[ResultSerializer]
-              fileOps    <- ZIO.service[ResultFileOpsJson]
-            } yield LiveImpl(serializer, fileOps)
-          } else {
-            ZIO.debug("Not running in CI. Do not write test results to file.") *>
-              ZIO.succeed(NoOp)
-          }
-      } yield impl
+    ZLayer.fromFunction(
+      LiveImpl(_, _)
     )
 
   object NoOp extends Live {

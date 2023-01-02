@@ -1,7 +1,6 @@
 package zio.test.results
 
-import zio._
-import zio.test._
+import zio.ZIO
 
 import java.nio.file.Path
 
@@ -14,8 +13,8 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
       )
     ),
     suite("a")(
-        test("a1/b")(assertCompletes)
-      ),
+      test("a1/b")(assertCompletes)
+    ),
     test("simple write") {
       for {
         _ <-
