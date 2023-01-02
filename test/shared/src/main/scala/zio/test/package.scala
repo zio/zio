@@ -790,20 +790,11 @@ package object test extends CompileVariants {
     new CheckVariants.CheckN(n)
 
   private[test] def sinkLayer(console: Console, eventRenderer: ReporterEventRenderer)(implicit
-    trace: Trace
+                                                                                      trace: Trace
   ): ZLayer[Any, Nothing, ExecutionEventSink] =
     TestLogger.fromConsole(console) >>>
-      // TODO Do this check more properly somewhere else
-      (if (sys.env.get("ZIO_TEST_GITHUB_TOKEN").isDefined) {
-         println("ZZZ Using github/json test result printer")
-         println("Token value: " + sys.env.get("ZIO_TEST_GITHUB_TOKEN").get)
-
-         ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live
-        ((ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live) ++ ExecutionEventPrinter.liveOg(eventRenderer))  >>> ExecutionEventPrinter.Composite.live
-       } else {
-         println("ZZZ Couldn't find token. Using default result printer")
-        ((ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live) ++ ExecutionEventPrinter.liveOg(eventRenderer))  >>> ExecutionEventPrinter.Composite.live
-       }) >>>
+      ((ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live) ++ ExecutionEventPrinter.liveOg(eventRenderer))  >>>
+      ExecutionEventPrinter.Composite.live >>>
       TestOutput.live >>>
       ExecutionEventSink.live
 

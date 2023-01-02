@@ -10,11 +10,32 @@ import zio._
  */
 private[test] object ExecutionEventJsonPrinter {
   val live: ZLayer[ResultSerializer with ResultFileOpsJson, Nothing, Live] =
-    ZLayer.fromFunction(ExecutionEventJsonPrinter.Live.apply _)
+    ZLayer.fromZIO(
+      for {
+        token <- System.env("ZIO_TEST_GITHUB_TOKEN").orDie // TODO Should we die here?
+        inCi = token.isDefined
+        impl <-
+          if (inCi) {
+            for {
+              _ <- ZIO.debug("Running in CI. Write test results to file.")
+              serializer <- ZIO.service[ResultSerializer]
+              fileOps <- ZIO.service[ResultFileOpsJson]
+            } yield LiveImpl(serializer, fileOps)
+          } else {
+            ZIO.debug("Not running in CI. Do not write test results to file.") *>
+              ZIO.succeed(NoOp)
+          }
+      } yield impl
+    )
 
-  case class Live(serializer: ResultSerializer, resultFileOps: ResultFileOpsJson) extends ExecutionEventPrinter {
+  object NoOp extends Live {
+    override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] = ZIO.unit
+  }
+
+  trait Live extends ExecutionEventPrinter
+
+  case class LiveImpl(serializer: ResultSerializer, resultFileOps: ResultFileOpsJson) extends Live {
     override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] =
       resultFileOps.write(serializer.render(event), append = true).orDie
-
   }
 }
