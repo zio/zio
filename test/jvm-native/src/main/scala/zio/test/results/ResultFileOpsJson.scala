@@ -35,7 +35,7 @@ private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) 
     Files.createDirectories(fp.getParent)
   }.unit
 
-  private def closeJson: ZIO[Any, Throwable, Unit] =
+  private def closeJson: ZIO[Scope, Throwable, Unit] =
     removeLastComma *>
       write("\n  ]\n}", append = true).orDie
 
@@ -46,29 +46,22 @@ private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) 
       append = false
     ).orDie
 
-  import scala.util.Using
-
   private val removeLastComma =
     for {
-      newLines <- ZIO.fromTry {
-                    Using(Source.fromFile(resultPath)) { source =>
-                      val lines = source.getLines().toList
-                      if (lines.nonEmpty) {
-                        val lastLine = lines.last
-                        if (lastLine.endsWith(",")) {
-                          val newLastLine = lastLine.dropRight(1)
-                          lines.init :+ newLastLine
-                        } else {
-                          lines
-                        }
-                      } else {
-                        lines
-                      }
-                    }
-                  }
-      firstLine :: rest = newLines
-      _                <- write(firstLine + "\n", append = false)
-      _                <- ZIO.foreach(rest)(line => write(line + "\n", append = true))
+      source <- ZIO.succeed(Source.fromFile(resultPath))
+      firstLine :: rest = {
+        val lines = source.getLines().toList
+        if (lines.nonEmpty && lines.last.endsWith(",")) {
+          val lastLine    = lines.last
+          val newLastLine = lastLine.dropRight(1)
+          lines.init :+ newLastLine
+        } else {
+          lines
+        }
+      }
+      _ <- write(firstLine + "\n", append = false)
+      _ <- ZIO.foreach(rest)(line => write(line + "\n", append = true))
+      _ <- ZIO.addFinalizer(ZIO.attempt(source.close()).orDie)
     } yield ()
 
 }

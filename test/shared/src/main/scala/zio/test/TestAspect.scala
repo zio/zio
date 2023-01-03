@@ -956,7 +956,6 @@ object TestAspect extends TimeoutVariants {
   /**
    * Annotates tests with their execution times.
    */
-  //  TODO This one aspect is past-tense, but the others are present-tense. Should we change this?
   val timed: TestAspectPoly =
     new PerTest.Poly {
       def perTest[R, E](

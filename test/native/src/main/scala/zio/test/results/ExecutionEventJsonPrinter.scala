@@ -9,15 +9,14 @@ import zio.{ZIO, ZLayer}
  * overwritten.
  */
 private[test] object ExecutionEventJsonPrinter {
-  val live: ZLayer[ResultSerializer with ResultFileOpsJson, Nothing, Live] =
+  val live: ZLayer[ResultSerializer with ResultFileOpsJson, Nothing, TestResultPrinter] =
     ZLayer.fromFunction(
       LiveImpl(_, _)
     )
 
-  trait Live extends ExecutionEventPrinter
-
-  case class LiveImpl(serializer: ResultSerializer, resultFileOps: ResultFileOpsJson) extends Live {
-    override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] =
+  private case class LiveImpl(serializer: ResultSerializer, resultFileOps: ResultFileOpsJson)
+      extends TestResultPrinter {
+    override def print[E](event: ExecutionEvent.Test[E]): ZIO[Any, Nothing, Unit] =
       resultFileOps.write(serializer.render(event), append = true).orDie
   }
 }

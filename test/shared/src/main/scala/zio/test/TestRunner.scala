@@ -96,6 +96,8 @@ object TestRunner {
       ResultSerializer.live,
       ResultFileOpsJson.live,
       ExecutionEventJsonPrinter.live,
+      ExecutionEventConsolePrinter.live(ReporterEventRenderer.ConsoleEventRenderer),
+      ExecutionEventPrinter.live,
       TestLogger.fromConsole(Console.ConsoleLive),
       TestOutput.live,
       ExecutionEventSink.live

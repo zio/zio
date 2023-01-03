@@ -1,44 +1,26 @@
 package zio.test
 
-import zio.test.results.ExecutionEventJsonPrinter
-import zio.{ZEnvironment, ZIO, ZLayer}
+import zio.test.results.TestResultPrinter
+import zio.{ZIO, ZLayer}
 
-trait ExecutionEventPrinter {
+private[test] trait ExecutionEventPrinter {
   def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit]
 }
-object ExecutionEventPrinter {
-  case class Composite(console: ExecutionEventPrinter.Live, file: ExecutionEventJsonPrinter.Live)
-      extends ExecutionEventPrinter {
+
+private[test] object ExecutionEventPrinter {
+  case class Live(console: ExecutionEventConsolePrinter, file: TestResultPrinter) extends ExecutionEventPrinter {
     override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] =
-      console.print(event) *> file.print(event)
+      console.print(event) *>
+        (event match {
+          case testResult: ExecutionEvent.Test[_] => file.print(testResult)
+          case _                                  => ZIO.unit
+        })
   }
 
-  object Composite {
-    val live: ZLayer[ExecutionEventPrinter.Live with ExecutionEventJsonPrinter.Live, Nothing, Composite] =
-      ZLayer.fromFunction(Composite.apply _)
-  }
-
-  def liveOg(renderer: ReporterEventRenderer): ZLayer[TestLogger, Nothing, ExecutionEventPrinter.Live] =
-    ZLayer {
-      for {
-        testLogger <- ZIO.service[TestLogger]
-      } yield Live(testLogger, renderer)
-    }
+  val live: ZLayer[ExecutionEventConsolePrinter with TestResultPrinter, Nothing, ExecutionEventPrinter] =
+    ZLayer.fromFunction(Live.apply _)
 
   def print(event: ExecutionEvent): ZIO[ExecutionEventPrinter, Nothing, Unit] =
     ZIO.serviceWithZIO(_.print(event))
-
-  case class Live(logger: TestLogger, eventRenderer: ReporterEventRenderer) extends ExecutionEventPrinter {
-    override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] = {
-      val rendered = eventRenderer.render(event)
-      ZIO
-        .when(rendered.nonEmpty)(
-          logger.logLine(
-            rendered.mkString("\n")
-          )
-        )
-        .unit
-    }
-  }
 
 }
