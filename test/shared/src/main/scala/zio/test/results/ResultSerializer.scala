@@ -15,7 +15,9 @@ object ResultSerializer {
       case ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
         s"""
            |    {
-           |       "name" : "$fullyQualifiedName/${labelsReversed.reverse.map(s => s.replace("/", "\\/")).mkString("/")}",
+           |       "name" : "$fullyQualifiedName/${labelsReversed.reverse
+          .map(s => s.replace("/", "\\/"))
+          .mkString("/")}",
            |       "status" : "${jsonify(test)}",
            |       "durationMillis" : "$duration",
            |       "annotations" : "${jsonify(annotations)}",

@@ -10,7 +10,7 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
   def spec = suite("ResultFileOpsJsonSpec")(
     test("simple write")(
       for {
-        _ <- writeToTestFile("a")
+        _       <- writeToTestFile("a")
         results <- readFile
       } yield assertTrue(results == List("a"))
     ).provide(test),
@@ -37,9 +37,9 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
       checkN(10)(Gen.listOfN(3)(Gen.alphaNumericStringBounded(0, 700))) { linesToWrite =>
         for {
           _ <-
-              ZIO.foreachPar(
-                linesToWrite
-              )(writeToTestFile)
+            ZIO.foreachPar(
+              linesToWrite
+            )(writeToTestFile)
           results <- readFile
         } yield assertTrue(linesToWrite.forall(results.contains))
       }
@@ -64,10 +64,10 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
       for {
         fileLock <- Ref.Synchronized.make[Unit](())
         result <- ZIO
-          .attempt(
-            java.nio.file.Files.createTempFile("zio-test", ".json")
-          )
-          .map(path => (path, zio.test.results.Live(path.toString, fileLock)))
+                    .attempt(
+                      java.nio.file.Files.createTempFile("zio-test", ".json")
+                    )
+                    .map(path => (path, zio.test.results.Live(path.toString, fileLock)))
       } yield result
     }.flatMap(tup => ZLayer.succeed(tup.get._1) ++ ZLayer.succeed(tup.get._2))
 }

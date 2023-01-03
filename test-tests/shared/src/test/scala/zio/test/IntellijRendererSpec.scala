@@ -179,7 +179,7 @@ object IntelliJRenderUtils {
     override def render(executionEvent: ExecutionEvent)(implicit trace: Trace): Chunk[String] = {
       val event = executionEvent match {
         case t @ ExecutionEvent.Test(_, _, _, _, _, _, _) => t.copy(duration = 0L)
-        case other                                     => other
+        case other                                        => other
       }
       Chunk.fromIterable(
         IntelliJRenderer

@@ -51,24 +51,24 @@ private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) 
   private val removeLastComma =
     for {
       newLines <- ZIO.fromTry {
-        Using(Source.fromFile(resultPath)) { source =>
-          val lines = source.getLines().toList
-          if (lines.nonEmpty) {
-            val lastLine = lines.last
-            if (lastLine.endsWith(",")) {
-              val newLastLine = lastLine.dropRight(1)
-              lines.init :+ newLastLine
-            } else {
-              lines
-            }
-          } else {
-            lines
-          }
-        }
-      }
+                    Using(Source.fromFile(resultPath)) { source =>
+                      val lines = source.getLines().toList
+                      if (lines.nonEmpty) {
+                        val lastLine = lines.last
+                        if (lastLine.endsWith(",")) {
+                          val newLastLine = lastLine.dropRight(1)
+                          lines.init :+ newLastLine
+                        } else {
+                          lines
+                        }
+                      } else {
+                        lines
+                      }
+                    }
+                  }
       firstLine :: rest = newLines
-      _ <- write(firstLine + "\n", append = false)
-      _ <- ZIO.foreach(rest)(line => write(line + "\n", append = true))
+      _                <- write(firstLine + "\n", append = false)
+      _                <- ZIO.foreach(rest)(line => write(line + "\n", append = true))
     } yield ()
 
 }
@@ -78,9 +78,9 @@ object Live {
     ZIO.acquireRelease(
       for {
         fileLock <- Ref.Synchronized.make[Unit](())
-        instance               = Live("target/test-reports-zio/output.json", fileLock)
-        _                     <- instance.makeOutputDirectory.orDie
-        _                     <- instance.writeJsonPreamble
+        instance  = Live("target/test-reports-zio/output.json", fileLock)
+        _        <- instance.makeOutputDirectory.orDie
+        _        <- instance.writeJsonPreamble
       } yield instance
     )(instance => instance.closeJson.orDie)
 }
