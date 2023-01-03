@@ -1,5 +1,6 @@
 TODO Current Questions
     How to handle cross compiled results?
+        test-output-$scalaVersion-$platform-$jdkVersion
 
 User experience:
     Configuration:

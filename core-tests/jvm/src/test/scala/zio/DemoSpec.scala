@@ -4,6 +4,7 @@ import zio.Clock.ClockLive
 import zio.test.TestAspect._
 import zio.test._
 
+// TODO Remove before final PR
 object DemoSpec extends ZIOSpecDefault {
 
   def spec = suite("outter suite")(
