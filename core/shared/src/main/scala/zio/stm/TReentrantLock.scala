@@ -18,7 +18,7 @@ package zio.stm
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.TReentrantLock._
-import zio.{FiberId, Scope, ZIO, Trace}
+import zio.{FiberId, Scope, Trace, Unsafe, ZIO}
 
 /**
  * A `TReentrantLock` is a reentrant read/write lock. Multiple readers may all
@@ -270,7 +270,12 @@ object TReentrantLock {
    * Makes a new reentrant read/write lock.
    */
   def make: USTM[TReentrantLock] =
-    TRef.make[LockState](ReadLock.empty).map(new TReentrantLock(_))
+    ZSTM.succeed(unsafe.make()(Unsafe.unsafe))
+
+  object unsafe {
+    def make()(implicit unsafe: Unsafe): TReentrantLock =
+      new TReentrantLock(TRef.unsafeMake[LockState](ReadLock.empty))
+  }
 
   private def die(message: String): Nothing =
     throw new RuntimeException(message)

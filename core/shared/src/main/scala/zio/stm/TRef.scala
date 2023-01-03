@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.{UIO, Trace}
+import zio.{Trace, UIO, Unsafe}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM.internal._
 
@@ -162,14 +162,7 @@ object TRef {
    * Makes a new `TRef` that is initialized to the specified value.
    */
   def make[A](a: => A): USTM[TRef[A]] =
-    ZSTM.Effect { (journal, _, _) =>
-      val value     = a
-      val versioned = new Versioned(value)
-      val todo      = new AtomicReference[Map[TxnId, Todo]](Map())
-      val tref      = new TRef(versioned, todo)
-      journal.put(tref, Entry(tref, true))
-      tref
-    }
+    ZSTM.succeed(unsafe.make(a)(Unsafe.unsafe))
 
   /**
    * A convenience method that makes a `TRef` and immediately commits the
@@ -177,6 +170,11 @@ object TRef {
    */
   def makeCommit[A](a: => A)(implicit trace: Trace): UIO[TRef[A]] =
     STM.atomically(make(a))
+
+  object unsafe {
+    def make[A](a: A)(implicit unsafe: Unsafe): TRef[A] =
+      TRef.unsafeMake(a)
+  }
 
   private[stm] def unsafeMake[A](a: A): TRef[A] = {
     val value     = a

@@ -18,7 +18,7 @@ package zio.stm
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM.internal._
-import zio.{Chunk, ChunkBuilder, NonEmptyChunk}
+import zio.{Chunk, ChunkBuilder, NonEmptyChunk, Unsafe}
 
 /**
  * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
@@ -612,44 +612,42 @@ object TMap {
   /**
    * Makes an empty `TMap`.
    */
-  def empty[K, V]: USTM[TMap[K, V]] = fromIterable(Nil)
+  def empty[K, V]: USTM[TMap[K, V]] =
+    fromIterable(Nil)
 
   /**
    * Makes a new `TMap` initialized with provided iterable.
    */
-  def fromIterable[K, V](data0: => Iterable[(K, V)]): USTM[TMap[K, V]] =
-    ZSTM.suspend {
-      val data     = data0
-      val size     = data.size
-      val capacity = if (size < InitialCapacity) InitialCapacity else nextPowerOfTwo(size)
-      allocate(capacity, data.toList)
-    }
+  def fromIterable[K, V](data: => Iterable[(K, V)]): USTM[TMap[K, V]] =
+    make(data.toSeq: _*)
 
   /**
    * Makes a new `TMap` that is initialized with specified values.
    */
-  def make[K, V](data: (K, V)*): USTM[TMap[K, V]] = fromIterable(data)
+  def make[K, V](data: (K, V)*): USTM[TMap[K, V]] =
+    ZSTM.succeed(unsafe.make(data: _*)(Unsafe.unsafe))
 
-  private def allocate[K, V](capacity: Int, data: List[(K, V)]): USTM[TMap[K, V]] = {
-    val buckets  = Array.fill[List[(K, V)]](capacity)(Nil)
-    val distinct = data.toMap
+  object unsafe {
+    def make[K, V](data: (K, V)*)(implicit unsafe: Unsafe): TMap[K, V] = {
+      val size     = data.size
+      val capacity = if (size < InitialCapacity) InitialCapacity else nextPowerOfTwo(size)
 
-    var size = 0
+      val buckets  = Array.fill[List[(K, V)]](capacity)(Nil)
+      val distinct = data.toMap
 
-    val it = distinct.iterator
-    while (it.hasNext) {
-      val kv  = it.next()
-      val idx = indexOf(kv._1, capacity)
+      val it = distinct.iterator
+      while (it.hasNext) {
+        val kv  = it.next()
+        val idx = indexOf(kv._1, capacity)
 
-      buckets(idx) = kv :: buckets(idx)
-      size = size + 1
+        buckets(idx) = kv :: buckets(idx)
+      }
+
+      val tArray   = TArray.unsafe.make(buckets: _*)
+      val tBuckets = TRef.unsafe.make(tArray)
+      val tSize    = TRef.unsafe.make(size)
+      new TMap(tBuckets, tSize)
     }
-
-    for {
-      tArray   <- TArray.fromIterable(buckets)
-      tBuckets <- TRef.make(tArray)
-      tSize    <- TRef.make(size)
-    } yield new TMap(tBuckets, tSize)
   }
 
   private def hash[K](k: K): Int = {

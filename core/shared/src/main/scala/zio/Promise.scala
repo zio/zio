@@ -265,7 +265,7 @@ object Promise {
   def makeAs[E, A](fiberId: => FiberId)(implicit trace: Trace): UIO[Promise[E, A]] =
     ZIO.succeed(unsafe.make(fiberId)(Unsafe.unsafe))
 
-  private[zio] object unsafe {
+  object unsafe {
     def make[E, A](fiberId: FiberId)(implicit unsafe: Unsafe): Promise[E, A] =
       new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId)
   }
