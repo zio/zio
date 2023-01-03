@@ -19,152 +19,143 @@ import zio.test.sbt.TestingSupport._
 
 object ZTestFrameworkZioSpec extends ZIOSpecDefault {
 
-  override def spec = {
-    if (sys.env.get("ZIO_TEST_GITHUB_TOKEN").isDefined)
-      suite("CI renderer")(
-        test("TODO real test")(
-          assertCompletes
+  override def spec = suite("test framework in a more ZIO-centric way")(
+    test("basic happy path")(
+      for {
+        _      <- loadAndExecute(SimpleSpec)
+        output <- testOutput
+      } yield assertTrue(
+        output ==
+          Vector(
+            s"${green("+")} simple suite\n",
+            s"  ${green("+")} spec 1 suite 1 test 1\n"
+          )
+      )
+    ),
+    test("renders suite names 1 time in plus-combined specs")(
+      for {
+        _      <- loadAndExecute(CombinedWithPlusSpec)
+        output <- testOutput
+      } yield assertTrue(output.length == 3) && (
+        // Look for more generic way of asserting on these lines that can be shuffled
+        assertTrue(
+          output ==
+            Vector(
+              s"${green("+")} spec A\n",
+              s"  ${green("+")} successful test\n",
+              s"  ${yellow("-")} ${yellow("failing test")} - ignored: 1\n"
+            )
+        ) || assertTrue(
+          output ==
+            Vector(
+              s"${green("+")} spec A\n",
+              s"  ${yellow("-")} ${yellow("failing test")} - ignored: 1\n",
+              s"  ${green("+")} successful test\n"
+            )
         )
       )
-    else
-      suite("test framework in a more ZIO-centric way")(
-        test("basic happy path")(
-          for {
-            _      <- loadAndExecute(SimpleSpec)
-            output <- testOutput
-          } yield assertTrue(
-            output ==
-              Vector(
-                s"${green("+")} simple suite\n",
-                s"  ${green("+")} spec 1 suite 1 test 1\n"
-              )
-          )
-        ),
-        test("renders suite names 1 time in plus-combined specs")(
-          for {
-            _      <- loadAndExecute(CombinedWithPlusSpec)
-            output <- testOutput
-          } yield assertTrue(output.length == 3) && (
-            // Look for more generic way of asserting on these lines that can be shuffled
-            assertTrue(
-              output ==
-                Vector(
-                  s"${green("+")} spec A\n",
-                  s"  ${green("+")} successful test\n",
-                  s"  ${yellow("-")} ${yellow("failing test")} - ignored: 1\n"
-                )
-            ) || assertTrue(
-              output ==
-                Vector(
-                  s"${green("+")} spec A\n",
-                  s"  ${yellow("-")} ${yellow("failing test")} - ignored: 1\n",
-                  s"  ${green("+")} successful test\n"
-                )
+    ),
+    test("renders suite names 1 time in commas-combined specs")(
+      for {
+        _      <- loadAndExecute(CombinedWithCommasSpec)
+        output <- testOutput
+      } yield assertTrue(output.length == 3) && (
+        // Look for more generic way of asserting on these lines that can be shuffled
+        assertTrue(
+          output ==
+            Vector(
+              s"${green("+")} spec A\n",
+              s"  ${green("+")} successful test\n",
+              s"  ${yellow("-")} ${yellow("failing test")} - ignored: 1\n"
             )
-          )
-        ),
-        test("renders suite names 1 time in commas-combined specs")(
-          for {
-            _      <- loadAndExecute(CombinedWithCommasSpec)
-            output <- testOutput
-          } yield assertTrue(output.length == 3) && (
-            // Look for more generic way of asserting on these lines that can be shuffled
-            assertTrue(
-              output ==
-                Vector(
-                  s"${green("+")} spec A\n",
-                  s"  ${green("+")} successful test\n",
-                  s"  ${yellow("-")} ${yellow("failing test")} - ignored: 1\n"
-                )
-            ) || assertTrue(
-              output ==
-                Vector(
-                  s"${green("+")} spec A\n",
-                  s"  ${yellow("-")} ${yellow("failing test")} - ignored: 1\n",
-                  s"  ${green("+")} successful test\n"
-                )
+        ) || assertTrue(
+          output ==
+            Vector(
+              s"${green("+")} spec A\n",
+              s"  ${yellow("-")} ${yellow("failing test")} - ignored: 1\n",
+              s"  ${green("+")} successful test\n"
             )
-          )
-        ),
-        test("displays timeouts")(
-          for {
-            _      <- loadAndExecute(TimeOutSpec)
-            output <- testOutput
-          } yield assertTrue(output.mkString("").contains("Timeout of 1 s exceeded.")) && assertTrue(output.length == 2)
-        ),
-        test("displays runtime exceptions helpfully")(
-          for {
-            _      <- loadAndExecute(RuntimeExceptionSpec)
-            output <- testOutput
-          } yield assertTrue(
-            output.mkString("").contains("Good luck ;)")
-          ) && assertTrue(output.length == 2)
-        ),
-        test("displays runtime exceptions during spec layer construction")(
-          for {
-            returnError <-
-              loadAndExecuteAllZ(Seq(SimpleSpec, RuntimeExceptionDuringLayerConstructionSpec)).flip
-          } yield assertTrue(returnError.exists(_.toString.contains("Other Kafka container already grabbed your port")))
-        ) @@ TestAspect.nonFlaky,
-        test("ensure shared layers are not re-initialized")(
-          for {
-            _ <- loadAndExecuteAllZ(
-                   Seq(FrameworkSpecInstances.Spec1UsingSharedLayer, FrameworkSpecInstances.Spec2UsingSharedLayer)
-                 )
-          } yield assertTrue(FrameworkSpecInstances.counter.get == 1)
-        ),
-        test("displays multi-colored lines")(
-          for {
-            _ <- loadAndExecuteAllZ(Seq(FrameworkSpecInstances.MultiLineSharedSpec))
-            output <-
-              testOutput
-            expected =
-              List(
-                s"  ${red("- multi-line test")}",
-                s"    ${Console.BLUE}Hello,"
-                //  TODO Figure out what non-printing garbage is breaking the next line
-                // s"${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
-                // s"    ${assertSourceLocation()}",
-                // s"""${ConsoleRenderer.render(Summary(0, 1, 0, ""))}"""
-              ).mkString("\n")
-          } yield assertTrue(output.mkString("").contains(expected))
-        ) @@ TestAspect.ignore,
-        test("only executes selected test") {
-          for {
-            _      <- loadAndExecute(FrameworkSpecInstances.SimpleFailingSharedSpec, testArgs = Array("-t", "passing test"))
-            output <- testOutput
-            expected =
-              List(
-                s"${green("+")} some suite\n",
-                s"  ${green("+")} passing test\n"
-              )
-
-          } yield assertTrue(output.equals(expected))
-        },
-        test("only execute test with specified tag") {
-          for {
-            _      <- loadAndExecute(FrameworkSpecInstances.TagsSpec, testArgs = Array("-tags", "IntegrationTest"))
-            output <- testOutput
-            expected =
-              List(
-                s"${green("+")} tag suite\n",
-                s"""  ${green("+")} integration test - tagged: "IntegrationTest"\n"""
-              )
-          } yield assertTrue(output.equals(expected))
-        },
-        test("do not execute test with ignored tag") {
-          for {
-            _      <- loadAndExecute(FrameworkSpecInstances.TagsSpec, testArgs = Array("-ignore-tags", "IntegrationTest"))
-            output <- testOutput
-            expected =
-              List(
-                s"${green("+")} tag suite\n",
-                s"""  ${green("+")} unit test - tagged: "UnitTest"\n"""
-              )
-          } yield assertTrue(output.equals(expected))
-        }
+        )
       )
-  }
+    ),
+    test("displays timeouts")(
+      for {
+        _      <- loadAndExecute(TimeOutSpec)
+        output <- testOutput
+      } yield assertTrue(output.mkString("").contains("Timeout of 1 s exceeded.")) && assertTrue(output.length == 2)
+    ),
+    test("displays runtime exceptions helpfully")(
+      for {
+        _      <- loadAndExecute(RuntimeExceptionSpec)
+        output <- testOutput
+      } yield assertTrue(
+        output.mkString("").contains("Good luck ;)")
+      ) && assertTrue(output.length == 2)
+    ),
+    test("displays runtime exceptions during spec layer construction")(
+      for {
+        returnError <-
+          loadAndExecuteAllZ(Seq(SimpleSpec, RuntimeExceptionDuringLayerConstructionSpec)).flip
+      } yield assertTrue(returnError.exists(_.toString.contains("Other Kafka container already grabbed your port")))
+    ) @@ TestAspect.nonFlaky,
+    test("ensure shared layers are not re-initialized")(
+      for {
+        _ <- loadAndExecuteAllZ(
+               Seq(FrameworkSpecInstances.Spec1UsingSharedLayer, FrameworkSpecInstances.Spec2UsingSharedLayer)
+             )
+      } yield assertTrue(FrameworkSpecInstances.counter.get == 1)
+    ),
+    test("displays multi-colored lines")(
+      for {
+        _ <- loadAndExecuteAllZ(Seq(FrameworkSpecInstances.MultiLineSharedSpec))
+        output <-
+          testOutput
+        expected =
+          List(
+            s"  ${red("- multi-line test")}",
+            s"    ${Console.BLUE}Hello,"
+            //  TODO Figure out what non-printing garbage is breaking the next line
+            // s"${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
+            // s"    ${assertSourceLocation()}",
+            // s"""${ConsoleRenderer.render(Summary(0, 1, 0, ""))}"""
+          ).mkString("\n")
+      } yield assertTrue(output.mkString("").contains(expected))
+    ) @@ TestAspect.ignore,
+    test("only executes selected test") {
+      for {
+        _      <- loadAndExecute(FrameworkSpecInstances.SimpleFailingSharedSpec, testArgs = Array("-t", "passing test"))
+        output <- testOutput
+        expected =
+          List(
+            s"${green("+")} some suite\n",
+            s"  ${green("+")} passing test\n"
+          )
+
+      } yield assertTrue(output.equals(expected))
+    },
+    test("only execute test with specified tag") {
+      for {
+        _      <- loadAndExecute(FrameworkSpecInstances.TagsSpec, testArgs = Array("-tags", "IntegrationTest"))
+        output <- testOutput
+        expected =
+          List(
+            s"${green("+")} tag suite\n",
+            s"""  ${green("+")} integration test - tagged: "IntegrationTest"\n"""
+          )
+      } yield assertTrue(output.equals(expected))
+    },
+    test("do not execute test with ignored tag") {
+      for {
+        _      <- loadAndExecute(FrameworkSpecInstances.TagsSpec, testArgs = Array("-ignore-tags", "IntegrationTest"))
+        output <- testOutput
+        expected =
+          List(
+            s"${green("+")} tag suite\n",
+            s"""  ${green("+")} unit test - tagged: "UnitTest"\n"""
+          )
+      } yield assertTrue(output.equals(expected))
+    }
+  )
 
   private val durationPattern = "Executed in (\\d+) (.*)".r
   private def extractTestRunDuration(output: Vector[String]): zio.Duration = {

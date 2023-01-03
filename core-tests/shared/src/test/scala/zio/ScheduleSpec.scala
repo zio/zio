@@ -382,7 +382,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           val afterTimeExpected = expected.withDayOfYear(expected.getDayOfYear + 1)
           equalTo(List(expected, afterTimeExpected, expected, afterTimeExpected))
         }
-      } @@ TestAspect.ignore, // TODO Remove when schedule is fixed
+      },
       test("throw IllegalArgumentException on invalid `hour` argument of `hourOfDay`") {
         val input = List(OffsetDateTime.now())
         for {
