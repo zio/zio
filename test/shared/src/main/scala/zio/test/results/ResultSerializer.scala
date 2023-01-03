@@ -4,34 +4,28 @@ import zio._
 import zio.test._
 
 trait ResultSerializer {
-  def render(executionEvent: ExecutionEvent): String
+  def render[E](executionEvent: ExecutionEvent.Test[E]): String
 }
 
 object ResultSerializer {
   val live: ULayer[ResultSerializer] = ZLayer.succeed(Json)
 
   object Json extends ResultSerializer {
-    def render(executionEvent: ExecutionEvent): String = executionEvent match {
-      case ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
-        s"""
-           |    {
-           |       "name" : "$fullyQualifiedName/${labelsReversed.reverse
-          .map(s => s.replace("/", "\\/"))
-          .mkString("/")}",
-           |       "status" : "${jsonify(test)}",
-           |       "durationMillis" : "$duration",
-           |       "annotations" : "${jsonify(annotations)}",
-           |       "fullyQualifiedClassName" : "$fullyQualifiedName",
-           |       "labels" : ["${labelsReversed.reverse.map(s => s.replace("/", "\\/")).mkString("\", \"")}"]
-           |    },""".stripMargin
-      case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
-        ""
-      case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) =>
-        ""
-      case ExecutionEvent.TopLevelFlush(id) => "TODO TopLevelFlush"
-      case ExecutionEvent.RuntimeFailure(id, labelsReversed, failure, ancestors) =>
-        "TODO RuntimeFailure"
-    }
+    def render[E](executionEvent: ExecutionEvent.Test[E]): String =
+      executionEvent match {
+        case ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
+          s"""
+             |    {
+             |       "name" : "$fullyQualifiedName/${labelsReversed.reverse
+            .map(s => s.replace("/", "\\/"))
+            .mkString("/")}",
+             |       "status" : "${jsonify(test)}",
+             |       "durationMillis" : "$duration",
+             |       "annotations" : "${jsonify(annotations)}",
+             |       "fullyQualifiedClassName" : "$fullyQualifiedName",
+             |       "labels" : ["${labelsReversed.reverse.map(s => s.replace("/", "\\/")).mkString("\", \"")}"]
+             |    },""".stripMargin
+      }
 
     private def jsonify[E](test: Either[TestFailure[E], TestSuccess]): String =
       test match {

@@ -120,7 +120,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
             )
         )
       summary <-
-        runner.run("TODO Real name here", aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
+        runner.run("Test Task name not available here", aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
     } yield summary
   }
 
