@@ -3,58 +3,20 @@ package zio.test.results
 import zio._
 
 import java.io.IOException
-import java.nio.file.Path
+import scala.io.Source
 
 private[test] trait ResultFileOpsJson {
-  // TODO Guarantee that file has been created by the time you are able to call this
   def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit]
 }
 
 private[test] object ResultFileOpsJson {
   val live: ZLayer[Any, Nothing, ResultFileOpsJson] =
     ZLayer.scoped(
-      ZIO.acquireRelease(
-        for {
-          reentrantLockImposter <- Ref.Synchronized.make[Unit](())
-          instance               = Live("target/test-reports-zio/output.json", reentrantLockImposter)
-          _                     <- instance.makeOutputDirectory.orDie
-          _                     <- instance.writeJsonPreamble
-        } yield instance
-      )(instance => instance.closeJson.orDie)
+      Live.apply
     )
-
-  val test: ZLayer[Any, Throwable, Path with Live] =
-    ZLayer.fromZIO {
-      for {
-        reentrantLockImposter <- Ref.Synchronized.make[Unit](())
-        result <- ZIO
-                    .attempt(
-                      java.nio.file.Files.createTempFile("zio-test", ".json")
-                    )
-                    .map(path => (path, Live(path.toString, reentrantLockImposter)))
-      } yield result
-    }.flatMap(tup => ZLayer.succeed(tup.get._1) ++ ZLayer.succeed(tup.get._2))
 }
 
 private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) extends ResultFileOpsJson {
-  val makeOutputDirectory = ZIO.attempt {
-    import java.nio.file.{Files, Paths}
-
-    val fp = Paths.get(resultPath)
-    Files.createDirectories(fp.getParent)
-  }.unit
-
-  def closeJson: ZIO[Any, Throwable, Unit] =
-    removeTrailingComma *>
-      write("\n  ]\n}", append = true).orDie
-
-  def writeJsonPreamble: URIO[Any, Unit] =
-    write(
-      """|{
-         |  "results": [""".stripMargin,
-      append = false
-    ).orDie
-
   def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit] =
     lock.updateZIO(_ =>
       ZIO
@@ -66,23 +28,59 @@ private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) 
         .ignore
     )
 
-  import java.io._
-  private val removeTrailingComma: ZIO[Any, Throwable, Unit] = ZIO.attempt {
-    val file = new RandomAccessFile(resultPath, "rw")
-    // Move the file pointer to the last character
-    file.seek(file.length - 1)
-    // Read backwards from the end of the file until we find a non-whitespace character
-    var c = 0
-    c = file.read
-    while ({
-      Character.isWhitespace(c) && c < 0
-    }) {
-      file.seek(file.getFilePointer - 2)
-      c = file.read
-    }
-    // If the non-whitespace character is a comma, remove it
-    if (c == ',') file.setLength(file.length - 1)
-    file.close()
-  }
+  private val makeOutputDirectory = ZIO.attempt {
+    import java.nio.file.{Files, Paths}
 
+    val fp = Paths.get(resultPath)
+    Files.createDirectories(fp.getParent)
+  }.unit
+
+  private def closeJson: ZIO[Any, Throwable, Unit] =
+    removeLastComma *>
+      write("\n  ]\n}", append = true).orDie
+
+  private def writeJsonPreamble: URIO[Any, Unit] =
+    write(
+      """|{
+         |  "results": [""".stripMargin,
+      append = false
+    ).orDie
+
+  import scala.util.Using
+
+  private val removeLastComma =
+    for {
+      newLines <- ZIO.fromTry {
+        Using(Source.fromFile(resultPath)) { source =>
+          val lines = source.getLines().toList
+          if (lines.nonEmpty) {
+            val lastLine = lines.last
+            if (lastLine.endsWith(",")) {
+              val newLastLine = lastLine.dropRight(1)
+              lines.init :+ newLastLine
+            } else {
+              lines
+            }
+          } else {
+            lines
+          }
+        }
+      }
+      firstLine :: rest = newLines
+      _ <- write(firstLine + "\n", append = false)
+      _ <- ZIO.foreach(rest)(line => write(line + "\n", append = true))
+    } yield ()
+
+}
+
+object Live {
+  def apply: ZIO[Scope, Nothing, Live] =
+    ZIO.acquireRelease(
+      for {
+        fileLock <- Ref.Synchronized.make[Unit](())
+        instance               = Live("target/test-reports-zio/output.json", fileLock)
+        _                     <- instance.makeOutputDirectory.orDie
+        _                     <- instance.writeJsonPreamble
+      } yield instance
+    )(instance => instance.closeJson.orDie)
 }

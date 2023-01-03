@@ -9,7 +9,7 @@ object ResultSerializerSpec extends zio.test.ZIOSpecDefault {
     suite("ResultSerializerSpec")(
       suite("full")(test("test") {
         val input = ExecutionEvent.Test(
-          List("testName", "suiteName"),
+          List("test/Name", "suiteName"),
           Right(TestSuccess.Succeeded()),
           TestAnnotationMap.empty,
           List(SuiteId(1)),
@@ -21,12 +21,12 @@ object ResultSerializerSpec extends zio.test.ZIOSpecDefault {
           ResultSerializer.Json.render(input) ==
             """
               |    {
-              |       "name" : "dev.zio/suiteName/testName",
+              |       "name" : "dev.zio/suiteName/test\/Name",
               |       "status" : "Success",
               |       "durationMillis" : "1",
               |       "annotations" : "",
               |       "fullyQualifiedClassName" : "dev.zio",
-              |       "labels" : ["suiteName", "testName"]
+              |       "labels" : ["suiteName", "test\/Name"]
               |    },""".stripMargin
         )
       }),

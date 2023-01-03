@@ -5,7 +5,7 @@ import zio.{ExecutionStrategy, UIO}
 object TestUtils {
 
   def execute[E](spec: Spec[TestEnvironment, E]): UIO[Summary] =
-    defaultTestRunner.executor.run("TODO Real name here", spec, ExecutionStrategy.Sequential)
+    defaultTestRunner.executor.run("hardcoded.TestUtils.name", spec, ExecutionStrategy.Sequential)
 
   def isIgnored[E](spec: Spec[TestEnvironment, E]): UIO[Boolean] =
     execute(spec)

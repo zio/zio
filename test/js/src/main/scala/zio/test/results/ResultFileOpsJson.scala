@@ -6,7 +6,6 @@ import java.io.IOException
 import java.nio.file.Path
 
 private[test] trait ResultFileOpsJson {
-  // TODO Guarantee that file has been created by the time you are able to call this
   def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit]
 }
 

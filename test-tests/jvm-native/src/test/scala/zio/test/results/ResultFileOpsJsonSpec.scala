@@ -13,7 +13,7 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
         _ <- writeToTestFile("a")
         results <- readFile
       } yield assertTrue(results == List("a"))
-    ).provide(ResultFileOpsJson.test),
+    ).provide(test),
     test("clobbered concurrent writes") {
       val linesToWrite =
         List(
@@ -31,7 +31,7 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
         results <- readFile
       } yield assertTrue(linesToWrite.forall(results.contains))
     }
-      .provide(ResultFileOpsJson.test)
+      .provide(test)
       @@ TestAspect.nonFlaky,
     test("generated concurrent writes clean") {
       checkN(10)(Gen.listOfN(3)(Gen.alphaNumericStringBounded(0, 700))) { linesToWrite =>
@@ -43,7 +43,7 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
           results <- readFile
         } yield assertTrue(linesToWrite.forall(results.contains))
       }
-    }.provide(ResultFileOpsJson.test)
+    }.provide(test)
   )
 
   private def writeToTestFile(content: String) =
@@ -59,4 +59,15 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
                }.orDie
     } yield lines
 
+  val test: ZLayer[Any, Throwable, Path with zio.test.results.Live] =
+    ZLayer.fromZIO {
+      for {
+        fileLock <- Ref.Synchronized.make[Unit](())
+        result <- ZIO
+          .attempt(
+            java.nio.file.Files.createTempFile("zio-test", ".json")
+          )
+          .map(path => (path, zio.test.results.Live(path.toString, fileLock)))
+      } yield result
+    }.flatMap(tup => ZLayer.succeed(tup.get._1) ++ ZLayer.succeed(tup.get._2))
 }

@@ -15,12 +15,12 @@ object ResultSerializer {
       case ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
         s"""
            |    {
-           |       "name" : "$fullyQualifiedName/${labelsReversed.reverse.mkString("/")}",
+           |       "name" : "$fullyQualifiedName/${labelsReversed.reverse.map(s => s.replace("/", "\\/")).mkString("/")}",
            |       "status" : "${jsonify(test)}",
            |       "durationMillis" : "$duration",
            |       "annotations" : "${jsonify(annotations)}",
            |       "fullyQualifiedClassName" : "$fullyQualifiedName",
-           |       "labels" : ["${labelsReversed.reverse.mkString("\", \"")}"]
+           |       "labels" : ["${labelsReversed.reverse.map(s => s.replace("/", "\\/")).mkString("\", \"")}"]
            |    },""".stripMargin
       case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
         ""
