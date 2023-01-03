@@ -3789,11 +3789,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               val content = chunks.flatMap(_.toList)
               ZIO.scoped {
                 ZStream.fromChunks(chunks: _*).toInputStream.flatMap[Scope, Throwable, TestResult] { is =>
-                  ZIO.succeedNow(
-                    assert(Iterator.continually(is.read()).takeWhile(_ != -1).map(_.toByte).toList)(
-                      equalTo(content)
-                    )
-                  )
+                  val combined = Iterator.continually(is.read()).takeWhile(_ != -1).map(_.toByte).toList
+                  ZIO.succeedNow(assert(combined)(equalTo(content)))
                 }
               }
             }
@@ -3951,11 +3948,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               val content = chunks.flatMap(_.toList)
               ZIO.scoped {
                 ZStream.fromChunks(chunks: _*).toReader.flatMap[Scope, Throwable, TestResult] { reader =>
-                  ZIO.succeedNow(
-                    assert(Iterator.continually(reader.read()).takeWhile(_ != -1).map(_.toChar).toList)(
-                      equalTo(content)
-                    )
-                  )
+                  val combined = Iterator.continually(reader.read()).takeWhile(_ != -1).map(_.toChar).toList
+                  ZIO.succeedNow(assert(combined)(equalTo(content)))
                 }
               }
             }
