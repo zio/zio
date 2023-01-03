@@ -1,20 +1,13 @@
 package zio.test.results
 
 import zio.ZIO
+import zio.test._
 
 import java.nio.file.Path
 
 object ResultFileOpsJsonSpec extends ZIOSpecDefault {
   // TODO Can we provide an alternative of suite that defaults to using the class name?
   def spec = suite("ResultFileOpsJsonSpec")(
-    suite("a")(
-      suite("a1")(
-        test("b")(assertCompletes)
-      )
-    ),
-    suite("a")(
-      test("a1/b")(assertCompletes)
-    ),
     test("simple write") {
       for {
         _ <-
