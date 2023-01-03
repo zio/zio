@@ -1,6 +1,6 @@
 package zio.test.results
 
-import zio._
+import zio.{ZIO, ZLayer}
 import zio.test._
 
 /**
@@ -9,17 +9,15 @@ import zio.test._
  * overwritten.
  */
 private[test] object ExecutionEventJsonPrinter {
-  val live: ZLayer[ResultSerializer with ResultFileOpsJson, Nothing, Live] = {
-    ZLayer.debug("Using ScalaJS, so we will not write results to file") >>>
-      ZLayer.fromFunction(
-        LiveImpl(_, _)
-      )
-  }
+  val live: ZLayer[ResultSerializer with ResultFileOpsJson, Nothing, Live] =
+    ZLayer.fromFunction(
+      LiveImpl(_, _)
+    )
 
   trait Live extends ExecutionEventPrinter
 
   case class LiveImpl(serializer: ResultSerializer, resultFileOps: ResultFileOpsJson) extends Live {
     override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] =
-      ZIO.unit
+      resultFileOps.write(serializer.render(event), append = true).orDie
   }
 }

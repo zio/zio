@@ -1,7 +1,7 @@
 package zio.test.results
 
-import zio._
 import zio.test._
+import zio.{ZIO, ZLayer}
 
 /**
  * Determines test results are written for later analysis. TODO Figure out what
@@ -13,10 +13,6 @@ private[test] object ExecutionEventJsonPrinter {
     ZLayer.fromFunction(
       LiveImpl(_, _)
     )
-
-  object NoOp extends Live {
-    override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] = ZIO.unit
-  }
 
   trait Live extends ExecutionEventPrinter
 

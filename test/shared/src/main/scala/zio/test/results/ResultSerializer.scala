@@ -17,7 +17,7 @@ object ResultSerializer {
            |    {
            |       "name" : "$fullyQualifiedName/${labelsReversed.reverse.mkString("/")}",
            |       "status" : "${jsonify(test)}",
-           |       "durationMillis" : "${duration}",
+           |       "durationMillis" : "$duration",
            |       "annotations" : "${jsonify(annotations)}",
            |       "fullyQualifiedClassName" : "$fullyQualifiedName",
            |       "labels" : ["${labelsReversed.reverse.mkString("\", \"")}"]
