@@ -163,7 +163,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-Know we can run the above workflow and see this output:
+Now we can run the above workflow and see this output:
 
 ```
 Application started with following configuration:
@@ -228,7 +228,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-Until know, we made our RESTful web service configurable to be able to use its config from the ZIO environment with a simple configuration layer.
+Until now, we made our RESTful web service configurable to be able to use its config from the ZIO environment with a simple configuration layer.
 
 Now let's move on to the next step: defining a real layer for our configuration data type.
 

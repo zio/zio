@@ -270,7 +270,7 @@ var zioProjects = [
     {
         name: 'ZIO Logging',
         routeBasePath: 'zio-logging',
-        sidebarPath: 'sidebar.js'
+        sidebarPath: 'sidebars.js'
     },
     {
         name: 'ZIO Metrics Connectors',

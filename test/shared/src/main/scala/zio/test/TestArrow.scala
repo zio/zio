@@ -3,9 +3,11 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.language.implicitConversions
-import zio.{Trace, ZIO}
+import zio.{ChunkBuilder, Trace, ZIO}
 import zio.internal.stacktracer.SourceLocation
+import zio.test.Assertion.Arguments
 
+import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
 case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
@@ -57,6 +59,41 @@ object TestResult {
 }
 
 sealed trait TestArrow[-A, +B] { self =>
+
+  def render: String = {
+    val builder = ChunkBuilder.make[String]()
+
+    @tailrec
+    def loop(arrows: List[Either[String, TestArrow[_, _]]]): Unit =
+      if (arrows.nonEmpty) {
+        arrows.head match {
+          case Right(TestArrow.And(left, right)) =>
+            loop(Right(left) :: Left(" and ") :: Right(right) :: arrows.tail)
+          case Right(TestArrow.Or(left, right)) =>
+            loop(Right(left) :: Left(" or ") :: Right(right) :: arrows.tail)
+          case Right(TestArrow.Not(arrow)) =>
+            loop(Left("not ") :: Right(arrow) :: arrows.tail)
+          case Right(TestArrow.AndThen(left, right)) =>
+            loop(Right(left) :: Left("(") :: Right(right) :: Left(")") :: arrows.tail)
+          case Right(arrow: TestArrow.Meta[_, _]) =>
+            builder += arrow.code.mkString
+            loop(arrows.tail)
+          case Right(arrow @ TestArrow.TestArrowF(_)) =>
+            builder += arrow.toString
+            loop(arrows.tail)
+          case Right(arrow @ TestArrow.Suspend(_)) =>
+            builder += arrow.toString
+            loop(arrows.tail)
+          case Left(str) =>
+            builder += str
+            loop(arrows.tail)
+        }
+      }
+
+    loop(List(Right(self)))
+    builder.result.mkString
+  }
+
   def ??(message: String): TestArrow[A, B] = self.label(message)
 
   def label(message: String): TestArrow[A, B] = self.meta(customLabel = Some(message))
@@ -101,8 +138,8 @@ sealed trait TestArrow[-A, +B] { self =>
   def span(span: (Int, Int)): TestArrow[A, B] =
     meta(span = Some(Span(span._1, span._2)))
 
-  def withCode(code: String): TestArrow[A, B] =
-    meta(code = Some(code))
+  def withCode(code: String, arguments: Arguments*): TestArrow[A, B] =
+    meta(code = if (arguments.nonEmpty) Some(s"$code(${arguments.mkString(", ")})") else Some(code))
 
   def withCompleteCode(completeCode: String): TestArrow[A, B] =
     meta(completeCode = Some(completeCode))

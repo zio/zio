@@ -360,6 +360,18 @@ object ZIOSpec extends ZIOBaseSpec {
         assertZIO(ZIO.collectAllParDiscard(tasks).withParallelism(5).flip)(anything)
       }
     ),
+    suite("collectAllSuccesses")(
+      test("propagates defects") {
+        val tasks = List(ZIO.unit, ZIO.fail("fail"), ZIO.dieMessage("die"))
+        assertZIO(ZIO.collectAllSuccesses(tasks).exit)(dies(hasMessage(equalTo("die"))))
+      }
+    ),
+    suite("collectAllSuccessesPar")(
+      test("propagates defects") {
+        val tasks = List(ZIO.unit, ZIO.fail("fail"), ZIO.dieMessage("die"))
+        assertZIO(ZIO.collectAllSuccessesPar(tasks).exit)(dies(hasMessage(equalTo("die"))))
+      }
+    ),
     suite("collectFirst")(
       test("collects the first value for which the effectual functions returns Some") {
         check(Gen.listOf(Gen.int), Gen.partialFunction(Gen.int)) { (as, pf) =>

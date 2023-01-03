@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2023 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -522,7 +522,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
         def loop(throwable: Throwable, trace: StackTrace, result: List[Unified]): List[Unified] = {
           val extra =
             if (stackless) Chunk.empty
-            else Chunk.fromArray(throwable.getStackTrace.takeWhile(!_.getClassName.startsWith("zio.")))
+            else Chunk.fromArray(throwable.getStackTrace.takeWhile(_.getClassName != "zio.internal.FiberRuntime"))
 
           val unified =
             Unified(trace.fiberId, throwable.getClass.getName(), throwable.getMessage(), extra ++ trace.toJava)

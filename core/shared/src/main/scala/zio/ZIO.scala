@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2023 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2941,7 +2941,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def collectAllSuccesses[R, E, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[ZIO[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]], trace: Trace): URIO[R, Collection[A]] =
-    collectAllWith(in.map(_.exit)) { case zio.Exit.Success(a) => a }.map(bf.fromSpecific(in))
+    collectAllWith(in.map(_.either)) { case Right(a) => a }.map(bf.fromSpecific(in))
 
   /**
    * Evaluate and run each effect in the structure in parallel, and collect
@@ -2950,7 +2950,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def collectAllSuccessesPar[R, E, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[ZIO[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]], trace: Trace): URIO[R, Collection[A]] =
-    collectAllWithPar(in.map(_.exit)) { case zio.Exit.Success(a) => a }.map(bf.fromSpecific(in))
+    collectAllWithPar(in.map(_.either)) { case Right(a) => a }.map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure with `collectAll`, and collect the

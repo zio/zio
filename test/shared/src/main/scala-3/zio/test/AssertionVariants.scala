@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2023 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{ErrorMessage => M}
+import zio.test.Assertion.Arguments.valueArgument
 
 trait AssertionVariants {
 
@@ -29,14 +30,14 @@ trait AssertionVariants {
       TestArrow
         .make[A, Boolean] { actual =>
           val result = (actual, expected) match {
-            case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
+            case (left: Array[_], right: Array[_])         => left.sameElements[Any](right)
             case (left: CharSequence, right: CharSequence) => left.toString == right.toString
-            case (left, right)                     => left == right
+            case (left, right)                             => left == right
           }
           TestTrace.boolean(result) {
             M.pretty(actual) + M.equals + M.pretty(expected)
           }
         }
-        .withCode("equalTo")
+        .withCode("equalTo", valueArgument(expected))
     )
 }

@@ -153,7 +153,16 @@ object FiberSpec extends ZIOBaseSpec {
           _     <- ref.set(-1)
           value <- ref.get
         } yield assertTrue(value == -1)
-      }
+      },
+      test("current fiber") {
+        Unsafe.unsafe { implicit unsafe =>
+          for {
+            runtime      <- ZIO.runtime[Any]
+            _            <- ZIO.succeed(runtime.unsafe.run(ZIO.unit))
+            currentFiber <- ZIO.succeed(Fiber.currentFiber())
+          } yield assertTrue(currentFiber.isDefined)
+        }
+      } @@ TestAspect.fromLayer(Runtime.enableCurrentFiber)
     )
 
   val (initial, update)                            = ("initial", "update")

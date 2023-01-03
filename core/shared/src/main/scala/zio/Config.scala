@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 John A. De Goes and the ZIO Contributors
+ * Copyright 2022-2023 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -333,7 +333,7 @@ object Config {
 
   def bigInt: Config[BigInt] = Integer
 
-  def bigInt(name: String): Config[BigInt] = Integer.nested(name)
+  def bigInt(name: String): Config[BigInt] = bigInt.nested(name)
 
   def boolean: Config[Boolean] = Bool
 
@@ -370,11 +370,11 @@ object Config {
 
   def localDate: Config[java.time.LocalDate] = LocalDate
 
-  def localDate(name: String): Config[java.time.LocalDate] = LocalDate.nested(name)
+  def localDate(name: String): Config[java.time.LocalDate] = localDate.nested(name)
 
   def localDateTime: Config[java.time.LocalDateTime] = LocalDateTime
 
-  def localDateTime(name: String): Config[java.time.LocalDateTime] = LocalDateTime.nested(name)
+  def localDateTime(name: String): Config[java.time.LocalDateTime] = localDateTime.nested(name)
 
   def localTime: Config[java.time.LocalTime] = LocalTime
 
