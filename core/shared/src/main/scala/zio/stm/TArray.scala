@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.Chunk
+import zio.{Chunk, Unsafe}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -415,6 +415,11 @@ object TArray {
    * Makes a new `TArray` that is initialized with specified values.
    */
   def make[A](data: A*): USTM[TArray[A]] = fromIterable(data)
+
+  object unsafe {
+    def make[A](data: A*)(implicit unsafe: Unsafe): TArray[A] =
+      new TArray(data.map(TRef.unsafeMake(_)).toArray)
+  }
 
   /**
    * Makes an empty `TArray`.

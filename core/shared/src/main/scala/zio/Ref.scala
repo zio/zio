@@ -145,7 +145,7 @@ object Ref extends Serializable {
   def make[A](a: => A)(implicit trace: Trace): UIO[Ref[A]] =
     ZIO.succeed(unsafe.make(a)(Unsafe.unsafe))
 
-  private[zio] object unsafe {
+  object unsafe {
     def make[A](a: A)(implicit unsafe: Unsafe): Ref.Atomic[A] =
       Atomic(new AtomicReference(a))
   }

@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.{Scope, UIO, ZIO, Trace}
+import zio.{Scope, UIO, Unsafe, Trace, ZIO}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -195,4 +195,9 @@ object TSemaphore {
    */
   def makeCommit(permits: => Long)(implicit trace: Trace): UIO[TSemaphore] =
     make(permits).commit
+
+  object unsafe {
+    def make(permits: Long)(implicit unsafe: Unsafe): TSemaphore =
+      new TSemaphore(TRef.unsafeMake(permits))
+  }
 }

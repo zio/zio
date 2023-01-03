@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.{UIO, Trace}
+import zio.{Trace, UIO, Unsafe}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM.internal._
 
@@ -177,6 +177,11 @@ object TRef {
    */
   def makeCommit[A](a: => A)(implicit trace: Trace): UIO[TRef[A]] =
     STM.atomically(make(a))
+
+  object unsafe {
+    def make[A](a: A)(implicit unsafe: Unsafe): TRef[A] =
+      TRef.unsafeMake(a)
+  }
 
   private[stm] def unsafeMake[A](a: A): TRef[A] = {
     val value     = a

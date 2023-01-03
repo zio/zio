@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.{Chunk, NonEmptyChunk}
+import zio.{Chunk, NonEmptyChunk, Unsafe}
 
 /**
  * Transactional set implemented on top of [[TMap]].
@@ -190,4 +190,9 @@ object TSet {
    * Makes a new `TSet` that is initialized with specified values.
    */
   def make[A](data: A*): USTM[TSet[A]] = fromIterable(data)
+
+  object unsafe {
+    def make[A](data: A*)(implicit unsafe: Unsafe): TSet[A] =
+      new TSet(TMap.unsafe.make(data.map((_, ())): _*))
+  }
 }
