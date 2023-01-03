@@ -4,17 +4,16 @@ import zio._
 import zio.test._
 
 import java.nio.file.Path
+import scala.util.Using
 
 object ResultFileOpsJsonSpec extends ZIOSpecDefault {
   def spec = suite("ResultFileOpsJsonSpec")(
     test("simple write")(
       for {
-        _ <-
-          ZIO.serviceWithZIO[ResultFileOpsJson](_.write("a", append = false))
+        _ <- writeToTestFile("a")
         results <- readFile
       } yield assertTrue(results == List("a"))
-    )
-      .provide(ResultFileOpsJson.test),
+    ).provide(ResultFileOpsJson.test),
     test("clobbered concurrent writes") {
       val linesToWrite =
         List(
@@ -26,13 +25,11 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
         ).map(_ * 100)
       for {
         _ <-
-          ZIO.serviceWithZIO[ResultFileOpsJson] { instance =>
-            ZIO.foreachPar(
-              linesToWrite
-            )(x => instance.write(x + "\n", append = true))
-          }
+          ZIO.foreachPar(
+            linesToWrite
+          )(writeToTestFile)
         results <- readFile
-      } yield assertTrue(linesToWrite.forall(results.contains(_)))
+      } yield assertTrue(linesToWrite.forall(results.contains))
     }
       .provide(ResultFileOpsJson.test)
       @@ TestAspect.nonFlaky,
@@ -40,24 +37,26 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
       checkN(10)(Gen.listOfN(3)(Gen.alphaNumericStringBounded(0, 700))) { linesToWrite =>
         for {
           _ <-
-            ZIO.serviceWithZIO[ResultFileOpsJson] { instance =>
               ZIO.foreachPar(
                 linesToWrite
-              )(x => instance.write(x + "\n", append = true))
-            }
+              )(writeToTestFile)
           results <- readFile
-        } yield assertTrue(linesToWrite.forall(results.contains(_)))
+        } yield assertTrue(linesToWrite.forall(results.contains))
       }
     }.provide(ResultFileOpsJson.test)
   )
 
-  val readFile: ZIO[Path, Nothing, List[String]] = {
+  private def writeToTestFile(content: String) =
+    ZIO.serviceWithZIO[ResultFileOpsJson](_.write(content + "\n", append = true))
+
+  val readFile: ZIO[Path, Nothing, List[String]] =
     for {
       tmpFilePath <- ZIO.service[Path]
       lines <- ZIO.attempt {
-                 import scala.io.Source
-                 Source.fromFile(tmpFilePath.toString()).getLines().toList
+                 Using(scala.io.Source.fromFile(tmpFilePath.toString)) { source =>
+                   source.getLines().toList
+                 }.get
                }.orDie
     } yield lines
-  }
+
 }
