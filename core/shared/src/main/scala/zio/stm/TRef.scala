@@ -162,14 +162,7 @@ object TRef {
    * Makes a new `TRef` that is initialized to the specified value.
    */
   def make[A](a: => A): USTM[TRef[A]] =
-    ZSTM.Effect { (journal, _, _) =>
-      val value     = a
-      val versioned = new Versioned(value)
-      val todo      = new AtomicReference[Map[TxnId, Todo]](Map())
-      val tref      = new TRef(versioned, todo)
-      journal.put(tref, Entry(tref, true))
-      tref
-    }
+    ZSTM.succeed(unsafe.make(a)(Unsafe.unsafe))
 
   /**
    * A convenience method that makes a `TRef` and immediately commits the

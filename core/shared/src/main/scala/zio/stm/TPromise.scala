@@ -43,7 +43,7 @@ final class TPromise[E, A] private (val ref: TRef[Option[Either[E, A]]]) extends
 
 object TPromise {
   def make[E, A]: USTM[TPromise[E, A]] =
-    TRef.make[Option[Either[E, A]]](None).map(ref => new TPromise(ref))
+    ZSTM.succeed(unsafe.make()(Unsafe.unsafe))
 
   object unsafe {
     def make[E, A]()(implicit unsafe: Unsafe): TPromise[E, A] =

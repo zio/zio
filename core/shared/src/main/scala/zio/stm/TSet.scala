@@ -178,18 +178,20 @@ object TSet {
   /**
    * Makes an empty `TSet`.
    */
-  def empty[A]: USTM[TSet[A]] = fromIterable(Nil)
+  def empty[A]: USTM[TSet[A]] =
+    fromIterable(Nil)
 
   /**
    * Makes a new `TSet` initialized with provided iterable.
    */
   def fromIterable[A](data: => Iterable[A]): USTM[TSet[A]] =
-    TMap.fromIterable(data.map((_, ()))).map(new TSet(_))
+    make(data.toSeq: _*)
 
   /**
    * Makes a new `TSet` that is initialized with specified values.
    */
-  def make[A](data: A*): USTM[TSet[A]] = fromIterable(data)
+  def make[A](data: A*): USTM[TSet[A]] =
+    ZSTM.succeed(unsafe.make(data: _*)(Unsafe.unsafe))
 
   object unsafe {
     def make[A](data: A*)(implicit unsafe: Unsafe): TSet[A] =

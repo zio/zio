@@ -270,7 +270,7 @@ object TReentrantLock {
    * Makes a new reentrant read/write lock.
    */
   def make: USTM[TReentrantLock] =
-    TRef.make[LockState](ReadLock.empty).map(new TReentrantLock(_))
+    ZSTM.succeed(unsafe.make()(Unsafe.unsafe))
 
   object unsafe {
     def make()(implicit unsafe: Unsafe): TReentrantLock =

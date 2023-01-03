@@ -187,7 +187,7 @@ object TSemaphore {
    * Constructs a new `TSemaphore` with the specified number of permits.
    */
   def make(permits: => Long)(implicit trace: Trace): USTM[TSemaphore] =
-    TRef.make(permits).map(v => new TSemaphore(v))
+    ZSTM.succeed(unsafe.make(permits)(Unsafe.unsafe))
 
   /**
    * Constructs a new `TSemaphore` with the specified number of permits,

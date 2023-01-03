@@ -414,7 +414,8 @@ object TArray {
   /**
    * Makes a new `TArray` that is initialized with specified values.
    */
-  def make[A](data: A*): USTM[TArray[A]] = fromIterable(data)
+  def make[A](data: A*): USTM[TArray[A]] =
+    STM.succeed(unsafe.make(data: _*)(Unsafe.unsafe))
 
   object unsafe {
     def make[A](data: A*)(implicit unsafe: Unsafe): TArray[A] =
@@ -424,11 +425,12 @@ object TArray {
   /**
    * Makes an empty `TArray`.
    */
-  def empty[A]: USTM[TArray[A]] = fromIterable(Nil)
+  def empty[A]: USTM[TArray[A]] =
+    fromIterable(Nil)
 
   /**
    * Makes a new `TArray` initialized with provided iterable.
    */
   def fromIterable[A](data: => Iterable[A]): USTM[TArray[A]] =
-    STM.suspend(STM.foreach(data)(TRef.make(_)).map(list => new TArray(list.toArray)))
+    make(data.toSeq: _*)
 }
