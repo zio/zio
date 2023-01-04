@@ -46,7 +46,7 @@ private[zio] class WeakConcurrentBag[A](nurserySize: Int, isAlive: A => Boolean)
       if (value == null) {
         graduates.remove(weakRef) // TODO: Reuse weakref
       } else {
-        if (!isAlive(value)) graduates.remove(weakRef) 
+        if (!isAlive(value)) graduates.remove(weakRef)
       }
     }
   }
