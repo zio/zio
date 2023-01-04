@@ -48,7 +48,7 @@ private[test] object ResultFileOpsJson {
     private val removeLastComma =
       for {
         source <- ZIO.succeed(Source.fromFile(resultPath))
-        firstLine :: rest = {
+        updatedLines = {
           val lines = source.getLines().toList
           if (lines.nonEmpty && lines.last.endsWith(",")) {
             val lastLine    = lines.last
@@ -58,9 +58,14 @@ private[test] object ResultFileOpsJson {
             lines
           }
         }
-        _ <- write(firstLine + "\n", append = false)
-        _ <- ZIO.foreach(rest)(line => write(line + "\n", append = true))
-        _ <- ZIO.addFinalizer(ZIO.attempt(source.close()).orDie)
+        _ <- ZIO.when(updatedLines.nonEmpty) {
+               val firstLine :: rest = updatedLines
+               for {
+                 _ <- write(firstLine + "\n", append = false)
+                 _ <- ZIO.foreach(rest)(line => write(line + "\n", append = true))
+                 _ <- ZIO.addFinalizer(ZIO.attempt(source.close()).orDie)
+               } yield ()
+             }
       } yield ()
 
   }
