@@ -665,14 +665,17 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch2 <- Promise.make[Nothing, Unit]
               latch3 <- Promise.make[Nothing, Unit]
               latch4 <- Promise.make[Nothing, Unit]
+              latch5 <- Promise.make[Nothing, Unit]
               s1 = ZStream(0) ++ ZStream
                      .fromZIO(latch1.await)
                      .flatMap(_ => ZStream.range(1, 17).rechunk(1).ensuring(latch2.succeed(())))
               s2 = ZStream
                      .fromZIO(latch3.await)
-                     .flatMap(_ => ZStream.range(17, 25).rechunk(1).ensuring(latch4.succeed(())))
-              s3 = ZStream(-1)
-              s  = (s1 ++ s2 ++ s3).bufferChunksSliding(8)
+                     .flatMap(_ => ZStream.range(17, 26).rechunk(1).ensuring(latch4.succeed(())))
+              s3 = ZStream
+                     .fromZIO(latch5.await)
+                     .flatMap(_ => ZStream(-1))
+              s = (s1 ++ s2 ++ s3).bufferChunksSliding(8)
               snapshots <- ZIO.scoped {
                              s.toPull.flatMap { as =>
                                for {
@@ -692,7 +695,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               equalTo(List(16, 15, 14, 13, 12, 11, 10, 9))
             ) &&
               assert(snapshots._3)(
-                equalTo(List(-1, 24, 23, 22, 21, 20, 19, 18, 16, 15, 14, 13, 12, 11, 10, 9))
+                equalTo(List(25, 24, 23, 22, 21, 20, 19, 18, 16, 15, 14, 13, 12, 11, 10, 9))
               )
           }
         ),
