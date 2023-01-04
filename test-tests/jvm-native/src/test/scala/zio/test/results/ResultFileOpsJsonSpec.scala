@@ -58,7 +58,7 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
                }.orDie
     } yield lines
 
-  val test: ZLayer[Any, Throwable, Path with zio.test.results.Live] =
+  val test: ZLayer[Any, Throwable, Path with ResultFileOpsJson.Live] =
     ZLayer.fromZIO {
       for {
         fileLock <- Ref.Synchronized.make[Unit](())
@@ -66,7 +66,7 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
                     .attempt(
                       java.nio.file.Files.createTempFile("zio-test", ".json")
                     )
-                    .map(path => (path, zio.test.results.Live(path.toString, fileLock)))
+                    .map(path => (path, ResultFileOpsJson.Live(path.toString, fileLock)))
       } yield result
     }.flatMap(tup => ZLayer.succeed(tup.get._1) ++ ZLayer.succeed(tup.get._2))
 }

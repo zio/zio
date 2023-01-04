@@ -20,10 +20,9 @@ private[test] object ResultFileOpsJson {
       )(instance => ZIO.unit)
     )
 
-}
-
-private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) extends ResultFileOpsJson {
-  def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit] =
-    ZIO.unit
+  private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) extends ResultFileOpsJson {
+    def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit] =
+      ZIO.unit
+  }
 
 }
