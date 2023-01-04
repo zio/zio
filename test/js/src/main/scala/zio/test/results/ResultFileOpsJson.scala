@@ -3,7 +3,6 @@ package zio.test.results
 import zio._
 
 import java.io.IOException
-import java.nio.file.Path
 
 private[test] trait ResultFileOpsJson {
   def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit]
@@ -11,16 +10,11 @@ private[test] trait ResultFileOpsJson {
 
 private[test] object ResultFileOpsJson {
   val live: ZLayer[Any, Nothing, ResultFileOpsJson] =
-    ZLayer.scoped(
-      ZIO.acquireRelease(
-        for {
-          reentrantLockImposter <- Ref.Synchronized.make[Unit](())
-          instance               = Live("target/test-reports-zio/output.json", reentrantLockImposter)
-        } yield instance
-      )(instance => ZIO.unit)
+    ZLayer.succeed(
+      Live()
     )
 
-  private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) extends ResultFileOpsJson {
+  private[test] case class Live() extends ResultFileOpsJson {
     def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit] =
       ZIO.unit
   }
