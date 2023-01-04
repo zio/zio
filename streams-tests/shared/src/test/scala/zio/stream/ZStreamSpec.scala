@@ -562,7 +562,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                     .range(1, 5)
                     .tap(i => ref.update(i :: _) *> latch.succeed(()).when(i == 4))
                     .buffer(2)
-              l1 <- s.take(2).runCollect
+              l1 <- s.take(2).runScoped(ZSink.collectAll)
               _  <- latch.await
               l2 <- ref.get
             } yield assert(l1.toList)(equalTo((1 to 2).toList)) && assert(l2.reverse)(equalTo((1 to 4).toList))
