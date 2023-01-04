@@ -33,7 +33,7 @@ object ResultSerializerSpec extends zio.test.ZIOSpecDefault {
       suite("annotations map")(
         test("timed") {
           assertTrue(
-            ResultSerializer.Json.jsonify(
+            ResultSerializer.Json.render(
               TestAnnotationMap.empty.annotate(
                 TestAnnotation.timing,
                 TestDuration.fromInterval(Instant.parse("2020-01-01T00:00:00Z"), Instant.parse("2020-01-01T00:00:01Z"))

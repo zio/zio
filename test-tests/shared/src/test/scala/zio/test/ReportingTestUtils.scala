@@ -55,8 +55,9 @@ object ReportingTestUtils {
   )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[TestEnvironment, Nothing, String] =
     for {
       console <- ZIO.console
-      _       <- TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run("TODO Real name here", spec)
-      output  <- TestConsole.output
+      _ <-
+        TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run("Arbitrary test task name", spec)
+      output <- TestConsole.output
     } yield output.mkString
 
   def runSummary(
@@ -65,7 +66,7 @@ object ReportingTestUtils {
     for {
       console <- ZIO.console
       summary <-
-        TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run("TODO Real name here", spec)
+        TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run("Arbitrary test task name", spec)
     } yield summary.failureDetails
 
   private[test] def TestTestRunner(

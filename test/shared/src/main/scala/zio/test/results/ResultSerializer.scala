@@ -19,15 +19,15 @@ object ResultSerializer {
              |       "name" : "$fullyQualifiedName/${labelsReversed.reverse
             .map(s => s.replace("/", "\\/"))
             .mkString("/")}",
-             |       "status" : "${jsonify(test)}",
+             |       "status" : "${render(test)}",
              |       "durationMillis" : "$duration",
-             |       "annotations" : "${jsonify(annotations)}",
+             |       "annotations" : "${render(annotations)}",
              |       "fullyQualifiedClassName" : "$fullyQualifiedName",
              |       "labels" : ["${labelsReversed.reverse.map(s => s.replace("/", "\\/")).mkString("\", \"")}"]
              |    },""".stripMargin
       }
 
-    private def jsonify[E](test: Either[TestFailure[E], TestSuccess]): String =
+    private def render[E](test: Either[TestFailure[E], TestSuccess]): String =
       test match {
         case Left(value) =>
           "Failure"
@@ -35,11 +35,10 @@ object ResultSerializer {
           "Success"
       }
 
-    private[results] def jsonify(testAnnotationMap: TestAnnotationMap): String =
+    private[results] def render(testAnnotationMap: TestAnnotationMap): String =
       TestAnnotationRenderer.default
         .run(List.empty, testAnnotationMap)
         .map(s => s.replace("\"", "\\\""))
         .mkString(" : ")
-
   }
 }
