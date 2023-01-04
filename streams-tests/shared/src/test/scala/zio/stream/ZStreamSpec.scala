@@ -673,8 +673,8 @@ object ZStreamSpec extends ZIOBaseSpec {
                      .fromZIO(latch3.await)
                      .flatMap(_ => ZStream.range(17, 26).rechunk(1).ensuring(latch4.succeed(())))
               s3 = ZStream
-                      .fromZIO(latch5.await)
-                      .flatMap(_ => ZStream(-1))
+                     .fromZIO(latch5.await)
+                     .flatMap(_ => ZStream(-1))
               s = (s1 ++ s2 ++ s3).bufferChunksSliding(8)
               snapshots <- ZIO.scoped {
                              s.toPull.flatMap { as =>
