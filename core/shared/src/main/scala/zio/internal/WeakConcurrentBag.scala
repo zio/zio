@@ -46,7 +46,7 @@ private[zio] class WeakConcurrentBag[A](nurserySize: Int, isAlive: A => Boolean)
       if (value == null) {
         graduates.remove(weakRef) // TODO: Reuse weakref
       } else {
-        if (!isAlive(value)) graduates.remove(weakRef)
+        if (!isAlive(value)) graduates.remove(weakRef) 
       }
     }
   }
@@ -59,7 +59,7 @@ private[zio] class WeakConcurrentBag[A](nurserySize: Int, isAlive: A => Boolean)
    * the size of long-term storage exceeds the nursery size.
    */
   final def graduate(): Unit = {
-    var element       = nursery.poll(null.asInstanceOf[A])
+    var element = nursery.poll(null.asInstanceOf[A])
 
     while (element != null) {
       if (isAlive(element)) {
