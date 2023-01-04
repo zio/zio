@@ -36,7 +36,7 @@ function zioEcosystemPlugin(context: LoadContext, options: PluginOptions) {
                   `${project.routeBasePath}/`
                 )
               }).concat(
-                ["zio-sbt"].map(project =>
+                ["zio-sbt", "zio-direct"].map(project =>
                   mapConfig(require(`@zio.dev/${project}/sidebars.js`).sidebar[0], `${project}/`)
                 )
               )
@@ -144,11 +144,6 @@ const zioProjects =
     {
       name: "ZIO Deriving",
       routeBasePath: 'zio-deriving',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: "ZIO Direct Style",
-      routeBasePath: 'zio-direct',
       sidebarPath: 'sidebars.js',
     },
     {
