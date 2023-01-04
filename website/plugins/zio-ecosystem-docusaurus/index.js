@@ -59,7 +59,7 @@ function zioEcosystemPlugin(context, options) {
                     return mapConfig(categoryTemplate(project.name, require("@zio.dev/".concat(project.routeBasePath, "/").concat(project.sidebarPath))
                         .sidebar
                         .filter(function (e) { return e != "index"; })), "".concat(project.routeBasePath, "/"));
-                }).concat(["zio-sbt"].map(function (project) {
+                }).concat(["zio-sbt", "zio-direct"].map(function (project) {
                     return mapConfig(require("@zio.dev/".concat(project, "/sidebars.js")).sidebar[0], "".concat(project, "/"));
                 }))
                     .sort(function (a, b) { return a.label < b.label ? -1 : a.label > b.label ? 1 : 0; });
@@ -160,11 +160,6 @@ var zioProjects = [
     {
         name: "ZIO Deriving",
         routeBasePath: 'zio-deriving',
-        sidebarPath: 'sidebars.js'
-    },
-    {
-        name: "ZIO Direct Style",
-        routeBasePath: 'zio-direct',
         sidebarPath: 'sidebars.js'
     },
     {
