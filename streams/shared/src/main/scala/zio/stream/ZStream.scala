@@ -4077,7 +4077,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.suspend {
       as match {
         case chunk: Chunk[O]       => ZStream.fromChunk(chunk)
-        case iterable: Iterable[O] => ZStream.fromIteratorSucceed(iterable.iterator)
+        case iterable: Iterable[O] => ZStream.fromIteratorSucceed(iterable.iterator, chunkSize)
       }
     }
 
