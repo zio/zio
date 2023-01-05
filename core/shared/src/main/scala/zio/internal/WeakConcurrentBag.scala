@@ -55,13 +55,11 @@ private[zio] class WeakConcurrentBag[A](nurserySize: Int, isAlive: A => Boolean)
    * Moves all occupants of the nursery into long-term storage in a concurrent
    * set, wrapped in a weak reference to avoid interfering with GC.
    *
-   * This method will occassionally perform garbage collection, but only when it
-   * succeeds in moving 1/10th or more of the nursery occupants to long- term
-   * storage.
+   * This method will occassionally perform garbage collection, but only when
+   * the size of long-term storage exceeds the nursery size.
    */
   final def graduate(): Unit = {
-    var graduateCount = 0
-    var element       = nursery.poll(null.asInstanceOf[A])
+    var element = nursery.poll(null.asInstanceOf[A])
 
     while (element != null) {
       if (isAlive(element)) {
@@ -71,10 +69,9 @@ private[zio] class WeakConcurrentBag[A](nurserySize: Int, isAlive: A => Boolean)
       }
 
       element = nursery.poll(null.asInstanceOf[A])
-      graduateCount += 1
     }
 
-    if (graduateCount > nurserySize / 10) {
+    if (graduates.size() > nurserySize) {
       gc()
     }
   }
