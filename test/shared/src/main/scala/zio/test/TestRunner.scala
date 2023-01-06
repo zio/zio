@@ -19,6 +19,7 @@ package zio.test
 import zio.Clock.ClockLive
 import zio._
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
+import zio.test.results.{ExecutionEventJsonPrinter, ResultFileOpsJson, ResultSerializer}
 
 import java.util.concurrent.TimeUnit
 
@@ -37,12 +38,12 @@ final case class TestRunner[R, E](
   /**
    * Runs the spec, producing the execution results.
    */
-  def run(spec: Spec[R, E], defExec: ExecutionStrategy = ExecutionStrategy.ParallelN(4))(implicit
-    trace: Trace
+  def run(fullyQualifiedName: String, spec: Spec[R, E], defExec: ExecutionStrategy = ExecutionStrategy.ParallelN(4))(
+    implicit trace: Trace
   ): UIO[Summary] =
     for {
       start    <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
-      summary  <- executor.run(spec, defExec)
+      summary  <- executor.run(fullyQualifiedName, spec, defExec)
       finished <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
       duration  = Duration.fromMillis(finished - start)
     } yield summary.copy(duration = duration)
@@ -60,13 +61,16 @@ final case class TestRunner[R, E](
        * An unsafe, synchronous run of the specified spec.
        */
       def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Unit =
-        runtime.unsafe.run(self.run(spec).provideLayer(bootstrap)).getOrThrowFiberFailure()
+        runtime.unsafe
+          .run(self.run("Test Task name unavailable in this context.", spec).provideLayer(bootstrap))
+          .getOrThrowFiberFailure()
 
       /**
        * An unsafe, asynchronous run of the specified spec.
        */
       def runAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace, unsafe: Unsafe): Unit = {
-        val fiber = runtime.unsafe.fork(self.run(spec).provideLayer(bootstrap))
+        val fiber =
+          runtime.unsafe.fork(self.run("Test Task name unavailable in this context.", spec).provideLayer(bootstrap))
         fiber.unsafe.addObserver {
           case Exit.Success(_) => k
           case Exit.Failure(c) => throw FiberFailure(c)
@@ -77,7 +81,7 @@ final case class TestRunner[R, E](
        * An unsafe, synchronous run of the specified spec.
        */
       def runSync(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Exit[Nothing, Unit] =
-        runtime.unsafe.run(self.run(spec).unit.provideLayer(bootstrap))
+        runtime.unsafe.run(self.run("Test Task name unavailable in this context.", spec).unit.provideLayer(bootstrap))
     }
 
   private[test] def buildRuntime(implicit
@@ -91,7 +95,11 @@ object TestRunner {
     implicit val emptyTracer = Trace.empty
 
     ZLayer.make[TestOutput with ExecutionEventSink](
-      ExecutionEventPrinter.live(ConsoleEventRenderer),
+      ResultSerializer.live,
+      ResultFileOpsJson.live,
+      ExecutionEventJsonPrinter.live,
+      ExecutionEventConsolePrinter.live(ReporterEventRenderer.ConsoleEventRenderer),
+      ExecutionEventPrinter.live,
       TestLogger.fromConsole(Console.ConsoleLive),
       TestOutput.live,
       ExecutionEventSink.live

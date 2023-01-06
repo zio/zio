@@ -281,7 +281,8 @@ object TestOutputSpec extends ZIOSpecDefault {
       annotations = TestAnnotationMap.empty,
       ancestors = testEntity.ancestors,
       duration = 0L,
-      id = testEntity.id
+      id = testEntity.id,
+      "some.ClassName"
     )
 
 }

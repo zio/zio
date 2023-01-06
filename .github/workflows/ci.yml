@@ -200,6 +200,30 @@ jobs:
     - name: Test 3
       if: ${{ startsWith(matrix.scala, '3.') }}
       run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}3/test
+    - name: Upload Test Results 2.11
+      if: ${{ startsWith(matrix.scala, '2.11.') }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: zio-test-output-2.11
+        path: ./**/test-reports-zio/output.json
+    - name: Upload Test Results 2.12
+      if: ${{ startsWith(matrix.scala, '2.12.') }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: zio-test-output-2.12
+        path: ./**/test-reports-zio/output.json
+    - name: Upload Test Results 2.13
+      if: ${{ startsWith(matrix.scala, '2.13.') }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: zio-test-output-2.13
+        path: ./**/test-reports-zio/output.json
+    - name: Upload Test Results 3
+      if: ${{ startsWith(matrix.scala, '3.') }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: zio-test-output-3
+        path: ./**/test-reports-zio/output.json
 
   testJvms:
     runs-on: ubuntu-20.04

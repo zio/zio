@@ -22,6 +22,7 @@ import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, Upstream
 import zio.stream.{ZChannel, ZSink, ZStream}
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 import zio.test.Spec.LabeledCase
+import zio.test.results.{ExecutionEventJsonPrinter, ResultFileOpsJson, ResultSerializer}
 
 import scala.language.implicitConversions
 
@@ -792,7 +793,9 @@ package object test extends CompileVariants {
     trace: Trace
   ): ZLayer[Any, Nothing, ExecutionEventSink] =
     TestLogger.fromConsole(console) >>>
-      ExecutionEventPrinter.live(eventRenderer) >>>
+      ((ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live) ++ ExecutionEventConsolePrinter
+        .live(eventRenderer)) >>>
+      ExecutionEventPrinter.live >>>
       TestOutput.live >>>
       ExecutionEventSink.live
 

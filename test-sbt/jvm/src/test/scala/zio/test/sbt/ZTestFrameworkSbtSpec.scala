@@ -47,11 +47,11 @@ object ZTestFrameworkSbtSpec {
     assert(
       reported.forall(event =>
         event match {
-          case Test(_, _, _, _, duration, _) => duration > 0
-          case RuntimeFailure(_, _, _, _)    => false
-          case SectionStart(_, _, _)         => false
-          case SectionEnd(_, _, _)           => false
-          case TopLevelFlush(_)              => false
+          case Test(_, _, _, _, duration, _, _) => duration > 0
+          case RuntimeFailure(_, _, _, _)       => false
+          case SectionStart(_, _, _)            => false
+          case SectionEnd(_, _, _)              => false
+          case TopLevelFlush(_)                 => false
         }
       ),
       s"reported events should have positive durations: $reported"

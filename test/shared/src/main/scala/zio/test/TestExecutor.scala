@@ -26,7 +26,7 @@ import zio._
  * environment `R` and may fail with an `E`.
  */
 abstract class TestExecutor[+R, E] {
-  def run(spec: Spec[R, E], defExec: ExecutionStrategy)(implicit trace: Trace): UIO[Summary]
+  def run(fullyQualifiedName: String, spec: Spec[R, E], defExec: ExecutionStrategy)(implicit trace: Trace): UIO[Summary]
 }
 object TestExecutor {
 
@@ -37,8 +37,8 @@ object TestExecutor {
     eventHandlerZ: ZTestEventHandler
   ): TestExecutor[R with TestEnvironment with Scope, E] =
     new TestExecutor[R with TestEnvironment with Scope, E] {
-      def run(spec: Spec[R with TestEnvironment with Scope, E], defExec: ExecutionStrategy)(implicit
-        trace: Trace
+      def run(fullyQualifiedName: String, spec: Spec[R with TestEnvironment with Scope, E], defExec: ExecutionStrategy)(
+        implicit trace: Trace
       ): UIO[Summary] =
         (for {
           sink     <- ZIO.service[ExecutionEventSink]
@@ -116,7 +116,8 @@ object TestExecutor {
                           staticAnnotations ++ extractAnnotations(result.map(_._2)),
                           ancestors,
                           duration,
-                          sectionId
+                          sectionId,
+                          fullyQualifiedName
                         )
                   } yield event).catchAllCause { e =>
                     val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
