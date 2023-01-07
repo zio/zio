@@ -169,7 +169,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
                   }
 
                 result = ChannelState.Effect(
-                  drainer.fork.flatMap { fiber =>
+                  drainer.forkDaemon.flatMap { fiber =>
                     ZIO.succeed(addFinalizer { exit =>
                       fiber.interrupt *>
                         ZIO.suspendSucceed {

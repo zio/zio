@@ -105,6 +105,51 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     ZPipeline.suspend(new ZPipeline(that.channel.pipeToOrFail(self.channel)))
 
   /**
+   * Aggregates elements of this stream using the provided sink for as long as
+   * the downstream operators on the stream are busy.
+   *
+   * This operator divides the stream into two asynchronous "islands". Operators
+   * upstream of this operator run on one fiber, while downstream operators run
+   * on another. Whenever the downstream fiber is busy processing elements, the
+   * upstream fiber will feed elements into the sink until it signals
+   * completion.
+   *
+   * Any sink can be used here, but see [[ZSink.foldWeightedZIO]] and
+   * [[ZSink.foldUntilZIO]] for sinks that cover the common usecases.
+   */
+  def aggregateAsync[Env1 <: Env, Err1 >: Err, Out1 >: Out, Out2](sink: ZSink[Env1, Err1, Out1, Out1, Out2])(implicit
+    trace: Trace
+  ): ZPipeline[Env1, Err1, In, Out2] =
+    self >>> ZPipeline.aggregateAsync(sink)
+
+  /**
+   * Like `aggregateAsyncWithinEither`, but only returns the `Right` results.
+   */
+  def aggregateAsyncWithin[Env1 <: Env, Err1 >: Err, Out1 >: Out, Out2](
+    sink: ZSink[Env1, Err1, Out1, Out1, Out2],
+    schedule: Schedule[Env1, Option[Out2], Any]
+  )(implicit trace: Trace): ZPipeline[Env1, Err1, In, Out2] =
+    self >>> ZPipeline.aggregateAsyncWithin(sink, schedule)
+
+  /**
+   * Aggregates elements using the provided sink until it completes, or until
+   * the delay signalled by the schedule has passed.
+   *
+   * This operator divides the stream into two asynchronous islands. Operators
+   * upstream of this operator run on one fiber, while downstream operators run
+   * on another. Elements will be aggregated by the sink until the downstream
+   * fiber pulls the aggregated value, or until the schedule's delay has passed.
+   *
+   * Aggregated elements will be fed into the schedule to determine the delays
+   * between pulls.
+   */
+  def aggregateAsyncWithinEither[Env1 <: Env, Err1 >: Err, Out1 >: Out, Out2, Out3](
+    sink: ZSink[Env1, Err1, Out1, Out1, Out2],
+    schedule: Schedule[Env1, Option[Out2], Out3]
+  )(implicit trace: Trace): ZPipeline[Env1, Err1, In, Either[Out3, Out2]] =
+    self >>> ZPipeline.aggregateAsyncWithinEither(sink, schedule)
+
+  /**
    * A named version of the `>>>` operator.
    */
   def andThen[Env1 <: Env, Err1 >: Err, Out2](
@@ -332,6 +377,15 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self >>> ZPipeline.grouped(chunkSize)
 
   /**
+   * Partitions the stream with the specified chunkSize or until the specified
+   * duration has passed, whichever is satisfied first.
+   */
+  def groupedWithin(chunkSize: => Int, within: => Duration)(implicit
+    trace: Trace
+  ): ZPipeline[Env, Err, In, Chunk[Out]] =
+    self >>> ZPipeline.groupedWithin(chunkSize, within)
+
+  /**
    * Intersperse pipeline with provided element similar to
    * <code>List.mkString</code>.
    */
@@ -537,6 +591,184 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
 }
 
 object ZPipeline extends ZPipelinePlatformSpecificConstructors {
+
+  /**
+   * Aggregates elements of this stream using the provided sink for as long as
+   * the downstream operators on the stream are busy.
+   *
+   * This operator divides the stream into two asynchronous "islands". Operators
+   * upstream of this operator run on one fiber, while downstream operators run
+   * on another. Whenever the downstream fiber is busy processing elements, the
+   * upstream fiber will feed elements into the sink until it signals
+   * completion.
+   *
+   * Any sink can be used here, but see [[ZSink.foldWeightedZIO]] and
+   * [[ZSink.foldUntilZIO]] for sinks that cover the common usecases.
+   */
+  def aggregateAsync[Env, Err, In, Out](sink: => ZSink[Env, Err, In, In, Out])(implicit
+    trace: Trace
+  ): ZPipeline[Env, Err, In, Out] =
+    aggregateAsyncWithin(sink, Schedule.forever)
+
+  /**
+   * Like `aggregateAsyncWithinEither`, but only returns the `Right` results.
+   */
+  def aggregateAsyncWithin[Env, Err, In, Out](
+    sink: => ZSink[Env, Err, In, In, Out],
+    schedule: => Schedule[Env, Option[Out], Any]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
+    aggregateAsyncWithinEither(sink, schedule).collectRight
+
+  /**
+   * Aggregates elements using the provided sink until it completes, or until
+   * the delay signalled by the schedule has passed.
+   *
+   * This operator divides the stream into two asynchronous islands. Operators
+   * upstream of this operator run on one fiber, while downstream operators run
+   * on another. Elements will be aggregated by the sink until the downstream
+   * fiber pulls the aggregated value, or until the schedule's delay has passed.
+   *
+   * Aggregated elements will be fed into the schedule to determine the delays
+   * between pulls.
+   */
+  def aggregateAsyncWithinEither[Env, Err, In, Out, Out2](
+    sink: => ZSink[Env, Err, In, In, Out],
+    schedule: => Schedule[Env, Option[Out], Out2]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Either[Out2, Out]] =
+    ZPipeline.unwrap {
+      SingleProducerAsyncInput.make[ZNothing, Chunk[In], Any].flatMap { input =>
+        type HandoffSignal = ZStream.HandoffSignal[Err, In]
+        import ZStream.HandoffSignal._
+        type SinkEndReason = ZStream.SinkEndReason
+        import ZStream.SinkEndReason._
+
+        val layer =
+          ZStream.Handoff.make[HandoffSignal] <*>
+            Ref.make[SinkEndReason](ScheduleEnd) <*>
+            Ref.make(Chunk[In]()) <*>
+            schedule.driver <*>
+            Ref.make(false) <*>
+            Ref.make(false)
+
+        layer.map { case (handoff, sinkEndReason, sinkLeftovers, scheduleDriver, consumed, endAfterEmit) =>
+          lazy val handoffProducer: ZChannel[Any, Err, Chunk[In], Any, Nothing, Nothing, Any] =
+            ZChannel.readWithCause(
+              (in: Chunk[In]) => ZChannel.fromZIO(handoff.offer(Emit(in)).when(in.nonEmpty)) *> handoffProducer,
+              (cause: Cause[Err]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
+              (_: Any) => ZChannel.fromZIO(handoff.offer(End(UpstreamEnd)))
+            )
+
+          lazy val handoffConsumer: ZChannel[Any, Any, Any, Any, Err, Chunk[In], Unit] =
+            ZChannel.unwrap(
+              sinkLeftovers.getAndSet(Chunk.empty).flatMap { leftovers =>
+                if (leftovers.nonEmpty) {
+                  consumed.set(true) *> ZIO.succeed(ZChannel.write(leftovers) *> handoffConsumer)
+                } else
+                  handoff.take.map {
+                    case Emit(chunk) =>
+                      ZChannel.fromZIO(consumed.set(true)) *>
+                        ZChannel.write(chunk) *>
+                        ZChannel.fromZIO(endAfterEmit.get).flatMap {
+                          case false => handoffConsumer
+                          case true  => ZChannel.unit
+                        }
+                    case Halt(cause) => ZChannel.failCause(cause)
+                    case End(ScheduleEnd) =>
+                      ZChannel.unwrap {
+                        consumed.get.map { p =>
+                          if (p) ZChannel.fromZIO(sinkEndReason.set(ScheduleEnd) *> endAfterEmit.set(true))
+                          else
+                            ZChannel
+                              .fromZIO(sinkEndReason.set(ScheduleEnd) *> endAfterEmit.set(true)) *> handoffConsumer
+                        }
+                      }
+                    case End(reason) => ZChannel.fromZIO(sinkEndReason.set(reason) *> endAfterEmit.set(true))
+                  }
+              }
+            )
+
+          def timeout(lastB: Option[Out]): ZIO[Env, None.type, Out2] =
+            scheduleDriver.next(lastB)
+
+          def scheduledAggregator(
+            sinkFiber: Fiber.Runtime[Err, (Chunk[Chunk[In]], Out)],
+            scheduleFiber: Fiber.Runtime[None.type, Out2],
+            scope: Scope
+          ): ZChannel[Env, Any, Any, Any, Err, Chunk[Either[Out2, Out]], Any] = {
+
+            val forkSink =
+              consumed.set(false) *> endAfterEmit
+                .set(false) *> (handoffConsumer pipeToOrFail sink.channel).collectElements.run.forkIn(scope)
+
+            def handleSide(leftovers: Chunk[Chunk[In]], b: Out, c: Option[Out2]) =
+              ZChannel.unwrap(
+                sinkLeftovers.set(leftovers.flatten) *>
+                  sinkEndReason.get.map {
+                    case ScheduleEnd =>
+                      ZChannel.unwrap {
+                        for {
+                          consumed      <- consumed.get
+                          sinkFiber     <- forkSink
+                          scheduleFiber <- timeout(Some(b)).forkIn(scope)
+                          toWrite        = c.fold[Chunk[Either[Out2, Out]]](Chunk(Right(b)))(c => Chunk(Right(b), Left(c)))
+                        } yield
+                          if (consumed)
+                            ZChannel
+                              .write(toWrite) *> scheduledAggregator(sinkFiber, scheduleFiber, scope)
+                          else scheduledAggregator(sinkFiber, scheduleFiber, scope)
+                      }
+                    case UpstreamEnd =>
+                      ZChannel.unwrap {
+                        consumed.get.map { p =>
+                          if (p) ZChannel.write(Chunk(Right(b)))
+                          else ZChannel.unit
+                        }
+                      }
+                  }
+              )
+
+            ZChannel.unwrap {
+              sinkFiber.join.raceWith(scheduleFiber.join)(
+                (sinkExit, _) =>
+                  scheduleFiber.interrupt *>
+                    ZIO.done(sinkExit).map { case (leftovers, b) => handleSide(leftovers, b, None) },
+                (scheduleExit, _) =>
+                  ZIO
+                    .done(scheduleExit)
+                    .foldCauseZIO(
+                      _.failureOrCause match {
+                        case Left(_) =>
+                          handoff.offer(End(ScheduleEnd)).forkDaemon *> sinkFiber.join.map { case (leftovers, b) =>
+                            handleSide(leftovers, b, None)
+                          }
+                        case Right(cause) =>
+                          handoff.offer(Halt(cause)).forkDaemon *> sinkFiber.join.map { case (leftovers, b) =>
+                            handleSide(leftovers, b, None)
+                          }
+                      },
+                      c =>
+                        handoff.offer(End(ScheduleEnd)).forkDaemon *>
+                          sinkFiber.join.map { case (leftovers, b) =>
+                            handleSide(leftovers, b, Some(c))
+                          }
+                    )
+              )
+            }
+          }
+
+          new ZPipeline(
+            ZChannel.unwrapScoped[Env] {
+              for {
+                _             <- (ZChannel.fromInput(input) >>> handoffProducer).run.forkScoped
+                sinkFiber     <- (handoffConsumer pipeToOrFail sink.channel).collectElements.run.forkScoped
+                scheduleFiber <- timeout(None).forkScoped
+                scope         <- ZIO.scope
+              } yield scheduledAggregator(sinkFiber, scheduleFiber, scope).embedInput(input)
+            }
+          )
+        }
+      }
+    }
 
   /**
    * A shorter version of [[ZPipeline.identity]], which can facilitate more
@@ -1241,6 +1473,15 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   def grouped[In](chunkSize: => Int)(implicit trace: Trace): ZPipeline[Any, Nothing, In, Chunk[In]] =
     rechunk(chunkSize).chunks
+
+  /**
+   * Partitions the stream with the specified chunkSize or until the specified
+   * duration has passed, whichever is satisfied first.
+   */
+  def groupedWithin[In](chunkSize: => Int, within: => Duration)(implicit
+    trace: Trace
+  ): ZPipeline[Any, Nothing, In, Chunk[In]] =
+    aggregateAsyncWithin(ZSink.collectAllN[In](chunkSize), Schedule.spaced(within))
 
   /**
    * Creates a pipeline that sends all the elements through the given channel.
