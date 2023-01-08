@@ -379,7 +379,7 @@ object TestRandom extends Serializable {
           getOrElse(bufferedBoolean)(randomBoolean)
 
         override def nextBytes(length: RuntimeFlags)(implicit unsafe: Unsafe): Chunk[Byte] =
-          getOrElseChunk(bufferedBytes)(randomBytes)(length)
+          getOrElseChunk(length)(bufferedBytes)(randomBytes)
 
         override def nextDouble()(implicit unsafe: Unsafe): Double =
           getOrElse(bufferedDouble)(randomDouble)
@@ -442,8 +442,8 @@ object TestRandom extends Serializable {
           bufferState.unsafe.modify(buffer).getOrElse(random)
 
         private def getOrElseChunk[A](
-          buffer: Int => Buffer => (Chunk[A], Buffer)
-        )(random: Int => Chunk[A])(length: Int)(implicit unsafe: Unsafe): Chunk[A] = {
+          length: Int
+        )(buffer: Int => Buffer => (Chunk[A], Buffer))(random: Int => Chunk[A])(implicit unsafe: Unsafe): Chunk[A] = {
           val buffered = bufferState.unsafe.modify(buffer(length))
           if (buffered.length == length) buffered
           else buffered ++ random(length - buffered.length)
