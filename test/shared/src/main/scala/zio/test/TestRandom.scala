@@ -441,7 +441,9 @@ object TestRandom extends Serializable {
         private def getOrElse[A](buffer: Buffer => (Option[A], Buffer))(random: => A)(implicit unsafe: Unsafe): A =
           bufferState.unsafe.modify(buffer).getOrElse(random)
 
-        private def getOrElseChunk[A](buffer: Int => Buffer => (Chunk[A], Buffer))(random: Int => Chunk[A])(length: Int)(implicit unsafe: Unsafe): Chunk[A] = {
+        private def getOrElseChunk[A](
+          buffer: Int => Buffer => (Chunk[A], Buffer)
+        )(random: Int => Chunk[A])(length: Int)(implicit unsafe: Unsafe): Chunk[A] = {
           val buffered = bufferState.unsafe.modify(buffer(length))
           if (buffered.length == length) buffered
           else buffered ++ random(length - buffered.length)
