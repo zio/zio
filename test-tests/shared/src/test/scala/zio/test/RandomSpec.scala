@@ -93,7 +93,7 @@ object RandomSpec extends ZIOBaseSpec {
       for {
         _     <- TestRandom.feedBytes(Chunk(1, 2, 3, 4, 5).map(_.toByte))
         bytes <- Random.nextBytes(2)
-      } yield assertTrue(bytes == Chunk(1, 2).map(_.toByte))
+      } yield assert(bytes)(equalTo(Chunk(1, 2).map(_.toByte)))
     }
   )
 
