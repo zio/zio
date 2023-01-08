@@ -88,6 +88,12 @@ object RandomSpec extends ZIOBaseSpec {
         } yield assert(newSeed)(equalTo(seed & ((1L << 48) - 1))) &&
           assert(newValue)(equalTo(value))
       }
+    },
+    test("chunks of bytes are properly handled") {
+      for {
+        _     <- TestRandom.feedBytes(Chunk(1, 2, 3, 4, 5).map(_.toByte))
+        bytes <- Random.nextBytes(2)
+      } yield assertTrue(bytes == Chunk(1, 2).map(_.toByte))
     }
   )
 
