@@ -124,7 +124,7 @@ object Config {
       that match {
         case that: Secret =>
           self.raw.length == that.raw.length &&
-            (0 until raw.length).foldLeft(true) { (i, b) =>
+            (0 until raw.length).foldLeft(true) { (b, i) =>
               self.raw(i) == that.raw(i) && b
             }
         case _ => false
