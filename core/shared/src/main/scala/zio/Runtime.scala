@@ -136,8 +136,36 @@ trait Runtime[+R] { self =>
     }
 
     def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): internal.FiberRuntime[E, A] = {
-      import internal.FiberRuntime
+      val fiber = makeFiber(zio)
+      fiber.start[R](zio)
+      fiber
+    }
 
+    def runToFuture[E <: Throwable, A](
+      zio: ZIO[R, E, A]
+    )(implicit trace: Trace, unsafe: Unsafe): CancelableFuture[A] = {
+      val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
+
+      val fiber = makeFiber(zio)
+
+      fiber.addObserver(_.foldExit(cause => p.failure(cause.squashTraceWith(identity)), p.success))
+
+      fiber.start(zio)
+
+      new CancelableFuture[A](p.future) {
+        def cancel(): Future[Exit[Throwable, A]] = {
+          val p: scala.concurrent.Promise[Exit[Throwable, A]] = scala.concurrent.Promise[Exit[Throwable, A]]()
+          val cancelFiber                                     = makeFiber(ZIO.interruptAs(FiberId.None))
+          cancelFiber.addObserver(_.foldExit(cause => p.failure(cause.squashTraceWith(identity)), p.success))
+          cancelFiber.start(ZIO.interruptAs(FiberId.None))
+          p.future
+        }
+      }
+    }
+
+    private def makeFiber[E, A](
+      zio: ZIO[R, E, A]
+    )(implicit trace: Trace, unsafe: Unsafe): internal.FiberRuntime[E, A] = {
       val fiberId   = FiberId.make(trace)
       val fiberRefs = self.fiberRefs.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
       val fiber     = FiberRuntime[E, A](fiberId, fiberRefs.forkAs(fiberId), runtimeFlags)
@@ -152,27 +180,7 @@ trait Runtime[+R] { self =>
         fiber.addObserver(exit => supervisor.onEnd(exit, fiber))
       }
 
-      fiber.start[R](zio)
       fiber
-    }
-
-    def runToFuture[E <: Throwable, A](
-      zio: ZIO[R, E, A]
-    )(implicit trace: Trace, unsafe: Unsafe): CancelableFuture[A] = {
-      val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
-
-      val fiber = fork(zio)
-
-      fiber.addObserver(_.foldExit(cause => p.failure(cause.squashTraceWith(identity)), p.success))
-
-      new CancelableFuture[A](p.future) {
-        def cancel(): Future[Exit[Throwable, A]] = {
-          val p: scala.concurrent.Promise[Exit[Throwable, A]] = scala.concurrent.Promise[Exit[Throwable, A]]()
-          val cancelFiber                                     = fork(fiber.interruptAs(FiberId.None))
-          cancelFiber.addObserver(_.foldExit(cause => p.failure(cause.squashTraceWith(identity)), p.success))
-          p.future
-        }
-      }
     }
   }
 }
