@@ -3507,7 +3507,19 @@ object ZIOSpec extends ZIOBaseSpec {
           _        <- fiber.interrupt
           _        <- promise2.await
         } yield assertCompletes
-      }
+      },
+      test("interruption is propagated to grandchild in race in uninterruptible region") {
+        ZIO.uninterruptible {
+          for {
+            promise <- Promise.make[Nothing, Unit]
+            ref     <- Ref.make(false)
+            left     = promise.await
+            right    = ZIO.never.raceAwait((promise.succeed(()) *> ZIO.never.interruptible).ensuring(ref.set(true)))
+            _       <- left.raceAwait(right).forkDaemon
+            _       <- ref.get.repeatUntilEquals(true)
+          } yield assertCompletes
+        }
+      } @@ nonFlaky
     ) @@ zioTag(interruption),
     suite("RTS environment")(
       test("provide is modular") {

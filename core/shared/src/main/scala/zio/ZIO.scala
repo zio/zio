@@ -1428,9 +1428,6 @@ sealed trait ZIO[-R, +E, +A]
       val startLeftFiber  = leftFiber.startSuspended()(Unsafe.unsafe)
       val startRightFiber = rightFiber.startSuspended()(Unsafe.unsafe)
 
-      leftFiber.setFiberRef(FiberRef.forkScopeOverride, Some(parentFiber.scope))(Unsafe.unsafe)
-      rightFiber.setFiberRef(FiberRef.forkScopeOverride, Some(parentFiber.scope))(Unsafe.unsafe)
-
       ZIO
         .async[R1, E2, C](
           { cb =>
