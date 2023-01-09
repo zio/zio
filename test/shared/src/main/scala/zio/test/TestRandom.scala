@@ -166,7 +166,7 @@ object TestRandom extends Serializable {
      * taken before any values that were previously in the buffer.
      */
     def feedBytes(bytes: Chunk[Byte]*)(implicit trace: Trace): UIO[Unit] =
-      bufferState.update(data => data.copy(bytes = bytes.toList ::: data.bytes))
+      bufferState.update(data => data.copy(bytes = bytes.toList.flatten ::: data.bytes))
 
     /**
      * Feeds the buffer with specified sequence of characters. The first value
@@ -379,7 +379,7 @@ object TestRandom extends Serializable {
           getOrElse(bufferedBoolean)(randomBoolean)
 
         override def nextBytes(length: RuntimeFlags)(implicit unsafe: Unsafe): Chunk[Byte] =
-          getOrElse(bufferedBytes)(randomBytes(length))
+          getOrElseChunk(length)(bufferedBytes)(randomBytes)
 
         override def nextDouble()(implicit unsafe: Unsafe): Double =
           getOrElse(bufferedDouble)(randomDouble)
@@ -440,6 +440,14 @@ object TestRandom extends Serializable {
 
         private def getOrElse[A](buffer: Buffer => (Option[A], Buffer))(random: => A)(implicit unsafe: Unsafe): A =
           bufferState.unsafe.modify(buffer).getOrElse(random)
+
+        private def getOrElseChunk[A](
+          length: Int
+        )(buffer: Int => Buffer => (Chunk[A], Buffer))(random: Int => Chunk[A])(implicit unsafe: Unsafe): Chunk[A] = {
+          val buffered = bufferState.unsafe.modify(buffer(length))
+          if (buffered.length == length) buffered
+          else buffered ++ random(length - buffered.length)
+        }
 
         private def randomBits(bits: Int)(implicit unsafe: Unsafe): Int =
           randomState.unsafe.modify { data =>
@@ -567,11 +575,10 @@ object TestRandom extends Serializable {
         buffer.copy(booleans = buffer.booleans.drop(1))
       )
 
-    private def bufferedBytes(buffer: Buffer): (Option[Chunk[Byte]], Buffer) =
-      (
-        buffer.bytes.headOption,
-        buffer.copy(bytes = buffer.bytes.drop(1))
-      )
+    private def bufferedBytes(length: Int)(buffer: Buffer): (Chunk[Byte], Buffer) = {
+      val (bufferedBytes, bytes) = buffer.bytes.splitAt(length)
+      (Chunk.fromIterable(bufferedBytes), buffer.copy(bytes = bytes))
+    }
 
     private def bufferedChar(buffer: Buffer): (Option[Char], Buffer) =
       (
@@ -839,7 +846,7 @@ object TestRandom extends Serializable {
    */
   final case class Buffer(
     booleans: List[Boolean] = List.empty,
-    bytes: List[Chunk[Byte]] = List.empty,
+    bytes: List[Byte] = List.empty,
     chars: List[Char] = List.empty,
     doubles: List[Double] = List.empty,
     floats: List[Float] = List.empty,
