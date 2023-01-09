@@ -122,8 +122,12 @@ object Config {
   final class Secret private (private val raw: Array[Char]) { self =>
     override def equals(that: Any): Boolean =
       that match {
-        case that: Secret => self.value == that.value
-        case _            => false
+        case that: Secret =>
+          self.raw.length == that.raw.length &&
+            (0 until raw.length).foldLeft(true) { (b, i) =>
+              self.raw(i) == that.raw(i) && b
+            }
+        case _ => false
       }
 
     override def hashCode(): Int = value.hashCode
