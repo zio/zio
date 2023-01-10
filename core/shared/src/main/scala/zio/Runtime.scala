@@ -155,9 +155,9 @@ trait Runtime[+R] { self =>
       new CancelableFuture[A](p.future) {
         def cancel(): Future[Exit[Throwable, A]] = {
           val p: scala.concurrent.Promise[Exit[Throwable, A]] = scala.concurrent.Promise[Exit[Throwable, A]]()
-          val cancelFiber                                     = makeFiber(ZIO.interruptAs(FiberId.None))
+          val cancelFiber                                     = makeFiber(fiber.interruptAs(FiberId.None))
           cancelFiber.addObserver(_.foldExit(cause => p.failure(cause.squashTraceWith(identity)), p.success))
-          cancelFiber.start(ZIO.interruptAs(FiberId.None))
+          cancelFiber.start(fiber.interruptAs(FiberId.None))
           p.future
         }
       }
