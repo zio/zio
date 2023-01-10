@@ -544,10 +544,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
   .settings(macroDefinitionSettings)
   .settings(
     crossScalaVersions --= Seq(Scala211),
-    libraryDependencies ++=
-      Seq(
-        ("eu.timepit" %% "refined" % "0.10.1").cross(CrossVersion.for3Use2_13)
-      )
+    libraryDependencies += ("eu.timepit" %% "refined" % "0.10.1")
   )
   .jsSettings(jsSettings)
 
