@@ -1712,7 +1712,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    new ZStream(self.channel.concatMap(ZChannel.writeChunk(_)).mapOutZIOPar[R1, E1, A2](n)(f).mapOut(Chunk.single))
+    self >>> ZPipeline.mapZIOPar(n)(f)
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -1736,7 +1736,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIOParUnordered[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    flatMapPar[R1, E1, A2](n)(a => ZStream.fromZIO(f(a)))
+    self >>> ZPipeline.mapZIOParUnordered(n)(f)
 
   /**
    * Merges this stream and the specified stream together.
