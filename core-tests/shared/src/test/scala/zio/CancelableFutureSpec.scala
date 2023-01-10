@@ -4,6 +4,8 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
+import scala.concurrent.Future
+
 object CancelableFutureSpec extends ZIOBaseSpec {
 
   import ZIOTag._
@@ -40,6 +42,18 @@ object CancelableFutureSpec extends ZIOBaseSpec {
 
         assertZIO(Live.live(result.timeout(1.seconds)))(isNone)
       } @@ zioTag(supervision, regression),
+      test("unsafeRunToFuture") {
+        for {
+          runtime <- ZIO.runtime[Any]
+          _ <- ZIO.fromFuture { implicit ec =>
+                 Future.traverse(0 to 1000) { _ =>
+                   Unsafe.unsafe { implicit unsafe =>
+                     runtime.unsafe.runToFuture(ZIO.unit)
+                   }
+                 }
+               }
+        } yield assertCompletes
+      } @@ nonFlaky,
       test("unsafeRunToFuture interruptibility") {
         for {
           runtime <- ZIO.runtime[Any]
