@@ -223,7 +223,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
       test("top-level missing list") {
         for {
           provider <- propsProvider(Map())
-          exit   <- provider.load(HostPorts.config).exit
+          exit     <- provider.load(HostPorts.config).exit
         } yield assert(exit)(failsWithA[Config.Error])
       },
       test("simple map") {
