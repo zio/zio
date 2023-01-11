@@ -1,6 +1,7 @@
 package zio
 
 import zio.test._
+import zio.test.Assertion._
 
 object ConfigProviderSpec extends ZIOBaseSpec {
   def provider(map: Map[String, String]): ConfigProvider = ConfigProvider.fromMap(map)
@@ -92,8 +93,8 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         } +
         test("top-level missing list") {
           for {
-            value <- provider(Map()).load(HostPorts.config)
-          } yield assertTrue(value.hostPorts.length == 0)
+            exit <- provider(Map()).load(HostPorts.config).exit
+          } yield assert(exit)(failsWithA[Config.Error])
         } +
         test("simple map") {
           for {
@@ -222,8 +223,8 @@ object ConfigProviderSpec extends ZIOBaseSpec {
       test("top-level missing list") {
         for {
           provider <- propsProvider(Map())
-          result   <- provider.load(HostPorts.config)
-        } yield assertTrue(result.hostPorts.length == 0)
+          exit   <- provider.load(HostPorts.config).exit
+        } yield assert(exit)(failsWithA[Config.Error])
       },
       test("simple map") {
         for {

@@ -209,35 +209,35 @@ object ConfigProvider {
         (leftExtension, rightExtension)
       }
 
-      def loop[A](prefix: Chunk[String], config: Config[A], isEmptyOk: Boolean)(implicit
+      def loop[A](prefix: Chunk[String], config: Config[A])(implicit
         trace: Trace
       ): IO[Config.Error, Chunk[A]] =
         config match {
           case fallback: Fallback[A] =>
-            loop(prefix, fallback.first, isEmptyOk).catchAll(e1 =>
-              loop(prefix, fallback.second, isEmptyOk).catchAll(e2 => ZIO.fail(e1 || e2))
+            loop(prefix, fallback.first).catchAll(e1 =>
+              loop(prefix, fallback.second).catchAll(e2 => ZIO.fail(e1 || e2))
             )
 
-          case Described(config, _) => loop(prefix, config, isEmptyOk)
+          case Described(config, _) => loop(prefix, config)
 
-          case Lazy(thunk) => loop(prefix, thunk(), isEmptyOk)
+          case Lazy(thunk) => loop(prefix, thunk())
 
           case MapOrFail(original, f) =>
-            loop(prefix, original, isEmptyOk).flatMap { as =>
+            loop(prefix, original).flatMap { as =>
               ZIO.foreach(as)(a => ZIO.fromEither(f(a)).mapError(_.prefixed(prefix)))
             }
 
           case Sequence(config) =>
-            loop(prefix, config, true).map(Chunk(_))
+            loop(prefix, config).map(Chunk(_))
 
           case Nested(name, config) =>
-            loop(prefix ++ Chunk(name), config, isEmptyOk)
+            loop(prefix ++ Chunk(name), config)
 
           case table: Table[valueType] =>
             import table.valueConfig
             for {
               keys   <- flat.enumerateChildren(prefix)
-              values <- ZIO.foreach(Chunk.fromIterable(keys))(key => loop(prefix ++ Chunk(key), valueConfig, isEmptyOk))
+              values <- ZIO.foreach(Chunk.fromIterable(keys))(key => loop(prefix ++ Chunk(key), valueConfig))
             } yield
               if (values.isEmpty) Chunk(Map.empty[String, valueType])
               else values.transpose.map(values => keys.zip(values).toMap)
@@ -245,8 +245,8 @@ object ConfigProvider {
           case zipped: Zipped[leftType, rightType, c] =>
             import zipped.{left, right, zippable}
             for {
-              l <- loop(prefix, left, isEmptyOk).either
-              r <- loop(prefix, right, isEmptyOk).either
+              l <- loop(prefix, left).either
+              r <- loop(prefix, right).either
               result <- (l, r) match {
                           case (Left(e1), Left(e2)) => ZIO.fail(e1 && e2)
                           case (Left(e1), Right(_)) => ZIO.fail(e1)
@@ -286,17 +286,15 @@ object ConfigProvider {
 
           case primitive: Primitive[A] =>
             for {
-              vs <- flat.load(prefix, primitive).catchSome {
-                      case Config.Error.MissingData(_, _) if isEmptyOk => ZIO.succeed(Chunk.empty)
-                    }
-              result <- if (vs.isEmpty && !isEmptyOk)
+              vs <- flat.load(prefix, primitive)
+              result <- if (vs.isEmpty)
                           ZIO.fail(primitive.missingError(prefix.lastOption.getOrElse("<n/a>")))
                         else ZIO.succeed(vs)
             } yield result
         }
 
       def load[A](config: Config[A])(implicit trace: Trace): IO[Config.Error, A] =
-        loop(Chunk.empty, config, false).flatMap { chunk =>
+        loop(Chunk.empty, config).flatMap { chunk =>
           chunk.headOption match {
             case Some(a) => ZIO.succeed(a)
             case _ =>
