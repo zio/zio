@@ -153,22 +153,11 @@ final class FiberRefs private (
     val newStack =
       if (oldStack.isEmpty) ::((fiberId, value.asInstanceOf[Any]), Nil)
       else if (oldStack.head._1 == fiberId) ::((fiberId, value.asInstanceOf[Any]), oldStack.tail)
+      else if (oldStack.head._2 == value) ::(oldStack.head, oldStack.tail)
       else ::((fiberId, value), oldStack)
 
     FiberRefs(fiberRefLocals.updated(fiberRef, newStack))
   }
-
-  private[zio] def updatedAsAll(fiberId: FiberId.Runtime)(fiberRefs: Map[FiberRef[_], Any]): FiberRefs =
-    FiberRefs(
-      fiberRefs.foldLeft(fiberRefLocals) { case (fiberRefLocals, (fiberRef, newValue)) =>
-        fiberRefLocals.get(fiberRef) match {
-          case Some(stack @ ((_, oldValue) :: tail)) if oldValue != newValue =>
-            fiberRefLocals.updated(fiberRef, ::((fiberId, newValue), stack))
-          case None => fiberRefLocals.updated(fiberRef, ::((fiberId, newValue), Nil))
-          case _    => fiberRefLocals
-        }
-      }
-    )
 }
 
 object FiberRefs {
