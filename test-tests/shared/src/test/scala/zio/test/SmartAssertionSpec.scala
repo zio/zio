@@ -501,12 +501,16 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assertTrue(Foo(null, 1) == Foo("a", 1))
       } @@ failing
     ),
-    suite("miscellaneous issues") {
+    suite("miscellaneous issues")(
       test("implicit Diff between Option[Nothing] and None is resolved") {
         val option: Option[Nothing] = Option.empty
         assertTrue(option == None)
+      },
+      test("isSuccess on Exit[_, _] works") {
+        val exit: Exit[String, Int] = Exit.succeed(1)
+        assertTrue(exit.isSuccess)
       }
-    }
+    )
   )
 
   // The implicit trace will be used by assertTrue to report the
