@@ -728,7 +728,7 @@ object ChunkSpec extends ZIOBaseSpec {
     ),
     test("toArray works correctly with concatenated bit chunks") {
       check(Gen.chunkOf(Gen.byte), Gen.chunkOf(Gen.byte)) { (left, right) =>
-        val actual = Chunk.fromArray((left.asBitsByte ++ right.asBitsByte).toArray)
+        val actual   = Chunk.fromArray((left.asBitsByte ++ right.asBitsByte).toArray)
         val expected = (left ++ right).asBitsByte
         assertTrue(actual == expected)
       }
