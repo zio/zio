@@ -149,26 +149,32 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    * Converts a chunk of ints to a chunk of bits.
    */
   final def asBitsInt(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Int): Chunk[Boolean] =
-    Chunk.BitChunkInt(self.asInstanceOf[Chunk[Int]], endianness, 0, length << 5)
+    if (self.isEmpty) Chunk.empty
+    else Chunk.BitChunkInt(self.asInstanceOf[Chunk[Int]], endianness, 0, length << 5)
 
   /**
    * Converts a chunk of longs to a chunk of bits.
    */
   final def asBitsLong(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Long): Chunk[Boolean] =
-    Chunk.BitChunkLong(self.asInstanceOf[Chunk[Long]], endianness, 0, length << 6)
+    if (self.isEmpty) Chunk.empty
+    else Chunk.BitChunkLong(self.asInstanceOf[Chunk[Long]], endianness, 0, length << 6)
 
   /**
    * Converts a chunk of bytes to a chunk of bits.
    */
   final def asBitsByte(implicit ev: A <:< Byte): Chunk[Boolean] =
-    Chunk.BitChunkByte(self.map(ev), 0, length << 3)
+    if (self.isEmpty) Chunk.empty
+    else Chunk.BitChunkByte(self.map(ev), 0, length << 3)
 
   def toPackedByte(implicit ev: A <:< Boolean): Chunk[Byte] =
-    Chunk.ChunkPackedBoolean[Byte](self.asInstanceOf[Chunk[Boolean]], 8, Chunk.BitChunk.Endianness.BigEndian)
+    if (self.isEmpty) Chunk.empty
+    else Chunk.ChunkPackedBoolean[Byte](self.asInstanceOf[Chunk[Boolean]], 8, Chunk.BitChunk.Endianness.BigEndian)
   def toPackedInt(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Boolean): Chunk[Int] =
-    Chunk.ChunkPackedBoolean[Int](self.asInstanceOf[Chunk[Boolean]], 32, endianness)
+    if (self.isEmpty) Chunk.empty
+    else Chunk.ChunkPackedBoolean[Int](self.asInstanceOf[Chunk[Boolean]], 32, endianness)
   def toPackedLong(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Boolean): Chunk[Long] =
-    Chunk.ChunkPackedBoolean[Long](self.asInstanceOf[Chunk[Boolean]], 64, endianness)
+    if (self.isEmpty) Chunk.empty
+    else Chunk.ChunkPackedBoolean[Long](self.asInstanceOf[Chunk[Boolean]], 64, endianness)
 
   /**
    * Crates a new String based on this chunks data.
@@ -1975,7 +1981,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     protected def foreachElement[A](f: Boolean => A, elem: T): Unit
 
     override def toArray[A1 >: Boolean](n: Int, dest: Array[A1]): Unit = {
-      var i = n
+      var i = 0
       while (i < length) {
         dest(i + n) = self.apply(i)
         i += 1
