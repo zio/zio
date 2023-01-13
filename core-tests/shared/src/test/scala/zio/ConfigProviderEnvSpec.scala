@@ -2,6 +2,7 @@ package zio
 
 import zio.test.TestSystem
 import zio.test._
+import zio.test.Assertion._
 
 object ConfigProviderEnvSpec extends ZIOBaseSpec {
 
@@ -46,8 +47,8 @@ object ConfigProviderEnvSpec extends ZIOBaseSpec {
       } +
       test("top-level missing list env") {
         for {
-          config <- ConfigProvider.envProvider.load(HostPorts.config)
-        } yield assertTrue(config.hostPorts.length == 0)
+          exit <- ConfigProvider.envProvider.load(HostPorts.config).exit
+        } yield assert(exit)(failsWithA[Config.Error])
       } +
       test("simple map env") {
         for {
