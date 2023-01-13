@@ -312,7 +312,7 @@ object Config {
     def &&(that: Error): Error = And(self, that)
     def ||(that: Error): Error = Or(self, that)
 
-    def fold[Z](
+    final def fold[Z](
       invalidDataCase0: (Chunk[String], String) => Z,
       missingDataCase0: (Chunk[String], String) => Z,
       sourceUnavailableCase0: (Chunk[String], String, Cause[Throwable]) => Z,
@@ -338,7 +338,7 @@ object Config {
         }
       }
 
-    def foldContext[C, Z](context: C)(folder: Folder[C, Z]): Z = {
+    final def foldContext[C, Z](context: C)(folder: Folder[C, Z]): Z = {
       import folder._
       sealed trait ErrorCase
 
@@ -375,7 +375,7 @@ object Config {
       loop(List(self), List.empty).head
     }
 
-    def isMissingDataOnly: Boolean =
+    final def isMissingDataOnly: Boolean =
       foldContext(())(Folder.IsMissingDataOnly)
 
     def prefixed(prefix: Chunk[String]): Error
