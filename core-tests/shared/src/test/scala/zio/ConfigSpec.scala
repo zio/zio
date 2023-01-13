@@ -84,9 +84,42 @@ object ConfigSpec extends ZIOBaseSpec {
       }
     )
 
+  def optionalSuite =
+    suite("optional")(
+      test("recovers from missing data error") {
+        val config         = Config.int("key").optional
+        val configProvider = ConfigProvider.fromMap(Map.empty)
+        for {
+          value <- configProvider.load(config)
+        } yield assert(value)(isNone)
+      },
+      test("does not recover from other errors") {
+        val config         = Config.int("key").optional
+        val configProvider = ConfigProvider.fromMap(Map("key" -> "value"))
+        for {
+          value <- configProvider.load(config).exit
+        } yield assert(value)(failsWithA[Config.Error])
+      },
+      test("does not recover from missing data and other error") {
+        val config         = Config.int("key1").zip(Config.int("key2")).optional
+        val configProvider = ConfigProvider.fromMap(Map("key2" -> "value"))
+        for {
+          value <- configProvider.load(config).exit
+        } yield assert(value)(failsWithA[Config.Error])
+      },
+      test("recovers from missing data or other error") {
+        val config         = Config.int("key1").orElse(Config.int("key2")).optional
+        val configProvider = ConfigProvider.fromMap(Map("key2" -> "value"))
+        for {
+          value <- configProvider.load(config)
+        } yield assert(value)(isNone)
+      }
+    )
+
   def spec =
     suite("ConfigSpec")(
       secretSuite,
-      withDefaultSuite
+      withDefaultSuite,
+      optionalSuite
     )
 }

@@ -237,7 +237,9 @@ object Config {
     def apply[A](first: Config[A], second: Config[A]): Fallback[A]        = new Fallback(first, second)
     def unapply[A](fallback: Fallback[A]): Option[(Config[A], Config[A])] = Some((fallback.first, fallback.second))
   }
-  final case class Optional[A](config: Config[A]) extends Fallback[Option[A]](config.map(Some(_)), Config.succeed(None))
+  final case class Optional[A](config: Config[A]) extends Fallback[Option[A]](config.map(Some(_)), Config.succeed(None)) {
+    override def condition(error: Config.Error): Boolean = error.isMissingDataOnly
+  }
   final case class FallbackWith[A](
     override val first: Config[A],
     override val second: Config[A],
