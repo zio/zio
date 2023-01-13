@@ -215,7 +215,8 @@ object ConfigProvider {
         config match {
           case fallback: Fallback[A] =>
             loop(prefix, fallback.first).catchAll(e1 =>
-              loop(prefix, fallback.second).catchAll(e2 => ZIO.fail(e1 || e2))
+              if (fallback.condition(e1)) loop(prefix, fallback.second).catchAll(e2 => ZIO.fail(e1 || e2))
+              else ZIO.fail(e1)
             )
 
           case Described(config, _) => loop(prefix, config)

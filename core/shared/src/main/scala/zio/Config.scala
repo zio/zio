@@ -15,6 +15,7 @@
  */
 package zio
 
+import scala.annotation.tailrec
 import scala.util.control.{NonFatal, NoStackTrace}
 
 /**
@@ -85,6 +86,14 @@ sealed trait Config[+A] { self =>
   def orElse[A1 >: A](that: => Config[A1]): Config[A1] = self || that
 
   /**
+   * Returns configuration which reads from this configuration, but which falls
+   * back to the specified configuration if reading from this configuration
+   * fails with an error satisfying the specified predicate.
+   */
+  def orElseIf(condition: Config.Error => Boolean): Config.OrElse[A] =
+    new Config.OrElse(self, condition)
+
+  /**
    * Returns a new config that describes a sequence of values, each of which has
    * the structure of this config.
    */
@@ -111,7 +120,7 @@ sealed trait Config[+A] { self =>
    * the specified default value in case the information cannot be found.
    */
   def withDefault[A1 >: A](default: => A1): Config[A1] =
-    self || Config.succeed(default)
+    self.orElseIf(_.isMissingDataOnly)(Config.succeed(default))
 
   /**
    * A named version of `++`.
@@ -206,6 +215,8 @@ object Config {
       with Serializable { self =>
     def canEqual(that: Any): Boolean =
       that.isInstanceOf[Fallback[_]]
+    def condition(error: Config.Error): Boolean =
+      true
     override def equals(that: Any): Boolean =
       that match {
         case that: Fallback[_] => that.canEqual(self) && self.first == that.first && self.second == that.second
@@ -227,6 +238,14 @@ object Config {
     def unapply[A](fallback: Fallback[A]): Option[(Config[A], Config[A])] = Some((fallback.first, fallback.second))
   }
   final case class Optional[A](config: Config[A]) extends Fallback[Option[A]](config.map(Some(_)), Config.succeed(None))
+  final case class FallbackWith[A](
+    override val first: Config[A],
+    override val second: Config[A],
+    f: Config.Error => Boolean
+  ) extends Fallback[A](first, second) {
+    override def condition(error: Config.Error): Boolean =
+      f(error)
+  }
   case object Integer extends Primitive[BigInt] {
     final def parse(text: String): Either[Config.Error, BigInt] = try Right(BigInt(text))
     catch {
@@ -288,8 +307,76 @@ object Config {
    * The possible ways that loading configuration data may fail.
    */
   sealed trait Error extends Exception with NoStackTrace { self =>
-    def &&(that: Error): Error = Error.And(self, that)
-    def ||(that: Error): Error = Error.Or(self, that)
+    import Error._
+
+    def &&(that: Error): Error = And(self, that)
+    def ||(that: Error): Error = Or(self, that)
+
+    def fold[Z](
+      invalidDataCase0: (Chunk[String], String) => Z,
+      missingDataCase0: (Chunk[String], String) => Z,
+      sourceUnavailableCase0: (Chunk[String], String, Cause[Throwable]) => Z,
+      unsupportedCase0: (Chunk[String], String) => Z
+    )(
+      andCase0: (Z, Z) => Z,
+      orCase0: (Z, Z) => Z
+    ): Z =
+      foldContext(()) {
+        new Folder[Unit, Z] {
+          def invalidDataCase(context: Unit, path: Chunk[String], message: String): Z =
+            invalidDataCase0(path, message)
+          def missingDataCase(context: Unit, path: Chunk[String], message: String): Z =
+            missingDataCase0(path, message)
+          def sourceUnavailableCase(context: Unit, path: Chunk[String], message: String, cause: Cause[Throwable]): Z =
+            sourceUnavailableCase0(path, message, cause)
+          def unsupportedCase(context: Unit, path: Chunk[String], message: String): Z =
+            unsupportedCase0(path, message)
+          def andCase(context: Unit, left: Z, right: Z): Z =
+            andCase0(left, right)
+          def orCase(context: Unit, left: Z, right: Z): Z =
+            orCase0(left, right)
+        }
+      }
+
+    def foldContext[C, Z](context: C)(folder: Folder[C, Z]): Z = {
+      import folder._
+      sealed trait ErrorCase
+
+      case object AndCase extends ErrorCase
+      case object OrCase  extends ErrorCase
+
+      @tailrec
+      def loop(in: List[Error], out: List[Either[ErrorCase, Z]]): List[Z] =
+        in match {
+          case InvalidData(path, message) :: errors =>
+            loop(errors, Right(invalidDataCase(context, path, message)) :: out)
+          case MissingData(path, message) :: errors =>
+            loop(errors, Right(missingDataCase(context, path, message)) :: out)
+          case SourceUnavailable(path, message, cause) :: errors =>
+            loop(errors, Right(sourceUnavailableCase(context, path, message, cause)) :: out)
+          case Unsupported(path, message) :: errors =>
+            loop(errors, Right(unsupportedCase(context, path, message)) :: out)
+          case And(left, right) :: errors =>
+            loop(left :: right :: errors, Left(AndCase) :: out)
+          case Or(left, right) :: errors =>
+            loop(left :: right :: errors, Left(OrCase) :: out)
+
+          case Nil =>
+            out.foldLeft[List[Z]](List.empty) {
+              case (acc, Right(errors)) => errors :: acc
+              case (acc, Left(AndCase)) =>
+                val left :: right :: errors = (acc: @unchecked)
+                andCase(context, left, right) :: errors
+              case (acc, Left(OrCase)) =>
+                val left :: right :: errors = (acc: @unchecked)
+                orCase(context, left, right) :: errors
+            }
+        }
+      loop(List(self), List.empty).head
+    }
+
+    def isMissingDataOnly: Boolean =
+      foldContext(())(Folder.IsMissingDataOnly)
 
     def prefixed(prefix: Chunk[String]): Error
 
@@ -328,6 +415,31 @@ object Config {
       def prefixed(prefix: Chunk[String]): Unsupported = copy(path = prefix ++ path)
 
       override def toString(): String = s"(Unsupported operation at ${path.mkString(".")}: ${message})"
+    }
+
+    trait Folder[-Context, Z] {
+      def andCase(context: Context, left: Z, right: Z): Z
+      def invalidDataCase(context: Context, path: Chunk[String], message: String): Z
+      def missingDataCase(context: Context, path: Chunk[String], message: String): Z
+      def orCase(context: Context, left: Z, right: Z): Z
+      def sourceUnavailableCase(context: Context, path: Chunk[String], message: String, cause: Cause[Throwable]): Z
+      def unsupportedCase(context: Context, path: Chunk[String], message: String): Z
+    }
+
+    object Folder {
+      case object IsMissingDataOnly extends Folder[Any, Boolean] {
+        def andCase(context: Any, left: Boolean, right: Boolean): Boolean                = left && right
+        def invalidDataCase(context: Any, path: Chunk[String], message: String): Boolean = false
+        def missingDataCase(context: Any, path: Chunk[String], message: String): Boolean = true
+        def orCase(context: Any, left: Boolean, right: Boolean): Boolean                 = left || right
+        def sourceUnavailableCase(
+          context: Any,
+          path: Chunk[String],
+          message: String,
+          cause: Cause[Throwable]
+        ): Boolean = false
+        def unsupportedCase(context: Any, path: Chunk[String], message: String): Boolean = false
+      }
     }
   }
 
@@ -413,4 +525,9 @@ object Config {
   def vectorOf[A](config: Config[A]): Config[Vector[A]] = chunkOf(config).map(_.toVector)
 
   def vectorOf[A](name: String, config: Config[A]): Config[Vector[A]] = vectorOf(config).nested(name)
+
+  final class OrElse[+A](self: Config[A], condition: Error => Boolean) {
+    def apply[A1 >: A](that: Config[A1]): Config[A1] =
+      FallbackWith(self, that, condition)
+  }
 }
