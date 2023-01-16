@@ -43,7 +43,7 @@ trait ConfigProvider { self =>
    * if there are any issues loading the configuration from this provider.
    */
   final def orElse(that: ConfigProvider): ConfigProvider =
-    ConfigProvider.fromFlat(self.flatten.merge(that.flatten))
+    ConfigProvider.fromFlat(self.flatten.orElse(that.flatten))
 
   /**
    * Flattens this config provider into a simplified config provider that knows
@@ -69,7 +69,7 @@ object ConfigProvider {
 
     def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]]
 
-    final def merge(that: Flat): Flat =
+    final def orElse(that: Flat): Flat =
       new Flat {
         def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit
           trace: Trace
