@@ -303,6 +303,22 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result   <- provider.load(Config.succeed("value"))
         } yield assertTrue(result == "value")
       }
-    )
+    ) +
+      test("nested") {
+        val configProvider1 = ConfigProvider.fromMap(Map("nested.key" -> "value"))
+        val config1         = Config.string("key").nested("nested")
+        val configProvider2 = ConfigProvider.fromMap(Map("nested.key" -> "value")).nested("nested")
+        val config2         = Config.string("key")
+        for {
+          result1 <- configProvider1.load(config1)
+          result2 <- configProvider2.load(config2)
+        } yield assertTrue(result1 == "value") && assertTrue(result2 == "value")
+      } +
+      test("orElse") {
+        for {
+          _      <- TestSystem.putProperty("key", "value")
+          result <- ZIO.config(Config.string("key").optional)
+        } yield assertTrue(result == Some("value"))
+      }
   }
 }
