@@ -826,7 +826,16 @@ object ZStreamSpec extends ZIOBaseSpec {
               assert(snapshots._3)(
                 equalTo(List(25, 24, 23, 22, 21, 20, 19, 18, 16, 15, 14, 13, 12, 11, 10, 9))
               )
-          } @@ nonFlaky
+          } @@ nonFlaky,
+          test("propagates defects") {
+            for {
+              exit <- ZStream
+                        .fromZIO(ZIO.dieMessage("die"))
+                        .bufferSliding(1)
+                        .runDrain
+                        .exit
+            } yield assert(exit)(dies(hasMessage(equalTo("die"))))
+          }
         ),
         suite("bufferUnbounded")(
           test("buffer the Stream")(check(Gen.chunkOf(Gen.int)) { chunk =>
