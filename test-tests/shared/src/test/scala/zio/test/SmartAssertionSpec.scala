@@ -509,6 +509,10 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("isSuccess on Exit[_, _] works") {
         val exit: Exit[String, Int] = Exit.succeed(1)
         assertTrue(exit.isSuccess)
+      },
+      test("equalTo on java.lang.Boolean works") {
+        val jBool = java.lang.Boolean.FALSE
+        assertTrue(jBool == false)
       }
     )
   )

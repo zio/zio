@@ -166,10 +166,7 @@ object SmartAssertMacros {
 
       case Unseal(MethodCall(lhs, "==", tpes, Some(List(rhs)))) =>
         val span = getSpan(rhs)
-        lhs.tpe.widen.asType match {
-          case '[l] =>
-            '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.equalTo(${rhs.asExprOf[l]}).span($span)}.asExprOf[TestArrow[Any, A]]
-        }
+        '{${transform(lhs.asExpr)} >>> SmartAssertions.equalTo(${rhs.asExpr}).span($span)}.asExprOf[TestArrow[Any, A]]
 
       case Unseal(MethodCall(lhs, "&&", tpes, Some(List(rhs)))) if isBool(lhs) =>
         val span = getSpan(rhs)
