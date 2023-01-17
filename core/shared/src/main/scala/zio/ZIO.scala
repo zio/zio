@@ -5916,6 +5916,12 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   final def exists(p: A => Boolean): Boolean =
     foldExit(_ => false, p)
 
+  override final def flatMap[R1, E1 >: E, B](k: A => ZIO[R1, E1, B])(implicit trace: Trace): ZIO[R1, E1, B] =
+    self match {
+      case Success(a) => k(a)
+      case e@Failure(_) => e
+    }
+    
   /**
    * Flat maps over the value type.
    */
