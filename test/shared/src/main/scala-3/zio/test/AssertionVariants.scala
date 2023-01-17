@@ -18,7 +18,6 @@ package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{ErrorMessage => M}
-import zio.test.Assertion.Arguments.valueArgument
 
 trait AssertionVariants {
 
@@ -30,14 +29,14 @@ trait AssertionVariants {
       TestArrow
         .make[A, Boolean] { actual =>
           val result = (actual, expected) match {
-            case (left: Array[_], right: Array[_])         => left.sameElements[Any](right)
+            case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
             case (left: CharSequence, right: CharSequence) => left.toString == right.toString
-            case (left, right)                             => left == right
+            case (left, right)                     => left == right
           }
           TestTrace.boolean(result) {
             M.pretty(actual) + M.equals + M.pretty(expected)
           }
         }
-        .withCode("equalTo", valueArgument(expected))
+        .withCode("equalTo")
     )
 }
