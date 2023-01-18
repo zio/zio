@@ -173,7 +173,6 @@ object ConfigProvider {
             "There was a problem reading configuration from the console",
             Cause.fail(e)
           )
-        val isText = primitive == Config.Text || primitive == Config.Secret
 
         for {
           _       <- Console.printLine(s"Please enter ${description} for property ${name}:").mapError(sourceError)
