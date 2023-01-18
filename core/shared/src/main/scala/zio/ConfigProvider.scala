@@ -111,7 +111,7 @@ object ConfigProvider {
         escapedDelim: String
       ): IO[Config.Error, Chunk[A]] = {
         val name    = path.lastOption.getOrElse("<unnamed>")
-        val unsplit = primitive == Config.Secret
+        val unsplit = primitive == Config.SecretType
 
         if (unsplit) ZIO.fromEither(primitive.parse(text)).map(Chunk(_))
         else
