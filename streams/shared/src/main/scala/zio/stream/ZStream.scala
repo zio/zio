@@ -3695,7 +3695,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * The empty stream
    */
   def empty(implicit trace: Trace): ZStream[Any, Nothing, Nothing] =
-    new ZStream(ZChannel.write(Chunk.empty))
+    new ZStream(ZChannel.unit)
 
   /**
    * Accesses the whole environment of the stream.
