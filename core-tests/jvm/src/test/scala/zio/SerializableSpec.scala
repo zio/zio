@@ -200,6 +200,13 @@ object SerializableSpec extends ZIOBaseSpec {
         chunk  <- ZIO.succeed(chunk)
         result <- serializeAndBack(chunk)
       } yield assertTrue(chunk == result)
+    },
+    test("NonEmptyChunk is serializable") {
+      val nonEmptyChunk = NonEmptyChunk(1, 2, 3)
+      for {
+        nonEmptyChunk <- ZIO.succeed(nonEmptyChunk)
+        result        <- serializeAndBack(nonEmptyChunk)
+      } yield assertTrue(nonEmptyChunk == result)
     }
   )
 }

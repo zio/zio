@@ -28,7 +28,7 @@ import scala.language.implicitConversions
  * `NonEmptyChunk`. Operations on `NonEmptyChunk` which could potentially return
  * an empty chunk will return a `Chunk` instead.
  */
-final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
+final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) extends Serializable { self =>
 
   /**
    * A symbolic alias for `prepended`.

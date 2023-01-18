@@ -6,6 +6,8 @@ import zio.metrics.MetricKeyType.Histogram
 import zio.test._
 import zio.test.TestAspect._
 
+import java.time.temporal.ChronoUnit
+
 object MetricSpec extends ZIOBaseSpec {
 
   private val labels1 = Set(MetricLabel("x", "a"), MetricLabel("y", "b"))
@@ -395,6 +397,12 @@ object MetricSpec extends ZIOBaseSpec {
         _     <- counter.increment @@ tagged("key" -> "value")
         state <- counter.tagged(MetricLabel("key", "value")).value
       } yield assertTrue(state == MetricState.Counter(1L))
+    },
+    test("timer") {
+      val timer = Metric.timer("timer", ChronoUnit.MILLIS)
+      for {
+        _ <- ZIO.unit @@ timer.trackDuration
+      } yield assertCompletes
     }
   )
 }

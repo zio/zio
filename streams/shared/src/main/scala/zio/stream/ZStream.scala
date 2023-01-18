@@ -388,7 +388,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           } yield ()
         }
 
-      ZChannel.readWith[R1, E1, Chunk[A1], Any, Nothing, Nothing, Any](
+      ZChannel.readWithCause[R1, E1, Chunk[A1], Any, Nothing, Nothing, Any](
         in =>
           ZChannel.fromZIO {
             for {
@@ -397,7 +397,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
               _     <- ref.set(p).when(added)
             } yield ()
           } *> producer(queue, ref),
-        err => terminate(Take.fail(err)),
+        err => terminate(Take.failCause(err)),
         _ => terminate(Take.end)
       )
     }

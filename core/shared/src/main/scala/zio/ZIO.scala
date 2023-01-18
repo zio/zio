@@ -686,7 +686,7 @@ sealed trait ZIO[-R, +E, +A]
    * A more powerful version of `foldZIO` that allows recovering from any kind
    * of failure except external interruption.
    */
-  final def foldCauseZIO[R1 <: R, E2, B](
+  def foldCauseZIO[R1 <: R, E2, B](
     failure: Cause[E] => ZIO[R1, E2, B],
     success: A => ZIO[R1, E2, B]
   )(implicit trace: Trace): ZIO[R1, E2, B] =
@@ -1422,8 +1422,19 @@ sealed trait ZIO[-R, +E, +A]
 
       val raceIndicator = new AtomicBoolean(true)
 
-      val leftFiber  = ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, null)(Unsafe.unsafe)
-      val rightFiber = ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, null)(Unsafe.unsafe)
+      val leftFiber =
+        ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, parentFiber.scope)(Unsafe.unsafe)
+      val rightFiber =
+        ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, parentFiber.scope)(Unsafe.unsafe)
+
+      leftFiber.setFiberRef(
+        FiberRef.forkScopeOverride,
+        parentFiber.getFiberRef(FiberRef.forkScopeOverride)(Unsafe.unsafe)
+      )(Unsafe.unsafe)
+      rightFiber.setFiberRef(
+        FiberRef.forkScopeOverride,
+        parentFiber.getFiberRef(FiberRef.forkScopeOverride)(Unsafe.unsafe)
+      )(Unsafe.unsafe)
 
       val startLeftFiber  = leftFiber.startSuspended()(Unsafe.unsafe)
       val startRightFiber = rightFiber.startSuspended()(Unsafe.unsafe)
@@ -5928,6 +5939,16 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
    */
   final def flattenExit[E1 >: E, B](implicit ev: A <:< Exit[E1, B]): Exit[E1, B] =
     Exit.flatten(self.mapExit(ev))
+
+  /**
+   * A more powerful version of `foldZIO` that allows recovering from any kind
+   * of failure except external interruption.
+   */
+  override final def foldCauseZIO[R, E2, B](
+    failure: Cause[E] => ZIO[R, E2, B],
+    success: A => ZIO[R, E2, B]
+  )(implicit trace: Trace): ZIO[R, E2, B] =
+    foldExitZIO(failure, success)
 
   /**
    * Folds over the value or cause.

@@ -166,10 +166,7 @@ object SmartAssertMacros {
 
       case Unseal(MethodCall(lhs, "==", tpes, Some(List(rhs)))) =>
         val span = getSpan(rhs)
-        lhs.tpe.widen.asType match {
-          case '[l] =>
-            '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.equalTo(${rhs.asExprOf[l]}).span($span)}.asExprOf[TestArrow[Any, A]]
-        }
+        '{${transform(lhs.asExpr)} >>> SmartAssertions.equalTo(${rhs.asExpr}).span($span)}.asExprOf[TestArrow[Any, A]]
 
       case Unseal(MethodCall(lhs, "&&", tpes, Some(List(rhs)))) if isBool(lhs) =>
         val span = getSpan(rhs)
@@ -188,7 +185,16 @@ object SmartAssertMacros {
       case Unseal(method @ MethodCall(lhs, name, tpeArgs, args)) =>
         def body(param: Term) =
           (tpeArgs, args) match {
-            case (Nil, None) => Select.unique(param, name)
+            case (Nil, None) =>
+              try Select.unique(param, name)
+              catch {
+                case _: AssertionError =>
+                  // Tries to find directly the referenced method on lhs's type
+                  lhs.symbol.declaredMethods.filter(_.name == name).headOption match {
+                    case Some(method) => Select(param, method)
+                    case None => throw new Error(s"Could not resolve $name on $lhs")
+                  }
+              }
             case (tpeArgs, Some(args)) => Select.overloaded(param, name, tpeArgs, args)
             case (tpeArgs, None) => TypeApply(Select.unique(param, name), tpeArgs.map(_.typeTree))
           }

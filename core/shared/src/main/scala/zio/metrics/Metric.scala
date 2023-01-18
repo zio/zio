@@ -536,7 +536,7 @@ object Metric {
     val base       = histogram(name, boundaries).tagged(MetricLabel("time_unit", chronoUnit.toString.toLowerCase()))
 
     base.contramap[Duration] { (duration: Duration) =>
-      duration.get(chronoUnit).toDouble
+      duration.toNanos / chronoUnit.getDuration.toNanos
     }
   }
 }
