@@ -22,7 +22,19 @@ object ConfigProviderEnvSpec extends ZIOBaseSpec {
     val config: Config[HostPorts] = Config.listOf("hostPorts", HostPort.config).map(HostPorts(_))
   }
 
+  final case class JsonConfig(json: String)
+  object JsonConfig {
+    val config: Config[JsonConfig] = Config.string("JSON_CONFIG").mapAttempt(parseJson)
+    private def parseJson(json: String) = if (json.endsWith("}")) JsonConfig(json) else throw new Exception(s"Invalid JSON: $json")
+  }
+
   def spec = suite("ConfigProviderEnvSpec") {
+    test("repro #7716") {
+      for {
+        _      <- TestSystem.putEnv("JSON_CONFIG", """{"a":1,"b":2}""")
+        config <- ConfigProvider.envProvider.load(JsonConfig.config)
+      } yield assertTrue(config == JsonConfig("""{"a":1,"b":2}"""))
+    } +
     test("flat atoms env") {
       for {
         _      <- TestSystem.putEnv("HOST", "localhost")
