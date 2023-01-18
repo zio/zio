@@ -973,7 +973,7 @@ private[zio] object ChannelExecutor {
           case r2 @ ChannelState.Read(upstream2, onEffect2, onEmit2, onDone2) =>
             readStack.push(current.asInstanceOf[ChannelState.Read[Any, Any]])
             readStack.push(r2.asInstanceOf[ChannelState.Read[Any, Any]])
-            ZIO.unit *> read()
+            ZIO.succeed(()) *> read()
         }
       }
     }
