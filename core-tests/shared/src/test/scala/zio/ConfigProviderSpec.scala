@@ -319,6 +319,12 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           _      <- TestSystem.putProperty("key", "value")
           result <- ZIO.config(Config.string("key").optional)
         } yield assertTrue(result == Some("value"))
+      } +
+      test("values are not split unless a sequence is expected") {
+        for {
+          _      <- TestSystem.putProperty("greeting", "Hello, World!")
+          result <- ZIO.config(Config.string("greeting"))
+        } yield assertTrue(result == "Hello, World!")
       }
   }
 }
