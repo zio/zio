@@ -1011,6 +1011,15 @@ object TestAspect extends TimeoutVariants {
   val windows: TestAspectPoly = os(_.isWindows)
 
   /**
+   * An aspect that runs tests with the specified config provider.
+   */
+  def withConfigProvider(configProvider: ConfigProvider): TestAspectPoly =
+    new TestAspectPoly {
+      def some[R, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
+        spec.provideSomeLayer[R](ZLayer.scoped(ZIO.withConfigProviderScoped(configProvider)))
+    }
+
+  /**
    * An aspect that runs tests with the live clock service.
    */
   lazy val withLiveClock: TestAspectPoly =

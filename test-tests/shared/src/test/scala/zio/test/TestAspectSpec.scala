@@ -326,7 +326,12 @@ object TestAspectSpec extends ZIOBaseSpec {
       for {
         _ <- ZIO.sleep(1.nanosecond)
       } yield assertCompletes
-    } @@ withLiveEnvironment
+    } @@ withLiveEnvironment,
+    test("withConfigProvider runs tests with the specified config provider") {
+      for {
+        value <- ZIO.config(Config.string("key"))
+      } yield assertTrue(value == "value")
+    } @@ withConfigProvider(ConfigProvider.fromMap(Map("key" -> "value")))
   )
 
   def diesWithSubtypeOf[E](implicit ct: ClassTag[E]): TestFailure[E] => Boolean =
