@@ -29,6 +29,15 @@ trait ConfigProvider { self =>
   def load[A](config: Config[A])(implicit trace: Trace): IO[Config.Error, A]
 
   /**
+   * Returns a new config provider that will automatically tranform all path
+   * configuration names with the specified function. This can be utilized to
+   * adapt the names of configuration properties from one naming convention to
+   * another.
+   */
+  final def contramapPath(f: String => String): ConfigProvider =
+    ConfigProvider.fromFlat(self.flatten.contramapPath(f))
+
+  /**
    * Flattens this config provider into a simplified config provider that knows
    * only how to deal with flat (key/value) properties.
    */
@@ -68,6 +77,20 @@ object ConfigProvider {
     def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]]
 
     def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]]
+
+    def contramapPath(f: String => String): Flat =
+      new Flat {
+        override def load[A](path: Chunk[String], config: Config.Primitive[A], split: Boolean)(implicit
+          trace: Trace
+        ): IO[Config.Error, Chunk[A]] =
+          self.load(path.map(f), config, split)
+        def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
+          self.enumerateChildren(path.map(f))
+        def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit
+          trace: Trace
+        ): IO[Config.Error, Chunk[A]] =
+          load(path, config, true)
+      }
 
     def load[A](path: Chunk[String], config: Config.Primitive[A], split: Boolean)(implicit
       trace: Trace

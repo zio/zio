@@ -325,6 +325,12 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           _      <- TestSystem.putProperty("greeting", "Hello, World!")
           result <- ZIO.config(Config.string("greeting"))
         } yield assertTrue(result == "Hello, World!")
+      } +
+      test("contramapPath") {
+        val configProvider = ConfigProvider.fromMap(Map("KEY" -> "VALUE")).contramapPath(_.toUpperCase)
+        for {
+          result <- configProvider.load(Config.string("key"))
+        } yield assertTrue(result == "VALUE")
       }
   }
 }
