@@ -246,6 +246,9 @@ object Runtime extends RuntimePlatformSpecific {
   def setBlockingExecutor(executor: Executor)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentBlockingExecutor.locallyScoped(executor))
 
+  def setConfigProvider(configProvider: ConfigProvider)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped(ZIO.withConfigProviderScoped(configProvider))
+
   def setExecutor(executor: Executor)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.overrideExecutor.locallyScoped(Some(executor)))
 
