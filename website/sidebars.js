@@ -549,6 +549,7 @@ module.exports = {
         "ecosystem/community/quill",
         "ecosystem/community/rezilience",
         "ecosystem/community/tamer",
+        "ecosystem/community/tofu-zio2-logging",
         "ecosystem/community/tranzactio",
         "ecosystem/community/zio-amqp",
         "ecosystem/community/zio-arrow",
