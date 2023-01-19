@@ -1012,9 +1012,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ev1: Any <:< InElem,
     ev2: OutElem <:< Nothing,
     trace: Trace
-  ): ZIO[Env with Scope, OutErr, OutDone] =
-    ZIO
-      .acquireReleaseExit(
+  ): ZIO[Env with Scope, OutErr, OutDone] = {
+    def run(promise: Promise[OutErr, OutDone], scope: Scope) = ZIO
+      .acquireReleaseExitWith(
         ZIO.succeed(
           new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             () => self,
@@ -1022,12 +1022,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             executeCloseLastSubstream = identity[URIO[Env, Any]]
           )
         )
-      ) { (exec, exit) =>
+      ) { (exec, exit: Exit[OutErr, OutDone]) =>
         val finalize = exec.close(exit)
-        if (finalize ne null) finalize
+        if (finalize ne null) finalize.tapErrorCause(cause => scope.addFinalizer(ZIO.refailCause(cause)))
         else ZIO.unit
-      }
-      .flatMap { exec =>
+      } { exec =>
         ZIO.suspendSucceed {
           def interpret(channelState: ChannelExecutor.ChannelState[Env, OutErr]): ZIO[Env, OutErr, OutDone] =
             channelState match {
@@ -1047,8 +1046,19 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             }
 
           interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+            .intoPromise(promise) *> promise.await <* ZIO.never
         }
       }
+
+    for {
+      parent  <- ZIO.scope
+      child   <- parent.fork
+      promise <- Promise.make[OutErr, OutDone]
+      fiber   <- run(promise, child).forkScoped
+      done    <- promise.await
+      _       <- fiber.inheritAll
+    } yield done
+  }
 
   /**
    * Run the channel until it finishes with a done value or fails with an error.
