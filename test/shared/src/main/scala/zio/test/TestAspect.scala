@@ -1016,7 +1016,7 @@ object TestAspect extends TimeoutVariants {
   def withConfigProvider(configProvider: ConfigProvider): TestAspectPoly =
     new TestAspectPoly {
       def some[R, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
-        spec.provideSomeLayer[R](ZLayer.scoped(ZIO.withConfigProviderScoped(configProvider)))
+        spec.provideSomeLayer[R](Runtime.setConfigProvider(configProvider))
     }
 
   /**
