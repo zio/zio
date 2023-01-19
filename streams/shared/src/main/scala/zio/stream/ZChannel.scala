@@ -654,10 +654,12 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
     ZChannel.unwrapScoped[Env1] {
       for {
+        input       <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
+        queueReader  = ZChannel.fromInput(input)
         queue       <- ZIO.acquireRelease(Queue.bounded[ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]](n))(_.shutdown)
         errorSignal <- Promise.make[OutErr1, Nothing]
         permits     <- Semaphore.make(n.toLong)
-        pull        <- self.toPull
+        pull        <- (queueReader >>> self).toPull
         _ <- pull
                .foldCauseZIO(
                  cause => queue.offer(ZIO.refailCause(cause)),
@@ -696,7 +698,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             )
           }
 
-        consumer
+        consumer.embedInput(input)
       }
     }
 
@@ -1709,7 +1711,7 @@ object ZChannel {
           lastDone      <- Ref.make[Option[OutDone]](None)
           errorSignal   <- Promise.make[Nothing, Unit]
           permits       <- Semaphore.make(n.toLong)
-          pull          <- channels.toPull
+          pull          <- (queueReader >>> channels).toPull
           evaluatePull = (pull: ZIO[Env, OutErr, Either[OutDone, OutElem]]) =>
                            pull.flatMap {
                              case Left(done) =>
