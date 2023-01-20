@@ -1455,11 +1455,6 @@ sealed trait ZIO[-R, +E, +A]
           },
           leftFiber.id <> rightFiber.id
         )
-        .onInterrupt(
-          leftFiber.interruptAsFork(parentFiber.id) *> rightFiber.interruptAsFork(
-            parentFiber.id
-          ) *> leftFiber.await *> rightFiber.await
-        ) // TODO: .onInterrupt(leftFiber.await *> rightFiber.await)
     }
 
   /**
