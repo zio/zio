@@ -1,20 +1,17 @@
 import explicitdeps.ExplicitDepsPlugin.autoImport._
-import explicitdeps.ModuleFilter
 import sbt.Keys._
-import sbt.{Def, _}
+import sbt._
 import sbtbuildinfo.BuildInfoKeys._
 import sbtbuildinfo._
 import sbtcrossproject.CrossPlugin.autoImport._
 import scalajscrossproject._
+import scala.jdk.CollectionConverters._
 
-import java.io
-
+import org.snakeyaml.engine.v2.api.{Load, LoadSettings}
 object BuildHelper {
   private val versions: Map[String, String] = {
-    import org.snakeyaml.engine.v2.api.{Load, LoadSettings}
 
     import java.util.{List => JList, Map => JMap}
-    import scala.jdk.CollectionConverters._
     val doc = new Load(LoadSettings.builder().build())
       .loadFromReader(scala.io.Source.fromFile(".github/workflows/ci.yml").bufferedReader())
     val yaml = doc.asInstanceOf[JMap[String, JMap[String, JMap[String, JMap[String, JMap[String, JList[String]]]]]]]
@@ -62,14 +59,14 @@ object BuildHelper {
       )
     else Nil
 
-  def buildInfoSettings(packageName: String): Seq[Def.Setting[_ >: Seq[BuildInfoKey.Entry[_]] with String <: Object]] =
+  def buildInfoSettings(packageName: String) =
     Seq(
       buildInfoKeys    := Seq[BuildInfoKey](organization, moduleName, name, version, scalaVersion, sbtVersion, isSnapshot),
       buildInfoPackage := packageName
     )
 
   // Keep this consistent with the version in .core-tests/shared/src/test/scala/REPLSpec.scala
-  val replSettings: Seq[Def.Setting[_ >: Task[Seq[String]] with String <: io.Serializable]] = makeReplSettings {
+  val replSettings = makeReplSettings {
     """|import zio._
        |implicit class RunSyntax[A](io: ZIO[Any, Any, A]) {
        |  def unsafeRun: A =
@@ -81,7 +78,7 @@ object BuildHelper {
   }
 
   // Keep this consistent with the version in .streams-tests/shared/src/test/scala/StreamREPLSpec.scala
-  val streamReplSettings: Seq[Def.Setting[_ >: Task[Seq[String]] with String <: io.Serializable]] = makeReplSettings {
+  val streamReplSettings = makeReplSettings {
     """|import zio._
        |implicit class RunSyntax[A](io: ZIO[Any, Any, A]) {
        |  def unsafeRun: A =
@@ -92,7 +89,7 @@ object BuildHelper {
     """.stripMargin
   }
 
-  def makeReplSettings(initialCommandsStr: String): Seq[Def.Setting[_ >: Task[Seq[String]] with String <: io.Serializable]] = Seq(
+  def makeReplSettings(initialCommandsStr: String) = Seq(
     // In the repl most warnings are useless or worse.
     // This is intentionally := as it's more direct to enumerate the few
     // options we do want than to try to subtract off the ones we don't.
@@ -177,7 +174,7 @@ object BuildHelper {
     platformSpecificSources(platform, conf, baseDir)(versions: _*)
   }
 
-  lazy val crossProjectSettings: Seq[Def.Setting[Seq[File]]] = Seq(
+  lazy val crossProjectSettings = Seq(
     Compile / unmanagedSourceDirectories ++= {
       crossPlatformSources(
         scalaVersion.value,
@@ -196,7 +193,7 @@ object BuildHelper {
     }
   )
 
-  def stdSettings(prjName: String): Seq[Def.Setting[_ >: Seq[String] with String with ModuleFilter with Task[IncOptions] with Task[Seq[PackageOption]] with Task[Seq[String]] with Boolean with Seq[ModuleID]]] = Seq(
+  def stdSettings(prjName: String) = Seq(
     name                     := s"$prjName",
     crossScalaVersions       := Seq(Scala211, Scala212, Scala213, Scala3),
     ThisBuild / scalaVersion := Scala213,
@@ -204,10 +201,8 @@ object BuildHelper {
     scalacOptions --= {
       if (scalaVersion.value == Scala3)
         List("-Xfatal-warnings")
-      else {
-        Logger.Null // To be used for log levels if scalaVersion != value
+      else
         List()
-      }
     },
     libraryDependencies ++= {
       if (scalaVersion.value == Scala3)
@@ -234,7 +229,7 @@ object BuildHelper {
       )
   )
 
-  def macroExpansionSettings: Seq[Def.Setting[_ >: Task[Seq[String]] with Seq[ModuleID] <: Equals]] = Seq(
+  def macroExpansionSettings = Seq(
     scalacOptions ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, 13)) => Seq("-Ymacro-annotations")
@@ -250,7 +245,7 @@ object BuildHelper {
     }
   )
 
-  def macroDefinitionSettings: Seq[Def.Setting[_ >: Task[Seq[String]] with Seq[ModuleID] <: Equals]] = Seq(
+  def macroDefinitionSettings = Seq(
     scalacOptions += "-language:experimental.macros",
     libraryDependencies ++= {
       if (scalaVersion.value == Scala3) Seq()
@@ -262,7 +257,7 @@ object BuildHelper {
     }
   )
 
-  def nativeSettings: Seq[Def.Setting[_ >: Task[Unit] with Boolean]] = Seq(
+  def nativeSettings = Seq(
     Test / test := (Test / compile).value,
     Test / fork := crossProjectPlatform.value == JVMPlatform // set fork to `true` on JVM to improve log readability, JS and Native need `false`
   )
