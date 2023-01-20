@@ -5,13 +5,13 @@ import sbtbuildinfo.BuildInfoKeys._
 import sbtbuildinfo._
 import sbtcrossproject.CrossPlugin.autoImport._
 import scalajscrossproject._
+import scala.jdk.CollectionConverters._
 
+import org.snakeyaml.engine.v2.api.{Load, LoadSettings}
 object BuildHelper {
   private val versions: Map[String, String] = {
-    import org.snakeyaml.engine.v2.api.{Load, LoadSettings}
 
     import java.util.{List => JList, Map => JMap}
-    import scala.jdk.CollectionConverters._
     val doc = new Load(LoadSettings.builder().build())
       .loadFromReader(scala.io.Source.fromFile(".github/workflows/ci.yml").bufferedReader())
     val yaml = doc.asInstanceOf[JMap[String, JMap[String, JMap[String, JMap[String, JMap[String, JList[String]]]]]]]
