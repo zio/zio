@@ -807,7 +807,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * variant.
    */
   def crossRight[R1 <: R, E1 >: E, B](that: => ZStream[R1, E1, B])(implicit trace: Trace): ZStream[R1, E1, B] =
-    crossWith(that)((_, b) => b)
+    self.flatMap(_ => that)
 
   /**
    * Composes this stream with the specified stream to create a cartesian
