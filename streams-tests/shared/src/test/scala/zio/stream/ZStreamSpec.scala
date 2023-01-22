@@ -2367,7 +2367,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               ref2      <- Ref.make[Executor](default)
               stream1    = ZStream.fromZIO(ZIO.executor.flatMap(ref1.set)).onExecutor(global)
               stream2    = ZStream.fromZIO(ZIO.executor.flatMap(ref2.set))
-              _         <- (stream1 *> stream2).runDrain.onExecutor(default)
+              _         <- (stream1 ++ stream2).runDrain.onExecutor(default)
               executor1 <- ref1.get
               executor2 <- ref2.get
             } yield assert(executor1)(equalTo(global)) &&
@@ -2382,7 +2382,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               after   <- Ref.make[Thread](default)
               stream1  = ZStream.fromZIO(thread.flatMap(during.set)).onExecutor(global)
               stream2  = ZStream.fromZIO(thread.flatMap(after.set))
-              _       <- (stream1 *> stream2).runDrain
+              _       <- (stream1 ++ stream2).runDrain
               thread1 <- during.get
               thread2 <- after.get
             } yield assert(thread1)(equalTo(thread2))

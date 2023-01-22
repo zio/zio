@@ -4188,6 +4188,16 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     }
 
   /**
+   * Shifts execution to the specified executor and shifts it back to the
+   * previous executor, if any, when the scope is closed.
+   */
+  def onExecutorScoped(executor: => Executor)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+    ZIO.descriptorWith { descriptor =>
+      if (descriptor.isLocked) ZIO.acquireRelease(ZIO.shift(executor))(_ => ZIO.shift(descriptor.executor))
+      else ZIO.acquireRelease(ZIO.shift(executor))(_ => ZIO.unshift)
+    }
+
+  /**
    * Applies the specified changes to the `FiberRef` values for the fiber
    * running this workflow.
    */

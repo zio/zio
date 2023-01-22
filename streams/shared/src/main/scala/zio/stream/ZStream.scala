@@ -1856,14 +1856,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * previous executor.
    */
   def onExecutor(executor: => Executor)(implicit trace: Trace): ZStream[R, E, A] =
-    ZStream.fromZIO(ZIO.descriptor).flatMap { descriptor =>
-      ZStream.scoped(ZIO.acquireRelease(ZIO.shift(executor))(_ => ZIO.shift(descriptor.executor))) *>
-        self <*
-        ZStream.fromZIO {
-          if (descriptor.isLocked) ZIO.shift(descriptor.executor)
-          else ZIO.unshift
-        }
-    }
+    ZStream.scoped(ZIO.onExecutorScoped(executor)) *> self
 
   /**
    * Translates any failure into a stream termination, making the stream
