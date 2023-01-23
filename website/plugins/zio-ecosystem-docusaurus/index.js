@@ -59,7 +59,7 @@ function zioEcosystemPlugin(context, options) {
                     return mapConfig(categoryTemplate(project.name, require("@zio.dev/".concat(project.routeBasePath, "/").concat(project.sidebarPath))
                         .sidebar
                         .filter(function (e) { return e != "index"; })), "".concat(project.routeBasePath, "/"));
-                }).concat(["zio-sbt", "zio-direct", "zio-logging"].map(function (project) {
+                }).concat(["zio-sbt", "zio-direct", "zio-logging", "zio2-interop-cats3", "zio2-interop-cats2"].map(function (project) {
                     return mapConfig(require("@zio.dev/".concat(project, "/sidebars.js")).sidebar[0], "".concat(project, "/"));
                 }))
                     .sort(function (a, b) { return a.label < b.label ? -1 : a.label > b.label ? 1 : 0; });

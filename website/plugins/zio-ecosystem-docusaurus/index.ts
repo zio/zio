@@ -36,7 +36,7 @@ function zioEcosystemPlugin(context: LoadContext, options: PluginOptions) {
                   `${project.routeBasePath}/`
                 )
               }).concat(
-                ["zio-sbt", "zio-direct", "zio-logging"].map(project =>
+                ["zio-sbt", "zio-direct", "zio-logging", "zio2-interop-cats3", "zio2-interop-cats2"].map(project =>
                   mapConfig(require(`@zio.dev/${project}/sidebars.js`).sidebar[0], `${project}/`)
                 )
               )
