@@ -220,24 +220,24 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
   final def fromPath(path: => Path, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: Trace
   ): ZStream[Any, Throwable, Byte] =
-    ZStream
-      .acquireReleaseWith(ZIO.attemptBlockingInterrupt(FileChannel.open(path)))(chan =>
-        ZIO.attemptBlocking(chan.close()).orDie
-      )
-      .flatMap { channel =>
-        ZStream.fromZIO(ZIO.succeed(ByteBuffer.allocate(chunkSize))).flatMap { reusableBuffer =>
-          ZStream.repeatZIOChunkOption(
-            for {
-              bytesRead <- ZIO.attemptBlockingInterrupt(channel.read(reusableBuffer)).asSomeError
-              _         <- ZIO.fail(None).when(bytesRead == -1)
-              chunk <- ZIO.succeed {
-                         reusableBuffer.flip()
-                         Chunk.fromByteBuffer(reusableBuffer)
-                       }
-            } yield chunk
-          )
+    ZStream.blocking {
+      ZStream
+        .acquireReleaseWith(ZIO.attempt(FileChannel.open(path)))(chan => ZIO.succeed(chan.close()))
+        .flatMap { channel =>
+          ZStream.fromZIO(ZIO.succeed(ByteBuffer.allocate(chunkSize))).flatMap { reusableBuffer =>
+            ZStream.repeatZIOChunkOption(
+              for {
+                bytesRead <- ZIO.attempt(channel.read(reusableBuffer)).asSomeError
+                _         <- ZIO.fail(None).when(bytesRead == -1)
+                chunk <- ZIO.succeed {
+                           reusableBuffer.flip()
+                           Chunk.fromByteBuffer(reusableBuffer)
+                         }
+              } yield chunk
+            )
+          }
         }
-      }
+    }
 
   /**
    * Creates a stream from the resource specified in `path`
