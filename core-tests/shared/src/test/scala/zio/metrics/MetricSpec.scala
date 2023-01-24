@@ -400,8 +400,10 @@ object MetricSpec extends ZIOBaseSpec {
     },
     test("timer") {
       val timer = Metric.timer("timer", ChronoUnit.MILLIS)
+      val timerWithBoundaries = Metric.timer("timer", ChronoUnit.MILLIS, Chunk(0.1, 0.2))
       for {
         _ <- ZIO.unit @@ timer.trackDuration
+        _ <- ZIO.unit @@ timerWithBoundaries.trackDuration
       } yield assertCompletes
     }
   )
