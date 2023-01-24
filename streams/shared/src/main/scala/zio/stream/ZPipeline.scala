@@ -1904,70 +1904,86 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX
    * newlines (`\n`).
    */
-  def splitLines(implicit trace: Trace): ZPipeline[Any, Nothing, String, String] = {
-    def next(
-      leftover: Option[String],
-      wasSplitCRLF: Boolean
-    ): ZChannel[Any, ZNothing, Chunk[String], Any, Nothing, Chunk[String], Any] =
-      ZChannel.readWithCause(
-        incomingChunk => {
-          val buffer = collection.mutable.ArrayBuffer.empty[String]
-          var inCRLF = wasSplitCRLF
-          var carry  = leftover getOrElse ""
+  def splitLines(implicit trace: Trace): ZPipeline[Any, Nothing, String, String] =
+    ZPipeline.suspend {
+      val stringBuilder = new StringBuilder
+      var midCRLF       = false
 
-          incomingChunk foreach { string =>
-            val concatenated = carry concat string
-
-            if (concatenated.nonEmpty) {
-              // If we had a split CRLF, start reading from the last character of the leftover, which was the '\r'
-              // Otherwise we just skip over the entire previous leftover, as it doesn't contain a newline.
-              val continueFrom =
-                if (inCRLF && carry.nonEmpty) carry.length - 1
-                else carry.length
-
-              concatenated.zipWithIndex
-                .drop(continueFrom)
-                .foldLeft((0, false, inCRLF)) { case ((sliceStart, skipNext, midCRLF), (char, index)) =>
-                  if (skipNext) (sliceStart, false, false)
-                  else
-                    char match {
-                      case '\n' =>
-                        buffer += concatenated.substring(sliceStart, index)
-                        (index + 1, false, midCRLF)
-                      case '\r' =>
-                        if (index + 1 < concatenated.length && concatenated(index + 1) == '\n') {
-                          buffer += concatenated.substring(sliceStart, index)
-                          (index + 2, true, false)
-                        } else if (index == concatenated.length - 1)
-                          (sliceStart, false, true)
-                        else (sliceStart, false, false)
-                      case _ => (sliceStart, false, midCRLF)
+      def splitLinesChunk(chunk: Chunk[String]): Chunk[String] = {
+        val chunkBuilder = ChunkBuilder.make[String]()
+        chunk.foreach { string =>
+          if (string.nonEmpty) {
+            var from      = 0
+            var indexOfCR = string.indexOf('\r')
+            var indexOfLF = string.indexOf('\n')
+            if (midCRLF) {
+              if (indexOfLF == 0) {
+                chunkBuilder += stringBuilder.result()
+                stringBuilder.clear()
+                from = 1
+                indexOfLF = string.indexOf('\n', from)
+              } else {
+                stringBuilder += '\r'
+              }
+              midCRLF = false
+            }
+            while (indexOfCR != -1 || indexOfLF != -1) {
+              if (indexOfCR == -1 || (indexOfLF != -1 && indexOfLF < indexOfCR)) {
+                if (stringBuilder.isEmpty) {
+                  chunkBuilder += string.substring(from, indexOfLF)
+                } else {
+                  stringBuilder.append(string.substring(from, indexOfLF))
+                  chunkBuilder += stringBuilder.result()
+                  stringBuilder.clear()
+                }
+                from = indexOfLF + 1
+                indexOfLF = string.indexOf('\n', from)
+              } else {
+                if (string.length == indexOfCR + 1) {
+                  midCRLF = true
+                  indexOfCR = -1
+                } else {
+                  if (indexOfLF == indexOfCR + 1) {
+                    if (stringBuilder.isEmpty) {
+                      chunkBuilder += string.substring(from, indexOfCR)
+                    } else {
+                      stringBuilder.append(string.substring(from, indexOfCR))
+                      chunkBuilder += stringBuilder.result()
+                      stringBuilder.clear()
                     }
-                } match {
-                case (sliceStart, _, midCRLF) =>
-                  carry = concatenated.drop(sliceStart)
-                  inCRLF = midCRLF
+                    from = indexOfCR + 2
+                    indexOfCR = string.indexOf('\r', from)
+                    indexOfLF = string.indexOf('\n', from)
+                  } else {
+                    indexOfCR = string.indexOf('\r', indexOfCR + 1)
+                  }
+                }
               }
             }
-          }
 
-          ZChannel.write(Chunk.fromArray(buffer.toArray)) *>
-            next(if (carry.nonEmpty) Some(carry) else None, inCRLF)
-        },
-        halt =>
-          leftover match {
-            case Some(value) => ZChannel.write(Chunk.single(value)) *> ZChannel.failCause(halt)
-            case None        => ZChannel.failCause(halt)
+            if (midCRLF) stringBuilder.append(string.substring(from, string.length - 1))
+            else stringBuilder.append(string.substring(from, string.length))
+          }
+        }
+        chunkBuilder.result()
+      }
+
+      lazy val loop: ZChannel[Any, ZNothing, Chunk[String], Any, Nothing, Chunk[String], Any] =
+        ZChannel.readWithCause(
+          in => {
+            val out = splitLinesChunk(in)
+            if (out.isEmpty) loop else ZChannel.write(out) *> loop
           },
-        done =>
-          leftover match {
-            case Some(value) => ZChannel.write(Chunk.single(value)) *> ZChannel.succeed(done)
-            case None        => ZChannel.succeed(done)
-          }
-      )
+          err =>
+            if (stringBuilder.isEmpty) ZChannel.failCause(err)
+            else ZChannel.write(Chunk(stringBuilder.result)) *> ZChannel.failCause(err),
+          done =>
+            if (stringBuilder.isEmpty) ZChannel.succeed(done)
+            else ZChannel.write(Chunk(stringBuilder.result)) *> ZChannel.succeed(done)
+        )
 
-    new ZPipeline(next(None, wasSplitCRLF = false))
-  }
+      new ZPipeline(loop)
+    }
 
   /**
    * Lazily constructs a pipeline.
