@@ -562,10 +562,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * log annotations and log level) may not be up-to-date.
    */
   private[zio] def getCurrentExecutor()(implicit unsafe: Unsafe): Executor =
-    getFiberRef(FiberRef.overrideExecutor) match {
-      case None        => Runtime.defaultExecutor
-      case Some(value) => value
-    }
+    getFiberRef(FiberRef.overrideExecutor).merge
 
   /**
    * Retrieves the state of the fiber ref, or else its initial value.

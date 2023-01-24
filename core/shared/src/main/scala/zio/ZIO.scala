@@ -3075,7 +3075,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           status,
           fiberState.getFiberRef(FiberRef.interruptedCause)(Unsafe.unsafe).interruptors,
           fiberState.getCurrentExecutor()(Unsafe.unsafe),
-          fiberState.getFiberRef(FiberRef.overrideExecutor)(Unsafe.unsafe).isDefined
+          fiberState.getFiberRef(FiberRef.overrideExecutor)(Unsafe.unsafe).isRight
         )
 
       f(descriptor)
@@ -4174,12 +4174,17 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * provided executor, before potentially returning to the previous executor.
    * See [[ZIO!.onExecutor]].
    */
-  def onExecutor[R, E, A](newExecutor: => Executor)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+  def onExecutor[R, E, A](executor: => Executor)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.descriptorWith { descriptor =>
       val oldExecutor = descriptor.executor
+      val newExecutor = executor
 
-      if (descriptor.isLocked) ZIO.acquireReleaseWith(ZIO.shift(newExecutor))(_ => ZIO.shift(oldExecutor))(_ => zio)
-      else ZIO.acquireReleaseWith(ZIO.shift(newExecutor))(_ => ZIO.unshift)(_ => zio)
+      if (descriptor.isLocked && oldExecutor == newExecutor)
+        zio
+      else if (descriptor.isLocked)
+        ZIO.acquireReleaseWith(ZIO.shift(newExecutor))(_ => ZIO.shift(oldExecutor))(_ => zio)
+      else
+        ZIO.acquireReleaseWith(ZIO.shift(newExecutor))(_ => ZIO.unshift)(_ => zio)
     }
 
   /**
@@ -4188,8 +4193,15 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def onExecutorScoped(executor: => Executor)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
     ZIO.descriptorWith { descriptor =>
-      if (descriptor.isLocked) ZIO.acquireRelease(ZIO.shift(executor))(_ => ZIO.shift(descriptor.executor))
-      else ZIO.acquireRelease(ZIO.shift(executor))(_ => ZIO.unshift)
+      val oldExecutor = descriptor.executor
+      val newExecutor = executor
+
+      if (descriptor.isLocked && oldExecutor == newExecutor)
+        ZIO.unit
+      else if (descriptor.isLocked)
+        ZIO.acquireRelease(ZIO.shift(executor))(_ => ZIO.shift(descriptor.executor))
+      else
+        ZIO.acquireRelease(ZIO.shift(executor))(_ => ZIO.unshift)
     }
 
   /**
@@ -4471,7 +4483,21 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * as [[ZIO!.onExecutor]] and [[ZIO!.onExecutionContext]].
    */
   def shift(executor: => Executor)(implicit trace: Trace): UIO[Unit] =
-    (FiberRef.overrideExecutor.set(Some(executor)) *> ZIO.yieldNow)
+    ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberRuntime, _) =>
+      val newExecutor = executor
+      fiberRuntime.getFiberRef(FiberRef.overrideExecutor)(Unsafe.unsafe) match {
+        case Left(oldExecutor) =>
+          fiberRuntime.setFiberRef(FiberRef.overrideExecutor, Right(newExecutor))(Unsafe.unsafe)
+          if (oldExecutor == newExecutor) ZIO.unit
+          else ZIO.yieldNow
+        case Right(oldExecutor) =>
+          if (oldExecutor == newExecutor) ZIO.unit
+          else {
+            fiberRuntime.setFiberRef(FiberRef.overrideExecutor, Right(newExecutor))(Unsafe.unsafe)
+            ZIO.yieldNow
+          }
+      }
+    }
 
   /**
    * Returns an effect that suspends for the specified duration. This method is
@@ -4606,7 +4632,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * An effect that succeeds with a unit value.
    */
   lazy val unit: UIO[Unit] =
-    succeedNow(())
+    succeed(())(Trace.empty)
 
   /**
    * Prefix form of `ZIO#uninterruptible`.
@@ -4658,7 +4684,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * after completing an effect on another executor.
    */
   def unshift(implicit trace: Trace): UIO[Unit] =
-    FiberRef.overrideExecutor.set(None)
+    ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberRuntime, _) =>
+      fiberRuntime.getFiberRef(FiberRef.overrideExecutor)(Unsafe.unsafe) match {
+        case Left(executor)  => ()
+        case Right(executor) => fiberRuntime.setFiberRef(FiberRef.overrideExecutor, Left(executor))(Unsafe.unsafe)
+      }
+      ZIO.unit
+    }
 
   /**
    * Updates the `FiberRef` values for the fiber running this effect using the
