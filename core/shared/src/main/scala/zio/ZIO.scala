@@ -3075,7 +3075,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           status,
           fiberState.getFiberRef(FiberRef.interruptedCause)(Unsafe.unsafe).interruptors,
           fiberState.getCurrentExecutor()(Unsafe.unsafe),
-          fiberState.getFiberRef(FiberRef.overrideExecutor)(Unsafe.unsafe).isRight
+          fiberState.getFiberRef(FiberRef.overrideExecutor)(Unsafe.unsafe).isDefined
         )
 
       f(descriptor)
@@ -4486,14 +4486,16 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberRuntime, _) =>
       val newExecutor = executor
       fiberRuntime.getFiberRef(FiberRef.overrideExecutor)(Unsafe.unsafe) match {
-        case Left(oldExecutor) =>
-          fiberRuntime.setFiberRef(FiberRef.overrideExecutor, Right(newExecutor))(Unsafe.unsafe)
-          if (oldExecutor == newExecutor) ZIO.unit
-          else ZIO.yieldNow
-        case Right(oldExecutor) =>
-          if (oldExecutor == newExecutor) ZIO.unit
+        case None =>
+          fiberRuntime.setFiberRef(FiberRef.overrideExecutor, Some(newExecutor))(Unsafe.unsafe)
+          fiberRuntime.getRunningExecutor()(Unsafe.unsafe) match {
+            case Some(runningExecutor) if runningExecutor == newExecutor => ZIO.unit
+            case _                                                       => ZIO.yieldNow
+          }
+        case Some(overrideExecutor) =>
+          if (overrideExecutor == newExecutor) ZIO.unit
           else {
-            fiberRuntime.setFiberRef(FiberRef.overrideExecutor, Right(newExecutor))(Unsafe.unsafe)
+            fiberRuntime.setFiberRef(FiberRef.overrideExecutor, Some(newExecutor))(Unsafe.unsafe)
             ZIO.yieldNow
           }
       }
@@ -4684,13 +4686,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * after completing an effect on another executor.
    */
   def unshift(implicit trace: Trace): UIO[Unit] =
-    ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberRuntime, _) =>
-      fiberRuntime.getFiberRef(FiberRef.overrideExecutor)(Unsafe.unsafe) match {
-        case Left(executor)  => ()
-        case Right(executor) => fiberRuntime.setFiberRef(FiberRef.overrideExecutor, Left(executor))(Unsafe.unsafe)
-      }
-      ZIO.unit
-    }
+    FiberRef.overrideExecutor.set(None)
 
   /**
    * Updates the `FiberRef` values for the fiber running this effect using the
