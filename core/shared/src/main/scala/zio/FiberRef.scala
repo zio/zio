@@ -501,8 +501,8 @@ object FiberRef {
   private[zio] val forkScopeOverride: FiberRef[Option[FiberScope]] =
     FiberRef.unsafe.make[Option[FiberScope]](None, _ => None, (parent, _) => parent)(Unsafe.unsafe)
 
-  private[zio] val overrideExecutor: FiberRef[Option[Executor]] =
-    FiberRef.unsafe.make[Option[Executor]](None)(Unsafe.unsafe)
+  private[zio] val overrideExecutor: FiberRef[Either[Executor, Executor]] =
+    FiberRef.unsafe.make[Either[Executor, Executor]](Left(Runtime.defaultExecutor))(Unsafe.unsafe)
 
   private[zio] val currentEnvironment: FiberRef.WithPatch[ZEnvironment[Any], ZEnvironment.Patch[Any, Any]] =
     FiberRef.unsafe.makeEnvironment(ZEnvironment.empty)(Unsafe.unsafe)

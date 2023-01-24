@@ -250,7 +250,7 @@ object Runtime extends RuntimePlatformSpecific {
     ZLayer.scoped(ZIO.withConfigProviderScoped(configProvider))
 
   def setExecutor(executor: Executor)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
-    ZLayer.scoped(FiberRef.overrideExecutor.locallyScoped(Some(executor)))
+    ZLayer.scoped(FiberRef.overrideExecutor.locallyScoped(Right(executor)))
 
   def setUnhandledErrorLogLevel(logLevel: LogLevel)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.unhandledErrorLogLevel.locallyScoped(Some(logLevel)))
