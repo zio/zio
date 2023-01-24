@@ -4606,7 +4606,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * An effect that succeeds with a unit value.
    */
   lazy val unit: UIO[Unit] =
-    succeedNow(())
+    succeed(())(Trace.empty)
 
   /**
    * Prefix form of `ZIO#uninterruptible`.
