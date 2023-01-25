@@ -399,9 +399,11 @@ object MetricSpec extends ZIOBaseSpec {
       } yield assertTrue(state == MetricState.Counter(1L))
     },
     test("timer") {
-      val timer = Metric.timer("timer", ChronoUnit.MILLIS)
+      val timer               = Metric.timer("timer", ChronoUnit.MILLIS)
+      val timerWithBoundaries = Metric.timer("timer", ChronoUnit.MILLIS, Chunk(0.1, 0.2, 0.3))
       for {
         _ <- ZIO.unit @@ timer.trackDuration
+        _ <- ZIO.unit @@ timerWithBoundaries.trackDuration
       } yield assertCompletes
     }
   )
