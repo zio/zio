@@ -1258,23 +1258,19 @@ object ZManagedSpec extends ZIOBaseSpec {
       },
       test("Runs finalizers if returning None and reservation is successful") {
         for {
-          reserveLatch <- Promise.make[Nothing, Unit]
           releaseLatch <- Promise.make[Nothing, Unit]
-          managed       = ZManaged.fromReservation(Reservation(reserveLatch.await, _ => releaseLatch.succeed(())))
-          res          <- managed.timeout(Duration.Zero).use(ZIO.succeed(_))
-          _            <- reserveLatch.succeed(())
+          managed       = ZManaged.fromReservation(Reservation(TestClock.adjust(1.minute), _ => releaseLatch.succeed(())))
+          res          <- managed.timeout(1.minute).use(ZIO.succeed(_))
           _            <- releaseLatch.await
         } yield assert(res)(isNone)
       },
       test("Runs finalizers if returning None and reservation is successful after timeout") {
         for {
-          acquireLatch <- Promise.make[Nothing, Unit]
           releaseLatch <- Promise.make[Nothing, Unit]
           managed = ZManaged.fromReservationZIO(
-                      acquireLatch.await *> ZIO.succeed(Reservation(ZIO.unit, _ => releaseLatch.succeed(())))
+                      TestClock.adjust(1.minute) *> ZIO.succeed(Reservation(ZIO.unit, _ => releaseLatch.succeed(())))
                     )
-          res <- managed.timeout(Duration.Zero).use(ZIO.succeed(_))
-          _   <- acquireLatch.succeed(())
+          res <- managed.timeout(1.minute).use(ZIO.succeed(_))
           _   <- releaseLatch.await
         } yield assert(res)(isNone)
       }
