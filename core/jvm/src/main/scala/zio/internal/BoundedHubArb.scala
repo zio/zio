@@ -56,36 +56,40 @@ private final class BoundedHubArb[A](requestedCapacity: Int) extends Hub[A] {
     var loop         = true
     var published    = true
     while (loop) {
-      val currentPublisherIndex = currentState.publisherIndex
-      val currentIndex          = (currentPublisherIndex % capacity).toInt
-      val currentSeq            = seq.get(currentIndex)
-      if (currentPublisherIndex == currentSeq) {
-        if (state.compareAndSet(currentState, currentState.copy(publisherIndex = currentPublisherIndex + 1))) {
-          array(currentIndex) = a.asInstanceOf[AnyRef]
-          val currentSubscriberCount = currentState.subscriberCount
-          subscribers.getAndAdd(currentIndex, currentSubscriberCount)
-          sliding.set(currentIndex, currentPublisherIndex + 1)
-          val currentSubscribers = subscribers.get(currentIndex)
-          if (currentSubscribers == 0) {
-            if (sliding.compareAndSet(currentIndex, currentPublisherIndex + 1, currentPublisherIndex + capacity)) {
-              array(currentIndex) = null
-              subscribersIndex.getAndIncrement()
-              seq.lazySet(currentIndex, currentPublisherIndex + capacity)
-            }
-          } else {
-            seq.compareAndSet(currentIndex, currentPublisherIndex, currentPublisherIndex + 1)
-          }
-          loop = false
-        } else {
-          currentState = state.get
-        }
+      val currentSubscriberCount = currentState.subscriberCount
+      if (currentSubscriberCount == 0) {
+        loop = false
       } else {
-        val currentSubscribersIndex = subscribersIndex.get
-        if (currentPublisherIndex == currentSubscribersIndex + capacity) {
-          loop = false
-          published = false
+        val currentPublisherIndex = currentState.publisherIndex
+        val currentIndex          = (currentPublisherIndex % capacity).toInt
+        val currentSeq            = seq.get(currentIndex)
+        if (currentPublisherIndex == currentSeq) {
+          if (state.compareAndSet(currentState, currentState.copy(publisherIndex = currentPublisherIndex + 1))) {
+            array(currentIndex) = a.asInstanceOf[AnyRef]
+            subscribers.getAndAdd(currentIndex, currentSubscriberCount)
+            sliding.set(currentIndex, currentPublisherIndex + 1)
+            val currentSubscribers = subscribers.get(currentIndex)
+            if (currentSubscribers == 0) {
+              if (sliding.compareAndSet(currentIndex, currentPublisherIndex + 1, currentPublisherIndex + capacity)) {
+                array(currentIndex) = null
+                subscribersIndex.getAndIncrement()
+                seq.lazySet(currentIndex, currentPublisherIndex + capacity)
+              }
+            } else {
+              seq.compareAndSet(currentIndex, currentPublisherIndex, currentPublisherIndex + 1)
+            }
+            loop = false
+          } else {
+            currentState = state.get
+          }
         } else {
-          currentState = state.get
+          val currentSubscribersIndex = subscribersIndex.get
+          if (currentPublisherIndex == currentSubscribersIndex + capacity) {
+            loop = false
+            published = false
+          } else {
+            currentState = state.get
+          }
         }
       }
     }
