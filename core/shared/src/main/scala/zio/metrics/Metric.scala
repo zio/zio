@@ -539,4 +539,18 @@ object Metric {
       duration.toNanos / chronoUnit.getDuration.toNanos
     }
   }
+
+  def timer(
+    name: String,
+    chronoUnit: ChronoUnit,
+    boundaries: Chunk[Double]
+  ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] = {
+    val base = Metric
+      .histogram(name, Histogram.Boundaries.fromChunk(boundaries))
+      .tagged(MetricLabel("time_unit", chronoUnit.toString.toLowerCase()))
+
+    base.contramap[Duration] { (duration: Duration) =>
+      duration.toNanos / chronoUnit.getDuration.toNanos
+    }
+  }
 }
