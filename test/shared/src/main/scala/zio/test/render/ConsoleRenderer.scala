@@ -17,7 +17,7 @@
 package zio.test.render
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test, TopLevelFlush}
+import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test, TestStarted, TopLevelFlush}
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Fragment.Style
 import zio.test.render.LogLine.{Fragment, Line, Message}
@@ -33,6 +33,8 @@ trait ConsoleRenderer extends TestRenderer {
     trace: Trace
   ): Seq[ExecutionResult] =
     event match {
+      // TODO Anything to be done here?
+      case TestStarted(labelsReversed, annotations, ancestors, id, fullyQualifiedName) => Seq.empty
       case SectionStart(labelsReversed, _, _) =>
         val depth = labelsReversed.length - 1
         labelsReversed.reverse match {

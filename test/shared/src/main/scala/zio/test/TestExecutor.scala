@@ -106,6 +106,15 @@ object TestExecutor {
                       staticAnnotations: TestAnnotationMap
                     ) => {
                   val testResultZ = (for {
+                    _ <-
+                      processEvent(ExecutionEvent.TestStarted(
+                        labels,
+                        staticAnnotations, // TODO Do we need to extractAnnotations? Can we?
+                        ancestors,
+                        sectionId,
+                        fullyQualifiedName
+                      )
+                      )
                     result  <- ZIO.withClock(ClockLive)(test.timed.either)
                     duration = result.map(_._1.toMillis).fold(_ => 1L, identity)
                     event =

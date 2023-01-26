@@ -104,10 +104,36 @@ object TestOutput {
           }
       } yield ()
 
+    private def printEmergency(executionEvent: ExecutionEvent) = ZIO.succeed {
+      executionEvent match {
+        // TODO Should we have a TestStarted? Is that more generally useful, than just for this debug mode?
+        case t @ ExecutionEvent.TestStarted(
+
+        labelsReversed,
+        annotations,
+        ancestors,
+        id,
+        fullyQualifiedName
+          ) =>
+          println(s"${t.labels.mkString(" - ")} STARTED")
+        case t@ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
+          println(t.labels.mkString(" - ") + " FINISHED!")
+
+        case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) => ()
+        case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) => ()
+        case ExecutionEvent.TopLevelFlush(id) => ()
+        case ExecutionEvent.RuntimeFailure(id, labelsReversed, failure, ancestors) => ()
+      }
+    }
+
     private def printOrQueue(
       reporterEvent: ExecutionEvent
     ): ZIO[Any, Nothing, Unit] =
       for {
+        // TODO Figure out why I can't set a true ENV variable. Should default to false once I figure that out
+        debugPrint <- zio.System.envOrElse("DEBUG_TEST", "true").orDie
+        _ <- ZIO.when(debugPrint == "true")(printEmergency(reporterEvent))
+//        _ <- printEmergency(reporterEvent)
         _ <- appendToSectionContents(reporterEvent.id, Chunk(reporterEvent))
         suiteIsPrinting <- reporters.attemptToGetPrintingControl(
                              reporterEvent.id,
