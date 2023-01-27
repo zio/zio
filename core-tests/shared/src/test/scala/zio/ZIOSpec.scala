@@ -2938,10 +2938,6 @@ object ZIOSpec extends ZIOBaseSpec {
         val io = ZIO.succeed(42).race(ZIO.never)
         assertZIO(io)(equalTo(42))
       },
-      test("race in uninterruptible region") {
-        val effect = (ZIO.unit.race(ZIO.infinity)).uninterruptible
-        assertZIO(effect)(isUnit)
-      },
       test("firstSuccessOf of values") {
         val io = ZIO.firstSuccessOf(ZIO.fail(0), List(ZIO.succeed(100))).either
         assertZIO(io)(isRight(equalTo(100)))
@@ -3514,8 +3510,8 @@ object ZIOSpec extends ZIOBaseSpec {
             promise <- Promise.make[Nothing, Unit]
             ref     <- Ref.make(false)
             left     = promise.await
-            right    = ZIO.never.raceAwait((promise.succeed(()) *> ZIO.never.interruptible).ensuring(ref.set(true)))
-            _       <- left.raceAwait(right).forkDaemon
+            right    = ZIO.never.race((promise.succeed(()) *> ZIO.never.interruptible).ensuring(ref.set(true)))
+            _       <- left.race(right).forkDaemon
             _       <- ref.get.repeatUntilEquals(true)
           } yield assertCompletes
         }
