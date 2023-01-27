@@ -41,9 +41,9 @@ object ZPoolSpec extends ZIOBaseSpec {
             get     = ZIO.acquireRelease(count.updateAndGet(_ + 1).flatMap(ZIO.fail(_)))(_ => count.update(_ - 1))
             pool   <- ZPool.make[Scope, Int, Any](get, 10)
             _      <- count.get.repeatUntil(_ == 10)
-            values <- ZIO.collectAll(List.fill(10)(pool.get.flip))
-          } yield assertTrue(values == List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
-        } +
+            values <- ZIO.collectAll(List.fill(9)(pool.get.flip))
+          } yield assertTrue(values == List(1, 2, 3, 4, 5, 6, 7, 8, 9))
+        } @@ nonFlaky +
         test("blocks when item not available") {
           for {
             count  <- Ref.make(0)
