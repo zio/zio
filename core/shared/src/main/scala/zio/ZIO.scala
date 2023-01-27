@@ -5140,7 +5140,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
     ): ZIO[R, E, B1] =
-      (self map f) raceFirst (ZIO.sleep(duration).interruptible as b())
+      (self map f) raceFirstAwait (ZIO.sleep(duration).interruptible as b())
   }
 
   final class Acquire[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
