@@ -1397,6 +1397,15 @@ object ZIOSpec extends ZIOBaseSpec {
           executor <- ZIO.descriptor.map(_.executor)
         } yield assert(executor)(equalTo(default))
         effect.onExecutor(default)
+      },
+      test("effects are shifted back at next yield") {
+        val default = Runtime.defaultExecutor
+        val global =
+          Executor.fromExecutionContext(scala.concurrent.ExecutionContext.global)
+        for {
+          _        <- ZIO.unit.onExecutor(global)
+          executor <- ZIO.executor
+        } yield assert(executor)(equalTo(default))
       }
     ),
     suite("loop")(
