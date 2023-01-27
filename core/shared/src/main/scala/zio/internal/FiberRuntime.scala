@@ -46,6 +46,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var asyncInterruptor = null.asInstanceOf[ZIO[Any, Any, Any] => Any]
   private var asyncTrace       = null.asInstanceOf[Trace]
   private var asyncBlockingOn  = null.asInstanceOf[() => FiberId]
+  private var runningExecutor  = null.asInstanceOf[Executor]
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
     val tags = getFiberRef(FiberRef.currentTags)(Unsafe.unsafe)
@@ -254,7 +255,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private def drainQueueLaterOnExecutor()(implicit unsafe: Unsafe): Unit = {
     assert(running.get)
 
-    self.getCurrentExecutor().submitOrThrow(self)
+    runningExecutor = self.getCurrentExecutor()
+    runningExecutor.submitOrThrow(self)
   }
 
   /**
@@ -562,7 +564,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * log annotations and log level) may not be up-to-date.
    */
   private[zio] def getCurrentExecutor()(implicit unsafe: Unsafe): Executor =
-    getFiberRef(FiberRef.overrideExecutor).merge
+    getFiberRef(FiberRef.overrideExecutor) match {
+      case None        => Runtime.defaultExecutor
+      case Some(value) => value
+    }
 
   /**
    * Retrieves the state of the fiber ref, or else its initial value.
@@ -634,6 +639,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private[zio] def getReportFatal()(implicit unsafe: Unsafe): Throwable => Nothing =
     getFiberRef(FiberRef.currentReportFatal)
+
+  /**
+   * Retrieves the executor that this effect is currently executing on.
+   *
+   * '''NOTE''': This method must be invoked by the fiber itself.
+   */
+  private[zio] def getRunningExecutor()(implicit unsafe: Unsafe): Option[Executor] =
+    if (runningExecutor eq null) None else Some(runningExecutor)
 
   private[zio] def getStatus(lastTrace: Trace)(implicit unsafe: Unsafe): Fiber.Status =
     if (_exitValue ne null) Fiber.Status.Done
