@@ -2919,7 +2919,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def tapSink[R1 <: R, E1 >: E](
     sink: => ZSink[R1, E1, A, Any, Any]
   )(implicit trace: Trace): ZStream[R1, E1, A] =
-    ZStream.fromZIO(Queue.bounded[Take[E1, A]](1)).flatMap { queue =>
+    ZStream.fromZIO(Queue.bounded[Take[E1, A]](1) <*> Promise.make[Nothing, Unit]).flatMap { case (queue, promise) =>
       val right = ZStream.fromQueue(queue, 1).flattenTake
       lazy val loop: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
         ZChannel.readWithCause(
@@ -2930,8 +2930,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           cause => ZChannel.fromZIO(queue.offer(Take.failCause(cause))),
           _ => ZChannel.fromZIO(queue.offer(Take.end))
         )
-      new ZStream(self.channel >>> loop)
-        .merge(ZStream.execute(right.run(sink)), HaltStrategy.Both)
+      new ZStream((self.channel >>> loop).ensuring(queue.offer(Take.end).forkDaemon *> promise.await))
+        .merge(ZStream.execute(right.run(sink).ensuring(promise.succeed(()))), HaltStrategy.Both)
     }
 
   /**
