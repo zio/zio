@@ -3,7 +3,7 @@ id: performance
 title: "Performance"
 ---
 
-ZIO is a high-performance framework that is powered by non-blocking fibers (_virtual threads_ under Loom).
+ZIO is a high-performance framework that is powered by non-blocking fibers (which will move to _virtual threads_ under Loom).
 
 ZIO's core execution engine minimizes allocations and automatically cancels all unused computation. All data structures included with ZIO are high-performance and non-blocking, and to the maximum extent possible on the JVM, non-boxing.
 
