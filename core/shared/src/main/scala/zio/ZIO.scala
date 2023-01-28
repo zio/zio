@@ -1279,22 +1279,13 @@ sealed trait ZIO[-R, +E, +A]
    * succeeds, the other will be interrupted. If neither succeeds, then the
    * effect will fail with some error.
    *
-   * Note that both effects are disconnected before being raced. This means that
-   * interruption of the loser will always be performed in the background. This
-   * is a change in behavior compared to ZIO 2.0. If this behavior is not
-   * desired, you can use [[ZIO#raceWith]], which will not disconnect or
-   * interrupt losers.
+   * WARNING: The raced effect will safely interrupt the "loser", but will not
+   * resume until the loser has been cleanly terminated. If early return is
+   * desired, then instead of performing `l race r`, perform `l.disconnect race
+   * r.disconnect`, which disconnects left and right interrupt signal, allowing
+   * a fast return, with interruption performed in the background.
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit trace: Trace): ZIO[R1, E1, A1] =
-    ZIO.checkInterruptible { status =>
-      def disconnect[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-        if (status.isInterruptible) zio.disconnect
-        else zio.uninterruptible.disconnect.interruptible
-
-      disconnect(self).raceAwait(disconnect(that))
-    }
-
-  final def raceAwait[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit trace: Trace): ZIO[R1, E1, A1] =
     ZIO.fiberIdWith { parentFiberId =>
       (self.raceWith(that))(
         (exit, right) =>
@@ -1309,6 +1300,10 @@ sealed trait ZIO[-R, +E, +A]
           )
       )
     }
+
+  @deprecated("use race", "2.0.7")
+  final def raceAwait[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit trace: Trace): ZIO[R1, E1, A1] =
+    self race that
 
   /**
    * Returns an effect that races this effect with all the specified effects,
@@ -1372,10 +1367,11 @@ sealed trait ZIO[-R, +E, +A]
   ): ZIO[R1, E1, A1] =
     (self.exit race that.exit).flatMap(ZIO.done(_))
 
+  @deprecated("use raceFirst", "2.0.7")
   final def raceFirstAwait[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit
     trace: Trace
   ): ZIO[R1, E1, A1] =
-    (self.exit raceAwait that.exit).flatMap(ZIO.done(_))
+    self raceFirst that
 
   /**
    * Returns an effect that races this effect with the specified effect,
