@@ -218,6 +218,13 @@ jobs:
       with:
         name: zio-test-output-2.13
         path: ./**/test-reports-zio/output.json
+
+    - name: The job has failed
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: zio-test-output-2.13
+        path: ./**/test-reports-zio/last_executing.txt
     - name: Upload Test Results 3
       if: ${{ startsWith(matrix.scala, '3.') }}
       uses: actions/upload-artifact@v3

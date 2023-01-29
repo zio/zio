@@ -1,0 +1,8 @@
+- Save emergency file via Github Actions
+    -Can be done always, but ideally would only happen when a step failed
+
+- Write to files via JS
+
+- Determine when to write these files
+    - Is it okay to do it unconditionally, or should it be opt-in?
+

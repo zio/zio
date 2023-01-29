@@ -110,7 +110,7 @@ object TestOutput {
     def write(content: => String, append: Boolean): ZIO[Any, Nothing, Unit] =
       lock.updateZIO(_ =>
         ZIO
-          .acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter("target/test-reports-zio/last_executing.json", append)))(f =>
+          .acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter("target/test-reports-zio/last_executing.txt", append)))(f =>
             ZIO.attemptBlocking(f.close()).orDie
           ) { f =>
             ZIO.attemptBlockingIO(f.append(content))
@@ -122,7 +122,7 @@ object TestOutput {
       import scala.io.Source
       import java.io._
 
-      val fileName = "target/test-reports-zio/last_executing.json"
+      val fileName = "target/test-reports-zio/last_executing.txt"
 
       val lines = Source.fromFile(fileName).getLines.filterNot(_.contains(searchString)).toList
       val pw = new PrintWriter(fileName)
