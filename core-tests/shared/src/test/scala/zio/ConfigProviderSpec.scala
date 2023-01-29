@@ -384,7 +384,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val config = Config.string("key1").nested("nesting1").zip(Config.string("key2").nested("nesting2"))
         for {
           result <- configProvider.load(config)
-        } yield assertTrue(result == ("value1", "value2"))
+        } yield assertTrue(result == "value1" -> "value2")
       } +
       test("within with multiple layers of nesting") {
         val configProvider =
@@ -395,7 +395,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           Config.string("key1").nested("nesting1").zip(Config.string("key2").nested("nesting3").nested("nesting2"))
         for {
           result <- configProvider.load(config)
-        } yield assertTrue(result == ("value1", "value2"))
+        } yield assertTrue(result == "value1" -> "value2")
       }
   }
 }
