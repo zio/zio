@@ -212,7 +212,7 @@ jobs:
       with:
         name: zio-test-output-2.12
         path: ./**/test-reports-zio/output.json
-    - name: Upload Test Results 2.13
+    - name: Upload Emergency Test Results 2.13
       if: ${{ startsWith(matrix.scala, '2.13.') }}
       uses: actions/upload-artifact@v3
       with:
