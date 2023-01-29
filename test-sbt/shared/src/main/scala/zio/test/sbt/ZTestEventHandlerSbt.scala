@@ -19,7 +19,7 @@ class ZTestEventHandlerSbt(eventHandler: EventHandler, taskDef: TaskDef, rendere
   def handle(event: ExecutionEvent): UIO[Unit] =
     event match {
       // TODO Is there a non-sbt version of this I need to add similar handling to?
-      case evt@ExecutionEvent.TestStarted(_, _, _, _, _) =>
+      case evt @ ExecutionEvent.TestStarted(_, _, _, _, _) =>
         ZIO.unit
       case evt @ ExecutionEvent.Test(_, _, _, _, _, _, _) =>
         ZIO.succeed(eventHandler.handle(ZTestEvent.convertEvent(evt, taskDef, renderer)))

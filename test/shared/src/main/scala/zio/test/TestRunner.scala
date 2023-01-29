@@ -44,7 +44,7 @@ final case class TestRunner[R, E](
     for {
       start    <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
       summary  <- executor.run(fullyQualifiedName, spec, defExec)
-      _ <-  deleteIfEmpty("target/test-reports-zio/last_executing.txt")
+      _        <- deleteIfEmpty("target/test-reports-zio/last_executing.txt")
       finished <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
       duration  = Duration.fromMillis(finished - start)
     } yield summary.copy(duration = duration)
@@ -68,7 +68,6 @@ final case class TestRunner[R, E](
     }
 
   }
-
 
   trait UnsafeAPI {
     def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Unit

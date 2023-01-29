@@ -21,7 +21,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.ConsoleRenderer
 import zio._
 
-
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an
  * environment `R` and may fail with an `E`.
@@ -108,13 +107,14 @@ object TestExecutor {
                     ) => {
                   val testResultZ = (for {
                     _ <-
-                      processEvent(ExecutionEvent.TestStarted(
-                        labels,
-                        staticAnnotations, // TODO Do we need to extractAnnotations? Can we?
-                        ancestors,
-                        sectionId,
-                        fullyQualifiedName
-                      )
+                      processEvent(
+                        ExecutionEvent.TestStarted(
+                          labels,
+                          staticAnnotations, // TODO Do we need to extractAnnotations? Can we?
+                          ancestors,
+                          sectionId,
+                          fullyQualifiedName
+                        )
                       )
                     result  <- ZIO.withClock(ClockLive)(test.timed.either)
                     duration = result.map(_._1.toMillis).fold(_ => 1L, identity)
@@ -172,7 +172,6 @@ object TestExecutor {
           case Left(testFailure)  => testFailure.annotations
           case Right(testSuccess) => testSuccess.annotations
         }
-
 
     }
 

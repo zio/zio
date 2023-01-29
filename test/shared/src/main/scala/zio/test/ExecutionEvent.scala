@@ -3,12 +3,12 @@ package zio.test
 object ExecutionEvent {
 
   final case class TestStarted(
-                                labelsReversed: List[String],
-                                annotations: TestAnnotationMap,
-                                ancestors: List[SuiteId],
-                                id: SuiteId,
-                                fullyQualifiedName: String
-                              ) extends ExecutionEvent {
+    labelsReversed: List[String],
+    annotations: TestAnnotationMap,
+    ancestors: List[SuiteId],
+    id: SuiteId,
+    fullyQualifiedName: String
+  ) extends ExecutionEvent {
     val labels: List[String] = labelsReversed.reverse
   }
 

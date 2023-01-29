@@ -59,7 +59,8 @@ object SummaryBuilder {
       case SectionStart(_, _, _) => 0
       case SectionEnd(_, _, _)   => 0
       case TopLevelFlush(_)      => 0
-      case TestStarted(_, _, _, _, _) => 0
+      case TestStarted(_, _, _, _, _) =>
+        0
         0
     }
 
