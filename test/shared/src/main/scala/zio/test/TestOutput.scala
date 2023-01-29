@@ -149,8 +149,11 @@ object TestOutput {
 
         case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) => ZIO.unit
         case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) => ZIO.unit
-        case ExecutionEvent.TopLevelFlush(id) => ZIO.unit
-        case ExecutionEvent.RuntimeFailure(id, labelsReversed, failure, ancestors) => ZIO.unit
+        case ExecutionEvent.TopLevelFlush(id) =>
+          ZIO.unit
+        case ExecutionEvent.RuntimeFailure(id, labelsReversed, failure, ancestors) =>
+          // TODO Should we be writing emergency entries here too?
+          ZIO.unit
       }
 
     private def printOrQueue(
