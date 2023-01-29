@@ -40,7 +40,8 @@ object TestOutput {
   case class TestOutputLive(
     output: Ref[Map[SuiteId, Chunk[ExecutionEvent]]],
     reporters: TestReporters,
-    executionEventPrinter: ExecutionEventPrinter
+    executionEventPrinter: ExecutionEventPrinter,
+    lock: Ref.Synchronized[Unit] // TODO Use a more specific type
   ) extends TestOutput {
 
     private def getAndRemoveSectionOutput(id: SuiteId) =
@@ -104,7 +105,32 @@ object TestOutput {
           }
       } yield ()
 
-    private def printEmergency(executionEvent: ExecutionEvent) = ZIO.succeed {
+
+    // TODO Dedup this with the same method in JVM/Native ResultFileOpsJson?
+    def write(content: => String, append: Boolean): ZIO[Any, Nothing, Unit] =
+      lock.updateZIO(_ =>
+        ZIO
+          .acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter("target/test-reports-zio/last_executing.json", append)))(f =>
+            ZIO.attemptBlocking(f.close()).orDie
+          ) { f =>
+            ZIO.attemptBlockingIO(f.append(content))
+          }
+          .ignore
+      )
+
+    private def removeLine(searchString: String) = ZIO.succeed{
+      import scala.io.Source
+      import java.io._
+
+      val fileName = "target/test-reports-zio/last_executing.json"
+
+      val lines = Source.fromFile(fileName).getLines.filterNot(_.contains(searchString)).toList
+      val pw = new PrintWriter(fileName)
+      pw.write(lines.mkString("\n"))
+      pw.close()
+    }
+
+    private def printEmergency(executionEvent: ExecutionEvent) =
       executionEvent match {
         // TODO Should we have a TestStarted? Is that more generally useful, than just for this debug mode?
         case t @ ExecutionEvent.TestStarted(
@@ -115,16 +141,19 @@ object TestOutput {
         id,
         fullyQualifiedName
           ) =>
-          println(s"${t.labels.mkString(" - ")} STARTED")
-        case t@ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
-          println(t.labels.mkString(" - ") + " FINISHED!")
 
-        case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) => ()
-        case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) => ()
-        case ExecutionEvent.TopLevelFlush(id) => ()
-        case ExecutionEvent.RuntimeFailure(id, labelsReversed, failure, ancestors) => ()
+          write(s"${t.labels.mkString(" - ")} STARTED\n", true) *>
+          ZIO.debug(s"${t.labels.mkString(" - ")} STARTED")
+        case t@ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
+          ZIO.debug(t.labels.mkString(" - ") + " FINISHED!") *>
+//            removeLine(t.labels.mkString(" - ") + " STARTED")
+            ZIO.unit
+
+        case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) => ZIO.unit
+        case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) => ZIO.unit
+        case ExecutionEvent.TopLevelFlush(id) => ZIO.unit
+        case ExecutionEvent.RuntimeFailure(id, labelsReversed, failure, ancestors) => ZIO.unit
       }
-    }
 
     private def printOrQueue(
       reporterEvent: ExecutionEvent
@@ -178,8 +207,9 @@ object TestOutput {
 
     def make(executionEventPrinter: ExecutionEventPrinter): ZIO[Any, Nothing, TestOutput] = for {
       talkers <- TestReporters.make
+      lock <- Ref.Synchronized.make[Unit]()
       output  <- Ref.make[Map[SuiteId, Chunk[ExecutionEvent]]](Map.empty)
-    } yield TestOutputLive(output, talkers, executionEventPrinter)
+    } yield TestOutputLive(output, talkers, executionEventPrinter, lock)
 
   }
 }
