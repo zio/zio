@@ -205,7 +205,7 @@ object TestOutput {
 
     def make(executionEventPrinter: ExecutionEventPrinter): ZIO[Any, Nothing, TestOutput] = for {
       talkers <- TestReporters.make
-      lock <- Ref.Synchronized.make[Unit]()
+      lock <- Ref.Synchronized.make[Unit](())
       output  <- Ref.make[Map[SuiteId, Chunk[ExecutionEvent]]](Map.empty)
     } yield TestOutputLive(output, talkers, executionEventPrinter, lock)
 
