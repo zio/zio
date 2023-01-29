@@ -219,11 +219,11 @@ jobs:
         name: zio-test-output-last_executing-2.13
         path: ./**/test-reports-zio/last_executing.txt
 
-    - name: The job has failed
-      if: ${{ failure() }}
+    - name: Reporting catastrophic failure
+      if: ${{ failure() &&  startsWith(matrix.scala, '2.13.') }}
       uses: actions/upload-artifact@v3
       with:
-        name: zio-test-output-2.13
+        name: zio-test-output-emergency-2.13
         path: ./**/test-reports-zio/last_executing.txt
     - name: Upload Test Results 3
       if: ${{ startsWith(matrix.scala, '3.') }}
