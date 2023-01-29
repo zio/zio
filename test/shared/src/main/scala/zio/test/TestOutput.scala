@@ -142,12 +142,10 @@ object TestOutput {
         fullyQualifiedName
           ) =>
 
-          write(s"${t.labels.mkString(" - ")} STARTED\n", true) *>
-          ZIO.debug(s"${t.labels.mkString(" - ")} STARTED")
+          write(s"${t.labels.mkString(" - ")} STARTED\n", true)
+
         case t@ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
-          ZIO.debug(t.labels.mkString(" - ") + " FINISHED!") *>
-//            removeLine(t.labels.mkString(" - ") + " STARTED")
-            ZIO.unit
+            removeLine(t.labels.mkString(" - ") + " STARTED")
 
         case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) => ZIO.unit
         case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) => ZIO.unit

@@ -13,6 +13,17 @@ object ResultFileOpsJsonSpec extends ZIOSpecDefault {
         results <- readFile
       } yield assertTrue(results == List("a"))
     ).provide(test, Scope.default),
+    test("go boom") {
+
+      import scala.collection.mutable.ListBuffer
+
+      val list = ListBuffer[Array[Byte]]()
+
+      while (true) {
+        list += Array.ofDim[Byte](1048576) // allocate 1MB of memory
+      }
+      assertNever("We already ran out of memory. We can't get here, silly!")
+    },
     test("clobbered concurrent writes") {
       val linesToWrite =
         List(
