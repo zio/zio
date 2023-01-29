@@ -6,5 +6,6 @@
 - Determine when to write these files
     - Is it okay to do it unconditionally, or should it be opt-in?
 
+- TANGENT: Make sure that general test results are saved unconditionally via Actions
 
 Random Thought - Can we make links that are clickable from Action results pages that would open up that location in your local IDE?
