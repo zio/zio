@@ -44,9 +44,31 @@ final case class TestRunner[R, E](
     for {
       start    <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
       summary  <- executor.run(fullyQualifiedName, spec, defExec)
+      _ <-  deleteIfEmpty("target/test-reports-zio/last_executing.txt")
       finished <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
       duration  = Duration.fromMillis(finished - start)
     } yield summary.copy(duration = duration)
+
+  private def deleteIfEmpty(path: String)(implicit trace: Trace) = ZIO.succeed {
+    import java.io._
+    import scala.io.Source
+
+    val lines = Source.fromFile(path).getLines.filterNot(_.isBlank).toList
+    println("Non blank lines after execution: " + lines.length)
+
+    val file = new File(path)
+    if (file.exists() && lines.isEmpty) {
+      if (file.delete()) {
+        println("File deleted successfully.")
+      } else {
+        println("Failed to delete the file.")
+      }
+    } else {
+      println("File does not exist.")
+    }
+
+  }
+
 
   trait UnsafeAPI {
     def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Unit
