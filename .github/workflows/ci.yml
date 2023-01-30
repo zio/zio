@@ -218,25 +218,25 @@ jobs:
       with:
         name: zio-test-output-3
         path: ./**/test-reports-zio/output.json
-    - name: Report Test Death
+    - name: Report Test Death 2.11
       if: ${{ failure() &&  startsWith(matrix.scala, '2.11.') }}
       uses: actions/upload-artifact@v3
       with:
         name: zio-test-debug-2.11
         path: ./**/test-reports-zio/debug.txt
-    - name: Report Test Death
+    - name: Report Test Death 2.12
       if: ${{ failure() &&  startsWith(matrix.scala, '2.12.') }}
       uses: actions/upload-artifact@v3
       with:
         name: zio-test-debug-2.12
         path: ./**/test-reports-zio/debug.txt
-    - name: Report Test Death
+    - name: Report Test Death 2.13
       if: ${{ failure() &&  startsWith(matrix.scala, '2.13.') }}
       uses: actions/upload-artifact@v3
       with:
         name: zio-test-debug-3
         path: ./**/test-reports-zio/debug.txt
-    - name: Report Test Death
+    - name: Report Test Death 3
       if: ${{ failure() &&  startsWith(matrix.scala, '3.') }}
       uses: actions/upload-artifact@v3
       with:
