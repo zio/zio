@@ -314,6 +314,17 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result2 <- configProvider2.load(config2)
         } yield assertTrue(result1 == "value") && assertTrue(result2 == "value")
       } +
+      test("nested with multiple layers of nesting") {
+        val configProvider1 = ConfigProvider.fromMap(Map("parent.child.key" -> "value"))
+        val config1         = Config.string("key").nested("child").nested("parent")
+        val configProvider2 =
+          ConfigProvider.fromMap(Map("parent.child.key" -> "value")).nested("child").nested("parent")
+        val config2 = Config.string("key")
+        for {
+          result1 <- configProvider1.load(config1)
+          result2 <- configProvider2.load(config2)
+        } yield assertTrue(result1 == "value") && assertTrue(result2 == "value")
+      } +
       test("orElse") {
         for {
           _      <- TestSystem.putProperty("key", "value")
@@ -337,6 +348,54 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         for {
           result <- configProvider.load(Config.string("key"))
         } yield assertTrue(result == "VALUE")
+      } +
+      test("unnested") {
+        val configProvider1 = ConfigProvider.fromMap(Map("key" -> "value"))
+        val config1         = Config.string("key")
+        val configProvider2 = ConfigProvider.fromMap(Map("key" -> "value")).unnested("nested")
+        val config2         = Config.string("key").nested("nested")
+        for {
+          result1 <- configProvider1.load(config1)
+          result2 <- configProvider2.load(config2)
+        } yield assertTrue(result1 == "value") && assertTrue(result2 == "value")
+      } +
+      test("unnested with multiple layers of nesting") {
+        val configProvider1 = ConfigProvider.fromMap(Map("key" -> "value"))
+        val config1         = Config.string("key")
+        val configProvider2 = ConfigProvider.fromMap(Map("key" -> "value")).unnested("parent").unnested("child")
+        val config2         = Config.string("key").nested("child").nested("parent")
+        for {
+          result1 <- configProvider1.load(config1)
+          result2 <- configProvider2.load(config2)
+        } yield assertTrue(result1 == "value") && assertTrue(result2 == "value")
+      } +
+      test("unnested failure") {
+        val configProvider = ConfigProvider.fromMap(Map("key" -> "value")).unnested("nested")
+        val config         = Config.string("key")
+        for {
+          result <- configProvider.load(config).exit.debug
+        } yield assert(result)(Assertion.failsWithA[Config.Error])
+      } +
+      test("within") {
+        val configProvider =
+          ConfigProvider
+            .fromMap(Map("nesting1.key1" -> "value1", "nesting2.KEY2" -> "value2"))
+            .within(Chunk("nesting2"))(_.contramapPath(_.toUpperCase))
+        val config = Config.string("key1").nested("nesting1").zip(Config.string("key2").nested("nesting2"))
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value1" -> "value2")
+      } +
+      test("within with multiple layers of nesting") {
+        val configProvider =
+          ConfigProvider
+            .fromMap(Map("nesting1.key1" -> "value1", "nesting2.nesting3.KEY2" -> "value2"))
+            .within(Chunk("nesting2", "nesting3"))(_.contramapPath(_.toUpperCase))
+        val config =
+          Config.string("key1").nested("nesting1").zip(Config.string("key2").nested("nesting3").nested("nesting2"))
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value1" -> "value2")
       }
   }
 }
