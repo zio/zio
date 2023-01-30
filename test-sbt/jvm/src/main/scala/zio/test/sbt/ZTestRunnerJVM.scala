@@ -41,25 +41,25 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     ZIO.succeed {
       summaries.updateAndGet(_ :+ summary)
       ()
-    } *> deleteIfEmpty("target/test-reports-zio/last_executing.txt")
+    }
   )
 
-  private def deleteIfEmpty(path: String)(implicit trace: Trace) = ZIO.succeed {
+  private def deleteIfEmpty(path: String) = {
     import java.io._
     import scala.io.Source
 
-    val lines = Source.fromFile(path).getLines.filterNot(_.isBlank).toList
-    println("Non blank lines after execution: " + lines.length)
+//    println("Non blank lines after execution: " + lines.length)
 
     val file = new File(path)
-    if (file.exists() && lines.isEmpty) {
-      if (file.delete()) {
-        println("File deleted successfully.")
-      } else {
-        println("Failed to delete the file.")
+    if (file.exists()) {
+      val lines = Source.fromFile(path).getLines.filterNot(_.isBlank).toList
+      if ( lines.isEmpty) {
+        if (file.delete()) {
+          println("File deleted successfully.")
+        } else {
+          println("Failed to delete the file.")
+        }
       }
-    } else {
-      println("File does not exist.")
     }
 
   }
@@ -96,13 +96,25 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     // JVM, and will not be set in the original JVM.
     shutdownHook.foreach(_.apply())
 
+    deleteIfEmpty("target/test-reports-zio/last_executing.txt")
+
     // Does not try to return a real summary, because we have already
     // printed this info directly to the console.
     "Completed tests"
   }
 
-  def tasks(defs: Array[TaskDef]): Array[Task] =
+  private def createEmergencyFile() = {
+    import java.io._
+
+    val file = new File("target/test-reports-zio/last_executing.txt")
+    val fos = new FileOutputStream(file)
+    fos.close()
+  }
+
+  def tasks(defs: Array[TaskDef]): Array[Task] = {
+    createEmergencyFile()
     tasksZ(defs, zio.Console.ConsoleLive)(Trace.empty).toArray
+  }
 
   private[sbt] def tasksZ(
     defs: Array[TaskDef],

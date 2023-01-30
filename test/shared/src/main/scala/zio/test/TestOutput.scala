@@ -131,7 +131,6 @@ object TestOutput {
 
     private def printEmergency(executionEvent: ExecutionEvent) =
       executionEvent match {
-        // TODO Should we have a TestStarted? Is that more generally useful, than just for this debug mode?
         case t @ ExecutionEvent.TestStarted(
               labelsReversed,
               annotations,
@@ -149,7 +148,6 @@ object TestOutput {
         case ExecutionEvent.TopLevelFlush(id) =>
           ZIO.unit
         case ExecutionEvent.RuntimeFailure(id, labelsReversed, failure, ancestors) =>
-          // TODO Should we be writing emergency entries here too?
           ZIO.unit
       }
 
