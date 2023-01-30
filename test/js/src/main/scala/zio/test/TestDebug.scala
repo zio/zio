@@ -33,34 +33,7 @@ private[test] object TestDebug {
   }
 
   private def removeLine(searchString: String) = ZIO.attempt{
-    import scala.scalajs.js
-    import js.annotation._
-    import js.|
-
-    @JSExportTopLevel("FileWriter")
-    class FileWriter(file: Blob) {
-      window.
-      private val fileWriter = new js.Dynamic {
-
-        def onwriteend(event: ProgressEvent): Unit = {}
-
-        def onerror(event: ProgressEvent): Unit = {}
-      }
-
-      def write(text: String): Unit = {
-        val writer = new FileWriter(fileWriter)
-        writer.onwriteend = (event: ProgressEvent) => {
-          console.log("Write completed.")
-        }
-        writer.onerror = (event: ProgressEvent) => {
-          console.error("Write failed: " + writer.error)
-        }
-        writer.write(text)
-      }
-    }
-
-
-  }
+  }.orDie
 //    ZIO.unit
 
 }

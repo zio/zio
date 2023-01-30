@@ -44,26 +44,6 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     }
   )
 
-  private def deleteIfEmpty(path: String) = {
-    import java.io._
-    import scala.io.Source
-
-//    println("Non blank lines after execution: " + lines.length)
-
-    val file = new File(path)
-    if (file.exists()) {
-      val lines = Source.fromFile(path).getLines.filterNot(_.isBlank).toList
-      if (lines.isEmpty) {
-        if (file.delete()) {
-          println("File deleted successfully.")
-        } else {
-          println("Failed to delete the file.")
-        }
-      }
-    }
-
-  }
-
   def done(): String = {
     val allSummaries = summaries.get
 
@@ -95,7 +75,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     // JVM, and will not be set in the original JVM.
     shutdownHook.foreach(_.apply())
 
-    deleteIfEmpty("target/test-reports-zio/last_executing.txt")
+    TestDebug.deleteIfEmpty()
 
     // Does not try to return a real summary, because we have already
     // printed this info directly to the console.

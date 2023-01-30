@@ -234,13 +234,13 @@ jobs:
       if: ${{ failure() &&  startsWith(matrix.scala, '2.13.') }}
       uses: actions/upload-artifact@v3
       with:
-        name: zio-test-debug-3
+        name: zio-test-debug-2.13
         path: ./**/test-reports-zio/debug.txt
-    - name: Report Test Death 3
+    - name: Report Test Death 3.x
       if: ${{ failure() &&  startsWith(matrix.scala, '3.') }}
       uses: actions/upload-artifact@v3
       with:
-        name: zio-test-debug-2.13
+        name: zio-test-debug-3.x
         path: ./**/test-reports-zio/debug.txt
 
   testJvms:

@@ -9,8 +9,13 @@ private[test] object TestDebug {
     import java.io.File
 
     makeOutputDirectory()
-    val file = new File("target/test-reports-zio/last_executing.txt")
-    file.createNewFile()
+    val file = new File(outputFile)
+    if(file.createNewFile()) {
+      // we're good
+    } else {
+      file.delete()
+      file.createNewFile()
+    }
   }
 
   private def makeOutputDirectory() = {
@@ -19,6 +24,21 @@ private[test] object TestDebug {
     val fp = Paths.get(outputFile)
     Files.createDirectories(fp.getParent)
   }
+
+  def deleteIfEmpty() = {
+    import java.io._
+    import scala.io.Source
+
+    val file = new File(outputFile)
+    if (file.exists()) {
+      val lines = Source.fromFile(file).getLines.filterNot(_.isBlank).toList
+      if (lines.isEmpty) {
+        file.delete()
+      }
+    }
+
+  }
+
 
   def printEmergency(executionEvent: ExecutionEvent, lock: Ref.Synchronized[Unit]) =
     executionEvent match {
