@@ -103,11 +103,9 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
   }
 
   private def createEmergencyFile() = {
-    import java.io._
-
+    import java.io.File
     val file = new File("target/test-reports-zio/last_executing.txt")
-    val fos  = new FileOutputStream(file)
-    fos.close()
+    file.createNewFile()
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] = {
