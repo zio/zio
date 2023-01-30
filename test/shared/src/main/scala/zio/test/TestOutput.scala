@@ -20,7 +20,7 @@ object TestOutput {
     ZLayer.fromZIO(
       for {
         executionEventPrinter <- ZIO.service[ExecutionEventPrinter]
-        outputLive            <- TestOutputLive.make(executionEventPrinter)
+        outputLive            <- TestOutputLive.make(executionEventPrinter, debug = true)
       } yield outputLive
     )
 
@@ -43,7 +43,8 @@ object TestOutput {
     output: Ref[Map[SuiteId, Chunk[ExecutionEvent]]],
     reporters: TestReporters,
     executionEventPrinter: ExecutionEventPrinter,
-    lock: Ref.Synchronized[Unit] // TODO Use a more specific type
+    lock: Ref.Synchronized[Unit], // TODO Use a more specific type
+    debug: Boolean
   ) extends TestOutput {
 
     private def getAndRemoveSectionOutput(id: SuiteId) =
@@ -111,10 +112,7 @@ object TestOutput {
       reporterEvent: ExecutionEvent
     ): ZIO[Any, Nothing, Unit] =
       for {
-        // TODO Figure out why I can't set a true ENV variable. Should default to false once I figure that out
-        debugPrint <- zio.System.envOrElse("DEBUG_TEST", "true").orDie
-        _          <- ZIO.when(debugPrint == "true")(TestDebug.printEmergency(reporterEvent, lock))
-//        _ <- printEmergency(reporterEvent)
+        _          <- ZIO.when(debug)(TestDebug.printEmergency(reporterEvent, lock))
         _ <- appendToSectionContents(reporterEvent.id, Chunk(reporterEvent))
         suiteIsPrinting <- reporters.attemptToGetPrintingControl(
                              reporterEvent.id,
@@ -157,11 +155,11 @@ object TestOutput {
 
   object TestOutputLive {
 
-    def make(executionEventPrinter: ExecutionEventPrinter): ZIO[Any, Nothing, TestOutput] = for {
+    def make(executionEventPrinter: ExecutionEventPrinter, debug: Boolean): ZIO[Any, Nothing, TestOutput] = for {
       talkers <- TestReporters.make
       lock    <- Ref.Synchronized.make[Unit](())
       output  <- Ref.make[Map[SuiteId, Chunk[ExecutionEvent]]](Map.empty)
-    } yield TestOutputLive(output, talkers, executionEventPrinter, lock)
+    } yield TestOutputLive(output, talkers, executionEventPrinter, lock, debug)
 
   }
 }
