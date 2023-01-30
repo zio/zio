@@ -51,6 +51,24 @@ trait ConfigProvider { self =>
     }
 
   /**
+   * Returns a new config provider that will automatically convert all property
+   * names to kebab case. This can be utilized to adapt the names of
+   * configuration properties from the default naming convention of camel case
+   * to the naming convention of a config provider.
+   */
+  final def kebabCase: ConfigProvider =
+    contramapPath(_.replaceAll("(?<=[a-z])[A-Z]", "-$0").toLowerCase)
+
+  /**
+   * Returns a new config provider that will automatically convert all property
+   * names to lower case. This can be utilized to adapt the names of
+   * configuration properties from the default naming convention of camel case
+   * to the naming convention of a config provider.
+   */
+  final def lowerCase: ConfigProvider =
+    contramapPath(_.toLowerCase)
+
+  /**
    * Returns a new config provider that will automatically nest all
    * configuration under the specified property name. This can be utilized to
    * aggregate separate configuration sources that are all required to load a
@@ -60,6 +78,23 @@ trait ConfigProvider { self =>
     ConfigProvider.fromFlat(self.flatten.nested(name))
 
   /**
+   * Returns a new config provider that preferentially loads configuration data
+   * from this one, but which will fall back to the specified alternate provider
+   * if there are any issues loading the configuration from this provider.
+   */
+  final def orElse(that: ConfigProvider): ConfigProvider =
+    ConfigProvider.fromFlat(self.flatten.orElse(that.flatten))
+
+  /**
+   * Returns a new config provider that will automatically convert all property
+   * names to snake case. This can be utilized to adapt the names of
+   * configuration properties from the default naming convention of camel case
+   * to the naming convention of a config provider.
+   */
+  final def snakeCase: ConfigProvider =
+    contramapPath(_.replaceAll("(?<=[a-z])[A-Z]", "_$0").toLowerCase)
+
+  /**
    * Returns a new config provider that will automatically unnest all
    * configuration from the specified property name.
    */
@@ -67,12 +102,13 @@ trait ConfigProvider { self =>
     ConfigProvider.fromFlat(self.flatten.unnested(name))
 
   /**
-   * Returns a new config provider that preferentially loads configuration data
-   * from this one, but which will fall back to the specified alternate provider
-   * if there are any issues loading the configuration from this provider.
+   * Returns a new config provider that will automatically convert all property
+   * names to upper case. This can be utilized to adapt the names of
+   * configuration properties from the default naming convention of camel case
+   * to the naming convention of a config provider.
    */
-  final def orElse(that: ConfigProvider): ConfigProvider =
-    ConfigProvider.fromFlat(self.flatten.orElse(that.flatten))
+  final def upperCase: ConfigProvider =
+    contramapPath(_.toUpperCase)
 
   /**
    * Returns a new config provider that transforms the config provider with the
