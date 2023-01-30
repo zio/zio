@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.{Runtime, Scope, Trace, Unsafe, ZIO, ZIOAppArgs, ZLayer}
-import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract, sinkLayer}
+import zio.test.{ExecutionEventSink, Summary, TestArgs, TestDebug, ZIOSpecAbstract, sinkLayer}
 
 import java.util.concurrent.atomic.AtomicReference
 import zio.stacktracer.TracingImplicits.disableAutoTrace
@@ -102,14 +102,8 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     "Completed tests"
   }
 
-  private def createEmergencyFile() = {
-    import java.io.File
-    val file = new File("target/test-reports-zio/last_executing.txt")
-    file.createNewFile()
-  }
-
   def tasks(defs: Array[TaskDef]): Array[Task] = {
-    createEmergencyFile()
+    TestDebug.createEmergencyFile()
     tasksZ(defs, zio.Console.ConsoleLive)(Trace.empty).toArray
   }
 

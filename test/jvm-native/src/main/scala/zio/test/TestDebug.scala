@@ -3,6 +3,23 @@ package zio.test
 import zio.{Ref, ZIO}
 
 private[test] object TestDebug {
+  val outputFile = "target/test-reports-zio/debug.txt"
+
+  def createEmergencyFile() = {
+    import java.io.File
+
+    makeOutputDirectory()
+    val file = new File("target/test-reports-zio/last_executing.txt")
+    file.createNewFile()
+  }
+
+  private def makeOutputDirectory() = {
+    import java.nio.file.{Files, Paths}
+
+    val fp = Paths.get(outputFile)
+    Files.createDirectories(fp.getParent)
+  }
+
   def printEmergency(executionEvent: ExecutionEvent, lock: Ref.Synchronized[Unit]) =
     executionEvent match {
       case t @ ExecutionEvent.TestStarted(
@@ -30,7 +47,7 @@ private[test] object TestDebug {
     lock.updateZIO(_ =>
       ZIO
         .acquireReleaseWith(
-          ZIO.attemptBlockingIO(new java.io.FileWriter("target/test-reports-zio/debug.txt", append))
+          ZIO.attemptBlockingIO(new java.io.FileWriter(outputFile, append))
         )(f => ZIO.attemptBlocking(f.close()).orDie) { f =>
           ZIO.attemptBlockingIO(f.append(content))
         }
@@ -41,10 +58,8 @@ private[test] object TestDebug {
     import java.io._
     import scala.io.Source
 
-    val fileName = "target/test-reports-zio/debug.txt"
-
-    val lines = Source.fromFile(fileName).getLines.filterNot(_.contains(searchString)).toList
-    val pw    = new PrintWriter(fileName)
+    val lines = Source.fromFile(outputFile).getLines.filterNot(_.contains(searchString)).toList
+    val pw    = new PrintWriter(outputFile)
     pw.write(lines.mkString("\n"))
     pw.close()
   }
