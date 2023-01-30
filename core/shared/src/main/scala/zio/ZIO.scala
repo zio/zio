@@ -2428,6 +2428,12 @@ sealed trait ZIO[-R, +E, +A]
     ZIO.acquireReleaseExit(self)(finalizer)
 
   /**
+   * Executes this workflow with the specified logger added.
+   */
+  final def withLogger[B <: ZLogger[String, Any]](logger: => B)(implicit tag: Tag[B], trace: Trace): ZIO[R, E, A] =
+    ZIO.withLogger(logger)(self)
+
+  /**
    * Runs this effect with the specified maximum number of fibers for parallel
    * operators.
    */
@@ -4929,6 +4935,22 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def withConsoleScoped[A <: Console](console: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
     DefaultServices.currentServices.locallyScopedWith(_.add(console))
+
+  /**
+   * Executed this workflow with the specified logger added.
+   */
+  def withLogger[R, E, A <: ZLogger[String, Any], B](logger: => A)(
+    zio: => ZIO[R, E, B]
+  )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
+    FiberRef.currentLoggers.locallyWith(_ + logger)(zio)
+
+  /**
+   * Adds the specified logger and removes it when the scope is closed.
+   */
+  def withLoggerScoped[A <: ZLogger[String, Any]](
+    logger: => A
+  )(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
+    FiberRef.currentLoggers.locallyScopedWith(_ + logger)
 
   /**
    * Runs the specified effect with the specified maximum number of fibers for
