@@ -41,8 +41,29 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     ZIO.succeed {
       summaries.updateAndGet(_ :+ summary)
       ()
-    }
+    } *> deleteIfEmpty("target/test-reports-zio/last_executing.txt")
   )
+
+  private def deleteIfEmpty(path: String)(implicit trace: Trace) = ZIO.succeed {
+    import java.io._
+    import scala.io.Source
+
+    val lines = Source.fromFile(path).getLines.filterNot(_.isBlank).toList
+    println("Non blank lines after execution: " + lines.length)
+
+    val file = new File(path)
+    if (file.exists() && lines.isEmpty) {
+      if (file.delete()) {
+        println("File deleted successfully.")
+      } else {
+        println("Failed to delete the file.")
+      }
+    } else {
+      println("File does not exist.")
+    }
+
+  }
+
 
   def done(): String = {
     val allSummaries = summaries.get
