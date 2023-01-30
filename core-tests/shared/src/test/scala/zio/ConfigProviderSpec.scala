@@ -373,7 +373,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val configProvider = ConfigProvider.fromMap(Map("key" -> "value")).unnested("nested")
         val config         = Config.string("key")
         for {
-          result <- configProvider.load(config).exit.debug
+          result <- configProvider.load(config).exit
         } yield assert(result)(Assertion.failsWithA[Config.Error])
       } +
       test("within") {
