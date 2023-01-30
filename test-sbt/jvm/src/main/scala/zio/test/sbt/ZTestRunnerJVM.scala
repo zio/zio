@@ -53,7 +53,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     val file = new File(path)
     if (file.exists()) {
       val lines = Source.fromFile(path).getLines.filterNot(_.isBlank).toList
-      if ( lines.isEmpty) {
+      if (lines.isEmpty) {
         if (file.delete()) {
           println("File deleted successfully.")
         } else {
@@ -63,7 +63,6 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     }
 
   }
-
 
   def done(): String = {
     val allSummaries = summaries.get
@@ -107,7 +106,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     import java.io._
 
     val file = new File("target/test-reports-zio/last_executing.txt")
-    val fos = new FileOutputStream(file)
+    val fos  = new FileOutputStream(file)
     fos.close()
   }
 

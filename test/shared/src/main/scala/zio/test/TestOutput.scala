@@ -112,7 +112,7 @@ object TestOutput {
       reporterEvent: ExecutionEvent
     ): ZIO[Any, Nothing, Unit] =
       for {
-        _          <- ZIO.when(debug)(TestDebug.printEmergency(reporterEvent, lock))
+        _ <- ZIO.when(debug)(TestDebug.printEmergency(reporterEvent, lock))
         _ <- appendToSectionContents(reporterEvent.id, Chunk(reporterEvent))
         suiteIsPrinting <- reporters.attemptToGetPrintingControl(
                              reporterEvent.id,
@@ -163,5 +163,3 @@ object TestOutput {
 
   }
 }
-
-
