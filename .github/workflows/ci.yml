@@ -212,12 +212,6 @@ jobs:
       with:
         name: zio-test-output-2.12
         path: ./**/test-reports-zio/output.json
-    - name: Upload Emergency Test Results 2.13
-      if: ${{ startsWith(matrix.scala, '2.13.') }}
-      uses: actions/upload-artifact@v3
-      with:
-        name: zio-test-output-last_executing-2.13
-        path: ./**/test-reports-zio/last_executing.txt
     - name: Upload Test Results 3
       if: ${{ startsWith(matrix.scala, '3.') }}
       uses: actions/upload-artifact@v3
@@ -229,25 +223,25 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: zio-test-debug-2.11
-        path: ./**/test-reports-zio/last_executing.txt
+        path: ./**/test-reports-zio/debug.txt
     - name: Report Test Death
       if: ${{ failure() &&  startsWith(matrix.scala, '2.12.') }}
       uses: actions/upload-artifact@v3
       with:
         name: zio-test-debug-2.12
-        path: ./**/test-reports-zio/last_executing.txt
+        path: ./**/test-reports-zio/debug.txt
     - name: Report Test Death
       if: ${{ failure() &&  startsWith(matrix.scala, '2.13.') }}
       uses: actions/upload-artifact@v3
       with:
         name: zio-test-debug-3
-        path: ./**/test-reports-zio/last_executing.txt
+        path: ./**/test-reports-zio/debug.txt
     - name: Report Test Death
       if: ${{ failure() &&  startsWith(matrix.scala, '3.') }}
       uses: actions/upload-artifact@v3
       with:
         name: zio-test-debug-2.13
-        path: ./**/test-reports-zio/last_executing.txt
+        path: ./**/test-reports-zio/debug.txt
 
   testJvms:
     runs-on: ubuntu-20.04

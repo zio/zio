@@ -2,6 +2,8 @@ package zio.test
 
 import zio.{Chunk, Ref, ZIO, ZLayer}
 
+import scala.io.Source
+
 trait TestOutput {
 
   /**
@@ -105,59 +107,13 @@ object TestOutput {
           }
       } yield ()
 
-    // TODO Dedup this with the same method in JVM/Native ResultFileOpsJson?
-    def write(content: => String, append: Boolean): ZIO[Any, Nothing, Unit] =
-      lock.updateZIO(_ =>
-        ZIO
-          .acquireReleaseWith(
-            ZIO.attemptBlockingIO(new java.io.FileWriter("target/test-reports-zio/last_executing.txt", append))
-          )(f => ZIO.attemptBlocking(f.close()).orDie) { f =>
-            ZIO.attemptBlockingIO(f.append(content))
-          }
-          .ignore
-      )
-
-    private def removeLine(searchString: String) = ZIO.succeed {
-      import scala.io.Source
-      import java.io._
-
-      val fileName = "target/test-reports-zio/last_executing.txt"
-
-      val lines = Source.fromFile(fileName).getLines.filterNot(_.contains(searchString)).toList
-      val pw    = new PrintWriter(fileName)
-      pw.write(lines.mkString("\n"))
-      pw.close()
-    }
-
-    private def printEmergency(executionEvent: ExecutionEvent) =
-      executionEvent match {
-        case t @ ExecutionEvent.TestStarted(
-              labelsReversed,
-              annotations,
-              ancestors,
-              id,
-              fullyQualifiedName
-            ) =>
-          write(s"${t.labels.mkString(" - ")} STARTED\n", true)
-
-        case t @ ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
-          removeLine(t.labels.mkString(" - ") + " STARTED")
-
-        case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) => ZIO.unit
-        case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors)   => ZIO.unit
-        case ExecutionEvent.TopLevelFlush(id) =>
-          ZIO.unit
-        case ExecutionEvent.RuntimeFailure(id, labelsReversed, failure, ancestors) =>
-          ZIO.unit
-      }
-
     private def printOrQueue(
       reporterEvent: ExecutionEvent
     ): ZIO[Any, Nothing, Unit] =
       for {
         // TODO Figure out why I can't set a true ENV variable. Should default to false once I figure that out
         debugPrint <- zio.System.envOrElse("DEBUG_TEST", "true").orDie
-        _          <- ZIO.when(debugPrint == "true")(printEmergency(reporterEvent))
+        _          <- ZIO.when(debugPrint == "true")(TestDebug.printEmergency(reporterEvent, lock))
 //        _ <- printEmergency(reporterEvent)
         _ <- appendToSectionContents(reporterEvent.id, Chunk(reporterEvent))
         suiteIsPrinting <- reporters.attemptToGetPrintingControl(
@@ -209,3 +165,5 @@ object TestOutput {
 
   }
 }
+
+
