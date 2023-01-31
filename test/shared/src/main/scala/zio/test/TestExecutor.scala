@@ -22,9 +22,6 @@ import zio.test.render.ConsoleRenderer
 import zio._
 
 /**
- * Takes the composed Spec and actually starts executing the tree. If you need
- * to add behavior that
- *
  * A `TestExecutor[R, E]` is capable of executing specs that require an
  * environment `R` and may fail with an `E`.
  */
@@ -180,5 +177,4 @@ object TestExecutor {
         }
 
     }
-
 }

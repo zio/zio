@@ -20,7 +20,8 @@ object TestOutput {
     ZLayer.fromZIO(
       for {
         executionEventPrinter <- ZIO.service[ExecutionEventPrinter]
-        outputLive            <- TestOutputLive.make(executionEventPrinter, debug = true)
+        // If you need to enable the debug output to diagnose flakiness, set this to true
+        outputLive            <- TestOutputLive.make(executionEventPrinter, debug = false)
       } yield outputLive
     )
 
@@ -162,13 +163,4 @@ object TestOutput {
     } yield TestOutputLive(output, talkers, executionEventPrinter, lock, debug)
 
   }
-}
-
-case class TestDebugFileLock(lock: Ref.Synchronized[Unit]) {
-  def updateFile(action: ZIO[Any, Nothing, Unit]) =
-    lock.updateZIO(_ => action)
-}
-object TestDebugFileLock {
-  def make: ZIO[Any, Nothing, TestDebugFileLock] =
-    Ref.Synchronized.make[Unit](()).map(TestDebugFileLock(_))
 }
