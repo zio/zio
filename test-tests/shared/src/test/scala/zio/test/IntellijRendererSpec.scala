@@ -193,8 +193,10 @@ object IntelliJRenderUtils {
   )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[TestEnvironment, Nothing, String] =
     for {
       console <- ZIO.console
+      _ <- TestDebug.createDebugFile("zio.test.IntellijRendererSpec")
       _ <- TestTestRunner(testEnvironment, sinkLayer(console, TestRenderer))
              .run("zio.test.IntellijRendererSpec", spec, ExecutionStrategy.Sequential) // to ensure deterministic output
       output <- TestConsole.output
+      _ <- TestDebug.deleteIfEmpty("zio.test.IntellijRendererSpec")
     } yield output.mkString
 }

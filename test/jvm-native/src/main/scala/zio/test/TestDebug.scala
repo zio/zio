@@ -80,10 +80,10 @@ private[test] object TestDebug {
         val remainingLines =
           source.getLines.filterNot(_.contains(searchString))
 
-        source.close()
         val pw = new PrintWriter(outputFileForTask(fullyQualifiedTaskName))
         pw.write(remainingLines.mkString("\n")+"\n")
         pw.close()
+        source.close()
       }
     }
 
