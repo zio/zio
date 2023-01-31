@@ -51,10 +51,10 @@ private[test] object TestDebug {
             id,
             fullyQualifiedName
           ) =>
-        write(s"${t.labels.mkString(" - ")} STARTED\n", true, lock)
+        write(fullyQualifiedName, s"${t.labels.mkString(" - ")} STARTED\n", true, lock)
 
       case t @ ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
-        removeLine(t.labels.mkString(" - ") + " STARTED")
+        removeLine(fullyQualifiedName, t.labels.mkString(" - ") + " STARTED")
 //        ZIO.unit
 
       case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) => ZIO.unit
@@ -66,24 +66,24 @@ private[test] object TestDebug {
     }
 
   // TODO Dedup this with the same method in JVM/Native ResultFileOpsJson?
-  def write(content: => String, append: Boolean, lock: Ref.Synchronized[Unit]): ZIO[Any, Nothing, Unit] =
+  def write(fullyQualifiedTaskName: String, content: => String, append: Boolean, lock: Ref.Synchronized[Unit]): ZIO[Any, Nothing, Unit] =
     lock.updateZIO(_ =>
       ZIO
         .acquireReleaseWith(
-          ZIO.attemptBlockingIO(new java.io.FileWriter(outputFile, append))
+          ZIO.attemptBlockingIO(new java.io.FileWriter(outputFileForTask(fullyQualifiedTaskName), append))
         )(f => ZIO.attemptBlocking(f.close()).orDie) { f =>
           ZIO.attemptBlockingIO(f.append(content))
         }
         .ignore
     )
 
-  private def removeLine(searchString: String) = ZIO.succeed {
+  private def removeLine(fullyQualifiedTaskName: String, searchString: String) = ZIO.succeed {
     import java.io._
     import scala.io.Source
 
-    val lines = Source.fromFile(outputFile).getLines.filterNot(_.contains(searchString)).toList
-    val pw    = new PrintWriter(outputFile)
-    pw.write(lines.mkString("\n"))
+    val lines = Source.fromFile(outputFileForTask(fullyQualifiedTaskName)).getLines.filterNot(_.contains(searchString)).toList
+    val pw    = new PrintWriter(outputFileForTask(fullyQualifiedTaskName))
+    pw.write(lines.mkString("\n")) // TODO Investigate if this is the only place I need to fix
     pw.close()
   }
 

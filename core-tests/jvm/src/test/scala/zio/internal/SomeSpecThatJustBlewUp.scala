@@ -1,4 +1,4 @@
-package zio
+package zio.internal
 
 import zio.test._
 
@@ -14,6 +14,6 @@ object SomeSpecThatJustBlewUp extends ZIOSpecDefault {
         list += Array.ofDim[Byte](1048576) // allocate 1MB of memory
       }
       assertNever("We already ran out of memory. We can't get here, silly!")
-    } @@ TestAspect.ignore
+    }
 
 }
