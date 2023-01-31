@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.{Runtime, Scope, Trace, Unsafe, ZIO, ZIOAppArgs, ZLayer}
-import zio.test.{ExecutionEventSink, Summary, TestArgs, TestDebug, ZIOSpecAbstract, sinkLayer}
+import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract, sinkLayer}
 
 import java.util.concurrent.atomic.AtomicReference
 import zio.stacktracer.TracingImplicits.disableAutoTrace
@@ -74,8 +74,6 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     // If tests are forked, this will only be relevant in the forked
     // JVM, and will not be set in the original JVM.
     shutdownHook.foreach(_.apply())
-
-    // TODO Decide how/if to merge test results
 
     // Does not try to return a real summary, because we have already
     // printed this info directly to the console.

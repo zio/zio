@@ -3,11 +3,10 @@ package zio.test
 import zio.{Ref, ZIO}
 
 private[test] object TestDebug {
-  // TODO parameterize output file based on the currently executing task
-  val outputFile                      = "target/test-reports-zio/debug.txt"
-  def outputFileForTask(task: String) = s"target/test-reports-zio/${task}_debug.txt"
+  private val outputDirectory                      = "target/test-reports-zio"
+  private def outputFileForTask(task: String) = s"$outputDirectory/${task}_debug.txt"
 
-  def createEmergencyFile(fullyQualifiedTaskName: String) = ZIO.succeed {
+  def createDebugFile(fullyQualifiedTaskName: String) = ZIO.succeed {
     import java.io.File
 
     makeOutputDirectory()
@@ -23,7 +22,7 @@ private[test] object TestDebug {
   private def makeOutputDirectory() = {
     import java.nio.file.{Files, Paths}
 
-    val fp = Paths.get(outputFile)
+    val fp = Paths.get(outputDirectory)
     Files.createDirectories(fp.getParent)
   }
 
@@ -33,47 +32,34 @@ private[test] object TestDebug {
 
     val file = new File(outputFileForTask(fullyQualifiedTaskName))
     if (file.exists()) {
-      println("File exists: " + file.getAbsolutePath)
-      val lines = Source.fromFile(file).getLines.filterNot(_.isBlank).toList
-      println("Number of non-empty lines: " + lines.size)
-      if (lines.isEmpty) {
+      val source = Source.fromFile(file)
+      val nonBlankLines = source.getLines.filterNot(_.isBlank).toList
+      source.close()
+      if (nonBlankLines.isEmpty) {
         file.delete()
       }
     }
 
   }
 
-  def printEmergency(executionEvent: ExecutionEvent, lock: Ref.Synchronized[Unit]) =
+  def printDebug(executionEvent: ExecutionEvent, lock: TestDebugFileLock) =
     executionEvent match {
-      case t @ ExecutionEvent.TestStarted(
-            labelsReversed,
-            annotations,
-            ancestors,
-            id,
-            fullyQualifiedName
-          ) =>
-        write(fullyQualifiedName, s"${t.labels.mkString(" - ")} STARTED\n", true, lock)
+      case t: ExecutionEvent.TestStarted =>
+        write(t.fullyQualifiedName, s"${t.labels.mkString(" - ")} STARTED\n", true, lock)
 
-      case t @ ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
-        removeLine(fullyQualifiedName, t.labels.mkString(" - ") + " STARTED", lock)
-//        ZIO.unit
+      case t: ExecutionEvent.Test[_] =>
+        removeLine(t.fullyQualifiedName, t.labels.mkString(" - ") + " STARTED", lock)
 
-      case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) => ZIO.unit
-      case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors)   => ZIO.unit
-      case ExecutionEvent.TopLevelFlush(id) =>
-        ZIO.unit
-      case ExecutionEvent.RuntimeFailure(id, labelsReversed, failure, ancestors) =>
-        ZIO.unit
+      case _ => ZIO.unit
     }
 
-  // TODO Dedup this with the same method in JVM/Native ResultFileOpsJson?
-  def write(
+  private def write(
     fullyQualifiedTaskName: String,
     content: => String,
     append: Boolean,
-    lock: Ref.Synchronized[Unit]
+    lock: TestDebugFileLock
   ): ZIO[Any, Nothing, Unit] =
-    lock.updateZIO(_ =>
+    lock.updateFile(
       ZIO
         .acquireReleaseWith(
           ZIO.attemptBlockingIO(new java.io.FileWriter(outputFileForTask(fullyQualifiedTaskName), append))
@@ -83,16 +69,20 @@ private[test] object TestDebug {
         .ignore
     )
 
-  private def removeLine(fullyQualifiedTaskName: String, searchString: String, lock: Ref.Synchronized[Unit]) =
-    lock.updateZIO { _ =>
+  private def removeLine(fullyQualifiedTaskName: String, searchString: String, lock: TestDebugFileLock) =
+    lock.updateFile {
       ZIO.succeed {
         import java.io._
         import scala.io.Source
 
-        val lines =
-          Source.fromFile(outputFileForTask(fullyQualifiedTaskName)).getLines.filterNot(_.contains(searchString)).toList
+        val source = Source.fromFile(outputFileForTask(fullyQualifiedTaskName))
+
+        val remainingLines =
+          source.getLines.filterNot(_.contains(searchString)).toList
+
+        source.close()
         val pw = new PrintWriter(outputFileForTask(fullyQualifiedTaskName))
-        pw.write(lines.mkString("\n")) // TODO Investigate if this is the only place I need to fix
+        pw.write(remainingLines.mkString("\n")+"\n")
         pw.close()
       }
     }

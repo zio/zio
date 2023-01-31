@@ -194,7 +194,7 @@ object IntelliJRenderUtils {
     for {
       console <- ZIO.console
       _ <- TestTestRunner(testEnvironment, sinkLayer(console, TestRenderer))
-             .run("Arbitrary name", spec, ExecutionStrategy.Sequential) // to ensure deterministic output
+             .run("zio.test.IntellijRendererSpec", spec, ExecutionStrategy.Sequential) // to ensure deterministic output
       output <- TestConsole.output
     } yield output.mkString
 }

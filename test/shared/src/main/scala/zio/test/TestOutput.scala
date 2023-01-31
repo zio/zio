@@ -43,7 +43,7 @@ object TestOutput {
     output: Ref[Map[SuiteId, Chunk[ExecutionEvent]]],
     reporters: TestReporters,
     executionEventPrinter: ExecutionEventPrinter,
-    lock: Ref.Synchronized[Unit], // TODO Use a more specific type
+    lock: TestDebugFileLock,
     debug: Boolean
   ) extends TestOutput {
 
@@ -112,7 +112,7 @@ object TestOutput {
       reporterEvent: ExecutionEvent
     ): ZIO[Any, Nothing, Unit] =
       for {
-        _ <- ZIO.when(debug)(TestDebug.printEmergency(reporterEvent, lock))
+        _ <- ZIO.when(debug)(TestDebug.printDebug(reporterEvent, lock))
         _ <- appendToSectionContents(reporterEvent.id, Chunk(reporterEvent))
         suiteIsPrinting <- reporters.attemptToGetPrintingControl(
                              reporterEvent.id,
@@ -157,9 +157,20 @@ object TestOutput {
 
     def make(executionEventPrinter: ExecutionEventPrinter, debug: Boolean): ZIO[Any, Nothing, TestOutput] = for {
       talkers <- TestReporters.make
-      lock    <- Ref.Synchronized.make[Unit](())
+      lock    <- TestDebugFileLock.make
       output  <- Ref.make[Map[SuiteId, Chunk[ExecutionEvent]]](Map.empty)
     } yield TestOutputLive(output, talkers, executionEventPrinter, lock, debug)
 
   }
+}
+
+
+case class TestDebugFileLock(lock: Ref.Synchronized[Unit]) {
+  def updateFile(action: ZIO[Any, Nothing, Unit]) = {
+    lock.updateZIO(_ => action)
+  }
+}
+object TestDebugFileLock {
+    def make: ZIO[Any, Nothing, TestDebugFileLock] =
+        Ref.Synchronized.make[Unit](()).map(TestDebugFileLock(_))
 }
