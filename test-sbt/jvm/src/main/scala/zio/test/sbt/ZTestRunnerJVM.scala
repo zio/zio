@@ -75,7 +75,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     // JVM, and will not be set in the original JVM.
     shutdownHook.foreach(_.apply())
 
-    TestDebug.deleteIfEmpty()
+    // TODO Decide how/if to merge test results
 
     // Does not try to return a real summary, because we have already
     // printed this info directly to the console.
@@ -83,7 +83,6 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] = {
-    TestDebug.createEmergencyFile()
     tasksZ(defs, zio.Console.ConsoleLive)(Trace.empty).toArray
   }
 
@@ -143,6 +142,7 @@ object ZTestTask {
     runtime: zio.Runtime[T]
   ): ZTestTask[T] = {
     val zioSpec = disectTask(taskDef, testClassLoader)
+    TestDebug.createEmergencyFile(taskDef.fullyQualifiedName())
     new ZTestTask(taskDef, testClassLoader, sendSummary, args, zioSpec, runtime)
   }
 
