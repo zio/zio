@@ -26,7 +26,7 @@ private[test] object TestDebug {
     Files.createDirectories(fp.getParent)
   }
 
-  def deleteIfEmpty(fullyQualifiedTaskName: String) = {
+  def deleteIfEmpty(fullyQualifiedTaskName: String) = ZIO.succeed{
     import java.io._
     import scala.io.Source
 
@@ -78,7 +78,7 @@ private[test] object TestDebug {
         val source = Source.fromFile(outputFileForTask(fullyQualifiedTaskName))
 
         val remainingLines =
-          source.getLines.filterNot(_.contains(searchString)).toList
+          source.getLines.filterNot(_.contains(searchString))
 
         source.close()
         val pw = new PrintWriter(outputFileForTask(fullyQualifiedTaskName))

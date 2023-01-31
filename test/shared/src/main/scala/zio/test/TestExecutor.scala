@@ -113,7 +113,7 @@ object TestExecutor {
                       processEvent(
                         ExecutionEvent.TestStarted(
                           labels,
-                          staticAnnotations, // TODO Do we need to extractAnnotations? Can we?
+                          staticAnnotations,
                           ancestors,
                           sectionId,
                           fullyQualifiedName
@@ -167,7 +167,7 @@ object TestExecutor {
             TestDebug.createDebugFile(fullyQualifiedName) *>
               ZIO.scoped {
                 loop(List.empty, scopedSpec, defExec, List.empty, topParent)
-              } *> processEvent(topLevelFlush) *> ZIO.succeed(TestDebug.deleteIfEmpty(fullyQualifiedName))
+              } *> processEvent(topLevelFlush) *> TestDebug.deleteIfEmpty(fullyQualifiedName)
 
           }
           summary <- summary.get

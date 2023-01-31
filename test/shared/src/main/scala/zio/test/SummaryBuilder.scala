@@ -61,7 +61,6 @@ object SummaryBuilder {
       case TopLevelFlush(_)      => 0
       case TestStarted(_, _, _, _, _) =>
         0
-        0
     }
 
   private def extractFailures(reporterEvent: ExecutionEvent): Seq[ExecutionEvent] =

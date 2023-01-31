@@ -22,9 +22,8 @@ import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Fragment.Style
 import zio.test.render.LogLine.{Fragment, Line, Message}
 import zio.test._
-import zio.{Cause, Chunk, Trace}
+import zio.{Cause, Trace}
 import zio.internal.ansi.AnsiStringOps
-import zio.test.render.ExecutionResult.Status.Failed
 
 trait ConsoleRenderer extends TestRenderer {
   private val tabSize = 2
@@ -33,8 +32,7 @@ trait ConsoleRenderer extends TestRenderer {
     trace: Trace
   ): Seq[ExecutionResult] =
     event match {
-      // TODO Anything to be done here?
-      case TestStarted(labelsReversed, annotations, ancestors, id, fullyQualifiedName) => Seq.empty
+      case _: TestStarted => Nil
       case SectionStart(labelsReversed, _, _) =>
         val depth = labelsReversed.length - 1
         labelsReversed.reverse match {
