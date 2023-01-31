@@ -195,10 +195,8 @@ object IntelliJRenderUtils {
     for {
       console  <- ZIO.console
       randomId <- ZIO.withRandom(Random.RandomLive)(Random.nextInt).map("test_case_" + _)
-      _        <- TestDebug.createDebugFile(randomId)
       _ <- TestTestRunner(testEnvironment, sinkLayer(console, TestRenderer))
              .run(randomId, spec, ExecutionStrategy.Sequential) // to ensure deterministic output
       output <- TestConsole.output
-      _      <- TestDebug.deleteIfEmpty(randomId)
     } yield output.mkString
 }

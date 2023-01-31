@@ -31,7 +31,6 @@ private[test] object TestDebug {
         file.delete()
       }
     }
-
   }
 
   def print(executionEvent: ExecutionEvent, lock: TestDebugFileLock) =
@@ -67,7 +66,7 @@ private[test] object TestDebug {
         val source = Source.fromFile(outputFileForTask(fullyQualifiedTaskName))
 
         val remainingLines =
-          source.getLines.filterNot(_.contains(searchString))
+          source.getLines.filterNot(_.contains(searchString)).toList
 
         val pw = new PrintWriter(outputFileForTask(fullyQualifiedTaskName))
         pw.write(remainingLines.mkString("\n") + "\n")

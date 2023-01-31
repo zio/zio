@@ -1,5 +1,6 @@
 package zio.test
 
+import zio.{Random, ZIO}
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 
 object ExecutionEventSinkSpec extends ZIOSpecDefault {
@@ -7,47 +8,56 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
 
   override def spec = suite("ExecutionEventSinkSpec")(
     test("process single test") {
-      val event = ExecutionEvent.Test(
-        List("add", "ConcurrentSetSpec"),
-        Right(TestSuccess.Succeeded()),
-        TestAnnotationMap.empty,
-        List.empty,
-        0,
-        uuid,
-        "some.ClassName"
-      )
       for {
+        randomId <- ZIO.withRandom(Random.RandomLive)(Random.nextInt).map("test_case_" + _)
+        event = ExecutionEvent.Test(
+                  List("add", "ConcurrentSetSpec"),
+                  Right(TestSuccess.Succeeded()),
+                  TestAnnotationMap.empty,
+                  List.empty,
+                  0,
+                  uuid,
+                  randomId
+                )
+        _       <- TestDebug.createDebugFile(randomId)
         _       <- ExecutionEventSink.process(event)
+        _       <- TestDebug.deleteIfEmpty(randomId)
         summary <- ExecutionEventSink.getSummary
       } yield assertTrue(summary.success == 1)
     },
     test("process single test failure") {
-      val event = ExecutionEvent.Test(
-        List("add", "ConcurrentSetSpec"),
-        Left(TestFailure.fail("You lose! Good day, sir!")),
-        TestAnnotationMap.empty,
-        List.empty,
-        0,
-        uuid,
-        "some.ClassName"
-      )
       for {
+        randomId <- ZIO.withRandom(Random.RandomLive)(Random.nextInt).map("test_case_" + _)
+        event = ExecutionEvent.Test(
+                  List("add", "ConcurrentSetSpec"),
+                  Left(TestFailure.fail("You lose! Good day, sir!")),
+                  TestAnnotationMap.empty,
+                  List.empty,
+                  0,
+                  uuid,
+                  randomId
+                )
+        _       <- TestDebug.createDebugFile(randomId)
         _       <- ExecutionEventSink.process(event)
+        _       <- TestDebug.deleteIfEmpty(randomId)
         summary <- ExecutionEventSink.getSummary
       } yield assertTrue(summary.fail == 1)
     },
     test("process with ancestor") {
-      val event = ExecutionEvent.Test(
-        List("add", "ConcurrentSetSpec"),
-        Right(TestSuccess.Succeeded()),
-        TestAnnotationMap.empty,
-        List(SuiteId(1)),
-        0L,
-        uuid,
-        "some.ClassName"
-      )
       for {
+        randomId <- ZIO.withRandom(Random.RandomLive)(Random.nextInt).map("test_case_" + _)
+        event = ExecutionEvent.Test(
+                  List("add", "ConcurrentSetSpec"),
+                  Right(TestSuccess.Succeeded()),
+                  TestAnnotationMap.empty,
+                  List(SuiteId(1)),
+                  0L,
+                  uuid,
+                  randomId
+                )
+        _       <- TestDebug.createDebugFile(randomId)
         _       <- ExecutionEventSink.process(event)
+        _       <- TestDebug.deleteIfEmpty(randomId)
         summary <- ExecutionEventSink.getSummary
       } yield assertTrue(summary.success == 1)
     }
