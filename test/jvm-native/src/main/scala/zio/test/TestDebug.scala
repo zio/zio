@@ -4,15 +4,15 @@ import zio.{Ref, ZIO}
 
 private[test] object TestDebug {
   // TODO parameterize output file based on the currently executing task
-  val outputFile = "target/test-reports-zio/debug.txt"
+  val outputFile                      = "target/test-reports-zio/debug.txt"
   def outputFileForTask(task: String) = s"target/test-reports-zio/${task}_debug.txt"
 
-  def createEmergencyFile(fullyQualifiedTaskName: String) = {
+  def createEmergencyFile(fullyQualifiedTaskName: String) = ZIO.succeed {
     import java.io.File
 
     makeOutputDirectory()
     val file = new File(outputFileForTask(fullyQualifiedTaskName))
-    if(file.createNewFile()) {
+    if (file.createNewFile()) {
       // we're good
     } else {
       file.delete()
@@ -33,14 +33,15 @@ private[test] object TestDebug {
 
     val file = new File(outputFileForTask(fullyQualifiedTaskName))
     if (file.exists()) {
+      println("File exists: " + file.getAbsolutePath)
       val lines = Source.fromFile(file).getLines.filterNot(_.isBlank).toList
+      println("Number of non-empty lines: " + lines.size)
       if (lines.isEmpty) {
         file.delete()
       }
     }
 
   }
-
 
   def printEmergency(executionEvent: ExecutionEvent, lock: Ref.Synchronized[Unit]) =
     executionEvent match {
@@ -66,7 +67,12 @@ private[test] object TestDebug {
     }
 
   // TODO Dedup this with the same method in JVM/Native ResultFileOpsJson?
-  def write(fullyQualifiedTaskName: String, content: => String, append: Boolean, lock: Ref.Synchronized[Unit]): ZIO[Any, Nothing, Unit] =
+  def write(
+    fullyQualifiedTaskName: String,
+    content: => String,
+    append: Boolean,
+    lock: Ref.Synchronized[Unit]
+  ): ZIO[Any, Nothing, Unit] =
     lock.updateZIO(_ =>
       ZIO
         .acquireReleaseWith(
@@ -78,12 +84,13 @@ private[test] object TestDebug {
     )
 
   private def removeLine(fullyQualifiedTaskName: String, searchString: String, lock: Ref.Synchronized[Unit]) =
-    lock.updateZIO{_ =>
+    lock.updateZIO { _ =>
       ZIO.succeed {
         import java.io._
         import scala.io.Source
 
-        val lines = Source.fromFile(outputFileForTask(fullyQualifiedTaskName)).getLines.filterNot(_.contains(searchString)).toList
+        val lines =
+          Source.fromFile(outputFileForTask(fullyQualifiedTaskName)).getLines.filterNot(_.contains(searchString)).toList
         val pw = new PrintWriter(outputFileForTask(fullyQualifiedTaskName))
         pw.write(lines.mkString("\n")) // TODO Investigate if this is the only place I need to fix
         pw.close()

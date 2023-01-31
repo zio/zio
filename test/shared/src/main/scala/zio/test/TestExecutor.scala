@@ -163,9 +163,11 @@ object TestExecutor {
             val topLevelFlush = ExecutionEvent.TopLevelFlush(
               topParent
             )
-            ZIO.scoped {
-              loop(List.empty, scopedSpec, defExec, List.empty, topParent)
-            } *> processEvent(topLevelFlush) *> ZIO.succeed(TestDebug.deleteIfEmpty(fullyQualifiedName))
+
+            TestDebug.createEmergencyFile(fullyQualifiedName) *>
+              ZIO.scoped {
+                loop(List.empty, scopedSpec, defExec, List.empty, topParent)
+              } *> processEvent(topLevelFlush) *> ZIO.succeed(TestDebug.deleteIfEmpty(fullyQualifiedName))
 
           }
           summary <- summary.get

@@ -223,25 +223,25 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: zio-test-debug-2.11
-        path: ./**/test-reports-zio/debug.txt
+        path: ./**/test-reports-zio/**_debug.txt
     - name: Report Test Death 2.12
       if: ${{ failure() &&  startsWith(matrix.scala, '2.12.') }}
       uses: actions/upload-artifact@v3
       with:
         name: zio-test-debug-2.12
-        path: ./**/test-reports-zio/debug.txt
+        path: ./**/test-reports-zio/**_debug.txt
     - name: Report Test Death 2.13
       if: ${{ failure() &&  startsWith(matrix.scala, '2.13.') }}
       uses: actions/upload-artifact@v3
       with:
         name: zio-test-debug-2.13
-        path: ./**/test-reports-zio/debug.txt
+        path: ./**/test-reports-zio/**_debug.txt
     - name: Report Test Death 3.x
       if: ${{ failure() &&  startsWith(matrix.scala, '3.') }}
       uses: actions/upload-artifact@v3
       with:
         name: zio-test-debug-3.x
-        path: ./**/test-reports-zio/debug.txt
+        path: ./**/test-reports-zio/**_debug.txt
 
   testJvms:
     runs-on: ubuntu-20.04

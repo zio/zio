@@ -82,9 +82,8 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     "Completed tests"
   }
 
-  def tasks(defs: Array[TaskDef]): Array[Task] = {
+  def tasks(defs: Array[TaskDef]): Array[Task] =
     tasksZ(defs, zio.Console.ConsoleLive)(Trace.empty).toArray
-  }
 
   private[sbt] def tasksZ(
     defs: Array[TaskDef],
@@ -142,7 +141,6 @@ object ZTestTask {
     runtime: zio.Runtime[T]
   ): ZTestTask[T] = {
     val zioSpec = disectTask(taskDef, testClassLoader)
-    TestDebug.createEmergencyFile(taskDef.fullyQualifiedName())
     new ZTestTask(taskDef, testClassLoader, sendSummary, args, zioSpec, runtime)
   }
 
