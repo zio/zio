@@ -16,13 +16,14 @@ private[test] object TestDebug {
     }
 
   private def write(
-                     fullyQualifiedTaskName: String,
-                     content: => String, append: Boolean, lock: TestDebugFileLock): ZIO[Any, Nothing, Unit] =
+    fullyQualifiedTaskName: String,
+    content: => String,
+    append: Boolean,
+    lock: TestDebugFileLock
+  ): ZIO[Any, Nothing, Unit] =
     ZIO.unit
 
-  private def removeLine(
-                          fullyQualifiedTaskName: String,
-                          searchString: String, lock: TestDebugFileLock) =
+  private def removeLine(fullyQualifiedTaskName: String, searchString: String, lock: TestDebugFileLock) =
     ZIO.unit
 
   def createDebugFile(fullyQualifiedTaskName: String): ZIO[Any, Nothing, Unit] =

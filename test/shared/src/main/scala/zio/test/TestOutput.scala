@@ -164,13 +164,11 @@ object TestOutput {
   }
 }
 
-
 case class TestDebugFileLock(lock: Ref.Synchronized[Unit]) {
-  def updateFile(action: ZIO[Any, Nothing, Unit]) = {
+  def updateFile(action: ZIO[Any, Nothing, Unit]) =
     lock.updateZIO(_ => action)
-  }
 }
 object TestDebugFileLock {
-    def make: ZIO[Any, Nothing, TestDebugFileLock] =
-        Ref.Synchronized.make[Unit](()).map(TestDebugFileLock(_))
+  def make: ZIO[Any, Nothing, TestDebugFileLock] =
+    Ref.Synchronized.make[Unit](()).map(TestDebugFileLock(_))
 }

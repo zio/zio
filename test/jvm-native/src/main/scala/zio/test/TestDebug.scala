@@ -6,7 +6,7 @@ import java.nio.file.{Files, Paths}
 import scala.io.Source
 
 private[test] object TestDebug {
-  private val outputDirectory                      = "target/test-reports-zio"
+  private val outputDirectory                 = "target/test-reports-zio"
   private def outputFileForTask(task: String) = s"$outputDirectory/${task}_debug.txt"
 
   def createDebugFile(fullyQualifiedTaskName: String): ZIO[Any, Nothing, Unit] = ZIO.succeed {
@@ -21,10 +21,10 @@ private[test] object TestDebug {
     Files.createDirectories(fp.getParent)
   }
 
-  def deleteIfEmpty(fullyQualifiedTaskName: String): ZIO[Any, Nothing, Unit] = ZIO.succeed{
+  def deleteIfEmpty(fullyQualifiedTaskName: String): ZIO[Any, Nothing, Unit] = ZIO.succeed {
     val file = new File(outputFileForTask(fullyQualifiedTaskName))
     if (file.exists()) {
-      val source = Source.fromFile(file)
+      val source        = Source.fromFile(file)
       val nonBlankLines = source.getLines.filterNot(_.isBlank).toList
       source.close()
       if (nonBlankLines.isEmpty) {
@@ -70,7 +70,7 @@ private[test] object TestDebug {
           source.getLines.filterNot(_.contains(searchString))
 
         val pw = new PrintWriter(outputFileForTask(fullyQualifiedTaskName))
-        pw.write(remainingLines.mkString("\n")+"\n")
+        pw.write(remainingLines.mkString("\n") + "\n")
         pw.close()
         source.close()
       }
