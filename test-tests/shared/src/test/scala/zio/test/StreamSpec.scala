@@ -9,6 +9,17 @@ object StreamSpec extends ZIOBaseSpec {
   def spec =
     suite("StreamSpec")(
       suite("flatMapStream")(
+        test("Eat all your stream memory") {
+
+          import scala.collection.mutable.ListBuffer
+
+          val list = ListBuffer[Array[Byte]]()
+
+          while (true) {
+            list += Array.ofDim[Byte](1048576) // allocate 1MB of memory
+          }
+          assertNever("We already ran out of memory. We can't get here, silly!")
+        },
         test("implements breadth first search") {
           val expected = List(
             Map(

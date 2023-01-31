@@ -4,7 +4,7 @@ import zio.test._
 
 object SomeSpecThatJustBlewUp extends ZIOSpecDefault {
   def spec =
-    test("go boom") {
+    test("Eat all your memory") {
 
       import scala.collection.mutable.ListBuffer
 
