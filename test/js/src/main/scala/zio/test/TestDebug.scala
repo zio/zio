@@ -28,12 +28,10 @@ private[test] object TestDebug {
     }
 
   // TODO Implement this with appropriate JS filesystem APIs after JVM version is finalized
-  def write(content: => String, append: Boolean, lock: Ref.Synchronized[Unit]): ZIO[Any, Nothing, Unit] = {
+  def write(content: => String, append: Boolean, lock: Ref.Synchronized[Unit]): ZIO[Any, Nothing, Unit] =
     ZIO.unit
-  }
 
-  private def removeLine(searchString: String) = ZIO.attempt{
-  }.orDie
+  private def removeLine(searchString: String) = ZIO.attempt {}.orDie
 //    ZIO.unit
 
 }
