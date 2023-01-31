@@ -373,7 +373,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val configProvider = ConfigProvider.fromMap(Map("key" -> "value")).unnested("nested")
         val config         = Config.string("key")
         for {
-          result <- configProvider.load(config).exit.debug
+          result <- configProvider.load(config).exit
         } yield assert(result)(Assertion.failsWithA[Config.Error])
       } +
       test("within") {
@@ -396,6 +396,34 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         for {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value1" -> "value2")
+      } +
+      test("kebabCase") {
+        val configProvider = ConfigProvider.fromMap(Map("kebab-case" -> "value")).kebabCase
+        val config         = Config.string("kebabCase")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
+      } +
+      test("lowerCase") {
+        val configProvider = ConfigProvider.fromMap(Map("lowercase" -> "value")).lowerCase
+        val config         = Config.string("lowerCase")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
+      } +
+      test("snakeCase") {
+        val configProvider = ConfigProvider.fromMap(Map("snake_case" -> "value")).snakeCase
+        val config         = Config.string("snakeCase")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
+      } +
+      test("upperCase") {
+        val configProvider = ConfigProvider.fromMap(Map("UPPERCASE" -> "value")).upperCase
+        val config         = Config.string("upperCase")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
       }
   }
 }
