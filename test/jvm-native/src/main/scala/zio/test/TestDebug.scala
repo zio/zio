@@ -54,7 +54,7 @@ private[test] object TestDebug {
         write(fullyQualifiedName, s"${t.labels.mkString(" - ")} STARTED\n", true, lock)
 
       case t @ ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
-        removeLine(fullyQualifiedName, t.labels.mkString(" - ") + " STARTED")
+        removeLine(fullyQualifiedName, t.labels.mkString(" - ") + " STARTED", lock)
 //        ZIO.unit
 
       case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) => ZIO.unit
@@ -77,14 +77,17 @@ private[test] object TestDebug {
         .ignore
     )
 
-  private def removeLine(fullyQualifiedTaskName: String, searchString: String) = ZIO.succeed {
-    import java.io._
-    import scala.io.Source
+  private def removeLine(fullyQualifiedTaskName: String, searchString: String, lock: Ref.Synchronized[Unit]) =
+    lock.updateZIO{_ =>
+      ZIO.succeed {
+        import java.io._
+        import scala.io.Source
 
-    val lines = Source.fromFile(outputFileForTask(fullyQualifiedTaskName)).getLines.filterNot(_.contains(searchString)).toList
-    val pw    = new PrintWriter(outputFileForTask(fullyQualifiedTaskName))
-    pw.write(lines.mkString("\n")) // TODO Investigate if this is the only place I need to fix
-    pw.close()
-  }
+        val lines = Source.fromFile(outputFileForTask(fullyQualifiedTaskName)).getLines.filterNot(_.contains(searchString)).toList
+        val pw = new PrintWriter(outputFileForTask(fullyQualifiedTaskName))
+        pw.write(lines.mkString("\n")) // TODO Investigate if this is the only place I need to fix
+        pw.close()
+      }
+    }
 
 }
