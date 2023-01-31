@@ -4,7 +4,7 @@ import zio.internal.stacktracer.SourceLocation
 import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
 import zio.test.render.IntelliJRenderer
-import zio.{Chunk, ExecutionStrategy, Trace, ZIO}
+import zio.{Chunk, Trace}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -188,15 +188,17 @@ object IntelliJRenderUtils {
     }
   }
 
+  import zio._
   def runLog(
     spec: Spec[TestEnvironment, String]
   )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[TestEnvironment, Nothing, String] =
     for {
       console <- ZIO.console
-      _ <- TestDebug.createDebugFile("zio.test.IntellijRendererSpec")
+      randomId <- ZIO.withRandom(Random.RandomLive)(Random.nextInt).map("test_case_" + _)
+      _ <- TestDebug.createDebugFile(randomId)
       _ <- TestTestRunner(testEnvironment, sinkLayer(console, TestRenderer))
-             .run("zio.test.IntellijRendererSpec", spec, ExecutionStrategy.Sequential) // to ensure deterministic output
+             .run(randomId, spec, ExecutionStrategy.Sequential) // to ensure deterministic output
       output <- TestConsole.output
-      _ <- TestDebug.deleteIfEmpty("zio.test.IntellijRendererSpec")
+      _ <- TestDebug.deleteIfEmpty(randomId)
     } yield output.mkString
 }

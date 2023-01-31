@@ -11,12 +11,8 @@ private[test] object TestDebug {
 
     makeOutputDirectory()
     val file = new File(outputFileForTask(fullyQualifiedTaskName))
-    if (file.createNewFile()) {
-      // we're good
-    } else {
-      file.delete()
-      file.createNewFile()
-    }
+    if (file.exists()) file.delete()
+    file.createNewFile()
   }
 
   private def makeOutputDirectory() = {

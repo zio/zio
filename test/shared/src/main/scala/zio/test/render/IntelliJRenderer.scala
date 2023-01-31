@@ -2,7 +2,7 @@ package zio.test.render
 
 import zio.Trace
 import zio.internal.stacktracer.SourceLocation
-import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test, TopLevelFlush}
+import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test, TestStarted, TopLevelFlush}
 import zio.test.TestAnnotationRenderer.LeafRenderer
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Message
@@ -32,6 +32,8 @@ trait IntelliJRenderer extends TestRenderer {
               )
             )
         }
+
+      case _: TestStarted => Nil
 
       case Test(labelsReversed, results, annotations, _, duration, _, _) =>
         val labels       = labelsReversed.reverse
