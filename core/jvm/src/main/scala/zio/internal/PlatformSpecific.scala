@@ -42,13 +42,21 @@ private[zio] trait PlatformSpecific {
     import sun.misc.Signal
     import sun.misc.SignalHandler
 
-    try Signal.handle(
-      new Signal(signal),
-      new SignalHandler {
-        override def handle(sig: Signal): Unit = action()
+    final case class ZIOSignalHandler(action: () => Unit) extends SignalHandler {
+      private[zio] var signalHandler: SignalHandler = null
+      override def handle(signal: Signal): Unit = {
+        action()
+        if (signalHandler != SignalHandler.SIG_DFL && signalHandler != SignalHandler.SIG_IGN) {
+          signalHandler.handle(signal)
+        }
       }
-    )
-    catch {
+    }
+
+    try {
+      val zioSignal        = new Signal(signal)
+      val zioSignalHandler = ZIOSignalHandler(action)
+      zioSignalHandler.signalHandler = Signal.handle(zioSignal, zioSignalHandler)
+    } catch {
       case _: Throwable => ()
     }
   }
