@@ -4,21 +4,29 @@ import zio.{Ref, ZIO}
 
 // TODO Implement this with appropriate JS filesystem APIs after JVM version is finalized
 private[test] object TestDebug {
-  def printDebug(executionEvent: ExecutionEvent, lock: Ref.Synchronized[Unit]) =
+  def print(executionEvent: ExecutionEvent, lock: TestDebugFileLock) =
     executionEvent match {
       case t: ExecutionEvent.TestStarted =>
         write(t.fullyQualifiedName, s"${t.labels.mkString(" - ")} STARTED\n", true, lock)
 
-      case t: ExecutionEvent.Test =>
+      case t: ExecutionEvent.Test[_] =>
         removeLine(t.fullyQualifiedName, t.labels.mkString(" - ") + " STARTED", lock)
 
       case _ => ZIO.unit
     }
 
-  private def write(content: => String, append: Boolean, lock: Ref.Synchronized[Unit]): ZIO[Any, Nothing, Unit] =
+  private def write(
+                     fullyQualifiedTaskName: String,
+                     content: => String, append: Boolean, lock: TestDebugFileLock): ZIO[Any, Nothing, Unit] =
     ZIO.unit
 
-  private def removeLine(searchString: String) =
+  private def removeLine(
+                          fullyQualifiedTaskName: String,
+                          searchString: String, lock: TestDebugFileLock) =
     ZIO.unit
 
+  def createDebugFile(fullyQualifiedTaskName: String): ZIO[Any, Nothing, Unit] =
+    ZIO.unit
+
+  def deleteIfEmpty(fullyQualifiedTaskName: String): ZIO[Any, Nothing, Unit] = ZIO.unit
 }

@@ -1,14 +1,15 @@
 package zio.test
 
-import zio.{Ref, ZIO}
+import zio.ZIO
+import java.io.{File, PrintWriter}
+import java.nio.file.{Files, Paths}
+import scala.io.Source
 
 private[test] object TestDebug {
   private val outputDirectory                      = "target/test-reports-zio"
   private def outputFileForTask(task: String) = s"$outputDirectory/${task}_debug.txt"
 
-  def createDebugFile(fullyQualifiedTaskName: String) = ZIO.succeed {
-    import java.io.File
-
+  def createDebugFile(fullyQualifiedTaskName: String): ZIO[Any, Nothing, Unit] = ZIO.succeed {
     makeOutputDirectory()
     val file = new File(outputFileForTask(fullyQualifiedTaskName))
     if (file.exists()) file.delete()
@@ -16,16 +17,11 @@ private[test] object TestDebug {
   }
 
   private def makeOutputDirectory() = {
-    import java.nio.file.{Files, Paths}
-
     val fp = Paths.get(outputDirectory)
     Files.createDirectories(fp.getParent)
   }
 
-  def deleteIfEmpty(fullyQualifiedTaskName: String) = ZIO.succeed{
-    import java.io._
-    import scala.io.Source
-
+  def deleteIfEmpty(fullyQualifiedTaskName: String): ZIO[Any, Nothing, Unit] = ZIO.succeed{
     val file = new File(outputFileForTask(fullyQualifiedTaskName))
     if (file.exists()) {
       val source = Source.fromFile(file)
@@ -38,7 +34,7 @@ private[test] object TestDebug {
 
   }
 
-  def printDebug(executionEvent: ExecutionEvent, lock: TestDebugFileLock) =
+  def print(executionEvent: ExecutionEvent, lock: TestDebugFileLock) =
     executionEvent match {
       case t: ExecutionEvent.TestStarted =>
         write(t.fullyQualifiedName, s"${t.labels.mkString(" - ")} STARTED\n", true, lock)
@@ -51,7 +47,7 @@ private[test] object TestDebug {
 
   private def write(
     fullyQualifiedTaskName: String,
-    content: => String,
+    content: String,
     append: Boolean,
     lock: TestDebugFileLock
   ): ZIO[Any, Nothing, Unit] =
@@ -68,9 +64,6 @@ private[test] object TestDebug {
   private def removeLine(fullyQualifiedTaskName: String, searchString: String, lock: TestDebugFileLock) =
     lock.updateFile {
       ZIO.succeed {
-        import java.io._
-        import scala.io.Source
-
         val source = Source.fromFile(outputFileForTask(fullyQualifiedTaskName))
 
         val remainingLines =
@@ -82,5 +75,4 @@ private[test] object TestDebug {
         source.close()
       }
     }
-
 }
