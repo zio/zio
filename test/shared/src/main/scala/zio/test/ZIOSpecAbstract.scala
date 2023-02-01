@@ -119,8 +119,9 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
               testEventHandler
             )
         )
+      randomId <- ZIO.withRandom(Random.RandomLive)(Random.nextInt).map("test_case_" + _)
       summary <-
-        runner.run("Test Task name not available here", aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
+        runner.run(randomId, aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
     } yield summary
   }
 
