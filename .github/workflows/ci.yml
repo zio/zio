@@ -265,6 +265,19 @@ jobs:
       - name: Test on different JVM versions
         run: ./sbt root${{ matrix.platform }}/test
 
+      - name: Report Test Death JVM 8
+        if: ${{ failure() &&  startsWith(matrix.java, '8') }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: zio-test-debug-JVM-8
+          path: ./**/test-reports-zio/**_debug.txt
+      - name: Report Test Death JVM 11
+        if: ${{ failure() &&  startsWith(matrix.java, '11') }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: zio-test-debug-JVM-11
+          path: ./**/test-reports-zio/**_debug.txt
+
   testPlatforms:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
