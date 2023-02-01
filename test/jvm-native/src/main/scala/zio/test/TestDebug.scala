@@ -25,13 +25,16 @@ private[test] object TestDebug {
     val file = new File(outputFileForTask(fullyQualifiedTaskName))
     if (file.exists()) {
       val source        = Source.fromFile(file)
-      val nonBlankLines = source.getLines.filterNot(_.isBlank).toList
+      val nonBlankLines = source.getLines.filterNot(isBlank).toList
       source.close()
       if (nonBlankLines.isEmpty) {
         file.delete()
       }
     }
   }
+
+  private def isBlank(input: String): Boolean =
+    input.chars().allMatch(Character.isWhitespace(_))
 
   def print(executionEvent: ExecutionEvent, lock: TestDebugFileLock) =
     executionEvent match {
