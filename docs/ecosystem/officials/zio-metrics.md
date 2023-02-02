@@ -3,7 +3,7 @@ id: zio-metrics
 title: "ZIO Metrics"
 ---
 
-[ZIO Metrcis](https://github.com/zio/zio-metrics) is a high-performance, purely-functional library for adding instrumentation to any application, with a simple web client and JMX support.
+[ZIO Metrics](https://github.com/zio/zio-metrics) is a high-performance, purely-functional library for adding instrumentation to any application, with a simple web client and JMX support.
 
 ## Introduction
 
