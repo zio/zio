@@ -73,6 +73,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Credit Karma](https://creditkarma.com)
 * [CurrencyCloud](https://www.currencycloud.com/)
 * [D.E.Solution](https://de-solution.com/)
+* [DaSCH](https://dasch.swiss/)
 * [DataChef](https://datachef.co)
 * [Demandbase](https://www.demandbase.com)
 * [Demyst](https://demyst.com)
