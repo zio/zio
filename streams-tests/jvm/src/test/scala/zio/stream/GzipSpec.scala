@@ -1,10 +1,11 @@
 package zio.stream
 
+import zio._
 import zio.stream.compression.TestData._
 import zio.test.Assertion._
 import zio.test._
 
-object GzipSpec extends ZIOSpecDefault {
+object GzipSpec extends ZIOBaseSpec {
   override def spec =
     suite("GzipSpec")(
       test("JDK gunzips what was gzipped")(

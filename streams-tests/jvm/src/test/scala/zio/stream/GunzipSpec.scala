@@ -1,5 +1,6 @@
 package zio.stream
 
+import zio._
 import zio.stream.compression.TestData.{`1K`, jdkGzip, longText, otherShortText, shortText}
 import zio.test.Assertion._
 import zio.test._
@@ -8,7 +9,7 @@ import zio.{Chunk, ZIO}
 import java.nio.charset.StandardCharsets
 import java.util.zip.CRC32
 
-object GunzipSpec extends ZIOSpecDefault {
+object GunzipSpec extends ZIOBaseSpec {
 
   override def spec =
     suite("Gunzip")(
