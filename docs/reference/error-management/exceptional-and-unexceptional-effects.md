@@ -10,7 +10,7 @@ Besides the `IO` type alias, ZIO has four different type aliases which can be ca
 
 So when we compose different effects together, at any point of the codebase we can determine this piece of code can fail or cannot. As a result, typed errors offer a compile-time transition point between this can fail and this can't fail.
 
-For example, the `ZIO.acquireReleaseWith` API asks us to provide three different inputs: _require_, _release_, and _use_. The `release` parameter requires a function from `A` to `URIO[R, Any]`. So, if we put an exceptional effect, it will not compile:
+For example, the `ZIO.acquireReleaseWith` API asks us to provide three different inputs: _acquire_, _release_, and _use_. The `release` parameter requires a function from `A` to `URIO[R, Any]`. So, if we put an exceptional effect, it will not compile:
 
 ```scala
 object ZIO {
