@@ -28,7 +28,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   def spec: Spec[Environment with TestEnvironment with Scope, Any]
 
   def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment]] =
-    Chunk(TestAspect.fibers)
+    Chunk(TestAspect.fibers, TestAspect.timeoutWarning(60.seconds))
 
   def bootstrap: ZLayer[Any, Any, Environment]
 

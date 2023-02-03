@@ -7,7 +7,7 @@ import zio.test._
 
 import java.util.zip.Deflater
 
-object DeflateSpec extends ZIOSpecDefault {
+object DeflateSpec extends ZIOBaseSpec {
   override def spec =
     suite("DeflateSpec")(
       test("JDK inflates what was deflated")(

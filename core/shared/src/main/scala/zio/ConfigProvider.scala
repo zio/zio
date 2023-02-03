@@ -57,7 +57,7 @@ trait ConfigProvider { self =>
    * to the naming convention of a config provider.
    */
   final def kebabCase: ConfigProvider =
-    contramapPath(_.replaceAll("(?<=[a-z])[A-Z]", "-$0").toLowerCase)
+    contramapPath(_.replaceAll("([a-z])([A-Z])", "$1-$2").toLowerCase)
 
   /**
    * Returns a new config provider that will automatically convert all property
@@ -92,7 +92,7 @@ trait ConfigProvider { self =>
    * to the naming convention of a config provider.
    */
   final def snakeCase: ConfigProvider =
-    contramapPath(_.replaceAll("(?<=[a-z])[A-Z]", "_$0").toLowerCase)
+    contramapPath(_.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase)
 
   /**
    * Returns a new config provider that will automatically unnest all

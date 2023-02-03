@@ -9,7 +9,7 @@ import java.util.zip.Deflater
 
 import Inflate._
 
-object InflateSpec extends ZIOSpecDefault {
+object InflateSpec extends ZIOBaseSpec {
   override def spec =
     suite("CompressionSpec")(
       test("short stream")(
