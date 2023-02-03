@@ -26,11 +26,18 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * boundaries of a histogram. In this way, it is impossible to ever create
  * different metrics with conflicting keys.
  */
-final case class MetricKey[+Type] private (
+sealed case class MetricKey[+Type] private (
   name: String,
   keyType: Type,
   tags: Set[MetricLabel] = Set.empty
 ) { self =>
+
+  def description: Option[String] = None
+
+  def copy[Type2](name: String = name, keyType: Type2 = keyType, tags: Set[MetricLabel] = tags): MetricKey[Type2] =
+    new MetricKey(name, keyType, tags) {
+      override val description: Option[String] = self.description
+    }
 
   /**
    * Returns a new `MetricKey` with the specified tag appended.
@@ -49,6 +56,13 @@ final case class MetricKey[+Type] private (
    */
   def tagged(extraTags: Set[MetricLabel]): MetricKey[Type] =
     if (extraTags.isEmpty) self else copy(tags = tags ++ extraTags)
+
+  /**
+   * Returns a new `MetricKey` with the specified description
+   */
+  def withDescription(value: Option[String]): MetricKey[Type] = new MetricKey(name, keyType, tags) {
+    override val description: Option[String] = value
+  }
 }
 object MetricKey {
   type Untyped = MetricKey[Any]

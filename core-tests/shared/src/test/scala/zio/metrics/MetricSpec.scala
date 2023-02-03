@@ -1,6 +1,7 @@
 package zio
 
 import zio.ZIOAspect._
+import zio.internal.metrics.metricRegistry
 import zio.metrics._
 import zio.metrics.MetricKeyType.Histogram
 import zio.test._
@@ -405,6 +406,42 @@ object MetricSpec extends ZIOBaseSpec {
         _ <- ZIO.unit @@ timer.trackDuration
         _ <- ZIO.unit @@ timerWithBoundaries.trackDuration
       } yield assertCompletes
+    },
+    test("description") {
+      val name = "desc_test_gauge"
+
+      val gauge1 = Metric.gauge(name).withDescription("desc1")
+      val gauge2 = gauge1.tagged("key1", "value1").withDescription("desc2")
+
+      val gauge3 = Metric.gauge(name).tagged("key1", "value1")
+      val gauge4 =
+        gauge3.tagged("key2", "value2").withDescription("desc3").withDescription("desc4").withDescription("desc5")
+
+      for {
+        _        <- gauge1.update(1L)
+        _        <- gauge2.modify(2L)
+        _        <- gauge3.modify(1L)
+        _        <- gauge4.update(2L)
+        snapshot <- ZIO.succeed(Unsafe.unsafe(implicit unsafe => metricRegistry.snapshot()))
+        r1       <- gauge1.value
+        r2       <- gauge2.value
+        r3       <- gauge3.value
+        r4       <- gauge4.value
+        pair1     = snapshot.find(_.metricKey == MetricKey.gauge(name))
+        pair2     = snapshot.find(_.metricKey == MetricKey.gauge(name).tagged("key1", "value1"))
+        pair3     = snapshot.find(_.metricKey == MetricKey.gauge(name).tagged("key1", "value1").tagged("key2", "value2"))
+      } yield assertTrue(
+        r1 == MetricState.Gauge(1L),
+        r2 == MetricState.Gauge(3L),
+        r3 == MetricState.Gauge(3L),
+        r4 == MetricState.Gauge(2L),
+        pair1.get.metricState == MetricState.Gauge(1L),
+        pair1.get.metricKey.description.get == "desc1",
+        pair2.get.metricState == MetricState.Gauge(3L),
+        pair2.get.metricKey.description.get == "desc2",
+        pair3.get.metricState == MetricState.Gauge(2L),
+        pair3.get.metricKey.description.get == "desc5"
+      )
     }
   )
 }

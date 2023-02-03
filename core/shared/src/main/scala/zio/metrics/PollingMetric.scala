@@ -135,17 +135,23 @@ object PollingMetric {
 
           override private[zio] val unsafe =
             new UnsafeAPI {
-              override def update(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
+              override def update(in: In, extraTags: Set[MetricLabel], description: Option[String])(implicit
+                unsafe: Unsafe
+              ): Unit =
                 ins.zip(in).foreach { case (pollingmetric, input) =>
-                  pollingmetric.metric.unsafe.update(input.asInstanceOf[pollingmetric.In])
+                  pollingmetric.metric.unsafe.update(input.asInstanceOf[pollingmetric.In], extraTags, description)
                 }
 
-              override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Chunk[Out] =
-                ins.map(_.metric.unsafe.value(extraTags))
+              override def value(extraTags: Set[MetricLabel], description: Option[String])(implicit
+                unsafe: Unsafe
+              ): Chunk[Out] =
+                ins.map(_.metric.unsafe.value(extraTags, description))
 
-              override def modify(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
+              override def modify(in: In, extraTags: Set[MetricLabel], description: Option[String])(implicit
+                unsafe: Unsafe
+              ): Unit =
                 ins.zip(in).foreach { case (pollingmetric, input) =>
-                  pollingmetric.metric.unsafe.modify(input.asInstanceOf[pollingmetric.In])
+                  pollingmetric.metric.unsafe.modify(input.asInstanceOf[pollingmetric.In], extraTags, description)
                 }
             }
         }
