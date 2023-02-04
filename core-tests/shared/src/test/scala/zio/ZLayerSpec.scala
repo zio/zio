@@ -544,6 +544,17 @@ object ZLayerSpec extends ZIOBaseSpec {
           runtimeFlags <- ZIO.runtimeFlags.provideLayer(Runtime.enableCurrentFiber ++ Runtime.enableOpLog)
         } yield assertTrue(RuntimeFlags.isEnabled(runtimeFlags)(RuntimeFlag.CurrentFiber)) &&
           assertTrue(RuntimeFlags.isEnabled(runtimeFlags)(RuntimeFlag.OpLog))
-      } @@ nonFlaky
+      } @@ nonFlaky,
+      test("suspend lazily constructs a layer") {
+        var n = 0
+        val layer = ZLayer.suspend {
+          n += 1
+          ZLayer.empty
+        }
+        for {
+          _ <- layer.build
+          _ <- layer.build
+        } yield assertTrue(n == 2)
+      }
     )
 }
