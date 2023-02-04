@@ -589,7 +589,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     trace: Trace
   ): ZLayer[R, E, Collection[B]] =
     ZLayer.suspend {
-      val builder: mutable.Builder[B, Collection[B]] = bf.newBuilder(in)
+      def builder: mutable.Builder[B, Collection[B]] = bf.newBuilder(in)
       in
         .foldLeft[ZLayer[R, E, Builder[B, Collection[B]]]](ZLayer.succeed(builder))((io, a) =>
           io.zipWithPar(f(a))((left, right) => ZEnvironment(left.get += right.get))

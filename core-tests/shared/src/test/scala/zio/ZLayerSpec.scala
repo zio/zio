@@ -544,6 +544,15 @@ object ZLayerSpec extends ZIOBaseSpec {
           runtimeFlags <- ZIO.runtimeFlags.provideLayer(Runtime.enableCurrentFiber ++ Runtime.enableOpLog)
         } yield assertTrue(RuntimeFlags.isEnabled(runtimeFlags)(RuntimeFlag.CurrentFiber)) &&
           assertTrue(RuntimeFlags.isEnabled(runtimeFlags)(RuntimeFlag.OpLog))
+      } @@ nonFlaky,
+      test("collectAll") {
+        val layerA1 = ZLayer.succeed(1)
+        val layerA2 = ZLayer.succeed(2)
+        val layerAll = ZLayer.collectAll(List(layerA1, layerA2))
+        for {
+          listOfTwo <- ZIO.service[List[Int]].provide(layerAll)
+          anotherListOfTwo <- ZIO.service[List[Int]].provide(layerAll)
+        } yield assert(listOfTwo)(hasSize(equalTo(2))) && assert(anotherListOfTwo)(hasSize(equalTo(2)))
       } @@ nonFlaky
     )
 }
