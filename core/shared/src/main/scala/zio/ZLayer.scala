@@ -670,10 +670,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Lazily constructs a layer. This is useful to avoid infinite recursion when
    * creating layers that refer to themselves.
    */
-  def suspend[RIn, E, ROut](layer: => ZLayer[RIn, E, ROut]): ZLayer[RIn, E, ROut] = {
-    lazy val self = layer
-    Suspend(() => self)
-  }
+  def suspend[RIn, E, ROut](layer: => ZLayer[RIn, E, ROut]): ZLayer[RIn, E, ROut] =
+    Suspend(() => layer)
 
   implicit final class ZLayerInvariantOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 
