@@ -3,6 +3,7 @@ package zio.test
 import zio.Clock._
 import zio.Duration._
 import zio._
+import zio.internal._
 import zio.stream._
 import zio.test.Assertion._
 import zio.test.TestAspect._
@@ -10,7 +11,7 @@ import zio.test.TestClock._
 
 import java.time.temporal.ChronoUnit
 import java.time.{Instant, ZoneId}
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{RejectedExecutionException, TimeUnit}
 
 object ClockSpec extends ZIOBaseSpec {
   override def aspects: Chunk[TestAspectAtLeastR[TestEnvironment]] =
@@ -189,6 +190,31 @@ object ClockSpec extends ZIOBaseSpec {
         for {
           _ <- TestClock.adjustWith(1.hour)(zio)
         } yield assertCompletes
-      }
+      },
+      test("creates warning fiber in its own scope") {
+        for {
+          _ <- ZIO.unit raceFirst Clock.instant
+        } yield assertCompletes
+      }.provideLayer(scopedExecutor)
     ) @@ TestAspect.fibers
+
+  class ScopedExecutor extends Executor {
+    @volatile private var closed = false
+    def close(): Unit =
+      closed = true
+    def metrics(implicit unsafe: zio.Unsafe): Option[ExecutionMetrics] =
+      None
+    def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
+      if (closed) throw new RejectedExecutionException
+      else Runtime.defaultExecutor.submit(runnable)
+  }
+
+  val scopedExecutor: ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped {
+      for {
+        executor <- ZIO.acquireRelease(ZIO.succeed(new ScopedExecutor))(executor => ZIO.succeed(executor.close()))
+        _        <- ZIO.onExecutorScoped(executor)
+      } yield ()
+    }
+
 }

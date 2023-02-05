@@ -99,7 +99,7 @@ object TestClock extends Serializable {
     clockState: Ref.Atomic[TestClock.Data],
     live: Live,
     annotations: Annotations,
-    warningState: Ref.Synchronized[TestClock.WarningData],
+    warningState: Ref[TestClock.WarningData],
     suspendedWarningState: Ref.Synchronized[TestClock.SuspendedWarningData]
   ) extends Clock
       with TestClock
@@ -264,11 +264,12 @@ object TestClock extends Serializable {
      * Cancels the warning message that is displayed if a test is using time but
      * is not advancing the `TestClock`.
      */
-    private[TestClock] def warningDone(implicit trace: Trace): UIO[Unit] =
-      warningState.updateSomeZIO[Any, Nothing] {
-        case WarningData.Start          => ZIO.succeedNow(WarningData.done)
-        case WarningData.Pending(fiber) => fiber.interrupt.as(WarningData.done)
-      }
+    private[TestClock] def warningDone(implicit trace: Trace): UIO[Any] =
+      warningState.modify {
+        case WarningData.Start(fiber, _) => fiber.interrupt -> WarningData.done
+        case WarningData.Pending(fiber)  => fiber.interrupt -> WarningData.done
+        case WarningData.Done            => ZIO.unit        -> WarningData.done
+      }.flatten
 
     /**
      * Polls until all descendants of this fiber are done or suspended.
@@ -370,12 +371,12 @@ object TestClock extends Serializable {
      * Forks a fiber that will display a warning message if a test is using time
      * but is not advancing the `TestClock`.
      */
-    private def warningStart(implicit trace: Trace): UIO[Unit] =
-      warningState.updateSomeZIO { case WarningData.Start =>
-        for {
-          fiber <- live.provide(ZIO.logWarning(warning).delay(5.seconds)).interruptible.fork
-        } yield WarningData.pending(fiber)
-      }
+    private def warningStart(implicit trace: Trace): UIO[Any] =
+      warningState.modify {
+        case WarningData.Start(fiber, promise) => promise.succeed(()) -> WarningData.pending(fiber)
+        case WarningData.Pending(fiber)        => ZIO.unit            -> WarningData.pending(fiber)
+        case WarningData.Done                  => ZIO.unit            -> WarningData.done
+      }.flatten
 
   }
 
@@ -393,11 +394,13 @@ object TestClock extends Serializable {
         live                  <- ZIO.service[Live]
         annotations           <- ZIO.service[Annotations]
         clockState            <- ZIO.succeedNow(Ref.unsafe.make(data)(Unsafe.unsafe))
-        warningState          <- Ref.Synchronized.make(WarningData.start)
+        promise               <- Promise.make[Nothing, Unit]
+        fiber                 <- live.provide(promise.await *> ZIO.logWarning(warning).delay(5.seconds)).interruptible.forkScoped
+        warningState          <- Ref.Synchronized.make(WarningData.start(fiber, promise))
         suspendedWarningState <- Ref.Synchronized.make(SuspendedWarningData.start)
         test                   = Test(clockState, live, annotations, warningState, suspendedWarningState)
         _                     <- ZIO.withClockScoped(test)
-        _                     <- ZIO.addFinalizer(test.warningDone *> test.suspendedWarningDone)
+        _                     <- ZIO.addFinalizer(test.warningDone)
       } yield test
     }
 
@@ -487,27 +490,30 @@ object TestClock extends Serializable {
 
   object WarningData {
 
-    case object Start                                         extends WarningData
-    final case class Pending(fiber: Fiber[IOException, Unit]) extends WarningData
-    case object Done                                          extends WarningData
+    final case class Start(fiber: Fiber[IOException, Unit], promise: Promise[Nothing, Unit]) extends WarningData
+    final case class Pending(fiber: Fiber[IOException, Unit])                                extends WarningData
+    case object Done                                                                         extends WarningData
 
     /**
      * State indicating that a test has not used time.
      */
-    val start: WarningData = Start
+    def start(fiber: Fiber[IOException, Unit], promise: Promise[Nothing, Unit]): WarningData =
+      Start(fiber, promise)
 
     /**
      * State indicating that a test has used time but has not adjusted the
      * `TestClock` with a reference to the fiber that will display the warning
      * message.
      */
-    def pending(fiber: Fiber[IOException, Unit]): WarningData = Pending(fiber)
+    def pending(fiber: Fiber[IOException, Unit]): WarningData =
+      Pending(fiber)
 
     /**
      * State indicating that a test has used time or the warning message has
      * already been displayed.
      */
-    val done: WarningData = Done
+    val done: WarningData =
+      Done
   }
 
   sealed abstract class SuspendedWarningData
