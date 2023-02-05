@@ -632,7 +632,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def aggregateAsync[Env, Err, In, Out](sink: => ZSink[Env, Err, In, In, Out])(implicit
     trace: Trace
   ): ZPipeline[Env, Err, In, Out] =
-    aggregateAsyncWithin(sink, Schedule.forever)
+    ZPipeline.fromFunction(_.aggregateAsync(sink))
 
   /**
    * Like `aggregateAsyncWithinEither`, but only returns the `Right` results.
@@ -641,7 +641,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     sink: => ZSink[Env, Err, In, In, Out],
     schedule: => Schedule[Env, Option[Out], Any]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
-    aggregateAsyncWithinEither(sink, schedule).collectRight
+    ZPipeline.fromFunction(_.aggregateAsyncWithin(sink, schedule))
 
   /**
    * Aggregates elements using the provided sink until it completes, or until
@@ -659,140 +659,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     sink: => ZSink[Env, Err, In, In, Out],
     schedule: => Schedule[Env, Option[Out], Out2]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Either[Out2, Out]] =
-    ZPipeline.unwrap {
-      SingleProducerAsyncInput.make[ZNothing, Chunk[In], Any].flatMap { input =>
-        type HandoffSignal = ZStream.HandoffSignal[Err, In]
-        import ZStream.HandoffSignal._
-        type SinkEndReason = ZStream.SinkEndReason
-        import ZStream.SinkEndReason._
-
-        val layer =
-          ZStream.Handoff.make[HandoffSignal] <*>
-            Ref.make[SinkEndReason](ScheduleEnd) <*>
-            Ref.make(Chunk[In]()) <*>
-            schedule.driver <*>
-            Ref.make(false) <*>
-            Ref.make(false)
-
-        layer.map { case (handoff, sinkEndReason, sinkLeftovers, scheduleDriver, consumed, endAfterEmit) =>
-          lazy val handoffProducer: ZChannel[Any, Err, Chunk[In], Any, Nothing, Nothing, Any] =
-            ZChannel.readWithCause(
-              (in: Chunk[In]) => ZChannel.fromZIO(handoff.offer(Emit(in)).when(in.nonEmpty)) *> handoffProducer,
-              (cause: Cause[Err]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
-              (_: Any) => ZChannel.fromZIO(handoff.offer(End(UpstreamEnd)))
-            )
-
-          lazy val handoffConsumer: ZChannel[Any, Any, Any, Any, Err, Chunk[In], Unit] =
-            ZChannel.unwrap(
-              sinkLeftovers.getAndSet(Chunk.empty).flatMap { leftovers =>
-                if (leftovers.nonEmpty) {
-                  consumed.set(true) *> ZIO.succeed(ZChannel.write(leftovers) *> handoffConsumer)
-                } else
-                  handoff.take.map {
-                    case Emit(chunk) =>
-                      ZChannel.fromZIO(consumed.set(true)) *>
-                        ZChannel.write(chunk) *>
-                        ZChannel.fromZIO(endAfterEmit.get).flatMap {
-                          case false => handoffConsumer
-                          case true  => ZChannel.unit
-                        }
-                    case Halt(cause) => ZChannel.failCause(cause)
-                    case End(ScheduleEnd) =>
-                      ZChannel.unwrap {
-                        consumed.get.map { p =>
-                          if (p) ZChannel.fromZIO(sinkEndReason.set(ScheduleEnd) *> endAfterEmit.set(true))
-                          else
-                            ZChannel
-                              .fromZIO(sinkEndReason.set(ScheduleEnd) *> endAfterEmit.set(true)) *> handoffConsumer
-                        }
-                      }
-                    case End(reason) => ZChannel.fromZIO(sinkEndReason.set(reason) *> endAfterEmit.set(true))
-                  }
-              }
-            )
-
-          def timeout(lastB: Option[Out]): ZIO[Env, None.type, Out2] =
-            scheduleDriver.next(lastB)
-
-          def scheduledAggregator(
-            sinkFiber: Fiber.Runtime[Err, (Chunk[Chunk[In]], Out)],
-            scheduleFiber: Fiber.Runtime[None.type, Out2],
-            scope: Scope
-          ): ZChannel[Env, Any, Any, Any, Err, Chunk[Either[Out2, Out]], Any] = {
-
-            val forkSink =
-              consumed.set(false) *> endAfterEmit
-                .set(false) *> (handoffConsumer pipeToOrFail sink.channel).collectElements.run.forkIn(scope)
-
-            def handleSide(leftovers: Chunk[Chunk[In]], b: Out, c: Option[Out2]) =
-              ZChannel.unwrap(
-                sinkLeftovers.set(leftovers.flatten) *>
-                  sinkEndReason.get.map {
-                    case ScheduleEnd =>
-                      ZChannel.unwrap {
-                        for {
-                          consumed      <- consumed.get
-                          sinkFiber     <- forkSink
-                          scheduleFiber <- timeout(Some(b)).forkIn(scope)
-                          toWrite        = c.fold[Chunk[Either[Out2, Out]]](Chunk(Right(b)))(c => Chunk(Right(b), Left(c)))
-                        } yield
-                          if (consumed)
-                            ZChannel
-                              .write(toWrite) *> scheduledAggregator(sinkFiber, scheduleFiber, scope)
-                          else scheduledAggregator(sinkFiber, scheduleFiber, scope)
-                      }
-                    case UpstreamEnd =>
-                      ZChannel.unwrap {
-                        consumed.get.map { p =>
-                          if (p) ZChannel.write(Chunk(Right(b)))
-                          else ZChannel.unit
-                        }
-                      }
-                  }
-              )
-
-            ZChannel.unwrap {
-              sinkFiber.join.raceWith(scheduleFiber.join)(
-                (sinkExit, _) =>
-                  scheduleFiber.interrupt *>
-                    ZIO.done(sinkExit).map { case (leftovers, b) => handleSide(leftovers, b, None) },
-                (scheduleExit, _) =>
-                  ZIO
-                    .done(scheduleExit)
-                    .foldCauseZIO(
-                      _.failureOrCause match {
-                        case Left(_) =>
-                          handoff.offer(End(ScheduleEnd)).forkDaemon *> sinkFiber.join.map { case (leftovers, b) =>
-                            handleSide(leftovers, b, None)
-                          }
-                        case Right(cause) =>
-                          handoff.offer(Halt(cause)).forkDaemon *> sinkFiber.join.map { case (leftovers, b) =>
-                            handleSide(leftovers, b, None)
-                          }
-                      },
-                      c =>
-                        handoff.offer(End(ScheduleEnd)).forkDaemon *>
-                          sinkFiber.join.map { case (leftovers, b) =>
-                            handleSide(leftovers, b, Some(c))
-                          }
-                    )
-              )
-            }
-          }
-
-          new ZPipeline(
-            ZChannel.unwrapScoped[Env] {
-              for {
-                _             <- (ZChannel.fromInput(input) >>> handoffProducer).run.forkScoped
-                sinkFiber     <- (handoffConsumer pipeToOrFail sink.channel).collectElements.run.forkScoped
-                scheduleFiber <- timeout(None).forkScoped
-                scope         <- ZIO.scope
-              } yield scheduledAggregator(sinkFiber, scheduleFiber, scope).embedInput(input)
-            }
-          )
-        }
-      }
-    }
+    ZPipeline.fromFunction(_.aggregateAsyncWithinEither(sink, schedule))
 
   /**
    * A shorter version of [[ZPipeline.identity]], which can facilitate more
@@ -1014,97 +881,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    *   A search engine may only want to initiate a search after a user has
    *   paused typing so as to not prematurely recommend results.
    */
-  def debounce[In](d: => Duration)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] = {
-    import ZStream.DebounceState._
-    import ZStream.HandoffSignal._
-
-    ZPipeline.unwrap {
-      SingleProducerAsyncInput.make[ZNothing, Chunk[In], Any].flatMap { input =>
-        ZIO.transplant { grafter =>
-          for {
-            d       <- ZIO.succeed(d)
-            handoff <- ZStream.Handoff.make[ZStream.HandoffSignal[ZNothing, In]]
-          } yield {
-            def enqueue(last: Chunk[In]) =
-              for {
-                f <- grafter(Clock.sleep(d).as(last).fork)
-              } yield consumer(Previous(f))
-
-            lazy val producer: ZChannel[Any, ZNothing, Chunk[In], Any, ZNothing, Nothing, Any] =
-              ZChannel.readWithCause(
-                (in: Chunk[In]) =>
-                  in.lastOption.fold(producer) { last =>
-                    ZChannel.fromZIO(handoff.offer(Emit(Chunk.single(last)))) *> producer
-                  },
-                (cause: Cause[ZNothing]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
-                (_: Any) => ZChannel.fromZIO(handoff.offer(End(ZStream.SinkEndReason.UpstreamEnd)))
-              )
-
-            def consumer(
-              state: ZStream.DebounceState[Nothing, In]
-            ): ZChannel[Any, Any, Any, Any, Nothing, Chunk[In], Any] =
-              ZChannel.unwrap(
-                state match {
-                  case NotStarted =>
-                    handoff.take.map {
-                      case Emit(last) =>
-                        ZChannel.unwrap(enqueue(last))
-                      case ZStream.HandoffSignal.Halt(error) =>
-                        ZChannel.failCause(error)
-                      case ZStream.HandoffSignal.End(_) =>
-                        ZChannel.unit
-                    }
-                  case Current(fiber) =>
-                    fiber.join.map {
-                      case ZStream.HandoffSignal.Emit(last)  => ZChannel.unwrap(enqueue(last))
-                      case ZStream.HandoffSignal.Halt(error) => ZChannel.failCause(error)
-                      case ZStream.HandoffSignal.End(_)      => ZChannel.unit
-                    }
-                  case Previous(fiber) =>
-                    fiber.join
-                      .raceWith[Any, Nothing, Nothing, ZStream.HandoffSignal[ZNothing, In], ZChannel[
-                        Any,
-                        Any,
-                        Any,
-                        Any,
-                        Nothing,
-                        Chunk[In],
-                        Any
-                      ]](
-                        handoff.take
-                      )(
-                        {
-                          case (Exit.Success(a), current) =>
-                            ZIO.succeedNow(ZChannel.write(a) *> consumer(Current(current)))
-                          case (Exit.Failure(cause), current) =>
-                            current.interrupt as ZChannel.failCause(cause)
-                        },
-                        {
-                          case (Exit.Success(Emit(last)), previous) =>
-                            previous.interrupt *> enqueue(last)
-                          case (Exit.Success(Halt(cause)), previous) =>
-                            previous.interrupt as ZChannel.failCause(cause)
-                          case (Exit.Success(End(_)), previous) =>
-                            previous.join.map(ZChannel.write(_) *> ZChannel.unit)
-                          case (Exit.Failure(cause), previous) =>
-                            previous.interrupt as ZChannel.failCause(cause)
-                        }
-                      )
-                }
-              )
-
-            new ZPipeline(
-              ZChannel.unwrapScoped {
-                for {
-                  _ <- (ZChannel.fromInput(input) >>> producer).run.forkScoped
-                } yield consumer(NotStarted).embedInput(input)
-              }
-            )
-          }
-        }
-      }
-    }
-  }
+  def debounce[In](d: => Duration)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
+    ZPipeline.fromFunction(_.debounce(d))
 
   /**
    * Creates a pipeline that decodes a stream of bytes into a stream of strings
@@ -1514,6 +1292,24 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     channel: => ZChannel[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any]
   ): ZPipeline[Env, Err, In, Out] =
     new ZPipeline(channel)
+
+  /**
+   * Constructs a pipeline from a stream transformation function.
+   */
+  def fromFunction[Env, Err, In, Out](
+    f: ZStream[Any, Nothing, In] => ZStream[Env, Err, Out]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
+
+    val channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.unwrap {
+        for {
+          input <- SingleProducerAsyncInput.make[ZNothing, Chunk[In], Any]
+          stream = ZStream.fromChannel(ZChannel.fromInput(input))
+        } yield f(stream).channel.embedInput(input)
+      }
+
+    new ZPipeline(channel)
+  }
 
   /**
    * Creates a pipeline from a chunk processing function.
