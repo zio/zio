@@ -1377,7 +1377,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def groupedWithin(chunkSize: => Int, within: => Duration)(implicit
     trace: Trace
   ): ZStream[R, E, Chunk[A]] =
-    self >>> ZPipeline.groupedWithin(chunkSize, within)
+    aggregateAsyncWithin(ZSink.collectAllN[In](chunkSize), Schedule.spaced(within))
 
   /**
    * Halts the evaluation of this stream when the provided IO completes. The

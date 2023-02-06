@@ -1505,7 +1505,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def groupedWithin[In](chunkSize: => Int, within: => Duration)(implicit
     trace: Trace
   ): ZPipeline[Any, Nothing, In, Chunk[In]] =
-    aggregateAsyncWithin(ZSink.collectAllN[In](chunkSize), Schedule.spaced(within))
+    ZPipeline.fromFunction(_.groupedWithin(chunkSize, within))
 
   /**
    * Creates a pipeline that sends all the elements through the given channel.
