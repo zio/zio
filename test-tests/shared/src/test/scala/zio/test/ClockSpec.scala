@@ -202,7 +202,7 @@ object ClockSpec extends ZIOBaseSpec {
     @volatile private var closed = false
     def close(): Unit =
       closed = true
-    def metrics(implicit unsafe: zio.Unsafe): Option[ExecutionMetrics] =
+    def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics] =
       None
     def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
       if (closed) throw new RejectedExecutionException
@@ -213,6 +213,7 @@ object ClockSpec extends ZIOBaseSpec {
     ZLayer.scoped {
       for {
         executor <- ZIO.acquireRelease(ZIO.succeed(new ScopedExecutor))(executor => ZIO.succeed(executor.close()))
+        _        <- ZIO.addFinalizer(ZIO.yieldNow)
         _        <- ZIO.onExecutorScoped(executor)
       } yield ()
     }
