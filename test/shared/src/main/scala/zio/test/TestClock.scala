@@ -373,7 +373,11 @@ object TestClock extends Serializable {
     private def warningStart(implicit trace: Trace): UIO[Unit] =
       warningState.updateSomeZIO { case WarningData.Start =>
         for {
-          fiber <- live.provide(ZIO.logWarning(warning).delay(5.seconds)).interruptible.fork.onExecutor(Runtime.defaultExecutor)
+          fiber <- live
+                     .provide(ZIO.logWarning(warning).delay(5.seconds))
+                     .interruptible
+                     .fork
+                     .onExecutor(Runtime.defaultExecutor)
         } yield WarningData.pending(fiber)
       }
 
