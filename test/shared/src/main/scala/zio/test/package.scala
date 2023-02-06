@@ -343,7 +343,8 @@ package object test extends CompileVariants {
                    .withClock(Clock.ClockLive)
                    .interruptible
                    .forkDaemon
-        _ <- (child.interrupt *> fiber.interrupt).forkDaemon
+                   .onExecutor(Runtime.defaultExecutor)
+        _ <- (child.interrupt *> fiber.interrupt).forkDaemon.onExecutor(Runtime.defaultExecutor)
       } yield result
   }
 
