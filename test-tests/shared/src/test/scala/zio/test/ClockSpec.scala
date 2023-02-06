@@ -195,8 +195,8 @@ object ClockSpec extends ZIOBaseSpec {
         for {
           _ <- ZIO.unit raceFirst Clock.instant
         } yield assertCompletes
-      }.provideLayer(scopedExecutor) @@ TestAspect.nonFlaky
-    ) @@ TestAspect.fibers
+      }.provideLayer(scopedExecutor) @@ nonFlaky
+    )
 
   class ScopedExecutor extends Executor {
     @volatile private var closed = false
