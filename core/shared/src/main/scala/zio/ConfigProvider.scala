@@ -552,7 +552,6 @@ object ConfigProvider {
             } yield
               if (values.isEmpty) Chunk(Chunk.empty)
               else Chunk(values)
-            loop(prefix, config, true).map(Chunk(_))
 
           case Nested(name, config) =>
             loop(prefix ++ Chunk(KeyComponent.KeyName(name)), config, split)
