@@ -411,7 +411,7 @@ object ConfigProvider {
         (for {
           _    <- Console.printLine(s"Enter the keys you want for the table ${path}, separated by commas:")
           keys <- Console.readLine.map(_.split(",").map(_.trim))
-        } yield keys.toSet.map(name => Chunk(KeyComponent.KeyName(name): KeyComponent))).mapError(e =>
+        } yield keys.map(str => Chunk(KeyComponent.KeyName(str)): ConfigPath).toSet).mapError(e =>
           Config.Error
             .SourceUnavailable(path, "There was a problem reading configuration from the console", Cause.fail(e))
         )

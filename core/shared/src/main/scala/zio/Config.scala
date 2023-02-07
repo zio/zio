@@ -18,6 +18,7 @@ package zio
 import zio.ConfigProvider.ConfigPath
 
 import scala.annotation.tailrec
+import scala.reflect.ClassTag
 import scala.util.control.{NoStackTrace, NonFatal}
 
 /**
@@ -318,23 +319,23 @@ object Config {
     def ||(that: Error): Error = Or(self, that)
 
     final def fold[Z](
-      invalidDataCase0: (Chunk[String], String) => Z,
-      missingDataCase0: (Chunk[String], String) => Z,
-      sourceUnavailableCase0: (Chunk[String], String, Cause[Throwable]) => Z,
-      unsupportedCase0: (Chunk[String], String) => Z
+      invalidDataCase0: (ConfigPath, String) => Z,
+      missingDataCase0: (ConfigPath, String) => Z,
+      sourceUnavailableCase0: (ConfigPath, String, Cause[Throwable]) => Z,
+      unsupportedCase0: (ConfigPath, String) => Z
     )(
       andCase0: (Z, Z) => Z,
       orCase0: (Z, Z) => Z
     ): Z =
       foldContext(()) {
         new Folder[Unit, Z] {
-          def invalidDataCase(context: Unit, path: Chunk[String], message: String): Z =
+          def invalidDataCase(context: Unit, path: ConfigPath, message: String): Z =
             invalidDataCase0(path, message)
-          def missingDataCase(context: Unit, path: Chunk[String], message: String): Z =
+          def missingDataCase(context: Unit, path: ConfigPath, message: String): Z =
             missingDataCase0(path, message)
-          def sourceUnavailableCase(context: Unit, path: Chunk[String], message: String, cause: Cause[Throwable]): Z =
+          def sourceUnavailableCase(context: Unit, path: ConfigPath, message: String, cause: Cause[Throwable]): Z =
             sourceUnavailableCase0(path, message, cause)
-          def unsupportedCase(context: Unit, path: Chunk[String], message: String): Z =
+          def unsupportedCase(context: Unit, path: ConfigPath, message: String): Z =
             unsupportedCase0(path, message)
           def andCase(context: Unit, left: Z, right: Z): Z =
             andCase0(left, right)
@@ -389,61 +390,61 @@ object Config {
   }
   object Error {
     final case class And(left: Error, right: Error) extends Error {
-      def prefixed(prefix: Chunk[String]): And =
+      def prefixed(prefix:ConfigPath): And =
         copy(left = left.prefixed(prefix), right = right.prefixed(prefix))
 
       override def toString(): String = s"(${left.toString()} and ${right.toString()})"
     }
-    final case class InvalidData(path: Chunk[String] = Chunk.empty, message: String) extends Error {
-      def prefixed(prefix: Chunk[String]): InvalidData = copy(path = prefix ++ path)
+    final case class InvalidData(path: ConfigPath = Chunk.empty, message: String) extends Error {
+      def prefixed(prefix: ConfigPath): InvalidData = copy(path = prefix ++ path)
 
-      override def toString(): String = s"(Invalid data at ${path.mkString(".")}: ${message})"
+      override def toString(): String = s"(Invalid data at ${ConfigPath.stringify(path)}: ${message})"
     }
     final case class MissingData(path: ConfigPath = Chunk.empty, message: String) extends Error {
-      def prefixed(prefix: Chunk[String]): MissingData = copy(path = prefix ++ path)
+      def prefixed(prefix: ConfigPath): MissingData = copy(path = prefix ++ path)
 
-      override def toString(): String = s"(Missing data at ${path.mkString(".")}: ${message})"
+      override def toString(): String = s"(Missing data at ${ConfigPath.stringify(path)}: ${message})"
     }
     final case class Or(left: Error, right: Error) extends Error {
-      def prefixed(prefix: Chunk[String]): Or =
+      def prefixed(prefix: ConfigPath): Or =
         copy(left = left.prefixed(prefix), right = right.prefixed(prefix))
 
       override def toString(): String = s"(${left.toString()} or ${right.toString()})"
     }
     final case class SourceUnavailable(path: ConfigPath = ConfigPath.empty, message: String, cause: Cause[Throwable])
         extends Error {
-      def prefixed(prefix: Chunk[String]): SourceUnavailable = copy(path = prefix ++ path)
+      def prefixed(prefix:ConfigPath): SourceUnavailable = copy(path = prefix ++ path)
 
-      override def toString(): String = s"(Source unavailable at ${path.mkString(".")}: ${message})"
+      override def toString(): String = s"(Source unavailable at ${ConfigPath.stringify(path)}: ${message})"
     }
-    final case class Unsupported(path: Chunk[String] = Chunk.empty, message: String) extends Error {
-      def prefixed(prefix: Chunk[String]): Unsupported = copy(path = prefix ++ path)
+    final case class Unsupported(path: ConfigPath = Chunk.empty, message: String) extends Error {
+      def prefixed(prefix: ConfigPath): Unsupported = copy(path = prefix ++ path)
 
-      override def toString(): String = s"(Unsupported operation at ${path.mkString(".")}: ${message})"
+      override def toString(): String = s"(Unsupported operation at ${ConfigPath.stringify(path)}: ${message})"
     }
 
     trait Folder[-Context, Z] {
       def andCase(context: Context, left: Z, right: Z): Z
-      def invalidDataCase(context: Context, path: Chunk[String], message: String): Z
-      def missingDataCase(context: Context, path: Chunk[String], message: String): Z
+      def invalidDataCase(context: Context, path: ConfigPath, message: String): Z
+      def missingDataCase(context: Context, path: ConfigPath, message: String): Z
       def orCase(context: Context, left: Z, right: Z): Z
-      def sourceUnavailableCase(context: Context, path: Chunk[String], message: String, cause: Cause[Throwable]): Z
-      def unsupportedCase(context: Context, path: Chunk[String], message: String): Z
+      def sourceUnavailableCase(context: Context, path: ConfigPath, message: String, cause: Cause[Throwable]): Z
+      def unsupportedCase(context: Context, path: ConfigPath, message: String): Z
     }
 
     object Folder {
       case object IsMissingDataOnly extends Folder[Any, Boolean] {
         def andCase(context: Any, left: Boolean, right: Boolean): Boolean                = left && right
-        def invalidDataCase(context: Any, path: Chunk[String], message: String): Boolean = false
-        def missingDataCase(context: Any, path: Chunk[String], message: String): Boolean = true
+        def invalidDataCase(context: Any, path:ConfigPath, message: String): Boolean = false
+        def missingDataCase(context: Any, path: ConfigPath, message: String): Boolean = true
         def orCase(context: Any, left: Boolean, right: Boolean): Boolean                 = left || right
         def sourceUnavailableCase(
           context: Any,
-          path: Chunk[String],
+          path: ConfigPath,
           message: String,
           cause: Cause[Throwable]
         ): Boolean = false
-        def unsupportedCase(context: Any, path: Chunk[String], message: String): Boolean = false
+        def unsupportedCase(context: Any, path: ConfigPath, message: String): Boolean = false
       }
     }
   }
