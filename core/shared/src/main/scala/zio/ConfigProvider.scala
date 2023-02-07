@@ -279,10 +279,13 @@ object ConfigProvider {
             case Empty :: tail =>
               loop(path, tail)
             case MapName(f) :: tail =>
-              loop(path.map({
-                case index @ KeyComponent.Index(_) => index
-                case keyName @ KeyComponent.KeyName(_) => f(keyName)
-              }), tail)
+              loop(
+                path.map {
+                  case index @ KeyComponent.Index(_)     => index
+                  case keyName @ KeyComponent.KeyName(_) => f(keyName)
+                },
+                tail
+              )
             case Nested(name) :: tail =>
               loop(KeyComponent.KeyName(name) +: path, tail)
             case Unnested(name) :: tail =>
@@ -514,10 +517,12 @@ object ConfigProvider {
           case Sequence(config) =>
             for {
               keys <- flat
-                .enumerateChildren(prefix)
-                .map(set => set.toList.flatMap { chunk =>
-                  chunk.headOption.toList
-                })
+                        .enumerateChildren(prefix)
+                        .map(set =>
+                          set.toList.flatMap { chunk =>
+                            chunk.headOption.toList
+                          }
+                        )
 
               values <-
                 ZIO
