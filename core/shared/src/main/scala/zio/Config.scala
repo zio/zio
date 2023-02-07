@@ -383,7 +383,7 @@ object Config {
     final def isMissingDataOnly: Boolean =
       foldContext(())(Folder.IsMissingDataOnly)
 
-    def prefixed(prefix: Chunk[String]): Error
+    def prefixed(prefix: ConfigPath): Error
 
     override def getMessage(): String = toString()
   }
