@@ -141,8 +141,8 @@ object ConfigProvider {
               case (a, b)                                                  => s"${a.value}.${b.value}" :: loop(next)
 
             }
-          case head :: next           => head.value :: loop(next)
-          case Nil                    => Nil
+          case head :: next => head.value :: loop(next)
+          case Nil          => Nil
         }
 
       loop(keyComponents.toList).mkString(".")
@@ -476,7 +476,10 @@ object ConfigProvider {
 
       def enumerateChildren(path: ConfigPath)(implicit trace: Trace): IO[Config.Error, Set[ConfigPath]] =
         zio.System.envs.map { envs =>
-          val keyPaths = Chunk.fromIterable(envs.keys).map(_.toUpperCase).map(unmakePathString(_).map(str => KeyComponent.KeyName(str)): ConfigPath)
+          val keyPaths = Chunk
+            .fromIterable(envs.keys)
+            .map(_.toUpperCase)
+            .map(unmakePathString(_).map(str => KeyComponent.KeyName(str)): ConfigPath)
 
           keyPaths.filter(_.startsWith(path)).map(_.drop(path.length).take(1)).toSet
 
@@ -610,9 +613,10 @@ object ConfigProvider {
             for {
               prefix <- ZIO.fromEither(flat.patch(prefix))
               vs     <- flat.load(prefix, primitive, split)
-              result <- if (vs.isEmpty)
-                          ZIO.fail(primitive.missingError(Chunk(prefix.lastOption.getOrElse(KeyComponent.KeyName("<n/a>")))))
-                        else ZIO.succeed(vs)
+              result <-
+                if (vs.isEmpty)
+                  ZIO.fail(primitive.missingError(Chunk(prefix.lastOption.getOrElse(KeyComponent.KeyName("<n/a>")))))
+                else ZIO.succeed(vs)
             } yield result
         }
 
@@ -703,7 +707,7 @@ object ConfigProvider {
         } yield results
       }
 
-      def enumerateChildren(path:ConfigPath)(implicit trace: Trace): IO[Config.Error, Set[ConfigPath]] =
+      def enumerateChildren(path: ConfigPath)(implicit trace: Trace): IO[Config.Error, Set[ConfigPath]] =
         zio.System.properties.map { envs =>
           val keyPaths = Chunk.fromIterable(envs.keys).map(unmakePathString(_).map(KeyComponent.KeyName): ConfigPath)
 

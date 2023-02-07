@@ -390,7 +390,7 @@ object Config {
   }
   object Error {
     final case class And(left: Error, right: Error) extends Error {
-      def prefixed(prefix:ConfigPath): And =
+      def prefixed(prefix: ConfigPath): And =
         copy(left = left.prefixed(prefix), right = right.prefixed(prefix))
 
       override def toString(): String = s"(${left.toString()} and ${right.toString()})"
@@ -413,7 +413,7 @@ object Config {
     }
     final case class SourceUnavailable(path: ConfigPath = ConfigPath.empty, message: String, cause: Cause[Throwable])
         extends Error {
-      def prefixed(prefix:ConfigPath): SourceUnavailable = copy(path = prefix ++ path)
+      def prefixed(prefix: ConfigPath): SourceUnavailable = copy(path = prefix ++ path)
 
       override def toString(): String = s"(Source unavailable at ${ConfigPath.stringify(path)}: ${message})"
     }
@@ -434,10 +434,10 @@ object Config {
 
     object Folder {
       case object IsMissingDataOnly extends Folder[Any, Boolean] {
-        def andCase(context: Any, left: Boolean, right: Boolean): Boolean                = left && right
-        def invalidDataCase(context: Any, path:ConfigPath, message: String): Boolean = false
+        def andCase(context: Any, left: Boolean, right: Boolean): Boolean             = left && right
+        def invalidDataCase(context: Any, path: ConfigPath, message: String): Boolean = false
         def missingDataCase(context: Any, path: ConfigPath, message: String): Boolean = true
-        def orCase(context: Any, left: Boolean, right: Boolean): Boolean                 = left || right
+        def orCase(context: Any, left: Boolean, right: Boolean): Boolean              = left || right
         def sourceUnavailableCase(
           context: Any,
           path: ConfigPath,
