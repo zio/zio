@@ -2612,6 +2612,16 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         ),
         suite("mapZIOParUnordered")(
+          test("foreachParN equivalence") {
+            checkN(10)(Gen.small(Gen.listOfN(_)(Gen.byte)), Gen.function(Gen.successes(Gen.byte))) { (data, f) =>
+              val s = ZStream.fromIterable(data)
+
+              for {
+                l <- s.mapZIOParUnordered(8)(f).runCollect
+                r <- ZIO.foreachPar(data)(f).withParallelism(8)
+              } yield assert(l.toSet)(equalTo(r.toSet))
+            }
+          },
           test("mapping with failure is failure") {
             val stream =
               ZStream.fromIterable(0 to 3).mapZIOParUnordered(10)(_ => ZIO.fail("fail"))
