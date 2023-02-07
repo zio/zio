@@ -15,8 +15,10 @@
  */
 package zio
 
+import zio.ConfigProvider.ConfigPath
+
 import scala.annotation.tailrec
-import scala.util.control.{NonFatal, NoStackTrace}
+import scala.util.control.{NoStackTrace, NonFatal}
 
 /**
  * A [[zio.Config]] describes the structure of some configuration data.
@@ -397,7 +399,7 @@ object Config {
 
       override def toString(): String = s"(Invalid data at ${path.mkString(".")}: ${message})"
     }
-    final case class MissingData(path: Chunk[String] = Chunk.empty, message: String) extends Error {
+    final case class MissingData(path: ConfigPath = Chunk.empty, message: String) extends Error {
       def prefixed(prefix: Chunk[String]): MissingData = copy(path = prefix ++ path)
 
       override def toString(): String = s"(Missing data at ${path.mkString(".")}: ${message})"
@@ -408,7 +410,7 @@ object Config {
 
       override def toString(): String = s"(${left.toString()} or ${right.toString()})"
     }
-    final case class SourceUnavailable(path: Chunk[String] = Chunk.empty, message: String, cause: Cause[Throwable])
+    final case class SourceUnavailable(path: ConfigPath = ConfigPath.empty, message: String, cause: Cause[Throwable])
         extends Error {
       def prefixed(prefix: Chunk[String]): SourceUnavailable = copy(path = prefix ++ path)
 
@@ -462,6 +464,26 @@ object Config {
 
   def chunkOf[A](name: String, config: Config[A]): Config[Chunk[A]] = chunkOf(config).nested(name)
 
+  def collectAll[A](head: => Config[A], tail: Config[A]*): Config[List[A]] =
+    tail.reverse
+      .map(Config.defer(_))
+      .foldLeft[Config[(A, List[A])]](
+        Config
+          .defer(head)
+          .map((a: A) => (a, Nil))
+      )((b: Config[(A, List[A])], a: Config[A]) =>
+        (b.zip[A](a).map { case (first, tail, a) =>
+          (first, a :: tail)
+        })
+      )
+      .map { case (a, t) => a :: t }
+
+  def constant(value: String) =
+    Config.string.mapOrFail(parsed =>
+      if (parsed == value) Right(value)
+      else Left(Config.Error.InvalidData(message = s"value should be a constant: ${value}"))
+    ) ?? s"The value should be ${value}"
+
   def defer[A](config: => Config[A]): Config[A] =
     Lazy(() => config)
 
@@ -472,6 +494,125 @@ object Config {
   def duration: Config[zio.Duration] = Duration
 
   def duration(name: String): Config[zio.Duration] = duration.nested(name)
+
+  def enumeration[D] = new PartiallyAppliedEnumeration[D]
+
+  class PartiallyAppliedEnumeration[D] {
+    def apply[X <: D](
+      desc1: Config[X]
+    )(implicit tag: ClassTag[X]): Config[D] =
+      desc1.map(identity)
+
+    def apply[A <: D: ClassTag, B <: D: ClassTag](
+      desc1: Config[A],
+      desc2: Config[B]
+    ): Config[D] =
+      apply(desc1) orElse apply(desc2)
+
+    def apply[A <: D: ClassTag, B <: D: ClassTag, C <: D: ClassTag](
+      desc1: Config[A],
+      desc2: Config[B],
+      desc3: Config[C]
+    ): Config[D] =
+      apply(desc1, desc2).orElse(apply[C](desc3))
+
+    def apply[A <: D: ClassTag, B <: D: ClassTag, C <: D: ClassTag, E <: D: ClassTag](
+      desc1: Config[A],
+      desc2: Config[B],
+      desc3: Config[C],
+      desc4: Config[E]
+    ): Config[D] =
+      apply(desc1, desc2, desc3) orElse apply[E](desc4)
+
+    def apply[A <: D: ClassTag, B <: D: ClassTag, C <: D: ClassTag, E <: D: ClassTag, F <: D: ClassTag](
+      desc1: Config[A],
+      desc2: Config[B],
+      desc3: Config[C],
+      desc4: Config[E],
+      desc5: Config[F]
+    ): Config[D] =
+      apply(desc1, desc2, desc3, desc4) orElse apply(desc5)
+
+    def apply[
+      A <: D: ClassTag,
+      B <: D: ClassTag,
+      C <: D: ClassTag,
+      E <: D: ClassTag,
+      F <: D: ClassTag,
+      G <: D: ClassTag
+    ](
+      desc1: Config[A],
+      desc2: Config[B],
+      desc3: Config[C],
+      desc4: Config[E],
+      desc5: Config[F],
+      desc6: Config[G]
+    ): Config[D] =
+      apply(desc1, desc2, desc3, desc4, desc5) orElse apply(desc6)
+
+    def apply[
+      A <: D: ClassTag,
+      B <: D: ClassTag,
+      C <: D: ClassTag,
+      E <: D: ClassTag,
+      F <: D: ClassTag,
+      G <: D: ClassTag,
+      H <: D: ClassTag
+    ](
+      desc1: Config[A],
+      desc2: Config[B],
+      desc3: Config[C],
+      desc4: Config[E],
+      desc5: Config[F],
+      desc6: Config[G],
+      desc7: Config[H]
+    ): Config[D] =
+      apply(desc1, desc2, desc3, desc4, desc5, desc6) orElse apply(desc7)
+
+    def apply[
+      A <: D: ClassTag,
+      B <: D: ClassTag,
+      C <: D: ClassTag,
+      E <: D: ClassTag,
+      F <: D: ClassTag,
+      G <: D: ClassTag,
+      H <: D: ClassTag,
+      I <: D: ClassTag
+    ](
+      desc1: Config[A],
+      desc2: Config[B],
+      desc3: Config[C],
+      desc4: Config[E],
+      desc5: Config[F],
+      desc6: Config[G],
+      desc7: Config[H],
+      desc8: Config[I]
+    ): Config[D] =
+      apply(desc1, desc2, desc3, desc4, desc5, desc6, desc7) orElse apply(desc8)
+
+    def apply[
+      A <: D: ClassTag,
+      B <: D: ClassTag,
+      C <: D: ClassTag,
+      E <: D: ClassTag,
+      F <: D: ClassTag,
+      G <: D: ClassTag,
+      H <: D: ClassTag,
+      I <: D: ClassTag,
+      J <: D: ClassTag
+    ](
+      desc1: Config[A],
+      desc2: Config[B],
+      desc3: Config[C],
+      desc4: Config[E],
+      desc5: Config[F],
+      desc6: Config[G],
+      desc7: Config[H],
+      desc8: Config[I],
+      desc9: Config[J]
+    ): Config[D] =
+      apply(desc1, desc2, desc3, desc4, desc5, desc6, desc7, desc8) orElse apply(desc9)
+  }
 
   def fail(error: => String): Config[Nothing] = defer(Fail(error))
 

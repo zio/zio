@@ -17,12 +17,14 @@ package zio
 
 import java.time.format.DateTimeFormatter
 import scala.annotation.tailrec
+import ConfigProvider.ConfigPath
 
 /**
  * A ConfigProvider is a service that provides configuration given a description
  * of the structure of that configuration.
  */
-trait ConfigProvider { self =>
+trait ConfigProvider {
+  self =>
 
   /**
    * Loads the specified configuration, or fails with a config error.
@@ -44,9 +46,10 @@ trait ConfigProvider { self =>
    */
   def flatten: ConfigProvider.Flat =
     new ConfigProvider.Flat {
-      def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] =
+      def load[A](path: ConfigPath, config: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] =
         ZIO.die(new NotImplementedError("ConfigProvider#flatten"))
-      def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
+
+      def enumerateChildren(path: ConfigPath)(implicit trace: Trace): IO[Config.Error, Set[ConfigPath]] =
         ZIO.die(new NotImplementedError("ConfigProvider#flatten"))
     }
 
@@ -116,57 +119,86 @@ trait ConfigProvider { self =>
    */
   final def within(path: Chunk[String])(f: ConfigProvider => ConfigProvider): ConfigProvider = {
     val unnested = path.foldLeft(self)((configProvider, name) => configProvider.unnested(name))
-    val nested   = path.foldRight(f(unnested))((name, configProvider) => configProvider.nested(name))
+    val nested = path.foldRight(f(unnested))((name, configProvider) => configProvider.nested(name))
     nested.orElse(self)
   }
 }
+
 object ConfigProvider {
+
+  type ConfigPath = Chunk[KeyComponent]
+
+  object ConfigPath {
+    val empty: ConfigPath =
+      Chunk.empty
+  }
+
+  sealed trait KeyComponent {
+    def value = this match {
+      case KeyComponent.KeyName(name) => name
+      case KeyComponent.Index(value) => s"[${value}]"
+    }
+  }
+
+  object KeyComponent {
+    final case class Index(index: Int) extends KeyComponent
+
+    final case class KeyName(name: String) extends KeyComponent
+  }
 
   /**
    * A simplified config provider that knows only how to deal with flat
    * (key/value) properties. Because these providers are common, there is
    * special support for implementing them.
    */
-  trait Flat { self =>
+  trait Flat {
+    self =>
+
     import Flat._
 
-    def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]]
+    def load[A](path: ConfigPath, config: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]]
 
-    def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]]
+    def enumerateChildren(path: ConfigPath)(implicit trace: Trace): IO[Config.Error, Set[ConfigPath]]
 
     def contramapPath(f: String => String): Flat =
       new Flat {
-        override def load[A](path: Chunk[String], config: Config.Primitive[A], split: Boolean)(implicit
-          trace: Trace
+        override def load[A](path: ConfigPath, config: Config.Primitive[A], split: Boolean)(implicit
+                                                                                            trace: Trace
         ): IO[Config.Error, Chunk[A]] =
           self.load(path, config, split)
-        def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
+
+        def enumerateChildren(path: ConfigPath)(implicit trace: Trace): IO[Config.Error, Set[ConfigPath]] =
           self.enumerateChildren(path)
-        def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit
-          trace: Trace
+
+        def load[A](path: ConfigPath, config: Config.Primitive[A])(implicit
+                                                                   trace: Trace
         ): IO[Config.Error, Chunk[A]] =
           load(path, config, true)
+
         override def patch: PathPatch =
           self.patch.mapName(f)
       }
 
-    def load[A](path: Chunk[String], config: Config.Primitive[A], split: Boolean)(implicit
-      trace: Trace
+    def load[A](path: ConfigPath, config: Config.Primitive[A], split: Boolean)(implicit
+                                                                               trace: Trace
     ): IO[Config.Error, Chunk[A]] =
       load(path, config)
 
     final def nested(name: String): Flat =
       new Flat {
-        override def load[A](path: Chunk[String], config: Config.Primitive[A], split: Boolean)(implicit
-          trace: Trace
+        override def load[A](path: ConfigPath, config: Config.Primitive[A], split: Boolean)(implicit
+                                                                                            trace: Trace
         ): IO[Config.Error, Chunk[A]] =
           self.load(path, config, split)
-        def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
+
+        def enumerateChildren(path: ConfigPath)(implicit trace: Trace): IO[Config.Error, Set[ConfigPath]] =
           self.enumerateChildren(path)
-        def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit
-          trace: Trace
+
+        def load[A](path: ConfigPath, config: Config.Primitive[A])(implicit
+                                                                   trace: Trace
         ): IO[Config.Error, Chunk[A]] =
           load(path, config, true)
+
         override def patch: PathPatch =
           self.patch.nested(name)
       }
@@ -176,8 +208,8 @@ object ConfigProvider {
 
     final def orElse(that: Flat): Flat =
       new Flat {
-        override def load[A](path: Chunk[String], config: Config.Primitive[A], split: Boolean)(implicit
-          trace: Trace
+        override def load[A](path: ConfigPath, config: Config.Primitive[A], split: Boolean)(implicit
+                                                                                            trace: Trace
         ): IO[Config.Error, Chunk[A]] =
           ZIO
             .fromEither(self.patch(path))
@@ -188,21 +220,24 @@ object ConfigProvider {
                 .flatMap(that.load(_, config, split))
                 .catchAll(e2 => ZIO.fail(e1 || e2))
             )
+
         def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
           for {
             l <- ZIO.fromEither(self.patch(path)).flatMap(self.enumerateChildren).either
             r <- ZIO.fromEither(that.patch(path)).flatMap(that.enumerateChildren).either
             result <- (l, r) match {
-                        case (Left(e1), Left(e2)) => ZIO.fail(e1 && e2)
-                        case (Left(e1), Right(_)) => ZIO.fail(e1)
-                        case (Right(_), Left(e2)) => ZIO.fail(e2)
-                        case (Right(l), Right(r)) => ZIO.succeed(l ++ r)
-                      }
+              case (Left(e1), Left(e2)) => ZIO.fail(e1 && e2)
+              case (Left(e1), Right(_)) => ZIO.fail(e1)
+              case (Right(_), Left(e2)) => ZIO.fail(e2)
+              case (Right(l), Right(r)) => ZIO.succeed(l ++ r)
+            }
           } yield result
+
         def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit
-          trace: Trace
+                                                                      trace: Trace
         ): IO[Config.Error, Chunk[A]] =
           load(path, config, true)
+
         override def patch: PathPatch =
           PathPatch.empty
       }
@@ -210,28 +245,34 @@ object ConfigProvider {
     final def unnested(name: String): Flat =
       new Flat {
         override def load[A](path: Chunk[String], config: Config.Primitive[A], split: Boolean)(implicit
-          trace: Trace
+                                                                                               trace: Trace
         ): IO[Config.Error, Chunk[A]] =
           self.load(path, config, split)
+
         def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
           self.enumerateChildren(path)
+
         def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit
-          trace: Trace
+                                                                      trace: Trace
         ): IO[Config.Error, Chunk[A]] =
           load(path, config, true)
+
         override def patch: PathPatch =
           self.patch.unnested(name)
       }
   }
+
   object Flat {
 
-    sealed trait PathPatch { self =>
+    sealed trait PathPatch {
+      self =>
+
       import PathPatch._
 
-      def apply[A](path: Chunk[String]): Either[Config.Error, Chunk[String]] = {
+      def apply[A](path: ConfigPath): Either[Config.Error, ConfigPath] = {
 
         @tailrec
-        def loop(path: Chunk[String], patches: List[PathPatch]): Either[Config.Error, Chunk[String]] =
+        def loop(path: ConfigPath, patches: List[PathPatch]): Either[Config.Error, ConfigPath] =
           patches match {
             case AndThen(first, second) :: tail =>
               loop(path, first :: second :: tail)
@@ -240,7 +281,7 @@ object ConfigProvider {
             case MapName(f) :: tail =>
               loop(path.map(f), tail)
             case Nested(name) :: tail =>
-              loop(name +: path, tail)
+              loop(KeyComponent.KeyName(name) +: path, tail)
             case Unnested(name) :: tail =>
               if (path.headOption.contains(name)) loop(path.tail, tail)
               else Left(Config.Error.MissingData(path, s"Expected $name to be in path in ConfigProvider#unnested"))
@@ -267,10 +308,14 @@ object ConfigProvider {
         Empty
 
       private final case class AndThen(first: PathPatch, second: PathPatch) extends PathPatch
-      private case object Empty                                             extends PathPatch
-      private final case class MapName(f: String => String)                 extends PathPatch
-      private final case class Nested(name: String)                         extends PathPatch
-      private final case class Unnested(name: String)                       extends PathPatch
+
+      private case object Empty extends PathPatch
+
+      private final case class MapName(f: KeyComponent => KeyComponent) extends PathPatch
+
+      private final case class Nested(name: String) extends PathPatch
+
+      private final case class Unnested(name: String) extends PathPatch
     }
 
     object util {
@@ -321,10 +366,10 @@ object ConfigProvider {
 
   def consoleProvider(seqDelim: String = ","): ConfigProvider =
     fromFlat(new Flat {
-      override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
+      override def load[A](path: ConfigPath, primitive: Config.Primitive[A], split: Boolean)(implicit
         trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
-        val name        = path.lastOption.getOrElse("<unnamed>")
+        val name = path.lastOption.getOrElse(KeyComponent.KeyName("<unnamed>"))
         val description = primitive.description
         val sourceError = (e: Throwable) =>
           Config.Error.SourceUnavailable(
@@ -334,15 +379,15 @@ object ConfigProvider {
           )
 
         for {
-          _       <- Console.printLine(s"Please enter ${description} for property ${name}:").mapError(sourceError)
-          line    <- Console.readLine.mapError(sourceError)
+          _ <- Console.printLine(s"Please enter ${description} for property ${name}:").mapError(sourceError)
+          line <- Console.readLine.mapError(sourceError)
           results <- Flat.util.parsePrimitive(line, path, name, primitive, ",", split)
         } yield results
       }
 
       def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
         (for {
-          _    <- Console.printLine(s"Enter the keys you want for the table ${path}, separated by commas:")
+          _ <- Console.printLine(s"Enter the keys you want for the table ${path}, separated by commas:")
           keys <- Console.readLine.map(_.split(",").map(_.trim))
         } yield keys.toSet).mapError(e =>
           Config.Error
@@ -350,7 +395,7 @@ object ConfigProvider {
         )
 
       def load[A](path: Chunk[String], primitive: Config.Primitive[A])(implicit
-        trace: Trace
+                                                                       trace: Trace
       ): IO[Config.Error, Chunk[A]] =
         load(path, primitive, true)
     })
@@ -383,16 +428,18 @@ object ConfigProvider {
         (e: Throwable) =>
           Config.Error.SourceUnavailable(path, "There was a problem reading environment variables", Cause.fail(e))
 
-      val escapedSeqDelim                                     = java.util.regex.Pattern.quote(seqDelim)
-      val escapedPathDelim                                    = java.util.regex.Pattern.quote(pathDelim)
-      def makePathString(path: Chunk[String]): String         = path.mkString(pathDelim).toUpperCase
+      val escapedSeqDelim = java.util.regex.Pattern.quote(seqDelim)
+      val escapedPathDelim = java.util.regex.Pattern.quote(pathDelim)
+
+      def makePathString(path: Chunk[String]): String = path.mkString(pathDelim).toUpperCase
+
       def unmakePathString(pathString: String): Chunk[String] = Chunk.fromArray(pathString.split(escapedPathDelim))
 
       override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
-        trace: Trace
+                                                                                                trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
-        val pathString  = makePathString(path)
-        val name        = path.lastOption.getOrElse("<unnamed>")
+        val pathString = makePathString(path)
+        val name = path.lastOption.getOrElse("<unnamed>")
         val description = primitive.description
 
         for {
@@ -414,7 +461,7 @@ object ConfigProvider {
         }.mapError(sourceUnavailable(path))
 
       def load[A](path: Chunk[String], primitive: Config.Primitive[A])(implicit
-        trace: Trace
+                                                                       trace: Trace
       ): IO[Config.Error, Chunk[A]] =
         load(path, primitive, true)
     })
@@ -425,6 +472,7 @@ object ConfigProvider {
    */
   def fromFlat(flat: Flat): ConfigProvider =
     new ConfigProvider {
+
       import Config._
 
       def extend[A, B](leftDef: Int => A, rightDef: Int => B)(left: Chunk[A], right: Chunk[B]): (Chunk[A], Chunk[B]) = {
@@ -435,14 +483,14 @@ object ConfigProvider {
           if (index >= left.length) None else Some(rightDef(index) -> (index + 1))
         }
 
-        val leftExtension  = left ++ leftPad
+        val leftExtension = left ++ leftPad
         val rightExtension = right ++ rightPad
 
         (leftExtension, rightExtension)
       }
 
       def loop[A](prefix: Chunk[String], config: Config[A], split: Boolean)(implicit
-        trace: Trace
+                                                                            trace: Trace
       ): IO[Config.Error, Chunk[A]] =
         config match {
           case fallback: Fallback[A] =>
@@ -470,7 +518,7 @@ object ConfigProvider {
             import table.valueConfig
             for {
               prefix <- ZIO.fromEither(flat.patch(prefix))
-              keys   <- flat.enumerateChildren(prefix)
+              keys <- flat.enumerateChildren(prefix)
               values <- ZIO.foreach(Chunk.fromIterable(keys))(key => loop(prefix ++ Chunk(key), valueConfig, split))
             } yield
               if (values.isEmpty) Chunk(Map.empty[String, valueType])
@@ -482,34 +530,34 @@ object ConfigProvider {
               l <- loop(prefix, left, split).either
               r <- loop(prefix, right, split).either
               result <- (l, r) match {
-                          case (Left(e1), Left(e2)) => ZIO.fail(e1 && e2)
-                          case (Left(e1), Right(_)) => ZIO.fail(e1)
-                          case (Right(_), Left(e2)) => ZIO.fail(e2)
-                          case (Right(l), Right(r)) =>
-                            val path = prefix.mkString(".")
+                case (Left(e1), Left(e2)) => ZIO.fail(e1 && e2)
+                case (Left(e1), Right(_)) => ZIO.fail(e1)
+                case (Right(_), Left(e2)) => ZIO.fail(e2)
+                case (Right(l), Right(r)) =>
+                  val path = prefix.mkString(".")
 
-                            def lfail(index: Int): Either[Config.Error, leftType] =
-                              Left(
-                                Config.Error.MissingData(
-                                  prefix,
-                                  s"The element at index ${index} in a sequence at ${path} was missing"
-                                )
-                              )
+                  def lfail(index: Int): Either[Config.Error, leftType] =
+                    Left(
+                      Config.Error.MissingData(
+                        prefix,
+                        s"The element at index ${index} in a sequence at ${path} was missing"
+                      )
+                    )
 
-                            def rfail(index: Int): Either[Config.Error, rightType] =
-                              Left(
-                                Config.Error.MissingData(
-                                  prefix,
-                                  s"The element at index ${index} in a sequence at ${path} was missing"
-                                )
-                              )
+                  def rfail(index: Int): Either[Config.Error, rightType] =
+                    Left(
+                      Config.Error.MissingData(
+                        prefix,
+                        s"The element at index ${index} in a sequence at ${path} was missing"
+                      )
+                    )
 
-                            val (ls, rs) = extend(lfail, rfail)(l.map(Right(_)), r.map(Right(_)))
+                  val (ls, rs) = extend(lfail, rfail)(l.map(Right(_)), r.map(Right(_)))
 
-                            ZIO.foreach(ls.zip(rs)) { case (l, r) =>
-                              ZIO.fromEither(l).zipWith(ZIO.fromEither(r))(zippable.zip(_, _))
-                            }
-                        }
+                  ZIO.foreach(ls.zip(rs)) { case (l, r) =>
+                    ZIO.fromEither(l).zipWith(ZIO.fromEither(r))(zippable.zip(_, _))
+                  }
+              }
             } yield result
 
           case Constant(value) =>
@@ -521,10 +569,10 @@ object ConfigProvider {
           case primitive: Primitive[A] =>
             for {
               prefix <- ZIO.fromEither(flat.patch(prefix))
-              vs     <- flat.load(prefix, primitive, split)
+              vs <- flat.load(prefix, primitive, split)
               result <- if (vs.isEmpty)
-                          ZIO.fail(primitive.missingError(prefix.lastOption.getOrElse("<n/a>")))
-                        else ZIO.succeed(vs)
+                ZIO.fail(primitive.missingError(prefix.lastOption.getOrElse("<n/a>")))
+              else ZIO.succeed(vs)
             } yield result
         }
 
@@ -546,23 +594,25 @@ object ConfigProvider {
    */
   def fromMap(map: Map[String, String], pathDelim: String = ".", seqDelim: String = ","): ConfigProvider =
     fromFlat(new Flat {
-      val escapedSeqDelim                                     = java.util.regex.Pattern.quote(seqDelim)
-      val escapedPathDelim                                    = java.util.regex.Pattern.quote(pathDelim)
-      def makePathString(path: Chunk[String]): String         = path.mkString(pathDelim)
+      val escapedSeqDelim = java.util.regex.Pattern.quote(seqDelim)
+      val escapedPathDelim = java.util.regex.Pattern.quote(pathDelim)
+
+      def makePathString(path: Chunk[String]): String = path.mkString(pathDelim)
+
       def unmakePathString(pathString: String): Chunk[String] = Chunk.fromArray(pathString.split(escapedPathDelim))
 
       override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
-        trace: Trace
+                                                                                                trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
-        val pathString  = makePathString(path)
-        val name        = path.lastOption.getOrElse("<unnamed>")
+        val pathString = makePathString(path)
+        val name = path.lastOption.getOrElse("<unnamed>")
         val description = primitive.description
-        val valueOpt    = map.get(pathString)
+        val valueOpt = map.get(pathString)
 
         for {
           value <- ZIO
-                     .fromOption(valueOpt)
-                     .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in properties"))
+            .fromOption(valueOpt)
+            .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in properties"))
           results <- Flat.util.parsePrimitive(value, path, name, primitive, escapedSeqDelim, split)
         } yield results
       }
@@ -575,7 +625,7 @@ object ConfigProvider {
         }
 
       def load[A](path: Chunk[String], primitive: Config.Primitive[A])(implicit
-        trace: Trace
+                                                                       trace: Trace
       ): IO[Config.Error, Chunk[A]] =
         load(path, primitive, true)
     })
@@ -590,23 +640,25 @@ object ConfigProvider {
       val sourceUnavailable = (path: Chunk[String]) =>
         (e: Throwable) => Config.Error.SourceUnavailable(path, "There was a problem reading properties", Cause.fail(e))
 
-      val escapedSeqDelim                                     = java.util.regex.Pattern.quote(seqDelim)
-      val escapedPathDelim                                    = java.util.regex.Pattern.quote(pathDelim)
-      def makePathString(path: Chunk[String]): String         = path.mkString(pathDelim)
+      val escapedSeqDelim = java.util.regex.Pattern.quote(seqDelim)
+      val escapedPathDelim = java.util.regex.Pattern.quote(pathDelim)
+
+      def makePathString(path: Chunk[String]): String = path.mkString(pathDelim)
+
       def unmakePathString(pathString: String): Chunk[String] = Chunk.fromArray(pathString.split(escapedPathDelim))
 
       override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
-        trace: Trace
+                                                                                                trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
-        val pathString  = makePathString(path)
-        val name        = path.lastOption.getOrElse("<unnamed>")
+        val pathString = makePathString(path)
+        val name = path.lastOption.getOrElse("<unnamed>")
         val description = primitive.description
 
         for {
           valueOpt <- zio.System.property(pathString).mapError(sourceUnavailable(path))
           value <- ZIO
-                     .fromOption(valueOpt)
-                     .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in properties"))
+            .fromOption(valueOpt)
+            .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in properties"))
           results <- Flat.util.parsePrimitive(value, path, name, primitive, escapedSeqDelim, split)
         } yield results
       }
@@ -619,7 +671,7 @@ object ConfigProvider {
         }.mapError(sourceUnavailable(path))
 
       def load[A](path: Chunk[String], primitive: Config.Primitive[A])(implicit
-        trace: Trace
+                                                                       trace: Trace
       ): IO[Config.Error, Chunk[A]] =
         load(path, primitive, true)
     })
