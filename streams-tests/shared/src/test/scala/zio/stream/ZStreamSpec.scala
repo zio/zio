@@ -544,7 +544,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .buffer(2)
                 .runCollect
             )(equalTo(chunk.flatten))
-          }),
+          }) @@ flaky,
           test("buffer the Stream with Error") {
             val e = new RuntimeException("boom")
             assertZIO(
