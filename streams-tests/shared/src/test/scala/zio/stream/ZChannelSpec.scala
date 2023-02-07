@@ -817,7 +817,12 @@ object ZChannelSpec extends ZIOBaseSpec {
                  .repeatN(100000)
           value <- ref.get
         } yield assertTrue(value == 0)
-      } @@ jvmOnly
+      } @@ jvmOnly,
+      test("runScoped in uninterruptible region") {
+        for {
+          _ <- ZChannel.unit.run.uninterruptible
+        } yield assertCompletes
+      }
     )
   )
 
