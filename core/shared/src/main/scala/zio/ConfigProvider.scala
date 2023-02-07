@@ -131,6 +131,22 @@ object ConfigProvider {
   object ConfigPath {
     val empty: ConfigPath =
       Chunk.empty
+
+    def stringify(keyComponents: Chunk[KeyComponent]): String = {
+      def loop(keyComponents: List[KeyComponent]): List[String] =
+        keyComponents match {
+          case head0 :: head1 :: next =>
+            (head0, head1) match {
+              case (KeyComponent.KeyName(name), KeyComponent.Index(index)) => s"${name}[${index}]" :: loop(next)
+              case (a, b)                                                  => s"${a.value}.${b.value}" :: loop(next)
+
+            }
+          case head :: next           => head.value :: loop(next)
+          case Nil                    => Nil
+        }
+
+      loop(keyComponents.toList).mkString(".")
+    }
   }
 
   sealed trait KeyComponent {
@@ -331,7 +347,7 @@ object ConfigProvider {
       def parsePrimitive[A](
         text: String,
         path: ConfigPath,
-        name: String,
+        name: KeyComponent,
         primitive: Config.Primitive[A],
         escapedDelim: String,
         split: Boolean
@@ -352,7 +368,7 @@ object ConfigProvider {
       def parsePrimitive[A](
         text: String,
         path: ConfigPath,
-        name: String,
+        name: KeyComponent,
         primitive: Config.Primitive[A],
         escapedDelim: String
       ): IO[Config.Error, Chunk[A]] =
@@ -445,7 +461,7 @@ object ConfigProvider {
         trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
         val pathString  = makePathString(path.map(_.value))
-        val name        = path.lastOption.getOrElse("<unnamed>")
+        val name        = path.lastOption.getOrElse(KeyComponent.KeyName("<unnamed>"))
         val description = primitive.description
 
         for {
@@ -460,9 +476,9 @@ object ConfigProvider {
 
       def enumerateChildren(path: ConfigPath)(implicit trace: Trace): IO[Config.Error, Set[ConfigPath]] =
         zio.System.envs.map { envs =>
-          val keyPaths = Chunk.fromIterable(envs.keys).map(_.toUpperCase).map(unmakePathString)
+          val keyPaths = Chunk.fromIterable(envs.keys).map(_.toUpperCase).map(unmakePathString(_).map(str => KeyComponent.KeyName(str)): ConfigPath)
 
-          keyPaths.filter(_.startsWith(path)).map(_.drop(path.length).take(1)).flatten.toSet
+          keyPaths.filter(_.startsWith(path)).map(_.drop(path.length).take(1)).toSet
 
         }.mapError(sourceUnavailable(path))
 
@@ -595,7 +611,7 @@ object ConfigProvider {
               prefix <- ZIO.fromEither(flat.patch(prefix))
               vs     <- flat.load(prefix, primitive, split)
               result <- if (vs.isEmpty)
-                          ZIO.fail(primitive.missingError(prefix.lastOption.getOrElse(KeyComponent.KeyName("<n/a>"))))
+                          ZIO.fail(primitive.missingError(Chunk(prefix.lastOption.getOrElse(KeyComponent.KeyName("<n/a>")))))
                         else ZIO.succeed(vs)
             } yield result
         }
@@ -625,11 +641,11 @@ object ConfigProvider {
 
       def unmakePathString(pathString: String): Chunk[String] = Chunk.fromArray(pathString.split(escapedPathDelim))
 
-      override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
+      override def load[A](path: ConfigPath, primitive: Config.Primitive[A], split: Boolean)(implicit
         trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
-        val pathString  = makePathString(path)
-        val name        = path.lastOption.getOrElse("<unnamed>")
+        val pathString  = makePathString(path.map(_.value))
+        val name        = path.lastOption.getOrElse(KeyComponent.KeyName("<unnamed>"))
         val description = primitive.description
         val valueOpt    = map.get(pathString)
 
@@ -641,14 +657,14 @@ object ConfigProvider {
         } yield results
       }
 
-      def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
+      def enumerateChildren(path: ConfigPath)(implicit trace: Trace): IO[Config.Error, Set[ConfigPath]] =
         ZIO.succeed {
-          val keyPaths = Chunk.fromIterable(map.keys).map(unmakePathString)
+          val keyPaths = Chunk.fromIterable(map.keys).map(unmakePathString(_).map(KeyComponent.KeyName): ConfigPath)
 
-          keyPaths.filter(_.startsWith(path)).map(_.drop(path.length).take(1)).flatten.toSet
+          keyPaths.filter(_.startsWith(path)).map(_.drop(path.length).take(1)).toSet
         }
 
-      def load[A](path: Chunk[String], primitive: Config.Primitive[A])(implicit
+      def load[A](path: ConfigPath, primitive: Config.Primitive[A])(implicit
         trace: Trace
       ): IO[Config.Error, Chunk[A]] =
         load(path, primitive, true)
@@ -661,7 +677,7 @@ object ConfigProvider {
    */
   def fromProps(pathDelim: String = ".", seqDelim: String = ","): ConfigProvider =
     fromFlat(new Flat {
-      val sourceUnavailable = (path: Chunk[String]) =>
+      val sourceUnavailable = (path: ConfigPath) =>
         (e: Throwable) => Config.Error.SourceUnavailable(path, "There was a problem reading properties", Cause.fail(e))
 
       val escapedSeqDelim  = java.util.regex.Pattern.quote(seqDelim)
@@ -671,11 +687,11 @@ object ConfigProvider {
 
       def unmakePathString(pathString: String): Chunk[String] = Chunk.fromArray(pathString.split(escapedPathDelim))
 
-      override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
+      override def load[A](path: ConfigPath, primitive: Config.Primitive[A], split: Boolean)(implicit
         trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
-        val pathString  = makePathString(path)
-        val name        = path.lastOption.getOrElse("<unnamed>")
+        val pathString  = makePathString(path.map(_.value))
+        val name        = path.lastOption.getOrElse(KeyComponent.KeyName("<unnamed>"))
         val description = primitive.description
 
         for {
@@ -687,14 +703,14 @@ object ConfigProvider {
         } yield results
       }
 
-      def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
+      def enumerateChildren(path:ConfigPath)(implicit trace: Trace): IO[Config.Error, Set[ConfigPath]] =
         zio.System.properties.map { envs =>
-          val keyPaths = Chunk.fromIterable(envs.keys).map(unmakePathString)
+          val keyPaths = Chunk.fromIterable(envs.keys).map(unmakePathString(_).map(KeyComponent.KeyName): ConfigPath)
 
-          keyPaths.filter(_.startsWith(path)).map(_.drop(path.length).take(1)).flatten.toSet
+          keyPaths.filter(_.startsWith(path)).map(_.drop(path.length).take(1)).toSet
         }.mapError(sourceUnavailable(path))
 
-      def load[A](path: Chunk[String], primitive: Config.Primitive[A])(implicit
+      def load[A](path: ConfigPath, primitive: Config.Primitive[A])(implicit
         trace: Trace
       ): IO[Config.Error, Chunk[A]] =
         load(path, primitive, true)

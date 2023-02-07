@@ -179,8 +179,8 @@ object Config {
         case Text           => "a text property"
       }
 
-    final def missingError(name: String): Config.Error =
-      Config.Error.MissingData(Chunk.empty, s"Expected ${description} with name ${name}")
+    final def missingError(name: ConfigPath): Config.Error =
+      Config.Error.MissingData(Chunk.empty, s"Expected ${description} with name ${ConfigPath.stringify(name)}")
 
     def parse(text: String): Either[Config.Error, A]
   }
