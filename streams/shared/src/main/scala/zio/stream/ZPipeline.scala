@@ -368,6 +368,15 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self.asInstanceOf[ZPipeline[Env, Err, In, Iterable[Out2]]] >>> ZPipeline.flattenIterables[Out2]
 
   /**
+   * Flattens take values.
+   */
+  def flattenTake[Err1 >: Err, Out2](implicit
+    ev: Out <:< Take[Err1, Out2],
+    trace: Trace
+  ): ZPipeline[Env, Err1, In, Out2] =
+    self.asInstanceOf[ZPipeline[Env, Err1, In, Take[Err1, Out2]]] >>> ZPipeline.flattenTake
+
+  /**
    * Partitions the pipeline with specified chunkSize
    *
    * @param chunkSize
@@ -1236,6 +1245,53 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         .concatMap(ZChannel.writeChunk(_))
         .mergeMap(n, outputBuffer)(_.channel)
     )
+
+  /**
+   * Creates a pipeline that flattens a stream of takes.
+   */
+  def flattenTake[Err, Out](implicit trace: Trace): ZPipeline[Any, Err, Take[Err, Out], Out] = {
+
+    lazy val channel: ZChannel[Any, ZNothing, Chunk[Take[Err, Out]], Any, Err, Chunk[Out], Any] =
+      ZChannel.readWithCause(
+        in => {
+          val chunkBuilder  = ChunkBuilder.make[Chunk[Out]]()
+          val chunkIterator = in.chunkIterator
+          var failureOption = Option.empty[Cause[Option[Err]]]
+          var index         = 0
+          var loop          = true
+          while (loop && chunkIterator.hasNextAt(index)) {
+            val take = chunkIterator.nextAt(index)
+            take match {
+              case Take(Exit.Success(chunk)) =>
+                chunkBuilder += chunk
+              case Take(Exit.Failure(cause)) =>
+                failureOption = Some(cause)
+                loop = false
+            }
+            index += 1
+          }
+          val chunk = chunkBuilder.result()
+          failureOption match {
+            case Some(cause) =>
+              Cause.flipCauseOption(cause) match {
+                case Some(err) =>
+                  if (chunk.isEmpty) ZChannel.failCause(err)
+                  else ZChannel.writeChunk(chunk) *> ZChannel.failCause(err)
+                case None =>
+                  if (chunk.isEmpty) ZChannel.unit
+                  else ZChannel.writeChunk(chunk)
+              }
+            case None =>
+              if (chunk.isEmpty) channel
+              else ZChannel.writeChunk(chunk) *> channel
+          }
+        },
+        err => ZChannel.failCause(err),
+        done => ZChannel.succeedNow(done)
+      )
+
+    ZPipeline.fromChannel(channel)
+  }
 
   /**
    * Creates a pipeline that groups on adjacent keys, calculated by function f.
