@@ -4,7 +4,7 @@ import zio.internal.stacktracer.SourceLocation
 import zio.test.Assertion._
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 import zio.test.TestAspect.tag
-import zio.{Cause, Scope, Trace, ULayer, ZIO, ZIOAppArgs, ZLayer}
+import zio.{Cause, Random, Scope, Trace, ULayer, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.{Console => SConsole}
 
@@ -54,9 +54,10 @@ object ReportingTestUtils {
     spec: Spec[TestEnvironment, String]
   )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[TestEnvironment, Nothing, String] =
     for {
-      console <- ZIO.console
+      console  <- ZIO.console
+      randomId <- ZIO.withRandom(Random.RandomLive)(Random.nextInt).map("test_case_" + _)
       _ <-
-        TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run("Arbitrary test task name", spec)
+        TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run(randomId, spec)
       output <- TestConsole.output
     } yield output.mkString
 
@@ -64,9 +65,10 @@ object ReportingTestUtils {
     spec: Spec[TestEnvironment, String]
   )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[TestEnvironment, Nothing, String] =
     for {
-      console <- ZIO.console
+      console  <- ZIO.console
+      randomId <- ZIO.withRandom(Random.RandomLive)(Random.nextInt).map("test_case_" + _)
       summary <-
-        TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run("Arbitrary test task name", spec)
+        TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run(randomId, spec)
     } yield summary.failureDetails
 
   private[test] def TestTestRunner(

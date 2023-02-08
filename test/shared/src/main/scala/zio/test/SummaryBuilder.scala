@@ -18,7 +18,7 @@ package zio.test
 
 import zio.Trace
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test, TopLevelFlush}
+import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test, TestStarted, TopLevelFlush}
 import zio.test.render.ConsoleRenderer
 
 object SummaryBuilder {
@@ -59,6 +59,8 @@ object SummaryBuilder {
       case SectionStart(_, _, _) => 0
       case SectionEnd(_, _, _)   => 0
       case TopLevelFlush(_)      => 0
+      case TestStarted(_, _, _, _, _) =>
+        0
     }
 
   private def extractFailures(reporterEvent: ExecutionEvent): Seq[ExecutionEvent] =

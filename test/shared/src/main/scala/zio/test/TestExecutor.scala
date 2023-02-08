@@ -106,6 +106,16 @@ object TestExecutor {
                       staticAnnotations: TestAnnotationMap
                     ) => {
                   val testResultZ = (for {
+                    _ <-
+                      processEvent(
+                        ExecutionEvent.TestStarted(
+                          labels,
+                          staticAnnotations,
+                          ancestors,
+                          sectionId,
+                          fullyQualifiedName
+                        )
+                      )
                     result  <- ZIO.withClock(ClockLive)(test.timed.either)
                     duration = result.map(_._1.toMillis).fold(_ => 1L, identity)
                     event =
@@ -150,9 +160,12 @@ object TestExecutor {
             val topLevelFlush = ExecutionEvent.TopLevelFlush(
               topParent
             )
-            ZIO.scoped {
-              loop(List.empty, scopedSpec, defExec, List.empty, topParent)
-            } *> processEvent(topLevelFlush)
+
+            TestDebug.createDebugFile(fullyQualifiedName) *>
+              ZIO.scoped {
+                loop(List.empty, scopedSpec, defExec, List.empty, topParent)
+              } *> processEvent(topLevelFlush) *> TestDebug.deleteIfEmpty(fullyQualifiedName)
+
           }
           summary <- summary.get
         } yield summary).provideLayer(sinkLayer)
@@ -162,6 +175,6 @@ object TestExecutor {
           case Left(testFailure)  => testFailure.annotations
           case Right(testSuccess) => testSuccess.annotations
         }
-    }
 
+    }
 }
