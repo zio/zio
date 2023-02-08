@@ -4857,7 +4857,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               }
             }
           }
-        } @@ flaky,
+        },
         test("iterate")(
           assertZIO(ZStream.iterate(1)(_ + 1).take(10).runCollect)(
             equalTo(Chunk.fromIterable(1 to 10))
