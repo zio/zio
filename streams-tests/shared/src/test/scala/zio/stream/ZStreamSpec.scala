@@ -4,7 +4,7 @@ import zio._
 import zio.stm.TQueue
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, timeout, withLiveClock}
+import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, withLiveClock}
 import zio.test._
 
 import java.io.{ByteArrayInputStream, IOException}
@@ -2062,7 +2062,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 result <- f.join
               } yield result)(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
             }
-          } @@ timeout(10.seconds) @@ flaky,
+          },
           test("group based on time passed (#5013)") {
             val chunkResult = Chunk(
               Chunk(1, 2, 3),
