@@ -2356,7 +2356,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- queue.offer(1)
               result <- fiber.join
             } yield assert(result)(isEmpty)
-          } @@ timeout(10.seconds) @@ flaky
+          }
         ) @@ zioTag(interruption),
         suite("onExecutor")(
           test("shifts and shifts back if there is a previous locked executor") {
