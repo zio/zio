@@ -47,8 +47,7 @@ import scala.collection.{immutable, mutable}
  */
 final case class LayerBuilder[Type, Expr](
   target0: List[Type],
-  remainder: Type,
-  remainders: List[Type],
+  remainder: List[Type],
   providedLayers0: List[Expr],
   layerToDebug: PartialFunction[Expr, Debug],
   sideEffectType: Type,
@@ -64,14 +63,11 @@ final case class LayerBuilder[Type, Expr](
 ) {
 
   lazy val target =
-    if (method.isProvideSomeShared) target0.filterNot(t1 => remainders.exists(t2 => typeEquals(t1, t2)))
+    if (method.isProvideSomeShared) target0.filterNot(t1 => remainder.exists(t2 => typeEquals(t1, t2)))
     else target0
 
-  private lazy val remainderNode: Node[Type, Expr] =
-    typeToNode(remainder)
-
   private lazy val remainderNodes: List[Node[Type, Expr]] =
-    remainders.map(typeToNode).distinct
+    remainder.map(typeToNode).distinct
 
   private val (providedLayers, maybeDebug): (List[Expr], Option[ZLayer.Debug]) = {
     val maybeDebug = providedLayers0.collectFirst(layerToDebug)
@@ -107,29 +103,9 @@ final case class LayerBuilder[Type, Expr](
       case Right(tree) =>
         warnUnused(tree)
         maybeDebug.foreach(debugLayer(_, tree))
-        val remainder  = remainderNode.value
-        val remainders = remainderNodes.map(_.value)
-        val patched    = patchRemainder(tree, remainder, remainders)
-        foldTree(patched)
+        foldTree(tree)
     }
   }
-
-  /**
-   * Folds over the layer tree, replacing each layer accessing part of the
-   * remainder with a layer accessing the entire remainder.
-   */
-  private def patchRemainder(tree: LayerTree[Expr], remainder: Expr, remainders: List[Expr]): LayerTree[Expr] =
-    tree.fold[LayerTree[Expr]](
-      LayerTree.Empty,
-      value => if (remainders.contains(value)) LayerTree.Value(remainder) else LayerTree.Value(value),
-      {
-        case (LayerTree.Value(left), LayerTree.Value(right)) if left == remainder && right == remainder =>
-          LayerTree.Value(remainder)
-        case (left, right) =>
-          LayerTree.ComposeH(left, right)
-      },
-      LayerTree.ComposeV(_, _)
-    )
 
   /**
    * Checks to see if any type is provided by multiple layers. If so, this will
@@ -181,7 +157,7 @@ final case class LayerBuilder[Type, Expr](
           reportWarn(message)
         }
 
-        if (remainders.isEmpty) {
+        if (remainder.isEmpty) {
           val message = "\n" + TerminalRendering.provideSomeNothingEnvError
           reportWarn(message)
         }

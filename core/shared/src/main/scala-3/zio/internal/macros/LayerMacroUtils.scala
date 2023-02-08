@@ -32,8 +32,7 @@ private [zio] object LayerMacroUtils {
 
     val builder = LayerBuilder[TypeRepr, LayerExpr[E]](
       target0 = targetTypes,
-      remainder = TypeRepr.of[R0],
-      remainders = remainderTypes,
+      remainder = remainderTypes,
       providedLayers0 = layers.toList,
       layerToDebug = layerToDebug,
       typeEquals = _ <:< _,
