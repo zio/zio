@@ -122,6 +122,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Olyro GmbH](https://olyro.de)
 * [Optrak](https://optrak.com)
 * [Performance Immo](https://www.performance-immo.com/)
+* [Pirum Systems](https://www.pirum.com/)
 * [Playtika](https://www.playtika.com)
 * [PPC Samurai](https://ppcsamurai.com/)
 * [Prezi](https://prezi.com/)
