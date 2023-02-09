@@ -17,14 +17,13 @@
 package zio.test.render
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test, TopLevelFlush}
+import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test, TestStarted, TopLevelFlush}
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Fragment.Style
 import zio.test.render.LogLine.{Fragment, Line, Message}
 import zio.test._
-import zio.{Cause, Chunk, Trace}
+import zio.{Cause, Trace}
 import zio.internal.ansi.AnsiStringOps
-import zio.test.render.ExecutionResult.Status.Failed
 
 trait ConsoleRenderer extends TestRenderer {
   private val tabSize = 2
@@ -33,6 +32,7 @@ trait ConsoleRenderer extends TestRenderer {
     trace: Trace
   ): Seq[ExecutionResult] =
     event match {
+      case _: TestStarted => Nil
       case SectionStart(labelsReversed, _, _) =>
         val depth = labelsReversed.length - 1
         labelsReversed.reverse match {

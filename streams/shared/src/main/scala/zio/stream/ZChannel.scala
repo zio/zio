@@ -1015,7 +1015,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ev2: OutElem <:< Nothing,
     trace: Trace
   ): ZIO[Env with Scope, OutErr, OutDone] = {
-    def run(promise: Promise[OutErr, OutDone], scope: Scope) = ZIO
+    def run(channelPromise: Promise[OutErr, OutDone], scopePromise: Promise[Nothing, Unit], scope: Scope) = ZIO
       .acquireReleaseExitWith(
         ZIO.succeed(
           new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
@@ -1048,18 +1048,22 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             }
 
           interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
-            .intoPromise(promise) *> promise.await <* ZIO.never
+            .intoPromise(channelPromise) *> channelPromise.await <* scopePromise.await
         }
       }
 
-    for {
-      parent  <- ZIO.scope
-      child   <- parent.fork
-      promise <- Promise.make[OutErr, OutDone]
-      fiber   <- run(promise, child).forkScoped
-      done    <- promise.await
-      _       <- fiber.inheritAll
-    } yield done
+    ZIO.uninterruptibleMask { restore =>
+      for {
+        parent         <- ZIO.scope
+        child          <- parent.fork
+        channelPromise <- Promise.make[OutErr, OutDone]
+        scopePromise   <- Promise.make[Nothing, Unit]
+        fiber          <- restore(run(channelPromise, scopePromise, child)).forkScoped
+        _              <- ZIO.addFinalizer(scopePromise.succeed(()))
+        done           <- restore(channelPromise.await)
+        _              <- fiber.inheritAll
+      } yield done
+    }
   }
 
   /**

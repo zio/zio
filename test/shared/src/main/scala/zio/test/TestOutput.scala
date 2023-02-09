@@ -2,6 +2,8 @@ package zio.test
 
 import zio.{Chunk, Ref, ZIO, ZLayer}
 
+import scala.io.Source
+
 trait TestOutput {
 
   /**
@@ -18,7 +20,8 @@ object TestOutput {
     ZLayer.fromZIO(
       for {
         executionEventPrinter <- ZIO.service[ExecutionEventPrinter]
-        outputLive            <- TestOutputLive.make(executionEventPrinter)
+        // If you need to enable the debug output to diagnose flakiness, set this to true
+        outputLive <- TestOutputLive.make(executionEventPrinter, debug = false)
       } yield outputLive
     )
 
@@ -40,7 +43,9 @@ object TestOutput {
   case class TestOutputLive(
     output: Ref[Map[SuiteId, Chunk[ExecutionEvent]]],
     reporters: TestReporters,
-    executionEventPrinter: ExecutionEventPrinter
+    executionEventPrinter: ExecutionEventPrinter,
+    lock: TestDebugFileLock,
+    debug: Boolean
   ) extends TestOutput {
 
     private def getAndRemoveSectionOutput(id: SuiteId) =
@@ -108,6 +113,7 @@ object TestOutput {
       reporterEvent: ExecutionEvent
     ): ZIO[Any, Nothing, Unit] =
       for {
+        _ <- ZIO.when(debug)(TestDebug.print(reporterEvent, lock))
         _ <- appendToSectionContents(reporterEvent.id, Chunk(reporterEvent))
         suiteIsPrinting <- reporters.attemptToGetPrintingControl(
                              reporterEvent.id,
@@ -150,10 +156,11 @@ object TestOutput {
 
   object TestOutputLive {
 
-    def make(executionEventPrinter: ExecutionEventPrinter): ZIO[Any, Nothing, TestOutput] = for {
+    def make(executionEventPrinter: ExecutionEventPrinter, debug: Boolean): ZIO[Any, Nothing, TestOutput] = for {
       talkers <- TestReporters.make
+      lock    <- TestDebugFileLock.make
       output  <- Ref.make[Map[SuiteId, Chunk[ExecutionEvent]]](Map.empty)
-    } yield TestOutputLive(output, talkers, executionEventPrinter)
+    } yield TestOutputLive(output, talkers, executionEventPrinter, lock, debug)
 
   }
 }

@@ -26,8 +26,7 @@ private[zio] trait LayerMacroUtils {
 
     val builder = LayerBuilder[c.Type, LayerExpr](
       target0 = targetTypes,
-      remainder = c.weakTypeOf[R0],
-      remainders = remainderTypes,
+      remainder = remainderTypes,
       providedLayers0 = layers.toList,
       layerToDebug = debugMap,
       sideEffectType = c.weakTypeOf[Unit].dealias,

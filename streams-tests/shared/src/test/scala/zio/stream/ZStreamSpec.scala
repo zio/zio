@@ -4,7 +4,7 @@ import zio._
 import zio.stm.TQueue
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, timeout, withLiveClock}
+import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, withLiveClock}
 import zio.test._
 
 import java.io.{ByteArrayInputStream, IOException}
@@ -2062,7 +2062,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 result <- f.join
               } yield result)(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
             }
-          } @@ timeout(10.seconds) @@ flaky,
+          },
           test("group based on time passed (#5013)") {
             val chunkResult = Chunk(
               Chunk(1, 2, 3),
@@ -2356,7 +2356,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- queue.offer(1)
               result <- fiber.join
             } yield assert(result)(isEmpty)
-          } @@ timeout(10.seconds) @@ flaky
+          }
         ) @@ zioTag(interruption),
         suite("onExecutor")(
           test("shifts and shifts back if there is a previous locked executor") {
@@ -2612,6 +2612,16 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         ),
         suite("mapZIOParUnordered")(
+          test("foreachParN equivalence") {
+            checkN(10)(Gen.small(Gen.listOfN(_)(Gen.byte)), Gen.function(Gen.successes(Gen.byte))) { (data, f) =>
+              val s = ZStream.fromIterable(data)
+
+              for {
+                l <- s.mapZIOParUnordered(8)(f).runCollect
+                r <- ZIO.foreachPar(data)(f).withParallelism(8)
+              } yield assert(l.toSet)(equalTo(r.toSet))
+            }
+          },
           test("mapping with failure is failure") {
             val stream =
               ZStream.fromIterable(0 to 3).mapZIOParUnordered(10)(_ => ZIO.fail("fail"))
@@ -4857,7 +4867,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               }
             }
           }
-        } @@ flaky,
+        },
         test("iterate")(
           assertZIO(ZStream.iterate(1)(_ + 1).take(10).runCollect)(
             equalTo(Chunk.fromIterable(1 to 10))
