@@ -1418,19 +1418,8 @@ sealed trait ZIO[-R, +E, +A]
 
       val raceIndicator = new AtomicBoolean(true)
 
-      val leftFiber =
-        ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, parentFiber.scope)(Unsafe.unsafe)
-      val rightFiber =
-        ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, parentFiber.scope)(Unsafe.unsafe)
-
-      leftFiber.setFiberRef(
-        FiberRef.forkScopeOverride,
-        parentFiber.getFiberRef(FiberRef.forkScopeOverride)(Unsafe.unsafe)
-      )(Unsafe.unsafe)
-      rightFiber.setFiberRef(
-        FiberRef.forkScopeOverride,
-        parentFiber.getFiberRef(FiberRef.forkScopeOverride)(Unsafe.unsafe)
-      )(Unsafe.unsafe)
+      val leftFiber  = ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, null)(Unsafe.unsafe)
+      val rightFiber = ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, null)(Unsafe.unsafe)
 
       val startLeftFiber  = leftFiber.startSuspended()(Unsafe.unsafe)
       val startRightFiber = rightFiber.startSuspended()(Unsafe.unsafe)

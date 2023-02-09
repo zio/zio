@@ -3524,6 +3524,18 @@ object ZIOSpec extends ZIOBaseSpec {
             _       <- ref.get.repeatUntilEquals(true)
           } yield assertCompletes
         }
+      } @@ nonFlaky,
+      test("child can outlive parent in race") {
+        for {
+          promise <- Promise.make[Nothing, Unit]
+          race = ZIO.unit.raceWith(promise.await)(
+                   (_, fiber) => ZIO.succeed(fiber),
+                   (_, fiber) => ZIO.succeed(fiber)
+                 )
+          fiber <- ZIO.transplant(graft => graft(race).fork.flatMap(_.join))
+          _     <- promise.succeed(())
+          exit  <- fiber.await
+        } yield assertTrue(exit.isSuccess)
       } @@ nonFlaky
     ) @@ zioTag(interruption),
     suite("RTS environment")(
