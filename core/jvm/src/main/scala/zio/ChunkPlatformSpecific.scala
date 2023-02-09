@@ -23,22 +23,24 @@ import scala.reflect.{ClassTag, classTag}
 private[zio] trait ChunkPlatformSpecific {
 
   private[zio] object Tags {
-    def fromValue[A](a: A): ClassTag[A] = {
-      val c = a.getClass
-      val unboxedClass =
-        if (isBoolean(c)) BooleanClass.asInstanceOf[Class[A]]
-        else if (isByte(c)) ByteClass.asInstanceOf[Class[A]]
-        else if (isShort(c)) ShortClass.asInstanceOf[Class[A]]
-        else if (isInt(c)) IntClass.asInstanceOf[Class[A]]
-        else if (isLong(c)) LongClass.asInstanceOf[Class[A]]
-        else if (isFloat(c)) FloatClass.asInstanceOf[Class[A]]
-        else if (isDouble(c)) DoubleClass.asInstanceOf[Class[A]]
-        else if (isChar(c)) CharClass.asInstanceOf[Class[A]]
-        else null
+    def fromValue[A](a: A): ClassTag[A] =
+      if (a == null) classTag[AnyRef].asInstanceOf[ClassTag[A]]
+      else {
+        val c = a.getClass
+        val unboxedClass =
+          if (isBoolean(c)) BooleanClass.asInstanceOf[Class[A]]
+          else if (isByte(c)) ByteClass.asInstanceOf[Class[A]]
+          else if (isShort(c)) ShortClass.asInstanceOf[Class[A]]
+          else if (isInt(c)) IntClass.asInstanceOf[Class[A]]
+          else if (isLong(c)) LongClass.asInstanceOf[Class[A]]
+          else if (isFloat(c)) FloatClass.asInstanceOf[Class[A]]
+          else if (isDouble(c)) DoubleClass.asInstanceOf[Class[A]]
+          else if (isChar(c)) CharClass.asInstanceOf[Class[A]]
+          else null
 
-      if (unboxedClass eq null) classTag[AnyRef].asInstanceOf[ClassTag[A]]
-      else ClassTag(unboxedClass).asInstanceOf[ClassTag[A]]
-    }
+        if (unboxedClass eq null) classTag[AnyRef].asInstanceOf[ClassTag[A]]
+        else ClassTag(unboxedClass).asInstanceOf[ClassTag[A]]
+      }
 
     private def isBoolean(c: Class[_]): Boolean =
       c == BooleanClass || c == BooleanClassBox
