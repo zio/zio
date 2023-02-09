@@ -86,7 +86,7 @@ object TestData {
   val shortText: Array[Byte]          = "abcdefg1234567890".getBytes
   val otherShortText: Array[Byte]     = "AXXX\u0000XXXA".getBytes
   val longText: Array[Byte]           = Array.fill(1000)(shortText).flatten
-  val `1K`                            = 1024
+  val `1K`                            = 128
   val headerHeadBytes: Array[Byte]    = Array(31.toByte, 139.toByte, 8.toByte)
   val mTimeXflAndOsBytes: Array[Byte] = Array.fill(6)(0.toByte)
 
