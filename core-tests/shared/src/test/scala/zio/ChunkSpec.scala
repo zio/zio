@@ -639,6 +639,10 @@ object ChunkSpec extends ZIOBaseSpec {
       val _ = Chunk(1, 128)
       assertCompletes
     },
+    test("Tags.fromValue is safe with null") {
+      val _ = Chunk(null)
+      assertCompletes
+    },
     test("chunks can be constructed from heterogeneous collections") {
       check(Gen.listOf(Gen.oneOf(Gen.int, Gen.string, Gen.none))) { as =>
         assert(Chunk.fromIterable(as).toList)(equalTo(as))
