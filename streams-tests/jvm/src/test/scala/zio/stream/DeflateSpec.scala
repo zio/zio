@@ -11,7 +11,7 @@ object DeflateSpec extends ZIOBaseSpec {
   override def spec =
     suite("DeflateSpec")(
       test("JDK inflates what was deflated")(
-        check(Gen.listOfBounded(0, `1K`)(Gen.byte), Gen.int(1, `1K`), Gen.int(1, `1K`)) { (input, n, bufferSize) =>
+        check(Gen.listOfBounded(0, size)(Gen.byte), Gen.int(1, size), Gen.int(1, size)) { (input, n, bufferSize) =>
           for {
             tuple <-
               (ZStream.fromIterable(input).rechunk(n).channel >>> Deflate.makeDeflater(bufferSize)).runCollect

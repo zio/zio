@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio._
-import zio.stream.compression.TestData.{`1K`, jdkGzip, longText, otherShortText, shortText}
+import zio.stream.compression.TestData.{size, jdkGzip, longText, otherShortText, shortText}
 import zio.test.Assertion._
 import zio.test._
 import zio.{Chunk, ZIO}
@@ -63,7 +63,7 @@ object GunzipSpec extends ZIOBaseSpec {
         )(fails(anything))
       ),
       test("gunzip what JDK gzipped, nowrap")(
-        check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+        check(Gen.listOfBounded(0, size)(Gen.byte).zip(Gen.int(1, size)).zip(Gen.int(1, size))) {
           case (chunk, n, bufferSize) =>
             assertZIO(for {
               deflated <- ZIO.succeed(jdkGzippedStream(chunk.toArray))

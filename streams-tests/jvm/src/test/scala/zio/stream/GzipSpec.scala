@@ -9,7 +9,7 @@ object GzipSpec extends ZIOBaseSpec {
   override def spec =
     suite("GzipSpec")(
       test("JDK gunzips what was gzipped")(
-        check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+        check(Gen.listOfBounded(0, size)(Gen.byte).zip(Gen.int(1, size)).zip(Gen.int(1, size))) {
           case (input, n, bufferSize) =>
             assertZIO(for {
               gzipped <- (ZStream.fromIterable(input).rechunk(n).channel >>> Gzip.makeGzipper(bufferSize)).runCollect
@@ -26,7 +26,7 @@ object GzipSpec extends ZIOBaseSpec {
       ),
       test("gzip empty bytes")(
         assertZIO(for {
-          gzipped      <- (ZStream.empty.channel >>> Gzip.makeGzipper(`1K`)).runCollect.map(_._1.flatten)
+          gzipped      <- (ZStream.empty.channel >>> Gzip.makeGzipper(size)).runCollect.map(_._1.flatten)
           jdkGunzipped <- jdkGunzip(gzipped)
         } yield jdkGunzipped)(isEmpty)
       ),
@@ -40,13 +40,13 @@ object GzipSpec extends ZIOBaseSpec {
       test("gzips, small chunks, 1k buffer")(
         assertZIO(for {
           gzipped <-
-            (ZStream.fromIterable(longText).rechunk(1).channel >>> Gzip.makeGzipper(`1K`)).runCollect.map(_._1.flatten)
+            (ZStream.fromIterable(longText).rechunk(1).channel >>> Gzip.makeGzipper(size)).runCollect.map(_._1.flatten)
           jdkGunzipped <- jdkGunzip(gzipped)
         } yield jdkGunzipped)(equalTo(longText.toList))
       ),
       test("chunks bigger than buffer")(
         assertZIO(for {
-          gzipped <- (ZStream.fromIterable(longText).rechunk(`1K`).channel >>> Gzip.makeGzipper(64)).runCollect
+          gzipped <- (ZStream.fromIterable(longText).rechunk(size).channel >>> Gzip.makeGzipper(64)).runCollect
                        .map(_._1.flatten)
           jdkGunzipped <- jdkGunzip(gzipped)
         } yield jdkGunzipped)(equalTo(longText.toList))

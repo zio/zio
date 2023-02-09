@@ -56,7 +56,7 @@ object InflateSpec extends ZIOBaseSpec {
         )(fails(anything))
       ),
       test("inflate what JDK deflated")(
-        check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+        check(Gen.listOfBounded(0, size)(Gen.byte).zip(Gen.int(1, size)).zip(Gen.int(1, size))) {
           case (chunk, n, bufferSize) =>
             assertZIO(for {
               deflated <- ZIO.succeed(deflatedStream(chunk.toArray))
@@ -65,7 +65,7 @@ object InflateSpec extends ZIOBaseSpec {
         }
       ),
       test("inflate what JDK deflated, nowrap")(
-        check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+        check(Gen.listOfBounded(0, size)(Gen.byte).zip(Gen.int(1, size)).zip(Gen.int(1, size))) {
           case (chunk, n, bufferSize) =>
             assertZIO(for {
               deflated <- ZIO.succeed(noWrapDeflatedStream(chunk.toArray))

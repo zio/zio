@@ -15,7 +15,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
     suite("Constructors")(
       suite("Deflate")(
         test("JDK inflates what was deflated")(
-          check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+          check(Gen.listOfBounded(0, size)(Gen.byte).zip(Gen.int(1, size)).zip(Gen.int(1, size))) {
             case (input, n, bufferSize) =>
               assertZIO(for {
                 deflated <-
@@ -31,7 +31,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
       ),
       suite("Inflate")(
         test("inflate what JDK deflated")(
-          check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+          check(Gen.listOfBounded(0, size)(Gen.byte).zip(Gen.int(1, size)).zip(Gen.int(1, size))) {
             case (chunk, n, bufferSize) =>
               assertZIO(for {
                 out <-
@@ -46,7 +46,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
       ),
       suite("Gunzip")(
         test("gunzip what JDK gzipped, nowrap")(
-          check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+          check(Gen.listOfBounded(0, size)(Gen.byte).zip(Gen.int(1, size)).zip(Gen.int(1, size))) {
             case (chunk, n, bufferSize) =>
               assertZIO(for {
                 out <- ZStream
@@ -60,7 +60,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
       ),
       suite("Gzip")(
         test("JDK gunzips what was gzipped")(
-          check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+          check(Gen.listOfBounded(0, size)(Gen.byte).zip(Gen.int(1, size)).zip(Gen.int(1, size))) {
             case (input, n, bufferSize) =>
               assertZIO(for {
                 gzipped <- ZStream
