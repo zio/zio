@@ -1451,14 +1451,16 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("mapError")(
       test("preserves the cause") {
-        val task = ZIO.fail("fail")
+        val task = ZIO.logAnnotate("key", "value")(ZIO.fail("fail"))
         for {
-          leftCause  <- task.cause
-          rightCause <- task.mapError(identity).cause
-          leftTrace   = leftCause.trace.stackTrace.head
-          rightTrace  = rightCause.trace.stackTrace.head
-        } yield assertTrue(leftTrace == rightTrace)
-
+          leftCause       <- task.cause
+          rightCause      <- task.mapError(identity).cause
+          leftTrace        = leftCause.trace.stackTrace.head
+          rightTrace       = rightCause.trace.stackTrace.head
+          leftAnnotations  = leftCause.annotations
+          rightAnnotations = rightCause.annotations
+        } yield assertTrue(leftTrace == rightTrace) &&
+          assertTrue(leftAnnotations == rightAnnotations)
       }
     ),
     suite("memoize")(
@@ -2041,13 +2043,16 @@ object ZIOSpec extends ZIOBaseSpec {
         assertZIO(result)(isLeft(equalTo(expected)))
       } @@ scala2Only,
       test("preserves the cause") {
-        val task = ZIO.fail(new RuntimeException("fail"))
+        val task = ZIO.logAnnotate("key", "value")(ZIO.fail(new RuntimeException("fail")))
         for {
-          leftCause  <- task.cause
-          rightCause <- task.refineToOrDie[RuntimeException].cause
-          leftTrace   = leftCause.trace.stackTrace.head
-          rightTrace  = rightCause.trace.stackTrace.head
-        } yield assertTrue(leftTrace == rightTrace)
+          leftCause       <- task.cause
+          rightCause      <- task.refineToOrDie[RuntimeException].cause
+          leftTrace        = leftCause.trace.stackTrace.head
+          rightTrace       = rightCause.trace.stackTrace.head
+          leftAnnotations  = leftCause.annotations
+          rightAnnotations = rightCause.annotations
+        } yield assertTrue(leftTrace == rightTrace) &&
+          assertTrue(leftAnnotations == rightAnnotations)
       }
     ) @@ zioTag(errors),
     suite("some")(
@@ -4253,7 +4258,12 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(value)(equalTo("Controlling side-effect of function passed to promise"))
         }
       }
-    )
+    ),
+    test("fail captures the annotations") {
+      for {
+        cause <- ZIO.logAnnotate("key", "value")(ZIO.fail("fail")).cause
+      } yield assertTrue(cause.annotations == Map("key" -> "value"))
+    }
   )
 
   def functionIOGen: Gen[Any, String => ZIO[Any, Throwable, Int]] =

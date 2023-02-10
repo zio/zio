@@ -3149,7 +3149,11 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Returns an effect that models failure with the specified `Cause`.
    */
   def failCause[E](cause: => Cause[E])(implicit trace0: Trace): IO[E, Nothing] =
-    ZIO.stackTrace(trace0).flatMap(trace => refailCause(cause.traced(trace)))
+    ZIO.stackTrace(trace0).flatMap { trace =>
+      ZIO.logAnnotations.flatMap { annotations =>
+        ZIO.refailCause(cause.traced(trace).annotated(annotations))
+      }
+    }
 
   /**
    * Returns the `FiberId` of the fiber executing the effect that calls this
