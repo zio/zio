@@ -758,8 +758,6 @@ object Cause extends Serializable {
   sealed case class Fail[+E](value: E, override val trace: StackTrace) extends Cause[E] { self =>
     override def annotations: Map[String, String] =
       Map.empty
-    override def hashCode: Int =
-      (value, trace, annotations).##
   }
 
   object Fail {
@@ -771,8 +769,6 @@ object Cause extends Serializable {
 
   sealed case class Die(value: Throwable, override val trace: StackTrace) extends Cause[Nothing] { self =>
     override def annotations: Map[String, String] = Map.empty
-    override def hashCode: Int =
-      (value, trace, annotations).##
   }
 
   object Die extends AbstractFunction2[Throwable, StackTrace, Die] {
@@ -784,8 +780,6 @@ object Cause extends Serializable {
 
   sealed case class Interrupt(fiberId: FiberId, override val trace: StackTrace) extends Cause[Nothing] { self =>
     override def annotations: Map[String, String] = Map.empty
-    override def hashCode: Int =
-      (fiberId, trace, annotations).##
   }
 
   object Interrupt extends AbstractFunction2[FiberId, StackTrace, Interrupt] {
