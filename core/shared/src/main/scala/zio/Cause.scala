@@ -47,10 +47,10 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    */
   def annotations: Map[String, String] =
     self.foldLeft(Map.empty[String, String]) {
-      case (z, die)       => z ++ die.annotations
-      case (z, fail)      => z ++ fail.annotations
-      case (z, interrupt) => z ++ interrupt.annotations
-      case (z, _)         => z
+      case (z, die @ Die(_, _))             => z ++ die.annotations
+      case (z, fail @ Fail(_, _))           => z ++ fail.annotations
+      case (z, interrupt @ Interrupt(_, _)) => z ++ interrupt.annotations
+      case (z, _)                           => z
     }
 
   /**
@@ -754,55 +754,37 @@ object Cause extends Serializable {
 
   case object Empty extends Cause[Nothing]
 
-  final case class Fail[+E](value: E, override val trace: StackTrace, override val annotations: Map[String, String])
-      extends Cause[E] { self =>
-    def copy[E2](value: E2 = self.value, trace: StackTrace = self.trace): Fail[E2] =
-      Fail(value, trace, annotations)
-    def this(value: E, trace: StackTrace) =
-      this(value, trace, Map.empty)
+  sealed case class Fail[+E](value: E, override val trace: StackTrace) extends Cause[E] {
+    override def annotations: Map[String, String] = Map.empty
   }
 
   object Fail {
-    def apply[E](value: E, trace: StackTrace): Fail[E] =
-      Fail(value, trace, Map.empty)
-    def unapply[E](fail: Fail[E]): Option[(E, StackTrace)] =
-      Some((fail.value, fail.trace))
+    def apply[E](value0: E, trace0: StackTrace, annotations0: Map[String, String]): Fail[E] =
+      new Fail(value0, trace0) {
+        override val annotations: Map[String, String] = annotations0
+      }
   }
 
-  final case class Die(
-    value: Throwable,
-    override val trace: StackTrace,
-    override val annotations: Map[String, String] = Map.empty
-  ) extends Cause[Nothing] { self =>
-    def copy(value: Throwable = self.value, trace: StackTrace = self.trace): Die =
-      Die(value, trace, annotations)
-    def this(value: Throwable, trace: StackTrace) =
-      this(value, trace, Map.empty)
+  sealed case class Die(value: Throwable, override val trace: StackTrace) extends Cause[Nothing] {
+    override def annotations: Map[String, String] = Map.empty
   }
 
-  object Die extends scala.runtime.AbstractFunction2[Throwable, StackTrace, Die] {
-    def apply(value: Throwable, trace: StackTrace): Die =
-      Die(value, trace, Map.empty)
-    def unapply(die: Die): Option[(Throwable, StackTrace)] =
-      Some((die.value, die.trace))
+  object Die {
+    def apply(value0: Throwable, trace0: StackTrace, annotations0: Map[String, String]): Die =
+      new Die(value0, trace0) {
+        override val annotations: Map[String, String] = annotations0
+      }
   }
 
-  final case class Interrupt(
-    fiberId: FiberId,
-    override val trace: StackTrace,
-    override val annotations: Map[String, String]
-  ) extends Cause[Nothing] { self =>
-    def copy(fiberId: FiberId = self.fiberId, trace: StackTrace = self.trace): Interrupt =
-      Interrupt(fiberId, trace, annotations)
-    def this(fiberId: FiberId, trace: StackTrace) =
-      this(fiberId, trace, Map.empty)
+  sealed case class Interrupt(fiberId: FiberId, override val trace: StackTrace) extends Cause[Nothing] {
+    override def annotations: Map[String, String] = Map.empty
   }
 
-  object Interrupt extends scala.runtime.AbstractFunction2[FiberId, StackTrace, Interrupt] {
-    def apply(fiberId: FiberId, trace: StackTrace): Interrupt =
-      Interrupt(fiberId, trace, Map.empty)
-    def unapply(interrupt: Interrupt): Option[(FiberId, StackTrace)] =
-      Some((interrupt.fiberId, interrupt.trace))
+  object Interrupt {
+    def apply(fiberId0: FiberId, trace0: StackTrace, annotations0: Map[String, String]): Interrupt =
+      new Interrupt(fiberId0, trace0) {
+        override val annotations: Map[String, String] = annotations0
+      }
   }
 
   final case class Stackless[+E](cause: Cause[E], stackless: Boolean) extends Cause[E]
