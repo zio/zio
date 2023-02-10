@@ -754,8 +754,17 @@ object Cause extends Serializable {
 
   case object Empty extends Cause[Nothing]
 
-  sealed case class Fail[+E](value: E, override val trace: StackTrace) extends Cause[E] {
-    override def annotations: Map[String, String] = Map.empty
+  sealed case class Fail[+E](value: E, override val trace: StackTrace) extends Cause[E] { self =>
+    override def annotations: Map[String, String] =
+      Map.empty
+    override def equals(that: Any): Boolean =
+      that match {
+        case that: Fail[_] =>
+          self.value == that.value && self.trace == that.trace && self.annotations == that.annotations
+        case _ => false
+      }
+    override def hashCode: Int =
+      (value, trace, annotations).##
   }
 
   object Fail {
@@ -765,8 +774,15 @@ object Cause extends Serializable {
       }
   }
 
-  sealed case class Die(value: Throwable, override val trace: StackTrace) extends Cause[Nothing] {
+  sealed case class Die(value: Throwable, override val trace: StackTrace) extends Cause[Nothing] { self =>
     override def annotations: Map[String, String] = Map.empty
+    override def equals(that: Any): Boolean =
+      that match {
+        case that: Die => self.value == that.value && self.trace == that.trace && self.annotations == that.annotations
+        case _         => false
+      }
+    override def hashCode: Int =
+      (value, trace, annotations).##
   }
 
   object Die {
@@ -776,8 +792,16 @@ object Cause extends Serializable {
       }
   }
 
-  sealed case class Interrupt(fiberId: FiberId, override val trace: StackTrace) extends Cause[Nothing] {
+  sealed case class Interrupt(fiberId: FiberId, override val trace: StackTrace) extends Cause[Nothing] { self =>
     override def annotations: Map[String, String] = Map.empty
+    override def equals(that: Any): Boolean =
+      that match {
+        case that: Interrupt =>
+          self.fiberId == that.fiberId && self.trace == that.trace && self.annotations == that.annotations
+        case _ => false
+      }
+    override def hashCode: Int =
+      (fiberId, trace, annotations).##
   }
 
   object Interrupt {
