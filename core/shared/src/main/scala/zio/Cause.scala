@@ -19,6 +19,7 @@ package zio
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.tailrec
+import scala.runtime.AbstractFunction2
 
 sealed abstract class Cause[+E] extends Product with Serializable { self =>
   import Cause._
@@ -774,7 +775,7 @@ object Cause extends Serializable {
       (value, trace, annotations).##
   }
 
-  object Die {
+  object Die extends AbstractFunction2[Throwable, StackTrace, Die] {
     def apply(value0: Throwable, trace0: StackTrace, annotations0: Map[String, String]): Die =
       new Die(value0, trace0) {
         override val annotations: Map[String, String] = annotations0
@@ -787,7 +788,7 @@ object Cause extends Serializable {
       (fiberId, trace, annotations).##
   }
 
-  object Interrupt {
+  object Interrupt extends AbstractFunction2[FiberId, StackTrace, Interrupt] {
     def apply(fiberId0: FiberId, trace0: StackTrace, annotations0: Map[String, String]): Interrupt =
       new Interrupt(fiberId0, trace0) {
         override val annotations: Map[String, String] = annotations0
