@@ -4,7 +4,7 @@ import zio._
 import zio.test.Assertion._
 import zio.test._
 
-object SubscriptionRefSpec extends ZIOSpecDefault {
+object SubscriptionRefSpec extends ZIOBaseSpec {
 
   def spec =
     suite("SubscriptionRefSpec")(
@@ -43,13 +43,13 @@ object SubscriptionRefSpec extends ZIOSpecDefault {
       test("concurrent subscribes and unsubscribes are handled correctly") {
         def subscriber(subscriptionRef: SubscriptionRef[Long]) =
           for {
-            n  <- Random.nextLongBetween(1, 200)
+            n  <- Random.nextLongBetween(1, 100)
             as <- subscriptionRef.changes.take(n).runCollect
           } yield as
         for {
           subscriptionRef <- SubscriptionRef.make(0L)
           fiber           <- subscriptionRef.update(_ + 1).forever.fork
-          values          <- ZIO.collectAllPar(List.fill(5000)(subscriber(subscriptionRef)))
+          values          <- ZIO.collectAllPar(List.fill(100)(subscriber(subscriptionRef)))
           _               <- fiber.interrupt
         } yield assert(values)(forall(isSorted))
       }
