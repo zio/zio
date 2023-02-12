@@ -165,7 +165,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    */
   def withPermitsBetweenScoped(min: Long, max: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Long] =
     ZSTM.acquireReleaseWith(acquireBetween(min, max))((actualN: Long) => Scope.addFinalizer(releaseN(actualN).commit))(
-      ZIO.succeedNow
+      ZIO.succeed(_)
     )
 
   /**
@@ -174,7 +174,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    */
   def withPermitsUpToScoped(max: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Long] =
     ZSTM.acquireReleaseWith(acquireUpTo(max))((actualN: Long) => Scope.addFinalizer(releaseN(actualN).commit))(
-      ZIO.succeedNow
+      ZIO.succeed(_)
     )
 
   private def assertNonNegative(n: Long): Unit =

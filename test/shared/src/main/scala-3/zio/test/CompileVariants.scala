@@ -33,8 +33,8 @@ trait CompileVariants {
    */
   inline def typeCheck(inline code: String): UIO[Either[String, Unit]] =
     try {
-      if (typeChecks(code)) ZIO.succeedNow(Right(()))
-      else ZIO.succeedNow(Left(errorMessage))
+      if (typeChecks(code)) ZIO.succeed(Right(()))
+      else ZIO.succeed(Left(errorMessage))
     } catch {
       case _: Throwable => ZIO.die(new RuntimeException("Compilation failed"))
     }

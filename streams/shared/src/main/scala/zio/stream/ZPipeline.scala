@@ -755,7 +755,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               case ((Some(o), os), o1) =>
                 f(o, o1).map(b => if (b) (Some(o1), os) else (Some(o1), os :+ o1))
               case ((_, os), o1) =>
-                ZIO.succeedNow((Some(o1), os :+ o1))
+                ZIO.succeed((Some(o1), os :+ o1))
             }
           }.flatMap { case (newLast, newChunk) =>
             ZChannel.write(newChunk) *> writer(newLast)
@@ -1518,7 +1518,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapAccum[In, State, Out](
     s: => State
   )(f: (State, In) => (State, Out))(implicit trace: Trace): ZPipeline[Any, Nothing, In, Out] =
-    mapAccumZIO(s)((s, in) => ZIO.succeedNow(f(s, in)))
+    mapAccumZIO(s)((s, in) => ZIO.succeed(f(s, in)))
 
   /**
    * Creates a pipeline that statefully maps elements with the specified effect.
@@ -1677,7 +1677,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Creates a pipeline that scans elements with the specified function.
    */
   def scan[In, Out](s: => Out)(f: (Out, In) => Out)(implicit trace: Trace): ZPipeline[Any, Nothing, In, Out] =
-    scanZIO(s)((out, in) => ZIO.succeedNow(f(out, in)))
+    scanZIO(s)((out, in) => ZIO.succeed(f(out, in)))
 
   /**
    * Creates a pipeline that scans elements with the specified function.
@@ -1934,7 +1934,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def throttleEnforce[In](units: Long, duration: => Duration, burst: => Long = 0)(
     costFn: Chunk[In] => Long
   )(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
-    throttleEnforceZIO(units, duration, burst)(costFn.andThen(ZIO.succeedNow))
+    throttleEnforceZIO(units, duration, burst)(costFn.andThen(ZIO.succeed(_)))
 
   /**
    * Throttles the chunks of this pipeline according to the given bandwidth
@@ -1988,7 +1988,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def throttleShape[In](units: => Long, duration: => Duration, burst: Long = 0)(
     costFn: Chunk[In] => Long
   )(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
-    throttleShapeZIO(units, duration, burst)(costFn.andThen(ZIO.succeedNow))
+    throttleShapeZIO(units, duration, burst)(costFn.andThen(ZIO.succeed(_)))
 
   /**
    * Delays the chunks of this pipeline according to the given bandwidth

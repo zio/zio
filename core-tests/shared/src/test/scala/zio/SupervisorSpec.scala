@@ -101,7 +101,7 @@ object SupervisorSpec extends ZIOSpecDefault {
         def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
 
         override def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
-          promise.unsafe.done(ZIO.succeedNow(ref.unsafe.get))
+          promise.unsafe.done(ZIO.succeed(ref.unsafe.get))
       }
     }
 }

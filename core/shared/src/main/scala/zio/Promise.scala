@@ -183,8 +183,8 @@ final class Promise[E, A] private (
    */
   def poll(implicit trace: Trace): UIO[Option[IO[E, A]]] =
     ZIO.succeed(state.get).flatMap {
-      case Pending(_) => ZIO.succeedNow(None)
-      case Done(io)   => ZIO.succeedNow(Some(io))
+      case Pending(_) => ZIO.succeed(None)
+      case Done(io)   => ZIO.succeed(Some(io))
     }
 
   /**
@@ -198,7 +198,7 @@ final class Promise[E, A] private (
   /**
    * Completes the promise with the specified value.
    */
-  def succeed(a: A)(implicit trace: Trace): UIO[Boolean] = completeWith(ZIO.succeedNow(a))
+  def succeed(a: A)(implicit trace: Trace): UIO[Boolean] = completeWith(ZIO.succeed(a))
 
   private def interruptJoiner(joiner: IO[E, A] => Any)(implicit trace: Trace): UIO[Any] = ZIO.succeed {
     var retry = true

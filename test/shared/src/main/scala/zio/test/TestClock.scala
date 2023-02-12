@@ -266,7 +266,7 @@ object TestClock extends Serializable {
      */
     private[TestClock] def warningDone(implicit trace: Trace): UIO[Unit] =
       warningState.updateSomeZIO[Any, Nothing] {
-        case WarningData.Start          => ZIO.succeedNow(WarningData.done)
+        case WarningData.Start          => ZIO.succeed(WarningData.done)
         case WarningData.Pending(fiber) => fiber.interrupt.as(WarningData.done)
       }
 
@@ -298,8 +298,8 @@ object TestClock extends Serializable {
       supervisedFibers.flatMap { fibers =>
         ZIO.foldLeft(fibers)(Map.empty[FiberId, Fiber.Status]) { (map, fiber) =>
           fiber.status.flatMap {
-            case done @ Fiber.Status.Done                    => ZIO.succeedNow(map.updated(fiber.id, done))
-            case suspended @ Fiber.Status.Suspended(_, _, _) => ZIO.succeedNow(map.updated(fiber.id, suspended))
+            case done @ Fiber.Status.Done                    => ZIO.succeed(map.updated(fiber.id, done))
+            case suspended @ Fiber.Status.Suspended(_, _, _) => ZIO.succeed(map.updated(fiber.id, suspended))
             case _                                           => ZIO.fail(())
           }
         }
@@ -311,7 +311,7 @@ object TestClock extends Serializable {
     def supervisedFibers(implicit trace: Trace): UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
       ZIO.descriptorWith { descriptor =>
         annotations.get(TestAnnotation.fibers).flatMap {
-          case Left(_) => ZIO.succeedNow(SortedSet.empty[Fiber.Runtime[Any, Any]])
+          case Left(_) => ZIO.succeed(SortedSet.empty[Fiber.Runtime[Any, Any]])
           case Right(refs) =>
             ZIO
               .foreach(refs)(ref => ZIO.succeed(ref.get))
@@ -346,7 +346,7 @@ object TestClock extends Serializable {
      */
     private def suspended(implicit trace: Trace): IO[Unit, Map[FiberId, Fiber.Status]] =
       freeze.zip(delay *> freeze).flatMap { case (first, last) =>
-        if (first == last) ZIO.succeedNow(first)
+        if (first == last) ZIO.succeed(first)
         else ZIO.fail(())
       }
 
@@ -396,7 +396,7 @@ object TestClock extends Serializable {
       for {
         live                  <- ZIO.service[Live]
         annotations           <- ZIO.service[Annotations]
-        clockState            <- ZIO.succeedNow(Ref.unsafe.make(data)(Unsafe.unsafe))
+        clockState            <- ZIO.succeed(Ref.unsafe.make(data)(Unsafe.unsafe))
         warningState          <- Ref.Synchronized.make(WarningData.start)
         suspendedWarningState <- Ref.Synchronized.make(SuspendedWarningData.start)
         test                   = Test(clockState, live, annotations, warningState, suspendedWarningState)

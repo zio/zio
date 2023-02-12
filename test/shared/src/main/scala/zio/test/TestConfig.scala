@@ -77,23 +77,23 @@ object TestConfig {
    * The number of times to repeat tests to ensure they are stable.
    */
   def repeats(implicit trace: Trace): URIO[Any, Int] =
-    testConfigWith(testConfig => ZIO.succeedNow(testConfig.repeats))
+    testConfigWith(testConfig => ZIO.succeed(testConfig.repeats))
 
   /**
    * The number of times to retry flaky tests.
    */
   def retries(implicit trace: Trace): URIO[Any, Int] =
-    testConfigWith(testConfig => ZIO.succeedNow(testConfig.retries))
+    testConfigWith(testConfig => ZIO.succeed(testConfig.retries))
 
   /**
    * The number of sufficient samples to check for a random variable.
    */
   def samples(implicit trace: Trace): URIO[Any, Int] =
-    testConfigWith(testConfig => ZIO.succeedNow(testConfig.samples))
+    testConfigWith(testConfig => ZIO.succeed(testConfig.samples))
 
   /**
    * The maximum number of shrinkings to minimize large failures
    */
   def shrinks(implicit trace: Trace): URIO[Any, Int] =
-    testConfigWith(testConfig => ZIO.succeedNow(testConfig.shrinks))
+    testConfigWith(testConfig => ZIO.succeed(testConfig.shrinks))
 }

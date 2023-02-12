@@ -198,7 +198,7 @@ trait FiberRef[A] extends Serializable { self =>
 
       fiberState.setFiberRef(self, a)(Unsafe.unsafe)
 
-      ZIO.succeedNow(b)
+      ZIO.succeed(b)
     }
 
   /**
@@ -445,7 +445,7 @@ object FiberRef {
 
         override def get(implicit trace: Trace): UIO[Value] =
           ZIO.withFiberRuntime[Any, Nothing, Value] { (fiberState, _) =>
-            ZIO.succeedNow(fiberState.getFiberRef(self)(Unsafe.unsafe))
+            ZIO.succeed(fiberState.getFiberRef(self)(Unsafe.unsafe))
           }
 
         override def getWith[R, E, A](f: Value => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =

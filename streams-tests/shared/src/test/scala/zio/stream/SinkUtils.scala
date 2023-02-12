@@ -10,7 +10,7 @@ object SinkUtils {
     ZSink
       .fold[A, Option[A]](None)(_.isEmpty)((_, v) => if (a == v) Some(a) else None)
       .mapZIO {
-        case Some(v) => ZIO.succeedNow(v)
+        case Some(v) => ZIO.succeed(v)
         case None    => ZIO.fail(())
       }
 

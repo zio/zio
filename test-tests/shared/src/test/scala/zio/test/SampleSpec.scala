@@ -54,8 +54,8 @@ object SampleSpec extends ZIOBaseSpec {
       .zip(right)
       .mapZIO {
         case (Some(a), Some(b)) => equalSamples(a, b)
-        case (None, None)       => ZIO.succeedNow(true)
-        case _                  => ZIO.succeedNow(false)
+        case (None, None)       => ZIO.succeed(true)
+        case _                  => ZIO.succeed(false)
       }
       .runFold(true)(_ && _)
 }

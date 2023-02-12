@@ -218,14 +218,14 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   def collectWhileZIO[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]])(implicit
     trace: Trace
   ): ZIO[R, E, Chunk[B]] =
-    if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectWhileZIO(pf)
+    if (isEmpty) ZIO.succeed(Chunk.empty) else self.materialize.collectWhileZIO(pf)
 
   /**
    * Returns a filtered, mapped subset of the elements of this chunk based on a
    * .
    */
   def collectZIO[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]])(implicit trace: Trace): ZIO[R, E, Chunk[B]] =
-    if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectZIO(pf)
+    if (isEmpty) ZIO.succeed(Chunk.empty) else self.materialize.collectZIO(pf)
 
   /**
    * Determines whether this chunk and the specified chunk have the same length
@@ -329,7 +329,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     ZIO.suspendSucceed {
       val builder = ChunkBuilder.make[A]()
       builder.sizeHint(self.length)
-      var dropping: ZIO[R, E, Boolean] = ZIO.succeedNow(false)
+      var dropping: ZIO[R, E, Boolean] = ZIO.succeed(false)
       val iterator                     = self.chunkIterator
       var index                        = 0
       while (iterator.hasNextAt(index)) {
@@ -373,7 +373,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       val length  = self.length
       val builder = ChunkBuilder.make[A]()
       builder.sizeHint(length)
-      var dropping: ZIO[R, E, Boolean] = ZIO.succeedNow(true)
+      var dropping: ZIO[R, E, Boolean] = ZIO.succeed(true)
       val iterator                     = self.chunkIterator
       var index                        = 0
       while (iterator.hasNextAt(index)) {
@@ -442,7 +442,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       var index    = 0
       val builder  = ChunkBuilder.make[A]()
       builder.sizeHint(length)
-      var dest: ZIO[R, E, ChunkBuilder[A]] = ZIO.succeedNow(builder)
+      var dest: ZIO[R, E, ChunkBuilder[A]] = ZIO.succeed(builder)
       while (iterator.hasNextAt(index)) {
         val a = iterator.nextAt(index)
         index += 1
@@ -484,11 +484,11 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
           index += 1
 
           f(a).flatMap {
-            if (_) ZIO.succeedNow(Some(a))
+            if (_) ZIO.succeed(Some(a))
             else loop(iterator)
           }
         } else {
-          ZIO.succeedNow(None)
+          ZIO.succeed(None)
         }
 
       loop(iterator)
@@ -519,7 +519,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    * Effectfully folds over the elements in this chunk from the left.
    */
   final def foldZIO[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S])(implicit trace: Trace): ZIO[R, E, S] =
-    foldLeft[ZIO[R, E, S]](ZIO.succeedNow(s))((s, a) => s.flatMap(f(_, a)))
+    foldLeft[ZIO[R, E, S]](ZIO.succeed(s))((s, a) => s.flatMap(f(_, a)))
 
   /**
    * Folds over the elements in this chunk from the right.
@@ -560,9 +560,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     def loop(s: S, iterator: Chunk.ChunkIterator[A], index: Int): ZIO[R, E, S] =
       if (iterator.hasNextAt(index)) {
         if (pred(s)) f(s, iterator.nextAt(index)).flatMap(loop(_, iterator, index + 1))
-        else ZIO.succeedNow(s)
+        else ZIO.succeed(s)
       } else {
-        ZIO.succeedNow(s)
+        ZIO.succeed(s)
       }
 
     loop(z, iterator, 0)
@@ -677,7 +677,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       var index    = 0
       val builder  = ChunkBuilder.make[B]()
       builder.sizeHint(length)
-      var dest: ZIO[R, E, S1] = ZIO.succeedNow(s1)
+      var dest: ZIO[R, E, S1] = ZIO.succeed(s1)
       while (iterator.hasNextAt(index)) {
         val a = iterator.nextAt(index)
         index += 1
@@ -872,7 +872,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       val length  = self.length
       val builder = ChunkBuilder.make[A]()
       builder.sizeHint(length)
-      var taking: ZIO[R, E, Boolean] = ZIO.succeedNow(true)
+      var taking: ZIO[R, E, Boolean] = ZIO.succeed(true)
       val iterator                   = self.chunkIterator
       var index                      = 0
       while (iterator.hasNextAt(index)) {
@@ -1362,7 +1362,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       def go(s: S, builder: ChunkBuilder[A]): ZIO[R, E, Chunk[A]] =
         f(s).flatMap {
           case Some((a, s)) => go(s, builder += a)
-          case None         => ZIO.succeedNow(builder.result())
+          case None         => ZIO.succeed(builder.result())
         }
 
       go(s, ChunkBuilder.make[A]())
@@ -1554,8 +1554,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       val len     = array.length
       val builder = ChunkBuilder.make[B]()
       builder.sizeHint(len)
-      val orElse                           = (_: A) => ZIO.succeedNow(null.asInstanceOf[B])
-      var dest: ZIO[R, E, ChunkBuilder[B]] = ZIO.succeedNow(builder)
+      val orElse                           = (_: A) => ZIO.succeed(null.asInstanceOf[B])
+      var dest: ZIO[R, E, ChunkBuilder[B]] = ZIO.succeed(builder)
 
       var i = 0
       while (i < len) {
@@ -1601,13 +1601,13 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         val len     = self.length
         val builder = ChunkBuilder.make[B]()
         builder.sizeHint(len)
-        var dest: ZIO[R, E, ChunkBuilder[B]] = ZIO.succeedNow(builder)
+        var dest: ZIO[R, E, ChunkBuilder[B]] = ZIO.succeed(builder)
 
         var i    = 0
         var done = false
         val orElse = (_: A) => {
           done = true
-          ZIO.succeedNow(null.asInstanceOf[B])
+          ZIO.succeed(null.asInstanceOf[B])
         }
 
         while (!done && i < len) {

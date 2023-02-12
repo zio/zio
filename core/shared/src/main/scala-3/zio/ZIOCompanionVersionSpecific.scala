@@ -102,7 +102,7 @@ trait ZIOCompanionVersionSpecific {
 
         val result = code
 
-        ZIO.succeedNow(result)
+        Exit.succeed(result)
       } catch {
         case t: Throwable if !fiberState.isFatal(t)(Unsafe.unsafe) =>
           throw ZIOError.Traced(Cause.fail(t, StackTrace.fromJava(fiberState.id, t.getStackTrace())))

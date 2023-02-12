@@ -138,7 +138,7 @@ object Hub {
           if (shutdownFlag.get) ZIO.interrupt
           else if (hub.publish(a)) {
             strategy.unsafeCompleteSubscribers(hub, subscribers)
-            ZIO.succeedNow(true)
+            ZIO.succeed(true)
           } else {
             strategy.handleSurplus(hub, subscribers, Chunk(a), shutdownFlag)
           }
@@ -149,7 +149,7 @@ object Hub {
           else {
             val surplus = unsafePublishAll(hub, as)
             strategy.unsafeCompleteSubscribers(hub, subscribers)
-            if (surplus.isEmpty) ZIO.succeedNow(Chunk.empty)
+            if (surplus.isEmpty) ZIO.succeed(Chunk.empty)
             else
               strategy.handleSurplus(hub, subscribers, surplus, shutdownFlag).map { published =>
                 if (published) Chunk.empty else surplus
@@ -168,7 +168,7 @@ object Hub {
       def size(implicit trace: Trace): UIO[Int] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
-          else ZIO.succeedNow(hub.size())
+          else ZIO.succeed(hub.size())
         }
       def subscribe(implicit trace: Trace): ZIO[Scope, Nothing, Dequeue[A]] =
         ZIO.acquireRelease {
@@ -220,9 +220,9 @@ object Hub {
       def isShutdown(implicit trace: Trace): UIO[Boolean] =
         ZIO.succeed(shutdownFlag.get)
       def offer(a: Nothing)(implicit trace: Trace): UIO[Boolean] =
-        ZIO.succeedNow(false)
+        ZIO.succeed(false)
       def offerAll[A1 <: Nothing](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
-        ZIO.succeedNow(Chunk.fromIterable(as))
+        ZIO.succeed(Chunk.fromIterable(as))
       def shutdown(implicit trace: Trace): UIO[Unit] =
         ZIO.fiberIdWith { fiberId =>
           shutdownFlag.set(true)
@@ -237,7 +237,7 @@ object Hub {
       def size(implicit trace: Trace): UIO[Int] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
-          else ZIO.succeedNow(subscription.size())
+          else ZIO.succeed(subscription.size())
         }
       def take(implicit trace: Trace): UIO[A] =
         ZIO.fiberIdWith { fiberId =>
@@ -256,7 +256,7 @@ object Hub {
                 }.onInterrupt(ZIO.succeed(unsafeRemove(pollers, promise)))
               case a =>
                 strategy.unsafeOnHubEmptySpace(hub, subscribers)
-                ZIO.succeedNow(a)
+                ZIO.succeed(a)
             }
           }
         }
@@ -266,7 +266,7 @@ object Hub {
           else {
             val as = if (pollers.isEmpty()) unsafePollAll(subscription) else Chunk.empty
             strategy.unsafeOnHubEmptySpace(hub, subscribers)
-            ZIO.succeedNow(as)
+            ZIO.succeed(as)
           }
         }
       def takeUpTo(max: Int)(implicit trace: Trace): ZIO[Any, Nothing, Chunk[A]] =
@@ -275,7 +275,7 @@ object Hub {
           else {
             val as = if (pollers.isEmpty()) unsafePollN(subscription, max) else Chunk.empty
             strategy.unsafeOnHubEmptySpace(hub, subscribers)
-            ZIO.succeedNow(as)
+            ZIO.succeed(as)
           }
         }
     }
@@ -455,7 +455,7 @@ object Hub {
         as: Iterable[A],
         isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] =
-        ZIO.succeedNow(false)
+        ZIO.succeed(false)
 
       def shutdown(implicit trace: Trace): UIO[Unit] =
         ZIO.unit
@@ -520,7 +520,7 @@ object Hub {
    * Unsafely completes a promise with the specified value.
    */
   private def unsafeCompletePromise[A](promise: Promise[Nothing, A], a: A): Unit =
-    promise.unsafe.done(ZIO.succeedNow(a))(Unsafe.unsafe)
+    promise.unsafe.done(Exit.succeed(a))(Unsafe.unsafe)
 
   /**
    * Unsafely offers the specified values to a queue.

@@ -107,7 +107,7 @@ object HubSpec extends ZIOBaseSpec {
       else {
         val as        = subscription.pollUpTo(chunkSize)
         val remaining = n - as.length
-        if (remaining <= 0) ZIO.succeedNow(((as.reverse.toList) ::: acc).reverse)
+        if (remaining <= 0) ZIO.succeed(((as.reverse.toList) ::: acc).reverse)
         else ZIO.yieldNow *> takeNChunks[A](subscription, remaining, chunkSize, as.reverse.toList ::: acc)
       }
     }

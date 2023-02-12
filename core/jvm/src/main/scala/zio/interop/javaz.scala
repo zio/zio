@@ -30,7 +30,7 @@ private[zio] object javaz {
     ZIO.isFatalWith[Any, Throwable, T] { isFatal =>
       ZIO.async { k =>
         val handler = new CompletionHandler[T, Any] {
-          def completed(result: T, u: Any): Unit = k(ZIO.succeedNow(result))
+          def completed(result: T, u: Any): Unit = k(ZIO.succeed(result))
 
           def failed(t: Throwable, u: Any): Unit = t match {
             case e if !isFatal(e) => k(ZIO.fail(e))
@@ -63,7 +63,7 @@ private[zio] object javaz {
 
   def unwrapDone[A](isFatal: Throwable => Boolean)(f: Future[A])(implicit trace: Trace): Task[A] =
     try {
-      ZIO.succeedNow(f.get())
+      Exit.succeed(f.get())
     } catch catchFromGet(isFatal)
 
   def fromCompletionStage[A](thunk: => CompletionStage[A])(implicit trace: Trace): Task[A] =

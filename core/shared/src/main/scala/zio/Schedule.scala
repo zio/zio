@@ -260,7 +260,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         val onLeft = state._3
         if (onLeft) self.step(now, in, state._1).flatMap {
           case (lState, out, Continue(interval)) =>
-            ZIO.succeedNow(((lState, state._2, true), Left(out), Continue(interval)))
+            ZIO.succeed(((lState, state._2, true), Left(out), Continue(interval)))
           case (lState, _, Done) =>
             that.step(now, in, state._2).map { case (rState, out, decision) =>
               ((lState, rState, false), Right(out), decision)
@@ -304,7 +304,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         trace: Trace
       ): ZIO[Env1, Nothing, (State, Out, Decision)] =
         self.step(now, in, state).flatMap {
-          case (state, out, Done) => ZIO.succeedNow((state, out, Done))
+          case (state, out, Done) => ZIO.succeed((state, out, Done))
           case (state, out, Continue(interval)) =>
             test(in, out).map { b =>
               if (b) (state, out, Continue(interval)) else (state, out, Done)
@@ -327,7 +327,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   def collectWhile[Out1 >: Out](f: Out => Boolean)(implicit
     trace: Trace
   ): Schedule.WithState[(self.State, Chunk[Out1]), Env, In, Chunk[Out1]] =
-    collectWhileZIO(out => ZIO.succeedNow(f(out)))
+    collectWhileZIO(out => ZIO.succeed(f(out)))
 
   /**
    * Returns a new schedule that collects the outputs of this one into a list as
@@ -373,7 +373,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   def collectUntil[Out1 >: Out](f: Out => Boolean)(implicit
     trace: Trace
   ): Schedule.WithState[(self.State, Chunk[Out1]), Env, In, Chunk[Out1]] =
-    collectUntilZIO(out => ZIO.succeedNow(f(out)))
+    collectUntilZIO(out => ZIO.succeed(f(out)))
 
   /**
    * Returns a new schedule that collects the outputs of this one into a list
@@ -442,10 +442,10 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
       ): ZIO[Env, Nothing, (State, Duration, Decision)] =
         self.step(now, in, state).flatMap {
           case (state, _, Done) =>
-            ZIO.succeedNow((state, Duration.Zero, Done))
+            ZIO.succeed((state, Duration.Zero, Done))
           case (state, _, Continue(interval)) =>
             val delay = Duration.fromInterval(now, interval.start)
-            ZIO.succeedNow((state, delay, Continue(interval)))
+            ZIO.succeed((state, delay, Continue(interval)))
         }
     }
 
@@ -537,7 +537,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
       ): ZIO[Env, Nothing, (State, Out, Decision)] =
         self.step(now, in, state).flatMap {
           case (state, out, Done)               => finalizer.as((state, out, Done))
-          case (state, out, Continue(interval)) => ZIO.succeedNow((state, out, Continue(interval)))
+          case (state, out, Continue(interval)) => ZIO.succeed((state, out, Continue(interval)))
         }
     }
 
@@ -587,7 +587,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
       ): ZIO[Env, Nothing, (State, Out, Decision)] =
         self.step(now, in, state).flatMap {
           case (_, _, Done)                     => step(now, in, initial)
-          case (state, out, Continue(interval)) => ZIO.succeedNow((state, out, Continue(interval)))
+          case (state, out, Continue(interval)) => ZIO.succeed((state, out, Continue(interval)))
         }
     }
 
@@ -616,18 +616,18 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
       )(implicit trace: Trace): ZIO[Env1, Nothing, (State, zippable.Out, Decision)] = {
         val combined = f(lInterval, rInterval)
         if (combined.nonEmpty)
-          ZIO.succeedNow(((lState, rState), zippable.zip(out, out2), Continue(combined)))
+          ZIO.succeed(((lState, rState), zippable.zip(out, out2), Continue(combined)))
         else if (lInterval < rInterval)
           self.step(lInterval.end, in, lState).flatMap {
             case ((lState, out, Continue(lInterval))) =>
               loop(in, lState, out, lInterval, rState, out2, rInterval)
-            case ((lState, out, _)) => ZIO.succeedNow(((lState, rState), zippable.zip(out, out2), Done))
+            case ((lState, out, _)) => ZIO.succeed(((lState, rState), zippable.zip(out, out2), Done))
           }
         else
           that.step(rInterval.end, in, rState).flatMap {
             case ((rState, out2, Continue(rInterval))) =>
               loop(in, lState, out, lInterval, rState, out2, rInterval)
-            case ((rState, out2, _)) => ZIO.succeedNow(((lState, rState), zippable.zip(out, out2), Done))
+            case ((rState, out2, _)) => ZIO.succeed(((lState, rState), zippable.zip(out, out2), Done))
           }
       }
 
@@ -641,7 +641,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
           case ((lState, out, Continue(lInterval)), (rState, out2, Continue(rInterval))) =>
             loop(in, lState, out, lInterval, rState, out2, rInterval)
           case ((lState, out, _), (rState, out2, _)) =>
-            ZIO.succeedNow(((lState, rState), zippable.zip(out, out2), Done))
+            ZIO.succeed(((lState, rState), zippable.zip(out, out2), Done))
         }
       }
     }
@@ -712,7 +712,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * function.
    */
   def modifyDelay(f: (Out, Duration) => Duration): Schedule.WithState[self.State, Env, In, Out] =
-    modifyDelayZIO((out, duration) => ZIO.succeedNow(f(out, duration)))
+    modifyDelayZIO((out, duration) => Exit.succeed(f(out, duration)))
 
   /**
    * Returns a new schedule that modifies the delay using the specified
@@ -728,7 +728,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         trace: Trace
       ): ZIO[Env1, Nothing, (State, Out, Decision)] =
         self.step(now, in, state).flatMap {
-          case (state, out, Done) => ZIO.succeedNow((state, out, Done))
+          case (state, out, Done) => ZIO.succeed((state, out, Done))
           case (state, out, Continue(interval)) =>
             val delay = Interval(now, interval.start).size
 
@@ -878,7 +878,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         trace: Trace
       ): ZIO[Env, Nothing, (State, Out, Decision)] =
         self.step(now, in, state).flatMap { case (state, out, decision) =>
-          if (f(out)) self.step(now, in, self.initial) else ZIO.succeedNow((state, out, decision))
+          if (f(out)) self.step(now, in, self.initial) else ZIO.succeed((state, out, decision))
         }
     }
 
@@ -901,7 +901,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
       acc: Chunk[Out]
     ): URIO[Env, Chunk[Out]] =
       xs match {
-        case Nil => ZIO.succeedNow(acc)
+        case Nil => ZIO.succeed(acc)
         case in :: xs =>
           self.step(now, in, state).flatMap {
             case (_, out, Done)                   => ZIO.succeed(acc :+ out)
@@ -1510,7 +1510,7 @@ object Schedule {
           val start    = beginningOfSecond(second00)
           val end      = endOfSecond(second00)
           val interval = Interval(start, end)
-          ZIO.succeedNow(((end, n + 1), n, Decision.Continue(interval)))
+          ZIO.succeed(((end, n + 1), n, Decision.Continue(interval)))
         }
     }
 
@@ -1537,7 +1537,7 @@ object Schedule {
           val start    = beginningOfMinute(minute0)
           val end      = endOfMinute(minute0)
           val interval = Interval(start, end)
-          ZIO.succeedNow(((end, n + 1), n, Decision.Continue(interval)))
+          ZIO.succeed(((end, n + 1), n, Decision.Continue(interval)))
         }
     }
 
@@ -1563,7 +1563,7 @@ object Schedule {
           val start    = beginningOfHour(hour0)
           val end      = endOfHour(hour0)
           val interval = Interval(start, end)
-          ZIO.succeedNow(((end, n + 1), n, Decision.Continue(interval)))
+          ZIO.succeed(((end, n + 1), n, Decision.Continue(interval)))
         }
     }
 
@@ -1594,7 +1594,7 @@ object Schedule {
           val start    = beginningOfDay(day0)
           val end      = endOfDay(day0)
           val interval = Interval(start, end)
-          ZIO.succeedNow(((end, n + 1), n, Decision.Continue(interval)))
+          ZIO.succeed(((end, n + 1), n, Decision.Continue(interval)))
         }
     }
 
@@ -1622,7 +1622,7 @@ object Schedule {
           val start    = beginningOfDay(day0)
           val end      = endOfDay(day0)
           val interval = Interval(start, end)
-          ZIO.succeedNow(((end, n + 1), n, Decision.Continue(interval)))
+          ZIO.succeed(((end, n + 1), n, Decision.Continue(interval)))
         }
     }
 

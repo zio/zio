@@ -80,7 +80,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   final def execute(defExec: ExecutionStrategy)(implicit
     trace: Trace
   ): ZIO[R with Scope, Nothing, Spec[Any, E]] =
-    ZIO.environmentWithZIO(provideEnvironment(_).foreachExec(defExec)(ZIO.refailCause(_), ZIO.succeedNow))
+    ZIO.environmentWithZIO(provideEnvironment(_).foreachExec(defExec)(ZIO.refailCause(_), ZIO.succeed(_)))
 
   /**
    * Returns a new spec with only those tests with annotations satisfying the
@@ -159,7 +159,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
       case ScopedCase(scoped) =>
         scoped.foldCauseZIO(
           c => f(ScopedCase(ZIO.refailCause(c))),
-          spec => spec.foldScoped[R1, E1, Z](defExec)(f).flatMap(z => f(ScopedCase(ZIO.succeedNow(z))))
+          spec => spec.foldScoped[R1, E1, Z](defExec)(f).flatMap(z => f(ScopedCase(ZIO.succeed(z))))
         )
       case MultipleCase(specs) =>
         ZIO
@@ -182,14 +182,14 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     trace: Trace
   ): ZIO[R1 with Scope, Nothing, Spec[R1, E1]] =
     foldScoped[R1, Nothing, Spec[R1, E1]](defExec) {
-      case ExecCase(exec, spec)     => ZIO.succeedNow(Spec.exec(exec, spec))
-      case LabeledCase(label, spec) => ZIO.succeedNow(Spec.labeled(label, spec))
+      case ExecCase(exec, spec)     => ZIO.succeed(Spec.exec(exec, spec))
+      case LabeledCase(label, spec) => ZIO.succeed(Spec.labeled(label, spec))
       case ScopedCase(scoped) =>
         scoped.foldCause(
           c => Spec.test(failure(c), TestAnnotationMap.empty),
-          t => Spec.scoped(ZIO.succeedNow(t))
+          t => Spec.scoped(ZIO.succeed(t))
         )
-      case MultipleCase(specs) => ZIO.succeedNow(Spec.multiple(specs))
+      case MultipleCase(specs) => ZIO.succeed(Spec.multiple(specs))
       case TestCase(test, annotations) =>
         test
           .foldCause(
@@ -428,7 +428,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   final def when(
     b: => Boolean
   )(implicit trace: Trace): Spec[R, E] =
-    whenZIO(ZIO.succeedNow(b))
+    whenZIO(ZIO.succeed(b))
 
   /**
    * Runs the spec only if the specified effectual predicate is satisfied.
@@ -445,7 +445,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
         Spec.scoped[R1](
           b.mapError(TestFailure.fail).flatMap { b =>
             if (b) scoped
-            else ZIO.succeedNow(Spec.empty)
+            else ZIO.succeed(Spec.empty)
           }
         )
       case MultipleCase(specs) =>
