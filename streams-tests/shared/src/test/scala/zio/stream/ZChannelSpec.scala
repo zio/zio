@@ -822,6 +822,15 @@ object ZChannelSpec extends ZIOBaseSpec {
         for {
           _ <- ZChannel.unit.run.uninterruptible
         } yield assertCompletes
+      },
+      test("finalizer failure is propagated") {
+        for {
+          exit <- ZChannel.unit
+                    .ensuring(ZIO.dieMessage("die"))
+                    .ensuring(ZIO.unit)
+                    .runDrain
+                    .exit
+        } yield assertTrue(exit.isFailure)
       }
     )
   )
