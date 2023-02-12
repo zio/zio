@@ -5794,7 +5794,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   @deprecated("use succeed", "2.0.9")
   private[zio] def succeedNow[A](a: A): UIO[A] =
-    succeed(a)
+    succeed(a)(Trace.empty)
 
   private def collectAllParUnboundedDiscard[R, E, A](as: => Iterable[ZIO[R, E, A]])(implicit
     trace: Trace
