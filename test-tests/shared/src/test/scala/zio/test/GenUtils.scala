@@ -76,7 +76,7 @@ object GenUtils {
   def shrinksTo[R, A](gen: Gen[R, A]): URIO[R, A] =
     shrinks(gen).map(_.reverse.head)
 
-  val smallInt: Gen[Any, Int] = Gen.int(-10, 10)
+  val smallInt: Gen[Any, Int] = Gen.int(-100, 100)
 
   def sample[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
     gen.sample.collectSome.map(_.value).runCollect.map(_.toList)
