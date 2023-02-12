@@ -2894,6 +2894,10 @@ object ZManaged extends ZManagedPlatformSpecific {
       }
   }
 
+  @deprecated("use succeed", "2.0.9")
+  private[zio] def succeedNow[A](r: A): ZManaged[Any, Nothing, A] =
+    succeed(r)
+
   implicit final class RefineToOrDieOps[R, E <: Throwable, A](private val self: ZManaged[R, E, A]) extends AnyVal {
 
     /**
