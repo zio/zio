@@ -75,12 +75,12 @@ object ConfigSpec extends ZIOBaseSpec {
           value <- configProvider.load(config).exit
         } yield assert(value)(failsWithA[Config.Error])
       },
-      test("recovers from missing data or other error") {
+      test("does not recover from missing data or other error") {
         val config         = Config.int("key1").orElse(Config.int("key2")).withDefault(0)
         val configProvider = ConfigProvider.fromMap(Map("key2" -> "value"))
         for {
-          value <- configProvider.load(config)
-        } yield assert(value)(equalTo(0))
+          value <- configProvider.load(config).exit
+        } yield assert(value)(failsWithA[Config.Error])
       }
     )
 
@@ -107,12 +107,12 @@ object ConfigSpec extends ZIOBaseSpec {
           value <- configProvider.load(config).exit
         } yield assert(value)(failsWithA[Config.Error])
       },
-      test("recovers from missing data or other error") {
+      test("does not recover from missing data or other error") {
         val config         = Config.int("key1").orElse(Config.int("key2")).optional
         val configProvider = ConfigProvider.fromMap(Map("key2" -> "value"))
         for {
-          value <- configProvider.load(config)
-        } yield assert(value)(isNone)
+          value <- configProvider.load(config).exit
+        } yield assert(value)(failsWithA[Config.Error])
       }
     )
 
