@@ -190,16 +190,16 @@ jobs:
       run: ./sbt ++${{ matrix.scala }}! mimaChecks
     - name: Test 2.11
       if: ${{ startsWith(matrix.scala, '2.11.') }}
-      run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}211/test
+      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
     - name: Test 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
-      run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}212/test
+      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
     - name: Test 2.13
       if: ${{ startsWith(matrix.scala, '2.13.') }}
-      run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}213/test
+      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
     - name: Test 3
       if: ${{ startsWith(matrix.scala, '3.') }}
-      run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}3/test
+      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}3
     - name: Upload Test Results 2.11
       if: ${{ startsWith(matrix.scala, '2.11.') }}
       uses: actions/upload-artifact@v3
