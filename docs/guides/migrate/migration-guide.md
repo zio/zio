@@ -53,9 +53,9 @@ Let's see an example of that in the ZIO source code:
 ```diff
 trait ZIO[-R, +E, +A] {
 -  def map[B](f: A => B): ZIO[R, E, B] =
-     flatMap(a => ZIO.succeedNow(f(a)))
+     flatMap(a => ZIO.succeed(f(a)))
 +  def map[B](f: A => B)(implicit trace: Trace): ZIO[R, E, B] = 
-     flatMap(a => ZIO.succeedNow(f(a)))
+     flatMap(a => ZIO.succeed(f(a)))
 }
 ```
 
@@ -146,7 +146,7 @@ In ZIO 2.x, we removed companion objects for type aliases. We still can use type
 
 ```diff
 - val effect: UIO[Int] = UIO.succeed(1)
-+ val effect: UIO[Int] = ZIO.succeedNow(1)
++ val effect: UIO[Int] = Exit.succeed(1)
 
 // another examp:
 - val stream: UStream[Int] = UStream.succeed(1)

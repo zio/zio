@@ -1722,7 +1722,7 @@ object ZChannel {
                                ZIO.succeed(Some(done))
                              case Right(outElem) =>
                                queue
-                                 .offer(ZIO.succeedNow(Right(outElem)))
+                                 .offer(ZIO.succeed(Right(outElem)))
                                  .as(None)
                            }
                              .repeatUntil(_.isDefined)

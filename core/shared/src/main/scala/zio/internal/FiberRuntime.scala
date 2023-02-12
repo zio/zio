@@ -66,7 +66,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   def ask[A](f: (FiberRuntime[_, _], Fiber.Status) => A)(implicit trace: Trace): UIO[A] =
     ZIO.async[Any, Nothing, A] { k =>
       tell(
-        FiberMessage.Stateful((fiber, status) => k(ZIO.succeedNow(f(fiber, status))))
+        FiberMessage.Stateful((fiber, status) => k(Exit.succeed(f(fiber, status))))
       )(Unsafe.unsafe)
     }
 
@@ -156,7 +156,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   def trace(implicit trace: Trace): UIO[StackTrace] =
     ZIO.async[Any, Nothing, StackTrace] { k =>
-      tell(FiberMessage.GenStackTrace(trace => k(ZIO.succeedNow(trace))))(
+      tell(FiberMessage.GenStackTrace(trace => k(Exit.succeed(trace))))(
         Unsafe.unsafe
       )
     }
@@ -442,11 +442,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               (trampolines >= FiberRuntime.MaxTrampolinesBeforeYield) && RuntimeFlags.cooperativeYielding(_runtimeFlags)
             ) {
               tell(FiberMessage.YieldNow) // Signal to the outer loop to give us a break!
-              tell(FiberMessage.Resume(ZIO.succeedNow(generateStackTrace())))
+              tell(FiberMessage.Resume(Exit.succeed(generateStackTrace())))
 
               effect = null
             } else {
-              effect = ZIO.succeedNow(generateStackTrace())
+              effect = Exit.succeed(generateStackTrace())
             }
 
           case t: Throwable =>

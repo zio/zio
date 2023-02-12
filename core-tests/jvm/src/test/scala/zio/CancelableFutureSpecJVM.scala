@@ -20,7 +20,7 @@ object CancelableFutureSpecJVM extends ZIOBaseSpec {
             runtime <- ZIO.runtime[Any]
             r <- ZIO.fromFuture { _ =>
                    Unsafe.unsafe { implicit unsafe =>
-                     runtime.unsafe.runToFuture(ZIO.succeedNow(0))
+                     runtime.unsafe.runToFuture(ZIO.succeed(0))
                    }
                  }
           } yield assert(r)(equalTo(0))

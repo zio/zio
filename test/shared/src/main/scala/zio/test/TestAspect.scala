@@ -356,7 +356,7 @@ object TestAspect extends TimeoutVariants {
       ): ZIO[R, TestFailure[E], TestSuccess] =
         test.foldZIO(
           failure =>
-            if (assertion(failure)) ZIO.succeedNow(TestSuccess.Succeeded())
+            if (assertion(failure)) ZIO.succeed(TestSuccess.Succeeded())
             else ZIO.fail(TestFailure.die(new RuntimeException("did not fail as expected"))),
           _ => ZIO.fail(TestFailure.die(new RuntimeException("did not fail as expected")))
         )
@@ -943,7 +943,7 @@ object TestAspect extends TimeoutVariants {
         test.flatMap {
           case TestSuccess.Ignored(_) =>
             ZIO.fail(TestFailure.Runtime(Cause.die(new RuntimeException("Test was ignored."))))
-          case x => ZIO.succeedNow(x)
+          case x => ZIO.succeed(x)
         }
     }
 

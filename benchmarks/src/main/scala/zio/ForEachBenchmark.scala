@@ -71,7 +71,7 @@ class ForEachBenchmark {
   def zioForEachFork(): Int = {
 
     val io = for {
-      _ <- ZIO.foreachDiscard(ints)(ZIO.succeedNow(_).forkDaemon)
+      _ <- ZIO.foreachDiscard(ints)(ZIO.succeed(_).forkDaemon)
     } yield 0
 
     unsafeRun(io)
@@ -81,7 +81,7 @@ class ForEachBenchmark {
   def zioForEachForkAwait(): Int = {
 
     val io = for {
-      fibers <- ZIO.foreach(ints)(ZIO.succeedNow(_).forkDaemon)
+      fibers <- ZIO.foreach(ints)(ZIO.succeed(_).forkDaemon)
       _      <- ZIO.foreach(fibers)(_.await)
     } yield 0
 

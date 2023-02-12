@@ -107,7 +107,7 @@ class ShallowAttemptBenchmark {
     def throwup(n: Int): IO[ZIOError, BigInt] =
       if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
       else if (n == depth) ZIO.succeed(1)
-      else throwup(n + 1).foldZIO[Any, ZIOError, BigInt](_ => ZIO.succeedNow(0), _ => ZIO.fail(ZIOError("Oh noes!")))
+      else throwup(n + 1).foldZIO[Any, ZIOError, BigInt](_ => ZIO.succeed(0), _ => ZIO.fail(ZIOError("Oh noes!")))
 
     unsafeRun(throwup(0))
   }
@@ -117,7 +117,7 @@ class ShallowAttemptBenchmark {
     def throwup(n: Int): IO[Error, BigInt] =
       if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
       else if (n == depth) ZIO.succeed(1)
-      else throwup(n + 1).foldZIO[Any, Error, BigInt](_ => ZIO.succeedNow(0), _ => ZIO.fail(new Error("Oh noes!")))
+      else throwup(n + 1).foldZIO[Any, Error, BigInt](_ => ZIO.succeed(0), _ => ZIO.fail(new Error("Oh noes!")))
 
     unsafeRun(throwup(0))
   }

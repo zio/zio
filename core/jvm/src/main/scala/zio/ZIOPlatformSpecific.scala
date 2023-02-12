@@ -104,7 +104,7 @@ private[zio] trait ZIOCompanionPlatformSpecific {
                        try {
                          val a = effect
 
-                         ZIO.succeedNow(a)
+                         ZIO.succeed(a)
                        } catch {
                          case _: InterruptedException =>
                            Thread.interrupted // Clear interrupt status

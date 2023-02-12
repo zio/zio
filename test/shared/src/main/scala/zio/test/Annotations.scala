@@ -43,7 +43,7 @@ object Annotations {
     def supervisedFibers(implicit trace: Trace): UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
       ZIO.descriptorWith { descriptor =>
         get(TestAnnotation.fibers).flatMap {
-          case Left(_) => ZIO.succeedNow(SortedSet.empty[Fiber.Runtime[Any, Any]])
+          case Left(_) => ZIO.succeed(SortedSet.empty[Fiber.Runtime[Any, Any]])
           case Right(refs) =>
             ZIO
               .foreach(refs)(ref => ZIO.succeed(ref.get))

@@ -765,7 +765,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                     )(
                       {
                         case (Exit.Success(a), current) =>
-                          ZIO.succeedNow(ZChannel.write(a) *> consumer(Current(current)))
+                          ZIO.succeed(ZChannel.write(a) *> consumer(Current(current)))
                         case (Exit.Failure(cause), current) =>
                           current.interrupt as ZChannel.failCause(cause)
                       },
@@ -1086,12 +1086,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                          .foldCauseZIO(
                            {
                              // we ignore all downstream queues that were shut down and remove them later
-                             case c if c.isInterrupted => ZIO.succeedNow(id :: acc)
+                             case c if c.isInterrupted => ZIO.succeed(id :: acc)
                              case c                    => ZIO.refailCause(c)
                            },
-                           _ => ZIO.succeedNow(acc)
+                           _ => ZIO.succeed(acc)
                          )
-                     } else ZIO.succeedNow(acc)
+                     } else ZIO.succeed(acc)
                    }
                    .flatMap(ids => if (ids.nonEmpty) queuesRef.update(_ -- ids) else ZIO.unit)
           } yield ()
@@ -1481,7 +1481,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                      )
             _ <- decider.succeed { case (k, _) =>
                    ref.get.map(_.get(k)).flatMap {
-                     case Some(idx) => ZIO.succeedNow(_ == idx)
+                     case Some(idx) => ZIO.succeed(_ == idx)
                      case None =>
                        add.flatMap { case (idx, q) =>
                          (ref.update(_.updated(k, idx)) *>
@@ -2163,7 +2163,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def partition(p: A => Boolean, buffer: => Int = 16)(implicit
     trace: Trace
   ): ZIO[R with Scope, E, (ZStream[Any, E, A], ZStream[Any, E, A])] =
-    self.partitionEither(a => if (p(a)) ZIO.succeedNow(Left(a)) else ZIO.succeedNow(Right(a)), buffer)
+    self.partitionEither(a => if (p(a)) ZIO.succeed(Left(a)) else ZIO.succeed(Right(a)), buffer)
 
   /**
    * Split a stream by a predicate. The faster stream may advance by up to
@@ -2179,13 +2179,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         2,
         buffer,
         {
-          case Left(_)  => ZIO.succeedNow(_ == 0)
-          case Right(_) => ZIO.succeedNow(_ == 1)
+          case Left(_)  => ZIO.succeed(_ == 0)
+          case Right(_) => ZIO.succeed(_ == 1)
         }
       )
       .flatMap {
         case q1 :: q2 :: Nil =>
-          ZIO.succeedNow {
+          ZIO.succeed {
             (
               ZStream.fromQueueWithShutdown(q1).flattenExitOption.collectLeft,
               ZStream.fromQueueWithShutdown(q2).flattenExitOption.collectRight
@@ -2519,7 +2519,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def rightOrFail[A1, A2, E1 >: E](
     e: => E1
   )(implicit ev: A <:< Either[A1, A2], trace: Trace): ZStream[R, E1, A2] =
-    self.mapZIO(ev(_).fold(_ => ZIO.fail(e), ZIO.succeedNow(_)))
+    self.mapZIO(ev(_).fold(_ => ZIO.fail(e), ZIO.succeed(_)))
 
   /**
    * Runs the sink on the stream to produce either the sink's result or an
@@ -2783,7 +2783,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * intermediate results of type `S` given an initial S.
    */
   def scan[S](s: => S)(f: (S, A) => S)(implicit trace: Trace): ZStream[R, E, S] =
-    scanZIO(s)((s, a) => ZIO.succeedNow(f(s, a)))
+    scanZIO(s)((s, a) => ZIO.succeed(f(s, a)))
 
   /**
    * Statefully maps over the elements of this stream to produce all
@@ -2792,7 +2792,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * See also [[ZStream#scan]].
    */
   def scanReduce[A1 >: A](f: (A1, A) => A1)(implicit trace: Trace): ZStream[R, E, A1] =
-    scanReduceZIO[R, E, A1]((curr, next) => ZIO.succeedNow(f(curr, next)))
+    scanReduceZIO[R, E, A1]((curr, next) => ZIO.succeed(f(curr, next)))
 
   /**
    * Statefully and effectfully maps over the elements of this stream to produce
@@ -2805,7 +2805,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   )(implicit trace: Trace): ZStream[R1, E1, A1] =
     mapAccumZIO[R1, E1, Option[A1], A1](Option.empty[A1]) {
       case (Some(a1), a) => f(a1, a).map(a2 => Some(a2) -> a2)
-      case (None, a)     => ZIO.succeedNow(Some(a) -> a)
+      case (None, a)     => ZIO.succeed(Some(a) -> a)
     }
 
   /**
@@ -2858,7 +2858,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                 driver.last.orDie.map { b =>
                   ZChannel.write(Chunk(f(a), g(b))) *> loop(driver, chunkIterator, index + 1)
                 } <* driver.reset,
-              _ => ZIO.succeedNow(ZChannel.write(Chunk(f(a))) *> loop(driver, chunkIterator, index + 1))
+              _ => ZIO.succeed(ZChannel.write(Chunk(f(a))) *> loop(driver, chunkIterator, index + 1))
             )
         }
       else
@@ -2887,7 +2887,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * Extracts the optional value, or fails with the given error 'e'.
    */
   def someOrFail[A2, E1 >: E](e: => E1)(implicit ev: A <:< Option[A2], trace: Trace): ZStream[R, E1, A2] =
-    self.mapZIO(ev(_).fold[IO[E1, A2]](ZIO.fail(e))(ZIO.succeedNow(_)))
+    self.mapZIO(ev(_).fold[IO[E1, A2]](ZIO.fail(e))(ZIO.succeed(_)))
 
   /**
    * Emits a sliding window of n elements.
@@ -3499,19 +3499,19 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       state match {
         case DrainLeft =>
           pullLeft.foldZIO(
-            err => ZIO.succeedNow(Exit.fail(err)),
-            leftChunk => ZIO.succeedNow(Exit.succeed(leftChunk.map(left) -> DrainLeft))
+            err => ZIO.succeed(Exit.fail(err)),
+            leftChunk => ZIO.succeed(Exit.succeed(leftChunk.map(left) -> DrainLeft))
           )
         case DrainRight =>
           pullRight.foldZIO(
-            err => ZIO.succeedNow(Exit.fail(err)),
-            rightChunk => ZIO.succeedNow(Exit.succeed(rightChunk.map(right) -> DrainRight))
+            err => ZIO.succeed(Exit.fail(err)),
+            rightChunk => ZIO.succeed(Exit.succeed(rightChunk.map(right) -> DrainRight))
           )
         case PullBoth =>
           pullLeft.unsome
             .zipPar(pullRight.unsome)
             .foldZIO(
-              err => ZIO.succeedNow(Exit.fail(Some(err))),
+              err => ZIO.succeed(Exit.fail(Some(err))),
               {
                 case (Some(leftChunk), Some(rightChunk)) =>
                   if (leftChunk.isEmpty && rightChunk.isEmpty)
@@ -3521,20 +3521,20 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                   else if (rightChunk.isEmpty)
                     pull(PullRight(leftChunk), pullLeft, pullRight)
                   else
-                    ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk, both)))
+                    ZIO.succeed(Exit.succeed(zipWithChunks(leftChunk, rightChunk, both)))
                 case (Some(leftChunk), None) =>
-                  ZIO.succeedNow(Exit.succeed(leftChunk.map(left) -> DrainLeft))
+                  ZIO.succeed(Exit.succeed(leftChunk.map(left) -> DrainLeft))
                 case (None, Some(rightChunk)) =>
-                  ZIO.succeedNow(Exit.succeed(rightChunk.map(right) -> DrainRight))
+                  ZIO.succeed(Exit.succeed(rightChunk.map(right) -> DrainRight))
                 case (None, None) =>
-                  ZIO.succeedNow(Exit.fail(None))
+                  ZIO.succeed(Exit.fail(None))
               }
             )
         case PullLeft(rightChunk) =>
           pullLeft.foldZIO(
             {
-              case Some(err) => ZIO.succeedNow(Exit.fail(Some(err)))
-              case None      => ZIO.succeedNow(Exit.succeed(rightChunk.map(right) -> DrainRight))
+              case Some(err) => ZIO.succeed(Exit.fail(Some(err)))
+              case None      => ZIO.succeed(Exit.succeed(rightChunk.map(right) -> DrainRight))
             },
             leftChunk =>
               if (leftChunk.isEmpty)
@@ -3542,13 +3542,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
               else if (rightChunk.isEmpty)
                 pull(PullRight(leftChunk), pullLeft, pullRight)
               else
-                ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk, both)))
+                ZIO.succeed(Exit.succeed(zipWithChunks(leftChunk, rightChunk, both)))
           )
         case PullRight(leftChunk) =>
           pullRight.foldZIO(
             {
-              case Some(err) => ZIO.succeedNow(Exit.fail(Some(err)))
-              case None      => ZIO.succeedNow(Exit.succeed(leftChunk.map(left) -> DrainLeft))
+              case Some(err) => ZIO.succeed(Exit.fail(Some(err)))
+              case None      => ZIO.succeed(Exit.succeed(leftChunk.map(left) -> DrainLeft))
             },
             rightChunk =>
               if (rightChunk.isEmpty)
@@ -3556,7 +3556,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
               else if (leftChunk.isEmpty)
                 pull(PullLeft(rightChunk), pullLeft, pullRight)
               else
-                ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk, both)))
+                ZIO.succeed(Exit.succeed(zipWithChunks(leftChunk, rightChunk, both)))
           )
       }
 
@@ -3608,7 +3608,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     that: => ZStream[R1, E1, A2]
   )(f: (A, A2) => A3)(implicit trace: Trace): ZStream[R1, E1, A3] = {
     def pullNonEmpty[R, E, O](pull: ZIO[R, Option[E], Chunk[O]]): ZIO[R, Option[E], Chunk[O]] =
-      pull.flatMap(chunk => if (chunk.isEmpty) pullNonEmpty(pull) else ZIO.succeedNow(chunk))
+      pull.flatMap(chunk => if (chunk.isEmpty) pullNonEmpty(pull) else ZIO.succeed(chunk))
 
     ZStream.fromPull[R1, E1, A3] {
       for {
@@ -3711,7 +3711,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           pullLeft.unsome
             .zipPar(pullRight.unsome)
             .foldZIO(
-              err => ZIO.succeedNow(Exit.fail(Some(err))),
+              err => ZIO.succeed(Exit.fail(Some(err))),
               {
                 case (Some(leftChunk), Some(rightChunk)) =>
                   if (leftChunk.isEmpty && rightChunk.isEmpty)
@@ -3721,31 +3721,31 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                   else if (rightChunk.isEmpty)
                     pull(PullRight(leftChunk), pullLeft, pullRight)
                   else
-                    ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk)))
-                case _ => ZIO.succeedNow(Exit.fail(None))
+                    ZIO.succeed(Exit.succeed(zipWithChunks(leftChunk, rightChunk)))
+                case _ => ZIO.succeed(Exit.fail(None))
               }
             )
         case PullLeft(rightChunk) =>
           pullLeft.foldZIO(
-            err => ZIO.succeedNow(Exit.fail(err)),
+            err => ZIO.succeed(Exit.fail(err)),
             leftChunk =>
               if (leftChunk.isEmpty)
                 pull(PullLeft(rightChunk), pullLeft, pullRight)
               else if (rightChunk.isEmpty)
                 pull(PullRight(leftChunk), pullLeft, pullRight)
               else
-                ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk)))
+                ZIO.succeed(Exit.succeed(zipWithChunks(leftChunk, rightChunk)))
           )
         case PullRight(leftChunk) =>
           pullRight.foldZIO(
-            err => ZIO.succeedNow(Exit.fail(err)),
+            err => ZIO.succeed(Exit.fail(err)),
             rightChunk =>
               if (rightChunk.isEmpty)
                 pull(PullRight(leftChunk), pullLeft, pullRight)
               else if (leftChunk.isEmpty)
                 pull(PullLeft(rightChunk), pullLeft, pullRight)
               else
-                ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk)))
+                ZIO.succeed(Exit.succeed(zipWithChunks(leftChunk, rightChunk)))
           )
       }
 
@@ -4686,7 +4686,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def repeatWithSchedule[R, A](a: => A, schedule: => Schedule[R, A, _])(implicit
     trace: Trace
   ): ZStream[R, Nothing, A] =
-    repeatZIOWithSchedule(ZIO.succeedNow(a), schedule)
+    repeatZIOWithSchedule(ZIO.succeed(a), schedule)
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats
@@ -4886,7 +4886,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * returns an empty stream.
    */
   def when[R, E, O](b: => Boolean)(zStream: => ZStream[R, E, O])(implicit trace: Trace): ZStream[R, E, O] =
-    whenZIO(ZIO.succeedNow(b))(zStream)
+    whenZIO(ZIO.succeed(b))(zStream)
 
   /**
    * Returns the resulting stream when the given `PartialFunction` is defined
@@ -4895,7 +4895,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def whenCase[R, E, A, O](a: => A)(pf: PartialFunction[A, ZStream[R, E, O]])(implicit
     trace: Trace
   ): ZStream[R, E, O] =
-    whenCaseZIO(ZIO.succeedNow(a))(pf)
+    whenCaseZIO(ZIO.succeed(a))(pf)
 
   /**
    * Returns the resulting stream when the given `PartialFunction` is defined
@@ -5003,7 +5003,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       new GroupBy[R, E, K, V] {
         override def grouped(implicit trace: Trace): ZStream[R, E, (K, Dequeue[Take[E, V]])] =
           self.grouped.zipWithIndex.filterZIO { case elem @ ((_, q), i) =>
-            if (i < n) ZIO.succeedNow(elem).as(true)
+            if (i < n) ZIO.succeed(elem).as(true)
             else q.shutdown.as(false)
           }.map(_._1)
       }
@@ -5015,7 +5015,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       new GroupBy[R, E, K, V] {
         override def grouped(implicit trace: Trace): ZStream[R, E, (K, Dequeue[Take[E, V]])] =
           self.grouped.filterZIO { case elem @ (k, q) =>
-            if (f(k)) ZIO.succeedNow(elem).as(true)
+            if (f(k)) ZIO.succeed(elem).as(true)
             else q.shutdown.as(false)
           }
       }
@@ -5361,7 +5361,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ifNotDone {
         cursor.modify { case (chunk, idx) =>
           if (idx >= chunk.size) (update *> pullElement, (Chunk.empty, 0))
-          else (ZIO.succeedNow(chunk(idx)), (chunk, idx + 1))
+          else (ZIO.succeed(chunk(idx)), (chunk, idx + 1))
         }.flatten
       }
 
@@ -5369,7 +5369,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ifNotDone {
         cursor.modify { case (chunk, idx) =>
           if (idx >= chunk.size) (update *> pullChunk, (Chunk.empty, 0))
-          else (ZIO.succeedNow(chunk.drop(idx)), (Chunk.empty, 0))
+          else (ZIO.succeed(chunk.drop(idx)), (Chunk.empty, 0))
         }.flatten
       }
 
@@ -5411,7 +5411,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       Promise.make[Nothing, Unit].flatMap { p =>
         ref.modify {
           case Handoff.State.Full(a, notifyProducer) => (notifyProducer.succeed(()).as(Some(a)), Handoff.State.Empty(p))
-          case s @ Handoff.State.Empty(_)            => (ZIO.succeedNow(None), s)
+          case s @ Handoff.State.Empty(_)            => (ZIO.succeed(None), s)
         }.flatten
       }
   }
@@ -5531,7 +5531,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Emits a chunk containing the specified values.
      */
     def chunk(as: Chunk[A])(implicit trace: Trace): B =
-      apply(ZIO.succeedNow(as))
+      apply(ZIO.succeed(as))
 
     /**
      * Terminates with a cause that dies with the specified `Throwable`.
@@ -5589,7 +5589,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Emits a chunk containing the specified value.
      */
     def single(a: A)(implicit trace: Trace): B =
-      apply(ZIO.succeedNow(Chunk(a)))
+      apply(ZIO.succeed(Chunk(a)))
   }
 
   /**
@@ -5689,43 +5689,43 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
             pullLeft.unsome
               .zipPar(pullRight.unsome)
               .foldZIO(
-                e => ZIO.succeedNow(Exit.fail(Some(e))),
+                e => ZIO.succeed(Exit.fail(Some(e))),
                 {
                   case (Some(leftChunk), Some(rightChunk)) =>
                     if (leftChunk.isEmpty && rightChunk.isEmpty) pull(PullBoth, pullLeft, pullRight)
                     else if (leftChunk.isEmpty) pull(PullLeft(rightChunk), pullLeft, pullRight)
                     else if (rightChunk.isEmpty) pull(PullRight(leftChunk), pullLeft, pullRight)
-                    else ZIO.succeedNow(Exit.succeed(mergeSortedByKeyChunk(leftChunk, rightChunk)))
+                    else ZIO.succeed(Exit.succeed(mergeSortedByKeyChunk(leftChunk, rightChunk)))
                   case (Some(leftChunk), None) =>
                     if (leftChunk.isEmpty) pull(DrainLeft, pullLeft, pullRight)
-                    else ZIO.succeedNow(Exit.succeed(leftChunk.map { case (k, a) => (k, left(a)) } -> DrainLeft))
+                    else ZIO.succeed(Exit.succeed(leftChunk.map { case (k, a) => (k, left(a)) } -> DrainLeft))
                   case (None, Some(rightChunk)) =>
                     if (rightChunk.isEmpty) pull(DrainRight, pullLeft, pullRight)
                     else
-                      ZIO.succeedNow(Exit.succeed(rightChunk.map { case (k, b) => (k, right(b)) } -> DrainRight))
-                  case (None, None) => ZIO.succeedNow(Exit.fail(None))
+                      ZIO.succeed(Exit.succeed(rightChunk.map { case (k, b) => (k, right(b)) } -> DrainRight))
+                  case (None, None) => ZIO.succeed(Exit.fail(None))
                 }
               )
           case PullLeft(rightChunk) =>
             pullLeft.foldZIO(
               {
-                case Some(e) => ZIO.succeedNow(Exit.fail(Some(e)))
+                case Some(e) => ZIO.succeed(Exit.fail(Some(e)))
                 case None =>
-                  ZIO.succeedNow(Exit.succeed(rightChunk.map { case (k, b) => (k, right(b)) } -> DrainRight))
+                  ZIO.succeed(Exit.succeed(rightChunk.map { case (k, b) => (k, right(b)) } -> DrainRight))
               },
               leftChunk =>
                 if (leftChunk.isEmpty) pull(PullLeft(rightChunk), pullLeft, pullRight)
-                else ZIO.succeedNow(Exit.succeed(mergeSortedByKeyChunk(leftChunk, rightChunk)))
+                else ZIO.succeed(Exit.succeed(mergeSortedByKeyChunk(leftChunk, rightChunk)))
             )
           case PullRight(leftChunk) =>
             pullRight.foldZIO(
               {
-                case Some(e) => ZIO.succeedNow(Exit.fail(Some(e)))
-                case None    => ZIO.succeedNow(Exit.succeed(leftChunk.map { case (k, a) => (k, left(a)) } -> DrainLeft))
+                case Some(e) => ZIO.succeed(Exit.fail(Some(e)))
+                case None    => ZIO.succeed(Exit.succeed(leftChunk.map { case (k, a) => (k, left(a)) } -> DrainLeft))
               },
               rightChunk =>
                 if (rightChunk.isEmpty) pull(PullRight(leftChunk), pullLeft, pullRight)
-                else ZIO.succeedNow(Exit.succeed(mergeSortedByKeyChunk(leftChunk, rightChunk)))
+                else ZIO.succeed(Exit.succeed(mergeSortedByKeyChunk(leftChunk, rightChunk)))
             )
         }
 

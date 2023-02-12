@@ -46,7 +46,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                      cb => {
                        Future
                          .sequence(
-                           (1 to 7).map(i => cb(refCnt.set(i) *> ZIO.succeedNow(Chunk.single(1))))
+                           (1 to 7).map(i => cb(refCnt.set(i) *> ZIO.succeed(Chunk.single(1))))
                          )
                          .flatMap(_ => cb(refDone.set(true) *> ZIO.fail(None)))
                        None
@@ -95,7 +95,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                      cb => {
                        Future
                          .sequence(
-                           (1 to 7).map(i => cb(refCnt.set(i) *> ZIO.succeedNow(Chunk.single(1))))
+                           (1 to 7).map(i => cb(refCnt.set(i) *> ZIO.succeed(Chunk.single(1))))
                          )
                          .flatMap(_ => cb(refDone.set(true) *> ZIO.fail(None)))
                        ZIO.unit
@@ -144,7 +144,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                      cb => {
                        Future
                          .sequence(
-                           (1 to 7).map(i => cb(refCnt.set(i) *> ZIO.succeedNow(Chunk.single(1))))
+                           (1 to 7).map(i => cb(refCnt.set(i) *> ZIO.succeed(Chunk.single(1))))
                          )
                          .flatMap(_ => cb(refDone.set(true) *> ZIO.fail(None)))
                        ZIO.unit
@@ -165,7 +165,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           latch     <- Promise.make[Nothing, Unit]
           fiber <- ZStream
                      .asyncInterrupt[Any, Nothing, Unit] { offer =>
-                       offer(ZIO.succeedNow(Chunk.unit))
+                       offer(ZIO.succeed(Chunk.unit))
                        Left(cancelled.set(true))
                      }
                      .tap(_ => latch.succeed(()))
@@ -186,7 +186,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           result <- ZStream
                       .asyncInterrupt[Any, Nothing, Int] { k =>
                         k(ZIO.fail(None))
-                        Left(ZIO.succeedNow(()))
+                        Left(ZIO.succeed(()))
                       }
                       .runCollect
         } yield assert(result)(equalTo(Chunk.empty))
@@ -200,7 +200,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                      cb => {
                        Future
                          .sequence(
-                           (1 to 7).map(i => cb(refCnt.set(i) *> ZIO.succeedNow(Chunk.single(1))))
+                           (1 to 7).map(i => cb(refCnt.set(i) *> ZIO.succeed(Chunk.single(1))))
                          )
                          .flatMap(_ => cb(refDone.set(true) *> ZIO.fail(None)))
                        Left(ZIO.unit)
