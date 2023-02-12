@@ -5810,7 +5810,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       val array = Array.ofDim[AnyRef](as.size)
       val zioFunction: ((A, Int)) => ZIO[R, E, Any] = { case (a, i) =>
         fn(a).flatMap(b => ZIO.succeed(array(i) = b.asInstanceOf[AnyRef]))
-      } 
+      }
       foreachParDiscard(n)(as.zipWithIndex)(zioFunction) *>
         ZIO.succeed(bf.fromSpecific(as)(array.asInstanceOf[Array[B]]))
     }
