@@ -2,7 +2,7 @@ package zio
 
 import zio.test._
 
-object SupervisorSpec extends ZIOSpecDefault {
+object SupervisorSpec extends ZIOBaseSpec {
 
   def spec = suite("SupervisorSpec")(
     test("++") {

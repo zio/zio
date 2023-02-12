@@ -2,7 +2,7 @@ package zio
 
 import zio.test._
 
-object ZStateSpec extends ZIOSpecDefault {
+object ZStateSpec extends ZIOBaseSpec {
 
   def spec =
     suite("ZStateSpec")(

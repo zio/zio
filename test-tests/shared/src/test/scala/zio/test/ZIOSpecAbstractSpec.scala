@@ -2,7 +2,7 @@ package zio.test
 import zio.{Scope, ZIO, ZIOAppArgs, ZLayer}
 import zio.internal.ansi.AnsiStringOps
 
-object ZIOSpecAbstractSpec extends ZIOSpecDefault {
+object ZIOSpecAbstractSpec extends ZIOBaseSpec {
   private val basicSpec: ZIOSpecAbstract = new ZIOSpecDefault {
     override def spec =
       test("basic test") {

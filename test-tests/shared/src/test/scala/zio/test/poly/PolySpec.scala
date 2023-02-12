@@ -5,7 +5,7 @@ import zio.test._
 
 import scala.annotation.tailrec
 
-object PolySpec extends ZIOSpecDefault {
+object PolySpec extends ZIOBaseSpec {
 
   sealed trait Expr[+A]
 

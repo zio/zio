@@ -5,7 +5,7 @@ import zio.test._
 import TestAspect._
 import java.util.concurrent.TimeUnit
 
-object PollingMetricSpec extends ZIOSpecDefault {
+object PollingMetricSpec extends ZIOBaseSpec {
 
   def spec = suite("PollingMetricSpec")(
     test("`launch` should be interruptible.") {

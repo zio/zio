@@ -2,7 +2,7 @@ package zio.test
 import zio._
 import zio.test.TestAspect.ignore
 
-object SuiteAllSpec extends ZIOSpecDefault {
+object SuiteAllSpec extends ZIOBaseSpec {
 
   def spec =
     suiteAll("SweetSpec!") {

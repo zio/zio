@@ -3,7 +3,7 @@ package zio.test
 import zio.{Random, ZIO}
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 
-object ExecutionEventSinkSpec extends ZIOSpecDefault {
+object ExecutionEventSinkSpec extends ZIOBaseSpec {
   val uuid = SuiteId(0)
 
   override def spec = suite("ExecutionEventSinkSpec")(

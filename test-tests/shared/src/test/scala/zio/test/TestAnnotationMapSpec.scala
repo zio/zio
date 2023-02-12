@@ -2,7 +2,7 @@ package zio.test
 
 import zio.test.Assertion._
 
-object TestAnnotationMapSpec extends ZIOSpecDefault {
+object TestAnnotationMapSpec extends ZIOBaseSpec {
 
   def spec = suite("TestAnnotationMapSpec")(
     test("get retrieves the annotation of the specified type") {

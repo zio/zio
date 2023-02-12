@@ -2,7 +2,7 @@ package zio
 
 import zio.test._
 
-object ZKeyedPoolSpec extends ZIOSpecDefault {
+object ZKeyedPoolSpec extends ZIOBaseSpec {
   override def spec: Spec[TestEnvironment with Scope, Any] =
     suite("ZKeyedPoolSpec")(
       test("acquire release many successfully while other key is blocked") {

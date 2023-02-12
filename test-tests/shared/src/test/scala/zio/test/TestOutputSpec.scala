@@ -11,7 +11,7 @@ case class TestEntity(
     TestEntity(SuiteId(newId), id :: ancestors)
 }
 
-object TestOutputSpec extends ZIOSpecDefault {
+object TestOutputSpec extends ZIOBaseSpec {
   /*
     1 -> 2 -> 4
            -> 5
