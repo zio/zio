@@ -263,7 +263,7 @@ jobs:
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Test on different JVM versions
-        run: ./sbt root${{ matrix.platform }}/test
+        run: ./sbt test${{ matrix.platform }}
 
       - name: Report Test Death JVM 8
         if: ${{ failure() &&  startsWith(matrix.java, '8') }}
@@ -304,7 +304,7 @@ jobs:
         with:
           swap-size-gb: 9
       - name: Test on different Scala target platforms
-        run: free --si -tmws 10 & ./sbt root${{ matrix.platform }}/test
+        run: free --si -tmws 10 & ./sbt test${{ matrix.platform }}
 
   ci:
     runs-on: ubuntu-20.04
