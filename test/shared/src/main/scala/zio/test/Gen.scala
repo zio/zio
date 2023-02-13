@@ -665,13 +665,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A sized generator of sets.
    */
   def setOf[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
-    small(setOfN(_)(gen))
+    listOf(gen).map(_.toSet)
 
   /**
    * A sized generator of non-empty sets.
    */
   def setOf1[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
-    small(setOfN(_)(gen), 1)
+    listOf1(gen).map(_.toSet)
 
   /**
    * A generator of sets whose size falls within the specified bounds.
@@ -679,18 +679,23 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def setOfBounded[R, A](min: Int, max: Int)(g: Gen[R, A])(implicit
     trace: Trace
   ): Gen[R, Set[A]] =
-    bounded(min, max)(setOfN(_)(g))
+    setOfN(min)(g).zipWith(listOfBounded(0, max - min)(g))(_ ++ _)
 
   /**
    * A generator of sets of the specified size.
    */
-  def setOfN[R, A](n: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
-    List.fill(n)(gen).foldLeft[Gen[R, Set[A]]](const(Set.empty)) { (acc, gen) =>
-      for {
-        set  <- acc
-        elem <- gen.filterNot(set)
-      } yield set + elem
-    }
+  def setOfN[R, A](n: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] = {
+
+    def loop(n: Int, gen: Gen[R, A], set: Set[A]): Gen[R, Set[A]] =
+      if (n <= 0) Gen.const(set)
+      else
+        gen.flatMap { a =>
+          if (set(a)) loop(n, gen, set)
+          else loop(n - 1, gen, set + a)
+        }
+
+    loop(n, gen, Set.empty)
+  }
 
   /**
    * A generator of shorts. Shrinks toward '0'.
