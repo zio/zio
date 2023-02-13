@@ -433,22 +433,13 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result <- configProvider.load(config)
         } yield assertTrue(result == List(1, 2, 3))
       } +
-      test("indexed sequence with simple values as list") {
+      test("indexed sequence simple with list values") {
         val configProvider = ConfigProvider.fromMap(Map("id.[0]" -> "1, 2", "id.[1]" -> "3, 4", "id.[3]" -> "5, 6"))
         val config         = Config.listOf("id", Config.listOf(Config.int))
 
         for {
           result <- configProvider.load(config)
         } yield assertTrue(result == List(List(1, 2), List(3, 4), List(5, 6)))
-      } +
-      test("indexed sequence of 1 element to summon a product") {
-        val configProvider = ConfigProvider.fromMap(Map("employees.[0].age" -> "1", "employees.[0].id" -> "1"))
-        val product        = Config.int("age").zip(Config.int("id"))
-        val config         = Config.listOf("employees", product)
-
-        for {
-          result <- configProvider.load(config)
-        } yield assertTrue(result == List((1, 1)))
       } +
       test("indexed sequence of one product") {
         val configProvider = ConfigProvider.fromMap(Map("employees.[0].age" -> "1", "employees.[0].id" -> "1"))
