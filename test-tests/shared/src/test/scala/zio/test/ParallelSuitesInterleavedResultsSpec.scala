@@ -2,7 +2,7 @@ package zio.test
 
 import zio._
 
-object MultiCMinimalSpec extends ZIOSpecDefault {
+object MultiCMinimalSpec extends ZIOBaseSpec {
   override def spec = suite("MultiSpec")(
     suite("fast inner suite")(
       test("fast test 1") {
@@ -23,7 +23,7 @@ object MultiCMinimalSpec extends ZIOSpecDefault {
   ) @@ TestAspect.ignore
 }
 
-object SmallMinimalSpec extends ZIOSpecDefault {
+object SmallMinimalSpec extends ZIOBaseSpec {
   override def spec = suite("SmallMultiSpec")(
     suite("fast inner suite")(
       test("fast test 1") {
@@ -33,7 +33,7 @@ object SmallMinimalSpec extends ZIOSpecDefault {
   ) @@ TestAspect.ignore
 }
 
-object SlowMinimalSpec extends ZIOSpecDefault {
+object SlowMinimalSpec extends ZIOBaseSpec {
   override def spec = suite("SM")(
     suite("SMFast ")(
       test("SMF 1") {

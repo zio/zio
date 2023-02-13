@@ -5,7 +5,7 @@ import zio.test._
 import DeriveDiff.gen
 import java.time.Instant
 
-object DeriveDiffSpec extends ZIOSpecDefault {
+object DeriveDiffSpec extends ZIOBaseSpec {
   final case class Pet(name: String, hasBone: Boolean, favoriteFoods: List[String], birthday: Instant)
   final case class Person(name: String, nickname: Option[String], age: Int, pet: Pet, person: Option[Person] = None)
 

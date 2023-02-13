@@ -1,11 +1,11 @@
 package zio.stm
 
-import zio.{Exit, Promise, Ref, Schedule, ZIO, durationInt}
-import zio.test.Assertion._
-import zio.test.TestAspect.{flaky, timeout}
+import zio._
 import zio.test._
+import zio.test.Assertion._
+import zio.test.TestAspect._
 
-object TReentrantLockSpec extends ZIOSpecDefault {
+object TReentrantLockSpec extends ZIOBaseSpec {
   def pollSchedule[E, A]: Schedule[Any, Option[Exit[E, A]], Option[Exit[E, A]]] =
     (Schedule.recurs(100) *>
       Schedule.identity[Option[Exit[E, A]]]).whileOutput(_.isEmpty)

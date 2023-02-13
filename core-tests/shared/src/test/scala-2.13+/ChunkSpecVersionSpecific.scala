@@ -4,7 +4,7 @@ import zio.test._
 
 import scala.collection.Factory
 
-object ChunkSpecVersionSpecific extends ZIOSpecDefault {
+object ChunkSpecVersionSpecific extends ZIOBaseSpec {
 
   def spec = suite("ChunkSpecVersionSpecific")(
     test("to") {

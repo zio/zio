@@ -2,7 +2,7 @@ package zio
 
 import zio.test._
 
-object ZLayerDerivationSpec extends ZIOSpecDefault {
+object ZLayerDerivationSpec extends ZIOBaseSpec {
   case class OneDependency(d1: String)
   case class TwoDependencies(d1: String, d2: Int)
 

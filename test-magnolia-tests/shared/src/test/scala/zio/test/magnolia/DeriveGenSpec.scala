@@ -9,7 +9,7 @@ import zio.test._
 import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util.UUID
 
-object DeriveGenSpec extends ZIOSpecDefault {
+object DeriveGenSpec extends ZIOBaseSpec {
 
   final case class Person(name: String, age: Int)
 

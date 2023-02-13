@@ -1,11 +1,10 @@
 package zio.autowire
 
-import zio.{EnvironmentTag, UIO, ZIO, ZLayer}
+import zio._
 import zio.test._
-import zio.ULayer
 
 // https://github.com/kitlangton/zio-magic/issues/76
-object InjectParameterizedServicesSpec extends ZIOSpecDefault {
+object InjectParameterizedServicesSpec extends ZIOBaseSpec {
 
   def spec = suite("Samples")(
     test("compiles with ParameterisedServiceImpl1 direct usage") {

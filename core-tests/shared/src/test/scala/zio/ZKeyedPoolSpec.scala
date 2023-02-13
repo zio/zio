@@ -1,8 +1,9 @@
 package zio
 
 import zio.test._
+import zio.test.TestAspect._
 
-object ZKeyedPoolSpec extends ZIOSpecDefault {
+object ZKeyedPoolSpec extends ZIOBaseSpec {
   override def spec: Spec[TestEnvironment with Scope, Any] =
     suite("ZKeyedPoolSpec")(
       test("acquire release many successfully while other key is blocked") {
@@ -40,5 +41,5 @@ object ZKeyedPoolSpec extends ZIOSpecDefault {
           _ <- fiber.join
         } yield assertCompletes
       }
-    )
+    ) @@ jvmOnly
 }

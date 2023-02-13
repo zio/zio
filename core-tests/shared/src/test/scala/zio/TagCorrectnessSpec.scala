@@ -2,7 +2,7 @@ package zio
 
 import zio.test._
 
-object TagCorrectnessSpec extends ZIOSpecDefault {
+object TagCorrectnessSpec extends ZIOBaseSpec {
 
   def spec =
     suite("TagCorrectnessSpec")(
@@ -110,7 +110,7 @@ object TagCorrectnessSpec extends ZIOSpecDefault {
 /**
  * Higher-Kinded Tag Correctness Example
  */
-object HigherKindedTagCorrectness extends ZIOSpecDefault {
+object HigherKindedTagCorrectness extends ZIOBaseSpec {
 
   trait Cache[F[_], K, V] {
     def get(key: K): ZIO[Any, Nothing, F[V]]

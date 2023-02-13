@@ -5,7 +5,7 @@ import zio.test._
 
 import java.nio.file.Path
 
-object ResultFileOpsJsonSpec extends ZIOSpecDefault {
+object ResultFileOpsJsonSpec extends ZIOBaseSpec {
   def spec = suite("ResultFileOpsJsonSpec")(
     test("simple write")(
       for {

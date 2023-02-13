@@ -2,7 +2,7 @@ package zio
 
 import zio.test._
 
-object UnsafeSpecVersionSpecific extends ZIOSpecDefault {
+object UnsafeSpecVersionSpecific extends ZIOBaseSpec {
 
   def spec = suite("UnsafeSpecVersionSpecific") {
     suite("unsafely")(
