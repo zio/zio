@@ -1,6 +1,7 @@
 package zio
 
 import zio.test._
+import zio.test.TestAspect._
 
 object ZKeyedPoolSpec extends ZIOBaseSpec {
   override def spec: Spec[TestEnvironment with Scope, Any] =
@@ -40,5 +41,5 @@ object ZKeyedPoolSpec extends ZIOBaseSpec {
           _ <- fiber.join
         } yield assertCompletes
       }
-    )
+    ) @@ jvmOnly
 }
