@@ -2,6 +2,9 @@
 
 const path = require("path")
 
+const lightCodeTheme = require('prism-react-renderer/themes/github');
+const darkCodeTheme = require('prism-react-renderer/themes/vsDark');
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'ZIO',
@@ -35,15 +38,9 @@ const config = {
       },
     },
     prism: {
-      // In case we want to use one of the json packaged themes, we can simply require those 
-      //theme: require('prism-react-renderer/themes/vsDark'),
-
-      // if we want to use any of the styles in '/static/css/prism' we have to 
-      // use an empty theme config. The stylesheet must then be included in the stylesheets 
-      // section below.
-      // The CSS stylesheets are included from  https://github.com/PrismJS/prism-themes.git 
-      theme: { plain: [], styles: [] },
-      additionalLanguages: ['json', 'java', 'scala'],
+      theme: lightCodeTheme,
+      darkTheme: darkCodeTheme,
+      additionalLanguages: ['json', 'java', 'scala']
     },
     navbar: {
       style: 'dark',
@@ -125,11 +122,6 @@ const config = {
       copyright: `Copyright © ${new Date().getFullYear()} ZIO Maintainers - Built with <a href="https://v2.docusaurus.io/">Docusaurus v2</a>`,
     },
   },
-  stylesheets: [
-    // see https://atelierbram.github.io/syntax-highlighting/prism/ for examples / customizing
-    //'/css/prism/prism-atom-dark.css'
-    '/css/prism/prism-material-dark.css'
-  ],
   presets: [
     [
       '@docusaurus/preset-classic',
@@ -153,9 +145,6 @@ const config = {
             [require('remark-kroki-plugin'), { krokiBase: 'https://kroki.io', lang: "kroki", imgRefDir: "/img/kroki", imgDir: "static/img/kroki" }]
           ],
           editUrl: 'https://github.com/zio/zio/edit/series/2.x',
-        },
-        theme: {
-          customCss: [require.resolve('./src/css/custom.css')],
         },
         googleAnalytics: {
           trackingID: 'UA-237088290-2',
