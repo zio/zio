@@ -168,11 +168,11 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * function and then flattens the nested causes into a single cause.
    */
   final def flatMap[E2](f: E => Cause[E2]): Cause[E2] =
-    foldAnnotated[Cause[E2]](
+    foldLog[Cause[E2]](
       Empty,
-      (e, trace, annotations) => f(e).traced(trace).annotated(annotations),
-      (t, trace, annotations) => Die(t, trace, annotations),
-      (fiberId, trace, annotations) => Interrupt(fiberId, trace, annotations)
+      (e, trace, spans, annotations) => f(e).traced(trace).spanned(spans).annotated(annotations),
+      (t, trace, spans, annotations) => Die(t, trace, spans, annotations),
+      (fiberId, trace, spans, annotations) => Interrupt(fiberId, trace, spans, annotations)
     )(
       (left, right) => Then(left, right),
       (left, right) => Both(left, right),
@@ -201,29 +201,6 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       def stacklessCase(u: Unit, a: Z, b: Boolean)                    = stacklessCase0(a, b)
     })
 
-  final def foldAnnotated[Z](
-    empty0: => Z,
-    failCase0: (E, StackTrace, Map[String, String]) => Z,
-    dieCase0: (Throwable, StackTrace, Map[String, String]) => Z,
-    interruptCase0: (FiberId, StackTrace, Map[String, String]) => Z
-  )(thenCase0: (Z, Z) => Z, bothCase0: (Z, Z) => Z, stacklessCase0: (Z, Boolean) => Z): Z =
-    foldContext[Unit, E, Z](())(new Cause.Folder[Unit, E, Z] {
-      def empty(u: Unit)                                                  = empty0
-      def failCase(context: Unit, error: E, stackTrace: StackTrace): Z    = failCase(context, error, stackTrace, Map.empty)
-      def dieCase(context: Unit, t: Throwable, stackTrace: StackTrace): Z = dieCase(context, t, stackTrace, Map.empty)
-      def interruptCase(context: Unit, fiberId: FiberId, stackTrace: StackTrace): Z =
-        interruptCase(context, fiberId, stackTrace, Map.empty)
-      def bothCase(u: Unit, a: Z, b: Z)            = bothCase0(a, b)
-      def thenCase(u: Unit, a: Z, b: Z)            = thenCase0(a, b)
-      def stacklessCase(u: Unit, a: Z, b: Boolean) = stacklessCase0(a, b)
-      override def failCase(u: Unit, e: E, trace: StackTrace, annotations: Map[String, String]) =
-        failCase0(e, trace, annotations)
-      override def dieCase(u: Unit, t: Throwable, trace: StackTrace, annotations: Map[String, String]) =
-        dieCase0(t, trace, annotations)
-      override def interruptCase(u: Unit, fiberId: FiberId, trace: StackTrace, annotations: Map[String, String]) =
-        interruptCase0(fiberId, trace, annotations)
-    })
-
   /**
    * Folds over the cases of this cause with the specified functions.
    */
@@ -241,11 +218,11 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     def loop(in: List[Cause[E]], out: List[Either[CauseCase, Z]]): List[Z] =
       in match {
         case (fail @ Fail(e, trace)) :: causes =>
-          loop(causes, Right(failCase(context, e, trace, fail.annotations)) :: out)
+          loop(causes, Right(failCase(context, e, trace, fail.spans, fail.annotations)) :: out)
         case (die @ Die(t, trace)) :: causes =>
-          loop(causes, Right(dieCase(context, t, trace, die.annotations)) :: out)
+          loop(causes, Right(dieCase(context, t, trace, die.spans, die.annotations)) :: out)
         case (interrupt @ Interrupt(fiberId, trace)) :: causes =>
-          loop(causes, Right(interruptCase(context, fiberId, trace, interrupt.annotations)) :: out)
+          loop(causes, Right(interruptCase(context, fiberId, trace, interrupt.spans, interrupt.annotations)) :: out)
         case Both(left, right) :: causes =>
           loop(left :: right :: causes, Left(BothCase) :: out)
         case Then(left, right) :: causes =>
@@ -289,6 +266,43 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       }
     loop(z, self, Nil)
   }
+
+  final def foldLog[Z](
+    empty0: => Z,
+    failCase0: (E, StackTrace, List[LogSpan], Map[String, String]) => Z,
+    dieCase0: (Throwable, StackTrace, List[LogSpan], Map[String, String]) => Z,
+    interruptCase0: (FiberId, StackTrace, List[LogSpan], Map[String, String]) => Z
+  )(thenCase0: (Z, Z) => Z, bothCase0: (Z, Z) => Z, stacklessCase0: (Z, Boolean) => Z): Z =
+    foldContext[Unit, E, Z](())(new Cause.Folder[Unit, E, Z] {
+      def empty(u: Unit) = empty0
+      def failCase(context: Unit, error: E, stackTrace: StackTrace): Z =
+        failCase(context, error, stackTrace, List.empty, Map.empty)
+      def dieCase(context: Unit, t: Throwable, stackTrace: StackTrace): Z =
+        dieCase(context, t, stackTrace, List.empty, Map.empty)
+      def interruptCase(context: Unit, fiberId: FiberId, stackTrace: StackTrace): Z =
+        interruptCase(context, fiberId, stackTrace, List.empty, Map.empty)
+      def bothCase(u: Unit, a: Z, b: Z)            = bothCase0(a, b)
+      def thenCase(u: Unit, a: Z, b: Z)            = thenCase0(a, b)
+      def stacklessCase(u: Unit, a: Z, b: Boolean) = stacklessCase0(a, b)
+      override def failCase(u: Unit, e: E, trace: StackTrace, spans: List[LogSpan], annotations: Map[String, String]) =
+        failCase0(e, trace, spans, annotations)
+      override def dieCase(
+        u: Unit,
+        t: Throwable,
+        trace: StackTrace,
+        spans: List[LogSpan],
+        annotations: Map[String, String]
+      ) =
+        dieCase0(t, trace, spans, annotations)
+      override def interruptCase(
+        u: Unit,
+        fiberId: FiberId,
+        trace: StackTrace,
+        spans: List[LogSpan],
+        annotations: Map[String, String]
+      ) =
+        interruptCase0(fiberId, trace, spans, annotations)
+    })
 
   override def hashCode: Int =
     Cause.flatten(self).hashCode
@@ -349,11 +363,11 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * `Die` cause/finalizer defects.
    */
   final def keepDefects: Option[Cause[Nothing]] =
-    foldAnnotated[Option[Cause[Nothing]]](
+    foldLog[Option[Cause[Nothing]]](
       None,
-      (_, _, _) => None,
-      (t, trace, annotations) => Some(Die(t, trace, annotations)),
-      (_, _, _) => None
+      (_, _, _, _) => None,
+      (t, trace, spans, annotations) => Some(Die(t, trace, spans, annotations)),
+      (_, _, _, _) => None
     )(
       {
         case (Some(l), Some(r)) => Some(Then(l, r))
@@ -375,11 +389,11 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * contains a linear sequence of failures.
    */
   def linearize[E1 >: E]: Set[Cause[E1]] =
-    foldAnnotated[Set[Cause[E1]]](
+    foldLog[Set[Cause[E1]]](
       Set.empty,
-      (e, trace, annotations) => Set(Fail(e, trace, annotations)),
-      (t, trace, annotations) => Set(Die(t, trace, annotations)),
-      (fiberId, trace, annotations) => Set(Interrupt(fiberId, trace, annotations))
+      (e, trace, spans, annotations) => Set(Fail(e, trace, spans, annotations)),
+      (t, trace, spans, annotations) => Set(Die(t, trace, spans, annotations)),
+      (fiberId, trace, spans, annotations) => Set(Interrupt(fiberId, trace, spans, annotations))
     )(
       (left, right) => left.flatMap(l => right.map(r => l ++ r)),
       (left, right) => left | right,
@@ -396,11 +410,26 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Transforms the annotations in this cause with the specified function.
    */
   final def mapAnnotations(f: Map[String, String] => Map[String, String]): Cause[E] =
-    foldAnnotated[Cause[E]](
+    foldLog[Cause[E]](
       Empty,
-      (e, trace, annotations) => Fail(e, trace, f(annotations)),
-      (t, trace, annotations) => Die(t, trace, f(annotations)),
-      (fiberId, trace, annotations) => Interrupt(fiberId, trace, f(annotations))
+      (e, trace, spans, annotations) => Fail(e, trace, spans, f(annotations)),
+      (t, trace, spans, annotations) => Die(t, trace, spans, f(annotations)),
+      (fiberId, trace, spans, annotations) => Interrupt(fiberId, trace, spans, f(annotations))
+    )(
+      (left, right) => Then(left, right),
+      (left, right) => Both(left, right),
+      (cause, stackless) => Stackless(cause, stackless)
+    )
+
+  /**
+   * Transforms the spans in this cause with the specified function.
+   */
+  final def mapSpans(f: List[LogSpan] => List[LogSpan]): Cause[E] =
+    foldLog[Cause[E]](
+      Empty,
+      (e, trace, spans, annotations) => Fail(e, trace, f(spans), annotations),
+      (t, trace, spans, annotations) => Die(t, trace, f(spans), annotations),
+      (fiberId, trace, spans, annotations) => Interrupt(fiberId, trace, f(spans), annotations)
     )(
       (left, right) => Then(left, right),
       (left, right) => Both(left, right),
@@ -411,11 +440,11 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Transforms the traces in this cause with the specified function.
    */
   final def mapTrace(f: StackTrace => StackTrace): Cause[E] =
-    foldAnnotated[Cause[E]](
+    foldLog[Cause[E]](
       Empty,
-      (e, trace, annotations) => Fail(e, f(trace), annotations),
-      (t, trace, annotations) => Die(t, f(trace), annotations),
-      (fiberId, trace, annotations) => Interrupt(fiberId, f(trace), annotations)
+      (e, trace, spans, annotations) => Fail(e, f(trace), spans, annotations),
+      (t, trace, spans, annotations) => Die(t, f(trace), spans, annotations),
+      (fiberId, trace, spans, annotations) => Interrupt(fiberId, f(trace), spans, annotations)
     )(
       (left, right) => Then(left, right),
       (left, right) => Both(left, right),
@@ -458,6 +487,26 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   }
 
   def size: Int = self.foldContext(())(Cause.Folder.Size)
+
+  /**
+   * Adds the specified spans.
+   */
+  def spanned(spans: List[LogSpan]): Cause[E] =
+    mapSpans(_ ::: spans)
+
+  /**
+   * Grabs a complete, linearized list of log spans for the cause. Note: This
+   * linearization may be misleading in the presence of parallel errors.
+   */
+  def spans: List[LogSpan] =
+    self
+      .foldLeft(List.empty[LogSpan]) {
+        case (z, die @ Die(_, _))             => die.spans.reverse_:::(z)
+        case (z, fail @ Fail(_, _))           => fail.spans.reverse_:::(z)
+        case (z, interrupt @ Interrupt(_, _)) => interrupt.spans.reverse_:::(z)
+        case (z, _)                           => z
+      }
+      .reverse
 
   /**
    * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most
@@ -503,11 +552,11 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Discards all typed failures kept on this `Cause`.
    */
   final def stripFailures: Cause[Nothing] =
-    foldAnnotated[Cause[Nothing]](
+    foldLog[Cause[Nothing]](
       Empty,
-      (e, trace, annotations) => Empty,
-      (t, trace, annotations) => Die(t, trace, annotations),
-      (fiberId, trace, annotations) => Interrupt(fiberId, trace, annotations)
+      (e, trace, spans, annotations) => Empty,
+      (t, trace, spans, annotations) => Die(t, trace, spans, annotations),
+      (fiberId, trace, spans, annotations) => Interrupt(fiberId, trace, spans, annotations)
     )(
       (left, right) => Then(left, right),
       (left, right) => Both(left, right),
@@ -520,11 +569,11 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * remaining causes.
    */
   final def stripSomeDefects(pf: PartialFunction[Throwable, Any]): Option[Cause[E]] =
-    foldAnnotated[Option[Cause[E]]](
+    foldLog[Option[Cause[E]]](
       Some(Empty),
-      (e, trace, annotations) => Some(Fail(e, trace, annotations)),
-      (t, trace, annotations) => if (pf.isDefinedAt(t)) None else Some(Die(t, trace, annotations)),
-      (fiberId, trace, annotations) => Some(Interrupt(fiberId, trace, annotations))
+      (e, trace, spans, annotations) => Some(Fail(e, trace, spans, annotations)),
+      (t, trace, spans, annotations) => if (pf.isDefinedAt(t)) None else Some(Die(t, trace, spans, annotations)),
+      (fiberId, trace, spans, annotations) => Some(Interrupt(fiberId, trace, spans, annotations))
     )(
       {
         case (Some(l), Some(r)) => Some(Then(l, r))
@@ -660,11 +709,29 @@ object Cause extends Serializable {
     def thenCase(context: Context, left: Z, right: Z): Z
     def stacklessCase(context: Context, value: Z, stackless: Boolean): Z
 
-    def failCase(context: Context, error: E, stackTrace: StackTrace, annotations: Map[String, String]): Z =
+    def failCase(
+      context: Context,
+      error: E,
+      stackTrace: StackTrace,
+      spans: List[LogSpan],
+      annotations: Map[String, String]
+    ): Z =
       failCase(context, error, stackTrace)
-    def dieCase(context: Context, t: Throwable, stackTrace: StackTrace, annotations: Map[String, String]): Z =
+    def dieCase(
+      context: Context,
+      t: Throwable,
+      stackTrace: StackTrace,
+      spans: List[LogSpan],
+      annotations: Map[String, String]
+    ): Z =
       dieCase(context, t, stackTrace)
-    def interruptCase(context: Context, fiberId: FiberId, stackTrace: StackTrace, annotations: Map[String, String]): Z =
+    def interruptCase(
+      context: Context,
+      fiberId: FiberId,
+      stackTrace: StackTrace,
+      spans: List[LogSpan],
+      annotations: Map[String, String]
+    ): Z =
       interruptCase(context, fiberId, stackTrace)
   }
   object Folder {
@@ -732,11 +799,11 @@ object Cause extends Serializable {
    * recursively stripping out any failures with the error `None`.
    */
   def flipCauseOption[E](cause: Cause[Option[E]]): Option[Cause[E]] =
-    cause.foldAnnotated[Option[Cause[E]]](
+    cause.foldLog[Option[Cause[E]]](
       Some(Empty),
-      (failureOption, trace, annotations) => failureOption.map(Fail(_, trace, annotations)),
-      (t, trace, annotations) => Some(Die(t, trace, annotations)),
-      (fiberId, trace, annotations) => Some(Interrupt(fiberId, trace, annotations))
+      (failureOption, trace, spans, annotations) => failureOption.map(Fail(_, trace, spans, annotations)),
+      (t, trace, spans, annotations) => Some(Die(t, trace, spans, annotations)),
+      (fiberId, trace, spans, annotations) => Some(Interrupt(fiberId, trace, spans, annotations))
     )(
       {
         case (Some(l), Some(r)) => Some(Then(l, r))
@@ -756,36 +823,46 @@ object Cause extends Serializable {
   case object Empty extends Cause[Nothing]
 
   sealed case class Fail[+E](value: E, override val trace: StackTrace) extends Cause[E] { self =>
-    override def annotations: Map[String, String] =
-      Map.empty
+    override def annotations: Map[String, String] = Map.empty
+    override def spans: List[LogSpan]             = List.empty
   }
 
   object Fail {
-    def apply[E](value0: E, trace0: StackTrace, annotations0: Map[String, String]): Fail[E] =
+    def apply[E](value0: E, trace0: StackTrace, spans0: List[LogSpan], annotations0: Map[String, String]): Fail[E] =
       new Fail(value0, trace0) {
         override val annotations: Map[String, String] = annotations0
+        override val spans: List[LogSpan]             = spans0
       }
   }
 
   sealed case class Die(value: Throwable, override val trace: StackTrace) extends Cause[Nothing] { self =>
     override def annotations: Map[String, String] = Map.empty
+    override def spans: List[LogSpan]             = List.empty
   }
 
   object Die extends AbstractFunction2[Throwable, StackTrace, Die] {
-    def apply(value0: Throwable, trace0: StackTrace, annotations0: Map[String, String]): Die =
+    def apply(value0: Throwable, trace0: StackTrace, spans0: List[LogSpan], annotations0: Map[String, String]): Die =
       new Die(value0, trace0) {
         override val annotations: Map[String, String] = annotations0
+        override val spans: List[LogSpan]             = spans0
       }
   }
 
   sealed case class Interrupt(fiberId: FiberId, override val trace: StackTrace) extends Cause[Nothing] { self =>
     override def annotations: Map[String, String] = Map.empty
+    override def spans: List[LogSpan]             = List.empty
   }
 
   object Interrupt extends AbstractFunction2[FiberId, StackTrace, Interrupt] {
-    def apply(fiberId0: FiberId, trace0: StackTrace, annotations0: Map[String, String]): Interrupt =
+    def apply(
+      fiberId0: FiberId,
+      trace0: StackTrace,
+      spans0: List[LogSpan],
+      annotations0: Map[String, String]
+    ): Interrupt =
       new Interrupt(fiberId0, trace0) {
         override val annotations: Map[String, String] = annotations0
+        override val spans: List[LogSpan]             = spans0
       }
   }
 

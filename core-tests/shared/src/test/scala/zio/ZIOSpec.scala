@@ -1451,15 +1451,18 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("mapError")(
       test("preserves the cause") {
-        val task = ZIO.logAnnotate("key", "value")(ZIO.fail("fail"))
+        val task = ZIO.logSpan("parent")(ZIO.logSpan("child")(ZIO.logAnnotate("key", "value")(ZIO.fail("fail"))))
         for {
           leftCause       <- task.cause
           rightCause      <- task.mapError(identity).cause
           leftTrace        = leftCause.trace.stackTrace.head
           rightTrace       = rightCause.trace.stackTrace.head
+          leftSpans        = leftCause.spans
+          rightSpans       = rightCause.spans
           leftAnnotations  = leftCause.annotations
           rightAnnotations = rightCause.annotations
         } yield assertTrue(leftTrace == rightTrace) &&
+          assertTrue(leftSpans.map(_.label) == rightSpans.map(_.label)) &&
           assertTrue(leftAnnotations == rightAnnotations)
       }
     ),
@@ -2049,9 +2052,12 @@ object ZIOSpec extends ZIOBaseSpec {
           rightCause      <- task.refineToOrDie[RuntimeException].cause
           leftTrace        = leftCause.trace.stackTrace.head
           rightTrace       = rightCause.trace.stackTrace.head
+          leftSpans        = leftCause.spans
+          rightSpans       = rightCause.spans
           leftAnnotations  = leftCause.annotations
           rightAnnotations = rightCause.annotations
         } yield assertTrue(leftTrace == rightTrace) &&
+          assertTrue(leftSpans.map(_.label) == rightSpans.map(_.label)) &&
           assertTrue(leftAnnotations == rightAnnotations)
       }
     ) @@ zioTag(errors),
@@ -4259,6 +4265,11 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       }
     ),
+    test("fail captures the spans") {
+      for {
+        cause <- ZIO.logSpan("parent")(ZIO.logSpan("child")(ZIO.fail("fail"))).cause
+      } yield assertTrue(cause.spans.map(_.label) == List("child", "parent"))
+    },
     test("fail captures the annotations") {
       for {
         cause <- ZIO.logAnnotate("key", "value")(ZIO.fail("fail")).cause
