@@ -1457,12 +1457,12 @@ object ZIOSpec extends ZIOBaseSpec {
           rightCause      <- task.mapError(identity).cause
           leftTrace        = leftCause.trace.stackTrace.head
           rightTrace       = rightCause.trace.stackTrace.head
-          leftSpans        = leftCause.spans
-          rightSpans       = rightCause.spans
+          leftSpans        = leftCause.spans.map(_.label)
+          rightSpans       = rightCause.spans.map(_.label)
           leftAnnotations  = leftCause.annotations
           rightAnnotations = rightCause.annotations
         } yield assertTrue(leftTrace == rightTrace) &&
-          assertTrue(leftSpans.map(_.label) == rightSpans.map(_.label)) &&
+          assertTrue(leftSpans == rightSpans) &&
           assertTrue(leftAnnotations == rightAnnotations)
       }
     ),
@@ -2052,12 +2052,12 @@ object ZIOSpec extends ZIOBaseSpec {
           rightCause      <- task.refineToOrDie[RuntimeException].cause
           leftTrace        = leftCause.trace.stackTrace.head
           rightTrace       = rightCause.trace.stackTrace.head
-          leftSpans        = leftCause.spans
-          rightSpans       = rightCause.spans
+          leftSpans        = leftCause.spans.map(_.label)
+          rightSpans       = rightCause.spans.map(_.label)
           leftAnnotations  = leftCause.annotations
           rightAnnotations = rightCause.annotations
         } yield assertTrue(leftTrace == rightTrace) &&
-          assertTrue(leftSpans.map(_.label) == rightSpans.map(_.label)) &&
+          assertTrue(leftSpans == rightSpans) &&
           assertTrue(leftAnnotations == rightAnnotations)
       }
     ) @@ zioTag(errors),
