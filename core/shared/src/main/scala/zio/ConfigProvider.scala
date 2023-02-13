@@ -464,7 +464,7 @@ object ConfigProvider {
             for {
               indices <- flat
                            .enumerateChildren(prefix)
-                           .map(set => if (set.forall(isIndex)) set else Set.empty)
+                           .map(set => if (set.forall(isIndex)) Chunk.fromIterable(set).sorted else Chunk.empty)
 
               values <-
                 if (indices.isEmpty) loop(prefix, config, split = true).map(Chunk(_))
