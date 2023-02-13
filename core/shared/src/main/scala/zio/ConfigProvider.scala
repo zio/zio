@@ -17,6 +17,7 @@ package zio
 
 import java.time.format.DateTimeFormatter
 import scala.annotation.tailrec
+import scala.util.matching.Regex
 
 /**
  * A ConfigProvider is a service that provides configuration given a description
@@ -224,7 +225,6 @@ object ConfigProvider {
       }
   }
   object Flat {
-
     sealed trait PathPatch { self =>
       import PathPatch._
 
@@ -461,7 +461,24 @@ object ConfigProvider {
             }
 
           case Sequence(config) =>
-            loop(prefix, config, true).map(Chunk(_))
+            for {
+              indices <- flat
+                           .enumerateChildren(prefix)
+                           .map(set => if (set.forall(isIndex)) set else Set.empty)
+
+              values <-
+                if (indices.isEmpty) loop(prefix, config, split = true).map(Chunk(_))
+                else
+                  ZIO
+                    .foreach(Chunk.fromIterable(indices)) { index =>
+                      loop(prefix.appended(index), config, split = true)
+                    }
+                    .map { chunkChunk =>
+                      val flattened = chunkChunk.flatten
+                      if (flattened.isEmpty) Chunk(Chunk.empty)
+                      else Chunk(flattened)
+                    }
+            } yield values
 
           case Nested(name, config) =>
             loop(prefix ++ Chunk(name), config, split)
@@ -642,4 +659,7 @@ object ConfigProvider {
    * The tag that describes the ConfigProvider service.
    */
   lazy val tag: Tag[ConfigProvider] = Tag[ConfigProvider]
+
+  private def isIndex(value: String): Boolean =
+    value matches """(\[([0-9])*\])"""
 }
