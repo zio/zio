@@ -265,7 +265,7 @@ object GenSpec extends ZIOBaseSpec {
         )
       },
       test("int generates values in range") {
-        checkSample(smallInt)(forall(isGreaterThanEqualTo(-100) && isLessThanEqualTo(100)))
+        checkSample(smallInt)(forall(isGreaterThanEqualTo(-10) && isLessThanEqualTo(10)))
       },
       test("int is safe for ranges greater than Int.MaxValue") {
         val gen = Gen.int(0, Int.MaxValue)
@@ -502,13 +502,13 @@ object GenSpec extends ZIOBaseSpec {
         checkShrink(Gen.chunkOf(smallInt))(Chunk.empty)
       },
       test("chunkOf1 shrinks to singleton vector") {
-        checkShrink(Gen.chunkOf1(smallInt))(NonEmptyChunk(-100))
+        checkShrink(Gen.chunkOf1(smallInt))(NonEmptyChunk(-10))
       },
       test("chunkOfBounded shrinks to bottom of range") {
-        checkShrink(Gen.chunkOfBounded(2, 10)(smallInt))(Chunk(-100, -100))
+        checkShrink(Gen.chunkOfBounded(2, 10)(smallInt))(Chunk(-10, -10))
       },
       test("chunkOfN shrinks elements") {
-        checkShrink(Gen.chunkOfN(10)(smallInt))(Chunk.fill(10)(-100))
+        checkShrink(Gen.chunkOfN(10)(smallInt))(Chunk.fill(10)(-10))
       },
       test("collect collects shrinks a partial function is defined at") {
         checkShrink(Gen.int(1, 10).collect { case n if n % 2 == 0 => n })(2)
@@ -517,7 +517,7 @@ object GenSpec extends ZIOBaseSpec {
         checkShrink(Gen.double(5.0, 9.0))(5.0)
       },
       test("either shrinks to left") {
-        checkShrink(Gen.either(smallInt, smallInt))(Left(-100))
+        checkShrink(Gen.either(smallInt, smallInt))(Left(-10))
       },
       test("exponential shrinks to zero") {
         checkShrink(Gen.exponential)(0.0)
@@ -536,19 +536,19 @@ object GenSpec extends ZIOBaseSpec {
         checkShrink(Gen.instant(min, max))(min)
       },
       test("int shrinks to bottom of range") {
-        checkShrink(smallInt)(-100)
+        checkShrink(smallInt)(-10)
       },
       test("listOf shrinks to empty list") {
         checkShrink(Gen.listOf(smallInt))(Nil)
       },
       test("listOf1 shrinks to singleton list") {
-        checkShrink(Gen.listOf1(smallInt))(::(-100, Nil))
+        checkShrink(Gen.listOf1(smallInt))(::(-10, Nil))
       },
       test("listOfBounded shrinks to bottom of range") {
-        checkShrink(Gen.listOfBounded(2, 10)(smallInt))(List(-100, -100))
+        checkShrink(Gen.listOfBounded(2, 10)(smallInt))(List(-10, -10))
       },
       test("listOfN shrinks elements") {
-        checkShrink(Gen.listOfN(10)(smallInt))(List.fill(10)(-100))
+        checkShrink(Gen.listOfN(10)(smallInt))(List.fill(10)(-10))
       },
       test("localDateTime shrinks to min") {
         val min = LocalDateTime.ofEpochSecond(-349875349L, 38743843, ZoneOffset.ofHours(-13))
@@ -564,13 +564,13 @@ object GenSpec extends ZIOBaseSpec {
         checkShrink(Gen.mapOf(smallInt, smallInt))(Map.empty)
       },
       test("mapOf1 shrinks to singleton map") {
-        checkShrink(Gen.mapOf1(smallInt, smallInt))(Map(-100 -> -100))
+        checkShrink(Gen.mapOf1(smallInt, smallInt))(Map(-10 -> -10))
       },
       test("mapOfBounded shrinks to bottom of range") {
-        checkShrink(Gen.mapOfBounded(1, 10)(smallInt, smallInt))(Map(-100 -> -100))
+        checkShrink(Gen.mapOfBounded(1, 10)(smallInt, smallInt))(Map(-10 -> -10))
       },
       test("mapOfN shrinks elements") {
-        checkShrink(Gen.mapOfN(1)(smallInt, smallInt))(Map(-100 -> -100))
+        checkShrink(Gen.mapOfN(1)(smallInt, smallInt))(Map(-10 -> -10))
       },
       test("noShrink discards the shrinker for this generator") {
         assertZIO(shrinks(Gen.int.noShrink))(hasSize(equalTo(1)))
@@ -594,19 +594,19 @@ object GenSpec extends ZIOBaseSpec {
         checkShrink(Gen.setOf(smallInt))(Set.empty)
       },
       test("setOf1 shrinks to singleton set") {
-        checkShrink(Gen.setOf1(smallInt))(Set(-100))
+        checkShrink(Gen.setOf1(smallInt))(Set(-10))
       },
       test("setOfBounded shrinks to bottom of range") {
-        checkShrink(Gen.setOfBounded(1, 10)(smallInt))(Set(-100))
+        checkShrink(Gen.setOfBounded(1, 10)(smallInt))(Set(-10))
       },
       test("setOfN shrinks elements") {
-        checkShrink(Gen.setOfN(1)(smallInt))(Set(-100))
+        checkShrink(Gen.setOfN(1)(smallInt))(Set(-10))
       },
       test("short shrinks to bottom of range") {
         checkShrink(Gen.short(5, 10))(5)
       },
       test("some shrinks to smallest value") {
-        checkShrink(Gen.some(smallInt))(Some(-100))
+        checkShrink(Gen.some(smallInt))(Some(-10))
       },
       test("string shrinks to empty string") {
         checkShrink(Gen.string(Gen.printableChar))("")
@@ -627,19 +627,19 @@ object GenSpec extends ZIOBaseSpec {
         checkShrink(Gen.vectorOf(smallInt))(Vector.empty)
       },
       test("vectorOf1 shrinks to singleton vector") {
-        checkShrink(Gen.vectorOf1(smallInt))(Vector(-100))
+        checkShrink(Gen.vectorOf1(smallInt))(Vector(-10))
       },
       test("vectorOfBounded shrinks to bottom of range") {
-        checkShrink(Gen.vectorOfBounded(2, 10)(smallInt))(Vector(-100, -100))
+        checkShrink(Gen.vectorOfBounded(2, 10)(smallInt))(Vector(-10, -10))
       },
       test("vectorOfN shrinks elements") {
-        checkShrink(Gen.vectorOfN(10)(smallInt))(Vector.fill(10)(-100))
+        checkShrink(Gen.vectorOfN(10)(smallInt))(Vector.fill(10)(-10))
       },
       test("zip shrinks correctly") {
         checkShrink(three <*> three)((0, 0))
       },
       test("zipWith shrinks correctly") {
-        checkShrink(smallInt.zipWith(smallInt)(_ + _))(-200)
+        checkShrink(smallInt.zipWith(smallInt)(_ + _))(-20)
       }
     ),
     test("fromIterable constructs deterministic generators") {

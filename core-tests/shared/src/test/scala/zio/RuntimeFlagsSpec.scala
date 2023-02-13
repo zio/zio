@@ -10,11 +10,7 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
 
   val genRuntimeFlag = Gen.oneOf(genFlags: _*)
 
-  val genRuntimeFlags =
-    for {
-      n   <- Gen.int(0, RuntimeFlag.all.size)
-      set <- Gen.setOfN(n)(genRuntimeFlag)
-    } yield RuntimeFlags(set.toSeq: _*)
+  val genRuntimeFlags = Gen.setOf(genRuntimeFlag).map(set => RuntimeFlags(set.toSeq: _*))
 
   def spec =
     suite("RuntimeFlagsSpec") {

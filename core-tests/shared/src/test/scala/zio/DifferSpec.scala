@@ -2,7 +2,7 @@ package zio
 
 import zio.test._
 
-object DifferSpec extends ZIOSpecDefault {
+object DifferSpec extends ZIOBaseSpec {
 
   val smallInt = Gen.int(1, 100)
 
