@@ -434,7 +434,7 @@ object Config {
         def andCase(context: Any, left: Boolean, right: Boolean): Boolean                = left && right
         def invalidDataCase(context: Any, path: Chunk[String], message: String): Boolean = false
         def missingDataCase(context: Any, path: Chunk[String], message: String): Boolean = true
-        def orCase(context: Any, left: Boolean, right: Boolean): Boolean                 = left || right
+        def orCase(context: Any, left: Boolean, right: Boolean): Boolean                 = left && right
         def sourceUnavailableCase(
           context: Any,
           path: Chunk[String],

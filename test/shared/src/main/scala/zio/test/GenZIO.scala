@@ -111,5 +111,5 @@ trait GenZIO {
    * A generator of successful effects.
    */
   final def successes[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, UIO[A]] =
-    gen.map(ZIO.succeedNow)
+    gen.map(ZIO.succeed(_))
 }

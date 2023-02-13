@@ -143,7 +143,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     self.sandbox
       .foldManaged(
         cause => ZManaged.fail(cause.squashWith(f)),
-        ZManaged.succeedNow
+        ZManaged.succeed(_)
       )
 
   /**
@@ -171,7 +171,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def catchAll[R1 <: R, E2, A1 >: A](
     h: E => ZManaged[R1, E2, A1]
   )(implicit ev: CanFail[E], trace: Trace): ZManaged[R1, E2, A1] =
-    foldManaged(h, ZManaged.succeedNow)
+    foldManaged(h, ZManaged.succeed(_))
 
   /**
    * Recovers from all errors with provided Cause.
@@ -187,7 +187,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def catchAllCause[R1 <: R, E2, A1 >: A](h: Cause[E] => ZManaged[R1, E2, A1])(implicit
     trace: Trace
   ): ZManaged[R1, E2, A1] =
-    self.foldCauseManaged[R1, E2, A1](h, ZManaged.succeedNow)
+    self.foldCauseManaged[R1, E2, A1](h, ZManaged.succeed(_))
 
   /**
    * Recovers from some or all of the error cases.
@@ -195,7 +195,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def catchSome[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[E, ZManaged[R1, E1, A1]]
   )(implicit ev: CanFail[E], trace: Trace): ZManaged[R1, E1, A1] =
-    foldManaged(pf.applyOrElse[E, ZManaged[R1, E1, A1]](_, ZManaged.fail(_)), ZManaged.succeedNow)
+    foldManaged(pf.applyOrElse[E, ZManaged[R1, E1, A1]](_, ZManaged.fail(_)), ZManaged.succeed(_))
 
   /**
    * Recovers from some or all of the error Causes.
@@ -203,14 +203,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def catchSomeCause[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[Cause[E], ZManaged[R1, E1, A1]]
   )(implicit trace: Trace): ZManaged[R1, E1, A1] =
-    foldCauseManaged(pf.applyOrElse[Cause[E], ZManaged[R1, E1, A1]](_, ZManaged.failCause(_)), ZManaged.succeedNow)
+    foldCauseManaged(pf.applyOrElse[Cause[E], ZManaged[R1, E1, A1]](_, ZManaged.failCause(_)), ZManaged.succeed(_))
 
   /**
    * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
    * succeed with the returned value.
    */
   def collect[E1 >: E, B](e: => E1)(pf: PartialFunction[A, B])(implicit trace: Trace): ZManaged[R, E1, B] =
-    collectManaged(e)(pf.andThen(ZManaged.succeedNow(_)))
+    collectManaged(e)(pf.andThen(ZManaged.succeed(_)))
 
   /**
    * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
@@ -324,7 +324,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Flip the error and result
    */
   def flip(implicit trace: Trace): ZManaged[R, A, E] =
-    foldManaged(ZManaged.succeedNow, ZManaged.fail(_))
+    foldManaged(ZManaged.succeed(_), ZManaged.fail(_))
 
   /**
    * Flip the error and result, then apply an effectful function to the effect
@@ -343,7 +343,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     ev: CanFail[E],
     trace: Trace
   ): ZManaged[R, Nothing, B] =
-    foldManaged(failure.andThen(ZManaged.succeedNow), success.andThen(ZManaged.succeedNow))
+    foldManaged(failure.andThen(ZManaged.succeed(_)), success.andThen(ZManaged.succeed(_)))
 
   /**
    * A more powerful version of `fold` that allows recovering from any kind of
@@ -480,7 +480,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     ev2: CanFail[E],
     trace: Trace
   ): ZManaged[R, Nothing, A1] =
-    self.foldManaged(e => ZManaged.succeedNow(ev1(e)), ZManaged.succeedNow)
+    self.foldManaged(e => ZManaged.succeed(ev1(e)), ZManaged.succeed(_))
 
   /**
    * Requires the option produced by this value to be `None`.
@@ -488,7 +488,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   final def none[B](implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZManaged[R, Option[E], Unit] =
     self.foldManaged(
       e => ZManaged.fail(Some(e)),
-      a => ev(a).fold[ZManaged[R, Option[E], Unit]](ZManaged.succeedNow(()))(_ => ZManaged.fail(None))
+      a => ev(a).fold[ZManaged[R, Option[E], Unit]](ZManaged.succeed(()))(_ => ZManaged.fail(None))
     )
 
   /**
@@ -592,7 +592,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def orElse[R1 <: R, E2, A1 >: A](
     that: => ZManaged[R1, E2, A1]
   )(implicit ev: CanFail[E], trace: Trace): ZManaged[R1, E2, A1] =
-    foldManaged(_ => that, ZManaged.succeedNow)
+    foldManaged(_ => that, ZManaged.succeed(_))
 
   /**
    * Returns an effect that will produce the value of this effect, unless it
@@ -601,7 +601,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def orElseEither[R1 <: R, E2, B](
     that: => ZManaged[R1, E2, B]
   )(implicit ev: CanFail[E], trace: Trace): ZManaged[R1, E2, Either[A, B]] =
-    foldManaged(_ => that.map(Right[A, B]), a => ZManaged.succeedNow(Left[A, B](a)))
+    foldManaged(_ => that.map(Right[A, B]), a => ZManaged.succeed(Left[A, B](a)))
 
   /**
    * Executes this effect and returns its value, if it succeeds, but otherwise
@@ -625,7 +625,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * succeeds with the specified value.
    */
   final def orElseSucceed[A1 >: A](a1: => A1)(implicit ev: CanFail[E], trace: Trace): ZManaged[R, Nothing, A1] =
-    orElse(ZManaged.succeedNow(a1))
+    orElse(ZManaged.succeed(a1))
 
   /**
    * Preallocates the managed resource, resulting in a ZManaged that reserves
@@ -753,7 +753,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   )(implicit trace: Trace): ZManaged[R1, E1, A] =
     self.flatMap { v =>
       pf.andThen[ZManaged[R1, E1, A]](_.flatMap(ZManaged.fail(_)))
-        .applyOrElse[A, ZManaged[R1, E1, A]](v, ZManaged.succeedNow)
+        .applyOrElse[A, ZManaged[R1, E1, A]](v, ZManaged.succeed(_))
     }
 
   /**
@@ -794,8 +794,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def exit(implicit trace: Trace): ZManaged[R, Nothing, Exit[E, A]] =
     foldCauseManaged(
-      cause => ZManaged.succeedNow(Exit.failCause(cause)),
-      succ => ZManaged.succeedNow(Exit.succeed(succ))
+      cause => ZManaged.succeed(Exit.failCause(cause)),
+      succ => ZManaged.succeed(Exit.succeed(succ))
     )
 
   /**
@@ -828,7 +828,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   final def some[B](implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZManaged[R, Option[E], B] =
     self.foldManaged(
       e => ZManaged.fail(Some(e)),
-      a => ev(a).fold[ZManaged[R, Option[E], B]](ZManaged.fail(Option.empty[E]))(ZManaged.succeedNow)
+      a => ev(a).fold[ZManaged[R, Option[E], B]](ZManaged.fail(Option.empty[E]))(ZManaged.succeed(_))
     )
 
   /**
@@ -846,7 +846,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     default: => ZManaged[R1, E1, B]
   )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZManaged[R1, E1, B] =
     self.flatMap(ev(_) match {
-      case Some(value) => ZManaged.succeedNow(value)
+      case Some(value) => ZManaged.succeed(value)
       case None        => default
     })
 
@@ -857,7 +857,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     e: => E1
   )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZManaged[R, E1, B] =
     self.flatMap(ev(_) match {
-      case Some(value) => ZManaged.succeedNow(value)
+      case Some(value) => ZManaged.succeed(value)
       case None        => ZManaged.fail(e)
     })
 
@@ -873,7 +873,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     self.foldManaged(
       e => ZManaged.fail(e),
       ev(_) match {
-        case Some(value) => ZManaged.succeedNow(value)
+        case Some(value) => ZManaged.succeed(value)
         case None        => ZManaged.fail(ev2(new NoSuchElementException("None.get")))
       }
     )
@@ -913,7 +913,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def tapError[R1 <: R, E1 >: E](
     f: E => ZManaged[R1, E1, Any]
   )(implicit ev: CanFail[E], trace: Trace): ZManaged[R1, E1, A] =
-    tapBoth(f, ZManaged.succeedNow)
+    tapBoth(f, ZManaged.succeed(_))
 
   /**
    * Returns an effect that effectually peeks at the cause of the failure of the
@@ -1024,8 +1024,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   final def unsome[E1](implicit ev: E IsSubtypeOfError Option[E1], trace: Trace): ZManaged[R, E1, Option[A]] =
     self.foldManaged(
-      e => ev(e).fold[ZManaged[R, E1, Option[A]]](ZManaged.succeedNow(Option.empty[A]))(ZManaged.fail(_)),
-      a => ZManaged.succeedNow(Some(a))
+      e => ev(e).fold[ZManaged[R, E1, Option[A]]](ZManaged.succeed(Option.empty[A]))(ZManaged.fail(_)),
+      a => ZManaged.succeed(Some(a))
     )
 
   /**
@@ -1076,7 +1076,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * valid outside its scope.
    */
   def useNow(implicit trace: Trace): ZIO[R, E, A] =
-    use(ZIO.succeedNow)
+    use(ZIO.succeed(_))
 
   /**
    * The moral equivalent of `if (p) exp`
@@ -1828,8 +1828,8 @@ object ZManaged extends ZManagedPlatformSpecific {
   )(f: A => ZManaged[R, E, Boolean])(implicit trace: Trace): ZManaged[R, E, Boolean] =
     succeed(as.iterator).flatMap { iterator =>
       def loop: ZManaged[R, E, Boolean] =
-        if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) succeedNow(b) else loop)
-        else succeedNow(false)
+        if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) succeed(b) else loop)
+        else succeed(false)
       loop
     }
 
@@ -1913,7 +1913,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def foldLeft[R, E, S, A](
     in: => Iterable[A]
   )(zero: => S)(f: (S, A) => ZManaged[R, E, S])(implicit trace: Trace): ZManaged[R, E, S] =
-    ZManaged.suspend(in.foldLeft[ZManaged[R, E, S]](ZManaged.succeedNow(zero))((acc, el) => acc.flatMap(f(_, el))))
+    ZManaged.suspend(in.foldLeft[ZManaged[R, E, S]](ZManaged.succeed(zero))((acc, el) => acc.flatMap(f(_, el))))
 
   /**
    * Determines whether all elements of the `Iterable[A]` satisfy the effectual
@@ -1924,8 +1924,8 @@ object ZManaged extends ZManagedPlatformSpecific {
   )(f: A => ZManaged[R, E, Boolean])(implicit trace: Trace): ZManaged[R, E, Boolean] =
     succeed(as.iterator).flatMap { iterator =>
       def loop: ZManaged[R, E, Boolean] =
-        if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) loop else succeedNow(b))
-        else succeedNow(true)
+        if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) loop else succeed(b))
+        else succeed(true)
       loop
     }
 
@@ -2053,14 +2053,14 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Lifts an `Either` into a `ZManaged` value.
    */
   def fromEither[E, A](v: => Either[E, A])(implicit trace: Trace): ZManaged[Any, E, A] =
-    succeed(v).flatMap(_.fold(fail(_), succeedNow))
+    succeed(v).flatMap(_.fold(fail(_), succeed(_)))
 
   /**
    * Lifts an `Option` into a `ZManaged` but preserves the error as an option in
    * the error channel, making it easier to compose in some scenarios.
    */
   def fromOption[A](v: => Option[A])(implicit trace: Trace): ZManaged[Any, Option[Nothing], A] =
-    succeed(v).flatMap(_.fold[Managed[Option[Nothing], A]](fail(None))(succeedNow))
+    succeed(v).flatMap(_.fold[Managed[Option[Nothing], A]](fail(None))(succeed(_)))
 
   /**
    * Lifts a pure `Reservation[R, E, A]` into `ZManaged[R, E, A]`. The
@@ -2104,7 +2104,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def fromTry[A](value: => scala.util.Try[A])(implicit trace: Trace): TaskManaged[A] =
     attempt(value).flatMap {
-      case scala.util.Success(v) => succeedNow(v)
+      case scala.util.Success(v) => succeed(v)
       case scala.util.Failure(t) => fail(t)
     }
 
@@ -2163,7 +2163,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     ZManaged.suspend {
       def loop(initial: S): ZManaged[R, E, S] =
         if (cont(initial)) body(initial).flatMap(loop)
-        else ZManaged.succeedNow(initial)
+        else ZManaged.succeed(initial)
 
       loop(initial)
     }
@@ -2289,7 +2289,7 @@ object ZManaged extends ZManagedPlatformSpecific {
         if (cont(initial))
           body(initial).flatMap(a => loop(inc(initial)).map(as => a :: as))
         else
-          ZManaged.succeedNow(List.empty[A])
+          ZManaged.succeed(List.empty[A])
 
       loop(initial)
     }
@@ -2353,7 +2353,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def mergeAll[R, E, A, B](in: => Iterable[ZManaged[R, E, A]])(zero: => B)(f: (B, A) => B)(implicit
     trace: Trace
   ): ZManaged[R, E, B] =
-    ZManaged.suspend(in.foldLeft[ZManaged[R, E, B]](succeedNow(zero))(_.zipWith(_)(f)))
+    ZManaged.suspend(in.foldLeft[ZManaged[R, E, B]](succeed(zero))(_.zipWith(_)(f)))
 
   /**
    * Merges an `Iterable[ZManaged]` to a single `ZManaged`, working in parallel.
@@ -2379,7 +2379,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Returns a `ZManaged` with the empty value.
    */
   val none: Managed[Nothing, Option[Nothing]] =
-    succeedNow(None)
+    succeed(None)(Trace.empty)
 
   /**
    * Returns a managed effect that describes shifting to the specified executor
@@ -2421,7 +2421,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       new PreallocationScope {
         def apply[R, E, A](managed: => ZManaged[R, E, A]) =
           allocate(managed).map { case (release, res) =>
-            ZManaged.acquireReleaseExitWith(ZIO.succeedNow(res))((_, exit) => release(exit))
+            ZManaged.acquireReleaseExitWith(ZIO.succeed(res))((_, exit) => release(exit))
           }
       }
     }
@@ -2637,7 +2637,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * unit.
    */
   lazy val unit: ZManaged[Any, Nothing, Unit] =
-    ZManaged.succeedNow(())
+    ZManaged.succeed(())(Trace.empty)
 
   /**
    * The moral equivalent of `if (!p) exp`
@@ -2893,9 +2893,6 @@ object ZManaged extends ZManagedPlatformSpecific {
           ZManaged.attempt(input)
       }
   }
-
-  private[zio] def succeedNow[A](r: A): ZManaged[Any, Nothing, A] =
-    ZManaged(ZIO.succeedNow((Finalizer.noop, r)))
 
   implicit final class RefineToOrDieOps[R, E <: Throwable, A](private val self: ZManaged[R, E, A]) extends AnyVal {
 

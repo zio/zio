@@ -156,14 +156,14 @@ object Queue {
               }
             } else false
 
-          if (noRemaining) ZIO.succeedNow(true)
+          if (noRemaining) ZIO.succeed(true)
           else {
             // not enough takers, offer to the queue
             val succeeded = queue.offer(a)
             strategy.unsafeCompleteTakers(queue, takers)
 
             if (succeeded)
-              ZIO.succeedNow(true)
+              ZIO.succeed(true)
             else
               strategy.handleSurplus(Chunk(a), queue, takers, shutdownFlag)
           }
@@ -180,14 +180,14 @@ object Queue {
             unsafeCompletePromise(taker, item)
           }
 
-          if (remaining.isEmpty) ZIO.succeedNow(Chunk.empty)
+          if (remaining.isEmpty) ZIO.succeed(Chunk.empty)
           else {
             // not enough takers, offer to the queue
             val surplus = unsafeOfferAll(queue, remaining)
             strategy.unsafeCompleteTakers(queue, takers)
 
             if (surplus.isEmpty)
-              ZIO.succeedNow(Chunk.empty)
+              ZIO.succeed(Chunk.empty)
             else
               strategy.handleSurplus(surplus, queue, takers, shutdownFlag).map { offered =>
                 if (offered) Chunk.empty else surplus
@@ -203,7 +203,7 @@ object Queue {
         if (shutdownFlag.get)
           ZIO.interrupt
         else
-          ZIO.succeedNow(queue.size() - takers.size() + strategy.surplusSize)
+          ZIO.succeed(queue.size() - takers.size() + strategy.surplusSize)
       }
 
     def shutdown(implicit trace: Trace): UIO[Unit] =
@@ -239,7 +239,7 @@ object Queue {
 
             case item =>
               strategy.unsafeOnQueueEmptySpace(queue, takers)
-              ZIO.succeedNow(item)
+              ZIO.succeed(item)
           }
         }
       }
@@ -392,7 +392,7 @@ object Queue {
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
-      )(implicit trace: Trace): UIO[Boolean] = ZIO.succeedNow(false)
+      )(implicit trace: Trace): UIO[Boolean] = ZIO.succeed(false)
 
       def unsafeOnQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
@@ -447,7 +447,7 @@ object Queue {
   }
 
   private def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A): Unit =
-    p.unsafe.done(ZIO.succeedNow(a))(Unsafe.unsafe)
+    p.unsafe.done(Exit.succeed(a))(Unsafe.unsafe)
 
   /**
    * Offer items to the queue

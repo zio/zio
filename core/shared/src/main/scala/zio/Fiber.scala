@@ -223,7 +223,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    *   `Fiber[E, B]` mapped fiber
    */
   final def map[B](f: A => B): Fiber.Synthetic[E, B] =
-    mapZIO(f andThen ZIO.succeedNow)
+    mapZIO(f andThen Exit.succeed)
 
   /**
    * Passes the success of this fiber to the specified callback, and continues
@@ -255,7 +255,7 @@ sealed abstract class Fiber[+E, +A] { self =>
       final def interruptAsFork(id: FiberId)(implicit trace: Trace): UIO[Unit] =
         self.interruptAsFork(id)
       final def poll(implicit trace: Trace): UIO[Option[Exit[E1, B]]] =
-        self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](ZIO.succeedNow(None))(_.foreach(f).map(Some(_))))
+        self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](ZIO.succeed(None))(_.foreach(f).map(Some(_))))
     }
 
   /**
@@ -329,7 +329,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * when the scope is closed.
    */
   final def scoped(implicit trace: Trace): ZIO[Scope, Nothing, Fiber[E, A]] =
-    ZIO.acquireRelease(ZIO.succeedNow(self))(_.interrupt)
+    ZIO.acquireRelease(ZIO.succeed(self))(_.interrupt)
 
   /**
    * Converts this fiber into a [[scala.concurrent.Future]].
@@ -708,12 +708,12 @@ object Fiber extends FiberPlatformSpecific {
    */
   def done[E, A](exit: => Exit[E, A]): Fiber.Synthetic[E, A] =
     new Fiber.Synthetic[E, A] {
-      final def await(implicit trace: Trace): UIO[Exit[E, A]]                    = ZIO.succeedNow(exit)
-      final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = ZIO.succeedNow(Chunk.empty)
+      final def await(implicit trace: Trace): UIO[Exit[E, A]]                    = ZIO.succeed(exit)
+      final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = ZIO.succeed(Chunk.empty)
       final def id: FiberId                                                      = FiberId.None
       final def interruptAsFork(id: FiberId)(implicit trace: Trace): UIO[Unit]   = ZIO.unit
       final def inheritAll(implicit trace: Trace): UIO[Unit]                     = ZIO.unit
-      final def poll(implicit trace: Trace): UIO[Option[Exit[E, A]]]             = ZIO.succeedNow(Some(exit))
+      final def poll(implicit trace: Trace): UIO[Option[Exit[E, A]]]             = ZIO.succeed(Some(exit))
     }
 
   /**
@@ -768,7 +768,7 @@ object Fiber extends FiberPlatformSpecific {
 
       final def await(implicit trace: Trace): UIO[Exit[Throwable, A]] = ZIO.fromFuture(_ => ftr).exit
 
-      final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = ZIO.succeedNow(Chunk.empty)
+      final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = ZIO.succeed(Chunk.empty)
 
       final def id: FiberId = FiberId.None
 
@@ -854,11 +854,11 @@ object Fiber extends FiberPlatformSpecific {
   val never: Fiber.Synthetic[Nothing, Nothing] =
     new Fiber.Synthetic[Nothing, Nothing] {
       final def await(implicit trace: Trace): UIO[Exit[Nothing, Nothing]]        = ZIO.never
-      final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = ZIO.succeedNow(Chunk.empty)
+      final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = ZIO.succeed(Chunk.empty)
       final def id: FiberId                                                      = FiberId.None
       final def interruptAsFork(id: FiberId)(implicit trace: Trace): UIO[Unit]   = ZIO.unit
       final def inheritAll(implicit trace: Trace): UIO[Unit]                     = ZIO.unit
-      final def poll(implicit trace: Trace): UIO[Option[Exit[Nothing, Nothing]]] = ZIO.succeedNow(None)
+      final def poll(implicit trace: Trace): UIO[Option[Exit[Nothing, Nothing]]] = ZIO.succeed(None)
     }
 
   /**

@@ -79,7 +79,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch     <- Promise.make[Nothing, Unit]
               cancelled <- Ref.make(false)
               sink = ZSink.foldZIO(List[Int]())(_ => true) { (acc, el: Int) =>
-                       if (el == 1) ZIO.succeedNow(el :: acc)
+                       if (el == 1) ZIO.succeed(el :: acc)
                        else
                          (latch.succeed(()) *> ZIO.infinity)
                            .onInterrupt(cancelled.set(true))
@@ -209,7 +209,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                        Schedule.forever
                      )
                      .runDrain
-                     .catchAll(_ => ZIO.succeedNow(()))
+                     .catchAll(_ => ZIO.succeed(()))
               value <- queue.takeAll
               _     <- queue.shutdown
             } yield assert(value)(equalTo(Chunk(1, 2, 3, 4, 5)))
@@ -407,8 +407,8 @@ object ZStreamSpec extends ZIOBaseSpec {
           //                     ref
           //                       .update(_ + 1)
           //                       .as[Option[Chunk[Int]] => UIO[Chunk[Int]]] {
-          //                         case None    => ZIO.succeedNow(Chunk.empty)
-          //                         case Some(c) => ZIO.succeedNow(c)
+          //                         case None    => ZIO.succeed(Chunk.empty)
+          //                         case Some(c) => ZIO.succeed(c)
           //                       }
           //                   )(_ => ref.update(_ - 1))
           //                 }
@@ -1037,7 +1037,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertZIO(
               (ZStream(Option(1)) ++ ZStream.fail("Ouch"))
                 .collectWhileZIO[Any, String, Int] { case None =>
-                  ZIO.succeedNow(1)
+                  ZIO.succeed(1)
                 }
                 .runDrain
                 .either
@@ -1082,7 +1082,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         suite("distributedWithDynamic")(
           test("ensures no race between subscription and stream end") {
             ZIO.scoped {
-              ZStream.empty.distributedWithDynamic(1, _ => ZIO.succeedNow(_ => true)).flatMap { add =>
+              ZStream.empty.distributedWithDynamic(1, _ => ZIO.succeed(_ => true)).flatMap { add =>
                 val subscribe = ZStream.unwrap(add.map { case (_, queue) =>
                   ZStream.fromQueue(queue).collectWhileSuccess
                 })
@@ -1090,7 +1090,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                   subscribe.ensuring(onEnd.succeed(())).runDrain.fork *>
                     onEnd.await *>
                     subscribe.runDrain *>
-                    ZIO.succeedNow(assertCompletes)
+                    ZIO.succeed(assertCompletes)
                 }
               }
             }
@@ -1863,7 +1863,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               flag <- Ref.make(true)
               _ <- (ZStream(true, true, false) ++ ZStream.fromZIO(flag.set(false)).drain)
-                     .runForeachWhile(ZIO.succeedNow)
+                     .runForeachWhile(ZIO.succeed(_))
               skipped <- flag.get
             } yield assert(skipped)(isTrue)
           }
@@ -2460,7 +2460,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("mapConcatChunkZIO happy path") {
             check(pureStreamOfInts, Gen.function(Gen.chunkOf(Gen.int))) { (s, f) =>
               for {
-                res1 <- s.mapConcatChunkZIO(b => ZIO.succeedNow(f(b))).runCollect
+                res1 <- s.mapConcatChunkZIO(b => ZIO.succeed(f(b))).runCollect
                 res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
               } yield assert(res1)(equalTo(res2))
             }
@@ -2477,7 +2477,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("mapConcatZIO happy path") {
             check(pureStreamOfInts, Gen.function(Gen.listOf(Gen.int))) { (s, f) =>
               for {
-                res1 <- s.mapConcatZIO(b => ZIO.succeedNow(f(b))).runCollect
+                res1 <- s.mapConcatZIO(b => ZIO.succeed(f(b))).runCollect
                 res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
               } yield assert(res1)(equalTo(res2))
             }
@@ -2559,8 +2559,8 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("guarantee ordering")(check(Gen.int(1, 4096), Gen.listOf(Gen.int)) { (n: Int, m: List[Int]) =>
             for {
-              mapZIO    <- ZStream.fromIterable(m).mapZIO(ZIO.succeedNow).runCollect
-              mapZIOPar <- ZStream.fromIterable(m).mapZIOPar(n)(ZIO.succeedNow).runCollect
+              mapZIO    <- ZStream.fromIterable(m).mapZIO(ZIO.succeed(_)).runCollect
+              mapZIOPar <- ZStream.fromIterable(m).mapZIOPar(n)(ZIO.succeed(_)).runCollect
             } yield assert(n)(isGreaterThan(0)) implies assert(mapZIO)(equalTo(mapZIOPar))
           }),
           test("awaits children fibers properly") {
@@ -2726,7 +2726,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val stream = ZIO.scoped {
               ZStream
                 .fromIterable[Int](Seq.empty)
-                .partitionEither(i => ZIO.succeedNow(if (i % 2 == 0) Left(i) else Right(i)))
+                .partitionEither(i => ZIO.succeed(if (i % 2 == 0) Left(i) else Right(i)))
                 .map { case (evens, odds) => evens.mergeEither(odds) }
                 .flatMap(_.runCollect)
             }
@@ -2737,8 +2737,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               ZStream
                 .range(0, 6)
                 .partitionEither { i =>
-                  if (i % 2 == 0) ZIO.succeedNow(Left(i))
-                  else ZIO.succeedNow(Right(i))
+                  if (i % 2 == 0) ZIO.succeed(Left(i))
+                  else ZIO.succeed(Right(i))
                 }
                 .flatMap { case (s1, s2) =>
                   for {
@@ -2753,8 +2753,8 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("errors") {
             ZIO.scoped {
               (ZStream.range(0, 1) ++ ZStream.fail("Boom")).partitionEither { i =>
-                if (i % 2 == 0) ZIO.succeedNow(Left(i))
-                else ZIO.succeedNow(Right(i))
+                if (i % 2 == 0) ZIO.succeed(Left(i))
+                else ZIO.succeed(Right(i))
               }.flatMap { case (s1, s2) =>
                 for {
                   out1 <- s1.runCollect.either
@@ -2771,8 +2771,8 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .range(0, 6)
                 .partitionEither(
                   i =>
-                    if (i % 2 == 0) ZIO.succeedNow(Left(i))
-                    else ZIO.succeedNow(Right(i)),
+                    if (i % 2 == 0) ZIO.succeed(Left(i))
+                    else ZIO.succeed(Right(i)),
                   1
                 )
                 .flatMap { case (s1, s2) =>
@@ -3812,7 +3812,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               ZIO.scoped {
                 ZStream.fromChunks(chunks: _*).toInputStream.flatMap[Scope, Throwable, TestResult] { is =>
                   val combined = Iterator.continually(is.read()).takeWhile(_ != -1).map(_.toByte).toList
-                  ZIO.succeedNow(assert(combined)(equalTo(content)))
+                  ZIO.succeed(assert(combined)(equalTo(content)))
                 }
               }
             }
@@ -3828,7 +3828,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                     (buf, res)
                   }.takeWhile(_._2 != -1).toList
                   val combined = batches.flatMap { case (buf, size) => buf.take(size) }
-                  ZIO.succeedNow(assert(combined)(equalTo(content)))
+                  ZIO.succeed(assert(combined)(equalTo(content)))
                 }
               }
             }
@@ -3971,7 +3971,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               ZIO.scoped {
                 ZStream.fromChunks(chunks: _*).toReader.flatMap[Scope, Throwable, TestResult] { reader =>
                   val combined = Iterator.continually(reader.read()).takeWhile(_ != -1).map(_.toChar).toList
-                  ZIO.succeedNow(assert(combined)(equalTo(content)))
+                  ZIO.succeed(assert(combined)(equalTo(content)))
                 }
               }
             }
@@ -3987,7 +3987,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                     (buf, res)
                   }.takeWhile(_._2 != -1).toList
                   val combined = batches.flatMap { case (buf, size) => buf.take(size) }
-                  ZIO.succeedNow(assert(combined)(equalTo(content)))
+                  ZIO.succeed(assert(combined)(equalTo(content)))
                 }
               }
             }
@@ -4801,7 +4801,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               pulls <- ZIO.scoped {
                          ZStream
                            .fromIteratorScoped(
-                             ZIO.acquireRelease(ZIO.succeedNow(List(1, 2).iterator))(_ => ref.set(true)),
+                             ZIO.acquireRelease(ZIO.succeed(List(1, 2).iterator))(_ => ref.set(true)),
                              maxChunkSize = 1
                            )
                            .toPull

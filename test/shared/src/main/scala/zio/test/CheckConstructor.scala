@@ -23,7 +23,7 @@ object CheckConstructor extends CheckConstructorLowPriority1 {
       type OutEnvironment = R
       type OutError       = Nothing
       def apply(input: => A)(implicit trace: Trace): ZIO[OutEnvironment, OutError, TestResult] =
-        ZIO.succeedNow(input)
+        ZIO.succeed(input)
     }
 }
 

@@ -616,7 +616,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
         case Exit.Success(lz) =>
           ZChannel.MergeDecision.await {
             case Exit.Failure(cause) => ZIO.refailCause(cause)
-            case Exit.Success(rz)    => ZIO.succeedNow(f(lz, rz))
+            case Exit.Success(rz)    => ZIO.succeed(f(lz, rz))
           }
       },
       {
@@ -624,7 +624,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
         case Exit.Success(rz) =>
           ZChannel.MergeDecision.await {
             case Exit.Failure(cause) => ZIO.refailCause(cause)
-            case Exit.Success(lz)    => ZIO.succeedNow(f(lz, rz))
+            case Exit.Success(lz)    => ZIO.succeed(f(lz, rz))
           }
       }
     )
@@ -1207,7 +1207,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   )(costFn: (S, In) => ZIO[Env, Err, Long], max: Long)(
     f: (S, In) => ZIO[Env, Err, S]
   )(implicit trace: Trace): ZSink[Env, Err, In, In, S] =
-    foldWeightedDecomposeZIO(z)(costFn, max, (i: In) => ZIO.succeedNow(Chunk.single(i)))(f)
+    foldWeightedDecomposeZIO(z)(costFn, max, (i: In) => ZIO.succeed(Chunk.single(i)))(f)
 
   /**
    * A sink that effectfully folds its inputs with the provided function,
@@ -1414,7 +1414,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     trace: Trace
   ): ZSink[Any, Nothing, I, Nothing, Unit] =
     ZSink.unwrapScoped(
-      ZIO.acquireRelease(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[I](_))
+      ZIO.acquireRelease(ZIO.succeed(queue))(_.shutdown).map(fromQueue[I](_))
     )
 
   /**

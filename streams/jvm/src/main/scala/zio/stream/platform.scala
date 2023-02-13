@@ -164,7 +164,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
                 case Right(cause) =>
                   ZChannel.failCause(cause)
               }),
-            a => ZIO.succeedNow(ZChannel.write(a) *> loop)
+            a => ZIO.succeed(ZChannel.write(a) *> loop)
           )
       )
 
@@ -253,7 +253,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
             if (x == null)
               ZIO.fail(new FileNotFoundException(s"No such resource: '$path'"))
             else
-              ZIO.succeedNow(x)
+              ZIO.succeed(x)
           }
         }
       }
@@ -691,7 +691,7 @@ private[stream] trait ZSinkPlatformSpecificConstructors {
   final def fromOutputStream(
     os: => OutputStream
   )(implicit trace: Trace): ZSink[Any, IOException, Byte, Byte, Long] = fromOutputStreamScoped(
-    ZIO.succeedNow(os)
+    ZIO.succeed(os)
   )
 
   /**

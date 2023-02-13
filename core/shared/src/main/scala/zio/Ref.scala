@@ -202,10 +202,10 @@ object Ref extends Serializable {
     def getAndUpdateSomeZIO[R, E](pf: PartialFunction[A, ZIO[R, E, A]])(implicit
       trace: Trace
     ): ZIO[R, E, A] =
-      modifyZIO(v => pf.applyOrElse[A, ZIO[R, E, A]](v, ZIO.succeedNow).map(result => (v, result)))
+      modifyZIO(v => pf.applyOrElse[A, ZIO[R, E, A]](v, ZIO.succeed(_)).map(result => (v, result)))
 
     final def modify[B](f: A => (B, A))(implicit trace: Trace): UIO[B] =
-      modifyZIO(a => ZIO.succeedNow(f(a)))
+      modifyZIO(a => ZIO.succeed(f(a)))
 
     /**
      * Atomically modifies the `Ref.Synchronized` with the specified function,
@@ -216,7 +216,7 @@ object Ref extends Serializable {
     def modifySomeZIO[R, E, B](default: B)(pf: PartialFunction[A, ZIO[R, E, (B, A)]])(implicit
       trace: Trace
     ): ZIO[R, E, B] =
-      modifyZIO(v => pf.applyOrElse[A, ZIO[R, E, (B, A)]](v, _ => ZIO.succeedNow((default, v))))
+      modifyZIO(v => pf.applyOrElse[A, ZIO[R, E, (B, A)]](v, _ => ZIO.succeed((default, v))))
 
     /**
      * Atomically modifies the `Ref.Synchronized` with the specified function.
@@ -239,7 +239,7 @@ object Ref extends Serializable {
     def updateSomeZIO[R, E](pf: PartialFunction[A, ZIO[R, E, A]])(implicit
       trace: Trace
     ): ZIO[R, E, Unit] =
-      modifyZIO(v => pf.applyOrElse[A, ZIO[R, E, A]](v, ZIO.succeedNow).map(result => ((), result)))
+      modifyZIO(v => pf.applyOrElse[A, ZIO[R, E, A]](v, ZIO.succeed(_)).map(result => ((), result)))
 
     /**
      * Atomically modifies the `Ref.Synchronized` with the specified partial
@@ -249,7 +249,7 @@ object Ref extends Serializable {
     def updateSomeAndGetZIO[R, E](pf: PartialFunction[A, ZIO[R, E, A]])(implicit
       trace: Trace
     ): ZIO[R, E, A] =
-      modifyZIO(v => pf.applyOrElse[A, ZIO[R, E, A]](v, ZIO.succeedNow).map(result => (result, result)))
+      modifyZIO(v => pf.applyOrElse[A, ZIO[R, E, A]](v, ZIO.succeed(_)).map(result => (result, result)))
   }
 
   object Synchronized {

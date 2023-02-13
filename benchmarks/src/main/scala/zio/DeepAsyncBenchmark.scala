@@ -78,7 +78,7 @@ class DeepAsyncBenchmark {
 
     def recurse(n: Int): UIO[Int] =
       if (n > 0) recurse(n - 1).flatMap(i => ZIO.succeed(i + 1))
-      else ZIO.async[Any, Nothing, Int](k => k(ZIO.succeedNow(0)))
+      else ZIO.async[Any, Nothing, Int](k => k(Exit.succeed(0)))
 
     unsafeRun(recurse(depth))
   }
@@ -88,8 +88,8 @@ class DeepAsyncBenchmark {
     import zio.BenchmarkUtil._
 
     def recurse(n: Int): UIO[Int] =
-      if (n > 0) recurse(n - 1).flatMap(i => ZIO.async[Any, Nothing, Int](k => k(ZIO.succeedNow(i + 1))))
-      else ZIO.async[Any, Nothing, Int](k => k(ZIO.succeedNow(0)))
+      if (n > 0) recurse(n - 1).flatMap(i => ZIO.async[Any, Nothing, Int](k => k(Exit.succeed(i + 1))))
+      else ZIO.async[Any, Nothing, Int](k => k(Exit.succeed(0)))
 
     unsafeRun(recurse(depth))
   }

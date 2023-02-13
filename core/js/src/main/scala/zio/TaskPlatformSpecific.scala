@@ -28,7 +28,7 @@ private[zio] trait TaskPlatformSpecific { self: ZIO.type =>
   def fromPromiseJS[A](promise: => JSPromise[A])(implicit trace: Trace): Task[A] =
     self.async { callback =>
       val onFulfilled: Function1[A, Unit | Thenable[Unit]] = new scala.Function1[A, Unit | Thenable[Unit]] {
-        def apply(a: A): Unit | Thenable[Unit] = callback(ZIO.succeedNow(a))
+        def apply(a: A): Unit | Thenable[Unit] = callback(ZIO.succeed(a))
       }
       val onRejected: Function1[Any, Unit | Thenable[Unit]] = new scala.Function1[Any, Unit | Thenable[Unit]] {
         def apply(e: Any): Unit | Thenable[Unit] =

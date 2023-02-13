@@ -99,7 +99,7 @@ package object test extends CompileVariants {
    * Retrieves the `TestClock` service for this test.
    */
   def testClock(implicit trace: Trace): UIO[TestClock] =
-    testClockWith(ZIO.succeedNow)
+    testClockWith(ZIO.succeed(_))
 
   /**
    * Retrieves the `TestClock` service for this test and uses it to run the
@@ -112,7 +112,7 @@ package object test extends CompileVariants {
    * Retrieves the `TestConsole` service for this test.
    */
   def testConsole(implicit trace: Trace): UIO[TestConsole] =
-    testConsoleWith(ZIO.succeedNow)
+    testConsoleWith(ZIO.succeed(_))
 
   /**
    * Retrieves the `TestConsole` service for this test and uses it to run the
@@ -125,7 +125,7 @@ package object test extends CompileVariants {
    * Retrieves the `TestRandom` service for this test.
    */
   def testRandom(implicit trace: Trace): UIO[TestRandom] =
-    testRandomWith(ZIO.succeedNow)
+    testRandomWith(ZIO.succeed(_))
 
   /**
    * Retrieves the `TestRandom` service for this test and uses it to run the
@@ -138,7 +138,7 @@ package object test extends CompileVariants {
    * Retrieves the `TestSystem` service for this test.
    */
   def testSystem(implicit trace: Trace): UIO[TestSystem] =
-    testSystemWith(ZIO.succeedNow)
+    testSystemWith(ZIO.succeed(_))
 
   /**
    * Retrieves the `TestSystem` service for this test and uses it to run the
@@ -151,7 +151,7 @@ package object test extends CompileVariants {
    * Retrieves the `Annotations` service for this test.
    */
   def annotations(implicit trace: Trace): UIO[Annotations] =
-    annotationsWith(ZIO.succeedNow)
+    annotationsWith(ZIO.succeed(_))
 
   /**
    * Retrieves the `Annotations` service for this test and uses it to run the
@@ -164,7 +164,7 @@ package object test extends CompileVariants {
    * Retrieves the `Live` service for this test.
    */
   def live(implicit trace: Trace): UIO[Live] =
-    liveWith(ZIO.succeedNow)
+    liveWith(ZIO.succeed(_))
 
   /**
    * Retrieves the `Live` service for this test and uses it to run the specified
@@ -177,7 +177,7 @@ package object test extends CompileVariants {
    * Retrieves the `Sized` service for this test.
    */
   def sized(implicit trace: Trace): UIO[Sized] =
-    sizedWith(ZIO.succeedNow)
+    sizedWith(ZIO.succeed(_))
 
   /**
    * Retrieves the `Sized` service for this test and uses it to run the
@@ -190,7 +190,7 @@ package object test extends CompileVariants {
    * Retrieves the `TestConfig` service for this test.
    */
   def testConfig(implicit trace: Trace): UIO[TestConfig] =
-    testConfigWith(ZIO.succeedNow)
+    testConfigWith(ZIO.succeed(_))
 
   /**
    * Retrieves the `TestConfig` service for this test and uses it to run the
@@ -323,7 +323,7 @@ package object test extends CompileVariants {
                        if (assert.isFailure)
                          ZIO.fail(TestFailure.Assertion(assert))
                        else
-                         ZIO.succeedNow(TestSuccess.Succeeded())
+                         ZIO.succeed(TestSuccess.Succeeded())
                    )
                    .intoPromise(promise)
                    .forkDaemon
@@ -825,7 +825,7 @@ package object test extends CompileVariants {
    * Creates an ignored test result.
    */
   val ignored: UIO[TestSuccess] =
-    ZIO.succeedNow(TestSuccess.Ignored())
+    ZIO.succeed(TestSuccess.Ignored())(Trace.empty)
 
   /**
    * Passes platform specific information to the specified function, which will
@@ -969,7 +969,7 @@ package object test extends CompileVariants {
           .filter(_.fold(_ => true, _.isFailure))
           .lastOption
           .fold[ZIO[R, E, TestResult]](
-            ZIO.succeedNow(assertCompletes)
+            ZIO.succeed(assertCompletes)
           )(ZIO.fromEither(_))
       }
 

@@ -2,7 +2,7 @@ package zio.internal
 
 import org.openjdk.jmh.annotations.{Scope => JScope, _}
 import zio.BenchmarkUtil._
-import zio.ZIO.succeedNow
+import zio.ZIO.succeed
 import zio._
 
 import java.util.concurrent.TimeUnit
@@ -26,5 +26,5 @@ private[this] class MergeAllParBenchmark {
   private def naiveMergeAllPar[R, E, A, B](
     in: Iterable[ZIO[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZIO[R, E, B] =
-    in.foldLeft[ZIO[R, E, B]](succeedNow[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled))
+    in.foldLeft[ZIO[R, E, B]](succeed[B](zero))((acc, a) => acc.zipPar(a).map(f.tupled))
 }

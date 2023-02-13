@@ -486,7 +486,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("onExecutor")(
       test("runs acquire, use, and release actions on the specified executor") {
-        val executor: UIO[Executor] = ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
+        val executor: UIO[Executor] = ZIO.descriptorWith(descriptor => ZIO.succeed(descriptor.executor))
         val global                  = Executor.fromExecutionContext(ExecutionContext.global)
         for {
           default <- executor
