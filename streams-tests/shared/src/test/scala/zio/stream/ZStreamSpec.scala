@@ -3223,7 +3223,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             }
           },
           test("is mostly equivalent to ZStream#grouped when stepSize and chunkSize are equal") {
-            check(pureStreamGen(Gen.int, 100), Gen.int(1, 100)) { case (stream, chunkSize) =>
+            check(pureStreamOfInts, Gen.int(1, 100)) { case (stream, chunkSize) =>
               for {
                 result1 <- stream.sliding(chunkSize, chunkSize).runCollect
                 result2 <- stream.grouped(chunkSize).runCollect
