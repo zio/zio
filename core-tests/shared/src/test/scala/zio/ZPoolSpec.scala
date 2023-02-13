@@ -138,6 +138,11 @@ object ZPoolSpec extends ZIOBaseSpec {
             fiber <- pool.get.fork
             _     <- fiber.interrupt
           } yield assertCompletes
-        } @@ nonFlaky
+        } @@ nonFlaky +
+        test("make in uninterruptible region") {
+          for {
+            _ <- ZIO.scoped(ZPool.make(ZIO.unit, 10 to 15, 60.seconds).uninterruptible)
+          } yield assertCompletes
+        }
     }
 }
