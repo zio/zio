@@ -215,7 +215,7 @@ object BuildHelper {
           compilerPlugin("com.github.ghik" % "silencer-plugin" % SilencerVersion cross CrossVersion.full)
         )
     },
-    Test / parallelExecution := { scalaVersion.value != Scala3 },
+    Test / parallelExecution := false,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     // autoAPIMappings := true,
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
