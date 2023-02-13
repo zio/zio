@@ -5796,6 +5796,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   private[zio] val someDebug   = Some(LogLevel.Debug)
   private[zio] val someTrace   = Some(LogLevel.Trace)
 
+  @deprecated("use succeed", "2.0.9")
+  private[zio] def succeedNow[A](a: A): UIO[A] =
+    succeed(a)(Trace.empty)
+
   private def collectAllParUnboundedDiscard[R, E, A](as: => Iterable[ZIO[R, E, A]])(implicit
     trace: Trace
   ): ZIO[R, E, Unit] =
