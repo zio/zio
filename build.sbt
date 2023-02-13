@@ -30,7 +30,7 @@ addCommandAlias(
   "check",
   "; scalafmtSbtCheck; scalafmtCheckAll"
 )
-// Legacy command aliases ahead, may be removed in future. Consider using the one of the `root*` projects, like `rootJVM/test` instead of `testJVM`
+
 addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRefinedJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosTestsJVM/test:compile;concurrentJVM/test:compile;managedTestsJVM/test:compile"
@@ -48,11 +48,11 @@ addCommandAlias(
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test:compile;testRunnerJVM/test:run;examplesJVM/test:compile;concurrentJVM/test;managedTestsJVM/test"
 )
 addCommandAlias(
-  "testJVMDotty",
+  "testJVM3",
   ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;concurrentJVM/test;managedTestsJVM/test"
 )
 addCommandAlias(
-  "testJSDotty",
+  "testJS3",
   ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;concurrentJS/test"
 )
 addCommandAlias(
