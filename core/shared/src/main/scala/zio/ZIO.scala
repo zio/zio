@@ -3149,7 +3149,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Returns an effect that models failure with the specified `Cause`.
    */
   def failCause[E](cause: => Cause[E])(implicit trace0: Trace): IO[E, Nothing] =
-    ZIO.stackTrace(trace0).flatMap(trace => refailCause(cause.traced(trace)))
+    ZIO.stackTrace(trace0).flatMap { trace =>
+      ZIO.logSpans.flatMap { spans =>
+        ZIO.logAnnotations.flatMap { annotations =>
+          ZIO.refailCause(cause.traced(trace).spanned(spans).annotated(annotations))
+        }
+      }
+    }
 
   /**
    * Returns the `FiberId` of the fiber executing the effect that calls this
@@ -4044,6 +4050,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
       FiberRef.currentLogSpan.locallyScoped(logSpan :: stack)
     }
+
+  /**
+   * Retrieves the log spans associated with the current scope.
+   */
+  def logSpans(implicit trace: Trace): UIO[List[zio.LogSpan]] =
+    FiberRef.currentLogSpan.get
 
   /**
    * Logs the specified message at the trace log level.
