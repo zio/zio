@@ -3,7 +3,6 @@ id: index
 title: "Introduction to Configuration in ZIO"
 ---
 
-
 Configuration is a core concern for any cloud-native application. So ZIO ships with built-in support for configuration by providing a front-end for configuration providers as well as metrics and logging.
 
 So, ZIO provides a unified way to configure our applications, while still enabling customizability, flexibility, and significant integrations with configuration backends via ecosystem projects, most notably ZIO Config.
@@ -60,13 +59,15 @@ Other than primitive types, we can also define a configuration for custom types.
 
 Let's say we have the `HostPort` data type, which consists of two fields: `host` and `port`:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 case class HostPort(host: String, port: Int)
 ```
 
 We can define a config for this type in its companion object like this:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
+import zio._
+
 object HostPort {
   val config: Config[HostPort] =
     (Config.string("host") ++ Config.int("port")).map { case (host, port) =>
@@ -90,13 +91,15 @@ So far we have seen how to define configuration in a top-level manner, whether i
 
 Assume we have a `SerivceConfig` data type that consists of two fields: `hostPort` and `timeout`:
 
-```scala mdoc:compile-only
-final case class ServiceConfig(hostPort: HostPort, timeout: Int)
+```scala mdoc:silent
+case class ServiceConfig(hostPort: HostPort, timeout: Int)
 ```
 
 Let's define a config for this type in its companion object:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
+import zio._
+
 object ServiceConfig {
   val config: Config[ServiceConfig] =
     (HostPort.config ++ Config.int("timeout")).map {
@@ -141,6 +144,8 @@ The default config provider is used by default, but we can also override it by u
 In the following example, we set the default config provider to `consoleProvider` which reads configuration from the console:
 
 ```scala mdoc:compile-only
+import zio._
+
 object MainAppScoped extends ZIOAppDefault {
   override val bootstrap: ZLayer[Any, Nothing, Unit] =
     Runtime.setConfigProvider(ConfigProvider.consoleProvider)
