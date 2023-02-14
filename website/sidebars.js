@@ -390,6 +390,12 @@ module.exports = {
     },
     {
       type: "category",
+      label: "Configuration",
+      link: { type: "doc", id: "reference/configuration/index" },
+      items: [ ]
+    },
+    {
+      type: "category",
       label: "Testing",
       link: { type: "doc", id: "reference/test/index" },
       items: [
