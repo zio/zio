@@ -60,7 +60,7 @@ trait TimeoutVariants {
     labels: List[String],
     duration: Duration
   ): UIO[Unit] =
-    Live.live(Console.printLine(renderWarning(labels, duration)).orDie)
+    ZIO.logWarning(renderWarning(labels, duration))
 
   private def renderWarning(labels: List[String], duration: Duration): String =
     "Test " + labels.reverse.mkString(" - ") + " has taken more than " + duration.render +
