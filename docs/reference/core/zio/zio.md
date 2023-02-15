@@ -110,6 +110,7 @@ We can also readily compose it with other operators while preserving the optiona
 
 ```scala mdoc:invisible
 trait Team
+case class User(teamId: String)
 ```
 
 ```scala mdoc:compile-only
@@ -346,19 +347,39 @@ val printLine2: IO[IOException, String] =
 
 By default, ZIO is asynchronous and all effects will be executed on a default primary thread pool which is optimized for asynchronous operations. As ZIO uses a fiber-based concurrency model, if we run **Blocking I/O** or **CPU Work** workloads on a primary thread pool, they are going to monopolize all threads of **primary thread pool**.
 
-:::note
-ZIO has an auto-blocking mechanism that detects blocking operations and runs them on a separate blocking thread pool. However, it is recommended to import blocking side effects using `ZIO.blocking` or `ZIO.attemptBlocking*` constructors.
+ZIO has a separate **blocking thread pool** specially designed for **Blocking I/O** and, also **CPU Work** workloads. We should run blocking workloads on this thread pool by using `ZIO.blocking` or `ZIO.attemptBlocking*` constructors to prevent interfering with the primary thread pool.
 
-ZIO provides access to the blocking thread pool via these constructors that can be used for performing blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
+:::note
+ZIO has an auto-blocking mechanism that detects blocking operations and runs them on a separate blocking thread pool. However, it is recommended to import blocking side effects.
 :::
+
+The `blocking` operator takes a ZIO effect and return another effect that is going to run on a blocking thread pool:
+
+```scala mdoc:invisible
+import zio._
+
+def blockingTask(i: Int): ZIO[Any, Throwable, Unit] = ???
+```
+
+```scala mdoc:nest
+val program = ZIO.foreachPar((1 to 100).toArray)(t => ZIO.blocking(blockingTask(t)))
+```
+
+```scala mdoc:invisible:reset
+
+```
 
 A blocking side-effect can be converted directly into a ZIO effect using the `attemptBlocking` method:
 
 ```scala mdoc:compile-only
 import zio._
 
-val sleeping =
-  ZIO.attemptBlocking(Thread.sleep(Long.MaxValue))
+def blockingTask(n: Int) = ZIO.attemptBlocking {
+  do {
+    println(s"Running blocking task number $n on dedicated blocking thread pool")
+    Thread.sleep(3000)
+  } while (true)
+}
 ```
 
 The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.
@@ -443,35 +464,6 @@ import java.io.IOException
 
 val suspendedEffect: RIO[Any, ZIO[Any, IOException, Unit]] =
   ZIO.suspend(ZIO.attempt(Console.printLine("Suspended Hello World!")))
-```
-
-### Creating Blocking Effects
-
-ZIO has a separate **blocking thread pool** specially designed for **Blocking I/O** and, also **CPU Work** workloads. We should run blocking workloads on this thread pool to prevent interfering with the primary thread pool.
-
-The contract is that the thread pool will accept unlimited tasks (up to the available memory) and continuously create new threads as necessary.
-
-The `blocking` operator takes a ZIO effect and return another effect that is going to run on a blocking thread pool:
-
-```scala mdoc:invisible:nest
-val program = ZIO.foreachPar((1 to 100).toArray)(t => ZIO.blocking(blockingTask(t)))
-```
-
-```scala mdoc:invisible:reset
-
-```
-
-Also, we can directly import a synchronous effect that does blocking IO into ZIO effect by using `attemptBlocking`:
-
-```scala mdoc:compile-only
-import zio._
-
-def blockingTask(n: Int) = ZIO.attemptBlocking {
-  do {
-    println(s"Running blocking task number $n on dedicated blocking thread pool")
-    Thread.sleep(3000)
-  } while (true)
-}
 ```
 
 ## Mapping
