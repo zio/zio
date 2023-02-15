@@ -13,6 +13,8 @@ The ZIO Core ships with a simple default config provider, which reads configurat
 
 ## Primitive Configs
 
+ZIO provides a set of primitive configs for the most common types like `int`, `long`, `string`, `boolean`, `double`, etc. All of these configs are available inside the `Config` object.
+
 Let's start with a simple example of how to read configuration from environment variables and system properties:
 
 ```scala mdoc:compile-only
@@ -55,7 +57,7 @@ sbt -Dhost=localhost -Dport=8080 "runMain MainApp"
 
 ## Custom Configs
 
-Other than primitive types, we can also define a configuration for custom types. To do so, we need to use primitive configs and combine them together.
+Other than primitive types, we can also define a configuration for custom types. To do so, we need to use primitive configs and combine them together using `Config` operators (`++`, `||`, `map`, etc) and constructors (`listOf`, `chunkOf`, `setOf`, `vectorOf`, `table`, etc).
 
 ### Example 1
 
