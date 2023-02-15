@@ -17,13 +17,15 @@ package zio
 
 import java.time.format.DateTimeFormatter
 import scala.annotation.tailrec
+import scala.util.Try
 import scala.util.matching.Regex
 
 /**
  * A ConfigProvider is a service that provides configuration given a description
  * of the structure of that configuration.
  */
-trait ConfigProvider { self =>
+trait ConfigProvider {
+  self =>
 
   /**
    * Loads the specified configuration, or fails with a config error.
@@ -47,6 +49,7 @@ trait ConfigProvider { self =>
     new ConfigProvider.Flat {
       def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]] =
         ZIO.die(new NotImplementedError("ConfigProvider#flatten"))
+
       def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
         ZIO.die(new NotImplementedError("ConfigProvider#flatten"))
     }
@@ -121,6 +124,7 @@ trait ConfigProvider { self =>
     nested.orElse(self)
   }
 }
+
 object ConfigProvider {
 
   /**
@@ -128,7 +132,9 @@ object ConfigProvider {
    * (key/value) properties. Because these providers are common, there is
    * special support for implementing them.
    */
-  trait Flat { self =>
+  trait Flat {
+    self =>
+
     import Flat._
 
     def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]]
@@ -141,12 +147,15 @@ object ConfigProvider {
           trace: Trace
         ): IO[Config.Error, Chunk[A]] =
           self.load(path, config, split)
+
         def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
           self.enumerateChildren(path)
+
         def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit
           trace: Trace
         ): IO[Config.Error, Chunk[A]] =
           load(path, config, true)
+
         override def patch: PathPatch =
           self.patch.mapName(f)
       }
@@ -162,12 +171,15 @@ object ConfigProvider {
           trace: Trace
         ): IO[Config.Error, Chunk[A]] =
           self.load(path, config, split)
+
         def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
           self.enumerateChildren(path)
+
         def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit
           trace: Trace
         ): IO[Config.Error, Chunk[A]] =
           load(path, config, true)
+
         override def patch: PathPatch =
           self.patch.nested(name)
       }
@@ -189,6 +201,7 @@ object ConfigProvider {
                 .flatMap(that.load(_, config, split))
                 .catchAll(e2 => ZIO.fail(e1 || e2))
             )
+
         def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
           for {
             l <- ZIO.fromEither(self.patch(path)).flatMap(self.enumerateChildren).either
@@ -200,10 +213,12 @@ object ConfigProvider {
                         case (Right(l), Right(r)) => ZIO.succeed(l ++ r)
                       }
           } yield result
+
         def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit
           trace: Trace
         ): IO[Config.Error, Chunk[A]] =
           load(path, config, true)
+
         override def patch: PathPatch =
           PathPatch.empty
       }
@@ -214,18 +229,24 @@ object ConfigProvider {
           trace: Trace
         ): IO[Config.Error, Chunk[A]] =
           self.load(path, config, split)
+
         def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
           self.enumerateChildren(path)
+
         def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit
           trace: Trace
         ): IO[Config.Error, Chunk[A]] =
           load(path, config, true)
+
         override def patch: PathPatch =
           self.patch.unnested(name)
       }
   }
+
   object Flat {
-    sealed trait PathPatch { self =>
+    sealed trait PathPatch {
+      self =>
+
       import PathPatch._
 
       def apply[A](path: Chunk[String]): Either[Config.Error, Chunk[String]] = {
@@ -267,10 +288,14 @@ object ConfigProvider {
         Empty
 
       private final case class AndThen(first: PathPatch, second: PathPatch) extends PathPatch
-      private case object Empty                                             extends PathPatch
-      private final case class MapName(f: String => String)                 extends PathPatch
-      private final case class Nested(name: String)                         extends PathPatch
-      private final case class Unnested(name: String)                       extends PathPatch
+
+      private case object Empty extends PathPatch
+
+      private final case class MapName(f: String => String) extends PathPatch
+
+      private final case class Nested(name: String) extends PathPatch
+
+      private final case class Unnested(name: String) extends PathPatch
     }
 
     object util {
@@ -383,10 +408,13 @@ object ConfigProvider {
         (e: Throwable) =>
           Config.Error.SourceUnavailable(path, "There was a problem reading environment variables", Cause.fail(e))
 
-      val escapedSeqDelim                                     = java.util.regex.Pattern.quote(seqDelim)
-      val escapedPathDelim                                    = java.util.regex.Pattern.quote(pathDelim)
-      def makePathString(path: Chunk[String]): String         = path.mkString(pathDelim).toUpperCase
-      def unmakePathString(pathString: String): Chunk[String] = Chunk.fromArray(pathString.split(escapedPathDelim))
+      val escapedSeqDelim  = java.util.regex.Pattern.quote(seqDelim)
+      val escapedPathDelim = java.util.regex.Pattern.quote(pathDelim)
+
+      def makePathString(path: Chunk[String]): String = path.mkString(pathDelim).toUpperCase
+
+      def unmakePathString(pathString: String): Chunk[String] =
+        Chunk.fromArray(pathString.split(escapedPathDelim))
 
       override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
         trace: Trace
@@ -425,6 +453,7 @@ object ConfigProvider {
    */
   def fromFlat(flat: Flat): ConfigProvider =
     new ConfigProvider {
+
       import Config._
 
       def extend[A, B](leftDef: Int => A, rightDef: Int => B)(left: Chunk[A], right: Chunk[B]): (Chunk[A], Chunk[B]) = {
@@ -464,14 +493,14 @@ object ConfigProvider {
             for {
               indices <- flat
                            .enumerateChildren(prefix)
-                           .map(set => if (set.forall(isIndex)) Chunk.fromIterable(set).sorted else Chunk.empty)
+                           .flatMap(set => indicesFrom(set))
 
               values <-
                 if (indices.isEmpty) loop(prefix, config, split = true).map(Chunk(_))
                 else
                   ZIO
                     .foreach(Chunk.fromIterable(indices)) { index =>
-                      loop(prefix.appended(index), config, split = true)
+                      loop(prefix.appended(index.toString), config, split = true)
                     }
                     .map { chunkChunk =>
                       val flattened = chunkChunk.flatten
@@ -563,10 +592,17 @@ object ConfigProvider {
    */
   def fromMap(map: Map[String, String], pathDelim: String = ".", seqDelim: String = ","): ConfigProvider =
     fromFlat(new Flat {
-      val escapedSeqDelim                                     = java.util.regex.Pattern.quote(seqDelim)
-      val escapedPathDelim                                    = java.util.regex.Pattern.quote(pathDelim)
-      def makePathString(path: Chunk[String]): String         = path.mkString(pathDelim)
-      def unmakePathString(pathString: String): Chunk[String] = Chunk.fromArray(pathString.split(escapedPathDelim))
+      val escapedSeqDelim  = java.util.regex.Pattern.quote(seqDelim)
+      val escapedPathDelim = java.util.regex.Pattern.quote(pathDelim)
+      val unsequencedMap =
+        map.map { case (pathString, value) =>
+          makePathString(unmakePathString(pathString).flatMap(steps)) -> value
+        }
+
+      def makePathString(path: Chunk[String]): String = path.mkString(pathDelim)
+
+      def unmakePathString(pathString: String): Chunk[String] =
+        Chunk.fromArray(pathString.split(escapedPathDelim))
 
       override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
         trace: Trace
@@ -574,7 +610,7 @@ object ConfigProvider {
         val pathString  = makePathString(path)
         val name        = path.lastOption.getOrElse("<unnamed>")
         val description = primitive.description
-        val valueOpt    = map.get(pathString)
+        val valueOpt    = unsequencedMap.get(pathString)
 
         for {
           value <- ZIO
@@ -586,8 +622,7 @@ object ConfigProvider {
 
       def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
         ZIO.succeed {
-          val keyPaths = Chunk.fromIterable(map.keys).map(unmakePathString)
-
+          val keyPaths = Chunk.fromIterable(unsequencedMap.keys).map(unmakePathString)
           keyPaths.filter(_.startsWith(path)).map(_.drop(path.length).take(1)).flatten.toSet
         }
 
@@ -607,10 +642,13 @@ object ConfigProvider {
       val sourceUnavailable = (path: Chunk[String]) =>
         (e: Throwable) => Config.Error.SourceUnavailable(path, "There was a problem reading properties", Cause.fail(e))
 
-      val escapedSeqDelim                                     = java.util.regex.Pattern.quote(seqDelim)
-      val escapedPathDelim                                    = java.util.regex.Pattern.quote(pathDelim)
-      def makePathString(path: Chunk[String]): String         = path.mkString(pathDelim)
-      def unmakePathString(pathString: String): Chunk[String] = Chunk.fromArray(pathString.split(escapedPathDelim))
+      val escapedSeqDelim  = java.util.regex.Pattern.quote(seqDelim)
+      val escapedPathDelim = java.util.regex.Pattern.quote(pathDelim)
+
+      def makePathString(path: Chunk[String]): String = path.mkString(pathDelim)
+
+      def unmakePathString(pathString: String): Chunk[String] =
+        Chunk.fromArray(pathString.split(escapedPathDelim))
 
       override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
         trace: Trace
@@ -660,6 +698,45 @@ object ConfigProvider {
    */
   lazy val tag: Tag[ConfigProvider] = Tag[ConfigProvider]
 
-  private def isIndex(value: String): Boolean =
-    value matches """(\[([0-9])*\])"""
+  private def indicesFrom(set: Set[String]) =
+    ZIO
+      .foreach(set) { s =>
+        ZIO.fromOption(Try(s.toInt).toOption)
+      }
+      .mapBoth(_ => Chunk.empty, set => Chunk.fromIterable(set).sorted)
+      .either
+      .map(_.merge)
+
+  private lazy val strIndexRegex = """([a-zA-Z0-9 -@\-^-~]*)(\[([0-9])*\])?""".r
+
+  private def steps(key: String): Chunk[String] =
+    Chunk
+      .fromIterable(
+        strIndexRegex
+          .findAllIn(key)
+          .matchData
+          .filter(_.group(0).nonEmpty)
+          .toList
+      )
+      .flatMap { regexMatched =>
+        val optionalKey: Option[String] = Option(regexMatched.group(1))
+          .flatMap(s => if (s.isEmpty) None else Some(s))
+
+        val optionalValue: Option[String] = Option(regexMatched.group(3))
+          .flatMap(s => if (s.isEmpty) None else Some(s))
+
+        (optionalKey, optionalValue) match {
+          case (Some(key), Some(value)) => Chunk(key, value)
+          case (None, Some(value))      => Chunk(value)
+          case (Some(key), None)        => Chunk(key)
+          case (None, None)             => Chunk.empty
+        }
+      }
+
+  private def mapLast[A](chunk: Chunk[A])(f: A => A): Chunk[A] =
+    chunk.lastOption match {
+      case Some(value) => chunk.drop(1).appended(f(value))
+      case None        => chunk
+    }
+
 }

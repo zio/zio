@@ -426,7 +426,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         } yield assertTrue(result == "value")
       } +
       test("indexed sequence simple") {
-        val configProvider = ConfigProvider.fromMap(Map("id.[0]" -> "1", "id.[1]" -> "2", "id.[3]" -> "3"))
+        val configProvider = ConfigProvider.fromMap(Map("id[0]" -> "1", "id[1]" -> "2", "id[2]" -> "3"))
         val config         = Config.listOf("id", Config.int)
 
         for {
@@ -434,7 +434,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         } yield assertTrue(result == List(1, 2, 3))
       } +
       test("indexed sequence simple with list values") {
-        val configProvider = ConfigProvider.fromMap(Map("id.[0]" -> "1, 2", "id.[1]" -> "3, 4", "id.[3]" -> "5, 6"))
+        val configProvider = ConfigProvider.fromMap(Map("id[0]" -> "1, 2", "id[1]" -> "3, 4", "id[2]" -> "5, 6"))
         val config         = Config.listOf("id", Config.listOf(Config.int))
 
         for {
@@ -442,7 +442,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         } yield assertTrue(result == List(List(1, 2), List(3, 4), List(5, 6)))
       } +
       test("indexed sequence of one product") {
-        val configProvider = ConfigProvider.fromMap(Map("employees.[0].age" -> "1", "employees.[0].id" -> "1"))
+        val configProvider = ConfigProvider.fromMap(Map("employees[0].age" -> "1", "employees[0].id" -> "1"))
         val product        = Config.int("age").zip(Config.int("id"))
         val config         = Config.listOf("employees", product)
 
@@ -451,7 +451,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         } yield assertTrue(result == List((1, 1)))
       } +
       test("indexed sequence of one product with missing field") {
-        val configProvider = ConfigProvider.fromMap(Map("employees.[0].age" -> "1"))
+        val configProvider = ConfigProvider.fromMap(Map("employees[0].age" -> "1"))
         val product        = Config.int("age").zip(Config.int("id"))
         val config         = Config.listOf("employees", product)
 
@@ -462,10 +462,10 @@ object ConfigProviderSpec extends ZIOBaseSpec {
       test("indexed sequence of multiple products") {
         val configProvider = ConfigProvider.fromMap(
           Map(
-            "employees.[0].age" -> "1",
-            "employees.[0].id"  -> "2",
-            "employees.[1].age" -> "3",
-            "employees.[1].id"  -> "4"
+            "employees[0].age" -> "1",
+            "employees[0].id"  -> "2",
+            "employees[1].age" -> "3",
+            "employees[1].id"  -> "4"
           )
         )
         val product = Config.int("age").zip(Config.int("id"))
@@ -477,7 +477,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
       } +
       test("indexed sequence of multiple products with missing fields") {
         val configProvider = ConfigProvider.fromMap(
-          Map("employees.[0].age" -> "1", "employees.[0].id" -> "2", "employees.[1].age" -> "3", "employees.[1]" -> "4")
+          Map("employees[0].age" -> "1", "employees[0].id" -> "2", "employees[1].age" -> "3", "employees[1]" -> "4")
         )
         val product = Config.int("age").zip(Config.int("id"))
         val config  = Config.listOf("employees", product)
@@ -488,7 +488,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
       } +
       test("indexed sequence of multiple products with optional fields") {
         val configProvider =
-          ConfigProvider.fromMap(Map("employees.[0].age" -> "1", "employees.[0].id" -> "2", "employees.[1].id" -> "4"))
+          ConfigProvider.fromMap(Map("employees[0].age" -> "1", "employees[0].id" -> "2", "employees[1].id" -> "4"))
         val product = Config.int("age").optional.zip(Config.int("id"))
         val config  = Config.listOf("employees", product)
 
@@ -499,10 +499,10 @@ object ConfigProviderSpec extends ZIOBaseSpec {
       test("indexed sequence of multiple products with sequence fields") {
         val configProvider = ConfigProvider.fromMap(
           Map(
-            "employees.[0].refunds" -> "1,2,3",
-            "employees.[0].id"      -> "0",
-            "employees.[1].id"      -> "1",
-            "employees.[1].refunds" -> "4, 5, 6"
+            "employees[0].refunds" -> "1,2,3",
+            "employees[0].id"      -> "0",
+            "employees[1].id"      -> "1",
+            "employees[1].refunds" -> "4, 5, 6"
           )
         )
         val product = Config.listOf("refunds", Config.int).zip(Config.int("id"))
@@ -515,14 +515,14 @@ object ConfigProviderSpec extends ZIOBaseSpec {
       test("product of indexed sequences with reusable config") {
         val configProvider = ConfigProvider.fromMap(
           Map(
-            "employees.[0].id"  -> "0",
-            "employees.[1].id"  -> "1",
-            "employees.[0].age" -> "10",
-            "employees.[1].age" -> "11",
-            "students.[0].id"   -> "20",
-            "students.[1].id"   -> "30",
-            "students.[0].age"  -> "2",
-            "students.[1].age"  -> "3"
+            "employees[0].id"  -> "0",
+            "employees[1].id"  -> "1",
+            "employees[0].age" -> "10",
+            "employees[1].age" -> "11",
+            "students[0].id"   -> "20",
+            "students[1].id"   -> "30",
+            "students[0].age"  -> "2",
+            "students[1].age"  -> "3"
           )
         )
         val idAndAge = Config.int("id").zip(Config.int("age"))
@@ -534,41 +534,18 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           expectedStudents  = List((20, 2), (30, 3))
         } yield assertTrue(result == (expectedEmployees, expectedStudents))
       } +
-      test("indexed sequence with index in key") {
-        val configProvider =
-          ConfigProvider.fromMap(
-            Map(
-              "employees.[0].age" -> "10",
-              "employees.[0].id"  -> "0",
-              "employees.[1].age" -> "20",
-              "employees.[1].id"  -> "1",
-              "students.[0]"      -> "10, 20, 30"
-            )
-          )
-
-        val students = Config.listOf("students.[0]", Config.int)
-        val employee = Config.int("age").zip(Config.int("id"))
-
-        val config = Config.listOf("employees", employee).zip(students)
-
-        for {
-          result           <- configProvider.load(config)
-          expectedEmployees = List((10, 0), (20, 1))
-          expectedStudents  = List(10, 20, 30)
-        } yield assertTrue(result == (expectedEmployees, expectedStudents))
-      } +
       test("map of indexed sequence") {
         val configProvider =
           ConfigProvider.fromMap(
             Map(
-              "departments.department1.employees.[0].age" -> "10",
-              "departments.department1.employees.[0].id"  -> "0",
-              "departments.department1.employees.[1].age" -> "20",
-              "departments.department1.employees.[1].id"  -> "1",
-              "departments.department2.employees.[0].age" -> "10",
-              "departments.department2.employees.[0].id"  -> "0",
-              "departments.department2.employees.[1].age" -> "20",
-              "departments.department2.employees.[1].id"  -> "1"
+              "departments.department1.employees[0].age" -> "10",
+              "departments.department1.employees[0].id"  -> "0",
+              "departments.department1.employees[1].age" -> "20",
+              "departments.department1.employees[1].id"  -> "1",
+              "departments.department2.employees[0].age" -> "10",
+              "departments.department2.employees[0].id"  -> "0",
+              "departments.department2.employees[1].age" -> "20",
+              "departments.department2.employees[1].id"  -> "1"
             )
           )
 
@@ -585,10 +562,10 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val configProvider =
           ConfigProvider.fromMap(
             Map(
-              "employees.[0].details.age" -> "10",
-              "employees.[0].details.id"  -> "0",
-              "employees.[1].details.age" -> "20",
-              "employees.[1].details.id"  -> "1"
+              "employees[0].details.age" -> "10",
+              "employees[0].details.id"  -> "0",
+              "employees[1].details.age" -> "20",
+              "employees[1].details.id"  -> "1"
             )
           )
 
@@ -604,14 +581,14 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val configProvider =
           ConfigProvider.fromMap(
             Map(
-              "departments.[0].employees.[0].age" -> "10",
-              "departments.[0].employees.[0].id"  -> "0",
-              "departments.[0].employees.[1].age" -> "20",
-              "departments.[0].employees.[1].id"  -> "1",
-              "departments.[1].employees.[0].age" -> "10",
-              "departments.[1].employees.[0].id"  -> "0",
-              "departments.[1].employees.[1].age" -> "20",
-              "departments.[1].employees.[1].id"  -> "1"
+              "departments[0].employees[0].age" -> "10",
+              "departments[0].employees[0].id"  -> "0",
+              "departments[0].employees[1].age" -> "20",
+              "departments[0].employees[1].id"  -> "1",
+              "departments[1].employees[0].age" -> "10",
+              "departments[1].employees[0].id"  -> "0",
+              "departments[1].employees[1].age" -> "20",
+              "departments[1].employees[1].id"  -> "1"
             )
           )
 
