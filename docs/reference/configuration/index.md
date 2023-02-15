@@ -57,6 +57,8 @@ sbt -Dhost=localhost -Dport=8080 "runMain configMainApp"
 
 Other than primitive types, we can also define a configuration for custom types. To do so, we need to use primitive configs and combine them together.
 
+### Example 1
+
 Let's say we have the `HostPort` data type, which consists of two fields: `host` and `port`:
 
 ```scala mdoc:silent
@@ -83,6 +85,44 @@ for {
   config <- ZIO.config(HostPort.config)
   _      <- Console.printLine(s"Application started: $config")
 } yield ()
+```
+
+### Example 2
+
+Now let's assume we want to have multiple `HostPort` configurations. We can define a config for a list of `HostPort` like bellow using the `listOf` constructor:
+
+```scala mdoc:silent
+case class HostPorts(hostPorts: List[HostPort])
+
+object HostPorts {
+  val config: Config[HostPorts] =
+    Config.listOf(HostPort.config).map(HostPorts(_))
+}
+```
+
+Then we can use this config in our application:
+
+```scala mdoc:silent
+for {
+  config <- ZIO.config(HostPorts.config)
+  _      <- Console.printLine(s"Application started with:")
+  _      <- ZIO.foreachDiscard(config.hostPorts)(e => Console.printLine(s"  - http://${e.host}:${e.port}"))
+} yield ()
+```
+
+With the default config provider, we can run the application with the following environment variables:
+
+```bash
+HOST=host1,host2,host3 PORT=8080,8081,8082 sbt "runMain MainApp"
+```
+
+The output will be:
+
+```bash
+Application started with:
+  - http://host1:8081
+  - http://host2:8082
+  - http://host3:8083
 ```
 
 ## Top-level and Nested Configs
