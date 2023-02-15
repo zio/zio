@@ -737,6 +737,11 @@ object GenSpec extends ZIOBaseSpec {
       for {
         _ <- Gen.listOfN(1024)(Gen.byte).runHead
       } yield assertCompletes
+    },
+    test("map of keys with small domain") {
+      check(Gen.mapOf(Gen.boolean, Gen.boolean)) { map =>
+        assert(map)(anything)
+      }
     }
   )
 }
