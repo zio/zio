@@ -185,7 +185,7 @@ val r2: ZIO[Any, NumberFormatException, Unit] =
 #### Either
 
 | Function     | Input Type     | Output Type               |
-| ------------ | -------------- | ------------------------- |
+|--------------|----------------|---------------------------|
 | `fromEither` | `Either[E, A]` | `IO[E, A]`                |
 | `left`       | `A`            | `UIO[Either[A, Nothing]]` |
 | `right`      | `A`            | `UIO[Either[Nothing, A]]` |
@@ -203,7 +203,7 @@ The error type of the resulting effect will be whatever type the `Left` case has
 #### Try
 
 | Function  | Input Type          | Output Type |
-| --------- | ------------------- | ----------- |
+|-----------|---------------------|-------------|
 | `fromTry` | `scala.util.Try[A]` | `Task[A]`   |
 
 A `Try` value can be converted into a ZIO effect using `ZIO.fromTry`:
@@ -220,7 +220,7 @@ The error type of the resulting effect will always be `Throwable`, because `Try`
 #### Future
 
 | Function              | Input Type                                       | Output Type        |
-| --------------------- | ------------------------------------------------ | ------------------ |
+|-----------------------|--------------------------------------------------|--------------------|
 | `fromFuture`          | `ExecutionContext => scala.concurrent.Future[A]` | `Task[A]`          |
 | `fromFutureJava`      | `java.util.concurrent.Future[A]`                 | `RIO[Blocking, A]` |
 | `fromFunctionFuture`  | `R => scala.concurrent.Future[A]`                | `RIO[R, A]`        |
@@ -247,7 +247,7 @@ The error type of the resulting effect will always be `Throwable`, because `Futu
 #### Promise
 
 | Function           | Input Type                    | Output Type |
-| ------------------ | ----------------------------- | ----------- |
+|--------------------|-------------------------------|-------------|
 | `fromPromiseScala` | `scala.concurrent.Promise[A]` | `Task[A]`   |
 
 A `Promise` can be converted into a ZIO effect using `ZIO.fromPromiseScala`:
@@ -273,7 +273,7 @@ for {
 #### Fiber
 
 | Function       | Input Type           | Output Type |
-| -------------- | -------------------- | ----------- |
+|----------------|----------------------|-------------|
 | `fromFiber`    | `Fiber[E, A]`        | `IO[E, A]`  |
 | `fromFiberZIO` | `IO[E, Fiber[E, A]]` | `IO[E, A]`  |
 
@@ -294,7 +294,7 @@ These functions can be used to wrap procedural code, allowing us to seamlessly u
 #### Synchronous
 
 | Function  | Input Type | Output Type | Note                                        |
-| --------- | ---------- | ----------- | ------------------------------------------- |
+|-----------|------------|-------------|---------------------------------------------|
 | `succeed` | `A`        | `UIO[A]`    | Imports a total synchronous effect          |
 | `attempt` | `A`        | Task[A]     | Imports a (partial) synchronous side-effect |
 
@@ -337,18 +337,22 @@ val printLine2: IO[IOException, String] =
 ##### Blocking Synchronous Side-Effects
 
 | Function                    | Input Type                          | Output Type                     |
-| --------------------------- | ----------------------------------- | ------------------------------- |
+|-----------------------------|-------------------------------------|---------------------------------|
 | `blocking`                  | `ZIO[R, E, A]`                      | `ZIO[R, E, A]`                  |
 | `attemptBlocking`           | `A`                                 | `RIO[Blocking, A]`              |
 | `attemptBlockingCancelable` | `effect: => A`, `cancel: UIO[Unit]` | `RIO[Blocking, A]`              |
 | `attemptBlockingInterrupt`  | `A`                                 | `RIO[Blocking, A]`              |
 | `attemptBlockingIO`         | `A`                                 | `ZIO[Blocking, IOException, A]` |
 
-Some side-effects use blocking IO or otherwise put a thread into a waiting state. If not carefully managed, these side-effects can deplete threads from our application's main thread pool, resulting in work starvation.
+By default, ZIO is asynchronous and all effects will be executed on a default primary thread pool which is optimized for asynchronous operations. As ZIO uses a fiber-based concurrency model, if we run **Blocking I/O** or **CPU Work** workloads on a primary thread pool, they are going to monopolize all threads of **primary thread pool**.
 
-ZIO provides the `zio.blocking` package, which can be used to safely convert such blocking side-effects into ZIO effects.
+:::note
+ZIO has an auto-blocking mechanism that detects blocking operations and runs them on a separate blocking thread pool. However, it is recommended to import blocking side effects using `ZIO.blocking` or `ZIO.attemptBlocking*` constructors.
 
-A blocking side-effect can be converted directly into a ZIO effect blocking with the `attemptBlocking` method:
+ZIO provides access to the blocking thread pool via these constructors that can be used for performing blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
+:::
+
+A blocking side-effect can be converted directly into a ZIO effect using the `attemptBlocking` method:
 
 ```scala mdoc:compile-only
 import zio._
@@ -389,7 +393,7 @@ def safeDownload(url: String) =
 #### Asynchronous
 
 | Function         | Input Type                                                     | Output Type    |
-| ---------------- | -------------------------------------------------------------- | -------------- |
+|------------------|----------------------------------------------------------------|----------------|
 | `async`          | `(ZIO[R, E, A] => Unit) => Any`                                | `ZIO[R, E, A]` |
 | `asyncZIO`       | `(ZIO[R, E, A] => Unit) => ZIO[R, E, Any]`                     | `ZIO[R, E, A]` |
 | `asyncMaybe`     | `(ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]]`               | `ZIO[R, E, A]` |
@@ -427,7 +431,7 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 ### Creating Suspended Effects
 
 | Function         | Input Type     | Output Type    |
-| ---------------- | -------------- | -------------- |
+|------------------|----------------|----------------|
 | `suspend`        | `RIO[R, A]`    | `RIO[R, A]`    |
 | `suspendSucceed` | `ZIO[R, E, A]` | `ZIO[R, E, A]` |
 
@@ -439,25 +443,6 @@ import java.io.IOException
 
 val suspendedEffect: RIO[Any, ZIO[Any, IOException, Unit]] =
   ZIO.suspend(ZIO.attempt(Console.printLine("Suspended Hello World!")))
-```
-
-## Blocking Operations
-
-ZIO provides access to a thread pool that can be used for performing blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
-
-By default, ZIO is asynchronous and all effects will be executed on a default primary thread pool which is optimized for asynchronous operations. As ZIO uses a fiber-based concurrency model, if we run **Blocking I/O** or **CPU Work** workloads on a primary thread pool, they are going to monopolize all threads of **primary thread pool**.
-
-In the following example, we create 20 blocking tasks to run parallel on the primary async thread pool. Assume we have a machine with an 8 CPU core, so the ZIO creates a thread pool of size 16 (2 \* 8). If we run this program, all of our threads got stuck, and the remaining 4 blocking tasks (20 - 16) haven't any chance to run on our thread pool:
-
-```scala mdoc:silent
-import zio._
-
-def blockingTask(n: Int): UIO[Unit] =
-  Console.printLine(s"running blocking task number $n").orDie *>
-    ZIO.succeed(Thread.sleep(3000)) *>
-    blockingTask(n)
-
-val program = ZIO.foreachPar((1 to 100).toArray)(blockingTask)
 ```
 
 ### Creating Blocking Effects
