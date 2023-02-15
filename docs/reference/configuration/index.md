@@ -173,7 +173,7 @@ ZIO has some built-in config providers:
 - `ConfigProvider.defaultProvider` - reads configuration from environment variables and if not found, from system properties
 - `ConfigProvider.envProvider` - reads configuration from environment variables
 - `ConfigProvider.propsProvider` - reads configuration from system properties
-- `ConfigProvider.constProvider` - reads configuration from interactive console prompts
+- `ConfigProvider.consoleProvider` - reads configuration from interactive console prompts
 
 Other than these built-in providers, we can also use third-party providers in ZIO ecosystem libraries, such as ZIO Config which provides a rich set of backends for reading configuration from different sources such as HOCON, JSON, YAML, etc.
 
