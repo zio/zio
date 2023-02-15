@@ -569,7 +569,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def mapOf[R, A, B](key: Gen[R, A], value: Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, Map[A, B]] =
-    small(mapOfN(_)(key, value))
+    listOf(key.zip(value)).map(_.toMap)
 
   /**
    * A sized generator of non-empty maps.
@@ -577,7 +577,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def mapOf1[R, A, B](key: Gen[R, A], value: Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, Map[A, B]] =
-    small(mapOfN(_)(key, value), 1)
+    listOf1(key.zip(value)).map(_.toMap)
 
   /**
    * A generator of maps of the specified size.
@@ -593,7 +593,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def mapOfBounded[R, A, B](min: Int, max: Int)(key: Gen[R, A], value: Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, Map[A, B]] =
-    bounded(min, max)(mapOfN(_)(key, value))
+    mapOfN(min)(key, value).zipWith(listOfBounded(0, max - min)(key.zip(value)))(_ ++ _)
 
   /**
    * A sized generator that uses an exponential distribution of size values. The
