@@ -5,7 +5,7 @@ title: "Introduction to Configuration in ZIO"
 
 Configuration is a core concern for any cloud-native application. So ZIO ships with built-in support for configuration by providing a front-end for configuration providers as well as metrics and logging.
 
-So, ZIO provides a unified way to configure our applications, while still enabling customizability, flexibility, and significant integrations with configuration backends via ecosystem projects, most notably ZIO Config.
+So, ZIO provides a unified way to configure our applications, while still enabling customizability, flexibility, and significant integrations with configuration backends via ecosystem projects, most notably [ZIO Config](https://zio.dev/zio-config).
 
 This configuration front-end allows ecosystem libraries and applications to declaratively describe their configuration needs and delegates the heavy lifting to a ConfigProvider, which may be supplied by third-party libraries such as ZIO Config.
 
@@ -23,7 +23,7 @@ object MainApp extends ZIOAppDefault {
     for {
       host <- ZIO.config(Config.string("host"))
       port <- ZIO.config(Config.int("port"))
-      _ <- Console.printLine(s"Application started: $host:$port")
+      _    <- Console.printLine(s"Application started: $host:$port")
     } yield ()
   }
 }
@@ -50,7 +50,7 @@ Application started: localhost:8080
 We can also run it by setting system properties:
 
 ```bash
-sbt -Dhost=localhost -Dport=8080 "runMain configMainApp"
+sbt -Dhost=localhost -Dport=8080 "runMain MainApp"
 ```
 
 ## Custom Configs
