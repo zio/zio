@@ -750,7 +750,7 @@ object ConfigProvider {
         val optionalIndex: Option[Int] = Option(regexMatched.group(3))
           .flatMap(s => if (s.isEmpty) None else Try(s.toInt).toOption)
 
-        optionalString.zip(optionalIndex)
+        optionalString.flatMap(str => optionalIndex.map(ind => (str, ind)))
       }
 
 }
