@@ -424,6 +424,185 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         for {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value")
+      } +
+      test("indexed sequence simple") {
+        val configProvider = ConfigProvider.fromMap(Map("id[0]" -> "1", "id[1]" -> "2", "id[2]" -> "3"))
+        val config         = Config.listOf("id", Config.int)
+
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == List(1, 2, 3))
+      } +
+      test("indexed sequence simple with list values") {
+        val configProvider = ConfigProvider.fromMap(Map("id[0]" -> "1, 2", "id[1]" -> "3, 4", "id[2]" -> "5, 6"))
+        val config         = Config.listOf("id", Config.listOf(Config.int))
+
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == List(List(1, 2), List(3, 4), List(5, 6)))
+      } +
+      test("indexed sequence of one product") {
+        val configProvider = ConfigProvider.fromMap(Map("employees[0].age" -> "1", "employees[0].id" -> "1"))
+        val product        = Config.int("age").zip(Config.int("id"))
+        val config         = Config.listOf("employees", product)
+
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == List((1, 1)))
+      } +
+      test("indexed sequence of one product with missing field") {
+        val configProvider = ConfigProvider.fromMap(Map("employees[0].age" -> "1"))
+        val product        = Config.int("age").zip(Config.int("id"))
+        val config         = Config.listOf("employees", product)
+
+        for {
+          exit <- configProvider.load(config).exit
+        } yield assert(exit)(failsWithA[Config.Error])
+      } +
+      test("indexed sequence of multiple products") {
+        val configProvider = ConfigProvider.fromMap(
+          Map(
+            "employees[0].age" -> "1",
+            "employees[0].id"  -> "2",
+            "employees[1].age" -> "3",
+            "employees[1].id"  -> "4"
+          )
+        )
+        val product = Config.int("age").zip(Config.int("id"))
+        val config  = Config.listOf("employees", product)
+
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == List((1, 2), (3, 4)))
+      } +
+      test("indexed sequence of multiple products with missing fields") {
+        val configProvider = ConfigProvider.fromMap(
+          Map("employees[0].age" -> "1", "employees[0].id" -> "2", "employees[1].age" -> "3", "employees[1]" -> "4")
+        )
+        val product = Config.int("age").zip(Config.int("id"))
+        val config  = Config.listOf("employees", product)
+
+        for {
+          exit <- configProvider.load(config).exit
+        } yield assert(exit)(failsWithA[Config.Error])
+      } +
+      test("indexed sequence of multiple products with optional fields") {
+        val configProvider =
+          ConfigProvider.fromMap(Map("employees[0].age" -> "1", "employees[0].id" -> "2", "employees[1].id" -> "4"))
+        val product = Config.int("age").optional.zip(Config.int("id"))
+        val config  = Config.listOf("employees", product)
+
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == List((Some(1), 2), (None, 4)))
+      } +
+      test("indexed sequence of multiple products with sequence fields") {
+        val configProvider = ConfigProvider.fromMap(
+          Map(
+            "employees[0].refunds" -> "1,2,3",
+            "employees[0].id"      -> "0",
+            "employees[1].id"      -> "1",
+            "employees[1].refunds" -> "4, 5, 6"
+          )
+        )
+        val product = Config.listOf("refunds", Config.int).zip(Config.int("id"))
+        val config  = Config.listOf("employees", product)
+
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == List((List(1, 2, 3), 0), (List(4, 5, 6), 1)))
+      } +
+      test("product of indexed sequences with reusable config") {
+        val configProvider = ConfigProvider.fromMap(
+          Map(
+            "employees[0].id"  -> "0",
+            "employees[1].id"  -> "1",
+            "employees[0].age" -> "10",
+            "employees[1].age" -> "11",
+            "students[0].id"   -> "20",
+            "students[1].id"   -> "30",
+            "students[0].age"  -> "2",
+            "students[1].age"  -> "3"
+          )
+        )
+        val idAndAge = Config.int("id").zip(Config.int("age"))
+        val config   = Config.listOf("employees", idAndAge).zip(Config.listOf("students", idAndAge))
+
+        for {
+          result           <- configProvider.load(config)
+          expectedEmployees = List((0, 10), (1, 11))
+          expectedStudents  = List((20, 2), (30, 3))
+        } yield assertTrue(result == expectedEmployees -> expectedStudents)
+      } +
+      test("map of indexed sequence") {
+        val configProvider =
+          ConfigProvider.fromMap(
+            Map(
+              "departments.department1.employees[0].age" -> "10",
+              "departments.department1.employees[0].id"  -> "0",
+              "departments.department1.employees[1].age" -> "20",
+              "departments.department1.employees[1].id"  -> "1",
+              "departments.department2.employees[0].age" -> "10",
+              "departments.department2.employees[0].id"  -> "0",
+              "departments.department2.employees[1].age" -> "20",
+              "departments.department2.employees[1].id"  -> "1"
+            )
+          )
+
+        val employee = Config.int("age").zip(Config.int("id"))
+
+        val config = Config.table("departments", Config.listOf("employees", employee))
+
+        for {
+          result           <- configProvider.load(config)
+          expectedEmployees = List((10, 0), (20, 1))
+        } yield assertTrue(result == Map("department1" -> expectedEmployees, "department2" -> expectedEmployees))
+      } +
+      test("indexed sequence of map") {
+        val configProvider =
+          ConfigProvider.fromMap(
+            Map(
+              "employees[0].details.age" -> "10",
+              "employees[0].details.id"  -> "0",
+              "employees[1].details.age" -> "20",
+              "employees[1].details.id"  -> "1"
+            )
+          )
+
+        val employee = Config.table("details", Config.int)
+        val config   = Config.listOf("employees", employee)
+
+        for {
+          result           <- configProvider.load(config)
+          expectedEmployees = List(Map("age" -> 10, "id" -> 0), Map("age" -> 20, "id" -> 1))
+        } yield assertTrue(result == expectedEmployees)
+      } +
+      test("indexed sequence of indexed sequence") {
+        val configProvider =
+          ConfigProvider.fromMap(
+            Map(
+              "departments[0].employees[0].age" -> "10",
+              "departments[0].employees[0].id"  -> "0",
+              "departments[0].employees[1].age" -> "20",
+              "departments[0].employees[1].id"  -> "1",
+              "departments[1].employees[0].age" -> "10",
+              "departments[1].employees[0].id"  -> "0",
+              "departments[1].employees[1].age" -> "20",
+              "departments[1].employees[1].id"  -> "1"
+            )
+          )
+
+        val employee = Config.int("age").zip(Config.int("id"))
+
+        val department = Config.listOf("employees", employee)
+
+        val config = Config.listOf("departments", department)
+
+        for {
+          result             <- configProvider.load(config)
+          expectedEmployees   = List((10, 0), (20, 1))
+          expectedDepartments = List(expectedEmployees, expectedEmployees)
+        } yield assertTrue(result == expectedDepartments)
       }
   }
 }
