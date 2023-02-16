@@ -532,7 +532,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result           <- configProvider.load(config)
           expectedEmployees = List((0, 10), (1, 11))
           expectedStudents  = List((20, 2), (30, 3))
-        } yield assertTrue(result == (expectedEmployees, expectedStudents))
+        } yield assertTrue(result == expectedEmployees -> expectedStudents)
       } +
       test("map of indexed sequence") {
         val configProvider =
