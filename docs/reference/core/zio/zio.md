@@ -350,7 +350,7 @@ By default, ZIO is asynchronous and all effects will be executed on a default pr
 ZIO has a separate **blocking thread pool** specially designed for **Blocking I/O** and, also **CPU Work** workloads. We should run blocking workloads on this thread pool by using `ZIO.blocking` or `ZIO.attemptBlocking*` constructors to prevent interfering with the primary thread pool.
 
 :::note
-ZIO has an auto-blocking mechanism that detects blocking operations and runs them on a separate blocking thread pool. However, it is recommended to import blocking side effects.
+ZIO has an auto-blocking mechanism that detects blocking operations and runs them on a separate blocking thread pool. However, if you know that some code is blocking you can use the `ZIO.blocking` constructor to give a "hint" of this to the ZIO runtime.
 :::
 
 The `blocking` operator takes a ZIO effect and return another effect that is going to run on a blocking thread pool:
