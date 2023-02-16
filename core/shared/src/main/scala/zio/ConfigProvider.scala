@@ -288,13 +288,9 @@ object ConfigProvider {
         Empty
 
       private final case class AndThen(first: PathPatch, second: PathPatch) extends PathPatch
-
       private case object Empty extends PathPatch
-
       private final case class MapName(f: String => String) extends PathPatch
-
       private final case class Nested(name: String) extends PathPatch
-
       private final case class Unnested(name: String) extends PathPatch
     }
 
