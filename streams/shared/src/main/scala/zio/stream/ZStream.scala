@@ -950,7 +950,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         ZChannel.readWithCause[R1, Err, Chunk[Elem], Any, Nothing, Nothing, Any](
           chunk => ZChannel.fromZIO(handoff.offer(Take.chunk(chunk))) *> producer(handoff, latch),
           cause => ZChannel.fromZIO(handoff.offer(Take.failCause(cause))),
-          _ => ZChannel.fromZIO(handoff.offer(Take.end)) *> producer(handoff, latch)
+          _ => ZChannel.fromZIO(handoff.offer(Take.end))
         )
 
     new ZStream(
