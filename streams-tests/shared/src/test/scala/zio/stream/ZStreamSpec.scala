@@ -4155,6 +4155,11 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .runCollect
                 .exit
             )(dies(anything))
+          },
+          test("zip in uninterruptible region") {
+            for {
+              _ <- ZStream(1).zip(ZStream(2)).runDrain.uninterruptible
+            } yield assertCompletes
           }
         ),
         suite("zipAllWith")(
