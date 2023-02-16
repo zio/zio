@@ -11,6 +11,20 @@ This configuration front-end allows ecosystem libraries and applications to decl
 
 The ZIO Core ships with a simple default config provider, which reads configuration data from environment variables and if not found, from system properties. This can be used for development purposes or to bootstrap applications toward more sophisticated config providers.
 
+## Getting Started
+
+To make our application configurable, we should know about three essential elements:
+
+1. **Config Description**— To describe configuration data of type `A`, we should create an instance of `Config[A]`. If the configuration data is simple (such as `string`, `string`, `boolean`), we can use built-in configs inside companion object of `Config` data type. By combining primitive configs, we can model custom data types such as `HostPort`.
+
+2. **Config Front-end**— By using `ZIO.config` we can load configuration data described by `Config`. It takes a `Config[A]` instance and loads the config using the current `ConfigProvider`.
+
+3. **Config Backend**— `ConfigProvider` is the underlying engine that `ZIO.config` uses to load configs. ZIO has a default config provider inside its default services. The default config provider reads configuration data from environment variables and if not found, from system properties. To change the default config provider, we can use `Runtime.setConfigProvider` layer to configure the ZIO runtime to use a custom config provider.
+
+:::note
+By introducing built-in config front-end in ZIO Core, the old way of reading configuration data using `ZLayer` is deprecated, and we don't recommend using layers for configuration anymore.
+:::
+
 ## Primitive Configs
 
 ZIO provides a set of primitive configs for the most common types like `int`, `long`, `string`, `boolean`, `double`, etc. All of these configs are available inside the `Config` object.
@@ -67,7 +81,7 @@ Let's say we have the `HostPort` data type, which consists of two fields: `host`
 case class HostPort(host: String, port: Int)
 ```
 
-We can define a config for this type in its companion object like this:
+We can define a config for this data type by combining primitive `string` and `int` configs:
 
 ```scala mdoc:silent
 import zio._
@@ -79,6 +93,10 @@ object HostPort {
     }
 }
 ```
+
+:::note
+The best practice is to put the `Config` value in the companion object of the configuration data type and call it `config`.
+:::
 
 If we use this customized config in our application, it tries to read corresponding values from environment variables (`HOST` and `PORT`) and system properties (`host` and `port`):
 
