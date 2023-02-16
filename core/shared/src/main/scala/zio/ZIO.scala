@@ -3015,14 +3015,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.suspendSucceed(if (predicate) ZIO.succeed(result) else ZIO.fail(error))
 
   /**
-   * Uses the default config provider to load the specified config, or fail with
+   * Uses the current config provider to load the specified config, or fail with
    * an error of type Config.Error.
    */
   def config[A](config: Config[A])(implicit trace: Trace): ZIO[Any, Config.Error, A] =
     ZIO.configProviderWith(_.load(config))
 
   /**
-   * Retrieves the default config provider, and passes it to the specified
+   * Retrieves the current config provider, and passes it to the specified
    * function, which may return an effect that uses the provider to perform some
    * work or compute some value.
    */
