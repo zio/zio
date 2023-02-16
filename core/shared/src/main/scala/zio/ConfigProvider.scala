@@ -7,7 +7,7 @@
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
+ * Unless required by aplicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
@@ -500,7 +500,7 @@ object ConfigProvider {
                 else
                   ZIO
                     .foreach(Chunk.fromIterable(indices)) { index =>
-                      loop(prefix.appended(index.toString), config, split = true)
+                      loop(prefix :+ QuotedIndex(index), config, split = true)
                     }
                     .map { chunkChunk =>
                       val flattened = chunkChunk.flatten
@@ -592,12 +592,9 @@ object ConfigProvider {
    */
   def fromMap(map: Map[String, String], pathDelim: String = ".", seqDelim: String = ","): ConfigProvider =
     fromFlat(new Flat {
-      val escapedSeqDelim  = java.util.regex.Pattern.quote(seqDelim)
-      val escapedPathDelim = java.util.regex.Pattern.quote(pathDelim)
-      val unsequencedMap =
-        map.map { case (pathString, value) =>
-          makePathString(unmakePathString(pathString).flatMap(steps)) -> value
-        }
+      val escapedSeqDelim   = java.util.regex.Pattern.quote(seqDelim)
+      val escapedPathDelim  = java.util.regex.Pattern.quote(pathDelim)
+      val mapWithIndexSplit = splitIndexInKeys(map, unmakePathString, makePathString)
 
       def makePathString(path: Chunk[String]): String = path.mkString(pathDelim)
 
@@ -610,7 +607,7 @@ object ConfigProvider {
         val pathString  = makePathString(path)
         val name        = path.lastOption.getOrElse("<unnamed>")
         val description = primitive.description
-        val valueOpt    = unsequencedMap.get(pathString)
+        val valueOpt    = mapWithIndexSplit.get(pathString)
 
         for {
           value <- ZIO
@@ -622,7 +619,7 @@ object ConfigProvider {
 
       def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
         ZIO.succeed {
-          val keyPaths = Chunk.fromIterable(unsequencedMap.keys).map(unmakePathString)
+          val keyPaths = Chunk.fromIterable(mapWithIndexSplit.keys).map(unmakePathString)
           keyPaths.filter(_.startsWith(path)).map(_.drop(path.length).take(1)).flatten.toSet
         }
 
@@ -698,45 +695,66 @@ object ConfigProvider {
    */
   lazy val tag: Tag[ConfigProvider] = Tag[ConfigProvider]
 
-  private def indicesFrom(set: Set[String]) =
+  private def indicesFrom(quotedIndices: Set[QuotedIndex]) =
     ZIO
-      .foreach(set) { s =>
-        ZIO.fromOption(Try(s.toInt).toOption)
+      .foreach(quotedIndices) { quotedIndex =>
+        ZIO.fromOption(quotedIndex match {
+          case QuotedIndex(index) => Some(index)
+          case _                  => None
+        })
       }
       .mapBoth(_ => Chunk.empty, set => Chunk.fromIterable(set).sorted)
       .either
       .map(_.merge)
 
-  private lazy val strIndexRegex = """([a-zA-Z0-9 -@\-^-~]*)(\[([0-9])*\])?""".r
+  private type QuotedIndex = String
 
-  private def steps(key: String): Chunk[String] =
-    Chunk
-      .fromIterable(
-        strIndexRegex
-          .findAllIn(key)
-          .matchData
-          .filter(_.group(0).nonEmpty)
-          .toList
-      )
-      .flatMap { regexMatched =>
-        val optionalKey: Option[String] = Option(regexMatched.group(1))
-          .flatMap(s => if (s.isEmpty) None else Some(s))
+  private object QuotedIndex {
+    private lazy val indexRegex = """(\[(\d+)\])""".stripMargin.r
 
-        val optionalValue: Option[String] = Option(regexMatched.group(3))
-          .flatMap(s => if (s.isEmpty) None else Some(s))
+    def apply(value: Int): QuotedIndex = s"[${value}]"
 
-        (optionalKey, optionalValue) match {
-          case (Some(key), Some(value)) => Chunk(key, value)
-          case (None, Some(value))      => Chunk(value)
-          case (Some(key), None)        => Chunk(key)
-          case (None, None)             => Chunk.empty
-        }
-      }
+    def unapply(value: String): Option[Int] =
+      for {
+        regexMatched  <- indexRegex.findPrefixMatchOf(value).filter(_.group(0).nonEmpty)
+        possibleIndex <- Option(regexMatched.group(2))
+        index         <- Try(possibleIndex.toInt).toOption
+      } yield index
+  }
 
-  private def mapLast[A](chunk: Chunk[A])(f: A => A): Chunk[A] =
-    chunk.lastOption match {
-      case Some(value) => chunk.drop(1).appended(f(value))
-      case None        => chunk
+  private def splitIndexInKeys(
+    map: Map[String, String],
+    unmakePathString: String => Chunk[String],
+    makePathString: Chunk[String] => String
+  ): Map[String, String] =
+    map.map { case (pathString, value) =>
+      val keyWithIndex =
+        for {
+          key <- unmakePathString(pathString)
+          keyWithIndex <-
+            splitIndexFrom(key) match {
+              case Some((key, index)) => Chunk(key, QuotedIndex(index))
+              case None               => Chunk(key)
+            }
+        } yield keyWithIndex
+
+      makePathString(keyWithIndex) -> value
     }
+
+  private lazy val strIndexRegex = """(^.+)(\[(\d+)\])$""".stripMargin.r
+
+  private def splitIndexFrom(key: String): Option[(String, Int)] =
+    strIndexRegex
+      .findPrefixMatchOf(key)
+      .filter(_.group(0).nonEmpty)
+      .flatMap { regexMatched =>
+        val optionalString: Option[String] = Option(regexMatched.group(1))
+          .flatMap(s => if (s.isEmpty) None else Some(s))
+
+        val optionalIndex: Option[Int] = Option(regexMatched.group(3))
+          .flatMap(s => if (s.isEmpty) None else Try(s.toInt).toOption)
+
+        optionalString.zip(optionalIndex)
+      }
 
 }
