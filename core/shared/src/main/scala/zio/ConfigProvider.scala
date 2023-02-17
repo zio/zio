@@ -296,7 +296,8 @@ object ConfigProvider {
 
     object util {
       def splitPathString(text: String, escapedDelim: String): Chunk[String] =
-        Chunk.fromArray(text.split("\\s*" + escapedDelim + "\\s*"))
+        if (text.isEmpty) Chunk.empty
+        else Chunk.fromArray(text.split("\\s*" + escapedDelim + "\\s*"))
 
       def parsePrimitive[A](
         text: String,
@@ -564,7 +565,7 @@ object ConfigProvider {
             for {
               prefix <- ZIO.fromEither(flat.patch(prefix))
               vs     <- flat.load(prefix, primitive, split)
-              result <- if (vs.isEmpty)
+              result <- if (vs.isEmpty && !split)
                           ZIO.fail(primitive.missingError(prefix.lastOption.getOrElse("<n/a>")))
                         else ZIO.succeed(vs)
             } yield result

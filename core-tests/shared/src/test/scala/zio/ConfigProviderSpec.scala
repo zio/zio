@@ -425,6 +425,13 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value")
       } +
+      test("empty list") {
+        val configProvider = ConfigProvider.fromMap(Map("key" -> ""))
+        val config         = Config.chunkOf(Config.string).nested("key")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == Chunk.empty)
+      } +
       test("indexed sequence simple") {
         val configProvider = ConfigProvider.fromMap(Map("id[0]" -> "1", "id[1]" -> "2", "id[2]" -> "3"))
         val config         = Config.listOf("id", Config.int)
