@@ -90,18 +90,6 @@ trait Runtime[+R] { self =>
     def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A]
 
     /**
-     * Attempts to execute the effet synchronously and returns its result as a
-     * [[zio.Exit]] value. If the effect cannot be entirely run synchronously,
-     * the effect will be forked and the fiber will be returned.
-     *
-     * This method is effectful and should only be used at the edges of your
-     * application.
-     */
-    def runOrFork[E, A](
-      zio: ZIO[R, E, A]
-    )(implicit trace: Trace, unsafe: Unsafe): Either[Fiber.Runtime[E, A], Exit[E, A]]
-
-    /**
      * Executes the effect asynchronously, returning a Future that will be
      * completed when the effect has been fully executed. The Future can be
      * canceled, which will be translated into ZIO's interruption model.
@@ -114,16 +102,32 @@ trait Runtime[+R] { self =>
     )(implicit trace: Trace, unsafe: Unsafe): CancelableFuture[A]
   }
 
-  def unsafe: UnsafeAPI =
+  trait UnsafeAPI3 {
+
+    /**
+     * Attempts to execute the effet synchronously and returns its result as a
+     * [[zio.Exit]] value. If the effect cannot be entirely run synchronously,
+     * the effect will be forked and the fiber will be returned.
+     *
+     * This method is effectful and should only be used at the edges of your
+     * application.
+     */
+    def runOrFork[E, A](
+      zio: ZIO[R, E, A]
+    )(implicit trace: Trace, unsafe: Unsafe): Either[Fiber.Runtime[E, A], Exit[E, A]]
+  }
+
+  def unsafe: UnsafeAPI with UnsafeAPI3 =
     new UnsafeAPIV1 {}
 
-  protected abstract class UnsafeAPIV1 extends UnsafeAPI {
+  protected abstract class UnsafeAPIV1 extends UnsafeAPI with UnsafeAPI3 {
 
     def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): internal.FiberRuntime[E, A] = {
       val fiber = makeFiber(zio)
       fiber.start[R](zio)
       fiber
     }
+
     def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A] =
       runOrFork(zio) match {
         case Left(fiber) =>
@@ -352,7 +356,7 @@ object Runtime extends RuntimePlatformSpecific {
       def shutdown()(implicit unsafe: Unsafe): Unit
     }
 
-    override def unsafe: UnsafeAPI with UnsafeAPI2 =
+    override def unsafe: UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 =
       new UnsafeAPIV2 {}
 
     protected abstract class UnsafeAPIV2 extends UnsafeAPIV1 with UnsafeAPI2 {
