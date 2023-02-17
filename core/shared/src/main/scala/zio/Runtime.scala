@@ -105,7 +105,7 @@ trait Runtime[+R] { self =>
   trait UnsafeAPI3 {
 
     /**
-     * Attempts to execute the effet synchronously and returns its result as a
+     * Attempts to execute the effect synchronously and returns its result as a
      * [[zio.Exit]] value. If the effect cannot be entirely run synchronously,
      * the effect will be forked and the fiber will be returned.
      *
