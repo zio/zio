@@ -313,10 +313,15 @@ object ConfigProvider {
             .fromEither(primitive.parse(text))
             .map(Chunk(_))
             .mapError(_.prefixed(path))
-        else
-          ZIO
-            .foreach(splitPathString(text, escapedDelim))(s => ZIO.fromEither(primitive.parse(s.trim)))
-            .mapError(_.prefixed(path))
+        else {
+          if (text.nonEmpty)
+            ZIO
+              .foreach(splitPathString(text, escapedDelim))(s => ZIO.fromEither(primitive.parse(s.trim)))
+              .mapError(_.prefixed(path))
+          else {
+            ZIO.succeed(Chunk.empty)
+          }
+        }
       }
 
       def parsePrimitive[A](
@@ -492,8 +497,12 @@ object ConfigProvider {
                            .flatMap(set => indicesFrom(set))
 
               values <-
-                if (indices.isEmpty) loop(prefix, config, split = true).map(Chunk(_))
-                else
+                if (indices.isEmpty)
+                  config match {
+                    case _: Primitive[_] => loop(prefix, config, split = true).map(Chunk(_))
+                    case _: Composite[_] => ZIO.succeed(Chunk(Chunk.empty))
+                  }
+                else {
                   ZIO
                     .foreach(Chunk.fromIterable(indices)) { index =>
                       loop(prefix :+ QuotedIndex(index), config, split = true)
@@ -503,6 +512,7 @@ object ConfigProvider {
                       if (flattened.isEmpty) Chunk(Chunk.empty)
                       else Chunk(flattened)
                     }
+                }
             } yield values
 
           case Nested(name, config) =>
@@ -564,7 +574,7 @@ object ConfigProvider {
             for {
               prefix <- ZIO.fromEither(flat.patch(prefix))
               vs     <- flat.load(prefix, primitive, split)
-              result <- if (vs.isEmpty)
+              result <- if (vs.isEmpty && !split)
                           ZIO.fail(primitive.missingError(prefix.lastOption.getOrElse("<n/a>")))
                         else ZIO.succeed(vs)
             } yield result
