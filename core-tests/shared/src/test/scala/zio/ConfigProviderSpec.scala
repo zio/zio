@@ -604,53 +604,53 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           expectedDepartments = List(expectedEmployees, expectedEmployees)
         } yield assertTrue(result == expectedDepartments)
       } +
-    test("empty list") {
-      val configProvider =
-        ConfigProvider.fromMap(
-          Map(
-            "departments" -> "",
+      test("empty list") {
+        val configProvider =
+          ConfigProvider.fromMap(
+            Map(
+              "departments" -> ""
+            )
           )
-        )
 
-      val config = Config.listOf("departments", Config.int)
+        val config = Config.listOf("departments", Config.int)
 
-      for {
-        result             <- configProvider.load(config)
-      } yield assertTrue(result == Nil)
-    } +
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == Nil)
+      } +
       test("empty list optional") {
         val configProvider =
           ConfigProvider.fromMap(
             Map(
-              "departments" -> "",
+              "departments" -> ""
             )
           )
 
         val config = Config.listOf("departments", Config.int.optional)
 
         for {
-          result             <- configProvider.load(config)
+          result <- configProvider.load(config)
         } yield assertTrue(result == Nil)
       } +
       test("empty list with description") {
         val configProvider =
           ConfigProvider.fromMap(
             Map(
-              "departments" -> "",
+              "departments" -> ""
             )
           )
 
         val config = Config.listOf("departments", Config.int ?? "Integer")
 
         for {
-          result             <- configProvider.load(config)
+          result <- configProvider.load(config)
         } yield assertTrue(result == Nil)
       } +
       test("empty list with product") {
         val configProvider =
           ConfigProvider.fromMap(
             Map(
-              "departments" -> "",
+              "departments" -> ""
             )
           )
 
@@ -659,14 +659,14 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val config = Config.listOf("departments", member)
 
         for {
-          result             <- configProvider.load(config)
+          result <- configProvider.load(config)
         } yield assertTrue(result == Nil)
       } +
       test("empty list with product optional") {
         val configProvider =
           ConfigProvider.fromMap(
             Map(
-              "departments" -> "",
+              "departments" -> ""
             )
           )
 
@@ -675,14 +675,14 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val config = Config.listOf("departments", member.optional)
 
         for {
-          result             <- configProvider.load(config)
+          result <- configProvider.load(config)
         } yield assertTrue(result == Nil)
       } +
       test("empty list with product with description") {
         val configProvider =
           ConfigProvider.fromMap(
             Map(
-              "departments" -> "",
+              "departments" -> ""
             )
           )
 
@@ -691,7 +691,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val config = Config.listOf("departments", member ?? "Member")
 
         for {
-          result             <- configProvider.load(config)
+          result <- configProvider.load(config)
         } yield assertTrue(result == Nil)
       } +
       //FIXME: Failing test
@@ -701,15 +701,15 @@ object ConfigProviderSpec extends ZIOBaseSpec {
             Map(
               "departments[0].ids" -> "",
               "departments[1].ids" -> "1",
-              "departments[2].ids" -> "1, 2",
+              "departments[2].ids" -> "1, 2"
             )
           )
 
         val config = Config.listOf("departments", Config.listOf("ids", Config.int))
 
         for {
-          result             <- configProvider.load(config)
-          _ = println(result)
+          result <- configProvider.load(config)
+          _       = println(result)
         } yield assertTrue(result == List(Nil, List(1), List(1, 2)))
       }
   }
