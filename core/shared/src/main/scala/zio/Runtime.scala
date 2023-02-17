@@ -71,6 +71,15 @@ trait Runtime[+R] { self =>
   trait UnsafeAPI {
 
     /**
+     * Executes the effect asynchronously, returning a fiber whose methods can
+     * await the exit value of the fiber or interrupt the fiber.
+     *
+     * This method is effectful and should only be used at the edges of your
+     * application.
+     */
+    def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Fiber.Runtime[E, A]
+
+    /**
      * Executes the effect synchronously and returns its result as a
      * [[zio.Exit]] value. May fail on Scala.js if the effect cannot be entirely
      * run synchronously.
@@ -81,13 +90,16 @@ trait Runtime[+R] { self =>
     def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A]
 
     /**
-     * Executes the effect asynchronously, returning a fiber whose methods can
-     * await the exit value of the fiber or interrupt the fiber.
+     * Attempts to execute the effet synchronously and returns its result as a
+     * [[zio.Exit]] value. If the effect cannot be entirely run synchronously,
+     * the effect will be forked and the fiber will be returned.
      *
      * This method is effectful and should only be used at the edges of your
      * application.
      */
-    def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Fiber.Runtime[E, A]
+    def runOrFork[E, A](
+      zio: ZIO[R, E, A]
+    )(implicit trace: Trace, unsafe: Unsafe): Either[Fiber.Runtime[E, A], Exit[E, A]]
 
     /**
      * Executes the effect asynchronously, returning a Future that will be
@@ -106,7 +118,27 @@ trait Runtime[+R] { self =>
     new UnsafeAPIV1 {}
 
   protected abstract class UnsafeAPIV1 extends UnsafeAPI {
-    def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A] = {
+
+    def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): internal.FiberRuntime[E, A] = {
+      val fiber = makeFiber(zio)
+      fiber.start[R](zio)
+      fiber
+    }
+    def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A] =
+      runOrFork(zio) match {
+        case Left(fiber) =>
+          import internal.{FiberMessage, OneShot}
+          val result = OneShot.make[Exit[E, A]]
+          fiber.tell(
+            FiberMessage.Stateful((fiber, _) => fiber.addObserver(exit => result.set(exit.asInstanceOf[Exit[E, A]])))
+          )
+          result.get()
+        case Right(exit) => exit
+      }
+
+    def runOrFork[E, A](
+      zio: ZIO[R, E, A]
+    )(implicit trace: Trace, unsafe: Unsafe): Either[internal.FiberRuntime[E, A], Exit[E, A]] = {
       import internal.FiberRuntime
 
       val fiberId   = FiberId.make(trace)
@@ -121,24 +153,13 @@ trait Runtime[+R] { self =>
         fiber.addObserver(exit => supervisor.onEnd(exit, fiber))
       }
 
-      val fastExit = fiber.start[R](zio)
+      val exit = fiber.start[R](zio)
 
-      if (fastExit != null) fastExit
+      if (exit != null) Right(exit)
       else {
-        import internal.{FiberMessage, OneShot}
         FiberScope.global.add(null, runtimeFlags, fiber)
-        val result = OneShot.make[Exit[E, A]]
-        fiber.tell(
-          FiberMessage.Stateful((fiber, _) => fiber.addObserver(exit => result.set(exit.asInstanceOf[Exit[E, A]])))
-        )
-        result.get()
+        Left(fiber)
       }
-    }
-
-    def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): internal.FiberRuntime[E, A] = {
-      val fiber = makeFiber(zio)
-      fiber.start[R](zio)
-      fiber
     }
 
     def runToFuture[E <: Throwable, A](
