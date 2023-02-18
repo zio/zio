@@ -164,114 +164,114 @@ object IndexedFlatSpec extends ZIOBaseSpec {
           expectedDepartments = List(expectedEmployees, expectedEmployees)
         } yield assertTrue(result == expectedDepartments)
       } +
-       test("empty list") {
-         val configProvider =
-           fromIndexedMap(
-             Map(
-               "departments" -> ""
-             )
-           )
+      test("empty list") {
+        val configProvider =
+          fromIndexedMap(
+            Map(
+              "departments" -> ""
+            )
+          )
 
-         val config = Config.listOf("departments", Config.int)
+        val config = Config.listOf("departments", Config.int)
 
-         for {
-           result <- configProvider.load(config)
-         } yield assertTrue(result == Nil)
-       } +
-       test("empty list optional") {
-         val configProvider =
-           fromIndexedMap(
-             Map(
-               "departments" -> ""
-             )
-           )
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == Nil)
+      } +
+      test("empty list optional") {
+        val configProvider =
+          fromIndexedMap(
+            Map(
+              "departments" -> ""
+            )
+          )
 
-         val config = Config.listOf("departments", Config.int.optional)
+        val config = Config.listOf("departments", Config.int.optional)
 
-         for {
-           result <- configProvider.load(config)
-         } yield assertTrue(result == Nil)
-       } +
-       test("empty list with description") {
-         val configProvider =
-           fromIndexedMap(
-             Map(
-               "departments" -> ""
-             )
-           )
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == Nil)
+      } +
+      test("empty list with description") {
+        val configProvider =
+          fromIndexedMap(
+            Map(
+              "departments" -> ""
+            )
+          )
 
-         val config = Config.listOf("departments", Config.int ?? "Integer")
+        val config = Config.listOf("departments", Config.int ?? "Integer")
 
-         for {
-           result <- configProvider.load(config)
-         } yield assertTrue(result == Nil)
-       } +
-       test("empty list with product") {
-         val configProvider =
-           fromIndexedMap(
-             Map(
-               "departments" -> ""
-             )
-           )
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == Nil)
+      } +
+      test("empty list with product") {
+        val configProvider =
+          fromIndexedMap(
+            Map(
+              "departments" -> ""
+            )
+          )
 
-         val member = Config.int("age").zip(Config.string("name"))
+        val member = Config.int("age").zip(Config.string("name"))
 
-         val config = Config.listOf("departments", member)
+        val config = Config.listOf("departments", member)
 
-         for {
-           result <- configProvider.load(config)
-         } yield assertTrue(result == Nil)
-       } +
-       test("empty list with product optional") {
-         val configProvider =
-           fromIndexedMap(
-             Map(
-               "departments" -> ""
-             )
-           )
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == Nil)
+      } +
+      test("empty list with product optional") {
+        val configProvider =
+          fromIndexedMap(
+            Map(
+              "departments" -> ""
+            )
+          )
 
-         val member = Config.int("age").zip(Config.string("name"))
+        val member = Config.int("age").zip(Config.string("name"))
 
-         val config = Config.listOf("departments", member.optional)
+        val config = Config.listOf("departments", member.optional)
 
-         for {
-           result <- configProvider.load(config)
-         } yield assertTrue(result == Nil)
-       } +
-       test("empty list with product with description") {
-         val configProvider =
-           fromIndexedMap(
-             Map(
-               "departments" -> ""
-             )
-           )
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == Nil)
+      } +
+      test("empty list with product with description") {
+        val configProvider =
+          fromIndexedMap(
+            Map(
+              "departments" -> ""
+            )
+          )
 
-         val member = Config.int("age").zip(Config.string("name"))
+        val member = Config.int("age").zip(Config.string("name"))
 
-         val config = Config.listOf("departments", member ?? "Member")
+        val config = Config.listOf("departments", member ?? "Member")
 
-         for {
-           result <- configProvider.load(config)
-         } yield assertTrue(result == Nil)
-       } +
-       test("empty list within indexed list") {
-         val configProvider =
-           fromIndexedMap(
-             Map(
-               "departments[0].ids" -> "",
-               "departments[1].ids[0]" -> "1",
-               "departments[2].ids[0]" -> "1",
-               "departments[2].ids[1]" -> "2"
-             )
-           )
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == Nil)
+      } +
+      test("empty list within indexed list") {
+        val configProvider =
+          fromIndexedMap(
+            Map(
+              "departments[0].ids"    -> "",
+              "departments[1].ids[0]" -> "1",
+              "departments[2].ids[0]" -> "1",
+              "departments[2].ids[1]" -> "2"
+            )
+          )
 
-         val config = Config.listOf("departments", Config.listOf("ids", Config.int))
+        val config = Config.listOf("departments", Config.listOf("ids", Config.int))
 
-         for {
-           result <- configProvider.load(config)
-           _       = println(result)
-         } yield assertTrue(result == List(Nil, List(1), List(1, 2)))
-       }
+        for {
+          result <- configProvider.load(config)
+          _       = println(result)
+        } yield assertTrue(result == List(Nil, List(1), List(1, 2)))
+      }
 
   }
 
