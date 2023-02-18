@@ -693,9 +693,7 @@ object ConfigProvider {
                     loop(prefix ++ Chunk(key), config, split = true)
                   }
                   .map(_.flatten)
-            } yield
-              if (values.isEmpty) Chunk(Chunk.empty)
-              else Chunk(values)
+            } yield Chunk(values)
 
           case Nested(name, config) =>
             loop(prefix ++ Chunk(KeyComponent.KeyName(name)), config, split)
