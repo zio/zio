@@ -8,7 +8,7 @@ import zio.test.Assertion._
 object IndexedFlatSpec extends ZIOBaseSpec {
 
   def spec = suite("IndexedFlatSpec") {
-    test("indexed sequence simple XYZ") {
+    test("indexed sequence simple") {
       val configProvider = fromIndexedMap(Map("id[0]" -> "1", "id[1]" -> "2", "id[2]" -> "3"))
       val config         = Config.listOf("id", Config.int)
 
