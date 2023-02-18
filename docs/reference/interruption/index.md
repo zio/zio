@@ -62,7 +62,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-Here is the output of running this peace of code, which denotes that the task was interrupted:
+Here is the output of running this piece of code, which denotes that the task was interrupted:
 
 ```
 Task interrupted while running
