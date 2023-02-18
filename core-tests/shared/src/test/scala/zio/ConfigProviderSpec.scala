@@ -424,6 +424,13 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         for {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value")
+      } +
+      test("empty list") {
+        val configProvider = ConfigProvider.fromMap(Map("key" -> ""))
+        val config         = Config.chunkOf(Config.string).nested("key")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == Chunk.empty)
       }
   }
 }
