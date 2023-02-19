@@ -1,6 +1,8 @@
-package zio
+package zio.config
 
-package object config {
+import zio._
+
+package object experimental {
 
   def fromIndexedFlat(indexedFlat: IndexedFlat): ConfigProvider =
     new ConfigProvider {

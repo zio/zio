@@ -1,7 +1,6 @@
-package zio.config
+package zio.config.experimental
 
 import zio._
-// import zio.ConfigProvider.Flat
 
 trait IndexedFlat extends ConfigProvider.Flat {
   import IndexedFlat._

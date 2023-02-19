@@ -1,4 +1,4 @@
-package zio.config
+package zio.config.experimental
 
 import zio._
 import zio.test._
@@ -269,7 +269,6 @@ object IndexedFlatSpec extends ZIOBaseSpec {
 
         for {
           result <- configProvider.load(config)
-          _       = println(result)
         } yield assertTrue(result == List(Nil, List(1), List(1, 2)))
       }
 
