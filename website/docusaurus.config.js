@@ -54,6 +54,7 @@ const config = {
         { type: 'doc', docId: 'guides/index', label: 'Guides', position: 'left' },
         { type: 'doc', docId: 'ecosystem/index', label: 'Ecosystem', position: 'left' },
         { type: 'doc', docId: 'resources/index', label: 'Resources', position: 'left' },
+        { type: 'doc', docId: 'events/index', label: 'Events', position: 'left' },
         { type: 'doc', docId: 'about/index', label: 'About', position: 'right' },
         {
           type: 'docsVersionDropdown',
