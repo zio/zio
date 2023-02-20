@@ -3277,7 +3277,15 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def foldLeft[R, E, S, A](
     in: => Iterable[A]
   )(zero: => S)(f: (S, A) => ZIO[R, E, S])(implicit trace: Trace): ZIO[R, E, S] =
-    ZIO.suspendSucceed(in.foldLeft[ZIO[R, E, S]](ZIO.succeed(zero))((acc, el) => acc.flatMap(f(_, el))))
+    ZIO.suspendSucceed {
+      val iterator = in.iterator
+
+      def loop(s: S): ZIO[R, E, S] =
+        if (iterator.hasNext) f(s, iterator.next()).flatMap(loop)
+        else ZIO.succeed(s)
+
+      loop(zero)
+    }
 
   /**
    * Folds an Iterable[A] using an effectual function f, working sequentially
@@ -3286,7 +3294,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def foldRight[R, E, S, A](
     in: => Iterable[A]
   )(zero: => S)(f: (A, S) => ZIO[R, E, S])(implicit trace: Trace): ZIO[R, E, S] =
-    ZIO.suspendSucceed(in.foldRight(ZIO.succeed(zero): ZIO[R, E, S])((el, acc) => acc.flatMap(f(el, _))))
+    foldLeft(in.toSeq.reverse)(zero)((s, a) => f(a, s))
 
   /**
    * Determines whether all elements of the `Iterable[A]` satisfy the effectual
