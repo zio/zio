@@ -4477,6 +4477,11 @@ object ZStreamSpec extends ZIOBaseSpec {
         )
       ),
       suite("Constructors")(
+        test("alphanumeric") {
+          for {
+            chars <- ZStream.alphanumeric.take(100).runCollect
+          } yield assertTrue(chars.forall(_.isLetterOrDigit))
+        },
         test("rechunk") {
           check(tinyChunkOf(Gen.chunkOf(Gen.int)) <*> (Gen.int(1, 100))) { case (chunk, n) =>
             val expected = Chunk.fromIterable(chunk.flatten.grouped(n).toList)

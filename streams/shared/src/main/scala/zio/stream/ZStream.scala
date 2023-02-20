@@ -3843,6 +3843,15 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     scoped[R](ZIO.acquireReleaseExit(acquire)(release))
 
   /**
+   * An infinite stream of random alphanumeric characters.
+   */
+  def alphanumeric(implicit trace: Trace): ZStream[Any, Nothing, Char] =
+    ZStream.repeatZIO {
+      val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+      Random.nextIntBounded(chars.length).map(chars.charAt)
+    }
+
+  /**
    * Creates a pure stream from a variable list of values
    */
   def apply[A](as: A*)(implicit trace: Trace): ZStream[Any, Nothing, A] = fromIterable(as)
