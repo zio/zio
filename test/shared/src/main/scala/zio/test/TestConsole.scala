@@ -77,8 +77,7 @@ object TestConsole extends Serializable {
     live: Live,
     annotations: Annotations,
     debugState: FiberRef[Boolean]
-  ) extends Console
-      with TestConsole {
+  ) extends TestConsole {
 
     /**
      * Clears the contents of the input buffer.
