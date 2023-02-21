@@ -47,7 +47,7 @@ trait TestSystem extends System with Restorable {
 
 object TestSystem extends Serializable {
 
-  final case class Test(systemState: Ref.Atomic[TestSystem.Data]) extends System with TestSystem {
+  final case class Test(systemState: Ref.Atomic[TestSystem.Data]) extends TestSystem {
 
     /**
      * Returns the specified environment variable if it exists.

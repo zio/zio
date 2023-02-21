@@ -101,8 +101,7 @@ object TestClock extends Serializable {
     annotations: Annotations,
     warningState: Ref.Synchronized[TestClock.WarningData],
     suspendedWarningState: Ref.Synchronized[TestClock.SuspendedWarningData]
-  ) extends Clock
-      with TestClock
+  ) extends TestClock
       with TestClockPlatformSpecific {
 
     /**

@@ -96,7 +96,7 @@ object TestRandom extends Serializable {
    * Adapted from @gzmo work in Scala.js
    * (https://github.com/scala-js/scala-js/pull/780)
    */
-  final case class Test(randomState: Ref.Atomic[Data], bufferState: Ref.Atomic[Buffer]) extends Random with TestRandom {
+  final case class Test(randomState: Ref.Atomic[Data], bufferState: Ref.Atomic[Buffer]) extends TestRandom {
 
     /**
      * Clears the buffer of booleans.
