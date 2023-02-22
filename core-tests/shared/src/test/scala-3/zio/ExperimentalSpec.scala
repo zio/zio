@@ -1,6 +1,5 @@
 package zio
 
-import zio.Experimental._
 import zio.test._
 
 import scala.annotation.experimental
@@ -8,6 +7,8 @@ import scala.language.experimental.saferExceptions
 
 @experimental
 object ExperimentalSpec extends ZIOBaseSpec {
+
+  import zio.Experimental._
 
   val limit = 10e9
   class LimitExceeded extends Exception
