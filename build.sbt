@@ -57,16 +57,8 @@ addCommandAlias(
   ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;concurrentJS/test"
 )
 addCommandAlias(
-  "testJVM211",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;macrosTestsJVM/test;concurrentJVM/test;managedTestsJVM/test"
-)
-addCommandAlias(
   "testJS",
   ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;macrosTestsJS/test;concurrentJS/test"
-)
-addCommandAlias(
-  "testJS211",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;examplesJS/test:compile;macrosJS/test;concurrentJS/test"
 )
 addCommandAlias(
   "mimaChecks",
@@ -92,16 +84,6 @@ lazy val projectsCommon = List(
 )
 
 lazy val rootJVM = project.in(file("target/rootJVM")).settings(publish / skip := true).aggregate(rootJVM213)
-
-lazy val rootJVM211 = project
-  .in(file("target/rootJVM211"))
-  .settings(publish / skip := true)
-  .aggregate(projectsCommon.map(p => p.jvm: ProjectReference): _*)
-  .aggregate(
-    List[ProjectReference](
-      testJunitRunner
-    ): _*
-  )
 
 lazy val rootJVM212 = project.in(file("target/rootJVM212")).settings(publish / skip := true).aggregate(rootJVM213)
 
@@ -158,16 +140,6 @@ lazy val rootNative = project
     List[ProjectReference](
       testScalaCheck.native
     ): _*
-  )
-
-lazy val root211 = project
-  .in(file("target/root211"))
-  .settings(publish / skip := true)
-  .aggregate(
-    (projectsCommon.flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
-      List[ProjectReference](
-        testJunitRunner
-      )): _*
   )
 
 lazy val root212 = project.in(file("target/root212")).settings(publish / skip := true).aggregate(root213)

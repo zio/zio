@@ -25,8 +25,8 @@ import scala.reflect.ClassTag
 /**
  * `ChunkLike` represents the capability for a `Chunk` to extend Scala's
  * collection library. Because of changes to Scala's collection library in 2.13,
- * separate versions of this trait are implemented for 2.12 and 2.13 /
- * Dotty. This allows code in `Chunk` to be written without concern for the
+ * separate versions of this trait are implemented for 2.12 and 2.13 / Dotty.
+ * This allows code in `Chunk` to be written without concern for the
  * implementation details of Scala's collection library to the maximum extent
  * possible.
  *
