@@ -30,11 +30,6 @@ object TestVersion {
   val isScala2: Boolean = true
 
   /**
-   * Returns whether the current Scala version is Scala 2.11.
-   */
-  val isScala211: Boolean = false
-
-  /**
    * Returns whether the current Scala version is Scala 2.12.
    */
   val isScala212: Boolean = true

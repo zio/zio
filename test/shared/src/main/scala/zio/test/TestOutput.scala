@@ -139,7 +139,7 @@ object TestOutput {
         )
       }
 
-    // We need this helper to run on Scala 2.11
+    // We need this helper to run on Scala 2.11 // TODO: remove?
     private def updatedWith(initial: Map[SuiteId, Chunk[ExecutionEvent]], key: SuiteId)(
       remappingFunction: Option[Chunk[ExecutionEvent]] => Option[Chunk[ExecutionEvent]]
     ): Map[SuiteId, Chunk[ExecutionEvent]] = {
