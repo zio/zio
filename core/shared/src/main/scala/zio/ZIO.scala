@@ -5732,7 +5732,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
     def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A]
   }
-  private[zio] object UpdateRuntimeFlagsWithin {
+  private[zio] object UpdateRuntimeFlagsWithin extends UpdateRuntimeFlagsWithinPlatformSpecific {
     final case class Interruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
         extends UpdateRuntimeFlagsWithin[R, E, A] {
       def update: RuntimeFlags.Patch = RuntimeFlags.enable(RuntimeFlag.Interruption)
@@ -5749,7 +5749,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         extends UpdateRuntimeFlagsWithin[R, E, A] {
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = f(oldRuntimeFlags)
     }
-    final case class DynamicNoBox[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: IntFunction[ZIO[R, E, A]])
+    final case class DynamicNoBox[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: RuntimeFlagsFunc[ZIO[R, E, A]])
         extends UpdateRuntimeFlagsWithin[R, E, A] {
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = f(oldRuntimeFlags)
     }

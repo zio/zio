@@ -34,7 +34,7 @@ private[test] object TestDebug {
   }
 
   private def isBlank(input: String): Boolean =
-    input.chars().allMatch(Character.isWhitespace(_))
+    input.toCharArray.forall(Character.isWhitespace(_))
 
   def print(executionEvent: ExecutionEvent, lock: TestDebugFileLock) =
     executionEvent match {

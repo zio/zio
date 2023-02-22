@@ -141,7 +141,7 @@ jobs:
         run: |
           sbt docs/mdoc
           sbt docs/unidoc
-    
+
       - name: Move Series 1.x Docs To 2.x Docs
         working-directory: ./
         run: |
@@ -161,17 +161,17 @@ jobs:
         with:
           name: website-artifact
           path: ./series/2.x/website/build
-          
+
       - name: Print All Generated Files
         run: find ./series/2.x/website/build -print
-  
+
   test:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        scala: ['2.11.12', '2.12.17', '2.13.10', '3.2.0']
+        scala: ['2.11.12', '2.12.17', '2.13.10', '3.2.2']
         java: ['17']
         platform: ['JVM']
     steps:
