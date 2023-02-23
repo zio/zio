@@ -229,7 +229,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.2.0")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.2.5")
   .enablePlugins(BuildInfoPlugin)
   .jvmSettings(
     replSettings,
@@ -363,15 +363,15 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .jsSettings(
     jsSettings,
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M3",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M3"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0"
     )
   )
   .nativeSettings(
     nativeSettings,
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M3",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M3",
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0",
       "com.github.lolgab" %%% "scala-native-crypto"  % "0.0.4"
     )
   )

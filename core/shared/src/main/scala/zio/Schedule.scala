@@ -702,12 +702,18 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * evaluates to true.
    */
   final def resetWhen(f: Out => Boolean): Schedule[Env, In, Out] = {
+    def resetAndContinue(now: OffsetDateTime, in: In) =
+      self.step(now, in) flatMap {
+        case Done(out)                     => ZIO.succeed(Done(out))
+        case Continue(out, interval, next) => ZIO.succeed(Continue(out, interval, loop(next)))
+      }
+
     def loop(step: StepFunction[Env, In, Out]): StepFunction[Env, In, Out] =
       (now: OffsetDateTime, in: In) =>
         step(now, in).flatMap {
-          case Done(out) => if (f(out)) self.step(now, in) else ZIO.succeed(Done(out))
+          case Done(out) => if (f(out)) resetAndContinue(now, in) else ZIO.succeed(Done(out))
           case Continue(out, interval, next) =>
-            if (f(out)) self.step(now, in) else ZIO.succeed(Continue(out, interval, loop(next)))
+            if (f(out)) resetAndContinue(now, in) else ZIO.succeed(Continue(out, interval, loop(next)))
         }
 
     Schedule(loop(self.step))
