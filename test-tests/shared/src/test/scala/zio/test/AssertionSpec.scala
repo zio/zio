@@ -49,9 +49,12 @@ object AssertionSpec extends ZIOBaseSpec {
         assert(Exit.die(customException))(diesWithA[CustomException])
       },
       test("diesWithA must be agnostic to failure type") {
-        assertZIO(ZIO.die(customException).flatMap(_ => ZIO.fromEither(Right[String, List[Int]](List(1, 2, 3)))).exit)(
-          diesWithA[CustomException]
-        )
+        assertZIO(
+          ZIO
+            .die(customException)
+            .flatMap(_ => ZIO.fromEither(Right[String, List[Int]](List(1, 2, 3))))
+            .exit
+        )(diesWithA[CustomException])
       },
       test("endWith must succeed when the supplied value ends with the specified sequence") {
         assert(List(1, 2, 3, 4, 5))(endsWith(List(3, 4, 5)))
