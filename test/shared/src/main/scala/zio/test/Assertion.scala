@@ -167,7 +167,7 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires an exit value to die with an instance
    * of given type (or its subtype).
    */
-  def diesWithA[E: ClassTag]: Assertion[Exit[E, Any]] =
+  def diesWithA[E <: Throwable : ClassTag]: Assertion[Exit[Any, Any]] =
     dies(isSubtype[E](anything))
 
   /**

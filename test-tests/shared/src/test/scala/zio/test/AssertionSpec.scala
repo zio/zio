@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.test.Assertion._
-import zio.{Chunk, Exit}
+import zio.{Chunk, Exit, ZIO}
 
 import scala.collection.immutable.SortedSet
 import scala.util.{Failure, Success}
@@ -47,6 +47,11 @@ object AssertionSpec extends ZIOBaseSpec {
       } @@ failing,
       test("diesWithA must succeed when given type assertion is correct") {
         assert(Exit.die(customException))(diesWithA[CustomException])
+      },
+      test("diesWithA must be agnostic to failure type") {
+        assertZIO(ZIO.die(customException).flatMap(_ => ZIO.fromEither(Right[String, List[Int]](List(1, 2, 3)))).exit)(
+          diesWithA[CustomException]
+        )
       },
       test("endWith must succeed when the supplied value ends with the specified sequence") {
         assert(List(1, 2, 3, 4, 5))(endsWith(List(3, 4, 5)))
