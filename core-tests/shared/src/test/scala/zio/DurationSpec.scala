@@ -18,7 +18,7 @@ object DurationSpec extends ZIOBaseSpec {
         assert(Duration.fromNanos(1) * -1.0)(equalTo(Duration.Zero: Duration))
       },
       test("Its JDK representation is correct") {
-        assert(Duration.fromNanos(2345L).asJava)(equalTo(JavaDuration.ofNanos(2345L)))
+        assert(Duration.fromNanos(2345L))(equalTo(JavaDuration.ofNanos(2345L)))
       },
       test("It identifies as 'zero'") {
         assert(Duration.fromNanos(0L).isZero)(equalTo(true))
@@ -157,7 +157,7 @@ object DurationSpec extends ZIOBaseSpec {
         assert(Duration.Infinity.asScala)(equalTo(ScalaDuration.Inf: ScalaDuration))
       },
       test("It converts into a Long.MaxValue second-long JDK Duration") {
-        assert(Duration.Infinity.asJava)(equalTo(JavaDuration.ofNanos(Long.MaxValue)))
+        assert(Duration.Infinity)(equalTo(JavaDuration.ofNanos(Long.MaxValue)))
       },
       test("Folding picks up the correct value") {
         assert(Duration.Infinity.fold("Infinity", _ => "Finite"))(equalTo("Infinity"))
@@ -195,7 +195,7 @@ object DurationSpec extends ZIOBaseSpec {
       test(
         "A j.t.Duration constructed from Infinity converts to Infinity"
       ) {
-        assert(Duration.fromJava(Duration.Infinity.asJava))(equalTo(Duration.Infinity: Duration))
+        assert(Duration.fromJava(Duration.Infinity))(equalTo(Duration.Infinity: Duration))
       },
       test(
         "A Long.MaxValue - 1 second j.t.Duration converts to Infinity"
