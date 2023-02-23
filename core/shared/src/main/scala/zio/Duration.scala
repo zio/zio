@@ -179,7 +179,6 @@ final class DurationOps(private val duration: Duration) extends AnyVal {
     case _                 => ScalaFiniteDuration(duration.toNanos, TimeUnit.NANOSECONDS)
   }
 
-  @deprecated("zio.Duration is already a java.time.Duration", "2.0.10")
   def asJava: JavaDuration = duration
 
   def max(other: Duration): Duration = if (duration > other) duration else other
