@@ -41,7 +41,7 @@ trait DurationModule {
 
 object Duration {
   val Infinity: Duration = java.time.Duration.ofNanos(Long.MaxValue)
-  val Zero               = java.time.Duration.ZERO
+  val Zero: Duration     = java.time.Duration.ZERO
 
   object Finite {
 
@@ -80,7 +80,7 @@ object Duration {
 
   def fromJava(duration: JavaDuration): Duration =
     if (duration.isNegative) Zero
-    else if (duration.compareTo(JavaDuration.ofNanos(Long.MaxValue)) >= 0) Infinity
+    else if (duration.compareTo(Infinity) >= 0) Infinity
     else fromNanos(duration.toNanos)
 
   private def toChronoUnit(unit: TimeUnit): ChronoUnit = unit match {
@@ -175,13 +175,12 @@ final class DurationOps(private val duration: Duration) extends AnyVal {
 
   def asScala: ScalaDuration = duration match {
     case Duration.Infinity => ScalaDuration.Inf
+    case Duration.Zero     => ScalaDuration.Zero
     case _                 => ScalaFiniteDuration(duration.toNanos, TimeUnit.NANOSECONDS)
   }
 
-  def asJava: JavaDuration = duration match {
-    case Duration.Infinity => JavaDuration.ofNanos(Long.MaxValue)
-    case _                 => JavaDuration.ofNanos(duration.toNanos)
-  }
+  @deprecated("zio.Duration is already a java.time.Duration", "2.0.10")
+  def asJava: JavaDuration = duration
 
   def max(other: Duration): Duration = if (duration > other) duration else other
 
