@@ -5026,7 +5026,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   )(implicit trace: Trace): ZIO[R, E, A] =
     Stateful(trace, onState)
 
-  private lazy val _IdentityFn: Any => Any = (a: Any) => a
+  private val _IdentityFn: Any => Any = (a: Any) => a
 
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
