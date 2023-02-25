@@ -561,7 +561,6 @@ module.exports = {
         "ecosystem/community/zio-arrow",
         "ecosystem/community/zio-aws-s3",
         "ecosystem/community/zio-grpc",
-        "ecosystem/community/zio-http",
         "ecosystem/community/zio-k8s",
         "ecosystem/community/zio-kinesis",
         "ecosystem/community/zio-pulsar",
