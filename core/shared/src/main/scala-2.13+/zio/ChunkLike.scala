@@ -54,6 +54,14 @@ trait ChunkLike[+A]
   override def collect[B](pf: PartialFunction[A, B]): Chunk[B] =
     collectChunk(pf)
 
+  override final def copyToArray[B >: A](dest: Array[B], destPos: Int, length: Int): Int = {
+    val copied = math.max(math.min(math.min(length, self.length), dest.length - destPos), 0)
+    if (copied > 0) {
+      toArray(0, dest, destPos, copied)
+    }
+    copied
+  }
+
   /**
    * Returns the concatenation of mapping every element into a new chunk using
    * the specified function.
