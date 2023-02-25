@@ -49,7 +49,7 @@ sealed trait Config[+A] { self =>
   def map[B](f: A => B): Config[B] = self.mapOrFail(a => Right(f(a)))
 
   /**
-   * Returns a new config whose structure is the samea as this one, but which
+   * Returns a new config whose structure is the same as this one, but which
    * may produce a different Scala value, constructed using the specified
    * fallible function.
    */
