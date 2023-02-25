@@ -116,10 +116,29 @@ object ConfigSpec extends ZIOBaseSpec {
       }
     )
 
+  def durationSuite =
+    suite("duration")(
+      test("reads a Java duration") {
+        val config         = Config.duration("duration")
+        val configProvider = ConfigProvider.fromMap(Map("duration" -> "PT1H"))
+        for {
+          duration <- configProvider.load(config)
+        } yield assertTrue(duration == 1.hour)
+      },
+      test("reads a Scala duration") {
+        val config         = Config.duration("duration")
+        val configProvider = ConfigProvider.fromMap(Map("duration" -> "1 hour"))
+        for {
+          duration <- configProvider.load(config)
+        } yield assertTrue(duration == 1.hour)
+      }
+    )
+
   def spec =
     suite("ConfigSpec")(
       secretSuite,
       withDefaultSuite,
-      optionalSuite
+      optionalSuite,
+      durationSuite
     )
 }
