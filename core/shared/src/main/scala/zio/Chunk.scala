@@ -1025,8 +1025,11 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   //noinspection AccessorLikeMethodIsUnit
-  protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
-    if (isEmpty) () else materialize.toArray(n, dest)
+  protected[zio] final def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
+    toArray(0, dest, n, length)
+
+  protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit =
+    if (isEmpty) () else materialize.toArray(srcPos, dest, destPos, length)
 
   /**
    * Appends an element to the chunk.
@@ -1442,9 +1445,11 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       else if (n < start.length) start(n)
       else buffer(n - start.length).asInstanceOf[A]
 
-    override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
-      start.toArray(n, dest)
-      val _ = buffer.asInstanceOf[Array[A]].copyToArray(dest, n + start.length, bufferUsed)
+    override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit = {
+      val n = math.max(start.length - srcPos min dest.length - destPos min length, 0)
+      start.toArray(srcPos, dest, destPos, math.min(length, start.length - srcPos))
+      val _ =
+        Array.copy(buffer.asInstanceOf[Array[A]], math.max(srcPos - start.length, 0), dest, destPos + n, length - n)
     }
   }
 
@@ -1477,10 +1482,11 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       else if (n < bufferUsed) buffer(BufferSize - bufferUsed + n).asInstanceOf[A]
       else end(n - bufferUsed)
 
-    override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
-      val length = math.min(bufferUsed, math.max(dest.length - n, 0))
-      Array.copy(buffer, BufferSize - bufferUsed, dest, n, length)
-      val _ = end.toArray(n + length, dest)
+    override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit = {
+      val n = math.max(bufferUsed - srcPos min dest.length - destPos min length, 0)
+      println(n)
+      val _ = Array.copy(buffer.asInstanceOf[Array[A]], BufferSize - n, dest, destPos, n)
+      end.toArray(math.max(srcPos - n, 0), dest, destPos + n, length - n)
     }
   }
 
@@ -1529,13 +1535,14 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Update(Chunk.fromArray(array.asInstanceOf[Array[A1]]), bufferIndices, bufferValues, 1, new AtomicInteger(1))
       }
 
-    override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
-      chunk.toArray(n, dest)
+    override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit = {
+      chunk.toArray(srcPos, dest, destPos, length)
       var i = 0
       while (i < used) {
         val index = bufferIndices(i)
         val value = self.bufferValues(i)
-        dest(index) = value.asInstanceOf[A1]
+        if (index >= srcPos && index < srcPos + length)
+          dest(destPos + index) = value.asInstanceOf[A1]
         i += 1
       }
     }
@@ -1705,8 +1712,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       take(i)
     }
 
-    override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
-      Array.copy(array, 0, dest, n, length)
+    override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit =
+      Array.copy(array, srcPos, dest, destPos, length)
 
     override protected def collectChunk[B](pf: PartialFunction[A, B]): Chunk[B] = {
       val len     = self.length
@@ -1770,9 +1777,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override def iterator: Iterator[A] =
       left.iterator ++ right.iterator
 
-    override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
-      left.toArray(n, dest)
-      right.toArray(n + left.length, dest)
+    override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit = {
+      val n = math.max(math.min(math.min(length, left.length - srcPos), dest.length - destPos), 0)
+      left.toArray(srcPos, dest, destPos, n)
+      right.toArray(math.max(srcPos - left.length, 0), dest, destPos + n, length - n)
     }
   }
 
@@ -1792,8 +1800,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       val _ = f(a)
     }
 
-    override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
-      dest(n) = a
+    override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit =
+      if (srcPos == 0 && length > 0) dest(destPos) = a
 
     def chunkIterator: ChunkIterator[A] =
       self
@@ -1835,17 +1843,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override def iterator: Iterator[A] =
       chunk.iterator.slice(offset, offset + l)
 
-    override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
-      var i = 0
-      var j = n
-
-      while (i < length) {
-        dest(j) = apply(i)
-
-        i += 1
-        j += 1
-      }
-    }
+    override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit =
+      chunk.toArray(srcPos + offset, dest, destPos, math.min(length, l - srcPos))
   }
 
   private final case class VectorChunk[A](private val vector: Vector[A]) extends Chunk[A] {
@@ -1865,9 +1864,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override def foreach[B](f: A => B): Unit =
       vector.foreach(f)
 
-    override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
-      val _ = vector.copyToArray(dest, n, length)
-    }
+    override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit =
+      vector.drop(srcPos).copyToArray(dest, destPos, length)
   }
 
   private[zio] trait BitOps[T] {
@@ -1980,10 +1978,15 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     protected def foreachElement[A](f: Boolean => A, elem: T): Unit
 
-    override def toArray[A1 >: Boolean](n: Int, dest: Array[A1]): Unit = {
+    override protected[zio] def toArray[A1 >: Boolean](
+      srcPos: Int,
+      dest: Array[A1],
+      destPos: Int,
+      length: Int
+    ): Unit = {
       var i = 0
-      while (i < length) {
-        dest(i + n) = self.apply(i)
+      while (i < length - srcPos) {
+        dest(destPos + i) = self.apply(srcPos + i)
         i += 1
       }
     }
@@ -2372,10 +2375,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         if (endianness == BitChunk.Endianness.BigEndian) elem else ops.reverse(elem)
       }
 
-    override protected[zio] def toArray[T1 >: T](n: Int, dest: Array[T1]): Unit = {
-      var i = n
-      while (i < length) {
-        dest(i + n) = self.apply(i)
+    override protected[zio] def toArray[A1 >: T](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit = {
+      var i = 0
+      while (i < length - srcPos) {
+        dest(destPos + i) = apply(srcPos + i)
         i += 1
       }
     }
