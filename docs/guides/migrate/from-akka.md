@@ -1250,7 +1250,7 @@ There is also a work-in-progress implementation of the Raft protocol called [ZIO
 [53]: https://doc.akka.io/docs/alpakka/current/avroparquet.html
 [54]: ../../ecosystem/officials/zio-schema.md
 [55]: https://doc.akka.io/docs/akka-http/current/index.html
-[56]: ../../ecosystem/community/zio-http.md
+[56]: https://github.com/zio/zio-http
 [57]: ../../ecosystem/officials/zio-nio.md
 [58]: https://doc.akka.io/docs/alpakka/current/slick.html
 [59]: ../../ecosystem/community/zio-slick-interop.md
