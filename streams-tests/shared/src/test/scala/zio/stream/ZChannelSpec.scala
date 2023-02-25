@@ -1,6 +1,7 @@
 package zio.stream
 
 import zio._
+import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 import zio.test._
 import zio.test.Assertion._
 import zio.test.TestAspect.{jvmOnly, timeout}
@@ -281,6 +282,89 @@ object ZChannelSpec extends ZIOBaseSpec {
               .concatMapWith(i => ZChannel.write(i).as(List(s"Inner-$i")))(_ ++ _, (_, _))
               .runCollect
           )(equalTo((Chunk(1, 2, 3), (List("Inner-1", "Inner-2", "Inner-3"), List("Outer-0")))))
+        },
+        test("custom 1") {
+          assertZIO(
+            ZChannel
+              .writeAll(1, 2, 3, 4)
+              .concatMapWithCustom(x =>
+                ZChannel.writeAll(Some((x, 1)), None, Some((x, 2)), None, Some((x, 3)), None, Some((x, 4)))
+              )(
+                (_, _) => (),
+                (_, _) => (),
+                {
+                  case UpstreamPullRequest.Pulled(_)     => UpstreamPullStrategy.PullAfterNext(None)
+                  case UpstreamPullRequest.NoUpstream(_) => UpstreamPullStrategy.PullAfterAllEnqueued(None)
+                },
+                {
+                  case None    => ChildExecutorDecision.Yield
+                  case Some(_) => ChildExecutorDecision.Continue
+                }
+              )
+              .runCollect
+              .map(_._1.flatten)
+          )(
+            equalTo(
+              Chunk(
+                (1, 1),
+                (2, 1),
+                (3, 1),
+                (4, 1),
+                (1, 2),
+                (2, 2),
+                (3, 2),
+                (4, 2),
+                (1, 3),
+                (2, 3),
+                (3, 3),
+                (4, 3),
+                (1, 4),
+                (2, 4),
+                (3, 4),
+                (4, 4)
+              )
+            )
+          )
+        },
+        test("custom 2") {
+          assertZIO(
+            ZChannel
+              .writeAll(1, 2, 3, 4)
+              .concatMapWithCustom(x =>
+                ZChannel.writeAll(Some((x, 1)), None, Some((x, 2)), None, Some((x, 3)), None, Some((x, 4)))
+              )(
+                (_, _) => (),
+                (_, _) => (),
+                _ => UpstreamPullStrategy.PullAfterAllEnqueued(None),
+                {
+                  case None    => ChildExecutorDecision.Yield
+                  case Some(_) => ChildExecutorDecision.Continue
+                }
+              )
+              .runCollect
+              .map(_._1.flatten)
+          )(
+            equalTo(
+              Chunk(
+                (1, 1),
+                (2, 1),
+                (1, 2),
+                (3, 1),
+                (2, 2),
+                (1, 3),
+                (4, 1),
+                (3, 2),
+                (2, 3),
+                (1, 4),
+                (4, 2),
+                (3, 3),
+                (2, 4),
+                (4, 3),
+                (3, 4),
+                (4, 4)
+              )
+            )
+          )
         }
       ),
       suite("ZChannel#scoped")(
