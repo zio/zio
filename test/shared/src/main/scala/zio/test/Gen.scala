@@ -345,7 +345,16 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * with the specified function.
    */
   def collectAll[R, A](gens: Iterable[Gen[R, A]])(implicit trace: Trace): Gen[R, List[A]] =
-    gens.foldRight[Gen[R, List[A]]](Gen.const(List.empty))(_.zipWith(_)(_ :: _))
+    Gen.suspend {
+      val iterator = gens.iterator
+      val builder  = List.newBuilder[A]
+
+      def loop: Gen[R, List[A]] =
+        if (iterator.hasNext) iterator.next().flatMap { a => builder += a; loop }
+        else Gen.const(builder.result())
+
+      loop
+    }
 
   /**
    * Combines the specified deterministic generators to return a new
