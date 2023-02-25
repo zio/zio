@@ -3293,12 +3293,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   )(zero: => S)(f: (S, A) => ZIO[R, E, S])(implicit trace: Trace): ZIO[R, E, S] =
     ZIO.suspendSucceed {
       val iterator = in.iterator
+      var s        = zero
 
-      def loop(s: S): ZIO[R, E, S] =
-        if (iterator.hasNext) f(s, iterator.next()).flatMap(loop)
-        else ZIO.succeed(s)
-
-      loop(zero)
+      ZIO.whileLoop(iterator.hasNext)(f(s, iterator.next()))(s = _).as(s)
     }
 
   /**
