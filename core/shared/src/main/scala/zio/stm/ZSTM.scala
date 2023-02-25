@@ -1153,7 +1153,7 @@ object ZSTM {
   /**
    * Interrupts the fiber running the effect.
    */
-  lazy val interrupt: USTM[Nothing] =
+  val interrupt: USTM[Nothing] =
     ZSTM.fiberId.flatMap(fiberId => interruptAs(fiberId))
 
   /**

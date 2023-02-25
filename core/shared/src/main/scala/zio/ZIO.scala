@@ -4164,7 +4164,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   /**
    * Returns an effect that succeeds with the `None` value.
    */
-  lazy val none: UIO[Option[Nothing]] =
+  val none: UIO[Option[Nothing]] =
     succeed(None)(Trace.empty)
 
   /**
@@ -4645,7 +4645,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   /**
    * An effect that succeeds with a unit value.
    */
-  lazy val unit: UIO[Unit] =
+  val unit: UIO[Unit] =
     succeed(())(Trace.empty)
 
   /**
