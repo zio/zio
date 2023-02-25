@@ -77,7 +77,7 @@ private[zio] final class PinchableArray[A: ClassTag](hint: Int) extends Iterable
   def pinch(): Chunk[A] = {
     val size = self._size
 
-    if ((array eq null) || size == 0) Chunk.empty
+    if (size == 0) Chunk.empty
     else {
       ensurePinchCapacity(size)
 
