@@ -51,9 +51,9 @@ private[zio] trait ChunkLike[+A]
     else super.:+(a1)
 
   override def copyToArray[A1 >: A](dest: Array[A1], destPos: Int, length: Int): Unit = {
-    val copied = math.max(math.min(math.min(length, self.length), dest.length - destPos), 0)
-    if (copied > 0) {
-      toArray(0, dest, destPos, copied)
+    val n = math.max(math.min(math.min(length, self.length), dest.length - destPos), 0)
+    if (n > 0) {
+      toArray(0, dest, destPos, n)
     }
   }
 
