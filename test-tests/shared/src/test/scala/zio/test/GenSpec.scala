@@ -647,7 +647,7 @@ object GenSpec extends ZIOBaseSpec {
       val exhaustive = Gen.fromIterable(1 until 6)
       val actual     = exhaustive.zipWith(exhaustive)(_ + _)
       checkFinite(actual)(equalTo(expected))
-    } @@ scala2Only, //todo fix when #2232 is resolved
+    },
     test("size can be modified locally") {
       val getSize = Gen.size.sample.map(_.value).runCollect.map(_.head)
       val result = for {
