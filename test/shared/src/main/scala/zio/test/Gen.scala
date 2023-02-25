@@ -346,14 +346,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def collectAll[R, A](gens: Iterable[Gen[R, A]])(implicit trace: Trace): Gen[R, List[A]] =
     Gen.suspend {
-      val iterator = gens.iterator
-      val builder  = List.newBuilder[A]
 
-      def loop: Gen[R, List[A]] =
-        if (iterator.hasNext) iterator.next().flatMap { a => builder += a; loop }
-        else Gen.const(builder.result())
+      def loop(gens: List[Gen[R, A]], as: List[A]): Gen[R, List[A]] =
+        gens match {
+          case gen :: gens => gen.flatMap(a => loop(gens, a :: as))
+          case Nil         => Gen.const(as.reverse)
+        }
 
-      loop
+      loop(gens.toList, Nil)
     }
 
   /**
