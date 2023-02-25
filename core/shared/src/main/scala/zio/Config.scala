@@ -209,8 +209,8 @@ object Config {
           case NonFatal(_) => Right(zio.Duration.fromScala(scala.concurrent.duration.Duration(text)))
         }
       } catch {
-      case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a duration value, but found ${text}"))
-    }
+        case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a duration value, but found ${text}"))
+      }
   }
   final case class Fail(message: String) extends Primitive[Nothing] {
     final def parse(text: String): Either[Config.Error, Nothing] = Left(Config.Error.Unsupported(Chunk.empty, message))
