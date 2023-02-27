@@ -3,6 +3,7 @@ package zio
 import zio.LatchOps._
 import zio.test.Assertion._
 import zio.test.TestAspect._
+import zio.test.TestPlatform.isNative
 import zio.test._
 
 object FiberSpec extends ZIOBaseSpec {
@@ -148,5 +149,5 @@ object FiberSpec extends ZIOBaseSpec {
     )
 
   val (initial, update)                            = ("initial", "update")
-  val fibers: List[Fiber.Synthetic[Nothing, Unit]] = List.fill(1000)(Fiber.unit)
+  val fibers: List[Fiber.Synthetic[Nothing, Unit]] = List.fill(if (isNative) 10000 else 100000)(Fiber.unit)
 }

@@ -4,6 +4,7 @@ import zio.FiberRefSpecUtil._
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
+import zio.test.TestPlatform.isNative
 import zio.test._
 import zio.test.environment.Live
 
@@ -280,10 +281,10 @@ object FiberRefSpec extends ZIOBaseSpec {
       testM("the value of all fibers in inherited when running many ZIOs with collectAllPar") {
         for {
           fiberRef <- FiberRef.make[Int](0, _ => 0, _ + _)
-          _        <- ZIO.collectAllPar(List.fill(1000)(fiberRef.update(_ + 1)))
+          n         = if (isNative) 10000 else 100000
+          _        <- ZIO.collectAllPar(List.fill(n)(fiberRef.update(_ + 1)))
           value    <- fiberRef.get
-          _         = println(s"XXXXXXXXXXXXXX: $value")
-        } yield assert(value)(equalTo(1000))
+        } yield assert(value)(equalTo(n))
       },
       testM("an unsafe handle is initialized and updated properly") {
         for {
