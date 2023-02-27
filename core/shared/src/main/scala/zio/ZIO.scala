@@ -184,7 +184,7 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Maps the success value of this effect to the specified constant value.
    */
-  final def as[B](b: => B)(implicit trace: Trace): ZIO[R, E, B] =
+  def as[B](b: => B)(implicit trace: Trace): ZIO[R, E, B] =
     self.map(_ => b)
 
   /**
@@ -970,14 +970,14 @@ sealed trait ZIO[-R, +E, +A]
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
-  final def mapBoth[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E], trace: Trace): ZIO[R, E2, B] =
+  def mapBoth[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E], trace: Trace): ZIO[R, E2, B] =
     foldZIO(e => ZIO.fail(f(e)), a => ZIO.succeed(g(a)))
 
   /**
    * Returns an effect with its error channel mapped using the specified
    * function. This can be used to lift a "smaller" error into a "larger" error.
    */
-  final def mapError[E2](f: E => E2)(implicit ev: CanFail[E], trace: Trace): ZIO[R, E2, A] =
+  def mapError[E2](f: E => E2)(implicit ev: CanFail[E], trace: Trace): ZIO[R, E2, A] =
     self.mapErrorCause(_.map(f))
 
   /**
@@ -989,7 +989,7 @@ sealed trait ZIO[-R, +E, +A]
    *   [[absorb]], [[sandbox]], [[catchAllCause]] - other functions for dealing
    *   with defects
    */
-  final def mapErrorCause[E2](h: Cause[E] => Cause[E2])(implicit trace: Trace): ZIO[R, E2, A] =
+  def mapErrorCause[E2](h: Cause[E] => Cause[E2])(implicit trace: Trace): ZIO[R, E2, A] =
     self.foldCauseZIO(c => ZIO.refailCause(h(c)), a => ZIO.succeed(a))
 
   /**
@@ -1191,7 +1191,7 @@ sealed trait ZIO[-R, +E, +A]
    * Executes this effect and returns its value, if it succeeds, but otherwise
    * fails with the specified error.
    */
-  final def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E], trace: Trace): ZIO[R, E1, A] =
+  def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E], trace: Trace): ZIO[R, E1, A] =
     orElse(ZIO.fail(e1))
 
   /**
@@ -2194,7 +2194,7 @@ sealed trait ZIO[-R, +E, +A]
    * Returns the effect resulting from mapping the success of this effect to
    * unit.
    */
-  final def unit(implicit trace: Trace): ZIO[R, E, Unit] =
+  def unit(implicit trace: Trace): ZIO[R, E, Unit] =
     as(())
 
   /**
@@ -5963,6 +5963,12 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     zipWith(that)(zippable.zip(_, _), _ ++ _)
 
   /**
+   * Maps the success value of this effect to the specified constant value.
+   */
+  override final def as[B](b: => B)(implicit trace: Trace): ZIO[Any, E, B] =
+    asExit(b)
+
+  /**
    * Replaces the success value with the one provided.
    */
   final def asExit[B](b: B): Exit[E, B] = mapExit(_ => b)
@@ -6088,6 +6094,12 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   }
 
   /**
+   * Returns an effect whose success is mapped by the specified `f` function.
+   */
+  override final def map[B](f: A => B)(implicit trace: Trace): ZIO[Any, E, B] =
+    mapExit(f)
+
+  /**
    * Maps over the value type.
    */
   final def mapExit[A1](f: A => A1): Exit[E, A1] =
@@ -6097,10 +6109,24 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     }
 
   /**
+   * Returns an effect whose failure and success channels have been mapped by
+   * the specified pair of functions, `f` and `g`.
+   */
+  override final def mapBoth[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E], trace: Trace): ZIO[Any, E2, B] =
+    mapBothExit(f, g)
+
+  /**
    * Maps over both the error and value type.
    */
   final def mapBothExit[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] =
     mapErrorExit(f).mapExit(g)
+
+  /**
+   * Returns an effect with its error channel mapped using the specified
+   * function. This can be used to lift a "smaller" error into a "larger" error.
+   */
+  override final def mapError[E2](f: E => E2)(implicit ev: CanFail[E], trace: Trace): ZIO[Any, E2, A] =
+    mapErrorExit(f)
 
   /**
    * Maps over the error type.
@@ -6112,6 +6138,18 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     }
 
   /**
+   * Returns an effect with its full cause of failure mapped using the specified
+   * function. This can be used to transform errors while preserving the
+   * original structure of `Cause`.
+   *
+   * @see
+   *   [[absorb]], [[sandbox]], [[catchAllCause]] - other functions for dealing
+   *   with defects
+   */
+  override final def mapErrorCause[E2](h: Cause[E] => Cause[E2])(implicit trace: Trace): ZIO[Any, E2, A] =
+    mapErrorCauseExit(h)
+
+  /**
    * Maps over the cause type.
    */
   final def mapErrorCauseExit[E1](f: Cause[E] => Cause[E1]): Exit[E1, A] =
@@ -6119,6 +6157,13 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
       case e @ Success(_) => e
       case Failure(c)     => Failure(f(c))
     }
+
+  /**
+   * Executes this effect and returns its value, if it succeeds, but otherwise
+   * fails with the specified error.
+   */
+  override final def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E], trace: Trace): ZIO[Any, E1, A] =
+    orElseFailExit(e1)
 
   /**
    * Replaces the error value with the one provided.
@@ -6142,6 +6187,13 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     }
 
   final def trace: Trace = Trace.empty
+
+  /**
+   * Returns the effect resulting from mapping the success of this effect to
+   * unit.
+   */
+  override final def unit(implicit trace: Trace): ZIO[Any, E, Unit] =
+    unitExit
 
   /**
    * Discards the value.
