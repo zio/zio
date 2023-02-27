@@ -138,6 +138,9 @@ object AssertionSpec extends ZIOBaseSpec {
       test("failsWithA must succeed when given type assertion is correct") {
         assert(Exit.fail(customException))(failsWithA[CustomException])
       },
+      test("failsWithA must fail when given type assertion is incorrect") {
+        assert(Exit.fail(someException))(failsWithA[CustomException])
+      } @@ failing,
       test("forall must succeed when all elements of iterable satisfy specified assertion") {
         assert(Seq("a", "bb", "ccc"))(forall(hasField("length", _.length, isWithin(0, 3))))
       },
