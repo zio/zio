@@ -50,6 +50,13 @@ private[zio] trait ChunkLike[+A]
     if (isChunkCanBuildFrom[A, A1, That](bf)) prepend(a1).asInstanceOf[That]
     else super.:+(a1)
 
+  override def copyToArray[A1 >: A](dest: Array[A1], destPos: Int, length: Int): Unit = {
+    val n = math.max(math.min(math.min(length, self.length), dest.length - destPos), 0)
+    if (n > 0) {
+      toArray(0, dest, destPos, n)
+    }
+  }
+
   /**
    * Returns a filtered, mapped subset of the elements of this chunk.
    */
