@@ -1589,8 +1589,28 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def mapZIO[Env, Err, In, Out](f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
-  ): ZPipeline[Env, Err, In, Out] =
-    new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOutZIO(_.mapZIO(f)))
+  ): ZPipeline[Env, Err, In, Out] = {
+
+    def loop(
+      chunkIterator: Chunk.ChunkIterator[In],
+      index: Int
+    ): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+      if (chunkIterator.hasNextAt(index))
+        ZChannel.unwrap {
+          val a = chunkIterator.nextAt(index)
+          f(a).map { a1 =>
+            ZChannel.write(Chunk.single(a1)) *> loop(chunkIterator, index + 1)
+          }
+        }
+      else
+        ZChannel.readWithCause(
+          elem => loop(elem.chunkIterator, 0),
+          err => ZChannel.failCause(err),
+          done => ZChannel.succeed(done)
+        )
+
+    new ZPipeline(loop(Chunk.ChunkIterator.empty, 0))
+  }
 
   /**
    * Maps over elements of the stream with the specified effectful function,
