@@ -201,54 +201,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     )
 
   /**
-   * Returns a new channel whose outputs are fed to the specified factory
-   * function, which creates new channels in response. These new channels are
-   * sequentially concatenated together, and all their outputs appear as outputs
-   * of the newly returned channel. The provided merging function is used to
-   * merge the terminal values of all channels into the single terminal value of
-   * the returned channel.
-   */
-  private[zio] final def concatMapWithCustom[
-    Env1 <: Env,
-    InErr1 <: InErr,
-    InElem1 <: InElem,
-    InDone1 <: InDone,
-    OutErr1 >: OutErr,
-    OutElem2,
-    OutDone2,
-    OutDone3
-  ](
-    f: OutElem => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone2]
-  )(
-    g: (OutDone2, OutDone2) => OutDone2,
-    h: (OutDone2, OutDone) => OutDone3,
-    onPull: UpstreamPullRequest[OutElem] => UpstreamPullStrategy[OutElem2],
-    onEmit: OutElem2 => ChildExecutorDecision
-  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone3] =
-    ZChannel.ConcatAll(g, h, onPull, onEmit, () => self, f)
-
-  /**
-   * Returns a new channel, which is the same as this one, except its outputs
-   * are filtered and transformed by the specified partial function.
-   */
-  final def collect[OutElem2](
-    f: PartialFunction[OutElem, OutElem2]
-  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] = {
-    val pf = f.lift
-    lazy val collector: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, OutElem2, OutDone] =
-      ZChannel.readWith(
-        pf(_: OutElem) match {
-          case None       => collector
-          case Some(out2) => ZChannel.write(out2) *> collector
-        },
-        (e: OutErr) => ZChannel.fail(e),
-        (z: OutDone) => ZChannel.succeedNow(z)
-      )
-
-    self pipeTo collector
-  }
-
-  /**
    * Returns a new channel, which is the concatenation of all the channels that
    * are written out by this channel. This method may only be called on channels
    * that output other channels.
