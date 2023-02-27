@@ -3179,9 +3179,11 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   )(
     f: A => ZIO[R, E, Boolean]
   )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: Trace): ZIO[R, E, Collection[A]] =
-    as.foldLeft[ZIO[R, E, Builder[A, Collection[A]]]](ZIO.succeed(bf.newBuilder(as))) { (zio, a) =>
-      zio.zipWith(f(a))((as, p) => if (p) as += a else as)
-    }.map(_.result())
+    ZIO
+      .foldLeft(as)(bf.newBuilder(as)) { (builder, a) =>
+        f(a).map(b => if (b) builder += a else builder)
+      }
+      .map(_.result())
 
   /**
    * Filters the Set[A] using the specified effectual predicate.
@@ -3260,7 +3262,19 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     zio: => ZIO[R, E, A],
     rest: => Iterable[ZIO[R1, E, A]]
   )(implicit trace: Trace): ZIO[R1, E, A] =
-    ZIO.suspendSucceed(rest.foldLeft[ZIO[R1, E, A]](zio)(_ orElse _))
+    ZIO.suspendSucceed {
+      val iterator = rest.iterator
+
+      def loop(zio: ZIO[R1, E, A]): ZIO[R1, E, A] =
+        zio.catchAllCause { cause =>
+          cause.failureOrCause.fold(
+            _ => if (iterator.hasNext) loop(iterator.next()) else ZIO.refailCause(cause),
+            cause => ZIO.refailCause(cause)
+          )
+        }
+
+      loop(zio)
+    }
 
   /**
    * Returns an effect that first executes the outer effect, and then executes
@@ -3279,12 +3293,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   )(zero: => S)(f: (S, A) => ZIO[R, E, S])(implicit trace: Trace): ZIO[R, E, S] =
     ZIO.suspendSucceed {
       val iterator = in.iterator
+      var s        = zero
 
-      def loop(s: S): ZIO[R, E, S] =
-        if (iterator.hasNext) f(s, iterator.next()).flatMap(loop)
-        else ZIO.succeed(s)
-
-      loop(zero)
+      ZIO.whileLoop(iterator.hasNext)(f(s, iterator.next()))(s = _).as(s)
     }
 
   /**
@@ -4135,7 +4146,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def mergeAll[R, E, A, B](
     in: => Iterable[ZIO[R, E, A]]
   )(zero: => B)(f: (B, A) => B)(implicit trace: Trace): ZIO[R, E, B] =
-    ZIO.suspendSucceed(in.foldLeft[ZIO[R, E, B]](ZIO.succeed(zero))(_.zipWith(_)(f)))
+    ZIO.foldLeft(in)(zero)((b, zio) => zio.map(a => f(b, a)))
 
   /**
    * Merges an `Iterable[IO]` to a single IO, working in parallel.
@@ -4325,7 +4336,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def reduceAll[R, R1 <: R, E, A](a: => ZIO[R, E, A], as: => Iterable[ZIO[R1, E, A]])(
     f: (A, A) => A
   )(implicit trace: Trace): ZIO[R1, E, A] =
-    ZIO.suspendSucceed(as.foldLeft[ZIO[R1, E, A]](a)(_.zipWith(_)(f)))
+    ZIO.suspendSucceed(a.flatMap(ZIO.mergeAll(as)(_)(f)))
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working in parallel.

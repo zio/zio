@@ -327,24 +327,15 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    */
   def dropUntilZIO[R, E](p: A => ZIO[R, E, Boolean])(implicit trace: Trace): ZIO[R, E, Chunk[A]] =
     ZIO.suspendSucceed {
-      val builder = ChunkBuilder.make[A]()
-      builder.sizeHint(self.length)
-      var dropping: ZIO[R, E, Boolean] = ZIO.succeed(false)
-      val iterator                     = self.chunkIterator
-      var index                        = 0
-      while (iterator.hasNextAt(index)) {
-        val a = iterator.nextAt(index)
-        index += 1
-        dropping = dropping.flatMap {
-          case true =>
-            builder += a
-            ZIO.succeed(true)
+      val iterator = self.chunkIterator
 
-          case false =>
-            p(a)
-        }
-      }
-      dropping as builder.result()
+      def loop(index: Int): ZIO[R, E, Chunk[A]] =
+        if (iterator.hasNextAt(index))
+          p(iterator.nextAt(index)).flatMap(b => if (b) ZIO.succeed(drop(index + 1)) else loop(index + 1))
+        else
+          ZIO.succeed(Chunk.empty)
+
+      loop(0)
     }
 
   /**
@@ -370,26 +361,15 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    */
   def dropWhileZIO[R, E](p: A => ZIO[R, E, Boolean])(implicit trace: Trace): ZIO[R, E, Chunk[A]] =
     ZIO.suspendSucceed {
-      val length  = self.length
-      val builder = ChunkBuilder.make[A]()
-      builder.sizeHint(length)
-      var dropping: ZIO[R, E, Boolean] = ZIO.succeed(true)
-      val iterator                     = self.chunkIterator
-      var index                        = 0
-      while (iterator.hasNextAt(index)) {
-        val a = iterator.nextAt(index)
-        index += 1
-        dropping = dropping.flatMap { d =>
-          (if (d) p(a) else ZIO.succeed(false)).map {
-            case true =>
-              true
-            case false =>
-              builder += a
-              false
-          }
-        }
-      }
-      dropping as builder.result()
+      val iterator = self.chunkIterator
+
+      def loop(index: Int): ZIO[R, E, Chunk[A]] =
+        if (iterator.hasNextAt(index))
+          p(iterator.nextAt(index)).flatMap(b => if (b) loop(index + 1) else ZIO.succeed(drop(index)))
+        else
+          ZIO.succeed(Chunk.empty)
+
+      loop(0)
     }
 
   override def equals(that: Any): Boolean =
@@ -437,21 +417,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    * elements for which the predicate evaluates to true.
    */
   final def filterZIO[R, E](f: A => ZIO[R, E, Boolean])(implicit trace: Trace): ZIO[R, E, Chunk[A]] =
-    ZIO.suspendSucceed {
-      val iterator = self.chunkIterator
-      var index    = 0
-      val builder  = ChunkBuilder.make[A]()
-      builder.sizeHint(length)
-      var dest: ZIO[R, E, ChunkBuilder[A]] = ZIO.succeed(builder)
-      while (iterator.hasNextAt(index)) {
-        val a = iterator.nextAt(index)
-        index += 1
-        dest = dest.zipWith(f(a)) { case (builder, res) =>
-          if (res) builder += a else builder
-        }
-      }
-      dest.map(_.result())
-    }
+    ZIO.filter(self)(f)
 
   /**
    * Returns the first element that satisfies the predicate.
@@ -519,7 +485,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    * Effectfully folds over the elements in this chunk from the left.
    */
   final def foldZIO[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S])(implicit trace: Trace): ZIO[R, E, S] =
-    foldLeft[ZIO[R, E, S]](ZIO.succeed(s))((s, a) => s.flatMap(f(_, a)))
+    ZIO.foldLeft(self)(s)(f)
 
   /**
    * Folds over the elements in this chunk from the right.
@@ -674,21 +640,21 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   )(f1: (S1, A) => ZIO[R, E, (S1, B)])(implicit trace: Trace): ZIO[R, E, (S1, Chunk[B])] =
     ZIO.suspendSucceed {
       val iterator = self.chunkIterator
-      var index    = 0
       val builder  = ChunkBuilder.make[B]()
       builder.sizeHint(length)
-      var dest: ZIO[R, E, S1] = ZIO.succeed(s1)
-      while (iterator.hasNextAt(index)) {
-        val a = iterator.nextAt(index)
-        index += 1
-        dest = dest.flatMap { state =>
-          f1(state, a).map { case (state2, b) =>
+
+      def loop(s1: S1, index: Int): ZIO[R, E, (S1, Chunk[B])] =
+        if (iterator.hasNextAt(index)) {
+          val a = iterator.nextAt(index)
+          f1(s1, a).flatMap { case (s1, b) =>
             builder += b
-            state2
+            loop(s1, index + 1)
           }
+        } else {
+          ZIO.succeed((s1, builder.result()))
         }
-      }
-      dest.map((_, builder.result()))
+
+      loop(s1, 0)
     }
 
   /**
@@ -869,26 +835,15 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    */
   def takeWhileZIO[R, E](p: A => ZIO[R, E, Boolean])(implicit trace: Trace): ZIO[R, E, Chunk[A]] =
     ZIO.suspendSucceed {
-      val length  = self.length
-      val builder = ChunkBuilder.make[A]()
-      builder.sizeHint(length)
-      var taking: ZIO[R, E, Boolean] = ZIO.succeed(true)
-      val iterator                   = self.chunkIterator
-      var index                      = 0
-      while (iterator.hasNextAt(index)) {
-        val a = iterator.nextAt(index)
-        index += 1
-        taking = taking.flatMap { b =>
-          (if (b) p(a) else ZIO.succeed(false)).map {
-            case true =>
-              builder += a
-              true
-            case false =>
-              false
-          }
-        }
-      }
-      taking as builder.result()
+      val iterator = self.chunkIterator
+
+      def loop(index: Int): ZIO[R, E, Chunk[A]] =
+        if (iterator.hasNextAt(index))
+          p(iterator.nextAt(index)).flatMap(b => if (b) loop(index + 1) else ZIO.succeed(take(index)))
+        else
+          ZIO.succeed(take(index))
+
+      loop(0)
     }
 
   /**
@@ -1556,24 +1511,21 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override def collectZIO[R, E, B](
       pf: PartialFunction[A, ZIO[R, E, B]]
     )(implicit trace: Trace): ZIO[R, E, Chunk[B]] = ZIO.suspendSucceed {
-      val len     = array.length
       val builder = ChunkBuilder.make[B]()
-      builder.sizeHint(len)
-      val orElse                           = (_: A) => ZIO.succeed(null.asInstanceOf[B])
-      var dest: ZIO[R, E, ChunkBuilder[B]] = ZIO.succeed(builder)
+      builder.sizeHint(length)
 
-      var i = 0
-      while (i < len) {
-        // `zipWith` is lazy in the RHS, so we need to capture to evaluate the
-        // `pf.applyOrElse` strictly to make sure we use the right value of `i`.
-        val rhs = pf.applyOrElse(array(i), orElse)
+      val orElse = (_: A) => ZIO.succeed(null.asInstanceOf[B])
 
-        dest = dest.zipWith(rhs)((builder, b) => if (b != null) (builder += b) else builder)
+      def loop(index: Int): ZIO[R, E, Chunk[B]] =
+        if (index < length) {
+          val a = self(index)
+          pf.applyOrElse(a, orElse).flatMap { b =>
+            if (b != null) builder += b
+            loop(index + 1)
+          }
+        } else ZIO.succeed(builder.result())
 
-        i += 1
-      }
-
-      dest.map(_.result())
+      loop(0)
     }
 
     override def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] = {
@@ -1603,29 +1555,25 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       pf: PartialFunction[A, ZIO[R, E, B]]
     )(implicit trace: Trace): ZIO[R, E, Chunk[B]] =
       ZIO.suspendSucceed {
-        val len     = self.length
         val builder = ChunkBuilder.make[B]()
-        builder.sizeHint(len)
-        var dest: ZIO[R, E, ChunkBuilder[B]] = ZIO.succeed(builder)
+        builder.sizeHint(length)
 
-        var i    = 0
-        var done = false
-        val orElse = (_: A) => {
-          done = true
-          ZIO.succeed(null.asInstanceOf[B])
-        }
+        val orElse = (_: A) => ZIO.succeed(null.asInstanceOf[B])
 
-        while (!done && i < len) {
-          val j = i
-          // `zipWith` is lazy in the RHS, and we rely on the side-effects of `orElse` here.
-          val rhs = pf.applyOrElse(self(j), orElse)
-          dest = dest.zipWith(rhs) { case (builder, b) =>
-            if (b != null) (builder += b) else builder
-          }
-          i += 1
-        }
+        def loop(index: Int): ZIO[R, E, Chunk[B]] =
+          if (index < length) {
+            val a = self(index)
+            pf.applyOrElse(a, orElse).flatMap { b =>
+              if (b != null) {
+                builder += b
+                loop(index + 1)
+              } else {
+                ZIO.succeed(builder.result())
+              }
+            }
+          } else ZIO.succeed(builder.result())
 
-        dest.map(_.result())
+        loop(0)
       }
 
     override def dropWhile(f: A => Boolean): Chunk[A] = {
