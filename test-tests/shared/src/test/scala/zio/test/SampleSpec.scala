@@ -47,15 +47,8 @@ object SampleSpec extends ZIOBaseSpec {
     if (left.value != right.value) ZIO.succeed(false) else equalShrinks(left.shrink, right.shrink)
 
   def equalShrinks[A, B](
-    left: ZStream[Any, Nothing, Option[Sample[Any, A]]],
-    right: ZStream[Any, Nothing, Option[Sample[Any, B]]]
+    left: ZStream[Any, Nothing, Sample[Any, A]],
+    right: ZStream[Any, Nothing, Sample[Any, B]]
   ): UIO[Boolean] =
-    left
-      .zip(right)
-      .mapZIO {
-        case (Some(a), Some(b)) => equalSamples(a, b)
-        case (None, None)       => ZIO.succeed(true)
-        case _                  => ZIO.succeed(false)
-      }
-      .runFold(true)(_ && _)
+    left.zip(right).mapZIO { case (a, b) => equalSamples(a, b) }.runFold(true)(_ && _)
 }

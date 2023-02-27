@@ -24,7 +24,7 @@ import zio.{ZIO, Zippable, Trace}
  * A sample is a single observation from a random variable, together with a tree
  * of "shrinkings" used for minimization of "large" failures.
  */
-final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Option[Sample[R, A]]]) { self =>
+final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
   /**
    * A symbolic alias for `zip`.
@@ -38,20 +38,20 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Option[Sam
    * Filters this sample by replacing it with its shrink tree if the value does
    * not meet the specified predicate and recursively filtering the shrink tree.
    */
-  def filter(f: A => Boolean)(implicit trace: Trace): ZStream[R, Nothing, Option[Sample[R, A]]] =
-    if (f(value)) ZStream(Some(Sample(value, shrink.flatMap(_.map(_.filter(f)).getOrElse(ZStream.empty)))))
-    else shrink.flatMap(_.map(_.filter(f)).getOrElse(ZStream.empty))
+  def filter(f: A => Boolean)(implicit trace: Trace): ZStream[R, Nothing, Sample[R, A]] =
+    if (f(value)) ZStream(Sample(value, shrink.flatMap(_.filter(f))))
+    else shrink.flatMap(_.filter(f))
 
   def flatMap[R1 <: R, B](f: A => Sample[R1, B])(implicit trace: Trace): Sample[R1, B] = {
     val sample = f(value)
-    Sample(sample.value, mergeStream(sample.shrink, shrink.map(_.map(_.flatMap(f)))))
+    Sample(sample.value, sample.shrink ++ shrink.map(_.flatMap(f)))
   }
 
   def foreach[R1 <: R, B](f: A => ZIO[R1, Nothing, B])(implicit trace: Trace): ZIO[R1, Nothing, Sample[R1, B]] =
-    f(value).map(Sample(_, shrink.mapZIO(ZIO.foreach(_)(_.foreach(f)))))
+    f(value).map(Sample(_, shrink.mapZIO(_.foreach(f))))
 
   def map[B](f: A => B)(implicit trace: Trace): Sample[R, B] =
-    Sample(f(value), shrink.map(_.map(_.map(f))))
+    Sample(f(value), shrink.map(_.map(f)))
 
   /**
    * Converts the shrink tree into a stream of shrinkings by recursively
@@ -63,9 +63,7 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Option[Sam
     if (!f(value))
       ZStream(value)
     else
-      ZStream(value) ++ shrink
-        .takeUntil(v => v.fold(false)(v => f(v.value)))
-        .flatMap(_.map(_.shrinkSearch(f)).getOrElse(ZStream.empty))
+      ZStream(value) ++ shrink.takeUntil(v => f(v.value)).flatMap(_.shrinkSearch(f))
 
   /**
    * Composes this sample with the specified sample to create a cartesian
@@ -120,6 +118,6 @@ object Sample {
 
   def unfold[R, A, S](s: S)(f: S => (A, ZStream[R, Nothing, S]))(implicit trace: Trace): Sample[R, A] = {
     val (value, shrink) = f(s)
-    Sample(value, shrink.map(s => Some(unfold(s)(f))).intersperse(None))
+    Sample(value, shrink.map(unfold(_)(f)))
   }
 }

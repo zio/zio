@@ -4,7 +4,6 @@ import zio.{ZIO, _}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.internal.{AsyncInputConsumer, AsyncInputProducer, ChannelExecutor, SingleProducerAsyncInput}
 import ChannelExecutor.ChannelState
-import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 
 /**
  * A `ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]` is a nexus
@@ -194,38 +193,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.ConcatAll(
       g,
       h,
-      (_: UpstreamPullRequest[OutElem]) => UpstreamPullStrategy.PullAfterNext(None),
-      (_: OutElem2) => ChildExecutorDecision.Continue,
       () => self,
       f
     )
-
-  /**
-   * Returns a new channel whose outputs are fed to the specified factory
-   * function, which creates new channels in response. These new channels are
-   * sequentially concatenated together, and all their outputs appear as outputs
-   * of the newly returned channel. The provided merging function is used to
-   * merge the terminal values of all channels into the single terminal value of
-   * the returned channel.
-   */
-  private[zio] final def concatMapWithCustom[
-    Env1 <: Env,
-    InErr1 <: InErr,
-    InElem1 <: InElem,
-    InDone1 <: InDone,
-    OutErr1 >: OutErr,
-    OutElem2,
-    OutDone2,
-    OutDone3
-  ](
-    f: OutElem => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone2]
-  )(
-    g: (OutDone2, OutDone2) => OutDone2,
-    h: (OutDone2, OutDone) => OutDone3,
-    onPull: UpstreamPullRequest[OutElem] => UpstreamPullStrategy[OutElem2],
-    onEmit: OutElem2 => ChildExecutorDecision
-  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone3] =
-    ZChannel.ConcatAll(g, h, onPull, onEmit, () => self, f)
 
   /**
    * Returns a new channel, which is the same as this one, except its outputs
@@ -1362,8 +1332,6 @@ object ZChannel {
   ](
     combineInners: (OutDone, OutDone) => OutDone,
     combineAll: (OutDone, OutDone2) => OutDone3,
-    onPull: UpstreamPullRequest[OutElem] => UpstreamPullStrategy[OutElem2],
-    onEmit: OutElem2 => ChildExecutorDecision,
     value: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone2],
     k: OutElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone]
   ) extends ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone3]
@@ -1520,9 +1488,6 @@ object ZChannel {
     ConcatAll(
       f,
       g,
-      (_: UpstreamPullRequest[ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]) =>
-        UpstreamPullStrategy.PullAfterNext(None),
-      (_: OutElem) => ChildExecutorDecision.Continue,
       () => channels,
       (channel: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]) => channel
     )
@@ -1971,37 +1936,6 @@ object ZChannel {
   object MergeStrategy {
     case object BackPressure  extends MergeStrategy
     case object BufferSliding extends MergeStrategy
-  }
-
-  private[zio] sealed trait ChildExecutorDecision
-  private[zio] object ChildExecutorDecision {
-
-    /** Continue executing the current substream */
-    case object Continue extends ChildExecutorDecision
-
-    /**
-     * Close the current substream with a given value and pass execution to the
-     * next substream
-     */
-    final case class Close(value: Any) extends ChildExecutorDecision
-
-    /**
-     * Pass execution to the next substream. This either pulls a new element
-     * from upstream, or yields to an already created active substream.
-     */
-    case object Yield extends ChildExecutorDecision
-  }
-
-  private[zio] sealed trait UpstreamPullRequest[+A]
-  private[zio] object UpstreamPullRequest {
-    final case class Pulled[+A](value: A)                   extends UpstreamPullRequest[A]
-    final case class NoUpstream(activeDownstreamCount: Int) extends UpstreamPullRequest[Nothing]
-  }
-
-  private[zio] sealed trait UpstreamPullStrategy[+A]
-  private[zio] object UpstreamPullStrategy {
-    final case class PullAfterNext[+A](emitSeparator: Option[A])        extends UpstreamPullStrategy[A]
-    final case class PullAfterAllEnqueued[+A](emitSeparator: Option[A]) extends UpstreamPullStrategy[A]
   }
 
   final class EnvironmentWithPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {

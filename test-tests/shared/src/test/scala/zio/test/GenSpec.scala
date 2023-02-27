@@ -643,13 +643,13 @@ object GenSpec extends ZIOBaseSpec {
       }
     ),
     test("fromIterable constructs deterministic generators") {
-      val expected   = List(2, 3, 3, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 10)
+      val expected   = List.range(1, 6).flatMap(x => List.range(1, 6).map(y => x + y))
       val exhaustive = Gen.fromIterable(1 until 6)
       val actual     = exhaustive.zipWith(exhaustive)(_ + _)
       checkFinite(actual)(equalTo(expected))
-    } @@ scala2Only, //todo fix when #2232 is resolved
+    },
     test("size can be modified locally") {
-      val getSize = Gen.size.sample.collectSome.map(_.value).runCollect.map(_.head)
+      val getSize = Gen.size.sample.map(_.value).runCollect.map(_.head)
       val result = for {
         x <- Sized.withSize(200)(getSize)
         y <- getSize
