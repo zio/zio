@@ -34,9 +34,9 @@ In this tutorial, we will be using the following dependencies. So, let's add the
 
 ```scala
 libraryDependencies += Seq(
-  "dev.zio" %% "zio"         % "2.0.0",
-  "dev.zio" %% "zio-streams" % "2.0.0",
-  "dev.zio" %% "zio-kafka"   % "2.0.0",
+  "dev.zio" %% "zio"         % "2.0.9",
+  "dev.zio" %% "zio-streams" % "2.0.9",
+  "dev.zio" %% "zio-kafka"   % "2.1.1",
   "dev.zio" %% "zio-json"    % "0.3.0-RC10"
 )
 ```
@@ -240,7 +240,7 @@ object SimpleApp extends ZIOAppDefault {
       subscription = Subscription.topics(topic, topics: _*),
       keyDeserializer = Serde.long,
       valueDeserializer = Serde.string
-    )((k, v) => Console.printLine((k, v)).orDie)
+    )(record => Console.printLine((record.key(), record.value())).orDie)
 
   private val producer: ZLayer[Any, Throwable, Producer] =
     ZLayer.scoped(
@@ -318,8 +318,7 @@ val KAFKA_TOPIC = "my-topic"
 
 val c: ZStream[Consumer, Throwable, Nothing] =
   Consumer
-    .subscribeAnd(Subscription.topics(KAFKA_TOPIC))
-    .plainStream(Serde.int, Serde.string)
+    .plainStream(Subscription.topics(KAFKA_TOPIC), Serde.int, Serde.string)
     .tap(e => Console.printLine(e.value))
     .map(_.offset)
     .mapZIO(_.commit)
@@ -339,8 +338,7 @@ val KAFKA_TOPIC = "my-topic"
 
 val c: ZStream[Consumer, Throwable, Nothing] =
   Consumer
-    .subscribeAnd(Subscription.topics(KAFKA_TOPIC))
-    .plainStream(Serde.int, Serde.string)
+    .plainStream(Subscription.topics(KAFKA_TOPIC), Serde.int, Serde.string)
     .tap(e => Console.printLine(e.value))
     .map(_.offset)
     .aggregateAsync(Consumer.offsetBatches)
@@ -419,8 +417,7 @@ object StreamingKafkaApp extends ZIOAppDefault {
         
     val c: ZStream[Consumer, Throwable, Nothing] =
       Consumer
-        .subscribeAnd(Subscription.topics(KAFKA_TOPIC))
-        .plainStream(Serde.int, Serde.string)
+        .plainStream(Subscription.topics(KAFKA_TOPIC), Serde.int, Serde.string)
         .tap(e => Console.printLine(e.value))
         .map(_.offset)
         .aggregateAsync(Consumer.offsetBatches)
@@ -526,8 +523,7 @@ val producer =
 
 val consumer =
   Consumer
-    .subscribeAnd(Subscription.topics(KAFKA_TOPIC))
-    .plainStream(KafkaSerde.key, KafkaSerde.value)
+    .plainStream(Subscription.topics(KAFKA_TOPIC), KafkaSerde.key, KafkaSerde.value)
 ```
 
 ### 3. The Complete JSON Streaming Example
@@ -603,8 +599,7 @@ object JsonStreamingKafkaApp extends ZIOAppDefault {
 
     val c: ZStream[Consumer, Throwable, Nothing] =
       Consumer
-        .subscribeAnd(Subscription.topics(KAFKA_TOPIC))
-        .plainStream(KafkaSerde.key, KafkaSerde.value)
+        .plainStream(Subscription.topics(KAFKA_TOPIC), KafkaSerde.key, KafkaSerde.value)
         .tap(e => Console.printLine(e.value))
         .map(_.offset)
         .aggregateAsync(Consumer.offsetBatches)
