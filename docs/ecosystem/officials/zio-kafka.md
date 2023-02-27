@@ -16,7 +16,7 @@ Kafka has a mature Java client for producing and consuming events, but it has a 
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-kafka" % "2.0.1" 
+libraryDependencies += "dev.zio" %% "zio-kafka" % "2.1.1" 
 ```
 
 ## Example
@@ -76,8 +76,7 @@ object MainApp extends ZIOAppDefault {
 
   val consumer: ZStream[Any with Consumer, Throwable, Nothing] =
     Consumer
-      .subscribeAnd(Subscription.topics("random"))
-      .plainStream(Serde.long, Serde.string)
+      .plainStream(Subscription.topics("random"), Serde.long, Serde.string)
       .tap(r => Console.printLine(r.value))
       .map(_.offset)
       .aggregateAsync(Consumer.offsetBatches)
