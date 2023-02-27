@@ -201,6 +201,27 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     )
 
   /**
+   * Returns a new channel, which is the same as this one, except its outputs
+   * are filtered and transformed by the specified partial function.
+   */
+  final def collect[OutElem2](
+    f: PartialFunction[OutElem, OutElem2]
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] = {
+    val pf = f.lift
+    lazy val collector: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, OutElem2, OutDone] =
+      ZChannel.readWith(
+        pf(_: OutElem) match {
+          case None       => collector
+          case Some(out2) => ZChannel.write(out2) *> collector
+        },
+        (e: OutErr) => ZChannel.fail(e),
+        (z: OutDone) => ZChannel.succeedNow(z)
+      )
+
+    self pipeTo collector
+  }
+
+  /**
    * Returns a new channel, which is the concatenation of all the channels that
    * are written out by this channel. This method may only be called on channels
    * that output other channels.
