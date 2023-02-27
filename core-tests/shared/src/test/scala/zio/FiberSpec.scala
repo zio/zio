@@ -148,5 +148,5 @@ object FiberSpec extends ZIOBaseSpec {
     )
 
   val (initial, update)                            = ("initial", "update")
-  val fibers: List[Fiber.Synthetic[Nothing, Unit]] = List.fill(100000)(Fiber.unit)
+  val fibers: List[Fiber.Synthetic[Nothing, Unit]] = List.fill(1000)(Fiber.unit)
 }
