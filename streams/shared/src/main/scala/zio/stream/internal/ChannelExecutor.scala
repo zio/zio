@@ -558,27 +558,17 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
       )
     }
 
-    def finishWithDoneValue(doneValue: Any): Unit =
-      parentSubexecutor match {
-        case Subexecutor.PullFromUpstream(
-              upstreamExecutor,
-              createChild,
-              lastDone,
-              combineChildResults,
-              combineWithChildResult
-            ) =>
-          val modifiedParent = Subexecutor.PullFromUpstream(
-            upstreamExecutor,
-            createChild,
-            if (lastDone != null)
-              combineChildResults(lastDone, doneValue)
-            else doneValue,
-            combineChildResults,
-            combineWithChildResult
-          )
-          closeLastSubstream = childExecutor.close(Exit.succeed(doneValue))
-          replaceSubexecutor(modifiedParent)
-      }
+    def finishWithDoneValue(doneValue: Any): Unit = {
+      val modifiedParent =
+        parentSubexecutor.copy(
+          lastDone =
+            if (parentSubexecutor.lastDone != null)
+              parentSubexecutor.combineChildResults(parentSubexecutor.lastDone, doneValue)
+            else doneValue
+        )
+      closeLastSubstream = childExecutor.close(Exit.succeed(doneValue))
+      replaceSubexecutor(modifiedParent)
+    }
 
     ChannelState.Read(
       childExecutor,
