@@ -19,7 +19,11 @@ object MimaSettings {
         exclude[IncompatibleMethTypeProblem]("zio.Config#*"),
         exclude[DirectMissingMethodProblem]("zio.Config#*"),
         exclude[DirectMissingMethodProblem]("zio.Config.*"),
-        exclude[MissingTypesProblem]("zio.Config$Secret$")
+        exclude[MissingTypesProblem]("zio.Config$Secret$"),
+        exclude[Problem]("zio.stream.internal.*"),
+        exclude[MissingClassProblem]("zio.stream.ZChannel$ChildExecutorDecision*"),
+        exclude[MissingClassProblem]("zio.stream.ZChannel$UpstreamPullRequest*"),
+        exclude[MissingClassProblem]("zio.stream.ZChannel$UpstreamPullStrategy*")
       ),
       mimaFailOnProblem := failOnProblem
     )
