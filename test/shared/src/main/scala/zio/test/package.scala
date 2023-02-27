@@ -18,7 +18,6 @@ package zio
 
 import zio.internal.stacktracer.{SourceLocation, Tracer}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 import zio.stream.{ZChannel, ZSink, ZStream}
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 import zio.test.Spec.LabeledCase
