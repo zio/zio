@@ -1230,7 +1230,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   /**
    * Executes the provided finalizer after this stream's finalizers run.
    */
-  def ensuringWith[R1 <: R](fin: Exit[E, Any]=> ZIO[R1, Nothing, Any])(implicit trace: Trace): ZStream[R1, E, A] =
+  def ensuringWith[R1 <: R](fin: Exit[E, Any] => ZIO[R1, Nothing, Any])(implicit trace: Trace): ZStream[R1, E, A] =
     new ZStream(channel.ensuringWith(fin))
 
   /**
