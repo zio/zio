@@ -205,7 +205,12 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
                 input,
                 onEffect = identity[ZIO[Env, Nothing, Unit]],
                 onEmit = { (out: Any) =>
-                  currentChannel = read.more(out)
+                  try {
+                    currentChannel = read.more(out)
+                  } catch {
+                    case e: Throwable =>
+                      currentChannel = read.done.onExit(Exit.die(e))
+                  }
                   null
                 },
                 onDone = { (exit: Exit[Any, Any]) =>
