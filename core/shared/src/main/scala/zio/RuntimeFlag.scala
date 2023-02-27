@@ -29,7 +29,7 @@ sealed trait RuntimeFlag {
 }
 
 object RuntimeFlag {
-  lazy val all: Set[RuntimeFlag] =
+  val all: Set[RuntimeFlag] =
     Set(
       Interruption,
       CurrentFiber,

@@ -330,16 +330,16 @@ object FiberRef {
 
   type WithPatch[Value0, Patch0] = FiberRef[Value0] { type Patch = Patch0 }
 
-  lazy val currentLogLevel: FiberRef[LogLevel] =
+  val currentLogLevel: FiberRef[LogLevel] =
     FiberRef.unsafe.make(LogLevel.Info)(Unsafe.unsafe)
 
-  lazy val currentLogSpan: FiberRef[List[LogSpan]] =
+  val currentLogSpan: FiberRef[List[LogSpan]] =
     FiberRef.unsafe.make[List[LogSpan]](Nil)(Unsafe.unsafe)
 
-  lazy val currentLogAnnotations: FiberRef[Map[String, String]] =
+  val currentLogAnnotations: FiberRef[Map[String, String]] =
     FiberRef.unsafe.make[Map[String, String]](Map.empty)(Unsafe.unsafe)
 
-  lazy val currentTags: FiberRef.WithPatch[Set[MetricLabel], SetPatch[MetricLabel]] =
+  val currentTags: FiberRef.WithPatch[Set[MetricLabel], SetPatch[MetricLabel]] =
     FiberRef.unsafe.makeSet(Set.empty)(Unsafe.unsafe)
 
   /**

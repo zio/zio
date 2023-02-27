@@ -69,6 +69,6 @@ object StackTrace {
         .takeWhile(!Trace.equalIgnoreLocation(_, trace))
     )
 
-  lazy val none: StackTrace =
+  val none: StackTrace =
     StackTrace(FiberId.None, Chunk.empty)
 }
