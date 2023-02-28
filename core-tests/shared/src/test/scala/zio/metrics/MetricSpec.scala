@@ -4,7 +4,6 @@ import zio.ZIOAspect._
 import zio.metrics._
 import zio.metrics.MetricKeyType.Histogram
 import zio.test._
-import zio.test.TestAspect._
 
 import java.time.temporal.ChronoUnit
 
