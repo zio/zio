@@ -561,7 +561,7 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires the expression to fail with an instance
    * of given type (or its subtype).
    */
-  def failsWithA[E: ClassTag]: Assertion[Exit[E, Any]] =
+  def failsWithA[E: ClassTag]: Assertion[Exit[Any, Any]] =
     fails(isSubtype[E](anything)).withCode("failsWithA")
 
   /**

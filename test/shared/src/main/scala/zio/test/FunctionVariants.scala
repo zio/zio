@@ -62,7 +62,7 @@ trait FunctionVariants {
   final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int)(implicit trace: Trace): Gen[R, A => B] =
     Gen.fromZIO {
       ZIO.scoped[R] {
-        gen.sample.forever.collectSome.toPull.flatMap { pull =>
+        gen.sample.forever.toPull.flatMap { pull =>
           for {
             lock    <- Semaphore.make(1)
             bufPull <- BufferedPull.make[R, Nothing, Sample[R, B]](pull)

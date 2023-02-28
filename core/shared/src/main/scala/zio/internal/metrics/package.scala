@@ -7,7 +7,7 @@ import scala.annotation.tailrec
 
 package object metrics {
 
-  private[zio] lazy val metricRegistry: ConcurrentMetricRegistry =
+  private[zio] val metricRegistry: ConcurrentMetricRegistry =
     new ConcurrentMetricRegistry
 
   private[metrics] val DoubleOrdering: Ordering[Double] =

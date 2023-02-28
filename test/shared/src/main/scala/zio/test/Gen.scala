@@ -30,7 +30,7 @@ import scala.math.Numeric.DoubleIsFractional
  * A `Gen[R, A]` represents a generator of values of type `A`, which requires an
  * environment `R`. Generators may be random or deterministic.
  */
-final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) { self =>
+final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
   /**
    * A symbolic alias for `concat`.
@@ -88,10 +88,10 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
 
   def flatMap[R1 <: R, B](f: A => Gen[R1, B])(implicit trace: Trace): Gen[R1, B] =
     Gen {
-      flatMapStream(self.sample) { sample =>
+      self.sample.flatMap { sample =>
         val values  = f(sample.value).sample
         val shrinks = Gen(sample.shrink).flatMap(f).sample
-        values.map(_.map(_.flatMap(Sample(_, shrinks))))
+        values.map(_.flatMap(Sample(_, shrinks)))
       }
     }
 
@@ -99,13 +99,13 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
     flatMap(ev)
 
   def map[B](f: A => B)(implicit trace: Trace): Gen[R, B] =
-    Gen(sample.map(_.map(_.map(f))))
+    Gen(sample.map(_.map(f)))
 
   /**
    * Maps an effectual function over a generator.
    */
   def mapZIO[R1 <: R, B](f: A => ZIO[R1, Nothing, B])(implicit trace: Trace): Gen[R1, B] =
-    Gen(sample.mapZIO(ZIO.foreach(_)(_.foreach(f))))
+    Gen(sample.mapZIO(_.foreach(f)))
 
   /**
    * Discards the shrinker for this generator.
@@ -120,7 +120,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
    * generate it.
    */
   def reshrink[R1 <: R, B](f: A => Sample[R1, B])(implicit trace: Trace): Gen[R1, B] =
-    Gen(sample.map(_.map(sample => f(sample.value))))
+    Gen(sample.map(sample => f(sample.value)))
 
   /**
    * Sets the size parameter for this generator to the specified value.
@@ -132,20 +132,20 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
    * Runs the generator and collects all of its values in a list.
    */
   def runCollect(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
-    sample.collectSome.map(_.value).runCollect.map(_.toList)
+    sample.map(_.value).runCollect.map(_.toList)
 
   /**
    * Repeatedly runs the generator and collects the specified number of values
    * in a list.
    */
   def runCollectN(n: Int)(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
-    sample.collectSome.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
+    sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
 
   /**
    * Runs the generator returning the first value of the generator.
    */
   def runHead(implicit trace: Trace): ZIO[R, Nothing, Option[A]] =
-    sample.collectSome.map(_.value).runHead
+    sample.map(_.value).runHead
 
   /**
    * Composes this generator with the specified generator to create a cartesian
@@ -368,7 +368,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A constant generator of the specified value.
    */
   def const[A](a: => A)(implicit trace: Trace): Gen[Any, A] =
-    Gen(ZStream.succeed(Some(Sample.noShrink(a))))
+    Gen(ZStream.succeed(Sample.noShrink(a)))
 
   /**
    * A constant generator of the specified sample.
@@ -421,7 +421,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     as: Iterable[A],
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
   )(implicit trace: Trace): Gen[R, A] =
-    Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))).map(Some(_)).intersperse(None))
+    Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
 
   /**
    * Constructs a generator from a function that uses randomness. The returned
@@ -449,7 +449,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * Constructs a generator from an effect that constructs a sample.
    */
   def fromZIOSample[R, A](effect: ZIO[R, Nothing, Sample[R, A]])(implicit trace: Trace): Gen[R, A] =
-    Gen(ZStream.fromZIO(effect.asSome))
+    Gen(ZStream.fromZIO(effect))
 
   /**
    * A generator of floats. Shrinks toward '0'.

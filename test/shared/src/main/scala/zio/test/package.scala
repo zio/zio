@@ -18,7 +18,6 @@ package zio
 
 import zio.internal.stacktracer.{SourceLocation, Tracer}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 import zio.stream.{ZChannel, ZSink, ZStream}
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 import zio.test.Spec.LabeledCase
@@ -396,9 +395,7 @@ package object test extends CompileVariants {
     sourceLocation: SourceLocation,
     trace: Trace
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
-    TestConfig.samples.flatMap(n =>
-      checkStream(rv.sample.forever.collectSome.take(n.toLong))(a => checkConstructor(test(a)))
-    )
+    TestConfig.samples.flatMap(n => checkStream(rv.sample.forever.take(n.toLong))(a => checkConstructor(test(a))))
 
   /**
    * A version of `check` that accepts two random variables.
@@ -524,7 +521,7 @@ package object test extends CompileVariants {
     sourceLocation: SourceLocation,
     trace: Trace
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
-    checkStream(rv.sample.collectSome)(a => checkConstructor(test(a)))
+    checkStream(rv.sample)(a => checkConstructor(test(a)))
 
   /**
    * A version of `checkAll` that accepts two random variables.
@@ -652,7 +649,7 @@ package object test extends CompileVariants {
     sourceLocation: SourceLocation,
     trace: Trace
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
-    checkStreamPar(rv.sample.collectSome, parallelism)(a => checkConstructor(test(a)))
+    checkStreamPar(rv.sample, parallelism)(a => checkConstructor(test(a)))
 
   /**
    * A version of `checkAllPar` that accepts two random variables.
@@ -888,7 +885,7 @@ package object test extends CompileVariants {
         checkConstructor: CheckConstructor[R, In],
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
-        checkStream(rv.sample.forever.collectSome.take(n.toLong))(a => checkConstructor(test(a)))
+        checkStream(rv.sample.forever.take(n.toLong))(a => checkConstructor(test(a)))
       def apply[R <: ZAny, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => In
       )(implicit
@@ -991,69 +988,6 @@ package object test extends CompileVariants {
           .catchAll(ZStream.succeed(_))
       }
     }
-
-  private[test] def flatMapStream[R, R1 <: R, A, B](
-    stream: ZStream[R, Nothing, Option[A]]
-  )(f: A => ZStream[R1, Nothing, Option[B]])(implicit trace: Trace): ZStream[R1, Nothing, Option[B]] =
-    ZStream
-      .fromChannel(
-        stream
-          .rechunk(1)
-          .channel
-          .concatMapWithCustom[R1, Any, Any, Any, Nothing, Chunk[Either[Boolean, B]], Any, Any](as =>
-            as.map {
-              case Some(a) =>
-                f(a)
-                  .rechunk(1)
-                  .map {
-                    case None    => Left(true)
-                    case Some(a) => Right(a)
-                  }
-                  .channel
-              case None =>
-                ZStream(Left(false)).channel
-            }.fold(ZChannel.unit)(_ *> _)
-          )(
-            g = (_, _) => (),
-            h = (_, _) => (),
-            onPull = (request: UpstreamPullRequest[Chunk[Option[A]]]) =>
-              request match {
-                case UpstreamPullRequest.Pulled(chunk) =>
-                  chunk.headOption.flatten match {
-                    case Some(_) => UpstreamPullStrategy.PullAfterNext(None)
-                    case None =>
-                      UpstreamPullStrategy.PullAfterAllEnqueued(None)
-                  }
-                case UpstreamPullRequest.NoUpstream(activeDownstreamCount) =>
-                  UpstreamPullStrategy.PullAfterAllEnqueued[Chunk[Either[Boolean, B]]](
-                    if (activeDownstreamCount > 0)
-                      Some(Chunk(Left(false)))
-                    else
-                      None
-                  )
-              },
-            onEmit = (chunk: Chunk[Either[Boolean, B]]) => {
-              chunk.headOption match {
-                case Some(Left(true)) => ChildExecutorDecision.Yield
-                case _                => ChildExecutorDecision.Continue
-              }
-            }
-          )
-      )
-      .filter(_ != Left(true))
-      .map {
-        case Left(_)      => None
-        case Right(value) => Some(value)
-      }
-
-  /**
-   * An implementation of `ZStream#merge` that supports breadth first search.
-   */
-  private[test] def mergeStream[R, A](
-    left: ZStream[R, Nothing, Option[A]],
-    right: ZStream[R, Nothing, Option[A]]
-  )(implicit trace: Trace): ZStream[R, Nothing, Option[A]] =
-    flatMapStream(ZStream(Some(left), Some(right)))(identity)
 
   implicit final class TestLensOptionOps[A](private val self: TestLens[Option[A]]) extends AnyVal {
 

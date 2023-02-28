@@ -1019,9 +1019,13 @@ object ZSTM {
   def filter[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => ZSTM[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZSTM[R, E, Collection[A]] =
-    as.foldLeft[ZSTM[R, E, Builder[A, Collection[A]]]](ZSTM.succeed(bf.newBuilder(as))) { (zio, a) =>
-      zio.zipWith(f(a))((as, p) => if (p) as += a else as)
-    }.map(_.result())
+    ZSTM.suspend {
+      ZSTM
+        .foldLeft(as)(bf.newBuilder(as)) { (builder, a) =>
+          f(a).map(b => if (b) builder += a else builder)
+        }
+        .map(_.result())
+    }
 
   /**
    * Filters the set using the specified effectual predicate.
@@ -1060,7 +1064,15 @@ object ZSTM {
   def foldLeft[R, E, S, A](
     in: Iterable[A]
   )(zero: S)(f: (S, A) => ZSTM[R, E, S]): ZSTM[R, E, S] =
-    in.foldLeft(ZSTM.succeedNow(zero): ZSTM[R, E, S])((acc, el) => acc.flatMap(f(_, el)))
+    ZSTM.suspend {
+      val iterator = in.iterator
+
+      def loop(s: S): ZSTM[R, E, S] =
+        if (iterator.hasNext) f(s, iterator.next()).flatMap(loop)
+        else ZSTM.succeed(s)
+
+      loop(zero)
+    }
 
   /**
    * Folds an Iterable[A] using an effectual function f, working sequentially
@@ -1069,7 +1081,7 @@ object ZSTM {
   def foldRight[R, E, S, A](
     in: Iterable[A]
   )(zero: S)(f: (A, S) => ZSTM[R, E, S]): ZSTM[R, E, S] =
-    in.foldRight(ZSTM.succeedNow(zero): ZSTM[R, E, S])((el, acc) => acc.flatMap(f(el, _)))
+    foldLeft(in.toSeq.reverse)(zero)((s, a) => f(a, s))
 
   /**
    * Determines whether all elements of the `Iterable[A]` satisfy the effectual
@@ -1090,9 +1102,16 @@ object ZSTM {
   def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZSTM[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZSTM[R, E, Collection[B]] =
-    in.foldLeft[ZSTM[R, E, Builder[B, Collection[B]]]](ZSTM.succeed(bf.newBuilder(in))) { (tx, a) =>
-      tx.zipWith(f(a))(_ += _)
-    }.map(_.result())
+    ZSTM.suspend {
+      val iterator = in.iterator
+      val builder  = bf.newBuilder(in)
+
+      def loop: ZSTM[R, E, Collection[B]] =
+        if (iterator.hasNext) f(iterator.next()).flatMap { b => builder += b; loop }
+        else ZSTM.succeed(builder.result())
+
+      loop
+    }
 
   /**
    * Applies the function `f` to each element of the `Set[A]` and returns a
@@ -1153,7 +1172,7 @@ object ZSTM {
   /**
    * Interrupts the fiber running the effect.
    */
-  lazy val interrupt: USTM[Nothing] =
+  val interrupt: USTM[Nothing] =
     ZSTM.fiberId.flatMap(fiberId => interruptAs(fiberId))
 
   /**
@@ -1231,7 +1250,7 @@ object ZSTM {
   def mergeAll[R, E, A, B](
     in: Iterable[ZSTM[R, E, A]]
   )(zero: B)(f: (B, A) => B): ZSTM[R, E, B] =
-    in.foldLeft[ZSTM[R, E, B]](succeedNow(zero))(_.zipWith(_)(f))
+    ZSTM.foldLeft(in)(zero)((b, stm) => stm.map(a => f(b, a)))
 
   /**
    * Returns an effect with the empty value.
@@ -1253,7 +1272,7 @@ object ZSTM {
   def reduceAll[R, R1 <: R, E, A](a: ZSTM[R, E, A], as: Iterable[ZSTM[R1, E, A]])(
     f: (A, A) => A
   ): ZSTM[R1, E, A] =
-    as.foldLeft[ZSTM[R1, E, A]](a)(_.zipWith(_)(f))
+    a.flatMap(ZSTM.mergeAll(as)(_)(f))
 
   /**
    * Replicates the given effect n times. If 0 or negative numbers are given, an
