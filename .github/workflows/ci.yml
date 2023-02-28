@@ -199,9 +199,13 @@ jobs:
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Install libuv
-        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
+        run: sudo apt-get update && sudo apt-get install -y libuv1-dev smem
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 12
       - name: Test on different Scala target platforms
-        run: ./sbt root${{ matrix.platform }}/test
+        run: free --si -tmws 10 & bash -c "while true; do ps aux --sort=-rss | head -11; smem -a -s uss -r -k | head -11; sleep 31; done" & ./sbt "; set Global / concurrentRestrictions += Tags.limit(Tags.Test, 1); root${{ matrix.platform }}/test"
 
   ci:
     runs-on: ubuntu-20.04
