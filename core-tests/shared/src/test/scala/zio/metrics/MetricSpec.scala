@@ -179,31 +179,6 @@ object MetricSpec extends ZIOBaseSpec {
           state <- h.value
         } yield assertTrue(state.count == 2L, state.sum == 4.0, state.min == 1.0, state.max == 3.0)
       },
-      test("observeDurations") {
-        val h =
-          Metric
-            .histogram("h3", Histogram.Boundaries.linear(0, 1.0, 10))
-            .tagged(labels1)
-            .contramap[Duration](_.toMillis.toDouble / 1000.0)
-
-        for {
-          // NOTE: observeDurations always uses real clock
-          start  <- ZIO.attempt(java.lang.System.nanoTime())
-          _      <- (Clock.sleep(1.second) @@ h.trackDuration)
-          _      <- (Clock.sleep(3.seconds) @@ h.trackDuration)
-          end    <- ZIO.attempt(java.lang.System.nanoTime())
-          elapsed = (end - start) / 1e9
-          state  <- h.value
-        } yield assertTrue(
-          state.count == 2L,
-          state.sum > 3.9,
-          state.sum <= elapsed,
-          state.min >= 1.0,
-          state.min < state.max,
-          state.max >= 3.0,
-          state.max < elapsed
-        )
-      } @@ withLiveClock @@ flaky,
       test("observeHistogram") {
         val h = Metric
           .histogram("h4", Histogram.Boundaries.linear(0, 1.0, 10))
