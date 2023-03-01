@@ -53,7 +53,7 @@ trait ZLayerCompanionVersionSpecific {
    *
    */
    inline def derive[A](
-    using inline m: Mirror.ProductOf[A]
+    using m: Mirror.ProductOf[A]
   ): URLayer[LayerMacroUtils.Env[m.MirroredElemTypes], A] =
     LayerMacroUtils.genLayer[m.MirroredElemTypes, A]
 }
