@@ -1380,9 +1380,9 @@ sealed trait ZIO[-R, +E, +A]
    *
    * WARNING: The raced effect will safely interrupt the "loser", but will not
    * resume until the loser has been cleanly terminated. If early return is
-   * desired, then instead of performing `l raceEither r`, perform `l.disconnect
-   * raceEither r.disconnect`, which disconnects left and right interrupt
-   * signal, allowing the earliest possible return.
+   * desired, then instead of performing `l raceEither r`, perform
+   * `l.disconnect raceEither r.disconnect`, which disconnects left and right
+   * interrupt signal, allowing the earliest possible return.
    */
   final def raceEither[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B])(implicit
     trace: Trace
