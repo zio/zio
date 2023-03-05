@@ -315,9 +315,9 @@ object ConfigProvider {
             .mapError(_.prefixed(path))
         else {
 
-            ZIO
-              .foreach(splitPathString(text, escapedDelim))(s => ZIO.fromEither(primitive.parse(s.trim)))
-              .mapError(_.prefixed(path))
+          ZIO
+            .foreach(splitPathString(text, escapedDelim))(s => ZIO.fromEither(primitive.parse(s.trim)))
+            .mapError(_.prefixed(path))
         }
       }
 
