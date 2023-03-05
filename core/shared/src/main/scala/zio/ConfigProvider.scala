@@ -313,10 +313,12 @@ object ConfigProvider {
             .fromEither(primitive.parse(text))
             .map(Chunk(_))
             .mapError(_.prefixed(path))
-        else
+        else {
+
           ZIO
             .foreach(splitPathString(text, escapedDelim))(s => ZIO.fromEither(primitive.parse(s.trim)))
             .mapError(_.prefixed(path))
+        }
       }
 
       def parsePrimitive[A](
@@ -466,6 +468,17 @@ object ConfigProvider {
         (leftExtension, rightExtension)
       }
 
+      def returnEmptyListIfValueIsNil[A](
+        prefix: Chunk[String],
+        continue: Chunk[String] => ZIO[Any, Error, Chunk[Chunk[A]]]
+      ): ZIO[Any, Error, Chunk[Chunk[A]]] =
+        (for {
+          possibleNil <- flat.load(prefix, Config.Text, split = false)
+          result <- if (possibleNil.headOption.exists(string => string.toLowerCase().trim == "<nil>"))
+                      ZIO.succeed(Chunk(Chunk.empty))
+                    else continue(prefix)
+        } yield result).orElse(continue(prefix))
+
       def loop[A](prefix: Chunk[String], config: Config[A], split: Boolean)(implicit
         trace: Trace
       ): IO[Config.Error, Chunk[A]] =
@@ -492,11 +505,12 @@ object ConfigProvider {
                            .flatMap(set => indicesFrom(set))
 
               values <-
-                if (indices.isEmpty) loop(prefix, config, split = true).map(Chunk(_))
-                else
+                if (indices.isEmpty) {
+                  returnEmptyListIfValueIsNil(prefix = prefix, continue = loop(_, config, split = true).map(Chunk(_)))
+                } else
                   ZIO
                     .foreach(Chunk.fromIterable(indices)) { index =>
-                      loop(prefix :+ QuotedIndex(index), config, split = true)
+                      loop(prefix :+ BracketedIndex(index), config, split = true)
                     }
                     .map { chunkChunk =>
                       val flattened = chunkChunk.flatten
@@ -691,24 +705,22 @@ object ConfigProvider {
    */
   lazy val tag: Tag[ConfigProvider] = Tag[ConfigProvider]
 
-  private def indicesFrom(quotedIndices: Set[QuotedIndex]) =
+  private def indicesFrom(indices: Set[String]) =
     ZIO
-      .foreach(quotedIndices) { quotedIndex =>
-        ZIO.fromOption(quotedIndex match {
-          case QuotedIndex(index) => Some(index)
-          case _                  => None
+      .foreach(indices) { index =>
+        ZIO.fromOption(index match {
+          case BracketedIndex(index) => Some(index)
+          case _                     => None
         })
       }
       .mapBoth(_ => Chunk.empty, set => Chunk.fromIterable(set).sorted)
       .either
       .map(_.merge)
 
-  private type QuotedIndex = String
-
-  private object QuotedIndex {
+  private object BracketedIndex {
     private lazy val indexRegex = """(\[(\d+)\])""".stripMargin.r
 
-    def apply(value: Int): QuotedIndex = s"[${value}]"
+    def apply(value: Int): String = s"[${value}]"
 
     def unapply(value: String): Option[Int] =
       for {
@@ -729,7 +741,7 @@ object ConfigProvider {
           key <- unmakePathString(pathString)
           keyWithIndex <-
             splitIndexFrom(key) match {
-              case Some((key, index)) => Chunk(key, QuotedIndex(index))
+              case Some((key, index)) => Chunk(key, BracketedIndex(index))
               case None               => Chunk(key)
             }
         } yield keyWithIndex
