@@ -314,13 +314,10 @@ object ConfigProvider {
             .map(Chunk(_))
             .mapError(_.prefixed(path))
         else {
-          if (text.nonEmpty)
+
             ZIO
               .foreach(splitPathString(text, escapedDelim))(s => ZIO.fromEither(primitive.parse(s.trim)))
               .mapError(_.prefixed(path))
-          else {
-            ZIO.succeed(Chunk.empty)
-          }
         }
       }
 
@@ -497,12 +494,22 @@ object ConfigProvider {
                            .flatMap(set => indicesFrom(set))
 
               values <-
-                if (indices.isEmpty)
-                  config match {
-                    case _: Primitive[_] => loop(prefix, config, split = true).map(Chunk(_))
-                    case _: Composite[_] => ZIO.succeed(Chunk(Chunk.empty))
-                  }
-                else {
+                if (indices.isEmpty) {
+                  flat
+                    .load(prefix, Config.Text, false)
+                    .either
+                    .flatMap {
+                      case Left(_) =>
+                        loop(prefix, config, split = true).map(Chunk(_))
+
+                      case Right(chunk) =>
+                        if (chunk.size == 1 && (chunk.headOption.contains("<nil>")))
+                          ZIO.succeed(Chunk.empty).map(Chunk(_))
+                        else loop(prefix, config, split = true).map(Chunk(_))
+
+                    }
+
+                } else
                   ZIO
                     .foreach(Chunk.fromIterable(indices)) { index =>
                       loop(prefix :+ QuotedIndex(index), config, split = true)
@@ -512,7 +519,6 @@ object ConfigProvider {
                       if (flattened.isEmpty) Chunk(Chunk.empty)
                       else Chunk(flattened)
                     }
-                }
             } yield values
 
           case Nested(name, config) =>
@@ -574,7 +580,7 @@ object ConfigProvider {
             for {
               prefix <- ZIO.fromEither(flat.patch(prefix))
               vs     <- flat.load(prefix, primitive, split)
-              result <- if (vs.isEmpty && !split)
+              result <- if (vs.isEmpty)
                           ZIO.fail(primitive.missingError(prefix.lastOption.getOrElse("<n/a>")))
                         else ZIO.succeed(vs)
             } yield result

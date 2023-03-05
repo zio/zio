@@ -608,7 +608,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val configProvider =
           ConfigProvider.fromMap(
             Map(
-              "departments" -> ""
+              "departments" -> "<nil>"
             )
           )
 
@@ -622,7 +622,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val configProvider =
           ConfigProvider.fromMap(
             Map(
-              "departments" -> ""
+              "departments" -> "<nil>"
             )
           )
 
@@ -636,7 +636,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val configProvider =
           ConfigProvider.fromMap(
             Map(
-              "departments" -> ""
+              "departments" -> "<nil>"
             )
           )
 
@@ -650,7 +650,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val configProvider =
           ConfigProvider.fromMap(
             Map(
-              "departments" -> ""
+              "departments" -> "<nil>"
             )
           )
 
@@ -666,7 +666,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val configProvider =
           ConfigProvider.fromMap(
             Map(
-              "departments" -> ""
+              "departments" -> "<nil>"
             )
           )
 
@@ -682,7 +682,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val configProvider =
           ConfigProvider.fromMap(
             Map(
-              "departments" -> ""
+              "departments" -> "<nil>"
             )
           )
 
@@ -699,7 +699,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val configProvider =
           ConfigProvider.fromMap(
             Map(
-              "departments[0].ids" -> "",
+              "departments[0].ids" -> "<nil>",
               "departments[1].ids" -> "1",
               "departments[2].ids" -> "1, 2"
             )
