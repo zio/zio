@@ -146,11 +146,11 @@ object BuildHelper {
   def crossPlatformSources(scalaVer: String, platform: String, conf: String, baseDir: File) = {
     val versions = CrossVersion.partialVersion(scalaVer) match {
       case Some((2, 12)) =>
-        List("2.12+", "2.12-2.13")
+        List("2.12-2.13")
       case Some((2, 13)) =>
-        List("2.12+", "2.13+", "2.12-2.13")
+        List("2.13+", "2.12-2.13")
       case Some((3, _)) =>
-        List("2.12+", "2.13+")
+        List("2.13+")
       case _ =>
         List()
     }
