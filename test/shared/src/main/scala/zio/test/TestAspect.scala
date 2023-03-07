@@ -304,12 +304,6 @@ object TestAspect extends TimeoutVariants {
     if (TestVersion.isScala2) ignore else identity
 
   /**
-   * An aspect that runs tests on all versions except Scala 2.11.
-   */
-  val exceptScala211: TestAspectPoly =
-    if (TestVersion.isScala211) ignore else identity
-
-  /**
    * An aspect that runs tests on all versions except Scala 2.12.
    */
   val exceptScala212: TestAspectPoly =
@@ -805,14 +799,6 @@ object TestAspect extends TimeoutVariants {
     if (TestVersion.isScala2) that else identity
 
   /**
-   * An aspect that applies the specified aspect on Scala 2.11.
-   */
-  def scala211[LowerR, UpperR, LowerE, UpperE](
-    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
-  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
-    if (TestVersion.isScala211) that else identity
-
-  /**
    * An aspect that applies the specified aspect on Scala 2.12.
    */
   def scala212[LowerR, UpperR, LowerE, UpperE](
@@ -841,12 +827,6 @@ object TestAspect extends TimeoutVariants {
    */
   val scala2Only: TestAspectPoly =
     if (TestVersion.isScala2) identity else ignore
-
-  /**
-   * An aspect that only runs tests on Scala 2.11.
-   */
-  val scala211Only: TestAspectPoly =
-    if (TestVersion.isScala211) identity else ignore
 
   /**
    * An aspect that only runs tests on Scala 2.12.

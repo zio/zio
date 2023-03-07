@@ -35,7 +35,6 @@ object TestExecutor {
     override def reportFailure(cause: Throwable): Unit = ()
   }
 
-  // backward compatibility for scala 2.11.12
   val runnable: Runnable = new Runnable {
     override def run(): Unit = ()
   }

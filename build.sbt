@@ -56,16 +56,8 @@ addCommandAlias(
   ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;concurrentJS/test"
 )
 addCommandAlias(
-  "testJVM211",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;macrosTestsJVM/test;concurrentJVM/test;managedTestsJVM/test"
-)
-addCommandAlias(
   "testJS",
   ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;macrosTestsJS/test;concurrentJS/test"
-)
-addCommandAlias(
-  "testJS211",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;examplesJS/test:compile;macrosJS/test;concurrentJS/test"
 )
 addCommandAlias(
   "mimaChecks",
@@ -91,16 +83,6 @@ lazy val projectsCommon = List(
 )
 
 lazy val rootJVM = project.in(file("target/rootJVM")).settings(publish / skip := true).aggregate(rootJVM213)
-
-lazy val rootJVM211 = project
-  .in(file("target/rootJVM211"))
-  .settings(publish / skip := true)
-  .aggregate(projectsCommon.map(p => p.jvm: ProjectReference): _*)
-  .aggregate(
-    List[ProjectReference](
-      testJunitRunner
-    ): _*
-  )
 
 lazy val rootJVM212 = project.in(file("target/rootJVM212")).settings(publish / skip := true).aggregate(rootJVM213)
 
@@ -157,16 +139,6 @@ lazy val rootNative = project
     List[ProjectReference](
       testScalaCheck.native
     ): _*
-  )
-
-lazy val root211 = project
-  .in(file("target/root211"))
-  .settings(publish / skip := true)
-  .aggregate(
-    (projectsCommon.flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
-      List[ProjectReference](
-        testJunitRunner
-      )): _*
   )
 
 lazy val root212 = project.in(file("target/root212")).settings(publish / skip := true).aggregate(root213)
@@ -498,7 +470,6 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
   .settings(
-    crossScalaVersions --= Seq(Scala211),
     scalacOptions ++= {
       if (scalaVersion.value == Scala3)
         Seq.empty
@@ -530,8 +501,7 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.test"))
   .settings(
-    publish / skip := true,
-    crossScalaVersions --= Seq(Scala211)
+    publish / skip := true
   )
   .jsSettings(jsSettings)
   .enablePlugins(BuildInfoPlugin)
@@ -543,7 +513,6 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
   .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
   .settings(
-    crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++=
       Seq(
         ("eu.timepit" %% "refined" % "0.10.1").cross(CrossVersion.for3Use2_13)
@@ -557,7 +526,6 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio-test-scalacheck"))
   .settings(crossProjectSettings)
   .settings(
-    crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++= Seq(
       ("org.scalacheck" %%% "scalacheck" % "1.16.0")
     )
@@ -631,7 +599,6 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform) // TODO: make plain pr
   .settings(publish / skip := true)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .settings(
-    crossScalaVersions --= List(Scala211),
     libraryDependencies ++= Seq(
       "junit"                   % "junit"     % "4.13.2" % Test,
       "org.scala-lang.modules" %% "scala-xml" % "2.1.0"  % Test,
@@ -702,9 +669,7 @@ lazy val benchmarks = project.module
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
-    // skip 2.11 benchmarks because akka stop supporting scala 2.11 in 2.6.x
-    crossScalaVersions --= List(Scala211, Scala3),
-    //
+    crossScalaVersions --= List(Scala3),
     publish / skip := true,
     libraryDependencies ++=
       Seq(
@@ -753,7 +718,7 @@ val zioActorsV  = "0.0.9"
 lazy val scalafixSettings = List(
   scalaVersion := Scala213,
   addCompilerPlugin(scalafixSemanticdb),
-  crossScalaVersions --= List(Scala211, Scala212, Scala3),
+  crossScalaVersions --= List(Scala212, Scala3),
   scalacOptions ++= List(
     "-Yrangepos",
     "-P:semanticdb:synthetics:on"
@@ -819,7 +784,7 @@ lazy val docs = project.module
     Compile / fork := false,
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
-    crossScalaVersions --= List(Scala211, Scala212, Scala3),
+    crossScalaVersions --= List(Scala212, Scala3),
     mdocIn  := (LocalRootProject / baseDirectory).value / "docs",
     mdocOut := (LocalRootProject / baseDirectory).value / "website" / "docs",
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
