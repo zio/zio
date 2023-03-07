@@ -50,7 +50,7 @@ object TestOutput {
 
     private def getAndRemoveSectionOutput(id: SuiteId) =
       output
-        .getAndUpdate(initial => updatedWith(initial, id)(_ => None))
+        .getAndUpdate(initial => initial.updatedWith(id)(_ => None))
         .map(_.getOrElse(id, Chunk.empty))
 
     def print(
@@ -134,23 +134,10 @@ object TestOutput {
 
     private def appendToSectionContents(id: SuiteId, content: Chunk[ExecutionEvent]) =
       output.update { outputNow =>
-        updatedWith(outputNow, id)(previousSectionOutput =>
+        outputNow.updatedWith(id)(previousSectionOutput =>
           Some(previousSectionOutput.map(old => old ++ content).getOrElse(content))
         )
       }
-
-    // We need this helper to run on Scala 2.11
-    private def updatedWith(initial: Map[SuiteId, Chunk[ExecutionEvent]], key: SuiteId)(
-      remappingFunction: Option[Chunk[ExecutionEvent]] => Option[Chunk[ExecutionEvent]]
-    ): Map[SuiteId, Chunk[ExecutionEvent]] = {
-      val previousValue = initial.get(key)
-      val nextValue     = remappingFunction(previousValue)
-      (previousValue, nextValue) match {
-        case (None, None)    => initial
-        case (Some(_), None) => initial - key
-        case (_, Some(v))    => initial.updated(key, v)
-      }
-    }
 
   }
 
