@@ -36,13 +36,13 @@ abstract class CancelableFuture[+A](val future: Future[A]) extends Future[A] wit
   final def isCompleted: Boolean =
     future.isCompleted
 
+  final def value: Option[Try[A]] =
+    future.value
+
   final def ready(atMost: ScalaDuration)(implicit permit: CanAwait): this.type = {
     future.ready(atMost)(permit)
     this
   }
-
-  final def value: Option[Try[A]] =
-    future.value
 
   final def result(atMost: ScalaDuration)(implicit permit: CanAwait): A =
     future.result(atMost)
