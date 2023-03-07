@@ -32,6 +32,8 @@ class MetricBenchmark {
   private val metric = Metric.counter("Test counter")
 
   private val listener = new MetricListener {
+    override def modifyGauge(key: MetricKey[MetricKeyType.Gauge], value: Double)(implicit unsafe: Unsafe): Unit = ()
+
     override def updateHistogram(key: MetricKey[MetricKeyType.Histogram], value: Double)(implicit
       unsafe: Unsafe
     ): Unit = ()

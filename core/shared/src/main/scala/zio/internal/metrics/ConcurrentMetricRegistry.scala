@@ -62,10 +62,11 @@ private[zio] class ConcurrentMetricRegistry {
     else ()
   }
 
-  private[zio] def notifyListeners[T](key: MetricKey[MetricKeyType.WithIn[T]], value: T)(implicit
-    trace: Trace,
-    unsafe: Unsafe
-  ): Unit = {
+  private[zio] def notifyListeners[T](
+    key: MetricKey[MetricKeyType.WithIn[T]],
+    value: T,
+    eventType: MetricEventType
+  )(implicit trace: Trace, unsafe: Unsafe): Unit = {
     val listeners = listenersRef.get()
     val len       = listeners.length
 
@@ -73,9 +74,17 @@ private[zio] class ConcurrentMetricRegistry {
       var i = 0
       key.keyType match {
         case MetricKeyType.Gauge =>
-          while (i < len) {
-            listeners(i).updateGauge(key.asInstanceOf[MetricKey.Gauge], value.asInstanceOf[Double])
-            i = i + 1
+          eventType match {
+            case MetricEventType.Modify =>
+              while (i < len) {
+                listeners(i).modifyGauge(key.asInstanceOf[MetricKey.Gauge], value.asInstanceOf[Double])
+                i = i + 1
+              }
+            case MetricEventType.Update =>
+              while (i < len) {
+                listeners(i).updateGauge(key.asInstanceOf[MetricKey.Gauge], value.asInstanceOf[Double])
+                i = i + 1
+              }
           }
         case MetricKeyType.Histogram(_) =>
           while (i < len) {
