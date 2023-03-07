@@ -458,6 +458,7 @@ object Metric {
           ): Unit = {
             val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
             hook(fullKey).modify(in)
+            metricRegistry.notifyListeners(fullKey, in)
           }
 
         }
