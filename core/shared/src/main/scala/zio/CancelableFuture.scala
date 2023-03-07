@@ -22,7 +22,7 @@ import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.{CanAwait, ExecutionContext, Future}
 import scala.util.Try
 
-abstract class CancelableFuture[+A](val future: Future[A]) extends Future[A] with FutureTransformCompat[A] {
+abstract class CancelableFuture[+A](val future: Future[A]) extends Future[A] {
 
   /**
    * Immediately cancels the operation and returns a [[scala.concurrent.Future]]
@@ -30,14 +30,11 @@ abstract class CancelableFuture[+A](val future: Future[A]) extends Future[A] wit
    */
   def cancel(): Future[Exit[Throwable, A]]
 
-  final def onComplete[U](f: Try[A] => U)(implicit executor: ExecutionContext): Unit =
-    future.onComplete(f)(executor)
-
   final def isCompleted: Boolean =
     future.isCompleted
 
-  final def value: Option[Try[A]] =
-    future.value
+  final def onComplete[U](f: Try[A] => U)(implicit executor: ExecutionContext): Unit =
+    future.onComplete(f)(executor)
 
   final def ready(atMost: ScalaDuration)(implicit permit: CanAwait): this.type = {
     future.ready(atMost)(permit)
@@ -46,4 +43,13 @@ abstract class CancelableFuture[+A](val future: Future[A]) extends Future[A] wit
 
   final def result(atMost: ScalaDuration)(implicit permit: CanAwait): A =
     future.result(atMost)
+
+  def transform[S](f: Try[A] => Try[S])(implicit executor: ExecutionContext): Future[S] =
+    future.transform(f)(executor)
+
+  def transformWith[S](f: Try[A] => Future[S])(implicit executor: ExecutionContext): Future[S] =
+    future.transformWith(f)(executor)
+
+  final def value: Option[Try[A]] =
+    future.value
 }

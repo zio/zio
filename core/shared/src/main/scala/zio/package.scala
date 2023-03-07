@@ -20,11 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.reflect.ClassTag
 
-package object zio
-    extends BuildFromCompat
-    with IntersectionTypeCompat
-    with VersionSpecific
-    with DurationModule {
+package object zio extends BuildFromCompat with IntersectionTypeCompat with VersionSpecific with DurationModule {
 
   type RuntimeFlags = Int
 
