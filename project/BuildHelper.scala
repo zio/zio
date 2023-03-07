@@ -133,20 +133,6 @@ object BuildHelper {
           "-Xmax-classfile-name",
           "242"
         ) ++ std2xOptions ++ optimizerOptions(optimize)
-      case Some((2, 11)) =>
-        Seq(
-          "-Ypartial-unification",
-          "-Yno-adapted-args",
-          "-Ywarn-inaccessible",
-          "-Ywarn-nullary-override",
-          "-Ywarn-nullary-unit",
-          "-Xexperimental",
-          "-Ywarn-unused-import",
-          "-Xfuture",
-          "-Xsource:2.13",
-          "-Xmax-classfile-name",
-          "242"
-        ) ++ std2xOptions
       case _ => Seq.empty
     }
 
