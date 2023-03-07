@@ -98,7 +98,7 @@ jobs:
         if: ${{ startsWith(matrix.scala, '3.') }}
         run: ./sbt ++${{ matrix.scala }} root3/publishLocal
 
-  website:
+  build-website:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout series/2.x Branch
@@ -287,7 +287,7 @@ jobs:
 
   ci:
     runs-on: ubuntu-20.04
-    needs: [lint, compile, publishLocal, website, test, testJvms, testPlatforms]
+    needs: [lint, compile, publishLocal, build-website, test, testJvms, testPlatforms]
     steps:
       - name: Aggregate of lint, mdoc and all tests
         run: echo "ci passed"
@@ -317,3 +317,24 @@ jobs:
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          
+  publish-website:
+    needs: [ci]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout series/1.x Branch
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: website-artifact
+          path: website-artifact
+
+      - name: Release to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4.4.1
+        with:
+          branch: gh-pages
+          folder: ./website-artifact
