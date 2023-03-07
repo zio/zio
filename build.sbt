@@ -501,7 +501,7 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.test"))
   .settings(
-    publish / skip := true,
+    publish / skip := true
   )
   .jsSettings(jsSettings)
   .enablePlugins(BuildInfoPlugin)
