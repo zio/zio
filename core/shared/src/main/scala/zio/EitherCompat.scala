@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2023 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,4 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-package object stm extends EitherCompat {
-
-  type RSTM[-R, +A]  = ZSTM[R, Throwable, A]
-  type URSTM[-R, +A] = ZSTM[R, Nothing, A]
-  type STM[+E, +A]   = ZSTM[Any, E, A]
-  type USTM[+A]      = ZSTM[Any, Nothing, A]
-  type TaskSTM[+A]   = ZSTM[Any, Throwable, A]
-}
+private[zio] trait EitherCompat {}

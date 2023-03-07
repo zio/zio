@@ -18,11 +18,13 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-package object stm extends EitherCompat {
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
-  type RSTM[-R, +A]  = ZSTM[R, Throwable, A]
-  type URSTM[-R, +A] = ZSTM[R, Nothing, A]
-  type STM[+E, +A]   = ZSTM[Any, E, A]
-  type USTM[+A]      = ZSTM[Any, Nothing, A]
-  type TaskSTM[+A]   = ZSTM[Any, Throwable, A]
+private[zio] trait FutureTransformCompat[+A] { this: CancelableFuture[A] =>
+  def transform[S](f: Try[A] => Try[S])(implicit executor: ExecutionContext): Future[S] =
+    future.transform(f)(executor)
+
+  def transformWith[S](f: Try[A] => Future[S])(implicit executor: ExecutionContext): Future[S] =
+    future.transformWith(f)(executor)
 }

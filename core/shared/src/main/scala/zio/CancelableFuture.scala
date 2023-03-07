@@ -22,7 +22,7 @@ import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.{CanAwait, ExecutionContext, Future}
 import scala.util.Try
 
-abstract class CancelableFuture[+A](val future: Future[A]) extends Future[A] {
+abstract class CancelableFuture[+A](val future: Future[A]) extends Future[A] with FutureTransformCompat[A] {
 
   /**
    * Immediately cancels the operation and returns a [[scala.concurrent.Future]]
@@ -43,12 +43,6 @@ abstract class CancelableFuture[+A](val future: Future[A]) extends Future[A] {
 
   final def result(atMost: ScalaDuration)(implicit permit: CanAwait): A =
     future.result(atMost)
-
-  def transform[S](f: Try[A] => Try[S])(implicit executor: ExecutionContext): Future[S] =
-    future.transform(f)(executor)
-
-  def transformWith[S](f: Try[A] => Future[S])(implicit executor: ExecutionContext): Future[S] =
-    future.transformWith(f)(executor)
 
   final def value: Option[Try[A]] =
     future.value
