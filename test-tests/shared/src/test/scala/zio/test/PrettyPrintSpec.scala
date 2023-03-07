@@ -45,7 +45,7 @@ Person(
       assertTrue(
         PrettyPrint(Person("Glenda", 123)).unstyled == expected
       )
-    } @@ TestAspect.exceptScala211 @@ TestAspect.exceptScala212
+    } @@ TestAspect.exceptScala212
   )
 
 }

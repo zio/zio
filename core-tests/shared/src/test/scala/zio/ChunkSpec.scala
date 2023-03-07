@@ -1,7 +1,6 @@
 package zio
 
 import zio.test.Assertion._
-import zio.test.TestAspect.exceptScala211
 import zio.test._
 
 object ChunkSpec extends ZIOBaseSpec {
@@ -309,7 +308,7 @@ object ChunkSpec extends ZIOBaseSpec {
         val expected = (left.toVector ++ right.toVector).indexWhere(p, from)
         assert(actual)(equalTo(expected))
       }
-    } @@ exceptScala211,
+    },
     test("exists") {
       val fn = Gen.function[Any, Int, Boolean](Gen.boolean)
       check(Gen.chunkOf(intGen), fn)((chunk, p) => assert(chunk.exists(p))(equalTo(chunk.toList.exists(p))))

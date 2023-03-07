@@ -302,7 +302,7 @@ final case class LayerBuilder[Type, Expr](
     mermaidLink
   }
 
-  // Backwards compatibility for 2.11/2.12
+  // Backwards compatibility for 2.12
   private def groupMap[A, K, B](as: List[A])(key: A => K)(f: A => B): Map[K, List[B]] = {
     val m = mutable.Map.empty[K, mutable.Builder[B, List[B]]]
     for (elem <- as) {
