@@ -46,7 +46,7 @@ object ZIOSpecVersionSpecificMacros {
           val name = "spec" + idx
           idx += 1
           val symbol = Symbol.newVal(Symbol.spliceOwner, name, spec.tpe, Flags.EmptyFlags, Symbol.noSymbol)
-          val valDef = ValDef(symbol, Some(spec))
+          val valDef = ValDef(symbol, Some(spec.changeOwner(symbol)))
           val ref = Ref(symbol)
           loop(rest, valDef :: acc, ref :: refs)
         case Nil =>
@@ -55,7 +55,7 @@ object ZIOSpecVersionSpecificMacros {
               val names = 
                 combinedTypes.asType match {
                   case '[specType] =>
-                    Varargs(refs.map{a => 
+                    Varargs(refs.map{ a => 
                       a.asExprOf[specType]
                     }).asExprOf[Seq[specType]]
                 }
