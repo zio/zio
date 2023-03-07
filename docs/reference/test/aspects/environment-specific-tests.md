@@ -45,4 +45,4 @@ test("Java virtual machine name can be accessed") {
 
 ## Version-specific Tests
 
-Various test aspects can be used to run tests for specific versions of Scala, including `scala2`, `scala211`, `scala212`, `scala213`, and `dotty`. As in the previous section, these test aspects have corresponding `*only` and `except*` versions.
+Various test aspects can be used to run tests for specific versions of Scala, including `scala2`, `scala212`, `scala213`, and `dotty`. As in the previous section, these test aspects have corresponding `*only` and `except*` versions.
