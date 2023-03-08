@@ -62,7 +62,7 @@ object ZIOSpecVersionSpecificMacros {
               
               names match {
                 case '{ $specNames: Seq[Spec[a, b]] } =>
-                  '{ suite($name)($specNames) }
+                  '{ suite($name)($specNames.reverse) }
               }
           }
 
