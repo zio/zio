@@ -34,8 +34,15 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
                     "Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context."
                 )
               } else {
-                try runtime.unsafe.run(Fiber.roots.flatMap(roots => interruptAll(fiber +: roots)))
-                catch {
+                try {
+                  runtime.unsafe.run {
+                    for {
+                      fiberId <- ZIO.fiberId
+                      roots   <- Fiber.roots
+                      _       <- Fiber.interruptAll(fiber +: roots.filterNot(_.id == fiberId))
+                    } yield ()
+                  }
+                } catch {
                   case _: Throwable =>
                 }
               }

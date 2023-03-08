@@ -69,12 +69,15 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * A helper function to exit the application with the specified exit code.
    */
   final def exit(code: ExitCode)(implicit trace: Trace): UIO[Unit] =
-    Fiber.roots.flatMap(interruptAll) *> ZIO.succeed {
+    for {
+      fiberId <- ZIO.fiberId
+      roots   <- Fiber.roots
+      _       <- Fiber.interruptAll(roots.filterNot(_.id == fiberId))
+    } yield
       if (!shuttingDown.getAndSet(true)) {
         try Platform.exit(code.code)(Unsafe.unsafe)
         catch { case _: SecurityException => }
       }
-    }
 
   /**
    * Invokes the main app. Designed primarily for testing.
@@ -108,11 +111,6 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
         }
       }
     }.ignore
-
-  protected def interruptAll(fibers: Iterable[Fiber.Runtime[Any, Any]])(implicit trace: Trace): UIO[Any] =
-    ZIO.fiberIdWith { fiberId =>
-      Fiber.interruptAll(fibers.filterNot(_.id == fiberId))
-    }
 }
 
 object ZIOApp {
