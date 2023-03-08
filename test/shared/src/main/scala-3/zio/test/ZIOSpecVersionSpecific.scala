@@ -51,18 +51,19 @@ object ZIOSpecVersionSpecificMacros {
           loop(rest, valDef :: acc, ref :: refs)
         case Nil =>
           val mySuite =  {
-              val combinedTypes = refs.map(_.tpe).reduce(OrType(_, _)).widen
+              val reversedRefs = refs.reverse
+              val combinedTypes = reversedRefs.map(_.tpe).reduce(OrType(_, _)).widen
               val names = 
                 combinedTypes.asType match {
                   case '[specType] =>
-                    Varargs(refs.map{ a => 
+                    Varargs(reversedRefs.map{ a => 
                       a.asExprOf[specType]
                     }).asExprOf[Seq[specType]]
                 }
               
               names match {
                 case '{ $specNames: Seq[Spec[a, b]] } =>
-                  '{ suite($name)($specNames.reverse) }
+                  '{ suite($name)($specNames) }
               }
           }
 
