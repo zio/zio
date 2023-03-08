@@ -55,6 +55,8 @@ private[zio] trait PlatformSpecific {
    * Exits the application with the specified exit code.
    */
   final def exit(code: Int)(implicit unsafe: zio.Unsafe): Unit = {
+    // This doesn't exit, but sets the code that will return upon shutdown
+    scala.scalajs.js.Dynamic.global.process.exitCode = code
     val _ = code
   }
 
