@@ -17,7 +17,7 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{Summary, TestArgs, ZIOSpecAbstract}
+import zio.test.{FilteredSpec, Summary, TestArgs, ZIOSpecAbstract}
 import zio.{Exit, Runtime, Scope, Trace, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
@@ -92,20 +92,44 @@ sealed class ZTestTask(
   spec: ZIOSpecAbstract
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, zio.Runtime.default) {
 
-  def execute(continuation: Array[Task] => Unit): Unit = {
-    val fiber = Runtime.default.unsafe.fork {
-      for {
-        summary <- ZIO.scoped {
-                     spec.run
-                       .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope] ++ spec.bootstrap)
-                       .onError(e => ZIO.succeed(println(e.prettyPrint)))
-                   }
-        _ <- sendSummary.provide(ZLayer.succeed(summary))
-        _ <- ZIO.when(summary.status == Summary.Failure)(
-               ZIO.fail(new Exception("Failed tests."))
-             )
-      } yield ()
+  // Override execute, but call our local version that matches the corresponding ZTestRunnerJS.scala
+  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
+    execute(eventHandler, loggers, _ => ())
+    Array()
+  }
 
+  // This mostly a copy from the corresponding ZTestRunnerJS.scala
+  def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit = {
+    val fiber = Runtime.default.unsafe.fork {
+      val logic =
+        ZIO.consoleWith { console =>
+          (for {
+            summary <- spec
+                         .runSpecAsApp(FilteredSpec(spec.spec, args), args, console)
+            _ <- sendSummary.provide(ZLayer.succeed(summary))
+            // TODO Confirm if/how these events needs to be handled in #6481
+            //    Check XML behavior
+            _ <- ZIO.when(summary.status == Summary.Failure) {
+                   ZIO.attempt(
+                     eventHandler.handle(
+                       ZTestEvent(
+                         fullyQualifiedName0 = taskDef.fullyQualifiedName(),
+                         // taskDef.selectors() is "one to many" so we can expect nonEmpty here
+                         selector0 = taskDef.selectors().head,
+                         status0 = Status.Failure,
+                         maybeThrowable = None,
+                         duration0 = 0L,
+                         fingerprint0 = ZioSpecFingerprint
+                       )
+                     )
+                   )
+                 }
+          } yield ())
+            .provideLayer(
+              sharedFilledTestLayer +!+ (Scope.default >>> spec.bootstrap)
+            )
+        }
+      logic
     }(Trace.empty, Unsafe.unsafe)
     fiber.unsafe.addObserver { exit =>
       exit match {
