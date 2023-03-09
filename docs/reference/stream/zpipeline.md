@@ -231,6 +231,8 @@ val lines: ZStream[Any, Throwable, String] =
 2. **Composing ZPipeline with ZSink** — One pipeline can be composed with a sink, resulting in a sink that processes elements by piping them through the pipeline and piping the results into the sink:
 
 ```scala mdoc:silent:nest
+import java.nio.charset.CharacterCodingException
+
 val refine: ZIO[Any, Throwable, Long] = {
   val stream: ZStream[Any, Throwable, Byte] = ZStream.fromFileName("file.txt")
   val pipeline: ZPipeline[Any, CharacterCodingException, Byte, String] =
@@ -240,7 +242,7 @@ val refine: ZIO[Any, Throwable, Long] = {
     .contramapChunks[String](
       _.flatMap(line => (line + System.lineSeparator()).getBytes())
     )
-  val pipeSink: ZSink[Any, Any, Byte, Long] = pipeline >>> fileSink
+  val pipeSink: ZSink[Any, Throwable, Byte, Byte, Long] = pipeline >>> fileSink
   stream >>> pipeSink
 }
 ```
