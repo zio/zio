@@ -232,13 +232,15 @@ val lines: ZStream[Any, Throwable, String] =
 
 ```scala mdoc:silent:nest
 val refine: ZIO[Any, Throwable, Long] = {
-  val stream = ZStream.fromFileName("file.txt")
-  val pipe = ZPipeline.utf8Decode >>> ZPipeline.splitLines >>> ZPipeline.filter[String(_.contains('₿'))
-  val sink = ZSink
+  val stream: ZStream[Any, Throwable, Byte] = ZStream.fromFileName("file.txt")
+  val pipeline: ZPipeline[Any, CharacterCodingException, Byte, String] =
+    ZPipeline.utf8Decode >>> ZPipeline.splitLines >>> ZPipeline.filter[String](_.contains('₿'))
+  val fileSink: ZSink[Any, Throwable, String, Byte, Long] = ZSink
     .fromFileName("file.refined.txt")
     .contramapChunks[String](
       _.flatMap(line => (line + System.lineSeparator()).getBytes())
     )
-  stream >>> pipe >>> sink
+  val pipeSink: ZSink[Any, Any, Byte, Long] = pipeline >>> fileSink
+  stream >>> pipeSink
 }
 ```
