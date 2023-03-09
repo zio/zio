@@ -231,17 +231,14 @@ val lines: ZStream[Any, Throwable, String] =
 2. **Composing ZPipeline with ZSink** — One pipeline can be composed with a sink, resulting in a sink that processes elements by piping them through the pipeline and piping the results into the sink:
 
 ```scala mdoc:silent:nest
-val refine: ZIO[Any, Throwable, Long] =
-  ZStream
-    .fromFileName("file.txt")
-    .via(
-      ZPipeline.utf8Decode >>> ZPipeline.splitLines >>> ZPipeline.filter[String](_.contains('₿'))
+val refine: ZIO[Any, Throwable, Long] = {
+  val stream = ZStream.fromFileName("file.txt")
+  val pipe = ZPipeline.utf8Decode >>> ZPipeline.splitLines >>> ZPipeline.filter[String(_.contains('₿'))
+  val sink = ZSink
+    .fromFileName("file.refined.txt")
+    .contramapChunks[String](
+      _.flatMap(line => (line + System.lineSeparator()).getBytes())
     )
-    .run(
-      ZSink
-        .fromFileName("file.refined.txt")
-        .contramapChunks[String](
-          _.flatMap(line => (line + System.lineSeparator()).getBytes())
-        )
-    )
+  stream >>> pipe >>> sink
+}
 ```
