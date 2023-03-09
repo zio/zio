@@ -17,8 +17,8 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{FilteredSpec, Summary, TestArgs, ZIOSpecAbstract}
-import zio.{Exit, Runtime, Scope, Trace, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.test.{FilteredSpec, Live, Summary, TestArgs, ZIOSpecAbstract}
+import zio.{Exit, Runtime, Scope, Trace, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, durationInt}
 
 import scala.collection.mutable
 
@@ -98,46 +98,43 @@ sealed class ZTestTask(
     Array()
   }
 
-  // This mostly a copy from the corresponding ZTestRunnerJS.scala
+  // logic mostly a copy from the corresponding ZTestRunnerJS.scala
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit = {
-    val fiber = Runtime.default.unsafe.fork {
-      val logic =
-        ZIO.consoleWith { console =>
-          (for {
-            summary <- spec
-                         .runSpecAsApp(FilteredSpec(spec.spec, args), args, console)
-            _ <- sendSummary.provide(ZLayer.succeed(summary))
-            // TODO Confirm if/how these events needs to be handled in #6481
-            //    Check XML behavior
-            _ <- ZIO.when(summary.status == Summary.Failure) {
-                   ZIO.attempt(
-                     eventHandler.handle(
-                       ZTestEvent(
-                         fullyQualifiedName = taskDef.fullyQualifiedName(),
-                         // taskDef.selectors() is "one to many" so we can expect nonEmpty here
-                         selector = taskDef.selectors().head,
-                         status = Status.Failure,
-                         maybeThrowable = None,
-                         duration = 0L,
-                         fingerprint = ZioSpecFingerprint
-                       )
+
+    val logic =
+      ZIO.consoleWith { console =>
+        (for {
+          summary <- spec
+                       .runSpecAsApp(FilteredSpec(spec.spec, args), args, console)
+          _ <- sendSummary.provide(ZLayer.succeed(summary))
+          // TODO Confirm if/how these events needs to be handled in #6481
+          //    Check XML behavior
+          _ <- ZIO.when(summary.status == Summary.Failure) {
+                 ZIO.attempt(
+                   eventHandler.handle(
+                     ZTestEvent(
+                       fullyQualifiedName = taskDef.fullyQualifiedName(),
+                       // taskDef.selectors() is "one to many" so we can expect nonEmpty here
+                       selector = taskDef.selectors().head,
+                       status = Status.Failure,
+                       maybeThrowable = None,
+                       duration = 0L,
+                       fingerprint = ZioSpecFingerprint
                      )
                    )
-                 }
-          } yield ())
-            .provideLayer(
-              sharedFilledTestLayer +!+ (Scope.default >>> spec.bootstrap)
-            )
-        }
-      logic
-    }(Trace.empty, Unsafe.unsafe)
-    fiber.unsafe.addObserver { exit =>
-      exit match {
-        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
-        case _                   =>
+                 )
+               }
+        } yield ())
+          .provideLayer(
+            sharedFilledTestLayer +!+ (Scope.default >>> spec.bootstrap)
+          )
       }
-      continuation(Array())
-    }(Unsafe.unsafe)
+
+    Unsafe.unsafe { implicit unsafe =>
+      runtime.unsafe
+        .run(logic)
+        .getOrThrowFiberFailure()
+    }
   }
 }
 
