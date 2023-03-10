@@ -5,6 +5,7 @@ import zio.stream.compression.TestData._
 import zio.test._
 import zio.test.Assertion._
 
+import java.nio.charset.StandardCharsets
 import java.util.zip.Deflater
 
 object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
@@ -57,6 +58,22 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
               } yield out.toList)(equalTo(chunk))
           }
         )
+      ),
+      suite("Gunzip auto")(
+        test("gunzipAuto works with compressed input") {
+          val stream = ZStream.fromResource("zio/stream/compression/hello.txt.gz").via(ZPipeline.gunzipAuto()).orDie
+          for {
+            chunk <- stream.run(ZSink.collectAll[Byte])
+            string = new String(chunk.toArray, StandardCharsets.UTF_8)
+          } yield assertTrue(string == "hello\n")
+        },
+        test("gunzipAuto works with uncompressed input") {
+          val stream = ZStream.fromResource("zio/stream/compression/hello.txt").via(ZPipeline.gunzipAuto()).orDie
+          for {
+            chunk <- stream.run(ZSink.collectAll[Byte])
+            string = new String(chunk.toArray, StandardCharsets.UTF_8)
+          } yield assertTrue(string == "hello\n")
+        }
       ),
       suite("Gzip")(
         test("JDK gunzips what was gzipped")(
