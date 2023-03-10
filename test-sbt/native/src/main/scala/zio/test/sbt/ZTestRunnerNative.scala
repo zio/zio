@@ -101,6 +101,9 @@ sealed class ZTestTask(
   // logic mostly a copy from the corresponding ZTestRunnerJS.scala
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit = {
 
+    implicit val trace = Trace.empty
+    implicit val unsafe = Unsafe.unsafe
+
     val layer = sharedFilledTestLayer +!+ (Scope.default >>> spec.bootstrap)
     val logic =
       ZIO.consoleWith { console =>
@@ -127,9 +130,6 @@ sealed class ZTestTask(
                }
         } yield ()
       }
-
-    implicit val trace  = Trace.empty
-    implicit val unsafe = Unsafe.unsafe
 
     val fiber = runtime.unsafe.fork(logic.provideLayer(layer))
     fiber.unsafe.addObserver { exit =>
