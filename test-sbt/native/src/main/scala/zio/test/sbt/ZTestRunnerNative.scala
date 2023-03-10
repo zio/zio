@@ -101,9 +101,10 @@ sealed class ZTestTask(
   // logic mostly a copy from the corresponding ZTestRunnerJS.scala
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit = {
 
+    val layer = sharedFilledTestLayer +!+ (Scope.default >>> spec.bootstrap)
     val logic =
       ZIO.consoleWith { console =>
-        (for {
+        for {
           summary <- spec
                        .runSpecAsApp(FilteredSpec(spec.spec, args), args, console)
           _ <- sendSummary.provide(ZLayer.succeed(summary))
@@ -124,17 +125,25 @@ sealed class ZTestTask(
                    )
                  )
                }
-        } yield ())
-          .provideLayer(
-            sharedFilledTestLayer +!+ (Scope.default >>> spec.bootstrap)
-          )
+        } yield ()
       }
 
-    Unsafe.unsafe { implicit unsafe =>
-      runtime.unsafe
-        .run(logic)
-        .getOrThrowFiberFailure()
+    implicit val trace  = Trace.empty
+    implicit val unsafe = Unsafe.unsafe
+
+    val fiber = runtime.unsafe.fork(logic.provideLayer(layer))
+    fiber.unsafe.addObserver { exit =>
+      exit match {
+        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: $cause")
+        case _                   =>
+      }
+      continuation(Array())
     }
+
+    // There seems to be an issue when running multiple tests.
+    // In particular, the tests will hang at zio.ZIOSpec at the heap suite.
+    // Calling the synchronous run seems to fix this, and the tests still run.
+    runtime.unsafe.run(fiber.join)
   }
 }
 
