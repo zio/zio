@@ -1627,12 +1627,17 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("guarantee ordering with parallelism") {
             for {
               lastExecuted <- Ref.make(0)
+              promise      <- Promise.make[Nothing, Unit]
               semaphore    <- Semaphore.make(4)
               _ <- ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
                      .flatMapParSwitch(4) { i =>
                        if (i > 8)
                          ZStream
-                           .acquireReleaseWith(ZIO.unit)(_ => lastExecuted.update(_ + 1))
+                           .acquireReleaseWith(ZIO.unit)(_ =>
+                             lastExecuted
+                               .updateAndGet(_ + 1)
+                               .flatMap(n => if (n == 4) promise.succeed(()) else promise.await)
+                           )
                            .flatMap(_ => ZStream.empty)
                        else ZStream.scoped(semaphore.withPermitScoped).flatMap(_ => ZStream.never)
                      }
