@@ -5,6 +5,7 @@ import zio.stream.compression.TestData._
 import zio.test._
 import zio.test.Assertion._
 
+import java.nio.charset.StandardCharsets
 import java.util.zip.Deflater
 
 object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
@@ -12,6 +13,22 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
     Chunk(TestAspect.timeout(300.seconds))
 
   def spec = suite("ZPipeline JVM")(
+    suite("Auto gunzip")(
+      test("autoGunzip works with compressed input") {
+        val stream = ZStream.fromResource("zio/stream/compression/hello.txt.gz").via(ZPipeline.autoGunzip()).orDie
+        for {
+          chunk <- stream.run(ZSink.collectAll[Byte])
+          string = new String(chunk.toArray, StandardCharsets.UTF_8)
+        } yield assertTrue(string == "hello\n")
+      },
+      test("autoGunzip works with uncompressed input") {
+        val stream = ZStream.fromResource("zio/stream/compression/hello.txt").via(ZPipeline.autoGunzip()).orDie
+        for {
+          chunk <- stream.run(ZSink.collectAll[Byte])
+          string = new String(chunk.toArray, StandardCharsets.UTF_8)
+        } yield assertTrue(string == "hello\n")
+      }
+    ),
     suite("Constructors")(
       suite("Deflate")(
         test("JDK inflates what was deflated")(
