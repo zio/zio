@@ -170,6 +170,19 @@ def decompressGzipped(gzipped: ZStream[Any, Nothing, Byte]): ZStream[Any, Compre
 }
 ```
 
+**ZPipeline.gunzipAuto** — This pipeline can be used to decompress stream of *possibly* _gzipped_ inputs, according to [RFC 1952](https://tools.ietf.org/html/rfc1952). If the input is gzipped, it will be decompressed; if not, it will be passed downstream as-is:
+
+```scala mdoc:silent:nest
+import zio.stream.ZStream
+import zio.stream.ZPipeline.gunzipAuto
+import zio.stream.compression.CompressionException
+
+def decompressMaybeGzipped(maybeGzipped: ZStream[Any, Nothing, Byte]): ZStream[Any, CompressionException, Byte] = {
+  val bufferSize: Int = 64 * 1024 // Internal buffer size. Few times bigger than upstream chunks should work well.
+  maybeGzipped.via(gunzipAuto(bufferSize))
+}
+```
+
 ### Decoders
 
 ZIO stream has a wide variety of pipelines to decode chunks of bytes into strings:
