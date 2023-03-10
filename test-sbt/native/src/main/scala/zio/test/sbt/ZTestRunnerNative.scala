@@ -101,7 +101,7 @@ sealed class ZTestTask(
   // logic mostly a copy from the corresponding ZTestRunnerJS.scala
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit = {
 
-    implicit val trace = Trace.empty
+    implicit val trace  = Trace.empty
     implicit val unsafe = Unsafe.unsafe
 
     val layer = sharedFilledTestLayer +!+ (Scope.default >>> spec.bootstrap)
