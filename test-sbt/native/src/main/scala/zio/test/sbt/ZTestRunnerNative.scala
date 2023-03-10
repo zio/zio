@@ -113,13 +113,13 @@ sealed class ZTestTask(
                  ZIO.attempt(
                    eventHandler.handle(
                      ZTestEvent(
-                       fullyQualifiedName = taskDef.fullyQualifiedName(),
+                       fullyQualifiedName0 = taskDef.fullyQualifiedName(),
                        // taskDef.selectors() is "one to many" so we can expect nonEmpty here
-                       selector = taskDef.selectors().head,
-                       status = Status.Failure,
+                       selector0 = taskDef.selectors().head,
+                       status0 = Status.Failure,
                        maybeThrowable = None,
-                       duration = 0L,
-                       fingerprint = ZioSpecFingerprint
+                       duration0 = 0L,
+                       fingerprint0 = ZioSpecFingerprint
                      )
                    )
                  )
