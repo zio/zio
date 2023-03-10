@@ -13,22 +13,6 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
     Chunk(TestAspect.timeout(300.seconds))
 
   def spec = suite("ZPipeline JVM")(
-    suite("Auto gunzip")(
-      test("autoGunzip works with compressed input") {
-        val stream = ZStream.fromResource("zio/stream/compression/hello.txt.gz").via(ZPipeline.autoGunzip()).orDie
-        for {
-          chunk <- stream.run(ZSink.collectAll[Byte])
-          string = new String(chunk.toArray, StandardCharsets.UTF_8)
-        } yield assertTrue(string == "hello\n")
-      },
-      test("autoGunzip works with uncompressed input") {
-        val stream = ZStream.fromResource("zio/stream/compression/hello.txt").via(ZPipeline.autoGunzip()).orDie
-        for {
-          chunk <- stream.run(ZSink.collectAll[Byte])
-          string = new String(chunk.toArray, StandardCharsets.UTF_8)
-        } yield assertTrue(string == "hello\n")
-      }
-    ),
     suite("Constructors")(
       suite("Deflate")(
         test("JDK inflates what was deflated")(
@@ -74,6 +58,22 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
               } yield out.toList)(equalTo(chunk))
           }
         )
+      ),
+      suite("Gunzip auto")(
+        test("gunzipAuto works with compressed input") {
+          val stream = ZStream.fromResource("zio/stream/compression/hello.txt.gz").via(ZPipeline.gunzipAuto()).orDie
+          for {
+            chunk <- stream.run(ZSink.collectAll[Byte])
+            string = new String(chunk.toArray, StandardCharsets.UTF_8)
+          } yield assertTrue(string == "hello\n")
+        },
+        test("gunzipAuto works with uncompressed input") {
+          val stream = ZStream.fromResource("zio/stream/compression/hello.txt").via(ZPipeline.gunzipAuto()).orDie
+          for {
+            chunk <- stream.run(ZSink.collectAll[Byte])
+            string = new String(chunk.toArray, StandardCharsets.UTF_8)
+          } yield assertTrue(string == "hello\n")
+        }
       ),
       suite("Gzip")(
         test("JDK gunzips what was gzipped")(

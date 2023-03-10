@@ -722,19 +722,6 @@ private[stream] trait ZSinkPlatformSpecificConstructors {
 }
 
 private[stream] trait ZPipelinePlatformSpecificConstructors {
-  private val gzipMagic: zio.Chunk[Byte] = zio.Chunk(0x1f.toByte, 0x8b.toByte)
-
-  def autoGunzip[Env](
-    bufferSize: => Int = 64 * 1024
-  )(implicit trace: Trace): ZPipeline[Any, CompressionException, Byte, Byte] =
-    ZPipeline.branchAfter[Any, CompressionException, Byte, Byte](2) { chunk =>
-      if (chunk == gzipMagic) {
-        ZPipeline.prepend(chunk) >>> ZPipeline.gunzip(bufferSize)
-      } else {
-        ZPipeline.prepend(chunk)
-      }
-    }
-
   def deflate(
     bufferSize: => Int = 64 * 1024,
     noWrap: => Boolean = false,
@@ -776,4 +763,17 @@ private[stream] trait ZPipelinePlatformSpecificConstructors {
     ZPipeline.fromChannel(
       Gunzip.makeGunzipper(bufferSize)
     )
+
+  def gunzipAuto[Env](
+    bufferSize: => Int = 64 * 1024
+  )(implicit trace: Trace): ZPipeline[Any, CompressionException, Byte, Byte] = {
+    val GZIP_PREFIX: zio.Chunk[Byte] = zio.Chunk(0x1f.toByte, 0x8b.toByte)
+    ZPipeline.branchAfter[Any, CompressionException, Byte, Byte](2) { chunk =>
+      if (chunk == GZIP_PREFIX) {
+        ZPipeline.prepend(chunk) >>> ZPipeline.gunzip(bufferSize)
+      } else {
+        ZPipeline.prepend(chunk)
+      }
+    }
+  }
 }
