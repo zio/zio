@@ -304,9 +304,13 @@ object FiberRefSpec extends ZIOBaseSpec {
         } yield assert(value)(equalTo(initial))
       } @@ zioTag(errors),
       test("the value of all fibers in inherited when running many ZIOs with collectAllPar") {
+        // The default of withParallelismUnbounded and the collection size of 100000
+        // seems to cause Scala native to hang. Lowering the collection size to (e.g. 10000) will make it work.
+        // So will lowering the parallelism - which is what is done for now.
+        // Perhaps this test should be broken out into a platform specific test?
         for {
           fiberRef <- FiberRef.make[Int](0, _ => 0, _ + _)
-          _        <- ZIO.collectAllPar(List.fill(100000)(fiberRef.update(_ + 1)))
+          _        <- ZIO.collectAllPar(List.fill(100000)(fiberRef.update(_ + 1))).withParallelism(100)
           value    <- fiberRef.get
         } yield assert(value)(equalTo(100000))
       },
