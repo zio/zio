@@ -60,6 +60,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Carvana](https://www.carvana.com)
 * [Cellular](https://www.cellular.de)
 * [ChannelPilot](https://channelpilot.com/de)
+* [Chartboost](https://chartboost.com)
 * [Cloudfarms](https://cloudfarms.com)
 * [CodeComprehension](https://codecomprehension.com)
 * [Codept](https://www.codept.de/)
