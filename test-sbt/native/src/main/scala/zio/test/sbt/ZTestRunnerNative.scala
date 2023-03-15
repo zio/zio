@@ -17,8 +17,8 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{FilteredSpec, Live, Summary, TestArgs, ZIOSpecAbstract}
-import zio.{Exit, Runtime, Scope, Trace, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, durationInt}
+import zio.test.{Summary, TestArgs, ZIOSpecAbstract}
+import zio.{Runtime, Trace, Unsafe, ZIO, ZLayer, durationInt}
 
 import scala.collection.mutable
 
@@ -92,59 +92,17 @@ sealed class ZTestTask(
   spec: ZIOSpecAbstract
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, zio.Runtime.default) {
 
-  // Override execute, but call our local version that matches the corresponding ZTestRunnerJS.scala
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
-    execute(eventHandler, loggers, _ => ())
+    val asyncSummary: Summary => Unit = summary =>
+      Runtime.default.unsafe.fork {
+        sendSummary.provide(ZLayer.succeed(summary))
+      }(Trace.empty, Unsafe.unsafe)
+    spec.runAsync(args)(asyncSummary)(Trace.empty, Unsafe.unsafe)
+    // The following line is needed to keep subsequent calls to execute from mysteriously dropping if a call to zio.Sleep is made
+    runtime.unsafe.run(ZIO.sleep(1.nano))(Trace.empty, Unsafe.unsafe)
     Array()
   }
 
-  // logic mostly a copy from the corresponding ZTestRunnerJS.scala
-  def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit = {
-
-    implicit val trace  = Trace.empty
-    implicit val unsafe = Unsafe.unsafe
-
-    val layer = sharedFilledTestLayer +!+ (Scope.default >>> spec.bootstrap)
-    val logic =
-      ZIO.consoleWith { console =>
-        for {
-          summary <- spec
-                       .runSpecAsApp(FilteredSpec(spec.spec, args), args, console)
-          _ <- sendSummary.provide(ZLayer.succeed(summary))
-          // TODO Confirm if/how these events needs to be handled in #6481
-          //    Check XML behavior
-          _ <- ZIO.when(summary.status == Summary.Failure) {
-                 ZIO.attempt(
-                   eventHandler.handle(
-                     ZTestEvent(
-                       fullyQualifiedName0 = taskDef.fullyQualifiedName(),
-                       // taskDef.selectors() is "one to many" so we can expect nonEmpty here
-                       selector0 = taskDef.selectors().head,
-                       status0 = Status.Failure,
-                       maybeThrowable = None,
-                       duration0 = 0L,
-                       fingerprint0 = ZioSpecFingerprint
-                     )
-                   )
-                 )
-               }
-        } yield ()
-      }
-
-    val fiber = runtime.unsafe.fork(logic.provideLayer(layer))
-    fiber.unsafe.addObserver { exit =>
-      exit match {
-        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: $cause")
-        case _                   =>
-      }
-      continuation(Array())
-    }
-
-    // There seems to be an issue when running multiple tests.
-    // In particular, the tests will hang at zio.ZIOSpec at the heap suite.
-    // Calling the synchronous run seems to fix this, and the tests still run.
-    runtime.unsafe.run(fiber.join)
-  }
 }
 
 object ZTestTask {

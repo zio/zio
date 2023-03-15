@@ -51,6 +51,7 @@ final case class TestRunner[R, E](
   trait UnsafeAPI {
     def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Unit
     def runAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace, unsafe: Unsafe): Unit
+    def runAsyncSummary(spec: Spec[R, E])(k: Summary => Unit)(implicit trace: Trace, unsafe: Unsafe): Unit
     def runSync(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Exit[Nothing, Unit]
   }
 
@@ -74,6 +75,15 @@ final case class TestRunner[R, E](
         fiber.unsafe.addObserver {
           case Exit.Success(_) => k
           case Exit.Failure(c) => throw FiberFailure(c)
+        }
+      }
+
+      def runAsyncSummary(spec: Spec[R, E])(k: Summary => Unit)(implicit trace: Trace, unsafe: Unsafe): Unit = {
+        val fiber =
+          runtime.unsafe.fork(self.run("Test Task name unavailable in this context.", spec))
+        fiber.unsafe.addObserver {
+          case Exit.Success(summary) => k(summary)
+          case Exit.Failure(c)       => throw FiberFailure(c)
         }
       }
 

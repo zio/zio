@@ -17,9 +17,8 @@
 package zio.test
 
 import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
+import zio.Console.ConsoleLive
 import zio._
-import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.render.ConsoleRenderer
 
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecific {
@@ -79,6 +78,28 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
              ZIO.fail(new RuntimeException())
            }
     } yield summary
+
+  private[zio] def runAsync(
+    testArgs: TestArgs,
+    console: Console = ConsoleLive,
+  )(summaryHandler: Summary => Unit)(implicit
+    trace: Trace,
+    unsafe: Unsafe
+  ): Unit = {
+    val sharedSpecLayer   = Scope.default >>> self.bootstrap
+    val freshLayerPerSpec = testEnvironment +!+ Scope.default
+    val filteredSpec      = FilteredSpec(self.spec, testArgs)
+    val eventSinkLayer    = sinkLayer(console, testArgs.testEventRenderer)
+    new TestRunner(
+      TestExecutor
+        .default[Environment, Any](
+          sharedSpecLayer,
+          freshLayerPerSpec,
+          eventSinkLayer,
+          ZTestEventHandler.silent
+        )
+    ).unsafe.runAsyncSummary(aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)(summaryHandler)
+  }
 
   /*
    * Regardless of test assertion or runtime failures, this method will always return a summary
