@@ -930,11 +930,11 @@ object Cause extends Serializable {
       sequential: List[Cause[Any]]
     ): (Set[Any], List[Cause[Any]]) = cause match {
       case Fail(e, _) =>
-        if (stack.isEmpty) (parallel + e, sequential)
-        else loop(stack.head, stack.tail, parallel + e, sequential)
+        if (stack.isEmpty) (parallel + Right(e), sequential)
+        else loop(stack.head, stack.tail, parallel + Right(e), sequential)
       case Die(t, _) =>
-        if (stack.isEmpty) (parallel + t, sequential)
-        else loop(stack.head, stack.tail, parallel + t, sequential)
+        if (stack.isEmpty) (parallel + Left(t), sequential)
+        else loop(stack.head, stack.tail, parallel + Left(t), sequential)
       case Interrupt(fiberId, _) =>
         if (stack.isEmpty) (parallel + fiberId, sequential)
         else loop(stack.head, stack.tail, parallel + fiberId, sequential)

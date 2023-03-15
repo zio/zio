@@ -20,6 +20,12 @@ object CauseSpec extends ZIOBaseSpec {
           assert(a.hashCode)(equalTo(b.hashCode))
         }
       },
+      test("`Cause.equals` discriminates between `Die` and `Fail`") {
+        val t     = new RuntimeException
+        val left  = Cause.die(t)
+        val right = Cause.fail(t)
+        assert(left)(not(equalTo(right)))
+      },
       test("`Cause#untraced` removes all traces") {
         check(causes) { c =>
           assert(c.untraced.traces.headOption)(isNone || isSome(equalTo(StackTrace.none)))
