@@ -232,8 +232,8 @@ trait TestRenderer {
   private def renderGenFailureDetails(failureDetails: Option[GenFailureDetails], offset: Int): Message =
     failureDetails match {
       case Some(details) =>
-        val shrunken = details.shrunkenInput.toString
-        val initial  = details.initialInput.toString
+        val shrunken = PrettyPrint(details.shrunkenInput)
+        val initial  = PrettyPrint(details.initialInput)
         val renderShrunken = withOffset(offset + 1)(
           Fragment(
             s"Test failed after ${details.iterations + 1} iteration${if (details.iterations > 0) "s" else ""} with input: "
