@@ -739,11 +739,12 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     type Erased = ZSTM[Any, Any, Any]
     type Cont   = Any => Erased
 
-    val contStack = Stack[Cont]()
-    val envStack  = Stack[ZEnvironment[Any]](r0)
-    var exit      = null.asInstanceOf[TExit[Any, Any]]
-    var curr      = self.asInstanceOf[Erased]
-    var opCount   = 0
+    val contStack     = Stack[Cont]()
+    val envStack      = Stack[ZEnvironment[Any]](r0)
+    var onCommitStack = Stack[ZIO[Any, Nothing, Any]]()
+    var exit          = null.asInstanceOf[TExit[Any, Any]]
+    var curr          = self.asInstanceOf[Erased]
+    var opCount       = 0
 
     def unwindStack(error: Any, isRetry: Boolean): Erased = {
       var result = null.asInstanceOf[Erased]
@@ -769,7 +770,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
             case Tags.Effect =>
               val effect = curr.asInstanceOf[Effect[Any, Any, Any]]
               val a      = effect.f(journal, fiberId, envStack.peek())
-              if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
+              if (contStack.isEmpty) exit = TExit.Succeed(a, onCommitStack.toList) else curr = contStack.pop()(a)
 
             case Tags.OnSuccess =>
               val onSuccess = curr.asInstanceOf[OnSuccess[Any, Any, Any, Any]]
@@ -798,12 +799,18 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
             case Tags.SucceedNow =>
               val a = curr.asInstanceOf[SucceedNow[Any]].a
 
-              if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
+              if (contStack.isEmpty) exit = TExit.Succeed(a, onCommitStack.toList) else curr = contStack.pop()(a)
 
             case Tags.Succeed =>
               val a = curr.asInstanceOf[Succeed[Any]].a()
 
-              if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
+              if (contStack.isEmpty) exit = TExit.Succeed(a, onCommitStack.toList) else curr = contStack.pop()(a)
+
+            case Tags.OnCommit =>
+              val onCommit = curr.asInstanceOf[OnCommit[Any]]
+              onCommitStack.push(onCommit.zio.provideEnvironment(envStack.peek())(onCommit.trace))
+              if (contStack.isEmpty) exit = TExit.Succeed((), onCommitStack.toList)
+              else curr = contStack.pop()(())
           }
         } catch {
           case ZSTM.RetryException =>
@@ -811,13 +818,13 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
             if (curr eq null) exit = TExit.Retry
           case ZSTM.FailException(e) =>
             curr = unwindStack(e, false)
-            if (curr eq null) exit = TExit.Fail(e)
+            if (curr eq null) exit = TExit.Fail(e, onCommitStack.toList)
           case ZSTM.DieException(t) =>
-            exit = TExit.Die(t)
+            exit = TExit.Die(t, onCommitStack.toList)
           case ZSTM.InterruptException(fiberId) =>
-            exit = TExit.Interrupt(fiberId)
+            exit = TExit.Interrupt(fiberId, onCommitStack.toList)
           case t: Throwable =>
-            exit = TExit.Die(t)
+            exit = TExit.Die(t, onCommitStack.toList)
         }
 
         opCount += 1
@@ -865,9 +872,9 @@ object ZSTM {
       val executor = fiberState.getCurrentExecutor()
 
       tryCommitSync(executor, fiberId, stm, r) match {
-        case TryCommit.Done(exit) =>
+        case TryCommit.Done(exit, onCommit) =>
           onDone(exit)
-          ZIO.done(exit)(trace)
+          ZIO.collectAll(onCommit.reverse) *> ZIO.done(exit)(trace)
         case TryCommit.Suspend(journal) =>
           val txnId = makeTxnId()
           val state = new AtomicReference[State[E, A]](State.Running)
@@ -877,9 +884,9 @@ object ZSTM {
             restore(async).catchAllCause { cause =>
               state.compareAndSet(State.Running, State.Interrupted)
               state.get match {
-                case State.Done(exit) =>
+                case State.Done(exit, onCommit) =>
                   onDone(exit)
-                  ZIO.done(exit)
+                  ZIO.collectAll(onCommit.reverse) *> ZIO.done(exit)
                 case _ =>
                   onInterrupt()
                   ZIO.refailCause(cause)
@@ -1258,6 +1265,12 @@ object ZSTM {
   val none: USTM[Option[Nothing]] = succeedNow(None)
 
   /**
+   * Executes the specified workflow when this transaction is committed.
+   */
+  def onCommit[R](zio: ZIO[R, Nothing, Any])(implicit trace: Trace): ZSTM[R, Nothing, Unit] =
+    ZSTM.OnCommit(zio, trace)
+
+  /**
    * Feeds elements of type `A` to a function `f` that returns an effect.
    * Collects all successes and failures in a tupled fashion.
    */
@@ -1443,11 +1456,13 @@ object ZSTM {
       ZIO.uninterruptibleMask { restore =>
         var state: State[E, A] = State.Running
 
-        restore(unsafeAtomically(acquire())(exit => state = State.Done(exit), () => state = State.Interrupted))
+        restore(
+          unsafeAtomically(acquire())(exit => state = State.Done(exit, List.empty), () => state = State.Interrupted)
+        )
           .foldCauseZIO(
             cause => {
               state match {
-                case State.Done(Exit.Success(a)) =>
+                case State.Done(Exit.Success(a), _) =>
                   release(a).foldCauseZIO(
                     cause2 => ZIO.refailCause(cause ++ cause2),
                     _ => ZIO.refailCause(cause)
@@ -1573,6 +1588,10 @@ object ZSTM {
     def tag: Int = Tags.Succeed
   }
 
+  private[stm] final case class OnCommit[R](zio: ZIO[R, Nothing, Any], trace: Trace) extends ZSTM[R, Nothing, Unit] {
+    def tag: Int = Tags.OnCommit
+  }
+
   private[zio] def succeedNow[A](a: A): USTM[A] = SucceedNow(a)
 
   private[stm] object internal {
@@ -1588,6 +1607,7 @@ object ZSTM {
       final val OnFailure  = 4
       final val Provide    = 5
       final val OnRetry    = 6
+      final val OnCommit   = 7
     }
 
     class Versioned[A](val value: A) extends Serializable
@@ -1738,14 +1758,19 @@ object ZSTM {
     /**
      * Runs all the todos.
      */
-    def completeTodos[E, A](exit: Exit[E, A], journal: Journal, executor: Executor)(implicit
+    def completeTodos[E, A](
+      exit: Exit[E, A],
+      journal: Journal,
+      executor: Executor,
+      onCommit: List[ZIO[Any, Nothing, Any]]
+    )(implicit
       unsafe: Unsafe
     ): TryCommit[E, A] = {
       val todos = collectTodos(journal)
 
       if (todos.size > 0) executor.submitOrThrow(() => execTodos(todos))
 
-      TryCommit.Done(exit)
+      TryCommit.Done(exit, onCommit)
     }
 
     /**
@@ -1842,11 +1867,11 @@ object ZSTM {
       }
 
       value match {
-        case TExit.Succeed(a)         => completeTodos(Exit.succeed(a), journal, executor)
-        case TExit.Fail(e)            => completeTodos(Exit.fail(e), journal, executor)
-        case TExit.Die(t)             => completeTodos(Exit.die(t), journal, executor)
-        case TExit.Interrupt(fiberId) => completeTodos(Exit.interrupt(fiberId), journal, executor)
-        case TExit.Retry              => TryCommit.Suspend(journal)
+        case TExit.Succeed(a, onCommit)         => completeTodos(Exit.succeed(a), journal, executor, onCommit)
+        case TExit.Fail(e, onCommit)            => completeTodos(Exit.fail(e), journal, executor, onCommit)
+        case TExit.Die(t, onCommit)             => completeTodos(Exit.die(t), journal, executor, onCommit)
+        case TExit.Interrupt(fiberId, onCommit) => completeTodos(Exit.interrupt(fiberId), journal, executor, onCommit)
+        case TExit.Retry                        => TryCommit.Suspend(journal)
       }
     }
 
@@ -1868,7 +1893,7 @@ object ZSTM {
         addTodo(txnId, journal, () => tryCommitAsync(null, executor, fiberId, stm, txnId, state, r)(k))
 
         if (isInvalid(journal)) tryCommit(executor, fiberId, stm, state, r) match {
-          case TryCommit.Done(exit) => complete(exit)
+          case TryCommit.Done(exit, onCommit) => complete(exit)
           case TryCommit.Suspend(journal2) =>
             val untracked = untrackedTodoTargets(accum, journal2)
 
@@ -1885,8 +1910,8 @@ object ZSTM {
           if (journal ne null) suspend(journal, journal)
           else
             tryCommit(executor, fiberId, stm, state, r) match {
-              case TryCommit.Done(io)         => complete(io)
-              case TryCommit.Suspend(journal) => suspend(journal, journal)
+              case TryCommit.Done(io, onCommit) => complete(io)
+              case TryCommit.Suspend(journal)   => suspend(journal, journal)
             }
         }
       }
@@ -1964,11 +1989,11 @@ object ZSTM {
       }
 
       value match {
-        case TExit.Succeed(a)         => completeTodos(Exit.succeed(a), journal, executor)
-        case TExit.Fail(e)            => completeTodos(Exit.fail(e), journal, executor)
-        case TExit.Die(t)             => completeTodos(Exit.die(t), journal, executor)
-        case TExit.Interrupt(fiberId) => completeTodos(Exit.interrupt(fiberId), journal, executor)
-        case TExit.Retry              => TryCommit.Suspend(journal)
+        case TExit.Succeed(a, onCommit)         => completeTodos(Exit.succeed(a), journal, executor, onCommit)
+        case TExit.Fail(e, onCommit)            => completeTodos(Exit.fail(e), journal, executor, onCommit)
+        case TExit.Die(t, onCommit)             => completeTodos(Exit.die(t), journal, executor, onCommit)
+        case TExit.Interrupt(fiberId, onCommit) => completeTodos(Exit.interrupt(fiberId), journal, executor, onCommit)
+        case TExit.Retry                        => TryCommit.Suspend(journal)
       }
     }
 
@@ -1980,13 +2005,14 @@ object ZSTM {
 
     sealed abstract class TExit[+A, +B] extends Serializable with Product
     object TExit {
-      val unit: TExit[Nothing, Unit] = Succeed(())
+      val unit: TExit[Nothing, Unit] = Succeed((), List.empty)
 
-      final case class Fail[+A](value: A)          extends TExit[A, Nothing]
-      final case class Die(error: Throwable)       extends TExit[Nothing, Nothing]
-      final case class Interrupt(fiberId: FiberId) extends TExit[Nothing, Nothing]
-      final case class Succeed[+B](value: B)       extends TExit[Nothing, B]
-      case object Retry                            extends TExit[Nothing, Nothing]
+      final case class Fail[+A](value: A, onCommit: List[ZIO[Any, Nothing, Any]])    extends TExit[A, Nothing]
+      final case class Die(error: Throwable, onCommit: List[ZIO[Any, Nothing, Any]]) extends TExit[Nothing, Nothing]
+      final case class Interrupt(fiberId: FiberId, onCommit: List[ZIO[Any, Nothing, Any]])
+          extends TExit[Nothing, Nothing]
+      final case class Succeed[+B](value: B, onCommit: List[ZIO[Any, Nothing, Any]]) extends TExit[Nothing, B]
+      case object Retry                                                              extends TExit[Nothing, Nothing]
     }
 
     abstract class Entry { self =>
@@ -2068,8 +2094,8 @@ object ZSTM {
 
     sealed abstract class TryCommit[+E, +A]
     object TryCommit {
-      final case class Done[+E, +A](exit: Exit[E, A]) extends TryCommit[E, A]
-      final case class Suspend(journal: Journal)      extends TryCommit[Nothing, Nothing]
+      final case class Done[+E, +A](exit: Exit[E, A], onCommit: List[ZIO[Any, Nothing, Any]]) extends TryCommit[E, A]
+      final case class Suspend(journal: Journal)                                              extends TryCommit[Nothing, Nothing]
     }
 
     sealed abstract class State[+E, +A] { self =>
@@ -2081,17 +2107,17 @@ object ZSTM {
     }
 
     object State {
-      final case class Done[+E, +A](exit: Exit[E, A]) extends State[E, A]
-      case object Interrupted                         extends State[Nothing, Nothing]
-      case object Running                             extends State[Nothing, Nothing]
+      final case class Done[+E, +A](exit: Exit[E, A], onCommit: List[ZIO[Any, Nothing, Any]]) extends State[E, A]
+      case object Interrupted                                                                 extends State[Nothing, Nothing]
+      case object Running                                                                     extends State[Nothing, Nothing]
 
       def done[E, A](exit: TExit[E, A]): State[E, A] =
         exit match {
-          case TExit.Succeed(a)         => State.Done(Exit.succeed(a))
-          case TExit.Die(t)             => State.Done(Exit.die(t))
-          case TExit.Fail(e)            => State.Done(Exit.fail(e))
-          case TExit.Interrupt(fiberId) => State.Done(Exit.interrupt(fiberId))
-          case TExit.Retry              => throw new Error("Defect: done being called on TExit.Retry")
+          case TExit.Succeed(a, onCommit)         => State.Done(Exit.succeed(a), onCommit)
+          case TExit.Die(t, onCommit)             => State.Done(Exit.die(t), onCommit)
+          case TExit.Fail(e, onCommit)            => State.Done(Exit.fail(e), onCommit)
+          case TExit.Interrupt(fiberId, onCommit) => State.Done(Exit.interrupt(fiberId), onCommit)
+          case TExit.Retry                        => throw new Error("Defect: done being called on TExit.Retry")
         }
     }
   }

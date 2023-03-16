@@ -1205,7 +1205,16 @@ object ZSTMSpec extends ZIOBaseSpec {
 
         assertZIO(tx.commit)(equalTo((Left("error"), "error")))
       } @@ zioTag(errors)
-    )
+    ),
+    test("onCommit executes the specified workflow when the transaction is committed") {
+      def transaction(ref: Ref[Int]): STM[Nothing, Unit] =
+        STM.onCommit(ref.update(_ + 2)) *> STM.onCommit(ref.update(_ * 3))
+      for {
+        ref   <- Ref.make(1)
+        _     <- transaction(ref).commit
+        value <- ref.get
+      } yield assertTrue(value == 9)
+    }
   )
 
   val ExampleError = new Throwable("fail")
