@@ -24,7 +24,7 @@
     "@zio.dev/izumi-reflect": "2.2.3",
     "@zio.dev/zio-actors": "0.1.0",
     "@zio.dev/zio-akka-cluster": "0.3.0",
-    "@zio.dev/zio-aws": "2022.12.7-2598a29d343e",
+    "@zio.dev/zio-aws": "2022.11.23-f353ed48e161",
     "@zio.dev/zio-cache": "0.2.2",
     "@zio.dev/zio-cli": "0.4.0",
     "@zio.dev/zio-config": "4.0.0-RC13",
