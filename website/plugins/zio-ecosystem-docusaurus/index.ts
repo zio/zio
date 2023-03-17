@@ -271,7 +271,7 @@ const zioProjects =
     {
       name: 'ZIO Redis',
       routeBasePath: 'zio-redis',
-      sidebarPath: 'sidebar.js',
+      sidebarPath: 'sidebars.js',
     },
     {
       name: 'ZIO Rocksdb',
@@ -281,7 +281,7 @@ const zioProjects =
     {
       name: 'ZIO Schema',
       routeBasePath: 'zio-schema',
-      sidebarPath: 'sidebar.js',
+      sidebarPath: 'sidebars.js',
     },
     {
       name: 'ZIO S3',

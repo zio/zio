@@ -288,7 +288,7 @@ var zioProjects = [
     {
         name: 'ZIO Redis',
         routeBasePath: 'zio-redis',
-        sidebarPath: 'sidebar.js'
+        sidebarPath: 'sidebars.js'
     },
     {
         name: 'ZIO Rocksdb',
@@ -298,7 +298,7 @@ var zioProjects = [
     {
         name: 'ZIO Schema',
         routeBasePath: 'zio-schema',
-        sidebarPath: 'sidebar.js'
+        sidebarPath: 'sidebars.js'
     },
     {
         name: 'ZIO S3',
