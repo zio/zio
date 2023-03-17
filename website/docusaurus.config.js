@@ -161,10 +161,10 @@ const config = {
   plugins: [
     [path.join(__dirname, './plugins/zio-ecosystem-docusaurus'), {}],
   ],
-//  markdown: {
-//    mermaid: true,
-//  },
-//  themes: ['@docusaurus/theme-mermaid'],
+  markdown: {
+    mermaid: true,
+  },
+  themes: ['@docusaurus/theme-mermaid'],
 }
 
 module.exports = config;
