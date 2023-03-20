@@ -137,7 +137,7 @@ object PollingMetric {
             new UnsafeAPI {
               override def update(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
                 ins.zip(in).foreach { case (pollingmetric, input) =>
-                  pollingmetric.metric.unsafe.update(input.asInstanceOf[pollingmetric.In])
+                  pollingmetric.metric.unsafe.update(input.asInstanceOf[pollingmetric.In], extraTags)
                 }
 
               override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Chunk[Out] =
@@ -145,7 +145,7 @@ object PollingMetric {
 
               override def modify(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
                 ins.zip(in).foreach { case (pollingmetric, input) =>
-                  pollingmetric.metric.unsafe.modify(input.asInstanceOf[pollingmetric.In])
+                  pollingmetric.metric.unsafe.modify(input.asInstanceOf[pollingmetric.In], extraTags)
                 }
             }
         }
