@@ -207,7 +207,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.2.5")
+  .settings(
+    libraryDependencies ++= List(
+      "dev.zio"                %%% "izumi-reflect"           % "2.3.0",
+      "org.scala-lang.modules" %%% "scala-collection-compat" % "2.8.1"
+    )
+  )
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
   .settings(
