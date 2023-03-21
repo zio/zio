@@ -38,7 +38,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   private var _fiberRefs       = fiberRefs0
   private val queue            = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
-  private var _children        = null.asInstanceOf[JavaSet[FiberRuntime[_, _]]]
+  private var _children        = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers        = Nil: List[Exit[E, A] => Unit]
   private val running          = new AtomicBoolean(false)
   private var _runtimeFlags    = runtimeFlags0
@@ -89,7 +89,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         )
     }
 
-  def children(implicit trace: Trace): UIO[Chunk[FiberRuntime[_, _]]] =
+  def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] =
     ask((fiber, _) => Chunk.fromJavaIterable(fiber.getChildren()(Unsafe.unsafe)))
 
   def fiberRefs(implicit trace: Trace): UIO[FiberRefs] =
@@ -161,19 +161,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       )
     }
 
-  /**
-   * Adds a weakly-held reference to the specified fiber inside the children
-   * set.
-   *
-   * '''NOTE''': This method must be invoked by the fiber itself.
-   */
-  private[zio] def addChild(child: FiberRuntime[_, _])(implicit unsafe: Unsafe): Unit =
+  private[zio] def addChild(child: Fiber.Runtime[_, _])(implicit unsafe: Unsafe): Unit =
     if (isAlive()) {
       getChildren().add(child)
 
-      if (isInterrupted()) child.tell(FiberMessage.InterruptSignal(getInterruptedCause()))
+      if (isInterrupted())
+        child.tellInterrupt(getInterruptedCause())
     } else {
-      child.tell(FiberMessage.InterruptSignal(getInterruptedCause()))
+      child.tellInterrupt(getInterruptedCause())
     }
 
   /**
@@ -197,11 +192,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     if (_exitValue ne null) observer(_exitValue)
     else observers = observer :: observers
 
-  /**
-   * Deletes the specified fiber ref.
-   *
-   * '''NOTE''': This method must be invoked by the fiber itself.
-   */
   private[zio] def deleteFiberRef(ref: FiberRef[_])(implicit unsafe: Unsafe): Unit =
     _fiberRefs = _fiberRefs.delete(ref)
 
@@ -549,33 +539,19 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private[zio] def getChildren()(implicit unsafe: Unsafe): JavaSet[FiberRuntime[_, _]] = {
+  private[zio] def getChildren()(implicit unsafe: Unsafe): JavaSet[Fiber.Runtime[_, _]] = {
     if (_children eq null) {
-      _children = Platform.newWeakSet[FiberRuntime[_, _]]()
+      _children = Platform.newWeakSet[Fiber.Runtime[_, _]]()
     }
     _children
   }
 
-  /**
-   * Retrieves the current executor that effects are executed on.
-   *
-   * '''NOTE''': This method is safe to invoke on any fiber, but if not invoked
-   * on this fiber, then values derived from the fiber's state (including the
-   * log annotations and log level) may not be up-to-date.
-   */
   private[zio] def getCurrentExecutor()(implicit unsafe: Unsafe): Executor =
     getFiberRef(FiberRef.overrideExecutor) match {
       case None        => Runtime.defaultExecutor
       case Some(value) => value
     }
 
-  /**
-   * Retrieves the state of the fiber ref, or else its initial value.
-   *
-   * '''NOTE''': This method is safe to invoke on any fiber, but if not invoked
-   * on this fiber, then values derived from the fiber's state (including the
-   * log annotations and log level) may not be up-to-date.
-   */
   private[zio] def getFiberRef[A](fiberRef: FiberRef[A])(implicit unsafe: Unsafe): A =
     _fiberRefs.getOrDefault(fiberRef)
 
@@ -596,13 +572,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def getFiberRefOption[A](fiberRef: FiberRef[A])(implicit unsafe: Unsafe): Option[A] =
     _fiberRefs.get(fiberRef)
 
-  /**
-   * Retrieves all fiber refs of the fiber.
-   *
-   * '''NOTE''': This method is safe to invoke on any fiber, but if not invoked
-   * on this fiber, then values derived from the fiber's state (including the
-   * log annotations and log level) may not be up-to-date.
-   */
   private[zio] def getFiberRefs()(implicit unsafe: Unsafe): FiberRefs = {
     setFiberRef(FiberRef.currentRuntimeFlags, _runtimeFlags)
     _fiberRefs
@@ -640,11 +609,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def getReportFatal()(implicit unsafe: Unsafe): Throwable => Nothing =
     getFiberRef(FiberRef.currentReportFatal)
 
-  /**
-   * Retrieves the executor that this effect is currently executing on.
-   *
-   * '''NOTE''': This method must be invoked by the fiber itself.
-   */
   private[zio] def getRunningExecutor()(implicit unsafe: Unsafe): Option[Executor] =
     if (runningExecutor eq null) None else Some(runningExecutor)
 
@@ -754,17 +718,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     _exitValue ne null
 
   /**
-   * Determines if the specified throwable is fatal, based on the fatal errors
-   * tracked by the fiber's state.
-   *
-   * '''NOTE''': This method is safe to invoke on any fiber, but if not invoked
-   * on this fiber, then values derived from the fiber's state (including the
-   * log annotations and log level) may not be up-to-date.
-   */
-  private[zio] def isFatal(t: Throwable)(implicit unsafe: Unsafe): Boolean =
-    getFiberRef(FiberRef.currentFatal).apply(t)
-
-  /**
    * Determines if the fiber is interrupted.
    *
    * '''NOTE''': This method is safe to invoke on any fiber, but if not invoked
@@ -773,13 +726,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private[zio] def isInterrupted()(implicit unsafe: Unsafe): Boolean = !getFiberRef(FiberRef.interruptedCause).isEmpty
 
-  /**
-   * Logs using the current set of loggers.
-   *
-   * '''NOTE''': This method is safe to invoke on any fiber, but if not invoked
-   * on this fiber, then values derived from the fiber's state (including the
-   * log annotations and log level) may not be up-to-date.
-   */
   private[zio] def log(
     message: () => String,
     cause: Cause[Any],
@@ -1293,7 +1239,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         val next = iterator.next()
 
         if (next ne null) {
-          next.tell(FiberMessage.InterruptSignal(Cause.interrupt(id)))
+          next.tellInterrupt(Cause.interrupt(id))
 
           told = true
         }
@@ -1367,19 +1313,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     observers = Nil
   }
 
-  /**
-   * Sets the fiber ref to the specified value.
-   *
-   * '''NOTE''': This method must be invoked by the fiber itself.
-   */
   private[zio] def setFiberRef[A](fiberRef: FiberRef[A], value: A)(implicit unsafe: Unsafe): Unit =
     _fiberRefs = _fiberRefs.updatedAs(fiberId)(fiberRef, value)
 
-  /**
-   * Wholesale replaces all fiber refs of this fiber.
-   *
-   * '''NOTE''': This method must be invoked by the fiber itself.
-   */
   private[zio] def setFiberRefs(fiberRefs0: FiberRefs)(implicit unsafe: Unsafe): Unit =
     this._fiberRefs = fiberRefs0
 
@@ -1393,7 +1329,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private[zio] def start[R](effect: ZIO[R, E, A])(implicit unsafe: Unsafe): Exit[E, A] =
     if (running.compareAndSet(false, true)) {
-      var previousFiber = null.asInstanceOf[FiberRuntime[_, _]]
+      var previousFiber = null.asInstanceOf[Fiber.Runtime[_, _]]
       try {
         if (RuntimeFlags.currentFiber(_runtimeFlags)) {
           previousFiber = Fiber._currentFiber.get()
@@ -1467,6 +1403,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     // Attempt to spin up fiber, if it's not already running:
     if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
   }
+
+  private[zio] def tellAddChild(child: Fiber.Runtime[_, _])(implicit unsafe: Unsafe): Unit =
+    tell(FiberMessage.Stateful((parentFiber, _) => parentFiber.addChild(child)))
+
+  private[zio] def tellInterrupt(cause: Cause[Nothing])(implicit unsafe: Unsafe): Unit =
+    tell(FiberMessage.InterruptSignal(cause))
 
   /**
    * Updates a fiber ref belonging to this fiber by using the provided update

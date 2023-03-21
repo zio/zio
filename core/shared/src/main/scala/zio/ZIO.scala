@@ -2572,7 +2572,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     def fork[R, E1, E2, A, B](
       trace: Trace,
       effect: ZIO[R, E1, A],
-      parentFiber: internal.FiberRuntime[E2, B],
+      parentFiber: Fiber.Runtime[E2, B],
       parentRuntimeFlags: RuntimeFlags,
       overrideScope: FiberScope = null
     )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
@@ -2586,7 +2586,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     def makeChildFiber[R, E1, E2, A, B](
       trace: Trace,
       effect: ZIO[R, E1, A],
-      parentFiber: internal.FiberRuntime[E2, B],
+      parentFiber: Fiber.Runtime[E2, B],
       parentRuntimeFlags: RuntimeFlags,
       overrideScope: FiberScope
     )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
@@ -5041,7 +5041,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def yieldNow(implicit trace: Trace): UIO[Unit] = ZIO.YieldNow(trace, false)
 
   private[zio] def withFiberRuntime[R, E, A](
-    onState: (internal.FiberRuntime[E, A], Fiber.Status.Running) => ZIO[R, E, A]
+    onState: (Fiber.Runtime[E, A], Fiber.Status.Running) => ZIO[R, E, A]
   )(implicit trace: Trace): ZIO[R, E, A] =
     Stateful(trace, onState)
 
@@ -5776,7 +5776,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   private[zio] final case class GenerateStackTrace(trace: Trace) extends ZIO[Any, Nothing, StackTrace]
   private[zio] final case class Stateful[R, E, A](
     trace: Trace,
-    onState: (zio.internal.FiberRuntime[E, A], Fiber.Status.Running) => ZIO[R, E, A]
+    onState: (Fiber.Runtime[E, A], Fiber.Status.Running) => ZIO[R, E, A]
   ) extends ZIO[R, E, A] { self =>
     def erase: Stateful[Any, Any, Any] = self.asInstanceOf[Stateful[Any, Any, Any]]
   }
