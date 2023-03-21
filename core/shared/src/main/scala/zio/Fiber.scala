@@ -475,7 +475,7 @@ object Fiber extends FiberPlatformSpecific {
    * A runtime fiber that is executing an effect. Runtime fibers have an
    * identity and a trace.
    */
-  sealed abstract class Runtime[+E, +A] extends Fiber[E, A] { self =>
+  sealed abstract class Runtime[+E, +A] extends Fiber.Internal[E, A] { self =>
 
     /**
      * The location the fiber was forked from.
@@ -636,11 +636,13 @@ object Fiber extends FiberPlatformSpecific {
    * A synthetic fiber that is created from a pure value or that combines
    * existing fibers.
    */
-  sealed abstract class Synthetic[+E, +A] extends Fiber[E, A] {}
+  sealed abstract class Synthetic[+E, +A] extends Fiber.Internal[E, A] {}
 
   private[zio] object Synthetic {
     abstract class Internal[+E, +A] extends Synthetic[E, A]
   }
+
+  private[zio] abstract class Internal[+E, +A] extends Fiber[E, A]
 
   /**
    * A record containing information about a [[Fiber]].
