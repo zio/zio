@@ -286,6 +286,13 @@ object STM {
 
   /**
    * @see
+   *   See [[zio.stm.ZSTM.onCommit]]
+   */
+  def onCommit(io: IO[Nothing, Any])(implicit trace: Trace): STM[Nothing, Unit] =
+    ZSTM.onCommit(io)
+
+  /**
+   * @see
    *   See [[zio.stm.ZSTM.partition]]
    */
   def partition[E, A, B](
