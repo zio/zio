@@ -195,9 +195,9 @@ object ZIOAspect {
     }
 
   /**
-   * An aspect that does nothing.
+   * An aspect that returns effects unchanged.
    */
-  val noop: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+  val identity: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] = zio
     }
