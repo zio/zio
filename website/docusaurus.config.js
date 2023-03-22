@@ -56,11 +56,12 @@ const config = {
         { type: 'doc', docId: 'resources/index', label: 'Resources', position: 'left' },
         { type: 'doc', docId: 'events/index', label: 'Events', position: 'left' },
         { type: 'doc', docId: 'about/index', label: 'About', position: 'right' },
+        { to: 'blog', label: 'Blog', position: 'right' },
         {
           type: 'docsVersionDropdown',
           position: 'right',
           dropdownActiveClassDisabled: true,
-        },
+        }
       ],
     },
     footer: {
@@ -146,6 +147,11 @@ const config = {
             [require('remark-kroki-plugin'), { krokiBase: 'https://kroki.io', lang: "kroki", imgRefDir: "/img/kroki", imgDir: "static/img/kroki" }]
           ],
           editUrl: 'https://github.com/zio/zio/edit/series/2.x',
+        },
+        blog: {
+          blogTitle: "ZIO Blog",
+          blogDescription: "Stay Up-to-Date with ZIO and its Ecosystem!",
+          postsPerPage: 'ALL',
         },
         googleAnalytics: {
           trackingID: 'UA-237088290-2',
