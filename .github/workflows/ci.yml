@@ -13,11 +13,14 @@ on:
   release:
     types:
       - published
+  repository_dispatch:
+    types: [update-docs]
 
 jobs:
   lint:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v3.0.2
@@ -37,6 +40,7 @@ jobs:
   compile:
     runs-on: ubuntu-20.04
     timeout-minutes: 120
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     strategy:
       fail-fast: false
       matrix:
@@ -71,6 +75,7 @@ jobs:
   publishLocal:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     strategy:
       fail-fast: false
       matrix:
@@ -100,6 +105,7 @@ jobs:
 
   build-website:
     runs-on: ubuntu-20.04
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
       - name: Checkout series/2.x Branch
         uses: actions/checkout@v3
@@ -162,6 +168,7 @@ jobs:
   test:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     strategy:
       fail-fast: false
       matrix:
@@ -225,6 +232,7 @@ jobs:
   testJvms:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     strategy:
       fail-fast: false
       matrix:
@@ -260,6 +268,7 @@ jobs:
   testPlatforms:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     strategy:
       fail-fast: false
       matrix:
@@ -338,3 +347,37 @@ jobs:
         with:
           branch: gh-pages
           folder: ./website-artifact
+          
+  update-docs:
+    runs-on: ubuntu-latest
+    if: ${{ ((github.event_name == 'repository_dispatch') && (github.event.action == 'update-docs')) }}
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v3.3.0
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: '0'
+      - name: Commit Changes
+        run: |
+          cd website
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          package_name="${{ github.event.client_payload.package_name }}"
+          package_version="${{ github.event.client_payload.package_version }}"
+          yarn add "$package_name@$package_version"
+          git add package.json
+          commit_message="Update $package_name to $package_version"
+          git commit -m "$commit_message" || echo "No changes to commit"
+          
+      - name: Create Pull Request to Update Docs
+        uses: peter-evans/create-pull-request@v4.2.4
+        with:
+          body: |-
+            The new version of ${{ github.event.client_payload.package_name }} was released.
+            Let's update the zio.dev to reflect the latest docs. 
+          branch: zio-sbt/update-docs/${{ github.event.client_payload.package_name }}
+          commit-message: Update ${{ github.event.client_payload.package_name }} docs
+                          to ${{ github.event.client_payload.package_version }}
+          delete-branch: true
+          title: Update ${{ github.event.client_payload.package_name }} docs
+                 to ${{ github.event.client_payload.package_version }}
