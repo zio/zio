@@ -3457,6 +3457,50 @@ object ZStreamSpec extends ZIOBaseSpec {
             )
           }
         ),
+        suite("tapBoth")(
+          test("just tap values") {
+            for {
+              ref   <- Ref.make(0)
+              values = Chunk(1, 1)
+              res <- ZStream
+                       .fromIterableZIO(ZIO.attempt(values))
+                       .tapBoth(e => ZIO.dieMessage(s"Unexpected attempt to tap an error $e"), v => ref.update(_ + v))
+                       .runCollect
+              sum <- ref.get
+            } yield assertTrue(res == values, sum == values.sum)
+          },
+          test("just tap an error") {
+            for {
+              ref <- Ref.make("")
+              res <-
+                ZStream
+                  .fail("Ouch")
+                  .tapBoth(err => ref.update(_ + err), v => ZIO.dieMessage(s"Unexpected attempt to tap a value $v"))
+                  .runCollect
+                  .either
+              err <- ref.get
+            } yield assertTrue(res == Left("Ouch"), err == "Ouch")
+          },
+          test("tap values and then error") {
+            for {
+              error <- Ref.make("")
+              sum   <- Ref.make(0)
+              values = Chunk(1, 1)
+              stream = ZStream.fromChunk(values) ++ ZStream.fail("Ouch")
+              res   <- stream.tapBoth(err => error.update(_ + err), v => sum.update(_ + v)).runCollect.either
+              s     <- sum.get
+              e     <- error.get
+            } yield assertTrue(s == values.sum, res == Left("Ouch"), e == "Ouch")
+          },
+          test("tap chunks lazily") {
+            assertZIO {
+              (ZStream(1, 2, 3): ZStream[Any, String, Int])
+                .tapBoth(_ => ZIO.unit, x => ZIO.when(x == 3)(ZIO.fail("error")))
+                .either
+                .runCollect
+            }(equalTo(Chunk(Right(1), Right(2), Left("error"))))
+          }
+        ),
         suite("tapError")(
           test("tapError") {
             for {
