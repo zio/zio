@@ -172,7 +172,6 @@ object Config {
         case LocalDateTime  => "a local date-time property"
         case LocalDate      => "a local date property"
         case LocalTime      => "a local time property"
-        case LogLevelType   => "a log level property"
         case OffsetDateTime => "an offset date-time property"
         case SecretType     => "a secret property"
         case Text           => "a text property"
@@ -290,13 +289,6 @@ object Config {
     catch {
       case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a local time value, but found ${text}"))
     }
-  }
-  case object LogLevelType extends Primitive[LogLevel] {
-    final def parse(text: String): Either[Config.Error, LogLevel] =
-      LogLevel.logLevelMapping.get(text.toUpperCase) match {
-        case Some(v)    => Right(v)
-        case scala.None => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a log level, but found ${text}"))
-      }
   }
   final case class MapOrFail[A, B](original: Config[A], mapOrFail: A => Either[Config.Error, B]) extends Composite[B]
   final case class Nested[A](name: String, config: Config[A])                                    extends Composite[A]
@@ -515,7 +507,12 @@ object Config {
 
   def localTime(name: String): Config[java.time.LocalTime] = localTime.nested(name)
 
-  def logLevel: Config[LogLevel] = LogLevelType
+  def logLevel: Config[LogLevel] = Config.string.mapOrFail { value =>
+    LogLevel.logLevelMapping.get(value.toUpperCase) match {
+      case Some(v) => Right(v)
+      case None    => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a log level, but found ${value}"))
+    }
+  }
 
   def logLevel(name: String): Config[LogLevel] = logLevel.nested(name)
 
