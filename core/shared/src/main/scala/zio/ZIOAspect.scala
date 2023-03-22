@@ -193,4 +193,12 @@ object ZIOAspect {
       def apply[R, E >: E1, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         zio.timeoutFail(e)(d)
     }
+
+  /**
+   * An aspect that does nothing.
+   */
+  val noop: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] = zio
+    }
 }
