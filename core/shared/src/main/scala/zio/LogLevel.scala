@@ -66,5 +66,23 @@ object LogLevel {
   val Trace: LogLevel   = LogLevel(0, "TRACE", 7)
   val None: LogLevel    = LogLevel(Int.MaxValue, "OFF", 7)
 
+  val config: Config[LogLevel] = Config.string.mapOrFail { value =>
+    logLevelMapping.get(value.toUpperCase) match {
+      case Some(v) => Right(v)
+      case None    => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a LogLevel, but found ${value}"))
+    }
+  }
+
+  val logLevelMapping: Map[String, LogLevel] = Map(
+    LogLevel.All.label     -> LogLevel.All,
+    LogLevel.Trace.label   -> LogLevel.Trace,
+    LogLevel.Debug.label   -> LogLevel.Debug,
+    LogLevel.Info.label    -> LogLevel.Info,
+    LogLevel.Warning.label -> LogLevel.Warning,
+    LogLevel.Error.label   -> LogLevel.Error,
+    LogLevel.Fatal.label   -> LogLevel.Fatal,
+    LogLevel.None.label    -> LogLevel.None
+  )
+
   implicit val orderingLogLevel: Ordering[LogLevel] = Ordering.by(_.ordinal)
 }
