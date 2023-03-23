@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://zio.dev/blog</id>
+    <title>ZIO Blog</title>
+    <updated>2023-03-23T00:00:00.000Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://zio.dev/blog"/>
+    <subtitle>ZIO Blog</subtitle>
+    <icon>https://zio.dev/img/favicon.png</icon>
+    <entry>
+        <title type="html"><![CDATA[Welcome to The ZIO Blog]]></title>
+        <id>https://zio.dev/blog/welcome-to-the-zio-blog</id>
+        <link href="https://zio.dev/blog/welcome-to-the-zio-blog"/>
+        <updated>2023-03-23T00:00:00.000Z</updated>
+        <summary type="html"><![CDATA[Stay Up-to-Date with ZIO and its Ecosystem!]]></summary>
+        <content type="html"><![CDATA[<p>Welcome to the ZIO Blog, your source for the latest announcements and development news on ZIO and its ecosystem. </p><p>ZIO is a powerful concurrency and functional programming library for Scala that allows you to write safe and efficient concurrent programs using purely functional programming techniques.</p><p>Our blog is dedicated to sharing our knowledge and expertise on the latest development news for ZIO and its <a href="https://zio.dev/ecosystem/" target="_blank" rel="noopener noreferrer">ecosystem</a>, so that you can stay up-to-date with the latest announcements and developments in this exciting field.</p><p>We welcome your feedback and comments and look forward to building a vibrant and engaged community around ZIO and its ecosystem.</p><p>Thanks for joining us, and stay tuned for more great content!</p>]]></content>
+        <category label="announcement" term="announcement"/>
+    </entry>
+</feed>
