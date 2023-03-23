@@ -337,6 +337,12 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result <- ZIO.config(Config.string("greeting"))
         } yield assertTrue(result == "Hello, World!")
       } +
+      test("logLevel") {
+        for {
+          _      <- TestSystem.putProperty("level", "ERROR")
+          result <- ZIO.config(Config.logLevel.nested("level"))
+        } yield assertTrue(result == LogLevel.Error)
+      } +
       test("secret") {
         for {
           _      <- TestSystem.putProperty("greeting", "Hello, World!")
