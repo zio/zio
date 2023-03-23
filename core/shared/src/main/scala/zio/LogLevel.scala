@@ -66,7 +66,7 @@ object LogLevel {
   val Trace: LogLevel   = LogLevel(0, "TRACE", 7)
   val None: LogLevel    = LogLevel(Int.MaxValue, "OFF", 7)
 
-  val levels: Chunk[LogLevel] = Chunk(
+  val levels: Set[LogLevel] = Set(
     LogLevel.All,
     LogLevel.Trace,
     LogLevel.Debug,
@@ -76,8 +76,6 @@ object LogLevel {
     LogLevel.Fatal,
     LogLevel.None
   )
-
-  private[zio] val levelMapping: Map[String, LogLevel] = levels.map(level => (level.label, level)).toMap
 
   implicit val orderingLogLevel: Ordering[LogLevel] = Ordering.by(_.ordinal)
 }
