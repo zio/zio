@@ -508,7 +508,7 @@ object Config {
   def localTime(name: String): Config[java.time.LocalTime] = localTime.nested(name)
 
   def logLevel: Config[LogLevel] = Config.string.mapOrFail { value =>
-    LogLevel.logLevelMapping.get(value.toUpperCase) match {
+    LogLevel.levelMapping.get(value.toUpperCase) match {
       case Some(v) => Right(v)
       case None    => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a log level, but found ${value}"))
     }
