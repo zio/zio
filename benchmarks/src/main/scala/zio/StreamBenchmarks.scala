@@ -209,7 +209,7 @@ class StreamBenchmarks {
   }
 
   @Benchmark
-  def fs2GroupAdjecentBy: Long =
+  def fs2GroupAdjacentBy: Long =
     FS2Stream(fs2Chunks: _*)
       .flatMap(FS2Stream.chunk(_))
       .groupAdjacentBy(_ % 2)
@@ -219,7 +219,7 @@ class StreamBenchmarks {
       .unsafeRunSync()
 
   @Benchmark
-  def zioGroupAdjecentBy: Long = {
+  def zioGroupAdjacentBy: Long = {
     val result = ZStream
       .fromChunks(zioChunks: _*)
       .groupAdjacentBy(_ % 2)
