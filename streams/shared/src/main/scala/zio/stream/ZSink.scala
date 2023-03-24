@@ -776,7 +776,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that counts the number of elements fed to it.
    */
   def count(implicit trace: Trace): ZSink[Any, Nothing, Any, Nothing, Long] =
-    foldLeft(0L)((s, _) => s + 1)
+    foldLeftChunks(0L)((s, chunk) => s + chunk.length)
 
   /**
    * Creates a sink halting with the specified `Throwable`.
