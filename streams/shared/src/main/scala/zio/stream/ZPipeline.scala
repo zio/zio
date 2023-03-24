@@ -1315,7 +1315,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         state match {
           case Some((previousKey, nonEmptyChunk)) =>
             key = previousKey
-            var loop = false
+            var loop = true
             while (chunkIterator.hasNextAt(until) && loop) {
               val in         = chunkIterator.nextAt(until)
               val updatedKey = f(in)
