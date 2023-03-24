@@ -2901,53 +2901,47 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   Stream(1, 2, 3, 4).sliding(2).runCollect // Chunk(Chunk(1, 2), Chunk(2, 3), Chunk(3, 4))
    * }}}
    */
-  def sliding(chunkSize: => Int, stepSize: Int = 1)(implicit trace: Trace): ZStream[R, E, Chunk[A]] =
-    ZStream.succeed(chunkSize).flatMap { chunkSize =>
-      ZStream.succeed(stepSize).flatMap { stepSize =>
-        if (chunkSize <= 0 || stepSize <= 0)
-          ZStream.die(
-            new IllegalArgumentException("invalid bounds. `chunkSize` and `stepSize` must be greater than zero")
-          )
-        else
-          new ZStream({
-            val queue = SingleThreadedRingBuffer[A](chunkSize)
+  def sliding(chunkSize0: => Int, stepSize0: Int = 1)(implicit trace: Trace): ZStream[R, E, Chunk[A]] =
+    ZStream.suspend {
+      val chunkSize = chunkSize0
+      val stepSize  = stepSize0
 
-            def emitOnStreamEnd(queueSize: Int)(channelEnd: ZChannel[Any, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any]) =
-              if (queueSize < chunkSize) {
-                val items  = queue.toChunk
-                val result = if (items.isEmpty) Chunk.empty else Chunk.single(items)
-                ZChannel.write(result) *> channelEnd
-              } else {
-                val lastEmitIndex = queueSize - (queueSize - chunkSize) % stepSize
-
-                if (lastEmitIndex == queueSize) channelEnd
-                else {
-                  val leftovers = queueSize - (lastEmitIndex - chunkSize + stepSize)
-                  val lastItems = queue.toChunk.takeRight(leftovers)
-                  val result    = if (lastItems.isEmpty) Chunk.empty else Chunk.single(lastItems)
-                  ZChannel.write(result) *> channelEnd
-                }
-              }
-
-            def reader(queueSize: Int): ZChannel[Any, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] =
-              ZChannel.readWithCause(
-                (in: Chunk[A]) => {
-                  ZChannel.write {
-                    in.zipWithIndex.flatMap { case (i, idx) =>
-                      queue.put(i)
-                      val currentIndex = queueSize + idx + 1
-                      if (currentIndex < chunkSize || (currentIndex - chunkSize) % stepSize > 0) None
-                      else Some(queue.toChunk)
-                    }
-                  } *> reader(queueSize + in.length)
-                },
-                (cause: Cause[E]) => emitOnStreamEnd(queueSize)(ZChannel.failCause(cause)),
-                (_: Any) => emitOnStreamEnd(queueSize)(ZChannel.unit)
-              )
-
-            self.channel >>> reader(0)
-          })
+      def slidingChunk(chunk: Chunk[A], in: Chunk[A]): (Chunk[A], Chunk[Chunk[A]]) = {
+        val updatedChunk = chunk ++ in
+        val length       = updatedChunk.length
+        if (length >= chunkSize) {
+          val array      = new Array[Chunk[A]]((length - chunkSize) / stepSize + 1)
+          var arrayIndex = 0
+          var chunkIndex = 0
+          while (chunkIndex + chunkSize <= length) {
+            array(arrayIndex) = updatedChunk.slice(chunkIndex, chunkIndex + chunkSize)
+            arrayIndex += 1
+            chunkIndex += stepSize
+          }
+          (updatedChunk.drop(chunkIndex), Chunk.fromArray(array))
+        } else (updatedChunk, Chunk.empty)
       }
+
+      def sliding(chunk: Chunk[A], written: Boolean): ZChannel[Any, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] =
+        ZChannel.readWithCause(
+          in => {
+            val (updatedChunk, out) = slidingChunk(chunk, in)
+            if (out.isEmpty) sliding(updatedChunk, written)
+            else ZChannel.write(out) *> sliding(updatedChunk, true)
+          },
+          err => {
+            val index = if (written && chunkSize > stepSize) chunkSize - stepSize else 0
+            if (index >= chunk.length) ZChannel.failCause(err)
+            else ZChannel.write(Chunk.single(chunk)) *> ZChannel.failCause(err)
+          },
+          done => {
+            val index = if (written && chunkSize > stepSize) chunkSize - stepSize else 0
+            if (index >= chunk.length) ZChannel.succeedNow(done)
+            else ZChannel.write(Chunk.single(chunk)) *> ZChannel.succeedNow(done)
+          }
+        )
+
+      ZStream.fromChannel(self.channel >>> sliding(Chunk.empty, false))
     }
 
   /**
