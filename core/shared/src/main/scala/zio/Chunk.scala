@@ -2413,6 +2413,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else ByteArray(array, self.offset + offset, self.length - offset min length)
+    override def takeWhile(f: Byte => Boolean): Chunk[Byte] = {
+      val self = array
+      val len  = length
+
+      var i = 0
+      while (i < len && f(self(i))) {
+        i += 1
+      }
+
+      take(i)
+    }
   }
 
   final case class CharArray(array: Array[Char], offset: Int, override val length: Int)
@@ -2432,6 +2443,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else CharArray(array, self.offset + offset, self.length - offset min length)
+    override def takeWhile(f: Char => Boolean): Chunk[Char] = {
+      val self = array
+      val len  = length
+
+      var i = 0
+      while (i < len && f(self(i))) {
+        i += 1
+      }
+
+      take(i)
+    }
   }
 
   final case class IntArray(array: Array[Int], offset: Int, override val length: Int)
@@ -2451,6 +2473,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else IntArray(array, self.offset + offset, self.length - offset min length)
+    override def takeWhile(f: Int => Boolean): Chunk[Int] = {
+      val self = array
+      val len  = length
+
+      var i = 0
+      while (i < len && f(self(i))) {
+        i += 1
+      }
+
+      take(i)
+    }
   }
 
   final case class LongArray(array: Array[Long], offset: Int, override val length: Int)
@@ -2470,6 +2503,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else LongArray(array, self.offset + offset, self.length - offset min length)
+    override def takeWhile(f: Long => Boolean): Chunk[Long] = {
+      val self = array
+      val len  = length
+
+      var i = 0
+      while (i < len && f(self(i))) {
+        i += 1
+      }
+
+      take(i)
+    }
   }
 
   final case class DoubleArray(array: Array[Double], offset: Int, override val length: Int)
@@ -2489,6 +2533,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else DoubleArray(array, self.offset + offset, self.length - offset min length)
+    override def takeWhile(f: Double => Boolean): Chunk[Double] = {
+      val self = array
+      val len  = length
+
+      var i = 0
+      while (i < len && f(self(i))) {
+        i += 1
+      }
+
+      take(i)
+    }
   }
 
   final case class FloatArray(array: Array[Float], offset: Int, override val length: Int)
@@ -2508,6 +2563,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else FloatArray(array, self.offset + offset, self.length - offset min length)
+    override def takeWhile(f: Float => Boolean): Chunk[Float] = {
+      val self = array
+      val len  = length
+
+      var i = 0
+      while (i < len && f(self(i))) {
+        i += 1
+      }
+
+      take(i)
+    }
   }
 
   final case class ShortArray(array: Array[Short], offset: Int, override val length: Int)
@@ -2527,6 +2593,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else ShortArray(array, self.offset + offset, self.length - offset min length)
+    override def takeWhile(f: Short => Boolean): Chunk[Short] = {
+      val self = array
+      val len  = length
+
+      var i = 0
+      while (i < len && f(self(i))) {
+        i += 1
+      }
+
+      take(i)
+    }
   }
 
   final case class BooleanArray(array: Array[Boolean], offset: Int, length: Int)
@@ -2546,6 +2623,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else BooleanArray(array, self.offset + offset, self.length - offset min length)
+    override def takeWhile(f: Boolean => Boolean): Chunk[Boolean] = {
+      val self = array
+      val len  = length
+
+      var i = 0
+      while (i < len && f(self(i))) {
+        i += 1
+      }
+
+      take(i)
+    }
   }
 
   /**
