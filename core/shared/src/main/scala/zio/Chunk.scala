@@ -2362,7 +2362,6 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     override def equals(that: Any): Boolean =
       that match {
-        case chunk: Chunk[_] => self eq chunk
         case seq: Seq[_]     => seq.isEmpty
         case _               => false
       }
