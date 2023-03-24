@@ -720,6 +720,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   def short(index: Int)(implicit ev: A <:< Short): Short =
     ev(apply(index))
 
+  override def span(f: A => Boolean): (Chunk[A], Chunk[A]) =
+    splitWhere(!f(_))
+
   /**
    * Splits this chunk into `n` equally sized chunks.
    */
