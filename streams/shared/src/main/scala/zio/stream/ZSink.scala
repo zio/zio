@@ -776,7 +776,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that counts the number of elements fed to it.
    */
   def count(implicit trace: Trace): ZSink[Any, Nothing, Any, Nothing, Long] =
-    foldLeft(0L)((s, _) => s + 1)
+    foldLeftChunks(0L)((s, chunk) => s + chunk.length)
 
   /**
    * Creates a sink halting with the specified `Throwable`.
@@ -1447,7 +1447,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Creates a sink containing the last value.
    */
   def last[In](implicit trace: Trace): ZSink[Any, Nothing, In, In, Option[In]] =
-    foldLeft(None: Option[In])((_, in) => Some(in))
+    foldLeftChunks[In, Option[In]](None)((s, in) => in.lastOption.orElse(s))
 
   /**
    * Creates a sink that does not consume any input but provides the given chunk
@@ -1618,7 +1618,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that sums incoming numeric values.
    */
   def sum[A](implicit A: Numeric[A], trace: Trace): ZSink[Any, Nothing, A, Nothing, A] =
-    foldLeft(A.zero)(A.plus)
+    foldLeftChunks(A.zero)((acc, chunk) => A.plus(acc, chunk.foldLeft(A.zero)(A.plus)))
 
   /**
    * Tags each metric in this sink with the specific tag.

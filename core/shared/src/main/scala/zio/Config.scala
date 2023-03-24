@@ -507,6 +507,16 @@ object Config {
 
   def localTime(name: String): Config[java.time.LocalTime] = localTime.nested(name)
 
+  def logLevel: Config[LogLevel] = Config.string.mapOrFail { value =>
+    val label = value.toUpperCase
+    LogLevel.levels.find(_.label == label) match {
+      case Some(v) => Right(v)
+      case None    => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a log level, but found ${value}"))
+    }
+  }
+
+  def logLevel(name: String): Config[LogLevel] = logLevel.nested(name)
+
   def offsetDateTime: Config[java.time.OffsetDateTime] = OffsetDateTime
 
   def offsetDateTime(name: String): Config[java.time.OffsetDateTime] = offsetDateTime.nested(name)

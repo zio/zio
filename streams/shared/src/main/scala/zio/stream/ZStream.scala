@@ -3097,6 +3097,16 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     mapZIO(a => f(a).as(a))
 
   /**
+   * Returns a stream that effectfully "peeks" at the failure and adds an effect
+   * to consumption of every element of the stream
+   */
+  def tapBoth[R1 <: R, E1 >: E](
+    f: E => ZIO[R1, E1, Any],
+    g: A => ZIO[R1, E1, Any]
+  )(implicit ev: CanFail[E], trace: Trace): ZStream[R1, E1, A] =
+    tapError(f).tap(g)
+
+  /**
    * Returns a stream that effectfully "peeks" at the failure of the stream.
    */
   def tapError[R1 <: R, E1 >: E](

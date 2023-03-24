@@ -66,5 +66,16 @@ object LogLevel {
   val Trace: LogLevel   = LogLevel(0, "TRACE", 7)
   val None: LogLevel    = LogLevel(Int.MaxValue, "OFF", 7)
 
+  val levels: Set[LogLevel] = Set(
+    LogLevel.All,
+    LogLevel.Trace,
+    LogLevel.Debug,
+    LogLevel.Info,
+    LogLevel.Warning,
+    LogLevel.Error,
+    LogLevel.Fatal,
+    LogLevel.None
+  )
+
   implicit val orderingLogLevel: Ordering[LogLevel] = Ordering.by(_.ordinal)
 }
