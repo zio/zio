@@ -2362,8 +2362,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     override def equals(that: Any): Boolean =
       that match {
-        case seq: Seq[_]     => seq.isEmpty
-        case _               => false
+        case seq: Seq[_] => seq.isEmpty
+        case _           => false
       }
 
     override def foreach[B](f: Nothing => B): Unit = {
