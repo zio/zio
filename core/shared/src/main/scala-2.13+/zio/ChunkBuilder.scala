@@ -109,6 +109,10 @@ object ChunkBuilder {
     private var lastByte: SByte   = 0.toByte
     private var maxBitIndex: SInt = 0
 
+    override def addAll(as: IterableOnce[SBoolean]): this.type = {
+      as.iterator.foreach(addOne _)
+      this
+    }
     def addOne(b: SBoolean): this.type = {
       if (b) {
         if (maxBitIndex == 8) {
@@ -136,18 +140,6 @@ object ChunkBuilder {
       maxBitIndex = 0
       lastByte = 0.toByte
     }
-    def result(): Chunk[SBoolean] = {
-      val bytes: Chunk[SByte] = Chunk.fromArray(arrayBuilder.result() :+ lastByte)
-      BitChunkByte(bytes, 0, 8 * (bytes.length - 1) + maxBitIndex)
-    }
-    override def addAll(as: IterableOnce[SBoolean]): this.type = {
-      as.iterator.foreach(addOne _)
-      this
-    }
-    override def sizeHint(n: SInt): Unit = {
-      val hint = if (n == 0) 0 else n / 8 + 1
-      arrayBuilder.sizeHint(hint)
-    }
     override def equals(that: Any): SBoolean =
       that match {
         case that: Boolean =>
@@ -156,6 +148,14 @@ object ChunkBuilder {
             self.lastByte == that.lastByte
         case _ => false
       }
+    def result(): Chunk[SBoolean] = {
+      val bytes: Chunk[SByte] = Chunk.fromArray(arrayBuilder.result() :+ lastByte)
+      BitChunkByte(bytes, 0, 8 * (bytes.length - 1) + maxBitIndex)
+    }
+    override def sizeHint(n: SInt): Unit = {
+      val hint = if (n == 0) 0 else n / 8 + 1
+      arrayBuilder.sizeHint(hint)
+    }
     override def toString: String =
       "ChunkBuilder.Boolean"
   }
@@ -167,23 +167,23 @@ object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SByte] = {
       new ArrayBuilder.ofByte
     }
+    override def addAll(as: IterableOnce[SByte]): this.type = {
+      arrayBuilder ++= as
+      this
+    }
     def addOne(a: SByte): this.type = {
       arrayBuilder += a
       this
     }
     def clear(): Unit =
       arrayBuilder.clear()
-    def result(): Chunk[SByte] =
-      Chunk.fromArray(arrayBuilder.result())
-    override def addAll(as: IterableOnce[SByte]): this.type = {
-      arrayBuilder ++= as
-      this
-    }
     override def equals(that: Any): SBoolean =
       that match {
         case that: Byte => self.arrayBuilder == that.arrayBuilder
         case _          => false
       }
+    def result(): Chunk[SByte] =
+      Chunk.fromArray(arrayBuilder.result())
     override def sizeHint(n: SInt): Unit =
       arrayBuilder.sizeHint(n)
     override def toString: String =
@@ -197,23 +197,23 @@ object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SChar] = {
       new ArrayBuilder.ofChar
     }
+    override def addAll(as: IterableOnce[SChar]): this.type = {
+      arrayBuilder ++= as
+      this
+    }
     def addOne(a: SChar): this.type = {
       arrayBuilder += a
       this
     }
     def clear(): Unit =
       arrayBuilder.clear()
-    def result(): Chunk[SChar] =
-      Chunk.fromArray(arrayBuilder.result())
-    override def addAll(as: IterableOnce[SChar]): this.type = {
-      arrayBuilder ++= as
-      this
-    }
     override def equals(that: Any): SBoolean =
       that match {
         case that: Char => self.arrayBuilder == that.arrayBuilder
         case _          => false
       }
+    def result(): Chunk[SChar] =
+      Chunk.fromArray(arrayBuilder.result())
     override def sizeHint(n: SInt): Unit =
       arrayBuilder.sizeHint(n)
     override def toString: String =
@@ -228,23 +228,23 @@ object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SDouble] = {
       new ArrayBuilder.ofDouble
     }
+    override def addAll(as: IterableOnce[SDouble]): this.type = {
+      arrayBuilder ++= as
+      this
+    }
     def addOne(a: SDouble): this.type = {
       arrayBuilder += a
       this
     }
     def clear(): Unit =
       arrayBuilder.clear()
-    def result(): Chunk[SDouble] =
-      Chunk.fromArray(arrayBuilder.result())
-    override def addAll(as: IterableOnce[SDouble]): this.type = {
-      arrayBuilder ++= as
-      this
-    }
     override def equals(that: Any): SBoolean =
       that match {
         case that: Double => self.arrayBuilder == that.arrayBuilder
         case _            => false
       }
+    def result(): Chunk[SDouble] =
+      Chunk.fromArray(arrayBuilder.result())
     override def sizeHint(n: SInt): Unit =
       arrayBuilder.sizeHint(n)
     override def toString: String =
@@ -258,23 +258,23 @@ object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SFloat] = {
       new ArrayBuilder.ofFloat
     }
+    override def addAll(as: IterableOnce[SFloat]): this.type = {
+      arrayBuilder ++= as
+      this
+    }
     def addOne(a: SFloat): this.type = {
       arrayBuilder += a
       this
     }
     def clear(): Unit =
       arrayBuilder.clear()
-    def result(): Chunk[SFloat] =
-      Chunk.fromArray(arrayBuilder.result())
-    override def addAll(as: IterableOnce[SFloat]): this.type = {
-      arrayBuilder ++= as
-      this
-    }
     override def equals(that: Any): SBoolean =
       that match {
         case that: Float => self.arrayBuilder == that.arrayBuilder
         case _           => false
       }
+    def result(): Chunk[SFloat] =
+      Chunk.fromArray(arrayBuilder.result())
     override def sizeHint(n: SInt): Unit =
       arrayBuilder.sizeHint(n)
     override def toString: String =
@@ -288,23 +288,23 @@ object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SInt] = {
       new ArrayBuilder.ofInt
     }
+    override def addAll(as: IterableOnce[SInt]): this.type = {
+      arrayBuilder ++= as
+      this
+    }
     def addOne(a: SInt): this.type = {
       arrayBuilder += a
       this
     }
     def clear(): Unit =
       arrayBuilder.clear()
-    def result(): Chunk[SInt] =
-      Chunk.fromArray(arrayBuilder.result())
-    override def addAll(as: IterableOnce[SInt]): this.type = {
-      arrayBuilder ++= as
-      this
-    }
     override def equals(that: Any): SBoolean =
       that match {
         case that: Int => self.arrayBuilder == that.arrayBuilder
         case _         => false
       }
+    def result(): Chunk[SInt] =
+      Chunk.fromArray(arrayBuilder.result())
     override def sizeHint(n: SInt): Unit =
       arrayBuilder.sizeHint(n)
     override def toString: String =
@@ -318,23 +318,23 @@ object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SLong] = {
       new ArrayBuilder.ofLong
     }
+    override def addAll(as: IterableOnce[SLong]): this.type = {
+      arrayBuilder ++= as
+      this
+    }
     def addOne(a: SLong): this.type = {
       arrayBuilder += a
       this
     }
     def clear(): Unit =
       arrayBuilder.clear()
-    def result(): Chunk[SLong] =
-      Chunk.fromArray(arrayBuilder.result())
-    override def addAll(as: IterableOnce[SLong]): this.type = {
-      arrayBuilder ++= as
-      this
-    }
     override def equals(that: Any): SBoolean =
       that match {
         case that: Long => self.arrayBuilder == that.arrayBuilder
         case _          => false
       }
+    def result(): Chunk[SLong] =
+      Chunk.fromArray(arrayBuilder.result())
     override def sizeHint(n: SInt): Unit =
       arrayBuilder.sizeHint(n)
     override def toString: String =
@@ -348,23 +348,23 @@ object ChunkBuilder {
     private val arrayBuilder: ArrayBuilder[SShort] = {
       new ArrayBuilder.ofShort
     }
+    override def addAll(as: IterableOnce[SShort]): this.type = {
+      arrayBuilder ++= as
+      this
+    }
     def addOne(a: SShort): this.type = {
       arrayBuilder += a
       this
     }
     def clear(): Unit =
       arrayBuilder.clear()
-    def result(): Chunk[SShort] =
-      Chunk.fromArray(arrayBuilder.result())
-    override def addAll(as: IterableOnce[SShort]): this.type = {
-      arrayBuilder ++= as
-      this
-    }
     override def equals(that: Any): SBoolean =
       that match {
         case that: Short => self.arrayBuilder == that.arrayBuilder
         case _           => false
       }
+    def result(): Chunk[SShort] =
+      Chunk.fromArray(arrayBuilder.result())
     override def sizeHint(n: SInt): Unit =
       arrayBuilder.sizeHint(n)
     override def toString: String =
