@@ -2433,6 +2433,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
     def hasNextAt(index: Int): Boolean =
       index < length
+    override protected def mapChunk[B](f: Byte => B): Chunk[B] = {
+      val len     = self.length
+      val builder = ChunkBuilder.make[B]()
+      builder.sizeHint(len)
+
+      var i = 0
+      while (i < len) {
+        builder += f(self(i))
+        i += 1
+      }
+
+      builder.result()
+    }
     def nextAt(index: Int): Byte =
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Byte] =
@@ -2481,6 +2494,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
     def hasNextAt(index: Int): Boolean =
       index < length
+    override protected def mapChunk[B](f: Char => B): Chunk[B] = {
+      val len     = self.length
+      val builder = ChunkBuilder.make[B]()
+      builder.sizeHint(len)
+
+      var i = 0
+      while (i < len) {
+        builder += f(self(i))
+        i += 1
+      }
+
+      builder.result()
+    }
     def nextAt(index: Int): Char =
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Char] =
@@ -2529,6 +2555,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       index < length
     override def int(index: Int)(implicit ev: Int <:< Int): Int =
       array(index + offset)
+    override protected def mapChunk[B](f: Int => B): Chunk[B] = {
+      val len     = self.length
+      val builder = ChunkBuilder.make[B]()
+      builder.sizeHint(len)
+
+      var i = 0
+      while (i < len) {
+        builder += f(self(i))
+        i += 1
+      }
+
+      builder.result()
+    }
     def nextAt(index: Int): Int =
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Int] =
@@ -2577,6 +2616,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       index < length
     override def long(index: Int)(implicit ev: Long <:< Long): Long =
       array(index + offset)
+    override protected def mapChunk[B](f: Long => B): Chunk[B] = {
+      val len     = self.length
+      val builder = ChunkBuilder.make[B]()
+      builder.sizeHint(len)
+
+      var i = 0
+      while (i < len) {
+        builder += f(self(i))
+        i += 1
+      }
+
+      builder.result()
+    }
     def nextAt(index: Int): Long =
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Long] =
@@ -2625,6 +2677,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
     def hasNextAt(index: Int): Boolean =
       index < length
+    override protected def mapChunk[B](f: Double => B): Chunk[B] = {
+      val len     = self.length
+      val builder = ChunkBuilder.make[B]()
+      builder.sizeHint(len)
+
+      var i = 0
+      while (i < len) {
+        builder += f(self(i))
+        i += 1
+      }
+
+      builder.result()
+    }
     def nextAt(index: Int): Double =
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Double] =
@@ -2673,6 +2738,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       array(index + offset)
     def hasNextAt(index: Int): Boolean =
       index < length
+    override protected def mapChunk[B](f: Float => B): Chunk[B] = {
+      val len     = self.length
+      val builder = ChunkBuilder.make[B]()
+      builder.sizeHint(len)
+
+      var i = 0
+      while (i < len) {
+        builder += f(self(i))
+        i += 1
+      }
+
+      builder.result()
+    }
     def nextAt(index: Int): Float =
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Float] =
@@ -2719,6 +2797,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
     def hasNextAt(index: Int): Boolean =
       index < length
+    override protected def mapChunk[B](f: Short => B): Chunk[B] = {
+      val len     = self.length
+      val builder = ChunkBuilder.make[B]()
+      builder.sizeHint(len)
+
+      var i = 0
+      while (i < len) {
+        builder += f(self(i))
+        i += 1
+      }
+
+      builder.result()
+    }
     def nextAt(index: Int): Short =
       array(index + offset)
     override def short(index: Int)(implicit ev: Short <:< Short): Short =
@@ -2769,6 +2860,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
     def hasNextAt(index: Int): Boolean =
       index < length
+    override protected def mapChunk[B](f: Boolean => B): Chunk[B] = {
+      val len     = self.length
+      val builder = ChunkBuilder.make[B]()
+      builder.sizeHint(len)
+
+      var i = 0
+      while (i < len) {
+        builder += f(self(i))
+        i += 1
+      }
+
+      builder.result()
+    }
     def nextAt(index: Int): Boolean =
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Boolean] =
