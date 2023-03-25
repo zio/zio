@@ -1618,7 +1618,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that sums incoming numeric values.
    */
   def sum[A](implicit A: Numeric[A], trace: Trace): ZSink[Any, Nothing, A, Nothing, A] =
-    foldLeftChunks(A.zero)((acc, chunk) => A.plus(acc, chunk.foldLeft(A.zero)(A.plus)))
+    foldLeftChunks(A.zero)((acc, chunk) => A.plus(acc, chunk.sum))
 
   /**
    * Tags each metric in this sink with the specific tag.
