@@ -1299,34 +1299,78 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def groupAdjacentBy[In, Key](
     f: In => Key
   )(implicit trace: Trace): ZPipeline[Any, Nothing, In, (Key, NonEmptyChunk[In])] = {
-    type Out = (Key, NonEmptyChunk[In])
-    def go(in: Chunk[In], state: Option[Out]): (Chunk[Out], Option[Out]) =
-      in.foldLeft[(Chunk[Out], Option[Out])]((Chunk.empty, state)) {
-        case ((os, None), a) =>
-          (os, Some((f(a), NonEmptyChunk(a))))
-        case ((os, Some(agg @ (k, aggregated))), a) =>
-          val k2 = f(a)
-          if (k == k2)
-            (os, Some((k, aggregated :+ a)))
-          else
-            (os :+ agg, Some((k2, NonEmptyChunk(a))))
+
+    def groupAdjacentByChunk(
+      state: Option[(Key, NonEmptyChunk[In])],
+      chunk: Chunk[In]
+    ): (Option[(Key, NonEmptyChunk[In])], Chunk[(Key, NonEmptyChunk[In])]) =
+      if (chunk.isEmpty) (state, Chunk.empty)
+      else {
+        val chunkBuilder  = ChunkBuilder.make[(Key, NonEmptyChunk[In])]()
+        val chunkIterator = chunk.chunkIterator
+        var from          = 0
+        var until         = 0
+        var key           = null.asInstanceOf[Key]
+        var previousChunk = Chunk.empty[In]
+        state match {
+          case Some((previousKey, nonEmptyChunk)) =>
+            key = previousKey
+            var loop = true
+            while (chunkIterator.hasNextAt(until) && loop) {
+              val in         = chunkIterator.nextAt(until)
+              val updatedKey = f(in)
+              if (key != updatedKey) {
+                chunkBuilder += ((key, nonEmptyChunk ++ NonEmptyChunk.nonEmpty(chunk.slice(from, until))))
+                key = updatedKey
+                from = until
+                loop = false
+              }
+              until += 1
+            }
+            if (loop) {
+              previousChunk = nonEmptyChunk.toChunk
+            }
+          case None =>
+            key = f(chunkIterator.nextAt(until))
+            until += 1
+        }
+        while (chunkIterator.hasNextAt(until)) {
+          val in         = chunkIterator.nextAt(until)
+          val updatedKey = f(in)
+          if (key != updatedKey) {
+            chunkBuilder += key -> NonEmptyChunk.nonEmpty(chunk.slice(from, until))
+            key = updatedKey
+            from = until
+          }
+          until += 1
+        }
+        val nonEmptyChunk = previousChunk ++ NonEmptyChunk.nonEmpty(chunk.slice(from, until))
+        val out           = chunkBuilder.result()
+        (Some((key, nonEmptyChunk)), out)
       }
 
-    def chunkAdjacent(buffer: Option[Out]): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[Out], Any] =
+    def groupAdjacentBy(
+      state: Option[(Key, NonEmptyChunk[In])]
+    ): ZChannel[Any, ZNothing, Chunk[In], Any, ZNothing, Chunk[(Key, NonEmptyChunk[In])], Any] =
       ZChannel.readWithCause(
-        in = chunk => {
-          val (outputs, newBuffer) = go(chunk, buffer)
-          ZChannel.write(outputs) *> chunkAdjacent(newBuffer)
+        in => {
+          val (updatedState, out) = groupAdjacentByChunk(state, in)
+          if (out.isEmpty) groupAdjacentBy(updatedState)
+          else ZChannel.write(out) *> groupAdjacentBy(updatedState)
         },
-        halt = ZChannel.failCause(_),
-        done = _ =>
-          buffer match {
-            case Some(o) => ZChannel.write(Chunk.single(o))
-            case None    => ZChannel.unit
+        err =>
+          state match {
+            case Some(out) => ZChannel.write(Chunk.single(out)) *> ZChannel.failCause(err)
+            case None      => ZChannel.failCause(err)
+          },
+        done =>
+          state match {
+            case Some(out) => ZChannel.write(Chunk.single(out)) *> ZChannel.succeedNow(done)
+            case None      => ZChannel.succeedNow(done)
           }
       )
 
-    new ZPipeline(chunkAdjacent(None))
+    ZPipeline.fromChannel(groupAdjacentBy(None))
   }
 
   def grouped[In](chunkSize: => Int)(implicit trace: Trace): ZPipeline[Any, Nothing, In, Chunk[In]] =
