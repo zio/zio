@@ -529,7 +529,7 @@ object FiberRef {
     FiberRef.unsafe.makeSupervisor(Runtime.defaultSupervisor)(Unsafe.unsafe)
 
   private[zio] val unhandledErrorLogLevel: FiberRef[Option[LogLevel]] =
-    FiberRef.unsafe.make[Option[LogLevel]](Some(LogLevel.Debug), identity(_), (_, child) => child)(Unsafe.unsafe)
+    FiberRef.unsafe.make[Option[LogLevel]](Some(LogLevel.Error), identity(_), (_, child) => child)(Unsafe.unsafe)
 
   private def makeWith[Value, Patch](
     ref: => FiberRef.WithPatch[Value, Patch]
