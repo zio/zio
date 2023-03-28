@@ -338,7 +338,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
         case _ =>
           stack match {
             case hd :: tl => loop(hd, tl)
-            case Nil          => true
+            case Nil      => true
           }
       }
     (self eq Empty) || loop(self, Nil)
