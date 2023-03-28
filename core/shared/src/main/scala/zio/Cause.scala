@@ -251,7 +251,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   /**
    * Folds over the cause to statefully compute a value.
    */
-  final def foldLeft[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z = {
+  final def foldLeft[@specialized(Boolean) Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z = {
     @tailrec
     def loop(z: Z, cause: Cause[E], stack: List[Cause[E]]): Z =
       (f.applyOrElse[(Z, Cause[E]), Z](z -> cause, _ => z), cause) match {
