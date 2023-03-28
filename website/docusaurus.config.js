@@ -88,7 +88,7 @@ const config = {
           ],
         },
         {
-          title: 'Chat with us on Discord',
+          title: 'Discord',
           items: [
             {
               html: `
@@ -100,7 +100,17 @@ const config = {
           ],
         },
         {
-          title: 'Follow us on Twitter',
+          title: 'ZIO Newsletter',
+          items: [
+            {
+              html: `
+                <a href="https://ziverge.us12.list-manage.com/subscribe?u=bac34bb9e79745552c9a22089&id=beb6f5996c" target="_blank" style="background-color:#e73c00;color:#fff;display:inline-block;font-size:14px;font-weight:bold;line-height:30px;text-align:center;text-decoration:none;width:100px;-webkit-text-size-adjust:none;border-radius: 10px; -moz-border-radius: 10px; -webkit-border-radius: 10px;">Subscribe</a>
+              `
+            }
+          ],
+        },
+        {
+          title: 'Twitter',
           items: [
             {
               html: `
