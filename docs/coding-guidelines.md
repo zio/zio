@@ -1,6 +1,7 @@
 ---
 id: coding-guidelines
-title:  "ZIO Coding Guidelines"
+slug: coding-guidelines
+title: "Coding Guidelines"
 ---
 
 These are coding guidelines strictly for ZIO contributors for ZIO projects and 

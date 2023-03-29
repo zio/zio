@@ -1,5 +1,6 @@
 ---
 id: faq
+slug: faq
 title: "Frequently Answered Questions (FAQ)"
 sidebar_label: "FAQ"
 ---
@@ -13,7 +14,7 @@ In this page we are going to answer general questions related to the ZIO project
 3. Should we keep writing our effects with explicit params as `def someEffect(c: CorrelationId, u: UserId, params...): ZIO[Any, ErrorType, A]`?
 4. Should we put these context parameters as implicits, like `def someEffect(params..)(implicit c: CorrelationId, u: UserId): ZIO[Any, ErrorType, A]`?
 
-Before answering these question, make sure you have read the [ZIO Environment Use-cases](../reference/contextual/index.md) section.
+Before answering these question, make sure you have read the [ZIO Environment Use-cases](reference/contextual/index.md) section.
 
 Now, let's go into this in a little more detail. We have some workflow, `someEffect` that conceptually requires both a `CorrelationId` and a `UserId` to be run. Let's consider any of these solutions in turn.
 
