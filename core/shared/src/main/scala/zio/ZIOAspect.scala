@@ -130,6 +130,18 @@ object ZIOAspect {
     }
 
   /**
+   * An aspect that nests all configuration loaded by this workflow under the
+   * specified name.
+   */
+  def nested(name: String): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+        ZIO.configProviderWith { configProvider =>
+          ZIO.withConfigProvider(configProvider.nested(name))(zio)
+        }
+    }
+
+  /**
    * As aspect that runs effects on the specified `ExecutionContext`.
    */
   def onExecutionContext(ec: ExecutionContext): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
