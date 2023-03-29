@@ -530,7 +530,7 @@ object ConfigProvider {
                     case Some(config) => loop(prefix, config, split)
                     case None =>
                       ZIO.fail(
-                        Config.Error.MissingData(prefix, s"The input $a in a flatmap at path $prefix was not handled")
+                        Config.Error.MissingData(prefix, s"The case ${a} in a switch at path ${prefix} was missing")
                       )
                   }
                 }
