@@ -491,6 +491,21 @@ object ConfigProvider {
 
           case Described(config, _) => loop(prefix, config, split)
 
+          case FlatMap(config, f) =>
+            loop(prefix, config, split).flatMap { as =>
+              ZIO
+                .foreach(as) { a =>
+                  f.get(a) match {
+                    case Some(config) => loop(prefix, config, split)
+                    case None =>
+                      ZIO.fail(
+                        Config.Error.MissingData(prefix, s"The input $a in a flatmap at path $prefix was not handled")
+                      )
+                  }
+                }
+                .map(_.flatten)
+            }
+
           case Lazy(thunk) => loop(prefix, thunk(), split)
 
           case MapOrFail(original, f) =>

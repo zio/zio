@@ -431,6 +431,22 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value")
       } +
+      test("flatMap") {
+        sealed trait Animal
+        final case class Cat(name: String) extends Animal
+        final case class Dog(name: String) extends Animal
+        val configProvider = ConfigProvider.fromMap(Map("animalType" -> "cat", "name" -> "Baxter"))
+        val animalType     = Config.string("animalType")
+        val cat            = Config.string("name").map(Cat(_))
+        val dog            = Config.string("name").map(Dog(_))
+        val animal = animalType.flatMap(
+          "cat" -> cat,
+          "dog" -> dog
+        )
+        for {
+          result <- configProvider.load(animal)
+        } yield assertTrue(result == Cat("Baxter"))
+      } +
       test("indexed sequence simple") {
         val configProvider = ConfigProvider.fromMap(Map("id[0]" -> "1", "id[1]" -> "2", "id[2]" -> "3"))
         val config         = Config.listOf("id", Config.int)
