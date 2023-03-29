@@ -581,15 +581,5 @@ module.exports = {
     "resources/cheatsheets",
     "resources/sampleprojects",
     "resources/poweredbyzio"
-  ],
-  "about-sidebar":
-    [
-      "about/index",
-      "about/faq",
-      "about/coding-guidelines",
-      "about/contributing",
-      "about/contributing-to-documentation",
-      "about/code-of-conduct",
-      "about/users",
-    ]
+  ]
 }

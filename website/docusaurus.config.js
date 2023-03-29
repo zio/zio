@@ -55,7 +55,6 @@ const config = {
         { type: 'doc', docId: 'ecosystem/index', label: 'Ecosystem', position: 'left' },
         { type: 'doc', docId: 'resources/index', label: 'Resources', position: 'left' },
         { type: 'doc', docId: 'events/index', label: 'Events', position: 'left' },
-        { type: 'doc', docId: 'about/index', label: 'About', position: 'right' },
         { to: 'blog', label: 'Blog', position: 'right' },
         {
           type: 'docsVersionDropdown',
@@ -67,35 +66,40 @@ const config = {
     footer: {
       style: 'dark',     links: [
         {
+          title: 'Learn!',
           items: [
             {
-              html: `
-                <img src="/img/navbar_brand.png" alt="zio" />
-            `
+              label: 'Getting Started!',
+              href: '/overview/getting-started'
+            },
+            {
+              label: 'Reference',
+              href: '/reference'
+            },
+            {
+              label: 'Guides',
+              href: '/guides'
+            },
+            {
+              label: 'Scaladoc of ZIO',
+              href: 'https://javadoc.io/doc/dev.zio/zio_3/latest/index.html'
             }
           ],
         },
         {
-          title: 'Github',
+          title: 'Community and Social',
           items: [
             {
-              html: `
-              <a href="https://github.com/zio/zio">
-                <img src="https://img.shields.io/github/stars/zio/zio?style=social" alt="github" />
-              </a>
-            `
-            }
-          ],
-        },
-        {
-          title: 'Discord',
-          items: [
+              label: 'Github',
+              href: 'https://github.com/zio/zio'
+            },
             {
-              html: `
-                <a href="https://discord.gg/2ccFBr4">
-                  <img src="https://img.shields.io/discord/629491597070827530?logo=discord&style=social" alt="discord"/>
-                </a>
-              `
+              label: 'Discord',
+              href: 'https://discord.gg/2ccFBr4'
+            },
+            {
+              label: 'Twitter',
+              href: "https://twitter.com/zioscala"
             }
           ],
         },
@@ -110,23 +114,40 @@ const config = {
           ],
         },
         {
-          title: 'Twitter',
+          title: 'Contribution',
           items: [
             {
-              html: `
-                <a href="https://twitter.com/zioscala">
-                  <img src="https://img.shields.io/twitter/follow/zioscala?label=Follow&style=social" alt="twitter"/>
-                </a>
-              `
-            }
+              label: 'Contributor Guidelines',
+              href: '/contributor-guidelines'
+            },
+            {
+              label: 'Contributing to The ZIO Documentation',
+              href: '/contributing-to-the-documentation'
+            },
+            {
+              label: 'Coding Guidelines',
+              href: '/coding-guidelines'
+            },
           ],
         },
         {
-          title: 'Additional resources',
+          title: 'More',
           items: [
             {
-              label: 'Scaladoc of ZIO',
-              href: 'https://javadoc.io/doc/dev.zio/zio_2.12/'
+              label: 'Blog',
+              href: "/blog"
+            },
+            {
+              label: 'FAQ',
+              href: '/faq'
+            },
+            {
+              label: 'Adopters',
+              href: '/adopters'
+            },
+            {
+              label: 'Code of Conduct',
+              href: '/code-of-conduct'
             }
           ],
         },

@@ -1,6 +1,7 @@
 ---
-id: contributing
-title: "ZIO Contributor Guidelines"
+id: contributor-guidelines
+slug: contributor-guidelines
+title: "Contributor Guidelines"
 ---
 
 Thank you for your interest in contributing to ZIO, which is a small, zero-dependency library for doing type-safe, composable concurrent and asynchronous programming!

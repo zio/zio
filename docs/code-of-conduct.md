@@ -1,6 +1,7 @@
 ---
 id: code-of-conduct
-title: "ZIO Code of Conduct"
+slug: code-of-conduct
+title: "Code of Conduct"
 ---
 
 We are committed to providing a friendly, safe and welcoming
