@@ -431,7 +431,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value")
       } +
-      test("flatMap") {
+      test("switch") {
         sealed trait Animal
         final case class Cat(name: String) extends Animal
         final case class Dog(name: String) extends Animal
@@ -439,7 +439,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val animalType     = Config.string("animalType")
         val cat            = Config.string("name").map(Cat(_))
         val dog            = Config.string("name").map(Dog(_))
-        val animal = animalType.flatMap(
+        val animal = animalType.switch(
           "cat" -> cat,
           "dog" -> dog
         )

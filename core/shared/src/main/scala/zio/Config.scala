@@ -100,6 +100,13 @@ sealed trait Config[+A] { self =>
   def repeat: Config[Chunk[A]] = Config.Sequence(self)
 
   /**
+   * Returns a new configuration which reads from this configuration and uses
+   * the resulting value to determine the configuration to read from.
+   */
+  def switch[A1 >: A, B](f: (A1, Config[B])*): Config[B] =
+    Config.Switch(self, f.toMap)
+
+  /**
    * Returns a new config that describes the same structure as this one, but
    * which performs validation during loading.
    */
@@ -126,13 +133,6 @@ sealed trait Config[+A] { self =>
    * A named version of `++`.
    */
   def zip[B](that: => Config[B])(implicit z: Zippable[A, B]): Config[z.Out] = self ++ that
-
-  /**
-   * Returns a new configuration which reads from this configuration and uses
-   * the resulting value to determine the configuration to read from.
-   */
-  def flatMap[A1 >: A, B](f: (A1, Config[B])*): Config[B] =
-    Config.FlatMap(self, f.toMap)
 }
 object Config {
   final class Secret private (private val raw: Array[Char]) { self =>
@@ -270,9 +270,8 @@ object Config {
       case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected an integer value, but found ${text}"))
     }
   }
-  final case class Described[A](config: Config[A], description: String)   extends Composite[A]
-  final case class FlatMap[A, B](config: Config[A], f: Map[A, Config[B]]) extends Composite[B]
-  final case class Lazy[A](thunk: () => Config[A])                        extends Composite[A]
+  final case class Described[A](config: Config[A], description: String) extends Composite[A]
+  final case class Lazy[A](thunk: () => Config[A])                      extends Composite[A]
   case object LocalDateTime extends Primitive[java.time.LocalDateTime] {
     final def parse(text: String): Either[Config.Error, java.time.LocalDateTime] = try Right(
       java.time.LocalDateTime.parse(text)
@@ -314,8 +313,9 @@ object Config {
       Secret(text)
     )
   }
-  final case class Sequence[A](config: Config[A])   extends Composite[Chunk[A]]
-  final case class Table[V](valueConfig: Config[V]) extends Composite[Map[String, V]]
+  final case class Sequence[A](config: Config[A])                          extends Composite[Chunk[A]]
+  final case class Switch[A, B](config: Config[A], map: Map[A, Config[B]]) extends Composite[B]
+  final case class Table[V](valueConfig: Config[V])                        extends Composite[Map[String, V]]
   case object Text extends Primitive[String] {
     final def parse(text: String): Either[Config.Error, String] = Right(text)
   }
