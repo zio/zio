@@ -325,13 +325,24 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   /**
    * Determines if the `Cause` is empty.
    */
-  final def isEmpty: Boolean =
-    (self eq Empty) || foldLeft(true) {
-      case (acc, _: Empty.type) => acc
-      case (_, Die(_, _))       => false
-      case (_, Fail(_, _))      => false
-      case (_, Interrupt(_, _)) => false
-    }
+  final def isEmpty: Boolean = {
+    @tailrec
+    def loop(cause: Cause[E], stack: List[Cause[E]]): Boolean =
+      cause match {
+        case Fail(value, trace)        => false
+        case Die(value, trace)         => false
+        case Interrupt(fiberId, trace) => false
+        case Then(left, right)         => loop(left, right :: stack)
+        case Both(left, right)         => loop(left, right :: stack)
+        case Stackless(cause, _)       => loop(cause, stack)
+        case _ =>
+          stack match {
+            case hd :: tl => loop(hd, tl)
+            case Nil      => true
+          }
+      }
+    (self eq Empty) || loop(self, Nil)
+  }
 
   final def isFailure: Boolean =
     failureOption.isDefined
