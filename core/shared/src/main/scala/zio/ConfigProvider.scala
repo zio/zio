@@ -522,6 +522,21 @@ object ConfigProvider {
           case Nested(name, config) =>
             loop(prefix ++ Chunk(name), config, split)
 
+          case Switch(config, map) =>
+            loop(prefix, config, split).flatMap { as =>
+              ZIO
+                .foreach(as) { a =>
+                  map.get(a) match {
+                    case Some(config) => loop(prefix, config, split)
+                    case None =>
+                      ZIO.fail(
+                        Config.Error.MissingData(prefix, s"The input $a in a flatmap at path $prefix was not handled")
+                      )
+                  }
+                }
+                .map(_.flatten)
+            }
+
           case table: Table[valueType] =>
             import table.valueConfig
             for {

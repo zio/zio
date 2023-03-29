@@ -100,6 +100,13 @@ sealed trait Config[+A] { self =>
   def repeat: Config[Chunk[A]] = Config.Sequence(self)
 
   /**
+   * Returns a new configuration which reads from this configuration and uses
+   * the resulting value to determine the configuration to read from.
+   */
+  def switch[A1 >: A, B](f: (A1, Config[B])*): Config[B] =
+    Config.Switch(self, f.toMap)
+
+  /**
    * Returns a new config that describes the same structure as this one, but
    * which performs validation during loading.
    */
@@ -306,8 +313,9 @@ object Config {
       Secret(text)
     )
   }
-  final case class Sequence[A](config: Config[A])   extends Composite[Chunk[A]]
-  final case class Table[V](valueConfig: Config[V]) extends Composite[Map[String, V]]
+  final case class Sequence[A](config: Config[A])                          extends Composite[Chunk[A]]
+  final case class Switch[A, B](config: Config[A], map: Map[A, Config[B]]) extends Composite[B]
+  final case class Table[V](valueConfig: Config[V])                        extends Composite[Map[String, V]]
   case object Text extends Primitive[String] {
     final def parse(text: String): Either[Config.Error, String] = Right(text)
   }
