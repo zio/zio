@@ -325,6 +325,13 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result2 <- configProvider2.load(config2)
         } yield assertTrue(result1 == "value") && assertTrue(result2 == "value")
       } +
+      test("nested with variable arguments") {
+        val configProvider = ConfigProvider.fromMap(Map("parent.child.key" -> "value"))
+        val config         = Config.string.nested("parent", "child", "key")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
+      } +
       test("orElse") {
         for {
           _      <- TestSystem.putProperty("key", "value")
