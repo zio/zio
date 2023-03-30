@@ -533,7 +533,7 @@ object Metric {
     name: String,
     chronoUnit: ChronoUnit
   ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] = {
-    val boundaries = Histogram.Boundaries.exponential(1.0, 2.0, 100)
+    val boundaries = Histogram.Boundaries.exponential(1.0, 2.0, 64)
     val base       = histogram(name, boundaries).tagged(MetricLabel("time_unit", chronoUnit.toString.toLowerCase()))
 
     base.contramap[Duration] { (duration: Duration) =>
