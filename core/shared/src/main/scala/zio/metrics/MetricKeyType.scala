@@ -73,7 +73,7 @@ object MetricKeyType {
        * with exponentially increasing values
        */
       def exponential(start: Double, factor: Double, count: Int): Boundaries =
-        fromChunk(Chunk.fromArray(0.until(count).map(i => start * Math.pow(factor, i.toDouble)).toArray))
+        fromChunk(Chunk.iterate(start, count)(_ * factor))
     }
   }
 
