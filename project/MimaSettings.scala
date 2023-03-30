@@ -20,6 +20,7 @@ object MimaSettings {
         exclude[DirectMissingMethodProblem]("zio.Config#*"),
         exclude[DirectMissingMethodProblem]("zio.Config.*"),
         exclude[MissingTypesProblem]("zio.Config$Secret$"),
+        exclude[IncompatibleResultTypeProblem]("zio.Chunk.iterate"),
         exclude[Problem]("zio.stm.ZSTM#internal*"),
         exclude[Problem]("zio.stm.ZSTM$internal*"),
         exclude[Problem]("zio.stream.internal*"),
