@@ -226,6 +226,14 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(actual)(equalTo(expected))
       }
     },
+    test("iterate") {
+      val smallInt = Gen.int(-10, 10)
+      check(smallInt, smallInt, Gen.function(Gen.int)) { (start, len, f) =>
+        val actual   = Chunk.iterate(start, len)(f)
+        val expected = Chunk.fromArray(Array.iterate(start, len)(f))
+        assert(actual)(equalTo(expected))
+      }
+    },
     test("splitWhere") {
       assert(Chunk(1, 2, 3, 4).splitWhere(_ == 2))(equalTo((Chunk(1), Chunk(2, 3, 4))))
     },
