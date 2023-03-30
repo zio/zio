@@ -133,6 +133,14 @@ sealed trait Config[+A] { self =>
    * A named version of `++`.
    */
   def zip[B](that: => Config[B])(implicit z: Zippable[A, B]): Config[z.Out] = self ++ that
+
+  /**
+   * Returns a new configuration that is the composition of this configuration
+   * and the specified configuration, combining their values using the function
+   * `f`.
+   */
+  def zipWith[B, C](that: => Config[B])(f: (A, B) => C): Config[C] =
+    self.zip(that).map(f.tupled)
 }
 object Config {
   final class Secret private (private val raw: Array[Char]) { self =>
