@@ -24,7 +24,25 @@ The ZIO Metrics API also allows summaries to be configured with an error margin 
 
 ## API
 
-TODO
+```scala
+object Metric {
+  def summary(
+    name: String,
+    maxAge: Duration,
+    maxSize: Int,
+    error: Double,
+    quantiles: Chunk[Double]
+  ): Summary[Double] = ???
+             
+  def summaryInstant(
+    name: String,
+    maxAge: Duration,
+    maxSize: Int,
+    error: Double,
+    quantiles: Chunk[Double]
+  ): Summary[(Double, java.time.Instant)] =
+}
+```
 
 ## Use Cases
 
@@ -37,12 +55,23 @@ Like [histograms](histogram.md), summaries are used for _monitoring latencies_, 
 
 Create a summary that can hold `100` samples, the max age of the samples is `1 day` and the error margin is `3%`. The summary should report the `10%`, `50%` and `90%` Quantile. It can be applied to effects yielding an `Int`:
 
-```scala
-TODO
-```
+```scala mdoc:silent:nest
+import zio._
+import zio.metrics._
+import zio.metrics.Metric.Summary
+
+val summary: Summary[Double] =
+  Metric.summary(
+    name = "mySummary", 
+    maxAge = 1.day,
+    maxSize = 100,
+    error = 0.03d, 
+    quantiles = Chunk(0.1, 0.5, 0.9)
+  )
+``` 
 
 Now we can apply this aspect to an effect producing an `Int`:
 
-```scala
-TODO
+```scala mdoc:silent:nest
+Random.nextDoubleBetween(100, 500) @@ summary
 ```

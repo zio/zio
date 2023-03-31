@@ -11,7 +11,11 @@ A gauge is a named variable of type _Double_ that can change over time. It can e
 
 ## API
 
-TODO
+```scala
+object Metric {
+  def gauge(name: String): Gauge[Double] = ???
+}
+```
 
 ## Use Case
 

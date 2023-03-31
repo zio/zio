@@ -1,5 +1,5 @@
 ---
-id: setcount
+id: frequency 
 title: "Frequency"
 ---
 
@@ -9,7 +9,9 @@ Essentially, a `Frequency` is a set of related counters sharing the same name an
 
 ## API
 
-TODO
+object Metric {
+  def frequency(name: String): Frequency[String] = ???
+}
 
 ## Use Cases
 
@@ -21,12 +23,13 @@ Sets are used to count the occurrences of distinct string values:
 
 Create a `Frequency` to observe the occurrences of unique `Strings`. It can be applied to effects yielding a `String`:
 
-```scala
-TODO
+```scala mdoc:silent:nest
+import zio._
+val freq = Metric.frequency("MySet", "token")
 ```
 
 Now we can generate some keys within an effect and start counting the occurrences for each value:
 
-```scala
-TODO
+```scala mdoc:silent:nest
+(Random.nextIntBounded(10).map(v => s"MyKey-$v") @@ freq).repeatN(100)
 ```
