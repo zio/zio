@@ -24,9 +24,9 @@ Sets are used to count the occurrences of distinct string values:
 Create a `Frequency` to observe the occurrences of unique `Strings`. It can be applied to effects yielding a `String`:
 
 ```scala mdoc:silent:nest
-import zio.metric._
+import zio.metrics._
 
-val freq = Metric.frequency("MySet", "token")
+val freq = Metric.frequency("MySet")
 ```
 
 Now we can generate some keys within an effect and start counting the occurrences for each value:
