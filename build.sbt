@@ -771,6 +771,31 @@ lazy val scalafixTests = project
   .dependsOn(scalafixRules)
   .enablePlugins(ScalafixTestkitPlugin)
 
+lazy val docs_make_zio_app_configurable =
+  project
+    .in(file("documentation/guides/tutorials/make-a-zio-app-configurable"))
+    .settings(mdocSettings("docs", "website/docs/guides/tutorials/"))
+    .settings(
+      fork           := true,
+      publish / skip := true,
+      scalaVersion   := Scala213,
+      unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
+      scalacOptions -= "-Yno-imports",
+      scalacOptions -= "-Xfatal-warnings",
+      scalacOptions += "-Wconf:any:s",
+      Compile / fork := false,
+      scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
+      scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
+      crossScalaVersions --= List(Scala212, Scala3),
+      libraryDependencies ++= Seq(
+        "dev.zio" %% "zio-http"            % "0.0.5",
+        "dev.zio" %% "zio-config"          % "4.0.0-RC14",
+        "dev.zio" %% "zio-config-typesafe" % "4.0.0-RC14",
+        "dev.zio" %% "zio-config-magnolia" % "4.0.0-RC14"
+      )
+    )
+    .enablePlugins(MdocPlugin)
+
 lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
@@ -899,3 +924,4 @@ lazy val docs = project.module
     core.js
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
+  .aggregate(docs_make_zio_app_configurable)
