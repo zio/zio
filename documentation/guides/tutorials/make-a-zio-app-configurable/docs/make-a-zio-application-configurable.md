@@ -59,9 +59,7 @@ object HttpServerConfig {
 
 ## Step 3: Accessing Configuration Data using `ZIO.config`
 
-Now that we have defined our configuration data type, we can start developing our application and access the configuration from the environment.
-
-We can use the `ZIO.config[HttpServerConfig]` method to access the configuration from the environment:
+By utilizing the `ZIO.config[HttpServerConfig]` function, we can obtain access to the configuration information that has been read by the current `ConfigProvider`:
 
 ```scala mdoc:compile-only
 import zio._
@@ -71,7 +69,7 @@ ZIO.config[HttpServerConfig](HttpServerConfig.config).flatMap { config =>
 }
 ```
 
-The above code is a ZIO workflow that will access the `HttpServerConfig` configuration from the environment and then by using flatMap, we can do something with it, for example, we can print it:
+The above code is a ZIO effect that will access the `HttpServerConfig` configuration data and then by using flatMap, we can do something with it, for example, we can print it:
 
 ```scala mdoc:compile-only
 import zio._
@@ -220,7 +218,7 @@ object MainApp extends ZIOAppDefault {
 
 Until now, we made our RESTful web service configurable to be able to use its config from the ZIO environment with a simple configuration layer.
 
-Now let's move on to the next step: reading configuration data from HOCON files.
+Now let's move on to the next step: reading configuration data from HOCON files by utilizing custom `ConfigProvider`s.
 
 ## Step 3: Reading Configuration Data From HOCON Files
 
