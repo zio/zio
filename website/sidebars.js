@@ -377,7 +377,7 @@ module.exports = {
                 "reference/observability/metrics/gauge",
                 "reference/observability/metrics/histogram",
                 "reference/observability/metrics/summary",
-                "reference/observability/metrics/setcount"
+                "reference/observability/metrics/frequency"
               ]
             },
             "reference/observability/metrics/metriclabel",
