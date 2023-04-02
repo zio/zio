@@ -771,6 +771,10 @@ lazy val scalafixTests = project
   .dependsOn(scalafixRules)
   .enablePlugins(ScalafixTestkitPlugin)
 
+lazy val docs_make_zio_app_configurable =
+  project
+    .in(file("documentation/guides/tutorials/make-a-zio-app-configurable"))
+
 lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
@@ -899,3 +903,4 @@ lazy val docs = project.module
     core.js
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
+  .aggregate(docs_make_zio_app_configurable)

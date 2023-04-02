@@ -1,13 +1,14 @@
 import explicitdeps.ExplicitDepsPlugin.autoImport._
+import mdoc.MdocPlugin.autoImport.{mdocIn, mdocOut}
 import sbt.Keys._
 import sbt._
 import sbtbuildinfo.BuildInfoKeys._
 import sbtbuildinfo._
 import sbtcrossproject.CrossPlugin.autoImport._
-import scalajscrossproject._
-import scala.jdk.CollectionConverters._
 
+import scala.jdk.CollectionConverters._
 import org.snakeyaml.engine.v2.api.{Load, LoadSettings}
+
 object BuildHelper {
   private val versions: Map[String, String] = {
 
@@ -273,6 +274,11 @@ object BuildHelper {
         |${subItem("coreTestsJVM/testOnly *.ZIOSpec -- -t \"happy-path\"")}
       """.stripMargin
   }
+
+  def mdocSettings(docsDir: String, outDir: String) = Seq[sbt.Def.Setting[_]](
+    mdocIn  := baseDirectory.value / docsDir,
+    mdocOut := (LocalRootProject / baseDirectory).value / outDir
+  )
 
   implicit class ModuleHelper(p: Project) {
     def module: Project = p.in(file(p.id)).settings(stdSettings(p.id))
