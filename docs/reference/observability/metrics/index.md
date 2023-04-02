@@ -17,24 +17,69 @@ ZIO supports 5 types of Metrics:
 
 All ZIO Metrics are defined in the form of ZIO Aspects that can be applied to effects without changing the signature of the effect it is applied to:
 
-```scala
-TODO
+```scala mdoc:silent:nest
+import zio._
+import zio.metrics._
+
+def memoryUsage: ZIO[Any, Nothing, Double] = {
+  import java.lang.Runtime._
+  ZIO
+    .succeed(getRuntime.totalMemory() - getRuntime.freeMemory())
+    .map(_ / (1024.0 * 1024.0)) @@ Metric.gauge("memory_usage")
+}
 ```
 
-After adding metrics into our application, whenever we want we can capture snapshot of all metrics recorded by our application:
+After adding metrics into our application, whenever we want we can capture snapshot of all metrics recorded by our application, by any of metric backends supported by [ZIO Metrics Connectors](https://github.com/zio/zio-metrics-connectors) project.
 
-```scala
-TODO
+Here is an example of adding prometheus connector to our application:
+
+```scala mdoc:compile-only
+import zio._
+import zio.metrics.Metric
+
+import zio.http._
+import zio.http.model.Method
+import zio.metrics.connectors.prometheus.PrometheusPublisher
+import zio.metrics.connectors.{MetricsConfig, prometheus}
+
+object SampleMetricApp extends ZIOAppDefault {
+  
+  def memoryUsage: ZIO[Any, Nothing, Double] = {
+    import java.lang.Runtime._
+    ZIO
+      .succeed(getRuntime.totalMemory() - getRuntime.freeMemory())
+      .map(_ / (1024.0 * 1024.0)) @@ Metric.gauge("memory_usage")
+  }
+
+  private val httpApp =
+    Http
+      .collectZIO[Request] {
+        case Method.GET -> !! / "metrics" =>
+          ZIO.serviceWithZIO[PrometheusPublisher](_.get.map(Response.text))
+        case Method.GET -> !! / "foo" =>
+          for {
+            _ <- memoryUsage
+            time <- Clock.currentDateTime
+          } yield Response.text(s"$time\t/foo API called")
+      }
+
+  override def run = Server
+    .serve(httpApp)
+    .provide(
+      // ZIO Http default server layer, default port: 8080
+      Server.default,
+      // The prometheus reporting layer
+      prometheus.prometheusLayer,
+      prometheus.publisherLayer,
+      // Interval for polling metrics
+      ZLayer.succeed(MetricsConfig(5.seconds))
+    )
+}
 ```
 
-Also, a _metric service_ can implement the `MetricListener` interface:
+ZIO Metrics Connectors currently supports the following backends:
 
-```scala
-TODO
-```
-
-And then we can install that to our application which will be notified every time a metric is updated:
-
-```scala
-TODO
-```
+  -[Prometheus](https://prometheus.io/)
+  -[Datadog](https://www.datadoghq.com/)
+  -[New Relic](https://newrelic.com/)
+  -[StatsD](https://github.com/statsd/statsd)

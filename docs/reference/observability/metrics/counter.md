@@ -9,17 +9,27 @@ With a counter, the quantity of interest is the cumulative value over time, as o
 
 ## API
 
-TODO
+With one of the following constructors, we can create a counter of `Long`, `Double` or `Int` type:
+
+```scala
+object Metric {
+  def counter(name: String): Counter[Long] = ???
+  def counterDouble(name: String): Counter[Double] = ???
+  def counterInt(name: String): Counter[Int] = ???
+}
+```
 
 ## Use Cases
 
 We use the counter metric type for any value that increases, such as request counts. Note that we should never use the counter for a value that can decrease.
 
 So when we should use counters?
+
 - When we want to track a value over time, that only goes up
 - When we want to measure the increasing rate of something, how fast something is growing, such as request rates.
 
 Here are some of the use cases:
+
 - Request Counts
 - Completed Tasks
 - Error Counts
@@ -36,7 +46,7 @@ val countAll = Metric.counter("countAll").fromConst(1)
 
 Now the counter can be applied to any effect. Note, that the same aspect can be applied to more than one effect. In the example we would count the sum of executions of both effects in the for comprehension:
 
-```
+```scala
 val myApp = for {
   _ <- ZIO.unit @@ countAll
   _ <- ZIO.unit @@ countAll
