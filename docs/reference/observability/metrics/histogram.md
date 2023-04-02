@@ -52,6 +52,8 @@ Create a histogram with 12 buckets: `0..100` in steps of `10` and `Double.MaxVal
 
 ```scala mdoc:silent:nest
 import zio._
+import zio.metrics._
+
 val histogram =
   Metric.histogram("histogram", MetricKeyType.Histogram.Boundaries.linear(0, 10, 11))
 ```
@@ -59,5 +61,8 @@ val histogram =
 Now we can apply the histogram to effects producing `Double`:
 
 ```scala mdoc:silent:nest
+import zio._
+import zio.metrics._
+
 Random.nextDoubleBetween(0.0d, 120.0d) @@ histogram
 ```
