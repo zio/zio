@@ -240,9 +240,9 @@ Here are some of the most important changes:
     - The bind operator `>>=` is removed. So we just have one way to flatMap which is the `flatMap` method. Therefore, the `>>=` method doesn't surprise the non-Haskellers.
     - The `ZIO#get` method was essentially a more constrained version of `ZIO#some`. So the `get` method is deprecated.
 
-- **`ZIO.attempt` instead of `ZIO.effect`** — In ZIO 2.0 all ZIO constructors like `ZIO.effect*` that create a ZIO from a side effect are deprecated and renamed to the `ZIO.attempt*` version. For example, when we are reading from a file, it's more meaning full to say we are attempting to read from a file instead of saying we have an effect of reading from a file.
+- **`ZIO.attempt` instead of `ZIO.effect`** — In ZIO 2.0 all ZIO constructors like `ZIO.effect*` that create a ZIO from a side effect are deprecated and renamed to the `ZIO.attempt*` version. For example, when we are reading from a file, it's more meaningful to say we are attempting to read from a file instead of saying we have an effect of reading from a file.
 
-- **`ZIO` instead of the `M` suffix** — In effectful operations, the `M` suffix is renamed to the `ZIO` suffix. In ZIO 1.x, the `M` suffix in an effectful operation means that the operation works with monad in a monadic context. This naming convention is the legacy of Haskell jargon. In ZIO 2.x, all these suffixes are renamed to the `ZIO`. For example, the `ifM` operator is renamed to `ifZIO`.
+- **`ZIO` instead of the `M` suffix** — In effectful operations, the `M` suffix is renamed to the `ZIO` suffix. In ZIO 1.x, the `M` suffix in an effectful operation means that the operation works with monad in a monadic context. This naming convention is the legacy of Haskell jargon. In ZIO 2.x, all these suffixes are renamed to `ZIO`. For example, the `ifM` operator is renamed to `ifZIO`.
 
 - **`Discard` instead of the underscore `_` suffix** — The underscore suffix is another legacy naming convention from Haskell's world. In ZIO 1.x, the underscore suffix means we are going to discard the result. The underscore version works exactly like the one without the underscore, but it discards the result and returns `Unit` in the ZIO context. For example, the `collectAll_` operator renamed to `collectAllDiscard`.
 
@@ -262,7 +262,7 @@ Here are some of the most important changes:
 | `ZIO#foldTraceM`               | `ZIO#foldTraceZIO`                |
 |                                |                                   |
 | `ZIO#get`                      | `ZIO#some`                        |
-| `ZIO#optional`                 | `ZIO#unoption`                    |
+| `ZIO#optional`                 | `ZIO#unsome`                    |
 | `ZIO#someOrElseM`              | `ZIO#someOrElseZIO`               |
 |                                |                                   |
 | `ZIO.forkAll_`                 | `ZIO.forkAllDiscard`              |
@@ -646,7 +646,7 @@ ZIO.withClock(MyClockLive)(effect)
 - `Random.live`, `Random.scalaRandom`, `Random.any`
 - `System.live`, `System.any`
 
-6. In ZIO some services have an alternative implementation rather than the default one. In ZIO 1.x, the default implementation of these services was provided by the environment. So when we wanted to use the default implementation, we don't require to provide them explicitly at the end of the world. But if we wanted to use the alternative implementation, we need to provide them explicitly. For example, to use the java implementation of `Clock`, we need to provide the `Clock.javaClock` layer:
+6. In ZIO some services have an alternative implementation rather than the default one. In ZIO 1.x, the default implementation of these services was provided by the environment. So when we wanted to use the default implementation, we didn't have to provide them explicitly at the end of the world. But in case we wanted to use an alternative implementation, we had to provide them explicitly. For example, to use the java implementation of `Clock`, we had to provide the `Clock.javaClock` layer:
 
 ```scala
 import zio._
@@ -1083,7 +1083,7 @@ We moved the `Executor` from `zio.internal` to the `zio` package:
 
 ### Auto-Blocking
 
-In ZIO 1.x, we have two groups of constructors for importing _synchronous side effects_, one for importing synchronous side effects, such as `zio.effect` and the other one for importing synchronous side effects, but we know that they are blocking, such as `zio.blocking.effectBlocking`.
+In ZIO 1.x, we have two groups of constructors for importing _synchronous side effects_, one for importing synchronous side effects, such as `zio.effect` and the other one for importing synchronous side effects that are known to be blocking, such as `zio.blocking.effectBlocking`.
 
 The first one uses an asynchronous thread pool to execute side effects, while the second one uses a blocking thread pool.
 
@@ -1128,7 +1128,7 @@ object MainApp extends App {
 
 This is why we should import blocking synchronous side effects using the `zio.blocking.effectBlocking` instead of the `ZIO.effect`.
 
-In ZIO 2.x, as the same as in ZIO 1.x, we encourage separating blocking operations (I/O work operations) from the ordinary side effects (CPU work operations).
+In ZIO 2.x, the same as in ZIO 1.x, we encourage separating blocking operations (I/O work operations) from the ordinary side effects (CPU work operations).
 
 But the one thing that makes ZIO 2.x more powerful than ZIO 1.x is that if the programmer accidentally imports a blocking synchronous side effect using the `ZIO.attempt` instead of `ZIO.attemptBlocking` the runtime scheduler will automatically detect blocking workflows and shift them to the blocking executor:
 
@@ -1466,7 +1466,7 @@ val layer = ZLayer.make[DocRepo with UserRepo](
 )
 ```
 
-And also the `ZLayer.makeSome` helps us to construct a layer which requires on some service and produces some other services (`URLayer[Int, Out]`) using `ZLayer.makeSome[In, Out]`:
+And also the `ZLayer.makeSome` helps us to construct a layer which requires some service and produces some other services (`URLayer[Int, Out]`) using `ZLayer.makeSome[In, Out]`:
 
 ```scala mdoc:silent:nest
 val layer = ZLayer.makeSome[Logging, DocRepo with UserRepo](
@@ -1500,7 +1500,7 @@ val app: ZIO[Any, Nothing, Unit] =
 ```
 
 :::note
-In ZIO 2.x, the `ZIO#provide` method—together with its variant `ZIO#provideSome`—is a default and easier way of injecting dependencies to the environmental effect. We do not require creating the dependency graph manually, it will be automatically generated. In contrast, the `ZIO#provideLayer`—and its variant `ZIO#provideSomeLayer`—is useful for low-level and custom cases like.
+In ZIO 2.x, the `ZIO#provide` method — together with its variant `ZIO#provideSome` — is a default and easier way of injecting dependencies to the environmental effect. We do not have to create the dependency graph manually, it will be built automatically. In contrast, the `ZIO#provideLayer` — and its variant `ZIO#provideSomeLayer` — is useful for low-level and custom cases.
 :::
 
 ### ZLayer Debugging
@@ -1618,7 +1618,7 @@ This will print the following error message:
 [error] one error found
 ```
 
-It also warns if we provide layers more than needed:
+It also warns if we provide more layers than needed:
 
 ```scala
 import zio._
@@ -1862,13 +1862,13 @@ object BazLive {
 
 As we see, we have the following changes:
 
-1. **Deprecation of Type Alias for `Has` Wrappers** — In _Service Pattern 1.0_ although the type aliases were to prevent using `Has[ServiceName]` boilerplate everywhere, they were confusing, and led to doubly nested `Has[Has[ServiceName]]`. So the _Service Pattern 2.0_ doesn't anymore encourage using type aliases. Also, they were removed from all built-in ZIO services. So, the `type Foo = Has[Foo.Service]` removed and the `Foo.Service` will just be `Foo`.
+1. **Deprecation of Type Alias for `Has` Wrappers** — In _Service Pattern 1.0_ although the type aliases were to prevent using `Has[ServiceName]` boilerplate everywhere, they were confusing, and led to doubly nested `Has[Has[ServiceName]]`. So the _Service Pattern 2.0_ doesn't anymore encourage using type aliases. Also, they were removed from all built-in ZIO services. So the `type Foo = Has[Foo.Service]` is removed and the `Foo.Service` will just be `Foo`.
 
-2. **Introducing Constructor-based Dependency Injection** — In _Service Pattern 1.0_ when we wanted to create a layer that depends on other services, we had to use `ZLayer.fromService*` constructors. The problem with the `ZLayer` constructors is that there are too many constructors each one is useful for a specific use-case, but people had troubled in spending a lot of time figuring out which one to use. 
+2. **Introducing Constructor-based Dependency Injection** — In _Service Pattern 1.0_ when we wanted to create a layer that depends on other services, we had to use `ZLayer.fromService*` constructors. The problem with those constructors is that there are too many of them, each one is useful for a specific use-case, but people had trouble figuring out which one to use. 
 
-    In _Service Pattern 2.0_ we don't worry about all these different `ZLayer` constructors. It recommends **providing dependencies as interfaces through the case class constructor**, and then we have direct access to all of these dependencies to implement the service. Finally, to create the `ZLayer` we use a for comprehension.
+    In _Service Pattern 2.0_ we don't worry about all these different `ZLayer` constructors. The recommendation is to  **provide dependencies as interfaces through the case class constructor**, and then we have direct access to all of the dependencies to implement the service. Finally, to create the `ZLayer` we use a for comprehension.
 
-3. **Separated Interface** — In the _Service Pattern 2.0_, ZIO supports the _Separated Interface_ pattern which encourages keeping the implementation of an interface decoupled from the client and its definition.
+3. **Separated Interface** — In _Service Pattern 2.0_, ZIO supports the _Separated Interface_ pattern which encourages keeping the implementation of an interface decoupled from the client and its definition.
 
     As our application grows, where we define our layers matters more. _Separated Interface_ is a very useful pattern while we are developing a complex application. It helps us to reduce the coupling between application components. 
 
@@ -1884,9 +1884,9 @@ As we see, we have the following changes:
    
     In _Service Pattern 2.0_, layers are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Baz.live` to access the live implementation we call `BazLive.layer`.
 
-4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Service Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.baz(input))` we write `ZIO.serviceWithZIO(_.baz(input))`.
+4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, _Service Pattern 2.0_ introduced `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.baz(input))` we write `ZIO.serviceWithZIO(_.baz(input))`.
 
-The _Service Pattern 1.0_ was somehow complicated and had some boilerplates. The _Service Pattern 2.0_ is so much familiar to people coming from an object-oriented world. So it is so much easy to learn for newcomers. The new pattern is much simpler.
+_Service Pattern 1.0_ was somewhat complicated and had some boilerplate. _Service Pattern 2.0_ is much more familiar for people coming from an object-oriented world. It is simpler and easier to learn for newcomers.
 
 ### Other Changes
 
@@ -2347,11 +2347,11 @@ suite("Ref") {
 }
 ```
 
-In ZIO 2.x, to create a test suite, it's not important that whether we are testing pure or effectful tests. The syntax is the same, and the `test`, and `testM` are unified. So the `testM` was removed.
+In ZIO 2.x, when creating a test suite, it's not important whether we are testing pure or effectful code. `testM` was removed, and we can unifromly use `test` in both cases.
 
 ### Unification of `Assertion` and `AssertionM`
 
-In ZIO 2.x, `Assertion` and `AssertionM` were unified to a single type, `Assertion`, so the `AssertionM` was removed. In ZIO 2.x, instead of writing effectful assertions (`AssertionM`) and then asserting workflows, we should perform workflows and then simply assert the result of the workflow.
+In ZIO 2.x, `Assertion` and `AssertionM` were unified to a single type, `Assertion`, so `AssertionM` was removed. In ZIO 2.x, instead of writing effectful assertions (`AssertionM`) and then asserting workflows, we should perform workflows and then simply assert the result of the workflow.
 
 Assume we have written the following test in ZIO 1.x:
 
@@ -2379,7 +2379,7 @@ test("Effectful Assertion ZIO 2.x") {
 
 ### Smart Assertion
 
-ZIO 2.x, introduced a new test method, named `assertTrue` which allows us to assert an expected behavior using ordinary Scala expressions that return `Boolean` values instead of specialized assertion operators.
+ZIO 2.x introduced a new test method, named `assertTrue` which allows us to assert an expected behavior using ordinary Scala expressions that return `Boolean` values instead of specialized assertion operators.
 
 So instead of writing following test assertions:
 
@@ -2410,12 +2410,12 @@ suite("ZIO 2.x SmartAssertions")(
 Smart Assertions are extremely expressive, so when a test fails:
 - They highlight the exact section of the syntax with the path leading up to the left-hand side of the assertion that causes the failure.
 - They have the strong and nice diffing capability which shows where our expectation varies.
-- When using partial functions in test cases there is no problem with the happy path, but if something goes wrong, it is a little annoying to find what went wrong. But smart assertions are descriptive, e.g., when we call `Option#get` to an optional value that is `None` the test fails with a related error message: `Option was None`
-- They have lots of domains specific errors that talk to us in a language that we understand.
+- When using partial functions in test cases there is no problem with the happy path, but if something goes wrong, it is a little annoying to find what went wrong. But smart assertions are descriptive, e.g. when we call `Option#get` to an optional value that is `None` the test fails with a related error message: `Option was None`
+- They have lots of domain specific errors that talk to us in a language that we understand.
 
 ### Compositional Specs
 
-In ZIO 1.x, we cannot compose specs directly, although if we can combine all children's specs via the suite itself:
+In ZIO 1.x, we cannot compose specs directly, although we can combine all children's specs via the suite itself:
 
 ```scala mdoc:invisible
 import zio.test._
@@ -2440,7 +2440,7 @@ val bigSuite = fooSuite + barSuite + bazSuite
 
 ## ZIO Streams
 
-ZIO Streams 2.x, does not include any significant API changes. Almost the same code we have for ZIO Stream 1.x, this will continue working and doesn't break our code. So we don't need to relearn any APIs. So we have maintained a quite good source compatibility, but have to forget some API elements.
+ZIO Streams 2.x does not include any significant API changes. Almost the same code we have for ZIO Stream 1.x will continue working, so we don't need to relearn any APIs. Even though a good level of source compatibility has been maintained, some API elements have been changed.
 
 So far, before ZIO 2.0, ZIO Stream has included three main abstractions:
 1. **`ZStream`** — represents the source of elements
@@ -2449,23 +2449,23 @@ So far, before ZIO 2.0, ZIO Stream has included three main abstractions:
 
 ![ZIO Streams 1.x](/img/assets/zio-streams-1.x.svg)
 
-In ZIO 2.0, we added an underlying abstraction called `Channel`. Channels are underlying both the `Stream` and `Sink`. So streams and sinks are just channels. So the `Channel` is an abstraction that unifies everything in ZIO Streams.
+In ZIO 2.0, we added an underlying abstraction called `Channel`. Channels are underlying both `Stream` and `Sink`, so it's an abstraction that unifies everything in ZIO Streams.
 
 ![ZChannel](/img/assets/zio-streams-zchannel.svg)
 
 Channels are nexuses of I/O operations, which support both reading and writing:
 
-- A `Channel` can write some elements to the _output_, and it can terminate with some sort of _done_ value. The `Channel` uses this _done_ value to notify the downstream `Channel` that its emission of elements finished. In ZIO 2.x, the `ZStream` is encoded as an output side of the `Channel`.
+- A `Channel` can write some elements to the _output_, and it can terminate with some sort of _done_ value. The `Channel` uses this _done_ value to notify the downstream `Channel` that its emission of elements finished. In ZIO 2.x, `ZStream` is encoded as the output side of a `Channel`.
 
-- A `Channel` can read from its input, and it can also terminate with some sort of _done_ value, which is an upstream result. So a `Channel` has the _input type_, and the _input done type_. The `Channel` uses this _done_ value to determine when the upstream `Channel` finishes its emission. In ZIO 2.x, the `ZSink` is encoded as an input side of the `Channel`.
+- A `Channel` can read from its input, and it can also terminate with some sort of _done_ value that is an upstream result. A `Channel` has an _input type_, and an _input done type_. The `Channel` uses the _done_ value to determine when the upstream `Channel` finishes its emission. In ZIO 2.x, `ZSink` is encoded as the input side of a `Channel`.
 
-So we can say that streams are the output side and sinks are the input side of a `Channel`. What about the middle part? In ZIO 1.x, this used to be known as the`ZTransducer`. Transducers were great for writing high-performance codecs (e.g. compression). They were really just a specialization of sinks. We have added transducers because things were not sufficiently efficient using sinks. If we were to write streaming codecs using sinks, they could be quite slow.
+So we can say that streams are the output side and sinks are the input side of a `Channel`. What about the middle part? In ZIO 1.x, this used to be known as the `ZTransducer`. Transducers were great for writing high-performance codecs (e.g. compression). They were really just a specialization of sinks. We have added transducers because things were not sufficiently efficient using sinks. If we were to write streaming codecs using sinks, they could be quite slow.
 
-In ZIO 2.x, we removed the transducers, and they were deprecated. Instead, we realized we need something else for the middle part, and now it's called a `Pipeline` in ZIO 2.x. Pipelines accept a stream as input and return the transformed stream as output.
+In ZIO 2.x, we removed the transducers. Instead, we realized we need something else for the middle part, and now it's called a `Pipeline` in ZIO 2.x. Pipelines accept a stream as input and return the transformed stream as output.
 
 ![ZIO Streams 2.x](/img/assets/zio-streams-2.x.svg)
 
-Pipelines are basically an abstraction for composing a bunch of operations together that can be later applied to a stream. For example, we can create a pipeline that reads bytes, decodes them to the UTF-8 and splits the lines, and then splits on commas. So this is a very simple CSV parsing pipeline which we can later use with another stream to pipe into. 
+Pipelines are basically an abstraction for composing a bunch of operations together that can be later applied to a stream. For example, we can create a pipeline that reads bytes, decodes them to a UTF-8 string, splits that into lines, and then splits on commas. That is a very simple CSV parsing pipeline which we can later use by piping other streams into it. 
 
 | ZIO Streams 1.x | ZIO Streams 2.x                  |
 |-----------------|----------------------------------|
@@ -2520,7 +2520,7 @@ All blocking operations were moved to the `ZIO` data type:
 |---------------------------|---------|
 | `zio.blocking.Blocking.*` | `ZIO.*` |
 
-With some renaming stuffs:
+With some renaming:
 
 | ZIO 1.x (`zio.blocking.Blocking.*`) | ZIO 2.x (`ZIO.*`)               |
 |-------------------------------------|---------------------------------|
@@ -2591,7 +2591,7 @@ Note that the ZIO API didn't change, but the `Clock` trait became a bigger one, 
 
 ### Console Service
 
-Method names in the _Console_ service were renamed to the more readable names:
+Method names in the _Console_ service were renamed to more readable names:
 
 | ZIO 1.x       | ZIO 2.x          |
 |---------------|------------------|
@@ -2663,7 +2663,7 @@ object ZStateExample extends zio.ZIOAppDefault {
 
 ### Hub
 
-`Hub` is a new concurrent data structure like `Queue`. While `Queue` solves the problem of _distributing_ messages to multiple consumers, the `Hub` solves the problem of _broadcasting_ the same message to multiple consumers.
+`Hub` is a new concurrent data structure like `Queue`. While `Queue` solves the problem of _distributing_ messages to multiple consumers, `Hub` solves the problem of _broadcasting_ the same message to multiple consumers.
 
 ![Hub](/img/assets/hub.svg)
 
@@ -2690,14 +2690,15 @@ Visit the [Hub](../../reference/concurrency/hub) page to learn more about it.
 
 ### ZIO Aspects
 
-We introduced the`ZIOAspect` which enables us to modify the existing `ZIO` effect with some additional aspects like debugging, tracing, retrying, and logging:
+We introduced `ZIOAspect` which enables us to modify the existing `ZIO` effect with some additional aspects like debugging, tracing, retrying, and logging:
 
 ```scala mdoc:silent:nest
 val myApp: ZIO[Random, Nothing, String] =
   ZIO.ifZIO(
     Random.nextIntBounded(10) @@ ZIOAspect.debug map (_ % 2 == 0)
-  )(onTrue = ZIO.succeed("Hello!"), onFalse = ZIO.succeed("Good Bye!")) @@
-    ZIOAspect.debug @@ ZIOAspect.logged("result")
+  )(
+    onTrue = ZIO.succeed("Hello!"), 
+    onFalse = ZIO.succeed("Good Bye!")) @@ ZIOAspect.debug @@ ZIOAspect.logged("result")
     
 // Sample Output:     
 // 2
@@ -2707,7 +2708,7 @@ val myApp: ZIO[Random, Nothing, String] =
 
 ### Debugging
 
-ZIO 2.x introduces the `debug` that is useful when we want to print something to the console for debugging purposes without introducing additional environmental requirements or error types:
+ZIO 2.x introduces the `debug` method that is useful when we want to print something to the console for debugging purposes without introducing additional environmental requirements or error types:
 
 ```scala mdoc:silent:nest
 val myApp: ZIO[Random, Nothing, String] =
@@ -2726,7 +2727,7 @@ val myApp: ZIO[Random, Nothing, String] =
 
 ### Logging
 
-ZIO 2.x supports a lightweight built-in logging facade that standardized the interface to logging functionality. So it doesn't replace existing logging libraries, but also we can plug it into one of the existing logging backends.
+ZIO 2.x supports a lightweight built-in logging facade that standardizes the interface for logging functionality. So it doesn't replace existing logging libraries, but also we can plug it into one of the existing logging backends.
 
 We can easily log using the `ZIO.log` function:
 
@@ -2761,13 +2762,13 @@ ZIO.logSpan("myspan") {
 }
 ```
 
-ZIO Logging calculates the running duration of that span and includes that in the logging data corresponding to its span label.
+ZIO Logging calculates the running duration of that span, and includes that in the logging data associating to its span label.
 
 ### Compile-time Execution Tracing
 
-ZIO 1.x's execution trace is not as useful as it could be because it contains tracing information for internal ZIO operators that is not helpful to the user is understanding where in their code an error occurred.
+ZIO 1.x's execution trace is not as useful as it could be, because it contains tracing information for internal ZIO operators that is not very helpful, when trying to understand, where an error occurred.
 
-Let's say we have the following application, in ZIO 1.x:
+Let's say we have the following application in ZIO 1.x:
 
 ```scala
 import zio._
@@ -2830,9 +2831,9 @@ Fiber:Id(1634884059516,0) ZIO Execution trace: <empty trace>
 Fiber:Id(1634884059516,0) was spawned by: <empty trace>
 ```
 
-The execution trace, is somehow at a good degree informative, but it doesn't lead us to the exact point where the failure happened. It's a little hard to see what is going here. 
+The execution trace is informative, but it doesn't lead us to the exact point, where the failure happened. It's a little hard to see what is going on here. 
 
-Let's rewrite the previous example in ZIO 2.0:
+Let's rewrite the previous example in ZIO 2.x:
 
 ```scala mdoc:compile-only
 import zio._
@@ -2857,7 +2858,7 @@ object TracingExample extends ZIOAppDefault {
 }
 ```
 
-The output is more descriptive than in ZIO 1.x. It is similar to the Java stacktrace:
+The output is more descriptive than in ZIO 1.x. It is similar to a Java stacktrace:
 
 ```
 Hello!
@@ -2867,12 +2868,12 @@ timestamp=2021-12-19T08:25:09.372926403Z level=ERROR thread=#zio-fiber-163990230
 	at zio.examples.TracingExample.myApp(TracingExample.scala:15)"
 ```
 
-As we see, the first line of execution trace, point to the exact location on the source code which causes the failure (`ZIO.fail("Boom!")`), which is line number 8.
+As we see, the first line of the execution trace points to the exact location in the source code which causes the failure (`ZIO.fail("Boom!")`) that is line number 8.
 
-In ZIO 2.x, the tracing is not optional, and unlike in ZIO 1.x, it is impossible to disable async tracing, either globally, or for specific effects. ZIO now always generates async stack traces, and it is impossible to turn this feature off, either at the global level or at the level of individual effects. Since nearly all users were running ZIO with tracing turned on, this change should have minimal impact on ZIO applications.
+In ZIO 2.x, tracing is not optional, and unlike in ZIO 1.x, it is impossible to disable async tracing, either globally, or for specific effects. ZIO now always generates async stack traces, and it is impossible to turn this feature off, either at the global level or at the level of individual effects. Since nearly all users were running ZIO with tracing turned on, this change should have minimal impact on ZIO applications.
 
-Another improvement about ZIO tracing is its performance. Tracing in ZIO 1.x slows down the application performance by two times. In ZIO 1.x, we wrap and unwrap every combinator at runtime to be able to trace the execution. While it is happening on the runtime, it takes a lot of allocations which all need to be garbage collected afterward. So it adds a huge amount of complexity at the runtime.
+Another improvement about ZIO tracing is its performance. Tracing in ZIO 1.x slows down the application performance by two times. In ZIO 1.x, we wrap and unwrap every combinator at runtime to be able to trace the execution. While it is happening on the runtime, it takes a lot of allocations which all need to be garbage collected afterwards adding a huge amount of complexity at runtime.
 
-Some users often turn off the tracing when they need more speed, so they lose this ability to trace their application when something breaks.
+Some users turned off tracing to achieve better performance, but that results in losing the ability to trace the application, when something breaks.
 
-In ZIO 2.x, we moved execution tracing from the run-time to the compile-time. This is done by capturing tracing information from source code at compile time using macros. So most tracing information is pre-allocated at startup and never needs garbage collected. As a result, we end up with much better performance in execution tracing.
+In ZIO 2.x, we moved execution tracing from the runtime to the compile-time. This is done by capturing tracing information from the source code at compile time using macros. Most tracing information is pre-allocated at startup, and never needs to be garbage collected. As a result, we end up with much better performance in execution tracing.
