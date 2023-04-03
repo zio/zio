@@ -12,16 +12,13 @@ In this tutorial, we are going to see how we can create a custom logger for a ZI
 
 ## Running the Examples
 
-All the source code associated with this article is located on the `custom-logger` branch of this quickstart [repository](http://github.com/zio/zio-quickstart-restful-webservice).
-
 In [this article](enable-logging-in-a-zio-application.md), we enabled logging for `UserApp` http application. In this tutorial, we are going to create a custom logger for the `UserApp`.
 
-To run the code, clone the repository and checkout the `custom-logger` branch:
+To run the code, clone the repository and checkout the [ZIO Quickstarts](http://github.com/zio/zio-quickstarts) project:
 
 ```bash
-$ git clone git@github.com:zio/zio-quickstart-restful-webservice.git 
-$ cd zio-quickstart-restful-webservice
-$ git checkout custom-logger
+$ git clone git@github.com:zio/zio-quickstarts.git 
+$ cd zio-quickstarts/zio-quickstart-restful-webservice-custom-logger
 ```
 
 And finally, run the application using sbt:
@@ -207,4 +204,4 @@ Then we can configure our logger by adding the `logback.xml` to the resources di
 
 In this article, we have learned how to create a custom logger for a ZIO application. We also covered how to add SLF4J logging support instead of default ZIO logging.
 
-The complete working example of this tutorial is available on the `custom-logger` branch of our [ZIO Quickstart: Building RESTful Web Service](https://github.com/zio/zio-quickstart-restful-webservice/tree/custom-logger) quickstart on GitHub.
+All the source code associated with this article is available on the [ZIO Quickstart](http://github.com/zio/zio-quickstarts) project.

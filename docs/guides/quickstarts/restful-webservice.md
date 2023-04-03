@@ -5,17 +5,17 @@ sidebar_label: "RESTful Web Service"
 ---
 
 This quickstart shows how to build a RESTful web service using ZIO. It uses
-- [ZIO HTTP](https://github.com/zio/zio-http) for the HTTP server
-- [ZIO JSON](https://zio.github.io/zio-json/) for the JSON serialization
-- [ZIO Quill](https://zio.github.io/zio-quill/) for type-safe queries on the JDBC database
+- [ZIO HTTP](https://zio.dev/zio-http/) for the HTTP server
+- [ZIO JSON](https://zio.dev/zio-json/) for the JSON serialization
+- [ZIO Quill](https://zio.dev/zio-quill/) for type-safe queries on the JDBC database
 
 ## Running The Example
 
 First, open the console and clone the project using `git` (or you can simply download the project) and then change the directory:
 
 ```scala
-git clone git@github.com:zio/zio-quickstart-restful-webservice.git 
-cd zio-quickstart-restful-webservice
+git clone git@github.com:zio/zio-quickstarts.git 
+cd zio-quickstarts/zio-quickstart-restful-webservice
 ```
 
 Once you are inside the project directory, run the application:

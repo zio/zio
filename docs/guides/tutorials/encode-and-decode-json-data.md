@@ -10,7 +10,12 @@ In this article, we will cover how to encode and decode JSON data.
 
 ## Running Examples
 
-All examples written in this tutorial are accessible through the `enocde-and-decode-json-data` branch of the [ZIO Quickstart: Hello World](https://github.com/zio/zio-quickstart-hello-world) repository.
+To access the code examples, you can clone the [ZIO Quickstarts](http://github.com/zio/zio-quickstarts) project:
+
+```bash
+$ git clone git@github.com:zio/zio-quickstarts.git 
+$ cd zio-quickstarts/zio-quickstart-encode-decode-json-data
+```
 
 To run all tests, execute the following command:
 
@@ -265,4 +270,4 @@ test("mapping encoders (contramap)") {
 
 In this section we have covered the basics of JSON encoding and decoding. We have also seen how to create custom codecs for complex types. 
 
-The complete working example of this tutorial is available on the `encode-decode-json` branch of our [ZIO Quickstart: Hello World](https://github.com/zio/zio-quickstart-hello-world/tree/encode-decode-json) quickstart on GitHub.
+All the source code associated with this article is available on the [ZIO Quickstart](http://github.com/zio/zio-quickstarts) on Github.
