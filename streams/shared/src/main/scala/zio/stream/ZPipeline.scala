@@ -2038,7 +2038,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             (_: Any) => ZChannel.unit
           )
 
-        ZChannel.unwrap(Clock.nanoTime.map(loop(units.toDouble, _)))
+        ZChannel.unwrap(Clock.nanoTime.map(loop(units, _)))
       }
     )
 
