@@ -2020,7 +2020,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                 val elapsed = current - timestamp
                 val cycles  = elapsed.toDouble / duration.toNanos
                 val available = {
-                  val sum = tokens + (cycles * units)
+                  val sum = tokens + cycles * units
                   val max =
                     if (units + burst < 0) Long.MaxValue
                     else units + burst
@@ -2075,7 +2075,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               val elapsed = current - timestamp
               val cycles  = elapsed.toDouble / duration.toNanos
               val available = {
-                val sum = tokens + (cycles * units).toLong
+                val sum = tokens + cycles * units
                 val max =
                   if (units + burst < 0) Long.MaxValue
                   else units + burst
