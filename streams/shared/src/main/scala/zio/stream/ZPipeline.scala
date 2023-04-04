@@ -2032,7 +2032,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                 if (weight <= available)
                   ZChannel.write(in) *> loop(available - weight, current)
                 else
-                  loop(available, current)
+                  loop(tokens, timestamp)
               }),
             (e: Cause[Err]) => ZChannel.failCause(e),
             (_: Any) => ZChannel.unit
