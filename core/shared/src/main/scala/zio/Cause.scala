@@ -660,7 +660,10 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       def unifyFail(fail: Cause.Fail[E]): List[Unified] =
         fail.value match {
           case throwable: Throwable => unifyThrowable(throwable, fail.trace)
-          case value                => List(Unified(fail.trace.fiberId, value.getClass.getName(), value.toString(), fail.trace.toJava))
+          case value =>
+            val className = if (value == null) "" else value.getClass.getName
+            val message   = if (value == null) "null" else value.toString
+            List(Unified(fail.trace.fiberId, className, message, fail.trace.toJava))
         }
 
       def unifyDie(die: Cause.Die): List[Unified] =
