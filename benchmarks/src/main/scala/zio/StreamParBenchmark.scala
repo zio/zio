@@ -54,7 +54,7 @@ class StreamParBenchmark {
   def akkaMapPar: Long = {
     val program = AkkaSource
       .fromIterator(() => akkaChunks.iterator.flatten)
-      .mapAsync(4)(i => Future.successful(BigDecimal.valueOf(i.toLong).pow(3)))
+      .mapAsync(4)(i => Future(BigDecimal.valueOf(i.toLong).pow(3)))
       .toMat(AkkaSink.fold(0L)((c, _) => c + 1L))(Keep.right)
 
     Await.result(program.run(), ScalaDuration.Inf)
@@ -84,7 +84,7 @@ class StreamParBenchmark {
   def akkaMapParUnordered: Long = {
     val program = AkkaSource
       .fromIterator(() => akkaChunks.iterator.flatten)
-      .mapAsyncUnordered(4)(i => Future.successful(BigDecimal.valueOf(i.toLong).pow(3)))
+      .mapAsyncUnordered(4)(i => Future(BigDecimal.valueOf(i.toLong).pow(3)))
       .toMat(AkkaSink.fold(0L)((c, _) => c + 1L))(Keep.right)
 
     Await.result(program.run(), ScalaDuration.Inf)
