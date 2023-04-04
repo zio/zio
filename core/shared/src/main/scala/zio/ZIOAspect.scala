@@ -101,6 +101,16 @@ object ZIOAspect {
     }
 
   /**
+   * An aspect that prints the results of an effect to the console for debugging
+   * purposes, using a specified user-defined prefix label.
+   */
+  def debug(prefix: => String): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      override def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+        zio.debug(prefix)
+    }
+
+  /**
    * An aspect that logs values by using [[ZIO.log]].
    */
   val logged: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
