@@ -4274,6 +4274,11 @@ object ZIOSpec extends ZIOBaseSpec {
       for {
         cause <- ZIO.logAnnotate("key", "value")(ZIO.fail("fail")).cause
       } yield assertTrue(cause.annotations == Map("key" -> "value"))
+    },
+    test("orDie preserves the cause") {
+      for {
+        cause <- ZIO.fail(new RuntimeException("fail")).ensuring(ZIO.die(new RuntimeException("die"))).orDie.cause
+      } yield assertTrue(cause.size == 2)
     }
   )
 
