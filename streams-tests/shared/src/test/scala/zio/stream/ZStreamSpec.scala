@@ -3561,6 +3561,18 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .throttleEnforce(0, Duration.Infinity)(_ => 1)
                 .runCollect
             )(equalTo(Chunk.empty))
+          },
+          test("refill bucket tokens") {
+            assertZIO(for {
+              fiber <- ZStream
+                         .fromSchedule(Schedule.spaced(100.milliseconds))
+                         .take(10)
+                         .throttleEnforce(1, 200.milliseconds)(_ => 1)
+                         .runCollect
+                         .fork
+              _      <- TestClock.adjust(1.seconds)
+              result <- fiber.join
+            } yield result)(equalTo(Chunk(0L, 2L, 4L, 6L, 8L)))
           }
         ),
         suite("throttleShape")(
