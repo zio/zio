@@ -3561,6 +3561,15 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .throttleEnforce(0, Duration.Infinity)(_ => 1)
                 .runCollect
             )(equalTo(Chunk.empty))
+          },
+          test("with fractional cycles") {
+            val schedule = Schedule.spaced(100.millis) >>> Schedule.recurs(10)
+            val stream   = ZStream.fromSchedule(schedule)
+            for {
+              fiber <- stream.throttleEnforce(1, 200.millis)(_ => 1).runCollect.fork
+              _     <- TestClock.adjust(1.second)
+              chunk <- fiber.join
+            } yield assertTrue(chunk.length == 5)
           }
         ),
         suite("throttleShape")(
