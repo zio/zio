@@ -2065,7 +2065,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     costFn: Chunk[In] => ZIO[Env, Err, Long]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = new ZPipeline(
     ZChannel.succeed((units, duration, burst)).flatMap { case (units, duration, burst) =>
-      def loop(tokens: Long, timestamp: Long): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
+      def loop(tokens: Double, timestamp: Long): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
         ZChannel.readWithCause(
           (in: Chunk[In]) =>
             ZChannel.unwrap(for {
@@ -2080,8 +2080,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                   if (units + burst < 0) Long.MaxValue
                   else units + burst
 
-                if (sum < 0) max
-                else math.min(sum, max)
+                if (sum < 0) max.toDouble
+                else math.min(sum, max.toDouble)
               }
 
               val remaining = available - weight
