@@ -2022,11 +2022,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                 val available = {
                   val sum = tokens + cycles * units
                   val max =
-                    if (units + burst < 0) Long.MaxValue
-                    else units + burst
+                    if (units + burst < 0) Double.MaxValue
+                    else (units + burst).toDouble
 
-                  if (sum < 0) max.toDouble
-                  else math.min(sum, max.toDouble)
+                  if (sum < 0) max
+                  else math.min(sum, max)
                 }
 
                 if (weight <= available)
@@ -2077,17 +2077,17 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               val available = {
                 val sum = tokens + cycles * units
                 val max =
-                  if (units + burst < 0) Long.MaxValue
-                  else units + burst
+                  if (units + burst < 0) Double.MaxValue
+                  else (units + burst).toDouble
 
-                if (sum < 0) max.toDouble
-                else math.min(sum, max.toDouble)
+                if (sum < 0) max
+                else math.min(sum, max)
               }
 
               val remaining = available - weight
               val waitCycles =
                 if (remaining >= 0) 0
-                else -remaining.toDouble / units
+                else -remaining / units
 
               val delay = Duration.Finite((waitCycles * duration.toNanos).toLong)
 
