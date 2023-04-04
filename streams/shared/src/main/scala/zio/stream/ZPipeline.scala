@@ -2013,20 +2013,20 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   )(implicit trace: Trace): ZPipeline[Env, Err, In, In] =
     new ZPipeline(
       ZChannel.succeed((units, duration, burst)).flatMap { case (units, duration, burst) =>
-        def loop(tokens: Long, timestamp: Long): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
+        def loop(tokens: Double, timestamp: Long): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
           ZChannel.readWithCause[Env, Err, Chunk[In], Any, Err, Chunk[In], Unit](
             (in: Chunk[In]) =>
               ZChannel.unwrap((costFn(in) <*> Clock.nanoTime).map { case (weight, current) =>
                 val elapsed = current - timestamp
                 val cycles  = elapsed.toDouble / duration.toNanos
                 val available = {
-                  val sum = tokens + (cycles * units).toLong
+                  val sum = tokens + (cycles * units)
                   val max =
                     if (units + burst < 0) Long.MaxValue
                     else units + burst
 
-                  if (sum < 0) max
-                  else math.min(sum, max)
+                  if (sum < 0) max.toDouble
+                  else math.min(sum, max.toDouble)
                 }
 
                 if (weight <= available)
@@ -2038,7 +2038,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             (_: Any) => ZChannel.unit
           )
 
-        ZChannel.unwrap(Clock.nanoTime.map(loop(units, _)))
+        ZChannel.unwrap(Clock.nanoTime.map(loop(units.toDouble, _)))
       }
     )
 
