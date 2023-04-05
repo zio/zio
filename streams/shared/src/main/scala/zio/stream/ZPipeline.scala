@@ -1445,55 +1445,45 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     new ZPipeline(
       ZChannel.suspend {
-        val leftovers: AtomicReference[Chunk[Chunk[In]]] = new AtomicReference(Chunk.empty)
-        val upstreamDone: AtomicBoolean                  = new AtomicBoolean(false)
+        var leftover: Chunk[In]   = Chunk.empty
+        var upstreamDone: Boolean = false
 
-        lazy val buffer: ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], Any] =
+        lazy val upstream: ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], Any] =
           ZChannel.suspend {
-            val l = leftovers.get
+            val l = leftover
 
             if (l.isEmpty)
-              ZChannel.readWith(
-                (c: Chunk[In]) => ZChannel.write(c) *> buffer,
-                (e: Err) => ZChannel.fail(e),
-                (done: Any) => ZChannel.succeedNow(done)
+              ZChannel.readWithCause(
+                (c: Chunk[In]) => ZChannel.write(c) *> upstream,
+                (e: Cause[Err]) => ZChannel.failCause(e),
+                (done: Any) => {
+                  upstreamDone = true
+                  ZChannel.succeedNow(done)
+                }
               )
             else {
-              leftovers.set(Chunk.empty)
-              ZChannel.writeChunk(l) *> buffer
+              leftover = Chunk.empty
+              ZChannel.write(l) *> upstream
             }
           }
 
-        def concatAndGet(c: Chunk[Chunk[In]]): Chunk[Chunk[In]] = {
-          val ls     = leftovers.get
-          val concat = ls ++ c.filter(_.nonEmpty)
-          leftovers.set(concat)
-          concat
-        }
-
-        lazy val upstreamMarker: ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], Any] =
-          ZChannel.readWith(
-            (in: Chunk[In]) => ZChannel.write(in) *> upstreamMarker,
-            (err: Err) => ZChannel.fail(err),
-            (done: Any) => ZChannel.succeed(upstreamDone.set(true)) *> ZChannel.succeedNow(done)
+        lazy val writeDone: ZChannel[Any, Err, Chunk[In], Out, Err, Chunk[Out], Any] =
+          ZChannel.readWithCause(
+            elem => {
+              leftover ++= elem
+              writeDone
+            },
+            err => ZChannel.failCause(err),
+            out => ZChannel.write(Chunk.single(out))
           )
 
         lazy val transducer: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Unit] =
-          sink.channel.collectElements.flatMap { case (leftover, z) =>
-            ZChannel
-              .succeed((upstreamDone.get, concatAndGet(leftover)))
-              .flatMap { case (done, newLeftovers) =>
-                val nextChannel =
-                  if (done && newLeftovers.isEmpty) ZChannel.unit
-                  else transducer
-
-                ZChannel.write(Chunk.single(z)) *> nextChannel
-              }
+          sink.channel.pipeTo(writeDone).flatMap { _ =>
+            if (upstreamDone && leftover.isEmpty) ZChannel.unit
+            else transducer
           }
 
-        upstreamMarker >>>
-          buffer pipeToOrFail
-          transducer
+        upstream pipeToOrFail transducer
       }
     )
 
