@@ -5,18 +5,18 @@ sidebar_label: "GraphQL Web Service"
 ---
 
 This quickstart shows how to build a GraphQL web service using ZIO. It uses
-- [ZIO HTTP](https://dream11.github.io/zio-http/) for the HTTP server
+- [ZIO HTTP](https://zio.dev/zio-http/) for the HTTP server
 - [Caliban](https://ghostdogpr.github.io/caliban/) for the GraphQL
 
 Creating GraphQL API using Caliban is an easy process. We can define our data models using case classes and ADTs. Then Caliban can derive the whole GraphQL schema from these data models.
 
 ## Running The Example
 
-First, open the console and clone the project using `git` (or you can simply download the project) and then change the directory:
+First, open the console and clone the [ZIO Quickstarts](https://github.com/zio/zio-quickstarts) project using `git` (or you can simply download the project) and then change the directory:
 
 ```scala
-git clone git@github.com:zio/zio-quickstart-graphql-webservice.git 
-cd zio-quickstart-graphql-webservice
+git clone git@github.com:zio/zio-quickstarts.git 
+cd zio-quickstarts/zio-quickstart-graphql-webservice
 ```
 
 Once you are inside the project directory, run the application:

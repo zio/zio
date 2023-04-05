@@ -10,16 +10,13 @@ ZIO has built-in support for logging. This tutorial will show you how to enable 
 
 ## Running The Examples
 
-All the source code associated with this article is located on the `logging` branch of this quickstart [repository](http://github.com/zio/zio-quickstart-restful-webservice).
-
 In [this quickstart](../quickstarts/restful-webservice.md), we developed a web service containing 4 different HTTP Applications, but we haven't enabled logging for them. In this tutorial, we are going to enable logging for the `UserApp` we have developed in this quickstart.
 
-To run the code, clone the repository and checkout the `logging` branch:
+To access the code examples, you can clone the [ZIO Quickstarts](http://github.com/zio/zio-quickstarts) project:
 
 ```bash
-$ git clone git@github.com:zio/zio-quickstart-restful-webservice.git
-$ cd zio-quickstart-restful-webservice
-$ git checkout logging
+$ git clone git@github.com:zio/zio-quickstarts.git 
+$ cd zio-quickstarts/zio-quickstart-restful-webservice-logging
 ```
 
 And finally, run the application using sbt:
@@ -479,4 +476,4 @@ We can see that both log lines have the same `correlation-id` annotation.
 
 In this tutorial, we learned how to enable logging in a ZIO application and how to use the built-in logging facilities of ZIO without requiring any additional dependencies.
 
-The complete working example of this tutorial is available on the `logging` branch of our [ZIO Quickstart: Building RESTful Web Service](https://github.com/zio/zio-quickstart-restful-webservice/tree/logging) quickstart on GitHub.
+All the source code associated with this article is available on the [ZIO Quickstart](http://github.com/zio/zio-quickstarts) on Github.

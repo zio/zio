@@ -10,14 +10,11 @@ ZIO has a built-in metric system that allows us to monitor the performance of ou
 
 ## Running the Example
 
-All the source code associated with this article is located on the `metrics` branch of this quickstart [repository](http://github.com/zio/zio-quickstart-restful-webservice).
-
-To run the code, clone the repository and checkout the `metrics` branch:
+To access the code examples, you can clone the [ZIO Quickstarts](http://github.com/zio/zio-quickstarts) project:
 
 ```bash
-$ git clone git@github.com:zio/zio-quickstart-restful-webservice.git 
-$ cd zio-quickstart-restful-webservice
-$ git checkout metrics
+$ git clone git@github.com:zio/zio-quickstarts.git 
+$ cd zio-quickstarts/zio-quickstart-restful-webservice-metrics
 ```
 
 And finally, run the application using sbt:
@@ -255,4 +252,4 @@ Now that we have the metrics as a REST API, we can add this endpoint to our Prom
 
 In this tutorial, we have learned how to define metrics and apply them to our application. We have also learned how to provide the metrics as a REST API which then can be polled by a Prometheus server.
 
-The complete working example of this tutorial is available on the `metrics` branch of our [ZIO Quickstart: Building RESTful Web Service](https://github.com/zio/zio-quickstart-restful-webservice/tree/metrics) quickstart on GitHub.
+All the source code associated with this article is available on the [ZIO Quickstart](http://github.com/zio/zio-quickstarts) on Github.

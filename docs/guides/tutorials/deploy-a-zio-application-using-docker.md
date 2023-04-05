@@ -12,16 +12,13 @@ In this tutorial, we are going to learn how to build a Docker image for our ZIO 
 
 ## Running The Examples
 
-All the source code associated with this article is located on the `dockerize` branch of this quickstart [repository](http://github.com/zio/zio-quickstart-restful-webservice).
-
 In [this quickstart](../quickstarts/restful-webservice.md), we developed a web service containing 4 different HTTP Applications. Now in this article, we want to dockerize this web application.
 
-To access the code examples, you can clone the repository and switch to the `dockerize` branch:
+To access the code examples, you can clone the [ZIO Quickstarts](http://github.com/zio/zio-quickstarts) project:
 
 ```bash
-$ git clone git@github.com:zio/zio-quickstart-restful-webservice.git 
-$ cd zio-quickstart-restful-webservice
-$ git checkout dockerize
+$ git clone git@github.com:zio/zio-quickstarts.git 
+$ cd zio-quickstarts/zio-quickstart-restful-webservice-dockerize
 ```
 
 ## Prerequisites
@@ -131,4 +128,4 @@ $ sbt -Ddocker.username=$NAMESPACE -Ddocker.registry=$DOCKER_REGISTRY docker:pub
 
 In this tutorial, we learned how to build a docker image using _sbt-native-packager_, and how to deploy the docker image to the local or remote Docker registry.
 
-The complete working example of this tutorial is available on the `dockerize` branch of our [ZIO Quickstart: Building RESTful Web Service](https://github.com/zio/zio-quickstart-restful-webservice/tree/dockerize) quickstart on GitHub.
+All the source code associated with this article is available on the [ZIO Quickstart](http://github.com/zio/zio-quickstarts) on Github.
