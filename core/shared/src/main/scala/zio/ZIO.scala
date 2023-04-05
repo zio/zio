@@ -1156,7 +1156,7 @@ sealed trait ZIO[-R, +E, +A]
    * specified function to convert the `E` into a `Throwable`.
    */
   final def orDieWith(f: E => Throwable)(implicit ev: CanFail[E], trace: Trace): URIO[R, A] =
-    self.foldZIO(e => ZIO.die(f(e)), ZIO.succeed(_))
+    mapErrorCause(_.flatMap(e => Cause.die(f(e))))
 
   /**
    * Unearth the unchecked failure of the effect. (opposite of `orDie`)
