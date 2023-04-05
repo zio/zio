@@ -647,10 +647,25 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that collects first `n` elements into a chunk. Note that the chunk
    * is preallocated and must fit in memory.
    */
-  def collectAllN[In](n: => Int)(implicit trace: Trace): ZSink[Any, Nothing, In, In, Chunk[In]] =
-    fromZIO(ZIO.succeed(ChunkBuilder.make[In](n)))
-      .flatMap(cb => foldUntil[In, ChunkBuilder[In]](cb, n.toLong)(_ += _))
-      .map(_.result())
+  def collectAllN[In](n: => Int)(implicit trace: Trace): ZSink[Any, Nothing, In, In, Chunk[In]] = {
+
+    def collectAllChunksN(
+      n: Int,
+      acc: Chunk[In]
+    ): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Chunk[In]] =
+      ZChannel.readWithCause(
+        chunk => {
+          val (collected, leftovers) = chunk.splitAt(n)
+          if (collected.length < n) collectAllChunksN(n - collected.length, acc ++ collected)
+          else if (leftovers.isEmpty) ZChannel.succeed(acc ++ collected)
+          else ZChannel.write(leftovers) *> ZChannel.succeed(acc ++ collected)
+        },
+        err => ZChannel.failCause(err),
+        _ => ZChannel.succeed(acc)
+      )
+
+    ZSink.suspend(ZSink.fromChannel(collectAllChunksN(n, Chunk.empty)))
+  }
 
   /**
    * A sink that collects all of its inputs into a map. The keys are extracted
