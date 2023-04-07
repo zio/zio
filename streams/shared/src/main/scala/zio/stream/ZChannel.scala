@@ -206,12 +206,12 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] = {
     val pf = f.lift
     lazy val collector: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, OutElem2, OutDone] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         pf(_: OutElem) match {
           case None       => collector
           case Some(out2) => ZChannel.write(out2) *> collector
         },
-        (e: OutErr) => ZChannel.fail(e),
+        (e: Cause[OutErr]) => ZChannel.failCause(e),
         (z: OutDone) => ZChannel.succeedNow(z)
       )
 
@@ -238,9 +238,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     f: InDone0 => InDone
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone0, OutErr, OutElem, OutDone] = {
     lazy val reader: ZChannel[Any, InErr, InElem, InDone0, InErr, InElem, InDone] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         (in: InElem) => ZChannel.write(in) *> reader,
-        (err: InErr) => ZChannel.fail(err),
+        (err: Cause[InErr]) => ZChannel.failCause(err),
         (done0: InDone0) => ZChannel.succeedNow(f(done0))
       )
 
@@ -255,9 +255,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     f: InErr0 => InErr
   )(implicit trace: Trace): ZChannel[Env, InErr0, InElem, InDone, OutErr, OutElem, OutDone] = {
     lazy val reader: ZChannel[Any, InErr0, InElem, InDone, InErr, InElem, InDone] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         (in: InElem) => ZChannel.write(in) *> reader,
-        (err0: InErr0) => ZChannel.fail(f(err0)),
+        (err0: Cause[InErr0]) => ZChannel.failCause(err0.map(f)),
         (done: InDone) => ZChannel.succeedNow(done)
       )
 
@@ -289,9 +289,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     f: InElem0 => InElem
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem0, InDone, OutErr, OutElem, OutDone] = {
     lazy val reader: ZChannel[Any, InErr, InElem0, InDone, InErr, InElem, InDone] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         (in: InElem0) => ZChannel.write(f(in)) *> reader,
-        (err: InErr) => ZChannel.fail(err),
+        (err: Cause[InErr]) => ZChannel.failCause(err),
         (done: InDone) => ZChannel.succeedNow(done)
       )
 
@@ -306,9 +306,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     f: InElem0 => ZIO[Env1, InErr, InElem]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem0, InDone, OutErr, OutElem, OutDone] = {
     lazy val reader: ZChannel[Env1, InErr, InElem0, InDone, InErr, InElem, InDone] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         (in: InElem0) => ZChannel.fromZIO(f(in)).flatMap(ZChannel.write(_)) *> reader,
-        (err: InErr) => ZChannel.fail(err),
+        (err: Cause[InErr]) => ZChannel.failCause(err),
         (done: InDone) => ZChannel.succeedNow(done)
       )
 
@@ -323,9 +323,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     f: InDone0 => ZIO[Env1, InErr, InDone]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone0, OutErr, OutElem, OutDone] = {
     lazy val reader: ZChannel[Env1, InErr, InElem, InDone0, InErr, InElem, InDone] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         (in: InElem) => ZChannel.write(in) *> reader,
-        (err: InErr) => ZChannel.fail(err),
+        (err: Cause[InErr]) => ZChannel.failCause(err),
         (done0: InDone0) => ZChannel.fromZIO(f(done0))
       )
 
@@ -348,9 +348,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       val builder = ChunkBuilder.make[OutElem]()
 
       lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, Nothing, OutDone] =
-        ZChannel.readWith(
+        ZChannel.readWithCause(
           (out: OutElem) => ZChannel.succeed(builder += out) *> reader,
-          (e: OutErr) => ZChannel.fail(e),
+          (e: Cause[OutErr]) => ZChannel.failCause(e),
           (z: OutDone) => ZChannel.succeedNow(z)
         )
 
@@ -588,9 +588,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     f: OutElem => OutElem2
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] = {
     lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, OutElem2, OutDone] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         out => ZChannel.write(f(out)) *> reader,
-        (e: OutErr) => ZChannel.fail(e),
+        (e: Cause[OutErr]) => ZChannel.failCause(e),
         (z: OutDone) => ZChannel.succeedNow(z)
       )
 
@@ -605,9 +605,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] = {
     lazy val reader: ZChannel[Env1, OutErr, OutElem, OutDone, OutErr1, OutElem2, OutDone] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         (out: OutElem) => ZChannel.fromZIO(f(out)).flatMap(ZChannel.write(_)) *> reader,
-        (e: OutErr1) => ZChannel.fail(e),
+        (e: Cause[OutErr1]) => ZChannel.failCause(e),
         (z: OutDone) => ZChannel.succeedNow(z)
       )
 
@@ -1438,9 +1438,9 @@ object ZChannel {
           ref.modify { v =>
             if (isEmpty(v))
               (
-                ZChannel.readWith(
+                ZChannel.readWithCause(
                   (in: InElem) => ZChannel.write(in) *> buffer(empty, isEmpty, ref),
-                  (err: InErr) => ZChannel.fail(err),
+                  (err: Cause[InErr]) => ZChannel.failCause(err),
                   (done: InDone) => ZChannel.succeedNow(done)
                 ),
                 v
@@ -1593,9 +1593,9 @@ object ZChannel {
     Fail(() => cause)
 
   def identity[Err, Elem, Done](implicit trace: Trace): ZChannel[Any, Err, Elem, Done, Err, Elem, Done] =
-    readWith(
+    readWithCause(
       (in: Elem) => write(in) *> identity[Err, Elem, Done],
-      (err: Err) => fail(err),
+      (err: Cause[Err]) => failCause(err),
       (done: Done) => succeedNow(done)
     )
 
