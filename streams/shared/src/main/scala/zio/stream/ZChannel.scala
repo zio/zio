@@ -605,9 +605,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] = {
     lazy val reader: ZChannel[Env1, OutErr, OutElem, OutDone, OutErr1, OutElem2, OutDone] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         (out: OutElem) => ZChannel.fromZIO(f(out)).flatMap(ZChannel.write(_)) *> reader,
-        (e: OutErr1) => ZChannel.fail(e),
+        (e: Cause[OutErr1]) => ZChannel.failCause(e),
         (z: OutDone) => ZChannel.succeedNow(z)
       )
 
