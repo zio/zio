@@ -194,6 +194,17 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     import java.time.OffsetDateTime
     import java.util.concurrent.atomic._
 
+    def getAndUpdate[A](value: AtomicReference[A])(f: A => A): A = {
+      var loop       = true
+      var current: A = null.asInstanceOf[A]
+      while (loop) {
+        current = value.get
+        val next = f(current)
+        loop = !value.compareAndSet(current, next)
+      }
+      current
+    }
+
     trait Driver[-Env, -In, +Out] {
       def next(now: OffsetDateTime, in: In): ZIO[Env, None.type, Out]
       def reset: ZIO[Env, Nothing, Unit]
@@ -285,7 +296,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
             c => {
               val now    = clock.unsafe.currentDateTime()(Unsafe.unsafe)
               val resume = Promise.unsafe.make[Nothing, (OffsetDateTime, Option[B], Long)](FiberId.None)(Unsafe.unsafe)
-              val currentScheduleState = scheduleState.getAndUpdate {
+              val currentScheduleState = getAndUpdate(scheduleState) {
                 case DownstreamPulled(lastB, started, epoch) =>
                   if (scheduleEpoch == epoch) Suspended(c, resume)
                   else DownstreamPulled(lastB, started, epoch)
@@ -318,7 +329,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           def loop(c: Option[C]): ZChannel[Any, E1, Chunk[A1], B, E1, Chunk[Either[C, B]], B] =
             ZChannel.readWithCause(
               elem => {
-                sinkLeftovers.updateAndGet(_ ++ elem)
+                getAndUpdate(sinkLeftovers)(_ ++ elem)
                 loop(c)
               },
               err => ZChannel.failCause(err),
@@ -328,7 +339,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                   ZChannel.write(toWrite) *> ZChannel.succeed(out)
                 } else ZChannel.succeed(out)
             )
-          val currentScheduleState = scheduleState.getAndUpdate {
+          val currentScheduleState = getAndUpdate(scheduleState) {
             case Suspended(end, resume)                  => Suspended(end, resume)
             case DownstreamPulled(lastB, started, epoch) => DownstreamPulled(lastB, started, epoch)
             case Running(lastB, started, epoch)          => DownstreamPulled(lastB, started, epoch)
