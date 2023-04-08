@@ -1295,6 +1295,22 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       builder.result()
     }
 
+  override def iterate[A](start: A, len: Int)(f: A => A): Chunk[A] =
+    if (len <= 0) Chunk.empty
+    else {
+      val builder = ChunkBuilder.make[A]()
+      builder.sizeHint(len)
+
+      var i = 0
+      var a = start
+      while (i < len) {
+        builder += a
+        a = f(a)
+        i += 1
+      }
+      builder.result()
+    }
+
   def newBuilder[A]: ChunkBuilder[A] =
     ChunkBuilder.make()
 
