@@ -532,10 +532,7 @@ object ConfigProvider {
                 .foreach(as) { a =>
                   map.get(a) match {
                     case Some(config) => loop(prefix, config, split)
-                    case None =>
-                      ZIO.fail(
-                        Config.Error.MissingData(prefix, s"The case ${a} in a switch at path ${prefix} was missing")
-                      )
+                    case None         => ZIO.fail(Config.Error.InvalidData(prefix, s"Invalid case: ${a}"))
                   }
                 }
                 .map(_.flatten)
