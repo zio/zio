@@ -14,12 +14,6 @@ object MimaSettings {
       mimaBinaryIssueFilters ++= Seq(
         exclude[Problem]("zio.internal.*"),
         exclude[FinalMethodProblem]("zio.ZIO#EvaluationStep#*"),
-        exclude[MissingClassProblem]("zio.Secret$"),
-        exclude[MissingClassProblem]("zio.Secret"),
-        exclude[IncompatibleMethTypeProblem]("zio.Config#*"),
-        exclude[DirectMissingMethodProblem]("zio.Config#*"),
-        exclude[DirectMissingMethodProblem]("zio.Config.*"),
-        exclude[MissingTypesProblem]("zio.Config$Secret$"),
         exclude[Problem]("zio.stm.ZSTM#internal*"),
         exclude[Problem]("zio.stm.ZSTM$internal*"),
         exclude[Problem]("zio.stream.internal*"),

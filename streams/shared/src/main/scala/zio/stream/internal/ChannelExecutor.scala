@@ -412,7 +412,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
     ChannelState.Effect {
       ZIO.uninterruptible {
         provide(bracketOut.acquire()).foldCauseZIO(
-          cause => ZIO.succeed { currentChannel = ZChannel.failCause(cause) },
+          cause => ZIO.succeed { currentChannel = ZChannel.refailCause(cause) },
           out =>
             ZIO.succeed {
               addFinalizer(exit => provide(bracketOut.finalizer(out, exit)))
