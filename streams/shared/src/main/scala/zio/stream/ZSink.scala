@@ -644,8 +644,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   }
 
   /**
-   * A sink that collects first `n` elements into a chunk. Note that the chunk
-   * is preallocated and must fit in memory.
+   * A sink that collects first `n` elements into a chunk.
    */
   def collectAllN[In](n: => Int)(implicit trace: Trace): ZSink[Any, Nothing, In, In, Chunk[In]] = {
 
