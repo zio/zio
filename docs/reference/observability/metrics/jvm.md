@@ -65,18 +65,42 @@ JVM Metrics are collection of the following ZIO services:
 - Thread
 - VersionInfo
 
-We can access any of them from the environment and call the `collectMetrics` operation:
-
-```scala
-TODO
-```
-
-This method of collecting metrics is not idiomatic. It's for educational purposes or rare cases where we need to gather metrics within our main logic. In most cases, [we collect metrics without involving the core application logic](#collecting-as-a-sidecar-to-a-zio-application).
+All of these services are available in the `zio.metrics.jvm` package. Each service has a `live` implementation that can be used to collect metrics, or we can use all of them at once with by providing `DefaultJvmMetrics.live` layer to our application.
 
 ### Collecting as a Sidecar to a ZIO Application
 
 ZIO JVM metrics have built-in applications that collect the JVM metrics. They can be composed with other ZIO applications as a _sidecar_. By doing so, we are able to collect JVM metrics without modifying our main ZIO application. They will be executed as a daemon alongside the main app:
 
-```scala
-TODO
+```scala mdoc:compile-only
+import zio._
+import zio.http._
+import zio.http.model.Method
+import zio.metrics.connectors.prometheus.PrometheusPublisher
+import zio.metrics.connectors.{MetricsConfig, prometheus}
+import zio.metrics.jvm.DefaultJvmMetrics
+
+object SampleJvmMetricApp extends ZIOAppDefault {
+  private val httpApp =
+    Http
+      .collectZIO[Request] {
+        case Method.GET -> !! / "metrics" =>
+          ZIO.serviceWithZIO[PrometheusPublisher](_.get.map(Response.text))
+      }
+
+  override def run = Server
+    .serve(httpApp)
+    .provide(
+      // ZIO Http default server layer, default port: 8080
+      Server.default,
+
+      // The prometheus reporting layer
+      prometheus.prometheusLayer,
+      prometheus.publisherLayer,
+      // Interval for polling metrics
+      ZLayer.succeed(MetricsConfig(5.seconds)),
+
+      // Default JVM Metrics
+      DefaultJvmMetrics.live.unit,
+    )
+}
 ```

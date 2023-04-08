@@ -12,14 +12,11 @@ In this tutorial, we will learn how to use ZIO Streams and ZIO Kafka to produce 
 
 ## Running Examples
 
-All examples written in this tutorial are accessible through the `kafka` branch of the [ZIO Quickstart: Hello World](https://github.com/zio/zio-quickstart-hello-world) repository.
-
-To run the code, clone the repository and checkout the `kafka` branch:
+To access the code examples, you can clone the [ZIO Quickstarts](http://github.com/zio/zio-quickstarts) project:
 
 ```bash
-$ git clone git@github.com:zio/zio-quickstart-hello-world.git
-$ cd zio-quickstart-hello-world
-$ git checkout kafka
+$ git clone git@github.com:zio/zio-quickstarts.git
+$ cd zio-quickstarts/zio-quickstart-kafka
 ```
 
 And finally, run the application using sbt:
@@ -616,4 +613,4 @@ object JsonStreamingKafkaApp extends ZIOAppDefault {
 
 In this tutorial first, we learned how to create a producer and consumer for Kafka using the ZIO workflow with ZIO Kafka. Then we learned how to do the same with ZIO Streams. We also learned how to create a custom serializer and deserializer for the Kafka records and how to produce and consume JSON data using the ZIO JSON library.
 
-The complete working example of this tutorial is available on the `kafka` branch of our [ZIO Quickstart: Hello World](https://github.com/zio/zio-quickstart-hello-world/tree/kafka) quickstart on GitHub.
+All the source code associated with this article is available on the [ZIO Quickstart](http://github.com/zio/zio-quickstarts) project on Github.

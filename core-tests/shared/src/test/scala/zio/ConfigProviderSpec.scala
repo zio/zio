@@ -504,6 +504,46 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result <- configProvider.load(config)
         } yield assertTrue(result == List((1, 2), (3, 4)))
       } +
+      test("indexed sequence of multiple products nested") {
+        val configProvider = ConfigProvider
+          .fromMap(
+            Map(
+              "parent.child.employees[0].age" -> "1",
+              "parent.child.employees[0].id"  -> "2",
+              "parent.child.employees[1].age" -> "3",
+              "parent.child.employees[1].id"  -> "4"
+            )
+          )
+          .nested("child")
+          .nested("parent")
+
+        val product = Config.int("age").zip(Config.int("id"))
+        val config  = Config.listOf("employees", product)
+
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == List((1, 2), (3, 4)))
+      } +
+      test("indexed sequence of multiple products unnested") {
+        val configProvider = ConfigProvider
+          .fromMap(
+            Map(
+              "employees[0].age" -> "1",
+              "employees[0].id"  -> "2",
+              "employees[1].age" -> "3",
+              "employees[1].id"  -> "4"
+            )
+          )
+          .unnested("parent")
+          .unnested("child")
+
+        val product = Config.int("age").zip(Config.int("id"))
+        val config  = Config.listOf("employees", product).nested("child").nested("parent")
+
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == List((1, 2), (3, 4)))
+      } +
       test("indexed sequence of multiple products with missing fields") {
         val configProvider = ConfigProvider.fromMap(
           Map("employees[0].age" -> "1", "employees[0].id" -> "2", "employees[1].age" -> "3", "employees[1]" -> "4")
@@ -718,6 +758,44 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val member = Config.int("age").zip(Config.string("name"))
 
         val config = Config.listOf("departments", member ?? "Member")
+
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == Nil)
+      } +
+      test("empty list with product nested") {
+        val configProvider =
+          ConfigProvider
+            .fromMap(
+              Map(
+                "parent.child.departments" -> "<nil>"
+              )
+            )
+            .nested("child")
+            .nested("parent")
+
+        val member = Config.int("age").zip(Config.string("name"))
+
+        val config = Config.listOf("departments", member)
+
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == Nil)
+      } +
+      test("empty list with product unnested") {
+        val configProvider =
+          ConfigProvider
+            .fromMap(
+              Map(
+                "departments" -> "<nil>"
+              )
+            )
+            .unnested("parent")
+            .unnested("child")
+
+        val member = Config.int("age").zip(Config.string("name"))
+
+        val config = Config.listOf("departments", member).nested("child").nested("parent")
 
         for {
           result <- configProvider.load(config)

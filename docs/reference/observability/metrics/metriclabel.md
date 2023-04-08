@@ -15,11 +15,13 @@ For example, we can append following labels (dimensions) to our metric aspects:
 - Error code (404, 503)
 - Datacenter Zone (us-east, eu-west)
 
-```scala
+```scala mdoc:compile-only
 import zio._
+import zio.metrics._
+
 val counter = Metric.counter("http_requests")
   .tagged(
-    MetricLabel("env", "production")
+    MetricLabel("env", "production"),
     MetricLabel("method", "GET"),
     MetricLabel("endpoint", "/api/users"),
     MetricLabel("zone", "ap-northeast"),

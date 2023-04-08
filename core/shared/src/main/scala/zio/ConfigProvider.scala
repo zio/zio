@@ -500,13 +500,17 @@ object ConfigProvider {
 
           case Sequence(config) =>
             for {
+              patchedPrefix <- ZIO.fromEither(flat.patch(prefix))
               indices <- flat
-                           .enumerateChildren(prefix)
+                           .enumerateChildren(patchedPrefix)
                            .flatMap(set => indicesFrom(set))
 
               values <-
                 if (indices.isEmpty) {
-                  returnEmptyListIfValueIsNil(prefix = prefix, continue = loop(_, config, split = true).map(Chunk(_)))
+                  returnEmptyListIfValueIsNil(
+                    prefix = patchedPrefix,
+                    continue = loop(_, config, split = true).map(Chunk(_))
+                  )
                 } else
                   ZIO
                     .foreach(Chunk.fromIterable(indices)) { index =>
@@ -528,10 +532,7 @@ object ConfigProvider {
                 .foreach(as) { a =>
                   map.get(a) match {
                     case Some(config) => loop(prefix, config, split)
-                    case None =>
-                      ZIO.fail(
-                        Config.Error.MissingData(prefix, s"The case ${a} in a switch at path ${prefix} was missing")
-                      )
+                    case None         => ZIO.fail(Config.Error.InvalidData(prefix, s"Invalid case: ${a}"))
                   }
                 }
                 .map(_.flatten)

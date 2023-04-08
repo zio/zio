@@ -223,6 +223,16 @@ object MetricSpec extends ZIOBaseSpec {
           r1 <- base.tagged(MetricLabel("dyn", "x")).value
           r2 <- base.tagged(MetricLabel("dyn", "xyz")).value
         } yield assertTrue(r0.count == 0L, r1.count == 1L, r2.count == 1L)
+      },
+      test("linear boundaries") {
+        val expected = Chunk(0, 10, 20, 30, 40, 50, 60, 70, 80, 90).map(_.toDouble) :+ Double.MaxValue
+        val actual   = Histogram.Boundaries.linear(0, 10, 10).values
+        assertTrue(actual == expected)
+      },
+      test("exponential boundaries") {
+        val expected = Chunk(1, 2, 4, 8, 16, 32, 64, 128, 256, 512).map(_.toDouble) :+ Double.MaxValue
+        val actual   = Histogram.Boundaries.exponential(1, 2, 10).values
+        assertTrue(actual == expected)
       }
     ),
     suite("Summary")(

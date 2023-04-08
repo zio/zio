@@ -72,6 +72,13 @@ sealed trait Config[+A] { self =>
    * Returns a new config that has this configuration nested as a property of
    * the specified name.
    */
+  def nested(name: => String): Config[A] =
+    Config.defer(Config.Nested(name, self))
+
+  /**
+   * Returns a new config that has this configuration nested as a property of
+   * the specified name.
+   */
   def nested(name: => String, names: String*): Config[A] =
     Config.defer(Config.Nested(name, names.foldRight(self)((name, config) => Config.Nested(name, config))))
 

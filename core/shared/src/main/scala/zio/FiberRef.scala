@@ -415,6 +415,16 @@ object FiberRef {
         IsFatal.Patch.empty
       )
 
+    def makeMap[A, B, Patch](
+      initial: Map[A, B],
+      differ: Differ[B, Patch]
+    )(implicit unsafe: Unsafe): FiberRef.WithPatch[Map[A, B], MapPatch[A, B, Patch]] =
+      makePatch[Map[A, B], MapPatch[A, B, Patch]](
+        initial,
+        Differ.map(differ),
+        MapPatch.empty
+      )
+
     def makePatch[Value0, Patch0](
       initialValue0: Value0,
       differ: Differ[Value0, Patch0],

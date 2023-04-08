@@ -1245,9 +1245,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    */
   def find(f: A => Boolean)(implicit trace: Trace): ZStream[R, E, A] = {
     lazy val loop: ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Any] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         (in: Chunk[A]) => in.find(f).fold(loop)(i => ZChannel.write(Chunk.single(i))),
-        (e: E) => ZChannel.fail(e),
+        (e: Cause[E]) => ZChannel.failCause(e),
         (_: Any) => ZChannel.unit
       )
 
@@ -1262,9 +1262,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     f: A => ZIO[R1, E1, Boolean]
   )(implicit trace: Trace): ZStream[R1, E1, A] = {
     lazy val loop: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         (in: Chunk[A]) => ZChannel.unwrap(in.findZIO(f).map(_.fold(loop)(i => ZChannel.write(Chunk.single(i))))),
-        (e: E) => ZChannel.fail(e),
+        (e: Cause[E]) => ZChannel.failCause(e),
         (_: Any) => ZChannel.unit
       )
 
@@ -1806,12 +1806,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapAccum[S, A1](s: => S)(f: (S, A) => (S, A1))(implicit trace: Trace): ZStream[R, E, A1] =
     ZStream.succeed(s).flatMap { s =>
       def accumulator(currS: S): ZChannel[Any, E, Chunk[A], Any, E, Chunk[A1], Unit] =
-        ZChannel.readWith(
+        ZChannel.readWithCause(
           (in: Chunk[A]) => {
             val (nextS, a1s) = in.mapAccum(currS)(f)
             ZChannel.write(a1s) *> accumulator(nextS)
           },
-          (err: E) => ZChannel.fail(err),
+          (err: Cause[E]) => ZChannel.failCause(err),
           (_: Any) => ZChannel.unit
         )
 
@@ -2134,9 +2134,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     stream: ZStream[R1, E1, A1]
   )(implicit trace: Trace): ZStream[R1, E1, A1] = {
     lazy val writer: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Any] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         (in: Chunk[A]) => if (in.isEmpty) writer else ZChannel.write(in) *> ZChannel.identity[E, Chunk[A], Any],
-        (e: E) => ZChannel.fail(e),
+        (e: Cause[E]) => ZChannel.failCause(e),
         (_: Any) => stream.channel
       )
 
@@ -2438,9 +2438,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         }
 
         lazy val loop: ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[C], Unit] =
-          ZChannel.readWith(
+          ZChannel.readWithCause(
             feed,
-            ZChannel.fail(_),
+            ZChannel.failCause(_),
             (_: Any) => ZChannel.unit
           )
 
@@ -2958,9 +2958,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     }
 
     def loop(leftovers: Chunk[A]): ZChannel[R, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         (in: Chunk[A]) => split(leftovers)(in),
-        (e: E) => ZChannel.fail(e),
+        (e: Cause[E]) => ZChannel.failCause(e),
         (_: Any) => {
           if (leftovers.isEmpty) ZChannel.unit
           else if (leftovers.find(f).isEmpty) ZChannel.write(Chunk.single(leftovers)) *> ZChannel.unit
@@ -3034,12 +3034,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
             for {
               queue <- ZIO.succeed(SingleThreadedRingBuffer[A](n))
             } yield {
-              lazy val reader: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Unit] = ZChannel.readWith(
+              lazy val reader: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Unit] = ZChannel.readWithCause(
                 (in: Chunk[A]) => {
                   in.foreach(queue.put)
                   reader
                 },
-                ZChannel.fail(_),
+                ZChannel.failCause(_),
                 (_: Any) => ZChannel.write(queue.toChunk) *> ZChannel.unit
               )
 
