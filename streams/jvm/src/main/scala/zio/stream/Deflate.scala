@@ -35,7 +35,7 @@ private object Deflate {
                     deflater.setInput(chunk.toArray)
                     pullOutput(deflater, buffer, flushMode)
                   }.flatMap(chunk => ZChannel.write(chunk) *> loop),
-                ZChannel.failCause(_),
+                ZChannel.refailCause,
                 done =>
                   ZChannel.succeed {
                     deflater.finish()

@@ -30,7 +30,7 @@ private object Inflate {
                     CompressionException(e)
                   }
                 }.flatMap(chunk => ZChannel.write(chunk) *> loop),
-              ZChannel.failCause(_),
+              ZChannel.refailCause,
               done =>
                 ZChannel.fromZIO {
                   ZIO.attempt {
