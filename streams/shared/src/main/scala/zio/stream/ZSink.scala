@@ -113,9 +113,9 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
         .fromZIO(Ref.make(Chunk[In]()).zip(Ref.make(false)))
         .flatMap { case (leftoversRef, upstreamDoneRef) =>
           lazy val upstreamMarker: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
-            ZChannel.readWith(
+            ZChannel.readWithCause(
               (in: Chunk[In]) => ZChannel.write(in) *> upstreamMarker,
-              ZChannel.fail(_: ZNothing),
+              ZChannel.failCause(_: Cause[ZNothing]),
               (x: Any) => ZChannel.fromZIO(upstreamDoneRef.set(true)).as(x)
             )
 
@@ -159,9 +159,9 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     f: Chunk[In1] => Chunk[In]
   )(implicit trace: Trace): ZSink[R, E, In1, L, Z] = {
     lazy val loop: ZChannel[R, ZNothing, Chunk[In1], Any, Nothing, Chunk[In], Any] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         chunk => ZChannel.write(f(chunk)) *> loop,
-        ZChannel.fail(_),
+        ZChannel.failCause(_),
         ZChannel.succeed(_)
       )
     new ZSink(loop >>> self.channel)
@@ -175,9 +175,9 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     f: Chunk[In1] => ZIO[R1, E1, Chunk[In]]
   )(implicit trace: Trace): ZSink[R1, E1, In1, L, Z] = {
     lazy val loop: ZChannel[R1, ZNothing, Chunk[In1], Any, E1, Chunk[In], Any] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         chunk => ZChannel.fromZIO(f(chunk)).flatMap(ZChannel.write) *> loop,
-        ZChannel.fail(_),
+        ZChannel.failCause(_),
         ZChannel.succeed(_)
       )
     new ZSink(loop.pipeToOrFail(self.channel))
@@ -272,9 +272,9 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
         .fromZIO(Ref.make(Chunk[In]()).zip(Ref.make(false)))
         .flatMap { case (leftoversRef, upstreamDoneRef) =>
           lazy val upstreamMarker: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
-            ZChannel.readWith(
+            ZChannel.readWithCause(
               (in: Chunk[In]) => ZChannel.write(in) *> upstreamMarker,
-              ZChannel.fail(_: ZNothing),
+              ZChannel.failCause(_: Cause[ZNothing]),
               (x: Any) => ZChannel.fromZIO(upstreamDoneRef.set(true)).as(x)
             )
 
@@ -750,13 +750,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   ): ZSink[Any, Nothing, In, In, Chunk[In]] = {
 
     def channel(done: Chunk[In]): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Chunk[In]] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         in => {
           val (collected, leftovers) = in.span(p)
           if (leftovers.isEmpty) channel(done ++ collected)
           else ZChannel.write(leftovers) *> ZChannel.succeed(done ++ collected)
         },
-        ZChannel.fail,
+        ZChannel.failCause(_),
         _ => ZChannel.succeed(done)
       )
 
@@ -772,7 +772,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   ): ZSink[Env, Err, In, In, Chunk[In]] = {
 
     def channel(done: Chunk[In]): ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[In], Chunk[In]] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         in => {
           ZChannel.fromZIO(in.takeWhileZIO(p)).flatMap { collected =>
             val leftovers = in.drop(collected.length)
@@ -780,7 +780,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
             else ZChannel.write(leftovers) *> ZChannel.succeed(done ++ collected)
           }
         },
-        ZChannel.fail,
+        ZChannel.failCause(_),
         _ => ZChannel.succeed(done)
       )
 
@@ -913,14 +913,14 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       def reader(s: S): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], S] =
         if (!contFn(s)) ZChannel.succeedNow(s)
         else
-          ZChannel.readWith(
+          ZChannel.readWithCause(
             (in: Chunk[In]) => {
               val (nextS, leftovers) = foldChunkSplit(s, in)(contFn)(f)
 
               if (leftovers.nonEmpty) ZChannel.write(leftovers).as(nextS)
               else reader(nextS)
             },
-            (err: ZNothing) => ZChannel.fail(err),
+            (err: Cause[ZNothing]) => ZChannel.failCause(err),
             (x: Any) => ZChannel.succeedNow(s)
           )
 
@@ -942,13 +942,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       def reader(s: S): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Nothing, S] =
         if (!contFn(s)) ZChannel.succeedNow(s)
         else
-          ZChannel.readWith(
+          ZChannel.readWithCause(
             (in: Chunk[In]) => {
               val nextS = f(s, in)
 
               reader(nextS)
             },
-            (err: ZNothing) => ZChannel.fail(err),
+            (err: Cause[ZNothing]) => ZChannel.failCause(err),
             (_: Any) => ZChannel.succeedNow(s)
           )
 
@@ -970,9 +970,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       def reader(s: S): ZChannel[Env, Err, Chunk[In], Any, Err, Nothing, S] =
         if (!contFn(s)) ZChannel.succeedNow(s)
         else
-          ZChannel.readWith(
+          ZChannel.readWithCause(
             (in: Chunk[In]) => ZChannel.fromZIO(f(s, in)).flatMap(reader),
-            (err: Err) => ZChannel.fail(err),
+            (err: Cause[Err]) => ZChannel.failCause(err),
             (_: Any) => ZChannel.succeedNow(s)
           )
 
@@ -1099,7 +1099,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         dirty: Boolean,
         max: Long
       ): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], S] =
-        ZChannel.readWith(
+        ZChannel.readWithCause(
           (in: Chunk[In]) => {
             def fold(in: Chunk[In], s: S, dirty: Boolean, cost: Long, idx: Int): (S, Long, Boolean, Chunk[In]) =
               if (idx == in.length) (s, cost, dirty, Chunk.empty)
@@ -1133,7 +1133,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
             else if (cost > max) ZChannel.succeedNow(nextS)
             else go(nextS, nextCost, nextDirty, max)
           },
-          (err: ZNothing) => ZChannel.fail(err),
+          (err: Cause[ZNothing]) => ZChannel.failCause(err),
           (_: Any) => ZChannel.succeedNow(s)
         )
 
@@ -1161,7 +1161,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   )(f: (S, In) => ZIO[Env, Err, S])(implicit trace: Trace): ZSink[Env, Err, In, In, S] =
     ZSink.suspend {
       def go(s: S, cost: Long, dirty: Boolean, max: Long): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], S] =
-        ZChannel.readWith(
+        ZChannel.readWithCause(
           (in: Chunk[In]) => {
             def fold(
               in: Chunk[In],
@@ -1200,7 +1200,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
               else go(nextS, nextCost, nextDirty, max)
             }
           },
-          (err: Err) => ZChannel.fail(err),
+          (err: Cause[Err]) => ZChannel.failCause(err),
           (_: Any) => ZChannel.succeedNow(s)
         )
 
@@ -1252,7 +1252,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       def reader(s: S): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], S] =
         if (!contFn(s)) ZChannel.succeedNow(s)
         else
-          ZChannel.readWith(
+          ZChannel.readWithCause(
             (in: Chunk[In]) =>
               ZChannel.fromZIO(foldChunkSplitZIO(s, in)(contFn)(f)).flatMap { case (nextS, leftovers) =>
                 leftovers match {
@@ -1260,7 +1260,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
                   case None    => reader(nextS)
                 }
               },
-            (err: Err) => ZChannel.fail(err),
+            (err: Cause[Err]) => ZChannel.failCause(err),
             (_: Any) => ZChannel.succeedNow(s)
           )
 
@@ -1347,13 +1347,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     f: Chunk[In] => ZIO[R, Err, Boolean]
   )(implicit trace: Trace): ZSink[R, Err, In, In, Unit] = {
     lazy val reader: ZChannel[R, Err, Chunk[In], Any, Err, Nothing, Unit] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         (in: Chunk[In]) =>
           ZChannel.fromZIO(f(in)).flatMap { continue =>
             if (continue) reader
             else ZChannel.unit
           },
-        (err: Err) => ZChannel.fail(err),
+        (err: Cause[Err]) => ZChannel.failCause(err),
         (_: Any) => ZChannel.unit
       )
 
@@ -1378,7 +1378,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     def pull(
       push: Option[Chunk[I]] => ZIO[R, (Either[E, Z], Chunk[L]), Unit]
     ): ZChannel[R, ZNothing, Chunk[I], Any, E, Chunk[L], Z] =
-      ZChannel.readWith(
+      ZChannel.readWithCause(
         in =>
           ZChannel
             .fromZIO(push(Some(in)))
@@ -1391,7 +1391,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
               },
               _ => pull(push)
             ),
-        err => ZChannel.fail(err),
+        err => ZChannel.failCause(err),
         _ =>
           ZChannel
             .fromZIO(push(None))
