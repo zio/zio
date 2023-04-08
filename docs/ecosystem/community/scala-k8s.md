@@ -28,8 +28,8 @@ Latest version [![Latest version](https://index.scala-lang.org/hnaderi/scala-k8s
 
 ``` scala
 libraryDependencies ++= Seq(
-  "dev.hnaderi" %% "scala-k8s-objects" % "@VERSION@", // JVM, JS, Native ; raw k8s objects
-  "dev.hnaderi" %% "scala-k8s-client" % "@VERSION@", // JVM, JS, Native ; k8s client kernel and requests
+  "dev.hnaderi" %% "scala-k8s-objects" % "[VERSION]", // JVM, JS, Native ; raw k8s objects
+  "dev.hnaderi" %% "scala-k8s-client" % "[VERSION]", // JVM, JS, Native ; k8s client kernel and requests
   )
 ```
 
@@ -37,17 +37,17 @@ The following integrations are currently available:
 
 ```scala
 libraryDependencies ++= Seq(
-  "dev.hnaderi" %% "scala-k8s-http4s" % "@VERSION@", // JVM, JS, Native ; http4s and fs2 integration
-  "dev.hnaderi" %% "scala-k8s-zio" % "@VERSION@", // JVM ; ZIO native integration using zio-http and zio-json 
-  "dev.hnaderi" %% "scala-k8s-sttp" % "@VERSION@", // JVM, JS, Native ; sttp integration using jawn parser
-  "dev.hnaderi" %% "scala-k8s-circe" % "@VERSION@", // JVM, JS ; circe integration
-  "dev.hnaderi" %% "scala-k8s-json4s" % "@VERSION@", // JVM, JS, Native; json4s integration
-  "dev.hnaderi" %% "scala-k8s-spray-json" % "@VERSION@", // JVM ; spray-json integration
-  "dev.hnaderi" %% "scala-k8s-play-json" % "@VERSION@", // JVM ; play-json integration
-  "dev.hnaderi" %% "scala-k8s-zio-json" % "@VERSION@", // JVM, JS ; zio-json integration
-  "dev.hnaderi" %% "scala-k8s-jawn" % "@VERSION@", // JVM, JS, Native ; jawn integration
-  "dev.hnaderi" %% "scala-k8s-manifests" % "@VERSION@", // JVM ; yaml manifest generation
-  "dev.hnaderi" %% "scala-k8s-scalacheck" % "@VERSION@" // JVM, JS, Native; scalacheck instances
+  "dev.hnaderi" %% "scala-k8s-http4s" % "[VERSION]", // JVM, JS, Native ; http4s and fs2 integration
+  "dev.hnaderi" %% "scala-k8s-zio" % "[VERSION]", // JVM ; ZIO native integration using zio-http and zio-json 
+  "dev.hnaderi" %% "scala-k8s-sttp" % "[VERSION]", // JVM, JS, Native ; sttp integration using jawn parser
+  "dev.hnaderi" %% "scala-k8s-circe" % "[VERSION]", // JVM, JS ; circe integration
+  "dev.hnaderi" %% "scala-k8s-json4s" % "[VERSION]", // JVM, JS, Native; json4s integration
+  "dev.hnaderi" %% "scala-k8s-spray-json" % "[VERSION]", // JVM ; spray-json integration
+  "dev.hnaderi" %% "scala-k8s-play-json" % "[VERSION]", // JVM ; play-json integration
+  "dev.hnaderi" %% "scala-k8s-zio-json" % "[VERSION]", // JVM, JS ; zio-json integration
+  "dev.hnaderi" %% "scala-k8s-jawn" % "[VERSION]", // JVM, JS, Native ; jawn integration
+  "dev.hnaderi" %% "scala-k8s-manifests" % "[VERSION]", // JVM ; yaml manifest generation
+  "dev.hnaderi" %% "scala-k8s-scalacheck" % "[VERSION]" // JVM, JS, Native; scalacheck instances
 )
 ```
 This project also has a [sbt integration](https://github.com/hnaderi/sbt-k8s) you can use to generate manifests.
