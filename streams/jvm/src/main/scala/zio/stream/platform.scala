@@ -162,7 +162,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
                 case Left(None) =>
                   ZChannel.unit
                 case Right(cause) =>
-                  ZChannel.failCause(cause)
+                  ZChannel.refailCause(cause)
               }),
             a => ZIO.succeed(ZChannel.write(a) *> loop)
           )
@@ -584,7 +584,7 @@ private[stream] trait ZSinkPlatformSpecificConstructors {
             ZChannel
               .succeedNow(digest.update(in.toArray))
               .zipRight[Any, Nothing, Chunk[Byte], Any, Nothing, Nothing, Chunk[Byte]](loop(digest)),
-          cause => ZChannel.failCause(cause),
+          cause => ZChannel.refailCause(cause),
           _ => ZChannel.succeedNow(Chunk.fromArray(digest.digest))
         )
 
