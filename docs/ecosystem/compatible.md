@@ -7,6 +7,7 @@ List of ZIO compatible libraries:
 
 - [d4s](https://github.com/PlayQ/d4s) — "Dynamo DB Database done Scala way". A library that allows accessing the DynamoDB in a purely functional way
 - [elastic4s](https://github.com/sksamuel/elastic4s) — Elasticsearch Scala Client - Reactive, Non Blocking, Type Safe, HTTP Client
+- [Lepus](https://github.com/hnaderi/lepus) — Your principled, purely functional, non-blocking RabbitMQ client for scala, scala js and scala native built on top of fs2
 - [neotypes](https://github.com/neotypes/neotypes) — A Scala lightweight, type-safe & asynchronous driver for neo4j
 - [scanamo](https://github.com/scanamo/scanamo) — Simpler DynamoDB access for Scala
 - [sttp](https://github.com/softwaremill/sttp) — The Scala HTTP client you always wanted!
