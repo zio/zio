@@ -23,7 +23,7 @@ val stream = s1.orElse(s2)
 // Output: 1, 2, 3, 7, 8, 9
 ```
 
-Another variant of `orElse` is `ZStream#orElseEither`, which distinguishes elements of the two streams using the `Either` data type. Using this operator, the result of the previous example should be `Left(1), Left(2), Left(3), Right(6), Right(7), Right(8)`.
+Another variant of `orElse` is `ZStream#orElseEither`, which distinguishes elements of the two streams using the `Either` data type. Using this operator, the result of the previous example should be `Left(1), Left(2), Left(3), Right(7), Right(8), Right(9)`.
 
 ZIO stream has `ZStream#catchAll` which is powerful version of `ZStream#orElse`. By using `catchAll` we can decide what to do based on the type and value of the failure:
 
