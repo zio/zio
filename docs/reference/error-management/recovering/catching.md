@@ -273,7 +273,7 @@ trait ZIO[-R, +E, +A] {
 }
 ```
 
-In case of occurring any [fatal error](#3-fatal-errors), it will die.
+In case of occurring any [fatal error](#catching-traces), it will die.
 
 ```scala
 openFile("data.json").catchNonFatalOrDie(_ => openFile("backup.json"))

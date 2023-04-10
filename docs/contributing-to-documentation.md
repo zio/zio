@@ -6,7 +6,7 @@ title: "Contributing to The ZIO Documentation"
 
 The ZIO documentation is provided by a worldwide community, just like the project itself. So if you are reading this page, you can help us to improve the documentation.
 
-Please read the [Contributor Guideline](contributing.md) before contributing to documentation.
+Please read the [Contributor Guideline](contributor-guidelines.md) before contributing to documentation.
 
 ## Toolchain
 
@@ -78,7 +78,7 @@ npm run start --watch
 
 It will be served on [localhost](http://127.0.0.1:3000/) address.
 
-5. When we are finished with the documentation, we can commit those changes and [create a pull request](contributing.md#create-a-pull-request).
+5. When we are finished with the documentation, we can commit those changes and [create a pull request](contributor-guidelines.md#create-a-pull-request).
 
 
 ## Giving Feedback

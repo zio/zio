@@ -122,7 +122,7 @@ const config = {
             },
             {
               label: 'Contributing to The ZIO Documentation',
-              href: '/contributing-to-the-documentation'
+              href: '/contributing-to-documentation'
             },
             {
               label: 'Coding Guidelines',

@@ -107,7 +107,7 @@ IO supports 5 types of Metrics:
 - **[Gauge](observability/metrics/gauge.md)** — The gauge is a single numerical value that can arbitrary goes up or down over time like _memory usage_.
 - **[Histogram](observability/metrics/histogram.md)** — The Histogram is used to track the distribution of a set of observed values across a set of buckets like _request latencies_.
 - **[Summary](observability/metrics/summary.md)** — The Summary represents a sliding window of a time series along with metrics for certain percentiles of the time series, referred to as quantiles like _request latencies_.
-- **[Frequency](observability/metrics/setcount.md)** — The Frequency is a metric that counts the number of occurrences of distinct string values.
+- **[Frequency](observability/metrics/frequency.md)** — The Frequency is a metric that counts the number of occurrences of distinct string values.
 
 ## Testing
 
