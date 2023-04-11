@@ -1,1 +1,3 @@
 -Dcats.effect.stackTracingMode=full
+--enable-preview
+-release 19

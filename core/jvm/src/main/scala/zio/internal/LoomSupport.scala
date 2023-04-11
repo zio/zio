@@ -23,12 +23,12 @@ object LoomSupport {
   def newVirtualThreadPerTaskExecutor(): Option[Executor] =
     if (!Platform.hasGreenThreads) return None
     else {
-      val newExecutor = classOf[Executors].getMethod("newVirtualThreadPerTaskExecutor", classOf[Executor])
-
       try {
+        val newExecutor = classOf[Executors].getMethod("newVirtualThreadPerTaskExecutor")
+
         Some(newExecutor.invoke(null).asInstanceOf[Executor])
       } catch {
-        case e: InvocationTargetException => throw LoomNotAvailableException("Loom API not available")
+        case e: NoSuchMethodException => throw LoomNotAvailableException("Loom API not available", e)
       }
     }
 
@@ -41,9 +41,9 @@ object LoomSupport {
 
         true
       } catch {
-        case e: NoSuchMethodException => throw LoomNotAvailableException("Loom API not available")
+        case e: NoSuchMethodException => throw LoomNotAvailableException("Loom API not available", e)
       }
     } else false
 
-  final case class LoomNotAvailableException(message: String) extends RuntimeException(message)
+  final case class LoomNotAvailableException(message: String, cause: Throwable) extends RuntimeException(message, cause)
 }

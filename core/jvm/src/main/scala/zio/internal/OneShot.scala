@@ -26,8 +26,8 @@ import java.util.concurrent.locks.Condition
  * equivalent of `Promise`.
  */
 private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
-  @volatile private var value        = null.asInstanceOf[A with AnyRef]
-  private final val isSet: Condition = this.newCondition()
+  @volatile private var value                 = null.asInstanceOf[A with AnyRef]
+  private final val isSetCondition: Condition = this.newCondition()
 
   import OneShot._
 
@@ -45,7 +45,7 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
 
       value = v.asInstanceOf[A with AnyRef]
 
-      this.isSet.signalAll()
+      this.isSetCondition.signalAll()
     } finally {
       this.unlock()
     }
@@ -70,7 +70,7 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
       this.lock()
 
       try {
-        if (value == null) this.isSet.await(timeout, java.util.concurrent.TimeUnit.MILLISECONDS)
+        if (value == null) this.isSetCondition.await(timeout, java.util.concurrent.TimeUnit.MILLISECONDS)
       } finally {
         this.unlock()
       }
@@ -91,7 +91,7 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
       this.lock()
 
       try {
-        while (value == null) this.isSet.await()
+        while (value == null) this.isSetCondition.await()
       } finally {
         this.unlock()
       }

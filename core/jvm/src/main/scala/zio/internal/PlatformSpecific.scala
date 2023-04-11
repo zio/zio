@@ -119,7 +119,7 @@ private[zio] trait PlatformSpecific {
     () => ref.get()
   }
 
-  def getJdkVersion(): Option[Int] = {
+  private def getJdkVersion(): Option[Int] = {
     val versionString = System.getProperty("java.version")
     scala.util.Try {
       val pattern      = """^(\d+)(?:\.\d+)*$""".r
