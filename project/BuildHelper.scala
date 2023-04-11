@@ -188,6 +188,7 @@ object BuildHelper {
         List()
     },
     javacOptions ++= Seq("--enable-preview", "--release", "19"),
+    javaOptions ++= Seq("--enable-preview"),
     libraryDependencies ++= {
       if (scalaVersion.value == Scala3)
         Seq(
