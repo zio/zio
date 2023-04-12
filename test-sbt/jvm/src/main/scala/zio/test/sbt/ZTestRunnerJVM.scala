@@ -60,7 +60,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
         colored(renderedSummary)
       else if (ignore > 0)
         s"${Console.YELLOW}All eligible tests are currently ignored ${Console.RESET}"
-      else if (total == 0)
+      else
         s"${Console.YELLOW}No tests were executed${Console.RESET}"
 
     // We eagerly print out the info here, rather than returning it
