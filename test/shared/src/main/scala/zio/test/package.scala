@@ -21,7 +21,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.{ZChannel, ZSink, ZStream}
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 import zio.test.Spec.LabeledCase
-import zio.test.results.{ExecutionEventJsonPrinter, ResultFileOpsJson, ResultSerializer}
+import zio.test.results.{ExecutionEventCsvPrinter, ExecutionEventJsonPrinter, ResultFileOps, ResultSerializer, TestResultPrinter}
 
 import scala.language.implicitConversions
 
@@ -789,13 +789,22 @@ package object test extends CompileVariants {
 
   private[test] def sinkLayer(console: Console, eventRenderer: ReporterEventRenderer)(implicit
     trace: Trace
-  ): ZLayer[Any, Nothing, ExecutionEventSink] =
-    TestLogger.fromConsole(console) >>>
-      ((ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live) ++ ExecutionEventConsolePrinter
-        .live(eventRenderer)) >>>
-      ExecutionEventPrinter.live >>>
-      TestOutput.live >>>
-      ExecutionEventSink.live
+  ): ZLayer[Any, Nothing, ExecutionEventSink] = {
+    ZLayer.make[ExecutionEventSink](
+      TestLogger.fromConsole(console),
+      TestResultPrinter.csv,
+      ExecutionEventConsolePrinter.live(eventRenderer),
+      ExecutionEventPrinter.live,
+      TestOutput.live,
+      ExecutionEventSink.live,
+    )
+//    ZLayer.fromZIO(ZIO.debug("Hi")) >>> TestLogger.fromConsole(console) >>>
+//      ((ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live) ++ ExecutionEventConsolePrinter
+//        .live(eventRenderer)) >>>
+//      ExecutionEventPrinter.live >>>
+//      TestOutput.live >>>
+//      ExecutionEventSink.live
+  }
 
   /**
    * A `Runner` that provides a default testable environment.

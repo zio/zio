@@ -1,9 +1,10 @@
 package zio.test.results
 
-import zio.{ZIO, ZLayer}
 import zio.test._
+import zio.{ZIO, ZLayer}
 
-private[test] object ExecutionEventJsonPrinter {
+// TODO Use Csv classes instead
+private[test] object ExecutionEventCsvPrinter {
   private val lively: ZLayer[ResultSerializer with ResultFileOps, Nothing, TestResultPrinter] =
     ZLayer.fromFunction(
       LiveImpl(_, _)
@@ -11,9 +12,8 @@ private[test] object ExecutionEventJsonPrinter {
 
   val live: ZLayer[Any, Nothing, TestResultPrinter] =
     ZLayer.make[TestResultPrinter](
-      ResultSerializer.live,
-//      ResultSerializer.csv,
-      ResultFileOps.live,
+      ResultSerializer.csv,
+      ResultFileOpsCsv.live,
       lively
     )
 

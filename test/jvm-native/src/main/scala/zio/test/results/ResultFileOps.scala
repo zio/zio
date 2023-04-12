@@ -5,17 +5,17 @@ import zio._
 import java.io.IOException
 import scala.io.Source
 
-private[test] trait ResultFileOpsJson {
+private[test] trait ResultFileOps {
   def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit]
 }
 
-private[test] object ResultFileOpsJson {
-  val live: ZLayer[Any, Nothing, ResultFileOpsJson] =
+private[test] object ResultFileOps {
+  val live: ZLayer[Any, Nothing, ResultFileOps] =
     ZLayer.scoped(
       Live.apply
     )
 
-  private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) extends ResultFileOpsJson {
+  private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) extends ResultFileOps {
     def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit] =
       lock.updateZIO(_ =>
         ZIO

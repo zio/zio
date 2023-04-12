@@ -6,3 +6,8 @@ import zio.test.ExecutionEvent
 trait TestResultPrinter {
   def print[E](event: ExecutionEvent.Test[E]): ZIO[Any, Nothing, Unit]
 }
+
+object TestResultPrinter {
+  val json = ExecutionEventJsonPrinter.live
+  val csv = ExecutionEventCsvPrinter.live
+}
