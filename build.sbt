@@ -789,8 +789,9 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     crossScalaVersions --= List(Scala212, Scala3),
-    mdocIn  := (LocalRootProject / baseDirectory).value / "docs",
-    mdocOut := (LocalRootProject / baseDirectory).value / "website" / "docs",
+    mdocIn             := (LocalRootProject / baseDirectory).value / "docs",
+    mdocOut            := (LocalRootProject / baseDirectory).value / "website" / "docs",
+    mdocExtraArguments := Seq("--check-link-hygiene"),
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
       core.jvm,
       streams.jvm,
