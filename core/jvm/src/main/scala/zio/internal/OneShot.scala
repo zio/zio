@@ -71,9 +71,7 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
 
       try {
         if (value == null) this.isSetCondition.await(timeout, java.util.concurrent.TimeUnit.MILLISECONDS)
-      } finally {
-        this.unlock()
-      }
+      } finally this.unlock()
 
       if (value == null) throw new Error("Timed out waiting for variable to be set")
 
@@ -92,9 +90,7 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
 
       try {
         while (value == null) this.isSetCondition.await()
-      } finally {
-        this.unlock()
-      }
+      } finally this.unlock()
 
       value
     }
@@ -102,8 +98,6 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
 }
 
 private[zio] object OneShot {
-
-  private final val nanosPerMilli = 1000000L
 
   /**
    * Makes a new (unset) variable.

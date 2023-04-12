@@ -47,6 +47,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var asyncTrace       = null.asInstanceOf[Trace]
   private var asyncBlockingOn  = null.asInstanceOf[() => FiberId]
   private var runningExecutor  = null.asInstanceOf[Executor]
+  private var _greenThread     = null.asInstanceOf[Thread]
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
     val tags = getFiberRef(FiberRef.currentTags)(Unsafe.unsafe)
@@ -148,6 +149,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         case active: Fiber.Status.Unfinished => active.runtimeFlags
       }
     }
+
+  def setCurrentThread(thread: Thread): Unit = _greenThread = thread
 
   lazy val scope: FiberScope = FiberScope.make(this)
 
@@ -980,23 +983,33 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
             case effect: Async[_, _, _] =>
-              self.reifiedStack.ensureCapacity(currentDepth)
+              if (Platform.hasGreenThreads) {
+                val oneShot = OneShot.make[ZIO[Any, Any, Any]]
 
-              self.asyncTrace = lastTrace
-              self.asyncBlockingOn = effect.blockingOn
+                val result = effect.registerCallback(k => oneShot.set(k.asInstanceOf[ZIO[Any, Any, Any]]))
 
-              cur = initiateAsync(runtimeFlags, effect.registerCallback)
+                if (result ne null) oneShot.set(result)
 
-              while (cur eq null) {
-                cur = drainQueueAfterAsync(runtimeFlags, lastTrace)
+                cur = oneShot.get()
+              } else {
+                self.reifiedStack.ensureCapacity(currentDepth)
 
-                if (cur eq null) {
-                  if (!stealWork(currentDepth, runtimeFlags)) throw AsyncJump
+                self.asyncTrace = lastTrace
+                self.asyncBlockingOn = effect.blockingOn
+
+                cur = initiateAsync(runtimeFlags, effect.registerCallback)
+
+                while (cur eq null) {
+                  cur = drainQueueAfterAsync(runtimeFlags, lastTrace)
+
+                  if (cur eq null) {
+                    if (!stealWork(currentDepth, runtimeFlags)) throw AsyncJump
+                  }
                 }
-              }
 
-              if (RuntimeFlags.interruptible(runtimeFlags) && isInterrupted()) {
-                cur = Exit.failCause(getInterruptedCause())
+                if (RuntimeFlags.interruptible(runtimeFlags) && isInterrupted()) {
+                  cur = Exit.failCause(getInterruptedCause())
+                }
               }
 
             case effect: UpdateRuntimeFlagsWithin[_, _, _] =>
@@ -1397,12 +1410,27 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   /**
    * Adds a message to be processed by the fiber on the fiber.
    */
-  private[zio] def tell(message: FiberMessage)(implicit unsafe: Unsafe): Unit = {
-    queue.add(message)
+  private[zio] def tell(message: FiberMessage)(implicit unsafe: Unsafe): Unit =
+    if (_greenThread ne null) {
+      message match {
+        case FiberMessage.InterruptSignal(cause) =>
+          processNewInterruptSignal(cause)
+          _greenThread.interrupt()
 
-    // Attempt to spin up fiber, if it's not already running:
-    if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
-  }
+        case FiberMessage.GenStackTrace(onTrace) =>
+          // This is not the correct stack trace, but we can't access the correct one without
+          // waiting, which may be undesirable.
+          implicit val trace = Trace.empty
+          onTrace(StackTrace.unsafe.fromThread(fiberId, _greenThread))
+
+        case _ => queue.add(message)
+      }
+    } else {
+      queue.add(message)
+
+      // Attempt to spin up fiber, if it's not already running:
+      if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
+    }
 
   private[zio] def tellAddChild(child: Fiber.Runtime[_, _])(implicit unsafe: Unsafe): Unit =
     tell(FiberMessage.Stateful((parentFiber, _) => parentFiber.addChild(child)))

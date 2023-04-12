@@ -21,8 +21,12 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] trait RuntimePlatformSpecific {
 
-  final val defaultExecutor: Executor =
-    LoomSupport.newVirtualThreadPerTaskExecutor().map(Executor.fromJavaExecutor(_)).getOrElse(Executor.makeDefault())
+  final val defaultExecutor: Executor = {
+    val loomExecutor =
+      LoomSupport.newVirtualThreadPerTaskExecutor().map(e => Executor.fromJavaExecutor(e).withCurrentThread)
+
+    loomExecutor.getOrElse(Executor.makeDefault())
+  }
 
   final val defaultBlockingExecutor: Executor =
     Blocking.blockingExecutor

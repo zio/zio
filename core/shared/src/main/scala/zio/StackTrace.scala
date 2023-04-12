@@ -69,6 +69,14 @@ object StackTrace {
         .takeWhile(!Trace.equalIgnoreLocation(_, trace))
     )
 
+  def fromThread(fiberId: FiberId, thread: Thread)(implicit trace: Trace): UIO[StackTrace] =
+    ZIO.succeed(unsafe.fromThread(fiberId, thread)(trace, Unsafe.unsafe))
+
   val none: StackTrace =
     StackTrace(FiberId.None, Chunk.empty)
+
+  object unsafe {
+    def fromThread(fiberId: FiberId, thread: Thread)(implicit trace: Trace, unsafe: Unsafe): StackTrace =
+      fromJava(fiberId, thread.getStackTrace())
+  }
 }

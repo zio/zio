@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{DefaultExecutors, ExecutionMetrics}
+import zio.internal.{DefaultExecutors, ExecutionMetrics, FiberRunnable}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent._
@@ -41,7 +41,7 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   /**
    * Views this `Executor` as a Scala `ExecutionContext`.
    */
-  lazy val asExecutionContext: ExecutionContext =
+  lazy final val asExecutionContext: ExecutionContext =
     new ExecutionContext {
       override def execute(r: Runnable): Unit =
         if (!submit(r)(Unsafe.unsafe)) throw new RejectedExecutionException("Rejected: " + r.toString)
@@ -53,7 +53,7 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   /**
    * Views this `Executor` as a Java `Executor`.
    */
-  lazy val asJava: java.util.concurrent.Executor =
+  lazy final val asJava: java.util.concurrent.Executor =
     command =>
       if (submit(command)(Unsafe.unsafe)) ()
       else throw new java.util.concurrent.RejectedExecutionException
@@ -80,6 +80,23 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
 
   private[zio] def stealWork(depth: Int)(implicit unsafe: Unsafe): Boolean =
     false
+
+  final def withCurrentThread: Executor = new Executor {
+    override def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics] = self.metrics
+
+    override def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
+      val fiber = if (runnable.isInstanceOf[FiberRunnable]) runnable.asInstanceOf[FiberRunnable] else null
+
+      self.submit { () =>
+        if (fiber ne null) fiber.setCurrentThread(Thread.currentThread())
+
+        try runnable.run()
+        finally if (fiber ne null) fiber.setCurrentThread(null)
+      }
+    }
+
+    override def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = self.submitAndYield(runnable)
+  }
 }
 
 object Executor extends DefaultExecutors with Serializable {

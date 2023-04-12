@@ -7,4 +7,6 @@ private[zio] trait FiberRunnable extends Runnable {
   def location: Trace
 
   def run(depth: Int): Unit
+
+  def setCurrentThread(thread: Thread): Unit
 }
