@@ -6,8 +6,6 @@ import zio.test.Assertion.{equalTo, fails}
 import zio.test._
 import scala.io.Source
 
-import java.nio.charset.StandardCharsets
-
 object ZPipelineSpec extends ZIOBaseSpec {
   def spec =
     suite("ZPipelineSpec")(
@@ -158,8 +156,8 @@ object ZPipelineSpec extends ZIOBaseSpec {
       suite("hex")(
         test("Empty input encodes to empty output") {
           for {
-            result <- ZStream.empty.via(ZPipeline.hexEncode).run(ZSink.collectAll[Byte])
-          } yield assert(result)(equalTo(Chunk.empty[Byte]))
+            result <- ZStream.empty.via(ZPipeline.hexEncode).run(ZSink.collectAll[Char])
+          } yield assert(result)(equalTo(Chunk.empty[Char]))
         },
         test("Hex for Byte 0 is 0x00") {
           testHexEncode(0.toByte, "00")
@@ -200,7 +198,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
           for {
             result <-
               ZStream
-                .fromIterable("abc".getBytes(StandardCharsets.UTF_8))
+                .fromIterable("abc")
                 .via(ZPipeline.hexDecode)
                 .run(ZSink.collectAll[Byte])
                 .exit
@@ -210,7 +208,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
           for {
             result <-
               ZStream
-                .fromIterable("ag".getBytes(StandardCharsets.UTF_8))
+                .fromIterable("ag")
                 .via(ZPipeline.hexDecode)
                 .run(ZSink.collectAll[Byte])
                 .exit
@@ -233,14 +231,14 @@ object ZPipelineSpec extends ZIOBaseSpec {
 
   def testHexDecode(s: String, b: Byte): ZIO[Any, EncodingException, TestResult] =
     ZStream
-      .fromIterable(s.getBytes(StandardCharsets.UTF_8))
+      .fromIterable(s)
       .via(ZPipeline.hexDecode)
       .run(ZSink.head)
       .map(v => assertTrue(v.get == b))
 
   def testHexEncode(b: Byte, s: String): ZIO[Any, Nothing, TestResult] =
-    ZStream(b).via(ZPipeline.hexEncode).run(ZSink.collectAll).map { v =>
-      val t = new String(v.toArray)
+    ZStream(b).via(ZPipeline.hexEncode).run(ZSink.collectAll).map { cs =>
+      val t = new String(cs.toArray)
       assertTrue(t == s)
     }
 }
