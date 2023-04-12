@@ -1564,9 +1564,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Encode each input byte as two output bytes as the hex representation of the
    * input byte.
    */
-  def hexEncode(implicit trace: Trace): ZPipeline[Any, Nothing, Byte, Char] = {
-    val DIGITS: Array[Char] = Array(
+  def hexEncode(upperCase: Boolean = false)(implicit trace: Trace): ZPipeline[Any, Nothing, Byte, Char] = {
+    val DIGITS_LC: Array[Char] = Array(
       '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+    )
+    val DIGITS_UC: Array[Char] = Array(
+      '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
     )
     ZPipeline.fromPush[Any, Nothing, Byte, Char](
       ZIO.succeed((inChunkOpt: Option[Chunk[Byte]]) =>
@@ -1574,10 +1577,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           case None => ZIO.succeed(Chunk.empty[Char])
           case Some(bs) =>
             ZIO.succeed {
-              val out = ChunkBuilder.make[Char](bs.size * 2)
+              val digits = if (upperCase) DIGITS_UC else DIGITS_LC
+              val out    = ChunkBuilder.make[Char](bs.size * 2)
               for (b <- bs) {
-                out += DIGITS((b >>> 4) & 0x0f)
-                out += DIGITS((b >>> 0) & 0x0f)
+                out += digits((b >>> 4) & 0x0f)
+                out += digits((b >>> 0) & 0x0f)
               }
               out.result()
             }

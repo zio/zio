@@ -156,23 +156,38 @@ object ZPipelineSpec extends ZIOBaseSpec {
       suite("hex")(
         test("Empty input encodes to empty output") {
           for {
-            result <- ZStream.empty.via(ZPipeline.hexEncode).run(ZSink.collectAll[Char])
+            result <- ZStream.empty.via(ZPipeline.hexEncode()).run(ZSink.collectAll[Char])
           } yield assert(result)(equalTo(Chunk.empty[Char]))
         },
         test("Hex for Byte 0 is 0x00") {
-          testHexEncode(0.toByte, "00")
+          testHexEncode(false, 0.toByte, "00")
+        },
+        test("Hex (upper case) for Byte 0 is 0x00") {
+          testHexEncode(true, 0.toByte, "00")
         },
         test("Hex for Byte 1 is 0x01") {
-          testHexEncode(1.toByte, "01")
+          testHexEncode(false, 1.toByte, "01")
+        },
+        test("Hex (upper case) for Byte 1 is 0x01") {
+          testHexEncode(true, 1.toByte, "01")
         },
         test("Hex for Byte 127 is 0x7f") {
-          testHexEncode(127.toByte, "7f")
+          testHexEncode(false, 127.toByte, "7f")
+        },
+        test("Hex (upper case) for Byte 127 is 0x7F") {
+          testHexEncode(true, 127.toByte, "7F")
         },
         test("Hex for Byte -128 is 0x80") {
-          testHexEncode(-128.toByte, "80")
+          testHexEncode(false, -128.toByte, "80")
+        },
+        test("Hex (upper case) for Byte -128 is 0x80") {
+          testHexEncode(true, -128.toByte, "80")
         },
         test("Hex for Byte -1 is 0xff") {
-          testHexEncode(-1.toByte, "ff")
+          testHexEncode(false, -1.toByte, "ff")
+        },
+        test("Hex for Byte -1 is 0xFF") {
+          testHexEncode(true, -1.toByte, "FF")
         },
         test("Byte for hex 0x00 is 0") {
           testHexDecode("00", 0.toByte)
@@ -236,8 +251,8 @@ object ZPipelineSpec extends ZIOBaseSpec {
       .run(ZSink.head)
       .map(v => assertTrue(v.get == b))
 
-  def testHexEncode(b: Byte, s: String): ZIO[Any, Nothing, TestResult] =
-    ZStream(b).via(ZPipeline.hexEncode).run(ZSink.collectAll).map { cs =>
+  def testHexEncode(uc: Boolean, b: Byte, s: String): ZIO[Any, Nothing, TestResult] =
+    ZStream(b).via(ZPipeline.hexEncode(uc)).run(ZSink.collectAll).map { cs =>
       val t = new String(cs.toArray)
       assertTrue(t == s)
     }
