@@ -82,7 +82,7 @@ private[zio] trait PlatformSpecific {
     Thread.currentThread.getThreadGroup.getName
 
   final val hasGreenThreads: Boolean =
-    false && getJdkVersion().map(_ >= 19).getOrElse(false)
+    getJdkVersion().map(_ >= 19).getOrElse(false)
 
   /**
    * Returns whether the current platform is ScalaJS.

@@ -25,6 +25,8 @@ private[zio] trait RuntimePlatformSpecific {
     val loomExecutor =
       LoomSupport.newVirtualThreadPerTaskExecutor().map(e => Executor.fromJavaExecutor(e).withCurrentThread)
 
+    if (loomExecutor.isDefined) println("\n********** ZIO 2.0: Enabling Loom Support **********")
+
     loomExecutor.getOrElse(Executor.makeDefault())
   }
 
