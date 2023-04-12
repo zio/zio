@@ -13,7 +13,7 @@ ZIO supports 5 types of Metrics:
 * **[Gauge](gauge.md)** — The gauge is a single numerical value that can arbitrary goes up or down over time like _memory usage_.
 * **[Histogram](histogram.md)** — The Histogram is used to track the distribution of a set of observed values across a set of buckets like _request latencies_.
 * **[Summary](summary.md)** — The Summary represents a sliding window of a time series along with metrics for certain percentiles of the time series, referred to as quantiles like _request latencies_.
-* **[Frequency](setcount.md)** — The Frequency is a metric that counts the number of occurrences of distinct string values.
+* **[Frequency](frequency.md)** — The Frequency is a metric that counts the number of occurrences of distinct string values.
 
 All ZIO Metrics are defined in the form of ZIO Aspects that can be applied to effects without changing the signature of the effect it is applied to:
 
