@@ -13,10 +13,6 @@
       "matchPackagePrefixes": "@zio.dev",
       "labels": ["dependencies", "documentation"],
       "enabled": true
-    },
-    {
-      "packagePatterns": ["*"],
-      "enabled": false
     }
   ]
 }
