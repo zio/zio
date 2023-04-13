@@ -12,10 +12,10 @@ private[test] trait ResultFileOps {
 private[test] object ResultFileOps {
   val live: ZLayer[Any, Nothing, ResultFileOps] =
     ZLayer.scoped(
-      Live.apply
+      Json.apply
     )
 
-  private[test] case class Live(resultPath: String, lock: Ref.Synchronized[Unit]) extends ResultFileOps {
+  private[test] case class Json(resultPath: String, lock: Ref.Synchronized[Unit]) extends ResultFileOps {
     def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit] =
       lock.updateZIO(_ =>
         ZIO
@@ -70,12 +70,12 @@ private[test] object ResultFileOps {
 
   }
 
-  object Live {
-    def apply: ZIO[Scope, Nothing, Live] =
+  object Json {
+    def apply: ZIO[Scope, Nothing, Json] =
       ZIO.acquireRelease(
         for {
           fileLock <- Ref.Synchronized.make[Unit](())
-          instance  = Live("target/test-reports-zio/output.json", fileLock)
+          instance  = Json("target/test-reports-zio/output.json", fileLock)
           _        <- instance.makeOutputDirectory.orDie
           _        <- instance.writeJsonPreamble
         } yield instance
