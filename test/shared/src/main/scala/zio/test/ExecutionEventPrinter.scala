@@ -10,25 +10,20 @@ private[test] trait ExecutionEventPrinter {
 private[test] object ExecutionEventPrinter {
   case class Live(console: ExecutionEventConsolePrinter, file: TestResultPrinter) extends ExecutionEventPrinter {
     override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] = {
-      // NOTE This is where we write execution events in the console and in the file
       console.print(event) *>
         (event match {
-          case testResult: ExecutionEvent.Test[_] => file.print(testResult) // TODO Should we report/ignore failures here?
+          case testResult: ExecutionEvent.Test[_] => file.print(testResult)
           case _                                  => ZIO.unit
         })
     }
   }
-
-  // TODO Name this better, or just in-line it below
-  val lively: ZLayer[ExecutionEventConsolePrinter with TestResultPrinter, Nothing, ExecutionEventPrinter] =
-    ZLayer.fromFunction(Live.apply _)
 
   def live(console: Console, eventRenderer: ReporterEventRenderer): ZLayer[Any, Nothing, ExecutionEventPrinter] =
     ZLayer.make[ExecutionEventPrinter](
       TestResultPrinter.json,
       ExecutionEventConsolePrinter.live(eventRenderer),
       TestLogger.fromConsole(console),
-      lively
+      ZLayer.fromFunction(Live.apply _)
     )
 
   def print(event: ExecutionEvent): ZIO[ExecutionEventPrinter, Nothing, Unit] =
