@@ -21,7 +21,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.{ZChannel, ZSink, ZStream}
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 import zio.test.Spec.LabeledCase
-import zio.test.results.{ExecutionEventCsvPrinter, ExecutionEventJsonPrinter, ResultFileOps, ResultSerializer, TestResultPrinter}
 
 import scala.language.implicitConversions
 

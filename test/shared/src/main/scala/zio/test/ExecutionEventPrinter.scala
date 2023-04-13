@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.test.results.{ExecutionEventJsonPrinter, TestResultPrinter}
+import zio.test.results.TestResultPrinter
 import zio.{Console, ZIO, ZLayer}
 
 private[test] trait ExecutionEventPrinter {
@@ -25,7 +25,7 @@ private[test] object ExecutionEventPrinter {
 
   def live(console: Console, eventRenderer: ReporterEventRenderer): ZLayer[Any, Nothing, ExecutionEventPrinter] =
     ZLayer.make[ExecutionEventPrinter](
-      ExecutionEventJsonPrinter.live,
+      TestResultPrinter.json,
       ExecutionEventConsolePrinter.live(eventRenderer),
       TestLogger.fromConsole(console),
       lively

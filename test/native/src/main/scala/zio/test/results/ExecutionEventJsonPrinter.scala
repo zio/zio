@@ -3,7 +3,7 @@ package zio.test.results
 import zio.test._
 import zio.{ZIO, ZLayer}
 
-private[test] object ExecutionEventJsonPrinter {
+private[test] object TestResultPrinterJson {
   val live: ZLayer[ResultSerializer with ResultFileOps, Nothing, TestResultPrinter] =
     ZLayer.fromFunction(
       LiveImpl(_, _)

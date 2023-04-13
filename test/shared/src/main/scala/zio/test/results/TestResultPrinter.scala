@@ -8,6 +8,6 @@ trait TestResultPrinter {
 }
 
 object TestResultPrinter {
-  val json = ExecutionEventJsonPrinter.live
-  val csv = ExecutionEventCsvPrinter.live
+  val json = TestResultPrinterJson.live
+  val csv = TestResultPrinterCsv.live
 }

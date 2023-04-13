@@ -3,18 +3,14 @@ package zio.test.results
 import zio.{ZIO, ZLayer}
 import zio.test._
 
-private[test] object ExecutionEventJsonPrinter {
-  private val lively: ZLayer[ResultSerializer with ResultFileOps, Nothing, TestResultPrinter] =
-    ZLayer.fromFunction(
-      LiveImpl(_, _)
-    )
-
+private[test] object TestResultPrinterJson {
   val live: ZLayer[Any, Nothing, TestResultPrinter] =
     ZLayer.make[TestResultPrinter](
       ResultSerializer.live,
-//      ResultSerializer.csv,
       ResultFileOps.live,
-      lively
+      ZLayer.fromFunction(
+        LiveImpl(_, _)
+      )
     )
 
   private case class LiveImpl(serializer: ResultSerializer, resultFileOps: ResultFileOps)
