@@ -1,7 +1,7 @@
 package zio.test
 
-import zio.test.results.TestResultPrinter
-import zio.{ZIO, ZLayer}
+import zio.test.results.{ExecutionEventJsonPrinter, TestResultPrinter}
+import zio.{Console, ZIO, ZLayer}
 
 private[test] trait ExecutionEventPrinter {
   def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit]
@@ -19,8 +19,17 @@ private[test] object ExecutionEventPrinter {
     }
   }
 
-  val live: ZLayer[ExecutionEventConsolePrinter with TestResultPrinter, Nothing, ExecutionEventPrinter] =
+  // TODO Name this better, or just in-line it below
+  val lively: ZLayer[ExecutionEventConsolePrinter with TestResultPrinter, Nothing, ExecutionEventPrinter] =
     ZLayer.fromFunction(Live.apply _)
+
+  val live: ZLayer[Any, Nothing, ExecutionEventPrinter] =
+    ZLayer.make[ExecutionEventPrinter](
+      ExecutionEventJsonPrinter.live,
+      ExecutionEventConsolePrinter.live(ReporterEventRenderer.ConsoleEventRenderer),
+      TestLogger.fromConsole(Console.ConsoleLive),
+      lively
+    )
 
   def print(event: ExecutionEvent): ZIO[ExecutionEventPrinter, Nothing, Unit] =
     ZIO.serviceWithZIO(_.print(event))

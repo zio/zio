@@ -96,21 +96,9 @@ object TestRunner {
 
     // TODO Explain all of these connections
     ZLayer.make[TestOutput with ExecutionEventSink](
-//      ResultSerializer.live,
-//      ResultFileOps.live, // TODO How to handle CSVs?
-      /* TODO Enable selecting between
-            TestResultPrinter.json
-            TestResultPrinter.csv
-            TestResultPrinter.all
-            TestResultPrinter.etc
-       */
-      ExecutionEventJsonPrinter.live,
-      ExecutionEventConsolePrinter.live(ReporterEventRenderer.ConsoleEventRenderer),
       ExecutionEventPrinter.live,
-      TestLogger.fromConsole(Console.ConsoleLive),
       TestOutput.live,
       ExecutionEventSink.live,
-      ZLayer.Debug.mermaid
     )
   }
 }
