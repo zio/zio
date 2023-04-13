@@ -23,11 +23,11 @@ private[test] object ExecutionEventPrinter {
   val lively: ZLayer[ExecutionEventConsolePrinter with TestResultPrinter, Nothing, ExecutionEventPrinter] =
     ZLayer.fromFunction(Live.apply _)
 
-  val live: ZLayer[Any, Nothing, ExecutionEventPrinter] =
+  def live(console: Console, eventRenderer: ReporterEventRenderer): ZLayer[Any, Nothing, ExecutionEventPrinter] =
     ZLayer.make[ExecutionEventPrinter](
       ExecutionEventJsonPrinter.live,
-      ExecutionEventConsolePrinter.live(ReporterEventRenderer.ConsoleEventRenderer),
-      TestLogger.fromConsole(Console.ConsoleLive),
+      ExecutionEventConsolePrinter.live(eventRenderer),
+      TestLogger.fromConsole(console),
       lively
     )
 

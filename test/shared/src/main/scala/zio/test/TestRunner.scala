@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit
  */
 final case class TestRunner[R, E](
   executor: TestExecutor[R, E],
-  bootstrap: ULayer[TestOutput with ExecutionEventSink] = TestRunner.defaultBootstrap
+  bootstrap: ULayer[ExecutionEventSink] = TestRunner.defaultBootstrap
 ) { self =>
 
   val runtime: Runtime[Any] = Runtime.default
@@ -86,19 +86,12 @@ final case class TestRunner[R, E](
 
   private[test] def buildRuntime(implicit
     trace: Trace
-  ): ZIO[Scope, Nothing, Runtime[TestOutput with ExecutionEventSink]] =
+  ): ZIO[Scope, Nothing, Runtime[ExecutionEventSink]] =
     bootstrap.toRuntime
 }
 
 object TestRunner {
-  lazy val defaultBootstrap = {
-    implicit val emptyTracer = Trace.empty
-
-    // TODO Explain all of these connections
-    ZLayer.make[TestOutput with ExecutionEventSink](
-      ExecutionEventPrinter.live,
-      TestOutput.live,
-      ExecutionEventSink.live,
-    )
+  private lazy val defaultBootstrap: ZLayer[Any, Nothing, ExecutionEventSink] = {
+    ExecutionEventSink.live(Console.ConsoleLive, ConsoleEventRenderer)
   }
 }

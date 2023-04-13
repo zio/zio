@@ -787,15 +787,6 @@ package object test extends CompileVariants {
   def checkN(n: Int): CheckVariants.CheckN =
     new CheckVariants.CheckN(n)
 
-  private[test] def sinkLayer(console: Console, eventRenderer: ReporterEventRenderer)(implicit
-    trace: Trace
-  ): ZLayer[Any, Nothing, ExecutionEventSink] =
-    ZLayer.make[ExecutionEventSink](
-      ExecutionEventPrinter.live,
-      TestOutput.live,
-      ExecutionEventSink.live,
-    )
-
   /**
    * A `Runner` that provides a default testable environment.
    */
@@ -805,7 +796,7 @@ package object test extends CompileVariants {
       TestExecutor.default(
         testEnvironment,
         Scope.default ++ testEnvironment,
-        sinkLayer(Console.ConsoleLive, ConsoleEventRenderer),
+        ExecutionEventSink.live(Console.ConsoleLive, ConsoleEventRenderer),
         ZTestEventHandler.silent // The default test runner handles its own events, writing their output to the provided sink.
       )
     )
