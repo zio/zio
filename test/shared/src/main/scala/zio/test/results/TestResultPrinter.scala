@@ -9,5 +9,4 @@ trait TestResultPrinter {
 
 object TestResultPrinter {
   val json = TestResultPrinterJson.live
-  val csv = TestResultPrinterCsv.live
 }
