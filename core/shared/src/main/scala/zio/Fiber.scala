@@ -498,6 +498,8 @@ object Fiber extends FiberPlatformSpecific {
      */
     override def id: FiberId.Runtime
 
+    def isGreenThread: Boolean = false
+
     def runtimeFlags(implicit trace: Trace): UIO[RuntimeFlags]
 
     /**

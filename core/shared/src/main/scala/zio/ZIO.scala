@@ -3774,6 +3774,11 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def isFatalWith[R, E, A](f: (Throwable => Boolean) => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     FiberRef.currentFatal.getWith(f)
 
+  def isGreenThread(implicit trace: Trace): UIO[Boolean] =
+    ZIO.withFiberRuntime[Any, Nothing, Boolean] { (fiberState, _) =>
+      Exit.succeed(fiberState.isGreenThread)
+    }
+
   /**
    * Iterates with the specified effectual function. The moral equivalent of:
    *

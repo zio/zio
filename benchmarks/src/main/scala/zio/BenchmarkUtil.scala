@@ -22,6 +22,9 @@ object BenchmarkUtil extends Runtime[Any] { self =>
   def verify(cond: Boolean)(message: => String): IO[AssertionError, Unit] =
     ZIO.when(!cond)(ZIO.fail(new AssertionError(message))).unit
 
+  def catsEventually[A](io: CIO[A]): CIO[A] =
+    io.recoverWith { case _ => catsEventually(io) }
+
   def catsForeach[A, B](as: List[A])(f: A => CIO[B]): CIO[List[B]] =
     Traverse[List].traverse(as)(f)
 

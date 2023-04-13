@@ -88,10 +88,12 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
       val fiber = if (runnable.isInstanceOf[FiberRunnable]) runnable.asInstanceOf[FiberRunnable] else null
 
       self.submit { () =>
+        val oldThread = fiber.getCurrentThread()
+
         if (fiber ne null) fiber.setCurrentThread(Thread.currentThread())
 
         try runnable.run()
-        finally if (fiber ne null) fiber.setCurrentThread(null)
+        finally if (fiber ne null) fiber.setCurrentThread(oldThread)
       }
     }
 

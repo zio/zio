@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import zio._
 import zio.metrics.{Metric, MetricLabel}
+import java.nio.channels.ClosedByInterruptException
 
 final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtimeFlags0: RuntimeFlags)
     extends Fiber.Runtime.Internal[E, A]
@@ -130,6 +131,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       tell(FiberMessage.InterruptSignal(cause))(Unsafe.unsafe)
     }
+
+  override def isGreenThread: Boolean = _greenThread ne null
 
   def location: Trace = fiberId.location
 
@@ -554,6 +557,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       case None        => Runtime.defaultExecutor
       case Some(value) => value
     }
+
+  def getCurrentThread(): Thread = _greenThread
 
   private[zio] def getFiberRef[A](fiberRef: FiberRef[A])(implicit unsafe: Unsafe): A =
     _fiberRefs.getOrDefault(fiberRef)
@@ -983,15 +988,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
             case effect: Async[_, _, _] =>
-              if (Platform.hasGreenThreads) {
-                val oneShot = OneShot.make[ZIO[Any, Any, Any]]
+              // if (_greenThread ne null) {
+              //   val oneShot = OneShot.make[ZIO[Any, Any, Any]]
 
-                val result = effect.registerCallback(k => oneShot.set(k.asInstanceOf[ZIO[Any, Any, Any]]))
+              //   val result = effect.registerCallback(k => oneShot.set(k.asInstanceOf[ZIO[Any, Any, Any]]))
 
-                if (result ne null) oneShot.set(result)
+              //   if (result ne null) oneShot.set(result)
 
-                cur = oneShot.get()
-              } else {
+              //   cur = oneShot.get()
+              // } else
+              {
                 self.reifiedStack.ensureCapacity(currentDepth)
 
                 self.asyncTrace = lastTrace
@@ -1228,6 +1234,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           case interruptedException: InterruptedException =>
             cur = Exit.Failure(Cause.die(interruptedException) ++ Cause.interrupt(FiberId.None))
 
+          case interruptedException: ClosedByInterruptException =>
+            Thread.interrupted()
+
+            cur = Exit.Failure(Cause.die(interruptedException) ++ Cause.interrupt(FiberId.None))
+
           case throwable: Throwable =>
             if (isFatal(throwable)) {
               cur = handleFatalError(throwable)
@@ -1410,27 +1421,34 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   /**
    * Adds a message to be processed by the fiber on the fiber.
    */
-  private[zio] def tell(message: FiberMessage)(implicit unsafe: Unsafe): Unit =
-    if (_greenThread ne null) {
+  private[zio] def tell(message: FiberMessage)(implicit unsafe: Unsafe): Unit = {
+    val thread = _greenThread
+    if (thread ne null) {
       message match {
         case FiberMessage.InterruptSignal(cause) =>
           processNewInterruptSignal(cause)
-          _greenThread.interrupt()
+          thread.interrupt()
 
-        case FiberMessage.GenStackTrace(onTrace) =>
-          // This is not the correct stack trace, but we can't access the correct one without
-          // waiting, which may be undesirable.
-          implicit val trace = Trace.empty
-          onTrace(StackTrace.unsafe.fromThread(fiberId, _greenThread))
+        // case FiberMessage.GenStackTrace(onTrace) =>
+        //   // This is not the correct stack trace, but we can't access the correct one without
+        //   // waiting, which may be undesirable.
+        //   implicit val trace = Trace.empty
+        //   onTrace(StackTrace.unsafe.fromThread(fiberId, _greenThread))
 
-        case _ => queue.add(message)
+        case _ =>
+        // queue.add(message)
+
+        // // Attempt to spin up fiber, if it's not already running:
+        // if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
       }
-    } else {
+    } //else
+    {
       queue.add(message)
 
       // Attempt to spin up fiber, if it's not already running:
       if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
     }
+  }
 
   private[zio] def tellAddChild(child: Fiber.Runtime[_, _])(implicit unsafe: Unsafe): Unit =
     tell(FiberMessage.Stateful((parentFiber, _) => parentFiber.addChild(child)))
