@@ -13,8 +13,7 @@ private[test] object TestResultPrinterJson {
       )
     )
 
-  private case class LiveImpl(serializer: ResultSerializer, resultFileOps: ResultFileOps)
-      extends TestResultPrinter {
+  private case class LiveImpl(serializer: ResultSerializer, resultFileOps: ResultFileOps) extends TestResultPrinter {
     override def print[E](event: ExecutionEvent.Test[E]): ZIO[Any, Nothing, Unit] =
       resultFileOps.write(serializer.render(event), append = true).orDie
   }

@@ -9,13 +9,12 @@ private[test] trait ExecutionEventPrinter {
 
 private[test] object ExecutionEventPrinter {
   case class Live(console: ExecutionEventConsolePrinter, file: TestResultPrinter) extends ExecutionEventPrinter {
-    override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] = {
+    override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] =
       console.print(event) *>
         (event match {
           case testResult: ExecutionEvent.Test[_] => file.print(testResult)
           case _                                  => ZIO.unit
         })
-    }
   }
 
   def live(console: Console, eventRenderer: ReporterEventRenderer): ZLayer[Any, Nothing, ExecutionEventPrinter] =

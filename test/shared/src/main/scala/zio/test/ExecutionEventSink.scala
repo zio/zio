@@ -38,7 +38,7 @@ object ExecutionEventSink {
 
     }
 
-  def live(console: Console, eventRenderer: ReporterEventRenderer): ZLayer[Any, Nothing, ExecutionEventSink] = {
+  def live(console: Console, eventRenderer: ReporterEventRenderer): ZLayer[Any, Nothing, ExecutionEventSink] =
     ZLayer.make[ExecutionEventSink](
       ExecutionEventPrinter.live(console, eventRenderer),
       TestOutput.live,
@@ -49,7 +49,6 @@ object ExecutionEventSink {
         } yield sink
       )
     )
-  }
 
   val silent: ULayer[ExecutionEventSink] =
     ZLayer.succeed(
