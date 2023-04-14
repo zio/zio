@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.test.results.TestResultPrinter
+import zio.test.results.ResultPrinter
 import zio.{Console, ZIO, ZLayer}
 
 private[test] trait ExecutionEventPrinter {
@@ -8,7 +8,7 @@ private[test] trait ExecutionEventPrinter {
 }
 
 private[test] object ExecutionEventPrinter {
-  case class Live(console: ExecutionEventConsolePrinter, file: TestResultPrinter) extends ExecutionEventPrinter {
+  case class Live(console: ExecutionEventConsolePrinter, file: ResultPrinter) extends ExecutionEventPrinter {
     override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] =
       console.print(event) *>
         (event match {
@@ -19,7 +19,7 @@ private[test] object ExecutionEventPrinter {
 
   def live(console: Console, eventRenderer: ReporterEventRenderer): ZLayer[Any, Nothing, ExecutionEventPrinter] =
     ZLayer.make[ExecutionEventPrinter](
-      TestResultPrinter.json,
+      ResultPrinter.json,
       ExecutionEventConsolePrinter.live(eventRenderer),
       TestLogger.fromConsole(console),
       ZLayer.fromFunction(Live.apply _)

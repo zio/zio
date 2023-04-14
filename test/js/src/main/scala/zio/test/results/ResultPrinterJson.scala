@@ -3,9 +3,9 @@ package zio.test.results
 import zio._
 import zio.test._
 
-private[test] object TestResultPrinterJson {
-  val live: ZLayer[Any, Nothing, TestResultPrinter] =
-    ZLayer.make[TestResultPrinter](
+private[test] object ResultPrinterJson {
+  val live: ZLayer[Any, Nothing, ResultPrinter] =
+    ZLayer.make[ResultPrinter](
       ResultSerializer.live,
       ResultFileOps.live,
       ZLayer.fromFunction(
@@ -13,8 +13,7 @@ private[test] object TestResultPrinterJson {
       )
     )
 
-  private case class LiveImpl(serializer: ResultSerializer, resultFileOps: ResultFileOps)
-      extends TestResultPrinter {
+  private case class LiveImpl(serializer: ResultSerializer, resultFileOps: ResultFileOps) extends ResultPrinter {
     override def print[E](event: ExecutionEvent.Test[E]): ZIO[Any, Nothing, Unit] =
       resultFileOps.write(serializer.render(event), append = true).orDie
   }

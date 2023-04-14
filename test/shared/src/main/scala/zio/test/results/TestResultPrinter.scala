@@ -3,10 +3,10 @@ package zio.test.results
 import zio.{ZIO, ZLayer}
 import zio.test.ExecutionEvent
 
-trait TestResultPrinter {
+trait ResultPrinter {
   def print[E](event: ExecutionEvent.Test[E]): ZIO[Any, Nothing, Unit]
 }
 
-object TestResultPrinter {
-  val json: ZLayer[Any, Nothing, TestResultPrinter] = TestResultPrinterJson.live
+object ResultPrinter {
+  val json: ZLayer[Any, Nothing, ResultPrinter] = ResultPrinterJson.live
 }
