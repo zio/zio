@@ -988,34 +988,23 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
             case effect: Async[_, _, _] =>
-              // if (_greenThread ne null) {
-              //   val oneShot = OneShot.make[ZIO[Any, Any, Any]]
+              self.reifiedStack.ensureCapacity(currentDepth)
 
-              //   val result = effect.registerCallback(k => oneShot.set(k.asInstanceOf[ZIO[Any, Any, Any]]))
+              self.asyncTrace = lastTrace
+              self.asyncBlockingOn = effect.blockingOn
 
-              //   if (result ne null) oneShot.set(result)
+              cur = initiateAsync(runtimeFlags, effect.registerCallback)
 
-              //   cur = oneShot.get()
-              // } else
-              {
-                self.reifiedStack.ensureCapacity(currentDepth)
+              while (cur eq null) {
+                cur = drainQueueAfterAsync(runtimeFlags, lastTrace)
 
-                self.asyncTrace = lastTrace
-                self.asyncBlockingOn = effect.blockingOn
-
-                cur = initiateAsync(runtimeFlags, effect.registerCallback)
-
-                while (cur eq null) {
-                  cur = drainQueueAfterAsync(runtimeFlags, lastTrace)
-
-                  if (cur eq null) {
-                    if (!stealWork(currentDepth, runtimeFlags)) throw AsyncJump
-                  }
+                if (cur eq null) {
+                  if (!stealWork(currentDepth, runtimeFlags)) throw AsyncJump
                 }
+              }
 
-                if (RuntimeFlags.interruptible(runtimeFlags) && isInterrupted()) {
-                  cur = Exit.failCause(getInterruptedCause())
-                }
+              if (RuntimeFlags.interruptible(runtimeFlags) && isInterrupted()) {
+                cur = Exit.failCause(getInterruptedCause())
               }
 
             case effect: UpdateRuntimeFlagsWithin[_, _, _] =>
@@ -1422,27 +1411,28 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * Adds a message to be processed by the fiber on the fiber.
    */
   private[zio] def tell(message: FiberMessage)(implicit unsafe: Unsafe): Unit = {
-    val thread = _greenThread
-    if (thread ne null) {
+    val greenThread = _greenThread
+
+    var handled = false
+
+    if (greenThread ne null) {
       message match {
         case FiberMessage.InterruptSignal(cause) =>
-          processNewInterruptSignal(cause)
-          thread.interrupt()
+          greenThread.interrupt()
 
-        // case FiberMessage.GenStackTrace(onTrace) =>
-        //   // This is not the correct stack trace, but we can't access the correct one without
-        //   // waiting, which may be undesirable.
-        //   implicit val trace = Trace.empty
-        //   onTrace(StackTrace.unsafe.fromThread(fiberId, _greenThread))
+        case FiberMessage.GenStackTrace(onTrace) =>
+          // This is not the correct stack trace, but we can't access the correct one without
+          // blocking, which may be undesirable when a stack trace is needed.
+          implicit val trace = Trace.empty
+          onTrace(StackTrace.unsafe.fromThread(fiberId, _greenThread))
 
-        case _ =>
-        // queue.add(message)
+          handled = true
 
-        // // Attempt to spin up fiber, if it's not already running:
-        // if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
+        case _ => ()
       }
-    } //else
-    {
+    }
+
+    if (!handled) {
       queue.add(message)
 
       // Attempt to spin up fiber, if it's not already running:
