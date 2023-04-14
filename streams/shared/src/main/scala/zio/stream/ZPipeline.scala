@@ -86,8 +86,8 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     new ZPipeline(self.channel.pipeToOrFail(that.channel))
 
   /**
-   * Compose this transducer with a sink, resulting in a sink that processes
-   * elements by piping them through this transducer and piping the results into
+   * Compose this pipeline with a sink, resulting in a sink that processes
+   * elements by piping them through this pipeline and piping the results into
    * the sink.
    */
   def >>>[Env1 <: Env, Err1 >: Err, Leftover, Out2](that: => ZSink[Env1, Err1, Out, Leftover, Out2])(implicit
