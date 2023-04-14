@@ -1,6 +1,6 @@
 package zio.test.results
 
-import zio.ZIO
+import zio.{ZIO, ZLayer}
 import zio.test.ExecutionEvent
 
 trait TestResultPrinter {
@@ -8,5 +8,5 @@ trait TestResultPrinter {
 }
 
 object TestResultPrinter {
-  val json = TestResultPrinterJson.live
+  val json: ZLayer[Any, Nothing, TestResultPrinter] = TestResultPrinterJson.live
 }
