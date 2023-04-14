@@ -550,6 +550,15 @@ object FailureRenderer {
           val unsatisfied = ident + tabSize -> child
           loop(unsatisfied :: tail, lines :+ title)
 
+        case (ident, Expectation.Exactly(child, times, state, _, completed)) :: tail if state.isFailed =>
+          val title =
+            Line.fromString(
+              s"exactly $completed times not equal to $times",
+              ident
+            )
+          val unsatisfied = ident + tabSize -> child
+          loop(unsatisfied :: tail, lines :+ title)
+
         case _ :: tail =>
           loop(tail, lines)
       }
