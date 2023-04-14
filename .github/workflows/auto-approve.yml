@@ -1,0 +1,13 @@
+name: Auto-approve Renovate's PRs
+
+on:
+  pull_request_target
+
+jobs:
+  auto-approve-renovate-prs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hmarr/auto-approve-action@v3.2.1
+        if: github.actor == 'renovate[bot]'
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
