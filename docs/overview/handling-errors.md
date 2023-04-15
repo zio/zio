@@ -129,8 +129,8 @@ val retriedOpenFile: ZIO[Any, IOException, Array[Byte]] =
 
 The next most powerful function is `ZIO#retryOrElse`, which allows specification of a fallback to use if the effect does not succeed with the specified policy:
 
-```scala
-val retryOpenFile: ZIO[Any, IOException, DefaultData) = 
+```scala mdoc:silent
+val retryOpenFile: ZIO[Any, IOException, Array[Byte]] = 
   openFile("primary.data")
       .retryOrElse(Schedule.recurs(5), (_, _) => ZIO.succeed(DefaultData))
 ```
