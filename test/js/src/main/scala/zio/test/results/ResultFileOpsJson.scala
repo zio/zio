@@ -4,17 +4,17 @@ import zio._
 
 import java.io.IOException
 
-private[test] trait ResultFileOpsJson {
+private[test] trait ResultFileOps {
   def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit]
 }
 
-private[test] object ResultFileOpsJson {
-  val live: ZLayer[Any, Nothing, ResultFileOpsJson] =
+private[test] object ResultFileOps {
+  val live: ZLayer[Any, Nothing, ResultFileOps] =
     ZLayer.succeed(
-      Live()
+      Json()
     )
 
-  private[test] case class Live() extends ResultFileOpsJson {
+  private[test] case class Json() extends ResultFileOps {
     def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit] =
       ZIO.unit
   }

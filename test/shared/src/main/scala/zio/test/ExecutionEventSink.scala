@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{Ref, UIO, ULayer, ZIO, ZLayer}
+import zio.{Console, Ref, UIO, ULayer, ZIO, ZLayer}
 
 trait ExecutionEventSink {
   def getSummary: UIO[Summary]
@@ -38,12 +38,16 @@ object ExecutionEventSink {
 
     }
 
-  val live: ZLayer[TestOutput, Nothing, ExecutionEventSink] =
-    ZLayer.fromZIO(
-      for {
-        testOutput <- ZIO.service[TestOutput]
-        sink       <- ExecutionEventSinkLive(testOutput)
-      } yield sink
+  def live(console: Console, eventRenderer: ReporterEventRenderer): ZLayer[Any, Nothing, ExecutionEventSink] =
+    ZLayer.make[ExecutionEventSink](
+      ExecutionEventPrinter.live(console, eventRenderer),
+      TestOutput.live,
+      ZLayer.fromZIO(
+        for {
+          testOutput <- ZIO.service[TestOutput]
+          sink       <- ExecutionEventSinkLive(testOutput)
+        } yield sink
+      )
     )
 
   val silent: ULayer[ExecutionEventSink] =

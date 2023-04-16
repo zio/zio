@@ -21,7 +21,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.{ZChannel, ZSink, ZStream}
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 import zio.test.Spec.LabeledCase
-import zio.test.results.{ExecutionEventJsonPrinter, ResultFileOpsJson, ResultSerializer}
 
 import scala.language.implicitConversions
 
@@ -787,16 +786,6 @@ package object test extends CompileVariants {
   def checkN(n: Int): CheckVariants.CheckN =
     new CheckVariants.CheckN(n)
 
-  private[test] def sinkLayer(console: Console, eventRenderer: ReporterEventRenderer)(implicit
-    trace: Trace
-  ): ZLayer[Any, Nothing, ExecutionEventSink] =
-    TestLogger.fromConsole(console) >>>
-      ((ResultFileOpsJson.live >+> ResultSerializer.live >>> ExecutionEventJsonPrinter.live) ++ ExecutionEventConsolePrinter
-        .live(eventRenderer)) >>>
-      ExecutionEventPrinter.live >>>
-      TestOutput.live >>>
-      ExecutionEventSink.live
-
   /**
    * A `Runner` that provides a default testable environment.
    */
@@ -806,7 +795,7 @@ package object test extends CompileVariants {
       TestExecutor.default(
         testEnvironment,
         Scope.default ++ testEnvironment,
-        sinkLayer(Console.ConsoleLive, ConsoleEventRenderer),
+        ExecutionEventSink.live(Console.ConsoleLive, ConsoleEventRenderer),
         ZTestEventHandler.silent // The default test runner handles its own events, writing their output to the provided sink.
       )
     )
