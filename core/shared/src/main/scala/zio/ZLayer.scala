@@ -163,8 +163,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     foldLayer(ZLayer.fail(_), f)
 
   /**
-   * Returns a layer that performs the outer layer first, followed by the
-   * inner layer, yielding the value of the inner layer.
+   * Returns a layer that performs the outer layer first, followed by the inner
+   * layer, yielding the value of the inner layer.
    *
    * This method can be used to "flatten" nested layers.
    */
