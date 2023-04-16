@@ -162,6 +162,12 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   )(implicit trace: Trace): ZLayer[RIn1, E1, ROut2] =
     foldLayer(ZLayer.fail(_), f)
 
+  /**
+   * Returns a layer that performs the outer layer first, followed by the inner
+   * layer, yielding the value of the inner layer.
+   *
+   * This method can be used to "flatten" nested layers.
+   */
   final def flatten[RIn1 <: RIn, E1 >: E, ROut1 >: ROut, ROut2](implicit
     tag: Tag[ROut1],
     ev1: ROut1 <:< ZLayer[RIn1, E1, ROut2],
