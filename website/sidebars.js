@@ -567,6 +567,7 @@ module.exports = {
         "ecosystem/community/zio-pulsar",
         "ecosystem/community/zio-saga",
         "ecosystem/community/zio-slick-interop",
+        "ecosystem/community/zio-temporal",
         "ecosystem/community/zio-test-akka-http",
       ],
     },
