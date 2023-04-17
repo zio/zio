@@ -1760,7 +1760,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit = {
       val n = math.max(math.min(math.min(length, left.length - srcPos), dest.length - destPos), 0)
       left.toArray(srcPos, dest, destPos, n)
-      right.toArray(math.max(srcPos - n, 0), dest, destPos + n, length - n)
+      right.toArray(0, dest, destPos + n, math.max(length - n, 0))
     }
   }
 

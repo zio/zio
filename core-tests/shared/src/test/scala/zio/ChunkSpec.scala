@@ -737,6 +737,20 @@ object ChunkSpec extends ZIOBaseSpec {
         val expected = (left ++ right).asBitsByte
         assertTrue(actual == expected)
       }
+    },
+    test("slice of concat converted to vector") {
+      val chunk1 = Chunk(1, 2)
+      val chunk2 = Chunk(3, 4)
+      val chunk  = chunk1 ++ chunk2
+      val slice  = chunk.slice(2, 4)
+      assertTrue(slice.toVector == Vector(3, 4))
+    },
+    test("concatenated chunks to vector") {
+      check(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { case (chunk1, chunk2) =>
+        val vector1 = (chunk1 ++ chunk2).toVector
+        val vector2 = chunk1.toVector ++ chunk2.toVector
+        assertTrue(vector1 == vector2)
+      }
     }
   )
 }
