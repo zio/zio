@@ -28,7 +28,7 @@ Run the Temporal server on one shell:
 temporal server start-dev --ip 0.0.0.0 --db-filename /tmp/temporal.db
 ```
 
-Now we can run the sample application which is based on Temporal Java SDK docs using [scala-cli](scala-cli.virtuslab.org/):
+Now we can run the sample application which is based on Temporal Java SDK docs using [scala-cli](https://scala-cli.virtuslab.org):
 
 ```scala
 //> using scala "3.3.0-RC3" // We use Scala 3.3 here just to leverage SIP-44 (FewerBraces)
