@@ -776,6 +776,64 @@ object ChunkSpec extends ZIOBaseSpec {
           assertTrue(vector1 == vector2)
         }
       }
+    ),
+    suite("Append")(
+      test("right only slice of append converted to vector") {
+        val chunk = Chunk(1, 2) :+ 3 :+ 4
+        val slice = chunk.slice(2, 4)
+        assertTrue(slice.toVector == Vector(3, 4))
+      },
+      test("right slice of append converted to vector") {
+        val chunk = Chunk(1, 2, 3) :+ 4 :+ 5 :+ 6
+        val slice = chunk.slice(4, 6)
+        assertTrue(slice.toVector == Vector(5, 6))
+      },
+      test("left only slice of append converted to vector") {
+        val chunk = Chunk(1, 2, 3) :+ 4 :+ 5 :+ 6
+        val slice = chunk.slice(1, 2)
+        assertTrue(slice.toVector == Vector(2))
+      },
+      test("slice of append covering both sides converted to vector") {
+        val chunk = Chunk(1, 2, 3) :+ 4 :+ 5 :+ 6
+        val slice = chunk.slice(1, 5)
+        assertTrue(slice.toVector == Vector(2, 3, 4, 5))
+      },
+      test("appended chunks to vector") {
+        check(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { case (chunk1, chunk2) =>
+          val vector1 = chunk2.foldLeft(chunk1)(_ :+ _).toVector
+          val vector2 = chunk1.toVector ++ chunk2.toVector
+          assertTrue(vector1 == vector2)
+        }
+      }
+    ),
+    suite("Prepend")(
+      test("right only slice of prepend converted to vector") {
+        val chunk = 1 +: 2 +: Chunk(3, 4)
+        val slice = chunk.slice(2, 4)
+        assertTrue(slice.toVector == Vector(3, 4))
+      },
+      test("right slice of prepend converted to vector") {
+        val chunk = 1 +: 2 +: 3 +: Chunk(4, 5, 6)
+        val slice = chunk.slice(4, 6)
+        assertTrue(slice.toVector == Vector(5, 6))
+      },
+      test("left only slice of prepend converted to vector") {
+        val chunk = 1 +: 2 +: 3 +: Chunk(4, 5, 6)
+        val slice = chunk.slice(1, 2)
+        assertTrue(slice.toVector == Vector(2))
+      },
+      test("slice of prepend covering both sides converted to vector") {
+        val chunk = 1 +: 2 +: 3 +: Chunk(4, 5, 6)
+        val slice = chunk.slice(1, 5)
+        assertTrue(slice.toVector == Vector(2, 3, 4, 5))
+      },
+      test("prepended chunks to vector") {
+        check(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { case (chunk1, chunk2) =>
+          val vector1 = chunk1.foldRight(chunk2)(_ +: _).toVector
+          val vector2 = chunk1.toVector ++ chunk2.toVector
+          assertTrue(vector1 == vector2)
+        }
+      }
     )
   )
 }
