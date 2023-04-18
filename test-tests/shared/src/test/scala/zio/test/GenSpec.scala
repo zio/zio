@@ -140,6 +140,13 @@ object GenSpec extends ZIOBaseSpec {
       test("offsetDateTime generates OffsetDateTime values") {
         checkSample(Gen.offsetDateTime)(isNonEmpty)
       },
+      test(
+        "offsetDateTime generates OffsetDateTime values, when limited to one day range when changing from summer to winter time"
+      ) {
+        val from = OffsetDateTime.parse("2025-10-29T00:00:00+02:00")
+        val to   = OffsetDateTime.parse("2025-10-29T23:59:59.99999999+01:00")
+        checkSample(Gen.offsetDateTime(from, to))(isNonEmpty)
+      },
       test("offsetTime generates java.time.OffsetTime values") {
         checkSample(Gen.offsetTime)(isNonEmpty)
       },
