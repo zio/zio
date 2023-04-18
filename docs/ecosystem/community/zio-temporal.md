@@ -7,11 +7,13 @@ title: "ZIO Temporal"
 
 ## Introduction
 
-ZIO Temporal is a ZIO library based on the Temporal Java-SDK. [Temporal](https://temporal.io/) helps to eliminate complex error or retry logic, avoid callbacks, and ensure that every workflow you start, completes. Temporal delivers durable execution for your services and applications.
+ZIO Temporal is a ZIO library based on the Temporal Java-SDK. ZIO Temporal brings first-class Scala & ZIO support with additional compile-time checks that Java SDK lacks.
+
+[Temporal](https://temporal.io/) platform helps to eliminate complex error or retry logic, avoid callbacks, and ensure that every workflow you start, completes. Temporal delivers durable execution for your services and applications.
 
 ## Installation
 
-In order to use this library, we need to add the following libraries to your `build.sbt` file:
+In order to use this library, we need to add the following dependency:
 
 ```scala
 libraryDependencies += "dev.vhonta" %% "zio-temporal-core" % "0.1.0-RC6"
@@ -45,37 +47,29 @@ import zio.temporal.*
 import zio.temporal.worker.*
 import zio.temporal.workflow.*
 import zio.logging.*
-import zio.logging.slf4j.bridge.Slf4jBridge
 
 // This is our workflow interface
 @workflowInterface
 trait EchoWorkflow:
 
   @workflowMethod
-  def echo( str: String ): String
+  def echo(str: String): String
 
 // Workflow implementation
 class EchoWorkflowImpl extends EchoWorkflow:
-  override def echo( str: String ): String =
+  override def echo(str: String): String =
     ZIO.logInfo(s"Worker: Received \"$str\"")
     s"ACK: $str"
 
+val echoQueue = "echo-queue"
+
 // Worker implementation
 object WorkerModule:
-  val stubOptions: ULayer[ZWorkflowServiceStubsOptions] = ZLayer.succeed:
-    ZWorkflowServiceStubsOptions.default
-
-  val clientOptions: ULayer[ZWorkflowClientOptions] = ZLayer.succeed:
-    ZWorkflowClientOptions.default
-
-  val workerFactoryOptions: ULayer[ZWorkerFactoryOptions] = ZLayer.succeed:
-    ZWorkerFactoryOptions.default
-
   val worker: URLayer[ZWorkerFactory, Unit] = ZLayer.fromZIO:
     ZIO.serviceWithZIO[ZWorkerFactory]: workerFactory =>
       for
         _      <- ZIO.logInfo("Started sample-worker")
-        worker <- workerFactory.newWorker("echo-queue")
+        worker <- workerFactory.newWorker(echoQueue)
         _       = worker.addWorkflow[EchoWorkflow].from(new EchoWorkflowImpl)
       yield ()
 
@@ -84,15 +78,13 @@ object Client:
   val workflowStubZIO = ZIO.serviceWithZIO[ZWorkflowClient]: workflowClient =>
     workflowClient
       .newWorkflowStub[EchoWorkflow]
-      .withTaskQueue("echo-queue")
+      .withTaskQueue(echoQueue)
       .withWorkflowId(s"echo-${UUID.randomUUID().toString}")
       .withWorkflowRunTimeout(2.seconds)
       .withRetryOptions(ZRetryOptions.default.withMaximumAttempts(3))
       .build
 
-  def workflowResultZIO(
-    msg: String,
-  ) =
+  def workflowResultZIO(msg: String) =
     for
       echoWorkflow <- workflowStubZIO
       _            <- ZIO.logInfo(s"Will submit message \"$msg\"")
@@ -124,21 +116,20 @@ object Main extends ZIOAppDefault:
         workflowResult <- workerFactory.use {
                             Client.workflowResultZIO(msg)
                           }
-        _ <- ZIO.log(s"The workflow result: $workflowResult")
+        _ <- ZIO.logInfo(s"The workflow result: $workflowResult")
       yield ExitCode.success
 
     program
       .provideSome[ZIOAppArgs](
-        WorkerModule.clientOptions,
-        WorkerModule.stubOptions,
-        WorkerModule.workerFactoryOptions,
+        ZLayer.succeed(ZWorkflowServiceStubsOptions.default),
+        ZLayer.succeed(ZWorkflowClientOptions.default),
+        ZLayer.succeed(ZWorkerFactoryOptions.default),
         WorkerModule.worker,
         ZWorkflowClient.make,
         ZWorkflowServiceStubs.make,
         ZWorkerFactory.make,
-        Slf4jBridge.initialize,
+        slf4j.bridge.Slf4jBridge.initialize,
       )
-
 ```
 
 Generates the output:
