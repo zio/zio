@@ -1827,6 +1827,18 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   }
 
   /**
+   * Creates a pipeline that randomly samples elements according to the
+   * specified percentage.
+   */
+  def samplePercent[In](p: => Double)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] = {
+    val clamped = if (p.isNaN || p < 0.0d) 0.0d else if (p > 1.0d) 1.0d else p
+    val channel = ZChannel
+      .identity[Nothing, Chunk[In], Any]
+      .mapOutZIO(_.filterZIO(_ => Random.nextDoubleBetween(0.0d, 1.0d).map(_ < clamped)))
+    ZPipeline.fromChannel(channel)
+  }
+
+  /**
    * Creates a pipeline that scans elements with the specified function.
    */
   def scan[In, Out](s: => Out)(f: (Out, In) => Out)(implicit trace: Trace): ZPipeline[Any, Nothing, In, Out] =

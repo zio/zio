@@ -153,6 +153,53 @@ object ZPipelineSpec extends ZIOBaseSpec {
             .exit
         )(fails(equalTo("failed!!!")))
       ),
+      suite("samplePercent")(
+        test("Works with empty input") {
+          for {
+            result <- ZStream.empty.via(ZPipeline.samplePercent(0.5d)).run(ZSink.collectAll)
+          } yield assert(result)(equalTo(Chunk.empty[Any]))
+        },
+        test("Keeps everything when passed 1.0d") {
+          val range = 1.to(10000)
+          val chunk = Chunk.fromIterable(range)
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.samplePercent(1.0d))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(equalTo(chunk))
+        },
+        test("Keeps nothing when passed 0.0d") {
+          val range = 1.to(10000)
+          val chunk = Chunk.fromIterable(range)
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.samplePercent(0.0d))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(equalTo(Chunk.empty[Int]))
+        },
+        test("Keeps about half when passed 0.5d") {
+          val range = 1.to(10000)
+          val chunk = Chunk.fromIterable(range)
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.samplePercent(0.5d))
+                        .run(ZSink.collectAll)
+          } yield assert(result.size)(equalTo(5062))
+        },
+        test("Keeps about a quarter when passed 0.25d") {
+          val range = 1.to(10000)
+          val chunk = Chunk.fromIterable(range)
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.samplePercent(0.25d))
+                        .run(ZSink.collectAll)
+          } yield assert(result.size)(equalTo(2543))
+        }
+      ),
       suite("hex")(
         test("Empty input encodes to empty output") {
           for {
