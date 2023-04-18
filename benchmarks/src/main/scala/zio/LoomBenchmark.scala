@@ -17,8 +17,8 @@ import java.io.OutputStream
 @State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Measurement(iterations = 10, timeUnit = TimeUnit.SECONDS, time = 3)
-@Warmup(iterations = 10, timeUnit = TimeUnit.SECONDS, time = 3)
+@Measurement(iterations = 10, timeUnit = TimeUnit.SECONDS, time = 10)
+@Warmup(iterations = 10, timeUnit = TimeUnit.SECONDS, time = 10)
 @Fork(1)
 class LoomBenchmark {
   @Param(Array("1024"))
@@ -342,7 +342,13 @@ class LoomBenchmark {
     }
   }
 
-  @Benchmark
+  unsafeRun {
+    Fiber.dumpAll.delay(2.minutes).forever.forkDaemon
+  }
+
+  Thread.setDefaultUncaughtExceptionHandler((_: Thread, e: Throwable) => e.printStackTrace())
+
+  // @Benchmark
   def zioReadWritePreLoom(): Unit = {
     def doTest(server: AsynchronousServerSocketChannel) =
       for {

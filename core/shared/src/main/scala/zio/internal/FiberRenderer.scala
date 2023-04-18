@@ -28,10 +28,10 @@ private[zio] object FiberRenderer {
 
   private def unsafePrettyPrint(dump: Fiber.Dump, now: Long): String = {
     val totalMillis = (now - dump.fiberId.startTimeMillis)
-    val millis      = totalMillis % 1000
-    val seconds     = totalMillis / 1000L
-    val minutes     = seconds / 60L
-    val hours       = minutes / 60L
+    val millis      = totalMillis                      % 1000
+    val seconds     = (totalMillis / 1000)             % 60
+    val minutes     = (totalMillis / (1000 * 60))      % 60
+    val hours       = (totalMillis / (1000 * 60 * 60)) % 24
 
     val name = "\"" + dump.fiberId.threadName + "\""
     val lifeMsg = (if (hours == 0) "" else s"${hours}h ") +
