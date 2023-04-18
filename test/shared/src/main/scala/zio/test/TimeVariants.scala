@@ -20,7 +20,7 @@ import com.github.ghik.silencer.silent
 import zio.{Duration, Trace}
 
 import java.time._
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 trait TimeVariants {
 
