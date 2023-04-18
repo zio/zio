@@ -2232,7 +2232,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    */
   def partition(p: A => Boolean, buffer: => Int = 16)(implicit
     trace: Trace
-  ): ZIO[R with Scope, E, (ZStream[Any, E, A], ZStream[Any, E, A])] =
+  ): ZIO[R with Scope, Nothing, (ZStream[Any, E, A], ZStream[Any, E, A])] =
     self.partitionEither(a => if (p(a)) ZIO.succeed(Left(a)) else ZIO.succeed(Right(a)), buffer)
 
   /**
@@ -2242,7 +2242,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def partitionEither[R1 <: R, E1 >: E, A2, A3](
     p: A => ZIO[R1, E1, Either[A2, A3]],
     buffer: => Int = 16
-  )(implicit trace: Trace): ZIO[R1 with Scope, E1, (ZStream[Any, E1, A2], ZStream[Any, E1, A3])] =
+  )(implicit trace: Trace): ZIO[R1 with Scope, Nothing, (ZStream[Any, E1, A2], ZStream[Any, E1, A3])] =
     self
       .mapZIO(p)
       .distributedWith(
