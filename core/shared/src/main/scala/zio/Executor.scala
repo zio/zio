@@ -41,7 +41,7 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   /**
    * Views this `Executor` as a Scala `ExecutionContext`.
    */
-  lazy final val asExecutionContext: ExecutionContext =
+  lazy val asExecutionContext: ExecutionContext =
     new ExecutionContext {
       override def execute(r: Runnable): Unit =
         if (!submit(r)(Unsafe.unsafe)) throw new RejectedExecutionException("Rejected: " + r.toString)
@@ -53,7 +53,7 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   /**
    * Views this `Executor` as a Java `Executor`.
    */
-  lazy final val asJava: java.util.concurrent.Executor =
+  lazy val asJava: java.util.concurrent.Executor =
     command =>
       if (submit(command)(Unsafe.unsafe)) ()
       else throw new java.util.concurrent.RejectedExecutionException

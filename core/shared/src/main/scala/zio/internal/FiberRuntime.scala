@@ -37,18 +37,18 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   import ReifyStack.{AsyncJump, Trampoline, GenerateTrace}
   import FiberRuntime.EvaluationSignal
 
-  private var _fiberRefs       = fiberRefs0
-  private val queue            = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
-  private var _children        = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
-  private var observers        = Nil: List[Exit[E, A] => Unit]
-  private val running          = new AtomicBoolean(false)
-  private var _runtimeFlags    = runtimeFlags0
-  private val reifiedStack     = PinchableArray.make[EvaluationStep](-1)
-  private var asyncInterruptor = null.asInstanceOf[ZIO[Any, Any, Any] => Any]
-  private var _lastTrace       = null.asInstanceOf[Trace]
-  private var asyncBlockingOn  = null.asInstanceOf[() => FiberId]
-  private var runningExecutor  = null.asInstanceOf[Executor]
-  private var _greenThread     = null.asInstanceOf[Thread]
+  private var _lastTrace      = null.asInstanceOf[Trace]
+  private var _fiberRefs      = fiberRefs0
+  private var _runtimeFlags   = runtimeFlags0
+  private var _blockingOn     = null.asInstanceOf[() => FiberId]
+  private var _asyncContWith  = null.asInstanceOf[ZIO[Any, Any, Any] => Any]
+  private val running         = new AtomicBoolean(false)
+  private val inbox           = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
+  private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
+  private var observers       = Nil: List[Exit[E, A] => Unit]
+  private val reifiedStack    = PinchableArray.make[EvaluationStep](-1)
+  private var runningExecutor = null.asInstanceOf[Executor]
+  private var _greenThread    = null.asInstanceOf[Thread]
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
     val tags = getFiberRef(FiberRef.currentTags)(Unsafe.unsafe)
@@ -57,20 +57,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   }
 
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
-
-  /**
-   * Returns an effect that will contain information computed from the fiber
-   * state and status while running on the fiber.
-   *
-   * This allows the outside world to interact safely with mutable fiber state
-   * without locks or immutable data.
-   */
-  def ask[A](f: (FiberRuntime[_, _], Fiber.Status) => A)(implicit trace: Trace): UIO[A] =
-    ZIO.async[Any, Nothing, A] { k =>
-      tell(
-        FiberMessage.Stateful((fiber, status) => k(Exit.succeed(f(fiber, status))))
-      )(Unsafe.unsafe)
-    }
 
   def await(implicit trace: Trace): UIO[Exit[E, A]] =
     ZIO.suspendSucceed {
@@ -231,8 +217,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       while (evaluationSignal == EvaluationSignal.Continue) {
         evaluationSignal =
-          if (queue.isEmpty) EvaluationSignal.Done
-          else evaluateMessageWhileSuspended(depth, queue.poll())
+          if (inbox.isEmpty) EvaluationSignal.Done
+          else evaluateMessageWhileSuspended(depth, inbox.poll())
       }
     } finally {
       running.set(false)
@@ -240,10 +226,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       if ((previousFiber ne null) || RuntimeFlags.currentFiber(_runtimeFlags)) Fiber._currentFiber.set(previousFiber)
     }
 
-    // Maybe someone added something to the queue between us checking, and us
+    // Maybe someone added something to the inbox between us checking, and us
     // giving up the drain. If so, we need to restart the draining, but only
     // if we beat everyone else to the restart:
-    if (!queue.isEmpty && running.compareAndSet(false, true)) {
+    if (!inbox.isEmpty && running.compareAndSet(false, true)) {
       if (evaluationSignal == EvaluationSignal.YieldNow) drainQueueLaterOnExecutor()
       else drainQueueOnCurrentThread(depth)
     }
@@ -265,7 +251,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   }
 
   /**
-   * Drains the fiber's message queue while the fiber is actively running,
+   * Drains the fiber's message inbox while the fiber is actively running,
    * returning the next effect to execute, which may be the input effect if no
    * additional effect needs to be executed.
    *
@@ -276,8 +262,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   )(implicit unsafe: Unsafe): ZIO[Any, Any, Any] = {
     var cur = cur0
 
-    while (!queue.isEmpty) {
-      val message = queue.poll()
+    while (!inbox.isEmpty) {
+      val message = inbox.poll()
 
       message match {
         case FiberMessage.InterruptSignal(cause) =>
@@ -312,7 +298,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   }
 
   /**
-   * Drains the fiber's message queue immediately after initiating an async
+   * Drains the fiber's message inbox immediately after initiating an async
    * operation, returning the continuation of the async operation, if available,
    * or null, otherwise.
    *
@@ -323,7 +309,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   ): ZIO[Any, Any, Any] = {
     var resumption: ZIO[Any, Any, Any] = null
 
-    var message                      = queue.poll()
+    var message                      = inbox.poll()
     var leftover: List[FiberMessage] = Nil
 
     while (message ne null) {
@@ -339,8 +325,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
           resumption = nextEffect0.asInstanceOf[ZIO[Any, Any, Any]]
 
-          self.asyncInterruptor = null
-          self.asyncBlockingOn = null
+          self._asyncContWith = null
+          self._blockingOn = null
 
         case FiberMessage.YieldNow =>
 
@@ -348,11 +334,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           leftover = message :: leftover
       }
 
-      message = queue.poll()
+      message = inbox.poll()
     }
 
     if (leftover ne Nil) {
-      leftover.foreach(queue.offer)
+      leftover.foreach(inbox.offer)
     }
 
     resumption
@@ -401,7 +387,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           val interruption = interruptAllChildren()
 
           if (interruption == null) {
-            if (queue.isEmpty) {
+            if (inbox.isEmpty) {
               finalExit = exit
 
               // No more messages to process, so we will allow the fiber to end life:
@@ -509,8 +495,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       case FiberMessage.Resume(nextEffect0) =>
         val nextEffect = nextEffect0.asInstanceOf[ZIO[Any, Any, Any]]
 
-        self.asyncInterruptor = null
-        self.asyncBlockingOn = null
+        self._asyncContWith = null
+        self._blockingOn = null
 
         evaluateEffect(depth, nextEffect)
 
@@ -628,7 +614,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def getStatus()(implicit unsafe: Unsafe): Fiber.Status =
     if (_lastTrace eq null) Fiber.Status.Suspended(self._runtimeFlags, fiberId.location, FiberId.None) // Unstarted
     else if (_exitValue ne null) Fiber.Status.Done
-    else if (asyncInterruptor ne null) Fiber.Status.Suspended(self._runtimeFlags, _lastTrace, asyncBlockingOn())
+    else if (_asyncContWith ne null) Fiber.Status.Suspended(self._runtimeFlags, _lastTrace, _blockingOn())
     else Fiber.Status.Running(self._runtimeFlags, _lastTrace)
 
   /**
@@ -672,8 +658,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       }
     }
 
-    if (isInterruptible()) self.asyncInterruptor = callback
-    else self.asyncInterruptor = _ => ()
+    if (isInterruptible()) self._asyncContWith = callback
+    else self._asyncContWith = _ => ()
 
     try {
       val sync = asyncRegister(callback)
@@ -806,8 +792,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     self.addInterruptedCause(cause)
     self.sendInterruptSignalToAllChildren()
 
-    if (self.asyncInterruptor ne null) {
-      self.asyncInterruptor(Exit.Failure(cause))
+    if (self._asyncContWith ne null) {
+      self._asyncContWith(Exit.Failure(cause))
     }
   }
 
@@ -991,7 +977,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             case effect: Async[_, _, _] =>
               self.reifiedStack.ensureCapacity(currentDepth)
 
-              self.asyncBlockingOn = effect.blockingOn
+              self._blockingOn = effect.blockingOn
 
               cur = initiateAsync(effect.registerCallback)
 
@@ -1345,9 +1331,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
         // Because we're special casing `start`, we have to be responsible
         // for spinning up the fiber if there were new messages added to
-        // the queue between the completion of the effect and the transition
+        // the inbox between the completion of the effect and the transition
         // to the not running state.
-        if (!queue.isEmpty && running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
+        if (!inbox.isEmpty && running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
       }
     } else {
       tell(FiberMessage.Resume(effect))
@@ -1363,8 +1349,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       }
     }
 
-    self.asyncInterruptor = callback.asInstanceOf[ZIO[Any, Any, Any] => Any]
-    self.asyncBlockingOn = FiberRuntime.notBlockingOn
+    self._asyncContWith = callback.asInstanceOf[ZIO[Any, Any, Any] => Any]
+    self._blockingOn = FiberRuntime.notBlockingOn
 
     callback
   }
@@ -1410,7 +1396,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       }
     }
 
-    queue.add(message)
+    inbox.add(message)
 
     // Attempt to spin up fiber, if it's not already running:
     if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
