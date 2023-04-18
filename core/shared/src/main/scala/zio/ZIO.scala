@@ -3721,6 +3721,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def greenThread(implicit trace: Trace): UIO[Option[Thread]] =
     ZIO.withFiberRuntime[Any, Nothing, Option[Thread]]((fiber, _) => fiber.greenThread)
 
+  def greenThreadWith[R, E, A](f: Option[Thread] => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.withFiberRuntime[R, E, A]((fiber, _) => fiber.greenThread.flatMap(f))
+
   /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
@@ -3789,6 +3792,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def isGreenThread(implicit trace: Trace): UIO[Boolean] =
     greenThread.map(_.isDefined)
+
+  /**
+   * Constructs an effect that succeeds with a boolean, which indicates whether
+   * or not the fiber executing the effect is in fact backed by a green thread.
+   */
+  def isGreenThreadWith[R, E, A](f: Boolean => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    greenThreadWith(option => f(option.isDefined))
 
   /**
    * Iterates with the specified effectual function. The moral equivalent of:

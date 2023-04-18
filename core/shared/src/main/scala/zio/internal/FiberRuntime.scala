@@ -1193,12 +1193,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
             throw reifyStack
 
+          // TODO: ClosedByInterruptException (but Scala.js??)
           case interruptedException: InterruptedException =>
-            cur = Exit.Failure(Cause.die(interruptedException) ++ Cause.interrupt(FiberId.None))
-
-          case interruptedException: ClosedByInterruptException =>
-            Thread.interrupted()
-
             cur = Exit.Failure(Cause.die(interruptedException) ++ Cause.interrupt(FiberId.None))
 
           case throwable: Throwable =>
