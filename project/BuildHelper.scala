@@ -186,7 +186,7 @@ object BuildHelper {
     }.toOption
   }
 
-  val isLoomPreview = getJdkVersion().fold(false)(v => v == 19 || v == 20)
+  val isLoomPreview    = getJdkVersion().fold(false)(v => v == 19 || v == 20)
   val jdkVersionString = getJdkVersion().fold("")(_.toString())
 
   def stdSettings(prjName: String) = Seq(
