@@ -3713,6 +3713,15 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     new ZIO.GetStateWithPartiallyApplied[S]
 
   /**
+   * Constructs an effect that succeeds with the (optional) green thread backing
+   * the fiber that is executing the effect. In the event the platform does not
+   * support green threads, or the fiber is forced onto an OS thread, the effect
+   * will succeed with `None`.
+   */
+  def greenThread(implicit trace: Trace): UIO[Option[Thread]] =
+    ZIO.withFiberRuntime[Any, Nothing, Option[Thread]]((fiber, _) => fiber.greenThread)
+
+  /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
   def ifZIO[R, E](b: => ZIO[R, E, Boolean]): ZIO.IfZIO[R, E] =
@@ -3774,10 +3783,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def isFatalWith[R, E, A](f: (Throwable => Boolean) => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     FiberRef.currentFatal.getWith(f)
 
+  /**
+   * Constructs an effect that succeeds with a boolean, which indicates whether
+   * or not the fiber executing the effect is in fact backed by a green thread.
+   */
   def isGreenThread(implicit trace: Trace): UIO[Boolean] =
-    ZIO.withFiberRuntime[Any, Nothing, Boolean] { (fiberState, _) =>
-      Exit.succeed(fiberState.isGreenThread)
-    }
+    greenThread.map(_.isDefined)
 
   /**
    * Iterates with the specified effectual function. The moral equivalent of:
@@ -3898,8 +3909,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Logs the specified message at the current log level.
    */
   def log(message: => String)(implicit trace: Trace): UIO[Unit] =
-    ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-      fiberState.log(() => message, Cause.empty, None, trace)(Unsafe.unsafe)
+    ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiber, _) =>
+      fiber.log(() => message, Cause.empty, None, trace)(Unsafe.unsafe)
 
       ZIO.unit
     }

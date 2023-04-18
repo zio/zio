@@ -113,8 +113,11 @@ object FiberSpec extends ZIOBaseSpec {
       suite("track blockingOn")(
         test("in await") {
           for {
-            f1 <- ZIO.never.fork
-            f2 <- f1.await.fork
+            latch1 <- Promise.make[Nothing, Unit]
+            latch2 <- Promise.make[Nothing, Unit]
+            f1     <- (latch1.succeed(()) *> ZIO.never).fork
+            f2     <- (latch1.await *> latch2.succeed(()) *> f1.await).fork
+            _      <- latch2.await
             blockingOn <- f2.status
                             .collect(()) { case Fiber.Status.Suspended(_, _, blockingOn) =>
                               blockingOn

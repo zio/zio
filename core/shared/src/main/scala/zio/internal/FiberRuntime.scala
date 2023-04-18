@@ -138,7 +138,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       tell(FiberMessage.InterruptSignal(cause))(Unsafe.unsafe)
     }
 
-  override def isGreenThread: Boolean = _greenThread ne null
+  override def greenThread(implicit trace: Trace): UIO[Option[Thread]] = ZIO.succeed(Option(_greenThread))
 
   def location: Trace = fiberId.location
 
@@ -628,7 +628,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def getStatus()(implicit unsafe: Unsafe): Fiber.Status =
     if (_lastTrace eq null) Fiber.Status.Suspended(self._runtimeFlags, fiberId.location, FiberId.None) // Unstarted
     else if (_exitValue ne null) Fiber.Status.Done
-    else if (asyncInterruptor ne null) Fiber.Status.Suspended(self._runtimeFlags, _lastTrace, FiberId.None)
+    else if (asyncInterruptor ne null) Fiber.Status.Suspended(self._runtimeFlags, _lastTrace, asyncBlockingOn())
     else Fiber.Status.Running(self._runtimeFlags, _lastTrace)
 
   /**
