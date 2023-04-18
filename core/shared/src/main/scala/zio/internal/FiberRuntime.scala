@@ -659,14 +659,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
 
     if (isInterruptible()) self._asyncContWith = callback
-    else self._asyncContWith = _ => ()
+    else self._asyncContWith = FiberRuntime.IgnoreContinuation
 
     try {
       val sync = asyncRegister(callback)
 
       if (sync ne null) {
-        if (alreadyCalled.compareAndSet(false, true)) sync
-        else {
+        if (alreadyCalled.compareAndSet(false, true)) {
+          self._asyncContWith = null
+          sync
+        } else {
           log(
             () =>
               s"Async operation attempted synchronous resumption, but its callback was already invoked; synchronous value will be discarded",
@@ -1439,6 +1441,8 @@ object FiberRuntime {
   private[zio] final val MaxDepthBeforeTrampoline  = 300
   private[zio] final val MaxWorkStealingDepth      = 150
   private[zio] final val WorkStealingSafetyMargin  = 50
+
+  private[zio] final val IgnoreContinuation: Any => Unit = _ => ()
 
   private[zio] sealed trait EvaluationSignal
   private[zio] object EvaluationSignal {

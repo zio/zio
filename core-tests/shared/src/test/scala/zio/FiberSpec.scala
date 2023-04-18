@@ -127,7 +127,10 @@ object FiberSpec extends ZIOBaseSpec {
         },
         test("in race") {
           for {
-            f <- ZIO.infinity.race(ZIO.infinity).fork
+            latch1 <- Promise.make[Nothing, Unit]
+            latch2 <- Promise.make[Nothing, Unit]
+            f      <- (latch1.succeed(()) *> ZIO.infinity).race(latch2.succeed(()) *> ZIO.infinity).fork
+            _      <- latch1.await *> latch2.await
             blockingOn <- f.status
                             .collect(()) { case Fiber.Status.Suspended(_, _, blockingOn) =>
                               blockingOn
