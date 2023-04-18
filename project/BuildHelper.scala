@@ -177,6 +177,18 @@ object BuildHelper {
     }
   )
 
+  def getJdkVersion(): Option[Int] = {
+    val versionString = System.getProperty("java.version")
+    scala.util.Try {
+      val pattern      = """^(\d+)(?:\.\d+)*$""".r
+      val majorVersion = pattern.findFirstMatchIn(versionString).map(_.group(1)).getOrElse(versionString)
+      majorVersion.toInt
+    }.toOption
+  }
+
+  val isLoomPreview = getJdkVersion().fold(false)(v => v == 19 || v == 20)
+  val jdkVersionString = getJdkVersion().fold("")(_.toString())
+
   def stdSettings(prjName: String) = Seq(
     name                     := s"$prjName",
     crossScalaVersions       := Seq(Scala212, Scala213, Scala3),
@@ -188,8 +200,8 @@ object BuildHelper {
       else
         List()
     },
-    javacOptions ++= Seq("--enable-preview", "--release", "20"),
-    javaOptions ++= Seq("--enable-preview"),
+    javacOptions ++= (if (isLoomPreview) Seq("--enable-preview", "--release", jdkVersionString) else Seq()),
+    javaOptions ++= (if (isLoomPreview) Seq("--enable-preview") else Seq()),
     libraryDependencies ++= {
       if (scalaVersion.value == Scala3)
         Seq(
