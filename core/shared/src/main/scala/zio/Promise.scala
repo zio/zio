@@ -17,6 +17,7 @@
 package zio
 
 import zio.Promise.internal._
+import zio.internal.OneShot
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicReference
@@ -42,16 +43,16 @@ final class Promise[E, A] private (
   private val state: AtomicReference[Promise.internal.State[E, A]],
   blockingOn: FiberId
 ) extends Serializable {
+  private val value: OneShot[IO[E, A]] = OneShot.make[IO[E, A]]
 
   /**
    * Retrieves the value of the promise, suspending the fiber running the action
    * until the result is available.
    */
   def await(implicit trace: Trace): IO[E, A] =
-    ZIO.suspendSucceed {
+    ZIO.greenThreadOrElse(_ => value.get()) {
       state.get match {
-        case Done(value) =>
-          value
+        case Done => value.get()
         case _ =>
           ZIO.asyncInterrupt[Any, E, A](
             k => {
@@ -62,14 +63,14 @@ final class Promise[E, A] private (
                 val oldState = state.get
 
                 val newState = oldState match {
-                  case Pending(joiners) =>
+                  case pending: Pending[E, A] =>
                     result = Left(interruptJoiner(k))
 
-                    Pending(k :: joiners)
-                  case s @ Done(value) =>
-                    result = Right(value)
+                    Pending(k :: pending.joiners)
+                  case Done =>
+                    result = Right(value.get())
 
-                    s
+                    Done
                 }
 
                 retry = !state.compareAndSet(oldState, newState)
@@ -116,30 +117,7 @@ final class Promise[E, A] private (
    * promise with the result of an effect see [[Promise.complete]].
    */
   def completeWith(io: IO[E, A])(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed {
-      var action: () => Boolean = null.asInstanceOf[() => Boolean]
-      var retry                 = true
-
-      while (retry) {
-        val oldState = state.get
-
-        val newState = oldState match {
-          case Pending(joiners) =>
-            action = () => { joiners.foreach(_(io)); true }
-
-            Done(io)
-
-          case Done(_) =>
-            action = Promise.ConstFalse
-
-            oldState
-        }
-
-        retry = !state.compareAndSet(oldState, newState)
-      }
-
-      action()
-    }
+    ZIO.succeed(unsafeCompleteWith(io)(Unsafe.unsafe))
 
   /**
    * Fails the promise with the specified error, which will be propagated to all
@@ -172,20 +150,14 @@ final class Promise[E, A] private (
    * already been completed with a value or an error and false otherwise.
    */
   def isDone(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(state.get() match {
-      case Done(_)    => true
-      case Pending(_) => false
-    })
+    ZIO.succeed(value.isSet())
 
   /**
    * Checks for completion of this Promise. Returns the result effect if this
    * promise has already been completed or a `None` otherwise.
    */
   def poll(implicit trace: Trace): UIO[Option[IO[E, A]]] =
-    ZIO.succeed(state.get).flatMap {
-      case Pending(_) => ZIO.succeed(None)
-      case Done(io)   => ZIO.succeed(Some(io))
-    }
+    ZIO.succeed(if (value.isSet) Some(value.get()) else None)
 
   /**
    * Fails the promise with the specified cause, which will be propagated to all
@@ -207,41 +179,51 @@ final class Promise[E, A] private (
       val oldState = state.get
 
       val newState = oldState match {
-        case Pending(joiners) =>
-          Pending(joiners.filter(j => !j.eq(joiner)))
+        case pending: Pending[E, A] =>
+          Pending(pending.joiners.filter(j => !j.eq(joiner)))
 
-        case Done(_) =>
-          oldState
+        case Done => oldState
       }
 
       retry = !state.compareAndSet(oldState, newState)
     }
   }
 
+  private[zio] def unsafeCompleteWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean = {
+    var retry     = true
+    var completed = false
+
+    while (retry) {
+      val oldState = state.get
+
+      val newState = oldState match {
+        case pending: Pending[E, A] =>
+          if (value.setIfUnset(io)) {
+            pending.joiners.foreach(_(io))
+
+            completed = true
+
+            Done
+          } else pending
+
+        case Done => oldState
+      }
+
+      retry = !state.compareAndSet(oldState, newState)
+    }
+
+    completed
+  }
+
   private[zio] trait UnsafeAPI {
     def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit
   }
 
-  @transient private[zio] val unsafe: UnsafeAPI =
+  @transient private[zio] def unsafe: UnsafeAPI =
     new UnsafeAPI {
       def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit = {
-        var retry: Boolean                 = true
-        var joiners: List[IO[E, A] => Any] = null
-
-        while (retry) {
-          val oldState = state.get
-
-          val newState = oldState match {
-            case Pending(js) =>
-              joiners = js
-              Done(io)
-            case _ => oldState
-          }
-
-          retry = !state.compareAndSet(oldState, newState)
-        }
-
-        if (joiners ne null) joiners.foreach(_(io))
+        unsafeCompleteWith(io)
+        ()
       }
     }
 }
@@ -249,9 +231,9 @@ object Promise {
   private val ConstFalse: () => Boolean = () => false
 
   private[zio] object internal {
-    sealed abstract class State[E, A]                              extends Serializable with Product
+    sealed abstract class State[+E, +A]                            extends Serializable with Product
     final case class Pending[E, A](joiners: List[IO[E, A] => Any]) extends State[E, A]
-    final case class Done[E, A](value: IO[E, A])                   extends State[E, A]
+    case object Done                                               extends State[Nothing, Nothing]
   }
 
   /**

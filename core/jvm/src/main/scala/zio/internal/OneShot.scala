@@ -51,10 +51,29 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
     }
   }
 
+  def setIfUnset(v: A): Boolean = {
+    if (v == null) throw new Error("Defect: OneShot variable cannot be set to null value")
+
+    this.lock()
+
+    try {
+      if (value != null) false
+      else {
+        value = v.asInstanceOf[A with AnyRef]
+
+        this.isSetCondition.signalAll()
+
+        true
+      }
+    } finally {
+      this.unlock()
+    }
+  }
+
   /**
    * Determines if the variable has been set.
    */
-  def isSet: Boolean = value != null
+  def isSet(): Boolean = value != null
 
   /**
    * Retrieves the value of the variable, blocking if necessary.
