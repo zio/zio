@@ -1830,7 +1830,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Creates a pipeline that randomly samples elements according to the
    * specified percentage.
    */
-  def samplePercent[In](p: => Double)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] = {
+  def sample[In](p: => Double)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] = {
     val clamped = if (p.isNaN || p < 0.0d) 0.0d else if (p > 1.0d) 1.0d else p
     val channel = ZChannel
       .identity[Nothing, Chunk[In], Any]

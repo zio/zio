@@ -153,10 +153,10 @@ object ZPipelineSpec extends ZIOBaseSpec {
             .exit
         )(fails(equalTo("failed!!!")))
       ),
-      suite("samplePercent")(
+      suite("sample")(
         test("Works with empty input") {
           for {
-            result <- ZStream.empty.via(ZPipeline.samplePercent(0.5d)).run(ZSink.collectAll)
+            result <- ZStream.empty.via(ZPipeline.sample(0.5d)).run(ZSink.collectAll)
           } yield assert(result)(equalTo(Chunk.empty[Any]))
         },
         test("Keeps everything when passed 1.0d") {
@@ -165,7 +165,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
           for {
             result <- ZStream
                         .fromChunk(chunk)
-                        .via(ZPipeline.samplePercent(1.0d))
+                        .via(ZPipeline.sample(1.0d))
                         .run(ZSink.collectAll)
           } yield assert(result)(equalTo(chunk))
         },
@@ -175,7 +175,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
           for {
             result <- ZStream
                         .fromChunk(chunk)
-                        .via(ZPipeline.samplePercent(0.0d))
+                        .via(ZPipeline.sample(0.0d))
                         .run(ZSink.collectAll)
           } yield assert(result)(equalTo(Chunk.empty[Int]))
         },
@@ -185,7 +185,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
           for {
             result <- ZStream
                         .fromChunk(chunk)
-                        .via(ZPipeline.samplePercent(0.5d))
+                        .via(ZPipeline.sample(0.5d))
                         .run(ZSink.collectAll)
           } yield assert(result.size)(equalTo(5062))
         },
@@ -195,7 +195,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
           for {
             result <- ZStream
                         .fromChunk(chunk)
-                        .via(ZPipeline.samplePercent(0.25d))
+                        .via(ZPipeline.sample(0.25d))
                         .run(ZSink.collectAll)
           } yield assert(result.size)(equalTo(2543))
         },
@@ -205,7 +205,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
           for {
             result <- ZStream
                         .fromChunk(chunk)
-                        .via(ZPipeline.samplePercent(0.05d))
+                        .via(ZPipeline.sample(0.05d))
                         .run(ZSink.collectAll)
           } yield assert(result)(equalTo(Chunk(3, 5, 10, 36, 54, 60, 80)))
         }
