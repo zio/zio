@@ -198,6 +198,16 @@ object ZPipelineSpec extends ZIOBaseSpec {
                         .via(ZPipeline.samplePercent(0.25d))
                         .run(ZSink.collectAll)
           } yield assert(result.size)(equalTo(2543))
+        },
+        test("Keeps order and values intact") {
+          val range = 1.to(100)
+          val chunk = Chunk.fromIterable(range)
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.samplePercent(0.05d))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(equalTo(Chunk(3, 5, 10, 36, 54, 60, 80)))
         }
       ),
       suite("hex")(
