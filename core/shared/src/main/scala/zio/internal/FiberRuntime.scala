@@ -40,7 +40,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _lastTrace      = null.asInstanceOf[Trace]
   private var _fiberRefs      = fiberRefs0
   private var _runtimeFlags   = runtimeFlags0
-  private var _blockingOn     = null.asInstanceOf[() => FiberId]
+  private var _blockingOn     = FiberRuntime.notBlockingOn
   private var _asyncContWith  = null.asInstanceOf[ZIO[Any, Any, Any] => Any]
   private val running         = new AtomicBoolean(false)
   private val inbox           = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
@@ -326,7 +326,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           resumption = nextEffect0.asInstanceOf[ZIO[Any, Any, Any]]
 
           self._asyncContWith = null
-          self._blockingOn = null
+          self._blockingOn = FiberRuntime.notBlockingOn
 
         case FiberMessage.YieldNow =>
 
@@ -496,7 +496,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         val nextEffect = nextEffect0.asInstanceOf[ZIO[Any, Any, Any]]
 
         self._asyncContWith = null
-        self._blockingOn = null
+        self._blockingOn = FiberRuntime.notBlockingOn
 
         evaluateEffect(depth, nextEffect)
 
