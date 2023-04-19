@@ -243,7 +243,7 @@ object DeriveGen {
     instance(Gen.suspend(Gen.collectAll(caseClass.parameters.map(_.typeclass.derive)).map(caseClass.rawConstruct)))
 
   def split[T](sealedTrait: SealedTrait[Typeclass, T]): Typeclass[T] =
-    instance(Gen.suspend(Gen.collectAll(sealedTrait.subtypes.map(_.typeclass.derive)).flatMap(Gen.fromIterable(_))))
+    instance(Gen.suspend(Gen.concatAll(sealedTrait.subtypes.map(_.typeclass.derive))))
 
   implicit def gen[T]: Typeclass[T] = macro Magnolia.gen[T]
 }

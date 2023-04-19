@@ -100,7 +100,7 @@ object DeriveGen {
         gen[T]
 
     def genSum[T](s: Mirror.SumOf[T], instances: => List[DeriveGen[_]]): Gen[Any, T] =
-        Gen.suspend(Gen.collectAll(instances.map(_.derive)).flatMap(Gen.fromIterable(_)))
+        Gen.suspend(Gen.concatAll(instances.map(_.derive)))
 
     def genProduct[T](p: Mirror.ProductOf[T], instances: => List[DeriveGen[_]]): Gen[Any, T] =
         Gen.suspend(

@@ -398,7 +398,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def either[R, A, B](left: Gen[R, A], right: Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, Either[A, B]] =
-    oneOf(left.map(Left(_)), right.map(Right(_)))
+    left.map(Left(_)) ++ right.map(Right(_))
 
   def elements[A](as: A*)(implicit trace: Trace): Gen[Any, A] =
     if (as.isEmpty) empty else int(0, as.length - 1).map(as)
@@ -635,7 +635,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of optional values. Shrinks toward `None`.
    */
   def option[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Option[A]] =
-    oneOf(none, gen.map(Some(_)))
+    none ++ gen.map(Some(_))
 
   def oneOf[R, A](as: Gen[R, A]*)(implicit trace: Trace): Gen[R, A] =
     if (as.isEmpty) empty else int(0, as.length - 1).flatMap(as)
