@@ -548,6 +548,12 @@ object Fiber extends FiberPlatformSpecific {
     private[zio] def getCurrentExecutor()(implicit unsafe: Unsafe): Executor
 
     /**
+     * Retrieves the green thread the fiber is running on, or `null` if the
+     * fiber is not running on the green thread.
+     */
+    private[zio] def getGreenThread()(implicit unsafe: Unsafe): Thread
+
+    /**
      * Retrieves the state of the fiber ref, or else its initial value.
      *
      * '''NOTE''': This method is safe to invoke on any fiber, but if not

@@ -3721,8 +3721,30 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def greenThread(implicit trace: Trace): UIO[Option[Thread]] =
     ZIO.withFiberRuntime[Any, Nothing, Option[Thread]]((fiber, _) => fiber.greenThread)
 
+  /**
+   * Constructs an effect that will be created from the (optional green) thread
+   * passed to the specified effect constructor. This constructor allows you to
+   * create behavior that differs between platforms that support green threads
+   * and those that do not.
+   */
   def greenThreadWith[R, E, A](f: Option[Thread] => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.withFiberRuntime[R, E, A]((fiber, _) => fiber.greenThread.flatMap(f))
+    ZIO.withFiberRuntime[R, E, A]((fiber, _) => f(Option(fiber.getGreenThread()(Unsafe.unsafe))))
+
+  /**
+   * Constructs an effect from the specified pair of functions, one to create an
+   * effect if the fiber is backed by a green thread, and one to create an
+   * effect if the fiber is not backed by a green thread. This constructor
+   * allows you to create behavior that differs between platforms that support
+   * green threads and those that do not.
+   */
+  def greenThreadOrElse[R, E, A](
+    greenThread: Thread => ZIO[R, E, A]
+  )(orElse: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.withFiberRuntime[R, E, A] { (fiber, _) =>
+      val gt = fiber.getGreenThread()(Unsafe.unsafe)
+      if (gt eq null) orElse
+      else greenThread(gt)
+    }
 
   /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.

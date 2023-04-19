@@ -576,6 +576,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     _fiberRefs
   }
 
+  private[zio] def getGreenThread()(implicit unsafe: Unsafe): Thread = _greenThread
+
   /**
    * Retrieves the interrupted cause of the fiber, which will be `Cause.empty`
    * if the fiber has not been interrupted.
@@ -1400,7 +1402,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       message match {
         case FiberMessage.InterruptSignal(cause) =>
           // A little racy:
-          if (shouldInterrupt()) greenThread.interrupt()
+          if (isInterruptible()) greenThread.interrupt()
 
         case _ => ()
       }
