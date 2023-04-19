@@ -726,7 +726,17 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * on this fiber, then values derived from the fiber's state (including the
    * log annotations and log level) may not be up-to-date.
    */
-  private[zio] def isInterrupted()(implicit unsafe: Unsafe): Boolean = getFiberRef(FiberRef.interruptedCause).nonEmpty
+  private[zio] def isInterrupted()(implicit unsafe: Unsafe): Boolean = {
+    val interruptedCause = getFiberRef(FiberRef.interruptedCause)
+
+    interruptedCause.nonEmpty || {
+      if (Thread.interrupted()) {
+        addInterruptedCause(Cause.interrupt(FiberId.None))
+
+        true
+      } else false
+    }
+  }
 
   private[zio] def isInterruptible()(implicit unsafe: Unsafe): Boolean = RuntimeFlags.interruptible(_runtimeFlags)
 
@@ -1195,7 +1205,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
           // TODO: ClosedByInterruptException (but Scala.js??)
           case interruptedException: InterruptedException =>
-            cur = Exit.Failure(Cause.die(interruptedException) ++ Cause.interrupt(FiberId.None))
+            val cause = Cause.interrupt(FiberId.None)
+            processNewInterruptSignal(cause)
+            cur = Exit.Failure(cause ++ Cause.die(interruptedException))
 
           case throwable: Throwable =>
             if (isFatal(throwable)) {

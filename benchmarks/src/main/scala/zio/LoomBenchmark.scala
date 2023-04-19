@@ -13,6 +13,7 @@ import java.nio.channels.CompletionHandler
 import java.net.{InetSocketAddress, ServerSocket, Socket}
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.concurrent.atomic.AtomicInteger
 
 @State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -21,6 +22,32 @@ import java.io.OutputStream
 @Warmup(iterations = 10, timeUnit = TimeUnit.SECONDS, time = 10)
 @Fork(1)
 class LoomBenchmark {
+  val serverAccepts            = new AtomicInteger(0)
+  val serverConnectionFinishes = new AtomicInteger(0)
+  val clientCount              = new AtomicInteger(0)
+  val serverChunkWrite         = new AtomicInteger(0)
+  val clientChunkRead          = new AtomicInteger(0)
+
+  def resetMetrics(): Unit = {
+    serverAccepts.set(0)
+    serverConnectionFinishes.set(0)
+    clientCount.set(0)
+    serverChunkWrite.set(0)
+    clientChunkRead.set(0)
+  }
+
+  def dumpMetrics(label: String): Unit = {
+    println(s"=== $label ===")
+    println(s"serverAccepts: ${serverAccepts.get()}")
+    println(s"serverConnectionFinishes: ${serverConnectionFinishes.get()}")
+    println(s"clientCount: ${clientCount.get()}")
+    println(s"serverChunkWrite: ${serverChunkWrite.get()}")
+    println(s"clientChunkRead: ${clientChunkRead.get()}")
+  }
+
+  def beforeBenchmark(): Unit = resetMetrics()
+  def afterBenchmark(): Unit  = dumpMetrics("after benchmark")
+
   @Param(Array("1024"))
   var chunkSize = 0
 
@@ -227,52 +254,53 @@ class LoomBenchmark {
   def cioClientReadAll(server: AsynchronousServerSocketChannel): CIO[Unit] =
     for {
       client <- cioMakeClient(server)
-      _      <- catsRepeat(chunkCount)(cioRead(client, chunkSize))
-      _      <- CIO(client.close()).attempt.void
+      _      <- catsRepeat(chunkCount)(cioRead(client, chunkSize)).guarantee(CIO(client.close()).attempt.void)
     } yield ()
 
   def zioClientReadAllAsync(server: AsynchronousServerSocketChannel): Task[Unit] =
     for {
       client <- zioMakeClientAsync(server)
-      _      <- repeat(chunkCount)(zioReadAsync(client, chunkSize))
-      _      <- ZIO.attempt(client.close()).ignore
+      _      <- repeat(chunkCount)(zioReadAsync(client, chunkSize)).ensuring(ZIO.attempt(client.close()).ignore)
     } yield ()
 
   def cioServerAcceptAll(server: AsynchronousServerSocketChannel): CIO[Unit] =
-    cioAccept(server).attempt.flatMap {
-      case Left(_) => CIO.unit
-      case Right(channel) =>
-        catsRepeat(chunkCount)(cioWrite(channel, new Array[Byte](chunkSize)))
-          .flatMap(_ => CIO(channel.close()))
-          .start
-          .flatMap(_ => cioServerAcceptAll(server))
-    }
+    catsRepeat(concurrency)(cioAccept(server).flatMap { channel =>
+      catsRepeat(chunkCount)(cioWrite(channel, new Array[Byte](chunkSize)))
+        .guarantee(CIO(channel.close()))
+        .start
+    }).void
 
   def zioServerAcceptAllAsync(server: AsynchronousServerSocketChannel): Task[Unit] =
-    zioAcceptAsync(server).either.flatMap {
-      case Left(_) => ZIO.unit
-      case Right(channel) =>
-        repeat(chunkCount)(zioWriteAsync(channel, new Array[Byte](chunkSize)))
-          .flatMap(_ => ZIO.succeed(channel.close()))
-          .forkDaemon
-          .flatMap(_ => zioServerAcceptAllAsync(server))
-    }
+    repeat(concurrency)(zioAcceptAsync(server).flatMap { channel =>
+      repeat(chunkCount)(zioWriteAsync(channel, new Array[Byte](chunkSize)))
+        .ensuring(ZIO.succeed(channel.close()))
+        .forkDaemon
+    }).unit
 
   def zioRead(is: InputStream, totalBytes: Int): Task[Array[Byte]] =
     ZIO.attempt {
+      clientChunkRead.incrementAndGet()
+
       val buffer    = new Array[Byte](totalBytes)
       var index     = 0
-      var bytesRead = is.read(buffer, index, totalBytes)
+      var moreData  = true
+      var remaining = totalBytes
 
-      while ((bytesRead != -1) && index < chunkSize) {
-        index += bytesRead
-        bytesRead = is.read(buffer, index, totalBytes - index)
+      while (moreData && remaining > 0) {
+        val bytesRead = is.read(buffer, index, remaining)
+        if (bytesRead == -1) {
+          moreData = false
+        } else {
+          index += bytesRead
+          remaining -= bytesRead
+        }
       }
+
       buffer
     }
 
   def zioWrite(os: OutputStream, data: Array[Byte]): Task[Unit] =
-    ZIO.attempt(os.write(data))
+    ZIO.attempt { os.write(data); serverChunkWrite.incrementAndGet(); () }.eventually
 
   def zioMakeClient(server: ServerSocket): Task[Socket] =
     ZIO.attempt {
@@ -282,25 +310,27 @@ class LoomBenchmark {
 
       socket.connect(new InetSocketAddress(server.getInetAddress(), server.getLocalPort()))
 
+      clientCount.incrementAndGet()
+
       socket
     }
 
   def zioClientReadAll(server: ServerSocket): Task[Unit] =
     for {
       client <- zioMakeClient(server)
-      _      <- repeat(chunkCount)(zioRead(client.getInputStream(), chunkSize))
-      _      <- ZIO.attempt(client.close()).ignore
+      _      <- repeat(chunkCount)(zioRead(client.getInputStream(), chunkSize)).ensuring(ZIO.attempt(client.close()).ignore)
     } yield ()
 
   def zioServerAcceptAll(server: ServerSocket): Task[Unit] =
-    ZIO.attempt(server.accept()).either.flatMap {
-      case Left(_) => ZIO.unit
-      case Right(socket) =>
-        repeat(chunkCount)(zioWrite(socket.getOutputStream(), new Array[Byte](chunkSize)))
-          .flatMap(_ => ZIO.attempt(socket.close()))
-          .forkDaemon
-          .flatMap(_ => zioServerAcceptAll(server))
-    }
+    repeat(concurrency)(ZIO.attempt { serverAccepts.incrementAndGet(); server.accept() }.flatMap { socket =>
+      val os          = socket.getOutputStream()
+      val serverWrite = repeat(chunkCount)(zioWrite(os, new Array[Byte](chunkSize)))
+
+      serverWrite
+        .tapErrorCause(ZIO.debug(_))
+        .ensuring(ZIO.succeed(socket.close()))
+        .forkDaemon
+    }).unit
 
   @Benchmark
   def catsReadWrite(): Unit = {
@@ -320,8 +350,9 @@ class LoomBenchmark {
   def zioReadWritePostLoom(): Unit = {
     def doTest(server: ServerSocket) =
       for {
-        _ <- zioServerAcceptAll(server).forkDaemon
-        _ <- ZIO.foreachParDiscard(1 to concurrency)(_ => zioClientReadAll(server))
+        fiber <- zioServerAcceptAll(server).fork
+        _     <- ZIO.foreachParDiscard(1 to concurrency)(_ => zioClientReadAll(server))
+        _     <- fiber.interrupt
       } yield ()
 
     def makeServerSocket(): ServerSocket = {
@@ -342,13 +373,11 @@ class LoomBenchmark {
     }
   }
 
-  unsafeRun {
-    Fiber.dumpAll.delay(2.minutes).forever.forkDaemon
-  }
+  // unsafeRun {
+  //   (Fiber.dumpAll *> ZIO.succeed(dumpMetrics("regular dump"))).delay(2.minutes).forever.forkDaemon
+  // }
 
-  Thread.setDefaultUncaughtExceptionHandler((_: Thread, e: Throwable) => e.printStackTrace())
-
-  // @Benchmark
+  @Benchmark
   def zioReadWritePreLoom(): Unit = {
     def doTest(server: AsynchronousServerSocketChannel) =
       for {

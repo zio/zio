@@ -64,7 +64,8 @@ object StackTrace {
     StackTrace(
       fiberId,
       Chunk
-        .fromArray(stackTrace) //.takeWhile(_.getClassName != "zio.internal.FiberRuntime"))
+        .fromArray(stackTrace)
+        .takeWhile(_.getClassName != "zio.internal.FiberRuntime")
         .map(Trace.fromJava)
         .takeWhile(!Trace.equalIgnoreLocation(_, trace))
     )

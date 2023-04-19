@@ -972,7 +972,11 @@ object Fiber extends FiberPlatformSpecific {
    * returned chunk is only weakly consistent.
    */
   def roots(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] =
-    ZIO.succeed(Chunk.fromIterator(_roots.iterator))
+    ZIO.succeed {
+      _roots.graduate()
+      _roots.gc()
+      Chunk.fromIterator(_roots.iterator)
+    }
 
   /**
    * Returns a fiber that has already succeeded with the specified value.
