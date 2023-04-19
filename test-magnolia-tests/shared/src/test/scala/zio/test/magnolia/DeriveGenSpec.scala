@@ -55,6 +55,9 @@ object DeriveGenSpec extends ZIOBaseSpec {
       test("sealed traits can be derived") {
         checkSample(genColor)(equalTo(3), _.distinct.length)
       },
+      test("runCollect on sealed traits resulting all") {
+        assertZIO(genColor.runCollect)(isDistinct && hasSize(equalTo(3)))
+      },
       test("recursive types can be derived") {
         check(genNonEmptyList[Int])(as => assert(as.length)(isGreaterThan(0)))
       }
