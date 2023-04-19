@@ -103,12 +103,12 @@ object Clock extends ClockPlatformSpecific with Serializable {
     def nanoTime(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafe.nanoTime()(Unsafe.unsafe))
     def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
-      ZIO.greenThreadOrElse(_ => ZIO.succeed(Thread.sleep(duration.toMillis))) {
-        ZIO.asyncInterrupt[Any, Nothing, Unit] { cb =>
-          val canceler = globalScheduler.schedule(() => cb(ZIO.unit), duration)(Unsafe.unsafe)
-          Left(ZIO.succeed(canceler()))
-        }
+      //ZIO.greenThreadOrElse(_ => ZIO.succeed(Thread.sleep(duration.toMillis))) {
+      ZIO.asyncInterrupt[Any, Nothing, Unit] { cb =>
+        val canceler = globalScheduler.schedule(() => cb(ZIO.unit), duration)(Unsafe.unsafe)
+        Left(ZIO.succeed(canceler()))
       }
+    //}
 
     def scheduler(implicit trace: Trace): UIO[Scheduler] =
       ZIO.succeed(globalScheduler)
@@ -154,12 +154,12 @@ object Clock extends ClockPlatformSpecific with Serializable {
       ZIO.succeed(unsafe.nanoTime()(Unsafe.unsafe))
 
     def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
-      ZIO.greenThreadOrElse(_ => ZIO.succeed(Thread.sleep(duration.toMillis))) {
-        ZIO.asyncInterrupt { cb =>
-          val canceler = globalScheduler.schedule(() => cb(ZIO.unit), duration)(Unsafe.unsafe)
-          Left(ZIO.succeed(canceler()))
-        }
+      // ZIO.greenThreadOrElse(_ => ZIO.succeed(Thread.sleep(duration.toMillis))) {
+      ZIO.asyncInterrupt { cb =>
+        val canceler = globalScheduler.schedule(() => cb(ZIO.unit), duration)(Unsafe.unsafe)
+        Left(ZIO.succeed(canceler()))
       }
+    //}
 
     def currentDateTime(implicit trace: Trace): UIO[OffsetDateTime] =
       ZIO.succeed(unsafe.currentDateTime()(Unsafe.unsafe))
