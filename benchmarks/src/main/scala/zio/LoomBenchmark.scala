@@ -377,7 +377,6 @@ class LoomBenchmark {
   //   (Fiber.dumpAll *> ZIO.succeed(dumpMetrics("regular dump"))).delay(2.minutes).forever.forkDaemon
   // }
 
-
   @Benchmark
   def zioReadWritePreLoom(): Unit = {
     def doTest(server: AsynchronousServerSocketChannel) =
