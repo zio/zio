@@ -158,7 +158,7 @@ final class Promise[E, A] private (
    * promise has already been completed or a `None` otherwise.
    */
   def poll(implicit trace: Trace): UIO[Option[IO[E, A]]] =
-    ZIO.succeed(if (value.isSet) Some(value.get()) else None)
+    ZIO.succeed(if (value.isSet()) Some(value.get()) else None)
 
   /**
    * Fails the promise with the specified cause, which will be propagated to all
