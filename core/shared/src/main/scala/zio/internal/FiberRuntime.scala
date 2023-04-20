@@ -140,7 +140,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   def runtimeFlags(implicit trace: Trace): UIO[RuntimeFlags] =
     ZIO.succeed(_runtimeFlags)
 
-  def setCurrentThread(thread: Thread): Unit = _greenThread = thread
+  def setCurrentThread(thread: Thread): Unit = {
+    _greenThread = thread
+    if (thread ne null) thread.setName(fiberId.threadName)
+  }
 
   lazy val scope: FiberScope = FiberScope.make(this)
 

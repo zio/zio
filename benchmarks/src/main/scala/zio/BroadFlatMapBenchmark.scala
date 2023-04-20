@@ -43,7 +43,7 @@ class BroadFlatMapBenchmark {
       .get()
   }
 
-  @Benchmark
+  //@Benchmark
   def monoBroadFlatMap(): BigInt = {
     import reactor.core.publisher.Mono
 
@@ -56,7 +56,7 @@ class BroadFlatMapBenchmark {
       .block()
   }
 
-  @Benchmark
+  //@Benchmark
   def rxSingleBroadFlatMap(): BigInt = {
     import io.reactivex.Single
 
