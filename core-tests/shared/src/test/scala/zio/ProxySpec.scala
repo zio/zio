@@ -6,9 +6,20 @@ object ProxySpec extends ZIOSpecDefault {
 
   val spec = suite("Proxy")(
     test("bypass") {
-      trait Foo { def bar: UIO[String] }
+      trait Foo { 
+        def bar: UIO[String] 
+        def bar2(x: Int): Int
+        def curried(x: Int)(y: String): Boolean
+        def useImplicit(x: Int)(using y: String): Boolean
+        def hasDefaultImpl(x: Int): Boolean = true
+      }
 
-      val service: Foo = new Foo { def bar = ZIO.succeed("baz") }
+      val service: Foo = new Foo { 
+        def bar = ZIO.succeed("baz") 
+        def bar2(x: Int): Int = 5
+        def curried(x: Int)(y: String): Boolean = true
+        def useImplicit(x: Int)(using y: String): Boolean = false
+      }
       val proxy = Proxy.generate[Foo](service)
       println(proxy)
       assertCompletes
