@@ -19,8 +19,9 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
       test("out channel")(
         check(gen) { sim =>
           for {
-            channelResult <- sim.asOutChannel.runCollect.map(_._1).exit
-            effectResult  <- sim.asEffect.exit.map(_.mapExit((int: Int) => Chunk.single(int)))
+            channelResult <-
+              sim.asOutChannel.runCollect.map(_._1).exit
+            effectResult <- sim.asEffect.exit.map(_.mapExit((int: Int) => Chunk.single(int)))
           } yield assert(channelResult)(equalTo(effectResult))
         }
       )
@@ -29,9 +30,9 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
   type Err = String
   type Res = Int
 
-  private val genErr: Gen[Any, Err] =
+  val genErr: Gen[Sized, Err] =
     Gen.oneOf(Gen.const("err1"), Gen.const("err2"), Gen.const("err3"))
-  private val genRes: Gen[Any, Res] = Gen.int(0, 100)
+  private val genRes: Gen[Sized, Res] = Gen.int(0, 100)
 
   private def cutAtFailure(ops: List[Op]): List[Op] =
     ops.reverse.dropWhile {
@@ -39,7 +40,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
       case _       => true
     }.reverse
 
-  private def genOps(currentDepth: Int = 1): Gen[Any, Op] =
+  private def genOps(currentDepth: Int = 1): Gen[Sized, Op] =
     Gen.double(0.0, 1.0).flatMap { n =>
       val r = (1.0 / currentDepth)
 
@@ -62,7 +63,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
       }
     }
 
-  val gen: Gen[Any, Simulation] =
+  val gen: Gen[Sized, Simulation] =
     for {
       first <- genRes
       rest  <- Gen.listOf1(genOps()).map(cutAtFailure)

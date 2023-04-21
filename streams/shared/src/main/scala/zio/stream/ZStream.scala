@@ -1962,14 +1962,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIO[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: Trace): ZStream[R1, E1, A1] = {
 
     def loop(chunkIterator: Chunk.ChunkIterator[A], index: Int): ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Any] =
-      if (chunkIterator.hasNextAt(index))
-        ZChannel.unwrap {
-          val a = chunkIterator.nextAt(index)
-          f(a).map { a1 =>
-            ZChannel.write(Chunk.single(a1)) *> loop(chunkIterator, index + 1)
-          }
+      if (chunkIterator.hasNextAt(index)) {
+        val a = chunkIterator.nextAt(index)
+        ZChannel.fromZIO(f(a)).flatMap { a1 =>
+          ZChannel.write(Chunk.single(a1)) *> loop(chunkIterator, index + 1)
         }
-      else
+
+      } else
         ZChannel.readWithCause(
           elem => loop(elem.chunkIterator, 0),
           err => ZChannel.refailCause(err),
@@ -1991,7 +1990,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    self >>> ZPipeline.mapZIOPar(n)(f)
+    new ZStream(self.channel.concatMap(ZChannel.writeChunk(_)).mapOutZIOPar[R1, E1, A2](n)(f).mapOut(Chunk.single))
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -2135,7 +2134,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * previous executor.
    */
   def onExecutor(executor: => Executor)(implicit trace: Trace): ZStream[R, E, A] =
-    ZStream.scoped(ZIO.onExecutorScoped(executor)) *> self
+    new ZStream(self.channel.onExecutor(executor))
 
   /**
    * Translates any failure into a stream termination, making the stream
@@ -5048,7 +5047,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def apply[E, A](fa: => ZIO[Scope with R, E, ZStream[R, E, A]])(implicit
       trace: Trace
     ): ZStream[R, E, A] =
-      scoped[R](fa).flatten
+      new ZStream(ZChannel.unwrapScoped[R](fa.map(_.channel)))
   }
 
   /**

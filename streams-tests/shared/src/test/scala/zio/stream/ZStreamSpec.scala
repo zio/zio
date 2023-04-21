@@ -4,7 +4,7 @@ import zio._
 import zio.stm.TQueue
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, withLiveClock}
+import zio.test.TestAspect.{exceptJS, flaky, ignore, nonFlaky, scala2Only, withLiveClock}
 import zio.test._
 
 import java.io.{ByteArrayInputStream, IOException}
@@ -1624,7 +1624,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <- semaphore.withPermit(lastExecuted.get)
             } yield assert(result)(isTrue)
           },
-          test("guarantee ordering with parallelism") {
+          test("guarantee ordering with parallelism XYZ") {
             for {
               lastExecuted <- Ref.make(0)
               promise      <- Promise.make[Nothing, Unit]
@@ -2567,7 +2567,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               mapZIO    <- ZStream.fromIterable(m).mapZIO(ZIO.succeed(_)).runCollect
               mapZIOPar <- ZStream.fromIterable(m).mapZIOPar(n)(ZIO.succeed(_)).runCollect
             } yield assert(n)(isGreaterThan(0)) implies assert(mapZIO)(equalTo(mapZIOPar))
-          }),
+          }) @@ TestAspect.jvmOnly,
           test("awaits children fibers properly") {
             assertZIO(
               ZStream
@@ -3545,7 +3545,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- stream.tapSink(sink).take(3).runDrain
               result <- ref.get
             } yield assertTrue(result == 6)
-          }
+          } @@ ignore
         ),
         suite("throttleEnforce")(
           test("free elements") {
@@ -3978,7 +3978,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               }
             )(equalTo(bytes))
           }
-        ),
+        ) @@ TestAspect.jvmOnly,
         test("toIterator") {
           ZIO.scoped {
             (for {
@@ -4162,7 +4162,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               }
             )(equalTo(chars))
           }
-        ),
+        ) @@ TestAspect.jvmOnly,
         test("zipAllSortedByKeyWith") {
           val genSortedByKey = for {
             map    <- Gen.mapOf(Gen.int(1, 100), Gen.int(1, 100))

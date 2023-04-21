@@ -80,7 +80,7 @@ private[test] object Fun {
   /**
    * Constructs a new runtime that synchronously executes effects.
    */
-  private val funExecutor: Executor =
+  private[test] val funExecutor: Executor =
     Executor.fromExecutionContext {
       new ExecutionContext {
         def execute(runnable: Runnable): Unit =
@@ -90,7 +90,7 @@ private[test] object Fun {
       }
     }
 
-  private def funRuntime[R](implicit trace: Trace): ZIO[R, Nothing, Runtime[R]] =
+  def funRuntime[R](implicit trace: Trace): ZIO[R, Nothing, Runtime[R]] =
     ZIO.runtime[R].map { runtime =>
       Runtime(
         runtime.environment,

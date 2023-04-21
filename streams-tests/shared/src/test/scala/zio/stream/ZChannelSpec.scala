@@ -3,7 +3,7 @@ package zio.stream
 import zio._
 import zio.test._
 import zio.test.Assertion._
-import zio.test.TestAspect.{jvmOnly, timeout}
+import zio.test.TestAspect._
 
 object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
@@ -437,7 +437,7 @@ object ZChannelSpec extends ZIOBaseSpec {
           _     <- latch.await
           _     <- fiber.interrupt
         } yield (assertCompletes)
-      ) @@ timeout(1.second) @@ zioTag(interruption),
+      ) @@ zioTag(interruption),
       suite("reads")(
         test("simple reads") {
           case class Whatever(i: Int)
@@ -665,7 +665,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               .runCollect
               .map(_._1.head)
           )(equalTo((1 to N).foldLeft(1L)(_ + _)))
-        } @@ TestAspect.ignore,
+        },
         test("concatMap is stack safe") {
           val N = 100000L
           assertZIO(

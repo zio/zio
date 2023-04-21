@@ -21,7 +21,6 @@ import zio.internal.SingleThreadedRingBuffer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.encoding.EncodingException
 import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
-import zio.stream.internal.SingleProducerAsyncInput
 
 import java.nio.{Buffer, ByteBuffer, CharBuffer}
 import java.nio.charset.{
@@ -1399,18 +1398,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def fromFunction[Env, Err, In, Out](
     f: ZStream[Any, Nothing, In] => ZStream[Env, Err, Out]
-  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
-
-    val channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
-      ZChannel.unwrap {
-        for {
-          input <- SingleProducerAsyncInput.make[ZNothing, Chunk[In], Any]
-          stream = ZStream.fromChannel(ZChannel.fromInput(input))
-        } yield f(stream).channel.embedInput(input)
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
+    ZPipeline.fromChannel {
+      ZChannel.withUpstream[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any] { upstream =>
+        f(ZStream.fromChannel(upstream)).channel
       }
-
-    new ZPipeline(channel)
-  }
+    }
 
   /**
    * Creates a pipeline from a chunk processing function.

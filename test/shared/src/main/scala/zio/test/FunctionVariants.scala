@@ -16,9 +16,9 @@
 
 package zio.test
 
-import zio.{Semaphore, ZIO, Trace}
+import zio.{RuntimeFlag, RuntimeFlags, Semaphore, ZIO, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.stream.ZStream.BufferedPull
+import zio.stream.ZStream
 
 trait FunctionVariants {
 
@@ -60,17 +60,20 @@ trait FunctionVariants {
    * not implement `hashCode` in a way that is consistent with equality.
    */
   final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int)(implicit trace: Trace): Gen[R, A => B] =
-    Gen.fromZIO {
-      ZIO.scoped[R] {
-        gen.sample.forever.toPull.flatMap { pull =>
-          for {
-            lock    <- Semaphore.make(1)
-            bufPull <- BufferedPull.make[R, Nothing, Sample[R, B]](pull)
-            fun     <- Fun.makeHash((_: A) => lock.withPermit(bufPull.pullElement).unsome.map(_.get.value))(hash)
-          } yield fun
-        }
+    Gen(
+      ZStream.scoped[R] {
+        gen.sample.forever.toPull
+          .onExecutor(Fun.funExecutor)
+          .withRuntimeFlags(RuntimeFlags.disable(RuntimeFlag.CooperativeYielding))
+          .flatMap { pull =>
+            for {
+              lock    <- Semaphore.make(1)
+              bufPull <- ZStream.BufferedPull.make[R, Nothing, Sample[R, B]](pull)
+              fun     <- Fun.makeHash((_: A) => lock.withPermit(bufPull.pullElement).unsome.map(_.get.value))(hash)
+            } yield Sample.noShrink(fun)
+          }
       }
-    }
+    )
 
   /**
    * A version of `functionWith` that generates functions that accept two
