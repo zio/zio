@@ -44,6 +44,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Adidas](https://www.adidas.com/)
 * [adpulse.io](https://www.adpulse.io/)
 * [adsquare](https://www.adsquare.com/)
+* [Amazon](https://www.amazon.com/)
 * [Anduin Transactions](https://www.anduintransact.com/)
 * [Ayolab](https://www.ayolab.com/)
 * [Asana](https://asana.com/)
