@@ -780,7 +780,7 @@ lazy val docs = project.module
   .settings(
     publish / skip := true,
     moduleName     := "zio-docs",
-    scalaVersion   := Scala3,
+    scalaVersion   := Scala213,
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
     scalacOptions -= "-Xfatal-warnings",
