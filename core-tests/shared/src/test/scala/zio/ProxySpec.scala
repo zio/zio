@@ -1,17 +1,20 @@
 package zio
 
+import scala.annotation.experimental
 import zio.test._
 
+@experimental
 object ProxySpec extends ZIOSpecDefault {
 
   val spec = suite("Proxy")(
     test("bypass") {
       trait Foo { 
         def bar: UIO[String] 
-        def bar2(x: Int): Int
-        def curried(x: Int)(y: String): Boolean
-        def useImplicit(x: Int)(using y: String): Boolean
-        def hasDefaultImpl(x: Int): Boolean = true
+        def bar2(a: Int): Int
+        def curried(b: Int)(c: String): Boolean
+        def useImplicit(d: Int)(using e: String): Boolean
+        def hasDefaultImpl(f: Int): Boolean = true
+        def hasTypeParam[A](f: A): A
       }
 
       val service: Foo = new Foo { 
@@ -19,13 +22,12 @@ object ProxySpec extends ZIOSpecDefault {
         def bar2(x: Int): Int = 5
         def curried(x: Int)(y: String): Boolean = true
         def useImplicit(x: Int)(using y: String): Boolean = false
+        def hasTypeParam[A](f: A): A = f
       }
       val proxy = Proxy.generate[Foo](service)
-      println(proxy)
-      assertCompletes
-      // for {
-      //   res  <- proxy.bar
-      // } yield assertTrue(res == "baz")
+      for {
+        res  <- proxy.bar
+      } yield assertTrue(res == "baz")
     }
     // test("generates simple proxy") {
     //   trait Foo { def bar: UIO[String] }
