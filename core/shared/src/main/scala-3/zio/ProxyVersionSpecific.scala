@@ -56,7 +56,7 @@ private object ProxyMacros {
               case s: ImplicitSearchFailure => report.errorAndAbort("Implicit zio.Trace not found")
             }
 
-          val impl = 
+          val body = 
             Apply(
               TypeApply(
                 Select(
@@ -73,7 +73,7 @@ private object ProxyMacros {
               ),
               List( 
                 Lambda(
-                  owner = Symbol.spliceOwner,
+                  owner = m,
                   tpe = MethodType(List("_$1"))(_ => List(tpe), _ => returnTpt.tpe),
                   rhsFn = (sym, params) => {
                     val svc = Select(params.head.asInstanceOf[Term], m)
@@ -98,7 +98,7 @@ private object ProxyMacros {
           val tree = 
             DefDef(
               d.symbol,
-              _ => Some(impl)
+              _ => Some(body)
             )
 
           Some(tree)
