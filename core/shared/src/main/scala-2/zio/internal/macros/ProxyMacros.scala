@@ -27,7 +27,8 @@ class ProxyMacros(val c: blackbox.Context) {
         q"${p.name.toTermName}: ${p.typeSignature}"
       })
 
-      q"def $name(...$params): $returnType = ${service.tree}.get.flatMap(_.$name(...${params.map(_.map(_.symbol.name))}))"
+      val newReturnType = appliedType(returnType.typeConstructor, weakTypeOf[A].typeArgs.head.typeSymbol.asType.toType)
+      q"def $name(...$params): $newReturnType = ${service.tree}.get.flatMap(_.$name(...${params.map(_.map(_.symbol.name))}))"
     }
 
     val tree =
