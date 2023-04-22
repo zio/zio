@@ -81,7 +81,7 @@ trait ZIOCompanionVersionSpecific {
     register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    Async(trace, { k => Unsafe.unsafe(register)(k).orNull }, () => blockingOn)
+    Async(trace, k => Unsafe.unsafe(register)(k).orNull, () => blockingOn)
 
   /**
    * Returns an effect that, when executed, will cautiously run the provided
