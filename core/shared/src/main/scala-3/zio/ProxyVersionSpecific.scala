@@ -6,13 +6,13 @@ import scala.quoted.*
 trait ProxyVersionSpecific {
 
   @experimental
-  inline def generate[A <: AnyRef](service: ScopedRef[A]): A = ${ ProxyMacros.makeImpl('service) }
+  inline def generate[A](service: ScopedRef[A]): A = ${ ProxyMacros.makeImpl('service) }
 }
 
 private object ProxyMacros {
 
   @experimental
-  def makeImpl[A <: AnyRef : Type](service: Expr[ScopedRef[A]])(using Quotes): Expr[A] = {
+  def makeImpl[A: Type](service: Expr[ScopedRef[A]])(using Quotes): Expr[A] = {
     import quotes.reflect.*
 
     val tpe = TypeRepr.of[A]
@@ -23,9 +23,7 @@ private object ProxyMacros {
           if (!returnsZIO) {
             report.errorAndAbort(s"Cannot generate a proxy for ${tpe.typeSymbol.name} due to a non-ZIO method ${name}(...): ${returnTpt.symbol.name}")
           }
-          
-          val newMethod = Symbol.newMethod(cls, name, tpe.memberType(m))
-          Some(newMethod)
+          Some(Symbol.newMethod(cls, name, tpe.memberType(m)))
 
         case _ => None
       }
@@ -41,43 +39,43 @@ private object ProxyMacros {
       selfType = None
     )
 
-    val body = cls.declaredMethods.flatMap { method =>
+    val trace =
+      Implicits.search(TypeRepr.of[Trace]) match {
+        case s: ImplicitSearchSuccess => s.tree
+        case s: ImplicitSearchFailure => report.errorAndAbort("Implicit zio.Trace not found")
+      }
+
+    val body = cls.declaredMethods.map { method =>
       method.tree match {
-        case d @ DefDef(name, paramss, returnTpt, rhs) =>
-          val `ScopedRef#get` = 
-            TypeRepr.of[ScopedRef[_]].typeSymbol.methodMember("get").head
-
-          val `ZIO#flatMap` =
-            TypeRepr.of[ZIO[_, _, _]].typeSymbol.methodMember("flatMap").head
-
-          val trace =
-            Implicits.search(TypeRepr.of[Trace]) match {
-              case s: ImplicitSearchSuccess => s.tree
-              case s: ImplicitSearchFailure => report.errorAndAbort("Implicit zio.Trace not found")
-            }
-
+        case d: DefDef =>
           val body = 
             service.asTerm
-              .select(`ScopedRef#get`)
+              .select(TypeRepr.of[ScopedRef[_]].typeSymbol.methodMember("get").head)
               .appliedTo(trace)
-              .select(`ZIO#flatMap`)
-              .appliedToTypes(returnTpt.tpe.dealias.typeArgs)
+              .select(TypeRepr.of[ZIO[_, _, _]].typeSymbol.methodMember("flatMap").head)
+              .appliedToTypes(d.returnTpt.tpe.dealias.typeArgs)
               .appliedTo(
-                // ((_$1: A) => _$1.$method(...$params))
+                // ((_$1: A) => _$1.$method(...$paramss))
                 Lambda(
                   owner = method,
-                  tpe = MethodType("_$1" :: Nil)(_ => tpe :: Nil, _ => returnTpt.tpe),
-                  rhsFn = (_, params) => {
-                    Select(params.head.asInstanceOf[Term], method)
-                      .appliedToTypes(d.leadingTypeParams.map(_.symbol.typeRef))
-                      .appliedToArgss(d.termParamss.map(_.params.map(p => Ident(p.symbol.termRef))))
+                  tpe = MethodType("_$1" :: Nil)(_ => tpe :: Nil, _ => d.returnTpt.tpe),
+                  rhsFn = { 
+                    case (_, _$1 :: Nil) =>
+                      _$1.asInstanceOf[Term]
+                        .select(method)
+                        .appliedToTypes(d.leadingTypeParams.map(_.symbol.typeRef))
+                        .appliedToArgss(d.termParamss.map(_.params.map(p => Ident(p.symbol.termRef))))
+
+                    case (_, ps) =>
+                      report.errorAndAbort(s"Unexpected lambda params: $ps")
                   }
                 )
               )
 
-          Some(DefDef(d.symbol, _ => Some(body)))
+          DefDef(d.symbol, _ => Some(body))
 
-        case _ => None
+        case t => 
+          report.errorAndAbort(s"Unexpected def: $t")
       }
     }
 

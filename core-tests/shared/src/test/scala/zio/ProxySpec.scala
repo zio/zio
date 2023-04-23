@@ -18,7 +18,6 @@ object ProxySpec extends ZIOSpecDefault {
    },
     test("generate proxy with type parameter") {
       trait Foo[A] { def bar: UIO[A] }
-      println("stst")
       val service: Foo[String] = new Foo[String] { def bar = ZIO.succeed("baz") }
       for {
         ref  <- ScopedRef.make(service)
