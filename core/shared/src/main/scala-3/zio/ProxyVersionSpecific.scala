@@ -29,19 +29,19 @@ private object ProxyMacros {
         nameAndReturnType(m.tree).flatMap { (name, tpt) =>
           val returnsZIO = tpt.tpe <:< TypeRepr.of[ZIO[_, _, _]]
 
-          if (returnsZIO)
+          if (returnsZIO) {
+            val privateWithin = m.privateWithin.map(_.typeSymbol).getOrElse(Symbol.noSymbol)
             if (m.isDefDef)
-              Some(Symbol.newMethod(cls, name, tpe.memberType(m), Flags.Override, Symbol.noSymbol))
+              Some(Symbol.newMethod(cls, name, tpe.memberType(m), Flags.Override, privateWithin))
             else if (m.isValDef)
-              Some(Symbol.newVal(cls, name, tpe.memberType(m), Flags.Override, Symbol.noSymbol))
+              Some(Symbol.newVal(cls, name, tpe.memberType(m), Flags.Override, privateWithin))
             else
               report.errorAndAbort(s"Unexpected member tree: ${m.tree}")
-          else if (m.flags.is(Flags.Deferred))
+          } else if (m.flags.is(Flags.Deferred)) {
             report.errorAndAbort(
               s"Cannot generate a proxy for ${tpe.typeSymbol.name} due to a non-ZIO member ${name}(...): ${tpt.symbol.name}"
             )
-          else
-            None
+          } else None
         }
       }.toList
 
@@ -95,6 +95,7 @@ private object ProxyMacros {
                 }
               )
             )
+            .appliedTo(trace)
 
         if (member.isDefDef)
           Some(DefDef(member, _ => Some(body)))

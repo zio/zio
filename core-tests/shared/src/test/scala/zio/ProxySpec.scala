@@ -97,6 +97,15 @@ object ProxySpec extends ZIOSpecDefault {
        res  <- proxy.bar
      } yield assertTrue(res == "zio")
    },
+   test("Forwards package private methods") {
+     trait Foo { private[zio] def bar: UIO[String] }
+     val service: Foo = new Foo { private[zio] def bar: UIO[String] = ZIO.succeed("zio") }
+     for {
+       ref  <- ScopedRef.make(service)
+       proxy = Proxy.generate(ref)
+       res  <- proxy.bar
+     } yield assertTrue(res == "zio")
+   },
    test("fails to compile with non-ZIO abstract method") {
 
      for {
@@ -118,7 +127,6 @@ object ProxySpec extends ZIOSpecDefault {
        """
               )
      } yield assertTrue(res.isLeft)
-
    }
   )
 
