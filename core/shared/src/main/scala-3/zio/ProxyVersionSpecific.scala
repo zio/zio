@@ -18,12 +18,17 @@ private object ProxyMacros {
     val tpe = TypeRepr.of[A]
     def forwarders(cls: Symbol) = tpe.typeSymbol.methodMembers.flatMap { m =>
       m.tree match {
-       case DefDef(name, _, returnTpt, _) if m.flags.is(Flags.Deferred) =>
+       case DefDef(name, _, returnTpt, _) =>
           val returnsZIO = returnTpt.tpe <:< TypeRepr.of[ZIO[_, _, _]]
-          if (!returnsZIO) {
-            report.errorAndAbort(s"Cannot generate a proxy for ${tpe.typeSymbol.name} due to a non-ZIO method ${name}(...): ${returnTpt.symbol.name}")
-          }
-          Some(Symbol.newMethod(cls, name, tpe.memberType(m)))
+
+          if (returnsZIO)
+            Some(Symbol.newMethod(cls, name, tpe.memberType(m), Flags.Override, Symbol.noSymbol))
+          else if (m.flags.is(Flags.Deferred))
+            report.errorAndAbort(
+              s"Cannot generate a proxy for ${tpe.typeSymbol.name} due to a non-ZIO method ${name}(...): ${returnTpt.symbol.name}"
+            )
+          else
+            None
 
         case _ => None
       }

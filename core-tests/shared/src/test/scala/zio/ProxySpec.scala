@@ -79,6 +79,15 @@ object ProxySpec extends ZIOSpecDefault {
        proxy = Proxy.generate(ref)
      } yield assertTrue(proxy.qux == "quux")
    },
+   test("Forwards overridden methods with default implementation") {
+     trait Foo { def bar: UIO[String] = ZIO.succeed("zio1") }
+     val service: Foo = new Foo { override def bar: UIO[String] = ZIO.succeed("zio2") }
+     for {
+       ref  <- ScopedRef.make(service)
+       proxy = Proxy.generate(ref)
+       res  <- proxy.bar
+     } yield assertTrue(res == "zio2")
+   },
    test("fails to compile with non-ZIO abstract method") {
 
      for {
