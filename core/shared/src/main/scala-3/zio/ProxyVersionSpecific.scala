@@ -41,8 +41,8 @@ private object ProxyMacros {
       selfType = None
     )
 
-    val body = cls.declaredMethods.flatMap { m =>
-      m.tree match {
+    val body = cls.declaredMethods.flatMap { method =>
+      method.tree match {
         case d @ DefDef(name, paramss, returnTpt, rhs) =>
           val `ScopedRef#get` = 
             TypeRepr.of[ScopedRef[_]].typeSymbol.methodMember("get").head
@@ -65,16 +65,15 @@ private object ProxyMacros {
               .appliedTo(
                 // ((_$1: A) => _$1.$method(...$params))
                 Lambda(
-                  owner = m,
+                  owner = method,
                   tpe = MethodType("_$1" :: Nil)(_ => tpe :: Nil, _ => returnTpt.tpe),
                   rhsFn = (_, params) => {
-                    Select(params.head.asInstanceOf[Term], m)
+                    Select(params.head.asInstanceOf[Term], method)
                       .appliedToTypes(d.leadingTypeParams.map(_.symbol.typeRef))
                       .appliedToArgss(d.termParamss.map(_.params.map(p => Ident(p.symbol.termRef))))
                   }
                 )
               )
-              .appliedTo(trace)
 
           Some(DefDef(d.symbol, _ => Some(body)))
 
@@ -83,7 +82,13 @@ private object ProxyMacros {
     }
 
     val clsDef = ClassDef(cls, parents, body = body)
-    val newCls = Typed(Apply(Select(New(TypeIdent(cls)), cls.primaryConstructor), Nil), TypeTree.of[A])
+    val newCls = 
+      Typed(
+        New(TypeIdent(cls))
+          .select(cls.primaryConstructor)
+          .appliedToNone,
+        TypeTree.of[A]
+      )
     
     Block(List(clsDef), newCls).asExprOf[A]
   }
