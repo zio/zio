@@ -88,7 +88,7 @@ object ProxySpec extends ZIOSpecDefault {
        res  <- proxy.bar
      } yield assertTrue(res == "zio2")
    },
-   test("Forwards abstract vals") {
+   test("Forwards vals") {
      trait Foo { val bar: UIO[String] }
      val service: Foo = new Foo { val bar: UIO[String] = ZIO.succeed("zio") }
      for {

@@ -15,6 +15,7 @@ private object ProxyMacros {
   def makeImpl[A: Type](service: Expr[ScopedRef[A]])(using Quotes): Expr[A] = {
     import quotes.reflect.*
 
+    // TODO replace with `ValOrDefDef` https://github.com/lampepfl/dotty/pull/16974/
     def nameAndReturnType(t: Tree): Option[(String, TypeTree)] =
       t match {
         case DefDef(name, _, tpt, _) => Some((name, tpt))
@@ -59,7 +60,7 @@ private object ProxyMacros {
         .getOrElse(report.errorAndAbort("Implicit zio.Trace not found"))
         .asTerm
 
-    
+    // TODO replace with `ValOrDefDef` https://github.com/lampepfl/dotty/pull/16974/
     def typeAndParams(m: Symbol): Option[(TypeTree, List[TypeDef], List[TermParamClause])] =
       m.tree match {
         case d: DefDef if !m.isClassConstructor =>
