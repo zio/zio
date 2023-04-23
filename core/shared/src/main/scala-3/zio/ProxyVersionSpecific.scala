@@ -15,24 +15,34 @@ private object ProxyMacros {
   def makeImpl[A: Type](service: Expr[ScopedRef[A]])(using Quotes): Expr[A] = {
     import quotes.reflect.*
 
+    def nameAndReturnType(t: Tree): Option[(String, TypeTree)] =
+      t match {
+        case DefDef(name, _, tpt, _) => Some((name, tpt))
+        case ValDef(name, tpt, _) => Some((name, tpt))
+        case _ => None
+      }
+
     val tpe = TypeRepr.of[A]
-    def forwarders(cls: Symbol) = tpe.typeSymbol.methodMembers.flatMap { m =>
-      m.tree match {
-       case DefDef(name, _, returnTpt, _) =>
-          val returnsZIO = returnTpt.tpe <:< TypeRepr.of[ZIO[_, _, _]]
+    def forwarders(cls: Symbol) =
+      (tpe.typeSymbol.methodMembers.view ++ tpe.typeSymbol.fieldMembers.view).flatMap { m =>
+        nameAndReturnType(m.tree).flatMap { (name, tpt) =>
+          val returnsZIO = tpt.tpe <:< TypeRepr.of[ZIO[_, _, _]]
 
           if (returnsZIO)
-            Some(Symbol.newMethod(cls, name, tpe.memberType(m), Flags.Override, Symbol.noSymbol))
+            if (m.isDefDef)
+              Some(Symbol.newMethod(cls, name, tpe.memberType(m), Flags.Override, Symbol.noSymbol))
+            else if (m.isValDef)
+              Some(Symbol.newVal(cls, name, tpe.memberType(m), Flags.Override, Symbol.noSymbol))
+            else
+              report.errorAndAbort(s"Unexpected member tree: ${m.tree}")
           else if (m.flags.is(Flags.Deferred))
             report.errorAndAbort(
-              s"Cannot generate a proxy for ${tpe.typeSymbol.name} due to a non-ZIO method ${name}(...): ${returnTpt.symbol.name}"
+              s"Cannot generate a proxy for ${tpe.typeSymbol.name} due to a non-ZIO member ${name}(...): ${tpt.symbol.name}"
             )
           else
             None
-
-        case _ => None
-      }
-    }
+        }
+      }.toList
 
     val parents = TypeTree.of[Object] :: TypeTree.of[A] :: Nil
 
@@ -49,37 +59,48 @@ private object ProxyMacros {
         .getOrElse(report.errorAndAbort("Implicit zio.Trace not found"))
         .asTerm
 
-    val body = cls.declaredMethods.map { method =>
-      method.tree match {
-        case d: DefDef =>
-          val body = 
-            service.asTerm
-              .select(TypeRepr.of[ScopedRef[_]].typeSymbol.methodMember("get").head)
-              .appliedTo(trace)
-              .select(TypeRepr.of[ZIO[_, _, _]].typeSymbol.methodMember("flatMap").head)
-              .appliedToTypes(d.returnTpt.tpe.dealias.typeArgs)
-              .appliedTo(
-                // ((_$1: A) => _$1.$method(...$paramss))
-                Lambda(
-                  owner = method,
-                  tpe = MethodType("_$1" :: Nil)(_ => tpe :: Nil, _ => d.returnTpt.tpe),
-                  rhsFn = { 
-                    case (_, _$1 :: Nil) =>
-                      _$1.asInstanceOf[Term]
-                        .select(method)
-                        .appliedToTypes(d.leadingTypeParams.map(_.symbol.typeRef))
-                        .appliedToArgss(d.termParamss.map(_.params.map(p => Ident(p.symbol.termRef))))
+    
+    def typeAndParams(m: Symbol): Option[(TypeTree, List[TypeDef], List[TermParamClause])] =
+      m.tree match {
+        case d: DefDef if !m.isClassConstructor =>
+          Some((d.returnTpt, d.leadingTypeParams, d.termParamss))
+        case v: ValDef =>
+          Some((v.tpt, Nil, Nil))
+        case _ => 
+          None
+      }
 
-                    case (_, ps) =>
-                      report.errorAndAbort(s"Unexpected lambda params: $ps")
-                  }
-                )
+    val body = cls.declarations.flatMap { member =>
+      typeAndParams(member).flatMap { (tpt, typeParams, termParamss) =>
+        val body = 
+          service.asTerm
+            .select(TypeRepr.of[ScopedRef[_]].typeSymbol.methodMember("get").head)
+            .appliedTo(trace)
+            .select(TypeRepr.of[ZIO[_, _, _]].typeSymbol.methodMember("flatMap").head)
+            .appliedToTypes(tpt.tpe.dealias.typeArgs)
+            .appliedTo(
+              Lambda(
+                owner = member,
+                tpe = MethodType("_$1" :: Nil)(_ => tpe :: Nil, _ => tpt.tpe),
+                rhsFn = { 
+                  case (_, _$1 :: Nil) =>
+                    _$1.asInstanceOf[Term]
+                      .select(member)
+                      .appliedToTypes(typeParams.map(_.symbol.typeRef))
+                      .appliedToArgss(termParamss.map(_.params.map(p => Ident(p.symbol.termRef))))
+
+                  case (_, ps) =>
+                    report.errorAndAbort(s"Unexpected lambda params: $ps")
+                }
               )
+            )
 
-          DefDef(d.symbol, _ => Some(body))
-
-        case t => 
-          report.errorAndAbort(s"Unexpected def: $t")
+        if (member.isDefDef)
+          Some(DefDef(member, _ => Some(body)))
+        else if (member.isValDef)
+          Some(ValDef(member, Some(body)))
+        else
+          report.errorAndAbort(s"Unexpected member tree: ${member.tree}")
       }
     }
 
