@@ -14,21 +14,25 @@ class ProxyMacros(val c: blackbox.Context) {
 
     val proxyMethods = methods.map { m =>
       val name       = m.name
-      val returnType = m.returnType
 
-      if (!(returnType <:< c.weakTypeOf[zio.ZIO[_, _, _]])) {
+      if (!(m.returnType <:< c.weakTypeOf[zio.ZIO[_, _, _]])) {
         c.abort(
           c.enclosingPosition,
-          s"Cannot generate a proxy for ${weakTypeOf[A]} due to a non-ZIO method ${name}(...): $returnType"
+          s"Cannot generate a proxy for ${weakTypeOf[A]} due to a non-ZIO method ${name}(...): ${m.returnType}"
         )
+      }
+
+      val returnType = if (weakTypeOf[A].typeArgs.nonEmpty) {
+        appliedType(m.returnType.typeConstructor, weakTypeOf[A].typeArgs.head.typeSymbol.asType.toType)
+      } else {
+        m.returnType
       }
 
       val params = m.paramLists.map(_.map { p =>
         q"${p.name.toTermName}: ${p.typeSignature}"
       })
 
-      val newReturnType = appliedType(returnType.typeConstructor, weakTypeOf[A].typeArgs.head.typeSymbol.asType.toType)
-      q"def $name(...$params): $newReturnType = ${service.tree}.get.flatMap(_.$name(...${params.map(_.map(_.symbol.name))}))"
+      q"def $name(...$params): $returnType = ${service.tree}.get.flatMap(_.$name(...${params.map(_.map(_.symbol.name))}))"
     }
 
     val tree =
