@@ -31,7 +31,7 @@ private object ProxyMacros {
       }
     }
 
-    val parents = List(TypeTree.of[Object], TypeTree.of[A])
+    val parents = TypeTree.of[Object] :: TypeTree.of[A] :: Nil
 
     val cls = Symbol.newClass(
       parent = Symbol.spliceOwner ,  
@@ -45,10 +45,10 @@ private object ProxyMacros {
       m.tree match {
         case d @ DefDef(name, paramss, returnTpt, rhs) =>
           val `ScopedRef#get` = 
-            TypeRepr.of[ScopedRef[_]].typeSymbol.declaredMethod("get").head
+            TypeRepr.of[ScopedRef[_]].typeSymbol.methodMember("get").head
 
           val `ZIO#flatMap` =
-            TypeRepr.of[ZIO[_, _, _]].typeSymbol.declaredMethod("flatMap").head
+            TypeRepr.of[ZIO[_, _, _]].typeSymbol.methodMember("flatMap").head
 
           val trace =
             Implicits.search(TypeRepr.of[Trace]) match {
@@ -57,51 +57,26 @@ private object ProxyMacros {
             }
 
           val body = 
-            Apply(
-              TypeApply(
-                Select(
-                  Apply(
-                    Select(
-                      service.asTerm, 
-                      `ScopedRef#get`
-                    ),
-                    List(trace)
-                  ),
-                  `ZIO#flatMap`
-                ),
-                returnTpt.tpe.dealias.typeArgs.map(t => TypeIdent(t.typeSymbol))
-              ),
-              List( 
+            service.asTerm
+              .select(`ScopedRef#get`)
+              .appliedTo(trace)
+              .select(`ZIO#flatMap`)
+              .appliedToTypes(returnTpt.tpe.dealias.typeArgs)
+              .appliedTo(
+                // ((_$1: A) => _$1.$method(...$params))
                 Lambda(
                   owner = m,
-                  tpe = MethodType(List("_$1"))(_ => List(tpe), _ => returnTpt.tpe),
-                  rhsFn = (sym, params) => {
-                    val svc = Select(params.head.asInstanceOf[Term], m)
-
-                    val withTypeParams = d.leadingTypeParams match {
-                      case Nil => svc
-                      case ts => TypeApply(svc, ts.map(t => TypeIdent(t.symbol)))
-                    }
-
-                    d.termParamss
-                      .foldLeft[Term](withTypeParams) { (acc, ps) =>
-                        Apply(
-                          acc, 
-                          ps.params.map(p => Ident(p.symbol.termRef))
-                        )
-                      }
+                  tpe = MethodType("_$1" :: Nil)(_ => tpe :: Nil, _ => returnTpt.tpe),
+                  rhsFn = (_, params) => {
+                    Select(params.head.asInstanceOf[Term], m)
+                      .appliedToTypes(d.leadingTypeParams.map(_.symbol.typeRef))
+                      .appliedToArgss(d.termParamss.map(_.params.map(p => Ident(p.symbol.termRef))))
                   }
                 )
               )
-            )
+              .appliedTo(trace)
 
-          val tree = 
-            DefDef(
-              d.symbol,
-              _ => Some(body)
-            )
-
-          Some(tree)
+          Some(DefDef(d.symbol, _ => Some(body)))
 
         case _ => None
       }
