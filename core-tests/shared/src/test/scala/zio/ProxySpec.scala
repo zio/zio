@@ -56,7 +56,7 @@ object ProxySpec extends ZIOSpecDefault {
        res  <- proxy.bar(3)
      } yield assertTrue(res == "zioziozio")
    },
-   test("Forwards inherited abstract metheods") {
+   test("Forwards inherited abstract methods") {
      trait Foo0 { def bar(a: Int): UIO[String] }
      trait Foo extends Foo0
 
