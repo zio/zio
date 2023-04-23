@@ -15,6 +15,16 @@ object ZIOSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec = suite("ZIOSpec")(
+    suite("fiber status") {
+      test("fiber awaiting promise has suspended status") {
+        for {
+          l <- Promise.make[Nothing, Unit]
+          p <- Promise.make[Nothing, Unit]
+          f <- (l.succeed(()) *> p.await).fork
+          _ <- l.await *> f.status.repeatUntil(_.isSuspended)
+        } yield assertCompletes
+      }
+    },
     suite("heap")(
       test("unit.forever is safe") {
         for {
@@ -199,8 +209,11 @@ object ZIOSpec extends ZIOBaseSpec {
           ref                 <- Ref.make(0)
           tuple               <- incrementAndGet(ref).cachedInvalidate(60.minutes)
           (cached, invalidate) = tuple
+          _                   <- ZIO.debug("Before cache")
           a                   <- cached
+          _                   <- ZIO.debug("After cache")
           _                   <- TestClock.adjust(59.minutes)
+          _                   <- ZIO.debug("After time adjustment")
           b                   <- cached
           _                   <- invalidate
           c                   <- cached
@@ -212,7 +225,7 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(b)(not(equalTo(c))) &&
           assert(c)(equalTo(d)) &&
           assert(d)(not(equalTo(e)))
-      }
+      } @@ TestAspect.diagnose(10.seconds)
     ),
     suite("catchNonFatalOrDie")(
       test("recovers from NonFatal") {

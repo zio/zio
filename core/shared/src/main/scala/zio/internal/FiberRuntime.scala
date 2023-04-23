@@ -140,7 +140,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   def runtimeFlags(implicit trace: Trace): UIO[RuntimeFlags] =
     ZIO.succeed(_runtimeFlags)
 
-  def setCurrentThread(thread: Thread): Unit = {
+  def setGreenThread(thread: Thread): Unit = {
     _greenThread = thread
     if (thread ne null) thread.setName(fiberId.threadName)
   }
@@ -552,7 +552,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       case Some(value) => value
     }
 
-  def getCurrentThread(): Thread = _greenThread
+  def getGreenThread()(implicit unsafe: Unsafe): Thread = _greenThread
 
   private[zio] def getFiberRef[A](fiberRef: FiberRef[A])(implicit unsafe: Unsafe): A =
     _fiberRefs.getOrDefault(fiberRef)
@@ -578,8 +578,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     setFiberRef(FiberRef.currentRuntimeFlags, _runtimeFlags)
     _fiberRefs
   }
-
-  private[zio] def getGreenThread()(implicit unsafe: Unsafe): Thread = _greenThread
 
   /**
    * Retrieves the interrupted cause of the fiber, which will be `Cause.empty`
@@ -619,8 +617,24 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def getStatus()(implicit unsafe: Unsafe): Fiber.Status =
     if (_lastTrace eq null) Fiber.Status.Suspended(self._runtimeFlags, fiberId.location, FiberId.None) // Unstarted
     else if (_exitValue ne null) Fiber.Status.Done
-    else if (_asyncContWith ne null) Fiber.Status.Suspended(self._runtimeFlags, _lastTrace, _blockingOn())
-    else Fiber.Status.Running(self._runtimeFlags, _lastTrace)
+    else {
+      val greenThread = _greenThread
+
+      if (greenThread ne null) {
+        // We map the green thread's state to the fiber status to accurately capture
+        // suspension information:
+        val state = greenThread.getState()
+
+        if (state == Thread.State.NEW)
+          Fiber.Status.Suspended(self._runtimeFlags, fiberId.location, FiberId.None) // Unstarted
+        else if (state == Thread.State.RUNNABLE) Fiber.Status.Running(self._runtimeFlags, _lastTrace)
+        else if (state == Thread.State.TERMINATED) Fiber.Status.Done
+        else Fiber.Status.Suspended(self._runtimeFlags, _lastTrace, _blockingOn())
+      } else {
+        if (_asyncContWith ne null) Fiber.Status.Suspended(self._runtimeFlags, _lastTrace, _blockingOn())
+        else Fiber.Status.Running(self._runtimeFlags, _lastTrace)
+      }
+    }
 
   /**
    * Retrieves the current supervisor the fiber uses for supervising effects.

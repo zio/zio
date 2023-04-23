@@ -91,12 +91,12 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
         var oldThread: Thread = null
 
         if (fiber ne null) {
-          oldThread = fiber.getCurrentThread()
-          fiber.setCurrentThread(Thread.currentThread())
+          oldThread = fiber.getGreenThread()
+          fiber.setGreenThread(Thread.currentThread())
         }
 
         try runnable.run()
-        finally if (fiber ne null) fiber.setCurrentThread(oldThread)
+        finally if (fiber ne null) fiber.setGreenThread(oldThread)
       }
     }
 

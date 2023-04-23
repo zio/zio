@@ -50,8 +50,7 @@ final class Promise[E, A] private (
    * until the result is available.
    */
   def await(implicit trace: Trace): IO[E, A] =
-    //ZIO.greenThreadOrElse(_ => value.get())
-    ZIO.suspendSucceed {
+    ZIO.greenThreadOrElse(_ => value.get()) {
       state.get match {
         case Done => value.get()
         case _ =>

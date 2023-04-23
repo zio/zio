@@ -21,6 +21,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.immutable.SortedSet
+import zio.internal.Platform
 
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of
@@ -535,6 +536,12 @@ object TestAspect extends TimeoutVariants {
    */
   val jvmOnly: TestAspectPoly =
     if (TestPlatform.isJVM) identity else ignore
+
+  /**
+   * An aspect that only runs tests on a JVM supporting Loom.
+   */
+  val loomOnly: TestAspectPoly =
+    if (Platform.isJVM && Platform.hasGreenThreads) identity else ignore
 
   /**
    * An aspect that runs only on operating systems accepted by the specified
