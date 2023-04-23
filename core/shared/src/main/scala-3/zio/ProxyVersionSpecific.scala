@@ -16,7 +16,7 @@ private object ProxyMacros {
     import quotes.reflect.*
 
     val tpe = TypeRepr.of[A]
-    def forwarders(cls: Symbol) = tpe.typeSymbol.declaredMethods.flatMap { m =>
+    def forwarders(cls: Symbol) = tpe.typeSymbol.methodMembers.flatMap { m =>
       m.tree match {
        case DefDef(name, clauses, returnTpt, rhs) if m.flags.is(Flags.Deferred) =>
           val returnsZIO = returnTpt.tpe <:< TypeRepr.of[ZIO[_, _, _]]
