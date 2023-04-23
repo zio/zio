@@ -40,10 +40,9 @@ private object ProxyMacros {
     )
 
     val trace =
-      Implicits.search(TypeRepr.of[Trace]) match {
-        case s: ImplicitSearchSuccess => s.tree
-        case s: ImplicitSearchFailure => report.errorAndAbort("Implicit zio.Trace not found")
-      }
+      Expr.summon[Trace]
+        .getOrElse(report.errorAndAbort("Implicit zio.Trace not found"))
+        .asTerm
 
     val body = cls.declaredMethods.map { method =>
       method.tree match {
