@@ -61,7 +61,6 @@ object ProxySpec extends ZIOSpecDefault {
      trait Foo extends Foo0
 
      val service: Foo = new Foo { def bar(a: Int) = ZIO.succeed("zio" * a) }
-     implicit val b: String = "zio"
      for {
        ref  <- ScopedRef.make(service)
        proxy = Proxy.generate(ref)
