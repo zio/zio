@@ -57,10 +57,10 @@ object ProxySpec extends ZIOSpecDefault {
      } yield assertTrue(res == "zioziozio")
    },
    test("Forwards inherited abstract metheods") {
-     trait Foo0 { def bar(a: Int)(implicit b: String): UIO[String] }
+     trait Foo0 { def bar(a: Int): UIO[String] }
      trait Foo extends Foo0
 
-     val service: Foo = new Foo { def bar(a: Int)(implicit b: String) = ZIO.succeed(b * a) }
+     val service: Foo = new Foo { def bar(a: Int) = ZIO.succeed("zio" * a) }
      implicit val b: String = "zio"
      for {
        ref  <- ScopedRef.make(service)
