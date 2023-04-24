@@ -723,7 +723,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private def interruptAllChildren()(implicit unsafe: Unsafe): UIO[Any] =
-    if (sendInterruptSignalToAllChildren()) {
+    if (sendInterruptSignalToAllChildren(_children)) {
       val iterator = _children.iterator()
 
       _children = null
@@ -829,7 +829,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private def processNewInterruptSignal(cause: Cause[Nothing])(implicit unsafe: Unsafe): Unit = {
     self.addInterruptedCause(cause)
-    self.sendInterruptSignalToAllChildren()
+    self.sendInterruptSignalToAllChildren(_children)
 
     val k = self._asyncContWith
 
@@ -1292,16 +1292,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
     if (c ne null) {
       internal.Sync(c) {
-        sendInterruptSignalToAllChildren()
+        sendInterruptSignalToAllChildren(c)
       }
     } else false
   }
 
-  private def sendInterruptSignalToAllChildren()(implicit unsafe: Unsafe): Boolean =
-    if (_children == null || _children.isEmpty) false
+  private def sendInterruptSignalToAllChildren(children: JavaSet[Fiber.Runtime[_, _]])(implicit unsafe: Unsafe): Boolean =
+    if (children == null || children.isEmpty) false
     else {
       // Initiate asynchronous interruption of all children:
-      val iterator = _children.iterator()
+      val iterator = children.iterator()
       var told     = false
       val cause    = Cause.interrupt(fiberId)
 
