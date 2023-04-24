@@ -563,7 +563,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * A layer that does not produce any services.
    */
   val empty: ZLayer[Any, Nothing, Any] =
-    ZLayer.fromZIOEnvironment(Exit.succeed(ZEnvironment.empty))(Trace.empty)
+    ZLayer.fromZIOEnvironment(Exit.succeed(ZEnvironment.empty))(Trace.tracer.newTrace)
 
   /**
    * Constructs a layer that fails with the specified error.

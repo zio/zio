@@ -811,7 +811,7 @@ sealed trait ZIO[-R, +E, +A]
     scopeOverride: FiberScope
   )(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
     ZIO.withFiberRuntime[R, Nothing, Fiber.Runtime[E, A]] { (parentFiber, parentStatus) =>
-      ZIO.succeed(
+      Exit.succeed(
         ZIO.unsafe.fork(trace, self, parentFiber, parentStatus.runtimeFlags, scopeOverride)(Unsafe.unsafe)
       )
     }
@@ -4224,7 +4224,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Returns an effect that succeeds with the `None` value.
    */
   val none: UIO[Option[Nothing]] =
-    succeed(None)(Trace.empty)
+    succeed(None)(Trace.tracer.newTrace)
 
   /**
    * Lifts an Option into a ZIO. If the option is empty it succeeds with Unit.
@@ -4705,7 +4705,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * An effect that succeeds with a unit value.
    */
   val unit: UIO[Unit] =
-    succeed(())(Trace.empty)
+    succeed(())(Trace.tracer.newTrace)
 
   /**
    * Prefix form of `ZIO#uninterruptible`.

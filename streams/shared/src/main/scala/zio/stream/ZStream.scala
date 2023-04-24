@@ -4830,7 +4830,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * A stream that contains a single `Unit` value.
    */
   val unit: ZStream[Any, Nothing, Unit] =
-    succeed(())(Trace.empty)
+    succeed(())(Trace.tracer.newTrace)
 
   /**
    * Creates a stream by peeling off the "layers" of a value of type `S`

@@ -59,24 +59,37 @@ trait Clock extends Serializable { self =>
   def unsafe: UnsafeAPI =
     new UnsafeAPI {
       def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
-        Runtime.default.unsafe.run(self.currentTime(unit)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.currentTime(unit)(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
         Runtime.default.unsafe
-          .run(self.currentTime(unit)(Trace.empty, DummyImplicit.dummyImplicit))(Trace.empty, unsafe)
+          .run(self.currentTime(unit)(Trace.tracer.newTrace, DummyImplicit.dummyImplicit))(
+            Trace.tracer.newTrace,
+            unsafe
+          )
           .getOrThrowFiberFailure()
 
       def currentDateTime()(implicit unsafe: Unsafe): OffsetDateTime =
-        Runtime.default.unsafe.run(self.currentDateTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.currentDateTime(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def instant()(implicit unsafe: Unsafe): Instant =
-        Runtime.default.unsafe.run(self.instant(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.instant(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def localDateTime()(implicit unsafe: Unsafe): LocalDateTime =
-        Runtime.default.unsafe.run(self.localDateTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.localDateTime(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def nanoTime()(implicit unsafe: Unsafe): Long =
-        Runtime.default.unsafe.run(self.nanoTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.nanoTime(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
     }
 }
 

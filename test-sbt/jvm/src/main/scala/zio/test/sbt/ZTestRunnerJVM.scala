@@ -81,7 +81,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
-    tasksZ(defs, zio.Console.ConsoleLive)(Trace.empty).toArray
+    tasksZ(defs, zio.Console.ConsoleLive)(Trace.tracer.newTrace).toArray
 
   private[sbt] def tasksZ(
     defs: Array[TaskDef],
@@ -102,7 +102,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
       sharedLayerFromSpecs +!+ sharedSinkLayer
 
     val runtime: Runtime.Scoped[ExecutionEventSink] =
-      zio.Runtime.unsafe.fromLayer(sharedLayer)(Trace.empty, Unsafe.unsafe)
+      zio.Runtime.unsafe.fromLayer(sharedLayer)(Trace.tracer.newTrace, Unsafe.unsafe)
 
     shutdownHook = Some(() => runtime.unsafe.shutdown()(Unsafe.unsafe))
 

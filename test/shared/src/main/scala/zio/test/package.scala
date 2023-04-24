@@ -70,7 +70,7 @@ package object test extends CompileVariants {
   }
 
   val liveEnvironment: Layer[Nothing, Clock with Console with System with Random] = {
-    implicit val trace = Trace.empty
+    implicit val trace = Trace.tracer.newTrace
     ZLayer.succeedEnvironment(
       ZEnvironment[Clock, Console, System, Random](
         Clock.ClockLive,
@@ -801,7 +801,7 @@ package object test extends CompileVariants {
    * A `Runner` that provides a default testable environment.
    */
   lazy val defaultTestRunner: TestRunner[TestEnvironment, Any] = {
-    implicit val trace = Trace.empty
+    implicit val trace = Trace.tracer.newTrace
     TestRunner(
       TestExecutor.default(
         testEnvironment,
@@ -822,7 +822,7 @@ package object test extends CompileVariants {
    * Creates an ignored test result.
    */
   val ignored: UIO[TestSuccess] =
-    ZIO.succeed(TestSuccess.Ignored())(Trace.empty)
+    ZIO.succeed(TestSuccess.Ignored())(Trace.tracer.newTrace)
 
   /**
    * Passes platform specific information to the specified function, which will

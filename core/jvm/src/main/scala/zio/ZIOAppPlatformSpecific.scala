@@ -9,7 +9,7 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
    * The Scala main function, intended to be called only by the Scala runtime.
    */
   final def main(args0: Array[String]): Unit = {
-    implicit val trace: Trace   = Trace.empty
+    implicit val trace: Trace   = Trace.tracer.newTrace
     implicit val unsafe: Unsafe = Unsafe.unsafe
 
     val newLayer =

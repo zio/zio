@@ -899,5 +899,5 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     else n
 
   private val defaultShrinker: Any => ZStream[Any, Nothing, Nothing] =
-    _ => ZStream.empty(Trace.empty)
+    _ => ZStream.empty(Trace.tracer.newTrace)
 }

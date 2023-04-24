@@ -264,7 +264,7 @@ object Runtime extends RuntimePlatformSpecific {
     }
 
   val removeDefaultLoggers: ZLayer[Any, Nothing, Unit] = {
-    implicit val trace = Trace.empty
+    implicit val trace = Trace.tracer.newTrace
     ZLayer.scoped(FiberRef.currentLoggers.locallyScopedWith(_ -- Runtime.defaultLoggers))
   }
 

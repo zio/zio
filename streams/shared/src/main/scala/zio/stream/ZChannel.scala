@@ -1862,7 +1862,7 @@ object ZChannel {
 
   /** Channel that succeeds with the unit value */
   val unit: ZChannel[Any, Any, Any, Any, Nothing, Nothing, Unit] =
-    succeedNow(())(Trace.empty)
+    succeedNow(())(Trace.tracer.newTrace)
 
   def unwrap[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     channel: => ZIO[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]

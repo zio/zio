@@ -35,7 +35,7 @@ abstract class BaseTestTask[T](
       .provideLayer(sharedFilledTestLayer)
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
-    implicit val trace                    = Trace.empty
+    implicit val trace                    = Trace.tracer.newTrace
     val zTestHandler                      = new ZTestEventHandlerSbt(eventHandler, taskDef(), args.testRenderer)
     var resOutter: CancelableFuture[Unit] = null
     try {

@@ -99,7 +99,7 @@ object Standard {
         cpuSecondsTotal =
           PollingMetric(
             Metric.gauge("process_cpu_seconds_total").contramap[Long](_.toDouble / 1.0e09),
-            getProcessCpuTime.get(Trace.empty, Unsafe.unsafe)
+            getProcessCpuTime.get(Trace.tracer.newTrace, Unsafe.unsafe)
           )
         processStartTime =
           PollingMetric(
@@ -113,14 +113,14 @@ object Standard {
             Metric
               .gauge("process_open_fds")
               .contramap[Long](_.toDouble),
-            getOpenFileDescriptorCount.get(Trace.empty, Unsafe.unsafe)
+            getOpenFileDescriptorCount.get(Trace.tracer.newTrace, Unsafe.unsafe)
           )
         maxFdCount =
           PollingMetric(
             Metric
               .gauge("process_max_fds")
               .contramap[Long](_.toDouble),
-            getMaxFileDescriptorCount.get(Trace.empty, Unsafe.unsafe)
+            getMaxFileDescriptorCount.get(Trace.tracer.newTrace, Unsafe.unsafe)
           )
         virtualMemorySize  = Metric.gauge("process_virtual_memory_bytes")
         residentMemorySize = Metric.gauge("process_resident_memory_bytes")

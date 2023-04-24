@@ -92,7 +92,7 @@ final case class TestRunner[R, E](
 
 object TestRunner {
   lazy val defaultBootstrap = {
-    implicit val emptyTracer = Trace.empty
+    implicit val emptyTracer = Trace.tracer.newTrace
 
     ZLayer.make[TestOutput with ExecutionEventSink](
       ResultSerializer.live,

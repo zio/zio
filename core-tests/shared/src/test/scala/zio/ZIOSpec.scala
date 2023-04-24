@@ -15,6 +15,28 @@ object ZIOSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec = suite("ZIOSpec")(
+    suite("loom")(
+      test("yielding does not change thread") {
+        for {
+          greenThreads <- Ref.make[List[Thread]](Nil)
+          trackThread   = ZIO.greenThread.flatMap(opt => greenThreads.update(_ ++ opt.toList))
+          fiber        <- (trackThread *> ZIO.yieldNow *> trackThread).fork
+          _            <- fiber.join
+          list         <- greenThreads.get
+        } yield assertTrue(list.length == 2) && assertTrue(list(0) eq list(1))
+      },
+      test("async does not change thread") {
+        val ec = scala.concurrent.ExecutionContext.global
+        for {
+          greenThreads <- Ref.make[List[Thread]](Nil)
+          trackThread   = ZIO.greenThread.flatMap(opt => greenThreads.update(_ ++ opt.toList))
+          fiber <-
+            (trackThread *> ZIO.async[Any, Nothing, Unit](k => ec.execute(() => k(ZIO.unit))) *> trackThread).fork
+          _    <- fiber.join
+          list <- greenThreads.get
+        } yield assertTrue(list.length == 2) && assertTrue(list(0) eq list(1))
+      }
+    ) @@ TestAspect.loomOnly,
     suite("fiber status") {
       test("fiber awaiting promise has suspended status") {
         for {
@@ -209,11 +231,8 @@ object ZIOSpec extends ZIOBaseSpec {
           ref                 <- Ref.make(0)
           tuple               <- incrementAndGet(ref).cachedInvalidate(60.minutes)
           (cached, invalidate) = tuple
-          _                   <- ZIO.debug("Before cache")
           a                   <- cached
-          _                   <- ZIO.debug("After cache")
           _                   <- TestClock.adjust(59.minutes)
-          _                   <- ZIO.debug("After time adjustment")
           b                   <- cached
           _                   <- invalidate
           c                   <- cached
@@ -3509,7 +3528,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _       <- fiber.interrupt
           value   <- ref.get
         } yield assertTrue(value == true)
-      } @@ nonFlaky @@ TestAspect.fibers,
+      } @@ nonFlaky,
       test("asyncInterrupt cancelation") {
         for {
           ref       <- ZIO.succeed(new java.util.concurrent.atomic.AtomicInteger(0))
