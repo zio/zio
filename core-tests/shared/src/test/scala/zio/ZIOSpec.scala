@@ -3561,13 +3561,12 @@ object ZIOSpec extends ZIOBaseSpec {
           for {
             promise <- Promise.make[Nothing, Unit]
             ref     <- Ref.make(false)
-            left     = promise.await
             right    = ZIO.never.race((promise.succeed(()) *> ZIO.never.interruptible).ensuring(ref.set(true)))
-            _       <- left.race(right).forkDaemon
+            _       <- promise.await.race(right).forkDaemon
             _       <- ref.get.repeatUntilEquals(true)
           } yield assertCompletes
         }
-      } @@ nonFlaky,
+      } @@ nonFlaky @@ TestAspect.diagnose(10.seconds),
       test("child can outlive parent in race") {
         for {
           promise <- Promise.make[Nothing, Unit]

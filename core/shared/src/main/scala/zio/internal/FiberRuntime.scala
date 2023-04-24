@@ -279,6 +279,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         case FiberMessage.GenStackTrace(onTrace) =>
           val oldCur = cur
 
+          // TODO: This can be clobbered in the event of InterruptSignal above.
           cur = ZIO
             .stackTrace(Trace.empty)
             .flatMap({ stackTrace =>
@@ -632,7 +633,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         else
           Fiber.Status.Suspended(
             self._runtimeFlags,
-            if (_lastTrace eq null) fiberId.location else _lastTrace,
+            _lastTrace,
             _blockingOn()
           )
       } else {
@@ -1023,7 +1024,18 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   val result = effect.registerCallback(oneShot.set(_))
 
                   if (result ne null) cur = result
-                  else cur = oneShot.get()
+                  else {
+                    var retry = true
+                    while (retry) {
+                      try {
+                        cur = oneShot.get()
+
+                        retry = false
+                      } catch {
+                        case _: InterruptedException if !isInterruptible() => ()
+                      }
+                    }
+                  }
                 } catch {
                   case t: Throwable if !isFatal(t) && oneShot.isSet() =>
                     log(
@@ -1254,9 +1266,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
           // TODO: ClosedByInterruptException (but Scala.js??)
           case interruptedException: InterruptedException =>
-            val cause = Cause.interrupt(FiberId.None)
-            processNewInterruptSignal(cause)
-            cur = Exit.Failure(cause ++ Cause.die(interruptedException))
+            // It's possible we're being interrupted because we're running on a green thread,
+            // in which case the full interruption cause is already stored in the queue, and
+            // all we have to do is grab it from there. So we form a temporary interruption effect
+            // that may be discarded by `drainQueueWhileRunning` if it's not needed and replaced by
+            // the real interruption effect:
+            cur = drainQueueWhileRunning(Exit.Failure(Cause.interrupt(FiberId.None) ++ Cause.die(interruptedException)))
 
           case throwable: Throwable =>
             if (isFatal(throwable)) {
@@ -1270,6 +1285,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
 
     done
+  }
+
+  private def sendInterruptSignalToAllChildrenConcurrently()(implicit unsafe: Unsafe): Boolean = {
+    val c = _children
+
+    if (c ne null) {
+      internal.Sync(c) {
+        sendInterruptSignalToAllChildren()
+      }
+    } else false
   }
 
   private def sendInterruptSignalToAllChildren()(implicit unsafe: Unsafe): Boolean =
@@ -1449,21 +1474,25 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     // Attempt to spin up fiber, if it's not already running:
     if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
     else {
+
       val greenThread = _greenThread
 
       if (greenThread ne null) {
         message match {
           case FiberMessage.InterruptSignal(cause) =>
-            val state = greenThread.getState()
-            // A little racy:
+            // We may be blocked and therefore we cannot rely on the message to interrupt the children.
+            // So we do a slower concurrent signal to the children here:
+            sendInterruptSignalToAllChildrenConcurrently()
+
+            // A little racy, since the fiber may no longer be interruptible by the time we
+            // perform the interruption:
             if (isInterruptible()) {
-              println(s"Interrupting thread at ${_lastTrace}")
-              //println(s"Also known as ${greenThread.getStackTrace()(0)}")
-              println(greenThread.getStackTrace().mkString("\n\t"))
-              //println(s"Fiber ${fiberId} is being interrupted: ${cause}")
-              //println(s"Runtime flags: ${RuntimeFlags.render(_runtimeFlags)}")
-              //println(s"thread state = ${state}")
               greenThread.interrupt()
+            } else {
+              // If the fiber has changed between the check and the interrupt (and now the fiber is
+              // interruptible, whereas before when we checked, it was not interruptible), then that
+              // means its run loop is active, which means it's had a chance to process the message
+              // added to the queue before we performed the check.
             }
 
           case _ => ()
