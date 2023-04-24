@@ -1297,7 +1297,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     } else false
   }
 
-  private def sendInterruptSignalToAllChildren(children: JavaSet[Fiber.Runtime[_, _]])(implicit unsafe: Unsafe): Boolean =
+  private def sendInterruptSignalToAllChildren(
+    children: JavaSet[Fiber.Runtime[_, _]]
+  )(implicit unsafe: Unsafe): Boolean =
     if (children == null || children.isEmpty) false
     else {
       // Initiate asynchronous interruption of all children:
