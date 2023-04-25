@@ -97,5 +97,5 @@ object ExecutorSpec extends ZIOBaseSpec {
         assert(TestExecutor.u.asJava.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
       }
     )
-  ) @@ TestAspect.exceptNative
+  )
 }
