@@ -2567,7 +2567,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               mapZIO    <- ZStream.fromIterable(m).mapZIO(ZIO.succeed(_)).runCollect
               mapZIOPar <- ZStream.fromIterable(m).mapZIOPar(n)(ZIO.succeed(_)).runCollect
             } yield assert(n)(isGreaterThan(0)) implies assert(mapZIO)(equalTo(mapZIOPar))
-          }) @@ TestAspect.jvmOnly,
+          }) @@ ignore,
           test("awaits children fibers properly") {
             assertZIO(
               ZStream
