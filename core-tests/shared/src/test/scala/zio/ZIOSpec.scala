@@ -4280,7 +4280,7 @@ object ZIOSpec extends ZIOBaseSpec {
         cause <- ZIO.fail(new RuntimeException("fail")).ensuring(ZIO.die(new RuntimeException("die"))).orDie.cause
       } yield assertTrue(cause.size == 2)
     }
-  ) @@ TestAspect.exceptNative
+  )
 
   def functionIOGen: Gen[Any, String => ZIO[Any, Throwable, Int]] =
     Gen.function[Any, String, Task[Int]](Gen.successes(Gen.int))
