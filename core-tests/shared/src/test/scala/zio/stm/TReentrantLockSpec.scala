@@ -119,5 +119,5 @@ object TReentrantLockSpec extends ZIOBaseSpec {
         count  <- writer.join
       } yield assert(option)(isNone) && assert(count)(equalTo(1))
     } @@ timeout(10.seconds) @@ flaky
-  )
+  ) @@ TestAspect.exceptNative
 }

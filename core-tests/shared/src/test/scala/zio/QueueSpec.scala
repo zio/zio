@@ -784,7 +784,7 @@ object QueueSpec extends ZIOBaseSpec {
         full  <- queue.isFull
       } yield assertTrue(full)
     }
-  )
+  ) @@ TestAspect.exceptNative
 }
 
 object QueueSpecUtil {

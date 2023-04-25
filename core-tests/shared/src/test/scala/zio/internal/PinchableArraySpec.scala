@@ -78,5 +78,5 @@ object GrowableArraySpec extends ZIOBaseSpec {
       addMany,
       buildResets,
       iterating
-    )
+    ) @@ TestAspect.exceptNative
 }

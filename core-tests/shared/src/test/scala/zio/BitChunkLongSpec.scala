@@ -79,6 +79,6 @@ object BitChunkLongSpec extends ZIOBaseSpec {
         assert(actual)(equalTo(expected))
       }
     }
-  )
+  ) @@ TestAspect.exceptNative
 
 }

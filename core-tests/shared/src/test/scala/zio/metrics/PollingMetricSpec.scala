@@ -48,7 +48,7 @@ object PollingMetricSpec extends ZIOBaseSpec {
         state1.value == gaugeIncrement1 * pollingCount && state2.value == gaugeIncrement2 * pollingCount
       )
     }
-  ) @@ withLiveClock
+  ) @@ withLiveClock @@ TestAspect.exceptNative
 
   private def makePollingGauge(name: String, increment: Double) = {
     val gauge = Metric.gauge(name)

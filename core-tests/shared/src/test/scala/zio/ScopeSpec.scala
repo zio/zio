@@ -100,7 +100,7 @@ object ScopeSpec extends ZIOBaseSpec {
         actions(2) == Action.release(2)
       }
     }
-  )
+  ) @@ TestAspect.exceptNative
 
   sealed trait Action
 

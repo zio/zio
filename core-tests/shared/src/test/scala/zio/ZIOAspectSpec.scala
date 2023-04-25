@@ -12,5 +12,5 @@ object ZIOAspectSpec extends ZIOBaseSpec {
         config <- ZIO.config(Config.string("key")) @@ nested("nested")
       } yield assertTrue(config == "value")
     } @@ withConfigProvider(ConfigProvider.fromMap(Map("nested.key" -> "value")))
-  )
+  ) @@ TestAspect.exceptNative
 }

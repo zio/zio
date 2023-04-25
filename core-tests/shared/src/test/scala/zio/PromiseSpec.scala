@@ -121,5 +121,5 @@ object PromiseSpec extends ZIOBaseSpec {
         d <- p.isDone
       } yield assert(d)(isTrue)
     } @@ zioTag(errors)
-  )
+  ) @@ TestAspect.exceptNative
 }

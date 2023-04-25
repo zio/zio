@@ -94,7 +94,7 @@ object ThreadLocalBridgeSpec extends ZIOBaseSpec {
         }
       }
     )
-  ).provideSomeLayer[zio.test.TestEnvironment with zio.Scope](ThreadLocalBridge.live)
+  ).provideSomeLayer[zio.test.TestEnvironment with zio.Scope](ThreadLocalBridge.live) @@ TestAspect.exceptNative
 
   def tracking[R, E, A](
     initialValue: String

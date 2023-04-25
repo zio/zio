@@ -441,5 +441,5 @@ object HubSpec extends ZIOBaseSpec {
         }
       }
     )
-  )
+  ) @@ TestAspect.exceptNative
 }

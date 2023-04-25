@@ -108,7 +108,7 @@ object StackTracesSpec extends ZIOBaseSpec {
         }
       }
     )
-  ) @@ sequential
+  ) @@ sequential @@ zio.test.TestAspect.exceptNative
 
   // set to true to print traces
   private val debug = false

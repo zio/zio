@@ -170,6 +170,6 @@ object HigherKindedTagCorrectness extends ZIOBaseSpec {
           !(a.tag <:< d.tag)
         )).provideLayer(myCache)
       }
-    )
+    ) @@ TestAspect.exceptNative
 
 }

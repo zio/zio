@@ -43,5 +43,5 @@ object ReloadableSpec extends ZIOBaseSpec {
           } yield assertTrue(acquire == 2)
         }
       )
-    }
+    } @@ TestAspect.exceptNative
 }

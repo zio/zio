@@ -393,7 +393,7 @@ object ChunkBufferSpec extends ZIOBaseSpec {
         }
       }
     )
-  )
+  ) @@ TestAspect.exceptNative
 
   final def byteChunk(bytes: Byte*): Chunk[Byte] =
     Chunk.fromIterable(bytes)

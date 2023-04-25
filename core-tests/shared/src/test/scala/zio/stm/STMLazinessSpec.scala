@@ -20,5 +20,5 @@ object STMLazinessSpec extends ZIOBaseSpec {
     test("fromEither")(assertLazy(ZSTM.fromEither)),
     test("fromTry")(assertLazy(ZSTM.fromTry)),
     test("succeed")(assertLazy(ZSTM.succeed))
-  )
+  ) @@ TestAspect.exceptNative
 }

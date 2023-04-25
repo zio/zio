@@ -111,6 +111,6 @@ object MetricListenerSpec extends ZIOBaseSpec {
           )
         }
       }
-    ) @@ TestAspect.sequential
+    ) @@ TestAspect.sequential @@ TestAspect.exceptNative
 
 }

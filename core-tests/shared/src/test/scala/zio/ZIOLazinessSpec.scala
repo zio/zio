@@ -29,5 +29,5 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
     test("sleep")(assertLazy(ZIO.sleep)),
     test("some")(assertLazy(ZIO.some)),
     test("succeed")(assertLazy(ZIO.succeed))
-  )
+  ) @@ TestAspect.exceptNative
 }

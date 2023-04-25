@@ -13,7 +13,7 @@ object UnsafeSpec extends ZIOBaseSpec {
         assertCompletes
       }
     )
-  }
+  } @@ TestAspect.exceptNative
 
   def doSomethingUnsafe()(implicit unsafe: Unsafe): Unit =
     ()

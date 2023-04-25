@@ -28,5 +28,5 @@ object CachedSpec extends ZIOBaseSpec {
         value2 <- ref.set(Left("Uh oh!")) *> TestClock.adjust(10.seconds) *> cached.get
       } yield assertTrue(value1 == 0) && assertTrue(value2 == 0)
     }
-  )
+  ) @@ TestAspect.exceptNative
 }

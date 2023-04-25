@@ -140,5 +140,5 @@ object ConfigSpec extends ZIOBaseSpec {
       withDefaultSuite,
       optionalSuite,
       durationSuite
-    )
+    ) @@ TestAspect.exceptNative
 }

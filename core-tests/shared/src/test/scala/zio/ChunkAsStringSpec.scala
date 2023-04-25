@@ -32,6 +32,6 @@ object ChunkAsStringSpec extends ZIOBaseSpec {
         assert(chunk.asString)(equalTo(str * 5))
       }
     }
-  )
+  ) @@ TestAspect.exceptNative
 
 }

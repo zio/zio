@@ -65,5 +65,5 @@ object DifferSpec extends ZIOBaseSpec {
           assertTrue(equal(differ.patch(differ.empty)(value), value))
         }
       }
-    )
+    ) @@ TestAspect.exceptNative
 }

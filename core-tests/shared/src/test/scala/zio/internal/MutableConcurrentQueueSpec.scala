@@ -54,5 +54,5 @@ object MutableConcurrentQueueSpec extends ZIOBaseSpec {
         && assert(q.isEmpty())(isTrue))
       }
     )
-  )
+  ) @@ TestAspect.exceptNative
 }

@@ -79,5 +79,5 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
               }
             }
         }
-    }
+    } @@ TestAspect.exceptNative
 }

@@ -132,7 +132,7 @@ object RefSpec extends ZIOBaseSpec {
         } yield assert(value1)(equalTo(Changed)) && assert(value2)(equalTo(Closed))
       }
     )
-  )
+  ) @@ TestAspect.exceptNative
 
   val (current, update) = ("value", "new value")
 

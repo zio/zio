@@ -163,7 +163,7 @@ object FiberSpec extends ZIOBaseSpec {
           } yield assertTrue(currentFiber.isDefined)
         }
       } @@ TestAspect.fromLayer(Runtime.enableCurrentFiber)
-    )
+    ) @@ TestAspect.exceptNative
 
   val (initial, update)                            = ("initial", "update")
   val fibers: List[Fiber.Synthetic[Nothing, Unit]] = List.fill(100000)(Fiber.unit)

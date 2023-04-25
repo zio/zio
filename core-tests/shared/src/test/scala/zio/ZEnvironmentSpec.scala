@@ -10,5 +10,5 @@ object ZEnvironmentSpec extends ZIOBaseSpec {
         _ <- ZIO.succeed(ZEnvironment.empty.get)
       } yield assertCompletes
     }
-  )
+  ) @@ TestAspect.exceptNative
 }

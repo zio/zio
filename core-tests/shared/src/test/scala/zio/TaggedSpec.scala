@@ -19,6 +19,6 @@ object TaggedSpec extends ZIOBaseSpec {
             """
       }
       assertZIO(result)(isRight(isUnit))
-    } @@ exceptScala3
+    } @@ exceptScala3 @@ TestAspect.exceptNative
   )
 }

@@ -46,7 +46,7 @@ object TRandomSpec extends ZIOBaseSpec {
           assert(n)(isLessThan(max))
       }
     }
-  ).provideLayer(TRandom.live)
+  ).provideLayer(TRandom.live) @@ TestAspect.exceptNative
 
   val genDoubles: Gen[Any, (Double, Double)] =
     for {

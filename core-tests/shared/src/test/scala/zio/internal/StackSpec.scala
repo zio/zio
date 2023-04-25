@@ -76,7 +76,7 @@ object StackSpec extends ZIOBaseSpec {
       }
       assertCompletes
     }
-  )
+  ) @@ TestAspect.exceptNative
 
   sealed trait Boolean {
     def unary_! : Boolean = this match {

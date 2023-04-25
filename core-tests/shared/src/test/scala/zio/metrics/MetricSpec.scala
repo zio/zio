@@ -390,5 +390,5 @@ object MetricSpec extends ZIOBaseSpec {
         _ <- ZIO.unit @@ timerWithBoundaries.trackDuration
       } yield assertCompletes
     }
-  )
+  ) @@ TestAspect.exceptNative
 }

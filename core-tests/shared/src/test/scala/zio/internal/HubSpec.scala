@@ -60,7 +60,7 @@ object HubSpec extends ZIOBaseSpec {
         concurrentUnsubscribe(unboundedHub),
         concurrentPoll(unboundedHub)
       )
-    )
+    ) @@ TestAspect.exceptNative
 
   val smallInt: Gen[Any, Int] =
     Gen.int(1, 10)

@@ -819,5 +819,5 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           _       = println(result)
         } yield assertTrue(result == List(Nil, List(1), List(1, 2)))
       }
-  }
+  } @@ TestAspect.exceptNative
 }

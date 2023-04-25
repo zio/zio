@@ -443,5 +443,5 @@ object THubSpec extends ZIOBaseSpec {
           }
         }
       )
-    )
+    ) @@ zio.test.TestAspect.exceptNative
 }

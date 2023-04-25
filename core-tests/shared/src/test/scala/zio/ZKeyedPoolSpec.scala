@@ -41,5 +41,5 @@ object ZKeyedPoolSpec extends ZIOBaseSpec {
           _ <- fiber.join
         } yield assertCompletes
       }
-    ) @@ jvmOnly
+    ) @@ jvmOnly @@ TestAspect.exceptNative
 }

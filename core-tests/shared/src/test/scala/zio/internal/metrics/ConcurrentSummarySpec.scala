@@ -81,5 +81,5 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
           } @@ withLiveClock
         }: _*
       )
-    )
+    ) @@ TestAspect.exceptNative
 }

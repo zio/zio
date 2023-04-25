@@ -653,7 +653,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         chunk <- ZIO.unit.repeat(schedule)
       } yield assertTrue(chunk == Chunk(0L, 1L, 2L, 3L, 4L, 5L))
     }
-  )
+  ) @@ TestAspect.exceptNative
 
   def checkDelays[Env](schedule: Schedule[Env, Any, Duration]): URIO[Env, TestResult] =
     for {

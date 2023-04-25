@@ -166,5 +166,5 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
         assert(builder.toString)(equalTo("ChunkBuilder.Short"))
       }
     )
-  )
+  ) @@ TestAspect.exceptNative
 }

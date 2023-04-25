@@ -59,5 +59,5 @@ object FastListSpec extends ZIOBaseSpec {
         test("exists negative") {
           assertTrue(List(1, 2, 3, 4, 5).exists(_ > 5) == false)
         }
-    }
+    } @@ TestAspect.exceptNative
 }

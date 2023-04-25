@@ -169,7 +169,7 @@ object AutoWireSpec extends ZIOBaseSpec {
           }
         )
       )
-    )
+    ) @@ TestAspect.exceptNative
 
   object TestLayer {
     trait OldLady {

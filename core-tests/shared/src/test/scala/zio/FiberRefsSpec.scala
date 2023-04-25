@@ -26,5 +26,5 @@ object FiberRefsSpec extends ZIOBaseSpec {
 
         assertTrue(newParentFiberRefs.get(FiberRef.interruptedCause) == Some(Cause.empty))
       }
-  )
+  ) @@ TestAspect.exceptNative
 }
