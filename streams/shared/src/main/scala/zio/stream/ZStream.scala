@@ -1962,13 +1962,14 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIO[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: Trace): ZStream[R1, E1, A1] = {
 
     def loop(chunkIterator: Chunk.ChunkIterator[A], index: Int): ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Any] =
-      if (chunkIterator.hasNextAt(index)) {
-        val a = chunkIterator.nextAt(index)
-        ZChannel.fromZIO(f(a)).flatMap { a1 =>
-          ZChannel.write(Chunk.single(a1)) *> loop(chunkIterator, index + 1)
+      if (chunkIterator.hasNextAt(index))
+        ZChannel.unwrap {
+          val a = chunkIterator.nextAt(index)
+          f(a).map { a1 =>
+            ZChannel.write(Chunk.single(a1)) *> loop(chunkIterator, index + 1)
+          }
         }
-
-      } else
+      else
         ZChannel.readWithCause(
           elem => loop(elem.chunkIterator, 0),
           err => ZChannel.refailCause(err),
