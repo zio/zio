@@ -23,7 +23,7 @@ object InjectParameterizedServicesSpec extends ZIOBaseSpec {
     test("compile using the type directly if not using wire macro") {
       ParameterizedService.something[String].as(assertCompletes)
     }.provideLayer(ParameterizedServiceWithTypeAlias.live)
-  ) @@ TestAspect.exceptScala3 @@ TestAspect.exceptNative
+  ) @@ TestAspect.exceptScala3
 
   trait ParameterizedService[A] {
     def something: UIO[Unit]
