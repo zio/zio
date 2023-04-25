@@ -556,5 +556,5 @@ object ZLayerSpec extends ZIOBaseSpec {
           _ <- layer.build
         } yield assertTrue(n == 2)
       }
-    ) @@ TestAspect.exceptNative
+    )
 }
