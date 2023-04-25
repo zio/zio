@@ -24,8 +24,8 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
   private[this] var currentChannel      = channel.asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]]
   private[this] var exit                = null.asInstanceOf[Exit[OutErr, OutDone]]
   private[this] var doneStack           = Stack[ZChannel.Fold[Any, Any, Any, Any, Any, Any, Any, Any, Any]]()
-  private[this] var upstream            = Stack[Upstream]
-  private[this] var downstream          = Stack[Downstream]
+  private[this] var upstream            = Stack[Upstream]()
+  private[this] var downstream          = Stack[Downstream]()
   private[this] val inbox               = new java.util.concurrent.ConcurrentLinkedQueue[ChannelFiberMessage]
   private[this] val running             = new java.util.concurrent.atomic.AtomicBoolean(false)
   private[this] var observers           = Set.empty[Exit[OutErr, OutDone] => Unit]
@@ -33,13 +33,13 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
   private[this] var writers             = scala.collection.immutable.Queue.empty[ChannelFiberMessage.Write]
   private[this] var lastAsyncEpoch      = 0L
   private[this] var currentAsyncEpoch   = 0L
-  private[this] val asyncEpochs         = scala.collection.mutable.Map.empty[Long, AsyncState]
+  private[this] val asyncEpochs         = scala.collection.mutable.Map.empty[Long, AsyncState[OutErr, OutDone]]
   private[this] val id0                 = ChannelFiberRuntime.channelFiberIdCounter.getAndIncrement()
   private[this] var currentFiberRefs    = fiberRefs0
   private[this] var currentRuntimeFlags = runtimeFlags0
   private[this] var asyncInterruptor    = null.asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any] => Unit]
   private[this] var internalScope = Unsafe.unsafe { implicit unsafe =>
-    Runtime.default.unsafe.run(Scope.make(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
+    Runtime.default.unsafe.run(Scope.make(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
   }
   private[this] var currentScope = internalScope
   private var runningExecutor    = null.asInstanceOf[Executor]
@@ -47,12 +47,12 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
   private[this] var winddown     = false
 
   def run(depth: Int): Unit =
-    drainQueueOnCurrentThread
+    drainQueueOnCurrentThread()
 
   def run(): Unit =
     run(0)
 
-  private[this] final case class AsyncState(
+  private[this] final case class AsyncState[OutErr, OutDone](
     currentChannel: ZChannel[Any, Any, Any, Any, Any, Any, Any],
     doneStack: Stack[ZChannel.Fold[Any, Any, Any, Any, Any, Any, Any, Any, Any]],
     upstream: Stack[Upstream],
@@ -653,25 +653,27 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
                     upstream = Stack(concatAllUpstream)
                     val hasContinuations = parent.doneStack.nonEmpty
                     if (hasContinuations) {
-                      onElem(elem).foldCauseChannel(
-                        cause => ZChannel.failCause(cause),
-                        done => {
-                          if (currentDone == null) currentDone = done
-                          else currentDone = combineInner(currentDone, done)
-                          downstream.push(Downstream(concatAll, doneStack, currentScope))
-                          upstream = parentUpstream
-                          currentChannel = parent.channel
-                          currentScope = parent.scope
-                          doneStack = parent.doneStack
-                          ZChannel.succeedNow(done)
-                        }
-                      )
+                      onElem
+                        .asInstanceOf[Any => ZChannel[Any, Any, Any, Any, Any, Any, Any]](elem)
+                        .foldCauseChannel(
+                          cause => ZChannel.failCause(cause),
+                          done => {
+                            if (currentDone == null) currentDone = done
+                            else currentDone = combineInner.asInstanceOf[(Any, Any) => Any](currentDone, done)
+                            downstream.push(Downstream(concatAll, doneStack, currentScope))
+                            upstream = parentUpstream
+                            currentChannel = parent.channel
+                            currentScope = parent.scope
+                            doneStack = parent.doneStack
+                            ZChannel.succeedNow(done)
+                          }
+                        )
                     } else {
-                      onElem(elem).ensuringWith {
+                      onElem.asInstanceOf[Any => ZChannel[Any, Any, Any, Any, Any, Any, Any]](elem).ensuringWith {
                         case Exit.Failure(cause) => ZIO.unit
                         case Exit.Success(done) => {
                           if (currentDone == null) currentDone = done
-                          else currentDone = combineInner(currentDone, done)
+                          else currentDone = combineInner.asInstanceOf[(Any, Any) => Any](currentDone, done)
                           downstream.push(Downstream(concatAll, doneStack, currentScope))
                           upstream = parentUpstream
                           currentChannel = parent.channel
@@ -694,10 +696,10 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
                       done => {
                         val currentUpstream = upstream.pop()
                         if (currentUpstream eq null) {
-                          ZChannel.succeedNow(combineOuter(currentDone, done))
+                          ZChannel.succeedNow(combineOuter.asInstanceOf[(Any, Any) => Any](currentDone, done))
                         } else {
                           ZChannel.fromZIO(currentUpstream.scope.close(Exit.unit).when(hasContinuations)) *>
-                            ZChannel.succeedNow(combineOuter(currentDone, done))
+                            ZChannel.succeedNow(combineOuter.asInstanceOf[(Any, Any) => Any](currentDone, done))
                         }
                       }
                     )
@@ -740,12 +742,15 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
               implicit val trace = ensuring.trace
               val fold           = doneStack.pop()
               if (fold eq null) {
-                currentChannel = ZChannel.fromZIO(currentScope.addFinalizerExit(finalizer)) *> channel
+                currentChannel = ZChannel.fromZIO(
+                  currentScope.addFinalizerExit(finalizer.asInstanceOf[Exit[Any, Any] => ZIO[Any, Nothing, Any]])
+                ) *> channel
               } else {
                 val ref = Unsafe.unsafe { implicit unsafe =>
                   Ref.unsafe.make(true)
                 }
-                val finalizer0 = (exit: Exit[Any, Any]) => finalizer(exit).whenZIO(ref.getAndSet(false))
+                val finalizer0 = (exit: Exit[Any, Any]) =>
+                  finalizer.asInstanceOf[Exit[Any, Any] => ZIO[Any, Nothing, Any]](exit).whenZIO(ref.getAndSet(false))
                 currentChannel = ZChannel.fromZIO(currentScope.addFinalizerExit(finalizer0)) *> channel
                 val updatedFold = ZChannel.Fold[Any, Any, Any, Any, Any, Any, Any, Any, Any](
                   Trace.empty,
@@ -795,7 +800,7 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
 
             case fold @ ZChannel.Fold(_, channel, _, _) =>
               currentChannel = channel
-              doneStack.push(fold)
+              doneStack.push(fold.asInstanceOf[ZChannel.Fold[Any, Any, Any, Any, Any, Any, Any, Any, Any]])
 
             case ZChannel.FromZIO(trace, zio) =>
               zio match {
@@ -833,8 +838,8 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
                     ZChannel.Fold(
                       Trace.empty,
                       channel,
-                      err => ZChannel.fromZIO(onFailure(err))(trace),
-                      done => ZChannel.fromZIO(onSuccess(done))(trace)
+                      err => ZChannel.fromZIO(onFailure.asInstanceOf[Cause[Any] => ZIO[Any, Any, Any]](err))(trace),
+                      done => ZChannel.fromZIO(onSuccess.asInstanceOf[Any => ZIO[Any, Any, Any]](done))(trace)
                     )
                   )
 
@@ -846,7 +851,7 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
                       Trace.empty,
                       channel,
                       err => ZChannel.refailCause(err),
-                      done => ZChannel.fromZIO(onSuccess(done))(trace)
+                      done => ZChannel.fromZIO(onSuccess.asInstanceOf[Any => ZIO[Any, Any, Any]](done))(trace)
                     )
                   )
 
@@ -857,7 +862,7 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
                     ZChannel.Fold(
                       Trace.empty,
                       channel,
-                      err => ZChannel.fromZIO(onFailure(err))(trace),
+                      err => ZChannel.fromZIO(onFailure.asInstanceOf[Cause[Any] => ZIO[Any, Any, Any]](err))(trace),
                       done => ZChannel.succeedNow(done)(trace)
                     )
                   )
@@ -872,8 +877,9 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
                   val newRuntimeFlags = RuntimeFlags.patch(patch)(oldRuntimeFlags)
 
                   if (newRuntimeFlags == oldRuntimeFlags) {
-                    currentChannel =
-                      ZChannel.fromZIO(updateRuntimeFlagsWithin.scope(oldRuntimeFlags))(updateRuntimeFlagsWithin.trace)
+                    currentChannel = ZChannel
+                      .fromZIO(updateRuntimeFlagsWithin.scope(oldRuntimeFlags))(updateRuntimeFlagsWithin.trace)
+                      .asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]]
                   } else {
                     if (RuntimeFlags.interruptible(newRuntimeFlags) && isInterrupted()(Unsafe.unsafe)) {
                       currentChannel = ZChannel.refailCause(getFiberRef(FiberRef.interruptedCause)(Unsafe.unsafe))
@@ -901,7 +907,7 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
                               }
                             }
                           )(updateRuntimeFlagsWithin.trace)
-                      }(updateRuntimeFlagsWithin.trace)
+                      }(updateRuntimeFlagsWithin.trace).asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]]
                     }
                   }
 
@@ -909,8 +915,12 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
                   currentChannel = ZChannel.GenerateStackTrace(trace)
 
                 case ZIO.Stateful(trace, onState) =>
-                  currentChannel =
-                    ZChannel.fromZIO(onState(self, Fiber.Status.Running(currentRuntimeFlags, Trace.empty)))(trace)
+                  currentChannel = ZChannel.fromZIO(
+                    onState.asInstanceOf[(Fiber.Runtime[Any, Any], Fiber.Status.Running) => ZIO[Any, Any, Any]](
+                      self,
+                      Fiber.Status.Running(currentRuntimeFlags, Trace.empty)
+                    )
+                  )(trace)
 
                 case iterate @ ZIO.WhileLoop(_, check, body, process) =>
                   implicit val trace = iterate.trace
@@ -1038,21 +1048,23 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
                     currentUpstream.scope.close(exit)(trace)
                   } else ZIO.unit
                 }(trace)
-              }(trace)
+              }(trace).asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]]
 
             case ZChannel.Provide(trace, environment, channel) =>
               val oldEnvironment = getFiberRef(FiberRef.currentEnvironment)(Unsafe.unsafe)
               setFiberRef(FiberRef.currentEnvironment, environment)(Unsafe.unsafe)
-              currentChannel = channel.foldCauseChannel(
-                cause => {
-                  setFiberRef(FiberRef.currentEnvironment, oldEnvironment)(Unsafe.unsafe)
-                  ZChannel.refailCause(cause)
-                },
-                done => {
-                  setFiberRef(FiberRef.currentEnvironment, oldEnvironment)(Unsafe.unsafe)
-                  ZChannel.succeedNow(done)(Trace.empty)
-                }
-              )(trace)
+              currentChannel = channel
+                .foldCauseChannel(
+                  cause => {
+                    setFiberRef(FiberRef.currentEnvironment, oldEnvironment)(Unsafe.unsafe)
+                    ZChannel.refailCause(cause)
+                  },
+                  done => {
+                    setFiberRef(FiberRef.currentEnvironment, oldEnvironment)(Unsafe.unsafe)
+                    ZChannel.succeedNow(done)(Trace.empty)
+                  }
+                )(trace)
+                .asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]]
 
             case ZChannel.Read(_, onElem, onErr, onDone) =>
               val currentUpstream = upstream.pop()
@@ -1090,7 +1102,14 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
               }
 
             case ZChannel.Stateful(_, onState) =>
-              currentChannel = onState(self.asInstanceOf[ChannelFiberRuntime[Any, Any, Any, Any, Any, Any]])
+              currentChannel = onState.asInstanceOf[ChannelFiberRuntime[
+                Nothing,
+                Nothing,
+                Nothing,
+                Any,
+                Any,
+                Any
+              ] => ZChannel[Any, Any, Any, Any, Any, Any, Any]](self)
 
             case ZChannel.Succeed(_, done) =>
               currentChannel = ZChannel.succeedNow(done())(Trace.empty)
@@ -1144,7 +1163,8 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
               val newRuntimeFlags = RuntimeFlags.patch(patch)(oldRuntimeFlags)
 
               if (newRuntimeFlags == oldRuntimeFlags) {
-                currentChannel = channel.scope(oldRuntimeFlags)
+                currentChannel = channel.scope
+                  .asInstanceOf[RuntimeFlags => ZChannel[Any, Any, Any, Any, Any, Any, Any]](oldRuntimeFlags)
               } else {
                 if (RuntimeFlags.interruptible(newRuntimeFlags) && isInterrupted()(Unsafe.unsafe)) {
                   currentChannel = ZChannel.refailCause(getFiberRef(FiberRef.interruptedCause)(Unsafe.unsafe))
@@ -1171,6 +1191,7 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
                         }
                       }
                     }(channel.trace)
+                    .asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]]
                 }
               }
 
