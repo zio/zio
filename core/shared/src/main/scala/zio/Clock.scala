@@ -59,24 +59,37 @@ trait Clock extends Serializable { self =>
   def unsafe: UnsafeAPI =
     new UnsafeAPI {
       def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
-        Runtime.default.unsafe.run(self.currentTime(unit)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.currentTime(unit)(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
         Runtime.default.unsafe
-          .run(self.currentTime(unit)(Trace.empty, DummyImplicit.dummyImplicit))(Trace.empty, unsafe)
+          .run(self.currentTime(unit)(Trace.tracer.newTrace, DummyImplicit.dummyImplicit))(
+            Trace.tracer.newTrace,
+            unsafe
+          )
           .getOrThrowFiberFailure()
 
       def currentDateTime()(implicit unsafe: Unsafe): OffsetDateTime =
-        Runtime.default.unsafe.run(self.currentDateTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.currentDateTime(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def instant()(implicit unsafe: Unsafe): Instant =
-        Runtime.default.unsafe.run(self.instant(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.instant(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def localDateTime()(implicit unsafe: Unsafe): LocalDateTime =
-        Runtime.default.unsafe.run(self.localDateTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.localDateTime(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def nanoTime()(implicit unsafe: Unsafe): Long =
-        Runtime.default.unsafe.run(self.nanoTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.nanoTime(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
     }
 }
 
@@ -103,10 +116,13 @@ object Clock extends ClockPlatformSpecific with Serializable {
     def nanoTime(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafe.nanoTime()(Unsafe.unsafe))
     def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
-      ZIO.asyncInterrupt { cb =>
+      //ZIO.greenThreadOrElse(_ => ZIO.succeed(Thread.sleep(duration.toMillis))) {
+      ZIO.asyncInterrupt[Any, Nothing, Unit] { cb =>
         val canceler = globalScheduler.schedule(() => cb(ZIO.unit), duration)(Unsafe.unsafe)
         Left(ZIO.succeed(canceler()))
       }
+    //}
+
     def scheduler(implicit trace: Trace): UIO[Scheduler] =
       ZIO.succeed(globalScheduler)
 
@@ -151,10 +167,12 @@ object Clock extends ClockPlatformSpecific with Serializable {
       ZIO.succeed(unsafe.nanoTime()(Unsafe.unsafe))
 
     def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
+      // ZIO.greenThreadOrElse(_ => ZIO.succeed(Thread.sleep(duration.toMillis))) {
       ZIO.asyncInterrupt { cb =>
         val canceler = globalScheduler.schedule(() => cb(ZIO.unit), duration)(Unsafe.unsafe)
         Left(ZIO.succeed(canceler()))
       }
+    //}
 
     def currentDateTime(implicit trace: Trace): UIO[OffsetDateTime] =
       ZIO.succeed(unsafe.currentDateTime()(Unsafe.unsafe))

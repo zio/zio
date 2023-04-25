@@ -16,13 +16,23 @@
 
 package zio
 
-import zio.internal.{Blocking, IsFatal}
+import zio.internal.{Blocking, IsFatal, LoomSupport}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] trait RuntimePlatformSpecific {
+  private final val enableLoomSupport = true
 
-  final val defaultExecutor: Executor =
-    Executor.makeDefault()
+  final val defaultExecutor: Executor = {
+    val loomExecutor =
+      LoomSupport
+        .newVirtualThreadPerTaskExecutor()
+        .map(e => Executor.fromJavaExecutor(e).withCurrentThread)
+        .filter(_ => enableLoomSupport)
+
+    if (loomExecutor.isDefined) println("\n********** ZIO 2.0: Enabling Loom Support **********")
+
+    loomExecutor.getOrElse(Executor.makeDefault())
+  }
 
   final val defaultBlockingExecutor: Executor =
     Blocking.blockingExecutor

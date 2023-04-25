@@ -15,6 +15,38 @@ object ZIOSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec = suite("ZIOSpec")(
+    suite("loom")(
+      test("yielding does not change thread") {
+        for {
+          greenThreads <- Ref.make[List[Thread]](Nil)
+          trackThread   = ZIO.greenThread.flatMap(opt => greenThreads.update(_ ++ opt.toList))
+          fiber        <- (trackThread *> ZIO.yieldNow *> trackThread).fork
+          _            <- fiber.join
+          list         <- greenThreads.get
+        } yield assertTrue(list.length == 2) && assertTrue(list(0) eq list(1))
+      },
+      test("async does not change thread") {
+        val ec = scala.concurrent.ExecutionContext.global
+        for {
+          greenThreads <- Ref.make[List[Thread]](Nil)
+          trackThread   = ZIO.greenThread.flatMap(opt => greenThreads.update(_ ++ opt.toList))
+          fiber <-
+            (trackThread *> ZIO.async[Any, Nothing, Unit](k => ec.execute(() => k(ZIO.unit))) *> trackThread).fork
+          _    <- fiber.join
+          list <- greenThreads.get
+        } yield assertTrue(list.length == 2) && assertTrue(list(0) eq list(1))
+      }
+    ) @@ TestAspect.loomOnly,
+    suite("fiber status") {
+      test("fiber awaiting promise has suspended status") {
+        for {
+          l <- Promise.make[Nothing, Unit]
+          p <- Promise.make[Nothing, Unit]
+          f <- (l.succeed(()) *> p.await).fork
+          _ <- l.await *> f.status.repeatUntil(_.isSuspended)
+        } yield assertCompletes
+      }
+    },
     suite("heap")(
       test("unit.forever is safe") {
         for {
@@ -212,7 +244,7 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(b)(not(equalTo(c))) &&
           assert(c)(equalTo(d)) &&
           assert(d)(not(equalTo(e)))
-      }
+      } @@ TestAspect.diagnose(10.seconds)
     ),
     suite("catchNonFatalOrDie")(
       test("recovers from NonFatal") {
@@ -919,7 +951,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("foreachParDiscard")(
       test("accumulates errors") {
         def task(started: Ref[Int], trigger: Promise[Nothing, Unit])(i: Int): IO[Int, Unit] =
-          started.updateAndGet(_ + 1) flatMap { count =>
+          started.updateAndGet(_ + 1).flatMap { count =>
             ZIO.when(count == 3)(trigger.succeed(())) *> trigger.await *> ZIO.fail(i)
           }
 
@@ -931,7 +963,7 @@ object ZIOSpec extends ZIOBaseSpec {
                       .foreachParDiscard(1 to 3)(i => task(started, trigger)(i).uninterruptible)
                       .foldCause(cause => cause.failures.toSet, _ => Set.empty[Int])
         } yield assert(errors)(equalTo(Set(1, 2, 3)))
-      } @@ zioTag(errors),
+      } @@ zioTag(errors) @@ nonFlaky(100000),
       test("runs all effects") {
         val as = Seq(1, 2, 3, 4, 5)
         for {
@@ -3496,7 +3528,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _       <- fiber.interrupt
           value   <- ref.get
         } yield assertTrue(value == true)
-      } @@ nonFlaky @@ TestAspect.fibers,
+      } @@ nonFlaky,
       test("asyncInterrupt cancelation") {
         for {
           ref       <- ZIO.succeed(new java.util.concurrent.atomic.AtomicInteger(0))
@@ -3529,13 +3561,12 @@ object ZIOSpec extends ZIOBaseSpec {
           for {
             promise <- Promise.make[Nothing, Unit]
             ref     <- Ref.make(false)
-            left     = promise.await
             right    = ZIO.never.race((promise.succeed(()) *> ZIO.never.interruptible).ensuring(ref.set(true)))
-            _       <- left.race(right).forkDaemon
+            _       <- promise.await.race(right).forkDaemon
             _       <- ref.get.repeatUntilEquals(true)
           } yield assertCompletes
         }
-      } @@ nonFlaky,
+      } @@ nonFlaky @@ TestAspect.diagnose(10.seconds),
       test("child can outlive parent in race") {
         for {
           promise <- Promise.make[Nothing, Unit]

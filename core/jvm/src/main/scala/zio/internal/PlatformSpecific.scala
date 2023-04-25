@@ -81,6 +81,9 @@ private[zio] trait PlatformSpecific {
   final def getCurrentThreadGroup()(implicit unsafe: zio.Unsafe): String =
     Thread.currentThread.getThreadGroup.getName
 
+  final val hasGreenThreads: Boolean =
+    getJdkVersion().map(_ >= 19).getOrElse(false)
+
   /**
    * Returns whether the current platform is ScalaJS.
    */
@@ -95,6 +98,8 @@ private[zio] trait PlatformSpecific {
    * Returns whether the currently platform is Scala Native.
    */
   final val isNative = false
+
+  final def isRunnable(thread: Thread): Boolean = thread.getState() == Thread.State.RUNNABLE
 
   final def newWeakHashMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] =
     Collections.synchronizedMap(new WeakHashMap[A, B]())
@@ -114,5 +119,14 @@ private[zio] trait PlatformSpecific {
     val ref = new WeakReference[A](value)
 
     () => ref.get()
+  }
+
+  private def getJdkVersion(): Option[Int] = {
+    val versionString = System.getProperty("java.version")
+    scala.util.Try {
+      val pattern      = """^(\d+)(?:\.\d+)*$""".r
+      val majorVersion = pattern.findFirstMatchIn(versionString).map(_.group(1)).getOrElse(versionString)
+      majorVersion.toInt
+    }.toOption
   }
 }

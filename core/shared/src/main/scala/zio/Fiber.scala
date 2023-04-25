@@ -498,6 +498,8 @@ object Fiber extends FiberPlatformSpecific {
      */
     override def id: FiberId.Runtime
 
+    def greenThread(implicit trace: Trace): UIO[Option[Thread]] = ZIO.none
+
     def runtimeFlags(implicit trace: Trace): UIO[RuntimeFlags]
 
     /**
@@ -546,6 +548,12 @@ object Fiber extends FiberPlatformSpecific {
     private[zio] def getCurrentExecutor()(implicit unsafe: Unsafe): Executor
 
     /**
+     * Retrieves the green thread the fiber is running on, or `null` if the
+     * fiber is not running on the green thread.
+     */
+    private[zio] def getGreenThread()(implicit unsafe: Unsafe): Thread
+
+    /**
      * Retrieves the state of the fiber ref, or else its initial value.
      *
      * '''NOTE''': This method is safe to invoke on any fiber, but if not
@@ -571,6 +579,8 @@ object Fiber extends FiberPlatformSpecific {
     private[zio] def getRunningExecutor()(implicit unsafe: Unsafe): Option[Executor]
 
     private[zio] def isAlive()(implicit unsafe: Unsafe): Boolean
+
+    private[zio] def isInterruptible()(implicit unsafe: Unsafe): Boolean
 
     /**
      * Determines if the specified throwable is fatal, based on the fatal errors
@@ -970,7 +980,11 @@ object Fiber extends FiberPlatformSpecific {
    * returned chunk is only weakly consistent.
    */
   def roots(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] =
-    ZIO.succeed(Chunk.fromIterator(_roots.iterator))
+    ZIO.succeed {
+      _roots.graduate()
+      _roots.gc()
+      Chunk.fromIterator(_roots.iterator)
+    }
 
   /**
    * Returns a fiber that has already succeeded with the specified value.

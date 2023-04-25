@@ -1,7 +1,7 @@
 package zio
 
 import zio.test.Assertion._
-import zio.test.TestAspect.nonFlaky
+import zio.test.TestAspect.{exceptLoom, nonFlaky}
 import zio.test._
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -17,7 +17,7 @@ object BlockingSpec extends ZIOBaseSpec {
         for {
           name <- ZIO.attemptBlocking(Thread.currentThread.getName)
         } yield assert(name)(containsString("zio-default-blocking"))
-      },
+      } @@ exceptLoom,
       test("attemptBlockingCancelable completes successfully") {
         assertZIO(ZIO.attemptBlockingCancelable(())(ZIO.unit))(isUnit)
       },
@@ -25,7 +25,7 @@ object BlockingSpec extends ZIOBaseSpec {
         for {
           name <- ZIO.attemptBlockingCancelable(Thread.currentThread.getName)(ZIO.unit)
         } yield assert(name)(containsString("zio-default-blocking"))
-      },
+      } @@ exceptLoom,
       test("attemptBlockingCancelable can be interrupted") {
         val release = new AtomicBoolean(false)
         val cancel  = ZIO.succeed(release.set(true))

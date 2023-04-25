@@ -402,12 +402,12 @@ object FiberRefSpec extends ZIOBaseSpec {
         assertTrue(environment.get[Random] == testRandom) &&
         assertTrue(environment.get[System] == testSystem)
     } @@ TestAspect.nonFlaky,
-    test("zipPar") {
+    test("zipPar - hanging") {
       for {
         _ <- ZIO.unit.timeout(1.second) <& TestClock.adjust(1.second)
         _ <- testClock
       } yield assertCompletes
-    } @@ TestAspect.nonFlaky,
+    } @@ TestAspect.nonFlaky @@ TestAspect.diagnose(20.seconds),
     test("runtime") {
       for {
         expected <- ZIO.clock

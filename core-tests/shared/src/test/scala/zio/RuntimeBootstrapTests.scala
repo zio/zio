@@ -3,8 +3,7 @@ package zio
 object RuntimeBootstrapTests {
   import LatchOps._
 
-  val singleThreadedExecutor =
-    zio.Executor.fromJavaExecutor(java.util.concurrent.Executors.newSingleThreadExecutor())
+  val singleThreadedExecutor = zio.Executor.fromJavaExecutor(java.util.concurrent.Executors.newSingleThreadExecutor())
 
   implicit class RunSyntax[A](
     task: Task[A]
@@ -624,7 +623,7 @@ object RuntimeBootstrapTests {
     // helloWorld()
     // fib()
     // iteration()
-    // asyncInterruption()
+    asyncInterruption()
     // syncInterruption()
     // race()
     // autoInterruption()
@@ -654,8 +653,8 @@ object RuntimeBootstrapTests {
     // invisibleInterruption()
     // invisibleinterruptedCause()
     // accretiveInterruptions()
-    stackRegression1()
-    //zipParInterruption()
+    // stackRegression1()
+    // zipParInterruption()
   }
 
 }

@@ -85,7 +85,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
             Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
             spec.bootstrap
           )
-      )(Trace.empty, Unsafe.unsafe)
+      )(Trace.tracer.newTrace, Unsafe.unsafe)
       .getOrThrowFiberFailure()(Unsafe.unsafe)
     description
   }
@@ -100,7 +100,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
         .provide(
           Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope] +!+ spec.bootstrap)
         )
-    }(Trace.empty, Unsafe.unsafe).getOrThrowFiberFailure()(Unsafe.unsafe)
+    }(Trace.tracer.newTrace, Unsafe.unsafe).getOrThrowFiberFailure()(Unsafe.unsafe)
   }
 
   private def reportRuntimeFailure[E](

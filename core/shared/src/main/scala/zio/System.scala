@@ -62,42 +62,52 @@ trait System extends Serializable { self =>
   def unsafe: UnsafeAPI =
     new UnsafeAPI {
       def env(variable: String)(implicit unsafe: Unsafe): Option[String] =
-        Runtime.default.unsafe.run(self.env(variable)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.env(variable)(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def envOrElse(variable: String, alt: => String)(implicit unsafe: Unsafe): String =
         Runtime.default.unsafe
-          .run(self.envOrElse(variable, alt)(Trace.empty))(Trace.empty, unsafe)
+          .run(self.envOrElse(variable, alt)(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
           .getOrThrowFiberFailure()
 
       def envOrOption(variable: String, alt: => Option[String])(implicit
         unsafe: Unsafe
       ): Option[String] =
         Runtime.default.unsafe
-          .run(self.envOrOption(variable, alt)(Trace.empty))(Trace.empty, unsafe)
+          .run(self.envOrOption(variable, alt)(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
           .getOrThrowFiberFailure()
 
       def envs()(implicit unsafe: Unsafe): Map[String, String] =
-        Runtime.default.unsafe.run(self.envs(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.envs(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def lineSeparator()(implicit unsafe: Unsafe): String =
-        Runtime.default.unsafe.run(self.lineSeparator(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.lineSeparator(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def properties()(implicit unsafe: Unsafe): Map[String, String] =
-        Runtime.default.unsafe.run(self.properties(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.properties(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def property(prop: String)(implicit unsafe: Unsafe): Option[String] =
-        Runtime.default.unsafe.run(self.property(prop)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.property(prop)(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def propertyOrElse(prop: String, alt: => String)(implicit unsafe: Unsafe): String =
         Runtime.default.unsafe
-          .run(self.propertyOrElse(prop, alt)(Trace.empty))(Trace.empty, unsafe)
+          .run(self.propertyOrElse(prop, alt)(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
           .getOrThrowFiberFailure()
 
       def propertyOrOption(prop: String, alt: => Option[String])(implicit
         unsafe: Unsafe
       ): Option[String] =
         Runtime.default.unsafe
-          .run(self.propertyOrOption(prop, alt)(Trace.empty))(Trace.empty, unsafe)
+          .run(self.propertyOrOption(prop, alt)(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
           .getOrThrowFiberFailure()
     }
 }

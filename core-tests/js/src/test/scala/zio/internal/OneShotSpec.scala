@@ -22,11 +22,11 @@ object OneShotSpec extends ZIOBaseSpec {
       test("isSet must report if a value is set") {
         val oneShot = OneShot.make[Int]
 
-        val resultBeforeSet = oneShot.isSet
+        val resultBeforeSet = oneShot.isSet()
 
         oneShot.set(1)
 
-        val resultAfterSet = oneShot.isSet
+        val resultAfterSet = oneShot.isSet()
 
         assert(resultBeforeSet)(isFalse) && assert(resultAfterSet)(isTrue)
       },

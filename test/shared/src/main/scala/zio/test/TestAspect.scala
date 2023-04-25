@@ -21,6 +21,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.immutable.SortedSet
+import zio.internal.Platform
 
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of
@@ -292,6 +293,12 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) ignore else identity
 
   /**
+   * An aspect that runs tests on all platforms except those JVM platforms
+   * supporting green threads.
+   */
+  val exceptLoom: TestAspectPoly = if (Platform.isJVM && Platform.hasGreenThreads) ignore else identity
+
+  /**
    * An aspect that runs tests on all platforms except ScalaNative.
    */
   val exceptNative: TestAspectPoly =
@@ -537,6 +544,12 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) identity else ignore
 
   /**
+   * An aspect that only runs tests on a JVM supporting green threads.
+   */
+  val loomOnly: TestAspectPoly =
+    if (Platform.isJVM && Platform.hasGreenThreads) identity else ignore
+
+  /**
    * An aspect that runs only on operating systems accepted by the specified
    * predicate.
    */
@@ -614,8 +627,8 @@ object TestAspect extends TimeoutVariants {
   val nondeterministic: TestAspectPoly =
     before(
       Live
-        .live(Random.nextLong(Trace.empty))(Trace.empty)
-        .flatMap(TestRandom.setSeed(_)(Trace.empty))(Trace.empty)
+        .live(Random.nextLong(Trace.tracer.newTrace))(Trace.tracer.newTrace)
+        .flatMap(TestRandom.setSeed(_)(Trace.tracer.newTrace))(Trace.tracer.newTrace)
     )
 
   /**
@@ -679,7 +692,7 @@ object TestAspect extends TimeoutVariants {
    * when repeating tests.
    */
   def restore(restorable: UIO[Restorable]): TestAspectPoly =
-    aroundWith(restorable.flatMap(_.save(Trace.empty))(Trace.empty))(restore => restore)
+    aroundWith(restorable.flatMap(_.save(Trace.tracer.newTrace))(Trace.tracer.newTrace))(restore => restore)
 
   /**
    * An aspect that restores the [[zio.test.TestClock TestClock]]'s state to its
@@ -687,7 +700,7 @@ object TestAspect extends TimeoutVariants {
    * repeating tests.
    */
   def restoreTestClock: TestAspectPoly =
-    restore(testClock(Trace.empty))
+    restore(testClock(Trace.tracer.newTrace))
 
   /**
    * An aspect that restores the [[zio.test.TestConsole TestConsole]]'s state to
@@ -695,7 +708,7 @@ object TestAspect extends TimeoutVariants {
    * when repeating tests.
    */
   def restoreTestConsole: TestAspectPoly =
-    restore(testConsole(Trace.empty))
+    restore(testConsole(Trace.tracer.newTrace))
 
   /**
    * An aspect that restores the [[zio.test.TestRandom TestRandom]]'s state to
@@ -703,7 +716,7 @@ object TestAspect extends TimeoutVariants {
    * when repeating tests.
    */
   def restoreTestRandom: TestAspectPoly =
-    restore(testRandom(Trace.empty))
+    restore(testRandom(Trace.tracer.newTrace))
 
   /**
    * An aspect that restores the [[zio.test.TestSystem TestSystem]]'s state to
@@ -711,7 +724,7 @@ object TestAspect extends TimeoutVariants {
    * when repeating tests.
    */
   def restoreTestSystem: TestAspectPoly =
-    restore(testSystem(Trace.empty))
+    restore(testSystem(Trace.tracer.newTrace))
 
   /**
    * An aspect that restores all state in the standard provided test
@@ -851,7 +864,7 @@ object TestAspect extends TimeoutVariants {
    * specified value before each test.
    */
   def setSeed(seed: => Long): TestAspectPoly =
-    before(TestRandom.setSeed(seed)(Trace.empty))
+    before(TestRandom.setSeed(seed)(Trace.tracer.newTrace))
 
   /**
    * An aspect that runs each test with the maximum number of shrinkings to

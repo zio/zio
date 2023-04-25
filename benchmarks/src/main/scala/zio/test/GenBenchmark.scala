@@ -23,7 +23,7 @@ class GenBenchmark {
   @Setup
   def setup(): Unit = {
     listOfNEffect = Gen.listOfN(size)(Gen.byte).sample.forever.take(count).runDrain
-    causesEffect = Sized.live(size)(Trace.empty) {
+    causesEffect = Sized.live(size)(Trace.tracer.newTrace) {
       Gen
         .causes(Gen.string, Gen.string.map(s => new RuntimeException(s)))
         .sample

@@ -60,7 +60,7 @@ object TestConfig {
    * Constructs a new `TestConfig` with the default settings.
    */
   val default: ZLayer[Any, Nothing, TestConfig] =
-    live(100, 100, 200, 1000)(Trace.empty)
+    live(100, 100, 200, 1000)(Trace.tracer.newTrace)
 
   /**
    * Constructs a new `TestConfig` service with the specified settings.

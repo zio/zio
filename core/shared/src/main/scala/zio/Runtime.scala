@@ -151,10 +151,8 @@ trait Runtime[+R] { self =>
 
       val supervisor = fiber.getSupervisor()
 
-      if (supervisor != Supervisor.none) {
+      if (supervisor ne Supervisor.none) {
         supervisor.onStart(environment, zio, None, fiber)
-
-        fiber.addObserver(exit => supervisor.onEnd(exit, fiber))
       }
 
       val exit = fiber.start[R](zio)
@@ -264,7 +262,7 @@ object Runtime extends RuntimePlatformSpecific {
     }
 
   val removeDefaultLoggers: ZLayer[Any, Nothing, Unit] = {
-    implicit val trace = Trace.empty
+    implicit val trace = Trace.tracer.newTrace
     ZLayer.scoped(FiberRef.currentLoggers.locallyScopedWith(_ -- Runtime.defaultLoggers))
   }
 

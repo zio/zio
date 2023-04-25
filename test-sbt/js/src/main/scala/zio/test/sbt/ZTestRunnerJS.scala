@@ -123,7 +123,7 @@ sealed class ZTestTask(
             )
         }
       logic
-    }(Trace.empty, Unsafe.unsafe)
+    }(Trace.tracer.newTrace, Unsafe.unsafe)
     fiber.unsafe.addObserver { exit =>
       exit match {
         case Exit.Failure(cause) => Console.err.println(s"$runnerType failed.")

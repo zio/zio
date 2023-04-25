@@ -95,15 +95,38 @@ private[zio] object javaz {
    * `fromCompletionStage`
    */
   def fromFutureJava[A](thunk: => Future[A])(implicit trace: Trace): Task[A] =
-    ZIO.uninterruptibleMask { restore =>
-      ZIO.attempt(thunk).flatMap { future =>
-        ZIO.isFatalWith { isFatal =>
-          if (future.isDone) {
-            unwrapDone(isFatal)(future)
-          } else {
-            restore {
-              ZIO.blocking(ZIO.suspend(unwrapDone(isFatal)(future)))
-            }.onInterrupt(ZIO.succeed(future.cancel(false)))
+    ZIO.greenThreadOrElse((_, interruptStatus) =>
+      ZIO.attempt(
+        if (interruptStatus.isInterruptible) {
+          try thunk.get()
+          catch {
+            case e: ExecutionException => throw e.getCause
+          }
+        } else {
+          var result: A = null.asInstanceOf[A]
+
+          while (result == null) {
+            try {
+              result = thunk.get()
+            } catch {
+              case _: InterruptedException => ()
+            }
+          }
+
+          result
+        }
+      )
+    ) {
+      ZIO.uninterruptibleMask { restore =>
+        ZIO.attempt(thunk).flatMap { future =>
+          ZIO.isFatalWith { isFatal =>
+            if (future.isDone) {
+              unwrapDone(isFatal)(future)
+            } else {
+              restore {
+                ZIO.blocking(ZIO.suspend(unwrapDone(isFatal)(future)))
+              }.onInterrupt(ZIO.succeed(future.cancel(false)))
+            }
           }
         }
       }

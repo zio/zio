@@ -64,11 +64,20 @@ object StackTrace {
     StackTrace(
       fiberId,
       Chunk
-        .fromArray(stackTrace.takeWhile(_.getClassName != "zio.internal.FiberRuntime"))
+        .fromArray(stackTrace)
+        .takeWhile(_.getClassName != "zio.internal.FiberRuntime")
         .map(Trace.fromJava)
         .takeWhile(!Trace.equalIgnoreLocation(_, trace))
     )
 
+  def fromThread(fiberId: FiberId, thread: Thread)(implicit trace: Trace): UIO[StackTrace] =
+    ZIO.succeed(unsafe.fromThread(fiberId, thread)(trace, Unsafe.unsafe))
+
   val none: StackTrace =
     StackTrace(FiberId.None, Chunk.empty)
+
+  object unsafe {
+    def fromThread(fiberId: FiberId, thread: Thread)(implicit trace: Trace, unsafe: Unsafe): StackTrace =
+      fromJava(fiberId, thread.getStackTrace())
+  }
 }

@@ -110,11 +110,13 @@ object Scope {
   val default: ZLayer[Any, Nothing, Scope] =
     ZLayer.scopedEnvironment(
       ZIO
-        .acquireReleaseExit(Scope.make(Trace.empty))((scope, exit) => scope.close(exit)(Trace.empty))(
-          Trace.empty
+        .acquireReleaseExit(Scope.make(Trace.tracer.newTrace))((scope, exit) =>
+          scope.close(exit)(Trace.tracer.newTrace)
+        )(
+          Trace.tracer.newTrace
         )
-        .map(ZEnvironment[Scope](_))(Trace.empty)
-    )(Trace.empty)
+        .map(ZEnvironment[Scope](_))(Trace.tracer.newTrace)
+    )(Trace.tracer.newTrace)
 
   /**
    * The global scope which is never closed. Finalizers added to this scope will

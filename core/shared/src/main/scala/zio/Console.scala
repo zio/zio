@@ -49,19 +49,29 @@ trait Console extends Serializable { self =>
   def unsafe: UnsafeAPI =
     new UnsafeAPI {
       def print(line: Any)(implicit unsafe: Unsafe): Unit =
-        Runtime.default.unsafe.run(self.print(line)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.print(line)(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def printError(line: Any)(implicit unsafe: Unsafe): Unit =
-        Runtime.default.unsafe.run(self.printError(line)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.printError(line)(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def printLine(line: Any)(implicit unsafe: Unsafe): Unit =
-        Runtime.default.unsafe.run(self.printLine(line)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.printLine(line)(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def printLineError(line: Any)(implicit unsafe: Unsafe): Unit =
-        Runtime.default.unsafe.run(self.printLineError(line)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.printLineError(line)(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
 
       def readLine()(implicit unsafe: Unsafe): String =
-        Runtime.default.unsafe.run(self.readLine(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+        Runtime.default.unsafe
+          .run(self.readLine(Trace.tracer.newTrace))(Trace.tracer.newTrace, unsafe)
+          .getOrThrowFiberFailure()
     }
 }
 

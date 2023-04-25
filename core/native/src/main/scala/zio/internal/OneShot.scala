@@ -28,16 +28,23 @@ private[zio] final class OneShot[A] private (var value: A) {
    * Sets the variable to the value. The behavior of this function is undefined
    * if the variable has already been set.
    */
-  def set(v: A): Unit = {
+  def set(v: A): Unit =
     if (v == null) throw new Error("Defect: OneShot variable cannot be set to null value")
-    if (value != null) throw new Error("Defect: OneShot variable being set twice")
-    value = v
-  }
+    else if (value != null) throw new Error("Defect: OneShot variable being set twice")
+    else value = v
+
+  def setIfUnset(v: A): Boolean =
+    if (v == null) throw new Error("Defect: OneShot variable cannot be set to null value")
+    else if (value != null) false
+    else {
+      value = v
+      true
+    }
 
   /**
    * Determines if the variable has been set.
    */
-  def isSet: Boolean = value != null
+  def isSet(): Boolean = value != null
 
   /**
    * Retrieves the value of the variable, blocking if necessary.
@@ -46,6 +53,11 @@ private[zio] final class OneShot[A] private (var value: A) {
     if (value == null) scala.scalanative.loop.EventLoop.run()
     if (value == null) throw new Error("Cannot block for result to be set in Scala Native")
     value
+  }
+
+  def get(timeout: Long): A = {
+    val _ = timeout
+    get()
   }
 }
 

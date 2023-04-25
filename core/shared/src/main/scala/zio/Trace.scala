@@ -20,6 +20,7 @@ import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 object Trace {
+  def tracer: Tracer.type = Tracer
 
   def apply(location: String, file: String, line: Int): Trace =
     Tracer.instance(location, file, line)

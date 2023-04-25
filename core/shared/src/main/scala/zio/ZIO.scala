@@ -445,8 +445,8 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def debug(implicit trace: Trace): ZIO[R, E, A] =
     self
-      .tap(value => ZIO.succeed(println(value)))
-      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $error")))
+      .tap(value => ZIO.succeed(println(s"${value} ($trace)")))
+      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $error ($trace)")))
 
   /**
    * Taps the effect, printing the result of calling `.toString` on the value.
@@ -811,7 +811,7 @@ sealed trait ZIO[-R, +E, +A]
     scopeOverride: FiberScope
   )(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
     ZIO.withFiberRuntime[R, Nothing, Fiber.Runtime[E, A]] { (parentFiber, parentStatus) =>
-      ZIO.succeed(
+      Exit.succeed(
         ZIO.unsafe.fork(trace, self, parentFiber, parentStatus.runtimeFlags, scopeOverride)(Unsafe.unsafe)
       )
     }
@@ -2578,7 +2578,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
       val childFiber = ZIO.unsafe.makeChildFiber(trace, effect, parentFiber, parentRuntimeFlags, overrideScope)
 
-      childFiber.resume(effect)
+      childFiber.startConcurrently(effect)
 
       childFiber
     }
@@ -2596,7 +2596,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
       val childFiber = internal.FiberRuntime[E1, A](childId, childFiberRefs, parentRuntimeFlags)
 
-      // Call the supervisor who can observe the fork of the child fiber
       val childEnvironment = childFiberRefs.getOrDefault(FiberRef.currentEnvironment)
 
       val supervisor = childFiber.getSupervisor()
@@ -2608,8 +2607,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           Some(parentFiber),
           childFiber
         )
-
-        childFiber.addObserver(exit => supervisor.onEnd(exit, childFiber))
       }
 
       val parentScope =
@@ -3046,7 +3043,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Prints the specified message to the console for debugging purposes.
    */
   def debug(value: => Any)(implicit trace: Trace): UIO[Unit] =
-    ZIO.succeed(println(value))
+    ZIO.succeed(value).debug.unit
 
   /**
    * Returns information about the current fiber, such as its identity.
@@ -3716,6 +3713,40 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     new ZIO.GetStateWithPartiallyApplied[S]
 
   /**
+   * Constructs an effect that succeeds with the (optional) green thread backing
+   * the fiber that is executing the effect. In the event the platform does not
+   * support green threads, or the fiber is forced onto an OS thread, the effect
+   * will succeed with `None`.
+   */
+  def greenThread(implicit trace: Trace): UIO[Option[Thread]] =
+    ZIO.withFiberRuntime[Any, Nothing, Option[Thread]]((fiber, _) => fiber.greenThread)
+
+  /**
+   * Constructs an effect that will be created from the (optional green) thread
+   * passed to the specified effect constructor. This constructor allows you to
+   * create behavior that differs between platforms that support green threads
+   * and those that do not.
+   */
+  def greenThreadWith[R, E, A](f: Option[Thread] => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.withFiberRuntime[R, E, A]((fiber, _) => f(Option(fiber.getGreenThread()(Unsafe.unsafe))))
+
+  /**
+   * Constructs an effect from the specified pair of functions, one to create an
+   * effect if the fiber is backed by a green thread, and one to create an
+   * effect if the fiber is not backed by a green thread. This constructor
+   * allows you to create behavior that differs between platforms that support
+   * green threads and those that do not.
+   */
+  def greenThreadOrElse[R, E, A](
+    f: (Thread, InterruptStatus) => ZIO[R, E, A]
+  )(orElse: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.withFiberRuntime[R, E, A] { (fiber, _) =>
+      val gt = fiber.getGreenThread()(Unsafe.unsafe)
+      if (gt eq null) orElse
+      else f(gt, InterruptStatus.fromBoolean(fiber.isInterruptible()(Unsafe.unsafe)))
+    }
+
+  /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
   def ifZIO[R, E](b: => ZIO[R, E, Boolean]): ZIO.IfZIO[R, E] =
@@ -3776,6 +3807,20 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def isFatalWith[R, E, A](f: (Throwable => Boolean) => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     FiberRef.currentFatal.getWith(f)
+
+  /**
+   * Constructs an effect that succeeds with a boolean, which indicates whether
+   * or not the fiber executing the effect is in fact backed by a green thread.
+   */
+  def isGreenThread(implicit trace: Trace): UIO[Boolean] =
+    greenThread.map(_.isDefined)
+
+  /**
+   * Constructs an effect that succeeds with a boolean, which indicates whether
+   * or not the fiber executing the effect is in fact backed by a green thread.
+   */
+  def isGreenThreadWith[R, E, A](f: Boolean => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    greenThreadWith(option => f(option.isDefined))
 
   /**
    * Iterates with the specified effectual function. The moral equivalent of:
@@ -3896,8 +3941,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Logs the specified message at the current log level.
    */
   def log(message: => String)(implicit trace: Trace): UIO[Unit] =
-    ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-      fiberState.log(() => message, Cause.empty, None, trace)(Unsafe.unsafe)
+    ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiber, _) =>
+      fiber.log(() => message, Cause.empty, None, trace)(Unsafe.unsafe)
 
       ZIO.unit
     }
@@ -4179,7 +4224,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Returns an effect that succeeds with the `None` value.
    */
   val none: UIO[Option[Nothing]] =
-    succeed(None)(Trace.empty)
+    succeed(None)(Trace.tracer.newTrace)
 
   /**
    * Lifts an Option into a ZIO. If the option is empty it succeeds with Unit.
@@ -4660,7 +4705,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * An effect that succeeds with a unit value.
    */
   val unit: UIO[Unit] =
-    succeed(())(Trace.empty)
+    succeed(())(Trace.tracer.newTrace)
 
   /**
    * Prefix form of `ZIO#uninterruptible`.

@@ -53,6 +53,8 @@ private[zio] trait PlatformSpecific {
    */
   final def getCurrentThreadGroup()(implicit unsafe: zio.Unsafe): String = ""
 
+  final val hasGreenThreads: Boolean = false
+
   /**
    * Returns whether the current platform is ScalaJS.
    */
@@ -67,6 +69,8 @@ private[zio] trait PlatformSpecific {
    * Returns whether the currently platform is Scala Native.
    */
   final val isNative = true
+
+  final def isRunnable(thread: Thread): Boolean = true
 
   final def newWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] = new HashSet[A]()
 

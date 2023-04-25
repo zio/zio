@@ -8,6 +8,14 @@ object PromiseSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec: Spec[Any, TestFailure[Any]] = suite("PromiseSpec")(
+    test("interrupt awaiting for a promise that never completes") {
+      for {
+        latch   <- Promise.make[Nothing, Unit]
+        promise <- Promise.make[Nothing, Int]
+        fiber   <- ZIO.uninterruptibleMask(r => latch.succeed(()) *> r(promise.await)).fork
+        exit    <- latch.await *> fiber.interrupt
+      } yield assertTrue(exit.isInterrupted)
+    } @@ TestAspect.nonFlaky,
     test("complete a promise using succeed") {
       for {
         p <- Promise.make[Nothing, Int]

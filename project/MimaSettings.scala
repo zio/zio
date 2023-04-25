@@ -20,7 +20,10 @@ object MimaSettings {
         exclude[Problem]("zio.stream.internal*"),
         exclude[MissingClassProblem]("zio.stream.ZChannel$ChildExecutorDecision*"),
         exclude[MissingClassProblem]("zio.stream.ZChannel$UpstreamPullRequest*"),
-        exclude[MissingClassProblem]("zio.stream.ZChannel$UpstreamPullStrategy*")
+        exclude[MissingClassProblem]("zio.stream.ZChannel$UpstreamPullStrategy*"),
+        exclude[DirectMissingMethodProblem]("zio.Promise#internal#Done.apply"),
+        exclude[DirectMissingMethodProblem]("zio.Promise#internal#Done.unapply"),
+        exclude[MissingClassProblem]("zio.Promise$internal$Done")
       ),
       mimaFailOnProblem := failOnProblem
     )

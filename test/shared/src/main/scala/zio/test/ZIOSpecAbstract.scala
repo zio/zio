@@ -33,7 +33,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   def bootstrap: ZLayer[Any, Any, Environment]
 
   final def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Summary] = {
-    implicit val trace = Trace.empty
+    implicit val trace = Trace.tracer.newTrace
 
     runSpec.provideSomeLayer[Environment with ZIOAppArgs with Scope](
       ZLayer.environment[Environment with ZIOAppArgs with Scope] +!+

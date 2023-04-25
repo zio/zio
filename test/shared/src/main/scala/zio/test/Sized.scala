@@ -30,7 +30,7 @@ object Sized {
   }
 
   val default: ZLayer[Any, Nothing, Sized] =
-    live(100)(Trace.empty)
+    live(100)(Trace.tracer.newTrace)
 
   def live(size: Int)(implicit trace: Trace): Layer[Nothing, Sized] =
     ZLayer.scoped {

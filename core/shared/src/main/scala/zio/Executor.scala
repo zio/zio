@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{DefaultExecutors, ExecutionMetrics}
+import zio.internal.{DefaultExecutors, ExecutionMetrics, FiberRunnable}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent._
@@ -80,6 +80,28 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
 
   private[zio] def stealWork(depth: Int)(implicit unsafe: Unsafe): Boolean =
     false
+
+  final def withCurrentThread: Executor = new Executor {
+    override def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics] = self.metrics
+
+    override def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
+      val fiber = if (runnable.isInstanceOf[FiberRunnable]) runnable.asInstanceOf[FiberRunnable] else null
+
+      self.submit { () =>
+        var oldThread: Thread = null
+
+        if (fiber ne null) {
+          oldThread = fiber.getGreenThread()
+          fiber.setGreenThread(Thread.currentThread())
+        }
+
+        try runnable.run()
+        finally if (fiber ne null) fiber.setGreenThread(oldThread)
+      }
+    }
+
+    override def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = self.submitAndYield(runnable)
+  }
 }
 
 object Executor extends DefaultExecutors with Serializable {

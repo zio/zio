@@ -2,6 +2,7 @@ package zio
 
 import zio.test._
 import zio.test.Assertion._
+import zio.test.TestAspect._
 
 import java.time.Instant
 
@@ -14,6 +15,13 @@ object ClockSpec extends ZIOBaseSpec {
     java.time.Clock.fixed(someFixedInstant, java.time.ZoneId.of("America/Phoenix")) // 8 hours earlier than Amsterdam
 
   def spec = suite("ClockSpec")(
+    test("live sleep is interruptible") {
+      for {
+        latch <- Promise.make[Nothing, Unit]
+        fiber <- (latch.succeed(()) *> Clock.sleep(1.hour)).fork
+        _     <- latch.await *> fiber.interrupt
+      } yield assertCompletes
+    } @@ nonFlaky @@ withLiveClock,
     test("currentDateTime does not throw a DateTimeException") {
       for {
         _ <- Clock.currentDateTime
