@@ -255,5 +255,5 @@ object TSetSpec extends ZIOBaseSpec {
         assertZIO(tx.commit)(hasSameElements(List(1, 2, 3, 4, 5)))
       }
     )
-  ) @@ TestAspect.exceptNative
+  )
 }

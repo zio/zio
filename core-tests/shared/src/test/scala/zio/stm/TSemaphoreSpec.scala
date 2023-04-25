@@ -138,7 +138,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
         }
       }
     )
-  ) @@ TestAspect.exceptNative
+  )
 
   private def repeat[E, A](stm: STM[E, A])(n: Long): STM[E, A] = n match {
     case x if x < 1 => STM.die(new Throwable("n must be greater than 0"))

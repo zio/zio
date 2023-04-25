@@ -1215,7 +1215,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         value <- ref.get
       } yield assertTrue(value == 9)
     }
-  ) @@ TestAspect.exceptNative
+  )
 
   val ExampleError = new Throwable("fail")
 

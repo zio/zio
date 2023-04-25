@@ -376,7 +376,7 @@ object TMapSpec extends ZIOBaseSpec {
         } yield assert(exit)(succeeds(isUnit))
       } @@ nonFlaky
     )
-  ) @@ TestAspect.exceptNative
+  )
 
   private final case class HashContainer(val i: Int) {
     override def hashCode(): Int = i

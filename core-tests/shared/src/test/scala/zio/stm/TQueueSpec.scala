@@ -146,5 +146,5 @@ object TQueueSpec extends ZIOBaseSpec {
         assertZIO(tx.commit)(equalTo((true, false)))
       }
     )
-  ) @@ TestAspect.exceptNative
+  )
 }

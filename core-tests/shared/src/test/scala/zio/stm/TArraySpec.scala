@@ -867,7 +867,7 @@ object TArraySpec extends ZIOBaseSpec {
         }
       }
     }
-  ) @@ TestAspect.exceptNative
+  )
 
   val N    = 1000
   val n    = 10

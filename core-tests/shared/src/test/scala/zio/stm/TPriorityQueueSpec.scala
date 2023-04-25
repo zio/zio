@@ -124,5 +124,5 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
         assertZIO(transaction.commit)(hasSameElements(as) && isSorted)
       }
     }
-  ) @@ TestAspect.exceptNative
+  )
 }
