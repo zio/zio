@@ -835,5 +835,5 @@ object ChunkSpec extends ZIOBaseSpec {
         }
       }
     )
-  ) @@ TestAspect.exceptNative
+  )
 }

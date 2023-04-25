@@ -69,6 +69,6 @@ object ChunkPackedBooleanSpec extends ZIOBaseSpec {
       val actual = Chunk(false, true, false).toPackedByte.hashCode
       assert(actual)(anything)
     }
-  ) @@ TestAspect.exceptNative
+  )
 
 }
