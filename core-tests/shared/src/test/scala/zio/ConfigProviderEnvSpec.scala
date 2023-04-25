@@ -57,5 +57,5 @@ object ConfigProviderEnvSpec extends ZIOBaseSpec {
           config <- ConfigProvider.envProvider.load(Config.table(Config.string))
         } yield assertTrue(config == Map("NAME" -> "Sherlock Holmes", "ADDRESS" -> "221B Baker Street"))
       }
-  } @@ TestAspect.exceptNative
+  }
 }
