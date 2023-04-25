@@ -93,7 +93,7 @@ object ServiceReloader {
                     .set(serviceLayer.build.map(_.unsafe.get(tag)(Unsafe.unsafe)))
                     .foldZIO(
                       error => ZIO.fail(ServiceInitializationError(error)),
-                      _ => ZIO.succeed((), map)
+                      _ => ZIO.succeed(((), map))
                     )
                 }
               case None =>
