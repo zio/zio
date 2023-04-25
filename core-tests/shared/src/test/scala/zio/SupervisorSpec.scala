@@ -31,7 +31,7 @@ object SupervisorSpec extends ZIOBaseSpec {
         Supervisor.toSet(left) == Supervisor.toSet(right)
       )
     }
-  ) @@ TestAspect.exceptNative
+  )
 
   val genSupervisor: Gen[Any, Supervisor[Any]] =
     Gen.fromZIO {
