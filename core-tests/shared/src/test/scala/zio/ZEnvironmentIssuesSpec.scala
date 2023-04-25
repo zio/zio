@@ -28,5 +28,5 @@ object ZEnvironmentIssuesSpec extends ZIOBaseSpec {
       }
       assertTrue(tagForThing(Clock.ClockLive).tag <:< EnvironmentTag[Clock].tag)
     } @@ exceptScala3
-  ) @@ TestAspect.exceptNative
+  )
 }

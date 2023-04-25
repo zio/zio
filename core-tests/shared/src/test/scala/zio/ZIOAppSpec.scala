@@ -80,5 +80,5 @@ object ZIOAppSpec extends ZIOBaseSpec {
         value <- ref2.get
       } yield assertTrue(value)
     }
-  ) @@ TestAspect.exceptNative
+  )
 }
