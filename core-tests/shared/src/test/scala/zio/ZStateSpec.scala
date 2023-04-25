@@ -14,5 +14,5 @@ object ZStateSpec extends ZIOBaseSpec {
           } yield assertTrue(state == 1)
         }
       }
-    ) @@ TestAspect.exceptNative
+    )
 }

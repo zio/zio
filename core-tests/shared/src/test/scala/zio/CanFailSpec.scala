@@ -28,5 +28,5 @@ object CanFailSpec extends ZIOBaseSpec {
       }
       assertZIO(result)(isLeft(anything))
     }
-  ) @@ TestAspect.exceptNative
+  )
 }

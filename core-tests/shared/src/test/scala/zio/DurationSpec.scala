@@ -416,5 +416,5 @@ object DurationSpec extends ZIOBaseSpec {
         assert(2.days)(equalTo(Duration.fromNanos(172800000000000L)))
       }
     )
-  ) @@ zio.test.TestAspect.exceptNative
+  )
 }
