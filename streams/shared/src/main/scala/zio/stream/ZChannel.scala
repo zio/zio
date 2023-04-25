@@ -2140,8 +2140,7 @@ object ZChannel {
             }
           },
           elem => {
-            downstream.unsafeWriteElem(elem)
-            readLeft
+            downstream.unsafeWriteElem(elem, readLeft)
           },
           done => {
             val mergeDecision = leftDone(Exit.succeed(done))
@@ -2193,8 +2192,7 @@ object ZChannel {
             }
           },
           elem => {
-            downstream.unsafeWriteElem(elem)
-            readRight
+            downstream.unsafeWriteElem(elem, readRight)
           },
           done => {
             val mergeDecision = rightDone(Exit.succeed(done))

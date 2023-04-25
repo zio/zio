@@ -31,6 +31,7 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
   private[this] var observers           = Set.empty[Exit[OutErr, OutDone] => Unit]
   private[this] var readers             = scala.collection.immutable.Queue.empty[ChannelFiberMessage.Read]
   private[this] var writers             = scala.collection.immutable.Queue.empty[ChannelFiberMessage.Write]
+  private[this] var reads               = Set.empty[() => Unit]
   private[this] var lastAsyncEpoch      = 0L
   private[this] var currentAsyncEpoch   = 0L
   private[this] val asyncEpochs         = scala.collection.mutable.Map.empty[Long, AsyncState[OutErr, OutDone]]
@@ -244,10 +245,13 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
     offerToInbox(ChannelFiberMessage.WriteDone(done.asInstanceOf[Any]))
 
   private[stream] def unsafeWriteElem(elem: InElem): Unit =
-    offerToInbox(ChannelFiberMessage.WriteElem(elem.asInstanceOf[Any]))
+    offerToInbox(ChannelFiberMessage.WriteElem(elem.asInstanceOf[Any], null))
 
   private[stream] def unsafeWriteErr(err: Cause[InErr]): Unit =
     offerToInbox(ChannelFiberMessage.WriteErr(err.asInstanceOf[Cause[Any]]))
+
+  private[stream] def unsafeWriteElem(elem: InElem, onRead: => Unit): Unit =
+    offerToInbox(ChannelFiberMessage.WriteElem(elem.asInstanceOf[Any], () => onRead))
 
   private def offerToInbox(message: ChannelFiberMessage): Unit = {
     inbox.offer(message)
@@ -1075,13 +1079,16 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
               val currentUpstream = upstream.pop()
               if (currentUpstream eq null) {
                 if (writers.isEmpty) {
+                  reads.foreach(_())
+                  reads = Set.empty
                   loop = false
                   suspendedOnDownstream = true
                 } else {
                   val (write, updatedWriters) = writers.dequeue
                   writers = updatedWriters
                   write match {
-                    case ChannelFiberMessage.WriteElem(elem) =>
+                    case ChannelFiberMessage.WriteElem(elem, read) =>
+                      if (read ne null) reads += read
                       currentChannel = onElem(elem)
                     case ChannelFiberMessage.WriteErr(err) =>
                       currentChannel = onErr(err)

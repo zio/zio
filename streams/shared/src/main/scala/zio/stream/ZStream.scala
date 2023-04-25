@@ -3197,8 +3197,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           cause => ZChannel.fromZIO(queue.offer(Take.failCause(cause))),
           _ => ZChannel.fromZIO(queue.offer(Take.end))
         )
-      new ZStream((self.channel >>> loop).ensuring(queue.offer(Take.end).forkDaemon *> promise.await))
-        .merge(ZStream.execute(right.run(sink).ensuring(promise.succeed(()))), HaltStrategy.Both)
+      ZStream
+        .execute(right.run(sink).ensuring(promise.succeed(())))
+        .merge(
+          new ZStream((self.channel >>> loop).ensuring(queue.offer(Take.end).forkDaemon *> promise.await)),
+          HaltStrategy.Both
+        )
     }
 
   /**

@@ -3545,7 +3545,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- stream.tapSink(sink).take(3).runDrain
               result <- ref.get
             } yield assertTrue(result == 6)
-          } @@ ignore
+          }
         ),
         suite("throttleEnforce")(
           test("free elements") {
