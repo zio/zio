@@ -62,5 +62,5 @@ object ClockSpec extends ZIOBaseSpec {
         } yield assertTrue(true)
       }
     )
-  ) @@ TestAspect.exceptNative
+  )
 }

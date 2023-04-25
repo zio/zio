@@ -72,5 +72,5 @@ object LoggingSpec extends ZIOBaseSpec {
             assertTrue(output(0).context.get(ref).contains(value))
         )
       }
-    ) @@ TestAspect.exceptNative
+    )
 }

@@ -169,7 +169,7 @@ object CauseSpec extends ZIOBaseSpec {
         assert(stripped)(isNone)
       }
     )
-  ) @@ samples(10) @@ TestAspect.exceptNative
+  ) @@ samples(10)
 
   val causes: Gen[Any, Cause[String]] =
     Gen.causes(Gen.string, Gen.string.map(s => new RuntimeException(s)))
