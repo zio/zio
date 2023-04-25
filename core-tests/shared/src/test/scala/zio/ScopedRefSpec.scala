@@ -69,5 +69,5 @@ object ScopedRefSpec extends ZIOBaseSpec {
             } yield assertTrue(acquire == 3 && release == 3)
           }
       }
-  ) @@ TestAspect.exceptNative
+  )
 }
