@@ -1163,8 +1163,8 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
               val newRuntimeFlags = RuntimeFlags.patch(patch)(oldRuntimeFlags)
 
               if (newRuntimeFlags == oldRuntimeFlags) {
-                currentChannel = channel.scope
-                  .asInstanceOf[RuntimeFlags => ZChannel[Any, Any, Any, Any, Any, Any, Any]](oldRuntimeFlags)
+                currentChannel =
+                  channel.scope(oldRuntimeFlags).asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]]
               } else {
                 if (RuntimeFlags.interruptible(newRuntimeFlags) && isInterrupted()(Unsafe.unsafe)) {
                   currentChannel = ZChannel.refailCause(getFiberRef(FiberRef.interruptedCause)(Unsafe.unsafe))
