@@ -1027,13 +1027,11 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
                   Set.empty
                 )
               )
-              currentChannel = ZChannel.unwrap {
-                Scope.global.extend {
-                  for {
-                    left  <- (ZChannel.fromRuntimeFiber(self, asyncEpoch) >>> left).forkScoped
-                    right <- (ZChannel.fromRuntimeFiber(self, asyncEpoch) >>> right).forkScoped
-                  } yield ZChannel.mergeFibers(left, right)(leftDone, rightDone)
-                }
+              currentChannel = ZChannel.unwrapScoped {
+                for {
+                  left  <- (ZChannel.fromRuntimeFiber(self, asyncEpoch) >>> left).forkScoped
+                  right <- (ZChannel.fromRuntimeFiber(self, asyncEpoch) >>> right).forkScoped
+                } yield ZChannel.mergeFibers(left, right)(leftDone, rightDone)
               }
 
             case ZChannel.PipeTo(trace, left, right) =>

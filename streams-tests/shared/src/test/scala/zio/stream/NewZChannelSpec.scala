@@ -321,6 +321,23 @@ object NewZChannelSpec extends ZIOBaseSpec {
         } yield assertCompletes
       }
     },
+    suite("MergeWith") {
+      test("finalizers from merged channel are run when downstream completes execution") {
+        for {
+          promise <- Promise.make[Nothing, Unit]
+          left     = ZChannel.unit
+          right    = (ZChannel.write(1) *> ZChannel.write(2)).ensuring(promise.succeed(()))
+          upstream = left.mergeWith(right)(
+                       _ => ZChannel.MergeDecision.awaitConst(ZIO.unit),
+                       _ => ZChannel.MergeDecision.awaitConst(ZIO.unit)
+                     )
+          downstream = ZChannel.read[Int]
+          channel    = upstream >>> downstream
+          _         <- channel.run
+          _         <- promise.await
+        } yield assertCompletes
+      }
+    },
     suite("Stateful")(
       test("FiberRef values can be modified") {
         for {
