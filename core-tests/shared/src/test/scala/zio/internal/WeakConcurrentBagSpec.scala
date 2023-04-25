@@ -70,5 +70,5 @@ object WeakConcurrentBagSpec extends ZIOBaseSpec {
 
           assertTrue(bag.size <= 100)
         } @@ flaky
-    } @@ jvmOnly @@ TestAspect.exceptNative
+    } @@ jvmOnly
 }
