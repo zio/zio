@@ -5,17 +5,23 @@ import zio.test.render.TestRenderer
 import zio.test.{ExecutionEvent, TestSuccess}
 
 final case class ZTestEvent(
-  fullyQualifiedName: String,
-  selector: Selector,
-  status: Status,
+  fullyQualifiedName0: String,
+  selector0: Selector,
+  status0: Status,
   maybeThrowable: Option[Throwable],
-  duration: Long,
-  fingerprint: Fingerprint
+  duration0: Long,
+  fingerprint0: Fingerprint
 ) extends Event {
+  def duration(): Long               = duration0
+  def fingerprint(): Fingerprint     = fingerprint0
+  def fullyQualifiedName(): String   = fullyQualifiedName0
+  def selector(): Selector           = selector0
+  def status(): Status               = status0
   def throwable(): OptionalThrowable = maybeThrowable.fold(new OptionalThrowable())(new OptionalThrowable(_))
 }
 
 object ZTestEvent {
+
   def convertEvent(test: ExecutionEvent.Test[_], taskDef: TaskDef, renderer: TestRenderer): Event = {
     val status = statusFrom(test)
     val maybeThrowable = status match {
@@ -30,12 +36,12 @@ object ZTestEvent {
     }
 
     ZTestEvent(
-      fullyQualifiedName = taskDef.fullyQualifiedName(),
-      selector = new TestSelector(test.labels.mkString(" - ")),
-      status = status,
-      maybeThrowable = maybeThrowable,
-      duration = test.duration,
-      fingerprint = ZioSpecFingerprint
+      taskDef.fullyQualifiedName(),
+      new TestSelector(test.labels.mkString(" - ")),
+      status,
+      maybeThrowable,
+      test.duration,
+      ZioSpecFingerprint
     )
   }
 
