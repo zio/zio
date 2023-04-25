@@ -83,6 +83,8 @@ private[zio] trait PlatformSpecific {
    */
   final val isNative = false
 
+  final def isRunnable(thread: Thread): Boolean = true
+
   final def newWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] = new HashSet[A]()
 
   final def newConcurrentSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] = new HashSet[A]()

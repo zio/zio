@@ -99,6 +99,8 @@ private[zio] trait PlatformSpecific {
    */
   final val isNative = false
 
+  final def isRunnable(thread: Thread): Boolean = thread.getState() == Thread.State.RUNNABLE
+
   final def newWeakHashMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] =
     Collections.synchronizedMap(new WeakHashMap[A, B]())
 

@@ -619,19 +619,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def getStatus()(implicit unsafe: Unsafe): Fiber.Status =
     if (_exitValue ne null) Fiber.Status.Done
     else {
-      val greenThread = _greenThread
-
-      if (greenThread ne null) {
+      if (_greenThread ne null) {
         // We map the green thread's state to the fiber status to accurately capture
         // suspension information:
-        val state = greenThread.getState()
-
-        if (state == Thread.State.NEW)
-          Fiber.Status.Suspended(self._runtimeFlags, fiberId.location, FiberId.None) // Unstarted
-        else if (state == Thread.State.RUNNABLE) Fiber.Status.Running(self._runtimeFlags, _lastTrace)
-        // else if (state == Thread.State.TERMINATED) {
-        //   Fiber.Status.Suspended(self._runtimeFlags, fiberId.location, FiberId.None)
-        // }
+        if (Platform.isRunnable(_greenThread)) Fiber.Status.Running(self._runtimeFlags, _lastTrace)
         else
           Fiber.Status.Suspended(
             self._runtimeFlags,
