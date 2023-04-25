@@ -2,11 +2,11 @@ package zio.test
 
 import zio._
 
-trait ExecutionEventConsolePrinter {
+private[test] trait ExecutionEventConsolePrinter {
   def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit]
 }
 
-object ExecutionEventConsolePrinter {
+private[test] object ExecutionEventConsolePrinter {
   def live(renderer: ReporterEventRenderer): ZLayer[TestLogger, Nothing, ExecutionEventConsolePrinter] =
     ZLayer {
       for {

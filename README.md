@@ -44,6 +44,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Adidas](https://www.adidas.com/)
 * [adpulse.io](https://www.adpulse.io/)
 * [adsquare](https://www.adsquare.com/)
+* [Amazon](https://www.amazon.com/)
 * [Anduin Transactions](https://www.anduintransact.com/)
 * [Ayolab](https://www.ayolab.com/)
 * [Asana](https://asana.com/)
@@ -52,6 +53,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [AutoScout24](https://www.autoscout24.de)
 * [Avast](https://www.avast.com)
 * [Bank of America](https://www.bofa.com)
+* [BlueLabs](https://www.bluelabs.eu/)
 * [Bpp](https://www.bpp.it/)
 * [Broad](https://broad.app)
 * [Caesars Digital](https://www.caesars.com/sportsbook-and-casino)
@@ -115,6 +117,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Lottoland](https://lottoland.com)
 * [MATECHS](https://matechs.com)
 * [Megogo](https://megogo.net)
+* [MOIA](https://www.moia.io)
 * [Mylivn](https://www.mylivn.com/)
 * [NewMotion](https://newmotion.com)
 * [Nexxchange](https://www.nexxchange.com)
@@ -191,10 +194,6 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 
 [Septimal Mind][Link-SeptimalMind] sponsors work on ZIO Tracing and continuous maintenance.
 
-[![SoftwareMill][Image-SoftwareMill]][Link-SoftwareMill]
-
-[SoftwareMill][Link-SoftwareMill] generously provides ZIO with paid-for CircleCI build infrastructure.
-
 [![YourKit][Image-YourKit]][Link-YourKit]
 
 [YourKit][Link-YourKit] generously provides use of their monitoring and profiling tools to maximize the performance of ZIO applications.
@@ -230,7 +229,6 @@ Copyright 2017 - 2023 John A. De Goes and the ZIO Contributors. All rights reser
 [Link-SonatypeSnapshots]: https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio_3/ "Sonatype Snapshots"
 [Link-Ziverge]: https://ziverge.com "Ziverge"
 [Link-Scalac]: https://scalac.io "Scalac"
-[Link-SoftwareMill]: https://softwaremill.com "SoftwareMill"
 [Link-SeptimalMind]: https://7mind.io "Septimal Mind"
 [Link-YourKit]: https://www.yourkit.com "YourKit"
 [Link-Discord]: https://discord.gg/2ccFBr4 "Discord"
@@ -249,6 +247,5 @@ Copyright 2017 - 2023 John A. De Goes and the ZIO Contributors. All rights reser
 
 [Image-Ziverge]: ./website/static/img/ziverge.png "Ziverge"
 [Image-Scalac]: ./website/static/img/scalac.svg "Scalac"
-[Image-SoftwareMill]: ./website/static/img/softwaremill.svg "SoftwareMill"
 [Image-SeptimalMind]: ./website/static/img/septimal_mind.svg "Septimal Mind"
 [Image-YourKit]: ./website/static/img/yourkit.png "YourKit"

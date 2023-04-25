@@ -4,7 +4,7 @@ import zio.{Chunk, Ref, ZIO, ZLayer}
 
 import scala.io.Source
 
-trait TestOutput {
+private[test] trait TestOutput {
 
   /**
    * Does not necessarily print immediately. Might queue for later, sensible
@@ -15,7 +15,7 @@ trait TestOutput {
   ): ZIO[Any, Nothing, Unit]
 }
 
-object TestOutput {
+private[test] object TestOutput {
   val live: ZLayer[ExecutionEventPrinter, Nothing, TestOutput] =
     ZLayer.fromZIO(
       for {

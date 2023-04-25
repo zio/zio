@@ -19,7 +19,6 @@ package zio.test
 import zio.Clock.ClockLive
 import zio._
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
-import zio.test.results.{ExecutionEventJsonPrinter, ResultFileOpsJson, ResultSerializer}
 
 import java.util.concurrent.TimeUnit
 
@@ -30,7 +29,7 @@ import java.util.concurrent.TimeUnit
  */
 final case class TestRunner[R, E](
   executor: TestExecutor[R, E],
-  bootstrap: ULayer[TestOutput with ExecutionEventSink] = TestRunner.defaultBootstrap
+  bootstrap: ULayer[ExecutionEventSink] = TestRunner.defaultBootstrap
 ) { self =>
 
   val runtime: Runtime[Any] = Runtime.default
@@ -86,23 +85,12 @@ final case class TestRunner[R, E](
 
   private[test] def buildRuntime(implicit
     trace: Trace
-  ): ZIO[Scope, Nothing, Runtime[TestOutput with ExecutionEventSink]] =
+  ): ZIO[Scope, Nothing, Runtime[ExecutionEventSink]] =
     bootstrap.toRuntime
 }
 
 object TestRunner {
-  lazy val defaultBootstrap = {
-    implicit val emptyTracer = Trace.tracer.newTrace
-
-    ZLayer.make[TestOutput with ExecutionEventSink](
-      ResultSerializer.live,
-      ResultFileOpsJson.live,
-      ExecutionEventJsonPrinter.live,
-      ExecutionEventConsolePrinter.live(ReporterEventRenderer.ConsoleEventRenderer),
-      ExecutionEventPrinter.live,
-      TestLogger.fromConsole(Console.ConsoleLive),
-      TestOutput.live,
-      ExecutionEventSink.live
-    )
+  private lazy val defaultBootstrap: ZLayer[Any, Nothing, ExecutionEventSink] = {
+    ExecutionEventSink.live(Console.ConsoleLive, ConsoleEventRenderer)
   }
 }

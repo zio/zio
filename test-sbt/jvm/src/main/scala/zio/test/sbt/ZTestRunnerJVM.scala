@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.{Runtime, Scope, Trace, Unsafe, ZIO, ZIOAppArgs, ZLayer}
-import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract, sinkLayer}
+import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract}
 
 import java.util.concurrent.atomic.AtomicReference
 import zio.stacktracer.TracingImplicits.disableAutoTrace
@@ -60,7 +60,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
         colored(renderedSummary)
       else if (ignore > 0)
         s"${Console.YELLOW}All eligible tests are currently ignored ${Console.RESET}"
-      else if (total == 0)
+      else
         s"${Console.YELLOW}No tests were executed${Console.RESET}"
 
     // We eagerly print out the info here, rather than returning it
@@ -90,7 +90,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     val testArgs = TestArgs.parse(args)
 
     renderer = testArgs.testRenderer // Ensures summary is pretty in same style as rest of the test output
-    val sharedSinkLayer = sinkLayer(console, testArgs.testEventRenderer)
+    val sharedSinkLayer = ExecutionEventSink.live(console, testArgs.testEventRenderer)
 
     val specTasks: Array[ZIOSpecAbstract] = defs.map(disectTask(_, testClassLoader))
     val sharedLayerFromSpecs: ZLayer[Any, Any, Any] =

@@ -245,7 +245,7 @@ object MainApp extends ZIOAppDefault {
 
 ## An Example of How to Get Fresh Layers
 
-Having covered the topic of [acquiring fresh layers](#acquiring-a-fresh-version), let's see an example of using the `ZLayer#fresh` operator.
+Having covered the topic of [acquiring fresh layers](../../reference/di/dependency-memoization.md#acquiring-a-fresh-version), let's see an example of using the `ZLayer#fresh` operator.
 
 `DocumentRepo` and `UserRepo` services are dependent on an in-memory cache service. On the other hand, let's assume the cache service is quite simple, and we might be prone to cache conflicts between services. While sharing the cache service may cause some problems for our business logic, we should separate the cache service for both `DocumentRepo` and `UserRepo`:
 
@@ -268,7 +268,7 @@ object MainApp extends ZIOAppDefault {
 
 ## An Example of Pass-through Dependencies
 
-Notice that in the previous examples, both `UserRepo` and `DocuemntRepo` have some [hidden dependencies](#hidden-versus-passed-through-dependencies), such as `Cache`, `Database`, and `BlobStorage`.  So these hidden dependencies are no longer expressed in the type signature of the `layers`. From the perspective of a caller, `layers` just outputs a `UserRepo` and `DocuemntRepo` and requires no inputs. The caller does not need to be concerned with the internal implementation details of how the `UserRepo` and `DocumentRepo` are constructed.
+Notice that in the previous examples, both `UserRepo` and `DocuemntRepo` have some [hidden dependencies](../../reference/di/manual-layer-construction.md#hidden-versus-passed-through-dependencies), such as `Cache`, `Database`, and `BlobStorage`.  So these hidden dependencies are no longer expressed in the type signature of the `layers`. From the perspective of a caller, `layers` just outputs a `UserRepo` and `DocuemntRepo` and requires no inputs. The caller does not need to be concerned with the internal implementation details of how the `UserRepo` and `DocumentRepo` are constructed.
 
 An upstream dependency that is used by many other services can be "passed-through" and included in a layer's output. This can be done with the `>+>` operator, which provides the output of one layer to another layer, returning a new layer that outputs the services of _both_.
 
@@ -295,7 +295,7 @@ object MainApp extends ZIOAppDefault {
 
 ## An Example of Updating Hidden Dependencies
 
-One of the use cases of having explicit all dependencies in the final layer is that we can [update](#updating-local-dependencies) those hidden layers using `ZLayer#update`. In the following example, we are replacing the `InmemoryCache` with another implementation called `PersistentCache`:
+One of the use cases of having explicit all dependencies in the final layer is that we can [update](../../reference/di/examples.md#an-example-of-updating-hidden-dependencies) those hidden layers using `ZLayer#update`. In the following example, we are replacing the `InmemoryCache` with another implementation called `PersistentCache`:
 
 ```scala mdoc:compile-only
 import zio._

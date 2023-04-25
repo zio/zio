@@ -556,7 +556,7 @@ for {
 
 ### Interrupting Blocking Operations
 
-The `ZIO#attemptBlocking` is interruptible by default, but its interruption will not translate to JVM thread interruption. Instead, we can use `ZIO#attemptBlockingInterrupt` to translate the ZIO interruption of that effect into JVM thread interruption. For details and examples on interrupting blocking operations see [here](../core/zio/zio.md#blocking-operations).
+The `ZIO#attemptBlocking` is interruptible by default, but its interruption will not translate to JVM thread interruption. Instead, we can use `ZIO#attemptBlockingInterrupt` to translate the ZIO interruption of that effect into JVM thread interruption. For details and examples on interrupting blocking operations see [here](../core/zio/zio.md#blocking-synchronous-side-effects).
 
 ### Automatic Interruption
 
@@ -613,7 +613,7 @@ Fibers are designed to be **cooperative** which means that **they will yield to 
 
 What if though, we have a CPU Work operation that takes a really long time to run? Let's say 30 seconds it does pure CPU Work very computationally intensive? What happens if we take that single gigantic function and put that into a `ZIO#attempt`? In that case there is no way for the ZIO Runtime to force that fiber to yield to other fibers. In this situation, the ZIO Runtime cannot preserve some level of fairness, and that single big CPU operation monopolizes the underlying thread. It is not a good practice to monopolize the underlying thread.
 
-ZIO has a special thread pool that can be used to do these computations. That's the **blocking thread pool**. The `ZIO#blocking` operator and its variants (see [here](../core/zio/#blocking-operations)) can be used to run a big CPU Work on a dedicated thread. So, it doesn't interfere with all the other work that is going on simultaneously in the ZIO Runtime system.
+ZIO has a special thread pool that can be used to do these computations. That's the **blocking thread pool**. The `ZIO#blocking` operator and its variants (see [here](../core/zio/zio.md#blocking-synchronous-side-effects)) can be used to run a big CPU Work on a dedicated thread. So, it doesn't interfere with all the other work that is going on simultaneously in the ZIO Runtime system.
 
 If a CPU Work doesn't yield quickly, then that is going to monopolize a thread. So how can we determine that our CPU Work can yield quickly or not? 
 - If that overall CPU Work composes many ZIO operations, then due to the composition of ZIO operations, it has a chance to yield quickly to other fibers and doesn't monopolize a thread.

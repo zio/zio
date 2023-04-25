@@ -8,4 +8,4 @@ Although logs and metrics are useful to understand the behavior of individual se
 
 In a distributed system, a request can span multiple services and each service can make multiple requests to other services to fulfill the request. In such a scenario, we need to have a way to track the lifetime of a request across multiple services to diagnose what services are the bottlenecks and where the request is spending most of its time.
 
-ZIO Telemetry supports tracing through the OpenTelemetry API. To learn more about tracing, please refer to the ZIO Telemetry [documentation](../../ecosystem/officials/zio-telemetry.md).
+ZIO Telemetry supports tracing through the OpenTelemetry API. To learn more about tracing, please refer to the ZIO Telemetry [documentation](../../ecosystem/officials/index.md).

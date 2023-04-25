@@ -1,0 +1,18 @@
+{
+  "extends": ["config:base"],
+  "includePaths": ["website/package.json"],
+  "enabledManagers": ["npm"],
+  "branchPrefix": "renovate/",
+  "automergeType": "pr",
+  "automerge": true,
+  "platformAutomerge": true,
+  "packageRules": [
+    {
+      "description": "Update Official ZIO Ecosystem Docs",
+      "matchBaseBranches": ["series/2.x"],
+      "matchPackagePrefixes": "@zio.dev",
+      "labels": ["dependencies", "documentation"],
+      "enabled": true
+    }
+  ]
+}

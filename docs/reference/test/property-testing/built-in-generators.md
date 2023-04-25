@@ -514,7 +514,7 @@ There are also three sized generators, named _small_, _medium_ and _large_, that
   // Output: List(93, 42, 58, 228, 42, 5, 12, 214, 106, 79)
   ```
 
-5. `Gen.large` — The values generated will be strongly concentrated towards the lower end of the range but a few larger values will still be generated:
+5. `Gen.large` — Uses a uniform distribution of size values. A large number of larger sizes will be generated:
 
   ```scala mdoc:compile-only
   Gen.large(Gen.const(_))

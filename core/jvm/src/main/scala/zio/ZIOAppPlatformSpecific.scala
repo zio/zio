@@ -16,11 +16,16 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
       ZLayer.succeed(ZIOAppArgs(Chunk.fromIterable(args0))) >>>
         bootstrap +!+ ZLayer.environment[ZIOAppArgs]
 
-    runtime.unsafe.run {
+    val workflow =
       (for {
         runtime <- ZIO.runtime[Environment with ZIOAppArgs]
         _       <- installSignalHandlers(runtime)
-        fiber   <- runtime.run(ZIO.scoped[Environment with ZIOAppArgs](run)).fork
+        result  <- runtime.run(ZIO.scoped[Environment with ZIOAppArgs](run)).tapErrorCause(ZIO.logErrorCause(_))
+      } yield result).provideLayer(newLayer.tapErrorCause(ZIO.logErrorCause(_)))
+
+    runtime.unsafe.run {
+      (for {
+        fiber <- workflow.fork
         _ <-
           ZIO.succeed(Platform.addShutdownHook { () =>
             if (!shuttingDown.getAndSet(true)) {
@@ -37,6 +42,7 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
                 try {
                   runtime.unsafe.run {
                     for {
+                      _       <- fiber.interrupt
                       fiberId <- ZIO.fiberId
                       roots   <- Fiber.roots
                       _       <- Fiber.interruptAll(fiber +: roots.filterNot(_.id == fiberId))
@@ -50,8 +56,8 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
               ()
             }
           })
-        result <- fiber.join.tapErrorCause(ZIO.logErrorCause(_))
-      } yield result).provideLayer(newLayer.tapErrorCause(ZIO.logErrorCause(_))).exitCode.tap(exit)
+        result <- fiber.join
+      } yield result).exitCode.tap(exit)
     }.getOrThrowFiberFailure()
   }
 

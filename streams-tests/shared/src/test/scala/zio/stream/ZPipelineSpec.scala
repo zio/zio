@@ -1,9 +1,9 @@
 package zio.stream
 
 import zio._
+import zio.stream.encoding.EncodingException
 import zio.test.Assertion.{equalTo, fails}
 import zio.test._
-
 import scala.io.Source
 
 object ZPipelineSpec extends ZIOBaseSpec {
@@ -152,6 +152,68 @@ object ZPipelineSpec extends ZIOBaseSpec {
             .runCollect
             .exit
         )(fails(equalTo("failed!!!")))
+      ),
+      suite("hex")(
+        test("Empty input encodes to empty output") {
+          for {
+            result <- ZStream.empty.via(ZPipeline.hexEncode).run(ZSink.collectAll[Char])
+          } yield assert(result)(equalTo(Chunk.empty[Char]))
+        },
+        test("Hex for Byte 0 is 0x00") {
+          testHexEncode(0.toByte, "00")
+        },
+        test("Hex for Byte 1 is 0x01") {
+          testHexEncode(1.toByte, "01")
+        },
+        test("Hex for Byte 127 is 0x7f") {
+          testHexEncode(127.toByte, "7f")
+        },
+        test("Hex for Byte -128 is 0x80") {
+          testHexEncode(-128.toByte, "80")
+        },
+        test("Hex for Byte -1 is 0xff") {
+          testHexEncode(-1.toByte, "ff")
+        },
+        test("Byte for hex 0x00 is 0") {
+          testHexDecode("00", 0.toByte)
+        },
+        test("Byte for hex 0x01 is 1") {
+          testHexDecode("01", 1.toByte)
+        },
+        test("Byte for hex 0x7f is 127") {
+          testHexDecode("7f", 127.toByte)
+        },
+        test("Byte for hex 0x80 is -128") {
+          testHexDecode("80", -128.toByte)
+        },
+        test("Byte for hex 0xff is -1") {
+          testHexDecode("ff", -1.toByte)
+        },
+        test("Empty input decodes to empty output") {
+          for {
+            result <- ZStream.empty.via(ZPipeline.hexDecode).run(ZSink.collectAll[Byte])
+          } yield assert(result)(equalTo(Chunk.empty[Byte]))
+        },
+        test("Odd number of hex digits causes error on decode") {
+          for {
+            result <-
+              ZStream
+                .fromIterable("abc")
+                .via(ZPipeline.hexDecode)
+                .run(ZSink.collectAll[Byte])
+                .exit
+          } yield assert(result)(fails(equalTo(EncodingException("Extra input at end after last fully encoded byte"))))
+        },
+        test("Non hex digit causes error on decode") {
+          for {
+            result <-
+              ZStream
+                .fromIterable("ag")
+                .via(ZPipeline.hexDecode)
+                .run(ZSink.collectAll[Byte])
+                .exit
+          } yield assert(result)(fails(equalTo(EncodingException("Not a valid hex digit: 'g'"))))
+        }
       )
     )
 
@@ -166,4 +228,17 @@ object ZPipelineSpec extends ZIOBaseSpec {
       assertTrue(res == expected)
     }
   }
+
+  def testHexDecode(s: String, b: Byte): ZIO[Any, EncodingException, TestResult] =
+    ZStream
+      .fromIterable(s)
+      .via(ZPipeline.hexDecode)
+      .run(ZSink.head)
+      .map(v => assertTrue(v.get == b))
+
+  def testHexEncode(b: Byte, s: String): ZIO[Any, Nothing, TestResult] =
+    ZStream(b).via(ZPipeline.hexEncode).run(ZSink.collectAll).map { cs =>
+      val t = new String(cs.toArray)
+      assertTrue(t == s)
+    }
 }

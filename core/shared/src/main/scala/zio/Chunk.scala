@@ -1436,8 +1436,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit = {
       val n = math.max(math.min(math.min(length, start.length - srcPos), dest.length - destPos), 0)
-      start.toArray(srcPos, dest, destPos, n)
-      Array.copy(buffer.asInstanceOf[Array[A]], math.max(srcPos - n, 0), dest, destPos + n, length - n)
+      start.toArray(math.min(start.length, srcPos), dest, destPos, n)
+      Array.copy(buffer, math.max(srcPos - start.length, 0), dest, destPos + n, length - n)
     }
   }
 
@@ -1472,8 +1472,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit = {
       val n = math.max(math.min(math.min(length, bufferUsed - srcPos), dest.length - destPos), 0)
-      Array.copy(buffer.asInstanceOf[Array[A]], BufferSize - n, dest, destPos, n)
-      end.toArray(math.max(srcPos - n, 0), dest, destPos + n, length - n)
+      Array.copy(buffer, math.min(BufferSize, BufferSize - bufferUsed + srcPos), dest, destPos, n)
+      end.toArray(math.max(srcPos - bufferUsed, 0), dest, destPos + n, length - n)
     }
   }
 
@@ -1759,8 +1759,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit = {
       val n = math.max(math.min(math.min(length, left.length - srcPos), dest.length - destPos), 0)
-      left.toArray(srcPos, dest, destPos, n)
-      right.toArray(math.max(srcPos - n, 0), dest, destPos + n, length - n)
+      left.toArray(math.min(left.length, srcPos), dest, destPos, n)
+      right.toArray(math.max(srcPos - left.length, 0), dest, destPos + n, length - n)
     }
   }
 

@@ -62,13 +62,7 @@ const sponsors = [
     imageAlt: 'Septimal Mind',
     imageLink: 'https://7mind.io/',
     content: 'Inventing productivity'
-  },
-  {
-    image: `https://files.softwaremill.com/logo/logo_vertical.png`,
-    imageAlt: 'SoftwareMill',
-    imageLink: 'https://softwaremill.com/',
-    content: 'Custom software by true engineers'
-  },
+  }
 ];
 
 // How a single feature block is displayed 
@@ -84,7 +78,7 @@ function Feature(feature) {
 // How a single sponsor block is being displayed 
 function Sponsor(sponsor) {
   return (
-    <div class='container col col--6'>
+    <div class='container col col--4'>
       <div className={styles.sponsorImageContainer}>
         <a href={`${sponsor.imageLink}`}>
           <img className={styles.sponsorImage} src={`${sponsor.image}`} alt={`${sponsor.imageAlt}`} />

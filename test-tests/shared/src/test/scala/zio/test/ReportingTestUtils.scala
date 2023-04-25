@@ -57,7 +57,7 @@ object ReportingTestUtils {
       console  <- ZIO.console
       randomId <- ZIO.withRandom(Random.RandomLive)(Random.nextInt).map("test_case_" + _)
       _ <-
-        TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run(randomId, spec)
+        TestTestRunner(testEnvironment, ExecutionEventSink.live(console, ConsoleEventRenderer)).run(randomId, spec)
       output <- TestConsole.output
     } yield output.mkString
 
@@ -68,7 +68,7 @@ object ReportingTestUtils {
       console  <- ZIO.console
       randomId <- ZIO.withRandom(Random.RandomLive)(Random.nextInt).map("test_case_" + _)
       summary <-
-        TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run(randomId, spec)
+        TestTestRunner(testEnvironment, ExecutionEventSink.live(console, ConsoleEventRenderer)).run(randomId, spec)
     } yield summary.failureDetails
 
   private[test] def TestTestRunner(

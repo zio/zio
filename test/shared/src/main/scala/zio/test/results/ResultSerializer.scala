@@ -41,4 +41,5 @@ object ResultSerializer {
         .map(s => s.replace("\"", "\\\""))
         .mkString(" : ")
   }
+
 }

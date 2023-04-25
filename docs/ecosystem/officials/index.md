@@ -3,7 +3,7 @@ id: index
 title: "ZIO Ecosystem Official Libraries"
 ---
 
-Official ZIO libraries are hosted in the [ZIO organization](https://github.com/zio/) on Github, and are generally maintained by core contributors to ZIO.
+Official ZIO libraries are hosted in the [ZIO organization](https://github.com/zio/) on GitHub, and are generally maintained by core contributors to ZIO.
 
 ## Development Status
 
