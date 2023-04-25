@@ -570,6 +570,16 @@ object Fiber extends FiberPlatformSpecific {
      */
     private[zio] def getRunningExecutor()(implicit unsafe: Unsafe): Option[Executor]
 
+    /**
+     * Retrieves the current supervisor the fiber uses for supervising effects.
+     *
+     * '''NOTE''': This method is safe to invoke on any fiber, but if not
+     * invoked on this fiber, then values derived from the fiber's state
+     * (including the log annotations and log level) may not be up-to-date.
+     */
+    private[zio] def getSupervisor()(implicit unsafe: Unsafe): Supervisor[Any] =
+      getFiberRef(FiberRef.currentSupervisor)
+
     private[zio] def isAlive()(implicit unsafe: Unsafe): Boolean
 
     /**

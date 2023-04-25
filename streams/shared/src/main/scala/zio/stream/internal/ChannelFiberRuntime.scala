@@ -41,16 +41,20 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
   private[this] var internalScope = Unsafe.unsafe { implicit unsafe =>
     Runtime.default.unsafe.run(Scope.make(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
   }
-  private[this] var currentScope = internalScope
-  private var runningExecutor    = null.asInstanceOf[Executor]
-  private[this] var suspended    = true
-  private[this] var winddown     = false
+  private[this] var currentScope          = internalScope
+  private var runningExecutor             = null.asInstanceOf[Executor]
+  private[this] var suspendedOnAsync      = false
+  private[this] var suspendedOnDownstream = true
+  private[this] var winddown              = false
 
   def run(depth: Int): Unit =
     drainQueueOnCurrentThread()
 
   def run(): Unit =
     run(0)
+
+  private def suspended =
+    suspendedOnAsync || suspendedOnDownstream
 
   private[this] final case class AsyncState[OutErr, OutDone](
     currentChannel: ZChannel[Any, Any, Any, Any, Any, Any, Any],
@@ -334,7 +338,7 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
             exit.foldExit(onErr, onDone)
           } else {
             readers = readers.enqueue(read)
-            suspended = false
+            // suspended = false
             runLoop()
           }
         } else {
@@ -380,7 +384,7 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
       case ChannelFiberMessage.Resume(channel, _, epoch) =>
         if (epoch == currentAsyncEpoch) {
           currentChannel = channel
-          suspended = false
+          suspendedOnAsync = false
           runLoop()
         } else {
           val oldAsyncEpoch = currentAsyncEpoch
@@ -396,7 +400,7 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
           observers = asyncState.observers
           currentAsyncEpoch = epoch
           currentChannel = channel
-          suspended = false
+          suspendedOnAsync = false
           runLoop()
           val newAsyncState = AsyncState(currentChannel, doneStack, upstream, downstream, exit, readers, observers)
           asyncEpochs.put(currentAsyncEpoch, newAsyncState)
@@ -411,6 +415,7 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
         }
         EvaluationSignal.Continue
       case ChannelFiberMessage.Start =>
+        suspendedOnDownstream = false
         runLoop()
         EvaluationSignal.Continue
       case ChannelFiberMessage.Stateful(onFiber) =>
@@ -637,7 +642,7 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
               } else {
                 currentChannel = null
                 loop = false
-                suspended = true
+                suspendedOnAsync = true
               }
 
             case ZChannel.ConcatAll(trace0, channel, onElem, combineInner, combineOuter) =>
@@ -718,11 +723,13 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
               if (currentDownstream eq null) {
                 if (readers.isEmpty) {
                   loop = false
+                  suspendedOnDownstream = true
                 } else {
                   val (read, updatedReaders) = readers.dequeue
                   readers = updatedReaders
                   read.onElem(elem)
                   currentChannel = ZChannel.unit
+                  suspendedOnDownstream = true
                   loop = false
                 }
               } else {
@@ -828,7 +835,7 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
                   } else {
                     currentChannel = null
                     loop = false
-                    suspended = true
+                    suspendedOnAsync = true
                   }
 
                 case ZIO.OnSuccessAndFailure(trace, first, onSuccess, onFailure) =>
@@ -1071,7 +1078,7 @@ final class ChannelFiberRuntime[-InErr, -InElem, -InDone, +OutErr, +OutElem, +Ou
               if (currentUpstream eq null) {
                 if (writers.isEmpty) {
                   loop = false
-                  suspended = true
+                  suspendedOnDownstream = true
                 } else {
                   val (write, updatedWriters) = writers.dequeue
                   writers = updatedWriters

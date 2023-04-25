@@ -677,6 +677,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                     FiberId.make(trace)(Unsafe.unsafe),
                     grafter
                   )
+                  val supervisor = fiber.getSupervisor()(Unsafe.unsafe)
+                  supervisor.onStart(
+                    environment,
+                    ZIO.unit,
+                    None,
+                    fiber
+                  )(Unsafe.unsafe)
+                  fiber.addObserver(exit => supervisor.onEnd(exit, fiber)(Unsafe.unsafe))
                   fiber
                 }
               } { fiber =>
@@ -710,6 +718,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                         FiberId.make(trace)(Unsafe.unsafe),
                         grafter
                       )
+                      val supervisor = fiber.getSupervisor()(Unsafe.unsafe)
+                      supervisor.onStart(
+                        environment,
+                        ZIO.unit,
+                        None,
+                        fiber
+                      )(Unsafe.unsafe)
+                      fiber.addObserver(exit => supervisor.onEnd(exit, fiber)(Unsafe.unsafe))
                       fiber
                     }
                   } { fiber =>

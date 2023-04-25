@@ -618,16 +618,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     else Fiber.Status.Suspended(self._runtimeFlags, self.asyncTrace, self.asyncBlockingOn())
 
   /**
-   * Retrieves the current supervisor the fiber uses for supervising effects.
-   *
-   * '''NOTE''': This method is safe to invoke on any fiber, but if not invoked
-   * on this fiber, then values derived from the fiber's state (including the
-   * log annotations and log level) may not be up-to-date.
-   */
-  private[zio] def getSupervisor()(implicit unsafe: Unsafe): Supervisor[Any] =
-    getFiberRef(FiberRef.currentSupervisor)
-
-  /**
    * Handles a fatal error.
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
