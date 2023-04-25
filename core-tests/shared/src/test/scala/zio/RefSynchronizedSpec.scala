@@ -160,7 +160,7 @@ object RefSynchronizedSpec extends ZIOBaseSpec {
         } yield assert(value)(fails(equalTo(failure)))
       } @@ zioTag(errors)
     )
-  ) @@ TestAspect.exceptNative
+  )
 
   val (current, update) = ("value", "new value")
   val failure           = "failure"

@@ -49,7 +49,7 @@ object RandomSpec extends ZIOBaseSpec {
         assert(uuid.variant)(equalTo(2))
       }
     }
-  ) @@ TestAspect.exceptNative
+  )
 
   val genDoubles: Gen[Any, (Double, Double)] =
     for {
