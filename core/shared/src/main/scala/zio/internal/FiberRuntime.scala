@@ -388,6 +388,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 Exit.Failure(zioError.cause.asInstanceOf[Cause[E]])
             }
 
+          if (supervisor ne Supervisor.none) supervisor.onEnd(exit, self)
+
           self._runtimeFlags = RuntimeFlags.enable(_runtimeFlags)(RuntimeFlag.WindDown)
 
           val interruption = interruptAllChildren()
@@ -861,10 +863,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   /**
    * Begins execution of the effect associated with this fiber on in the
    * background, and on the correct thread pool. This can be called to "kick
-   * off" execution of a fiber after it has been created, in hopes that the
-   * effect can be executed synchronously.
+   * off" execution of a fiber after it has been created.
    */
-  private[zio] def resume(effect: ZIO[_, E, A])(implicit unsafe: Unsafe): Unit =
+  private[zio] def startConcurrently(effect: ZIO[_, E, A])(implicit unsafe: Unsafe): Unit =
     tell(FiberMessage.Resume(effect))
 
   /**
@@ -1018,7 +1019,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               self._blockingOn = effect.blockingOn
 
               if (_greenThread ne null) {
+                val supervisor = getSupervisor()
+
                 val oneShot = OneShot.make[ZIO[Any, Any, Any]]
+
+                if (supervisor ne Supervisor.none) supervisor.onSuspend(self)
 
                 try {
                   val result = effect.registerCallback(oneShot.set(_))
@@ -1048,6 +1053,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                     )
 
                     cur = oneShot.get()
+                } finally {
+                  if (supervisor ne Supervisor.none) supervisor.onResume(self)
                 }
               } else {
                 self.reifiedStack.ensureCapacity(currentDepth)

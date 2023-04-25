@@ -445,8 +445,8 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def debug(implicit trace: Trace): ZIO[R, E, A] =
     self
-      .tap(value => ZIO.succeed(println(value)))
-      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $error")))
+      .tap(value => ZIO.succeed(println(s"${value} ($trace)")))
+      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $error ($trace)")))
 
   /**
    * Taps the effect, printing the result of calling `.toString` on the value.
@@ -2578,7 +2578,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
       val childFiber = ZIO.unsafe.makeChildFiber(trace, effect, parentFiber, parentRuntimeFlags, overrideScope)
 
-      childFiber.resume(effect)
+      childFiber.startConcurrently(effect)
 
       childFiber
     }
@@ -2596,7 +2596,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
       val childFiber = internal.FiberRuntime[E1, A](childId, childFiberRefs, parentRuntimeFlags)
 
-      // Call the supervisor who can observe the fork of the child fiber
       val childEnvironment = childFiberRefs.getOrDefault(FiberRef.currentEnvironment)
 
       val supervisor = childFiber.getSupervisor()
@@ -2608,8 +2607,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           Some(parentFiber),
           childFiber
         )
-
-        childFiber.addObserver(exit => supervisor.onEnd(exit, childFiber))
       }
 
       val parentScope =
@@ -3046,7 +3043,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Prints the specified message to the console for debugging purposes.
    */
   def debug(value: => Any)(implicit trace: Trace): UIO[Unit] =
-    ZIO.succeed(println(value))
+    ZIO.succeed(value).debug.unit
 
   /**
    * Returns information about the current fiber, such as its identity.

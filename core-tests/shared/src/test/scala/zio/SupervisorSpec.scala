@@ -25,7 +25,7 @@ object SupervisorSpec extends ZIOBaseSpec {
         _           <- (f.await).supervised(onResumeSup)
         value       <- onResumeSup.value
       } yield assertTrue(value == 1)
-    } @@ TestAspect.nonFlaky @@ TestAspect.withLiveClock,
+    } @@ TestAspect.nonFlaky @@ TestAspect.withLiveClock @@ TestAspect.diagnose(10.seconds),
     suite("laws") {
       DifferSpec.diffLaws(Differ.supervisor)(genSupervisor)((left, right) =>
         Supervisor.toSet(left) == Supervisor.toSet(right)
