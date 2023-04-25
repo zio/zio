@@ -3738,12 +3738,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * green threads and those that do not.
    */
   def greenThreadOrElse[R, E, A](
-    greenThread: Thread => ZIO[R, E, A]
+    f: (Thread, InterruptStatus) => ZIO[R, E, A]
   )(orElse: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.withFiberRuntime[R, E, A] { (fiber, _) =>
       val gt = fiber.getGreenThread()(Unsafe.unsafe)
       if (gt eq null) orElse
-      else greenThread(gt)
+      else f(gt, InterruptStatus.fromBoolean(fiber.isInterruptible()(Unsafe.unsafe)))
     }
 
   /**

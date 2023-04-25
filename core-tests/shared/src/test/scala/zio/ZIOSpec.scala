@@ -951,7 +951,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("foreachParDiscard")(
       test("accumulates errors") {
         def task(started: Ref[Int], trigger: Promise[Nothing, Unit])(i: Int): IO[Int, Unit] =
-          started.updateAndGet(_ + 1) flatMap { count =>
+          started.updateAndGet(_ + 1).flatMap { count =>
             ZIO.when(count == 3)(trigger.succeed(())) *> trigger.await *> ZIO.fail(i)
           }
 
@@ -963,7 +963,7 @@ object ZIOSpec extends ZIOBaseSpec {
                       .foreachParDiscard(1 to 3)(i => task(started, trigger)(i).uninterruptible)
                       .foldCause(cause => cause.failures.toSet, _ => Set.empty[Int])
         } yield assert(errors)(equalTo(Set(1, 2, 3)))
-      } @@ zioTag(errors),
+      } @@ zioTag(errors) @@ nonFlaky(100000),
       test("runs all effects") {
         val as = Seq(1, 2, 3, 4, 5)
         for {

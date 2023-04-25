@@ -580,6 +580,8 @@ object Fiber extends FiberPlatformSpecific {
 
     private[zio] def isAlive()(implicit unsafe: Unsafe): Boolean
 
+    private[zio] def isInterruptible()(implicit unsafe: Unsafe): Boolean
+
     /**
      * Determines if the specified throwable is fatal, based on the fatal errors
      * tracked by the fiber's state.

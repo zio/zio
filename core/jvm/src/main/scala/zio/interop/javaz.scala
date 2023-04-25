@@ -95,11 +95,25 @@ private[zio] object javaz {
    * `fromCompletionStage`
    */
   def fromFutureJava[A](thunk: => Future[A])(implicit trace: Trace): Task[A] =
-    ZIO.greenThreadOrElse(_ =>
+    ZIO.greenThreadOrElse((_, interruptStatus) =>
       ZIO.attempt(
-        try thunk.get()
-        catch {
-          case e: ExecutionException => throw e.getCause
+        if (interruptStatus.isInterruptible) {
+          try thunk.get()
+          catch {
+            case e: ExecutionException => throw e.getCause
+          }
+        } else {
+          var result: A = null.asInstanceOf[A]
+
+          while (result == null) {
+            try {
+              result = thunk.get()
+            } catch {
+              case _: InterruptedException => ()
+            }
+          }
+
+          result
         }
       )
     ) {

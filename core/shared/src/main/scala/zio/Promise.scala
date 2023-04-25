@@ -50,7 +50,22 @@ final class Promise[E, A] private (
    * until the result is available.
    */
   def await(implicit trace: Trace): IO[E, A] =
-    ZIO.greenThreadOrElse(_ => value.get()) {
+    ZIO.greenThreadOrElse { (_, interruptStatus) =>
+      if (interruptStatus.isInterruptible) value.get()
+      else {
+        var result: IO[E, A] = null.asInstanceOf[IO[E, A]]
+
+        while (result eq null) {
+          try {
+            result = value.get()
+          } catch {
+            case _: InterruptedException => ()
+          }
+        }
+
+        result
+      }
+    } {
       state.get match {
         case Done => value.get()
         case _ =>
