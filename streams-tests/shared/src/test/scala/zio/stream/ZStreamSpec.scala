@@ -3555,7 +3555,6 @@ object ZStreamSpec extends ZIOBaseSpec {
               .head[Int]
               .mapZIO(opt => zio.Console.printLine("sink0: " + opt))
 
-
             strm
               .tapSink((sink0))
               .runCollect
