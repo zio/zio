@@ -3188,16 +3188,20 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   )(implicit trace: Trace): ZStream[R1, E1, A] =
     ZStream.fromZIO(Queue.bounded[Take[E1, A]](1) <*> Promise.make[Nothing, Unit]).flatMap { case (queue, promise) =>
       val right = ZStream.fromQueue(queue, 1).flattenTake
+
+      def enqueue(t : Take[E1, A]): ZIO[Any, Nothing, Unit] =
+        promise.await race queue.offer(t).unit
+
       lazy val loop: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
         ZChannel.readWithCause(
           chunk =>
-            ZChannel.fromZIO(queue.offer(Take.chunk(chunk))) *>
+            ZChannel.fromZIO(enqueue(Take.chunk(chunk))) *>
               ZChannel.write(chunk) *>
               loop,
-          cause => ZChannel.fromZIO(queue.offer(Take.failCause(cause))),
-          _ => ZChannel.fromZIO(queue.offer(Take.end))
+          cause => ZChannel.fromZIO(enqueue(Take.failCause(cause))),
+          _ => ZChannel.fromZIO(enqueue(Take.end))
         )
-      new ZStream((self.channel >>> loop).ensuring(queue.offer(Take.end).forkDaemon *> promise.await))
+      new ZStream((self.channel >>> loop).ensuring(enqueue(Take.end).forkDaemon *> promise.await))
         .merge(ZStream.execute(right.run(sink).ensuring(promise.succeed(()))), HaltStrategy.Both)
     }
 
