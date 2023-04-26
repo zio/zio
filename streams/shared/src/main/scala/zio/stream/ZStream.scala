@@ -3189,7 +3189,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     ZStream.fromZIO(Queue.bounded[Take[E1, A]](1) <*> Promise.make[Nothing, Unit]).flatMap { case (queue, promise) =>
       val right = ZStream.fromQueue(queue, 1).flattenTake
 
-      def enqueue(t : Take[E1, A]): ZIO[Any, Nothing, Unit] =
+      def enqueue(t: Take[E1, A]): ZIO[Any, Nothing, Unit] =
         promise.await race queue.offer(t).unit
 
       lazy val loop: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
