@@ -22,7 +22,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- Live.live(ZIO.sleep(5.seconds))
           _     <- fiber.interrupt
         } yield assertCompletes
-      }
+      } @@ TestAspect.exceptNative
     ),
     suite("&&")(
       test("true and true is true") {

@@ -31,12 +31,12 @@ object ZTestEventSpec extends ZIOSpecDefault {
             ConsoleRenderer
           )
         val expected: Event = ZTestEvent(
-          fullyQualifiedName = "zio.dev.test",
-          selector = new TestSelector("realm - specific - test"),
-          status = Status.Success,
-          maybeThrowable = None,
-          duration = 0L,
-          fingerprint = ZioSpecFingerprint
+          "zio.dev.test",
+          new TestSelector("realm - specific - test"),
+          Status.Success,
+          None,
+          0L,
+          ZioSpecFingerprint
         )
         assertEqualEvents(result, expected)
       },
@@ -57,17 +57,17 @@ object ZTestEventSpec extends ZIOSpecDefault {
             ConsoleRenderer
           )
         val expected: Event = ZTestEvent(
-          fullyQualifiedName = "zio.dev.test",
-          selector = new TestSelector("realm - specific - test"),
-          status = Status.Failure,
-          maybeThrowable = Some(
+          "zio.dev.test",
+          new TestSelector("realm - specific - test"),
+          Status.Failure,
+          Some(
             new Exception(
               s"""|    ${ConsoleUtils.bold(red("- test"))}
                   |      Exception in thread "zio-fiber-" java.lang.String: boom""".stripMargin
             )
           ),
-          duration = 0L,
-          fingerprint = ZioSpecFingerprint
+          0L,
+          ZioSpecFingerprint
         )
         assertEqualEvents(result, expected)
       }

@@ -1,9 +1,8 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.render.{ConsoleRenderer, TestRenderer}
-import zio.test.render.LogLine.{Line, Message}
-import zio.test.{ExecutionEvent, TestAnnotation, TestSuccess}
+import zio.test.render.TestRenderer
+import zio.test.{ExecutionEvent, TestSuccess}
 
 final case class ZTestEvent(
   fullyQualifiedName0: String,
@@ -13,16 +12,16 @@ final case class ZTestEvent(
   duration0: Long,
   fingerprint0: Fingerprint
 ) extends Event {
-  override def fullyQualifiedName(): String = fullyQualifiedName0
-  override def selector(): Selector         = selector0
-  override def status(): Status             = status0
-  override def duration(): Long             = duration0
-  override def fingerprint(): Fingerprint   = fingerprint0
-  def throwable(): OptionalThrowable        = maybeThrowable.fold(new OptionalThrowable())(new OptionalThrowable(_))
-
+  def duration(): Long               = duration0
+  def fingerprint(): Fingerprint     = fingerprint0
+  def fullyQualifiedName(): String   = fullyQualifiedName0
+  def selector(): Selector           = selector0
+  def status(): Status               = status0
+  def throwable(): OptionalThrowable = maybeThrowable.fold(new OptionalThrowable())(new OptionalThrowable(_))
 }
 
 object ZTestEvent {
+
   def convertEvent(test: ExecutionEvent.Test[_], taskDef: TaskDef, renderer: TestRenderer): Event = {
     val status = statusFrom(test)
     val maybeThrowable = status match {
@@ -37,12 +36,12 @@ object ZTestEvent {
     }
 
     ZTestEvent(
-      fullyQualifiedName0 = taskDef.fullyQualifiedName(),
-      selector0 = new TestSelector(test.labels.mkString(" - ")),
-      status0 = status,
-      maybeThrowable = maybeThrowable,
-      duration0 = test.annotations.get(TestAnnotation.timing).toMillis,
-      fingerprint0 = ZioSpecFingerprint
+      taskDef.fullyQualifiedName(),
+      new TestSelector(test.labels.mkString(" - ")),
+      status,
+      maybeThrowable,
+      test.duration,
+      ZioSpecFingerprint
     )
   }
 

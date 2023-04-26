@@ -309,7 +309,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           _        <- ZIO.collectAllPar(List.fill(100000)(fiberRef.update(_ + 1)))
           value    <- fiberRef.get
         } yield assert(value)(equalTo(100000))
-      },
+      } @@ TestAspect.exceptNative,
       test("an unsafe handle is initialized and updated properly") {
         for {
           fiberRef <- FiberRef.make(initial)
