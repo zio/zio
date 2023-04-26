@@ -3545,7 +3545,24 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- stream.tapSink(sink).take(3).runDrain
               result <- ref.get
             } yield assertTrue(result == 6)
-          }
+          },
+          test("side sink completes early") {
+
+            val strm = ZStream
+              .range(0, 100, 10)
+
+            val sink0 = ZSink
+              .head[Int]
+              .mapZIO(opt => zio.Console.printLine("sink0: " + opt))
+
+
+            strm
+              .tapSink((sink0))
+              .runCollect
+              .map { collected =>
+                assertTrue(collected == Chunk.range(0, 100))
+              }
+          } @@ TestAspect.timeout(10.seconds)
         ),
         suite("throttleEnforce")(
           test("free elements") {
