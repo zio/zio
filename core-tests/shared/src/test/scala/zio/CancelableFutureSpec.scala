@@ -53,7 +53,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
                  }
                }
         } yield assertCompletes
-      } @@ nonFlaky @@ TestAspect.exceptNative,
+      } @@ nonFlaky,
       test("unsafeRunToFuture interruptibility") {
         for {
           runtime <- ZIO.runtime[Any]
