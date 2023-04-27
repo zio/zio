@@ -92,7 +92,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           _    <- ZIO.fromFuture(_ => f.cancel())
           test <- p2.await
         } yield assert(test)(equalTo(42))
-      } @@ zioTag(interruption) @@ nonFlaky @@ TestAspect.exceptNative,
+      } @@ zioTag(interruption) @@ nonFlaky,
       test("cancel returns the exit reason") {
         val t = new Exception("test")
 
