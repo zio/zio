@@ -61,7 +61,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           _       <- ZIO.succeed(f.cancel())
           r       <- ZIO.fromFuture(_ => f).exit
         } yield assert(r.isSuccess)(isFalse) // not interrupted, as the Future fails when the effect in interrupted.
-      } @@ nonFlaky @@ zioTag(interruption) @@ TestAspect.exceptNative,
+      } @@ nonFlaky @@ zioTag(interruption),
       test("roundtrip preserves interruptibility") {
         for {
           start <- Promise.make[Nothing, Unit]
