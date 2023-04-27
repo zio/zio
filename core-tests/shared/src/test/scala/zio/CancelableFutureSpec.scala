@@ -80,7 +80,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           failure <- roundtrip(ZIO.fail(exception)).either
           success <- roundtrip(ZIO.succeed(value)).either
         } yield assert(failure)(isLeft(equalTo(exception))) && assert(success)(isRight(equalTo(value)))
-      } @@ zioTag(supervision) @@ nonFlaky @@ TestAspect.exceptNative,
+      } @@ zioTag(supervision) @@ nonFlaky,
       test("interrupts the underlying task on cancel") {
         for {
           p  <- Promise.make[Nothing, Unit]
