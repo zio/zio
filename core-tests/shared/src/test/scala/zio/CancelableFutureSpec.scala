@@ -104,7 +104,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           e1 <- ZIO.fromFuture(_ => f1.cancel())
           e2 <- ZIO.fromFuture(_ => f2.cancel())
         } yield assert(e1.isSuccess)(isTrue) && assert(e2.isSuccess)(isFalse)
-      } @@ nonFlaky @@ TestAspect.exceptNative,
+      } @@ nonFlaky,
       test("is a scala.concurrent.Future") {
         for {
           f <- ZIO.succeed(42).toFuture
