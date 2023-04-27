@@ -41,7 +41,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         val result = roundtrip.orDie.forever
 
         assertZIO(Live.live(result.timeout(1.seconds)))(isNone)
-      } @@ zioTag(supervision, regression) @@ TestAspect.exceptNative,
+      } @@ zioTag(supervision, regression),
       test("unsafeRunToFuture") {
         for {
           runtime <- ZIO.runtime[Any]
