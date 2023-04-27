@@ -71,7 +71,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           _     <- fiber.interrupt
           value <- end.await
         } yield assert(value)(equalTo(42))
-      } @@ zioTag(interruption) @@ nonFlaky @@ TestAspect.exceptNative,
+      } @@ zioTag(interruption) @@ nonFlaky,
       test("survives roundtrip without being auto-killed") {
         val exception = new Exception("Uh oh")
         val value     = 42
