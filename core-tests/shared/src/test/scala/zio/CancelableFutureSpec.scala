@@ -113,5 +113,5 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           assert(v)(equalTo(42))
         }
       }
-    ) @@ zioTag(future) @@ TestAspect.fibers @@ TestAspect.exceptNative
+    ) @@ zioTag(future) @@ TestAspect.fibers
 }
