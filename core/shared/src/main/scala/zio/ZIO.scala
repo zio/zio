@@ -1398,7 +1398,9 @@ sealed trait ZIO[-R, +E, +A]
    */
   private final def raceFibersWith[R1 <: R, ER, E2, B, C](right: ZIO[R1, ER, B])(
     leftWins: (Fiber.Runtime[E, A], Fiber.Runtime[ER, B]) => ZIO[R1, E2, C],
-    rightWins: (Fiber.Runtime[ER, B], Fiber.Runtime[E, A]) => ZIO[R1, E2, C]
+    rightWins: (Fiber.Runtime[ER, B], Fiber.Runtime[E, A]) => ZIO[R1, E2, C],
+    leftScope: FiberScope = null,
+    rightScope: FiberScope = null
   )(implicit trace: Trace): ZIO[R1, E2, C] =
     ZIO.withFiberRuntime[R1, E2, C] { (parentFiber, parentStatus) =>
       import java.util.concurrent.atomic.AtomicBoolean
@@ -1418,8 +1420,9 @@ sealed trait ZIO[-R, +E, +A]
 
       val raceIndicator = new AtomicBoolean(true)
 
-      val leftFiber  = ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, null)(Unsafe.unsafe)
-      val rightFiber = ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, null)(Unsafe.unsafe)
+      val leftFiber = ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, leftScope)(Unsafe.unsafe)
+      val rightFiber =
+        ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, rightScope)(Unsafe.unsafe)
 
       val startLeftFiber  = leftFiber.startSuspended()(Unsafe.unsafe)
       val startRightFiber = rightFiber.startSuspended()(Unsafe.unsafe)
@@ -5210,7 +5213,26 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
     ): ZIO[R, E, B1] =
-      (self map f) raceFirstAwait (ZIO.sleep(duration).interruptible as b())
+      ZIO.fiberIdWith { parentFiberId =>
+        self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
+          (winner, loser) =>
+            winner.await.flatMap {
+              case Exit.Success(a) =>
+                winner.inheritAll *> loser.interruptAs(parentFiberId).as(f(a))
+              case Exit.Failure(cause) =>
+                loser.interruptAs(parentFiberId) *> ZIO.refailCause(cause)
+            },
+          (winner, loser) =>
+            winner.await.flatMap {
+              case Exit.Success(_) =>
+                winner.inheritAll *> loser.interruptAs(parentFiberId).as(b())
+              case Exit.Failure(cause) =>
+                loser.interruptAs(parentFiberId) *> ZIO.refailCause(cause)
+            },
+          null,
+          FiberScope.global
+        )
+      }
   }
 
   final class Acquire[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
