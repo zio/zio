@@ -141,6 +141,18 @@ object ProxySpec extends ZIOSpecDefault {
         } yield assertTrue(res == "zio")
       }
     ),
+    test("ZIO vals") {
+      trait Foo { val bar: UIO[String] }
+      val service1: Foo = new Foo { val bar: UIO[String] = ZIO.succeed("zio1") }
+      val service2: Foo = new Foo { val bar: UIO[String] = ZIO.succeed("zio2") }
+      for {
+        ref <- ScopedRef.make(service1)
+        proxy = Proxy.generate(ref, false)
+        res1 <- proxy.bar
+        _ <- ref.set(ZIO.succeed(service2))
+        res2 <- proxy.bar
+      } yield assertTrue(res1 == "zio1" && res2 == "zio2")
+    },
     test("keeps non-ZIO default implementations") {
       trait Foo {
         def bar: UIO[String]
@@ -164,23 +176,6 @@ object ProxySpec extends ZIOSpecDefault {
           ref <- ScopedRef.make(service)
         } yield Proxy.generate(ref, false)
         """
-                 )
-        } yield assertTrue(res.isLeft)
-      },
-      test("ZIO vals") {
-        for {
-          res <- typeCheck(
-                   """
-trait Foo {
-  val bar: UIO[String]
-}
-val service: Foo = new Foo {
-  val bar: UIO[String] = ZIO.succeed("zio1")
-}
-for {
-ref <- ScopedRef.make(service)
-} yield Proxy.generate(ref, false)
-"""
                  )
         } yield assertTrue(res.isLeft)
       }
