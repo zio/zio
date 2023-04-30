@@ -6,7 +6,7 @@ import scala.reflect.macros.blackbox
 class ProxyMacros(val c: blackbox.Context) {
   import c.universe._
 
-  def makeImpl[A: c.WeakTypeTag](service: c.Expr[ScopedRef[A]], debug: c.Expr[Boolean]): c.Expr[A] = {
+  def makeImpl[A: c.WeakTypeTag](service: c.Expr[ScopedRef[A]]): c.Expr[A] = {
     val tpe = c.weakTypeOf[A]
 
     tpe.members
@@ -18,8 +18,10 @@ class ProxyMacros(val c: blackbox.Context) {
         )
       )
 
+    val debug = c.inferImplicitValue(c.typeOf[Boolean])
+
     def log(xs: Any*): Unit =
-      debug.tree match {
+      debug match {
         case q"true" => println(xs.mkString(", "))
         case _       => ()
       }
