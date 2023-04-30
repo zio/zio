@@ -202,13 +202,14 @@ object ProxySpec extends ZIOSpecDefault {
           val service: Foo = new Foo("zio")
           for {
             ref  <- ScopedRef.make(service)
+            proxy = Proxy.generate(ref)
             res  <- proxy.bar
           } yield Proxy.generate(ref)
           """
                  )
         } yield
           if (TestVersion.isScala2)
-            assertTrue(res.swap.exists(_.contains("requiring constructor"))) // fixme
+            assertTrue(res.swap.exists(_.contains("requiring constructor")))
           else
             assertTrue(res.isLeft)
       },
