@@ -3191,14 +3191,29 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       lazy val loop: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
         ZChannel.readWithCause(
           chunk =>
-            ZChannel.fromZIO(queue.offer(Take.chunk(chunk))) *>
-              ZChannel.write(chunk) *>
-              loop,
-          cause => ZChannel.fromZIO(queue.offer(Take.failCause(cause))),
-          _ => ZChannel.fromZIO(queue.offer(Take.end))
+            ZChannel
+              .fromZIO(queue.offer(Take.chunk(chunk)))
+              .foldCauseChannel(
+                _ => ZChannel.write(chunk) *> ZChannel.identity,
+                _ => ZChannel.write(chunk) *> loop
+              ),
+          cause =>
+            ZChannel
+              .fromZIO(queue.offer(Take.failCause(cause)))
+              .foldCauseChannel(
+                _ => ZChannel.refailCause(cause),
+                _ => ZChannel.refailCause(cause)
+              ),
+          _ =>
+            ZChannel
+              .fromZIO(queue.offer(Take.end))
+              .foldCauseChannel(
+                _ => ZChannel.unit,
+                _ => ZChannel.unit
+              )
         )
       new ZStream((self.channel >>> loop).ensuring(queue.offer(Take.end).forkDaemon *> promise.await))
-        .merge(ZStream.execute(right.run(sink).ensuring(promise.succeed(()))), HaltStrategy.Both)
+        .merge(ZStream.execute(right.run(sink).ensuring(queue.shutdown *> promise.succeed(()))), HaltStrategy.Both)
     }
 
   /**

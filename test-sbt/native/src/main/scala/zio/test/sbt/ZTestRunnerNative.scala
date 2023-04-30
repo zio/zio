@@ -17,8 +17,8 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{Summary, TestArgs, ZIOSpecAbstract}
-import zio.{Exit, Runtime, Scope, Trace, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.test.{FilteredSpec, Summary, TestArgs, ZIOSpecAbstract}
+import zio.{Exit, Runtime, Scope, Trace, Unsafe, ZIO, ZLayer}
 
 import scala.collection.mutable
 
@@ -92,28 +92,45 @@ sealed class ZTestTask(
   spec: ZIOSpecAbstract
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, zio.Runtime.default) {
 
-  def execute(continuation: Array[Task] => Unit): Unit = {
+  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[sbt.testing.Task] = {
     val fiber = Runtime.default.unsafe.fork {
-      for {
-        summary <- ZIO.scoped {
-                     spec.run
-                       .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope] ++ spec.bootstrap)
-                       .onError(e => ZIO.succeed(println(e.prettyPrint)))
-                   }
-        _ <- sendSummary.provide(ZLayer.succeed(summary))
-        _ <- ZIO.when(summary.status == Summary.Failure)(
-               ZIO.fail(new Exception("Failed tests."))
-             )
-      } yield ()
-
+      val logic =
+        ZIO.consoleWith { console =>
+          (for {
+            summary <- spec
+                         .runSpecAsApp(FilteredSpec(spec.spec, args), args, console)
+            _ <- sendSummary.provide(ZLayer.succeed(summary))
+            // TODO Confirm if/how these events needs to be handled in #6481
+            //    Check XML behavior
+            _ <- ZIO.when(summary.status == Summary.Failure) {
+                   ZIO.attempt(
+                     eventHandler.handle(
+                       ZTestEvent(
+                         taskDef.fullyQualifiedName(),
+                         // taskDef.selectors() is "one to many" so we can expect nonEmpty here
+                         taskDef.selectors().head,
+                         Status.Failure,
+                         None,
+                         0L,
+                         ZioSpecFingerprint
+                       )
+                     )
+                   )
+                 }
+          } yield ())
+            .provideLayer(
+              sharedFilledTestLayer +!+ (Scope.default >>> spec.bootstrap)
+            )
+        }
+      logic
     }(Trace.empty, Unsafe.unsafe)
     fiber.unsafe.addObserver { exit =>
       exit match {
-        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
+        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed.")
         case _                   =>
       }
-      continuation(Array())
     }(Unsafe.unsafe)
+    Array()
   }
 }
 

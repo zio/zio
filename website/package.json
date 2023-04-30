@@ -35,7 +35,7 @@
     "@zio.dev/zio-direct": "1.0.0-RC7",
     "@zio.dev/zio-dynamodb": "0.2.4",
     "@zio.dev/zio-flow": "1.0.0-RC3",
-    "@zio.dev/zio-ftp": "0.4.0",
+    "@zio.dev/zio-ftp": "0.4.1",
     "@zio.dev/zio-http": "3.0.0-RC1",
     "@zio.dev/zio-insight": "0.0.0--338-b83b5d28-SNAPSHOT",
     "@zio.dev/zio-interop-guava": "32.1.0",
@@ -97,7 +97,7 @@
   },
   "devDependencies": {
     "@tsconfig/docusaurus": "1.0.6",
-    "@types/react": "18.0.37",
+    "@types/react": "18.2.0",
     "@types/react-helmet": "6.1.6",
     "@types/react-router-dom": "5.3.3",
     "typescript": "5.0.4"

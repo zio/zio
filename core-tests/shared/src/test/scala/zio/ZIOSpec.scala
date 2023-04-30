@@ -22,7 +22,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- Live.live(ZIO.sleep(5.seconds))
           _     <- fiber.interrupt
         } yield assertCompletes
-      }
+      } @@ TestAspect.exceptNative
     ),
     suite("&&")(
       test("true and true is true") {
@@ -2386,6 +2386,16 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- end.await
         } yield assertCompletes
       },
+      test("timeout does not allow interruption to be observed in uninterruptible region") {
+        ZIO.uninterruptible {
+          for {
+            promise <- Promise.make[Nothing, Unit]
+            fiber   <- (promise.succeed(()) *> ZIO.sleep(2.second).timeout(1.seconds)).fork
+            _       <- promise.await
+            exit    <- fiber.interrupt
+          } yield assert(exit)(not(isInterrupted))
+        }
+      } @@ TestAspect.withLiveClock,
       test("catchAllCause") {
         val io =
           for {
