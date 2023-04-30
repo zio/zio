@@ -1038,7 +1038,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             test("provideSome <*> provideSome") {
               assertZIO(
                 ZStream.unit.run(ZSink.service[Int].provideSomeLayer[Any](ZLayer.succeed(100))) <*>
-                  ZStream.unit.run(ZSink.service[Int].provideSomeLayer[Any](ZEnvironment(200)))
+                  ZStream.unit.run(ZSink.service[Int].provideSomeLayer[Any](ZLayer.succeed(200)))
               )(equalTo((100, 200)))
             },
             test("provideSome is modular") {
