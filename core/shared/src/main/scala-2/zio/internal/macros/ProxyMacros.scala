@@ -9,6 +9,15 @@ class ProxyMacros(val c: blackbox.Context) {
   def makeImpl[A: c.WeakTypeTag](service: c.Expr[ScopedRef[A]], debug: c.Expr[Boolean]): c.Expr[A] = {
     val tpe = c.weakTypeOf[A]
 
+    tpe.members
+      .find(_.isType)
+      .map(abstractType =>
+        c.abort(
+          c.enclosingPosition,
+          s"Cannot generate a proxy for ${weakTypeOf[A]} due to Abstract type members: ${abstractType.asType}"
+        )
+      )
+
     def log(xs: Any*): Unit =
       debug.tree match {
         case q"true" => println(xs.mkString(", "))
@@ -43,7 +52,6 @@ class ProxyMacros(val c: blackbox.Context) {
         }
       }
       .toList
-
 
     c.Expr(q"new $resultType { ..$forwarders }")
   }

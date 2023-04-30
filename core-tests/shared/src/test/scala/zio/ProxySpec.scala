@@ -65,6 +65,34 @@ object ProxySpec extends ZIOSpecDefault {
           proxy = Proxy.generate(ref, false)
           res  <- proxy.bar
         } yield assertTrue(res == "baz")
+      },
+      test("abstract class") {
+        abstract class Foo {
+          def bar: UIO[String]
+        }
+
+        val service: Foo = new Foo {
+          def bar = ZIO.succeed("zio1")
+        }
+        for {
+          ref  <- ScopedRef.make(service)
+          proxy = Proxy.generate(ref, false)
+          res  <- proxy.bar
+        } yield assertTrue(res == "zio1")
+      },
+      test("class") {
+        class Foo {
+          def bar: UIO[String] = ZIO.succeed("zio")
+        }
+
+        val service: Foo = new Foo {
+          override def bar = ZIO.succeed("zio1")
+        }
+        for {
+          ref  <- ScopedRef.make(service)
+          proxy = Proxy.generate(ref, false)
+          res  <- proxy.bar
+        } yield assertTrue(res == "zio1")
       }
     ),
     suite("forwards")(
@@ -152,10 +180,10 @@ object ProxySpec extends ZIOSpecDefault {
         val bar: UIO[String] = ZIO.succeed("zio2")
       }
       for {
-        ref <- ScopedRef.make(service1)
-        proxy = Proxy.generate(ref, true)
+        ref  <- ScopedRef.make(service1)
+        proxy = Proxy.generate(ref, false)
         res1 <- proxy.bar
-        _ <- ref.set(ZIO.succeed(service2))
+        _    <- ref.set(ZIO.succeed(service2))
         res2 <- proxy.bar
       } yield assertTrue(res1 == "zio1" && res2 == "zio2")
     },
@@ -164,10 +192,10 @@ object ProxySpec extends ZIOSpecDefault {
       val service1: Foo = new Foo { override val bar: UIO[String] = ZIO.succeed("zio1") }
       val service2: Foo = new Foo { override val bar: UIO[String] = ZIO.succeed("zio2") }
       for {
-        ref <- ScopedRef.make(service1)
-        proxy = Proxy.generate(ref, true)
+        ref  <- ScopedRef.make(service1)
+        proxy = Proxy.generate(ref, false)
         res1 <- proxy.bar
-        _ <- ref.set(ZIO.succeed(service2))
+        _    <- ref.set(ZIO.succeed(service2))
         res2 <- proxy.bar
       } yield assertTrue(res1 == "zio1" && res2 == "zio2")
     },
@@ -196,6 +224,50 @@ object ProxySpec extends ZIOSpecDefault {
         """
                  )
         } yield assertTrue(res.isLeft)
+      },
+      test("Classes/traits requiring constructor parameter") {
+        for {
+          res <- typeCheck(
+                   """
+          class Foo(s: String) {
+            def bar: UIO[String] = ZIO.succeed("zio")
+          }
+  
+          val service: Foo = new Foo("hello") {
+            override def bar = ZIO.succeed("zio1")
+          }
+          for {
+            ref  <- ScopedRef.make(service)
+            res  <- proxy.bar
+          } yield Proxy.generate(ref, false)
+          """
+                 )
+        } yield assertTrue(res.isLeft)
+      },
+      test("Abstract type members") {
+        for {
+          res <- typeCheck(
+                   """
+            trait Foo {
+              type T
+              def bar: UIO[T]
+            }
+
+            val service: Foo = new Foo {
+              type T = String
+              def bar: UIO[T] = ZIO.succeed("zio")
+            }
+            for {
+              ref  <- ScopedRef.make(service)
+              proxy = Proxy.generate(ref, false)
+              res  <- proxy.bar
+            } yield assertTrue(res == "zio")
+            """
+                 )
+        } yield {
+          println(res)
+          assertTrue(res.isLeft)
+        }
       }
     )
   )
