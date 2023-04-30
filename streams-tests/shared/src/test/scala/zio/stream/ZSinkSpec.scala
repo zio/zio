@@ -1002,6 +1002,30 @@ object ZSinkSpec extends ZIOBaseSpec {
                   .provideSomeEnvironment[Any](_ => ZEnvironment(4))
               )(equalTo((4, 2, 4)))
             }
+          ),
+          suite("provideLayer")(
+            test("simple") {
+              assertZIO(
+                ZStream.unit.run(ZSink.service[Int].provideLayer(ZLayer.succeed(1)))
+              )(equalTo(1))
+            },
+            test("provideLayer <*> provideLayer") {
+              assertZIO(
+                ZStream.unit.run(ZSink.service[Int].provideLayer(ZLayer.succeed(100))) <*>
+                  ZStream.unit.run(ZSink.service[Int].provideLayer(ZLayer.succeed(200)))
+              )(equalTo((100, 200)))
+            },
+            test("provideLayer is modular") {
+              assertZIO(
+                ZStream.unit
+                  .run(for {
+                    v1 <- ZSink.service[Int]
+                    v2 <- ZSink.service[Int].provideLayer(ZLayer.succeed(2))
+                    v3 <- ZSink.service[Int]
+                  } yield (v1, v2, v3))
+                  .provideLayer(ZLayer.succeed(4))
+              )(equalTo((4, 2, 4)))
+            }
           )
         )
       ),
