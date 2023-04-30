@@ -64,14 +64,15 @@ class ProxyMacros(val c: blackbox.Context) {
         val args = m.paramLists.map(_.map(p => p.name.toTermName))
 
         sym.asTerm match {
-          case t if t.isVal && t.isAbstract =>
-            q"val ${sym.name.toTermName}: ${m.finalResultType} = ${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
           case t if t.isVal =>
             q"override val ${sym.name.toTermName}: ${m.finalResultType} = ${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
-          case t if t.isAbstract =>
-            q"def ${sym.name.toTermName}[..$tparams](...$params): ${m.finalResultType} = ${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
-          case _ =>
+          case t if t.isMethod && !t.isVal =>
             q"override def ${sym.name.toTermName}[..$tparams](...$params): ${m.finalResultType} = ${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
+          case t =>
+            c.abort(
+              c.enclosingPosition,
+              s"Cannot generate a proxy for ${weakTypeOf[A]} due to unknown member: ${t.name}"
+            )
         }
       }
       .toList
