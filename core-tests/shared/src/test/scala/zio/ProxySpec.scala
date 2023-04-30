@@ -44,8 +44,9 @@ object ProxySpec extends ZIOSpecDefault {
         for {
           ref  <- ScopedRef.make(service)
           proxy = Proxy.generate(ref)
-          res  <- proxy.bar.zip(proxy.baz)
-        } yield assertTrue(res == (("zio", 1)))
+          res1 <- proxy.bar
+          res2 <- proxy.baz
+        } yield assertTrue(res1 == "zio" && res2 == 1)
       },
       test("trait with type parameter") {
         trait Foo[A] { def bar: UIO[A] }
@@ -189,10 +190,11 @@ object ProxySpec extends ZIOSpecDefault {
         } yield Proxy.generate(ref)
         """
                  )
-        } yield if (TestVersion.isScala2)
-          assertTrue(res.swap.exists(_.contains("non-ZIO")))
-        else
-          assertTrue(res.isLeft)
+        } yield
+          if (TestVersion.isScala2)
+            assertTrue(res.swap.exists(_.contains("non-ZIO")))
+          else
+            assertTrue(res.isLeft)
       },
       test("classes/traits requiring constructor parameter") {
         for {
