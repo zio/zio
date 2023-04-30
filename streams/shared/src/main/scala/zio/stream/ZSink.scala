@@ -394,6 +394,15 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     new ZSink(channel.provideEnvironment(r))
 
   /**
+   * Transforms the environment being provided to the sink with the specified
+   * function.
+   */
+  def provideSomeEnvironment[R0](
+    f: ZEnvironment[R0] => ZEnvironment[R]
+  )(implicit trace: Trace): ZSink[R0, E, In, L, Z] =
+    new ZSink(channel.provideSomeEnvironment(f))
+
+  /**
    * Runs both sinks in parallel on the input, , returning the result or the
    * error from the one that finishes first.
    */
