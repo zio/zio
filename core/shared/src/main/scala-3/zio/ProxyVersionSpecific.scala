@@ -15,6 +15,15 @@ private object ProxyMacros {
   def makeImpl[A: Type](service: Expr[ScopedRef[A]])(using Quotes): Expr[A] = {
     import quotes.reflect.*
 
+    val debug = Expr.summon[Boolean].isDefined
+
+    def log(xs: Any*): Unit =
+      if (debug) {
+        println(xs.mkString(", "))
+      }
+
+    log(1)
+
     // TODO replace with `ValOrDefDef` https://github.com/lampepfl/dotty/pull/16974/
     def nameAndReturnType(t: Tree): Option[(String, TypeTree)] =
       t match {
@@ -45,7 +54,11 @@ private object ProxyMacros {
         }
       }.toList
 
-    val parents = TypeTree.of[Object] :: TypeTree.of[A] :: Nil
+    val parents = 
+      if (tpe.typeSymbol.flags.is(Flags.Trait))
+        TypeTree.of[Object] :: TypeTree.of[A] :: Nil
+      else
+        TypeTree.of[A] :: Nil
 
     val cls = Symbol.newClass(
       parent = Symbol.spliceOwner ,  
@@ -114,7 +127,7 @@ private object ProxyMacros {
           .appliedToNone,
         TypeTree.of[A]
       )
-    
+
     Block(List(clsDef), newCls).asExprOf[A]
   }
 }
