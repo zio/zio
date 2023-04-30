@@ -4,18 +4,9 @@ import zio.ScopedRef
 
 import scala.reflect.internal.Names
 import scala.reflect.macros.blackbox
-class ProxyMacros(val c: blackbox.Context) {
+class ServiceProxyMacros(val c: blackbox.Context) {
   import c.universe._
-
   def makeImpl[A: c.WeakTypeTag](service: c.Expr[ScopedRef[A]]): c.Expr[A] = {
-    val debug = c.inferImplicitValue(c.typeOf[Boolean])
-
-    def log(xs: Any*): Unit =
-      debug match {
-        case q"true" => println(xs.mkString(", "))
-        case _       => ()
-      }
-
     val tpe = c.weakTypeOf[A]
 
     tpe.members

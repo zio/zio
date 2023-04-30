@@ -1,0 +1,3 @@
+package zio
+
+object ServiceProxy extends ServiceProxyVersionSpecific

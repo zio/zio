@@ -3,13 +3,13 @@ package zio
 import scala.annotation.experimental
 import scala.quoted.*
 
-trait ProxyVersionSpecific {
+trait ServiceProxyVersionSpecific {
 
   @experimental
-  inline def generate[A](service: ScopedRef[A]): A = ${ ProxyMacros.makeImpl('service) }
+  inline def generate[A](service: ScopedRef[A]): A = ${ ServiceProxyMacros.makeImpl('service) }
 }
 
-private object ProxyMacros {
+private object ServiceProxyMacros {
 
   @experimental
   def makeImpl[A: Type](service: Expr[ScopedRef[A]])(using Quotes): Expr[A] = {

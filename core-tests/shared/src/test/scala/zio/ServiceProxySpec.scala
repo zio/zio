@@ -1,10 +1,9 @@
 package zio
 
 import zio.test._
-import com.github.ghik.silencer.silent
 
 @scala.annotation.experimental
-object ProxySpec extends ZIOSpecDefault {
+object ServiceProxySpec extends ZIOSpecDefault {
 
   val spec = suite("Proxy")(
     suite("generates a proxy")(
@@ -15,7 +14,7 @@ object ProxySpec extends ZIOSpecDefault {
         val service2: Foo = new Foo { def bar = ZIO.succeed("zio2") }
         for {
           ref  <- ScopedRef.make(service1)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
           res1 <- proxy.bar
           _    <- ref.set(ZIO.succeed(service2))
           res2 <- proxy.bar
@@ -28,7 +27,7 @@ object ProxySpec extends ZIOSpecDefault {
         val service: foo.Foo = new foo.Foo { def bar = ZIO.succeed("zio") }
         for {
           ref  <- ScopedRef.make(service)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
           res1 <- proxy.bar
         } yield assertTrue(res1 == "zio")
       },
@@ -43,7 +42,7 @@ object ProxySpec extends ZIOSpecDefault {
         }
         for {
           ref  <- ScopedRef.make(service)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
           res1 <- proxy.bar
           res2 <- proxy.baz
         } yield assertTrue(res1 == "zio" && res2 == 1)
@@ -53,7 +52,7 @@ object ProxySpec extends ZIOSpecDefault {
         val service: Foo[String] = new Foo[String] { def bar = ZIO.succeed("baz") }
         for {
           ref  <- ScopedRef.make(service)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
           res  <- proxy.bar
         } yield assertTrue(res == "baz")
       },
@@ -62,7 +61,7 @@ object ProxySpec extends ZIOSpecDefault {
         val service: Foo = new Foo { def bar = ZIO.succeed("zio") }
         for {
           ref  <- ScopedRef.make(service)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
           res  <- proxy.bar
         } yield assertTrue(res == "zio")
       },
@@ -73,7 +72,7 @@ object ProxySpec extends ZIOSpecDefault {
         }
         for {
           ref  <- ScopedRef.make(service)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
           res  <- proxy.bar
         } yield assertTrue(res == "zio2")
       }
@@ -84,7 +83,7 @@ object ProxySpec extends ZIOSpecDefault {
         val service: Foo = new Foo { def bar(a: String) = ZIO.succeed(a.length) }
         for {
           ref  <- ScopedRef.make(service)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
           res  <- proxy.bar("zio")
         } yield assertTrue(res == 3)
       },
@@ -93,7 +92,7 @@ object ProxySpec extends ZIOSpecDefault {
         val service: Foo = new Foo { def bar[A](a: A) = ZIO.succeed(a) }
         for {
           ref  <- ScopedRef.make(service)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
           res  <- proxy.bar[String]("zio")
         } yield assertTrue(res == "zio")
       },
@@ -102,7 +101,7 @@ object ProxySpec extends ZIOSpecDefault {
         val service: Foo = new Foo { def bar(a: Int)(b: String) = ZIO.succeed(b * a) }
         for {
           ref  <- ScopedRef.make(service)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
           res  <- proxy.bar(3)("zio")
         } yield assertTrue(res == "zioziozio")
       },
@@ -112,7 +111,7 @@ object ProxySpec extends ZIOSpecDefault {
         implicit val b: String = "zio"
         for {
           ref  <- ScopedRef.make(service)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
           res  <- proxy.bar(3)
         } yield assertTrue(res == "zioziozio")
       },
@@ -123,7 +122,7 @@ object ProxySpec extends ZIOSpecDefault {
         val service: Foo = new Foo { def bar(a: Int) = ZIO.succeed("zio" * a) }
         for {
           ref  <- ScopedRef.make(service)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
           res  <- proxy.bar(3)
         } yield assertTrue(res == "zioziozio")
       },
@@ -132,7 +131,7 @@ object ProxySpec extends ZIOSpecDefault {
         val service: Foo = new Foo { override def bar = ZIO.succeed("zio2") }
         for {
           ref  <- ScopedRef.make(service)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
           res  <- proxy.bar
         } yield assertTrue(res == "zio2")
       },
@@ -141,7 +140,7 @@ object ProxySpec extends ZIOSpecDefault {
         val service: Foo = new Foo { private[zio] def bar: UIO[String] = ZIO.succeed("zio") }
         for {
           ref  <- ScopedRef.make(service)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
           res  <- proxy.bar
         } yield assertTrue(res == "zio")
       },
@@ -151,7 +150,7 @@ object ProxySpec extends ZIOSpecDefault {
         val service2: Foo = new Foo { val bar: UIO[String] = ZIO.succeed("zio2") }
         for {
           ref  <- ScopedRef.make(service1)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
           res1 <- proxy.bar
           _    <- ref.set(ZIO.succeed(service2))
           res2 <- proxy.bar
@@ -162,7 +161,7 @@ object ProxySpec extends ZIOSpecDefault {
         val service: Foo = new Foo { override val bar: UIO[String] = ZIO.succeed("zio1") }
         for {
           ref  <- ScopedRef.make(service)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
           res1 <- proxy.bar
         } yield assertTrue(res1 == "zio1")
       },
@@ -174,7 +173,7 @@ object ProxySpec extends ZIOSpecDefault {
         val service: Foo = new Foo { def bar = ZIO.succeed("baz") }
         for {
           ref  <- ScopedRef.make(service)
-          proxy = Proxy.generate(ref)
+          proxy = ServiceProxy.generate(ref)
         } yield assertTrue(proxy.qux == "quux")
       }
     ),
@@ -187,7 +186,7 @@ object ProxySpec extends ZIOSpecDefault {
         val service: Foo = new Foo { def qux = "quux" }
         for {
           ref <- ScopedRef.make(service)
-        } yield Proxy.generate(ref)
+        } yield ServiceProxy.generate(ref)
         """
                  )
         } yield
@@ -204,7 +203,7 @@ object ProxySpec extends ZIOSpecDefault {
           val service: Foo = new Foo("zio")
           for {
             ref  <- ScopedRef.make(service)
-            proxy = Proxy.generate(ref)
+            proxy = ServiceProxy.generate(ref)
             res  <- proxy.bar
           } yield Proxy.generate(ref)
           """
@@ -216,8 +215,6 @@ object ProxySpec extends ZIOSpecDefault {
             assertTrue(res.isLeft)
       },
       test("abstract type members") {
-        @silent("never used")
-        implicit val debug: Boolean = true
         for {
           res <- typeCheck(
                    """
@@ -232,7 +229,7 @@ object ProxySpec extends ZIOSpecDefault {
             }
             for {
               ref  <- ScopedRef.make(service)
-              proxy = Proxy.generate(ref)
+              proxy = ServiceProxy.generate(ref)
               res  <- proxy.bar
             } yield assertTrue(res == "zio")
             """
