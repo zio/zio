@@ -403,6 +403,14 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     new ZSink(channel.provideSomeEnvironment(f))
 
   /**
+   * Provides a layer to the sink, which translates it to another level.
+   */
+  def provideLayer[E1 >: E, R0](
+    layer: => ZLayer[R0, E1, R]
+  )(implicit trace: Trace): ZSink[R0, E1, In, L, Z] =
+    new ZSink(channel.provideLayer(layer))
+
+  /**
    * Runs both sinks in parallel on the input, , returning the result or the
    * error from the one that finishes first.
    */
