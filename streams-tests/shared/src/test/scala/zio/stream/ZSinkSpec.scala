@@ -949,7 +949,61 @@ object ZSinkSpec extends ZIOBaseSpec {
             _ <- TestClock.adjust(100.millis)
             r <- f.join
           } yield assert(r)(isGreaterThanEqualTo(100.millis))
-        }
+        },
+        suite("provide")(
+          suite("provideEnvironment")(
+            test("simple") {
+              assertZIO(
+                ZStream.unit.run(
+                  ZSink.service[Int].provideEnvironment(ZEnvironment(100))
+                )
+              )(equalTo(100))
+            },
+            test("provide <*> provide") {
+              assertZIO(
+                ZStream.unit.run(ZSink.service[Int].provideEnvironment(ZEnvironment(100))) <*>
+                  ZStream.unit.run(ZSink.service[Int].provideEnvironment(ZEnvironment(200)))
+              )(equalTo((100, 200)))
+            },
+            test("provide is modular") {
+              assertZIO(
+                ZStream.unit
+                  .run(for {
+                    v1 <- ZSink.service[Int]
+                    v2 <- ZSink.service[Int].provideEnvironment(ZEnvironment(2))
+                    v3 <- ZSink.service[Int]
+                  } yield (v1, v2, v3))
+                  .provideEnvironment(ZEnvironment(4))
+              )(equalTo((4, 2, 4)))
+            }
+          ),
+          suite("provideSomeEnvironment")(
+            test("simple") {
+              assertZIO(
+                ZStream.unit.run(
+                  ZSink.service[Int].provideSomeEnvironment[Any](_ => ZEnvironment(100))
+                )
+              )(equalTo(100))
+            },
+            test("provideSome <*> provideSome") {
+              assertZIO(
+                ZStream.unit.run(ZSink.service[Int].provideSomeEnvironment[Any](_ => ZEnvironment(100))) <*>
+                  ZStream.unit.run(ZSink.service[Int].provideSomeEnvironment[Any](_ => ZEnvironment(200)))
+              )(equalTo((100, 200)))
+            },
+            test("provideSome is modular") {
+              assertZIO(
+                ZStream.unit
+                  .run(for {
+                    v1 <- ZSink.service[Int]
+                    v2 <- ZSink.service[Int].provideSomeEnvironment[Any](_ => ZEnvironment(2))
+                    v3 <- ZSink.service[Int]
+                  } yield (v1, v2, v3))
+                  .provideSomeEnvironment[Any](_ => ZEnvironment(4))
+              )(equalTo((4, 2, 4)))
+            }
+          )
+        )
       ),
       test("error propagation") {
         case object ErrorStream
