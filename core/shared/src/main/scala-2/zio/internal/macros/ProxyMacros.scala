@@ -2,22 +2,12 @@ package zio.internal.macros
 
 import zio.ScopedRef
 
+import scala.reflect.internal.Names
 import scala.reflect.macros.blackbox
 class ProxyMacros(val c: blackbox.Context) {
   import c.universe._
 
   def makeImpl[A: c.WeakTypeTag](service: c.Expr[ScopedRef[A]]): c.Expr[A] = {
-    val tpe = c.weakTypeOf[A]
-
-    tpe.members
-      .find(_.isType)
-      .map(abstractType =>
-        c.abort(
-          c.enclosingPosition,
-          s"Cannot generate a proxy for ${weakTypeOf[A]} due to Abstract type members: ${abstractType.asType}"
-        )
-      )
-
     val debug = c.inferImplicitValue(c.typeOf[Boolean])
 
     def log(xs: Any*): Unit =
@@ -25,6 +15,37 @@ class ProxyMacros(val c: blackbox.Context) {
         case q"true" => println(xs.mkString(", "))
         case _       => ()
       }
+
+    val tpe = c.weakTypeOf[A]
+
+    tpe.members
+      .find(m => m.isConstructor)
+      .foreach { constructor =>
+        if (constructor.asMethod.paramLists.flatten.nonEmpty) {
+          c.abort(
+            c.enclosingPosition,
+            s"Cannot generate a proxy for ${weakTypeOf[A]} due to requiring constructor: ${constructor.name}"
+          )
+        }
+      }
+
+    tpe.members
+      .find(m => m.isType && m.isAbstract)
+      .map(abstractType =>
+        c.abort(
+          c.enclosingPosition,
+          s"Cannot generate a proxy for ${weakTypeOf[A]} due to Abstract type members: ${abstractType.asType}"
+        )
+      )
+
+    tpe.members
+      .find(m => m.isMethod && m.isAbstract && !(m.asMethod.returnType <:< c.weakTypeOf[zio.ZIO[_, _, _]]))
+      .map(nonZIO =>
+        c.abort(
+          c.enclosingPosition,
+          s"Cannot generate a proxy for ${weakTypeOf[A]} due to a non-ZIO method ${nonZIO.name}(...): ${nonZIO.asMethod.returnType}"
+        )
+      )
 
     val resultType = appliedType(tpe.typeConstructor, tpe.typeArgs)
     val forwarders = tpe.members.view

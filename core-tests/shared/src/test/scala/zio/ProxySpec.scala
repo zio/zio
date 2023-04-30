@@ -22,7 +22,7 @@ object ProxySpec extends ZIOSpecDefault {
         } yield assertTrue(res1 == "zio1" && res2 == "zio2")
       },
       test("the type out of the current lexical scope") {
-        object foo { 
+        object foo {
           trait Foo { def bar: UIO[String] }
         }
         val service: foo.Foo = new foo.Foo { def bar = ZIO.succeed("zio") }
@@ -144,38 +144,38 @@ object ProxySpec extends ZIOSpecDefault {
           res  <- proxy.bar
         } yield assertTrue(res == "zio")
       },
-    test("ZIO vals") {
-      trait Foo { val bar: UIO[String] }
-      val service1: Foo = new Foo { val bar: UIO[String] = ZIO.succeed("zio1") }
-      val service2: Foo = new Foo { val bar: UIO[String] = ZIO.succeed("zio2") }
-      for {
-        ref  <- ScopedRef.make(service1)
-        proxy = Proxy.generate(ref)
-        res1 <- proxy.bar
-        _    <- ref.set(ZIO.succeed(service2))
-        res2 <- proxy.bar
-      } yield assertTrue(res1 == "zio1" && res2 == "zio2")
-    },
-    test("ZIO vals with default implementation") {
-      trait Foo { val bar: UIO[String] = ZIO.succeed("zio") }
-      val service: Foo = new Foo { override val bar: UIO[String] = ZIO.succeed("zio1") }
-      for {
-        ref  <- ScopedRef.make(service)
-        proxy = Proxy.generate(ref)
-        res1 <- proxy.bar
-      } yield assertTrue(res1 == "zio1")
-    },
-    test("keeps non-ZIO default implementations") {
-      trait Foo {
-        def bar: UIO[String]
-        def qux: String = "quux"
+      test("ZIO vals") {
+        trait Foo { val bar: UIO[String] }
+        val service1: Foo = new Foo { val bar: UIO[String] = ZIO.succeed("zio1") }
+        val service2: Foo = new Foo { val bar: UIO[String] = ZIO.succeed("zio2") }
+        for {
+          ref  <- ScopedRef.make(service1)
+          proxy = Proxy.generate(ref)
+          res1 <- proxy.bar
+          _    <- ref.set(ZIO.succeed(service2))
+          res2 <- proxy.bar
+        } yield assertTrue(res1 == "zio1" && res2 == "zio2")
+      },
+      test("ZIO vals with default implementation") {
+        trait Foo { val bar: UIO[String] = ZIO.succeed("zio") }
+        val service: Foo = new Foo { override val bar: UIO[String] = ZIO.succeed("zio1") }
+        for {
+          ref  <- ScopedRef.make(service)
+          proxy = Proxy.generate(ref)
+          res1 <- proxy.bar
+        } yield assertTrue(res1 == "zio1")
+      },
+      test("keeps non-ZIO default implementations") {
+        trait Foo {
+          def bar: UIO[String]
+          def qux: String = "quux"
+        }
+        val service: Foo = new Foo { def bar = ZIO.succeed("baz") }
+        for {
+          ref  <- ScopedRef.make(service)
+          proxy = Proxy.generate(ref)
+        } yield assertTrue(proxy.qux == "quux")
       }
-      val service: Foo = new Foo { def bar = ZIO.succeed("baz") }
-      for {
-        ref  <- ScopedRef.make(service)
-        proxy = Proxy.generate(ref)
-      } yield assertTrue(proxy.qux == "quux")
-    },
     ),
     suite("fails to compile")(
       test("non-ZIO abstract method") {
@@ -189,7 +189,10 @@ object ProxySpec extends ZIOSpecDefault {
         } yield Proxy.generate(ref)
         """
                  )
-        } yield assertTrue(res.isLeft)
+        } yield if (TestVersion.isScala2)
+          assertTrue(res.swap.exists(_.contains("non-ZIO")))
+        else
+          assertTrue(res.isLeft)
       },
       test("classes/traits requiring constructor parameter") {
         for {
@@ -203,7 +206,11 @@ object ProxySpec extends ZIOSpecDefault {
           } yield Proxy.generate(ref)
           """
                  )
-        } yield assertTrue(res.isLeft)
+        } yield
+          if (TestVersion.isScala2)
+            assertTrue(res.swap.exists(_.contains("requiring constructor"))) // fixme
+          else
+            assertTrue(res.isLeft)
       },
       test("abstract type members") {
         @silent("never used")
@@ -227,10 +234,11 @@ object ProxySpec extends ZIOSpecDefault {
             } yield assertTrue(res == "zio")
             """
                  )
-        } yield {
-          println(res)
-          assertTrue(res.isLeft)
-        }
+        } yield
+          if (TestVersion.isScala2)
+            assertTrue(res.swap.exists(_.contains("Abstract type members")))
+          else
+            assertTrue(res.isLeft)
       }
     )
   )
