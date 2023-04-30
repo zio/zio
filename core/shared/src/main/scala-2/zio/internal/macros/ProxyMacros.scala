@@ -17,16 +17,9 @@ class ProxyMacros(val c: blackbox.Context) {
 
     val resultType = appliedType(tpe.typeConstructor, tpe.typeArgs)
     val forwarders = tpe.members.view
-      .filter(m => m.isMethod && (m.asMethod.returnType <:< c.weakTypeOf[zio.ZIO[_, _, _]]))
+      .filter(m => m.isTerm && (m.asMethod.returnType <:< c.weakTypeOf[zio.ZIO[_, _, _]]))
       .map { sym =>
-        if (sym.asMethod.isVal)
-          c.abort(
-            c.enclosingPosition,
-            s"Cannot generate a proxy for ${weakTypeOf[A]} due to a val method ${sym.name}(...)"
-          )
-
-        val m = sym.asMethod.typeSignatureIn(resultType)
-        log(sym.name)
+        val m       = sym.asMethod.typeSignatureIn(resultType)
         val tparams = m.typeParams.map(c.internal.typeDef)
         val params = m.paramLists.map(
           _.map { p =>
@@ -38,12 +31,19 @@ class ProxyMacros(val c: blackbox.Context) {
 
         val args = m.paramLists.map(_.map(p => p.name.toTermName))
 
-        if (sym.asMethod.isAbstract)
-          q"def ${sym.name.toTermName}[..$tparams](...$params): ${m.finalResultType} = ${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
-        else
-          q"override def ${sym.name.toTermName}[..$tparams](...$params): ${m.finalResultType} = ${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
+        sym.asTerm match {
+          case t if t.isVal && t.isAbstract =>
+            q"val ${sym.name.toTermName}: ${m.finalResultType} = ${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
+          case t if t.isVal =>
+            q"override val ${sym.name.toTermName}: ${m.finalResultType} = ${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
+          case t if t.isAbstract =>
+            q"def ${sym.name.toTermName}[..$tparams](...$params): ${m.finalResultType} = ${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
+          case _ =>
+            q"override def ${sym.name.toTermName}[..$tparams](...$params): ${m.finalResultType} = ${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
+        }
       }
       .toList
+
 
     c.Expr(q"new $resultType { ..$forwarders }")
   }

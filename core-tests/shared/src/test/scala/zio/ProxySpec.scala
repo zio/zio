@@ -127,7 +127,7 @@ object ProxySpec extends ZIOSpecDefault {
         }
         for {
           ref  <- ScopedRef.make(service)
-          proxy = Proxy.generate(ref, true)
+          proxy = Proxy.generate(ref, false)
           res  <- proxy.bar
         } yield assertTrue(res == "zio2")
       },
@@ -142,12 +142,30 @@ object ProxySpec extends ZIOSpecDefault {
       }
     ),
     test("ZIO vals") {
-      trait Foo { val bar: UIO[String] }
-      val service1: Foo = new Foo { val bar: UIO[String] = ZIO.succeed("zio1") }
-      val service2: Foo = new Foo { val bar: UIO[String] = ZIO.succeed("zio2") }
+      trait Foo {
+        val bar: UIO[String]
+      }
+      val service1: Foo = new Foo {
+        val bar: UIO[String] = ZIO.succeed("zio1")
+      }
+      val service2: Foo = new Foo {
+        val bar: UIO[String] = ZIO.succeed("zio2")
+      }
       for {
         ref <- ScopedRef.make(service1)
-        proxy = Proxy.generate(ref, false)
+        proxy = Proxy.generate(ref, true)
+        res1 <- proxy.bar
+        _ <- ref.set(ZIO.succeed(service2))
+        res2 <- proxy.bar
+      } yield assertTrue(res1 == "zio1" && res2 == "zio2")
+    },
+    test("ZIO override vals") {
+      trait Foo { val bar: UIO[String] = ZIO.succeed("zio") }
+      val service1: Foo = new Foo { override val bar: UIO[String] = ZIO.succeed("zio1") }
+      val service2: Foo = new Foo { override val bar: UIO[String] = ZIO.succeed("zio2") }
+      for {
+        ref <- ScopedRef.make(service1)
+        proxy = Proxy.generate(ref, true)
         res1 <- proxy.bar
         _ <- ref.set(ZIO.succeed(service2))
         res2 <- proxy.bar
