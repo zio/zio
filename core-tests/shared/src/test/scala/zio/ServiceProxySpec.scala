@@ -21,7 +21,7 @@ import zio.test._
 @scala.annotation.experimental
 object ServiceProxySpec extends ZIOSpecDefault {
 
-  val spec = suite("Proxy")(
+  val spec = suite("ServiceProxy")(
     suite("generates a proxy")(
       test("switches underlying service in runtime") {
         trait Foo { def bar: UIO[String] }
