@@ -74,7 +74,7 @@ class ServiceProxyMacros(val c: blackbox.Context) {
           case t if t.isMethod && !t.isVal =>
             q"override def ${sym.name.toTermName}[..$tparams](...$params): ${m.finalResultType} = ${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
           case t =>
-            defect(s"Unexpected member declaration: ${t.name}")
+            defect(s"Unexpected member declaration: ${showRaw(t.name)}")
         }
       }
       .toList
