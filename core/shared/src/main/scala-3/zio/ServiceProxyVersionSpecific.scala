@@ -134,11 +134,6 @@ private object ServiceProxyMacros {
       selfType = None
     )
 
-    val trace =
-      Expr.summon[Trace]
-        .getOrElse(report.errorAndAbort("Implicit zio.Trace not found"))
-        .asTerm
-
     // TODO replace with `ValOrDefDef` https://github.com/lampepfl/dotty/pull/16974/
     def typeAndParams(m: Symbol): Option[(TypeTree, List[TypeDef], List[TermParamClause])] =
       m.tree match {
@@ -150,6 +145,7 @@ private object ServiceProxyMacros {
           None
       }
 
+    val trace = '{ summon[Trace] }.asTerm
     val body = cls.declarations.flatMap { member =>
       typeAndParams(member).flatMap { (tpt, typeParams, termParamss) =>
         val body = 
