@@ -9,34 +9,48 @@ class ServiceProxyMacros(val c: blackbox.Context) {
   def makeImpl[A: c.WeakTypeTag](service: c.Expr[ScopedRef[A]]): c.Expr[A] = {
     val tpe = c.weakTypeOf[A]
 
+    def unsupported(reason: String): Nothing =
+      c.abort(
+        c.enclosingPosition,
+        s"""Unable to generate a ZIO service proxy for `${tpe.typeSymbol.fullName}` due to the following reason:
+           |
+           |  $reason
+           |
+           |To generate a ZIO service proxy, please ensure the following:
+           |  1. The type is either a trait or a class with an empty primary constructor.
+           |  2. The type includes only ZIO methods or vals.
+           |  3. The type does not have any abstract type members.
+           |""".stripMargin
+      )
+
+    def defect(reason: String): Nothing =
+      c.abort(
+        c.enclosingPosition,
+        s"""Defect in zio.ServiceProxy:
+           |
+           |  $reason""".stripMargin
+      )
+
     tpe.members
       .find(m => m.isConstructor)
       .foreach { constructor =>
         if (constructor.asMethod.paramLists.flatten.nonEmpty) {
-          c.abort(
-            c.enclosingPosition,
-            s"Cannot generate a proxy for ${weakTypeOf[A]} due to requiring constructor: ${constructor.name}"
-          )
+          unsupported("Primary constructor with non-empty parameters detected")
         }
       }
 
     tpe.members
       .find(m => m.isType && m.isAbstract)
-      .map(abstractType =>
-        c.abort(
-          c.enclosingPosition,
-          s"Cannot generate a proxy for ${weakTypeOf[A]} due to Abstract type members: ${abstractType.asType}"
-        )
-      )
+      .map(abstractType => unsupported(s"Abstract type member detected: ${abstractType.asType}"))
 
     tpe.members
       .find(m => m.isMethod && m.isAbstract && !(m.asMethod.returnType <:< c.weakTypeOf[zio.ZIO[_, _, _]]))
-      .map(nonZIO =>
-        c.abort(
-          c.enclosingPosition,
-          s"Cannot generate a proxy for ${weakTypeOf[A]} due to a non-ZIO method ${nonZIO.name}(...): ${nonZIO.asMethod.returnType}"
+      .map { nonZIO =>
+        val memberType = if (!nonZIO.asMethod.isVal) "method" else "field"
+        unsupported(
+          s"non-ZIO $memberType detected: ${nonZIO.name}"
         )
-      )
+      }
 
     val resultType = appliedType(tpe.typeConstructor, tpe.typeArgs)
     val forwarders = tpe.members.view
@@ -60,10 +74,7 @@ class ServiceProxyMacros(val c: blackbox.Context) {
           case t if t.isMethod && !t.isVal =>
             q"override def ${sym.name.toTermName}[..$tparams](...$params): ${m.finalResultType} = ${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
           case t =>
-            c.abort(
-              c.enclosingPosition,
-              s"Cannot generate a proxy for ${weakTypeOf[A]} due to unknown member: ${t.name}"
-            )
+            defect(s"Unexpected member declaration: ${t.name}")
         }
       }
       .toList

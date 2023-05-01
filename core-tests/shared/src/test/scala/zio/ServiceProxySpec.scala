@@ -235,7 +235,7 @@ object ServiceProxySpec extends ZIOSpecDefault {
                  )
         } yield
           if (TestVersion.isScala2)
-            assertTrue(res.swap.exists(_.contains("requiring constructor")))
+            assertTrue(res.swap.exists(_.contains("non-empty parameters")))
           else
             assertTrue(res.isLeft)
       },
@@ -261,7 +261,7 @@ object ServiceProxySpec extends ZIOSpecDefault {
                  )
         } yield
           if (TestVersion.isScala2)
-            assertTrue(res.swap.exists(_.contains("Abstract type members")))
+            assertTrue(res.swap.exists(_.contains("Abstract")))
           else
             assertTrue(res.isLeft)
       }
