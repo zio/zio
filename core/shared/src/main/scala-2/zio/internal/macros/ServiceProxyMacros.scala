@@ -1,9 +1,8 @@
 package zio.internal.macros
 
 import zio.ScopedRef
-
-import scala.reflect.internal.Names
 import scala.reflect.macros.blackbox
+
 class ServiceProxyMacros(val c: blackbox.Context) {
   import c.universe._
   def makeImpl[A: c.WeakTypeTag](service: c.Expr[ScopedRef[A]]): c.Expr[A] = {
@@ -31,26 +30,19 @@ class ServiceProxyMacros(val c: blackbox.Context) {
            |  $reason""".stripMargin
       )
 
-    tpe.members
-      .find(m => m.isConstructor)
-      .foreach { constructor =>
-        if (constructor.asMethod.paramLists.flatten.nonEmpty) {
-          unsupported("Primary constructor with non-empty parameters detected")
-        }
-      }
+    tpe.members.foreach { m =>
+      if (m.isConstructor && m.asMethod.paramLists.flatten.nonEmpty)
+        unsupported("Primary constructor with non-empty parameters detected")
+      if (m.isType && m.isAbstract)
+        unsupported(s"Abstract type member detected: ${m.asType}")
 
-    tpe.members
-      .find(m => m.isType && m.isAbstract)
-      .map(abstractType => unsupported(s"Abstract type member detected: ${abstractType.asType}"))
-
-    tpe.members
-      .find(m => m.isMethod && m.isAbstract && !(m.asMethod.returnType <:< c.weakTypeOf[zio.ZIO[_, _, _]]))
-      .map { nonZIO =>
-        val memberType = if (!nonZIO.asMethod.isVal) "method" else "field"
+      if (m.isMethod && m.isAbstract && !(m.asMethod.returnType <:< c.weakTypeOf[zio.ZIO[_, _, _]])) {
+        val memberType = if (!m.asMethod.isVal) "method" else "field"
         unsupported(
-          s"non-ZIO $memberType detected: ${nonZIO.name}"
+          s"non-ZIO $memberType detected: ${m.name}"
         )
       }
+    }
 
     val resultType = appliedType(tpe.typeConstructor, tpe.typeArgs)
     val forwarders = tpe.members.view
@@ -68,13 +60,14 @@ class ServiceProxyMacros(val c: blackbox.Context) {
 
         val args = m.paramLists.map(_.map(p => p.name.toTermName))
 
+        val rhs = q"${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
         sym.asTerm match {
           case t if t.isVal =>
-            q"override val ${sym.name.toTermName}: ${m.finalResultType} = ${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
+            q"override val ${sym.name.toTermName}: ${m.finalResultType} = $rhs"
           case t if t.isMethod && !t.isVal =>
-            q"override def ${sym.name.toTermName}[..$tparams](...$params): ${m.finalResultType} = ${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
+            q"override def ${sym.name.toTermName}[..$tparams](...$params): ${m.finalResultType} = $rhs"
           case t =>
-            defect(s"Unexpected member declaration: ${showRaw(t.name)}")
+            defect(s"Unexpected member declaration: ${showRaw(t)}")
         }
       }
       .toList

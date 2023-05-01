@@ -16,18 +16,22 @@
 
 package zio
 
-/** 
- * The `ServiceProxy` object provides a utility to generate a proxy instance for a given service.
+/**
+ * The `ServiceProxy` object provides a utility to generate a proxy instance for
+ * a given service.
  *
- * The `generate` function creates a proxy instance of the service that forwards every ZIO method call to the 
- * underlying service, wrapped in a [[zio.ScopedRef]]. The generated proxy enables the service to change
- * its behavior at runtime.
+ * The `generate` function creates a proxy instance of the service that forwards
+ * every ZIO method call to the underlying service, wrapped in a
+ * [[zio.ScopedRef]]. The generated proxy enables the service to change its
+ * behavior at runtime.
  *
  * @note
- *   In order to successfully generate a service proxy, the type `A` must meet the following requirements:
- *    - `A` should be either a trait or a class with a primary constructor without any term parameters.
- *    - `A` should contain only ZIO methods or vals.
- *    - `A` should not have any abstract type members.
+ *   In order to successfully generate a service proxy, the type `A` must meet
+ *   the following requirements:
+ *   - `A` should be either a trait or a class with a primary constructor
+ *     without any term parameters.
+ *   - `A` should contain only ZIO methods or vals.
+ *   - `A` should not have any abstract type members.
  *
  * @example
  * {{{
