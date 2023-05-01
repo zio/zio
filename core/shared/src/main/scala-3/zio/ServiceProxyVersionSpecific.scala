@@ -22,8 +22,6 @@ private object ServiceProxyMacros {
         println(xs.mkString(", "))
       }
 
-    log(1)
-
     // TODO replace with `ValOrDefDef` https://github.com/lampepfl/dotty/pull/16974/
     def nameAndReturnType(t: Tree): Option[(String, TypeTree)] =
       t match {
@@ -33,6 +31,49 @@ private object ServiceProxyMacros {
       }
 
     val tpe = TypeRepr.of[A]
+
+    def unsupported(reason: String): Nothing =
+      report.errorAndAbort(
+        s"""Unable to generate a ZIO service proxy for `${tpe.typeSymbol.fullName}` due to the following reason:
+           |
+           |  $reason
+           |
+           |To generate a ZIO service proxy, please ensure the following:
+           |  1. The type is either a trait or a class with an empty primary constructor.
+           |  2. The type includes only ZIO methods or vals.
+           |  3. The type does not have any abstract type members.
+           |""".stripMargin
+      )
+
+    def defect(reason: String): Nothing =
+      report.errorAndAbort(
+        s"""Defect in zio.ServiceProxy:
+           |
+           |  $reason""".stripMargin
+      )
+
+    tpe.typeSymbol.primaryConstructor.tree match {
+      case d: DefDef =>
+        if (d.termParamss.exists(_.params.nonEmpty)) {
+          unsupported("Primary constructor with non-empty parameters detected")
+        }
+
+      case other => 
+        defect(s"Unexpected primary constructor tree: $other")
+    }
+
+    tpe.typeSymbol.typeMembers.foreach { m =>
+      tpe.typeSymbol.tree match {
+        case TypeDef(_, rhs) =>
+          log(rhs.show)
+        case _ => ()
+      }
+      log(m, m.flags.show, m.tree.show(using Printer.TreeStructure))
+      if (m.flags.is(Flags.Deferred) && !m.flags.is(Flags.Param)) {
+        unsupported(s"Abstract type member detected: ${m.tree.show}")
+      }
+    }
+
     def forwarders(cls: Symbol) =
       (tpe.typeSymbol.methodMembers.view ++ tpe.typeSymbol.fieldMembers.view).flatMap { m =>
         nameAndReturnType(m.tree).flatMap { (name, tpt) =>
@@ -45,10 +86,11 @@ private object ServiceProxyMacros {
             else if (m.isValDef)
               Some(Symbol.newVal(cls, name, tpe.memberType(m), Flags.Override, privateWithin))
             else
-              report.errorAndAbort(s"Unexpected member tree: ${m.tree}")
+              defect(s"Unexpected member tree: ${m.tree}")
           } else if (m.flags.is(Flags.Deferred)) {
-            report.errorAndAbort(
-              s"Cannot generate a proxy for ${tpe.typeSymbol.name} due to a non-ZIO member ${name}(...): ${tpt.symbol.name}"
+            val memberType = if (m.isDefDef) "method" else "field"
+            unsupported(
+              s"non-ZIO $memberType detected: $name"
             )
           } else None
         }
@@ -104,7 +146,7 @@ private object ServiceProxyMacros {
                       .appliedToArgss(termParamss.map(_.params.map(p => Ident(p.symbol.termRef))))
 
                   case (_, ps) =>
-                    report.errorAndAbort(s"Unexpected lambda params: $ps")
+                    defect(s"Unexpected lambda params in the proxy method body $ps")
                 }
               )
             )
@@ -115,7 +157,7 @@ private object ServiceProxyMacros {
         else if (member.isValDef)
           Some(ValDef(member, Some(body)))
         else
-          report.errorAndAbort(s"Unexpected member tree: ${member.tree}")
+          defect(s"Unexpected member declaration: ${member.tree}")
       }
     }
 

@@ -56,6 +56,15 @@ object ServiceProxySpec extends ZIOSpecDefault {
           res  <- proxy.bar
         } yield assertTrue(res == "baz")
       },
+      test("trait with higher kinded type parameter") {
+        trait Foo[F[_]] { def bar: UIO[F[String]] }
+        val service: Foo[List] = new Foo[List] { def bar = ZIO.succeed("baz" :: Nil) }
+        for {
+          ref  <- ScopedRef.make(service)
+          proxy = ServiceProxy.generate(ref)
+          res  <- proxy.bar
+        } yield assertTrue(res == "baz" :: Nil)
+      },
       test("abstract class") {
         abstract class Foo { def bar: UIO[String] }
         val service: Foo = new Foo { def bar = ZIO.succeed("zio") }
@@ -195,7 +204,7 @@ object ServiceProxySpec extends ZIOSpecDefault {
           else
             assertTrue(res.isLeft)
       },
-      test("classes/traits requiring constructor parameter") {
+      test("classes/traits with non-empty primary constructor") {
         for {
           res <- typeCheck(
                    """
@@ -205,7 +214,7 @@ object ServiceProxySpec extends ZIOSpecDefault {
             ref  <- ScopedRef.make(service)
             proxy = ServiceProxy.generate(ref)
             res  <- proxy.bar
-          } yield Proxy.generate(ref)
+          } yield res
           """
                  )
         } yield
@@ -225,7 +234,7 @@ object ServiceProxySpec extends ZIOSpecDefault {
 
             val service: Foo = new Foo {
               type T = String
-              def bar: UIO[T] = ZIO.succeed("zio")
+              def bar: UIO[String] = ZIO.succeed("zio")
             }
             for {
               ref  <- ScopedRef.make(service)
