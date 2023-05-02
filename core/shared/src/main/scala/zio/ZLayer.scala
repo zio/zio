@@ -702,17 +702,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       self.map(environment => ZEnvironment(f(environment.get)))
 
     /**
-     * Returns a layer that constructs a version of the service output by this
-     * layer that can be dynamically reloaded with `ServiceReloader.reload`.
-     */
-    def reloadable(implicit
-      ev: Any <:< RIn,
-      tag: Tag[ROut],
-      trace: Trace
-    ): ZLayer[ServiceReloader, ServiceReloader.Error, ROut] =
-      ZLayer.fromZIO(ServiceReloader.register(self.asInstanceOf[ZLayer[Any, E, ROut]]))
-
-    /**
      * Returns a layer that produces a reloadable version of this service.
      */
     def reloadableAuto(schedule: Schedule[RIn, Any, Any])(implicit
