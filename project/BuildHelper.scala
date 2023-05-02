@@ -241,8 +241,14 @@ object BuildHelper {
     }
   )
 
+  def testSettings = Seq(
+    scalacOptions ++= {
+      if (scalaVersion.value != Scala3) Seq()
+      else Seq("-Xcheck-macros")
+    }
+  )
+
   def nativeSettings = Seq(
-    Test / test := (Test / compile).value,
     Test / fork := crossProjectPlatform.value == JVMPlatform // set fork to `true` on JVM to improve log readability, JS and Native need `false`
   )
 

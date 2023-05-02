@@ -37,7 +37,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testNative",
-  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
+  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test"
 )
 addCommandAlias(
   "testJVM",
@@ -258,6 +258,7 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
   )
+  .settings(testSettings)
   .enablePlugins(BuildInfoPlugin)
   .jvmConfigure(_.enablePlugins(JCStressPlugin))
   .jvmSettings(replSettings)
@@ -309,6 +310,7 @@ lazy val managedTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
   )
+  .settings(testSettings)
   .enablePlugins(BuildInfoPlugin)
   .jvmConfigure(_.enablePlugins(JCStressPlugin))
   .jvmSettings(replSettings)
@@ -343,6 +345,7 @@ lazy val macrosTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroExpansionSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner)
+  .settings(testSettings)
   .settings(buildInfoSettings("zio"))
   .settings(publish / skip := true)
   .enablePlugins(BuildInfoPlugin)
@@ -392,6 +395,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.AllLibraryJars
   )
+  .settings(testSettings)
   .enablePlugins(BuildInfoPlugin)
   .jvmConfigure(_.dependsOn(coreTests.jvm % "test->compile"))
   .jsSettings(
@@ -454,6 +458,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(buildInfoSettings("zio.test"))
   .settings(publish / skip := true)
   .settings(macroExpansionSettings)
+  .settings(testSettings)
   .enablePlugins(BuildInfoPlugin)
   .jsSettings(
     jsSettings,
@@ -503,6 +508,7 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .settings(
     publish / skip := true
   )
+  .settings(testSettings)
   .jsSettings(jsSettings)
   .enablePlugins(BuildInfoPlugin)
 
