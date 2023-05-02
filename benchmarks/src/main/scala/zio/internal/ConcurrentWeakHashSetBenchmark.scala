@@ -10,14 +10,7 @@ import java.util.concurrent.TimeUnit
 
 case class TestKey(name: Int)
 
-abstract class ConcurrentWeakHashSetBenchmarkBase {
-  protected val javaSet: util.Set[TestKey] = createWeakJavaSet()
-  private def createWeakJavaSet() =
-    Collections.synchronizedSet(Collections.newSetFromMap(new util.WeakHashMap[TestKey, java.lang.Boolean]()))
-
-  protected val zioSet: ConcurrentWeakHashSet[TestKey] = createWeakZioSet()
-  private def createWeakZioSet()                       = new ConcurrentWeakHashSet[TestKey]()
-}
+/* Single-thread */
 
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
@@ -25,10 +18,13 @@ abstract class ConcurrentWeakHashSetBenchmarkBase {
 @Measurement(iterations = 5, time = 1)
 @Fork(1)
 @State(Scope.Benchmark)
-private[this] class ConcurrentWeakHashSetAddBenchmark extends ConcurrentWeakHashSetBenchmarkBase {
+private[this] class ConcurrentWeakHashSetAddBenchmark {
+
+  private val javaSet = Collections.synchronizedSet(Collections.newSetFromMap(new util.WeakHashMap[TestKey, java.lang.Boolean]()))
+  private val springSet = new SpringConcurrentReferenceHashMap[TestKey, java.lang.Boolean](16, SpringConcurrentReferenceHashMap.ReferenceType.WEAK)
+  private val zioSet = new ConcurrentWeakHashSet[TestKey]()
 
   private var idx = -1
-  private val springSet = new SpringConcurrentReferenceHashMap[TestKey, java.lang.Boolean](16, SpringConcurrentReferenceHashMap.ReferenceType.WEAK)
 
   @Benchmark
   def javaAdd(blackhole: Blackhole): Unit = {
@@ -50,41 +46,6 @@ private[this] class ConcurrentWeakHashSetAddBenchmark extends ConcurrentWeakHash
 
 }
 
-//
-// Quick check up on what's the current state of 'createWeakJavaSet'
-//
-//@BenchmarkMode(Array(Mode.Throughput))
-//@OutputTimeUnit(TimeUnit.MICROSECONDS)
-//@Warmup(iterations = 5, time = 1)
-//@Measurement(iterations = 5, time = 1)
-//@Fork(1)
-//@State(Scope.Benchmark)
-//private class ConcurrentWeakHashSetRemoveBenchmark extends ConcurrentWeakHashSetBenchmarkBase {
-//
-//  private val collectionSize = 100
-//
-//  @Setup(Level.Iteration)
-//  def setup(): Unit =
-//    (0 to collectionSize).foreach(it => javaSet.add(new TestKey(it)))
-//
-//  @Benchmark
-//  def javaRemove(): Unit =
-//    (0 to collectionSize).foreach(it => javaSet.remove(new TestKey(it)))
-//
-//}
-//
-//@BenchmarkMode(Array(Mode.Throughput))
-//@OutputTimeUnit(TimeUnit.MICROSECONDS)
-//@Warmup(iterations = 5, time = 1)
-//@Measurement(iterations = 5, time = 1)
-//@Fork(1)
-//@State(Scope.Thread)
-//private class ConcurrentWeakHashSetIteratorBenchmark extends ConcurrentWeakHashSetBenchmarkBase {
-//
-//  (0 to 1_000).foreach(it => javaSet.add(new TestKey(it)))
-//
-//  @Benchmark
-//  def javaIterator(blackhole: Blackhole): Unit =
-//    javaSet.forEach(it => blackhole.consume(it))
-//
-//}
+/* Concurrent */
+
+// TODO

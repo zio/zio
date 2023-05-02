@@ -25,7 +25,7 @@ object ConcurrentWeakHashSet {
   ) extends WeakReference[V](element, queue)
 
   abstract class UpdateOperation[V, T](val options: Set[UpdateOperationOptions.UpdateOperationOption]) {
-    def execute(oldRef: Ref[V], oldValue: V, addValue: (V) => Unit): T
+    def execute(oldRef: Ref[V], oldElement: V, addElement: (V) => Unit): T
   }
 
   protected object UpdateOperationOptions extends Enumeration {
@@ -41,8 +41,8 @@ class ConcurrentWeakHashSet[V](
   concurrencyLevel: Int = 16
 ) {
 
-  private val shift                                      = calculateShift(concurrencyLevel, ConcurrentWeakHashSet.MaxConcurrencyLevel)
-  private var segments: Array[Segment]                   = Array()
+  private val shift                    = calculateShift(concurrencyLevel, ConcurrentWeakHashSet.MaxConcurrencyLevel)
+  private var segments: Array[Segment] = Array()
 
   {
     val size                     = 1 << shift
@@ -63,20 +63,40 @@ class ConcurrentWeakHashSet[V](
   def gc(): Unit =
     segments.foreach(segment => segment.restructureIfNecessary(false))
 
-  def add(value: V): Boolean =
+  def add(element: V): Boolean =
     update(
-      value,
+      element,
       new ConcurrentWeakHashSet.UpdateOperation[V, Boolean](
         Set(
           ConcurrentWeakHashSet.UpdateOperationOptions.RestructureBefore,
           ConcurrentWeakHashSet.UpdateOperationOptions.Resize
         )
       ) {
-        override def execute(oldReference: Ref[V], oldValue: V, addValue: V => Unit): Boolean =
-          if (oldValue == null) {
-            addValue(value)
+        override def execute(oldReference: Ref[V], oldElement: V, addElement: V => Unit): Boolean =
+          if (oldElement == null) {
+            addElement(element)
             true
           } else false // the same value is already in the set
+      }
+    )
+
+  def remove(element: V): Boolean =
+    update(
+      element,
+      new ConcurrentWeakHashSet.UpdateOperation[V, Boolean](
+        Set(
+          ConcurrentWeakHashSet.UpdateOperationOptions.RestructureAfter,
+          ConcurrentWeakHashSet.UpdateOperationOptions.SkipIfEmpty
+        )
+      ) {
+        override def execute(oldRef: Ref[V], oldElement: V, addElement: V => Unit): Boolean = {
+          if (oldElement != null) {
+            if (oldRef != null) {
+              oldRef.enqueue() // drop reference
+            }
+            true
+          } else false
+        }
       }
     )
 
@@ -150,8 +170,8 @@ class ConcurrentWeakHashSet[V](
       }
       lock()
       try {
-        val index        = getIndex(this.references, hash)
-        val head         = this.references(index)
+        val index = getIndex(this.references, hash)
+        val head  = this.references(index)
         val ref   = findInChain(head, element, hash)
         val entry = if (ref != null) ref.get() else null.asInstanceOf[V]
         update.execute(
@@ -173,7 +193,7 @@ class ConcurrentWeakHashSet[V](
 
     def restructureIfNecessary(allowResize: Boolean): Unit = {
       val currentCount = this.counter.get()
-      val needsResize = allowResize && (currentCount > 0 && currentCount >= this.resizeThreshold)
+      val needsResize  = allowResize && (currentCount > 0 && currentCount >= this.resizeThreshold)
       val ref          = this.queue.poll().asInstanceOf[Ref[V]]
       if (ref != null || needsResize) {
         this.restructure(allowResize, ref)
@@ -185,7 +205,7 @@ class ConcurrentWeakHashSet[V](
       try {
         val toPurge =
           if (firstRef != null) {
-            val refs = mutable.Set[Ref[V]]()
+            val refs       = mutable.Set[Ref[V]]()
             var refToPurge = firstRef
             while (refToPurge != null) {
               refs.add(refToPurge)
