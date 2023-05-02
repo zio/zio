@@ -115,4 +115,8 @@ private[zio] trait PlatformSpecific {
 
     () => ref.get()
   }
+
+  final def newConcurrentWeakHashSet[A](implicit unsafe: zio.Unsafe): ConcurrentWeakHashSet[A] =
+    new ConcurrentWeakHashSet[A]()
+
 }
