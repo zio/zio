@@ -105,6 +105,9 @@ private[zio] trait PlatformSpecific {
   final def newConcurrentWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
     Collections.synchronizedSet(newWeakSet[A]())
 
+  final def newConcurrentWeakHashSet[A](implicit unsafe: zio.Unsafe): ConcurrentWeakHashSet[A] =
+    new ConcurrentWeakHashSet[A]()
+
   final def newWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
     Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
 
@@ -115,8 +118,5 @@ private[zio] trait PlatformSpecific {
 
     () => ref.get()
   }
-
-  final def newConcurrentWeakHashSet[A](implicit unsafe: zio.Unsafe): ConcurrentWeakHashSet[A] =
-    new ConcurrentWeakHashSet[A]()
 
 }
