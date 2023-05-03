@@ -38,7 +38,7 @@ object ConcurrentWeakHashSetSpec extends ZIOBaseSpec {
       assertTrue(set.isEmpty)
     },
     test("Can remove non-existent elements") {
-      val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val set    = new ConcurrentWeakHashSet[Wrapper[Int]]()
       val result = set.remove(Wrapper(1))
       assertTrue(!result)
       assert(set.size())(equalTo(0))

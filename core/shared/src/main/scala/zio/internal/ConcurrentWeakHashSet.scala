@@ -89,26 +89,26 @@ class ConcurrentWeakHashSet[V](
           ConcurrentWeakHashSet.UpdateOperationOptions.SkipIfEmpty
         )
       ) {
-        override def execute(oldRef: Ref[V], oldElement: V, addElement: V => Unit): Boolean = {
+        override def execute(oldRef: Ref[V], oldElement: V, addElement: V => Unit): Boolean =
           if (oldElement != null) {
             if (oldRef != null) {
-              oldRef.enqueue() // drop reference
+              oldRef
+                .enqueue() // drop reference // TODO: enqueue() calls native method and terribly impacts the performance
             }
             true
           } else false
-        }
       }
     )
 
   override def iterator: Iterator[V] =
     new Iterator[V] {
-      private var segmentIndex: Int = 0
+      private var segmentIndex: Int   = 0
       private var referenceIndex: Int = 0
 
       private var references: Array[Ref[V]] = null
-      private var reference: Ref[V] = null
-      private var nextValue: V = null.asInstanceOf[V]
-      private var lastValue: V = null.asInstanceOf[V]
+      private var reference: Ref[V]         = null
+      private var nextValue: V              = null.asInstanceOf[V]
+      private var lastValue: V              = null.asInstanceOf[V]
 
       // Init
       moveToNextSegment()
@@ -126,13 +126,12 @@ class ConcurrentWeakHashSet[V](
         this.lastValue
       }
 
-      private def moveToNextIfNecessary(): Unit = {
+      private def moveToNextIfNecessary(): Unit =
         while (this.nextValue == null) {
           moveToNextReference()
           if (this.reference == null) return
           this.nextValue = this.reference.get()
         }
-      }
 
       private def moveToNextReference(): Unit = {
         if (this.reference != null) {
@@ -191,8 +190,8 @@ class ConcurrentWeakHashSet[V](
 
   private class Segment(initialSize: Int, var resizeThreshold: Int) extends ReentrantLock {
 
-    private val queue                = new ReferenceQueue[V]()
-    private val counter              = new AtomicInteger(0)
+    private val queue        = new ReferenceQueue[V]()
+    private val counter      = new AtomicInteger(0)
     @volatile var references = new Array[Ref[V]](initialSize)
 
     def getReference(value: V, hash: Int): Ref[V] = {
