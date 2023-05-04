@@ -86,6 +86,9 @@ class ConcurrentWeakHashSet[V](
       }
     )
 
+  def addAll(elements: Iterable[V]): Unit =
+    elements.foreach(add)
+
   def remove(element: V): Boolean =
     update(
       element,
