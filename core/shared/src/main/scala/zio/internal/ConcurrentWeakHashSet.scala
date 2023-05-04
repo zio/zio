@@ -41,6 +41,16 @@ object ConcurrentWeakHashSet {
     def execute(oldRef: Ref[V]): UpdateResults.UpdateResult
   }
 
+  private[internal] def calculateShift(minimumValue: Int, maximumValue: Int): Int = {
+    var shift = 0
+    var value = 1
+    while (value < minimumValue && value < maximumValue) {
+      value <<= 1
+      shift += 1
+    }
+    shift
+  }
+
 }
 
 class ConcurrentWeakHashSet[V](
@@ -49,13 +59,13 @@ class ConcurrentWeakHashSet[V](
   concurrencyLevel: Int = ConcurrentWeakHashSet.DefaultConcurrencyLevel
 ) extends mutable.Set[V] { self =>
 
-  private val shift                    = this.calculateShift(this.concurrencyLevel, ConcurrentWeakHashSet.MaxConcurrencyLevel)
+  private val shift                    = ConcurrentWeakHashSet.calculateShift(this.concurrencyLevel, ConcurrentWeakHashSet.MaxConcurrencyLevel)
   private var segments: Array[Segment] = _
 
   {
     val size                     = 1 << shift
     val roundedUpSegmentCapacity = ((this.initialCapacity + size - 1L) / size).toInt
-    val initialSize              = 1 << calculateShift(roundedUpSegmentCapacity, ConcurrentWeakHashSet.MaxSegmentSize)
+    val initialSize              = 1 << ConcurrentWeakHashSet.calculateShift(roundedUpSegmentCapacity, ConcurrentWeakHashSet.MaxSegmentSize)
     val segments                 = new Array[Segment](size)
     val resizeThreshold          = (initialSize * this.loadFactor).toInt
     segments.indices.foreach(i => segments(i) = new Segment(initialSize, resizeThreshold))
@@ -74,8 +84,11 @@ class ConcurrentWeakHashSet[V](
   override def iterator: Iterator[V] =
     new ConcurrentWeakHashSetIterator()
 
-  override def contains(elem: V): Boolean =
-    false
+  override def contains(element: V): Boolean = {
+    val reference = getReference(element)
+    val storedElement = if (element != null) reference.get() else null
+    storedElement != null
+  }
 
   def addAll(elements: Iterable[V]): Unit =
     elements.foreach(this.add)
@@ -85,7 +98,8 @@ class ConcurrentWeakHashSet[V](
     this
   }
 
-  override def add(element: V): Boolean =
+  override def add(element: V): Boolean = {
+    if (element == null) throw new IllegalArgumentException("ConcurrentWeakHashSet does not support null elements.")
     this.update(
       element,
       new ConcurrentWeakHashSet.UpdateOperation[V](
@@ -99,6 +113,7 @@ class ConcurrentWeakHashSet[V](
             ConcurrentWeakHashSet.UpdateResults.None
       }
     )
+  }
 
   override def subtractOne(element: V): ConcurrentWeakHashSet.this.type = {
     this.remove(element)
@@ -123,21 +138,6 @@ class ConcurrentWeakHashSet[V](
   override def clear(): Unit =
     this.segments.foreach(segment => segment.clear())
 
-  private def update(value: V, update: ConcurrentWeakHashSet.UpdateOperation[V]): Boolean = {
-    val hash = this.getHash(value)
-    this.getSegment(hash).update(hash, value, update)
-  }
-
-  private def calculateShift(minimumValue: Int, maximumValue: Int): Int = {
-    var shift = 0
-    var value = 1
-    while (value < minimumValue && value < maximumValue) {
-      value <<= 1
-      shift += 1
-    }
-    shift
-  }
-
   /* Enhanced hashing same as in standard ConcurrentHashMap (Wang/Jenkins algorithm) */
   private def getHash(value: V): Int = {
     var hash = if (value != null) value.hashCode() else 0
@@ -152,6 +152,18 @@ class ConcurrentWeakHashSet[V](
 
   private def getSegment(hash: Int): Segment =
     this.segments((hash >>> (32 - this.shift)) & (this.segments.length - 1))
+
+  private def getReference(value: V): Ref[V] = {
+    val hash    = this.getHash(value)
+    val segment = this.getSegment(hash)
+    segment.getReference(value, hash)
+  }
+
+  private def update(value: V, update: ConcurrentWeakHashSet.UpdateOperation[V]): Boolean = {
+    val hash = this.getHash(value)
+    val segment = this.getSegment(hash)
+    segment.update(hash, value, update)
+  }
 
   private class Segment(initialSize: Int, var resizeThreshold: Int) extends ReentrantLock {
 

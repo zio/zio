@@ -13,36 +13,43 @@ object ConcurrentWeakHashSetSpec extends ZIOBaseSpec {
     test("Empty set is empty") {
       assertTrue(new ConcurrentWeakHashSet[Wrapper[Int]]().isEmpty)
     },
-    test("Can add elements") {
+    test("Add should insert elements") {
       val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
       set.add(Wrapper(1))
-      set.add(Wrapper(2))
-      assert(set.size())(equalTo(2))
+      set.addOne(Wrapper(2))
+      set.addAll(List(Wrapper(3)))
+      assert(set.size())(equalTo(3))
     },
-    test("Resolves duplicates") {
+    test("Set resolves duplicated values") {
       val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
       set.add(Wrapper(1))
       set.add(Wrapper(1))
       assert(set.size())(equalTo(1))
     },
-    test("Adding an element makes it non-empty") {
+    test("Adding an element to set makes it non-empty") {
       val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
       set.add(Wrapper(42))
       assertTrue(!set.isEmpty)
     },
-    test("Can remove elements") {
+    test("Remove should delete reference from set") {
       val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
-      set.add(Wrapper(1))
+      set.addAll(List(Wrapper(1), Wrapper(2)))
       set.remove(Wrapper(1))
+      set.subtractOne(Wrapper(2))
       assert(set.size())(equalTo(0))
-      assertTrue(set.isEmpty)
     },
-    test("Can remove non-existent elements") {
+    test("Removing non-existent element should be allowed") {
       val set    = new ConcurrentWeakHashSet[Wrapper[Int]]()
       val result = set.remove(Wrapper(1))
       assertTrue(!result)
       assert(set.size())(equalTo(0))
       assertTrue(set.isEmpty)
+    },
+    test("Contains should return true if set stores reference to the element") {
+      val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val ref1 = Wrapper(1)
+      set.add(ref1)
+      assertTrue(set.contains(ref1))
     },
     test("Clearing the set makes it empty") {
       val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
@@ -72,7 +79,7 @@ object ConcurrentWeakHashSetSpec extends ZIOBaseSpec {
 
       assertTrue(!iterator.hasNext)
     },
-    test("Can GC dead refs") {
+    test("Dead references are removed from set") {
       val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
       set.add(Wrapper(1)) // dead ref
 
