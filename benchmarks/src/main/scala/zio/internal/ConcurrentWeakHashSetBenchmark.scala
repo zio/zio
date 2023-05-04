@@ -10,30 +10,6 @@ import java.util.concurrent.{ConcurrentLinkedQueue, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 import scala.jdk.CollectionConverters.{MapHasAsJava, SetHasAsJava}
 
-/*
-
-[info] Benchmark                                                       Mode  Cnt      Score      Error   Units
-[info] ConcurrentWeakHashSetAddBenchmark.javaAddConcurrent            thrpt    5   2001,207 Â´â”�Ĺ»  797,789  ops/ms
-[info] ConcurrentWeakHashSetAddBenchmark.javaAddSerial                thrpt    5   2634,564 Â´â”�Ĺ» 2582,044  ops/ms
-[info] ConcurrentWeakHashSetAddBenchmark.springAddConcurrent          thrpt    5   1954,243 Â´â”�Ĺ»  701,985  ops/ms
-[info] ConcurrentWeakHashSetAddBenchmark.springAddSerial              thrpt    5   1392,801 Â´â”�Ĺ»  392,302  ops/ms
-[info] ConcurrentWeakHashSetAddBenchmark.zioAddConcurrent             thrpt    5   2951,626 Â´â”�Ĺ» 4216,410  ops/ms
-[info] ConcurrentWeakHashSetAddBenchmark.zioAddSerial                 thrpt    5   1773,101 Â´â”�Ĺ» 2181,676  ops/ms
-[info] ConcurrentWeakHashSetIterateBenchmark.javaIterateConcurrent    thrpt    5    120,396 Â´â”�Ĺ»    3,849  ops/ms
-[info] ConcurrentWeakHashSetIterateBenchmark.javaIterateSerial        thrpt    5    143,472 Â´â”�Ĺ»    0,362  ops/ms
-[info] ConcurrentWeakHashSetIterateBenchmark.springIterateConcurrent  thrpt    5    997,141 Â´â”�Ĺ»   19,756  ops/ms
-[info] ConcurrentWeakHashSetIterateBenchmark.springIterateSerial      thrpt    5    197,030 Â´â”�Ĺ»    0,782  ops/ms
-[info] ConcurrentWeakHashSetIterateBenchmark.zioIterateConcurrent     thrpt    5    627,760 Â´â”�Ĺ»   14,633  ops/ms
-[info] ConcurrentWeakHashSetIterateBenchmark.zioIterateSerial         thrpt    5    124,203 Â´â”�Ĺ»    0,854  ops/ms
-[info] ConcurrentWeakHashSetRemoveBenchmark.javaRemoveConcurrent      thrpt    5   6236,632 Â´â”�Ĺ»   59,456  ops/ms
-[info] ConcurrentWeakHashSetRemoveBenchmark.javaRemoveSerial          thrpt    5  21387,491 Â´â”�Ĺ»  515,603  ops/ms
-[info] ConcurrentWeakHashSetRemoveBenchmark.springRemoveConcurrent    thrpt    5     67,402 Â´â”�Ĺ»   26,962  ops/ms
-[info] ConcurrentWeakHashSetRemoveBenchmark.springRemoveSerial        thrpt    5     63,111 Â´â”�Ĺ»    3,307  ops/ms
-[info] ConcurrentWeakHashSetRemoveBenchmark.zioRemoveConcurrent       thrpt    5  14710,350 Â´â”�Ĺ» 1909,388  ops/ms
-[info] ConcurrentWeakHashSetRemoveBenchmark.zioRemoveSerial           thrpt    5   9719,193 Â´â”�Ĺ» 2264,788  ops/ms
-
- */
-
 @State(Scope.Benchmark)
 private[this] class AddContext extends BaseContext {
   private var idx: AtomicInteger                   = _
