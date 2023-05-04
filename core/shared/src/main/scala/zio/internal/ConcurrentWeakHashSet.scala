@@ -47,32 +47,46 @@ class ConcurrentWeakHashSet[V](
   initialCapacity: Int = ConcurrentWeakHashSet.DefaultInitialCapacity,
   loadFactor: Float = ConcurrentWeakHashSet.DefaultLoadFactor,
   concurrencyLevel: Int = ConcurrentWeakHashSet.DefaultConcurrencyLevel
-) extends Iterable[V] { self =>
+) extends mutable.Set[V] { self =>
 
-  private val shift                    = calculateShift(concurrencyLevel, ConcurrentWeakHashSet.MaxConcurrencyLevel)
-  private var segments: Array[Segment] = Array()
+  private val shift                    = this.calculateShift(this.concurrencyLevel, ConcurrentWeakHashSet.MaxConcurrencyLevel)
+  private var segments: Array[Segment] = _
 
   {
     val size                     = 1 << shift
-    val roundedUpSegmentCapacity = ((initialCapacity + size - 1L) / size).toInt
+    val roundedUpSegmentCapacity = ((this.initialCapacity + size - 1L) / size).toInt
     val initialSize              = 1 << calculateShift(roundedUpSegmentCapacity, ConcurrentWeakHashSet.MaxSegmentSize)
     val segments                 = new Array[Segment](size)
-    val resizeThreshold          = (initialSize * loadFactor).toInt
+    val resizeThreshold          = (initialSize * this.loadFactor).toInt
     segments.indices.foreach(i => segments(i) = new Segment(initialSize, resizeThreshold))
     this.segments = segments
   }
 
-  override def isEmpty: Boolean =
-    segments.forall(segment => segment.size() == 0)
+  def gc(): Unit =
+    this.segments.foreach(segment => segment.restructureIfNecessary(false))
 
   override def size(): Int =
-    segments.map(segment => segment.size()).sum
+    this.segments.map(segment => segment.size()).sum
 
-  def gc(): Unit =
-    segments.foreach(segment => segment.restructureIfNecessary(false))
+  override def isEmpty: Boolean =
+    this.segments.forall(segment => segment.size() == 0)
 
-  def add(element: V): Boolean =
-    update(
+  override def iterator: Iterator[V] =
+    new ConcurrentWeakHashSetIterator()
+
+  override def contains(elem: V): Boolean =
+    false
+
+  def addAll(elements: Iterable[V]): Unit =
+    elements.foreach(this.add)
+
+  override def addOne(element: V): this.type = {
+    this.add(element)
+    this
+  }
+
+  override def add(element: V): Boolean =
+    this.update(
       element,
       new ConcurrentWeakHashSet.UpdateOperation[V](
         ConcurrentWeakHashSet.UpdateOptions.RestructureBefore,
@@ -86,11 +100,13 @@ class ConcurrentWeakHashSet[V](
       }
     )
 
-  def addAll(elements: Iterable[V]): Unit =
-    elements.foreach(add)
+  override def subtractOne(element: V): ConcurrentWeakHashSet.this.type = {
+    this.remove(element)
+    this
+  }
 
-  def remove(element: V): Boolean =
-    update(
+  override def remove(element: V): Boolean =
+    this.update(
       element,
       new ConcurrentWeakHashSet.UpdateOperation[V](
         ConcurrentWeakHashSet.UpdateOptions.RestructureAfter,
@@ -104,63 +120,8 @@ class ConcurrentWeakHashSet[V](
       }
     )
 
-  override def iterator: Iterator[V] =
-    new Iterator[V] {
-      private var segmentIndex: Int   = 0
-      private var referenceIndex: Int = 0
-
-      private var references: Array[Ref[V]] = _
-      private var reference: Ref[V]         = _
-      private var nextValue: V              = null.asInstanceOf[V]
-      private var lastValue: V              = null.asInstanceOf[V]
-
-      // Init
-      moveToNextSegment()
-
-      override def hasNext: Boolean = {
-        moveToNextIfNecessary()
-        nextValue != null
-      }
-
-      override def next(): V = {
-        moveToNextIfNecessary()
-        if (this.nextValue == null) throw new NoSuchElementException()
-        this.lastValue = this.nextValue
-        this.nextValue = null.asInstanceOf[V]
-        this.lastValue
-      }
-
-      private def moveToNextIfNecessary(): Unit =
-        while (this.nextValue == null) {
-          moveToNextReference()
-          if (this.reference == null) return
-          this.nextValue = this.reference.get()
-        }
-
-      private def moveToNextReference(): Unit = {
-        if (this.reference != null) {
-          this.reference = this.reference.nextRef
-        }
-        while (this.reference == null && this.references != null) {
-          if (this.referenceIndex >= this.references.length) {
-            moveToNextSegment()
-            this.referenceIndex = 0
-          } else {
-            this.reference = this.references(this.referenceIndex)
-            this.referenceIndex += 1
-          }
-        }
-      }
-
-      private def moveToNextSegment(): Unit = {
-        this.reference = null
-        this.references = null
-        if (this.segmentIndex < self.segments.length) {
-          this.references = self.segments(this.segmentIndex).references
-          this.segmentIndex += 1
-        }
-      }
-    }
+  override def clear(): Unit =
+    this.segments.foreach(segment => segment.clear())
 
   private def update(value: V, update: ConcurrentWeakHashSet.UpdateOperation[V]): Boolean = {
     val hash = this.getHash(value)
@@ -196,14 +157,14 @@ class ConcurrentWeakHashSet[V](
 
     private val queue        = new ReferenceQueue[V]()
     private val counter      = new AtomicInteger(0)
-    @volatile var references = new Array[Ref[V]](initialSize)
+    @volatile var references = new Array[Ref[V]](this.initialSize)
 
     def getReference(value: V, hash: Int): Ref[V] = {
       if (this.counter.get() == 0) return null
       val localReferences = this.references // read volatile
-      val index           = getIndex(localReferences, hash)
+      val index           = this.getIndex(localReferences, hash)
       val head            = localReferences(index)
-      findInChain(head, value, hash)
+      this.findInChain(head, value, hash)
     }
 
     private def getIndex(refs: Array[_], hash: Int): Int =
@@ -223,17 +184,17 @@ class ConcurrentWeakHashSet[V](
     def update[T](hash: Int, element: V, update: ConcurrentWeakHashSet.UpdateOperation[V]): Boolean = {
       val resize = update.options.contains(ConcurrentWeakHashSet.UpdateOptions.Resize)
       if (update.options.contains(ConcurrentWeakHashSet.UpdateOptions.RestructureBefore)) {
-        restructureIfNecessary(resize)
+        this.restructureIfNecessary(resize)
       }
       val skipIfEmpty = update.options.contains(ConcurrentWeakHashSet.UpdateOptions.SkipIfEmpty)
       if (skipIfEmpty && this.counter.get() == 0) {
         return update.execute(null) != ConcurrentWeakHashSet.UpdateResults.None
       }
-      lock()
+      this.lock()
       try {
-        val index     = getIndex(this.references, hash)
+        val index     = this.getIndex(this.references, hash)
         val head      = this.references(index)
-        val storedRef = findInChain(head, element, hash)
+        val storedRef = this.findInChain(head, element, hash)
         update.execute(storedRef) match {
           case ConcurrentWeakHashSet.UpdateResults.None =>
             false
@@ -262,9 +223,9 @@ class ConcurrentWeakHashSet[V](
             true
         }
       } finally {
-        unlock()
+        this.unlock()
         if (update.options.contains(ConcurrentWeakHashSet.UpdateOptions.RestructureAfter)) {
-          restructureIfNecessary(resize)
+          this.restructureIfNecessary(resize)
         }
       }
     }
@@ -279,7 +240,7 @@ class ConcurrentWeakHashSet[V](
     }
 
     private def restructure(allowResize: Boolean, firstRef: Ref[V]): Unit = {
-      lock()
+      this.lock()
       try {
         val toPurge =
           if (firstRef != null) {
@@ -312,7 +273,7 @@ class ConcurrentWeakHashSet[V](
             if (!toPurge.contains(currentRef)) {
               val currentRefValue = currentRef.get()
               if (currentRefValue != null) {
-                val currentRefIndex = getIndex(restructured, currentRef.hash)
+                val currentRefIndex = this.getIndex(restructured, currentRef.hash)
                 val previousRef     = restructured(currentRefIndex)
                 restructured(currentRefIndex) = new Ref(currentRef.hash, currentRefValue, this.queue, previousRef)
               }
@@ -328,13 +289,82 @@ class ConcurrentWeakHashSet[V](
 
         this.counter.set(0.max(countAfterRestructure))
       } finally {
-        unlock()
+        this.unlock()
+      }
+    }
+
+    def clear(): Unit = {
+      if (this.counter.get() == 0) return
+      this.lock()
+      try {
+        this.references = new Array[Ref[V]](this.initialSize)
+        this.resizeThreshold = (this.references.length * self.loadFactor).toInt
+        this.counter.set(0)
+      } finally {
+        this.unlock()
       }
     }
 
     def size(): Int =
       this.counter.get()
 
+  }
+
+  private class ConcurrentWeakHashSetIterator extends Iterator[V] {
+
+    private var segmentIndex: Int = 0
+    private var referenceIndex: Int = 0
+    private var references: Array[Ref[V]] = _
+    private var reference: Ref[V] = _
+    private var nextValue: V = null.asInstanceOf[V]
+    private var lastValue: V = null.asInstanceOf[V]
+
+    /* Initialize iterator state */
+    this.moveToNextSegment()
+
+    override def hasNext: Boolean = {
+      this.moveToNextIfNecessary()
+      this.nextValue != null
+    }
+
+    override def next(): V = {
+      moveToNextIfNecessary()
+      if (this.nextValue == null) throw new NoSuchElementException()
+      this.lastValue = this.nextValue
+      this.nextValue = null.asInstanceOf[V]
+      this.lastValue
+    }
+
+    private def moveToNextIfNecessary(): Unit =
+      while (this.nextValue == null) {
+        moveToNextReference()
+        if (this.reference == null) return
+        this.nextValue = this.reference.get()
+      }
+
+    private def moveToNextReference(): Unit = {
+      if (this.reference != null) {
+        this.reference = this.reference.nextRef
+      }
+      while (this.reference == null && this.references != null) {
+        if (this.referenceIndex >= this.references.length) {
+          this.moveToNextSegment()
+          this.referenceIndex = 0
+        } else {
+          this.reference = this.references(this.referenceIndex)
+          this.referenceIndex += 1
+        }
+      }
+    }
+
+    private def moveToNextSegment(): Unit = {
+      this.reference = null
+      this.references = null
+      if (this.segmentIndex < self.segments.length) {
+        this.references = self.segments(this.segmentIndex).references
+        this.segmentIndex += 1
+      }
+    }
   }
 
 }

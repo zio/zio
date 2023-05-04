@@ -44,6 +44,13 @@ object ConcurrentWeakHashSetSpec extends ZIOBaseSpec {
       assert(set.size())(equalTo(0))
       assertTrue(set.isEmpty)
     },
+    test("Clearing the set makes it empty") {
+      val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val ref1 = Wrapper(1)
+      set.add(ref1)
+      set.clear()
+      assertTrue(set.isEmpty)
+    },
     test("Can iterate over elements") {
       val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
 
