@@ -14,26 +14,30 @@ object ConcurrentWeakHashSetSpec extends ZIOBaseSpec {
       assertTrue(new ConcurrentWeakHashSet[Wrapper[Int]]().isEmpty)
     },
     test("Add should insert elements") {
-      val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
-      set.add(Wrapper(1))
-      set.addOne(Wrapper(2))
-      set.addAll(List(Wrapper(3)))
+      val set  = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val refs = List(Wrapper(1), Wrapper(2), Wrapper(3))
+      set.add(refs.head)
+      set.addOne(refs(1))
+      set.addAll(List(refs(2)))
       assert(set.size())(equalTo(3))
     },
     test("Set resolves duplicated values") {
       val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
-      set.add(Wrapper(1))
-      set.add(Wrapper(1))
+      val ref = Wrapper(1)
+      set.add(ref)
+      set.add(ref)
       assert(set.size())(equalTo(1))
     },
     test("Adding an element to set makes it non-empty") {
       val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
-      set.add(Wrapper(42))
+      val ref = Wrapper(Int.MaxValue)
+      set.add(ref)
       assertTrue(!set.isEmpty)
     },
     test("Remove should delete reference from set") {
-      val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
-      set.addAll(List(Wrapper(1), Wrapper(2)))
+      val set  = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val refs = List(Wrapper(1), Wrapper(2))
+      set.addAll(refs)
       set.remove(Wrapper(1))
       set.subtractOne(Wrapper(2))
       assert(set.size())(equalTo(0))
@@ -42,42 +46,26 @@ object ConcurrentWeakHashSetSpec extends ZIOBaseSpec {
       val set    = new ConcurrentWeakHashSet[Wrapper[Int]]()
       val result = set.remove(Wrapper(1))
       assertTrue(!result)
-      assert(set.size())(equalTo(0))
-      assertTrue(set.isEmpty)
     },
     test("Contains should return true if set stores reference to the element") {
-      val set  = new ConcurrentWeakHashSet[Wrapper[Int]]()
-      val ref1 = Wrapper(1)
-      set.add(ref1)
-      assertTrue(set.contains(ref1))
+      val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val ref = Wrapper(1)
+      set.add(ref)
+      assertTrue(set.contains(ref))
     },
     test("Clearing the set makes it empty") {
-      val set  = new ConcurrentWeakHashSet[Wrapper[Int]]()
-      val ref1 = Wrapper(1)
-      set.add(ref1)
+      val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val ref = Wrapper(1)
+      set.add(ref)
       set.clear()
       assertTrue(set.isEmpty)
     },
     test("Can iterate over elements") {
-      val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
-
-      val ref1 = Wrapper(1)
-      set.add(ref1)
-
-      val ref2 = Wrapper(2)
-      set.add(ref2)
-
-      val iterator = set.iterator
-
-      assertTrue(iterator.hasNext)
-      val first = iterator.next()
-      assertTrue(first.value == ref1.value || first.value == ref2.value)
-
-      assertTrue(iterator.hasNext)
-      val second = iterator.next()
-      assertTrue(second.value == ref1.value || second.value == ref2.value)
-
-      assertTrue(!iterator.hasNext)
+      val set  = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val refs = List(Wrapper(1), Wrapper(2))
+      set.addAll(refs)
+      val allValues = set.iterator.toList.sortBy(_.value)
+      assert(allValues)(equalTo(refs))
     },
     test("Dead references are removed from set") {
       val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
