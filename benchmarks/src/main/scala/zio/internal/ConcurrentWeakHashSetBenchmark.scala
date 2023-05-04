@@ -70,8 +70,8 @@ private[this] class ConcurrentWeakHashSetAddBenchmark {
 @State(Scope.Benchmark)
 private[this] class RemoveContext extends BaseContext {
   private val sampleSize             = 100_000
-  private var values: Array[TestKey] = (0 to this.sampleSize).map(it => TestKey(it)).toArray
-  private var idx: AtomicInteger     = new AtomicInteger(this.sampleSize + 1)
+  private val values: Array[TestKey] = (0 to this.sampleSize).map(it => TestKey(it)).toArray
+  private val idx: AtomicInteger     = new AtomicInteger(this.sampleSize + 1)
 
   @Setup(Level.Iteration)
   def setup(): Unit = {
@@ -138,7 +138,7 @@ private[this] class ConcurrentWeakHashSetRemoveBenchmark {
 @State(Scope.Benchmark)
 private[this] class IterateContext extends BaseContext {
   private val sampleSize             = 1000
-  private var values: Array[TestKey] = (0 to this.sampleSize).map(it => TestKey(it)).toArray
+  private val values: Array[TestKey] = (0 to this.sampleSize).map(it => TestKey(it)).toArray
 
   @Setup(Level.Iteration)
   def setup(): Unit = {
@@ -189,13 +189,13 @@ private[this] case class TestKey(name: Int)
 private[this] class BaseContext {
 
   protected var javaSetInitializer: Unit => util.Set[TestKey] = _
-  var javaSet: util.Set[TestKey]                         = _
+  var javaSet: util.Set[TestKey]                              = _
 
   protected var springMapInitializer: Unit => SpringConcurrentReferenceHashMap[TestKey, Boolean] = _
-  var springMap: SpringConcurrentReferenceHashMap[TestKey, Boolean] = _
+  var springMap: SpringConcurrentReferenceHashMap[TestKey, Boolean]                              = _
 
   protected var zioSetInitializer: Unit => ConcurrentWeakHashSet[TestKey] = _
-  var zioSet: ConcurrentWeakHashSet[TestKey] = _
+  var zioSet: ConcurrentWeakHashSet[TestKey]                              = _
 
   protected def setupBase(): Unit = {
     this.javaSet = this.javaSetInitializer(())
@@ -209,7 +209,9 @@ private[this] class BaseContext {
     set
   }
 
-  protected def createSpringMap(values: Array[TestKey] = new Array(0)): SpringConcurrentReferenceHashMap[TestKey, Boolean] = {
+  protected def createSpringMap(
+    values: Array[TestKey] = new Array(0)
+  ): SpringConcurrentReferenceHashMap[TestKey, Boolean] = {
     val map =
       new SpringConcurrentReferenceHashMap[TestKey, Boolean](16, SpringConcurrentReferenceHashMap.ReferenceType.WEAK)
     map.putAll(values.map(it => (it, true)).toMap.asJava)
