@@ -46,18 +46,22 @@ object ConcurrentWeakHashSetSpec extends ZIOBaseSpec {
     },
     test("Can iterate over elements") {
       val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
-      set.add(Wrapper(1))
-      set.add(Wrapper(2))
+
+      val ref1 = Wrapper(1)
+      set.add(ref1)
+
+      val ref2 = Wrapper(2)
+      set.add(ref2)
 
       val iterator = set.iterator
 
       assertTrue(iterator.hasNext)
       val first = iterator.next()
-      assertTrue(first.value == 1 || first.value == 2)
+      assertTrue(first.value == ref1.value || first.value == ref2.value)
 
       assertTrue(iterator.hasNext)
       val second = iterator.next()
-      assertTrue(second.value == 1 || second.value == 2)
+      assertTrue(second.value == ref1.value || second.value == ref2.value)
 
       assertTrue(!iterator.hasNext)
     },

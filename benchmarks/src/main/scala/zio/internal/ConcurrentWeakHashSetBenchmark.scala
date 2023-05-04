@@ -85,9 +85,11 @@ private[this] class RemoveContext extends BaseContext {
 
   private val sampleSize             = 100_000
   private var values: Array[TestKey] = _
+  private var idx: AtomicInteger = _
 
   @Setup(Level.Iteration)
   def setup(): Unit = {
+    this.idx = new AtomicInteger(sampleSize + 1)
     this.values = (0 to sampleSize).map(it => TestKey(it)).toArray
     this.javaSetInitializer = { _ =>
       val set = createJavaSet()
@@ -107,61 +109,59 @@ private[this] class RemoveContext extends BaseContext {
   }
 
   def appendNewKeyToJavaSet(): TestKey = {
-    val key = TestKey(Int.MaxValue)
+    val key = TestKey(idx.incrementAndGet())
     javaSet.add(key)
     key
   }
 
   def appendNewKeyToSpringMap(): TestKey = {
-    val key = TestKey(Int.MaxValue)
+    val key = TestKey(idx.incrementAndGet())
     springSet.put(key, true)
     key
   }
 
   def appendNewKeyToZioSet(): TestKey = {
-    val key = TestKey(Int.MaxValue)
+    val key = TestKey(idx.incrementAndGet())
     zioSet.add(key)
     key
   }
 }
 
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Warmup(iterations = 3, time = 1)
-@Measurement(iterations = 3, time = 1)
+@Warmup(iterations = 5, time = 5)
+@Measurement(iterations = 5, time = 5)
 @Fork(1)
 private[this] class ConcurrentWeakHashSetRemoveBenchmark {
 
-//  @Benchmark
-//  def javaRemoveSerial(ctx: RemoveContext, blackhole: Blackhole): Unit = {
-//    blackhole.consume(ctx.javaSet.remove(ctx.appendNewKeyToJavaSet()))
-//  }
+  @Benchmark
+  def javaRemoveSerial(ctx: RemoveContext, blackhole: Blackhole): Unit = {
+    blackhole.consume(ctx.javaSet.remove(ctx.appendNewKeyToJavaSet()))
+  }
 
-  @Threads(4)
+  @Threads(6)
   @Benchmark
   def javaRemoveConcurrent(ctx: RemoveContext, blackhole: Blackhole): Unit =
     blackhole.consume(ctx.javaSet.remove(ctx.appendNewKeyToJavaSet()))
 
-//  @Benchmark
-//  def springRemoveSerial(ctx: RemoveContext, blackhole: Blackhole): Unit =
-//    blackhole.consume(ctx.springSet.remove(ctx.appendNewKeyToSpringMap()))
+  @Benchmark
+  def springRemoveSerial(ctx: RemoveContext, blackhole: Blackhole): Unit =
+    blackhole.consume(ctx.springSet.remove(ctx.appendNewKeyToSpringMap()))
 
-  @Threads(4)
+  @Threads(6)
   @Benchmark
   def springRemoveConcurrent(ctx: RemoveContext, blackhole: Blackhole): Unit =
     blackhole.consume(ctx.springSet.remove(ctx.appendNewKeyToSpringMap()))
 
-//  @Benchmark
-//  def zioRemoveSerial(ctx: RemoveContext, blackhole: Blackhole): Unit =
-//    blackhole.consume(ctx.zioSet.remove(ctx.appendNewKeyToZioSet()))
+  @Benchmark
+  def zioRemoveSerial(ctx: RemoveContext, blackhole: Blackhole): Unit =
+    blackhole.consume(ctx.zioSet.remove(ctx.appendNewKeyToZioSet()))
 
-  @Threads(4)
+  @Threads(6)
   @Benchmark
   def zioRemoveConcurrent(ctx: RemoveContext, blackhole: Blackhole): Unit =
     blackhole.consume(ctx.zioSet.remove(ctx.appendNewKeyToZioSet()))
 
 }
-
-// Utils
 
 private[this] case class TestKey(name: Int)
 
