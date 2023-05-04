@@ -128,6 +128,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Optrak](https://optrak.com)
 * [Performance Immo](https://www.performance-immo.com/)
 * [Pirum](https://www.pirum.com/)
+* [PITS Global Data Recovery Services](https://www.pitsdatarecovery.net/)
 * [Playtika](https://www.playtika.com)
 * [PPC Samurai](https://ppcsamurai.com/)
 * [Prezi](https://prezi.com/)
