@@ -1,6 +1,6 @@
 package zio.internal
 
-import zio.internal.ConcurrentWeakHashSet.{AccessOption, Ref, UpdateOperation}
+import zio.internal.ConcurrentWeakHashSet.{AccessOption, RefNode, UpdateOperation}
 
 import java.lang.ref.WeakReference
 import scala.collection.mutable
@@ -19,23 +19,21 @@ private[zio] object ConcurrentWeakHashSet {
   /**
    * Reference node that links elements in the set with the same hash code
    *
-   * @param hash
-   *   hash code of the element
    * @param element
    *   value passed to the weak reference
-   * @param queue
+   * @param refQueue
    *   reference queue that will be used to track garbage collected elements
-   * @param nextRef
+   * @param nextRefNode
    *   next reference node in the chain
    * @tparam V
    *   type of the element
    */
-  protected class Ref[V](
-    val hash: Int,
-    element: V,
-    queue: ReferenceQueue[V],
-    var nextRef: Ref[V]
-  ) extends WeakReference[V](element, queue)
+  protected class RefNode[V](
+                              element: V,
+                              val hash: Int,
+                              refQueue: ReferenceQueue[V],
+                              var nextRefNode: RefNode[V]
+  ) extends WeakReference[V](element, refQueue)
 
   /**
    * Access options for the update operation.
@@ -307,7 +305,7 @@ private[zio] class ConcurrentWeakHashSet[V](
    * @see
    *   [[ConcurrentWeakHashSet.getSegment]]
    */
-  private def getReference(element: V): Ref[V] = {
+  private def getReference(element: V): RefNode[V] = {
     val hash    = this.getHash(element)
     val segment = this.getSegment(hash)
     segment.getReference(element, hash)
@@ -332,12 +330,12 @@ private[zio] class ConcurrentWeakHashSet[V](
 
     private val queue        = new ReferenceQueue[V]()
     private val counter      = new AtomicInteger(0)
-    @volatile var references = new Array[Ref[V]](this.initialSize)
+    @volatile var references = new Array[RefNode[V]](this.initialSize)
 
     /**
      * Get reference from this segment for given element and hash.
      */
-    def getReference(element: V, hash: Int): Ref[V] = {
+    def getReference(element: V, hash: Int): RefNode[V] = {
       if (this.counter.get() == 0) return null
       val localReferences = this.references // read volatile
       val index           = this.getIndex(localReferences, hash)
@@ -354,13 +352,14 @@ private[zio] class ConcurrentWeakHashSet[V](
     /**
      * Look for reference with given value in the chain.
      */
-    private def findInChain(headReference: Ref[V], element: V, hash: Int): Ref[V] = {
+    private def findInChain(headReference: RefNode[V], element: V, hash: Int): RefNode[V] = {
       var currentReference = headReference
       while (currentReference ne null) {
-        if (currentReference.hash == hash && currentReference.get() == element) {
+        val value = currentReference.get()
+        if (value != null && currentReference.hash == hash && value == element) {
           return currentReference
         }
-        currentReference = currentReference.nextRef
+        currentReference = currentReference.nextRefNode
       }
       null
     }
@@ -375,14 +374,14 @@ private[zio] class ConcurrentWeakHashSet[V](
         this.restructureIfNecessary(resize)
       }
       if (accessOptions.contains(AccessOption.SkipIfEmpty) && this.counter.get() == 0) {
-        return handleOperation(operation, element)
+        return handleOperation(operation, element, hash)
       }
       this.lock()
       try {
         val index     = this.getIndex(this.references, hash)
         val head      = this.references(index)
         val storedRef = this.findInChain(head, element, hash)
-        handleOperation(operation, element, storedRef, head, index)
+        handleOperation(operation, element, hash, storedRef, head, index)
       } finally {
         this.unlock()
         if (accessOptions.contains(AccessOption.RestructureAfter)) {
@@ -392,39 +391,39 @@ private[zio] class ConcurrentWeakHashSet[V](
     }
 
     private def handleOperation(
-      operation: UpdateOperation,
-      element: V,
-      oldRef: Ref[V] = null,
-      head: Ref[V] = null,
-      index: Int = -1
+                                 operation: UpdateOperation,
+                                 element: V,
+                                 hash: Int,
+                                 oldRef: RefNode[V] = null,
+                                 head: RefNode[V] = null,
+                                 index: Int = -1
     ): Boolean =
       operation match {
         case UpdateOperation.None =>
           false
         case UpdateOperation.AddElement =>
-          if (oldRef == null || oldRef.get() != element) {
-            val hash   = getHash(element)
-            val newRef = new Ref[V](hash, element, this.queue, head)
+          if (oldRef == null) {
+            val newRef = new RefNode[V](element, hash, this.queue, head)
             this.references(index) = newRef
             this.counter.incrementAndGet()
             true
           } else false
         case UpdateOperation.RemoveElement =>
           if (oldRef != null && oldRef.get() == element) {
-            var previousRef = null.asInstanceOf[Ref[V]]
+            var previousRef = null.asInstanceOf[RefNode[V]]
             var currentRef  = oldRef
             while (currentRef ne null) {
               if (currentRef.get() == element) {
                 this.counter.decrementAndGet()
                 if (previousRef == null) {
-                  this.references(index) = currentRef.nextRef // start chain with next ref
+                  this.references(index) = currentRef.nextRefNode // start chain with next ref
                 } else {
-                  previousRef.nextRef = currentRef.nextRef // skip current ref
+                  previousRef.nextRefNode = currentRef.nextRefNode // skip current ref
                 }
                 currentRef = null
               } else {
                 previousRef = currentRef
-                currentRef = currentRef.nextRef
+                currentRef = currentRef.nextRefNode
               }
             }
             true
@@ -437,7 +436,7 @@ private[zio] class ConcurrentWeakHashSet[V](
     def restructureIfNecessary(allowResize: Boolean): Unit = {
       val currentCount = this.counter.get()
       val needsResize  = allowResize && (currentCount > 0 && currentCount >= this.resizeThreshold)
-      val ref          = this.queue.poll().asInstanceOf[Ref[V]]
+      val ref          = this.queue.poll().asInstanceOf[RefNode[V]]
       if ((ref ne null) || needsResize) {
         this.restructure(allowResize, ref)
       }
@@ -448,19 +447,19 @@ private[zio] class ConcurrentWeakHashSet[V](
      * references. Given position in the segment is removed if reference was
      * queued for cleanup by GC or the reference is null or empty.
      */
-    private def restructure(allowResize: Boolean, firstRef: Ref[V]): Unit = {
+    private def restructure(allowResize: Boolean, headRef: RefNode[V]): Unit = {
       this.lock()
       try {
         val toPurge =
-          if (firstRef ne null) {
-            val refs       = mutable.Set[Ref[V]]()
-            var refToPurge = firstRef
+          if (headRef ne null) {
+            val refs       = mutable.Set[RefNode[V]]()
+            var refToPurge = headRef
             while (refToPurge ne null) {
               refs.add(refToPurge)
-              refToPurge = this.queue.poll().asInstanceOf[Ref[V]]
+              refToPurge = this.queue.poll().asInstanceOf[RefNode[V]]
             }
             refs
-          } else Set[Ref[V]]()
+          } else Set[RefNode[V]]()
 
         val countAfterRestructure = this.counter.get() - toPurge.size
         val needsResize           = (countAfterRestructure > 0 && countAfterRestructure >= this.resizeThreshold)
@@ -471,7 +470,7 @@ private[zio] class ConcurrentWeakHashSet[V](
           restructureSize = restructureSize << 1
         }
 
-        val restructured = if (resizing) new Array[Ref[V]](restructureSize) else this.references
+        val restructured = if (resizing) new Array[RefNode[V]](restructureSize) else this.references
 
         for (idx <- this.references.indices) {
           var currentRef = this.references(idx)
@@ -484,10 +483,10 @@ private[zio] class ConcurrentWeakHashSet[V](
               if (currentRefValue != null) {
                 val currentRefIndex = this.getIndex(restructured, currentRef.hash)
                 val previousRef     = restructured(currentRefIndex)
-                restructured(currentRefIndex) = new Ref(currentRef.hash, currentRefValue, this.queue, previousRef)
+                restructured(currentRefIndex) = new RefNode(currentRefValue, currentRef.hash, this.queue, previousRef)
               }
             }
-            currentRef = currentRef.nextRef
+            currentRef = currentRef.nextRefNode
           }
         }
 
@@ -509,7 +508,7 @@ private[zio] class ConcurrentWeakHashSet[V](
       if (this.counter.get() == 0) return
       this.lock()
       try {
-        this.references = new Array[Ref[V]](this.initialSize)
+        this.references = new Array[RefNode[V]](this.initialSize)
         this.resizeThreshold = (this.references.length * self.loadFactor).toInt
         this.counter.set(0)
       } finally {
@@ -532,8 +531,8 @@ private[zio] class ConcurrentWeakHashSet[V](
 
     private var segmentIndex: Int         = 0
     private var referenceIndex: Int       = 0
-    private var references: Array[Ref[V]] = _
-    private var reference: Ref[V]         = _
+    private var references: Array[RefNode[V]] = _
+    private var reference: RefNode[V]         = _
     private var nextElement: V            = null.asInstanceOf[V]
     private var lastElement: V            = null.asInstanceOf[V]
 
@@ -569,7 +568,7 @@ private[zio] class ConcurrentWeakHashSet[V](
      */
     private def moveToNextReference(): Unit = {
       if (this.reference ne null) {
-        this.reference = this.reference.nextRef
+        this.reference = this.reference.nextRefNode
       }
       while (this.reference == null && (this.references ne null)) {
         if (this.referenceIndex >= this.references.length) {
