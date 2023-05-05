@@ -411,7 +411,7 @@ private[zio] class ConcurrentWeakHashSet[V](
             true
           } else false
         case UpdateOperation.RemoveElement =>
-          if (matchedRef != null && matchedRef.get() != null) {
+          if (matchedRef != null) {
             var previousRef = null.asInstanceOf[RefNode[V]]
             var currentRef  = head
             while (currentRef ne null) {
@@ -449,21 +449,22 @@ private[zio] class ConcurrentWeakHashSet[V](
      * references. Given position in the segment is removed if reference was
      * queued for cleanup by GC or the reference is null or empty.
      */
-    private def restructure(allowResize: Boolean, headRef: RefNode[V]): Unit = {
+    private def restructure(allowResize: Boolean, polledRef: RefNode[V]): Unit = {
       this.lock()
       try {
         val toPurge =
-          if (headRef ne null) {
-            val refs       = mutable.Set[RefNode[V]]()
-            var refToPurge = headRef
+          if (polledRef ne null) {
+            val refs       = mutable.HashSet[RefNode[V]]()
+            var refToPurge = polledRef
             while (refToPurge ne null) {
               refs.add(refToPurge)
               refToPurge = this.queue.poll().asInstanceOf[RefNode[V]]
             }
             refs
-          } else Set[RefNode[V]]()
+          } else null
 
-        val countAfterRestructure = this.counter.get() - toPurge.size
+        val purgeSize             = if (toPurge ne null) toPurge.size else 0
+        val countAfterRestructure = this.counter.get() - purgeSize
         val needsResize           = (countAfterRestructure > 0 && countAfterRestructure >= this.resizeThreshold)
         var restructureSize       = this.references.length
         val resizing              = allowResize && needsResize && restructureSize < ConcurrentWeakHashSet.MaxSegmentSize
@@ -480,7 +481,7 @@ private[zio] class ConcurrentWeakHashSet[V](
             restructured(idx) = null
           }
           while (currentRef ne null) {
-            if (!toPurge.contains(currentRef)) {
+            if (toPurge == null || !toPurge.contains(currentRef)) {
               val currentRefValue = currentRef.get()
               if (currentRefValue != null) {
                 val currentRefIndex = this.getIndex(restructured, currentRef.hash)

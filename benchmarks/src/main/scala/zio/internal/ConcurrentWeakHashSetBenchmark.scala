@@ -33,8 +33,8 @@ private[this] class AddContext extends BaseContext {
 }
 
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Warmup(iterations = 5, time = 10)
-@Measurement(iterations = 5, time = 10)
+@Warmup(iterations = 2, time = 2)
+@Measurement(iterations = 2, time = 2)
 @Fork(1)
 private[this] class ConcurrentWeakHashSetAddBenchmark {
 
@@ -70,7 +70,7 @@ private[this] class ConcurrentWeakHashSetAddBenchmark {
 @State(Scope.Benchmark)
 private[this] class RemoveContext extends BaseContext {
   private val sampleSize             = 100_000
-  private val values: Array[TestKey] = (0 to this.sampleSize).map(it => TestKey(it)).toArray
+  private val values: Array[TestKey] = (0 to this.sampleSize).map(TestKey).toArray
   private val idx: AtomicInteger     = new AtomicInteger(this.sampleSize + 1)
 
   @Setup(Level.Iteration)
@@ -101,8 +101,8 @@ private[this] class RemoveContext extends BaseContext {
 }
 
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Warmup(iterations = 5, time = 10)
-@Measurement(iterations = 5, time = 10)
+@Warmup(iterations = 2, time = 2)
+@Measurement(iterations = 2, time = 2)
 @Fork(1)
 private[this] class ConcurrentWeakHashSetRemoveBenchmark {
 
@@ -138,7 +138,7 @@ private[this] class ConcurrentWeakHashSetRemoveBenchmark {
 @State(Scope.Benchmark)
 private[this] class IterateContext extends BaseContext {
   private val sampleSize             = 1000
-  private val values: Array[TestKey] = (0 to this.sampleSize).map(it => TestKey(it)).toArray
+  private val values: Array[TestKey] = (0 to this.sampleSize).map(TestKey).toArray
 
   @Setup(Level.Iteration)
   def setup(): Unit = {
@@ -150,8 +150,8 @@ private[this] class IterateContext extends BaseContext {
 }
 
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Warmup(iterations = 5, time = 10)
-@Measurement(iterations = 5, time = 10)
+@Warmup(iterations = 2, time = 2)
+@Measurement(iterations = 2, time = 2)
 @Fork(1)
 private[this] class ConcurrentWeakHashSetIterateBenchmark {
 
@@ -214,7 +214,7 @@ private[this] class BaseContext {
   ): SpringConcurrentReferenceHashMap[TestKey, Boolean] = {
     val map =
       new SpringConcurrentReferenceHashMap[TestKey, Boolean](16, SpringConcurrentReferenceHashMap.ReferenceType.WEAK)
-    map.putAll(values.map(it => (it, true)).toMap.asJava)
+    map.putAll(values.map((_, true)).toMap.asJava)
     map
   }
 
