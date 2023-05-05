@@ -306,8 +306,10 @@ private[zio] class ConcurrentWeakHashSet[V](
   /**
    * Remove all elements from the set.
    */
-  override def clear(): Unit =
-    this.segments.foreach(segment => segment.clear())
+  override def clear(): Unit = {
+    val iterator = this.segments.iterator
+    while (iterator.hasNext) iterator.next().clear()
+  }
 
   /**
    * Enhanced hashing same as in standard ConcurrentHashMap (Wang/Jenkins
