@@ -10,11 +10,11 @@ import java.util.concurrent.atomic.AtomicInteger
 
 private[zio] object ConcurrentWeakHashSet {
 
-  private[internal] val MaxConcurrencyLevel: Int     = 1 << 16
-  private[internal] val MaxSegmentSize: Int          = 1 << 30
-  private[internal] val DefaultInitialCapacity: Int  = 16
-  private[internal] val DefaultLoadFactor: Float     = 0.75f
-  private[internal] val DefaultConcurrencyLevel: Int = 16
+  private[internal] final val MaxConcurrencyLevel: Int     = 1 << 16
+  private[internal] final val MaxSegmentSize: Int          = 1 << 30
+  private[internal] final val DefaultInitialCapacity: Int  = 16
+  private[internal] final val DefaultLoadFactor: Float     = 0.75f
+  private[internal] final val DefaultConcurrencyLevel: Int = 16
 
   /**
    * Reference node that links elements in the set with the same hash code
@@ -40,38 +40,45 @@ private[zio] object ConcurrentWeakHashSet {
   /**
    * Access options for the update operation.
    */
-  protected object UpdateOptions extends Enumeration {
-    type UpdateOption = Value
-    val RestructureBefore, RestructureAfter, SkipIfEmpty, Resize = Value
+  protected sealed trait UpdateOption
+  protected object UpdateOption {
+    case object RestructureBefore extends UpdateOption
+    case object RestructureAfter  extends UpdateOption
+    case object SkipIfEmpty       extends UpdateOption
+    case object Resize            extends UpdateOption
   }
 
   /**
    * Supported results of the update operation.
    */
-  protected object UpdateResults extends Enumeration {
-    type UpdateResult = Value
-    val None, AddElement, RemoveElement = Value
+  protected sealed trait UpdateResult
+  protected object UpdateResult {
+    case object None          extends UpdateResult
+    case object AddElement    extends UpdateResult
+    case object RemoveElement extends UpdateResult
   }
 
   /**
    * Base class for all update operations.
    */
-  protected abstract class UpdateOperation[V](val options: UpdateOptions.UpdateOption*) {
-    def execute(oldRef: Ref[V]): UpdateResults.UpdateResult
+  protected abstract class UpdateOperation[V](val options: UpdateOption*) {
+    def execute(oldRef: Ref[V]): UpdateResult
   }
 
   /**
    * Calculates the shift for configuration parameters. The shift is used to
-   * calculate the size of the segments and the size of the reference array.
+   * calculate the size of the segments and the size of the reference array. The
+   * algorithm is based on Bit Twiddling Hacks for rounding up to the next
+   * highest power of 2.
    */
-  private[internal] def calculateShift(minimumValue: Int, maximumValue: Int): Int = {
-    var shift = 0
-    var value = 1
-    while (value < minimumValue && value < maximumValue) {
-      value <<= 1
-      shift += 1
-    }
-    shift
+  private[internal] def calculateShift(value: Int, maxValue: Int): Int = {
+    var v = value.min(maxValue) - 1
+    v |= v >> 1
+    v |= v >> 2
+    v |= v >> 4
+    v |= v >> 8
+    v |= v >> 16
+    31 - Integer.numberOfLeadingZeros(v + 1)
   }
 
 }
@@ -79,7 +86,7 @@ private[zio] object ConcurrentWeakHashSet {
 /**
  * A `Set` data type that uses weak references to store its elements in highly
  * concurrent environment. This is faster alternative to
- * `Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMapA,
+ * `Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMapA, *
  * java.lang.Boolean))`.
  *
  * Implementation of this class is a combination of some existing solutions:
@@ -95,43 +102,60 @@ private[zio] object ConcurrentWeakHashSet {
  * @param initialCapacity
  *   initial size of the set (default
  *   [[ConcurrentWeakHashSet.DefaultInitialCapacity]])
- * @param loadFactor
- *   load factor for the set that defines how fast it will grow (default
- *   [[ConcurrentWeakHashSet.DefaultLoadFactor]])
- * @param concurrencyLevel
- *   approximate number of threads that will access the set concurrently
- *   (default [[ConcurrentWeakHashSet.DefaultConcurrencyLevel]])
  * @tparam V
  *   type of the elements stored in the set
  */
 private[zio] class ConcurrentWeakHashSet[V](
-  initialCapacity: Int = ConcurrentWeakHashSet.DefaultInitialCapacity,
-  loadFactor: Float = ConcurrentWeakHashSet.DefaultLoadFactor,
-  concurrencyLevel: Int = ConcurrentWeakHashSet.DefaultConcurrencyLevel
+  initialCapacity: Int = ConcurrentWeakHashSet.DefaultInitialCapacity
 ) extends mutable.Set[V] { self =>
 
   private val shift =
     ConcurrentWeakHashSet.calculateShift(this.concurrencyLevel, ConcurrentWeakHashSet.MaxConcurrencyLevel)
-  private var segments: Array[Segment] = _
-
-  {
+  private val segments: Array[Segment] = {
     val size                     = 1 << shift
     val roundedUpSegmentCapacity = ((this.initialCapacity + size - 1L) / size).toInt
     val initialSize =
       1 << ConcurrentWeakHashSet.calculateShift(roundedUpSegmentCapacity, ConcurrentWeakHashSet.MaxSegmentSize)
     val segments        = new Array[Segment](size)
     val resizeThreshold = (initialSize * this.loadFactor).toInt
-    segments.indices.foreach(i => segments(i) = new Segment(initialSize, resizeThreshold))
-    this.segments = segments
+    var idx             = 0
+    while (idx < segments.length) {
+      segments(idx) = new Segment(initialSize, resizeThreshold)
+      idx += 1
+    }
+    segments
   }
+
+  /**
+   * You can override this method to provide custom load factor for the set.
+   *
+   * @return
+   *   load factor for the set that defines how fast it will grow (default
+   *   [[ConcurrentWeakHashSet.DefaultLoadFactor]])
+   */
+  protected def loadFactor: Float =
+    ConcurrentWeakHashSet.DefaultLoadFactor
+
+  /**
+   * You can override this method to provide custom concurrency level for the
+   * set.
+   *
+   * @return
+   *   approximate number of threads that will access the set concurrently
+   *   (default [[ConcurrentWeakHashSet.DefaultConcurrencyLevel]])
+   */
+  protected def concurrencyLevel: Int =
+    ConcurrentWeakHashSet.DefaultConcurrencyLevel
 
   /**
    * Enforce cleanup of dead references in the set. By default cleanup is
    * performed automatically when the set is modified, but some operations (like
    * e.g. `size`) do not modify the set and therefore do not trigger cleanup.
    */
-  def gc(): Unit =
-    this.segments.foreach(segment => segment.restructureIfNecessary(false))
+  def gc(): Unit = {
+    val iterator = this.segments.iterator
+    while (iterator.hasNext) iterator.next().restructureIfNecessary(false)
+  }
 
   /**
    * Get estimated number of elements in the set. This method does not perform
@@ -141,8 +165,12 @@ private[zio] class ConcurrentWeakHashSet[V](
    * @return
    *   estimated number of elements in the set
    */
-  override def size(): Int =
-    this.segments.map(segment => segment.size()).sum
+  override def size(): Int = {
+    var sum      = 0
+    val iterator = this.segments.iterator
+    while (iterator.hasNext) sum += iterator.next().size()
+    sum
+  }
 
   /**
    * Check if the set is empty.
@@ -152,8 +180,11 @@ private[zio] class ConcurrentWeakHashSet[V](
    * @see
    *   [[ConcurrentWeakHashSet.size]]
    */
-  override def isEmpty: Boolean =
-    this.segments.forall(segment => segment.size() == 0)
+  override def isEmpty: Boolean = {
+    val iterator = this.segments.iterator
+    while (iterator.hasNext) if (iterator.next().size() > 0) return false
+    true
+  }
 
   /**
    * @return
@@ -170,25 +201,28 @@ private[zio] class ConcurrentWeakHashSet[V](
    * @return
    *   `true` if the set contains the specified element, `false` otherwise
    */
-  override def contains(element: V): Boolean = {
+  override def contains(element: V): Boolean =
     if (element == null) false
-    val reference     = getReference(element)
-    val storedElement = if (element != null) reference.get() else null
-    storedElement != null
-  }
+    else {
+      val reference     = getReference(element)
+      val storedElement = if (reference ne null) reference.get() else null
+      storedElement != null
+    }
 
   /**
    * Add given elements to the set.
    *
-   * @param element
+   * @param elements
    *   elements to add
    * @return
    *   `true` if the element was added, `false` otherwise
    * @see
    *   [[ConcurrentWeakHashSet.add]]
    */
-  def addAll(elements: Iterable[V]): Unit =
-    elements.foreach(this.add)
+  def addAll(elements: Iterable[V]): Unit = {
+    val iterator = elements.iterator
+    while (iterator.hasNext) this.add(iterator.next())
+  }
 
   /**
    * Add given element to the set.
@@ -219,14 +253,14 @@ private[zio] class ConcurrentWeakHashSet[V](
     this.update(
       element,
       new ConcurrentWeakHashSet.UpdateOperation[V](
-        ConcurrentWeakHashSet.UpdateOptions.RestructureBefore,
-        ConcurrentWeakHashSet.UpdateOptions.Resize
+        ConcurrentWeakHashSet.UpdateOption.RestructureBefore,
+        ConcurrentWeakHashSet.UpdateOption.Resize
       ) {
-        override def execute(oldRef: Ref[V]): ConcurrentWeakHashSet.UpdateResults.UpdateResult =
+        override def execute(oldRef: Ref[V]): ConcurrentWeakHashSet.UpdateResult =
           if (oldRef == null || oldRef.get() != element)
-            ConcurrentWeakHashSet.UpdateResults.AddElement
+            ConcurrentWeakHashSet.UpdateResult.AddElement
           else
-            ConcurrentWeakHashSet.UpdateResults.None
+            ConcurrentWeakHashSet.UpdateResult.None
       }
     )
   }
@@ -258,14 +292,14 @@ private[zio] class ConcurrentWeakHashSet[V](
     this.update(
       element,
       new ConcurrentWeakHashSet.UpdateOperation[V](
-        ConcurrentWeakHashSet.UpdateOptions.RestructureAfter,
-        ConcurrentWeakHashSet.UpdateOptions.SkipIfEmpty
+        ConcurrentWeakHashSet.UpdateOption.RestructureAfter,
+        ConcurrentWeakHashSet.UpdateOption.SkipIfEmpty
       ) {
-        override def execute(oldRef: Ref[V]): ConcurrentWeakHashSet.UpdateResults.UpdateResult =
+        override def execute(oldRef: Ref[V]): ConcurrentWeakHashSet.UpdateResult =
           if (oldRef != null && oldRef.get() == element)
-            ConcurrentWeakHashSet.UpdateResults.RemoveElement
+            ConcurrentWeakHashSet.UpdateResult.RemoveElement
           else
-            ConcurrentWeakHashSet.UpdateResults.None
+            ConcurrentWeakHashSet.UpdateResult.None
       }
     )
 
@@ -350,7 +384,7 @@ private[zio] class ConcurrentWeakHashSet[V](
      */
     private def findInChain(headReference: Ref[V], element: V, hash: Int): Ref[V] = {
       var currentReference = headReference
-      while (currentReference != null) {
+      while (currentReference ne null) {
         if (currentReference.hash == hash && currentReference.get() == element) {
           return currentReference
         }
@@ -364,13 +398,13 @@ private[zio] class ConcurrentWeakHashSet[V](
      * set.
      */
     def update(hash: Int, element: V, update: ConcurrentWeakHashSet.UpdateOperation[V]): Boolean = {
-      val resize = update.options.contains(ConcurrentWeakHashSet.UpdateOptions.Resize)
-      if (update.options.contains(ConcurrentWeakHashSet.UpdateOptions.RestructureBefore)) {
+      val resize = update.options.contains(ConcurrentWeakHashSet.UpdateOption.Resize)
+      if (update.options.contains(ConcurrentWeakHashSet.UpdateOption.RestructureBefore)) {
         this.restructureIfNecessary(resize)
       }
-      val skipIfEmpty = update.options.contains(ConcurrentWeakHashSet.UpdateOptions.SkipIfEmpty)
+      val skipIfEmpty = update.options.contains(ConcurrentWeakHashSet.UpdateOption.SkipIfEmpty)
       if (skipIfEmpty && this.counter.get() == 0) {
-        return update.execute(null) != ConcurrentWeakHashSet.UpdateResults.None
+        return update.execute(null) ne ConcurrentWeakHashSet.UpdateResult.None
       }
       this.lock()
       try {
@@ -378,17 +412,17 @@ private[zio] class ConcurrentWeakHashSet[V](
         val head      = this.references(index)
         val storedRef = this.findInChain(head, element, hash)
         update.execute(storedRef) match {
-          case ConcurrentWeakHashSet.UpdateResults.None =>
+          case ConcurrentWeakHashSet.UpdateResult.None =>
             false
-          case ConcurrentWeakHashSet.UpdateResults.AddElement =>
+          case ConcurrentWeakHashSet.UpdateResult.AddElement =>
             val newRef = new Ref[V](hash, element, this.queue, head)
             this.references(index) = newRef
             this.counter.incrementAndGet()
             true
-          case ConcurrentWeakHashSet.UpdateResults.RemoveElement =>
+          case ConcurrentWeakHashSet.UpdateResult.RemoveElement =>
             var previousRef = null.asInstanceOf[Ref[V]]
             var currentRef  = storedRef
-            while (currentRef != null) {
+            while (currentRef ne null) {
               if (currentRef.get() == element) {
                 this.counter.decrementAndGet()
                 if (previousRef == null) {
@@ -406,7 +440,7 @@ private[zio] class ConcurrentWeakHashSet[V](
         }
       } finally {
         this.unlock()
-        if (update.options.contains(ConcurrentWeakHashSet.UpdateOptions.RestructureAfter)) {
+        if (update.options.contains(ConcurrentWeakHashSet.UpdateOption.RestructureAfter)) {
           this.restructureIfNecessary(resize)
         }
       }
@@ -419,7 +453,7 @@ private[zio] class ConcurrentWeakHashSet[V](
       val currentCount = this.counter.get()
       val needsResize  = allowResize && (currentCount > 0 && currentCount >= this.resizeThreshold)
       val ref          = this.queue.poll().asInstanceOf[Ref[V]]
-      if (ref != null || needsResize) {
+      if ((ref ne null) || needsResize) {
         this.restructure(allowResize, ref)
       }
     }
@@ -433,10 +467,10 @@ private[zio] class ConcurrentWeakHashSet[V](
       this.lock()
       try {
         val toPurge =
-          if (firstRef != null) {
+          if (firstRef ne null) {
             val refs       = mutable.Set[Ref[V]]()
             var refToPurge = firstRef
-            while (refToPurge != null) {
+            while (refToPurge ne null) {
               refs.add(refToPurge)
               refToPurge = this.queue.poll().asInstanceOf[Ref[V]]
             }
@@ -459,7 +493,7 @@ private[zio] class ConcurrentWeakHashSet[V](
           if (!resizing) {
             restructured(idx) = null
           }
-          while (currentRef != null) {
+          while (currentRef ne null) {
             if (!toPurge.contains(currentRef)) {
               val currentRefValue = currentRef.get()
               if (currentRefValue != null) {
@@ -549,10 +583,10 @@ private[zio] class ConcurrentWeakHashSet[V](
      * reference/segment.
      */
     private def moveToNextReference(): Unit = {
-      if (this.reference != null) {
+      if (this.reference ne null) {
         this.reference = this.reference.nextRef
       }
-      while (this.reference == null && this.references != null) {
+      while (this.reference == null && (this.references ne null)) {
         if (this.referenceIndex >= this.references.length) {
           this.moveToNextSegment()
           this.referenceIndex = 0
