@@ -1,11 +1,12 @@
 package zio.internal.macros
 
-import zio.ScopedRef
+import zio.{ServiceProxy, ScopedRef}
 import scala.reflect.macros.blackbox
 
 class ServiceProxyMacros(val c: blackbox.Context) {
   import c.universe._
-  def makeImpl[A: c.WeakTypeTag](service: c.Expr[ScopedRef[A]]): c.Expr[A] = {
+
+  def makeImpl[A: c.WeakTypeTag]: c.Expr[ServiceProxy[A]] = {
     val tpe = c.weakTypeOf[A]
 
     def unsupported(reason: String): Nothing =
@@ -45,6 +46,7 @@ class ServiceProxyMacros(val c: blackbox.Context) {
     }
 
     val resultType = appliedType(tpe.typeConstructor, tpe.typeArgs)
+
     val forwarders = tpe.members.view
       .filter(m => m.isTerm && (m.asMethod.returnType <:< c.weakTypeOf[zio.ZIO[_, _, _]]))
       .map { sym =>
@@ -60,7 +62,7 @@ class ServiceProxyMacros(val c: blackbox.Context) {
 
         val args = m.paramLists.map(_.map(p => p.name.toTermName))
 
-        val rhs = q"${service.tree}.get.flatMap(_.${sym.name.toTermName}(...$args))"
+        val rhs = q"_$$service.get.flatMap(_.${sym.name.toTermName}(...$args))"
         sym.asTerm match {
           case t if t.isVal =>
             q"override val ${sym.name.toTermName}: ${m.finalResultType} = $rhs"
@@ -72,7 +74,14 @@ class ServiceProxyMacros(val c: blackbox.Context) {
       }
       .toList
 
-    c.Expr(q"new $resultType { ..$forwarders }")
+    c.Expr[ServiceProxy[A]](
+      q"""
+        new _root_.zio.ServiceProxy[$resultType] {
+          def generate(_$$service: _root_.zio.ScopedRef[$resultType]): $resultType =
+            new $resultType { ..$forwarders }
+        }
+      """
+    )
   }
 
 }
