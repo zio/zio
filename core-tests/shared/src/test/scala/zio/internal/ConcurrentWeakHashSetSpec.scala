@@ -3,11 +3,17 @@ package zio.internal
 import zio.test._
 import zio.ZIOBaseSpec
 import zio.test.Assertion.equalTo
+
+import java.util.concurrent.Executors
 import zio.test.TestAspect.flaky
+
+import java.util.concurrent.{ConcurrentLinkedQueue, CountDownLatch}
 
 object ConcurrentWeakHashSetSpec extends ZIOBaseSpec {
 
-  private final case class Wrapper[A](value: A)
+  final case class Wrapper[A](value: A) {
+    override def toString: String = value.toString
+  }
 
   def spec = suite("ConcurrentWeakHashSetSpec")(
     test("Empty set is empty") {
@@ -66,6 +72,51 @@ object ConcurrentWeakHashSetSpec extends ZIOBaseSpec {
       set.addAll(refs)
       val allValues = set.iterator.toList.sortBy(_.value)
       assert(allValues)(equalTo(refs))
+    },
+    test("Removing element with the same index from chain deletes only matched reference") {
+      val refs         = (0 to 8).map(Wrapper(_))
+      val corruptedSet = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      corruptedSet.addAll(refs)
+      println(corruptedSet.remove(Wrapper(4))) // matched index (calculated from hashcode) is the same for 4 and 8
+      assert(corruptedSet.toList.map(_.value).sorted)(equalTo(List(0, 1, 2, 3, 5, 6, 7, 8)))
+    },
+    test("Check if set is thread-safe with concurrent race condition between add & remove") {
+      val sampleSize      = 1_000_000
+      val executorService = Executors.newFixedThreadPool(2)
+      val refs            = new ConcurrentLinkedQueue[Wrapper[Int]]()
+      val set             = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val lock            = new CountDownLatch(1)
+
+      executorService.submit(new Runnable {
+        override def run(): Unit =
+          (0 to sampleSize).foreach { idx =>
+            val element = Wrapper(idx)
+            refs.add(element)
+            set.add(element)
+          }
+      })
+
+      // remove half of the elements with even indices
+      // it'll iterate multiple times over the set (often locking segments), because removing is faster than adding
+      executorService.submit(new Runnable {
+        override def run(): Unit = {
+          var removedCount = 0
+          while (removedCount < (sampleSize / 2) + 1) {
+            for (idx <- 0 to sampleSize if idx % 2 == 0) {
+              if (set.remove(Wrapper(idx))) removedCount += 1
+            }
+          }
+          lock.countDown()
+        }
+      })
+
+      lock.await() // await for the removal to finish
+      assert(set.size())(equalTo((sampleSize / 2) + 1))
+
+      // make sure only odd elements are left from full range
+      val expected = (0 to sampleSize).filter(_ % 2 == 1).map(Wrapper(_)).toList
+      val actual   = set.iterator.toList.sortBy(_.value)
+      assert(actual)(equalTo(expected))
     },
     test("Dead references are removed from set") {
       val set = new ConcurrentWeakHashSet[Wrapper[Int]]()

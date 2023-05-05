@@ -29,11 +29,13 @@ private[zio] object ConcurrentWeakHashSet {
    *   type of the element
    */
   protected class RefNode[V](
-                              element: V,
-                              val hash: Int,
-                              refQueue: ReferenceQueue[V],
-                              var nextRefNode: RefNode[V]
-  ) extends WeakReference[V](element, refQueue)
+    element: V,
+    val hash: Int,
+    refQueue: ReferenceQueue[V],
+    var nextRefNode: RefNode[V]
+  ) extends WeakReference[V](element, refQueue) {
+    override def toString: String = s"($hash, $element) -> $nextRefNode"
+  }
 
   /**
    * Access options for the update operation.
@@ -378,10 +380,10 @@ private[zio] class ConcurrentWeakHashSet[V](
       }
       this.lock()
       try {
-        val index     = this.getIndex(this.references, hash)
-        val head      = this.references(index)
-        val storedRef = this.findInChain(head, element, hash)
-        handleOperation(operation, element, hash, storedRef, head, index)
+        val index      = this.getIndex(this.references, hash)
+        val head       = this.references(index)
+        val matchedRef = this.findInChain(head, element, hash)
+        handleOperation(operation, element, hash, matchedRef, head, index)
       } finally {
         this.unlock()
         if (accessOptions.contains(AccessOption.RestructureAfter)) {
@@ -391,35 +393,35 @@ private[zio] class ConcurrentWeakHashSet[V](
     }
 
     private def handleOperation(
-                                 operation: UpdateOperation,
-                                 element: V,
-                                 hash: Int,
-                                 oldRef: RefNode[V] = null,
-                                 head: RefNode[V] = null,
-                                 index: Int = -1
+      operation: UpdateOperation,
+      element: V,
+      hash: Int,
+      matchedRef: RefNode[V] = null,
+      head: RefNode[V] = null,
+      index: Int = -1
     ): Boolean =
       operation match {
         case UpdateOperation.None =>
           false
         case UpdateOperation.AddElement =>
-          if (oldRef == null) {
+          if (matchedRef == null) {
             val newRef = new RefNode[V](element, hash, this.queue, head)
             this.references(index) = newRef
             this.counter.incrementAndGet()
             true
           } else false
         case UpdateOperation.RemoveElement =>
-          if (oldRef != null && oldRef.get() == element) {
+          if (matchedRef != null && matchedRef.get() != null) {
             var previousRef = null.asInstanceOf[RefNode[V]]
-            var currentRef  = oldRef
+            var currentRef  = head
             while (currentRef ne null) {
-              if (currentRef.get() == element) {
-                this.counter.decrementAndGet()
+              if (currentRef == matchedRef) {
                 if (previousRef == null) {
                   this.references(index) = currentRef.nextRefNode // start chain with next ref
                 } else {
                   previousRef.nextRefNode = currentRef.nextRefNode // skip current ref
                 }
+                this.counter.decrementAndGet()
                 currentRef = null
               } else {
                 previousRef = currentRef
@@ -529,12 +531,12 @@ private[zio] class ConcurrentWeakHashSet[V](
    */
   private class ConcurrentWeakHashSetIterator extends Iterator[V] {
 
-    private var segmentIndex: Int         = 0
-    private var referenceIndex: Int       = 0
+    private var segmentIndex: Int             = 0
+    private var referenceIndex: Int           = 0
     private var references: Array[RefNode[V]] = _
     private var reference: RefNode[V]         = _
-    private var nextElement: V            = null.asInstanceOf[V]
-    private var lastElement: V            = null.asInstanceOf[V]
+    private var nextElement: V                = null.asInstanceOf[V]
+    private var lastElement: V                = null.asInstanceOf[V]
 
     /* Initialize iterator state */
     this.moveToNextSegment()
