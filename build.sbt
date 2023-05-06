@@ -2,6 +2,7 @@ import BuildHelper._
 import MimaSettings.mimaSettings
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 import sbt.Keys
+import org.scalajs.jsenv.nodejs.*
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
@@ -270,7 +271,8 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       } else {
         List("-P:scalajs:nowarnGlobalExecutionContext")
       }
-    }
+    },
+    jsEnv := new NodeJSEnv(NodeJSEnv.Config().withArgs(List("--expose-gc")))
   )
   .nativeSettings(nativeSettings)
 

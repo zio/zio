@@ -16,10 +16,8 @@
 
 package zio.internal
 
-import zio.stacktracer.TracingImplicits.disableAutoTrace
-
 import java.lang.ref.WeakReference
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.{ConcurrentHashMap, ConcurrentSkipListSet}
 import java.util.{Collections, WeakHashMap, Map => JMap, Set => JSet}
 import scala.collection.mutable
 
@@ -40,8 +38,7 @@ private[zio] trait PlatformSpecific {
    * never fails even if adding the handler fails.
    */
   final def addSignalHandler(signal: String, action: () => Unit)(implicit unsafe: zio.Unsafe): Unit = {
-    import sun.misc.Signal
-    import sun.misc.SignalHandler
+    import sun.misc.{Signal, SignalHandler}
 
     final case class ZIOSignalHandler(action: () => Unit) extends SignalHandler {
       private[zio] var signalHandler: SignalHandler = null
@@ -103,8 +100,10 @@ private[zio] trait PlatformSpecific {
   final def newConcurrentMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] =
     new ConcurrentHashMap[A, B]()
 
-  final def newConcurrentWeakSet[A]()(implicit unsafe: zio.Unsafe): mutable.Set[A] =
-    new ConcurrentWeakHashSet[A]()
+  final def newConcurrentWeakSet[A <: AnyRef]()(implicit unsafe: zio.Unsafe): mutable.Set[A] =
+    new JVMConcurrentWeakSetAdapter[A](
+      new ConcurrentSkipListSet[JVMConcurrentWeakSetAdapter.SetElement[A]]()
+    )
 
   final def newWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
     Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())

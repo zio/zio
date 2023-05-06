@@ -4,11 +4,14 @@ import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 import org.springframework.util.{ConcurrentReferenceHashMap => SpringConcurrentReferenceHashMap}
 
-import java.util
+import java.{lang, util}
 import java.util.Collections
-import java.util.concurrent.{ConcurrentLinkedQueue, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, ConcurrentSkipListSet, TimeUnit}
 import scala.jdk.CollectionConverters.{MapHasAsJava, SetHasAsJava}
+import JVMConcurrentWeakSetAdapter.SetElement
+
+import scala.collection.mutable
 
 @State(Scope.Benchmark)
 private[this] class AddContext extends BaseContext {
@@ -22,6 +25,8 @@ private[this] class AddContext extends BaseContext {
     this.javaSetInitializer = { _ => createJavaSet() }
     this.springMapInitializer = { _ => createSpringMap() }
     this.zioSetInitializer = { _ => createZioSet() }
+    this.zioSetBasedOnConcurrentSkipListInitializer = { _ => createZioSetBasedOnSkipList() }
+    this.zioSetBasedOnConcurrentHashMapInitializer = { _ => createZioSetBasedOnConcurrentHashMap() }
     this.setupBase()
   }
 
@@ -65,6 +70,24 @@ private[this] class ConcurrentWeakHashSetAddBenchmark {
   def zioAddConcurrent(ctx: AddContext, blackhole: Blackhole): Unit =
     blackhole.consume(ctx.zioSet.add(ctx.createCachedKey()))
 
+  @Benchmark
+  def zioBasedOnSkipListAddSerial(ctx: AddContext, blackhole: Blackhole): Unit =
+    blackhole.consume(ctx.zioSetBasedOnConcurrentSkipList.add(ctx.createCachedKey()))
+
+  @Threads(6)
+  @Benchmark
+  def zioBasedOnSkipListAddConcurrent(ctx: AddContext, blackhole: Blackhole): Unit =
+    blackhole.consume(ctx.zioSetBasedOnConcurrentSkipList.add(ctx.createCachedKey()))
+
+  @Benchmark
+  def zioBasedOnConcurrentHashMapAddSerial(ctx: AddContext, blackhole: Blackhole): Unit =
+    blackhole.consume(ctx.zioSetBasedOnConcurrentHashMap.add(ctx.createCachedKey()))
+
+  @Threads(6)
+  @Benchmark
+  def zioBasedOnConcurrentHashMapAddConcurrent(ctx: AddContext, blackhole: Blackhole): Unit =
+    blackhole.consume(ctx.zioSetBasedOnConcurrentHashMap.add(ctx.createCachedKey()))
+
 }
 
 @State(Scope.Benchmark)
@@ -78,6 +101,8 @@ private[this] class RemoveContext extends BaseContext {
     this.javaSetInitializer = { _ => createJavaSet(this.values) }
     this.springMapInitializer = { _ => createSpringMap(this.values) }
     this.zioSetInitializer = { _ => createZioSet(this.values) }
+    this.zioSetBasedOnConcurrentSkipListInitializer = { _ => createZioSetBasedOnSkipList(this.values) }
+    this.zioSetBasedOnConcurrentHashMapInitializer = { _ => createZioSetBasedOnConcurrentHashMap(this.values) }
     this.setupBase()
   }
 
@@ -96,6 +121,18 @@ private[this] class RemoveContext extends BaseContext {
   def appendNewKeyToZioSet(): TestKey = {
     val key = TestKey(this.idx.incrementAndGet())
     this.zioSet.add(key)
+    key
+  }
+
+  def appendNewKeyToZioSetBasedOnConcurrentSkipList(): TestKey = {
+    val key = TestKey(this.idx.incrementAndGet())
+    this.zioSetBasedOnConcurrentSkipList.add(key)
+    key
+  }
+
+  def appendNewKeyToZioSetBasedOnConcurrentHashMap(): TestKey = {
+    val key = TestKey(this.idx.incrementAndGet())
+    this.zioSetBasedOnConcurrentHashMap.add(key)
     key
   }
 }
@@ -133,6 +170,24 @@ private[this] class ConcurrentWeakHashSetRemoveBenchmark {
   def zioRemoveConcurrent(ctx: RemoveContext, blackhole: Blackhole): Unit =
     blackhole.consume(ctx.zioSet.remove(ctx.appendNewKeyToZioSet()))
 
+  @Benchmark
+  def zioBasedOnSkipListRemoveSerial(ctx: RemoveContext, blackhole: Blackhole): Unit =
+    blackhole.consume(ctx.zioSetBasedOnConcurrentSkipList.remove(ctx.appendNewKeyToZioSetBasedOnConcurrentSkipList()))
+
+  @Threads(6)
+  @Benchmark
+  def zioBasedOnSkipListRemoveConcurrent(ctx: RemoveContext, blackhole: Blackhole): Unit =
+    blackhole.consume(ctx.zioSetBasedOnConcurrentSkipList.remove(ctx.appendNewKeyToZioSetBasedOnConcurrentSkipList()))
+
+  @Benchmark
+  def zioBasedOnConcurrentHashMapRemoveSerial(ctx: RemoveContext, blackhole: Blackhole): Unit =
+    blackhole.consume(ctx.zioSetBasedOnConcurrentHashMap.remove(ctx.appendNewKeyToZioSetBasedOnConcurrentHashMap()))
+
+  @Threads(6)
+  @Benchmark
+  def zioBasedOnConcurrentHashMapRemoveConcurrent(ctx: RemoveContext, blackhole: Blackhole): Unit =
+    blackhole.consume(ctx.zioSetBasedOnConcurrentHashMap.remove(ctx.appendNewKeyToZioSetBasedOnConcurrentHashMap()))
+
 }
 
 @State(Scope.Benchmark)
@@ -145,6 +200,8 @@ private[this] class IterateContext extends BaseContext {
     this.javaSetInitializer = { _ => createJavaSet(this.values) }
     this.springMapInitializer = { _ => createSpringMap(this.values) }
     this.zioSetInitializer = { _ => createZioSet(this.values) }
+    this.zioSetBasedOnConcurrentSkipListInitializer = { _ => createZioSetBasedOnSkipList(this.values) }
+    this.zioSetBasedOnConcurrentHashMapInitializer = { _ => createZioSetBasedOnConcurrentHashMap(this.values) }
     this.setupBase()
   }
 }
@@ -182,6 +239,24 @@ private[this] class ConcurrentWeakHashSetIterateBenchmark {
   def zioIterateConcurrent(ctx: IterateContext, blackhole: Blackhole): Unit =
     ctx.zioSet.foreach(element => blackhole.consume(element))
 
+  @Benchmark
+  def zioBasedOnSkipListIterateSerial(ctx: IterateContext, blackhole: Blackhole): Unit =
+    ctx.zioSetBasedOnConcurrentSkipList.foreach(element => blackhole.consume(element))
+
+  @Threads(6)
+  @Benchmark
+  def zioBasedOnSkipListIterateConcurrent(ctx: IterateContext, blackhole: Blackhole): Unit =
+    ctx.zioSetBasedOnConcurrentSkipList.foreach(element => blackhole.consume(element))
+
+  @Benchmark
+  def zioBasedOnConcurrentHashMapIterateSerial(ctx: IterateContext, blackhole: Blackhole): Unit =
+    ctx.zioSetBasedOnConcurrentHashMap.foreach(element => blackhole.consume(element))
+
+  @Threads(6)
+  @Benchmark
+  def zioBasedOnConcurrentHashMapIterateConcurrent(ctx: IterateContext, blackhole: Blackhole): Unit =
+    ctx.zioSetBasedOnConcurrentHashMap.foreach(element => blackhole.consume(element))
+
 }
 
 private[this] case class TestKey(name: Int)
@@ -197,10 +272,18 @@ private[this] class BaseContext {
   protected var zioSetInitializer: Unit => ConcurrentWeakHashSet[TestKey] = _
   var zioSet: ConcurrentWeakHashSet[TestKey]                              = _
 
+  protected var zioSetBasedOnConcurrentSkipListInitializer: Unit => mutable.Set[TestKey] = _
+  var zioSetBasedOnConcurrentSkipList: mutable.Set[TestKey]                              = _
+
+  protected var zioSetBasedOnConcurrentHashMapInitializer: Unit => mutable.Set[TestKey] = _
+  var zioSetBasedOnConcurrentHashMap: mutable.Set[TestKey]                              = _
+
   protected def setupBase(): Unit = {
     this.javaSet = this.javaSetInitializer(())
     this.springMap = this.springMapInitializer(())
     this.zioSet = this.zioSetInitializer(())
+    this.zioSetBasedOnConcurrentSkipList = this.zioSetBasedOnConcurrentSkipListInitializer(())
+    this.zioSetBasedOnConcurrentHashMap = this.zioSetBasedOnConcurrentHashMapInitializer(())
   }
 
   protected def createJavaSet(values: Array[TestKey] = new Array[TestKey](0)): util.Set[TestKey] = {
@@ -221,6 +304,26 @@ private[this] class BaseContext {
   protected def createZioSet(values: Array[TestKey] = new Array(0)): ConcurrentWeakHashSet[TestKey] = {
     val set = new ConcurrentWeakHashSet[TestKey]()
     set.addAll(values)
+    set
+  }
+
+  protected def createZioSetBasedOnSkipList(
+    values: Array[TestKey] = new Array[TestKey](0)
+  ): mutable.Set[TestKey] = {
+    val set = new JVMConcurrentWeakSetAdapter(
+      new ConcurrentSkipListSet[SetElement[TestKey]]()
+    )
+    values.foreach(set.add)
+    set
+  }
+
+  protected def createZioSetBasedOnConcurrentHashMap(
+    values: Array[TestKey] = new Array[TestKey](0)
+  ): mutable.Set[TestKey] = {
+    val set = new JVMConcurrentWeakSetAdapter(
+      Collections.newSetFromMap(new ConcurrentHashMap[SetElement[TestKey], lang.Boolean])
+    )
+    values.foreach(set.add)
     set
   }
 
