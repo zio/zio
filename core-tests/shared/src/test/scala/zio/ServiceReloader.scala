@@ -31,7 +31,7 @@ trait ServiceReloader {
    * `ServiceInitializationError` exception if an error occurs while acquiring
    * the service.
    */
-  def register[A: Tag](serviceLayer: ZLayer[Any, Any, A]): IO[ServiceReloader.Error, A]
+  def register[A: Tag: ServiceProxy](serviceLayer: ZLayer[Any, Any, A]): IO[ServiceReloader.Error, A]
 
   /**
    * Reloads the specified service, releasing any resources associated with the
@@ -55,10 +55,10 @@ object ServiceReloader {
   val live: ZLayer[Any, Nothing, ServiceReloader] =
     ZLayer.scoped {
       for {
-        ref   <- Ref.Synchronized.make[Map[LightTypeTag, (ZLayer[Any, Any, Any], ScopedRef[_])]](Map.empty)
+        ref   <- Ref.Synchronized.make[Map[LightTypeTag, (ZLayer[Any, Any, Any], ScopedRef[Any])]](Map.empty)
         scope <- ZIO.scope
       } yield new ServiceReloader {
-        def register[A: Tag](serviceLayer: ZLayer[Any, Any, A]): IO[ServiceReloader.Error, A] =
+        def register[A: Tag: ServiceProxy](serviceLayer: ZLayer[Any, Any, A]): IO[ServiceReloader.Error, A] =
           ref.modifyZIO { map =>
             val tag = Tag[A].tag
             map.get(tag) match {
@@ -68,7 +68,7 @@ object ServiceReloader {
                     .set(serviceLayer.build.map(_.unsafe.get(tag)(Unsafe.unsafe)))
                     .foldZIO(
                       error => ZIO.fail(ServiceInitializationError(error)),
-                      a => scopedRef.get.map(a => (a.asInstanceOf[A], map))
+                      _ => scopedRef.get.map(a => (a.asInstanceOf[A], map))
                     )
                 }
               case None =>
@@ -78,7 +78,12 @@ object ServiceReloader {
                     .foldZIO(
                       error => ZIO.fail(ServiceInitializationError(error)),
                       scopedRef =>
-                        ZIO.succeed((ServiceProxy.generate(scopedRef), map.updated(tag, (serviceLayer, scopedRef))))
+                        ZIO.succeed(
+                          (
+                            ServiceProxy[A].generate(scopedRef),
+                            map.updated(tag, (serviceLayer, scopedRef.asInstanceOf[ScopedRef[Any]]))
+                          )
+                        )
                     )
                 }
             }
@@ -90,7 +95,7 @@ object ServiceReloader {
               case Some((serviceLayer, scopedRef)) =>
                 scope.extend {
                   scopedRef
-                    .set(serviceLayer.build.map(_.unsafe.get(tag)(Unsafe.unsafe)))
+                    .set(serviceLayer.build.map(_.unsafe.get[A](tag)(Unsafe.unsafe)))
                     .foldZIO(
                       error => ZIO.fail(ServiceInitializationError(error)),
                       _ => ZIO.succeed(((), map))
@@ -110,7 +115,9 @@ object ServiceReloader {
    * `ServiceInitializationError` exception if an error occurs while acquiring
    * the service.
    */
-  def register[A: Tag](serviceLayer: ZLayer[Any, Any, A]): ZIO[ServiceReloader, ServiceReloader.Error, A] =
+  def register[A: Tag: ServiceProxy](
+    serviceLayer: ZLayer[Any, Any, A]
+  ): ZIO[ServiceReloader, ServiceReloader.Error, A] =
     ZIO.serviceWithZIO(_.register(serviceLayer))
 
   /**

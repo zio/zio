@@ -30,10 +30,19 @@ trait ServiceProxyVersionSpecific {
    *         and allows the service to change its behavior at runtime.
    */
   @experimental
-  inline def generate[A](service: ScopedRef[A]): A = ${ ServiceProxyMacros.makeImpl('service) }
+  inline given derived[A]: ServiceProxy[A] = ${ ServiceProxyMacros.derive[A] }
 }
 
 private object ServiceProxyMacros {
+
+  @experimental
+  def derive[A: Type](using Quotes): Expr[ServiceProxy[A]] =
+    '{
+      new ServiceProxy[A] {
+        override def generate(service: ScopedRef[A]): A =
+          ${ makeImpl('service) }
+      }
+    }
 
   @experimental
   def makeImpl[A: Type](service: Expr[ScopedRef[A]])(using Quotes): Expr[A] = {
