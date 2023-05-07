@@ -19,7 +19,7 @@ package zio
 import scala.annotation.experimental
 import scala.quoted.*
 
-trait ServiceProxyVersionSpecific {
+trait IsReloadableVersionSpecific {
 
   /** 
    * Generates a proxy instance of the specified service.
@@ -30,10 +30,19 @@ trait ServiceProxyVersionSpecific {
    *         and allows the service to change its behavior at runtime.
    */
   @experimental
-  inline def generate[A](service: ScopedRef[A]): A = ${ ServiceProxyMacros.makeImpl('service) }
+  inline given derived[A]: IsReloadable[A] = ${ IsReloadableMacros.derive[A] }
 }
 
-private object ServiceProxyMacros {
+private object IsReloadableMacros {
+
+  @experimental
+  def derive[A: Type](using Quotes): Expr[IsReloadable[A]] =
+    '{
+      new IsReloadable[A] {
+        override def reloadable(scopedRef: ScopedRef[A]): A =
+          ${ makeImpl('scopedRef) }
+      }
+    }
 
   @experimental
   def makeImpl[A: Type](service: Expr[ScopedRef[A]])(using Quotes): Expr[A] = {
@@ -64,7 +73,7 @@ private object ServiceProxyMacros {
 
     def defect(reason: String): Nothing =
       report.errorAndAbort(
-        s"""Defect in zio.ServiceProxy:
+        s"""Defect in zio.IsReloadable:
            |
            |  $reason""".stripMargin
       )

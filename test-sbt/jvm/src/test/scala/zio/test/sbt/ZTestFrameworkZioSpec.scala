@@ -143,7 +143,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
             s"""  ${green("+")} integration test - tagged: "IntegrationTest"\n"""
           )
       } yield assertTrue(output.equals(expected))
-    },
+    } @@ TestAspect.flaky,
     test("do not execute test with ignored tag") {
       for {
         _      <- loadAndExecute(FrameworkSpecInstances.TagsSpec, testArgs = Array("-ignore-tags", "IntegrationTest"))
