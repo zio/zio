@@ -156,6 +156,29 @@ trait ZIOCompanionVersionSpecific {
     attemptBlocking(effect).refineToOrDie[IOException]
 
   /**
+   * Returns an effect that, when executed, will cautiously run the provided
+   * code, ignoring any exception.
+   */
+  def ignore[A](code: Unsafe ?=> A)(implicit trace: Trace): Task[A] =
+    ZIO.suspendSucceed {
+      try {
+        given Unsafe = Unsafe.unsafe
+
+        code
+
+        Exit.unit
+      } catch {
+        case t: Throwable =>
+          ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
+            if (!fiberState.isFatal(t)(Unsafe.unsafe))
+              Exit.unit
+            else
+              throw t
+          }
+      }
+    }
+
+  /**
    * Returns an effect that models success with the specified value.
    */
   def succeed[A](a: Unsafe ?=> A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
