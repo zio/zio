@@ -24,43 +24,41 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
       } yield result).provideLayer(newLayer.tapErrorCause(ZIO.logErrorCause(_)))
 
     runtime.unsafe.run {
-      ZIO.fiberId.flatMap { mainFiberId =>
-        (for {
-          fiber <- workflow.fork
-          _ <-
-            ZIO.succeed(Platform.addShutdownHook { () =>
-              if (!shuttingDown.getAndSet(true)) {
+      for {
+        fiberId <- ZIO.fiberId
+        fiber   <- workflow.exitCode.tap(exitCode => interruptRootFibers(fiberId) *> exit(exitCode)).fork
+        _ <-
+          ZIO.succeed(Platform.addShutdownHook { () =>
+            if (!shuttingDown.getAndSet(true)) {
 
-                if (FiberRuntime.catastrophicFailure.get) {
-                  println(
-                    "**** WARNING ****\n" +
-                      "Catastrophic error encountered. " +
-                      "Application not safely interrupted. " +
-                      "Resources may be leaked. " +
-                      "Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context."
-                  )
-                } else {
-                  try {
-                    runtime.unsafe.run(fiber.interrupt *> interruptRootFibers(mainFiberId))
-                  } catch {
-                    case _: Throwable =>
-                  }
+              if (FiberRuntime.catastrophicFailure.get) {
+                println(
+                  "**** WARNING ****\n" +
+                    "Catastrophic error encountered. " +
+                    "Application not safely interrupted. " +
+                    "Resources may be leaked. " +
+                    "Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context."
+                )
+              } else {
+                try {
+                  runtime.unsafe.run(fiber.interrupt)
+                } catch {
+                  case _: Throwable =>
                 }
-
-                ()
               }
-            })
-          result <- fiber.join
-        } yield result).exitCode.tap(exitCode => interruptRootFibers(mainFiberId) *> exit(exitCode))
-      }
+
+              ()
+            }
+          })
+        result <- fiber.join
+      } yield result
     }.getOrThrowFiberFailure()
   }
 
-  private def interruptRootFibers(mainFiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
+  private def interruptRootFibers(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
     for {
-      fiberId <- ZIO.fiberId
-      roots   <- Fiber.roots
-      _       <- Fiber.interruptAll(roots.filterNot(root => root.id == fiberId || root.id == mainFiberId))
+      roots <- Fiber.roots
+      _     <- Fiber.interruptAll(roots.filterNot(_ == fiberId))
     } yield ()
 
 }
