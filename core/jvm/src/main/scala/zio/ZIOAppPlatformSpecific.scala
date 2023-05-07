@@ -24,8 +24,9 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
       } yield result).provideLayer(newLayer.tapErrorCause(ZIO.logErrorCause(_)))
 
     runtime.unsafe.run {
-      (for {
-        fiber <- workflow.fork
+      for {
+        fiberId <- ZIO.fiberId
+        fiber   <- workflow.exitCode.tap(exitCode => interruptRootFibers(fiberId) *> exit(exitCode)).fork
         _ <-
           ZIO.succeed(Platform.addShutdownHook { () =>
             if (!shuttingDown.getAndSet(true)) {
@@ -40,14 +41,7 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
                 )
               } else {
                 try {
-                  runtime.unsafe.run {
-                    for {
-                      _       <- fiber.interrupt
-                      fiberId <- ZIO.fiberId
-                      roots   <- Fiber.roots
-                      _       <- Fiber.interruptAll(fiber +: roots.filterNot(_.id == fiberId))
-                    } yield ()
-                  }
+                  runtime.unsafe.run(fiber.interrupt)
                 } catch {
                   case _: Throwable =>
                 }
@@ -57,8 +51,14 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
             }
           })
         result <- fiber.join
-      } yield result).exitCode.tap(exit)
+      } yield result
     }.getOrThrowFiberFailure()
   }
+
+  private def interruptRootFibers(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
+    for {
+      roots <- Fiber.roots
+      _     <- Fiber.interruptAll(roots.filterNot(_ == fiberId))
+    } yield ()
 
 }

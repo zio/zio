@@ -4289,7 +4289,23 @@ object ZIOSpec extends ZIOBaseSpec {
       for {
         cause <- ZIO.fail(new RuntimeException("fail")).ensuring(ZIO.die(new RuntimeException("die"))).orDie.cause
       } yield assertTrue(cause.size == 2)
-    }
+    },
+    suite("ignore")(
+      test("ignores successes") {
+        var evaluated = false
+        val workflow  = ZIO.ignore { evaluated = true }
+        for {
+          _ <- workflow
+        } yield assertTrue(evaluated)
+      },
+      test("ignores failures") {
+        var evaluated = false
+        val workflow  = ZIO.ignore { evaluated = true; throw new Exception("fail") }
+        for {
+          _ <- workflow
+        } yield assertTrue(evaluated)
+      }
+    )
   )
 
   def functionIOGen: Gen[Any, String => ZIO[Any, Throwable, Int]] =

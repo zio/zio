@@ -48,13 +48,6 @@ private object IsReloadableMacros {
   def makeImpl[A: Type](service: Expr[ScopedRef[A]])(using Quotes): Expr[A] = {
     import quotes.reflect.*
 
-    val debug = Expr.summon[Boolean].isDefined
-
-    def log(xs: Any*): Unit =
-      if (debug) {
-        println(xs.mkString(", "))
-      }
-
     // TODO replace with `ValOrDefDef` https://github.com/lampepfl/dotty/pull/16974/
     def nameAndReturnType(t: Tree): Option[(String, TypeTree)] =
       t match {
@@ -96,12 +89,6 @@ private object IsReloadableMacros {
     }
 
     tpe.typeSymbol.typeMembers.foreach { m =>
-      tpe.typeSymbol.tree match {
-        case TypeDef(_, rhs) =>
-          log(rhs.show)
-        case _ => ()
-      }
-      log(m, m.flags.show, m.tree.show(using Printer.TreeStructure))
       if (m.flags.is(Flags.Deferred) && !m.flags.is(Flags.Param)) {
         unsupported(s"Abstract type member detected: ${m.tree.show}")
       }
