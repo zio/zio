@@ -1,12 +1,12 @@
 package zio.internal.macros
 
-import zio.{ServiceProxy, ScopedRef}
+import zio.{IsReloadable, ScopedRef}
 import scala.reflect.macros.blackbox
 
-class ServiceProxyMacros(val c: blackbox.Context) {
+class IsReloadableMacros(val c: blackbox.Context) {
   import c.universe._
 
-  def makeImpl[A: c.WeakTypeTag]: c.Expr[ServiceProxy[A]] = {
+  def makeImpl[A: c.WeakTypeTag]: c.Expr[IsReloadable[A]] = {
     val tpe = c.weakTypeOf[A]
 
     def unsupported(reason: String): Nothing =
@@ -26,7 +26,7 @@ class ServiceProxyMacros(val c: blackbox.Context) {
     def defect(reason: String): Nothing =
       c.abort(
         c.enclosingPosition,
-        s"""Defect in zio.ServiceProxy:
+        s"""Defect in zio.IsReloadable:
            |
            |  $reason""".stripMargin
       )
@@ -74,9 +74,9 @@ class ServiceProxyMacros(val c: blackbox.Context) {
       }
       .toList
 
-    c.Expr[ServiceProxy[A]](
+    c.Expr[IsReloadable[A]](
       q"""
-        new _root_.zio.ServiceProxy[$resultType] {
+        new _root_.zio.IsReloadable[$resultType] {
           def generate(_$$service: _root_.zio.ScopedRef[$resultType]): $resultType =
             new $resultType { ..$forwarders }
         }

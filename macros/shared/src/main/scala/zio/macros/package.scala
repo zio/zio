@@ -10,7 +10,7 @@ package object macros {
      */
     def reloadable(implicit
       tag: Tag[Service],
-      serviceProxy: ServiceProxy[Service],
+      IsReloadable: IsReloadable[Service],
       trace: Trace
     ): ZLayer[ServiceReloader, ServiceReloader.Error, Service] =
       ZLayer.fromZIO(ServiceReloader.register(layer))

@@ -33,7 +33,7 @@ trait ServiceReloader {
    * `ServiceInitializationError` exception if an error occurs while acquiring
    * the service.
    */
-  def register[A: Tag: ServiceProxy](serviceLayer: ZLayer[Any, Any, A]): IO[ServiceReloader.Error, A]
+  def register[A: Tag: IsReloadable](serviceLayer: ZLayer[Any, Any, A]): IO[ServiceReloader.Error, A]
 
   /**
    * Reloads the specified service, releasing any resources associated with the
@@ -60,7 +60,7 @@ object ServiceReloader {
         ref   <- Ref.Synchronized.make[Map[LightTypeTag, (ZLayer[Any, Any, Any], ScopedRef[Any])]](Map.empty)
         scope <- ZIO.scope
       } yield new ServiceReloader {
-        def register[A: Tag: ServiceProxy](serviceLayer: ZLayer[Any, Any, A]): IO[ServiceReloader.Error, A] =
+        def register[A: Tag: IsReloadable](serviceLayer: ZLayer[Any, Any, A]): IO[ServiceReloader.Error, A] =
           ref.modifyZIO { map =>
             val tag = Tag[A].tag
             map.get(tag) match {
@@ -82,7 +82,7 @@ object ServiceReloader {
                       scopedRef =>
                         ZIO.succeed(
                           (
-                            ServiceProxy[A].generate(scopedRef),
+                            IsReloadable[A].generate(scopedRef),
                             map.updated(tag, (serviceLayer, scopedRef.asInstanceOf[ScopedRef[Any]]))
                           )
                         )
@@ -117,7 +117,7 @@ object ServiceReloader {
    * `ServiceInitializationError` exception if an error occurs while acquiring
    * the service.
    */
-  def register[A: Tag: ServiceProxy](
+  def register[A: Tag: IsReloadable](
     serviceLayer: ZLayer[Any, Any, A]
   ): ZIO[ServiceReloader, ServiceReloader.Error, A] =
     ZIO.serviceWithZIO(_.register(serviceLayer))

@@ -16,9 +16,9 @@
 
 package zio
 
-import zio.internal.macros.ServiceProxyMacros
+import zio.internal.macros.IsReloadableMacros
 
-trait ServiceProxyVersionSpecific {
+trait IsReloadableVersionSpecific {
 
   /**
    * Generates a proxy instance of the specified service.
@@ -30,5 +30,5 @@ trait ServiceProxyVersionSpecific {
    *   underlying service and allows the service to change its behavior at
    *   runtime.
    */
-  implicit def derived[A]: ServiceProxy[A] = macro ServiceProxyMacros.makeImpl[A]
+  implicit def derived[A]: IsReloadable[A] = macro IsReloadableMacros.makeImpl[A]
 }

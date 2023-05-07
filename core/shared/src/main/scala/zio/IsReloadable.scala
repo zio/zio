@@ -19,7 +19,7 @@ package zio
 import scala.annotation.implicitNotFound
 
 /**
- * A `ServiceProxy[A]` provides a utility to generate a proxy instance for a
+ * A `IsReloadable[A]` provides a utility to generate a proxy instance for a
  * given service.
  *
  * The `generate` function creates a proxy instance of the service that forwards
@@ -43,7 +43,7 @@ import scala.annotation.implicitNotFound
  *   val service2: MyService = new MyService { def foo = ZIO.succeed("zio2") }
  *   for {
  *     ref  <- ScopedRef.make(service1)
- *     proxy = ServiceProxy[MyService].generate(ref)
+ *     proxy = IsReloadable[MyService].generate(ref)
  *     res1 <- proxy.foo
  *     _    <- ref.set(ZIO.succeed(service2))
  *     res2 <- proxy.foo
@@ -57,9 +57,9 @@ import scala.annotation.implicitNotFound
     "\n  2. The type includes only ZIO methods or vals." +
     "\n  3. The type does not have any abstract type members."
 )
-trait ServiceProxy[A] {
+trait IsReloadable[A] {
   def generate(service: ScopedRef[A]): A
 }
-object ServiceProxy extends ServiceProxyVersionSpecific {
-  def apply[A](implicit ev: ServiceProxy[A]): ServiceProxy[A] = ev
+object IsReloadable extends IsReloadableVersionSpecific {
+  def apply[A](implicit ev: IsReloadable[A]): IsReloadable[A] = ev
 }
