@@ -82,7 +82,7 @@ object ServiceReloader {
                       scopedRef =>
                         ZIO.succeed(
                           (
-                            IsReloadable[A].generate(scopedRef),
+                            IsReloadable[A].reloadable(scopedRef),
                             map.updated(tag, (serviceLayer, scopedRef.asInstanceOf[ScopedRef[Any]]))
                           )
                         )

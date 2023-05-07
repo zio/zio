@@ -58,8 +58,8 @@ import scala.annotation.implicitNotFound
     "\n  3. The type does not have any abstract type members."
 )
 trait IsReloadable[A] {
-  def generate(service: ScopedRef[A]): A
+  def reloadable(service: ScopedRef[A]): A
 }
 object IsReloadable extends IsReloadableVersionSpecific {
-  def apply[A](implicit ev: IsReloadable[A]): IsReloadable[A] = ev
+  def apply[A](implicit isReloadable: IsReloadable[A]): IsReloadable[A] = isReloadable
 }

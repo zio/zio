@@ -77,7 +77,7 @@ class IsReloadableMacros(val c: blackbox.Context) {
     c.Expr[IsReloadable[A]](
       q"""
         new _root_.zio.IsReloadable[$resultType] {
-          def generate(_$$service: _root_.zio.ScopedRef[$resultType]): $resultType =
+          def reloadable(_$$service: _root_.zio.ScopedRef[$resultType]): $resultType =
             new $resultType { ..$forwarders }
         }
       """
