@@ -19,8 +19,8 @@ package zio
 import scala.annotation.implicitNotFound
 
 /**
- * A `ServiceProxy[A]` provides a utility to generate a proxy instance for
- * a given service.
+ * A `ServiceProxy[A]` provides a utility to generate a proxy instance for a
+ * given service.
  *
  * The `generate` function creates a proxy instance of the service that forwards
  * every ZIO method call to the underlying service, wrapped in a
@@ -52,10 +52,10 @@ import scala.annotation.implicitNotFound
  */
 @implicitNotFound(
   "Unable to generate a ZIO service proxy for ${A}." +
-  "\n\nPlease ensure the following:" +
-  "\n  1. The type is either a trait or a class with an empty primary constructor." +
-  "\n  2. The type includes only ZIO methods or vals." +
-  "\n  3. The type does not have any abstract type members."
+    "\n\nPlease ensure the following:" +
+    "\n  1. The type is either a trait or a class with an empty primary constructor." +
+    "\n  2. The type includes only ZIO methods or vals." +
+    "\n  3. The type does not have any abstract type members."
 )
 trait ServiceProxy[A] {
   def generate(service: ScopedRef[A]): A
