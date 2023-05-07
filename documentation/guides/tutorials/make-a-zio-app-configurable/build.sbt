@@ -4,7 +4,7 @@ mdocSettings("docs", "website/docs/guides/tutorials/")
 fork           := true
 publish / skip := true
 scalaVersion   := Scala213
-//unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc")
+unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc")
 scalacOptions -= "-Yno-imports"
 scalacOptions -= "-Xfatal-warnings"
 scalacOptions += "-Wconf:any:s"

@@ -1,12 +1,11 @@
 package zio.internal
 
+import com.github.ghik.silencer.silent
 import zio.internal.JSConcurrentWeakSetAdapter.{NullSetElement, SetElement, StrongSetElement, WeakSetElement}
 
-import scala.collection.mutable
-import scala.jdk.CollectionConverters._
 import scala.scalajs.js.{FinalizationRegistry, WeakRef}
 
-class JSConcurrentWeakSetAdapter[V <: AnyRef] extends mutable.Set[V] {
+class JSConcurrentWeakSetAdapter[V <: AnyRef] extends zio.MutableSetCompat[V] {
 
   // JS has one thread so we don't need concurrent collection
   private val underlying = new java.util.HashSet[SetElement[V]]()
@@ -16,27 +15,27 @@ class JSConcurrentWeakSetAdapter[V <: AnyRef] extends mutable.Set[V] {
       underlying.remove(new NullSetElement(value.cachedHashCode))
     })
 
-  override def knownSize: Int = underlying.size()
+  override def sizeCompat(): Int = underlying.size()
 
-  def iterator(): Iterator[V] =
-    underlying.iterator().asScala.map(_.getValue).filterNot(_ == null)
-
-  override def subtractOne(elem: V): this.type = {
-    underlying.remove(new StrongSetElement[V](elem))
-    this
+  def iterator(): Iterator[V] = {
+    import collection.JavaConverters._
+    underlying.iterator().asScala.map(_.getValue).filterNot(_ == null): @silent("JavaConverters")
   }
 
   override def clear(): Unit =
     underlying.clear()
 
-  override def addOne(v: V): this.type = {
-    val holder = new WeakSetElement(v)
-    registry.register(v, holder)
+  override def contains(elem: V): Boolean = underlying.contains(new StrongSetElement[V](elem))
+
+  override def addCompat(elem: V): Unit = {
+    val holder = new WeakSetElement(elem)
+    registry.register(elem, holder)
     underlying.add(holder)
-    this
   }
 
-  override def contains(elem: V): Boolean = underlying.contains(new StrongSetElement[V](elem))
+  override def removeCompat(elem: V): Unit =
+    underlying.remove(new StrongSetElement[V](elem))
+
 }
 
 object JSConcurrentWeakSetAdapter extends ConcurrentWeakSetAdapter {

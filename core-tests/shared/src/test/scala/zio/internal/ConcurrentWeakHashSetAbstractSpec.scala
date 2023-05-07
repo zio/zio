@@ -17,30 +17,30 @@ trait ConcurrentWeakHashSetAbstractSpec extends ZIOBaseSpec {
     test("Add should insert elements") {
       val set  = createSet[Wrapper[Int]]()
       val refs = List(Wrapper(1), Wrapper(2), Wrapper(3))
-      set.add(refs.head)
-      set.addOne(refs(1))
-      set.addAll(List(refs(2)))
+      set += refs.head
+      set += refs(1)
+      set ++= List(refs(2))
       assert(set.size)(equalTo(3)) && reachabilityFence(refs)
     },
     test("Set resolves duplicated values") {
       val set = createSet[Wrapper[Int]]()
       val ref = Wrapper(1)
-      set.add(ref)
-      set.add(ref)
+      set += ref
+      set += ref
       assert(set.size)(equalTo(1)) && reachabilityFence(ref)
     },
     test("Adding an element to set makes it non-empty") {
       val set = createSet[Wrapper[Int]]()
       val ref = Wrapper(Int.MaxValue)
-      set.add(ref)
+      set += ref
       assertTrue(set.nonEmpty) && reachabilityFence(ref)
     },
     test("Remove should delete reference from set") {
       val set  = createSet[Wrapper[Int]]()
       val refs = List(Wrapper(1), Wrapper(2))
-      set.addAll(refs)
-      set.remove(Wrapper(1))
-      set.subtractOne(Wrapper(2))
+      set ++= refs
+      set -= Wrapper(1)
+      set -= Wrapper(2)
       assert(set.size)(equalTo(0)) && reachabilityFence(refs)
     },
     test("Removing non-existent element should be allowed") {
@@ -57,26 +57,26 @@ trait ConcurrentWeakHashSetAbstractSpec extends ZIOBaseSpec {
     test("Clearing the set makes it empty") {
       val set = createSet[Wrapper[Int]]()
       val ref = Wrapper(1)
-      set.add(ref)
+      set += ref
       set.clear()
       assertTrue(set.isEmpty) && reachabilityFence(ref)
     },
     test("Can iterate over elements") {
       val set  = createSet[Wrapper[Int]]()
       val refs = List(Wrapper(1), Wrapper(2))
-      set.addAll(refs)
+      set ++= refs
       val allValues = set.iterator.toList.sortBy(_.value)
       assert(allValues)(equalTo(refs)) && reachabilityFence(refs)
     },
     test("Removing element with the same index from chain deletes only matched reference") {
       val refs         = (0 to 8).map(Wrapper(_))
       val corruptedSet = createSet[Wrapper[Int]]()
-      corruptedSet.addAll(refs)
-      println(corruptedSet.remove(Wrapper(4))) // matched index (calculated from hashcode) is the same for 4 and 8
+      corruptedSet ++= refs
+      println(corruptedSet -= Wrapper(4)) // matched index (calculated from hashcode) is the same for 4 and 8
       assert(corruptedSet.toList.map(_.value).sorted)(equalTo(List(0, 1, 2, 3, 5, 6, 7, 8))) && reachabilityFence(refs)
     },
     test("Check if set is thread-safe with concurrent race condition between add & remove") {
-      val sampleSize = 1_000_000
+      val sampleSize = 1000000
       val refs       = createConcurrentQueue[Wrapper[Int]]()
       val set        = createSet[Wrapper[Int]]()
 
@@ -86,7 +86,7 @@ trait ConcurrentWeakHashSetAbstractSpec extends ZIOBaseSpec {
             val element = Wrapper(idx)
             ZIO.succeed {
               refs.add(element)
-              set.add(element)
+              set += element
             }
           }
 
@@ -133,10 +133,10 @@ trait ConcurrentWeakHashSetAbstractSpec extends ZIOBaseSpec {
     } @@ withLiveClock,
     test("Dead references are removed from set") {
       val set = createSet[Wrapper[Int]]()
-      set.add(Wrapper(1)) // dead ref
+      set += Wrapper(1) // dead ref
 
       val ref = Wrapper(2)
-      set.add(ref) // ref from scope
+      set += ref // ref from scope
 
       for {
         _ <- performGCsAndWait()

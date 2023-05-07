@@ -1,34 +1,31 @@
 package zio.internal
 
+import com.github.ghik.silencer.silent
 import zio.internal.JVMConcurrentWeakSetAdapter.{StrongSetElement, WeakSetElement}
 
 import java.lang.ref.{ReferenceQueue, WeakReference}
-import scala.collection.mutable
-import scala.jdk.CollectionConverters._
 
 class JVMConcurrentWeakSetAdapter[V <: AnyRef](
   val underlying: java.util.Set[JVMConcurrentWeakSetAdapter.SetElement[V]]
-) extends mutable.Set[V] {
-  override def iterator: Iterator[V] =
-    underlying.iterator.asScala.map(_.getValue).filterNot(_ == null)
-
-  override def subtractOne(elem: V): this.type = {
-    underlying.remove(new StrongSetElement(elem))
-    this
+) extends zio.MutableSetCompat[V] {
+  override def iterator: Iterator[V] = {
+    import collection.JavaConverters._
+    underlying.iterator.asScala.map(_.getValue).filterNot(_ == null): @silent("JavaConverters")
   }
 
   override def clear(): Unit = underlying.clear()
 
-  override def addOne(elem: V): this.type = {
-    val holder = new WeakSetElement(elem, underlying)
-    underlying.add(holder)
-    this
-  }
-
-  override def knownSize: Int = underlying.size()
+  override def sizeCompat(): Int = underlying.size()
 
   override def contains(elem: V): Boolean =
     underlying.contains(new StrongSetElement(elem))
+
+  override def addCompat(elem: V): Unit =
+    underlying.add(new WeakSetElement(elem, underlying))
+
+  override def removeCompat(elem: V): Unit =
+    underlying.remove(new StrongSetElement(elem))
+
 }
 
 object JVMConcurrentWeakSetAdapter extends ConcurrentWeakSetAdapter {
