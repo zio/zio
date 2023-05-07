@@ -19,21 +19,21 @@ package zio
 import scala.annotation.implicitNotFound
 
 /**
- * A `IsReloadable[A]` provides a utility to generate a proxy instance for a
- * given service.
+ * `IsReloadable[Service]` provides evidence that we know enough about the
+ * structure of a service to create a reloadable version of it.
  *
- * The `generate` function creates a proxy instance of the service that forwards
- * every ZIO method call to the underlying service, wrapped in a
- * [[zio.ScopedRef]]. The generated proxy enables the service to change its
- * behavior at runtime.
+ * The `reloadable` function creates a reloadable instance of the service that
+ * forwards every ZIO method call to the underlying service, wrapped in a
+ * [[zio.ScopedRef]]. The reloadable servservice allows the service to change
+ * its behavior at runtime.
  *
  * @note
- *   In order to successfully generate a service proxy, the type `A` must meet
- *   the following requirements:
- *   - `A` should be either a trait or a class with a primary constructor
+ *   In order to successfully generate a reloadable service, the type `Service`
+ *   must meet the following requirements:
+ *   - `Service` should be either a trait or a class with a primary constructor
  *     without any term parameters.
- *   - `A` should contain only ZIO methods or vals.
- *   - `A` should not have any abstract type members.
+ *   - `Service` should contain only ZIO methods or vals.
+ *   - `Service` should not have any abstract type members.
  *
  * @example
  * {{{
@@ -42,24 +42,25 @@ import scala.annotation.implicitNotFound
  *   val service1: MyService = new MyService { def foo = ZIO.succeed("zio1") }
  *   val service2: MyService = new MyService { def foo = ZIO.succeed("zio2") }
  *   for {
- *     ref  <- ScopedRef.make(service1)
- *     proxy = IsReloadable[MyService].generate(ref)
- *     res1 <- proxy.foo
- *     _    <- ref.set(ZIO.succeed(service2))
- *     res2 <- proxy.foo
+ *     ref       <- ScopedRef.make(service1)
+ *     reloadable = IsReloadable[MyService].reloadable(ref)
+ *     res1      <- reloadable.foo
+ *     _         <- ref.set(ZIO.succeed(service2))
+ *     res2      <- reloadable.foo
  *   } yield assertTrue(res1 == "zio1" && res2 == "zio2")
  * }}}
  */
 @implicitNotFound(
-  "Unable to generate a ZIO service proxy for ${A}." +
+  "Unable to generate a reloadable service for ${Service}." +
     "\n\nPlease ensure the following:" +
     "\n  1. The type is either a trait or a class with an empty primary constructor." +
     "\n  2. The type includes only ZIO methods or vals." +
     "\n  3. The type does not have any abstract type members."
 )
-trait IsReloadable[A] {
-  def reloadable(service: ScopedRef[A]): A
+trait IsReloadable[Service] {
+  def reloadable(scopedRef: ScopedRef[Service]): Service
 }
 object IsReloadable extends IsReloadableVersionSpecific {
-  def apply[A](implicit isReloadable: IsReloadable[A]): IsReloadable[A] = isReloadable
+  def apply[Service](implicit isReloadable: IsReloadable[Service]): IsReloadable[Service] =
+    isReloadable
 }

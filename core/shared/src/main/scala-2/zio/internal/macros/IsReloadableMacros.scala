@@ -62,7 +62,7 @@ class IsReloadableMacros(val c: blackbox.Context) {
 
         val args = m.paramLists.map(_.map(p => p.name.toTermName))
 
-        val rhs = q"_$$service.get.flatMap(_.${sym.name.toTermName}(...$args))"
+        val rhs = q"_$$scopedRef.get.flatMap(_.${sym.name.toTermName}(...$args))"
         sym.asTerm match {
           case t if t.isVal =>
             q"override val ${sym.name.toTermName}: ${m.finalResultType} = $rhs"
@@ -77,7 +77,7 @@ class IsReloadableMacros(val c: blackbox.Context) {
     c.Expr[IsReloadable[A]](
       q"""
         new _root_.zio.IsReloadable[$resultType] {
-          def reloadable(_$$service: _root_.zio.ScopedRef[$resultType]): $resultType =
+          def reloadable(_$$scopedRef: _root_.zio.ScopedRef[$resultType]): $resultType =
             new $resultType { ..$forwarders }
         }
       """

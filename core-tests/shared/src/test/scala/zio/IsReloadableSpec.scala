@@ -22,18 +22,18 @@ import zio.test._
 object IsReloadableSpec extends ZIOSpecDefault {
 
   val spec = suite("IsReloadable")(
-    suite("generates a proxy")(
+    suite("creates a reloadable service")(
       test("switches underlying service in runtime") {
         trait Foo { def bar: UIO[String] }
 
         val service1: Foo = new Foo { def bar = ZIO.succeed("zio1") }
         val service2: Foo = new Foo { def bar = ZIO.succeed("zio2") }
         for {
-          ref  <- ScopedRef.make(service1)
-          proxy = IsReloadable[Foo].generate(ref)
-          res1 <- proxy.bar
-          _    <- ref.set(ZIO.succeed(service2))
-          res2 <- proxy.bar
+          ref       <- ScopedRef.make(service1)
+          reloadable = IsReloadable[Foo].reloadable(ref)
+          res1      <- reloadable.bar
+          _         <- ref.set(ZIO.succeed(service2))
+          res2      <- reloadable.bar
         } yield assertTrue(res1 == "zio1" && res2 == "zio2")
       },
       test("the type out of the current lexical scope") {
@@ -42,9 +42,9 @@ object IsReloadableSpec extends ZIOSpecDefault {
         }
         val service: foo.Foo = new foo.Foo { def bar = ZIO.succeed("zio") }
         for {
-          ref  <- ScopedRef.make(service)
-          proxy = IsReloadable[foo.Foo].generate(ref)
-          res1 <- proxy.bar
+          ref       <- ScopedRef.make(service)
+          reloadable = IsReloadable[foo.Foo].reloadable(ref)
+          res1      <- reloadable.bar
         } yield assertTrue(res1 == "zio")
       },
       test("multiple methods") {
@@ -57,37 +57,37 @@ object IsReloadableSpec extends ZIOSpecDefault {
           override def baz: UIO[Int]    = ZIO.succeed(1)
         }
         for {
-          ref  <- ScopedRef.make(service)
-          proxy = IsReloadable[Foo].generate(ref)
-          res1 <- proxy.bar
-          res2 <- proxy.baz
+          ref       <- ScopedRef.make(service)
+          reloadable = IsReloadable[Foo].reloadable(ref)
+          res1      <- reloadable.bar
+          res2      <- reloadable.baz
         } yield assertTrue(res1 == "zio" && res2 == 1)
       },
       test("trait with type parameter") {
         trait Foo[A] { def bar: UIO[A] }
         val service: Foo[String] = new Foo[String] { def bar = ZIO.succeed("baz") }
         for {
-          ref  <- ScopedRef.make(service)
-          proxy = IsReloadable[Foo[String]].generate(ref)
-          res  <- proxy.bar
+          ref       <- ScopedRef.make(service)
+          reloadable = IsReloadable[Foo[String]].reloadable(ref)
+          res       <- reloadable.bar
         } yield assertTrue(res == "baz")
       },
       test("trait with higher kinded type parameter") {
         trait Foo[F[_]] { def bar: UIO[F[String]] }
         val service: Foo[List] = new Foo[List] { def bar = ZIO.succeed("baz" :: Nil) }
         for {
-          ref  <- ScopedRef.make(service)
-          proxy = IsReloadable[Foo[List]].generate(ref)
-          res  <- proxy.bar
+          ref       <- ScopedRef.make(service)
+          reloadable = IsReloadable[Foo[List]].reloadable(ref)
+          res       <- reloadable.bar
         } yield assertTrue(res == "baz" :: Nil)
       },
       test("abstract class") {
         abstract class Foo { def bar: UIO[String] }
         val service: Foo = new Foo { def bar = ZIO.succeed("zio") }
         for {
-          ref  <- ScopedRef.make(service)
-          proxy = IsReloadable[Foo].generate(ref)
-          res  <- proxy.bar
+          ref       <- ScopedRef.make(service)
+          reloadable = IsReloadable[Foo].reloadable(ref)
+          res       <- reloadable.bar
         } yield assertTrue(res == "zio")
       },
       test("class") {
@@ -96,9 +96,9 @@ object IsReloadableSpec extends ZIOSpecDefault {
           override def bar = ZIO.succeed("zio2")
         }
         for {
-          ref  <- ScopedRef.make(service)
-          proxy = IsReloadable[Foo].generate(ref)
-          res  <- proxy.bar
+          ref       <- ScopedRef.make(service)
+          reloadable = IsReloadable[Foo].reloadable(ref)
+          res       <- reloadable.bar
         } yield assertTrue(res == "zio2")
       }
     ),
@@ -107,27 +107,27 @@ object IsReloadableSpec extends ZIOSpecDefault {
         trait Foo { def bar(a: String): UIO[Int] }
         val service: Foo = new Foo { def bar(a: String) = ZIO.succeed(a.length) }
         for {
-          ref  <- ScopedRef.make(service)
-          proxy = IsReloadable[Foo].generate(ref)
-          res  <- proxy.bar("zio")
+          ref       <- ScopedRef.make(service)
+          reloadable = IsReloadable[Foo].reloadable(ref)
+          res       <- reloadable.bar("zio")
         } yield assertTrue(res == 3)
       },
       test("generic methods") {
         trait Foo { def bar[A](a: A): UIO[A] }
         val service: Foo = new Foo { def bar[A](a: A) = ZIO.succeed(a) }
         for {
-          ref  <- ScopedRef.make(service)
-          proxy = IsReloadable[Foo].generate(ref)
-          res  <- proxy.bar[String]("zio")
+          ref       <- ScopedRef.make(service)
+          reloadable = IsReloadable[Foo].reloadable(ref)
+          res       <- reloadable.bar[String]("zio")
         } yield assertTrue(res == "zio")
       },
       test("curried methods") {
         trait Foo { def bar(a: Int)(b: String): UIO[String] }
         val service: Foo = new Foo { def bar(a: Int)(b: String) = ZIO.succeed(b * a) }
         for {
-          ref  <- ScopedRef.make(service)
-          proxy = IsReloadable[Foo].generate(ref)
-          res  <- proxy.bar(3)("zio")
+          ref       <- ScopedRef.make(service)
+          reloadable = IsReloadable[Foo].reloadable(ref)
+          res       <- reloadable.bar(3)("zio")
         } yield assertTrue(res == "zioziozio")
       },
       test("implicit clauses") {
@@ -135,9 +135,9 @@ object IsReloadableSpec extends ZIOSpecDefault {
         val service: Foo       = new Foo { def bar(a: Int)(implicit b: String) = ZIO.succeed(b * a) }
         implicit val b: String = "zio"
         for {
-          ref  <- ScopedRef.make(service)
-          proxy = IsReloadable[Foo].generate(ref)
-          res  <- proxy.bar(3)
+          ref       <- ScopedRef.make(service)
+          reloadable = IsReloadable[Foo].reloadable(ref)
+          res       <- reloadable.bar(3)
         } yield assertTrue(res == "zioziozio")
       },
       test("inherited abstract methods") {
@@ -146,27 +146,27 @@ object IsReloadableSpec extends ZIOSpecDefault {
 
         val service: Foo = new Foo { def bar(a: Int) = ZIO.succeed("zio" * a) }
         for {
-          ref  <- ScopedRef.make(service)
-          proxy = IsReloadable[Foo].generate(ref)
-          res  <- proxy.bar(3)
+          ref       <- ScopedRef.make(service)
+          reloadable = IsReloadable[Foo].reloadable(ref)
+          res       <- reloadable.bar(3)
         } yield assertTrue(res == "zioziozio")
       },
       test("overridden methods with default implementation") {
         trait Foo { def bar: UIO[String] = ZIO.succeed("zio1") }
         val service: Foo = new Foo { override def bar = ZIO.succeed("zio2") }
         for {
-          ref  <- ScopedRef.make(service)
-          proxy = IsReloadable[Foo].generate(ref)
-          res  <- proxy.bar
+          ref       <- ScopedRef.make(service)
+          reloadable = IsReloadable[Foo].reloadable(ref)
+          res       <- reloadable.bar
         } yield assertTrue(res == "zio2")
       },
       test("package private methods") {
         trait Foo { private[zio] def bar: UIO[String] }
         val service: Foo = new Foo { private[zio] def bar: UIO[String] = ZIO.succeed("zio") }
         for {
-          ref  <- ScopedRef.make(service)
-          proxy = IsReloadable[Foo].generate(ref)
-          res  <- proxy.bar
+          ref       <- ScopedRef.make(service)
+          reloadable = IsReloadable[Foo].reloadable(ref)
+          res       <- reloadable.bar
         } yield assertTrue(res == "zio")
       },
       test("ZIO vals") {
@@ -174,20 +174,20 @@ object IsReloadableSpec extends ZIOSpecDefault {
         val service1: Foo = new Foo { val bar: UIO[String] = ZIO.succeed("zio1") }
         val service2: Foo = new Foo { val bar: UIO[String] = ZIO.succeed("zio2") }
         for {
-          ref  <- ScopedRef.make(service1)
-          proxy = IsReloadable[Foo].generate(ref)
-          res1 <- proxy.bar
-          _    <- ref.set(ZIO.succeed(service2))
-          res2 <- proxy.bar
+          ref       <- ScopedRef.make(service1)
+          reloadable = IsReloadable[Foo].reloadable(ref)
+          res1      <- reloadable.bar
+          _         <- ref.set(ZIO.succeed(service2))
+          res2      <- reloadable.bar
         } yield assertTrue(res1 == "zio1" && res2 == "zio2")
       },
       test("ZIO vals with default implementation") {
         trait Foo { val bar: UIO[String] = ZIO.succeed("zio") }
         val service: Foo = new Foo { override val bar: UIO[String] = ZIO.succeed("zio1") }
         for {
-          ref  <- ScopedRef.make(service)
-          proxy = IsReloadable[Foo].generate(ref)
-          res1 <- proxy.bar
+          ref       <- ScopedRef.make(service)
+          reloadable = IsReloadable[Foo].reloadable(ref)
+          res1      <- reloadable.bar
         } yield assertTrue(res1 == "zio1")
       },
       test("keeps non-ZIO default implementations") {
@@ -197,9 +197,9 @@ object IsReloadableSpec extends ZIOSpecDefault {
         }
         val service: Foo = new Foo { def bar = ZIO.succeed("baz") }
         for {
-          ref  <- ScopedRef.make(service)
-          proxy = IsReloadable[Foo].generate(ref)
-        } yield assertTrue(proxy.qux == "quux")
+          ref       <- ScopedRef.make(service)
+          reloadable = IsReloadable[Foo].reloadable(ref)
+        } yield assertTrue(reloadable.qux == "quux")
       }
     ),
     suite("fails to compile")(
@@ -211,7 +211,7 @@ object IsReloadableSpec extends ZIOSpecDefault {
         val service: Foo = new Foo { def qux = "quux" }
         for {
           ref <- ScopedRef.make(service)
-        } yield IsReloadable[Foo].generate(ref)
+        } yield IsReloadable[Foo].reloadable(ref)
         """
                  )
         } yield
@@ -227,9 +227,9 @@ object IsReloadableSpec extends ZIOSpecDefault {
           class Foo(s: String) { def bar: UIO[String] = ZIO.succeed(s) }
           val service: Foo = new Foo("zio")
           for {
-            ref  <- ScopedRef.make(service)
-            proxy = IsReloadable[Foo].generate(ref)
-            res  <- proxy.bar
+            ref       <- ScopedRef.make(service)
+            reloadable = IsReloadable[Foo].reloadable(ref)
+            res       <- reloadable.bar
           } yield res
           """
                  )
@@ -253,9 +253,9 @@ object IsReloadableSpec extends ZIOSpecDefault {
               def bar: UIO[String] = ZIO.succeed("zio")
             }
             for {
-              ref  <- ScopedRef.make(service)
-              proxy = IsReloadable[Foo].generate(ref)
-              res  <- proxy.bar
+              ref       <- ScopedRef.make(service)
+              reloadable = IsReloadable[Foo].reloadable(ref)
+              res       <- reloadable.bar
             } yield assertTrue(res == "zio")
             """
                  )

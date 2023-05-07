@@ -39,8 +39,8 @@ private object IsReloadableMacros {
   def derive[A: Type](using Quotes): Expr[IsReloadable[A]] =
     '{
       new IsReloadable[A] {
-        override def reloadable(service: ScopedRef[A]): A =
-          ${ makeImpl('service) }
+        override def reloadable(scopedRef: ScopedRef[A]): A =
+          ${ makeImpl('scopedRef) }
       }
     }
 
