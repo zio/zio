@@ -157,9 +157,9 @@ trait ZIOCompanionVersionSpecific {
 
   /**
    * Returns an effect that, when executed, will cautiously run the provided
-   * code, ignoring any exception.
+   * code, ignoring it success or failure.
    */
-  def ignore[A](code: Unsafe ?=> A)(implicit trace: Trace): Task[A] =
+  def ignore(code: Unsafe ?=> Any)(implicit trace: Trace): UIO[Unit] =
     ZIO.suspendSucceed {
       try {
         given Unsafe = Unsafe.unsafe
