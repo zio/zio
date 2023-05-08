@@ -30,7 +30,7 @@ private[zio] object ConcurrentWeakHashSet {
    */
   protected class RefNode[V](
     element: V,
-    val hash: Int,
+    var hash: Int,
     refQueue: ReferenceQueue[V],
     var nextRefNode: RefNode[V]
   ) extends WeakReference[V](element, refQueue) {
@@ -424,18 +424,15 @@ private[zio] class ConcurrentWeakHashSet[V](
     private def restructure(allowResize: Boolean, polledRef: RefNode[V]): Unit = {
       this.lock()
       try {
-        val toPurge =
-          if (polledRef ne null) {
-            val refs       = mutable.HashSet[RefNode[V]]()
-            var refToPurge = polledRef
-            while (refToPurge ne null) {
-              refs.add(refToPurge)
-              refToPurge = this.queue.poll().asInstanceOf[RefNode[V]]
-            }
-            refs
-          } else null
+        var purgeSize = 0
+        var refToPurge = polledRef
 
-        val purgeSize             = if (toPurge ne null) toPurge.size else 0
+        while (refToPurge ne null) {
+          purgeSize += 1
+          refToPurge.hash = -1
+          refToPurge = this.queue.poll().asInstanceOf[RefNode[V]]
+        }
+
         val countAfterRestructure = this.counter.get() - purgeSize
         val needsResize           = (countAfterRestructure > 0 && countAfterRestructure >= this.resizeThreshold)
         var restructureSize       = this.references.length
@@ -453,13 +450,10 @@ private[zio] class ConcurrentWeakHashSet[V](
             restructured(idx) = null
           }
           while (currentRef ne null) {
-            if (toPurge == null || !toPurge.contains(currentRef)) {
-              val currentRefValue = currentRef.get()
-              if (currentRefValue != null) {
-                val currentRefIndex = this.getIndex(restructured, currentRef.hash)
-                val previousRef     = restructured(currentRefIndex)
-                restructured(currentRefIndex) = new RefNode(currentRefValue, currentRef.hash, this.queue, previousRef)
-              }
+            if (currentRef.hash != -1 && currentRef.get() != null) {
+              val currentRefIndex = this.getIndex(restructured, currentRef.hash)
+              val previousRef     = restructured(currentRefIndex)
+              restructured(currentRefIndex) = new RefNode(currentRef.get(), currentRef.hash, this.queue, previousRef)
             }
             currentRef = currentRef.nextRefNode
           }
