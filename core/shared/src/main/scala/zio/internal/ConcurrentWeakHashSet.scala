@@ -100,7 +100,7 @@ private[zio] object ConcurrentWeakHashSet {
  */
 private[zio] class ConcurrentWeakHashSet[V](
   initialCapacity: Int = ConcurrentWeakHashSet.DefaultInitialCapacity
-) extends mutable.Set[V] { self =>
+) extends MutableSetCompat[V] { self =>
 
   private val shift =
     ConcurrentWeakHashSet.calculateShift(this.concurrencyLevel, ConcurrentWeakHashSet.MaxConcurrencyLevel)
@@ -219,19 +219,6 @@ private[zio] class ConcurrentWeakHashSet[V](
   }
 
   /**
-   * Add given element to the set.
-   *
-   * @param element
-   *   element to add
-   * @return
-   *   instance of the set
-   */
-  override def addOne(element: V): this.type = {
-    this.add(element)
-    this
-  }
-
-  /**
    * Add given element to the set. Remember that this method does not support
    * `null` elements, because it's not a valid value for `WeakReference`.
    *
@@ -245,21 +232,6 @@ private[zio] class ConcurrentWeakHashSet[V](
   override def add(element: V): Boolean = {
     if (element == null) throw new IllegalArgumentException("ConcurrentWeakHashSet does not support null elements.")
     this.update(element, UpdateOperation.AddElement, AccessOption.RestructureBefore, AccessOption.Resize)
-  }
-
-  /**
-   * Remove given element from the set.
-   *
-   * @param element
-   *   element to remove
-   * @return
-   *   instance of the set
-   * @see
-   *   [[ConcurrentWeakHashSet.remove]]
-   */
-  override def subtractOne(element: V): ConcurrentWeakHashSet.this.type = {
-    this.remove(element)
-    this
   }
 
   /**
