@@ -424,7 +424,7 @@ private[zio] class ConcurrentWeakHashSet[V](
     private def restructure(allowResize: Boolean, polledRef: RefNode[V]): Unit = {
       this.lock()
       try {
-        var purgeSize = 0
+        var purgeSize  = 0
         var refToPurge = polledRef
 
         while (refToPurge ne null) {
