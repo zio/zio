@@ -30,7 +30,8 @@ private[zio] object ConcurrentWeakHashSet {
    */
   protected class RefNode[V](
     element: V,
-    var hash: Int,
+    val hash: Int,
+    var active: Boolean,
     refQueue: ReferenceQueue[V],
     var nextRefNode: RefNode[V]
   ) extends WeakReference[V](element, refQueue) {
@@ -377,7 +378,7 @@ private[zio] class ConcurrentWeakHashSet[V](
           false
         case UpdateOperation.AddElement =>
           if (matchedRef == null) {
-            val newRef = new RefNode[V](element, hash, this.queue, head)
+            val newRef = new RefNode[V](element, hash, true, this.queue, head)
             this.references(index) = newRef
             this.counter.incrementAndGet()
             true
@@ -428,9 +429,11 @@ private[zio] class ConcurrentWeakHashSet[V](
         var refToPurge = polledRef
 
         while (refToPurge ne null) {
-          purgeSize += 1
-          refToPurge.hash = -1
-          refToPurge = this.queue.poll().asInstanceOf[RefNode[V]]
+          if (refToPurge.active) {
+            purgeSize += 1
+            refToPurge.active = false
+            refToPurge = this.queue.poll().asInstanceOf[RefNode[V]]
+          }
         }
 
         val countAfterRestructure = this.counter.get() - purgeSize
@@ -450,10 +453,11 @@ private[zio] class ConcurrentWeakHashSet[V](
             restructured(idx) = null
           }
           while (currentRef ne null) {
-            if (currentRef.hash != -1 && currentRef.get() != null) {
+            if (currentRef.active && currentRef.get() != null) {
               val currentRefIndex = this.getIndex(restructured, currentRef.hash)
               val previousRef     = restructured(currentRefIndex)
-              restructured(currentRefIndex) = new RefNode(currentRef.get(), currentRef.hash, this.queue, previousRef)
+              restructured(currentRefIndex) =
+                new RefNode(currentRef.get(), currentRef.hash, true, this.queue, previousRef)
             }
             currentRef = currentRef.nextRefNode
           }
