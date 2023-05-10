@@ -42,18 +42,10 @@ object TestExecutor {
       ): UIO[Summary] =
         (for {
           sink     <- ZIO.service[ExecutionEventSink]
-          summary  <- Ref.make[Summary](Summary.empty)
           topParent = SuiteId.global
           _ <- {
-            def processEvent(
-              event: ExecutionEvent
-            ) =
-              summary.update(
-                _.add(event)
-              ) *>
-                sink.process(
-                  event
-                ) *> eventHandlerZ.handle(event)
+            def processEvent(event: ExecutionEvent) =
+              sink.process(event) *> eventHandlerZ.handle(event)
 
             def loop(
               labels: List[String],
@@ -167,7 +159,7 @@ object TestExecutor {
               } *> processEvent(topLevelFlush) *> TestDebug.deleteIfEmpty(fullyQualifiedName)
 
           }
-          summary <- summary.get
+          summary <- sink.getSummary
         } yield summary).provideLayer(sinkLayer)
 
       private def extractAnnotations(result: Either[TestFailure[E], TestSuccess]) =
