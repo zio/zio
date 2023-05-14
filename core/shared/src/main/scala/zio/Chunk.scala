@@ -726,12 +726,6 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     Chunk.Slice(self, start, end - start)
   }
 
-  override def sorted[A1 >: A](implicit ord: Ordering[A1]): Chunk[A] = {
-    val array = self.toArray[Any]
-    java.util.Arrays.sort(array.asInstanceOf[Array[AnyRef]], ord.asInstanceOf[Ordering[AnyRef]])
-    Chunk.fromArray(array.asInstanceOf[Array[A]])
-  }
-
   override def span(f: A => Boolean): (Chunk[A], Chunk[A]) =
     splitWhere(!f(_))
 

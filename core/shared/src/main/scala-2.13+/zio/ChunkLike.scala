@@ -120,6 +120,50 @@ trait ChunkLike[+A]
   override final def map[B](f: A => B): Chunk[B] =
     mapChunk(f)
 
+  override def sorted[A1 >: A](implicit ord: Ordering[A1]): Chunk[A] = {
+    implicit val classTag = Chunk.classTagOf(self)
+    (ord, classTag) match {
+      case (Ordering.Byte, ClassTag.Byte) =>
+        val array = self.toArray
+        java.util.Arrays.sort(array.asInstanceOf[Array[Byte]])
+        Chunk.fromArray(array).asInstanceOf[Chunk[A]]
+      case (Ordering.Char, ClassTag.Char) =>
+        val array = self.toArray
+        java.util.Arrays.sort(array.asInstanceOf[Array[Char]])
+        Chunk.fromArray(array)
+      case (
+            Ordering.Double.IeeeOrdering | Ordering.Double.TotalOrdering | Ordering.DeprecatedDoubleOrdering,
+            ClassTag.Double
+          ) =>
+        val array = self.toArray
+        java.util.Arrays.sort(array.asInstanceOf[Array[Double]])
+        Chunk.fromArray(array)
+      case (
+            Ordering.Float.IeeeOrdering | Ordering.Float.TotalOrdering | Ordering.DeprecatedFloatOrdering,
+            ClassTag.Float
+          ) =>
+        val array = self.toArray
+        java.util.Arrays.sort(array.asInstanceOf[Array[Float]])
+        Chunk.fromArray(array)
+      case (Ordering.Int, ClassTag.Int) =>
+        val array = self.toArray
+        java.util.Arrays.sort(array.asInstanceOf[Array[Int]])
+        Chunk.fromArray(array)
+      case (Ordering.Long, ClassTag.Long) =>
+        val array = self.toArray
+        java.util.Arrays.sort(array.asInstanceOf[Array[Long]])
+        Chunk.fromArray(array)
+      case (Ordering.Short, ClassTag.Short) =>
+        val array = self.toArray
+        java.util.Arrays.sort(array.asInstanceOf[Array[Short]])
+        Chunk.fromArray(array)
+      case _ =>
+        val array = self.toArray[Any]
+        java.util.Arrays.sort(array.asInstanceOf[Array[AnyRef]], ord.asInstanceOf[Ordering[AnyRef]])
+        Chunk.fromArray(array).asInstanceOf[Chunk[A]]
+    }
+  }
+
   override final def updated[A1 >: A](index: Int, elem: A1): Chunk[A1] =
     update(index, elem)
 
