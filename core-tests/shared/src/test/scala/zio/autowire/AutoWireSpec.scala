@@ -166,7 +166,7 @@ object AutoWireSpec extends ZIOBaseSpec {
           }
         ),
         test("return error when passing by-name on Scala 2 (https://github.com/zio/zio/issues/7732)") {
-            val error = utest.compileError("""
+          val error = utest.compileError("""
             case class MyLayer()
 
             def createLayerByName(x: => MyLayer) = ZLayer.succeed(x)
@@ -181,7 +181,7 @@ object AutoWireSpec extends ZIOBaseSpec {
                   }
                 )
                 """)
-            assertTrue(error.msg == "Cannot use by name parameters")
+          assertTrue(error.msg == "Cannot use by name parameters")
         } @@ TestAspect.exceptScala3,
         suite("`ZLayer.makeSome`")(
           test("automatically constructs a layer, leaving off some remainder") {
