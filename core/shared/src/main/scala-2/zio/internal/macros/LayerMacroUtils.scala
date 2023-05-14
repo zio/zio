@@ -9,17 +9,15 @@ private[zio] trait LayerMacroUtils {
 
   type LayerExpr = c.Expr[ZLayer[_, _, _]]
 
-  private def verifyLayers(layers: Seq[c.Expr[ZLayer[_, _, _]]]): Unit = {
-
+  private def verifyLayers(layers: Seq[c.Expr[ZLayer[_, _, _]]]): Unit =
     for (layer <- layers) {
       layer.tree match {
-        case apply@ Apply(_, Block(_, _) :: Nil) => {
-          c.abort(layer.tree.pos, "Cannot use by name parameters")
+        case apply @ Apply(_, Block(_, _) :: Nil) => {
+          c.abort(layer.tree.pos, "Cannot use by-name parameters")
         }
         case _ => ()
       }
     }
-  }
 
   def constructLayer[R0: c.WeakTypeTag, R: c.WeakTypeTag, E](
     layers: Seq[c.Expr[ZLayer[_, E, _]]],

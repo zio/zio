@@ -163,26 +163,27 @@ object AutoWireSpec extends ZIOBaseSpec {
                   }
                 )
             assertTrue(byName != null)
-          }
+          },
+          test("return error when passing by-name on Scala 2 (https://github.com/zio/zio/issues/7732)") {
+            assertZIO(typeCheck {
+              """
+                case class MyLayer()
+
+                def createLayerByName(x: => MyLayer) = ZLayer.succeed(x)
+
+                val byName =
+                  ZIO
+                    .service[MyLayer]
+                    .provide(
+                      createLayerByName {
+                        val byNameLayer = MyLayer()
+                        byNameLayer
+                      }
+                    )
+              """
+            })(isLeft(Assertion.containsString("Cannot use by-name parameters")))
+          } @@ TestAspect.exceptScala3
         ),
-        test("return error when passing by-name on Scala 2 (https://github.com/zio/zio/issues/7732)") {
-          val error = utest.compileError("""
-            case class MyLayer()
-
-            def createLayerByName(x: => MyLayer) = ZLayer.succeed(x)
-
-            val byName =
-              ZIO
-                .service[MyLayer]
-                .provide(
-                  createLayerByName {
-                    val byNameLayer = MyLayer()
-                    byNameLayer
-                  }
-                )
-                """)
-          assertTrue(error.msg == "Cannot use by name parameters")
-        } @@ TestAspect.exceptScala3,
         suite("`ZLayer.makeSome`")(
           test("automatically constructs a layer, leaving off some remainder") {
             val stringLayer = ZLayer.succeed("this string is 28 chars long")
