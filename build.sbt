@@ -256,6 +256,10 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(buildInfoSettings("zio"))
   .settings(publish / skip := true)
   .settings(
+    // For macros
+    libraryDependencies += "com.lihaoyi" %%% "utest" % "0.8.1" % "test",
+  )
+  .settings(
     Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
   )
   .settings(testSettings)
