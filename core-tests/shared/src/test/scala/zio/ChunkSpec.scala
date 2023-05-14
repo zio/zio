@@ -834,6 +834,12 @@ object ChunkSpec extends ZIOBaseSpec {
           assertTrue(vector1 == vector2)
         }
       }
-    )
+    ),
+    test("sorted") {
+      check(Gen.chunkOf(Gen.int)) { chunk =>
+        val sorted = chunk.sorted
+        assertTrue(sorted.toVector == chunk.toVector.sorted)
+      }
+    }
   )
 }
