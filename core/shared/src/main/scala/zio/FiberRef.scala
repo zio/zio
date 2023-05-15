@@ -347,8 +347,8 @@ object FiberRef {
    */
   def make[A](
     initial: => A,
-    fork: A => A = (a: A) => a,
-    join: (A, A) => A = ((_: A, a: A) => a)
+    fork: A => A = ZIO.identityFn[A],
+    join: (A, A) => A = ZIO.secondFn[A]
   )(implicit trace: Trace): ZIO[Scope, Nothing, FiberRef[A]] =
     makeWith(unsafe.make(initial, fork, join)(Unsafe.unsafe))
 
@@ -388,7 +388,7 @@ object FiberRef {
     def make[A](
       initial: A,
       fork: A => A = ZIO.identityFn[A],
-      join: (A, A) => A = ((_: A, a: A) => a)
+      join: (A, A) => A = ZIO.secondFn[A]
     )(implicit unsafe: Unsafe): FiberRef.WithPatch[A, A => A] =
       makePatch[A, A => A](
         initial,
