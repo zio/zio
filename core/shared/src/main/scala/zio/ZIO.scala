@@ -5083,7 +5083,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   private val _SecondFn: (Any, Any) => Any = (_: Any, b: Any) => b
 
-  private[zio] def secondFn[A, B]: (A, B) => B = _SecondFn.asInstanceOf[(A, B) => B]
+  private[zio] def secondFn[A]: (Any, A) => A = _SecondFn.asInstanceOf[(Any, A) => A]
 
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
