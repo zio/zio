@@ -258,19 +258,24 @@ object Ref extends Serializable {
      * Creates a new `Ref.Synchronized` with the specified value.
      */
     def make[A](a: => A)(implicit trace: Trace): UIO[Synchronized[A]] =
-      for {
-        ref       <- Ref.make(a)
-        semaphore <- Semaphore.make(1)
-      } yield new Ref.Synchronized[A] {
-        def get(implicit trace: Trace): UIO[A] =
-          ref.get
-        def modifyZIO[R, E, B](f: A => ZIO[R, E, (B, A)])(implicit trace: Trace): ZIO[R, E, B] =
-          semaphore.withPermit(get.flatMap(f).flatMap { case (b, a) => ref.set(a).as(b) })
-        def set(a: A)(implicit trace: Trace): UIO[Unit] =
-          semaphore.withPermit(ref.set(a))
-        def setAsync(a: A)(implicit trace: Trace): UIO[Unit] =
-          semaphore.withPermit(ref.setAsync(a))
+      ZIO.succeed(unsafe.make(a)(Unsafe.unsafe))
+
+    object unsafe {
+      def make[A](a: A)(implicit unsafe: Unsafe): Synchronized[A] = {
+        val ref       = Ref.unsafe.make(a)
+        val semaphore = Semaphore.unsafe.make(1)
+        new Ref.Synchronized[A] {
+          def get(implicit trace: Trace): UIO[A] =
+            ref.get
+          def modifyZIO[R, E, B](f: A => ZIO[R, E, (B, A)])(implicit trace: Trace): ZIO[R, E, B] =
+            semaphore.withPermit(get.flatMap(f).flatMap { case (b, a) => ref.set(a).as(b) })
+          def set(a: A)(implicit trace: Trace): UIO[Unit] =
+            semaphore.withPermit(ref.set(a))
+          def setAsync(a: A)(implicit trace: Trace): UIO[Unit] =
+            semaphore.withPermit(ref.setAsync(a))
+        }
       }
+    }
   }
 
   private[zio] final case class Atomic[A](value: AtomicReference[A]) extends Ref[A] {
