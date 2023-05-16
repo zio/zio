@@ -70,18 +70,23 @@ object Semaphore {
    * Creates a new `Semaphore` with the specified number of permits.
    */
   def make(permits: => Long)(implicit trace: Trace): UIO[Semaphore] =
-    for {
-      semaphore <- TSemaphore.makeCommit(permits)
-    } yield new Semaphore {
-      def available(implicit trace: Trace): UIO[Long] =
-        semaphore.available.commit
-      def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-        semaphore.withPermit(zio)
-      def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-        semaphore.withPermitScoped
-      def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-        semaphore.withPermits(n)(zio)
-      def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-        semaphore.withPermitsScoped(n)
+    ZIO.succeed(unsafe.make(permits)(Unsafe.unsafe))
+
+  object unsafe {
+    def make(permits: Long)(implicit unsafe: Unsafe): Semaphore = {
+      val semaphore = TSemaphore.unsafe.make(permits)
+      new Semaphore {
+        def available(implicit trace: Trace): UIO[Long] =
+          semaphore.available.commit
+        def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+          semaphore.withPermit(zio)
+        def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+          semaphore.withPermitScoped
+        def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+          semaphore.withPermits(n)(zio)
+        def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+          semaphore.withPermitsScoped(n)
+      }
     }
+  }
 }
