@@ -58,7 +58,7 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
   private def interruptRootFibers(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
     for {
       roots <- Fiber.roots
-      _     <- Fiber.interruptAll(roots.filterNot(_ == fiberId))
+      _     <- Fiber.interruptAll(roots.view.filterNot(_.id == fiberId))
     } yield ()
 
 }
