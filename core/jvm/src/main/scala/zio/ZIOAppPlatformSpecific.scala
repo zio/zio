@@ -26,7 +26,11 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
     runtime.unsafe.run {
       for {
         fiberId <- ZIO.fiberId
-        fiber   <- workflow.exitCode.tap(exitCode => interruptRootFibers(fiberId) *> exit(exitCode)).fork
+        fiber <- workflow.foldCauseZIO(
+                     cause => interruptRootFibers(fiberId) *> exit(ExitCode.failure) *> ZIO.refailCause(cause),
+                     _ => interruptRootFibers(fiberId) *> exit(ExitCode.success)
+                   )
+                   .fork
         _ <-
           ZIO.succeed(Platform.addShutdownHook { () =>
             if (!shuttingDown.getAndSet(true)) {
