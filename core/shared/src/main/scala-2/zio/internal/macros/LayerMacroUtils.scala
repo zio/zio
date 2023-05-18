@@ -26,14 +26,14 @@ private[zio] trait LayerMacroUtils {
 
     val builder = LayerBuilder[c.Type, LayerExpr](
       target0 = targetTypes,
-      remainder = remainderTypes,
+      remainder = List(weakTypeOf[R0]),
       providedLayers0 = layers.toList,
       layerToDebug = debugMap,
       sideEffectType = c.weakTypeOf[Unit].dealias,
       typeEquals = _ <:< _,
       foldTree = buildFinalTree,
       method = provideMethod,
-      exprToNode = getNode,
+      exprToNode = getNode(remainder = weakTypeOf[R0], remainderTypes = remainderTypes.toSet),
       typeToNode = tpe => Node(Nil, List(tpe), c.Expr[ZLayer[_, E, _]](q"_root_.zio.ZLayer.environment[$tpe]")),
       showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
       showType = _.toString,
@@ -83,12 +83,21 @@ private[zio] trait LayerMacroUtils {
    * Converts a LayerExpr to a Node annotated by the Layer's input and output
    * types.
    */
-  def getNode(layer: LayerExpr): Node[c.Type, LayerExpr] = {
+  def getNode(remainder: Type, remainderTypes: Set[Type])(layer: LayerExpr): Node[c.Type, LayerExpr] = {
     val typeArgs = layer.actualType.dealias.typeArgs
     // ZIO[in, _, out]
     val in  = typeArgs.head
     val out = typeArgs(2)
-    Node(getRequirements(in), getRequirements(out), layer)
+    Node(
+      // If node has a dependency on a part of the remainder, prune the graph
+      // at that point and take a dependency on all of the remainder. This optimizes
+      // layer combination at runtime
+      getRequirements(in)
+        .map(tpe => if (remainderTypes.contains(tpe)) remainder else tpe)
+        .distinct,
+      getRequirements(out),
+      layer
+    )
   }
 
   def getRequirements[T: c.WeakTypeTag]: List[c.Type] =

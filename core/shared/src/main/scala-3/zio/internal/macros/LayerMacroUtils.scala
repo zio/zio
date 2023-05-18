@@ -39,7 +39,7 @@ private [zio] object LayerMacroUtils {
       sideEffectType = TypeRepr.of[Unit],
       foldTree = buildFinalTree,
       method = provideMethod,
-      exprToNode = getNode,
+      exprToNode = getNode(TypeRepr.of[R0], Set.from(remainderTypes)),
       typeToNode = tpe => Node(Nil, List(tpe), tpe.asType match { case '[t] => '{ZLayer.environment[t] } }),
       showExpr = expr => scala.util.Try(expr.asTerm.pos.sourceCode).toOption.flatten.getOrElse(expr.show),
       showType = _.show,
@@ -89,13 +89,18 @@ private [zio] object LayerMacroUtils {
 
   }
 
-  def getNode[E: Type](layer: LayerExpr[E])(using ctx: Quotes): Node[ctx.reflect.TypeRepr, LayerExpr[E]] = {
-    import quotes.reflect._
-    layer match {
-      case '{ $layer: ZLayer[in, e, out] } =>
-        val inputs = getRequirements[in]
-        val outputs = getRequirements[out]
-        Node(inputs, outputs, layer)
+  def getNode[E: Type](using ctx: Quotes)(remainder: ctx.reflect.TypeRepr, remainderTypes: Set[ctx.reflect.TypeRepr]): LayerExpr[E] => Node[ctx.reflect.TypeRepr, LayerExpr[E]] = {
+    (layer: LayerExpr[E]) => {
+      import quotes.reflect._
+      layer match {
+        case '{ $layer: ZLayer[in, e, out] } =>
+          // If node has a dependency on a part of the remainder, prune the graph
+          // at that point and take a dependency on all of the remainder. This optimizes
+          // layer combination at runtime
+          val inputs = getRequirements[in].map(tpe => if (remainderTypes.contains(tpe)) remainder else tpe)
+          val outputs = getRequirements[out]
+          Node(inputs, outputs, layer)
+      }
     }
   }
 
