@@ -6458,7 +6458,7 @@ module.exports = Worker;
 
 "use strict";
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "diagram": () => (/* binding */ diagram)
+/* harmony export */   diagram: () => (/* binding */ diagram)
 /* harmony export */ });
 /* harmony import */ var _mermaid_ae477ddf_js__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(87115);
 /* harmony import */ var d3__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(59373);
