@@ -52,7 +52,7 @@ trait TestConstructorLowPriority2 extends TestConstructorLowPriority3 {
     }
 }
 
-trait TestConstructorLowPriority3 extends TestConstructorLowPriority4 {
+trait TestConstructorLowPriority3 {
 
   implicit def AssertEitherConstructor[E, A <: TestResult]: TestConstructor.WithOut[Any, Either[E, A], Spec[Any, E]] =
     new TestConstructor[Any, Either[E, A]] {
