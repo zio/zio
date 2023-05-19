@@ -95,6 +95,126 @@ object MetricSpec extends ZIOBaseSpec {
           _     <- ZIO.succeed("!") @@ c
           state <- base.tagged(MetricLabel("dyn", "!")).value
         } yield assertTrue(state == MetricState.Counter(2.0))
+      },
+      test("trackAll") {
+        val base = Metric.counter("c11")
+        val c    = base.trackAll(1)
+
+        for {
+          _     <- ZIO.succeed("tracked") @@ c
+          _     <- ZIO.succeed("tracked") @@ c
+          _     <- (ZIO.fail("tracked") @@ c).ignore
+          state <- base.value
+        } yield assertTrue(
+          state == MetricState.Counter(3.0),
+          state.count == 3.0
+        )
+      },
+      test("trackSuccess") {
+        val base = Metric.counter("c12").contramap[String](_ => 1)
+        val c    = base.trackSuccess
+
+        for {
+          _     <- ZIO.succeed("tracked") @@ c
+          _     <- ZIO.succeed("tracked") @@ c
+          _     <- (ZIO.fail("not tracked") @@ c).ignore
+          state <- base.value
+        } yield assertTrue(
+          state == MetricState.Counter(2.0),
+          state.count == 2.0
+        )
+      },
+      test("trackSuccessWith") {
+        val base = Metric.counter("c13")
+        val c    = base.trackSuccessWith[String](_ => 1)
+
+        for {
+          _     <- ZIO.succeed("tracked") @@ c
+          _     <- ZIO.succeed("tracked") @@ c
+          _     <- (ZIO.fail("not tracked") @@ c).ignore
+          state <- base.value
+        } yield assertTrue(
+          state == MetricState.Counter(2.0),
+          state.count == 2.0
+        )
+      },
+      test("trackError") {
+        val base = Metric.counter("c14").contramap[String](_ => 1)
+        val c    = base.trackError
+
+        for {
+          _     <- ZIO.succeed("not tracked") @@ c
+          _     <- (ZIO.fail("tracked") @@ c).ignore
+          _     <- (ZIO.fail("tracked") @@ c).ignore
+          state <- base.value
+        } yield assertTrue(
+          state == MetricState.Counter(2.0),
+          state.count == 2.0
+        )
+      },
+      test("trackErrorWith") {
+        val base = Metric.counter("c15")
+        val c    = base.trackErrorWith[String](_ => 1)
+
+        for {
+          _     <- ZIO.succeed("not tracked") @@ c
+          _     <- (ZIO.fail("tracked") @@ c).ignore
+          _     <- (ZIO.fail("tracked") @@ c).ignore
+          state <- base.value
+        } yield assertTrue(
+          state == MetricState.Counter(2.0),
+          state.count == 2.0
+        )
+      },
+      test("trackDefect") {
+        val base = Metric.counter("c16").contramap[Throwable](_ => 1)
+        val c    = base.trackDefect
+
+        for {
+          _     <- ZIO.succeed("not tracked") @@ c
+          _     <- (ZIO.dieMessage("tracked") @@ c).exit
+          _     <- (ZIO.dieMessage("tracked") @@ c).exit
+          state <- base.value
+        } yield assertTrue(
+          state == MetricState.Counter(2.0),
+          state.count == 2.0
+        )
+      },
+      test("trackDefectWith") {
+        val base = Metric.counter("c17")
+        val c    = base.trackDefectWith(_ => 1)
+
+        for {
+          _     <- ZIO.succeed("not tracked") @@ c
+          _     <- (ZIO.dieMessage("tracked") @@ c).exit
+          _     <- (ZIO.dieMessage("tracked") @@ c).exit
+          state <- base.value
+        } yield assertTrue(
+          state == MetricState.Counter(2.0),
+          state.count == 2.0
+        )
+      },
+      test("trackDuration") {
+        val base = Metric.counter("c18").contramap[Duration](_.toMillis)
+        val c    = base.trackDuration
+
+        for {
+          _     <- TestClock.adjust(1.milliseconds) @@ c
+          state <- base.value
+        } yield assertTrue(
+          state.count > 0.0
+        )
+      },
+      test("trackDurationWith") {
+        val base = Metric.counter("c19")
+        val c    = base.trackDurationWith(_.toMillis)
+
+        for {
+          _     <- TestClock.adjust(1.milliseconds) @@ c
+          state <- base.value
+        } yield assertTrue(
+          state.count > 0.0
+        )
       }
     ),
     suite("Gauge")(
