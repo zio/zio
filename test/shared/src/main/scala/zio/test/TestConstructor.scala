@@ -40,7 +40,7 @@ trait TestConstructorLowPriority1 extends TestConstructorLowPriority2 {
     }
 }
 
-trait TestConstructorLowPriority2 {
+trait TestConstructorLowPriority2 extends TestConstructorLowPriority3 {
 
   implicit def AssertZSTMConstructor[R, E, A <: TestResult]: TestConstructor.WithOut[R, ZSTM[R, E, A], Spec[R, E]] =
     new TestConstructor[R, ZSTM[R, E, A]] {
@@ -49,5 +49,17 @@ trait TestConstructorLowPriority2 {
         assertion: => ZSTM[R, E, A]
       )(implicit sourceLocation: SourceLocation, trace: Trace): Spec[R, E] =
         test(label)(assertion.commit)
+    }
+}
+
+trait TestConstructorLowPriority3 {
+
+  implicit def AssertEitherConstructor[E, A <: TestResult]: TestConstructor.WithOut[Any, Either[E, A], Spec[Any, E]] =
+    new TestConstructor[Any, Either[E, A]] {
+      type Out = Spec[Any, E]
+      def apply(label: String)(
+        assertion: => Either[E, A]
+      )(implicit sourceLocation: SourceLocation, trace: Trace): Spec[Any, E] =
+        test(label)(ZIO.fromEither(assertion))
     }
 }

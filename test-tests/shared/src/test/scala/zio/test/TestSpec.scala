@@ -61,6 +61,11 @@ object TestSpec extends ZIOBaseSpec {
         message <- STM.succeed("Hello from an STM transaction!")
       } yield assert(message)(anything)
     },
+    test("either values can be tested") {
+      for {
+        message <- Right("Hello from an Either value!")
+      } yield assert(message)(anything)
+    },
     test("fail-fast assertion by automatic lifting to ZIO") {
       for {
         ref <- Ref.make(0)
