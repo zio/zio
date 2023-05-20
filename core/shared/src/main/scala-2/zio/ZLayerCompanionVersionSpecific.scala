@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.macros.{DummyK, ZLayerMakeMacros}
+import zio.internal.macros.{DummyK, ZLayerDerivationMacros, ZLayerMakeMacros}
 
 private[zio] trait ZLayerCompanionVersionSpecific {
 
@@ -43,6 +43,8 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    */
   def makeSome[R0, R]: MakeSomePartiallyApplied[R0, R] =
     new MakeSomePartiallyApplied[R0, R]
+
+  def derive[A]: ZLayer[Nothing, Any, A] = macro ZLayerDerivationMacros.deriveImpl[A]
 }
 
 final class MakePartiallyApplied[R](val dummy: Boolean = true) extends AnyVal {

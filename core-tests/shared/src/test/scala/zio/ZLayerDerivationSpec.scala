@@ -8,6 +8,7 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
 
   val derivedOne = ZLayer.derive[OneDependency]
   val derivedTwo = ZLayer.derive[TwoDependencies]
+
   override def spec = suite("ZLayerDerivationSpec")(
     test("ZLayer.derive[OneDependency]") {
       for {
