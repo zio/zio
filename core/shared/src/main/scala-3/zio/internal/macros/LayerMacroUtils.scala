@@ -125,9 +125,10 @@ private [zio] object LayerMacroUtils {
 
   type Env[Elems] =
     Elems match {
-    case t *: EmptyTuple => t
-    case t *: rest => t & Env[rest]
-  }
+      case EmptyTuple => Any
+      case t *: EmptyTuple => t
+      case t *: rest => t & Env[rest]
+    }
 
   inline def genLayer[T <: Tuple, A]: URLayer[Env[T], A] =
     ${ genLayerImpl[T, A] }
@@ -154,36 +155,28 @@ private [zio] object LayerMacroUtils {
         case (acc, ValDef(_, tp, _)) =>
           tp.tpe.asType match {
             case'[t] =>
-          '{
-          ${
-          acc
-          }.zipWith (ZIO.serviceWith[t] (dep => Tuple1 (dep) ) ) (_ ++ _)
-          }
-          .asInstanceOf[Expr[URIO[Env[T], Tuple]]]
+              '{ ${acc}.zipWith(ZIO.serviceWith[t](dep => Tuple1(dep)))(_ ++ _) }
+                .asInstanceOf[Expr[URIO[Env[T], Tuple]]]
           }
       }
 
     def genLayer(fields: List[Tree]): Expr[URIO[Env[T], A]] =
-      if fields.size == 1
+      if fields.size == 1 then
+        '{ZIO.serviceWith(dep => ${caseClassApply('{dep}.asTerm :: Nil).asExprOf[A]})}
+      else
+        '{${genDeps(fields)}.map(deps => ${depsDefs('{deps.asInstanceOf[T]}).asExprOf[A]})}
 
-    then'{ZIO.serviceWith(dep => ${caseClassApply('{dep}.asTerm :: Nil).asExprOf[A]})}
-    else
-    '{${genDeps(fields)}.map(deps => ${depsDefs('{deps.asInstanceOf[T]}).asExprOf[A]})}
-
-    def depsDefs(deps: Expr[T]) = {
+    def depsDefs(deps: Expr[T]) =
       ValDef.let(
         Symbol.spliceOwner,
-        fieldTypes.zipWithIndex.map { case ('[t
-          ], i
-          ) =>
-          Apply(
-            TypeApply(Select.unique(deps.asTerm, "apply"), List(TypeTree.of[T])),
-            List(Literal(IntConstant(i))),
+        fieldTypes.zipWithIndex.map { 
+          case ('[t], i) =>
+            Apply(
+              TypeApply(Select.unique(deps.asTerm, "apply"), List(TypeTree.of[T])),
+              List(Literal(IntConstant(i))),
             )
         },
-        )(caseClassApply(_)).asExprOf[A]
-
-    }
+      )(caseClassApply(_)).asExprOf[A]
 
     '{ZLayer(${genLayer(caseFields.map(_.tree))})}
   }
