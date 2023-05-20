@@ -67,6 +67,18 @@ object ScopedRefSpec extends ZIOBaseSpec {
               acquire <- counter.acquired
               release <- counter.released
             } yield assertTrue(acquire == 3 && release == 3)
+          } +
+          test("eager release") {
+            for {
+              ref <- Ref.make(0)
+              acquire = ZIO.acquireRelease {
+                          ref.modify(n => if (n == 0) (ZIO.unit, 1) else (ZIO.dieMessage("die"), n)).flatten
+                        } { _ =>
+                          ref.update(_ - 1)
+                        }
+              scopedRef <- ScopedRef.fromAcquire(acquire)
+              _         <- scopedRef.set(acquire)
+            } yield assertCompletes
           }
       }
   )

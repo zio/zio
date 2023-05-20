@@ -29,9 +29,9 @@ trait ScopedRef[A] {
    * Sets the value of this reference to the specified resourcefully-created
    * value. Any resources associated with the old value will be released.
    *
-   * This method will not return until either the reference is successfully
-   * changed to the new value, with old resources released, or until the attempt
-   * to acquire a new value fails.
+   * This method will not return until the old resources are released and either
+   * the reference is successfully changed to the new value or the attempt to
+   * acquire a new value fails.
    */
   def set[R, E](acquire: ZIO[R with Scope, E, A])(implicit trace: Trace): ZIO[R, E, Unit]
 
@@ -84,12 +84,13 @@ object ScopedRef {
       ref.modifyZIO { case (oldScope, a) =>
         ZIO.uninterruptibleMask { restore =>
           for {
+            _        <- oldScope.close(Exit.unit)
             newScope <- Scope.make
-            exit     <- restore(acquire.provideSomeEnvironment[R](_.add[Scope](newScope))).exit
+            exit     <- restore(newScope.extend[R](acquire)).exit
             result <- exit match {
                         case Exit.Failure(cause) =>
-                          newScope.close(Exit.unit).ignore.as(ZIO.refailCause(cause) -> (oldScope -> a))
-                        case Exit.Success(a) => oldScope.close(Exit.unit).ignore.as(ZIO.unit -> (newScope -> a))
+                          newScope.close(Exit.unit).as(ZIO.refailCause(cause) -> (oldScope -> a))
+                        case Exit.Success(a) => ZIO.succeed(ZIO.unit -> (newScope -> a))
                       }
           } yield result
         }
