@@ -7,22 +7,22 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
   case class OneDependency(d1: String)
   case class TwoDependencies(d1: String, d2: Int)
 
-  val derivedZero = ZLayer.derive[ZeroDependency] 
+  val derivedZero = ZLayer.derive[ZeroDependency]
   val derivedOne  = ZLayer.derive[OneDependency]
   val derivedTwo  = ZLayer.derive[TwoDependencies]
 
-  override def spec = suite("ZLayerDerivationSpec")(
-    test("ZLayer.derive[ZeroDependency]") {
+  override def spec = suite("ZLayer.derive[A]")(
+    test("Zero dependency") {
       for {
-        d1 <- ZIO.service[ZeroDependency]
-      } yield assertTrue(d1 == ZeroDependency())
+        d0 <- ZIO.service[ZeroDependency]
+      } yield assertTrue(d0 == ZeroDependency())
     },
-    test("ZLayer.derive[OneDependency]") {
+    test("One dependency") {
       for {
         d1 <- ZIO.service[OneDependency]
       } yield assertTrue(d1 == OneDependency("one"))
     },
-    test("ZLayer.derive[TwoDependencies]") {
+    test("Two dependencies") {
       for {
         d1 <- ZIO.service[TwoDependencies]
       } yield assertTrue(d1 == TwoDependencies("one", 2))
