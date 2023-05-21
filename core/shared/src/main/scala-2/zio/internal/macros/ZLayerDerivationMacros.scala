@@ -1,5 +1,6 @@
 package zio.internal.macros
 
+import zio._
 import scala.reflect.macros.whitebox
 
 private[zio] class ZLayerDerivationMacros(val c: whitebox.Context) {
@@ -13,29 +14,39 @@ private[zio] class ZLayerDerivationMacros(val c: whitebox.Context) {
       case m: MethodSymbol if m.isPrimaryConstructor => m
     }.getOrElse(c.abort(c.enclosingPosition, s"Failed to derive a ZLayer: type $tpe does not have any constructor."))
 
-    val params = ctor.paramLists.head.map { sym =>
-      val serviceName = sym.typeSignature.typeSymbol.name
-      val serviceCall = q"_root_.zio.ZIO.service[${sym.typeSignature}]"
-      (sym.name.toTermName, serviceCall)
-    }
+    val params = 
+      ctor.paramLists.head.map { sym =>
+        val depType = sym.typeSignature
+        val serviceName = depType.typeSymbol.name
 
-    val services = params.map { case (name, serviceCall) =>
+        val (serviceCall, envType) = 
+          if (depType <:< typeOf[Promise[_, _]])
+            (q"_root_.zio.Promise.make[..${depType.typeArgs}]", None)
+          else if (depType <:< typeOf[Queue[_]])
+            (q"_root_.zio.Queue.unbounded[..${depType.typeArgs}]", None)
+          else
+            (q"_root_.zio.ZIO.service[$depType]", Some(depType))
+
+        (sym.name.toTermName, serviceCall, envType)
+      }
+
+    val dependencies = params.map { case (name, serviceCall, _) =>
       fq"$name <- $serviceCall"
     }
 
-    val constructorArgs = params.map { case (name, _) => q"$name" }
+    val constructorArgs = params.map { case (name, _, _) => q"$name" }
 
-    val envType = ctor.paramLists.head match {
+    val envType = params.collect { case (_, _, Some(tpe)) => tpe } match {
       case Nil => tq"Any"
-      case ps  => ps.view.map(sym => tq"${sym.typeSignature}").reduce((a, b) => tq"$a with $b")
+      case ts  => ts.view.map(t => tq"$t").reduce((a, b) => tq"$a with $b")
     }
 
-    services match {
+    dependencies match {
       case Nil => q"_root_.zio.ZLayer.succeed[$tpe](new $tpe())"
-      case ss =>
+      case deps =>
         q"""
           _root_.zio.ZLayer[$envType, Nothing, $tpe] {
-            for (..$ss) yield new $tpe(..$constructorArgs)
+            for (..$deps) yield new $tpe(..$constructorArgs)
           }
         """
     }

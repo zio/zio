@@ -126,6 +126,8 @@ private [zio] object LayerMacroUtils {
   type Env[Elems] =
     Elems match {
       case EmptyTuple => Any
+      case Promise[_, _] *: rest => Env[rest]
+      case Queue[_] *: rest => Env[rest]
       case t *: EmptyTuple => t
       case t *: rest => t & Env[rest]
     }
@@ -153,18 +155,20 @@ private [zio] object LayerMacroUtils {
     def genDeps(caseClassFields: List[Tree]): Expr[URIO[Env[T], Tuple]] =
       caseClassFields.foldLeft[Expr[URIO[Env[T], Tuple]]]('{ZIO.succeed(EmptyTuple)}) {
         case (acc, ValDef(_, tp, _)) =>
-          tp.tpe.asType match {
-            case'[t] =>
+          (tp.tpe.asType match {
+            case '[Promise[e, a]] =>
+              '{ ${acc}.zipWith(Promise.make[e, a].map(p => Tuple1(p)))(_ ++ _) }
+
+            case '[Queue[a]] =>
+              '{ ${acc}.zipWith(Queue.unbounded[a].map(p => Tuple1(p)))(_ ++ _) }
+
+            case '[t] =>
               '{ ${acc}.zipWith(ZIO.serviceWith[t](dep => Tuple1(dep)))(_ ++ _) }
-                .asInstanceOf[Expr[URIO[Env[T], Tuple]]]
-          }
+          }).asInstanceOf[Expr[URIO[Env[T], Tuple]]]
       }
 
     def genLayer(fields: List[Tree]): Expr[URIO[Env[T], A]] =
-      if fields.size == 1 then
-        '{ZIO.serviceWith(dep => ${caseClassApply('{dep}.asTerm :: Nil).asExprOf[A]})}
-      else
-        '{${genDeps(fields)}.map(deps => ${depsDefs('{deps.asInstanceOf[T]}).asExprOf[A]})}
+      '{${genDeps(fields)}.map(deps => ${depsDefs('{deps.asInstanceOf[T]}).asExprOf[A]})}
 
     def depsDefs(deps: Expr[T]) =
       ValDef.let(
