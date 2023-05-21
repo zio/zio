@@ -128,6 +128,7 @@ private [zio] object LayerMacroUtils {
       case EmptyTuple => Any
       case Promise[_, _] *: rest => Env[rest]
       case Queue[_] *: rest => Env[rest]
+      case Hub[_] *: rest => Env[rest]
       case t *: EmptyTuple => t
       case t *: rest => t & Env[rest]
     }
@@ -161,6 +162,9 @@ private [zio] object LayerMacroUtils {
 
             case '[Queue[a]] =>
               '{ ${acc}.zipWith(Queue.unbounded[a].map(p => Tuple1(p)))(_ ++ _) }
+
+            case '[Hub[a]] =>
+              '{ ${acc}.zipWith(Hub.unbounded[a].map(p => Tuple1(p)))(_ ++ _) }
 
             case '[t] =>
               '{ ${acc}.zipWith(ZIO.serviceWith[t](dep => Tuple1(dep)))(_ ++ _) }

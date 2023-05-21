@@ -14,16 +14,17 @@ private[zio] class ZLayerDerivationMacros(val c: whitebox.Context) {
       case m: MethodSymbol if m.isPrimaryConstructor => m
     }.getOrElse(c.abort(c.enclosingPosition, s"Failed to derive a ZLayer: type $tpe does not have any constructor."))
 
-    val params = 
+    val params =
       ctor.paramLists.head.map { sym =>
         val depType = sym.typeSignature
-        val serviceName = depType.typeSymbol.name
 
-        val (serviceCall, envType) = 
+        val (serviceCall, envType) =
           if (depType <:< typeOf[Promise[_, _]])
             (q"_root_.zio.Promise.make[..${depType.typeArgs}]", None)
           else if (depType <:< typeOf[Queue[_]])
             (q"_root_.zio.Queue.unbounded[..${depType.typeArgs}]", None)
+          else if (depType <:< typeOf[Hub[_]])
+            (q"_root_.zio.Hub.unbounded[..${depType.typeArgs}]", None)
           else
             (q"_root_.zio.ZIO.service[$depType]", Some(depType))
 

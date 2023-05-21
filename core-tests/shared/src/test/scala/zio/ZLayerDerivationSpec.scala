@@ -15,10 +15,12 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
   case class ZeroDependencyWithPromise(p1: Promise[Nothing, Int])
   case class OneDependencyWithPromise(d1: String, p1: Promise[Nothing, Int])
   case class OneDependencyWithQueue(d1: String, q1: Queue[Int])
+  case class OneDependencyWithHub(d1: String, q1: Hub[Int])
 
   val derivedZeroWithPromise = ZLayer.derive[ZeroDependencyWithPromise]
   val derivedOneWithPromise  = ZLayer.derive[OneDependencyWithPromise]
   val derivedOneWithQueue    = ZLayer.derive[OneDependencyWithQueue]
+  val derivedOneWithHub      = ZLayer.derive[OneDependencyWithHub]
 
   override def spec = suite("ZLayer.derive[A]")(
     test("Zero dependency") {
@@ -53,6 +55,12 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
         svc       <- ZIO.service[OneDependencyWithQueue]
         queueSize <- svc.q1.size
       } yield assertTrue(svc.d1 == "one", queueSize == 0)
+    },
+    test("One dependency with Hub") {
+      for {
+        svc     <- ZIO.service[OneDependencyWithHub]
+        hubSize <- svc.q1.size
+      } yield assertTrue(svc.d1 == "one", hubSize == 0)
     }
   ).provide(
     derivedZero,
@@ -61,6 +69,7 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
     derivedZeroWithPromise,
     derivedOneWithPromise,
     derivedOneWithQueue,
+    derivedOneWithHub,
     ZLayer.succeed("one"),
     ZLayer.succeed(2)
   )
