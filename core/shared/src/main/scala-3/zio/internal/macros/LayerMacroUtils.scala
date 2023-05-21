@@ -126,9 +126,7 @@ private [zio] object LayerMacroUtils {
   type Env[Elems] =
     Elems match {
       case EmptyTuple => Any
-      case Promise[_, _] *: rest => Env[rest]
-      case Queue[_] *: rest => Env[rest]
-      case Hub[_] *: rest => Env[rest]
+      case (Promise[_, _] | Queue[_] | Hub[_]) *: rest => Env[rest]
       case t *: EmptyTuple => t
       case t *: rest => t & Env[rest]
     }
