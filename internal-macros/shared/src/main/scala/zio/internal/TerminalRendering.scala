@@ -1,9 +1,8 @@
 package zio.internal
 
-import ansi._
+import zio.internal.ansi._
 
 object TerminalRendering {
-
   def circularityError(circularDependencies: List[(String, String)]): String = {
     val circularDependencyMessage =
       circularDependencies.map { case (a0, b0) =>
@@ -210,6 +209,45 @@ object TerminalRendering {
        |""".stripMargin
   }
 
+  private def colorMethodSignature(fullMethodSignature: String, parametersToColor: Seq[String], color: Color): String =
+    parametersToColor.fold(fullMethodSignature) { (signature, parameter) =>
+      signature.replace(parameter, parameter.withAnsi(color))
+    }
+
+  private def replaceByNameWithLambdasAndColorMethodSignature(
+    fullMethodSignature: String,
+    parametersToColor: Seq[String],
+    color: Color
+  ): String =
+    parametersToColor.fold(fullMethodSignature) { (signature, parameter) =>
+      signature.replace(parameter, parameter.replace("=>", "() =>").withAnsi(color))
+    }
+
+  def byNameParameterInMacroError(method: String, fullMethodSignature: String, byNameParameters: Seq[String]): String =
+    s"""
+       |${title("ZLayer Error").red}
+       |
+       | Due to bug in Scala 2 compiler invoking methods with by-name parameters in ${methodName(
+      "provide"
+    )}/${methodName("provideSome")} method does not work
+       | ${colorMethodSignature(fullMethodSignature, byNameParameters, Color.Red)}
+       |
+       | Bug can be workarounded in following ways:
+       |
+       | 1. Assign method output to temporary variable
+       |    ${s"ZLayer.provide($method(...))".red}
+       |    ↓↓↓
+       |    ${s"val temp = $method(...)".green}
+       |    ${s"ZLayer.provide(temp)".green}
+       |
+       | 2. Replace by-name parameter with lambda:
+       |    ${colorMethodSignature(fullMethodSignature, byNameParameters, Color.Red)}
+       |    ↓↓↓
+       |    ${replaceByNameWithLambdasAndColorMethodSignature(fullMethodSignature, byNameParameters, Color.Green)}
+       |
+       |${line.red}
+       |""".stripMargin
+
   def provideSomeNothingEnvError: String =
     s"""${title("ZLayer Warning").yellow}
 
@@ -246,6 +284,13 @@ ${line.yellow}
           ("java.lang.String", List("aGreatStringLayer", "myStringLayer")),
           ("List[Boolean]", List("someBooleansLayer", "booleanLayer1", "booleanLayer2"))
         )
+      )
+    )
+    println(
+      byNameParameterInMacroError(
+        "createLayerByName",
+        "def createLayerByName(i: Int, x: => MyLayer): zio.ULayer[MyLayer]",
+        Seq("x: => MyLayer")
       )
     )
   }

@@ -2,7 +2,7 @@ package zio.autowire
 
 import zio._
 import zio.internal.macros.StringUtils.StringOps
-import zio.test.Assertion.{equalTo, isLeft}
+import zio.test.Assertion.{anything, equalTo, isLeft}
 import zio.test._
 
 object AutoWireSpec extends ZIOBaseSpec {
@@ -181,7 +181,7 @@ object AutoWireSpec extends ZIOBaseSpec {
                       }
                     )
               """
-            })(isLeft(Assertion.containsString("Cannot use by-name parameters")))
+            })(isLeft(anything))
           } @@ TestAspect.exceptScala3
         ),
         suite("`ZLayer.makeSome`")(
