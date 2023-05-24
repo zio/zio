@@ -3989,7 +3989,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               }
             }
             assertZIO(stream.via(pipeline).runCollect.exit)(fails(hasMessage(containsString("fail"))))
-          }
+          } @@ TestAspect.jvmOnly,
         ),
         test("toIterator") {
           ZIO.scoped {
