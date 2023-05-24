@@ -903,7 +903,25 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2] =
     ZChannel.suspend {
 
-      class ChannelFailure(val err: Cause[OutErr1]) extends Throwable
+      class ChannelFailure(val err: Cause[OutErr1]) extends Throwable(null, null, true, false) {
+        override def getMessage: String = err.unified.headOption.fold("<unknown>")(_.message)
+
+        override def getStackTrace(): Array[StackTraceElement] =
+          err.unified.headOption.fold[Chunk[StackTraceElement]](Chunk.empty)(_.trace).toArray
+
+        override def getCause(): Throwable =
+          err.find { case Cause.Die(throwable, _) => throwable }
+            .orElse(err.find { case Cause.Fail(value: Throwable, _) => value })
+            .orNull
+
+        def fillSuppressed()(implicit unsafe: Unsafe): Unit =
+          if (getSuppressed().length == 0) {
+            err.unified.iterator.drop(1).foreach(unified => addSuppressed(unified.toThrowable))
+          }
+
+        override def toString =
+          err.prettyPrint
+      }
       var channelFailure: ChannelFailure = null
 
       lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, Nothing, OutElem, OutDone] =
