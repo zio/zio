@@ -494,7 +494,7 @@ sealed trait ZIO[-R, +E, +A]
 
   /**
    * Returns an effect whose failure and success have been lifted into an
-   * `Either`.The resulting effect cannot fail, because the failure case has
+   * `Either`. The resulting effect cannot fail, because the failure case has
    * been exposed as part of the `Either` success case.
    *
    * This method is useful for recovering from `ZIO` effects that may fail.
