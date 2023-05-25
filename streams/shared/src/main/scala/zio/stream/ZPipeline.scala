@@ -1489,6 +1489,18 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     )
 
   /**
+   * Creates a pipeline that fails with the provided error.
+   */
+  def fail[E](e: => E)(implicit trace: Trace): ZPipeline[Any, E, Any, Nothing] =
+    ZPipeline.failCause(Cause.fail(e))
+
+  /**
+   * Creates a pipeline that fails with the provided cause.
+   */
+  def failCause[E](cause: => Cause[E])(implicit trace: Trace): ZPipeline[Any, E, Any, Nothing] =
+    ZPipeline.fromChannel(ZChannel.failCause(cause))
+
+  /**
    * Decode each pair of hex digit input characters (both lower or upper case
    * letters are allowed) as one output byte.
    */

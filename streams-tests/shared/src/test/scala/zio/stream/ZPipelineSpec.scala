@@ -153,6 +153,11 @@ object ZPipelineSpec extends ZIOBaseSpec {
             .exit
         )(fails(equalTo("failed!!!")))
       ),
+      test("fail")(
+        assertZIO(
+          ZStream(1, 2, 3).via(ZPipeline.fail("error")).runCollect.exit
+        )(fails(equalTo("error")))
+      ),
       suite("hex")(
         test("Empty input encodes to empty output") {
           for {
