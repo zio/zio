@@ -281,7 +281,7 @@ val r5: ZIO[Any, IOException, List[String]] =
 
 ### `iterate`
 
-To iterate with the given effectful operation we can use the `ZIO.interate` combinator. During each iteration, it uses an effectful `body` operation to change the state, and it will continue the iteration while the `cont` function evaluates to true:
+To iterate with the given effectful operation we can use the `ZIO.iterate` combinator. During each iteration, it uses an effectful `body` operation to change the state, and it will continue the iteration while the `cont` function evaluates to true:
 
 ```scala
 object ZIO {
