@@ -59,7 +59,8 @@ object MetricKeyType {
 
     object Boundaries {
 
-      def fromChunk(chunk: Chunk[Double]): Boundaries = Boundaries((chunk ++ Chunk(Double.MaxValue)).distinct)
+      def fromChunk(chunk: Chunk[Double]): Boundaries =
+        Boundaries((chunk.filter(_ > 0) ++ Chunk(Double.MaxValue)).distinct)
 
       /**
        * A helper method to create histogram bucket boundaries for a histogram
