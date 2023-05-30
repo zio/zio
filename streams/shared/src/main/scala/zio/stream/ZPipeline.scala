@@ -274,6 +274,13 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self <<< that
 
   /**
+   * Returns a new pipeline which is the same as this one but applies the given
+   * function to the pipeline's input.
+   */
+  def contramap[In2](f: In2 => In)(implicit trace: Trace): ZPipeline[Env, Err, In2, Out] =
+    ZPipeline.fromChannel(channel.contramapIn(_.map(f)))
+
+  /**
    * Converts this pipeline to a pipeline that executes its effects but emits no
    * elements. Useful for sequencing effects using pipeline:
    *
