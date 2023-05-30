@@ -198,112 +198,113 @@ object ConfigProviderSpec extends ZIOBaseSpec {
             value <- provider(Map()).load(Config.succeed("value"))
           } yield assertTrue(value == "value")
         }
-    ) + suite("props")(
-      test("flat atoms") {
-        for {
-          provider <- propsProvider(Map("host" -> "localhost", "port" -> "8080"))
-          result   <- provider.load(HostPort.config)
-        } yield assertTrue(result == HostPort.default)
-      },
-      test("nested atoms") {
-        for {
-          provider <-
-            propsProvider(Map("hostPort.host" -> "localhost", "hostPort.port" -> "8080", "timeout" -> "1000"))
-          result <- provider.load(ServiceConfig.config)
-        } yield assertTrue(result == ServiceConfig.default)
-      },
-      test("top-level list") {
-        for {
-          provider <- propsProvider(
-                        Map("hostPorts.host" -> "localhost,localhost,localhost", "hostPorts.port" -> "8080,8080,8080")
-                      )
-          result <- provider.load(HostPorts.config)
-        } yield assertTrue(result.hostPorts.length == 3)
-      },
-      test("top-level missing list") {
-        for {
-          provider <- propsProvider(Map())
-          exit     <- provider.load(HostPorts.config).exit
-        } yield assert(exit)(failsWithA[Config.Error])
-      },
-      test("simple map") {
-        for {
-          provider <- propsProvider(Map("name" -> "Sherlock Holmes", "address" -> "221B Baker Street"))
-          result   <- provider.load(Config.table(Config.string))
-        } yield assertTrue(result == Map("name" -> "Sherlock Holmes", "address" -> "221B Baker Street"))
-      },
-      test("empty property name") {
-        for {
-          provider <- propsProvider(Map("" -> "42.24"))
-
-          result2 <- provider.load(Config.double)
-          result1 <- provider.load(Config.double(""))
-        } yield assertTrue(result1 == 42.24, result2 == 42.24)
-      },
-      test("path delimiter property name") {
-        for {
-          provider <- propsProvider(Map("." -> "42", ".." -> "24"))
-
-          result1 <- provider.load(Config.int("."))
-          result2 <- provider.load(Config.int(".."))
-        } yield assertTrue(result1 == 42, result2 == 24)
-      },
-      test("incorrect path property name") {
-        for {
-          provider <- propsProvider(Map(".a" -> "42"))
-
-          result1 <- provider.load(Config.int(".a"))
-          result2 <- provider.load(Config.int("a").nested(""))
-        } yield assertTrue(result1 == 42, result2 == 42)
-      },
-      test("fail for non symmetric top-level list") {
-        for {
-          provider <- propsProvider(
-                        Map("hostPorts.host" -> "localhost", "hostPorts.port" -> "8080,8080")
-                      )
-          result <- provider.load(HostPorts.config).flip.exit
-        } yield assertTrue(
-          result.exists(
-            _ == Config.Error.MissingData(
-              path = Chunk("hostPorts"),
-              message = "The element at index 1 in a sequence at hostPorts was missing"
-            )
-          )
-        )
-      },
-      test("fail for missing property") {
-        for {
-          provider <- propsProvider(Map.empty)
-          result   <- provider.load(Config.string("key")).flip.exit
-        } yield assertTrue(
-          result.exists(
-            _ == Config.Error.MissingData(
-              path = Chunk("key"),
-              message = "Expected key to be set in properties"
-            )
-          )
-        )
-      },
-      test("fail for wrong property type") {
-        for {
-          provider <- propsProvider(Map("key" -> "value"))
-          result   <- provider.load(Config.int("key")).flip.exit
-        } yield assertTrue(
-          result.exists(
-            _ == Config.Error.InvalidData(
-              path = Chunk("key"),
-              message = "Expected an integer value, but found value"
-            )
-          )
-        )
-      },
-      test("succeed for constant value") {
-        for {
-          provider <- propsProvider(Map())
-          result   <- provider.load(Config.succeed("value"))
-        } yield assertTrue(result == "value")
-      }
     ) +
+      suite("props")(
+        test("flat atoms") {
+          for {
+            provider <- propsProvider(Map("host" -> "localhost", "port" -> "8080"))
+            result   <- provider.load(HostPort.config)
+          } yield assertTrue(result == HostPort.default)
+        },
+        test("nested atoms") {
+          for {
+            provider <-
+              propsProvider(Map("hostPort.host" -> "localhost", "hostPort.port" -> "8080", "timeout" -> "1000"))
+            result <- provider.load(ServiceConfig.config)
+          } yield assertTrue(result == ServiceConfig.default)
+        },
+        test("top-level list") {
+          for {
+            provider <- propsProvider(
+                          Map("hostPorts.host" -> "localhost,localhost,localhost", "hostPorts.port" -> "8080,8080,8080")
+                        )
+            result <- provider.load(HostPorts.config)
+          } yield assertTrue(result.hostPorts.length == 3)
+        },
+        test("top-level missing list") {
+          for {
+            provider <- propsProvider(Map())
+            exit     <- provider.load(HostPorts.config).exit
+          } yield assert(exit)(failsWithA[Config.Error])
+        },
+        test("simple map") {
+          for {
+            provider <- propsProvider(Map("name" -> "Sherlock Holmes", "address" -> "221B Baker Street"))
+            result   <- provider.load(Config.table(Config.string))
+          } yield assertTrue(result == Map("name" -> "Sherlock Holmes", "address" -> "221B Baker Street"))
+        },
+        test("empty property name") {
+          for {
+            provider <- propsProvider(Map("" -> "42.24"))
+
+            result2 <- provider.load(Config.double)
+            result1 <- provider.load(Config.double(""))
+          } yield assertTrue(result1 == 42.24, result2 == 42.24)
+        },
+        test("path delimiter property name") {
+          for {
+            provider <- propsProvider(Map("." -> "42", ".." -> "24"))
+
+            result1 <- provider.load(Config.int("."))
+            result2 <- provider.load(Config.int(".."))
+          } yield assertTrue(result1 == 42, result2 == 24)
+        },
+        test("incorrect path property name") {
+          for {
+            provider <- propsProvider(Map(".a" -> "42"))
+
+            result1 <- provider.load(Config.int(".a"))
+            result2 <- provider.load(Config.int("a").nested(""))
+          } yield assertTrue(result1 == 42, result2 == 42)
+        },
+        test("fail for non symmetric top-level list") {
+          for {
+            provider <- propsProvider(
+                          Map("hostPorts.host" -> "localhost", "hostPorts.port" -> "8080,8080")
+                        )
+            result <- provider.load(HostPorts.config).flip.exit
+          } yield assertTrue(
+            result.exists(
+              _ == Config.Error.MissingData(
+                path = Chunk("hostPorts"),
+                message = "The element at index 1 in a sequence at hostPorts was missing"
+              )
+            )
+          )
+        },
+        test("fail for missing property") {
+          for {
+            provider <- propsProvider(Map.empty)
+            result   <- provider.load(Config.string("key")).flip.exit
+          } yield assertTrue(
+            result.exists(
+              _ == Config.Error.MissingData(
+                path = Chunk("key"),
+                message = "Expected key to be set in properties"
+              )
+            )
+          )
+        },
+        test("fail for wrong property type") {
+          for {
+            provider <- propsProvider(Map("key" -> "value"))
+            result   <- provider.load(Config.int("key")).flip.exit
+          } yield assertTrue(
+            result.exists(
+              _ == Config.Error.InvalidData(
+                path = Chunk("key"),
+                message = "Expected an integer value, but found value"
+              )
+            )
+          )
+        },
+        test("succeed for constant value") {
+          for {
+            provider <- propsProvider(Map())
+            result   <- provider.load(Config.succeed("value"))
+          } yield assertTrue(result == "value")
+        }
+      ) +
       test("nested") {
         val configProvider1 = ConfigProvider.fromMap(Map("nested.key" -> "value"))
         val config1         = Config.string("key").nested("nested")
@@ -332,11 +333,127 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value")
       } +
-      test("orElse") {
+      test("optional") {
         for {
           _      <- TestSystem.putProperty("key", "value")
           result <- ZIO.config(Config.string("key").optional)
         } yield assertTrue(result == Some("value"))
+      } +
+      suite("orElse") {
+        test("with flat data") {
+          val configProvider = ConfigProvider.fromMap(Map("key1" -> "value1", "key4" -> "value41")) orElse
+            ConfigProvider.fromMap(Map("key2" -> "value2", "key4" -> "value42"))
+
+          for {
+            result1  <- configProvider.load(Config.string("key1"))
+            result2  <- configProvider.load(Config.string("key2"))
+            result31 <- configProvider.load(Config.string("key3").optional)
+            result32 <- configProvider.load(Config.string("key3")).either
+            result4  <- configProvider.load(Config.string("key4"))
+          } yield assertTrue(
+            result1 == "value1",
+            result2 == "value2",
+            result31.isEmpty,
+            result32 == Left(
+              Config.Error.MissingData(Chunk("key3"), "Expected key3 to be set in properties") ||
+                Config.Error.MissingData(Chunk("key3"), "Expected key3 to be set in properties")
+            ),
+            result4 == "value41"
+          )
+        } +
+          test("with indexed sequences") {
+            val configProvider = ConfigProvider
+              .fromMap(
+                Map(
+                  "parent1.child.employees[0].age" -> "1",
+                  "parent1.child.employees[0].id"  -> "2",
+                  "parent1.child.employees[1].age" -> "3",
+                  "parent1.child.employees[1].id"  -> "4"
+                )
+              ) orElse
+              ConfigProvider.fromMap(
+                Map(
+                  "parent1.child.employees[2].age" -> "5",
+                  "parent1.child.employees[2].id"  -> "6",
+                  "parent2.child.employees[0].age" -> "11",
+                  "parent2.child.employees[0].id"  -> "21",
+                  "parent2.child.employees[1].age" -> "31",
+                  "parent2.child.employees[1].id"  -> "41"
+                )
+              )
+
+            val product    = Config.int("age").zip(Config.int("id"))
+            val listConfig = Config.listOf("employees", product)
+            val config1    = listConfig.nested("child").nested("parent1")
+            val config2    = listConfig.nested("child").nested("parent2")
+
+            for {
+              result1 <- configProvider.load(config1)
+              result2 <- configProvider.load(config2)
+            } yield assertTrue(result1 == List((1, 2), (3, 4), (5, 6)), result2 == List((11, 21), (31, 41)))
+          } +
+          test("with indexed sequences and each provider unnested") {
+            val configProvider = ConfigProvider
+              .fromMap(
+                Map(
+                  "employees[0].age" -> "1",
+                  "employees[0].id"  -> "2",
+                  "employees[1].age" -> "3",
+                  "employees[1].id"  -> "4"
+                )
+              )
+              .unnested("parent1")
+              .unnested("child") orElse
+              ConfigProvider
+                .fromMap(
+                  Map(
+                    "employees[0].age" -> "11",
+                    "employees[0].id"  -> "21",
+                    "employees[1].age" -> "31",
+                    "employees[1].id"  -> "41"
+                  )
+                )
+                .unnested("parent2")
+                .unnested("child")
+
+            val product    = Config.int("age").zip(Config.int("id"))
+            val listConfig = Config.listOf("employees", product)
+            val config1    = listConfig.nested("child").nested("parent1")
+            val config2    = listConfig.nested("child").nested("parent2")
+            val config3    = listConfig.nested("child").nested("parent3")
+
+            for {
+              result1 <- configProvider.load(config1)
+              result2 <- configProvider.load(config2)
+              result3 <- configProvider.load(config3).either
+            } yield assertTrue(
+              result1 == List((1, 2), (3, 4)),
+              result2 == List((11, 21), (31, 41)),
+              result3 == Left(
+                Config.Error.MissingData(
+                  Chunk("parent3", "child", "employees"),
+                  "Expected parent1 to be in path in ConfigProvider#unnested"
+                ) && Config.Error.MissingData(
+                  Chunk("parent3", "child", "employees"),
+                  "Expected parent2 to be in path in ConfigProvider#unnested"
+                )
+              )
+            )
+          } +
+          test("with indexed sequences and combined provider unnested") {
+            val configProvider = (
+              ConfigProvider.fromMap(Map("employees[0].age" -> "1", "employees[0].id" -> "2")) orElse
+                ConfigProvider.fromMap(Map("employees[1].age" -> "3", "employees[1].id" -> "4"))
+            ).unnested("parent1").unnested("child")
+
+            val product    = Config.int("age").zip(Config.int("id"))
+            val listConfig = Config.listOf("employees", product)
+            val config1    = listConfig.nested("child").nested("parent1")
+
+            for {
+              result1 <- configProvider.load(config1)
+            } yield assertTrue(result1 == List((1, 2), (3, 4)))
+          }
       } +
       test("values are not split unless a sequence is expected") {
         for {

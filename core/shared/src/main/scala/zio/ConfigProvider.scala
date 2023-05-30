@@ -208,8 +208,8 @@ object ConfigProvider {
             r <- ZIO.fromEither(that.patch(path)).flatMap(that.enumerateChildren).either
             result <- (l, r) match {
                         case (Left(e1), Left(e2)) => ZIO.fail(e1 && e2)
-                        case (Left(e1), Right(_)) => ZIO.fail(e1)
-                        case (Right(_), Left(e2)) => ZIO.fail(e2)
+                        case (Left(_), Right(r))  => ZIO.succeed(r)
+                        case (Right(l), Left(_))  => ZIO.succeed(l)
                         case (Right(l), Right(r)) => ZIO.succeed(l ++ r)
                       }
           } yield result
