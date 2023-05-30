@@ -345,13 +345,18 @@ object MetricSpec extends ZIOBaseSpec {
         } yield assertTrue(r0.count == 0L, r1.count == 1L, r2.count == 1L)
       },
       test("linear boundaries") {
-        val expected = Chunk(0, 10, 20, 30, 40, 50, 60, 70, 80, 90).map(_.toDouble) :+ Double.MaxValue
+        val expected = Chunk(10, 20, 30, 40, 50, 60, 70, 80, 90).map(_.toDouble) :+ Double.MaxValue
         val actual   = Histogram.Boundaries.linear(0, 10, 10).values
         assertTrue(actual == expected)
       },
       test("exponential boundaries") {
         val expected = Chunk(1, 2, 4, 8, 16, 32, 64, 128, 256, 512).map(_.toDouble) :+ Double.MaxValue
         val actual   = Histogram.Boundaries.exponential(1, 2, 10).values
+        assertTrue(actual == expected)
+      },
+      test("custom boundaries without zero and negative values") {
+        val expected = Chunk(10, 20).map(_.toDouble) :+ Double.MaxValue
+        val actual   = Histogram.Boundaries.fromChunk(Chunk(-10, 0, 10, 20)).values
         assertTrue(actual == expected)
       }
     ),
