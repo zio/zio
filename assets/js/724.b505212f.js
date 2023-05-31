@@ -41556,9 +41556,9 @@ var dist_color = __webpack_require__(71610);
 /* MAIN */
 //SOURCE: https://planetcalc.com/7779
 const luminance = (color) => {
-    const { r, g, b } = dist_color/* default.parse */.Z.parse(color);
-    const luminance = .2126 * utils/* default.channel.toLinear */.Z.channel.toLinear(r) + .7152 * utils/* default.channel.toLinear */.Z.channel.toLinear(g) + .0722 * utils/* default.channel.toLinear */.Z.channel.toLinear(b);
-    return utils/* default.lang.round */.Z.lang.round(luminance);
+    const { r, g, b } = dist_color/* default */.Z.parse(color);
+    const luminance = .2126 * utils/* default */.Z.channel.toLinear(r) + .7152 * utils/* default */.Z.channel.toLinear(g) + .0722 * utils/* default */.Z.channel.toLinear(b);
+    return utils/* default */.Z.lang.round(luminance);
 };
 /* EXPORT */
 /* harmony default export */ const methods_luminance = (luminance);
