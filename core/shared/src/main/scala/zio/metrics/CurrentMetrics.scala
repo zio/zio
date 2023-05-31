@@ -6,7 +6,7 @@ import zio.{IO, Trace, UIO, ZIO}
 
 import java.io.IOException
 
-final case class CurrentMetrics(metrics: Set[MetricPair.Untyped]) extends Serializable {
+final case class CurrentMetrics private[metrics] (metrics: Set[MetricPair.Untyped]) extends Serializable {
   def prettyPrint(implicit trace: Trace): UIO[String] =
     MetricsRenderer.prettyPrint(metrics)
 }
