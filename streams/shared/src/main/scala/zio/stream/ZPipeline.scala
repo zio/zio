@@ -27,6 +27,7 @@ import java.nio.{Buffer, ByteBuffer, CharBuffer}
 import java.nio.charset.{
   CharacterCodingException,
   Charset,
+  CharsetDecoder,
   CoderResult,
   MalformedInputException,
   StandardCharsets,
@@ -918,8 +919,18 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     charset: => Charset,
     bufSize: => Int = 4096
   )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, Char] =
+    decodeCharsWithDecoder(charset.newDecoder(), bufSize)
+
+  /**
+   * Creates a pipeline that decodes a stream of bytes into a stream of
+   * characters using the given charset decoder.
+   */
+  def decodeCharsWithDecoder(
+    charsetDecoder: => CharsetDecoder,
+    bufSize: => Int = 4096
+  )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, Char] =
     ZPipeline.suspend {
-      val decoder    = charset.newDecoder()
+      val decoder    = charsetDecoder
       val byteBuffer = ByteBuffer.allocate(bufSize)
       val charBuffer = CharBuffer.allocate((bufSize.toFloat * decoder.averageCharsPerByte).round)
 
