@@ -683,7 +683,8 @@ val scopedApp = for {
   kafka <- kafkaConsumer.runDrain.forkScoped
   http  <- httpServer.forkScoped
   jobs  <- scheduledJobRunner.forkScoped
-} yield ZIO.raceAll(kafka.await, List(http.await, jobs.await))
+  _     <- ZIO.raceAll(kafka.await, List(http.await, jobs.await))
+} yield ()
 
 val mainApp = ZIO.scoped(scopedApp).exitCode
 ```
