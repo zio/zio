@@ -670,7 +670,7 @@ val main =
 
 We can launch the Kafka consumer, the HTTP server, and our job runner and fork them, and then wait using `ZIO.never`. This will indeed wait, but if something happens to any of them and if they crash, nothing happens. So our application just hangs and remains up without anything working in the background. So this approach does not work properly.
 
-So another idea is to watch background components. The `ZIO#forkScoped` enables us to race all forked fibers in a `Scope`. By using `ZIO.raceAll` as soon as one of those fibers terminates with either success or failure, it will interrupt all the rest components as the part of the release action of `Scope`:
+So another idea is to watch background components. By using `ZIO.raceFirst` as soon as one of those fibers terminates with either success or failure, it will interrupt all the rest of the components:
 
 ```scala mdoc:invisible
 val kafkaConsumer     : ZStream[Any, Nothing, Int] = ZStream.fromZIO(ZIO.succeed(???))
@@ -679,19 +679,14 @@ val scheduledJobRunner: ZIO[Any, Nothing, Nothing] = ZIO.never
 ```
 
 ```scala mdoc:silent:nest
-val scopedApp = for {
-  kafka <- kafkaConsumer.runDrain.forkScoped
-  http  <- httpServer.forkScoped
-  jobs  <- scheduledJobRunner.forkScoped
-} yield ZIO.raceAll(kafka.await, List(http.await, jobs.await))
-
-val mainApp = ZIO.scoped(scopedApp).exitCode
+val main =
+  ZIO.raceFirst(kafkaConsumer.runDrain, List(httpServer, scheduledJobRunner))
 ```
 
-This solution is very nice and elegant, but we can do it in a more declarative fashion with ZIO streams:
+We can also do this with streams:
 
 ```scala mdoc:silent:nest
-val scopedApp =
+val main =
   for {
   //_ <- other resources
     _ <- ZStream
@@ -702,8 +697,6 @@ val scopedApp =
       )
       .runDrain
   } yield ()
-
-val myApp = ZIO.scoped(scopedApp).exitCode
 ```
 
 Using `ZStream.mergeAll` we can combine all these streaming components concurrently into one application.
