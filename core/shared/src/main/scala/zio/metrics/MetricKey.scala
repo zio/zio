@@ -40,14 +40,6 @@ sealed case class MetricKey[+Type] private (
     }
 
   /**
-   * Returns a new `MetricKey` with the specified description.
-   */
-  def described(description0: String): MetricKey[Type] =
-    new MetricKey[Type](self.name, self.keyType, self.tags) {
-      override def description: Option[String] = Some(description0)
-    }
-
-  /**
    * Returns a new `MetricKey` with the specified tag appended.
    */
   def tagged(key: String, value: String): MetricKey[Type] =
@@ -83,6 +75,15 @@ object MetricKey {
     MetricKey(name, MetricKeyType.Counter)
 
   /**
+   * Creates a metric key for a counter, with the specified name and
+   * description.
+   */
+  def counter(name: String, description0: String): Counter =
+    new MetricKey(name, MetricKeyType.Counter) {
+      override def description: Option[String] = Some(description0)
+    }
+
+  /**
    * Creates a metric key for a categorical frequency table, with the specified
    * name.
    */
@@ -90,10 +91,27 @@ object MetricKey {
     MetricKey(name, MetricKeyType.Frequency)
 
   /**
+   * Creates a metric key for a categorical frequency table, with the specified
+   * name and description.
+   */
+  def frequency(name: String, description0: String): Frequency =
+    new MetricKey(name, MetricKeyType.Frequency) {
+      override def description: Option[String] = Some(description0)
+    }
+
+  /**
    * Creates a metric key for a gauge, with the specified name.
    */
   def gauge(name: String): Gauge =
     MetricKey(name, MetricKeyType.Gauge)
+
+  /**
+   * Creates a metric key for a gauge, with the specified name and description.
+   */
+  def gauge(name: String, description0: String): Gauge =
+    new MetricKey(name, MetricKeyType.Gauge) {
+      override def description: Option[String] = Some(description0)
+    }
 
   /**
    * Creates a metric key for a histogram, with the specified name.
@@ -103,6 +121,19 @@ object MetricKey {
     boundaries: Boundaries
   ): Histogram =
     MetricKey(name, MetricKeyType.Histogram(boundaries))
+
+  /**
+   * Creates a metric key for a histogram, with the specified name and
+   * description.
+   */
+  def histogram(
+    name: String,
+    description0: String,
+    boundaries: Boundaries
+  ): Histogram =
+    new MetricKey(name, MetricKeyType.Histogram(boundaries)) {
+      override def description: Option[String] = Some(description0)
+    }
 
   /**
    * Creates a metric key for a summary, with the specified name.
@@ -115,4 +146,20 @@ object MetricKey {
     quantiles: Chunk[Double]
   ): Summary =
     MetricKey(name, MetricKeyType.Summary(maxAge, maxSize, error, quantiles))
+
+  /**
+   * Creates a metric key for a summary, with the specified name and
+   * description.
+   */
+  def summary(
+    name: String,
+    description0: String,
+    maxAge: Duration,
+    maxSize: Int,
+    error: Double,
+    quantiles: Chunk[Double]
+  ): Summary =
+    new MetricKey(name, MetricKeyType.Summary(maxAge, maxSize, error, quantiles)) {
+      override def description: Option[String] = Some(description0)
+    }
 }

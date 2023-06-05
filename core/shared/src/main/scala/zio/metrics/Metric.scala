@@ -423,7 +423,7 @@ object Metric {
    * A counter, which can be incremented by doubles.
    */
   def counterDouble(name: String, description: String): Counter[Double] =
-    fromMetricKey(MetricKey.counter(name).described(description))
+    fromMetricKey(MetricKey.counter(name, description))
 
   /**
    * A counter, which can be incremented by integers.
@@ -449,7 +449,7 @@ object Metric {
    * strings.
    */
   def frequency(name: String, description: String): Frequency[String] =
-    fromMetricKey(MetricKey.frequency(name).described(description))
+    fromMetricKey(MetricKey.frequency(name, description))
 
   /**
    * Creates a metric from a metric key. This is the primary constructor for
@@ -500,7 +500,7 @@ object Metric {
    * A gauge, which can be set to a value.
    */
   def gauge(name: String, description: String): Gauge[Double] =
-    fromMetricKey(MetricKey.gauge(name).described(description))
+    fromMetricKey(MetricKey.gauge(name, description))
 
   /**
    * A numeric histogram metric, which keeps track of the count of numbers that
@@ -514,7 +514,7 @@ object Metric {
    * fall in bins with the specified boundaries.
    */
   def histogram(name: String, description: String, boundaries: Histogram.Boundaries): Histogram[Double] =
-    fromMetricKey(MetricKey.histogram(name, boundaries).described(description))
+    fromMetricKey(MetricKey.histogram(name, description, boundaries))
 
   /**
    * Creates a metric that ignores input and produces constant output.
@@ -580,7 +580,7 @@ object Metric {
     error: Double,
     quantiles: Chunk[Double]
   ): Summary[(Double, java.time.Instant)] =
-    fromMetricKey(MetricKey.summary(name, maxAge, maxSize, error, quantiles).described(description))
+    fromMetricKey(MetricKey.summary(name, description, maxAge, maxSize, error, quantiles))
 
   /**
    * Creates a timer metric, based on a histogram, which keeps track of
