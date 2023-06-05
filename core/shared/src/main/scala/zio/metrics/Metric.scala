@@ -591,14 +591,8 @@ object Metric {
   def timer(
     name: String,
     chronoUnit: ChronoUnit
-  ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] = {
-    val boundaries = Histogram.Boundaries.exponential(1.0, 2.0, 64)
-    val base       = histogram(name, boundaries).tagged(MetricLabel("time_unit", chronoUnit.toString.toLowerCase()))
-
-    base.contramap[Duration] { (duration: Duration) =>
-      duration.toNanos / chronoUnit.getDuration.toNanos
-    }
-  }
+  ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] =
+    timer(name, chronoUnit, Chunk.iterate(1.0, 64)(_ * 2.0))
 
   /**
    * Creates a timer metric, based on a histogram, which keeps track of
@@ -610,15 +604,8 @@ object Metric {
     name: String,
     description: String,
     chronoUnit: ChronoUnit
-  ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] = {
-    val boundaries = Histogram.Boundaries.exponential(1.0, 2.0, 64)
-    val base =
-      histogram(name, description, boundaries).tagged(MetricLabel("time_unit", chronoUnit.toString.toLowerCase()))
-
-    base.contramap[Duration] { (duration: Duration) =>
-      duration.toNanos / chronoUnit.getDuration.toNanos
-    }
-  }
+  ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] =
+    timer(name, description, chronoUnit, Chunk.iterate(1.0, 64)(_ * 2.0))
 
   def timer(
     name: String,
