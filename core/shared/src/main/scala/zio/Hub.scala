@@ -229,6 +229,7 @@ object Hub {
           ZIO
             .whenZIO(shutdownHook.succeed(())) {
               ZIO.foreachPar(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
+                ZIO.succeed(subscribers.remove(subscription -> pollers)) *>
                 ZIO.succeed(subscription.unsubscribe()) *>
                 ZIO.succeed(strategy.unsafeOnHubEmptySpace(hub, subscribers))
             }
@@ -352,6 +353,7 @@ object Hub {
       hub: internal.Hub[A],
       subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
     ): Unit = {
+      println(subscribers.size)
       val iterator = subscribers.iterator
       while (iterator.hasNext) {
         val (subscription, pollers) = iterator.next()
