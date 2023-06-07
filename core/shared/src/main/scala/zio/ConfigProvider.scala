@@ -15,10 +15,9 @@
  */
 package zio
 
-import java.time.format.DateTimeFormatter
 import scala.annotation.tailrec
+import scala.collection.immutable.TreeSet
 import scala.util.Try
-import scala.util.matching.Regex
 
 /**
  * A ConfigProvider is a service that provides configuration given a description
@@ -643,10 +642,16 @@ object ConfigProvider {
         } yield results
       }
 
+      lazy val keyPaths = TreeSet.empty[String] ++ mapWithIndexSplit.keySet
+
       def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
         ZIO.succeed {
-          val keyPaths = Chunk.fromIterable(mapWithIndexSplit.keys).map(unmakePathString)
-          keyPaths.filter(_.startsWith(path)).map(_.drop(path.length).take(1)).flatten.toSet
+          val pathString = if (path.nonEmpty) path.mkString("", pathDelim, pathDelim) else ""
+          keyPaths
+            .iteratorFrom(pathString)
+            .takeWhile(_.startsWith(pathString))
+            .flatMap(s => unmakePathString(s).slice(path.length, path.length + 1))
+            .toSet
         }
 
       def load[A](path: Chunk[String], primitive: Config.Primitive[A])(implicit
@@ -780,5 +785,4 @@ object ConfigProvider {
 
         optionalString.flatMap(str => optionalIndex.map(ind => (str, ind)))
       }
-
 }
