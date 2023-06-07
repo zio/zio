@@ -19,6 +19,8 @@ package zio.metrics
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+import scala.runtime.ScalaRunTime
+
 /**
  * A `MetricKey` is a unique key associated with each metric. The key is based
  * on a combination of the metric type, the name and tags associated with the
@@ -37,6 +39,18 @@ sealed case class MetricKey[+Type] private (
   def copy[Type2](name: String = name, keyType: Type2 = keyType, tags: Set[MetricLabel] = tags): MetricKey[Type2] =
     new MetricKey(name, keyType, tags) {
       override def description: Option[String] = self.description
+    }
+
+  override def hashCode(): Int =
+    ScalaRunTime._hashCode((name, keyType, tags, description))
+
+  override def equals(other: Any): Boolean =
+    other match {
+      case other @ MetricKey(name, keyType, tags)
+          if self.name == name && self.keyType == keyType && self.tags == tags &&
+            self.description == other.description && other.canEqual(self) =>
+        true
+      case _ => false
     }
 
   /**
@@ -80,7 +94,7 @@ object MetricKey {
    */
   def counter(name: String, description0: String): Counter =
     new MetricKey(name, MetricKeyType.Counter) {
-      override def description: Option[String] = Some(description0)
+      override val description: Option[String] = Some(description0)
     }
 
   /**
@@ -96,7 +110,7 @@ object MetricKey {
    */
   def frequency(name: String, description0: String): Frequency =
     new MetricKey(name, MetricKeyType.Frequency) {
-      override def description: Option[String] = Some(description0)
+      override val description: Option[String] = Some(description0)
     }
 
   /**
@@ -110,7 +124,7 @@ object MetricKey {
    */
   def gauge(name: String, description0: String): Gauge =
     new MetricKey(name, MetricKeyType.Gauge) {
-      override def description: Option[String] = Some(description0)
+      override val description: Option[String] = Some(description0)
     }
 
   /**
@@ -132,7 +146,7 @@ object MetricKey {
     boundaries: Boundaries
   ): Histogram =
     new MetricKey(name, MetricKeyType.Histogram(boundaries)) {
-      override def description: Option[String] = Some(description0)
+      override val description: Option[String] = Some(description0)
     }
 
   /**
@@ -160,6 +174,6 @@ object MetricKey {
     quantiles: Chunk[Double]
   ): Summary =
     new MetricKey(name, MetricKeyType.Summary(maxAge, maxSize, error, quantiles)) {
-      override def description: Option[String] = Some(description0)
+      override val description: Option[String] = Some(description0)
     }
 }

@@ -511,43 +511,34 @@ object MetricSpec extends ZIOBaseSpec {
         _ <- ZIO.unit @@ timerWithBoundaries.trackDuration
       } yield assertCompletes
     },
-    test("Metric with description") {
-      val name = "desc_test_gauge"
+    test("metrics with description") {
+      val name = "counterName"
 
-      val gauge1 = Metric.gauge(name, "desc1")
-      val gauge2 = gauge1.tagged("key1", "value1")
-
-      val gauge3 = Metric.gauge(name, "desc2").tagged("key1", "value1")
-      val gauge4 =
-        gauge3
-          .tagged("key2", "value2")
+      val counter1 = Metric.counter(name)
+      val counter2 = Metric.counter(name, "description1")
+      val counter3 = Metric.counter(name, "description2")
 
       for {
-        _        <- gauge1.update(1L)
-        _        <- gauge2.modify(2L)
-        _        <- gauge3.modify(1L)
-        _        <- gauge4.update(2L)
+        _        <- counter1.update(1L)
+        _        <- counter2.update(1L)
+        _        <- counter3.update(1L)
+        r1       <- counter1.value
+        r2       <- counter2.value
+        r3       <- counter3.value
         snapshot <- ZIO.succeed(Unsafe.unsafe(implicit unsafe => metricRegistry.snapshot()))
-        r1       <- gauge1.value
-        r2       <- gauge2.value
-        r3       <- gauge3.value
-        r4       <- gauge4.value
-        pair1    <- ZIO.fromOption(snapshot.find(_.metricKey == MetricKey.gauge(name)))
-        pair2    <- ZIO.fromOption(snapshot.find(_.metricKey == MetricKey.gauge(name).tagged("key1", "value1")))
-        pair3 <- ZIO.fromOption(
-                   snapshot.find(_.metricKey == MetricKey.gauge(name).tagged("key1", "value1").tagged("key2", "value2"))
-                 )
+        pair1    <- ZIO.fromOption(snapshot.find(_.metricKey == MetricKey.counter(name)))
+        pair2    <- ZIO.fromOption(snapshot.find(_.metricKey == MetricKey.counter(name, "description1")))
+        pair3    <- ZIO.fromOption(snapshot.find(_.metricKey == MetricKey.counter(name, "description2")))
       } yield assertTrue(
-        r1 == MetricState.Gauge(1L),
-        r2 == MetricState.Gauge(3L),
-        r3 == MetricState.Gauge(3L),
-        r4 == MetricState.Gauge(2L),
-        pair1.metricState == MetricState.Gauge(1L),
-        pair1.metricKey.description.get == "desc1",
-        pair2.metricState == MetricState.Gauge(3L),
-        pair2.metricKey.description.get == "desc1",
-        pair3.metricState == MetricState.Gauge(2L),
-        pair3.metricKey.description.get == "desc2"
+        r1 == MetricState.Counter(1.0),
+        r2 == MetricState.Counter(1.0),
+        r3 == MetricState.Counter(1.0),
+        pair1.metricState == MetricState.Counter(1.0),
+        pair1.metricKey.description.isEmpty,
+        pair2.metricState == MetricState.Counter(1.0),
+        pair2.metricKey.description.contains("description1"),
+        pair3.metricState == MetricState.Counter(1.0),
+        pair3.metricKey.description.contains("description2")
       )
     }
   )
