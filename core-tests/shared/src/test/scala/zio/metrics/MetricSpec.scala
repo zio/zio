@@ -537,6 +537,7 @@ object MetricSpec extends ZIOBaseSpec {
         pair1.metricKey.description.isEmpty,
         pair2.metricState == MetricState.Counter(1.0),
         pair2.metricKey.description.contains("description1"),
+        pair2.metricKey.toString == "MetricKey(counterName,Counter,Set(),Some(description1))",
         pair3.metricState == MetricState.Counter(1.0),
         pair3.metricKey.description.contains("description2")
       )

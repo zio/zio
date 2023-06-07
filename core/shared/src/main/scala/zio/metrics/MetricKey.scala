@@ -53,6 +53,9 @@ sealed case class MetricKey[+Type] private (
       case _ => false
     }
 
+  override def toString: String =
+    s"${self.productPrefix}($name,$keyType,$tags,$description)"
+
   /**
    * Returns a new `MetricKey` with the specified tag appended.
    */
