@@ -353,7 +353,6 @@ object Hub {
       hub: internal.Hub[A],
       subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
     ): Unit = {
-      println(subscribers.size)
       val iterator = subscribers.iterator
       while (iterator.hasNext) {
         val (subscription, pollers) = iterator.next()
