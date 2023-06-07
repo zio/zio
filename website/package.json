@@ -51,7 +51,7 @@
     "@zio.dev/zio-memberlist": "0.0.0--40-a85dc5a1--20221121-1416-SNAPSHOT",
     "@zio.dev/zio-meta": "0.0.0--21-54bc2e8b-SNAPSHOT",
     "@zio.dev/zio-metrics-connectors": "2.0.8",
-    "@zio.dev/zio-mock": "1.0.0-RC9",
+    "@zio.dev/zio-mock": "1.0.0-RC11",
     "@zio.dev/zio-nio": "2.0.0",
     "@zio.dev/zio-optics": "0.2.1",
     "@zio.dev/zio-parser": "0.1.9",
