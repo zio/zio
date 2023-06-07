@@ -17,11 +17,9 @@
 package zio.metrics
 
 import zio._
-import zio.metrics.MetricKey
+import zio.internal.metrics._
 import zio.metrics.MetricKeyType.Histogram
 
-import zio.internal.metrics._
-import java.util.concurrent.TimeUnit
 import java.time.temporal.ChronoUnit
 
 /**
@@ -410,16 +408,34 @@ object Metric {
     counterDouble(name).contramap[Long](_.toDouble)
 
   /**
+   * A counter, which can be incremented by longs.
+   */
+  def counter(name: String, description: String): Counter[Long] =
+    counterDouble(name, description).contramap[Long](_.toDouble)
+
+  /**
    * A counter, which can be incremented by doubles.
    */
   def counterDouble(name: String): Counter[Double] =
     fromMetricKey(MetricKey.counter(name))
 
   /**
+   * A counter, which can be incremented by doubles.
+   */
+  def counterDouble(name: String, description: String): Counter[Double] =
+    fromMetricKey(MetricKey.counter(name, description))
+
+  /**
    * A counter, which can be incremented by integers.
    */
   def counterInt(name: String): Counter[Int] =
     counterDouble(name).contramap[Int](_.toInt)
+
+  /**
+   * A counter, which can be incremented by integers.
+   */
+  def counterInt(name: String, description: String): Counter[Int] =
+    counterDouble(name, description).contramap[Int](_.toInt)
 
   /**
    * A string histogram metric, which keeps track of the counts of different
@@ -429,8 +445,15 @@ object Metric {
     fromMetricKey(MetricKey.frequency(name))
 
   /**
+   * A string histogram metric, which keeps track of the counts of different
+   * strings.
+   */
+  def frequency(name: String, description: String): Frequency[String] =
+    fromMetricKey(MetricKey.frequency(name, description))
+
+  /**
    * Creates a metric from a metric key. This is the primary constructor for
-   * [[zio.Metric]].
+   * [[zio.metrics.Metric]].
    */
   def fromMetricKey[Type <: MetricKeyType](
     key: MetricKey[Type]
@@ -474,11 +497,24 @@ object Metric {
     fromMetricKey(MetricKey.gauge(name))
 
   /**
+   * A gauge, which can be set to a value.
+   */
+  def gauge(name: String, description: String): Gauge[Double] =
+    fromMetricKey(MetricKey.gauge(name, description))
+
+  /**
    * A numeric histogram metric, which keeps track of the count of numbers that
    * fall in bins with the specified boundaries.
    */
   def histogram(name: String, boundaries: Histogram.Boundaries): Histogram[Double] =
     fromMetricKey(MetricKey.histogram(name, boundaries))
+
+  /**
+   * A numeric histogram metric, which keeps track of the count of numbers that
+   * fall in bins with the specified boundaries.
+   */
+  def histogram(name: String, description: String, boundaries: Histogram.Boundaries): Histogram[Double] =
+    fromMetricKey(MetricKey.histogram(name, description, boundaries))
 
   /**
    * Creates a metric that ignores input and produces constant output.
@@ -514,6 +550,19 @@ object Metric {
   ): Summary[Double] =
     summaryInstant(name, maxAge, maxSize, error, quantiles).withNow[Double]
 
+  /**
+   * A summary metric.
+   */
+  def summary(
+    name: String,
+    description: String,
+    maxAge: Duration,
+    maxSize: Int,
+    error: Double,
+    quantiles: Chunk[Double]
+  ): Summary[Double] =
+    summaryInstant(name, description, maxAge, maxSize, error, quantiles).withNow[Double]
+
   def summaryInstant(
     name: String,
     maxAge: Duration,
@@ -522,6 +571,16 @@ object Metric {
     quantiles: Chunk[Double]
   ): Summary[(Double, java.time.Instant)] =
     fromMetricKey(MetricKey.summary(name, maxAge, maxSize, error, quantiles))
+
+  def summaryInstant(
+    name: String,
+    description: String,
+    maxAge: Duration,
+    maxSize: Int,
+    error: Double,
+    quantiles: Chunk[Double]
+  ): Summary[(Double, java.time.Instant)] =
+    fromMetricKey(MetricKey.summary(name, description, maxAge, maxSize, error, quantiles))
 
   /**
    * Creates a timer metric, based on a histogram, which keeps track of
@@ -532,14 +591,21 @@ object Metric {
   def timer(
     name: String,
     chronoUnit: ChronoUnit
-  ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] = {
-    val boundaries = Histogram.Boundaries.exponential(1.0, 2.0, 64)
-    val base       = histogram(name, boundaries).tagged(MetricLabel("time_unit", chronoUnit.toString.toLowerCase()))
+  ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] =
+    timer(name, chronoUnit, Chunk.iterate(1.0, 64)(_ * 2.0))
 
-    base.contramap[Duration] { (duration: Duration) =>
-      duration.toNanos / chronoUnit.getDuration.toNanos
-    }
-  }
+  /**
+   * Creates a timer metric, based on a histogram, which keeps track of
+   * durations in the specified unit of time (milliseconds, seconds, etc.). The
+   * unit of time will automatically be added to the metric as a tag
+   * ("time_unit: milliseconds").
+   */
+  def timer(
+    name: String,
+    description: String,
+    chronoUnit: ChronoUnit
+  ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] =
+    timer(name, description, chronoUnit, Chunk.iterate(1.0, 64)(_ * 2.0))
 
   def timer(
     name: String,
@@ -548,6 +614,21 @@ object Metric {
   ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] = {
     val base = Metric
       .histogram(name, Histogram.Boundaries.fromChunk(boundaries))
+      .tagged(MetricLabel("time_unit", chronoUnit.toString.toLowerCase()))
+
+    base.contramap[Duration] { (duration: Duration) =>
+      duration.toNanos / chronoUnit.getDuration.toNanos
+    }
+  }
+
+  def timer(
+    name: String,
+    description: String,
+    chronoUnit: ChronoUnit,
+    boundaries: Chunk[Double]
+  ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] = {
+    val base = Metric
+      .histogram(name, description, Histogram.Boundaries.fromChunk(boundaries))
       .tagged(MetricLabel("time_unit", chronoUnit.toString.toLowerCase()))
 
     base.contramap[Duration] { (duration: Duration) =>

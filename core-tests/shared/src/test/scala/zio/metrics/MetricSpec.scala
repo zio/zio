@@ -1,8 +1,9 @@
 package zio
 
 import zio.ZIOAspect._
-import zio.metrics._
+import zio.internal.metrics.metricRegistry
 import zio.metrics.MetricKeyType.Histogram
+import zio.metrics._
 import zio.test._
 
 import java.time.temporal.ChronoUnit
@@ -514,6 +515,37 @@ object MetricSpec extends ZIOBaseSpec {
         _ <- ZIO.unit @@ timer.trackDuration
         _ <- ZIO.unit @@ timerWithBoundaries.trackDuration
       } yield assertCompletes
+    },
+    test("metrics with description") {
+      val name = "counterName"
+
+      val counter1 = Metric.counter(name)
+      val counter2 = Metric.counter(name, "description1")
+      val counter3 = Metric.counter(name, "description2")
+
+      for {
+        _        <- counter1.update(1L)
+        _        <- counter2.update(1L)
+        _        <- counter3.update(1L)
+        r1       <- counter1.value
+        r2       <- counter2.value
+        r3       <- counter3.value
+        snapshot <- ZIO.succeed(Unsafe.unsafe(implicit unsafe => metricRegistry.snapshot()))
+        pair1    <- ZIO.fromOption(snapshot.find(_.metricKey == MetricKey.counter(name)))
+        pair2    <- ZIO.fromOption(snapshot.find(_.metricKey == MetricKey.counter(name, "description1")))
+        pair3    <- ZIO.fromOption(snapshot.find(_.metricKey == MetricKey.counter(name, "description2")))
+      } yield assertTrue(
+        r1 == MetricState.Counter(1.0),
+        r2 == MetricState.Counter(1.0),
+        r3 == MetricState.Counter(1.0),
+        pair1.metricState == MetricState.Counter(1.0),
+        pair1.metricKey.description.isEmpty,
+        pair2.metricState == MetricState.Counter(1.0),
+        pair2.metricKey.description.contains("description1"),
+        pair2.metricKey.toString == "MetricKey(counterName,Counter,Set(),Some(description1))",
+        pair3.metricState == MetricState.Counter(1.0),
+        pair3.metricKey.description.contains("description2")
+      )
     }
   )
 }
