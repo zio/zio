@@ -505,6 +505,7 @@ module.exports = {
         "guides/tutorials/debug-a-zio-application",
         "guides/tutorials/build-a-restful-webservice",
         "guides/tutorials/build-a-graphql-webservice",
+        "guides/tutorials/gracefully-shutdown-zio-application",
       ]
     },
     {
