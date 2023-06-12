@@ -14,7 +14,7 @@ In a histogram, we assign the incoming samples to pre-defined buckets. So each d
 A histogram observes _Double_ values and counts the observed values in buckets. Each bucket is defined by an upper boundary, and the count for a bucket with the upper boundary `b` increases by `1` if an observed value `v` is less or
 equal to `b`.
 
-As a consequence, all buckets that have a boundary `b1` with b1 > b will increase by `1` after observing `v`.
+As a consequence, all buckets that have a boundary `b1` with `b1 > b` will increase by `1` after observing `v`.
 
 A histogram also keeps track of the overall count of observed values, and the sum of all observed values.
 
@@ -26,7 +26,22 @@ The mental model for histogram is inspired from [Prometheus](https://prometheus.
 
 ```scala
 object Metric {
-  def histogram(name: String, boundaries: Histogram.Boundaries): Histogram[Double] = ???
+  def histogram(
+      name: String,
+      boundaries: Histogram.Boundaries
+    ): Histogram[Double] = ???
+  
+  def timer(
+      name: String,
+      description: String,
+      chronoUnit: ChronoUnit
+    ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] = ???
+  
+  def timer(
+      name: String,
+      chronoUnit: ChronoUnit,
+      boundaries: Chunk[Double]
+    ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] = ???
 }
 ```
 
@@ -41,12 +56,11 @@ Thus, histograms are the best choice in these situations:
 - When accuracy is not so important, and we don't want the exact values because of the lossy nature of bucketing data in histograms
 - When we need to aggregate histograms across multiple instances
 
-Some examples of histogram use cases:
-
-- Request Latency
-- Response Time
+Some examples of histogram use cases are **request latency** and **response time**.
 
 ## Examples
+
+### Histogram With Linear Buckets
 
 Create a histogram with 12 buckets: `0..100` in steps of `10` and `Double.MaxValue`. It can be applied to effects yielding a `Double`:
 
@@ -66,3 +80,46 @@ import zio.metrics._
 
 Random.nextDoubleBetween(0.0d, 120.0d) @@ histogram
 ```
+
+### Timer Metric
+
+Manual approach of using `Metrics.timer` metric:
+
+```scala mdoc:compile-only
+import zio._
+import zio.metrics._
+
+import java.time.temporal.ChronoUnit
+
+object Example extends ZIOAppDefault {
+
+  val workflow = ZIO.succeed(42)
+
+  val timer = Metric.timer("timer", ChronoUnit.SECONDS)
+
+  val run =
+    workflow.timed.flatMap { case (duration, value) =>
+      timer.update(duration).as(value)
+    }
+}
+```
+
+Or we can easily use ZIO aspects to apply task duration metric to our workflow:
+
+```scala mdoc:compile-only
+import zio._
+import zio.metrics._
+
+import java.time.temporal.ChronoUnit
+
+object Example extends ZIOAppDefault {
+
+  val workflow =
+    ZIO.succeed(42)
+
+  val timer =
+    Metric.timer("timer", ChronoUnit.SECONDS)
+
+  val run =  workflow @@ timer.trackDuration
+}
+``` 
