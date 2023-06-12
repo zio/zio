@@ -83,7 +83,7 @@ Random.nextDoubleBetween(0.0d, 120.0d) @@ histogram
 
 ### Timer Metric
 
-Manual approach of using `Metrics.timer` metric:
+Here is an example of adding timer metric to track workflow durations:
 
 ```scala mdoc:compile-only
 import zio._
@@ -93,33 +93,44 @@ import java.time.temporal.ChronoUnit
 
 object Example extends ZIOAppDefault {
 
-  val workflow = ZIO.succeed(42)
+  def workflow = ZIO.succeed(42)
 
-  val timer = Metric.timer("timer", ChronoUnit.SECONDS)
-
-  val run =
-    workflow.timed.flatMap { case (duration, value) =>
-      timer.update(duration).as(value)
-    }
-}
-```
-
-Or we can easily use ZIO aspects to apply task duration metric to our workflow:
-
-```scala mdoc:compile-only
-import zio._
-import zio.metrics._
-
-import java.time.temporal.ChronoUnit
-
-object Example extends ZIOAppDefault {
-
-  val workflow =
-    ZIO.succeed(42)
-
+  def randomDelay =
+    for {
+      i <- Random.nextLongBetween(1L, 10)
+      _ <- ZIO.sleep(Duration.fromMillis(i))
+    } yield ()
+    
   val timer =
-    Metric.timer("timer", ChronoUnit.SECONDS)
+    Metric.timer(
+      name = "timer",
+      chronoUnit = ChronoUnit.MILLIS,
+      boundaries = Chunk.iterate(1.0, 10)(_ + 1.0)
+    )
 
-  val run =  workflow @@ timer.trackDuration
+  val run = ((workflow <* randomDelay) @@ timer.trackDuration).repeatN(99)
 }
 ``` 
+
+If we add prometheus layer, we expose the metrics which is something like this:
+
+```csv
+# TYPE timer histogram
+# HELP timer
+timer_bucket{time_unit="millis",le="1.0",} 6.0 1686581577320
+timer_bucket{time_unit="millis",le="2.0",} 16.0 1686581577320
+timer_bucket{time_unit="millis",le="3.0",} 27.0 1686581577320
+timer_bucket{time_unit="millis",le="4.0",} 41.0 1686581577320
+timer_bucket{time_unit="millis",le="5.0",} 49.0 1686581577320
+timer_bucket{time_unit="millis",le="6.0",} 60.0 1686581577320
+timer_bucket{time_unit="millis",le="7.0",} 70.0 1686581577320
+timer_bucket{time_unit="millis",le="8.0",} 85.0 1686581577320
+timer_bucket{time_unit="millis",le="9.0",} 99.0 1686581577320
+timer_bucket{time_unit="millis",le="10.0",} 99.0 1686581577320
+timer_bucket{time_unit="millis",le="+Inf",} 100.0 1686581577320
+
+timer_sum{time_unit="millis",} 603.0 1686581577320
+timer_count{time_unit="millis",} 100.0 1686581577320
+timer_min{time_unit="millis",} 1.0 1686581577320
+timer_max{time_unit="millis",} 66.0 1686581577320⏎
+```
