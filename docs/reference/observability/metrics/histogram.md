@@ -134,3 +134,9 @@ timer_count{time_unit="millis",} 100.0 1686581577320
 timer_min{time_unit="millis",} 1.0 1686581577320
 timer_max{time_unit="millis",} 66.0 1686581577320⏎
 ```
+
+This Prometheus result represents a histogram metric called "timer" with a time unit of milliseconds. The histogram provides information about the distribution of workflow durations.
+
+The histogram is divided into multiple buckets, each representing a range of workflow durations. The "le" label indicates the upper bound of each bucket. The values next to each bucket indicate the count or frequency of measurements falling within that bucket. 
+
+For instance, "timer_bucket{time_unit="millis",le="5.0",} 49.0" means there are 49 measurements with duration less than or equal to 5.0 millisecond.
