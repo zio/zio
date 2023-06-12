@@ -43,9 +43,9 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 }
 
 object TestResult {
-  def all(asserts: TestResult*): TestResult = asserts.reduce(_ && _)
+  def all(assert: TestResult, asserts: TestResult*): TestResult = asserts.foldLeft(assert)(_ && _)
 
-  def any(asserts: TestResult*): TestResult = asserts.reduce(_ || _)
+  def any(assert: TestResult, asserts: TestResult*): TestResult = asserts.foldLeft(assert)(_ || _)
 
   implicit def liftTestResultToZIO[R, E](result: TestResult)(implicit trace: Trace): ZIO[R, E, TestResult] =
     if (result.isSuccess)
