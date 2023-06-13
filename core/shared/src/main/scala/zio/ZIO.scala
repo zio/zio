@@ -4172,7 +4172,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   /**
    * Gets current metrics snapshot.
    */
-  def metrics: UIO[Metrics] =
+  def metrics(implicit trace: Trace): UIO[Metrics] =
     ZIO.succeedUnsafe { implicit u =>
       Metrics(internal.metrics.metricRegistry.snapshot())
     }
