@@ -1,6 +1,8 @@
 package zio.internal.macros
 
 import zio._
+import zio.internal.TerminalRendering
+
 import scala.reflect.macros.blackbox
 
 private[zio] trait LayerMacroUtils {
@@ -9,11 +11,38 @@ private[zio] trait LayerMacroUtils {
 
   type LayerExpr = c.Expr[ZLayer[_, _, _]]
 
+  private def verifyLayers(layers: Seq[c.Expr[ZLayer[_, _, _]]]): Unit =
+    for (layer <- layers) {
+      layer.tree match {
+        case Apply(tree, _) =>
+          tree.tpe match {
+            case MethodType(params, _) =>
+              val methodName          = tree.toString()
+              val fullMethodSignature = s"def $methodName${tree.tpe}"
+
+              val byNameParameters =
+                params.filter(s => isByName(s.typeSignature)).map(s => s"${s.name}: ${s.typeSignature}")
+
+              if (byNameParameters.nonEmpty) {
+                c.abort(
+                  NoPosition,
+                  TerminalRendering.byNameParameterInMacroError(methodName, fullMethodSignature, byNameParameters)
+                )
+              }
+          }
+        case _ => ()
+      }
+    }
+
+  private def isByName(tpe: c.Type): Boolean =
+    tpe.typeSymbol.isClass && tpe.typeSymbol.asClass == c.universe.definitions.ByNameParamClass
+
   def constructLayer[R0: c.WeakTypeTag, R: c.WeakTypeTag, E](
     layers: Seq[c.Expr[ZLayer[_, E, _]]],
     provideMethod: ProvideMethod
   ): c.Expr[ZLayer[R0, E, R]] = {
 
+    verifyLayers(layers)
     val remainderTypes = getRequirements[R0]
     val targetTypes    = getRequirements[R]
 
