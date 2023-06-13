@@ -83,3 +83,5 @@ sbt:zio-quickstart-junit> test
 [info] Passed: Total 1, Failed 0, Errors 0, Passed 1
 [success] Total time: 1 s, completed Jun 13, 2023, 4:37:32 PM
 ```
+
+To see practical examples in action, we encourage you to check out [the example code base](https://github.com/zio/zio-quickstarts/tree/master/zio-quickstart-junit-integration) provided in the [ZIO Quickstarts](https://github.com/zio/zio-quickstarts/) project on GitHub. This code base will help you dive deeper into testing ZIO specs using JUnit within different build tools and IDEs, enabling you to enhance the quality and stability of your ZIO applications. Happy testing!
