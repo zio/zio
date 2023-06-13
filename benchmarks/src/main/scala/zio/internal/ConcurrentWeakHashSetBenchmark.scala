@@ -1,5 +1,6 @@
 package zio.internal
 
+import com.github.ghik.silencer.silent
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 import org.springframework.util.{ConcurrentReferenceHashMap => SpringConcurrentReferenceHashMap}
@@ -8,7 +9,6 @@ import java.util
 import java.util.Collections
 import java.util.concurrent.{ConcurrentLinkedQueue, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
-import scala.jdk.CollectionConverters.{MapHasAsJava, SetHasAsJava}
 
 @State(Scope.Benchmark)
 private[this] class AddContext extends BaseContext {
@@ -253,17 +253,19 @@ private[this] class BaseContext {
   }
 
   protected def createJavaSet(values: Array[TestKey] = new Array[TestKey](0)): util.Set[TestKey] = {
+    import scala.jdk.CollectionConverters._
     val set = Collections.synchronizedSet(Collections.newSetFromMap(new util.WeakHashMap[TestKey, java.lang.Boolean]()))
-    set.addAll(values.toSet.asJava)
+    set.addAll(values.toSet.asJava): @silent("JavaConverters")
     set
   }
 
   protected def createSpringMap(
     values: Array[TestKey] = new Array(0)
   ): SpringConcurrentReferenceHashMap[TestKey, Boolean] = {
+    import scala.jdk.CollectionConverters._
     val map =
       new SpringConcurrentReferenceHashMap[TestKey, Boolean](16, SpringConcurrentReferenceHashMap.ReferenceType.WEAK)
-    map.putAll(values.map((_, true)).toMap.asJava)
+    map.putAll(values.map((_, true)).toMap.asJava): @silent("JavaConverters")
     map
   }
 
