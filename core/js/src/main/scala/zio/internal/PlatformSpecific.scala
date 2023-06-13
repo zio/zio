@@ -19,7 +19,6 @@ package zio.internal
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
-import scala.collection.mutable
 
 private[zio] trait PlatformSpecific {
 
@@ -86,7 +85,7 @@ private[zio] trait PlatformSpecific {
 
   final def newConcurrentSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] = new HashSet[A]()
 
-  final def newConcurrentWeakSet[A]()(implicit unsafe: zio.Unsafe): mutable.Set[A] = new ConcurrentWeakHashSet[A]()
+  final def newConcurrentWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] = new HashSet[A]()
 
   final def newWeakHashMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] = new HashMap[A, B]()
 

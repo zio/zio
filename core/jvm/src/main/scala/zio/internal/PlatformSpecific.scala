@@ -21,7 +21,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 import java.util.{Collections, WeakHashMap, Map => JMap, Set => JSet}
-import scala.collection.mutable
 
 private[zio] trait PlatformSpecific {
 
@@ -103,8 +102,8 @@ private[zio] trait PlatformSpecific {
   final def newConcurrentMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] =
     new ConcurrentHashMap[A, B]()
 
-  final def newConcurrentWeakSet[A]()(implicit unsafe: zio.Unsafe): mutable.Set[A] =
-    new ConcurrentWeakHashSet[A]()
+  final def newConcurrentWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
+    Collections.synchronizedSet(newWeakSet[A]())
 
   final def newWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
     Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
@@ -116,5 +115,4 @@ private[zio] trait PlatformSpecific {
 
     () => ref.get()
   }
-
 }
