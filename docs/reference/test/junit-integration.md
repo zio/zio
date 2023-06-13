@@ -53,7 +53,7 @@ Or we can convert `MySpec` object to a scala `class` and annotate it with `@RunW
 ```scala mdoc:compile-only
 import org.junit.runner.RunWith
 import zio._
-import zio.test._
+import zio.test.{test, _}
 import zio.test.junit.ZTestJUnitRunner
 
 @RunWith(classOf[ZTestJUnitRunner])
