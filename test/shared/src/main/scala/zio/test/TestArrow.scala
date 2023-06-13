@@ -54,6 +54,10 @@ object TestResult {
       ZIO.die(Exit(result))
 
   private[zio] final case class Exit(result: TestResult) extends Throwable
+
+  private def all(asserts: TestResult*): TestResult = asserts.reduce(_ && _)
+
+  private def any(asserts: TestResult*): TestResult = asserts.reduce(_ || _)
 }
 
 sealed trait TestArrow[-A, +B] { self =>
