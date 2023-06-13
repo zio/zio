@@ -3,7 +3,6 @@ package zio.internal
 import zio.internal.ConcurrentWeakHashSet.{AccessOption, RefNode, UpdateOperation}
 
 import java.lang.ref.WeakReference
-import scala.collection.mutable
 import java.util.concurrent.locks.ReentrantLock
 import java.lang.ref.ReferenceQueue
 import java.util.concurrent.atomic.AtomicInteger
@@ -15,6 +14,8 @@ private[zio] object ConcurrentWeakHashSet {
   private[internal] final val DefaultInitialCapacity: Int  = 16
   private[internal] final val DefaultLoadFactor: Float     = 0.75f
   private[internal] final val DefaultConcurrencyLevel: Int = 16
+
+  def apply[A <: AnyRef](): ConcurrentWeakHashSet[A] = new ConcurrentWeakHashSet[A]
 
   /**
    * Reference node that links elements in the set with the same hash code

@@ -69,7 +69,7 @@ private[this] class ConcurrentWeakHashSetAddBenchmark {
 
 @State(Scope.Benchmark)
 private[this] class RemoveContext extends BaseContext {
-  private val sampleSize             = 100_000
+  private val sampleSize             = 100000
   private val values: Array[TestKey] = (0 to this.sampleSize).map(TestKey).toArray
   private val idx: AtomicInteger     = new AtomicInteger(this.sampleSize + 1)
 
@@ -186,7 +186,7 @@ private[this] class ConcurrentWeakHashSetIterateBenchmark {
 
 @State(Scope.Benchmark)
 private[this] class ContainsContext extends BaseContext {
-  private val sampleSize             = 100_000
+  private val sampleSize             = 100000
   private val values: Array[TestKey] = (0 to this.sampleSize).map(TestKey).toArray
 
   @Setup(Level.Iteration)
@@ -206,30 +206,30 @@ private[this] class ConcurrentWeakHashSetContainsBenchmark {
 
   @Benchmark
   def javaContainsSerial(ctx: IterateContext, blackhole: Blackhole): Unit =
-    blackhole.consume(ctx.javaSet.contains(TestKey(50_000)))
+    blackhole.consume(ctx.javaSet.contains(TestKey(50000)))
 
   @Threads(6)
   @Benchmark
   def javaContainsConcurrent(ctx: IterateContext, blackhole: Blackhole): Unit =
-    blackhole.consume(ctx.javaSet.contains(TestKey(50_000)))
+    blackhole.consume(ctx.javaSet.contains(TestKey(50000)))
 
   @Benchmark
   def springContainsSerial(ctx: IterateContext, blackhole: Blackhole): Unit =
-    blackhole.consume(ctx.springMap.containsKey(TestKey(50_000)))
+    blackhole.consume(ctx.springMap.containsKey(TestKey(50000)))
 
   @Threads(6)
   @Benchmark
   def springContainsConcurrent(ctx: IterateContext, blackhole: Blackhole): Unit =
-    blackhole.consume(ctx.springMap.containsKey(TestKey(50_000)))
+    blackhole.consume(ctx.springMap.containsKey(TestKey(50000)))
 
   @Benchmark
   def zioContainsSerial(ctx: IterateContext, blackhole: Blackhole): Unit =
-    blackhole.consume(ctx.zioSet.contains(TestKey(50_000)))
+    blackhole.consume(ctx.zioSet.contains(TestKey(50000)))
 
   @Threads(6)
   @Benchmark
   def zioContainsConcurrent(ctx: IterateContext, blackhole: Blackhole): Unit =
-    blackhole.consume(ctx.zioSet.contains(TestKey(50_000)))
+    blackhole.consume(ctx.zioSet.contains(TestKey(50000)))
 
 }
 
