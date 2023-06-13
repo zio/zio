@@ -4,7 +4,7 @@ import zio.{IO, Trace, UIO}
 
 import java.io.IOException
 
-final case class Metrics private[metrics] (metrics: Set[MetricPair.Untyped]) extends Serializable {
+final case class Metrics private[zio] (metrics: Set[MetricPair.Untyped]) extends Serializable {
 
   /**
    * Gets all current metrics in pretty debug view.
