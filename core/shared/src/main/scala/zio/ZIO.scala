@@ -17,7 +17,7 @@
 package zio
 
 import zio.internal.{FiberScope, Platform}
-import zio.metrics.MetricLabel
+import zio.metrics.{MetricLabel, Metrics}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
@@ -4168,6 +4168,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     in: => Iterable[ZIO[R, E, A]]
   )(zero: => B)(f: (B, A) => B)(implicit trace: Trace): ZIO[R, E, B] =
     Ref.make(zero).flatMap(acc => foreachParDiscard(in)(_.flatMap(a => acc.update(f(_, a)))) *> acc.get)
+
+  /**
+   * Gets current metrics snapshot.
+   */
+  def metrics: UIO[Metrics] =
+    ZIO.succeedUnsafe { implicit u =>
+      Metrics(internal.metrics.metricRegistry.snapshot())
+    }
 
   /**
    * Returns a effect that will never produce anything. The moral equivalent of

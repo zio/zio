@@ -4,7 +4,7 @@ import zio.metrics.MetricKeyType.Histogram
 import zio.test.assertTrue
 import zio.{Chunk, ZIO, ZIOBaseSpec, durationInt}
 
-object CurrentMetricsSpec extends ZIOBaseSpec {
+object MetricsSpec extends ZIOBaseSpec {
   private val labels = Set(MetricLabel("x", "a"), MetricLabel("y", "b"))
 
   private val counter   = Metric.counter("test_counter").tagged(labels).fromConst(1L)
@@ -18,14 +18,14 @@ object CurrentMetricsSpec extends ZIOBaseSpec {
   def spec = suite("CurrentMetrics")(
     test("should be pretty printed correctly") {
       for {
-        snapshotBefore <- CurrentMetrics.snapshot()
+        snapshotBefore <- ZIO.metrics
         str0           <- snapshotBefore.prettyPrint
         _              <- ZIO.succeed(1.0) @@ counter @@ gauge @@ histogram @@ summary
         _              <- ZIO.succeed(3.0) @@ counter @@ gauge @@ histogram @@ summary
         _              <- ZIO.succeed("strValue1") @@ frequency
         _              <- ZIO.succeed("strValue2") @@ frequency
         _              <- ZIO.succeed("strValue1") @@ frequency
-        snapshotAfter  <- CurrentMetrics.snapshot()
+        snapshotAfter  <- ZIO.metrics
         str1           <- snapshotAfter.prettyPrint
       } yield assertTrue(
         str0 == "" &&
