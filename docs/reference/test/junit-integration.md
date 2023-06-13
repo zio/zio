@@ -1,19 +1,21 @@
 ---
 id: junit-integration
-title: "ZIO Test JUnit Integration"
+title: "Integrating ZIO Test with JUnit"
 ---
 
-JUnit provides a simple and elegant way to write, organize, and execute tests, making it an indispensable tool for developers striving to deliver high-quality code. In this section, we will explore how to leverage the power of JUnit with ZIO Test. 
+Unit testing is an essential practice in software development, enabling developers to validate the correctness and reliability of their code. JUnit, a widely adopted testing framework, has emerged as a standard choice for Java applications. With its robust features and extensive ecosystem, JUnit simplifies the process of writing and executing tests, empowering developers to deliver high-quality software.
 
-A custom JUnit runner is provided for running ZIO Test specs under other build tools (like Maven, Gradle, Bazel, etc.) and under IDEs.
+In this section, we will explore the integration of ZIO Test, a powerful testing library for functional programming in Scala, with JUnit. By combining the strengths of both frameworks, developers can efficiently test ZIO-based applications under different build tools and IDEs.
 
-To get the runner, we need to add the equivalent of following dependency definition under our build tool:
+To streamline the testing process, a custom JUnit runner is provided specifically for running ZIO Test specifications. Thus, we can conduct testing of ZIO specs within alternative build tools, such as Maven, Gradle, Bazel, and various integrated development environments (IDEs).
+
+By adding the necessary dependency definition to the build tool, developers can effortlessly incorporate the ZIO Test JUnit runner:
 
 ```scala
 libraryDependencies += "dev.zio" %% "zio-test-junit" % zioVersion % "test"
 ```
 
-To make our spec appear as a JUnit test to build tools and IDEs, we can simple extend `zio.test.junit.JUnitRunnableSpec`:
+To make our spec appear as a JUnit test to build tools and IDEs, we can simply extend `zio.test.junit.JUnitRunnableSpec`:
 
 ```scala mdoc:compile-only
 import zio._
