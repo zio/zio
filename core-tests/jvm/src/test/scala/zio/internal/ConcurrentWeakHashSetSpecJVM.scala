@@ -6,7 +6,7 @@ import zio.test.Assertion.equalTo
 
 object ConcurrentWeakHashSetSpecJVM extends ZIOBaseSpec {
 
-  final case class Wrapper[A](value:A){
+  final case class Wrapper[A](value: A) {
     override def toString: String = value.toString
   }
 
@@ -14,11 +14,11 @@ object ConcurrentWeakHashSetSpecJVM extends ZIOBaseSpec {
     test("check if set is thread-safe with truly concurrent race condition between add & remove") {
       import java.util.concurrent.{ConcurrentLinkedQueue, Executors, TimeUnit, CountDownLatch}
 
-      val sampleSize = 1000000
+      val sampleSize      = 1000000
       val executorService = Executors.newFixedThreadPool(2)
-      val refs = new ConcurrentLinkedQueue[Wrapper[Int]]()
-      val set = ConcurrentWeakHashSet[Wrapper[Int]]()
-      val lock = new CountDownLatch(1)
+      val refs            = new ConcurrentLinkedQueue[Wrapper[Int]]()
+      val set             = ConcurrentWeakHashSet[Wrapper[Int]]()
+      val lock            = new CountDownLatch(1)
 
       executorService.submit(new Runnable {
         override def run(): Unit =
@@ -49,7 +49,7 @@ object ConcurrentWeakHashSetSpecJVM extends ZIOBaseSpec {
 
       // make sure only odd elements are left from full range
       val expected = (0 to sampleSize).filter(_ % 2 == 1).map(Wrapper(_)).toList
-      val actual = set.iterator.toList.sortBy(_.value)
+      val actual   = set.iterator.toList.sortBy(_.value)
       assert(actual)(equalTo(expected))
     }
   )
