@@ -23,7 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.io.IOException
 import java.util.function.IntFunction
 import scala.annotation.implicitNotFound
-import scala.collection.mutable.Builder
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.control.NoStackTrace
@@ -6348,16 +6348,22 @@ object Exit extends Serializable {
     exits.headOption.map { head =>
       exits
         .drop(1)
-        .foldLeft(head.mapExit((a: A) => List(a)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ ++ _))
-        .mapExit(_.reverse)
+        .foldLeft {
+          val buffer = new ListBuffer[A]
+          head.mapExit((a: A) => buffer.addOne(a))
+        }((acc, el) => acc.zipWith(el)((acc, el) => acc :+ el, _ ++ _))
+        .mapExit(_.toList)
     }
 
   def collectAllPar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     exits.headOption.map { head =>
       exits
         .drop(1)
-        .foldLeft(head.mapExit((a: A) => List(a)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ && _))
-        .mapExit(_.reverse)
+        .foldLeft {
+          val buffer = new ListBuffer[A]
+          head.mapExit((a: A) => buffer.addOne(a))
+        }((acc, el) => acc.zipWith(el)((acc, el) => acc :+ el, _ && _))
+        .mapExit(_.toList)
     }
 
   def die(t: Throwable): Exit[Nothing, Nothing] =
