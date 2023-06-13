@@ -229,9 +229,11 @@ object Hub {
           ZIO
             .whenZIO(shutdownHook.succeed(())) {
               ZIO.foreachPar(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
-                ZIO.succeed(subscribers.remove(subscription -> pollers)) *>
-                ZIO.succeed(subscription.unsubscribe()) *>
-                ZIO.succeed(strategy.unsafeOnHubEmptySpace(hub, subscribers))
+                ZIO.succeed {
+                  subscribers.remove(subscription -> pollers)
+                  subscription.unsubscribe()
+                  strategy.unsafeOnHubEmptySpace(hub, subscribers)
+                }
             }
             .unit
         }.uninterruptible
