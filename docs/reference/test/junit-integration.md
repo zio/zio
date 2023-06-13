@@ -1,6 +1,7 @@
 ---
 id: junit-integration
 title: "Integrating ZIO Test with JUnit"
+sidebar_label: "JUnit Integration"
 ---
 
 Unit testing is an essential practice in software development, enabling developers to validate the correctness and reliability of their code. JUnit, a widely adopted testing framework, has emerged as a standard choice for Java applications. With its robust features and extensive ecosystem, JUnit simplifies the process of writing and executing tests, empowering developers to deliver high-quality software.
