@@ -17,10 +17,11 @@ object ConcurrentWeakHashSetSpec extends ZIOBaseSpec {
 
   def spec = suite("ConcurrentWeakHashSetSpec")(
     test("Empty set is empty") {
-      assertTrue(new ConcurrentWeakHashSet[Wrapper[Int]]().isEmpty)
+      val set = ConcurrentWeakHashSet[Wrapper[Int]]()
+      assertTrue(set.isEmpty)
     },
     test("Add should insert elements") {
-      val set  = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val set  = ConcurrentWeakHashSet[Wrapper[Int]]()
       val refs = List(Wrapper(1), Wrapper(2), Wrapper(3))
       set.add(refs.head)
       set.addOne(refs(1))
@@ -28,20 +29,20 @@ object ConcurrentWeakHashSetSpec extends ZIOBaseSpec {
       assert(set.size())(equalTo(3))
     },
     test("Set resolves duplicated values") {
-      val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val set = ConcurrentWeakHashSet[Wrapper[Int]]()
       val ref = Wrapper(1)
       set.add(ref)
       set.add(ref)
       assert(set.size())(equalTo(1))
     },
     test("Adding an element to set makes it non-empty") {
-      val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val set = ConcurrentWeakHashSet[Wrapper[Int]]()
       val ref = Wrapper(Int.MaxValue)
       set.add(ref)
       assertTrue(!set.isEmpty)
     },
     test("Remove should delete reference from set") {
-      val set  = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val set  = ConcurrentWeakHashSet[Wrapper[Int]]()
       val refs = List(Wrapper(1), Wrapper(2))
       set.addAll(refs)
       set.remove(Wrapper(1))
@@ -49,25 +50,25 @@ object ConcurrentWeakHashSetSpec extends ZIOBaseSpec {
       assert(set.size())(equalTo(0))
     },
     test("Removing non-existent element should be allowed") {
-      val set    = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val set    = ConcurrentWeakHashSet[Wrapper[Int]]()
       val result = set.remove(Wrapper(1))
       assertTrue(!result)
     },
     test("Contains should return true if set stores reference to the element") {
-      val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val set = ConcurrentWeakHashSet[Wrapper[Int]]()
       val ref = Wrapper(1)
       set.add(ref)
       assertTrue(set.contains(ref))
     },
     test("Clearing the set makes it empty") {
-      val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val set = ConcurrentWeakHashSet[Wrapper[Int]]()
       val ref = Wrapper(1)
       set.add(ref)
       set.clear()
       assertTrue(set.isEmpty)
     },
     test("Can iterate over elements") {
-      val set  = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val set  = ConcurrentWeakHashSet[Wrapper[Int]]()
       val refs = List(Wrapper(1), Wrapper(2))
       set.addAll(refs)
       val allValues = set.iterator.toList.sortBy(_.value)
@@ -75,13 +76,13 @@ object ConcurrentWeakHashSetSpec extends ZIOBaseSpec {
     },
     test("Removing element with the same index from chain deletes only matched reference") {
       val refs         = (0 to 8).map(Wrapper(_))
-      val corruptedSet = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val corruptedSet = ConcurrentWeakHashSet[Wrapper[Int]]()
       corruptedSet.addAll(refs)
       println(corruptedSet.remove(Wrapper(4))) // matched index (calculated from hashcode) is the same for 4 and 8
       assert(corruptedSet.toList.map(_.value).sorted)(equalTo(List(0, 1, 2, 3, 5, 6, 7, 8)))
     },
     test("Check if set is thread-safe with concurrent race condition between add & remove") {
-      val sampleSize      = 1_000_000
+      val sampleSize      = 1000000
       val executorService = Executors.newFixedThreadPool(2)
       val refs            = new ConcurrentLinkedQueue[Wrapper[Int]]()
       val set             = new ConcurrentWeakHashSet[Wrapper[Int]]()
@@ -119,7 +120,7 @@ object ConcurrentWeakHashSetSpec extends ZIOBaseSpec {
       assert(actual)(equalTo(expected))
     },
     test("Dead references are removed from set") {
-      val set = new ConcurrentWeakHashSet[Wrapper[Int]]()
+      val set = ConcurrentWeakHashSet[Wrapper[Int]]()
       set.add(Wrapper(1)) // dead ref
 
       val ref = Wrapper(2)
