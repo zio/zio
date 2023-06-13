@@ -394,6 +394,38 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     new ZSink(channel.provideEnvironment(r))
 
   /**
+   * Transforms the environment being provided to the sink with the specified
+   * function.
+   */
+  def provideSomeEnvironment[R0](
+    f: ZEnvironment[R0] => ZEnvironment[R]
+  )(implicit trace: Trace): ZSink[R0, E, In, L, Z] =
+    new ZSink(channel.provideSomeEnvironment(f))
+
+  /**
+   * Provides a layer to the sink, which translates it to another level.
+   */
+  def provideLayer[E1 >: E, R0](
+    layer: => ZLayer[R0, E1, R]
+  )(implicit trace: Trace): ZSink[R0, E1, In, L, Z] =
+    new ZSink(channel.provideLayer(layer))
+
+  /**
+   * Splits the environment into two parts, providing one part using the
+   * specified layer and leaving the remainder `R0`.
+   *
+   * {{{
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   *
+   * val sink: ZSink[Logging with Database, Nothing, Unit] = ???
+   *
+   * val sink2 = sink.provideSomeLayer[Database](loggingLayer)
+   * }}}
+   */
+  def provideSomeLayer[R0]: ZSink.ProvideSomeLayer[R0, R, E, In, L, Z] =
+    new ZSink.ProvideSomeLayer[R0, R, E, In, L, Z](self.channel)
+
+  /**
    * Runs both sinks in parallel on the input, , returning the result or the
    * error from the one that finishes first.
    */
@@ -1754,5 +1786,22 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       trace: Trace
     ): ZSink[R, E, In, L, Z] =
       new ZSink(ZChannel.unwrapScoped[R](scoped.map(_.channel)))
+  }
+
+  final class ProvideSomeLayer[R0, -R, +E, -In, +L, +Z](
+    private val channel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z]
+  ) extends AnyVal {
+    def apply[E1 >: E, R1](
+      layer: => ZLayer[R0, E1, R1]
+    )(implicit
+      ev: R0 with R1 <:< R,
+      tagged: EnvironmentTag[R1],
+      trace: Trace
+    ): ZSink[R0, E1, In, L, Z] =
+      new ZSink(
+        channel
+          .asInstanceOf[ZChannel[R0 with R1, ZNothing, Chunk[In], Any, E, Chunk[L], Z]]
+          .provideLayer(ZLayer.environment[R0] ++ layer)
+      )
   }
 }
