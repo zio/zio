@@ -695,7 +695,7 @@ lazy val benchmarks = project.module
         "org.scalacheck"            %% "scalacheck"      % "1.17.0",
         "qa.hedgehog"               %% "hedgehog-core"   % "0.10.1",
         "com.github.japgolly.nyaya" %% "nyaya-gen"       % "0.10.0",
-        "org.springframework"        % "spring-core"     % "6.0.8"
+        "org.springframework"        % "spring-core"     % "6.0.9"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid =>

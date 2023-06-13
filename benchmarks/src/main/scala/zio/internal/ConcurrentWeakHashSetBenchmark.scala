@@ -270,7 +270,7 @@ private[this] class BaseContext {
   }
 
   protected def createZioSet(values: Array[TestKey] = new Array(0)): ConcurrentWeakHashSet[TestKey] = {
-    val set = new ConcurrentWeakHashSet[TestKey]()
+    val set = ConcurrentWeakHashSet[TestKey]()
     set.addAll(values)
     set
   }

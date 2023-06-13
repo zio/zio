@@ -20,7 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
-import java.util.{Collections, WeakHashMap, Map => JMap, Set => JSet}
+import java.util.{Collections, Map => JMap, Set => JSet, WeakHashMap}
 
 private[zio] trait PlatformSpecific {
 
