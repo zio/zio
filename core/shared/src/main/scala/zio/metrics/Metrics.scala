@@ -4,31 +4,25 @@ import zio.{IO, Trace, UIO}
 
 import java.io.IOException
 
-final case class Metrics private[zio] (metrics: Set[MetricPair.Untyped]) extends Serializable {
+final case class Metrics private[zio] (metrics: Set[MetricPair.Untyped]) {
 
   /**
    * Gets all current metrics in pretty debug view.
    */
   def prettyPrint(implicit trace: Trace): UIO[String] =
-    MetricsRenderer.prettyPrint(metrics)
+    zio.System.lineSeparator.map(renderMetrics(metrics, _))
 
   /**
    * Dumps all current metrics to the console.
    */
   def dump(implicit trace: Trace): IO[IOException, Unit] =
-    prettyPrint.flatMap(zio.Console.print(_))
-
-}
-
-private[metrics] object MetricsRenderer {
-
-  def prettyPrint(metrics: Set[MetricPair.Untyped])(implicit trace: Trace): UIO[String] =
-    zio.System.lineSeparator.map(renderMetrics(metrics, _))
+    prettyPrint.flatMap(zio.Console.printLine(_))
 
   private def renderMetrics(metrics: Set[MetricPair.Untyped], lineSeparator: String): String =
     if (metrics.nonEmpty) {
 
-      val maxNameLength       = metrics.map(_.metricKey.name.length).max + 2
+      val maxNameLength =
+        metrics.map(m => m.metricKey.name.length + m.metricKey.description.map(_.length + 2).getOrElse(0)).max + 2
       val maxTagSectionLength = metrics.map(m => tagsToString(m.metricKey.tags).length).max + 2
 
       metrics
@@ -49,7 +43,7 @@ private[metrics] object MetricsRenderer {
     } else ""
 
   private def renderKey(key: MetricKey[_], padTo: Int): String =
-    key.name.padTo(padTo, ' ')
+    s"${key.name}${key.description.map(d => s"($d)").getOrElse("")}".padTo(padTo, ' ')
 
   private def renderTags(key: MetricKey[_], padTo: Int): String = {
     val tagsStr = tagsToString(key.tags)
