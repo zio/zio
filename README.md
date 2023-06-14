@@ -139,6 +139,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/ser
 * [PIM Solutions](https://pimsolutions.ru/)
 * [Remember The Milk](https://www.rememberthemilk.com/)
 * [REWE Digital](http://rewe-digital.com/)
+* [LKWfee](https://lkwfee.de/)
 * [Risk Ident](https://riskident.com/)
 * [Rocker](https://rocker.com/)
 * [Rudder](https://www.rudder.io/)
