@@ -17,10 +17,10 @@ import java.io.{BufferedReader, FileReader, FileInputStream, IOException}
 import zio.stream._
 
 val s1 = ZStream(1, 2, 3) ++ ZStream.fail("Oh! Error!") ++ ZStream(4, 5)
-val s2 = ZStream(7, 8, 9)
+val s2 = ZStream(6, 7, 8)
 
 val stream = s1.orElse(s2)
-// Output: 1, 2, 3, 7, 8, 9
+// Output: 1, 2, 3, 6, 7, 8
 ```
 
 Another variant of `orElse` is `ZStream#orElseEither`, which distinguishes elements of the two streams using the `Either` data type. Using this operator, the result of the previous example should be `Left(1), Left(2), Left(3), Right(6), Right(7), Right(8)`.
