@@ -403,6 +403,7 @@ module.exports = {
         "reference/test/installation",
         "reference/test/writing-our-first-test",
         "reference/test/running-tests",
+        "reference/test/junit-integration",
         {
           type: "category",
           label: "Assertions",

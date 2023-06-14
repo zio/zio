@@ -116,19 +116,3 @@ test("another zio test")(???) @@ timeout(60.seconds) @@ jvmOnly
 ## Zero Dependencies
 
 As a library with zero third party dependencies, this project is available on the JVM, ScalaJS, Dotty, and will be available on Scala Native in the near future. So we can write our tests once and make sure that our code works correctly across all platforms that we support.
-
-## JUnit integration
-
-A custom JUnit runner is provided for running ZIO Test specs under other build tools (like Maven, Gradle, Bazel, etc.) and under IDEs.
-
-To get the runner, we need to add the equivalent of following dependency definition under our build tool:
-
-```scala
-"dev.zio" %% "zio-test-junit" % zioVersion % "test"
-```
-
-To make our spec appear as a JUnit test to build tools and IDEs, we should convert it to a `class` (JUnit won't run scala objects) and annotate it with `@RunWith(classOf[zio.test.junit.ZTestJUnitRunner])` or simply extend `zio.test.junit.JUnitRunnableSpec`.
-
-See [ExampleSpecWithJUnit](https://github.com/zio/zio/blob/master/examples/jvm/src/test/scala/zio/examples/test/ExampleSpecWithJUnit.scala)
-
-SBT (and thus Scala.JS) is not supported, as the JUnit Test Framework for SBT doesn't seem to support custom runners.
