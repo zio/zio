@@ -53,6 +53,12 @@ final class ZEnvironment[+R] private (
   def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tagged: EnvironmentTag[Map[K, V]]): Option[V] =
     unsafe.get[Map[K, V]](taggedTagType(tagged))(Unsafe.unsafe).get(k)
 
+  /**
+   * Retrieves a service from the environment if it exists in the environment.
+   */
+  def getDynamic[A](implicit tag: Tag[A]): Option[A] =
+    Option(unsafe.getOrElse(tag.tag, null.asInstanceOf[A])(Unsafe.unsafe))
+
   override def hashCode: Int =
     map.hashCode
 
@@ -143,14 +149,21 @@ final class ZEnvironment[+R] private (
     ): ZEnvironment[R]
   }
 
-  val unsafe: UnsafeAPI =
-    new UnsafeAPI {
+  trait UnsafeAPI2 {
+    private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A
+  }
+
+  val unsafe: UnsafeAPI with UnsafeAPI2 =
+    new UnsafeAPI with UnsafeAPI2 {
       private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A] = {
         val self0 = if (index == Int.MaxValue) self.clean else self
         new ZEnvironment(self0.map.updated(tag, a -> self0.index), self0.index + 1)
       }
 
       def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A =
+        getOrElse(tag, throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}"))
+
+      private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A =
         self.cache.get(tag) match {
           case Some(a) => a.asInstanceOf[A]
           case None =>
@@ -164,7 +177,7 @@ final class ZEnvironment[+R] private (
                 service = curService.asInstanceOf[A]
               }
             }
-            if (service == null) throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}")
+            if (service == null) default
             else {
               self.cache = self.cache.updated(tag, service)
               service

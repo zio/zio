@@ -419,9 +419,14 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
       case ZLayer.ZipWith(self, that, f) =>
         ZIO.succeed(memoMap => memoMap.getOrElseMemoize(scope)(self).zipWith(memoMap.getOrElseMemoize(scope)(that))(f))
       case ZLayer.ZipWithPar(self, that, f) =>
-        ZIO.succeed(memoMap =>
-          memoMap.getOrElseMemoize(scope)(self).zipWithPar(memoMap.getOrElseMemoize(scope)(that))(f)
-        )
+        ZIO.succeed { memoMap =>
+          for {
+            parallel <- scope.forkWith(ExecutionStrategy.Parallel)
+            left     <- parallel.forkWith(scope.executionStrategy)
+            right    <- parallel.forkWith(scope.executionStrategy)
+            out      <- memoMap.getOrElseMemoize(left)(self).zipWithPar(memoMap.getOrElseMemoize(right)(that))(f)
+          } yield out
+        }
     }
 }
 
