@@ -900,6 +900,7 @@ lazy val docs = project.module
     streams.jvm,
     concurrent.jvm,
     tests.jvm,
+    testJunitRunner,
     testMagnolia.jvm,
     testRefined.jvm,
     testScalaCheck.jvm,
