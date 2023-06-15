@@ -17,33 +17,24 @@ In this article we will discuss two approaches to implement reloadable services 
 - **Using `Reloadable` service** 
 - **Using `ServiceReloader` service (the macro approach)**
 
-## The `Reloadable` Service
+## 1. The `Reloadable` Service
 
-Like ordinary ZIO services, reloadable services are designed to work with ZIO environment easily. The `Reloadable[Service]` data type, is a wrapper data type around any services that is going to be reloadable. This data type has two primary methods, `get` and `reload`, one for getting the underlying service managed by `ScopedRef` and the other is for reloading the service:
+In line with the principles of typical ZIO services, reloadable services are specifically crafted to operate seamlessly within the ZIO environment. The `Reloadable[Service]` data type serves as a wrapper around any reloadable service. This data type encompasses two fundamental methods: `get` and `reload`. The `get` method facilitates the retrieval of the underlying service managed by the `ScopedRef`, while the `reload` method enables the reloading of the service.
+
+### Reloadable Operations
 
 ```scala
 case class Reloadable[Service](scopedRef: ScopedRef[Service], reload: IO[Any, Unit]) {
   def get: UIO[Service] = scopedRef.get
   def reloadFork: UIO[Unit] = reload.ignoreLogged.forkDaemon.unit
 }
-
-object Reloadable {
-  def manual[In, E, Out](
-      layer: ZLayer[In, E, Out]
-    ): ZLayer[In, E, Reloadable[Out]] = ???
-    
-  def auto[In, E, Out](
-      layer: ZLayer[In, E, Out],
-      schedule: Schedule[In, Any, Any]
-    ): ZLayer[In, E, Reloadable[Out]] = ???
-}
 ```
 
-### Reloadable Operations
+The two fundamental operations of `Reloadable` are as follows:
 
-The basic two operation of `Reloadable`:
+1. **Reloadable#get**— By invoking the `get` method, we can access the underlying service and work with it directly.
 
-1. **`Reloadable#get`**— By calling `get` we can access the underlying service, and then we can directly work with. Assume we have got the `Reloadable[Counter]` service from the ZIO environment using `ZIO.service[Reloadable[Counter]]` accessor, then we can call `get` to access the `Counter` and working with that directly:
+    For instance, let's assume we have obtained the `Reloadable[Counter]` service from the ZIO environment using the `ZIO.service[Reloadable[Counter]]` accessor. We can then utilize the get method to retrieve the `Counter` and directly engage with it:
 
 ```scala mdoc:compile-only
 import zio._
@@ -55,7 +46,7 @@ val app = ZIO[Reloadable[Counter], Nothing, Unit]
   } yield ()
 ```
 
-2. **`Reloadable#reload`**— This will acquire a new service and release the old one, so the service will be reloaded.
+2. **`Reloadable#reload`**— This operation involves acquiring a new service and releasing the old one, thereby enabling the reloading of the service:
 
 ```scala mdoc:compile-only
 import zio._
@@ -80,6 +71,19 @@ val app: ZIO[Reloadable[Counter], Any, Unit] =
 ### Creating Reloadable Services
 
 So far we learned how to obtain reloadable service from ZIO environment and play with them. But, these workflows are not executable until we provide their requirements. For example, in the previous example, the type our workflow is `ZIO[Reloadable[Counter], Any, Unit]`. This means, we need to provide a layer of type `Reloadable[Counter]`. We have to create reloadable service and provide it as ZLayer. In this section we are going to learn on how to create such services.
+
+```scala
+object Reloadable {
+  def manual[In, E, Out](
+      layer: ZLayer[In, E, Out]
+    ): ZLayer[In, E, Reloadable[Out]] = ???
+    
+  def auto[In, E, Out](
+      layer: ZLayer[In, E, Out],
+      schedule: Schedule[In, Any, Any]
+    ): ZLayer[In, E, Reloadable[Out]] = ???
+}
+```
 
 We have two basic way to create reloadable services, manual and automatic way.
 
