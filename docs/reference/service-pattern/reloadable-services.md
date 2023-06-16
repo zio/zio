@@ -18,6 +18,53 @@ This article explores two methods for implementing reloadable services in ZIO:
 1. The first method is a non-trivial method that uses the `Reloadable` service, which requires some boilerplate code.
 2. The second method is a simpler method introduced by `zio-macros` that uses the `ServiceReloader` service.
 
+Before going into further detail, through this article whenever we use `Counter` class, we refere to this source code:
+
+```scala mdoc:silent
+import zio._
+
+import java.util.UUID
+
+trait Counter {
+  def increment: UIO[Unit]
+  def get: UIO[Int]
+}
+
+object Counter {
+  val increment: ZIO[Counter, Nothing, Unit] =
+    ZIO.serviceWithZIO[Counter](_.increment)
+
+  val get: ZIO[Counter, Nothing, RuntimeFlags] =
+    ZIO.serviceWithZIO[Counter](_.get)
+
+  val live: ZLayer[Any, Nothing, Counter] = ZLayer.scoped {
+    for {
+      id <- Ref.make(UUID.randomUUID())
+      ref <- Ref.make(0)
+      service = CounterLive(id, ref)
+      _ <- service.acquire
+      _ <- ZIO.addFinalizer(service.release)
+    } yield service
+  }
+}
+
+final case class CounterLive(id: Ref[UUID], ref: Ref[Int]) extends Counter {
+  def acquire: UIO[Unit] = {
+    Random.nextUUID
+      .flatMap(n => id.set(n) *> ZIO.debug(s"Acquired counter $n"))
+  }
+
+  def increment: UIO[Unit] =
+    ref.update(_ + 1)
+
+  def get: UIO[Int] =
+    ref.get
+
+  def release: UIO[Unit] =
+    id.get.flatMap(id => ZIO.debug(s"Released counter $id"))
+}
+```
+
 ## 1. The `Reloadable` Service
 
 In line with the principles of typical ZIO services, reloadable services are specifically crafted to operate seamlessly within the ZIO environment. The `Reloadable[Service]` data type serves as a wrapper around any reloadable service. This data type encompasses two fundamental methods: `get` and `reload`. The `get` method facilitates the retrieval of the underlying service managed by the `ScopedRef`, while the `reload` method enables the reloading of the service.
@@ -44,7 +91,7 @@ The two fundamental operations of `Reloadable` are as follows:
 ```scala mdoc:compile-only
 import zio._
 
-val app = ZIO[Reloadable[Counter], Nothing, Unit]
+val app: ZIO[Reloadable[Counter], Nothing, Unit] =
   for {
     reloadable <- ZIO.service[Reloadable[Counter]]
     counter    <- reloadable.get 
@@ -125,14 +172,14 @@ object Counter {
 }
 ```
 
-Alternatively, we can directly utilize the `ZLayer#reloadable` method:
+Alternatively, we can directly utilize the `ZLayer#reloadableManual` method:
 
-```scala mdoc:compile-only
+```scala mdoc:silent:nest
 object Counter {
   val live: ZLayer[Any, Nothing, Counter] = ???
 
   val reloadable: ZLayer[Any, Nothing, Reloadable[Counter]] =
-    live.reloadable 
+    live.reloadableManual
 }
 ```
 
@@ -184,6 +231,8 @@ Let's change the previous example to reload the Counter service automatically ev
 import zio._
 
 object Counter {
+  val live: ZLayer[Any, Nothing, Counter] = ???
+  
   val autoReloadable: ZLayer[Any, Nothing, Reloadable[Counter]] =
     Reloadable.auto(live, Schedule.fixed(5.seconds))
 }
@@ -191,10 +240,12 @@ object Counter {
 
 Or we can use `ZLayer#reloadableAuto` to convert a layer to auto reloadable service:
 
-```scala mdoc:compile-only
+```scala mdoc:silent:nest
 import zio._
 
 object Counter {
+  val live: ZLayer[Any, Nothing, Counter] = ???
+  
   val autoReloadable: ZLayer[Any, Nothing, Reloadable[Counter]] =
     live.reloadableAuto(Schedule.fixed(5.seconds))
 }
@@ -226,7 +277,7 @@ object ReloadableServiceExampleAuto extends ZIOAppDefault {
 }
 ```
 
-## The `ServiceReloader` Service
+## 2. The `ServiceReloader` Service
 
 Please note that in the previous example, there was no need for manual service reloading. However, we still had to manually retrieve the reloadable service from the environment using `ZIO.service[Reloadable[Counter]]` and then access the `Counter` service from the reloadable counter service. This approach involves some boilerplate code and indirection. We aim to adopt an approach that eliminates the necessity of `Reloadable[Service]` from the environment and instead directly requires the `Service` from the environment.
 
@@ -250,6 +301,24 @@ For example, if we require a reloadable `Counter` service, we can simply invoke 
 With this approach, there is no longer a need to retrieve `Reloadable[Counter]` from the ZIO environment, eliminating the requirement to access `Counter` from an instance of the `Reloadable[Counter]` class. Instead, we can work with services in a manner consistent with the idiomatic approach used for regular services. Thus, rather than calling `ZIO.serviceWithZIO[Reloadable[Counter]](_.get)`, we can conveniently use `ZIO.service[Counter]` to obtain the `Counter` service directly from the ZIO environment.
 
 Let's see how we can rewrite the `Reloadable.manual` example with this approach:
+
+```scala mdoc:nest:invisible
+import zio._
+import zio.macros._
+
+object Counter {
+  val increment: ZIO[Counter, Nothing, Unit] =
+    ZIO.serviceWithZIO[Counter](_.increment)
+    
+  val get: ZIO[Counter, Nothing, RuntimeFlags] =
+    ZIO.serviceWithZIO[Counter](_.get)
+
+  val live: ZLayer[Any, Nothing, Counter] = ???
+
+  val reloadable: ZLayer[ServiceReloader, ServiceReloader.Error, Counter] =
+    live.reloadable
+}
+```
 
 ```scala mdoc:compile-only
 import zio._
@@ -275,6 +344,21 @@ object ReloadableServiceExample extends ZIOAppDefault {
     } yield ()
 
   def run = app.provide(Counter.reloadable, ServiceReloader.live)
+}
+```
+
+To create a reloadable layer, we need to import `zio.macros._`. Subsequently, by invoking the `ZLayer#reloadable` method, we can transform the `live` layer into a layer that depends on `ServiceReloader` and provides `Counter` services:
+
+```scala mdoc:compile-only
+import zio._
+import zio.macros._
+
+object Counter {
+
+  val live: ZLayer[Any, Nothing, Counter] = ???
+
+  val reloadable: ZLayer[ServiceReloader, ServiceReloader.Error, Counter] =
+    live.reloadable
 }
 ```
 
