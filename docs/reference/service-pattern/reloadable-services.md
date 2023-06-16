@@ -75,7 +75,9 @@ val app: ZIO[Reloadable[Counter], Any, Unit] =
 
 ### Creating Reloadable Services
 
-So far we learned how to obtain reloadable service from ZIO environment and play with them. But, these workflows are not executable until we provide their requirements. For example, in the previous example, the type our workflow is `ZIO[Reloadable[Counter], Any, Unit]`. This means, we need to provide a layer of type `Reloadable[Counter]`. We have to create reloadable service and provide it as ZLayer. In this section we are going to learn on how to create such services.
+Up to this point, we have explored the process of acquiring reloadable services from the ZIO environment and interacting with them. However, these workflows cannot be executed without fulfilling their requirements. For instance, in the previous example, the type of our workflow is `ZIO[Reloadable[Counter], Any, Unit]`. This implies that we need to provide a layer of type `Reloadable[Counter]`. It is necessary to create reloadable services and `provide` them as a `ZLayer`. In this section, we will delve into the creation of such services.
+
+First, let's explore the definition of the two primary constructors for Reloadable:
 
 ```scala
 object Reloadable {
@@ -90,9 +92,9 @@ object Reloadable {
 }
 ```
 
-We have two basic way to create reloadable services, manual and automatic way.
+There are two fundamental approaches to creating reloadable services:
 
-1. **`Reloadable.manual`**— With manual constructor, we can create a reloadable service and then anytime we need to reload the service, we can manually call `Reloadable#reload` method. This method takes a layer of type `ZLayer[In, E, Out]` and return a layer of type `ZLayer[In, E, Reloadable[Out]]`.
+1. **`Reloadable.manual`** - Using the manual constructor, we can create a reloadable service and subsequently reload it whenever needed by explicitly invoking the `Reloadable#reload` method. This method accepts a layer of type `ZLayer[In, E, Out]` and returns a layer of type `ZLayer[In, E, Reloadable[Out]]`.
 
 Continuing the previous example, assume we have written the `Counter.live` as follows:
 
@@ -123,7 +125,7 @@ object Counter {
 }
 ```
 
-Or we can directly call `ZLayer#reloadable`:
+Alternatively, we can directly utilize the `ZLayer#reloadable` method:
 
 ```scala mdoc:compile-only
 object Counter {
@@ -134,7 +136,7 @@ object Counter {
 }
 ```
 
-Now can provide `Counter.reloadable` layer to the `app` workflow and finally run the application:
+Now we can `provide` the `Counter.reloadable` layer to the app workflow and execute the application:
 
 ```scala mdoc:compile-only
 import zio._
@@ -161,7 +163,7 @@ object ReloadableCounterServiceApp extends ZIOAppDefault {
 }
 ```
 
-This program defines an application that operates on a reloadable counter service. It retrieves the counter service from the reloadable, increments it three times, prints its value, reloads the counter service, then increments it twice, and then prints its value again. So the output should be this:
+This program defines an application that operates on a reloadable counter service (`Reloadable[Counter]`). It obtains the `Counter` service from the reloadable service, performs three `increment` operations, displays its current value, proceeds to `reload` the counter service, performs two additional increment operations, and finally displays its value once again. Therefore, the expected output would be as follows:
 
 ```bash
 Acquired counter d04519a3-7332-43ca-bc86-f61fbaf2e3d6
@@ -172,7 +174,9 @@ Counter value: 2
 Released counter bc66ba00-0b50-4e6e-9f60-c38b6e140a82
 ```
 
-2. **`Reloadable.auto`**- Using this constructor, we can provide a schedule along with a layer of type `ZLayer[In, E, Out]`, it will return a layer of reloadable service which will be automatically reloaded according to the provided schedule. Also, we can use `Reloadable.autoFromConfig` to extract the schedule from the ZIO environment.
+Observing the behavior, we notice that the service undergoes reloading, causing the counter to reset and begin incrementing from zero once more.
+
+2. **`Reloadable.auto`** - By utilizing this constructor, we can provide a schedule alongside a layer of type `ZLayer[In, E, Out]`, resulting in a layer of reloadable service that will be automatically reloaded based on the specified schedule. Additionally, there is another constructor called `Reloadable.autoFromConfig` which can be used to extract the schedule from the ZIO environment.
 
 Let's change the previous example to reload the Counter service automatically every 5 second. First we need to create auto reloadable service:
 
@@ -224,15 +228,15 @@ object ReloadableServiceExampleAuto extends ZIOAppDefault {
 
 ## The `ServiceReloader` Service
 
-Note that in the above example, we do not require to reload service manually, but we still need to manually get the reloadable service from the environment, `ZIO.service[Reloadable[Counter]]` and then we have the ability to get `Counter` service from reloadable counter service. This approach has some boilerplate and indirection. We want an approach that doesn't require `Reloadable[Counter]` from the environment, instead we would like to have an approach that requires `Counter` from the environment.
+Please note that in the previous example, there was no need for manual service reloading. However, we still had to manually retrieve the reloadable service from the environment using `ZIO.service[Reloadable[Counter]]` and then access the `Counter` service from the reloadable counter service. This approach involves some boilerplate code and indirection. We aim to adopt an approach that eliminates the necessity of `Reloadable[Service]` from the environment and instead directly requires the `Service` from the environment.
 
-`ServiceReloader` is developed to solve this problem. Its part of `zio-macros` package and to use that, we need to add the following line to our `build.sbt` file:
+To address this issue, the `ServiceReloader` has been developed as a solution. It is part of the `zio-macros` package. To utilize it, we need to include the following line in our `build.sbt` file:
 
 ```scala
 libraryDependencies ++= Seq("dev.zio" %% "zio-macros" % "<version>")
 ```
 
-A `ServiceReloader` is a registry of services, allowing services to be reloaded dynamically. We can create a reloadable version of our service by using the `reloadable` operator on `ZLayer`. Then just call `ServiceLoader.reload` to reload the service.
+The `ServiceReloader` serves as a registry for services, enabling dynamic reloading of services. By applying the `reloadable` operator on `ZLayer`, we can create a reloadable version of our service. Subsequently, we can simply invoke `ServiceLoader.reload` to initiate the reloading of the service. Let's explore the definition of the ServiceLoader trait:
 
 ```scala
 trait ServiceReloader {
@@ -241,7 +245,9 @@ trait ServiceReloader {
 }
 ```
 
-For example, whenever we need reloadable `Counter` service, it is sufficed to call `ServiceReloader.reload[Counter]`. The return type will be `ZIO[ServiceReloader, ServiceReloader.Error, Unit]`. So instead of providing a ZLayer of type `Reloadable[Counter]` we need to provide a layer of type `ServiceReloader`. With this approach we no longer need to obtain `Reloadable[Counter]` from the ZIO environment, thus we no longer need to obtain `Counter` from an instance of `Reloadable[Counter]` class. Instead, we can work with services like the idiomatic approach we commonly use for ordinary services. So instead of calling `ZIO.serviceWithZIO[Reloadable[Counter]](_.get)` we can easily use `ZIO.service[Counter]` to obtain `Counter` service from the ZIO environment.
+For example, if we require a reloadable `Counter` service, we can simply invoke `ServiceReloader.reload[Counter]`. The resulting type will be `ZIO[ServiceReloader, ServiceReloader.Error, Unit]`. Consequently, instead of providing a ZLayer of type `Reloadable[Counter]`, we now need to provide a layer of type `ServiceReloader`. 
+
+With this approach, there is no longer a need to retrieve `Reloadable[Counter]` from the ZIO environment, eliminating the requirement to access `Counter` from an instance of the `Reloadable[Counter]` class. Instead, we can work with services in a manner consistent with the idiomatic approach used for regular services. Thus, rather than calling `ZIO.serviceWithZIO[Reloadable[Counter]](_.get)`, we can conveniently use `ZIO.service[Counter]` to obtain the `Counter` service directly from the ZIO environment.
 
 Let's see how we can rewrite the `Reloadable.manual` example with this approach:
 
@@ -272,7 +278,7 @@ object ReloadableServiceExample extends ZIOAppDefault {
 }
 ```
 
-We can also make this app to the next level by separating the reload process from the app logic. So everytime the service reloaded, the next call to the service will be responded with newly reloaded services:
+We can further enhance this application by decoupling the reload process from the application logic. In doing so, each time the service is reloaded, subsequent calls to the service will be served with the freshly reloaded services:
 
 ```scala mdoc:compile-only
 import zio._
