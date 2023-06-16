@@ -13,9 +13,10 @@ Here are some examples of how we might use reloadable services:
 - **Scheduled reloads**: We might want to reload a service on a regular interval, such as every n minutes. This can be useful for services that need to be refreshed on a regular basis.
 - **Reload on change on Schema**: Assume we have a service that reads data from a database. If we make a change to the database schema, we might want to reload the service so that it can pick up the new schema. 
 
-In this article we will discuss two approaches to implement reloadable services in ZIO:
-- **Using `Reloadable` service** 
-- **Using `ServiceReloader` service (the macro approach)**
+This article explores two methods for implementing reloadable services in ZIO:
+
+1. The first method is a non-trivial method that uses the `Reloadable` service, which requires some boilerplate code.
+2. The second method is a simpler method introduced by `zio-macros` that uses the `ServiceReloader` service.
 
 ## 1. The `Reloadable` Service
 
@@ -217,7 +218,7 @@ object ReloadableServiceExampleAuto extends ZIOAppDefault {
 }
 ```
 
-## ServiceReloader
+## The `ServiceReloader` Service
 
 Note that in the above example, we do not require to reload service manually, but we still need to manually get the reloadable service from the environment, `ZIO.service[Reloadable[Counter]]` and then we have the ability to get `Counter` service from reloadable counter service. This approach has some boilerplate and indirection. We want an approach that doesn't require `Reloadable[Counter]` from the environment, instead we would like to have an approach that requires `Counter` from the environment.
 
