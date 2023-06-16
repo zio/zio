@@ -24,6 +24,8 @@ In line with the principles of typical ZIO services, reloadable services are spe
 
 ### Reloadable Operations
 
+Before diving into further details, let's begin by examining the definition of the `Reloadable` class:
+
 ```scala
 case class Reloadable[Service](scopedRef: ScopedRef[Service], reload: IO[Any, Unit]) {
   def get: UIO[Service] = scopedRef.get
@@ -31,11 +33,13 @@ case class Reloadable[Service](scopedRef: ScopedRef[Service], reload: IO[Any, Un
 }
 ```
 
+The `Reloadable` service encapsulates a [scoped reference](../resource/scopedref.md) to a service and provides methods to retrieve the service value (`get`) and trigger service reloading (`reload` and `reloadFork`).
+
 The two fundamental operations of `Reloadable` are as follows:
 
-1. **Reloadable#get**— By invoking the `get` method, we can access the underlying service and work with it directly.
+1. `Reloadable#get` - By calling the `get` method, we can retrieve the underlying service and interact with it directly.
 
-    For instance, let's assume we have obtained the `Reloadable[Counter]` service from the ZIO environment using the `ZIO.service[Reloadable[Counter]]` accessor. We can then utilize the get method to retrieve the `Counter` and directly engage with it:
+    For example, let's consider that we have acquired the `Reloadable[Counter]` service from the ZIO environment using the `ZIO.service[Reloadable[Counter]]` accessor. We can then use the `get` method to obtain the Counter instance and directly perform operations on it:
 
 ```scala mdoc:compile-only
 import zio._
