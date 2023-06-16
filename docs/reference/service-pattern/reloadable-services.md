@@ -190,7 +190,7 @@ import zio._
 
 import java.util.UUID
 
-object ReloadableCounterServiceApp extends ZIOAppDefault {
+object ReloadableExample extends ZIOAppDefault {
   val app: ZIO[Reloadable[Counter], Any, Unit] =
     for {
       reloadable <- ZIO.service[Reloadable[Counter]]
@@ -257,7 +257,7 @@ Finally, we don't require to manually execute `Reloadable#reload` and the servic
 import zio._
 import java.util.UUID
 
-object ReloadableServiceExampleAuto extends ZIOAppDefault {
+object AutoReloadableExample extends ZIOAppDefault {
   val app: ZIO[Reloadable[Counter], Any, Unit] =
     for {
       reloadable <- ZIO.service[Reloadable[Counter]]
@@ -326,7 +326,7 @@ import zio.macros._
 
 import java.util.UUID
 
-object ReloadableServiceExample extends ZIOAppDefault {
+object ServiceReloaderExample extends ZIOAppDefault {
 
   def app: ZIO[Counter with ServiceReloader, ServiceReloader.Error, Unit] =
     for {
@@ -367,7 +367,7 @@ We can further enhance this application by decoupling the reload process from th
 ```scala mdoc:compile-only
 import zio._
 
-object ReloadableServiceExampleAnother extends ZIOAppDefault {
+object ServiceReloaderParallelWorkflowExample extends ZIOAppDefault {
   def reloadWorkflow =
     ServiceReloader.reload[Counter].delay(5.seconds)
 
