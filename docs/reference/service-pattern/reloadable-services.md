@@ -2,7 +2,6 @@
 id: reloadable-services
 title: "Introduction to Reloadable Services"
 sidebar_label: "Reloadable Services"
-
 ---
 
 Reloadable services are a feature in ZIO that allow us to reload services when necessary. With ZIO When we reload a service, it will automatically deallocate any resources that the service was using. This includes any open files, network connections, or database connections. ZIO will then reallocate new resources for the new service. This process of deallocation and reallocation is handled automatically by ZIO, so you don't need to worry about it. 
