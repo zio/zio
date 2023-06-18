@@ -140,9 +140,6 @@ lazy val rootNative = project
     ): _*
   )
 
-val catsEffectVersion = "3.4.8"
-val fs2Version        = "3.6.1"
-
 lazy val root = project
   .in(file("."))
   .settings(
@@ -173,6 +170,9 @@ lazy val root = project
       )): _*
   )
   .enablePlugins(ScalaJSPlugin)
+
+val catsEffectVersion = "3.4.8"
+val fs2Version        = "3.6.1"
 
 lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core"))

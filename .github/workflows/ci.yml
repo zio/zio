@@ -45,7 +45,6 @@ jobs:
       fail-fast: false
       matrix:
         scala: ['2.12.*', '2.13.*', '3.*']
-    resource_class: large
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -275,7 +274,6 @@ jobs:
       matrix:
         java: ['17']
         platform: ['JS', 'Native']
-    resource_class: large
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
