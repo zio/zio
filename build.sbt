@@ -4,6 +4,7 @@ import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 import sbt.Keys
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
+Global / concurrentRestrictions += Tags.limit(NativeTags.Link, 1)
 
 inThisBuild(
   List(
@@ -82,12 +83,10 @@ lazy val projectsCommon = List(
   testTests
 )
 
-lazy val rootJVM = project.in(file("target/rootJVM")).settings(publish / skip := true).aggregate(rootJVM213)
+lazy val root212 = project.in(file("target/root212")).settings(publish / skip := true).aggregate(root213)
 
-lazy val rootJVM212 = project.in(file("target/rootJVM212")).settings(publish / skip := true).aggregate(rootJVM213)
-
-lazy val rootJVM213 = project
-  .in(file("target/rootJVM213"))
+lazy val root213 = project
+  .in(file("target/root213"))
   .settings(publish / skip := true)
   .aggregate(projectsCommon.map(p => p.jvm: ProjectReference): _*)
   .aggregate(
@@ -103,14 +102,14 @@ lazy val rootJVM213 = project
     ): _*
   )
 
-lazy val rootJVM3 = project
-  .in(file("target/rootJVM3"))
+lazy val root3 = project
+  .in(file("target/root3"))
   .settings(publish / skip := true)
   .aggregate(projectsCommon.map(p => p.jvm: ProjectReference): _*)
   .aggregate(
     List[ProjectReference](
       testJunitRunner,
-//      testJunitRunnerTests, TODO: fix test
+      testJunitRunnerTests,
       testMagnolia.jvm,
       testMagnoliaTests.jvm,
       testRefined.jvm,
@@ -141,11 +140,21 @@ lazy val rootNative = project
     ): _*
   )
 
-lazy val root212 = project.in(file("target/root212")).settings(publish / skip := true).aggregate(root213)
+val catsEffectVersion = "3.4.8"
+val fs2Version        = "3.6.1"
 
-lazy val root213 = project
-  .in(file("target/root213"))
-  .settings(publish / skip := true)
+lazy val root = project
+  .in(file("."))
+  .settings(
+    name           := "zio",
+    publish / skip := true,
+    console        := (core.jvm / Compile / console).value,
+    unusedCompileDependenciesFilter -= moduleFilter(
+      "org.scala-js",
+      "scalajs-library"
+    ),
+    welcomeMessage
+  )
   .aggregate(
     (projectsCommon.flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
       List(
@@ -163,42 +172,6 @@ lazy val root213 = project
         testJunitRunnerTests
       )): _*
   )
-
-lazy val root3 = project
-  .in(file("target/root3"))
-  .settings(publish / skip := true)
-  .aggregate(
-    (projectsCommon.flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
-      List(
-        testScalaCheck
-      ).flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
-      List(
-        testMagnolia,
-        testMagnoliaTests,
-        testRefined
-      ).flatMap(p => List[ProjectReference](p.jvm, p.js)) ++
-      List[ProjectReference](
-        testJunitRunner,
-        testJunitRunnerTests
-      )): _*
-  )
-
-val catsEffectVersion = "3.4.8"
-val fs2Version        = "3.6.1"
-
-lazy val root = project
-  .in(file("."))
-  .settings(
-    name           := "zio",
-    publish / skip := true,
-    console        := (core.jvm / Compile / console).value,
-    unusedCompileDependenciesFilter -= moduleFilter(
-      "org.scala-js",
-      "scalajs-library"
-    ),
-    welcomeMessage
-  )
-  .aggregate(root213)
   .enablePlugins(ScalaJSPlugin)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)

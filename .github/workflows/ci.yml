@@ -45,6 +45,7 @@ jobs:
       fail-fast: false
       matrix:
         scala: ['2.12.*', '2.13.*', '3.*']
+    resource_class: large
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -191,13 +192,13 @@ jobs:
       run: ./sbt ++${{ matrix.scala }}! mimaChecks
     - name: Test 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
-      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
+      run: ./sbt ++${{ matrix.scala }} root212/test
     - name: Test 2.13
       if: ${{ startsWith(matrix.scala, '2.13.') }}
-      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
+      run: ./sbt ++${{ matrix.scala }} root213/test
     - name: Test 3
       if: ${{ startsWith(matrix.scala, '3.') }}
-      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}3
+      run: ./sbt ++${{ matrix.scala }} root3/test
     - name: Upload Test Results 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
       uses: actions/upload-artifact@v3
@@ -250,7 +251,7 @@ jobs:
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Test on different JVM versions
-        run: ./sbt test${{ matrix.platform }}
+        run: ./sbt test
 
       - name: Report Test Death JVM 8
         if: ${{ failure() &&  startsWith(matrix.java, '8') }}
@@ -274,6 +275,7 @@ jobs:
       matrix:
         java: ['17']
         platform: ['JS', 'Native']
+    resource_class: large
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -292,7 +294,7 @@ jobs:
         with:
           swap-size-gb: 9
       - name: Test on different Scala target platforms
-        run: free --si -tmws 10 & ./sbt test${{ matrix.platform }}
+        run: free --si -tmws 10 & ./sbt root${{ matrix.platform }}/test
 
   ci:
     runs-on: ubuntu-20.04
