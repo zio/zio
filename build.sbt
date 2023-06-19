@@ -117,6 +117,23 @@ lazy val root3 = project
     ): _*
   )
 
+lazy val rootJVM = project
+  .in(file("target/rootJVM"))
+  .settings(publish / skip := true)
+  .aggregate(projectsCommon.map(p => p.jvm: ProjectReference): _*)
+  .aggregate(
+    List[ProjectReference](
+      benchmarks,
+      scalafixTests,
+      testJunitRunner,
+      testJunitRunnerTests,
+      testMagnolia.jvm,
+      testMagnoliaTests.jvm,
+      testRefined.jvm,
+      testScalaCheck.jvm
+    ): _*
+  )
+
 lazy val rootJS = project
   .in(file("target/rootJS"))
   .settings(publish / skip := true)
