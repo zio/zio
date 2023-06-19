@@ -250,7 +250,7 @@ jobs:
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Test on different JVM versions
-        run: ./sbt test
+        run: ./sbt root${{ matrix.platform }}/test
 
       - name: Report Test Death JVM 8
         if: ${{ failure() &&  startsWith(matrix.java, '8') }}
