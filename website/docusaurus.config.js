@@ -17,6 +17,7 @@ const config = {
   organizationName: 'zio',
   projectName: 'zio',
   themeConfig: {
+    image: 'https://zio.dev/img/zio.png',
     algolia: {
       // The application ID provided by Algolia
       appId: 'IAX8GRSWEQ',
