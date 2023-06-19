@@ -1,8 +1,8 @@
 name: CI
 
 env:
-  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx6G -Xss4M # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
-  JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx6G -Xss4M # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
+  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx5G -Xss3M # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
+  JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx5G -Xss3M # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
   NODE_OPTIONS: --max_old_space_size=6144
 
 on:
