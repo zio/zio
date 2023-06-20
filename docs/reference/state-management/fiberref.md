@@ -332,6 +332,65 @@ for {
 } yield v1 == "my-correlation-id" && v2 == ""
 ```
 
+## `Ref` vs. `FiberRef`
+
+Let's explore the distinction between `Ref` and `FiberRef` through two practical examples:
+
+```scala mdoc:compile-only
+import zio._
+
+object RefExample extends ZIOAppDefault {
+
+  def run =
+    for {
+      ref <- Ref.make(0)
+      left = ref.updateAndGet(_ + 1).debug("left1") *>
+        ref.updateAndGet(_ + 1).debug("left2")
+      right = ref.updateAndGet(_ + 1).debug("right1") *>
+        ref.updateAndGet(_ + 1).debug("right2")
+      _ <- left <&> right
+    } yield ()
+}
+```
+
+One potential result of running this program is as follows:
+
+```scala
+left1: 1
+right1: 2
+left2: 3
+right2: 6
+```
+
+It is apparent that the `ref` is shared between the `left` and `right` fibers. However, when using FiberRef, each fiber has its own separate storage, isolating them from one another:
+
+```scala mdoc:compile-only
+import zio._
+
+object FiberRefExample extends ZIOAppDefault {
+  def run =
+    for {
+      ref <- FiberRef.make(0)
+      left = ref.updateAndGet(_ + 1).debug("left1") *>
+        ref.updateAndGet(_ + 1).debug("left2")
+      right = ref.updateAndGet(_ + 1).debug("right1") *>
+        ref.updateAndGet(_ + 3).debug("right2")
+      _ <- left <&> right
+    } yield ()
+}
+```
+
+One possible output of this program is:
+
+```scala
+left1: 1
+right1: 1
+left2: 2
+right2: 4
+```
+
+We can observe that each fiber has its own storage without interfering with the value of another fiber.
+
 ## Propagation
 
 Let's go back to the `FiberRef`s analog called `ThreadLocal` and see how it works. If we have thread `A` with its `ThreadLocal` and thread `A` creates a new thread, let's call it thread `B`. When thread `A` sends thread `B` the same `ThreadLocal` then what value does thread `B` see inside the `ThreadLocal`? Well, it sees the default value of the `ThreadLocal`. It does not see `A`s value of the `ThreadLocal`. So in other words, `ThreadLocal`s do not propagate their values across the sort of graph of threads so when one thread creates another, the `ThreadLocal` value is not propagated from parent to child.
