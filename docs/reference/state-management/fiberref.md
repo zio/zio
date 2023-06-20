@@ -1,9 +1,14 @@
 ---
 id: fiberref
-title: "FiberRef"
+title: "FiberRef: Introduction to Fiber-local Storage"
+sidebar_title: "FiberRef"
 ---
 
-`FiberRef[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which sets the reference to a new value, and `get`, which retrieves the current value of the reference.
+`FiberRef` is a data structure for managing and accessing thread-local values within a ZIO fiber. Thread-local storage (TLS) is a mechanism that provides each fiber its own separate storage space. A `FiberRef[A]` is a specialized type of mutable reference (`Ref[A]`) that allows us to store and retrieve values of type `A` that are local to a specific fiber.  
+
+The `FiberRef` data structure allows us to perform operations such as reading the current value, updating the value, or modifying the value atomically within a fiber. It ensures thread-safety and isolation between different fibers, allowing them to have their own independent values for the `FiberRef`. Each fiber maintains its own copy of the fiber-specific variable, and modifications to the variable made by one fiber do not affect the values seen by other fibers.
+
+By using `FiberRef`, we can maintain per-fiber context or state information, which can be useful in various scenarios such as managing resources, tracking application-specific information, or carrying contextual data throughout the execution of a fiber.
 
 We can think of `FiberRef` as Java's `ThreadLocal` on steroids. So, just like we have `ThreadLocal` in Java we have `FiberRef` in ZIO. So as different threads have different `ThreadLocal`s, we can say different fibers have different `FiberRef`s. They don't intersect or overlap in any way. `FiberRef` is the fiber version of `ThreadLocal` with significant improvements in its semantics. A `ThreadLocal` only has a mutable state in which each thread accesses its own copy, but threads don't propagate their state to their children's.
 
@@ -188,11 +193,17 @@ Whenever we have some kind of scoped information or context, we can think about 
 
 When developing applications, there are several use cases for `FiberRef`. Let's take a look at some of them:
 
-1. **Distributed Tracing**— In an architecture, where we have highly concurrent workflows and distributed services, there is a need to trace requests as they propagate through the services. To be able to trace requests, we can use `FiberRef` to design the system to automatically propagate request-scoped information.
+1. **Resource management**: `FiberRef` can be utilized to manage resources that are specific to a particular fiber. For example, we can use it to store and access connections to a database or network resources. Each fiber can have its own dedicated resource, ensuring isolation and avoiding contention between different fibers.
 
-2. **Contextual Logging**— In lot of cases, logs are not independent piece of information, but they are part of a larger context. So other than just logging the message, we also need to log some additional information such as the request ID, the user ID, the session id, and so on. So whe we collect these logs, we can correlate them based on a common data point. Instead of explicitly passing these contextual information, we can use `FiberRef`.
+2. **Configuration Settings**: It can be used to store configuration settings that are specific to a fiber. This allows different fibers to have their own configuration values, enabling fine-grained control and customization.
 
-3. **Execution Scoped Configuration**— When we write applications, we would like to make them configurable. So we configure the application once and used it throughout the whole components. Not all configurations are global. There are certain kinds of configurations that are not global, or at least we have a default value for them globally, but we need to change them dynamically for certain regions. `FiberRef` is a nice tool to model these kind of configurations.
+3. **Avoiding Synchronization**: By using `FiberRef`, we can eliminate the need for synchronization mechanisms, such as locks or atomic operations, when accessing fiber-specific data. Each fiber operates on its own private copy, avoiding contention with other fibers.
+
+4. **Distributed Tracing**— In an architecture, where we have highly concurrent workflows and distributed services, there is a need to trace requests as they propagate through the services. To be able to trace requests, we can use `FiberRef` to design the system to automatically propagate request-scoped information.
+
+5. **Contextual Logging**— In lot of cases, logs are not independent piece of information, but they are part of a larger context. So other than just logging the message, we also need to log some additional information such as the request ID, the user ID, the session id, and so on. So whe we collect these logs, we can correlate them based on a common data point. Instead of explicitly passing these contextual information, we can use `FiberRef`.
+
+6. **Execution Scoped Configuration**— When we write applications, we would like to make them configurable. So we configure the application once and used it throughout the whole components. Not all configurations are global. There are certain kinds of configurations that are not global, or at least we have a default value for them globally, but we need to change them dynamically for certain regions. `FiberRef` is a nice tool to model these kind of configurations.
 
 In ZIO we have several use cases for `FiberRef`. Let's discuss some of them:
 
