@@ -124,7 +124,14 @@ object Logging {
 }
 ```
 
-But this solution is not very flexible, because this brings type safety over the contextual data types. So any change to the type of contextual data needs a change to the whole program.
+The ZIO environment solution provides an explicit method for ensuring type-safety when dealing with contextual data types. However, this increased type-safety may limit flexibility in certain scenarios. For instance, consider a situation where our workflows require multiple cross-cutting services such as `Logging`, `Config`, and `Metrics`. In this case, every instance of application logic would involve a workflow with a type signature like `ZIO[Logging & Config & Metrics & ..., IOException, Any]`. This extensive type declaration restricts easy code refactoring and maintenance, while also distracts our attention from the core business logic. Any modification to the contextual data type necessitates modifying the entire program. 
+
+Although we successfully utilized the ZIO environment in the previous example to store the state, it is not considered the idiomatic solution. It is preferable to avoid explicitly exposing the type of the state, in this case `Annotation`, within the environment.
+
+Anyway, despite these limitations, this solution proves especially beneficial when
+  - When the contextual service holds a **crucial role** in the workflow logic
+  - When there is a requirement for ensuring *type-safety on the service type** within the ZIO environment
+  - When there is no sensible **default value** for such services
 
 ### Solution 2: FiberRef
 
