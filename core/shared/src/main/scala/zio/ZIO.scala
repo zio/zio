@@ -2521,16 +2521,16 @@ sealed trait ZIO[-R, +E, +A]
   )(f: (A, B) => C)(implicit trace: Trace): ZIO[R1, E1, C] =
     ZIO.uninterruptibleMask { restore =>
       ZIO.transplant { graft =>
-        val promise = Promise.unsafe.make[Unit, Unit](FiberId.None)(Unsafe.unsafe)
+        val promise = Promise.unsafe.make[Unit, Boolean](FiberId.None)(Unsafe.unsafe)
         val ref     = new java.util.concurrent.atomic.AtomicBoolean(false)
 
-        def fork[R, E, A](zio: => ZIO[R, E, A]): ZIO[R, Nothing, Fiber[E, A]] =
+        def fork[R, E, A](zio: => ZIO[R, E, A], side: Boolean): ZIO[R, Nothing, Fiber[E, A]] =
           graft(restore(zio))
             .foldCauseZIO(
               cause => promise.fail(()) *> ZIO.refailCause(cause),
               a =>
                 if (ref.getAndSet(true)) {
-                  promise.unsafe.done(ZIO.unit)(Unsafe.unsafe)
+                  promise.unsafe.done(ZIO.succeedNow(side))(Unsafe.unsafe)
                   ZIO.succeed(a)
                 } else {
                   ZIO.succeed(a)
@@ -2538,7 +2538,7 @@ sealed trait ZIO[-R, +E, +A]
             )
             .forkDaemon
 
-        fork(self).zip(fork(that)).flatMap { case (left, right) =>
+        fork(self, false).zip(fork(that, true)).flatMap { case (left, right) =>
           restore(promise.await).foldCauseZIO(
             cause =>
               left.interruptFork *> right.interruptFork *>
@@ -2548,7 +2548,9 @@ sealed trait ZIO[-R, +E, +A]
                     case _                    => ZIO.refailCause(cause.stripFailures)
                   }
                 },
-            _ => left.join.zipWith(right.join)(f)
+            leftWins =>
+              if (leftWins) left.join.zipWith(right.join)((a, b) => f(a, b))
+              else right.join.zipWith(left.join)((b, a) => f(a, b))
           )
         }
       }
