@@ -96,7 +96,7 @@ In this section, we will look at two solutions to the problem of structured logg
 One solution is to use the ZIO environment to store the state. It addresses the first requirement, very well. ZIO environment is a nice place to store the contextual states. And to make the state isolated between fibers, we can reintroduce the new state to the environment instead of updating the environment globally:
 
 ```scala mdoc:compile-only
-// Solution 1: Using the ZIO environment to store the state
+// Solution 1: Using the ZIO environment to store the contextual state
 import zio._
 
 object Logging {
@@ -140,26 +140,37 @@ The other solution is to use `FiberRef`. FiberRef is a nice way to store the con
 Let's see how to use `FiberRef` to implement the logging service:
 
 ```scala mdoc:silent
+// Solution 2: Using the FiberRef to store the contextual state
 import zio._
 
-case class Logging private (ref: FiberRef[Map[String, String]]) {
+trait Logger {
   def logAnnotate[R, E, A](key: String, value: String)(
       zio: ZIO[R, E, A]
-  ): ZIO[R, E, A] = ref.locallyWith(_.updated(key, value))(zio)
+  ): ZIO[R, E, A]
+  def log(message: String): UIO[Unit]
+}
+
+object Logging extends Logger {
+  def logAnnotate[R, E, A](key: String, value: String)(
+      zio: ZIO[R, E, A]
+  ): ZIO[R, E, A] = currentAnnotations.locallyWith(_.updated(key, value))(zio)
 
   def log(message: String): UIO[Unit] = {
-    ref.get.flatMap {
-      case annotation if annotation.isEmpty => Console.printLine(message).orDie
+    currentAnnotations.get.flatMap {
+      case annotation if annotation.isEmpty =>
+        Console.printLine(message).orDie
       case annotation =>
         val line =
           s"${annotation.map { case (k, v) => s"[$k=$v]" }.mkString(" ")} $message"
-        Console.printLine(message).orDie
+        Console.printLine(line).orDie
     }
   }
-}
 
-object Logging {
-  def make() = FiberRef.make(Map.empty[String, String]).map(new Logging(_))
+  val currentAnnotations: FiberRef[Map[String, String]] =
+    Unsafe.unsafe { implicit unsafe =>
+      FiberRef.unsafe.make(Map.empty[String, String])
+    }
+
 }
 ```
 
@@ -171,23 +182,35 @@ import zio._
 object FiberRefLoggingExample extends ZIOAppDefault {
   def run =
     for {
-      logging <- Logging.make()
-      _ <- logging.log("Hello World!")
+      _ <- Logging.log("Hello World!")
       _ <- ZIO.foreachParDiscard(List("Jane", "John")) { name =>
-        logging.logAnnotate("name", name) {
+        Logging.logAnnotate("name", name) {
           for {
-            _ <- logging.log(s"Received request")
+            _       <- Logging.log(s"Received request")
             fiberId <- ZIO.fiberId.map(_.ids.head)
-            _ <- logging.logAnnotate("fiber_id", s"$fiberId")(
-              logging.log("Processing request")
+            _ <- Logging.logAnnotate("fiber_id", s"$fiberId")(
+              Logging.log("Processing request")
             )
-            _ <- logging.log("Finished processing request")
+            _ <- Logging.log("Finished processing request")
           } yield ()
         }
       }
-      _ <- logging.log("All requests processed")
+      _ <- Logging.log("All requests processed")
     } yield ()
 }
+```
+
+The output:
+
+```scala
+Hello World!
+[name=Jane] Received request
+[name=John] Received request
+[name=Jane] [fiber_id=5] Processing request
+[name=John] [fiber_id=6] Processing request
+[name=John] Finished processing request
+  [name=Jane] Finished processing request
+All requests processed
 ```
 
 > **Note:**
