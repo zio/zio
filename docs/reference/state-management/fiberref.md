@@ -541,6 +541,7 @@ Let's go back to the `FiberRef`s analog called `ThreadLocal` and see how it work
 `FiberRef`s improve on that model quite dramatically. Basically, whenever a child's fiber is created from its parent, the `FiberRef` value of parent fiber propagated to its child fiber.
 
 ### Copy-on-Fork 
+
 `FiberRef[A]` has *copy-on-fork* semantics for `ZIO#fork`. This essentially means that a child `Fiber` starts with `FiberRef` values of its parent. When the child sets a new value of `FiberRef`, the change is visible only to the child itself. The parent fiber still has its own value.
 
 So if we create a `FiberRef` and set its value to `5`, and we pass this `FiberRef` to a child fiber, it sees the value `5`. If the child fiber modifies the value from `5` to `6`, the parent fiber can't see that change. So the child fiber gets its own copy of the `FiberRef`, and it can modify it locally. Those changes will not affect the parent fiber:
@@ -561,10 +562,11 @@ for {
 
 ## Merging Back
 
-ZIO does not only support to propagate `FiberRef` values from parents to childs, but also to fetch back these values into the current fiber. This section describes multiple variants for doing so.
+ZIO does not only support to propagate `FiberRef` values from parents to childs, but also to merge back these values into the current fiber. This section describes multiple variants for doing so.
 
 ### join
-If we `join` a fiber then its `FiberRef` is merged back into the parent fiber:
+
+If we `join` a fiber then the value of its `FiberRef` is merged back into the parent fiber. The default strategy for merging back, is **replacement**. This means whenever a forked fiber joined to its parent fiber, the value of its parent will be replaced with the value of its child FiberRef:
 
 ```scala mdoc:compile-only
 import zio._
@@ -579,7 +581,7 @@ for {
 
 So if we `fork` a fiber and that child fiber modifies a bunch of `FiberRef`s and then later we `join` it, we get those modifications merged back into the parent fiber. So that's the semantic model of ZIO on `join`. 
 
-Each fiber has its own `FiberRef` and can modify it locally. So when multiple child fibers `join` their parent, how do they get merged? By default, the last child fiber will win, the last fiber which is going to `join` will override the parent's `FiberRef` value.
+Each fiber has its own `FiberRef` and can modify it independently. Therefore, when multiple child fibers `join` their parent, the last child fiber will override the parent's `FiberRef` value, replacing it with its own.
 
 As we can see, `child1` is the last fiber, so its value, which is `6`, gets merged back into its parent:
 
@@ -597,7 +599,8 @@ for {
 ```
 
 ### join with Custom Merge
-Furthermore, we can customize how, if at all, the value will be initialized when a fiber is forked and how values will be combined when a fiber is merged. To do this you specify the desired behavior during `FiberRef#make`:
+
+Furthermore, we have the ability to customize the initialization of a value when a fiber is forked, as well as the method of value combination when merging back the values. To achieve this, you can specify the desired behavior when making the `FiberRef` using `FiberRef#make`:
 
 ```scala mdoc:compile-only
 import zio._
@@ -610,6 +613,8 @@ for {
   value    <- fiberRef.get
 } yield assert(value == 2)
 ```
+
+In this example, when the child fiber joins its parent, it employs the max function to determine how to merge the values. It compares the child's FiberRef value (1) with the parent's FiberRef value (2) and selects the higher value as the merged result, which in this case is 2.
 
 ### await
 
