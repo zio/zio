@@ -312,6 +312,22 @@ object FiberRefChangeDefaultLoggerExample extends ZIOAppDefault {
 }
 ```
 
+The output is:
+
+```scala
+Hello World!
+All requests processed
+```
+
+The solution provided by `FiberRef` offers an **implicit** method to store and propagate contextual data or service in an untyped manner. It helps us reduce redundancy in environment types. For instance, by encoding the `Logging` and `Metrics` services using `FiberRef`, we no longer need to include the `Logging` and `Metrics` service type in the environment type of ZIO workflows. As a result, we can simplify a ZIO effect from `ZIO[Logging & Metrics & UserRepo & DocsRepo, IOException, Unit]` to `ZIO[UserRepo & DocsRepo, IOException, Unit]`. This significantly reduces boilerplate code in our workflows, which helps us to focus on maintaining application logic in a flexible manner.
+
+Additionally, as demonstrated in the final example, `FiberRef` proves to be a valuable solution when we have a **default value** for a contextual service or data. We can start the application with default values and, whenever needed, locally or globally change the underlying service or data using `FiberRef#locallyWith` and `FiberRef#update`.
+
+In summary, this solution is particularly advantageous in the following scenarios:
+  - When **encoding cross-cutting services** without the need to include them everywhere in the ZIO environment.
+  - When requiring **isolated states** for different fibers.
+  - When having a **default value** for contextual service or data.
+
 ## Use Cases
 
 Whenever we have some kind of scoped information or context, we can think about `FiberRef` as a way to store that information. 
