@@ -675,7 +675,3 @@ val withoutJoin =
         v        <- fiberRef.get
     } yield assert(v == 10)
 ```
-
-## Memory Safety
-
-The value of a `FiberRef` is automatically garbage collected once the `Fiber` owning it is finished. A `FiberRef` that is no longer reachable (has no reference to it in user-code) will cause all fiber-specific values of the reference to be garbage collected, even if they were once used in a `Fiber` that is currently executing.
