@@ -268,9 +268,11 @@ object Logging {
     zio: ZIO[R, E, A]
   ): ZIO[R, E, A] = currentLogger.get.flatMap(_.logAnnotate(key, value)(zio))
 
-  def withLogger[R, E, A](newLogger: Logger)(zio: ZIO[R, E, A]) = {
+  def locallyWithLogger[R, E, A](newLogger: Logger)(zio: ZIO[R, E, A]) = {
     currentLogger.locallyWith(_ => newLogger)(zio)
   }
+
+  def updateLogger(logger: Logger => Logger): UIO[Unit] = currentLogger.update(logger)
 
   val currentLogger: FiberRef[Logger] =
     Unsafe.unsafe { implicit unsafe =>
@@ -294,7 +296,7 @@ object FiberRefChangeDefaultLoggerExample extends ZIOAppDefault {
   def run = for {
     _ <- Logging.log("Hello World!")
     _ <- ZIO.foreachParDiscard(List("Jane", "John")) { name =>
-      Logging.withLogger(Logging.silentLogger) {
+      Logging.locallyWithLogger(Logging.silentLogger) {
         Logging.logAnnotate("name", name) {
           for {
             _ <- Logging.log(s"Received request")
