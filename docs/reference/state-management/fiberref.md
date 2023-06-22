@@ -217,6 +217,101 @@ All requests processed
 >
 > In the above solution, if we replace the `FiberRef` with `Ref`, the program will not work properly, because the `Ref` is not isolated. The `Ref` will be shared between all fibers, so each fiber clobbers the other fibers' state.
 
+To take it a step further, let's modify the previous example to allow the user to change the underlying logging service:
+
+```scala mdoc:silent:reset
+import zio._
+
+trait Logger {
+  def logAnnotate[R, E, A](key: String, value: String)(
+    zio: ZIO[R, E, A]
+  ): ZIO[R, E, A]
+
+  def log(message: String): UIO[Unit]
+}
+```
+
+```scala mdoc:silent
+import zio._
+
+object Logging {
+
+  val defaultLogger: Logger = new Logger {
+    def logAnnotate[R, E, A](key: String, value: String)(
+      zio: ZIO[R, E, A]
+    ): ZIO[R, E, A] = currentAnnotations.locallyWith(_.updated(key, value))(zio)
+
+    def log(message: String): UIO[Unit] = {
+      currentAnnotations.get.flatMap {
+        case annotation if annotation.isEmpty =>
+          Console.printLine(message).orDie
+        case annotation =>
+          val line =
+            s"${annotation.map { case (k, v) => s"[$k=$v]" }.mkString(" ")} $message"
+          Console.printLine(line).orDie
+      }
+    }
+  }
+
+  val silentLogger: Logger = new Logger {
+    def logAnnotate[R, E, A](key: String, value: String)(
+      zio: ZIO[R, E, A]
+    ): ZIO[R, E, A] = currentAnnotations.locallyWith(_.updated(key, value))(zio)
+
+    def log(message: String): UIO[Unit] = ZIO.unit
+  }
+
+  def log(message: String): ZIO[Any, Nothing, Unit] =
+    currentLogger.get.flatMap(_.log(message))
+
+  def logAnnotate[R, E, A](key: String, value: String)(
+    zio: ZIO[R, E, A]
+  ): ZIO[R, E, A] = currentLogger.get.flatMap(_.logAnnotate(key, value)(zio))
+
+  def withLogger[R, E, A](newLogger: Logger)(zio: ZIO[R, E, A]) = {
+    currentLogger.locallyWith(_ => newLogger)(zio)
+  }
+
+  val currentLogger: FiberRef[Logger] =
+    Unsafe.unsafe { implicit unsafe =>
+      FiberRef.unsafe.make(defaultLogger)
+    }
+
+  val currentAnnotations: FiberRef[Map[String, String]] =
+    Unsafe.unsafe { implicit unsafe =>
+      FiberRef.unsafe.make(Map.empty[String, String])
+    }
+
+}
+```
+
+Now, changing the default logger is made easy with the Logging.withLogger function. Let's disable the default logger for a specific section of our example by utilizing Logging.silentLogger:
+
+```scala mdoc:compile-only
+import zio._
+
+object FiberRefChangeDefaultLoggerExample extends ZIOAppDefault {
+  def run = for {
+    _ <- Logging.log("Hello World!")
+    _ <- ZIO.foreachParDiscard(List("Jane", "John")) { name =>
+      Logging.withLogger(Logging.silentLogger) {
+        Logging.logAnnotate("name", name) {
+          for {
+            _ <- Logging.log(s"Received request")
+            fiberId <- ZIO.fiberId.map(_.ids.head)
+            _ <- Logging.logAnnotate("fiber_id", s"$fiberId")(
+              Logging.log("Processing request")
+            )
+            _ <- Logging.log("Finished processing request")
+          } yield ()
+        }
+      }
+    }
+    _ <- Logging.log("All requests processed")
+  } yield ()
+}
+```
+
 ## Use Cases
 
 Whenever we have some kind of scoped information or context, we can think about `FiberRef` as a way to store that information. 
