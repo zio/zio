@@ -326,9 +326,10 @@ The solution provided by `FiberRef` offers an **implicit** method to store and p
 Additionally, as demonstrated in the final example, `FiberRef` proves to be a valuable solution when we have a **default value** for a contextual service or data. We can start the application with default values and, whenever needed, locally or globally change the underlying service or data using `FiberRef#locallyWith` and `FiberRef#update`.
 
 In summary, this solution is particularly advantageous in the following scenarios:
-  - When **encoding cross-cutting services** without the need to include them everywhere in the ZIO environment.
-  - When requiring **isolated states** for different fibers.
-  - When having a **default value** for contextual service or data.
+
+- When **encoding cross-cutting services** without the need to include them everywhere in the ZIO environment.
+- When requiring **isolated states** for different fibers.
+- When having a **default value** for contextual service or data.
 
 ## Use Cases
 
@@ -560,13 +561,13 @@ for {
 } yield assert(parentValue == 5 && childValue == 6)
 ```
 
-## Merging Back
+## Merging FiberRefs
 
 ZIO does not only support to propagate `FiberRef` values from parents to childs, but also to merge back these values into the current fiber. This section describes multiple variants for doing so.
 
 ### join
 
-If we `join` a fiber then the value of its `FiberRef` is merged back into the parent fiber. The default strategy for merging back, is **replacement**. This means whenever a forked fiber joined to its parent fiber, the value of its parent will be replaced with the value of its child FiberRef:
+If we `join` a fiber then the value of its `FiberRef` is merged back into the parent fiber. The default strategy for merging back, is **replacement**. This means whenever a forked fiber joined to its parent fiber, the value of its parent will be replaced with the value of its child `FiberRef`:
 
 ```scala mdoc:compile-only
 import zio._
@@ -650,7 +651,7 @@ for {
 } yield v == 10
 ```
 
-Note that `inheritAll` is automatically called on `join`. However, `join` will wait for merging the *final* values, while `inheritAll` will merge the *current* values and then continue:
+Note that `inheritAll` is automatically called on `join`. However, `join` will wait for merging the **final** values, while `inheritAll` will merge the **current** values and then continue:
 
 ```scala mdoc:compile-only
 import zio._
@@ -674,4 +675,162 @@ val withoutJoin =
         _        <- fiber.inheritAll.delay(1.second) // copy intermediate result 10 into fiberRef and continue
         v        <- fiberRef.get
     } yield assert(v == 10)
+```
+
+## Compositional Updates and Patch Theory
+
+In the previous section, we learned the following:
+
+1. Whenever a child fiber merges back into its parent, the value of the child fiber is, by default, replaced with the parent's value.
+2. When we have multiple child fibers, and all of them join their parent, the value of the last child to join will prevail, replacing the parent's value.
+
+Let's examine these two rules with a simple example:
+
+```scala
+
+```
+
+As the two configs are related together, we may want to create a new data type using `Map[String, Int]`, so there is no need to encode retry configs in two separate FiberRefs:
+
+```scala mdoc:compile-only
+import zio._
+
+object RetryConfigUsingMap extends ZIOAppDefault {
+  val retryConfig: FiberRef[Map[String, Int]] =
+    Unsafe.unsafe { implicit unsafe =>
+      FiberRef.unsafe.make(
+        Map(
+          "retries" -> 3,
+          "intervals" -> 2
+        )
+      )
+    }
+
+  def withRetry(n: Int) = retryConfig.update(_.updated("retries", n))
+
+  def withIntervals(n: Int) = retryConfig.update(_.updated("intervals", n))
+
+  def run =
+    for {
+      - <- withRetry(5) <&> withIntervals(3)
+      _ <- retryConfig.get.debug("retryConfig")
+    } yield ()
+
+}
+```
+
+However, the output does not align with our intended outcome:
+
+```scala
+retryConfig: Map(retries -> 3, intervals -> 3)
+```
+
+The `intervals` have been successfully updated, but the `retries` remain unchanged. Why? This is because both fibers are overwriting on a state, so the final value will be corrupted. In the previous scenario, update are as follows:
+
+```scala
+Parent fiber: Map(retries -> 3, intervals -> 2)
+Left fiber:   Map(retries -> 5, intervals -> 2)
+right fiber:  Map(retries -> 3, intervals -> 3)
+
+Parent fiber joins the left fiber:  Map(retries -> 5, intervals -> 2)
+Parent fiber joins the right fiber: Map(retries -> 3, intervals -> 3)
+```
+
+So this is the reason why the `retries` value is not updated and ends up with the wrong value. The `retries` value is clobbered by the right fiber when it joins the parent fiber.
+
+To solve this problem, we need a way to compose the updates. We need to be able to say, "update the retries to 5 and then update the intervals to 3" or inversely, "update the intervals to 3 and then update the retries to 5". We need to be able to compose updates. This is where compositional updates and the patch theory come into play.
+
+Before we dive into the code, let's try to understand some terminology.
+
+```scala
+trait Differ[Value, Patch] {
+  def combine(first: Patch, second: Patch): Patch
+  def diff(oldValue: Value, newValue: Value): Patch
+  def empty: Patch
+  def patch(patch: Patch)(oldValue: Value): Value
+}
+```
+
+By having an instance of `Differ[Value, Patch]`, we have the ability to do the following:
+
+  1. We can **diff** two values of type `Value` to produce a `Patch`. What is `Patch`? A `Patch` is a data type that represents changes from one value to another. We can think of a patch as a "diff" between two values.
+  2. With **combine** function we can provide two `Patch`s and combines them into a single `Patch`. This is useful for composing updates. For example, if we have a `Patch` that updates the `retries` to 5 and another `Patch` that updates the `intervals` to 3, we can combine them into a single `Patch` that updates both the `retries` and the `intervals`.
+  3. Using the **patch** function we can apply a `Patch` to a value to produce a new value.
+  4. The **empty** function gives us a `Patch` that represents no changes.
+
+To implement a `Differ` for a data type, we need to implement these 4 functions. We have four laws associated with any Differ value of type `Differ[Value, Patch]`:
+
+  1. The `combine` function is **associative**. This means that combining two patches and then combining the result with a third patch is the same as combining the first patch with the combination of the second and third patches.
+  2. Combining a patch with empty patch is the same as the patch itself.
+  3. Diffing a value with itself produces an empty patch.
+  4. Diffing two values and then patching the first value with the resulting patch results in the second value.
+  5. Patching a value with an empty patch results in the original value.
+
+ZIO includes some utilities which helps us to create `Differ` instances for more complex data types:
+
+- Instances of `Differ` for common data types, such as `Map`, `Set` and `Chunk`.
+- `Differ.update[A]` which constructs a differ that just diffs two values by returning a function that sets the value to the new value.
+- `Differ.map` which constructs a map differ from a differ which knows how to diff the values of the map.
+- `Differ#zip` is used to combine two differs into a single differ that works on a tuple of values.
+- `Differ#orElseEither` is used to combine two differs into a single differ that works on an `Either` of two values.
+- Using `Differ#transform` we can convert a differ of one type (Value1) to a differ of another type (Value2) by providing two functions, one to convert the Value1 to Value2 and another to convert the Value2 to Value1.
+
+Let's implement a `Differ` for `retryConfig` which is a FiberRef of type `Map[String, Int]`:
+
+```scala mdoc:compile-only
+import zio._
+
+val differ   = Differ.map[String, Int, Int => Int](Differ.update[Int])
+val patch1   = differ.diff(Map("retries" -> 3), Map("retries" -> 5))
+val patch2   = differ.diff(Map("intervals" -> 2), Map("intervals" -> 3))
+val combined = differ.combine(patch1, patch2)
+val result   = differ.patch(combined)(Map("retries" -> 3, "intervals" -> 2))
+println(result)
+```
+
+The output is as follows:
+
+```scala
+Map(retries -> 5, intervals -> 3)
+```
+
+Yes, we have successfully updated the `retries` and `intervals` values using compositional updates. Now we can use this differ to make the updates of our `FiberRef` composable:
+
+```scala mdoc:compile-only
+import zio._
+
+object RetryConfigWithCompositionalUpdates extends ZIOAppDefault {
+
+  val differ = Differ.map[String, Int, Int => Int](Differ.update[Int])
+
+  val retryConfig: FiberRef[Map[String, Int]] =
+    Unsafe.unsafe { implicit unsafe =>
+      FiberRef.unsafe.makePatch[Map[String, Int], Differ.MapPatch[
+        String,
+        Int,
+        Int => Int
+      ]](
+        Map(
+          "retries" -> 3,
+          "intervals" -> 2
+        ),
+        differ = differ,
+        fork0 = differ.empty
+      )
+    }
+
+  def withRetry(n: Int): UIO[Unit] =
+    retryConfig.update(_.updated("retries", n))
+
+  def withIntervals(n: Int): UIO[Unit] =
+    retryConfig.update(_.updated("intervals", n))
+
+  def run = {
+    for {
+      _ <- withRetry(5) <&> withIntervals(3)
+      _ <- retryConfig.get.debug("retryConfig")
+    } yield ()
+
+  }
+}
 ```
