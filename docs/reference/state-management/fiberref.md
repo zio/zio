@@ -715,7 +715,7 @@ set 10: ()
 final retries value: 10
 ```
 
-As we can see from the program's output, when we delayed the f1 workflow, it became the last child fiber to join its parent. And guess what? Its value of 10 ended up being the winner! Why? Well, it's because the default rule is that the child's value takes over the parent's value during the merge.
+As we can see from the program's output, when we delayed the `f1` workflow, it became the last child fiber to join its parent. And guess what? Its value of 10 ended up being the winner! Why? Well, it's because the default rule is that the child's value takes over the parent's value during the merge.
 
 While developing the program, we might want to add additional configurations, such as `intervals`. In this case, we can easily include another `FiberRef` that holds the `intervals` config:
 
@@ -758,7 +758,7 @@ Since the two configurations are interconnected, it might be beneficial to creat
 ```scala mdoc:compile-only
 import zio._
 
-object RetryConfigUsingMap extends ZIOAppDefault {
+object Main extends ZIOAppDefault {
   val retryConfig: FiberRef[Map[String, Int]] =
     Unsafe.unsafe { implicit unsafe =>
       FiberRef.unsafe.make(
@@ -802,6 +802,8 @@ Parent fiber joins the right fiber: Map(retries -> 3, intervals -> 3)
 So, this is the reason why the retries value is not updated and ends up with the wrong value. The retries value is clobbered by the right fiber when it joins the parent fiber.
 
 To solve this problem, we need a way to compose the updates. We need to be able to say, 'update the retries to 5 and then update the intervals to 3' or, conversely, 'update the intervals to 3 and then update the retries to 5'. We need to be able to compose updates. This is where compositional updates and the patch theory come into play.
+
+### Differ and Patch
 
 Before we dive into the code, let's try to understand some terminology:
 
@@ -857,12 +859,14 @@ The output is as follows:
 Map(retries -> 5, intervals -> 3)
 ```
 
-Yes, we have successfully updated the `retries` and `intervals` values using compositional updates. Now we can use this differ to make the updates of our `FiberRef` composable:
+### First Solution: Compositional Updates For `Map[String, Int]` Data Type
+
+In previous section, we have successfully updated the `retries` and `intervals` values using compositional updates. Now we can use this differ to make the updates of our `FiberRef` composable:
 
 ```scala mdoc:compile-only
 import zio._
 
-object RetryConfigWithCompositionalUpdates extends ZIOAppDefault {
+object Main extends ZIOAppDefault {
 
   val differ = Differ.map[String, Int, Int => Int](Differ.update[Int])
 
@@ -907,6 +911,8 @@ retryConfig: Map(retries -> 5, intervals -> 3)
 :::note
 Please note that as the `combine` operation of `Differ` is associative, the order of the updates does not change the result. This is a very important property of compositional updates in concurrent environments where multiple fibers updating the same value when they join, but the order of the joins is not deterministic.
 :::
+
+### Second Solution: Compositional Updates For The `RetryConfig` Case Class 
 
 We can take this example one step further and create a type-safe configuration data type for `RetryConfig` using scala case classes:
 
