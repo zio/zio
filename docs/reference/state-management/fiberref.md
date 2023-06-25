@@ -734,14 +734,12 @@ object Main extends ZIOAppDefault {
       FiberRef.unsafe.make(3)
     }
 
-  def run = {
+  def run =
     for {
       _ <- retries.set(5) <&> intervals.set(3)
       _ <- retries.get.debug("final retries value")
       _ <- intervals.get.debug("final intervals value")
     } yield ()
-
-  }
 
 }
 ```
@@ -897,5 +895,71 @@ object RetryConfigWithCompositionalUpdates extends ZIOAppDefault {
     } yield ()
 
   }
+}
+```
+
+The output is as follows:
+
+```scala
+retryConfig: Map(retries -> 5, intervals -> 3)
+```
+
+:::note
+Please note that as the `combine` operation of `Differ` is associative, the order of the updates does not change the result. This is a very important property of compositional updates in concurrent environments where multiple fibers updating the same value when they join, but the order of the joins is not deterministic.
+:::
+
+We can take this example one step further and create a type-safe configuration data type for `RetryConfig` using scala case classes:
+
+```scala mdoc:silent
+case class RetryConfig(
+    retries: Int,
+    intervals: Int
+)
+```
+
+We can create a `Differ` for `RetryConfig` using the `Differ#transform` function:
+
+```scala mdoc:silent
+import zio._
+
+val differ: Differ[RetryConfig, (Int => Int, Int => Int)] =
+  Differ
+    .update[Int]
+    .zip(Differ.update[Int])
+    .transform(
+      { case (x, y) => RetryConfig.apply(x, y) },
+      retryConfig => (retryConfig.retries, retryConfig.intervals)
+    )
+```
+
+Now, as same as before, we can use this `differ` to make the updates of our new `FiberRef` composable:
+
+```scala mdoc:compile-only
+import zio._
+
+object Main extends ZIOAppDefault {
+
+  val retryConfig: FiberRef[RetryConfig] =
+    Unsafe.unsafe { implicit unsafe =>
+      FiberRef.unsafe.makePatch[RetryConfig, (Int => Int, Int => Int)](
+        initialValue0 = RetryConfig(
+          retries = 3,
+          intervals = 2
+        ),
+        differ = differ,
+        fork0 = differ.empty
+      )
+    }
+
+  def withRetry(n: Int) = retryConfig.update(_.copy(retries = n))
+
+  def withIntervals(n: Int) = retryConfig.update(_.copy(intervals = n))
+
+  def run =
+    for {
+      _ <- withRetry(5) <&> withIntervals(3)
+      _ <- retryConfig.get.debug("retryConfig")
+    } yield ()
+    
 }
 ```
