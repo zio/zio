@@ -686,7 +686,7 @@ In the previous section, we learned the following:
 
 Let's examine these two rules with a simple example:
 
-```scala
+```scala mdoc:compile-only
 import zio._
 
 object Main extends ZIOAppDefault {
