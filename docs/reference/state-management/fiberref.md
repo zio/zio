@@ -717,6 +717,8 @@ final retries value: 10
 
 As we can see from the program's output, when we delayed the `f1` workflow, it became the last child fiber to join its parent. And guess what? Its value of 10 ended up being the winner! Why? Well, it's because the default rule is that the child's value takes over the parent's value during the merge.
 
+### The Problem
+
 While developing the program, we might want to add additional configurations, such as `intervals`. In this case, we can easily include another `FiberRef` that holds the `intervals` config:
 
 ```scala mdoc:compile-only
