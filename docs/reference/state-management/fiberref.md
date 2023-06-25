@@ -687,10 +687,75 @@ In the previous section, we learned the following:
 Let's examine these two rules with a simple example:
 
 ```scala
+import zio._
 
+object Main extends ZIOAppDefault {
+  val retries: FiberRef[Int] =
+    Unsafe.unsafe { implicit unsafe =>
+      FiberRef.unsafe.make(3)
+    }
+
+  def run =
+    for {
+      _ <- ZIO.unit
+      f1 = retries.set(10).debug("set 10").delay(2.seconds)
+      f2 = retries.set(5).debug("set 5")
+      _ <- f1 <&> f2
+      _ <- retries.get.debug("final retries value")
+    } yield ()
+
+}
 ```
 
-As the two configs are related together, we may want to create a new data type using `Map[String, Int]`, so there is no need to encode retry configs in two separate FiberRefs:
+The output of this program is:
+
+```scala
+set 5: ()
+set 10: ()
+final retries value: 10
+```
+
+As we can see from the program's output, when we delayed the f1 workflow, it became the last child fiber to join its parent. And guess what? Its value of 10 ended up being the winner! Why? Well, it's because the default rule is that the child's value takes over the parent's value during the merge.
+
+While developing the program, we might want to add additional configurations, such as `intervals`. In this case, we can easily include another `FiberRef` that holds the `intervals` config:
+
+```scala mdoc:compile-only
+import zio._
+
+object Main extends ZIOAppDefault {
+
+  val retries: FiberRef[Int] =
+    Unsafe.unsafe { implicit unsafe =>
+      FiberRef.unsafe.make(2)
+    }
+
+  val intervals: FiberRef[Int] =
+    Unsafe.unsafe { implicit unsafe =>
+      FiberRef.unsafe.make(3)
+    }
+
+  def run = {
+    for {
+      _ <- retries.set(5) <&> intervals.set(3)
+      _ <- retries.get.debug("final retries value")
+      _ <- intervals.get.debug("final intervals value")
+    } yield ()
+
+  }
+
+}
+```
+
+The output of this program is:
+
+```scala
+final retries value: 5
+final intervals value: 3
+```
+
+This illustrates that by incorporating more `FiberRef`s, we can concurrently update the underlying configuration values without any problems.
+
+Since the two configurations are interconnected, it might be beneficial to create a new data type utilizing `Map[String, Int]`. This approach eliminates the necessity of encoding retry configurations in two distinct `FiberRef`s:
 
 ```scala mdoc:compile-only
 import zio._
@@ -719,13 +784,13 @@ object RetryConfigUsingMap extends ZIOAppDefault {
 }
 ```
 
-However, the output does not align with our intended outcome:
+Unfortunately, with this change, the output does not align with our intended outcome:
 
 ```scala
 retryConfig: Map(retries -> 3, intervals -> 3)
 ```
 
-The `intervals` have been successfully updated, but the `retries` remain unchanged. Why? This is because both fibers are overwriting on a state, so the final value will be corrupted. In the previous scenario, update are as follows:
+The intervals have been successfully updated, but the retries remain unchanged. Why is this the case? It's because both fibers are overwriting the same state, resulting in the corruption of the final value. In the previous scenario, the updates are as follows:
 
 ```scala
 Parent fiber: Map(retries -> 3, intervals -> 2)
@@ -736,11 +801,11 @@ Parent fiber joins the left fiber:  Map(retries -> 5, intervals -> 2)
 Parent fiber joins the right fiber: Map(retries -> 3, intervals -> 3)
 ```
 
-So this is the reason why the `retries` value is not updated and ends up with the wrong value. The `retries` value is clobbered by the right fiber when it joins the parent fiber.
+So, this is the reason why the retries value is not updated and ends up with the wrong value. The retries value is clobbered by the right fiber when it joins the parent fiber.
 
-To solve this problem, we need a way to compose the updates. We need to be able to say, "update the retries to 5 and then update the intervals to 3" or inversely, "update the intervals to 3 and then update the retries to 5". We need to be able to compose updates. This is where compositional updates and the patch theory come into play.
+To solve this problem, we need a way to compose the updates. We need to be able to say, 'update the retries to 5 and then update the intervals to 3' or, conversely, 'update the intervals to 3 and then update the retries to 5'. We need to be able to compose updates. This is where compositional updates and the patch theory come into play.
 
-Before we dive into the code, let's try to understand some terminology.
+Before we dive into the code, let's try to understand some terminology:
 
 ```scala
 trait Differ[Value, Patch] {
@@ -753,27 +818,27 @@ trait Differ[Value, Patch] {
 
 By having an instance of `Differ[Value, Patch]`, we have the ability to do the following:
 
-  1. We can **diff** two values of type `Value` to produce a `Patch`. What is `Patch`? A `Patch` is a data type that represents changes from one value to another. We can think of a patch as a "diff" between two values.
+  1. We can **diff** two values of type `Value` to generate a `Patch`. What does `Patch` mean? `Patch` is a data type that signifies the modifications made from one value to another. We can envision a patch as a "diff" between two values.
   2. With **combine** function we can provide two `Patch`s and combines them into a single `Patch`. This is useful for composing updates. For example, if we have a `Patch` that updates the `retries` to 5 and another `Patch` that updates the `intervals` to 3, we can combine them into a single `Patch` that updates both the `retries` and the `intervals`.
   3. Using the **patch** function we can apply a `Patch` to a value to produce a new value.
   4. The **empty** function gives us a `Patch` that represents no changes.
 
-To implement a `Differ` for a data type, we need to implement these 4 functions. We have four laws associated with any Differ value of type `Differ[Value, Patch]`:
+To implement a `Differ` for a data type, we need to implement these 4 functions. We have four laws associated with any `Differ` value of type `Differ[Value, Patch]`:
 
-  1. The `combine` function is **associative**. This means that combining two patches and then combining the result with a third patch is the same as combining the first patch with the combination of the second and third patches.
-  2. Combining a patch with empty patch is the same as the patch itself.
+  1. The `combine` function is associative, which means that combining two patches and then combining the result with a third patch is the same as combining the first patch with the combination of the second and third patches.
+  2. Combining a patch with an empty patch is the same as the patch itself.
   3. Diffing a value with itself produces an empty patch.
   4. Diffing two values and then patching the first value with the resulting patch results in the second value.
   5. Patching a value with an empty patch results in the original value.
 
 ZIO includes some utilities which helps us to create `Differ` instances for more complex data types:
 
-- Instances of `Differ` for common data types, such as `Map`, `Set` and `Chunk`.
-- `Differ.update[A]` which constructs a differ that just diffs two values by returning a function that sets the value to the new value.
-- `Differ.map` which constructs a map differ from a differ which knows how to diff the values of the map.
-- `Differ#zip` is used to combine two differs into a single differ that works on a tuple of values.
-- `Differ#orElseEither` is used to combine two differs into a single differ that works on an `Either` of two values.
-- Using `Differ#transform` we can convert a differ of one type (Value1) to a differ of another type (Value2) by providing two functions, one to convert the Value1 to Value2 and another to convert the Value2 to Value1.
+- Instances of `Differ` for common data types, such as `Map`, `Set`, and `Chunk`.
+- `Differ.update[A]`, which constructs a differ that diffs two values by returning a function that sets the value to the new value.
+- `Differ.map`, which constructs a map differ from a differ which knows how to diff the values of the map.
+- `Differ#zip`, is used to combine two differs into a single differ that works on a tuple of values.
+- `Differ#orElseEither`, is used to combine two differs into a single differ that works on an `Either` of two values.
+- Using `Differ#transform`, we can convert a differ of one type (Value1) to a differ of another type (Value2) by providing two functions: one to convert the Value1 to Value2 and another to convert the Value2 to Value1.
 
 Let's implement a `Differ` for `retryConfig` which is a FiberRef of type `Map[String, Int]`:
 
