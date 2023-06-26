@@ -213,6 +213,9 @@ object GenSpec extends ZIOBaseSpec {
       test("const generates constant value") {
         checkSample(Gen.const("constant"))(forall(equalTo("constant")))
       },
+      test("currency generates java.util.Currency values") {
+        checkSample(Gen.currency)(isTrue, cs => cs.forall(java.util.Currency.getAvailableCurrencies.contains))
+      },
       test("double generates values in range") {
         checkSample(Gen.double(5.0, 9.0))(forall(isGreaterThanEqualTo(5.0) && isLessThan(9.0)))
       },
