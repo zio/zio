@@ -379,7 +379,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     new ZSink(channel.mapZIO(f))
 
   /** Switch to another sink in case of failure */
-  def orElse[R1 <: R, In1 <: In, E2 >: E, L1 >: L, Z1 >: Z](
+  def orElse[R1 <: R, In1 <: In, E2, L1 >: L, Z1 >: Z](
     that: => ZSink[R1, E2, In1, L1, Z1]
   )(implicit trace: Trace): ZSink[R1, E2, In1, L1, Z1] =
     new ZSink[R1, E2, In1, L1, Z1](self.channel.orElse(that.channel))
