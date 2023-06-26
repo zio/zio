@@ -23,8 +23,8 @@ import zio.{Chunk, NonEmptyChunk, Random, Trace, UIO, URIO, ZIO, Zippable}
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
+import scala.collection.JavaConverters._
 import scala.collection.immutable.SortedMap
-import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.math.Numeric.DoubleIsFractional
 
 /**
