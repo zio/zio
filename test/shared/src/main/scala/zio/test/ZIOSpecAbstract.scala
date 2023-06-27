@@ -130,21 +130,22 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     spec: Spec[Environment with TestEnvironment with Scope, Any],
     testArgs: TestArgs,
     runtime: Runtime[_],
-    testEventHandler: ZTestEventHandler
+    testEventHandler: ZTestEventHandler,
+    console: Console
   )(implicit
     trace: Trace
   ): UIO[Summary] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
-    val castedRuntime: Runtime[Environment with ExecutionEventSink] =
-      runtime.asInstanceOf[Runtime[Environment with ExecutionEventSink]]
+    val castedRuntime: Runtime[Environment] =
+      runtime.asInstanceOf[Runtime[Environment]]
 
     TestRunner(
       TestExecutor
         .default[Environment, Any](
           ZLayer.succeedEnvironment(castedRuntime.environment),
           testEnvironment ++ Scope.default,
-          ZLayer.succeedEnvironment(castedRuntime.environment),
+          ExecutionEventSink.live(console, testArgs.testEventRenderer),
           testEventHandler
         )
     ).run(fullyQualifiedName, aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)

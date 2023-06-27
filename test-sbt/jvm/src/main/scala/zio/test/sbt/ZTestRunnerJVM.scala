@@ -86,11 +86,10 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
   private[sbt] def tasksZ(
     defs: Array[TaskDef],
     console: zio.Console
-  )(implicit trace: Trace): Array[ZTestTask[ExecutionEventSink]] = {
+  )(implicit trace: Trace): Array[ZTestTask[Any]] = {
     val testArgs = TestArgs.parse(args)
 
     renderer = testArgs.testRenderer // Ensures summary is pretty in same style as rest of the test output
-    val sharedSinkLayer = ExecutionEventSink.live(console, testArgs.testEventRenderer)
 
     val specTasks: Array[ZIOSpecAbstract] = defs.map(disectTask(_, testClassLoader))
     val sharedLayerFromSpecs: ZLayer[Any, Any, Any] =
@@ -98,15 +97,12 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
         .map(_.bootstrap)
         .foldLeft(ZLayer.empty: ZLayer[ZIOAppArgs, Any, Any])(_ +!+ _)
 
-    val sharedLayer: ZLayer[Any, Any, ExecutionEventSink] =
-      sharedLayerFromSpecs +!+ sharedSinkLayer
-
-    val runtime: Runtime.Scoped[ExecutionEventSink] =
-      zio.Runtime.unsafe.fromLayer(sharedLayer)(Trace.empty, Unsafe.unsafe)
+    val runtime =
+      zio.Runtime.unsafe.fromLayer(sharedLayerFromSpecs)(Trace.empty, Unsafe.unsafe)
 
     shutdownHook = Some(() => runtime.unsafe.shutdown()(Unsafe.unsafe))
 
-    defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs, runtime))
+    defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs, runtime, console))
   }
 
   private def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): ZIOSpecAbstract = {
@@ -127,8 +123,9 @@ final class ZTestTask[T](
   sendSummary: SendSummary,
   testArgs: TestArgs,
   spec: ZIOSpecAbstract,
-  runtime: zio.Runtime[T]
-) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, runtime)
+  runtime: zio.Runtime[T],
+  console: zio.Console
+) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, runtime, console)
 
 object ZTestTask {
   def apply[T](
@@ -136,10 +133,11 @@ object ZTestTask {
     testClassLoader: ClassLoader,
     sendSummary: SendSummary,
     args: TestArgs,
-    runtime: zio.Runtime[T]
+    runtime: zio.Runtime[T],
+    console: zio.Console
   ): ZTestTask[T] = {
     val zioSpec = disectTask(taskDef, testClassLoader)
-    new ZTestTask(taskDef, testClassLoader, sendSummary, args, zioSpec, runtime)
+    new ZTestTask(taskDef, testClassLoader, sendSummary, args, zioSpec, runtime, console)
   }
 
   private def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): ZIOSpecAbstract = {
