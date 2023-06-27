@@ -90,7 +90,15 @@ sealed class ZTestTask(
   sendSummary: SendSummary,
   testArgs: TestArgs,
   spec: ZIOSpecAbstract
-) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, Runtime.default) {
+) extends BaseTestTask(
+      taskDef,
+      testClassLoader,
+      sendSummary,
+      testArgs,
+      spec,
+      Runtime.default,
+      zio.Console.ConsoleLive
+    ) {
 
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit = {
     val fiber = Runtime.default.unsafe.fork {
