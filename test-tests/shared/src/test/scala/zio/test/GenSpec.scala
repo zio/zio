@@ -3,7 +3,7 @@ package zio.test
 import zio._
 import zio.test.Assertion._
 import zio.test.GenUtils._
-import zio.test.TestAspect.{nonFlaky, scala2Only}
+import zio.test.TestAspect.{jvmOnly, nonFlaky, scala2Only}
 import zio.test.{check => Check, checkN => CheckN}
 
 import java.time.{Duration => _, _}
@@ -215,7 +215,7 @@ object GenSpec extends ZIOBaseSpec {
       },
       test("currency generates java.util.Currency values") {
         checkSample(Gen.currency)(isTrue, cs => cs.forall(java.util.Currency.getAvailableCurrencies.contains))
-      },
+      } @@ jvmOnly,
       test("double generates values in range") {
         checkSample(Gen.double(5.0, 9.0))(forall(isGreaterThanEqualTo(5.0) && isLessThan(9.0)))
       },
