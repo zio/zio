@@ -148,7 +148,7 @@ object AutoWireSpec extends ZIOBaseSpec {
               )
             )
           } @@ TestAspect.exceptScala3,
-          test("works corrently with function parameters") {
+          test("works correctly with function parameters") {
             case class MyLayer()
 
             def createLayerByFunction(x: () => MyLayer) = ZLayer.succeed(x())
