@@ -34,11 +34,11 @@ object ExampleSpec extends ZIOSpecDefault {
 
 We can run those test that contains the "bar" label using the following SBT command:
 ```
-testOnly ExampleSpect -- -t "bar"
+testOnly ExampleSpec -- -t "bar"
 ```
 You can also execute the single SBT command directly from the shell with this command that properly quotes and escapes arguments:
 ```
-sbt "testOnly ExampleSpect -- -t \"bar\""
+sbt "testOnly ExampleSpec -- -t \"bar\""
 ```
 
 It will print the following results after running all tests containing the "bar" label:
