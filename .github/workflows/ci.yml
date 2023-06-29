@@ -61,7 +61,7 @@ jobs:
       - name: Set Swap Space
         uses: pierotofy/set-swap-space@master
         with:
-          swap-size-gb: 7
+          swap-size-gb: 9
       - name: Test/compile 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
         run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root212/Test/compile
