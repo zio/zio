@@ -290,7 +290,7 @@ jobs:
       - name: Set Swap Space
         uses: pierotofy/set-swap-space@master
         with:
-          swap-size-gb: 14
+          swap-size-gb: 13
       - name: Test on different Scala target platforms
         run: free --si -tmws 10 & ./sbt root${{ matrix.platform }}/test
 
