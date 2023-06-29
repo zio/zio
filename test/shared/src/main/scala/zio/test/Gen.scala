@@ -19,10 +19,11 @@ package zio.test
 import zio.Random._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.{Stream, ZStream}
-import zio.{Chunk, NonEmptyChunk, Random, UIO, URIO, ZIO, Zippable, Trace}
+import zio.{Chunk, NonEmptyChunk, Random, Trace, UIO, URIO, ZIO, Zippable}
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
+import scala.collection.JavaConverters._
 import scala.collection.immutable.SortedMap
 import scala.math.Numeric.DoubleIsFractional
 
@@ -375,6 +376,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def constSample[R, A](sample: => Sample[R, A])(implicit trace: Trace): Gen[R, A] =
     fromZIOSample(ZIO.succeed(sample))
+
+  /**
+   * A generator of currency.
+   */
+  def currency(implicit trace: Trace): Gen[Any, java.util.Currency] =
+    elements(java.util.Currency.getAvailableCurrencies.asScala.toSeq: _*)
 
   /**
    * A generator of doubles. Shrinks toward '0'.
