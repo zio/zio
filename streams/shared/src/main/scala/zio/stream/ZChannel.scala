@@ -567,8 +567,16 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def mapErrorCause[OutErr2](
     f: Cause[OutErr] => Cause[OutErr2]
-  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr2, OutElem, OutDone] =
-    catchAllCause((cause: Cause[OutErr]) => ZChannel.refailCause(f(cause)))
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr2, OutElem, OutDone] = {
+    lazy val mapErrorCause: ZChannel[Env, OutErr, OutElem, OutDone, OutErr2, OutElem, OutDone] =
+      ZChannel.readWithCause(
+        chunk => ZChannel.write(chunk) *> mapErrorCause,
+        cause => ZChannel.refailCause(f(cause)),
+        done => ZChannel.succeedNow(done)
+      )
+
+    self >>> mapErrorCause
+  }
 
   /**
    * Returns a new channel, which is the same as this one, except the terminal
