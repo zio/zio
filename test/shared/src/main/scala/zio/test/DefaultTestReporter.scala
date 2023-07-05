@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.duration._
-import zio.test.ConsoleUtils.{cyan, red, _}
+import zio.test.ConsoleUtils._
 import zio.test.FailureRenderer.FailureMessage.{Fragment, Message}
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
@@ -519,38 +519,65 @@ object FailureRenderer {
         case Nil =>
           lines
 
-        case (ident, Expectation.And(children, state, _, _)) :: tail if state.isFailed =>
-          val title       = Line.fromString("in any order", ident)
-          val unsatisfied = children.filter(_.state.isFailed).map(ident + tabSize -> _)
-          loop(unsatisfied ++ tail, lines :+ title)
+        case (ident, Expectation.And(children, state, _, _)) :: tail =>
+          if (!state.isFailed) loop(tail, lines)
+          else {
+            val title       = Line.fromString("in any order", ident)
+            val unsatisfied = children.filter(_.state.isFailed).map(ident + tabSize -> _)
+            loop(unsatisfied ++ tail, lines :+ title)
+          }
 
-        case (ident, Expectation.Call(method, assertion, _, state, _)) :: tail if state.isFailed =>
-          val rendered =
-            withOffset(ident)(Fragment(s"$method with arguments ") + cyan(assertion.toString))
-          loop(tail, lines :+ rendered)
+        case (ident, Expectation.Call(method, assertion, _, state, _)) :: tail =>
+          if (!state.isFailed) loop(tail, lines)
+          else {
+            val rendered =
+              withOffset(ident)(Fragment(s"$method with arguments ") + cyan(assertion.toString))
+            loop(tail, lines :+ rendered)
+          }
 
-        case (ident, Expectation.Chain(children, state, _, _)) :: tail if state.isFailed =>
-          val title       = Line.fromString("in sequential order", ident)
-          val unsatisfied = children.filter(_.state.isFailed).map(ident + tabSize -> _)
-          loop(unsatisfied ++ tail, lines :+ title)
+        case (ident, Expectation.Chain(children, state, _, _)) :: tail =>
+          if (!state.isFailed) loop(tail, lines)
+          else {
+            val title       = Line.fromString("in sequential order", ident)
+            val unsatisfied = children.filter(_.state.isFailed).map(ident + tabSize -> _)
+            loop(unsatisfied ++ tail, lines :+ title)
+          }
 
-        case (ident, Expectation.Or(children, state, _, _)) :: tail if state.isFailed =>
-          val title       = Line.fromString("one of", ident)
-          val unsatisfied = children.map(ident + tabSize -> _)
-          loop(unsatisfied ++ tail, lines :+ title)
+        case (ident, Expectation.Or(children, state, _, _)) :: tail =>
+          if (!state.isFailed) loop(tail, lines)
+          else {
+            val title       = Line.fromString("one of", ident)
+            val unsatisfied = children.map(ident + tabSize -> _)
+            loop(unsatisfied ++ tail, lines :+ title)
+          }
 
-        case (ident, Expectation.Repeated(child, range, state, _, _, completed)) :: tail if state.isFailed =>
-          val min = Try(range.min.toString).getOrElse("0")
-          val max = Try(range.max.toString).getOrElse("∞")
-          val title =
-            Line.fromString(
-              s"repeated $completed times not in range $min to $max by ${range.step}",
-              ident
-            )
-          val unsatisfied = ident + tabSize -> child
-          loop(unsatisfied :: tail, lines :+ title)
+        case (ident, Expectation.Repeated(child, range, state, _, _, completed)) :: tail =>
+          if (!state.isFailed) loop(tail, lines)
+          else {
+            val min = Try(range.min.toString).getOrElse("0")
+            val max = Try(range.max.toString).getOrElse("∞")
+            val title =
+              Line.fromString(
+                s"repeated $completed times not in range $min to $max by ${range.step}",
+                ident
+              )
+            val unsatisfied = ident + tabSize -> child
+            loop(unsatisfied :: tail, lines :+ title)
+          }
 
-        case _ :: tail =>
+        case (ident, Expectation.Exactly(child, times, state, _, completed)) :: tail =>
+          if (!state.isFailed) loop(tail, lines)
+          else {
+            val title =
+              Line.fromString(
+                s"exactly $completed times not equal to $times",
+                ident
+              )
+            val unsatisfied = ident + tabSize -> child
+            loop(unsatisfied :: tail, lines :+ title)
+          }
+
+        case (_, Expectation.NoCalls(_)) :: tail =>
           loop(tail, lines)
       }
 

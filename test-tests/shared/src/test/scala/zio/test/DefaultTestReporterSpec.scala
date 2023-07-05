@@ -59,6 +59,12 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
             a && exists(matchesRegex(expectedLine.stripLineEnd))
           }
         )
-      } @@ TestAspect.nonFlaky
+      } @@ TestAspect.nonFlaky,
+      testM("correctly reports mock failure of unmet expectations using 'repeats'") {
+        assertM(runLog(mock6))(equalTo(mock6Expected.mkString + reportStats(0, 0, 1)))
+      },
+      testM("correctly reports mock failure of unmet expectations using 'exactly'") {
+        assertM(runLog(mock7))(equalTo(mock7Expected.mkString + reportStats(0, 0, 1)))
+      }
     ) @@ silent
 }

@@ -267,6 +267,32 @@ object ReportingTestUtils {
     """[\s║]*failed!"""
   )
 
+  val mock6: ZSpec[Any, Nothing] = test("Repeated calls out of range") {
+    throw UnsatisfiedExpectationsException(
+      PureModuleMock.SingleParam(equalTo(2), value("foo")).repeats(1 to 2)
+    )
+  }
+
+  val mock6Expected: Vector[String] = Vector(
+    expectedFailure("Repeated calls out of range"),
+    withOffset(2)(s"${red("- unsatisfied expectations")}\n"),
+    withOffset(4)(s"repeated 0 times not in range 1 to 2 by 1\n"),
+    withOffset(6)(s"""zio.test.mock.module.PureModuleMock.SingleParam with arguments ${cyan("equalTo(2)")}\n""")
+  )
+
+  val mock7: ZSpec[Any, Nothing] = test("Exact repetitions not met") {
+    throw UnsatisfiedExpectationsException(
+      PureModuleMock.SingleParam(equalTo(2), value("foo")).exactly(2)
+    )
+  }
+
+  val mock7Expected: Vector[String] = Vector(
+    expectedFailure("Exact repetitions not met"),
+    withOffset(2)(s"${red("- unsatisfied expectations")}\n"),
+    withOffset(4)(s"exactly 0 times not equal to 2\n"),
+    withOffset(6)(s"""zio.test.mock.module.PureModuleMock.SingleParam with arguments ${cyan("equalTo(2)")}\n""")
+  )
+
   def assertSourceLocation(): String = cyan(s"at $sourceFilePath:XXX")
   implicit class TestOutputOps(output: String) {
     def withNoLineNumbers: String =
