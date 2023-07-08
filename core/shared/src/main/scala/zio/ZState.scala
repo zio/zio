@@ -63,15 +63,22 @@ object ZState {
    * A layer that allocates the initial state of a stateful workflow.
    */
   def initial[S: EnvironmentTag](s: => S)(implicit trace: Trace): ZLayer[Any, Nothing, ZState[S]] =
+    initialWith(s)
+
+  def initialWith[S: EnvironmentTag](
+    s: => S,
+    fork: S => S = ZIO.identityFn[S],
+    join: (S, S) => S = ZIO.secondFn[S]
+  )(implicit trace: Trace): ZLayer[Any, Nothing, ZState[S]] =
     ZLayer.scoped {
       for {
-        fiberRef <- FiberRef.make(s)
+        fiberRef <- FiberRef.make(s, fork, join)
       } yield new ZState[S] {
-        def get(implicit trace: Trace): UIO[S] =
+        override def get(implicit trace: Trace): UIO[S] =
           fiberRef.get
-        def set(s: S)(implicit trace: Trace): UIO[Unit] =
+        override def set(s: S)(implicit trace: Trace): UIO[Unit] =
           fiberRef.set(s)
-        def update(f: S => S)(implicit trace: Trace): UIO[Unit] =
+        override def update(f: S => S)(implicit trace: Trace): UIO[Unit] =
           fiberRef.update(f)
       }
     }

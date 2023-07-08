@@ -4559,6 +4559,26 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def stateful[R]: StatefulPartiallyApplied[R] =
     new StatefulPartiallyApplied[R]
 
+  /**
+   * Provides a stateful ZIO workflow with its initial state as well has how
+   * that state should be transformed between fibers, resulting in a workflow
+   * that is ready to be run.
+   *
+   * {{{
+   * ZIO.statefulWith(0, ZIO.identity, (a, b) => a + b) {
+   *   for {
+   *     fib1     <- ZIO.updateState[Int](_ + 1).fork
+   *     fib2     <- ZIO.updateState[Int](_ + 1).fork
+   *     _        <- fib1.join
+   *     _        <- fib2.join
+   *     state <- ZIO.getState[Int]
+   *   } yield assertTrue(state == 4)
+   * }
+   * }}}
+   */
+  def statefulWith[R]: StatefulWithPartiallyApplied[R] =
+    new StatefulWithPartiallyApplied[R]
+
   def succeedBlockingUnsafe[A](a: Unsafe => A)(implicit trace: Trace): UIO[A] =
     ZIO.blocking(ZIO.succeedUnsafe(a))
 
@@ -5339,6 +5359,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       s: S
     )(zio: => ZIO[ZState[S] with R, E, A])(implicit tag: EnvironmentTag[S], trace: Trace): ZIO[R, E, A] =
       zio.provideSomeLayer[R](ZState.initial(s))
+  }
+
+  final class StatefulWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[S, E, A](s: S)(
+      fork: S => S,
+      join: (S, S) => S
+    )(zio: => ZIO[ZState[S] with R, E, A])(implicit tag: EnvironmentTag[S], trace: Trace): ZIO[R, E, A] =
+      zio.provideSomeLayer[R](ZState.initialWith(s, fork, join))
   }
 
   final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {

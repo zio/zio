@@ -13,6 +13,15 @@ object ZStateSpec extends ZIOBaseSpec {
             state <- ZIO.getState[Int]
           } yield assertTrue(state == 1)
         }
+      },
+      test("state can be joined between fibers") {
+        ZIO.statefulWith(0)(fork = identity, join = _ + _) {
+          for {
+            fiber <- ZIO.forkAllDiscard(List.fill(100)(ZIO.updateState[Int](_ + 1)))
+            _     <- fiber.join
+            state <- ZIO.getState[Int]
+          } yield assertTrue(state == 100)
+        }
       }
     )
 }
