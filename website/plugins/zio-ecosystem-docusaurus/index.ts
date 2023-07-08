@@ -25,6 +25,8 @@ function zioEcosystemPlugin(context: LoadContext, options: PluginOptions) {
 
           const result =
             zioProjects
+              // If the sidebar is simple and doesn't have label
+              .filter(e => (require(`@zio.dev/${e.routeBasePath}/${e.sidebarPath}`).sidebar[0] == "index"))
               .map(project => {
                 return mapConfig(
                   categoryTemplate(
@@ -34,10 +36,17 @@ function zioEcosystemPlugin(context: LoadContext, options: PluginOptions) {
                       .filter(e => e != "index")),
                   `${project.routeBasePath}/`
                 )
-              }).concat(
-                ["zio-sbt", "zio-direct", "zio-logging", "zio2-interop-cats3", "zio2-interop-cats2", "zio-http"].map(project =>
-                  mapConfig(require(`@zio.dev/${project}/sidebars.js`).sidebar[0], `${project}/`)
-                )
+              })
+              .concat(
+                zioProjects
+                  // If the sidebar has all the metadata including the label
+                  .filter(e => {
+                    return require(`@zio.dev/${e.routeBasePath}/${e.sidebarPath}`).sidebar[0].label !== undefined
+                  })
+                  .map(p => p.routeBasePath)
+                  .map(project =>
+                    mapConfig(require(`@zio.dev/${project}/sidebars.js`).sidebar[0], `${project}/`)
+                  )
               )
               .sort((a, b) => a.label < b.label ? -1 : a.label > b.label ? 1 : 0)
 
@@ -307,6 +316,36 @@ const zioProjects =
       name: 'ZIO Webhooks',
       routeBasePath: 'zio-webhooks',
       sidebarPath: 'sidebars.js',
+    },
+    {
+      name: 'ZIO SBT',
+      routeBasePath: 'zio-sbt',
+      sidebarPath: 'sidebars.js',
+    },
+    {
+      name: 'ZIO Direct Style',
+      routeBasePath: 'zio-direct',
+      sidebarPath: 'sidebars.js',
+    },
+    {
+      name: 'ZIO Logging',
+      routeBasePath: 'zio-logging',
+      sidebarPath: 'sidebars.js',
+    },
+    {
+      name: 'ZIO 2.x Interop Cats 3.x',
+      routeBasePath: 'zio2-interop-cats3',
+      sidebarPath: 'sidebars.js',
+    },
+    {
+      name: 'ZIO 2.x Interop Cats 2.x',
+      routeBasePath: 'zio2-interop-cats2',
+      sidebarPath: 'sidebars.js',
+    },
+    {
+      name: 'ZIO HTTP',
+      routeBasePath: 'zio-http',
+      sidebarPath: 'sidebars.js',
     }
   ]
 
@@ -320,6 +359,7 @@ function mapConfig(config: SidebarItemConfig, prefix: string) {
   } else if (isSidebarItemCategoryConfig(config)) {
     return {
       ...config,
+      collapsed: true,
       link: config.link ? { ...config.link, 'id': prefix + (config.link as SidebarItemCategoryLinkDoc).id } : undefined,
       items:
         ((config as SidebarItemCategoryConfig).items as SidebarItemConfig[])

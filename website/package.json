@@ -9,7 +9,8 @@
     "deploy": "docusaurus generate-sidebar; docusaurus deploy",
     "serve": "docusaurus generate-sidebar; docusaurus serve",
     "clear": "docusaurus clear",
-    "upgrade-zio-docs": "bash ./upgrade-zio-docs.sh"
+    "upgrade-zio-docs": "bash ./upgrade-zio-docs.sh",
+    "generate-sidebar": "docusaurus generate-sidebar"
   },
   "dependencies": {
     "@babel/plugin-transform-parameters": "^7.18.8",
