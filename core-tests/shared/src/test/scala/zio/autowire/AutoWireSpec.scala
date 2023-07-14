@@ -2,7 +2,7 @@ package zio.autowire
 
 import zio._
 import zio.internal.macros.StringUtils.StringOps
-import zio.test.Assertion.{equalTo, isLeft}
+import zio.test.Assertion.{anything, equalTo, isLeft}
 import zio.test._
 
 object AutoWireSpec extends ZIOBaseSpec {
@@ -147,6 +147,41 @@ object AutoWireSpec extends ZIOBaseSpec {
                   containsStringWithoutAnsi("Double")
               )
             )
+          } @@ TestAspect.exceptScala3,
+          test("works correctly with function parameters") {
+            case class MyLayer()
+
+            def createLayerByFunction(x: () => MyLayer) = ZLayer.succeed(x())
+
+            val byName =
+              ZIO
+                .service[MyLayer]
+                .provide(
+                  createLayerByFunction { () =>
+                    val byNameLayer = MyLayer()
+                    byNameLayer
+                  }
+                )
+            assertTrue(byName != null)
+          },
+          test("return error when passing by-name on Scala 2 (https://github.com/zio/zio/issues/7732)") {
+            assertZIO(typeCheck {
+              """
+                case class MyLayer()
+
+                def createLayerByName(x: => MyLayer) = ZLayer.succeed(x)
+
+                val byName =
+                  ZIO
+                    .service[MyLayer]
+                    .provide(
+                      createLayerByName {
+                        val byNameLayer = MyLayer()
+                        byNameLayer
+                      }
+                    )
+              """
+            })(isLeft(anything))
           } @@ TestAspect.exceptScala3
         ),
         suite("`ZLayer.makeSome`")(

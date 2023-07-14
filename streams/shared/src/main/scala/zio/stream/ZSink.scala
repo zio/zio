@@ -23,6 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.nio.charset.{Charset, StandardCharsets}
 import java.util.concurrent.atomic.AtomicReference
+import scala.annotation.tailrec
 import scala.reflect.ClassTag
 
 final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z])
@@ -379,7 +380,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     new ZSink(channel.mapZIO(f))
 
   /** Switch to another sink in case of failure */
-  def orElse[R1 <: R, In1 <: In, E2 >: E, L1 >: L, Z1 >: Z](
+  def orElse[R1 <: R, In1 <: In, E2, L1 >: L, Z1 >: Z](
     that: => ZSink[R1, E2, In1, L1, Z1]
   )(implicit trace: Trace): ZSink[R1, E2, In1, L1, Z1] =
     new ZSink[R1, E2, In1, L1, Z1](self.channel.orElse(that.channel))
@@ -921,19 +922,15 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     z: => S
   )(contFn: S => Boolean)(f: (S, In) => S)(implicit trace: Trace): ZSink[Any, Nothing, In, In, S] =
     ZSink.suspend {
-      def foldChunkSplit(z: S, chunk: Chunk[In])(
-        contFn: S => Boolean
-      )(f: (S, In) => S): (S, Chunk[In]) = {
+      def foldChunkSplit(z: S, chunk: Chunk[In]): (S, Chunk[In]) = {
+        @tailrec
         def fold(s: S, chunk: Chunk[In], idx: Int, len: Int): (S, Chunk[In]) =
-          if (idx == len) {
-            (s, Chunk.empty)
-          } else {
+          if (idx == len) (s, Chunk.empty)
+          else {
             val s1 = f(s, chunk(idx))
-            if (contFn(s1)) {
-              fold(s1, chunk, idx + 1, len)
-            } else {
-              (s1, chunk.drop(idx + 1))
-            }
+
+            if (contFn(s1)) fold(s1, chunk, idx + 1, len)
+            else (s1, chunk.drop(idx + 1))
           }
 
         fold(z, chunk, 0, chunk.length)
@@ -944,13 +941,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         else
           ZChannel.readWithCause(
             (in: Chunk[In]) => {
-              val (nextS, leftovers) = foldChunkSplit(s, in)(contFn)(f)
+              val (nextS, leftovers) = foldChunkSplit(s, in)
 
               if (leftovers.nonEmpty) ZChannel.write(leftovers).as(nextS)
               else reader(nextS)
             },
             (err: Cause[ZNothing]) => ZChannel.refailCause(err),
-            (x: Any) => ZChannel.succeedNow(s)
+            (_: Any) => ZChannel.succeedNow(s)
           )
 
       new ZSink(reader(z))

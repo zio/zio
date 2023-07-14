@@ -162,7 +162,8 @@ object ZTestFrameworkSbtSpec {
           zTestTask.sendSummary.provideEnvironment(ZEnvironment(Summary(1, 0, 0, "foo"))),
           TestArgs.empty,
           zTestTask.spec,
-          zio.Runtime.default
+          zio.Runtime.default,
+          zio.Console.ConsoleLive
         )
       }
       .head
@@ -186,7 +187,8 @@ object ZTestFrameworkSbtSpec {
           zTestTask.sendSummary.provideEnvironment(ZEnvironment(Summary(0, 0, 0, "foo"))),
           TestArgs.empty,
           zTestTask.spec,
-          zio.Runtime.default
+          zio.Runtime.default,
+          zio.Console.ConsoleLive
         )
       }
       .head

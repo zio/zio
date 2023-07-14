@@ -66,15 +66,18 @@ private[test] object TestDebug {
   private def removeLine(fullyQualifiedTaskName: String, searchString: String, lock: TestDebugFileLock) =
     lock.updateFile {
       ZIO.succeed {
-        val source = Source.fromFile(outputFileForTask(fullyQualifiedTaskName))
+        val file = new File(outputFileForTask(fullyQualifiedTaskName))
+        if (file.exists()) {
+          val source = Source.fromFile(file)
 
-        val remainingLines =
-          source.getLines.filterNot(_.contains(searchString)).toList
+          val remainingLines =
+            source.getLines.filterNot(_.contains(searchString)).toList
 
-        val pw = new PrintWriter(outputFileForTask(fullyQualifiedTaskName))
-        pw.write(remainingLines.mkString("\n") + "\n")
-        pw.close()
-        source.close()
+          val pw = new PrintWriter(outputFileForTask(fullyQualifiedTaskName))
+          pw.write(remainingLines.mkString("\n") + "\n")
+          pw.close()
+          source.close()
+        }
       }
     }
 }

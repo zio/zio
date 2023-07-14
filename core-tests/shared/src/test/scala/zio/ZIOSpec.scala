@@ -4203,6 +4203,16 @@ object ZIOSpec extends ZIOBaseSpec {
         val zio = ZIO.never <&> ZIO.never <&> ZIO.fail("fail")
         assertZIO(zio.exit)(fails(equalTo("fail")))
       },
+      test("propagates FiberRef values") {
+        for {
+          fiberRef <- FiberRef.make(5)
+          workflow  = fiberRef.set(10).delay(2.seconds) <&> fiberRef.set(15)
+          fiber    <- workflow.fork
+          _        <- TestClock.adjust(2.seconds)
+          _        <- fiber.join
+          value    <- fiberRef.get
+        } yield assertTrue(value == 10)
+      },
       test("runs finalizers in parallel") {
         for {
           promise1 <- Promise.make[Nothing, Unit]

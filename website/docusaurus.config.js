@@ -17,6 +17,7 @@ const config = {
   organizationName: 'zio',
   projectName: 'zio',
   themeConfig: {
+    image: 'https://zio.dev/img/zio.png',
     algolia: {
       // The application ID provided by Algolia
       appId: 'IAX8GRSWEQ',
@@ -168,10 +169,6 @@ const config = {
             'current': {
               label: 'ZIO 2.x'
             },
-            '1.x': {
-              label: 'ZIO 1.x',
-              path: 'version-1.x'
-            }
           },
           remarkPlugins: [
             [require('blended-include-code-plugin'), { marker: 'CODE_INCLUDE' }],

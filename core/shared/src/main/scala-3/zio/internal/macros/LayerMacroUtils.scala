@@ -125,6 +125,7 @@ private [zio] object LayerMacroUtils {
 
   type Env[Elems] =
     Elems match {
+    case EmptyTuple => Any
     case t *: EmptyTuple => t
     case t *: rest => t & Env[rest]
   }
@@ -164,8 +165,9 @@ private [zio] object LayerMacroUtils {
       }
 
     def genLayer(fields: List[Tree]): Expr[URIO[Env[T], A]] =
-      if fields.size == 1
-
+      if fields.size == 0
+    then '{ZIO.succeed(${caseClassApply(Nil).asExprOf[A]})}
+      else if fields.size == 1
     then'{ZIO.serviceWith(dep => ${caseClassApply('{dep}.asTerm :: Nil).asExprOf[A]})}
     else
     '{${genDeps(fields)}.map(deps => ${depsDefs('{deps.asInstanceOf[T]}).asExprOf[A]})}

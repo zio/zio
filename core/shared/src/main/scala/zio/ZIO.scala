@@ -17,7 +17,7 @@
 package zio
 
 import zio.internal.{FiberScope, Platform}
-import zio.metrics.MetricLabel
+import zio.metrics.{MetricLabel, Metrics}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
@@ -2521,16 +2521,16 @@ sealed trait ZIO[-R, +E, +A]
   )(f: (A, B) => C)(implicit trace: Trace): ZIO[R1, E1, C] =
     ZIO.uninterruptibleMask { restore =>
       ZIO.transplant { graft =>
-        val promise = Promise.unsafe.make[Unit, Unit](FiberId.None)(Unsafe.unsafe)
+        val promise = Promise.unsafe.make[Unit, Boolean](FiberId.None)(Unsafe.unsafe)
         val ref     = new java.util.concurrent.atomic.AtomicBoolean(false)
 
-        def fork[R, E, A](zio: => ZIO[R, E, A]): ZIO[R, Nothing, Fiber[E, A]] =
+        def fork[R, E, A](zio: => ZIO[R, E, A], side: Boolean): ZIO[R, Nothing, Fiber[E, A]] =
           graft(restore(zio))
             .foldCauseZIO(
               cause => promise.fail(()) *> ZIO.refailCause(cause),
               a =>
                 if (ref.getAndSet(true)) {
-                  promise.unsafe.done(ZIO.unit)(Unsafe.unsafe)
+                  promise.unsafe.done(ZIO.succeedNow(side))(Unsafe.unsafe)
                   ZIO.succeed(a)
                 } else {
                   ZIO.succeed(a)
@@ -2538,7 +2538,7 @@ sealed trait ZIO[-R, +E, +A]
             )
             .forkDaemon
 
-        ZIO.parallelFinalizersMask(restore => fork(restore(self)).zip(fork(restore(that)))).flatMap {
+        ZIO.parallelFinalizersMask(restore => fork(restore(self), false).zip(fork(restore(that), true))).flatMap {
           case (left, right) =>
             restore(promise.await).foldCauseZIO(
               cause =>
@@ -2549,7 +2549,9 @@ sealed trait ZIO[-R, +E, +A]
                       case _                    => ZIO.refailCause(cause.stripFailures)
                     }
                   },
-              _ => left.join.zipWith(right.join)(f)
+              leftWins =>
+                if (leftWins) left.join.zipWith(right.join)((a, b) => f(a, b))
+                else right.join.zipWith(left.join)((b, a) => f(a, b))
             )
         }
       }
@@ -4169,6 +4171,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     in: => Iterable[ZIO[R, E, A]]
   )(zero: => B)(f: (B, A) => B)(implicit trace: Trace): ZIO[R, E, B] =
     Ref.make(zero).flatMap(acc => foreachParDiscard(in)(_.flatMap(a => acc.update(f(_, a)))) *> acc.get)
+
+  /**
+   * Gets current metrics snapshot.
+   */
+  def metrics(implicit trace: Trace): UIO[Metrics] =
+    ZIO.succeedUnsafe { implicit u =>
+      Metrics(internal.metrics.metricRegistry.snapshot())
+    }
 
   /**
    * Returns a effect that will never produce anything. The moral equivalent of

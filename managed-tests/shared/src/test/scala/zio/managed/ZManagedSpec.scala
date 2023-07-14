@@ -1844,7 +1844,24 @@ object ZManagedSpec extends ZIOBaseSpec {
         _     <- endLatch.await
         res   <- release.get
       } yield assertTrue(res)
-    }
+    },
+    suite("toManaged")(
+      test("preserve lifecycle of a layer converted to a managed value") {
+        def sideEffectingLayer(ref: Ref[Int]): ZLayer[Any, Nothing, String] =
+          ZLayer.scoped {
+            ZIO.scopeWith(_.addFinalizerExit(_ => ref.update(_ + 2)))
+          } >>>
+            ZLayer(ref.update(_ + 1).as("Howdy"))
+
+        for {
+          ref <- Ref.make(0)
+          res1 <- sideEffectingLayer(ref).toManaged.use { env =>
+                    ref.get.map(_ -> env.get[String])
+                  }
+          res2 <- ref.get
+        } yield assertTrue(res1._1 == 1) && assertTrue(res1._2 == "Howdy") && assertTrue(res2 == 3)
+      }
+    )
   )
 
   val ExampleError = new Throwable("Oh noes!")

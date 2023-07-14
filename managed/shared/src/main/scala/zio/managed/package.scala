@@ -107,6 +107,13 @@ package object managed extends ZManagedCompatPlatformSpecific {
       ZManaged.fromReservationZIO(reservation).use(use)
   }
 
+  implicit final class ZManagedZLayerSyntax[R, E, A](private val self: ZLayer[R, E, A]) extends AnyVal {
+
+    /** Converts this layer to a ZManaged value. */
+    def toManaged(implicit trace: Trace): ZManaged[R, E, ZEnvironment[A]] =
+      ZManaged.scoped[R](self.build)
+  }
+
   implicit final class ZManagedZLayerCompanionSyntax(private val self: ZLayer.type) extends AnyVal {
 
     /**

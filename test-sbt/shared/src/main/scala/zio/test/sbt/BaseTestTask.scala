@@ -1,7 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
-import zio.{CancelableFuture, Scope, Trace, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.{CancelableFuture, Console, Scope, Trace, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 import zio.test._
 
 import scala.concurrent.Await
@@ -14,7 +14,8 @@ abstract class BaseTestTask[T](
   val sendSummary: SendSummary,
   val args: TestArgs,
   val spec: ZIOSpecAbstract,
-  val runtime: zio.Runtime[T]
+  val runtime: zio.Runtime[T],
+  val console: Console
 ) extends Task {
 
   final override def taskDef(): TaskDef = taskDef0
@@ -29,7 +30,14 @@ abstract class BaseTestTask[T](
   )(implicit trace: Trace): ZIO[Any, Throwable, Unit] =
     (for {
       summary <-
-        spec.runSpecWithSharedRuntimeLayer(taskDef0.fullyQualifiedName(), spec.spec, args, runtime, eventHandlerZ)
+        spec.runSpecWithSharedRuntimeLayer(
+          taskDef0.fullyQualifiedName(),
+          spec.spec,
+          args,
+          runtime,
+          eventHandlerZ,
+          console
+        )
       _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
     } yield ())
       .provideLayer(sharedFilledTestLayer)

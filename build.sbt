@@ -688,7 +688,8 @@ lazy val benchmarks = project.module
         "org.typelevel"             %% "cats-effect-std" % catsEffectVersion,
         "org.scalacheck"            %% "scalacheck"      % "1.17.0",
         "qa.hedgehog"               %% "hedgehog-core"   % "0.10.1",
-        "com.github.japgolly.nyaya" %% "nyaya-gen"       % "0.10.0"
+        "com.github.japgolly.nyaya" %% "nyaya-gen"       % "0.10.0",
+        "org.springframework"        % "spring-core"     % "6.0.9"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid =>
@@ -789,9 +790,8 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     crossScalaVersions --= List(Scala212, Scala3),
-    mdocIn             := (LocalRootProject / baseDirectory).value / "docs",
-    mdocOut            := (LocalRootProject / baseDirectory).value / "website" / "docs",
-    mdocExtraArguments := Seq("--check-link-hygiene"),
+    mdocIn  := (LocalRootProject / baseDirectory).value / "docs",
+    mdocOut := (LocalRootProject / baseDirectory).value / "website" / "docs",
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
       core.jvm,
       streams.jvm,
@@ -900,10 +900,12 @@ lazy val docs = project.module
     streams.jvm,
     concurrent.jvm,
     tests.jvm,
+    testJunitRunner,
     testMagnolia.jvm,
     testRefined.jvm,
     testScalaCheck.jvm,
-    core.js
+    core.js,
+    macros.jvm
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
   .aggregate(docs_make_zio_app_configurable)

@@ -142,7 +142,8 @@ module.exports = {
         "reference/service-pattern/service-pattern",
         "reference/service-pattern/defining-polymorphic-services-in-zio",
         "reference/service-pattern/generating-accessor-methods-using-macros",
-        "reference/service-pattern/the-three-laws-of-zio-environment"
+        "reference/service-pattern/the-three-laws-of-zio-environment",
+        "reference/service-pattern/reloadable-services"
       ]
     },
     {
@@ -403,6 +404,7 @@ module.exports = {
         "reference/test/installation",
         "reference/test/writing-our-first-test",
         "reference/test/running-tests",
+        "reference/test/junit-integration",
         {
           type: "category",
           label: "Assertions",
