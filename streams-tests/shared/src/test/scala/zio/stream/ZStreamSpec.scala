@@ -2829,6 +2829,40 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               exit <- stream.peel(sink).exit
             } yield assert(exit)(fails(equalTo("fail")))
+          },
+          test("preserves the scope") {
+            for {
+              ref     <- Ref.make[Chunk[String]](Chunk.empty)
+              resource = (i: Int) => ZIO.acquireRelease(ZIO.succeed(i))(i => ref.update(_ :+ s"closing $i"))
+              fiber <- ZStream.unwrapScoped {
+                         ZStream
+                           .scoped(ZIO.foreach(1 to 5)(resource))
+                           .flattenIterables
+                           .rechunk(10)
+                           .peel(ZSink.head[Int])
+                           .map { case (head, tail) =>
+                             (ZStream.fromIterable(head) ++ tail)
+                               .mapZIO(i => ref.update(_ :+ s"processing $i").as(i))
+                               .schedule(Schedule.spaced(1.second))
+                           }
+                       }.runDrain.fork
+              _     <- TestClock.adjust(5.seconds)
+              _     <- fiber.join
+              value <- ref.get
+            } yield assertTrue(
+              value == Chunk(
+                "processing 1",
+                "processing 2",
+                "processing 3",
+                "processing 4",
+                "processing 5",
+                "closing 5",
+                "closing 4",
+                "closing 3",
+                "closing 2",
+                "closing 1"
+              )
+            )
           }
         ),
         test("onError") {

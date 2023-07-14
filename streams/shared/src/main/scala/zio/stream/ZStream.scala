@@ -3104,7 +3104,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def tapError[R1 <: R, E1 >: E](
     f: E => ZIO[R1, E1, Any]
   )(implicit ev: CanFail[E], trace: Trace): ZStream[R1, E1, A] =
-    catchAll(e => ZStream.fromZIO(f(e) *> ZIO.fail(e)))
+    tapErrorCause(_.failureOrCause.fold(f, _ => ZIO.unit))
 
   /**
    * Returns a stream that effectfully "peeks" at the cause of failure of the
@@ -3112,8 +3112,16 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    */
   def tapErrorCause[R1 <: R, E1 >: E](
     f: Cause[E] => ZIO[R1, E1, Any]
-  )(implicit ev: CanFail[E], trace: Trace): ZStream[R1, E1, A] =
-    catchAllCause(e => ZStream.fromZIO(f(e) *> ZIO.refailCause(e)))
+  )(implicit ev: CanFail[E], trace: Trace): ZStream[R1, E1, A] = {
+    lazy val tapErrorCause: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
+      ZChannel.readWithCause(
+        chunk => ZChannel.write(chunk) *> tapErrorCause,
+        cause => ZChannel.fromZIO(f(cause)) *> ZChannel.refailCause(cause),
+        done => ZChannel.succeedNow(done)
+      )
+
+    new ZStream(self.channel.pipeTo(tapErrorCause))
+  }
 
   /**
    * Sends all elements emitted by this stream to the specified sink in addition
