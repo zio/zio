@@ -5,6 +5,10 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 trait Zippable[-A, -B] {
   type Out
   def zip(left: A, right: B): Out
+  def discardsLeft: Boolean =
+    false
+  def discardsRight: Boolean =
+    false
 }
 
 object Zippable extends ZippableLowPriority1 {
@@ -12,9 +16,14 @@ object Zippable extends ZippableLowPriority1 {
   type Out[-A, -B, C] = Zippable[A, B] { type Out = C }
 
   implicit def ZippableLeftIdentity[A]: Zippable.Out[Unit, A, A] =
-    new Zippable[Unit, A] {
-      type Out = A
-      def zip(left: Unit, right: A) =
+    Zippable.zippableLeftIdentity.asInstanceOf[Zippable.Out[Unit, A, A]]
+
+  private val zippableLeftIdentity: Zippable.Out[Unit, Any, Any] =
+    new Zippable[Unit, Any] {
+      type Out = Any
+      override val discardsLeft: Boolean =
+        true
+      def zip(left: Unit, right: Any): Any =
         right
     }
 }
@@ -22,9 +31,16 @@ object Zippable extends ZippableLowPriority1 {
 trait ZippableLowPriority1 extends ZippableLowPriority2 {
 
   implicit def ZippableRightIdentity[A]: Zippable.Out[A, Unit, A] =
-    new Zippable[A, Unit] {
-      type Out = A
-      def zip(left: A, right: Unit) =
+    ZippableLowPriority1.zippableRightIdentity.asInstanceOf[Zippable.Out[A, Unit, A]]
+}
+
+object ZippableLowPriority1 {
+  private val zippableRightIdentity: Zippable.Out[Any, Unit, Any] =
+    new Zippable[Any, Unit] {
+      type Out = Any
+      override val discardsRight: Boolean =
+        true
+      def zip(left: Any, right: Unit): Any =
         left
     }
 }
