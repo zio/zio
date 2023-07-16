@@ -1321,7 +1321,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def flatMap[R1 <: R, E1 >: E, B](f: A => ZStream[R1, E1, B])(implicit
     trace: Trace
   ): ZStream[R1, E1, B] =
-    new ZStream(channel.concatMap(as => as.map(f).map(_.channel).fold(ZChannel.unit)(_ *> _)))
+    new ZStream(
+      channel.concatMap(as =>
+        as.foldLeft[ZChannel[R1, Any, Any, Any, E1, zio.Chunk[B], Any]](ZChannel.unit) { case (acc, a) =>
+          acc *> f(a).channel
+        }
+      )
+    )
 
   /**
    * Maps each element of this stream to another stream and returns the
