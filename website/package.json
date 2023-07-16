@@ -74,7 +74,7 @@
     "@zio.dev/zio2-interop-cats3": "2023.2.21-692e7bbebb7f",
     "babel": "^6.23.0",
     "blended-include-code-plugin": "0.1.2",
-    "clsx": "1.2.1",
+    "clsx": "2.0.0",
     "postcss": "^8.4.18",
     "prism-react-renderer": "1.3.5",
     "prism-themes": "1.9.0",
