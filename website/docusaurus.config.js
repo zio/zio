@@ -56,12 +56,14 @@ const config = {
         { type: 'doc', docId: 'ecosystem/index', label: 'Ecosystem', position: 'left' },
         { type: 'doc', docId: 'resources/index', label: 'Resources', position: 'left' },
         { type: 'doc', docId: 'events/index', label: 'Events', position: 'left' },
+        { to: "http://chat.zio.dev", label: "Chat Bot", position: 'right' },
         { to: 'blog', label: 'Blog', position: 'right' },
-        {
-          type: 'docsVersionDropdown',
-          position: 'right',
-          dropdownActiveClassDisabled: true,
-        }
+// Disabled extra link until the ZIO 1.x docs available
+//        {
+//          type: 'docsVersionDropdown',
+//          position: 'right',
+//          dropdownActiveClassDisabled: true,
+//        }
       ],
     },
     footer: {
