@@ -58,6 +58,12 @@ const config = {
         { type: 'doc', docId: 'events/index', label: 'Events', position: 'left' },
         { to: "http://chat.zio.dev", label: "Chat Bot", position: 'right' },
         { to: 'blog', label: 'Blog', position: 'right' },
+        {
+          href: 'https://github.com/zio/zio',
+          position: 'right',
+          className: 'header-github-link',
+          'aria-label': 'GitHub repository',
+        },
 // Disabled extra link until the ZIO 1.x docs available
 //        {
 //          type: 'docsVersionDropdown',
@@ -163,6 +169,9 @@ const config = {
       '@docusaurus/preset-classic',
       {
         debug: true,
+        theme: {
+          customCss: [require.resolve('./src/css/custom.css')],
+        },
         docs: {
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
