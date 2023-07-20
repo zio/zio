@@ -1,6 +1,6 @@
 ---
 id: overview_basic_operations
-title:  "Basic Operations"
+title: "Basic Operations"
 ---
 
 ```scala mdoc:invisible

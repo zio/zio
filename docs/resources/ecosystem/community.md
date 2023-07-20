@@ -1,6 +1,6 @@
 ---
-id: community 
-title:  "Community ZIO Libraries"
+id: community
+title: "Community ZIO Libraries"
 ---
 
 In this section we are going to introduce some of the most important libraries that have first-class ZIO support from the community.

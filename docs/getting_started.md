@@ -1,5 +1,6 @@
 ---
 id: getting_started
+slug: /
 title:  "Getting Started"
 ---
 
