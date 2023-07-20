@@ -62,6 +62,12 @@ const config = {
           type: 'docsVersionDropdown',
           position: 'right',
           dropdownActiveClassDisabled: true,
+        }, 
+        {
+          href: 'https://github.com/zio/zio',
+          position: 'right',
+          className: 'header-github-link',
+          'aria-label': 'GitHub repository',
         }
       ],
     },
@@ -162,6 +168,9 @@ const config = {
       '@docusaurus/preset-classic',
       {
         debug: true,
+        theme: {
+          customCss: [require.resolve('./src/css/custom.css')],
+        },
         docs: {
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
