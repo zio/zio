@@ -58,12 +58,11 @@ const config = {
         { type: 'doc', docId: 'events/index', label: 'Events', position: 'left' },
         { to: "http://chat.zio.dev", label: "Chat Bot", position: 'right' },
         { to: 'blog', label: 'Blog', position: 'right' },
-// Disabled extra link until the ZIO 1.x docs available
-//        {
-//          type: 'docsVersionDropdown',
-//          position: 'right',
-//          dropdownActiveClassDisabled: true,
-//        }
+        {
+          type: 'docsVersionDropdown',
+          position: 'right',
+          dropdownActiveClassDisabled: true,
+        }
       ],
     },
     footer: {
@@ -169,8 +168,12 @@ const config = {
           lastVersion: 'current',
           versions: {
             'current': {
-              label: 'ZIO 2.x'
+              label: '2.0.x'
             },
+            '1.0.17': {
+              label: '1.0.17',
+              path: '1.0.17'
+            }
           },
           remarkPlugins: [
             [require('blended-include-code-plugin'), { marker: 'CODE_INCLUDE' }],
