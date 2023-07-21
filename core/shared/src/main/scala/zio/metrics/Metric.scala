@@ -617,7 +617,7 @@ object Metric {
       .tagged(MetricLabel("time_unit", chronoUnit.toString.toLowerCase()))
 
     base.contramap[Duration] { (duration: Duration) =>
-      duration.toNanos / chronoUnit.getDuration.toNanos
+      duration.toNanos.toDouble / chronoUnit.getDuration.toNanos
     }
   }
 
@@ -632,7 +632,7 @@ object Metric {
       .tagged(MetricLabel("time_unit", chronoUnit.toString.toLowerCase()))
 
     base.contramap[Duration] { (duration: Duration) =>
-      duration.toNanos / chronoUnit.getDuration.toNanos
+      duration.toNanos.toDouble / chronoUnit.getDuration.toNanos
     }
   }
 }
