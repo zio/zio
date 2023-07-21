@@ -516,6 +516,13 @@ object MetricSpec extends ZIOBaseSpec {
         _ <- ZIO.unit @@ timerWithBoundaries.trackDuration
       } yield assertCompletes
     },
+    test("timer with duration smaller than the unit") {
+      val timer = Metric.timer("timer", ChronoUnit.SECONDS)
+      for {
+        _         <- TestClock.adjust(1.milliseconds) @@ timer.trackDuration
+        histogram <- timer.value
+      } yield assertTrue(histogram.sum > 0d)
+    },
     test("metrics with description") {
       val name = "counterName"
 
