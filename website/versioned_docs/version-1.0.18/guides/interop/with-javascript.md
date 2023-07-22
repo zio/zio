@@ -7,7 +7,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 
 ```
 scalaJSUseMainModuleInitializer := true
-libraryDependencies += "dev.zio" %%% "zio" % "1.0.17"
+libraryDependencies += "dev.zio" %%% "zio" % "1.0.18"
 ```
 
 ## Example

@@ -179,9 +179,9 @@ const config = {
             'current': {
               label: '2.0.x'
             },
-            '1.0.17': {
-              label: '1.0.17',
-              path: '1.0.17'
+            '1.0.18': {
+              label: '1.0.18',
+              path: '1.0.18'
             }
           },
           remarkPlugins: [

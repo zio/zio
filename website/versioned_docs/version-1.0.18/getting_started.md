@@ -7,13 +7,13 @@ title:  "Getting Started"
 Include ZIO in your project by adding the following to your `build.sbt` file:
 
 ```
-libraryDependencies += "dev.zio" %% "zio" % "1.0.17"
+libraryDependencies += "dev.zio" %% "zio" % "1.0.18"
 ```
 
 If you want to use ZIO streams, you should also include the following dependency:
 
 ```
-libraryDependencies += "dev.zio" %% "zio-streams" % "1.0.17"
+libraryDependencies += "dev.zio" %% "zio-streams" % "1.0.18"
 ```
 
 ## Main
