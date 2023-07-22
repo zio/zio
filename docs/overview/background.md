@@ -1,6 +1,6 @@
 ---
 id: overview_background
-title:  "Background"
+title: "Background"
 ---
 
 Procedural Scala programs use _procedural functions_, which are:

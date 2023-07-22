@@ -1,6 +1,6 @@
 ---
 id: overview_testing_effects
-title:  "Testing Effects"
+title: "Testing Effects"
 ---
 
 There are many approaches to testing functional effects, including using free monads, using tagless-final, and using environmental effects. Although all of these approaches are compatible with ZIO, the simplest and most ergonomic is _environmental effects_.

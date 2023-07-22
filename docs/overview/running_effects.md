@@ -1,6 +1,6 @@
 ---
 id: overview_running_effects
-title:  "Running Effects"
+title: "Running Effects"
 ---
 
 ZIO provides several different ways of running effects in your application.

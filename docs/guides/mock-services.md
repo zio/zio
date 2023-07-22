@@ -474,7 +474,7 @@ You can find more examples in the `examples` and `test-tests` subproject:
 - [ComposedEmptyMockSpec][link-gh-composed-empty-mock-spec]
 - [PolyMockSpec][link-gh-poly-mock-spec]
 
-[doc-contextual-types]: ../datatypes/contextual/index.md
+[doc-contextual-types]: ../reference/contextual/index.md
 [doc-macros]: howto-macros.md
 [link-sls-6.26.1]: https://scala-lang.org/files/archive/spec/2.13/06-expressions.html#value-conversions
 [link-test-doubles]: https://martinfowler.com/articles/mocksArentStubs.html

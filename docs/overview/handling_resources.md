@@ -1,6 +1,6 @@
 ---
 id: overview_handling_resources
-title:  "Handling Resources"
+title: "Handling Resources"
 ---
 
 This section looks at some of the common ways to safely handle resources using ZIO.

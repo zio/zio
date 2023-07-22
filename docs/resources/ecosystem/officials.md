@@ -1,6 +1,6 @@
 ---
-id: officials 
-title:  "Official ZIO Libraries"
+id: officials
+title: "Official ZIO Libraries"
 ---
 
 Official ZIO libraries are hosted in the [ZIO organization](https://github.com/zio/) on Github, and are generally maintained by core contributors to ZIO.

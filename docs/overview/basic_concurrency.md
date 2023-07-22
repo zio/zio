@@ -1,6 +1,6 @@
 ---
 id: overview_basic_concurrency
-title:  "Basic Concurrency"
+title: "Basic Concurrency"
 ---
 
 ZIO has low-level support for concurrency using _fibers_. While fibers are very powerful, they are low-level. To improve productivity, ZIO provides high-level operations built on fibers.

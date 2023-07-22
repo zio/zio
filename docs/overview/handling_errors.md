@@ -1,6 +1,6 @@
 ---
 id: overview_handling_errors
-title:  "Handling Errors"
+title: "Handling Errors"
 ---
 
 This section looks at some of the common ways to detect and respond to failure.
@@ -138,7 +138,7 @@ The next most powerful function is `ZIO#retryOrElse`, which allows specification
 
 The final method, `ZIO#retryOrElseEither`, allows returning a different type for the fallback.
 
-For more information on how to build schedules, see the documentation on [Schedule](../datatypes/misc/schedule.md).
+For more information on how to build schedules, see the documentation on [Schedule](../reference/misc/schedule.md).
 
 ## Next Steps
 
