@@ -427,12 +427,23 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * Constructs an aspect from a layer that does not produce any services.
+   * An aspect that provides each test with the specified layer that does not
+   * produce any services.
    */
   def fromLayer[R0, E0](layer: ZLayer[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect[Nothing, R0, E0, Any] {
       def some[R <: R0, E >: E0](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
         spec.provideSomeLayer[R](layer)
+    }
+
+  /**
+   * An aspect that provides all tests with a shared version of the specified
+   * layer that does not produce any services.
+   */
+  def fromLayerShared[R0, E0](layer: ZLayer[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
+    new TestAspect[Nothing, R0, E0, Any] {
+      def some[R <: R0, E >: E0](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
+        spec.provideSomeLayerShared[R](layer)
     }
 
   /**
