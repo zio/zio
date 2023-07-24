@@ -1035,8 +1035,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def foldLeftZIO[R, Err, In, S](z: => S)(
     f: (S, In) => ZIO[R, Err, S]
-  )(implicit trace: Trace): ZSink[R, Err, In, In, S] =
-    foldZIO[R, Err, In, S](z)(_ => true)(f)
+  )(implicit trace: Trace): ZSink[R, Err, In, Nothing, S] =
+    foldZIO[R, Err, In, S](z)(_ => true)(f).ignoreLeftover
 
   /**
    * Creates a sink that folds elements of type `In` into a structure of type
