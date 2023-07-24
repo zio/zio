@@ -45,7 +45,7 @@ object HelloApp extends ZIOAppDefault {
 
 ## Customized Runtime
 
-In the ZIO app, by overriding its `runtime` value, we can map the current runtime to a customized one. Let's customize it by introducing our own executor:
+In the ZIO app, by overriding its `bootstrap` value, we can map the current runtime to a customized one. Let's customize it by introducing our own executor:
 
 ```scala mdoc:invisible
 import zio._
