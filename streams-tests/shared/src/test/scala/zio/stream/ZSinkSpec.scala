@@ -570,6 +570,29 @@ object ZSinkSpec extends ZIOBaseSpec {
               .fail("boom")
               .foldSink(err => ZSink.collectAll[Int].map(c => (c, err)), _ => sys.error("impossible"))
           assertZIO(ZStream(1, 2, 3).run(s))(equalTo((Chunk(1, 2, 3), "boom")))
+        },
+        test("foldSink over a dying sink") {
+          case object Death extends RuntimeException("not today!")
+          val dyingSink: ZSink[Any, Nothing, Any, Nothing, Nothing] = ZSink.failCause(Cause.die(Death))
+          val foldedSink: ZSink[Any, String, Any, Nothing, String] = dyingSink
+            .foldSink(
+              _ => ZSink.fail("it's a fail"),
+              _ => ZSink.succeed("it's a success")
+            )
+
+          val ex = ZStream
+            .range(0, 40, 10)
+            .run(foldedSink)
+            .exit
+
+          ex.map { ex1 =>
+            assertTrue {
+              ex1.isFailure &&
+              ex1.causeOption.flatMap(_.dieOption) ==
+                Some(Death)
+            }
+          }
+
         }
       ),
       suite("refine")(
