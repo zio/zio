@@ -2897,7 +2897,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             ex.map { ex1 =>
               assertTrue {
                 ex1.isFailure &&
-                ex1.causeOption.get.isDie
+                ex1.causeOption.flatMap(_.dieOption) ==
+                  Some(Death)
               }
             }
           } @@ zio.test.TestAspect.timeout(5.seconds)
