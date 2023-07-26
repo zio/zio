@@ -2863,7 +2863,45 @@ object ZStreamSpec extends ZIOBaseSpec {
                 "closing 1"
               )
             )
-          }
+          },
+          test("failing sink") {
+            val failingSink = ZSink.fail("it's really bad man!")
+            val ex = ZIO.scoped[Any] {
+              ZStream
+                .range(0, 40, 10)
+                .peel(failingSink)
+                .map(_._1)
+                .exit
+            }
+
+            ex.map { ex1 =>
+              assertTrue {
+                ex1.isFailure &&
+                ex1.causeOption
+                  .flatMap(_.failureOption) ==
+                  Some("it's really bad man!")
+              }
+            }
+          },
+          test("dying sink") {
+            case object Death extends RuntimeException("not today!")
+            val dyingSink: ZSink[Any, Nothing, Any, Nothing, Nothing] = ZSink.failCause(Cause.die(Death))
+            val ex: ZIO[Any, Nothing, Exit[Nothing, Any]] = ZIO.scoped[Any] {
+              ZStream
+                .range(0, 40, 10)
+                .peel(dyingSink)
+                .map(_._1)
+                .exit
+            }
+
+            ex.map { ex1 =>
+              assertTrue {
+                ex1.isFailure &&
+                ex1.causeOption.flatMap(_.dieOption) ==
+                  Some(Death)
+              }
+            }
+          } @@ zio.test.TestAspect.timeout(5.seconds)
         ),
         test("onError") {
           for {

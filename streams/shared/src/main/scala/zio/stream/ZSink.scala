@@ -319,8 +319,20 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     failure: E => ZSink[R1, E2, In1, L1, Z1],
     success: Z => ZSink[R1, E2, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E2, In1, L1, Z1] =
+    this.foldCauseSink(
+      _.failureOrCause match {
+        case Left(err) => failure(err)
+        case Right(c)  => ZSink.failCause(c)
+      },
+      success
+    )
+
+  def foldCauseSink[R1 <: R, E2, In1 <: In, L1 >: L <: In1, Z1](
+    failure: Cause[E] => ZSink[R1, E2, In1, L1, Z1],
+    success: Z => ZSink[R1, E2, In1, L1, Z1]
+  )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E2, In1, L1, Z1] =
     new ZSink(
-      channel.collectElements.foldChannel(
+      channel.collectElements.foldCauseChannel(
         failure(_).channel,
         { case (leftovers, z) =>
           ZChannel.suspend {

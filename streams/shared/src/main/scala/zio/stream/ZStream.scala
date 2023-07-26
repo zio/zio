@@ -2227,8 +2227,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       handoff <- ZStream.Handoff.make[Signal]
     } yield {
       val consumer: ZSink[R1, E1, A1, A1, Unit] = sink.collectLeftover
-        .foldSink(
-          e => ZSink.fromZIO(p.fail(e)) *> ZSink.fail(e),
+        .foldCauseSink(
+          c => ZSink.fromZIO(p.failCause(c)) *> ZSink.failCause(c),
           { case (z1, leftovers) =>
             lazy val loop: ZChannel[Any, E, Chunk[A1], Any, E1, Chunk[A1], Unit] = ZChannel.readWithCause(
               (in: Chunk[A1]) => ZChannel.fromZIO(handoff.offer(Signal.Emit(in))) *> loop,
