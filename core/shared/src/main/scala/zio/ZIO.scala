@@ -2003,6 +2003,19 @@ sealed trait ZIO[-R, +E, +A]
     self.foldCauseZIO(c => c.failureOrCause.fold(f(_) *> ZIO.refailCause(c), _ => ZIO.refailCause(c)), a => g(a).as(a))
 
   /**
+   * Returns an effect that effectfully "peeks" at the cause of the failure or
+   * success value of this effect.
+   * {{{
+   * readFile("data.json").tapBothCause(logCause(_), logData(_))
+   * }}}
+   */
+  final def tapBothCause[R1 <: R, E1 >: E](
+    f: Cause[E] => ZIO[R1, E1, Any],
+    g: A => ZIO[R1, E1, Any]
+  )(implicit trace: Trace): ZIO[R1, E1, A] =
+    self.foldCauseZIO(c => f(c) *> ZIO.refailCause(c), a => g(a).as(a))
+
+  /**
    * Returns an effect that effectually "peeks" at the defect of this effect.
    */
   final def tapDefect[R1 <: R, E1 >: E](f: Cause[Nothing] => ZIO[R1, E1, Any])(implicit
