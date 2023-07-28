@@ -49,6 +49,13 @@ trait Scope extends Serializable { self =>
     addFinalizerExit(_ => finalizer)
 
   /**
+   * The execution strategy finalizers associated with this scope will be run
+   * with.
+   */
+  def executionStrategy: ExecutionStrategy =
+    ExecutionStrategy.Sequential
+
+  /**
    * Extends the scope of a `ZIO` workflow that needs a scope into this scope by
    * providing it to the workflow but not closing the scope when the workflow
    * completes execution. This allows extending a scoped value into a larger
@@ -64,7 +71,7 @@ trait Scope extends Serializable { self =>
    * closed when this scope is closed.
    */
   final def fork(implicit trace: Trace): UIO[Scope.Closeable] =
-    forkWith(ExecutionStrategy.Sequential)
+    forkWith(executionStrategy)
 }
 
 object Scope {
@@ -142,13 +149,15 @@ object Scope {
    * Makes a scope. Finalizers added to this scope will be run according to the
    * specified `ExecutionStrategy`.
    */
-  def makeWith(executionStrategy: => ExecutionStrategy)(implicit trace: Trace): UIO[Scope.Closeable] =
+  def makeWith(executionStrategy0: => ExecutionStrategy)(implicit trace: Trace): UIO[Scope.Closeable] =
     ReleaseMap.make.map { releaseMap =>
       new Scope.Closeable { self =>
         def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: Trace): UIO[Unit] =
           releaseMap.add(finalizer).unit
         def close(exit: => Exit[Any, Any])(implicit trace: Trace): UIO[Unit] =
           ZIO.suspendSucceed(releaseMap.releaseAll(exit, executionStrategy).unit)
+        override val executionStrategy: ExecutionStrategy =
+          executionStrategy0
         def forkWith(executionStrategy: => ExecutionStrategy)(implicit trace: Trace): UIO[Scope.Closeable] =
           ZIO.uninterruptible {
             for {

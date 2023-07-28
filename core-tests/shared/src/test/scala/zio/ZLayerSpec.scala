@@ -555,6 +555,16 @@ object ZLayerSpec extends ZIOBaseSpec {
           _ <- layer.build
           _ <- layer.build
         } yield assertTrue(n == 2)
+      },
+      test("layers acquired in parallel are released in parallel") {
+        for {
+          promise1 <- Promise.make[Nothing, Unit]
+          promise2 <- Promise.make[Nothing, Unit]
+          layer1    = ZLayer.scoped(ZIO.addFinalizer(promise1.succeed(())) *> promise2.succeed(()))
+          layer2    = ZLayer.scoped(promise2.await *> ZIO.addFinalizer(promise1.await))
+          layer3    = layer1 ++ layer2
+          _        <- layer3.build
+        } yield assertCompletes
       }
     )
 }
