@@ -75,9 +75,8 @@ object TestExecutor {
                           warning <-
                             ZIO.logWarning(warning).delay(60.seconds).withClock(ClockLive).interruptible.forkDaemon
                           finalizer <- scope.close(exit).ensuring(warning.interrupt).forkDaemon
-                          _         <- warning.await
-                          option    <- finalizer.poll
-                          _         <- option.fold(ZIO.unit)(_ => finalizer.join)
+                          exit      <- warning.await
+                          _         <- finalizer.join.when(exit.isInterrupted)
                         } yield ()
                       }
                   }.catchAllCause { e =>
