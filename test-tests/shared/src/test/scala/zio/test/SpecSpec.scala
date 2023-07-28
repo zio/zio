@@ -10,6 +10,9 @@ object SpecSpec extends ZIOBaseSpec {
   val specLayer: ZLayer[Any, Nothing, Unit] =
     ZLayer.succeed(())
 
+  val neverFinalizerLayer =
+    ZLayer.scoped(ZIO.acquireRelease(ZIO.unit)(_ => ZIO.never))
+
   def spec: Spec[TestEnvironment, TestFailure[Nothing]] = suite("SpecSpec")(
     suite("provideLayer")(
       test("does not have early initialization issues") {
@@ -207,6 +210,14 @@ object SpecSpec extends ZIOBaseSpec {
           assert(false)(isFalse)
         }
       )
-    }
+    },
+    suite("suite does not wait for finalizer to complete")(
+      test("some test") {
+        assertCompletes
+      },
+      test("some other test") {
+        assertCompletes
+      }
+    ).provideLayerShared(neverFinalizerLayer)
   )
 }
