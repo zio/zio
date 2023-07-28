@@ -12,13 +12,13 @@ To run an effect, we need a `Runtime`, which is capable of executing effects. Ru
 
 ## What is a Runtime System?
 
-Whenever we write a ZIO program, we create a ZIO effect from ZIO constructors plus using its combinators. We are building a blueprint. ZIO effect is just a data structure that describes the execution of a concurrent program. So we end up with a tree data structure that contains lots of different data structures combined together to describe what the ZIO effect should do. This data structure doesn't do anything, it is just a description of a concurrent program.
+Whenever we write a ZIO program, we create a ZIO effect from ZIO constructors plus using its combinators. We are building a blueprint. A ZIO effect is just a data structure that describes the execution of a concurrent program. So we end up with a tree data structure that contains lots of different data structures combined together to describe what the ZIO effect should do. This data structure doesn't do anything, it is just a description of a concurrent program.
 
-So the most important thing we should keep in mind when we are working with a functional effect system like ZIO is that when we are writing code, printing a string onto the console, reading a file, querying a database, and so forth; We are just writing a workflow or blueprint of an application. We are just building a data structure.
+So the most important thing we should keep in mind when we are working with a functional effect system like ZIO is that when we are writing code, printing a string onto the console, reading a file, querying a database, and so forth, we are just writing a workflow or blueprint of an application. We are just building a data structure.
 
-So how can ZIO run these workflows? This is where ZIO Runtime System comes into play. Whenever we run an `unsaferun` function, the Runtime System is responsible to step through all the instructions described by the ZIO effect and execute them.
+So how can ZIO run these workflows? This is where the ZIO Runtime System comes into play. Whenever we run an `unsafe.run` function, the Runtime System is responsible for stepping through all the instructions described by the ZIO effect and executing them.
 
-To simplify everything, we can think of a Runtime System like a black box that takes both the ZIO effect (`ZIO[R, E, A]`) and its environment (`R`), it will run this effect and then will return its result as an `Either[E, A]` value.
+To simplify everything, we can think of a Runtime System like a black box that takes both the ZIO effect (`ZIO[R, E, A]`) and its environment (`R`). It will run this effect and return its result as an `Either[E, A]` value.
 
 
 ![ZIO Runtime System](/img/zio-runtime-system.svg)
@@ -31,19 +31,19 @@ Runtime Systems have a lot of responsibilities:
 
 2. **Handle unexpected errors** — They have to handle unexpected errors, not just the expected ones but also the unexpected ones. 
 
-3. **Spawn concurrent fiber** — They are actually responsible for the concurrency that effect systems have. They have to spawn a fiber every time we call `fork` on an effect to spawn off a new fiber.
+3. **Spawn concurrent fibers** — They are actually responsible for the concurrency that effect systems have. They have to spawn a new fiber every time we call `fork` on an effect.
 
 4. **Cooperatively yield to other fibers** — They have to cooperatively yield to other fibers so that fibers that are sort of hogging the spotlight, don't get to monopolize all the CPU resources. They have to make sure that the fibers split the CPU cores among all the fibers that are working.
 
-5. **Capture execution and stack traces** — They have to keep track of where we are in the progress of our own user-land code so the nice detailed execution traces can be captured. 
+5. **Capture execution and stack traces** — They have to keep track of where we are in the progress of our own user-land code, so detailed execution traces can be captured. 
 
-6. **Ensure finalizers are run appropriately** — They have to ensure finalizers are run appropriately at the right point in all circumstances to make sure that resources are closed that clean-up logic is executed. This is the feature that powers Scope and all the other resource-safe constructs in ZIO.
+6. **Ensure finalizers are run appropriately** — They have to ensure finalizers are run appropriately at the right point in all circumstances to make sure that resources are closed and clean-up logic is executed. This is the feature that powers `Scope` and all the other resource-safe constructs in ZIO.
 
-7. **Handle asynchronous callback** — They have to handle this messy job of dealing with asynchronous callbacks. So we don't have to deal with async code. When we are doing ZIO, everything is just async out of the box. 
+7. **Handle asynchronous callbacks** — They have to handle this messy job of dealing with asynchronous callbacks. So we don't have to deal with async code. When we are using ZIO, everything is just async out of the box. 
 
 ## Running a ZIO Effect
 
-There are two common ways to run a ZIO effect. Most of the time, we use the [`ZIOAppDefault`](zioapp.md) trait. There are, however, some advanced use cases for which we need to directly feed a ZIO effect into the runtime system's `unsafeRun` method:
+There are two common ways to run a ZIO effect. Most of the time, we use the [`ZIOAppDefault`](zioapp.md) trait. There are, however, some advanced use cases for which we need to directly feed a ZIO effect into the runtime system's `unsafe.run` method:
 
 ```scala mdoc:compile-only
 import zio._
@@ -63,11 +63,11 @@ object RunZIOEffectUsingUnsafeRun extends scala.App {
 }
 ```
 
-We don't usually use this method to run our effects. One of the use cases of this method is when we are integrating the legacy (non-effectful code) with the ZIO effect. It also helps us to refactor a large legacy code base into a ZIO effect gradually; Assume we have decided to refactor a component in the middle of a legacy code and rewrite that with ZIO. We can start rewriting that component with the ZIO effect and then integrate that component with the existing code base, using the `unsafeRun` function.
+We don't usually use this method to run our effects. One of the use cases of this method is when we are integrating legacy (non-effectful) code with the ZIO effect. It helps us to refactor a large legacy code base into a ZIO effect gradually: assume we have decided to refactor a component in the middle of an application and rewrite that with ZIO. We can start rewriting that component with the ZIO effect and then integrate that component with the existing code base using the `unsafe.run` function.
 
 ## Default Runtime
 
-ZIO contains a default runtime called `Runtime.default` designed to work well for mainstream usage. It is already implemented as below:
+ZIO contains a default runtime called `Runtime.default` designed to work well for mainstream usage. It is implemented as below:
 
 ```scala
 object Runtime {
@@ -76,7 +76,7 @@ object Runtime {
 }
 ```
 
-The default runtime contains minimum capabilities to bootstrap execution of ZIO tasks.
+The default runtime provides the minimum capabilities to bootstrap execution of ZIO tasks.
 
 We can easily access the default `Runtime` to run an effect:
 
@@ -92,7 +92,7 @@ object MainApp extends scala.App {
 }
 ```
 
-## Top-level And Locally Scoped Runtimes
+## Top-level and Locally Scoped Runtimes
 
 In ZIO, we have two types of runtimes:
 
@@ -105,7 +105,7 @@ In ZIO, we have two types of runtimes:
   - In some performance-critical regions, we want to disable logging temporarily.
   - When we want to have a customized executor for running a portion of our code.
 
-ZLayer provides a consistent way to customize and configure runtimes. Using layers to customize the runtime, enables us to use ZIO workflows. So a configuration workflow can be pure, effectful, or resourceful. Let's say we want to customize the runtime based on configuration information from a file or database.
+ZLayer provides a consistent way to customize and configure runtimes. Using layers to customize the runtime enables us to use ZIO workflows. So a configuration workflow can be pure, effectful, or resourceful. Let's say we want to customize the runtime based on configuration information from a file or database.
 
 In most cases, it is sufficient to customize application runtime using the [`bootstrap` layer](#configuring-runtime-using-bootstrap-layer) or [providing a custom configuration](#configuring-runtime-by-providing-configuration-layers) directly to our application. If none of these solutions fit to our problem, we can use [top-level runtime configurations](#top-level-runtime-configuration).
 
@@ -178,7 +178,7 @@ timestamp=2022-08-31T14:28:34.832035Z level=INFO thread=#zio-fiber-6 message="Ap
 
 ### Configuring Runtime Using `bootstrap` Layer
 
-The `bootstrap` layer is a special layer that is mainly used to acquiring and releasing services that are necessary for the application to run. However, it can also be applied to runtime customization as well. This solution requires us to override the `bootstrap` layer from the `ZIOApp` trait.
+The `bootstrap` layer is a special layer that is mainly used to acquire and release services that are necessary for the application to run. However, it can also be applied to runtime customization as well. This solution requires us to override the `bootstrap` layer from the `ZIOApp` trait.
 
 By using this technique, after initialization of the top-level runtime, it will provide the `bootstrap` layer to the ZIO application given through the `run` method.
 
@@ -207,7 +207,7 @@ Application started!
 Application is about to exit!
 ```
 
-Although using this method will apply the configuration layer to the whole ZIO application, it is categorized as local runtime configuration, because the `bootstrap` layer is evaluated and applied after the top-level runtime is initialized. So it will only be applied to the ZIO application given through the `run` method.
+Although using this method will apply the configuration layer to the whole ZIO application, it is categorized as local runtime configuration because the `bootstrap` layer is evaluated and applied after the top-level runtime is initialized. So it will only be applied to the ZIO application given through the `run` method.
 
 To elaborate more on this, let's look at the following example:
 
@@ -232,7 +232,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-What do we expect to see as the output? We have a `Runtime.removeDefaultLoggers` which removes the default logger from the runtime. So we expect to see log messages only from the simple logger. But that is not the case. We have an effectful configuration layer that is evaluated after the top-level runtime is initialized. So we can see the log message related to the initialization of `effectfulConfiguration` layer from the default logger:
+What do we expect to see as the output? We have `Runtime.removeDefaultLoggers` which removes the default logger from the runtime. So we expect to see log messages only from the simple logger. But that is not the case. We have an effectful configuration layer that is evaluated after the top-level runtime is initialized. So we can see the log message related to the initialization of `effectfulConfiguration` layer from the default logger:
 
 ```scala
 timestamp=2022-09-01T08:07:47.870219Z level=INFO thread=#zio-fiber-6 message="Started effectful workflow to customize runtime configuration" location=<empty>.MainApp.effectfulConfiguration file=ZIOApp.scala line=8
@@ -326,7 +326,7 @@ object MainApp {
 
 The custom runtime can be used to run many different effects that all require the same environment, so we don't have to call `ZIO#provide` on all of them before we run them.
 
-For example, assume we want to create a `Runtime` for services that are for testing purposes, and they don't interact with real external APIs. So we can create a runtime, especially for testing.
+For example, assume we want to create a `Runtime` for services that are for testing purposes, and they don't interact with real external APIs. So we can create a runtime especially for testing.
 
 Let's say we have defined two `LoggingService` and `EmailService` services:
 

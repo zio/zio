@@ -3,17 +3,17 @@ id: cause
 title: "Cause"
 ---
 
-The `ZIO[R, E, A]` effect is polymorphic in values of type `E` and we can work with any error type that we want, but there is a lot of information that is not inside an arbitrary `E` value. So as a result ZIO needs somewhere to store things like **unexpected error or defects**, **stack and execution traces**, **cause of fiber interruptions**, and so forth.
+The `ZIO[R, E, A]` effect is polymorphic in values of type `E` and we can work with any error type that we want, but there is a lot of information that is not inside an arbitrary `E` value. So as a result ZIO needs somewhere to store things like **unexpected errors or defects**, **stack and execution traces**, **cause of fiber interruptions**, and so forth.
 
-ZIO is very strict about preserving the full information related to a failure. It captures all type of errors into the `Cause` data type. ZIO uses the `Cause[E]` data type to store the full story of failure. So its error model is **lossless**. It doesn't throw information related to the failure result. So we can figure out exactly what happened during the operation of our effects.
+ZIO is very strict about preserving the full information related to a failure. It captures all type of errors into the `Cause` data type. ZIO uses `Cause[E]` to store the full story of failure, so its error model is **lossless**. It doesn't throw away information related to the failure result. So we can figure out exactly what happened during the operation of our effects.
 
-It is important to note that `Cause` is the underlying data type for the ZIO data type, and we don't usually deal with it directly. Even though it is not a data type that we deal with very often, anytime we want, we can access the `Cause` data structure, which gives us total access to all parallel and sequential errors in our codebase.
+It is important to note that `Cause` is the underlying data type for the ZIO data type, and we don't usually deal with it directly. Even though we do not deal with it very often, anytime we want, we can access the `Cause` data structure, which gives us total access to all parallel and sequential errors in our codebase.
 
 ## Cause Internals
 
 ZIO uses a data structure from functional programming called a _semiring_ for the `Cause` data type. **It allows us to take a base type `E` that represents the error type and then capture the sequential and parallel composition of errors in a fully lossless fashion**.
 
-The following snippet shows how the `Cause` is designed as a semiring data structure:
+The following snippet shows how `Cause` is designed as a semiring data structure:
 
 ```scala
 sealed abstract class Cause[+E] extends Product with Serializable { self =>
@@ -52,7 +52,7 @@ ZIO.failCause(Cause.empty).cause.debug
 // Empty
 ```
 
-Also, we can use the `ZIO#cause` to uncover the underlying cause of an effect. For example, we know that the `ZIO.succeed(5)` has no errors. So, let's check that:
+Also, we can use `ZIO#cause` to uncover the underlying cause of an effect. For example, we know that `ZIO.succeed(5)` has no errors. So, let's check that:
 
 ```
 ZIO.succeed(5).cause.debug
@@ -64,7 +64,7 @@ ZIO.attempt(5).cause.debug
 
 ### Fail
 
-The `Fail` cause indicates the cause of an expected error of type `E`. We can create one using the `Cause.fail` constructor:
+The `Fail` cause indicates the cause of an _expected error_ of type `E`. We can create one using the `Cause.fail` constructor:
 
 ```scala mdoc:compile-only
 import zio._
@@ -100,7 +100,7 @@ myApp.cause.debug
 
 ### Die
 
-The `Die` cause indicates a defect or in other words, an unexpected failure of type `Throwable`. Additionally, it contains the stack traces of the occurred defect. We can use the `Cause.die` to create one:
+The `Die` cause indicates a defect, an _unexpected failure_ of type `Throwable`. It contains the stack trace of the defect that occurred. We can use `Cause.die` to create one:
 
 ```scala mdoc:compile-only
 import zio._
@@ -109,7 +109,7 @@ ZIO.failCause(Cause.die(new Throwable("Boom!"))).cause.debug
 // Die(java.lang.Throwable: Boom!,Trace(Runtime(2,1646479908),Chunk(<empty>.MainApp.run(MainApp.scala:3))))
 ```
 
-If we have a bug in our code and something throws an unexpected exception, that information would be described inside a `Die`. Let try to investigate some ZIO codes that will die:
+If we have a bug in our code and something throws an unexpected exception, that information would be described inside a `Die`. Let's try to investigate some ZIO code that will die:
 
 ```scala mdoc:compile-only
 import zio._
@@ -121,11 +121,11 @@ ZIO.dieMessage("Boom!").cause.debug
 // Stackless(Die(java.lang.RuntimeException: Boom!,Trace(Runtime(2,1646398246),Chunk(<empty>.MainApp.run(MainApp.scala:7)))),true)
 ```
 
-It is worth noting that the latest example is wrapped by the `Stackless` cause in the previous example. We will discuss the `Stackeless` further, but for now, it is enough to know that the `Stackeless` include fewer stack traces for the `Die` cause.
+It is worth noting that the latest example is wrapped by the `Stackless` cause in the previous example. We will discuss `Stackless` further, but for now, it is enough to know that `Stackless` includes fewer stack traces than the `Die` cause.
 
 ### Interrupt
 
-The `Interrupt` cause indicates a fiber interruption which contains information of the _fiber id_ of the interrupted fiber and also the corresponding stack strace. Let's try an example of:
+The `Interrupt` cause indicates a fiber interruption which contains information of the _fiber id_ of the interrupted fiber, and also the corresponding stack trace. Let's try an example of:
 
 ```scala mdoc:compile-only
 import zio._
@@ -142,9 +142,9 @@ ZIO.never.fork
 
 ### Stackless
 
-The `Stackless` cause is to store stack traces and execution traces. It has a boolean stackless flag which denotes that the ZIO runtime should print the full stack trace of the inner cause or just print the few lines of it.
+The `Stackless` cause stores stack traces and execution traces. It has a boolean `stackless` flag which denotes whether the ZIO runtime should print the full stack trace of the inner cause or just print a few lines of it.
 
-For example, the `ZIO.dieMessage` uses the `Stackless`:
+For example, `ZIO.dieMessage` uses `Stackless`:
 
 ```scala mdoc:compile-only
 import zio._
@@ -160,7 +160,7 @@ timestamp=2022-03-05T11:08:19.530710679Z level=ERROR thread=#zio-fiber-0 message
 at <empty>.MainApp.run(MainApp.scala:3)"
 ```
 
-While the `ZIO.die` doesn't use `Stackless` cause:
+While `ZIO.die` doesn't use `Stackless` cause:
 
 ```scala mdoc:compile-only
 import zio._
@@ -185,7 +185,7 @@ timestamp=2022-03-05T11:19:12.666418357Z level=ERROR thread=#zio-fiber-0 message
 
 When we are doing parallel computation, the effect can fail for more than one reason. If we are doing two things at once and both of them fail then we actually have two errors. So, the `Both` cause stores the composition of two parallel causes.
 
-For example, if we run two parallel fibers with `zipPar` and all of them fail, so their causes will be encoded with `Both`:
+For example, if we run two parallel fibers with `zipPar` and all of them fail, their causes will be encoded with `Both`:
 
 ```scala mdoc:compile-only
 import zio._
@@ -200,7 +200,7 @@ myApp.cause.debug
 // Both(Fail(Oh uh!,Trace(Runtime(13,1646481219),Chunk(<empty>.MainApp.myApp(MainApp.scala:5)))),Stackless(Die(java.lang.RuntimeException: Boom!,Trace(Runtime(14,1646481219),Chunk(<empty>.MainApp.myApp(MainApp.scala:6)))),true))
 ```
 
-Ir we run the `myApp` in the stack trace we can see two exception traces occurred on two separate fibers:
+If we run the `myApp` effect, in the stack trace we can see two exception traces occurred on two separate fibers:
 
 ```scala
 timestamp=2022-03-05T12:37:46.831096692Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-13" java.lang.String: Oh uh!
@@ -209,11 +209,11 @@ at <empty>.MainApp.myApp(MainApp.scala:5)
   at <empty>.MainApp.myApp(MainApp.scala:6)"
 ```
 
-Other parallel operators are also the same, for example, ZIO encode the underlying cause of the `(ZIO.fail("Oh uh!") <&> ZIO.dieMessage("Boom!"))` with `Both` cause.
+Other parallel operators are also the same, for example, ZIO encodes the underlying cause of `(ZIO.fail("Oh uh!") <&> ZIO.dieMessage("Boom!"))` with the `Both` cause.
 
 ### Then
 
-ZIO uses `Then` cause to encode sequential errors. For example, if we perform ZIO's analog of `try-finally` (e.g. `ZIO#ensuring`), and both of `try` and `finally` blocks fail, so their causes are encoded with `Then`:
+ZIO uses `Then` cause to encode sequential errors. For example, if we perform ZIO's analog of `try-finally` (e.g. `ZIO#ensuring`), and both `try` and `finally` blocks fail, their causes are encoded with `Then`:
 
 ```scala mdoc:compile-only
 import zio._
