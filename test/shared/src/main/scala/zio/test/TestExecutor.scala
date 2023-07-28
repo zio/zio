@@ -62,17 +62,30 @@ object TestExecutor {
                   loop(label :: labels, spec, exec, ancestors, sectionId)
 
                 case Spec.ScopedCase(managed) =>
-                  ZIO
-                    .scoped(
-                      managed
-                        .flatMap(loop(labels, _, exec, ancestors, sectionId))
-                    )
-                    .catchAllCause { e =>
-                      val event =
-                        ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
+                  Scope.make.flatMap { scope =>
+                    scope
+                      .extend(managed.flatMap(loop(labels, _, exec, ancestors, sectionId)))
+                      .onExit { exit =>
+                        val warning =
+                          "Warning: ZIO Test is attempting to close the scope of suite " +
+                            s"${labels.reverse.mkString(" - ")} in $fullyQualifiedName, " +
+                            "but closing the scope has taken more than 60 seconds to " +
+                            "complete. This may indicate a resource leak."
+                        for {
+                          warning <-
+                            ZIO.logWarning(warning).delay(60.seconds).withClock(ClockLive).interruptible.forkDaemon
+                          finalizer <- scope.close(exit).ensuring(warning.interrupt).forkDaemon
+                          _         <- warning.await
+                          option    <- finalizer.poll
+                          _         <- option.fold(ZIO.unit)(_ => finalizer.join)
+                        } yield ()
+                      }
+                  }.catchAllCause { e =>
+                    val event =
+                      ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
 
-                      processEvent(event)
-                    }
+                    processEvent(event)
+                  }
 
                 case Spec.MultipleCase(specs) =>
                   ZIO.uninterruptibleMask(restore =>
