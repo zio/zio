@@ -17,6 +17,7 @@
 package zio.test
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait TimeoutVariants {
 
@@ -50,7 +51,7 @@ trait TimeoutVariants {
     labels: List[String],
     test: ZTest[R, E],
     duration: Duration
-  ): ZTest[R, E] =
+  )(implicit trace: Trace): ZTest[R, E] =
     test.raceWith(Live.withLive(showWarning(labels, duration))(_.delay(duration)))(
       (result, fiber) => fiber.interrupt *> ZIO.done(result),
       (_, fiber) => fiber.join
@@ -59,7 +60,7 @@ trait TimeoutVariants {
   private def showWarning(
     labels: List[String],
     duration: Duration
-  ): UIO[Unit] =
+  )(implicit trace: Trace): UIO[Unit] =
     ZIO.logWarning(renderWarning(labels, duration))
 
   private def renderWarning(labels: List[String], duration: Duration): String =
