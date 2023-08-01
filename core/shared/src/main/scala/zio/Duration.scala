@@ -25,7 +25,7 @@ import scala.concurrent.duration.{Duration => ScalaDuration, FiniteDuration => S
 import scala.language.implicitConversions
 
 trait DurationModule {
-  type Duration = java.time.Duration
+  type Duration = JavaDuration
 
   implicit def durationInt(n: Int): DurationSyntax = new DurationSyntax(n.toLong)
 
@@ -40,8 +40,8 @@ trait DurationModule {
 }
 
 object Duration {
-  val Infinity: Duration = java.time.Duration.ofNanos(Long.MaxValue)
-  val Zero: Duration     = java.time.Duration.ZERO
+  val Infinity: Duration = JavaDuration.ofNanos(Long.MaxValue)
+  val Zero: Duration     = JavaDuration.ZERO
 
   object Finite {
 
@@ -55,23 +55,23 @@ object Duration {
 
   def apply(amount: Long, unit: TimeUnit): Duration = apply(amount, toChronoUnit(unit))
 
-  def apply(amount: Long, unit: ChronoUnit): Duration = java.time.Duration.of(amount, unit)
+  def apply(amount: Long, unit: ChronoUnit): Duration = JavaDuration.of(amount, unit)
 
-  def fromMillis(millis: Long): Duration = java.time.Duration.ofMillis(millis)
+  def fromMillis(millis: Long): Duration = JavaDuration.ofMillis(millis)
 
   def fromNanos(nanos: Long): Duration = nanos.nanos
 
   def fromInterval(start: Instant, end: Instant): Duration =
-    java.time.Duration.between(start, end)
+    JavaDuration.between(start, end)
 
   def fromInterval(start: OffsetDateTime, end: OffsetDateTime): Duration =
-    java.time.Duration.between(start, end)
+    JavaDuration.between(start, end)
 
   def fromInstant(instant: Instant): Duration =
     Duration(instant.toEpochMilli, TimeUnit.MILLISECONDS)
 
   def fromSeconds(seconds: Long): Duration =
-    java.time.Duration.ofSeconds(seconds)
+    JavaDuration.ofSeconds(seconds)
 
   def fromScala(duration: ScalaDuration): Duration = duration match {
     case d: ScalaFiniteDuration => fromNanos(d.toNanos)
@@ -96,7 +96,7 @@ object Duration {
 
 final class DurationSyntax(val n: Long) extends AnyVal {
   private[this] def asDuration(unit: TemporalUnit): Duration =
-    if (n != 0) java.time.Duration.of(n, unit) else Duration.Zero
+    if (n != 0) JavaDuration.of(n, unit) else Duration.Zero
 
   def nanoseconds: Duration = asDuration(ChronoUnit.NANOS)
   def nanos                 = nanoseconds
