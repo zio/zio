@@ -541,6 +541,10 @@ object Config {
 
   def logLevel(name: String): Config[LogLevel] = logLevel.nested(name)
 
+  def long: Config[Long] = bigInt.map(_.toLong)
+
+  def long(name: String): Config[Long] = long.nested(name)
+
   def offsetDateTime: Config[java.time.OffsetDateTime] = OffsetDateTime
 
   def offsetDateTime(name: String): Config[java.time.OffsetDateTime] = offsetDateTime.nested(name)
