@@ -27,9 +27,11 @@ import java.util.concurrent.atomic._
 private final class UnboundedHub[A] extends Hub[A] {
   import UnboundedHub._
 
-  private[this] val empty         = new Node[A](null.asInstanceOf[A], new AtomicReference(Pointer(null, 0)))
-  private[this] val publisherHead = new AtomicReference(empty)
-  private[this] val publisherTail = new AtomicReference(empty)
+  private[this] val publisherHead: AtomicReference[Node[A]] =
+    new AtomicReference(new Node[A](null.asInstanceOf[A], new AtomicReference(Pointer(null, 0))))
+
+  private[this] val publisherTail: AtomicReference[Node[A]] =
+    new AtomicReference(publisherHead.get)
 
   val capacity: Int =
     Int.MaxValue
@@ -144,27 +146,32 @@ private final class UnboundedHub[A] extends Hub[A] {
     }
   }
 
-  def subscribe(): Hub.Subscription[A] =
-    new Hub.Subscription[A] {
-      private[this] var currentPublisherTail = null.asInstanceOf[Node[A]]
-      private[this] var loop                 = true
-      while (loop) {
-        currentPublisherTail = publisherTail.get
-        val currentPointer = currentPublisherTail.pointer.get
-        val currentNode    = currentPointer.node
-        if (currentPublisherTail eq publisherTail.get) {
-          if (currentNode eq null) {
-            val updatedPointer = currentPointer.copy(subscribers = currentPointer.subscribers + 1)
-            if (currentPublisherTail.pointer.compareAndSet(currentPointer, updatedPointer)) {
-              loop = false
-            }
-          } else {
-            publisherTail.compareAndSet(currentPublisherTail, currentNode)
+  def subscribe(): Hub.Subscription[A] = {
+    var currentPublisherTail = null.asInstanceOf[Node[A]]
+    var loop                 = true
+    while (loop) {
+      currentPublisherTail = publisherTail.get
+      val currentPointer = currentPublisherTail.pointer.get
+      val currentNode    = currentPointer.node
+      if (currentPublisherTail eq publisherTail.get) {
+        if (currentNode eq null) {
+          val updatedPointer = currentPointer.copy(subscribers = currentPointer.subscribers + 1)
+          if (currentPublisherTail.pointer.compareAndSet(currentPointer, updatedPointer)) {
+            loop = false
           }
+        } else {
+          publisherTail.compareAndSet(currentPublisherTail, currentNode)
         }
       }
-      private[this] val subscriberHead = new AtomicReference(currentPublisherTail)
-      private[this] val unsubscribed   = new AtomicBoolean(false)
+    }
+
+    new Hub.Subscription[A] {
+
+      private[this] val subscriberHead: AtomicReference[Node[A]] =
+        new AtomicReference(currentPublisherTail)
+
+      private[this] val unsubscribed: AtomicBoolean =
+        new AtomicBoolean(false)
 
       def isEmpty(): Boolean = {
         var empty = true
@@ -297,6 +304,7 @@ private final class UnboundedHub[A] extends Hub[A] {
           }
         }
     }
+  }
 }
 
 private object UnboundedHub {
