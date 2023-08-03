@@ -1,1 +1,1 @@
-docs/about/contributing.md
+./docs/contributor-guidelines.md
