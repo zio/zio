@@ -2032,8 +2032,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     self.drain.merge(that)
 
   /**
-   * Zips this stream that is sorted and the specified stream that is sorted to
-   * produce a new stream that is sorted.
+   * Merges this stream that is sorted and the specified stream that is sorted
+   * to produce a new stream that is sorted.
    */
   def mergeSorted[R1 <: R, E1 >: E, A1 >: A](
     that: => ZStream[R1, E1, A1]
