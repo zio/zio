@@ -2032,6 +2032,139 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     self.drain.merge(that)
 
   /**
+   * Zips this stream that is sorted and the specified stream that is sorted to
+   * produce a new stream that is sorted.
+   */
+  def mergeSorted[R1 <: R, E1 >: E, A1 >: A](
+    that: => ZStream[R1, E1, A1]
+  )(implicit ord: Ordering[A1], trace: Trace): ZStream[R1, E1, A1] = {
+    sealed trait State
+    case object DrainLeft                            extends State
+    case object DrainRight                           extends State
+    case object PullBoth                             extends State
+    final case class PullLeft(rightChunk: Chunk[A1]) extends State
+    final case class PullRight(leftChunk: Chunk[A1]) extends State
+
+    def pull(
+      state: State,
+      pullLeft: ZIO[R, Option[E], Chunk[A1]],
+      pullRight: ZIO[R1, Option[E1], Chunk[A1]]
+    ): ZIO[R1, Nothing, Exit[Option[E1], (Chunk[A1], State)]] =
+      state match {
+        case DrainLeft =>
+          pullLeft.fold(
+            e => Exit.fail(e),
+            leftChunk => Exit.succeed(leftChunk -> DrainLeft)
+          )
+        case DrainRight =>
+          pullRight.fold(
+            e => Exit.fail(e),
+            rightChunk => Exit.succeed(rightChunk -> DrainRight)
+          )
+        case PullBoth =>
+          pullLeft.unsome
+            .zipPar(pullRight.unsome)
+            .foldZIO(
+              e => ZIO.succeed(Exit.fail(Some(e))),
+              {
+                case (Some(leftChunk), Some(rightChunk)) =>
+                  if (leftChunk.isEmpty && rightChunk.isEmpty) pull(PullBoth, pullLeft, pullRight)
+                  else if (leftChunk.isEmpty) pull(PullLeft(rightChunk), pullLeft, pullRight)
+                  else if (rightChunk.isEmpty) pull(PullRight(leftChunk), pullLeft, pullRight)
+                  else ZIO.succeed(Exit.succeed(mergeSortedChunk(leftChunk, rightChunk)))
+                case (Some(leftChunk), None) =>
+                  if (leftChunk.isEmpty) pull(DrainLeft, pullLeft, pullRight)
+                  else ZIO.succeed(Exit.succeed(leftChunk -> DrainLeft))
+                case (None, Some(rightChunk)) =>
+                  if (rightChunk.isEmpty) pull(DrainRight, pullLeft, pullRight)
+                  else
+                    ZIO.succeed(Exit.succeed(rightChunk -> DrainRight))
+                case (None, None) => ZIO.succeed(Exit.fail(None))
+              }
+            )
+        case PullLeft(rightChunk) =>
+          pullLeft.foldZIO(
+            {
+              case Some(e) => ZIO.succeed(Exit.fail(Some(e)))
+              case None =>
+                ZIO.succeed(Exit.succeed(rightChunk -> DrainRight))
+            },
+            leftChunk =>
+              if (leftChunk.isEmpty) pull(PullLeft(rightChunk), pullLeft, pullRight)
+              else ZIO.succeed(Exit.succeed(mergeSortedChunk(leftChunk, rightChunk)))
+          )
+        case PullRight(leftChunk) =>
+          pullRight.foldZIO(
+            {
+              case Some(e) => ZIO.succeed(Exit.fail(Some(e)))
+              case None    => ZIO.succeed(Exit.succeed(leftChunk -> DrainLeft))
+            },
+            rightChunk =>
+              if (rightChunk.isEmpty) pull(PullRight(leftChunk), pullLeft, pullRight)
+              else ZIO.succeed(Exit.succeed(mergeSortedChunk(leftChunk, rightChunk)))
+          )
+      }
+
+    def mergeSortedChunk(
+      leftChunk: Chunk[A1],
+      rightChunk: Chunk[A1]
+    ): (Chunk[A1], State) = {
+      val builder       = ChunkBuilder.make[A1]()
+      var state         = null.asInstanceOf[State]
+      val leftIterator  = leftChunk.iterator
+      val rightIterator = rightChunk.iterator
+      var left          = leftIterator.next()
+      var right         = rightIterator.next()
+      var loop          = true
+      while (loop) {
+        val compare = ord.compare(left, right)
+        if (compare == 0) {
+          builder += left
+          builder += right
+          if (leftIterator.hasNext && rightIterator.hasNext) {
+            left = leftIterator.next()
+            right = rightIterator.next()
+          } else if (leftIterator.hasNext) {
+            state = PullRight(Chunk.fromIterator(leftIterator))
+            loop = false
+          } else if (rightIterator.hasNext) {
+            state = PullLeft(Chunk.fromIterator(rightIterator))
+            loop = false
+          } else {
+            state = PullBoth
+            loop = false
+          }
+        } else if (compare < 0) {
+          builder += left
+          if (leftIterator.hasNext) {
+            left = leftIterator.next()
+          } else {
+            val rightBuilder = ChunkBuilder.make[A1]()
+            rightBuilder += right
+            rightBuilder ++= rightIterator
+            state = PullLeft(rightBuilder.result())
+            loop = false
+          }
+        } else {
+          builder += right
+          if (rightIterator.hasNext) {
+            right = rightIterator.next()
+          } else {
+            val leftBuilder = ChunkBuilder.make[A1]()
+            leftBuilder += left
+            leftBuilder ++= leftIterator
+            state = PullRight(leftBuilder.result())
+            loop = false
+          }
+        }
+      }
+      (builder.result(), state)
+    }
+
+    self.combineChunks[R1, E1, State, A1, A1](that)(PullBoth)(pull)
+  }
+
+  /**
    * Merges this stream and the specified stream together to a common element
    * type with the specified mapping functions.
    *
