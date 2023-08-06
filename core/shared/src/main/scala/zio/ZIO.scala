@@ -1311,8 +1311,10 @@ sealed trait ZIO[-R, +E, +A]
    * the race will be interrupted immediately
    */
   final def raceAll[R1 <: R, E1 >: E, A1 >: A](
-    ios: => Iterable[ZIO[R1, E1, A1]]
-  )(implicit trace: Trace): ZIO[R1, E1, A1] = {
+    ios0: => Iterable[ZIO[R1, E1, A1]]
+  )(implicit trace: Trace): ZIO[R1, E1, A1] = ZIO.suspendSucceed {
+    val ios = ios0
+
     def arbiter[E1, A1](
       fibers: List[Fiber[E1, A1]],
       winner: Fiber[E1, A1],
@@ -1335,9 +1337,7 @@ sealed trait ZIO[-R, +E, +A]
       fails <- Ref.make[Int](ios.size)
       c <- ZIO.uninterruptibleMask { restore =>
              for {
-               head <- ZIO.interruptible(self).fork
-               tail <- ZIO.foreach(ios)(io => ZIO.interruptible(io).fork)
-               fs    = head :: tail.toList
+               fs <- ZIO.foreach(self :: ios.toList)(io => ZIO.interruptible(io).fork)
                _ <- fs.foldLeft[ZIO[R1, E1, Any]](ZIO.unit) { case (io, f) =>
                       io *> f.await.flatMap(arbiter(fs, f, done, fails)).fork
                     }
