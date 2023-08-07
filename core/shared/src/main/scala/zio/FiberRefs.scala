@@ -249,9 +249,9 @@ object FiberRefs {
       removed.fiberRefLocals.foldLeft(patch) { case (patch, (fiberRef, _)) => patch.combine(Remove(fiberRef)) }
     }
 
-    private final case class AndThen(first: Patch, second: Patch)                   extends Patch
-    private case object Empty                                                       extends Patch
-    private final case class Remove[Value0](fiberRef: FiberRef[Value0])             extends Patch
+    private final case class AndThen(first: Patch, second: Patch)       extends Patch
+    private case object Empty                                           extends Patch
+    private final case class Remove[Value0](fiberRef: FiberRef[Value0]) extends Patch
     private final case class Update[Value0, Patch0](fiberRef: FiberRef.WithPatch[Value0, Patch0], patch: Patch0)
         extends Patch
   }
