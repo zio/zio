@@ -238,23 +238,25 @@ object FiberRefs {
      * Constructs a patch that describes the changes between the specified
      * collections of `FiberRef`
      */
-    def diff(oldValue: FiberRefs, newValue: FiberRefs): Patch = {
-      val (removed, patch) = newValue.fiberRefLocals.foldLeft[(FiberRefs, Patch)](oldValue -> empty) {
-        case ((fiberRefs, patch), (fiberRef, (_, newValue) :: _)) =>
-          val oldValue = fiberRefs.getOrDefault(fiberRef)
-          if (oldValue == newValue)
-            fiberRefs.delete(fiberRef) -> patch
-          else {
-            fiberRefs.delete(fiberRef) -> patch.combine(
-              Update(
-                fiberRef.asInstanceOf[FiberRef.WithPatch[fiberRef.Value, fiberRef.Patch]],
-                fiberRef.diff(oldValue.asInstanceOf[fiberRef.Value], newValue.asInstanceOf[fiberRef.Value])
+    def diff(oldValue: FiberRefs, newValue: FiberRefs): Patch =
+      if (oldValue.fiberRefLocals == newValue.fiberRefLocals) empty
+      else {
+        val (removed, patch) = newValue.fiberRefLocals.foldLeft[(FiberRefs, Patch)](oldValue -> empty) {
+          case ((fiberRefs, patch), (fiberRef, (_, newValue) :: _)) =>
+            val oldValue = fiberRefs.getOrDefault(fiberRef)
+            if (oldValue == newValue)
+              fiberRefs.delete(fiberRef) -> patch
+            else {
+              fiberRefs.delete(fiberRef) -> patch.combine(
+                Update(
+                  fiberRef.asInstanceOf[FiberRef.WithPatch[fiberRef.Value, fiberRef.Patch]],
+                  fiberRef.diff(oldValue.asInstanceOf[fiberRef.Value], newValue.asInstanceOf[fiberRef.Value])
+                )
               )
-            )
-          }
+            }
+        }
+        removed.fiberRefLocals.foldLeft(patch) { case (patch, (fiberRef, _)) => patch.combine(Remove(fiberRef)) }
       }
-      removed.fiberRefLocals.foldLeft(patch) { case (patch, (fiberRef, _)) => patch.combine(Remove(fiberRef)) }
-    }
 
     private final case class Add[Value0](fiberRef: FiberRef[Value0], value: Value0) extends Patch
     private final case class AndThen(first: Patch, second: Patch)                   extends Patch
