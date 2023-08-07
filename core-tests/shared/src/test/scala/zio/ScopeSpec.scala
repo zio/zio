@@ -106,7 +106,6 @@ object ScopeSpec extends ZIOBaseSpec {
         ref      <- Ref.make(false)
         scope    <- Scope.make
         _        <- fiberRef.locally(true)(scope.addFinalizer(fiberRef.get.flatMap(ref.set)))
-        _        <- fiberRef.get.debug
         _        <- scope.close(Exit.unit)
         value    <- ref.get
       } yield assertTrue(value)
