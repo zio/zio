@@ -192,6 +192,8 @@ object FiberRefs {
       @tailrec
       def loop(fiberRefs: FiberRefs, patches: List[Patch]): FiberRefs =
         patches match {
+          case Add(fiberRef, value) :: patches =>
+            loop(fiberRefs.updatedAs(fiberId)(fiberRef, value), patches)
           case AndThen(first, second) :: patches =>
             loop(fiberRefs, first :: second :: patches)
           case Empty :: patches =>
@@ -249,9 +251,10 @@ object FiberRefs {
       removed.fiberRefLocals.foldLeft(patch) { case (patch, (fiberRef, _)) => patch.combine(Remove(fiberRef)) }
     }
 
-    private final case class AndThen(first: Patch, second: Patch)       extends Patch
-    private case object Empty                                           extends Patch
-    private final case class Remove[Value0](fiberRef: FiberRef[Value0]) extends Patch
+    private final case class Add[Value0](fiberRef: FiberRef[Value0], value: Value0) extends Patch
+    private final case class AndThen(first: Patch, second: Patch)                   extends Patch
+    private case object Empty                                                       extends Patch
+    private final case class Remove[Value0](fiberRef: FiberRef[Value0])             extends Patch
     private final case class Update[Value0, Patch0](fiberRef: FiberRef.WithPatch[Value0, Patch0], patch: Patch0)
         extends Patch
   }
