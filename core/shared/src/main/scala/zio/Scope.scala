@@ -153,12 +153,11 @@ object Scope {
     ReleaseMap.make.map { releaseMap =>
       new Scope.Closeable { self =>
         def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: Trace): UIO[Unit] =
-          ZIO.getFiberRefs.flatMap { fiberRefs =>
+          ZIO.getFiberRefs.flatMap { before =>
             releaseMap.add { exit =>
               for {
                 fiberId  <- ZIO.fiberId
                 oldValue <- ZIO.getFiberRefs
-                before    = fiberRefs.delete(FiberRef.interruptedCause)
                 _        <- ZIO.setFiberRefs(before)
                 exit     <- finalizer(exit).exit
                 after    <- ZIO.getFiberRefs
