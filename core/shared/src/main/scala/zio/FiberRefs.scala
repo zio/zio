@@ -192,8 +192,6 @@ object FiberRefs {
       @tailrec
       def loop(fiberRefs: FiberRefs, patches: List[Patch]): FiberRefs =
         patches match {
-          case Add(fiberRef, value) :: patches =>
-            loop(fiberRefs.updatedAs(fiberId)(fiberRef, value), patches)
           case AndThen(first, second) :: patches =>
             loop(fiberRefs, first :: second :: patches)
           case Empty :: patches =>
@@ -236,28 +234,21 @@ object FiberRefs {
     def diff(oldValue: FiberRefs, newValue: FiberRefs): Patch = {
       val (removed, patch) = newValue.fiberRefLocals.foldLeft[(FiberRefs, Patch)](oldValue -> empty) {
         case ((fiberRefs, patch), (fiberRef, (_, newValue) :: _)) =>
-          fiberRefs.get(fiberRef) match {
-            case Some(oldValue) =>
-              if (oldValue == newValue)
-                fiberRefs.delete(fiberRef) -> patch
-              else {
-                fiberRefs.delete(fiberRef) -> patch.combine(
-                  Update(
-                    fiberRef.asInstanceOf[FiberRef.WithPatch[fiberRef.Value, fiberRef.Patch]],
-                    fiberRef.diff(oldValue.asInstanceOf[fiberRef.Value], newValue.asInstanceOf[fiberRef.Value])
-                  )
-                )
-              }
-            case _ =>
-              fiberRefs.delete(fiberRef) -> patch.combine(
-                Add(fiberRef.asInstanceOf[FiberRef[fiberRef.Value]], newValue.asInstanceOf[fiberRef.Value])
+          val oldValue = fiberRefs.getOrDefault(fiberRef)
+          if (oldValue == newValue)
+            fiberRefs.delete(fiberRef) -> patch
+          else {
+            fiberRefs.delete(fiberRef) -> patch.combine(
+              Update(
+                fiberRef.asInstanceOf[FiberRef.WithPatch[fiberRef.Value, fiberRef.Patch]],
+                fiberRef.diff(oldValue.asInstanceOf[fiberRef.Value], newValue.asInstanceOf[fiberRef.Value])
               )
+            )
           }
       }
       removed.fiberRefLocals.foldLeft(patch) { case (patch, (fiberRef, _)) => patch.combine(Remove(fiberRef)) }
     }
 
-    private final case class Add[Value0](fiberRef: FiberRef[Value0], value: Value0) extends Patch
     private final case class AndThen(first: Patch, second: Patch)                   extends Patch
     private case object Empty                                                       extends Patch
     private final case class Remove[Value0](fiberRef: FiberRef[Value0])             extends Patch
