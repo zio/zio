@@ -99,6 +99,17 @@ object ScopeSpec extends ZIOBaseSpec {
         actions(1) == Action.acquire(2) &&
         actions(2) == Action.release(2)
       }
+    },
+    test("propagates FiberRef values") {
+      for {
+        fiberRef <- FiberRef.make(false)
+        ref      <- Ref.make(false)
+        scope    <- Scope.make
+        _        <- fiberRef.locally(true)(scope.addFinalizer(fiberRef.get.flatMap(ref.set)))
+        _        <- fiberRef.get.debug
+        _        <- scope.close(Exit.unit)
+        value    <- ref.get
+      } yield assertTrue(value)
     }
   )
 

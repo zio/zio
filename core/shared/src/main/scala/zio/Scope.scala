@@ -153,7 +153,21 @@ object Scope {
     ReleaseMap.make.map { releaseMap =>
       new Scope.Closeable { self =>
         def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: Trace): UIO[Unit] =
-          releaseMap.add(finalizer).unit
+          ZIO.getFiberRefs.flatMap { fiberRefs =>
+            releaseMap.add { exit =>
+              for {
+                fiberId <- ZIO.fiberId
+                old     <- ZIO.getFiberRefs
+                before   = fiberRefs.delete(FiberRef.interruptedCause)
+                _       <- ZIO.setFiberRefs(before)
+                exit    <- finalizer(exit).exit
+                after   <- ZIO.getFiberRefs
+                patch    = FiberRefs.Patch.diff(before, after)
+                _       <- ZIO.setFiberRefs(patch(fiberId, old))
+                _       <- ZIO.done(exit)
+              } yield ()
+            }.unit
+          }
         def close(exit: => Exit[Any, Any])(implicit trace: Trace): UIO[Unit] =
           ZIO.suspendSucceed(releaseMap.releaseAll(exit, executionStrategy).unit)
         override val executionStrategy: ExecutionStrategy =
