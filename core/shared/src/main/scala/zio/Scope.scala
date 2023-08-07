@@ -156,15 +156,16 @@ object Scope {
           ZIO.getFiberRefs.flatMap { fiberRefs =>
             releaseMap.add { exit =>
               for {
-                fiberId <- ZIO.fiberId
-                old     <- ZIO.getFiberRefs
-                before   = fiberRefs.delete(FiberRef.interruptedCause)
-                _       <- ZIO.setFiberRefs(before)
-                exit    <- finalizer(exit).exit
-                after   <- ZIO.getFiberRefs
-                patch    = FiberRefs.Patch.diff(before, after)
-                _       <- ZIO.setFiberRefs(patch(fiberId, old))
-                _       <- ZIO.done(exit)
+                fiberId  <- ZIO.fiberId
+                oldValue <- ZIO.getFiberRefs
+                before    = fiberRefs.delete(FiberRef.interruptedCause)
+                _        <- ZIO.setFiberRefs(before)
+                exit     <- finalizer(exit).exit
+                after    <- ZIO.getFiberRefs
+                patch     = FiberRefs.Patch.diff(before, after)
+                newValue  = patch(fiberId, oldValue)
+                _        <- ZIO.setFiberRefs(newValue)
+                _        <- ZIO.done(exit)
               } yield ()
             }.unit
           }
