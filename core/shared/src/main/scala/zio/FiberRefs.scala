@@ -144,8 +144,13 @@ final class FiberRefs private (
   def setAll(implicit trace: Trace): UIO[Unit] =
     ZIO.getFiberRefs.flatMap { that =>
       val fiberRefs = self.fiberRefs.union(that.fiberRefs) - FiberRef.interruptedCause
-      ZIO.foreachDiscard(fiberRefs) { fiberRef =>
-        fiberRef.asInstanceOf[FiberRef[Any]].set(getOrDefault(fiberRef))
+      ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiber, _) =>
+        fiberRefs.foreach { fiberRef =>
+          fiber.setFiberRef(fiberRef.asInstanceOf[FiberRef[Any]], getOrDefault(fiberRef.asInstanceOf[FiberRef[Any]]))(
+            Unsafe.unsafe
+          )
+        }
+        ZIO.unit
       }
     }
 
