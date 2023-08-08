@@ -3645,6 +3645,28 @@ object ZIOSpec extends ZIOBaseSpec {
         assertZIO(ZIO.fail(ExampleError).someOrElseZIO(ZIO.succeed(42)).exit)(fails(equalTo(ExampleError)))
       } @@ zioTag(errors)
     ),
+    suite("ifNone")(
+      test("does not fall back to the default value if Some") {
+        assertZIO(ZIO.succeed(Some(1)).ifNone(Some(2)))(equalTo(Some(1)))
+      },
+      test("falls back to the default value if None") {
+        assertZIO(ZIO.succeed(None).ifNone(Some(42)))(equalTo(Some(42)))
+      },
+      test("does not change failed state") {
+        assertZIO(ZIO.fail(ExampleError).some.ifNone(Some(42)).exit)(fails(equalTo(ExampleError)))
+      } @@ zioTag(errors)
+    ),
+    suite("ifNoneZIO")(
+      test("does not fall back to the default value if Some") {
+        assertZIO(ZIO.succeed(Some(1)).ifNoneZIO(ZIO.succeed(Some(2))))(equalTo(Some(2)))
+      },
+      test("falls back to the default effect if None") {
+        assertZIO(ZIO.succeed(None).ifNoneZIO(ZIO.succeed(Some(42))))(equalTo(Some(42)))
+      },
+      test("does not change failed state") {
+        assertZIO(ZIO.fail(ExampleError).some.ifNoneZIO(ZIO.succeed(Some(42))).exit)(fails(equalTo(ExampleError)))
+      } @@ zioTag(errors)
+    ),
     suite("someOrFail")(
       test("extracts the optional value") {
         val task: Task[Int] = ZIO.succeed(Some(42)).someOrFail(exampleError)

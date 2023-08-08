@@ -1899,6 +1899,22 @@ sealed trait ZIO[-R, +E, +A]
     })
 
   /**
+   * Extracts the optional value, or returns the given 'default'.
+   */
+  final def ifNone[B](
+    default: => Option[B]
+  )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R, E, Option[B]] =
+    map(a => ev(a).orElse(default))
+
+  /**
+   * Extracts the optional value, or executes the effect 'default'.
+   */
+  final def ifNoneZIO[B, R1 <: R, E1 >: E](
+    default: => ZIO[R1, E1, Option[B]]
+  )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R1, E1, Option[B]] =
+    self.some.orElse(default.some).option
+
+  /**
    * Extracts the optional value, or fails with the given error 'e'.
    */
   final def someOrFail[B, E1 >: E](
