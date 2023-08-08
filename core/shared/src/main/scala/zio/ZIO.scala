@@ -1927,6 +1927,25 @@ sealed trait ZIO[-R, +E, +A]
     )
 
   /**
+   * if optional value is None returns the given 'default'.
+   */
+  final def ifNone[B](
+    default: => Option[B]
+  )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R, E, Option[B]] =
+    map(a => ev(a).orElse(default))
+
+  /**
+   * if optional value is None executes the effect 'default'.
+   */
+  final def ifNoneZIO[B, R1 <: R, E1 >: E](
+    default: => ZIO[R1, E1, Option[B]]
+  )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R1, E1, Option[B]] =
+    self.flatMap(ev(_) match {
+      case Some(value) => ZIO.succeed(Some(value))
+      case None        => default
+    })
+
+  /**
    * Companion helper to `sandbox`. Allows recovery, and partial recovery, from
    * errors and defects alike, as in:
    *
