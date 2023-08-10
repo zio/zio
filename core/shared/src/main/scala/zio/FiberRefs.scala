@@ -223,7 +223,11 @@ object FiberRefs {
      * sequentially.
      */
     def combine(that: Patch): Patch =
-      AndThen(self, that)
+      (self, that) match {
+        case (self, Empty) => self
+        case (Empty, that) => that
+        case (self, that)  => AndThen(self, that)
+      }
   }
 
   object Patch {
