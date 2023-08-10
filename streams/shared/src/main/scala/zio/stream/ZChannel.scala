@@ -855,10 +855,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               }
           }
 
-        ZChannel
-          .fromZIO(pullL.forkDaemon.zipWith(pullR.forkDaemon)(BothRunning(_, _): MergeState))
-          .flatMap(go)
-          .embedInput(input)
+        ZChannel.unwrapScoped[Env1] {
+          pullL.forkScoped.zipWith(pullR.forkScoped)(BothRunning(_, _): MergeState).map { mergeState =>
+            go(mergeState).embedInput(input)
+          }
+        }
       }
 
     ZChannel.unwrapScoped[Env1](m)
