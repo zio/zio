@@ -425,7 +425,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * fixed values.
    */
   def fromIterable[R, A](
-    as: Iterable[A],
+    as: => Iterable[A],
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
   )(implicit trace: Trace): Gen[R, A] =
     Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
