@@ -474,13 +474,14 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     val scoped =
       for {
         hub   <- Hub.bounded[Either[Exit[Nothing, Any], Chunk[In1]]](capacity)
-        c1    <- ZChannel.fromHubScoped(hub)
-        c2    <- ZChannel.fromHubScoped(hub)
+        s1    <- hub.subscribe
+        s2    <- hub.subscribe
         reader = ZChannel.toHub[Nothing, Any, Chunk[In1]](hub)
-        writer = (c1 >>> self.channel).mergeWith(c2 >>> that.channel)(
-                   leftDone,
-                   rightDone
-                 )
+        writer = (ZChannel.fromQueue(s1) >>> self.channel <* ZChannel.fromZIO(s1.shutdown))
+                   .mergeWith((ZChannel.fromQueue(s2) >>> that.channel <* ZChannel.fromZIO(s2.shutdown)))(
+                     leftDone,
+                     rightDone
+                   )
         channel = reader.mergeWith(writer)(
                     _ => ZChannel.MergeDecision.await(ZIO.done(_)),
                     done => ZChannel.MergeDecision.done(ZIO.done(done))
