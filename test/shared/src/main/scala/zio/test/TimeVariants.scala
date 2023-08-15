@@ -75,6 +75,8 @@ trait TimeVariants {
     }
 
     for {
+      min          <- Gen.const(min)
+      max          <- Gen.const(max)
       second       <- genSecond(min, max)
       nanoFraction <- genNano(min, max, second)
     } yield Instant.ofEpochSecond(second, nanoFraction)
@@ -194,6 +196,8 @@ trait TimeVariants {
     }
 
     for {
+      min           <- Gen.const(min)
+      max           <- Gen.const(max)
       localDateTime <- genLocalDateTime(min, max)
       offset        <- genOffset(min, max, localDateTime)
     } yield OffsetDateTime.of(localDateTime, offset)
@@ -259,6 +263,8 @@ trait TimeVariants {
     }
 
     for {
+      min   <- Gen.const(min)
+      max   <- Gen.const(max)
       year  <- year(Year.from(min), Year.from(max))
       month <- genMonth(min, max, year)
     } yield YearMonth.of(year.getValue, month)
