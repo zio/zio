@@ -1,5 +1,9 @@
 /* Stick any global custom CSS in this file */
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 .header-github-link:hover {
   opacity: 0.6;
 }
