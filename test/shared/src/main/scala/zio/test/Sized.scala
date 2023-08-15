@@ -6,8 +6,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait Sized extends Serializable {
   def size(implicit trace: Trace): UIO[Int]
-  def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
-  def withSizeGen[R, A](size: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, A]
+  def withSize[R, E, A](size: => Int)(zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
+  def withSizeGen[R, A](size: => Int)(gen: => Gen[R, A])(implicit trace: Trace): Gen[R, A]
 }
 
 object Sized {
@@ -17,9 +17,9 @@ object Sized {
   final case class Test(fiberRef: FiberRef[Int]) extends Sized {
     def size(implicit trace: Trace): UIO[Int] =
       fiberRef.get
-    def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-      fiberRef.locally(size)(zio)
-    def withSizeGen[R, A](size: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, A] =
+    def withSize[R, E, A](size: => Int)(zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+      ZIO.suspendSucceed(fiberRef.locally(size)(zio))
+    def withSizeGen[R, A](size: => Int)(gen: => Gen[R, A])(implicit trace: Trace): Gen[R, A] =
       Gen {
         ZStream
           .fromZIO(fiberRef.get)
