@@ -330,7 +330,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of chunks whose size falls within the specified bounds.
    */
-  def chunkOfBounded[R, A](min: => Int, max: => Int)(g: Gen[R, A])(implicit
+  def chunkOfBounded[R, A](min: => Int, max: => Int)(g: => Gen[R, A])(implicit
     trace: Trace
   ): Gen[R, Chunk[A]] =
     bounded(min, max)(chunkOfN(_)(g))
@@ -405,7 +405,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def either[R, A, B](left: => Gen[R, A], right: => Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, Either[A, B]] =
-    oneOf(left.map(Left(_)), right.map(Right(_)))
+    Gen.suspend(oneOf(left.map(Left(_)), right.map(Right(_))))
 
   def elements[A](as: A*)(implicit trace: Trace): Gen[Any, A] =
     if (as.isEmpty) empty else int(0, as.length - 1).map(as)
@@ -546,7 +546,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of lists whose size falls within the specified bounds.
    */
-  def listOfBounded[R, A](min: => Int, max: => Int)(g: Gen[R, A])(implicit
+  def listOfBounded[R, A](min: => Int, max: => Int)(g: => Gen[R, A])(implicit
     trace: Trace
   ): Gen[R, List[A]] =
     bounded(min, max)(listOfN(_)(g))
@@ -642,7 +642,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of optional values. Shrinks toward `None`.
    */
   def option[R, A](gen: => Gen[R, A])(implicit trace: Trace): Gen[R, Option[A]] =
-    oneOf(none, gen.map(Some(_)))
+    Gen.suspend(oneOf(none, gen.map(Some(_))))
 
   def oneOf[R, A](as: Gen[R, A]*)(implicit trace: Trace): Gen[R, A] =
     if (as.isEmpty) empty else int(0, as.length - 1).flatMap(as)
@@ -706,18 +706,19 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of sets of the specified size.
    */
-  def setOfN[R, A](n: => Int)(gen: => Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] = {
+  def setOfN[R, A](n: => Int)(gen: => Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
+    Gen.suspend {
 
-    def loop(n: Int, gen: Gen[R, A], set: Set[A]): Gen[R, Set[A]] =
-      if (n <= 0) Gen.const(set)
-      else
-        gen.flatMap { a =>
-          if (set(a)) loop(n, gen, set)
-          else loop(n - 1, gen, set + a)
-        }
+      def loop(n: Int, gen: Gen[R, A], set: Set[A]): Gen[R, Set[A]] =
+        if (n <= 0) Gen.const(set)
+        else
+          gen.flatMap { a =>
+            if (set(a)) loop(n, gen, set)
+            else loop(n - 1, gen, set + a)
+          }
 
-    loop(n, gen, Set.empty)
-  }
+      loop(n, gen, Set.empty)
+    }
 
   /**
    * A generator of shorts. Shrinks toward '0'.
@@ -761,7 +762,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   }
 
   def some[R, A](gen: => Gen[R, A])(implicit trace: Trace): Gen[R, Option[A]] =
-    gen.map(Some(_))
+    Gen.suspend(gen).map(Some(_))
 
   /**
    * A generator of strings. Shrinks towards the empty string.
@@ -784,7 +785,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of strings whose size falls within the specified bounds.
    */
-  def stringBounded[R](min: => Int, max: => Int)(g: Gen[R, Char])(implicit
+  def stringBounded[R](min: => Int, max: => Int)(g: => Gen[R, Char])(implicit
     trace: Trace
   ): Gen[R, String] =
     bounded(min, max)(stringN(_)(g))
@@ -823,10 +824,16 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * state.
    */
   def unfoldGenN[R, S, A](n: => Int)(s: => S)(f: S => Gen[R, (S, A)])(implicit trace: Trace): Gen[R, List[A]] =
-    if (n <= 0)
-      Gen.const(List.empty)
-    else
-      f(s).flatMap { case (s, a) => unfoldGenN(n - 1)(s)(f).map(a :: _) }
+    Gen.suspend {
+
+      def loop(n: Int, s: S, as: List[A]): Gen[R, List[A]] =
+        if (n <= 0)
+          Gen.const(as.reverse)
+        else
+          f(s).flatMap { case (s, a) => loop(n - 1, s, a :: as) }
+
+      loop(n, s, List.empty)
+    }
 
   /**
    * A generator of Unicode characters. Shrinks toward '0'.
