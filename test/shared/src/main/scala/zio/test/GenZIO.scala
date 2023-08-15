@@ -26,40 +26,41 @@ trait GenZIO {
    */
   final def causes[R, E](e: => Gen[R, E], t: => Gen[R, Throwable])(implicit
     trace: Trace
-  ): Gen[R, Cause[E]] = {
-    val fiberId           = (Gen.int zip Gen.int zip Gen.const(Trace.empty)).map { case (a, b, c) => FiberId(a, b, c) }
-    val zTraceElement     = Gen.string.map(_.asInstanceOf[Trace])
-    val zTrace            = fiberId.zipWith(Gen.chunkOf(zTraceElement))(StackTrace(_, _))
-    val failure           = e.zipWith(zTrace)(Cause.fail(_, _))
-    val die               = t.zipWith(zTrace)(Cause.die(_, _))
-    val empty             = Gen.const(Cause.empty)
-    val interrupt         = fiberId.zipWith(zTrace)(Cause.interrupt(_, _))
-    def stackless(n: Int) = Gen.suspend(causesN(n - 1).flatMap(c => Gen.elements(Cause.stack(c), Cause.stackless(c))))
+  ): Gen[R, Cause[E]] =
+    Gen.suspend {
+      val fiberId           = (Gen.int zip Gen.int zip Gen.const(Trace.empty)).map { case (a, b, c) => FiberId(a, b, c) }
+      val zTraceElement     = Gen.string.map(_.asInstanceOf[Trace])
+      val zTrace            = fiberId.zipWith(Gen.chunkOf(zTraceElement))(StackTrace(_, _))
+      val failure           = e.zipWith(zTrace)(Cause.fail(_, _))
+      val die               = t.zipWith(zTrace)(Cause.die(_, _))
+      val empty             = Gen.const(Cause.empty)
+      val interrupt         = fiberId.zipWith(zTrace)(Cause.interrupt(_, _))
+      def stackless(n: Int) = Gen.suspend(causesN(n - 1).flatMap(c => Gen.elements(Cause.stack(c), Cause.stackless(c))))
 
-    def sequential(n: Int) = Gen.suspend {
-      for {
-        i <- Gen.int(1, n - 1)
-        l <- causesN(i)
-        r <- causesN(n - i)
-      } yield Cause.Then(l, r)
+      def sequential(n: Int) = Gen.suspend {
+        for {
+          i <- Gen.int(1, n - 1)
+          l <- causesN(i)
+          r <- causesN(n - i)
+        } yield Cause.Then(l, r)
+      }
+
+      def parallel(n: Int) = Gen.suspend {
+        for {
+          i <- Gen.int(1, n - 1)
+          l <- causesN(i)
+          r <- causesN(n - i)
+        } yield Cause.Both(l, r)
+      }
+
+      def causesN(n: Int): Gen[R, Cause[E]] = Gen.suspend {
+        if (n == 1) Gen.oneOf(empty, failure, die, interrupt)
+        else if (n == 2) stackless(n)
+        else Gen.oneOf(stackless(n), sequential(n), parallel(n))
+      }
+
+      Gen.small(causesN, 1)
     }
-
-    def parallel(n: Int) = Gen.suspend {
-      for {
-        i <- Gen.int(1, n - 1)
-        l <- causesN(i)
-        r <- causesN(n - i)
-      } yield Cause.Both(l, r)
-    }
-
-    def causesN(n: Int): Gen[R, Cause[E]] = Gen.suspend {
-      if (n == 1) Gen.oneOf(empty, failure, die, interrupt)
-      else if (n == 2) stackless(n)
-      else Gen.oneOf(stackless(n), sequential(n), parallel(n))
-    }
-
-    Gen.small(causesN, 1)
-  }
 
   /**
    * A generator of effects that are the result of chaining the specified effect
@@ -91,13 +92,13 @@ trait GenZIO {
    * A generator of effects that have died with a `Throwable`.
    */
   final def died[R](gen: => Gen[R, Throwable])(implicit trace: Trace): Gen[R, UIO[Nothing]] =
-    gen.map(ZIO.die(_))
+    Gen.suspend(gen).map(ZIO.die(_))
 
   /**
    * A generator of effects that have failed with an error.
    */
   final def failures[R, E](gen: => Gen[R, E])(implicit trace: Trace): Gen[R, IO[E, Nothing]] =
-    gen.map(ZIO.fail(_))
+    Gen.suspend(gen).map(ZIO.fail(_))
 
   /**
    * A generator of effects that are the result of applying parallelism
@@ -111,5 +112,5 @@ trait GenZIO {
    * A generator of successful effects.
    */
   final def successes[R, A](gen: => Gen[R, A])(implicit trace: Trace): Gen[R, UIO[A]] =
-    gen.map(ZIO.succeed(_))
+    Gen.suspend(gen).map(ZIO.succeed(_))
 }
