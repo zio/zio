@@ -19,7 +19,7 @@ package zio.test
 import zio.Random._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.{Stream, ZStream}
-import zio.{Chunk, NonEmptyChunk, Random, Trace, UIO, URIO, ZIO, Zippable}
+import zio.{Chunk, NonEmptyChunk, Random, Scope, Trace, UIO, URIO, ZIO, Zippable}
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -678,6 +678,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     char(33, 126)
 
   /**
+   * Constructs a generator from a scoped effect that constructs a value.
+   */
+  def scoped[R]: ScopedPartiallyApplied[R] =
+    new ScopedPartiallyApplied[R]
+
+  /**
    * A sized generator of sets.
    */
   def setOf[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
@@ -842,6 +848,18 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     const(())
 
   /**
+   * Constructs a generator from an effect that produces a generator.
+   */
+  def unwrap[R, A](zio: ZIO[R, Nothing, Gen[R, A]])(implicit trace: Trace): Gen[R, A] =
+    fromZIO(zio).flatten
+
+  /**
+   * Constructs a generator from a scoped effect that produces a generator.
+   */
+  def unwrapScoped[R, A]: UnwrapScopedPartiallyApplied[R] =
+    new UnwrapScopedPartiallyApplied[R]
+
+  /**
    * A generator of universally unique identifiers. The returned generator will
    * not have any shrinking.
    */
@@ -896,6 +914,16 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def whitespaceChars(implicit trace: Trace): Gen[Any, Char] =
     Gen.elements((Char.MinValue to Char.MaxValue).filter(_.isWhitespace): _*)
+
+  final class ScopedPartiallyApplied[R] {
+    def apply[A](zio: ZIO[Scope with R, Nothing, A])(implicit trace: Trace): Gen[R, A] =
+      Gen(ZStream.scoped[R](zio).map(Sample.noShrink))
+  }
+
+  final class UnwrapScopedPartiallyApplied[R] {
+    def apply[A](zio: ZIO[Scope with R, Nothing, Gen[R, A]])(implicit trace: Trace): Gen[R, A] =
+      scoped[R](zio).flatten
+  }
 
   /**
    * Restricts an integer to the specified range.
