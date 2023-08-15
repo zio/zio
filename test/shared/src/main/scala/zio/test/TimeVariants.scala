@@ -50,7 +50,7 @@ trait TimeVariants {
    * A generator of finite `zio.duration.Duration` values inside the specified
    * range: [min, max]. Shrinks toward min.
    */
-  final def finiteDuration(min: Duration, max: Duration)(implicit trace: Trace): Gen[Any, Duration] =
+  final def finiteDuration(min: => Duration, max: => Duration)(implicit trace: Trace): Gen[Any, Duration] =
     Gen.long(min.toNanos, max.toNanos).map(Duration.Finite(_))
 
   /**
@@ -63,7 +63,7 @@ trait TimeVariants {
    * A generator of `java.time.Instant` values inside the specified range: [min,
    * max]. Shrinks toward min.
    */
-  final def instant(min: Instant, max: Instant)(implicit trace: Trace): Gen[Any, Instant] = {
+  final def instant(min: => Instant, max: => Instant)(implicit trace: Trace): Gen[Any, Instant] = {
 
     def genSecond(min: Instant, max: Instant): Gen[Any, Long] =
       Gen.long(min.getEpochSecond, max.getEpochSecond)
@@ -91,7 +91,7 @@ trait TimeVariants {
    * A generator for `java.time.LocalDate` values inside the specified range:
    * [min, max]. Shrinks towards min.
    */
-  final def localDate(min: LocalDate, max: LocalDate)(implicit trace: Trace): Gen[Any, LocalDate] =
+  final def localDate(min: => LocalDate, max: => LocalDate)(implicit trace: Trace): Gen[Any, LocalDate] =
     localDateTime(min.atStartOfDay(), max.atTime(LocalTime.MAX)).map(_.toLocalDate)
 
   /**
@@ -105,7 +105,7 @@ trait TimeVariants {
    * A generator of `java.time.LocalDateTime` values inside the specified range:
    * [min, max]. Shrinks toward min.
    */
-  final def localDateTime(min: LocalDateTime, max: LocalDateTime)(implicit
+  final def localDateTime(min: => LocalDateTime, max: => LocalDateTime)(implicit
     trace: Trace
   ): Gen[Any, LocalDateTime] =
     instant(min.toInstant(utc), max.toInstant(utc)).map(LocalDateTime.ofInstant(_, utc))
@@ -114,7 +114,7 @@ trait TimeVariants {
    * A generator of `java.time.LocalTime` values within the specified range:
    * [min, max]. Shrinks toward `LocalTime.MIN`.
    */
-  final def localTime(min: LocalTime, max: LocalTime)(implicit trace: Trace): Gen[Any, LocalTime] =
+  final def localTime(min: => LocalTime, max: => LocalTime)(implicit trace: Trace): Gen[Any, LocalTime] =
     localDateTime(min.atDate(LocalDate.MIN), max.atDate(LocalDate.MIN)).map(_.toLocalTime)
 
   /**
@@ -164,7 +164,7 @@ trait TimeVariants {
    * A generator of `java.time.OffsetDateTime` values inside the specified
    * range: [min, max]. Shrinks toward min.
    */
-  final def offsetDateTime(min: OffsetDateTime, max: OffsetDateTime)(implicit
+  final def offsetDateTime(min: => OffsetDateTime, max: => OffsetDateTime)(implicit
     trace: Trace
   ): Gen[Any, OffsetDateTime] = {
 
@@ -223,7 +223,7 @@ trait TimeVariants {
    * A generator of `java.time.Year` values inside the specified range: [min,
    * max]. Shrinks toward `min`.
    */
-  final def year(min: Year, max: Year)(implicit trace: Trace): Gen[Any, Year] =
+  final def year(min: => Year, max: => Year)(implicit trace: Trace): Gen[Any, Year] =
     Gen.int(min.getValue, max.getValue).map(Year.of)
 
   /**
@@ -247,7 +247,7 @@ trait TimeVariants {
    * A generator of `java.time.YearMonth` values within specified range: [min,
    * max]. Shrinks toward `min`.
    */
-  final def yearMonth(min: YearMonth, max: YearMonth)(implicit trace: Trace): Gen[Any, YearMonth] = {
+  final def yearMonth(min: => YearMonth, max: => YearMonth)(implicit trace: Trace): Gen[Any, YearMonth] = {
     def genMonth(min: YearMonth, max: YearMonth, year: Year) = {
       val yearValue = year.getValue
       (min.getYear, max.getYear) match {
@@ -278,7 +278,9 @@ trait TimeVariants {
    * A generator of `java.time.ZonedDateTime` values within specified range:
    * [min, max]. Shrinks toward `min`.
    */
-  final def zonedDateTime(min: ZonedDateTime, max: ZonedDateTime)(implicit trace: Trace): Gen[Any, ZonedDateTime] =
+  final def zonedDateTime(min: => ZonedDateTime, max: => ZonedDateTime)(implicit
+    trace: Trace
+  ): Gen[Any, ZonedDateTime] =
     for {
       dateTime <- localDateTime(min.toLocalDateTime, max.toLocalDateTime)
       zoneId   <- zoneId

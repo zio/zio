@@ -28,28 +28,28 @@ trait FunctionVariants {
    * guaranteed to generate the same `B` value, if they have the same
    * `hashCode`.
    */
-  final def function[R, A, B](gen: Gen[R, B])(implicit trace: Trace): Gen[R, A => B] =
+  final def function[R, A, B](gen: => Gen[R, B])(implicit trace: Trace): Gen[R, A => B] =
     functionWith(gen)(_.hashCode)
 
   /**
    * A version of `function` that generates functions that accept two
    * parameters.
    */
-  final def function2[R, A, B, C](gen: Gen[R, C])(implicit trace: Trace): Gen[R, (A, B) => C] =
+  final def function2[R, A, B, C](gen: => Gen[R, C])(implicit trace: Trace): Gen[R, (A, B) => C] =
     function[R, (A, B), C](gen).map(Function.untupled[A, B, C])
 
   /**
    * A version of `function` that generates functions that accept three
    * parameters.
    */
-  final def function3[R, A, B, C, D](gen: Gen[R, D])(implicit trace: Trace): Gen[R, (A, B, C) => D] =
+  final def function3[R, A, B, C, D](gen: => Gen[R, D])(implicit trace: Trace): Gen[R, (A, B, C) => D] =
     function[R, (A, B, C), D](gen).map(Function.untupled[A, B, C, D])
 
   /**
    * A version of `function` that generates functions that accept four
    * parameters.
    */
-  final def function4[R, A, B, C, D, E](gen: Gen[R, E])(implicit trace: Trace): Gen[R, (A, B, C, D) => E] =
+  final def function4[R, A, B, C, D, E](gen: => Gen[R, E])(implicit trace: Trace): Gen[R, (A, B, C, D) => E] =
     function[R, (A, B, C, D), E](gen).map(Function.untupled[A, B, C, D, E])
 
   /**
@@ -59,7 +59,7 @@ trait FunctionVariants {
    * `B` value, if they have have the same hash. This is useful when `A` does
    * not implement `hashCode` in a way that is consistent with equality.
    */
-  final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int)(implicit trace: Trace): Gen[R, A => B] =
+  final def functionWith[R, A, B](gen: => Gen[R, B])(hash: A => Int)(implicit trace: Trace): Gen[R, A => B] =
     Gen.fromZIO {
       ZIO.scoped[R] {
         gen.sample.forever.toPull.flatMap { pull =>
@@ -76,7 +76,7 @@ trait FunctionVariants {
    * A version of `functionWith` that generates functions that accept two
    * parameters.
    */
-  final def functionWith2[R, A, B, C](gen: Gen[R, C])(hash: (A, B) => Int)(implicit
+  final def functionWith2[R, A, B, C](gen: => Gen[R, C])(hash: (A, B) => Int)(implicit
     trace: Trace
   ): Gen[R, (A, B) => C] =
     functionWith[R, (A, B), C](gen)(hash.tupled).map(Function.untupled[A, B, C])
@@ -85,7 +85,7 @@ trait FunctionVariants {
    * A version of `functionWith` that generates functions that accept three
    * parameters.
    */
-  final def functionWith3[R, A, B, C, D](gen: Gen[R, D])(hash: (A, B, C) => Int)(implicit
+  final def functionWith3[R, A, B, C, D](gen: => Gen[R, D])(hash: (A, B, C) => Int)(implicit
     trace: Trace
   ): Gen[R, (A, B, C) => D] =
     functionWith[R, (A, B, C), D](gen)(hash.tupled).map(Function.untupled[A, B, C, D])
@@ -94,7 +94,7 @@ trait FunctionVariants {
    * A version of `functionWith` that generates functions that accept four
    * parameters.
    */
-  final def functionWith4[R, A, B, C, D, E](gen: Gen[R, E])(hash: (A, B, C, D) => Int)(implicit
+  final def functionWith4[R, A, B, C, D, E](gen: => Gen[R, E])(hash: (A, B, C, D) => Int)(implicit
     trace: Trace
   ): Gen[R, (A, B, C, D) => E] =
     functionWith[R, (A, B, C, D), E](gen)(hash.tupled).map(Function.untupled[A, B, C, D, E])

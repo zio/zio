@@ -36,14 +36,14 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
   /**
    * A symbolic alias for `concat`.
    */
-  def ++[R1 <: R, A1 >: A](that: Gen[R1, A1])(implicit trace: Trace): Gen[R1, A1] =
+  def ++[R1 <: R, A1 >: A](that: => Gen[R1, A1])(implicit trace: Trace): Gen[R1, A1] =
     self.concat(that)
 
   /**
    * A symbolic alias for `zip`.
    */
   def <*>[R1 <: R, B](
-    that: Gen[R1, B]
+    that: => Gen[R1, B]
   )(implicit zippable: Zippable[A, B], trace: Trace): Gen[R1, zippable.Out] =
     self.zip(that)
 
@@ -52,7 +52,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * generator, resulting in a deterministic generator that generates the values
    * from this generator and then the values from the specified generator.
    */
-  def concat[R1 <: R, A1 >: A](that: Gen[R1, A1])(implicit trace: Trace): Gen[R1, A1] =
+  def concat[R1 <: R, A1 >: A](that: => Gen[R1, A1])(implicit trace: Trace): Gen[R1, A1] =
     Gen(self.sample ++ that.sample)
 
   /**
@@ -126,7 +126,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
   /**
    * Sets the size parameter for this generator to the specified value.
    */
-  def resize(size: Int)(implicit trace: Trace): Gen[R, A] =
+  def resize(size: => Int)(implicit trace: Trace): Gen[R, A] =
     Sized.withSizeGen(size)(self)
 
   /**
@@ -139,7 +139,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Repeatedly runs the generator and collects the specified number of values
    * in a list.
    */
-  def runCollectN(n: Int)(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
+  def runCollectN(n: => Int)(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
     sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
 
   /**
@@ -153,7 +153,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * product of elements.
    */
   def zip[R1 <: R, B](
-    that: Gen[R1, B]
+    that: => Gen[R1, B]
   )(implicit zippable: Zippable[A, B], trace: Trace): Gen[R1, zippable.Out] =
     self.zipWith(that)(zippable.zip(_, _))
 
@@ -161,7 +161,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Composes this generator with the specified generator to create a cartesian
    * product of elements with the specified function.
    */
-  def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C)(implicit trace: Trace): Gen[R1, C] =
+  def zipWith[R1 <: R, B, C](that: => Gen[R1, B])(f: (A, B) => C)(implicit trace: Trace): Gen[R1, C] =
     self.flatMap(a => that.map(b => f(a, b)))
 }
 
@@ -189,7 +189,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of alphanumeric strings whose size falls within the specified
    * bounds.
    */
-  def alphaNumericStringBounded(min: Int, max: Int)(implicit
+  def alphaNumericStringBounded(min: => Int, max: => Int)(implicit
     trace: Trace
   ): Gen[Any, String] =
     Gen.stringBounded(min, max)(alphaNumericChar)
@@ -213,7 +213,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * The values generated will have a precision equal to the precision of the
    * difference between `max` and `min`.
    */
-  def bigDecimal(min: BigDecimal, max: BigDecimal)(implicit trace: Trace): Gen[Any, BigDecimal] =
+  def bigDecimal(min: => BigDecimal, max: => BigDecimal)(implicit trace: Trace): Gen[Any, BigDecimal] =
     if (min > max)
       Gen.fromZIO(ZIO.die(new IllegalArgumentException("invalid bounds")))
     else {
@@ -233,14 +233,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * @see
    *   See [[bigDecimal]] for implementation.
    */
-  def bigDecimalJava(min: BigDecimal, max: BigDecimal)(implicit trace: Trace): Gen[Any, java.math.BigDecimal] =
+  def bigDecimalJava(min: => BigDecimal, max: => BigDecimal)(implicit trace: Trace): Gen[Any, java.math.BigDecimal] =
     Gen.bigDecimal(min, max).map(_.underlying)
 
   /**
    * A generator of big integers inside the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def bigInt(min: BigInt, max: BigInt)(implicit trace: Trace): Gen[Any, BigInt] =
+  def bigInt(min: => BigInt, max: => BigInt)(implicit trace: Trace): Gen[Any, BigInt] =
     Gen.fromZIOSample {
       if (min > max) ZIO.die(new IllegalArgumentException("invalid bounds"))
       else {
@@ -264,7 +264,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * @see
    *   See [[bigInt]] for implementation.
    */
-  def bigIntegerJava(min: BigInt, max: BigInt)(implicit trace: Trace): Gen[Any, java.math.BigInteger] =
+  def bigIntegerJava(min: => BigInt, max: => BigInt)(implicit trace: Trace): Gen[Any, java.math.BigInteger] =
     Gen.bigInt(min, max).map(_.underlying)
 
   /**
@@ -276,7 +276,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator whose size falls within the specified bounds.
    */
-  def bounded[R, A](min: Int, max: Int)(f: Int => Gen[R, A])(implicit trace: Trace): Gen[R, A] =
+  def bounded[R, A](min: => Int, max: => Int)(f: Int => Gen[R, A])(implicit trace: Trace): Gen[R, A] =
     int(min, max).flatMap(f)
 
   /**
@@ -293,7 +293,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of byte values inside the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def byte(min: Byte, max: Byte)(implicit trace: Trace): Gen[Any, Byte] =
+  def byte(min: => Byte, max: => Byte)(implicit trace: Trace): Gen[Any, Byte] =
     int(min.toInt, max.toInt).map(_.toByte)
 
   /**
@@ -310,19 +310,19 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of character values inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def char(min: Char, max: Char)(implicit trace: Trace): Gen[Any, Char] =
+  def char(min: => Char, max: => Char)(implicit trace: Trace): Gen[Any, Char] =
     int(min.toInt, max.toInt).map(_.toChar)
 
   /**
    * A sized generator of chunks.
    */
-  def chunkOf[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Chunk[A]] =
+  def chunkOf[R, A](g: => Gen[R, A])(implicit trace: Trace): Gen[R, Chunk[A]] =
     listOf(g).map(Chunk.fromIterable)
 
   /**
    * A sized generator of non-empty chunks.
    */
-  def chunkOf1[R, A](g: Gen[R, A])(implicit
+  def chunkOf1[R, A](g: => Gen[R, A])(implicit
     trace: Trace
   ): Gen[R, NonEmptyChunk[A]] =
     listOf1(g).map { case h :: t => NonEmptyChunk.fromIterable(h, t) }
@@ -330,7 +330,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of chunks whose size falls within the specified bounds.
    */
-  def chunkOfBounded[R, A](min: Int, max: Int)(g: Gen[R, A])(implicit
+  def chunkOfBounded[R, A](min: => Int, max: => Int)(g: Gen[R, A])(implicit
     trace: Trace
   ): Gen[R, Chunk[A]] =
     bounded(min, max)(chunkOfN(_)(g))
@@ -338,14 +338,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of chunks of the specified size.
    */
-  def chunkOfN[R, A](n: Int)(g: Gen[R, A])(implicit trace: Trace): Gen[R, Chunk[A]] =
+  def chunkOfN[R, A](n: => Int)(g: => Gen[R, A])(implicit trace: Trace): Gen[R, Chunk[A]] =
     listOfN(n)(g).map(Chunk.fromIterable)
 
   /**
    * Composes the specified generators to create a cartesian product of elements
    * with the specified function.
    */
-  def collectAll[R, A](gens: Iterable[Gen[R, A]])(implicit trace: Trace): Gen[R, List[A]] =
+  def collectAll[R, A](gens: => Iterable[Gen[R, A]])(implicit trace: Trace): Gen[R, List[A]] =
     Gen.suspend {
 
       def loop(gens: List[Gen[R, A]], as: List[A]): Gen[R, List[A]] =
@@ -393,7 +393,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of double values inside the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def double(min: Double, max: Double)(implicit trace: Trace): Gen[Any, Double] =
+  def double(min: => Double, max: => Double)(implicit trace: Trace): Gen[Any, Double] =
     if (min > max)
       Gen.fromZIO(ZIO.die(new IllegalArgumentException("invalid bounds")))
     else
@@ -402,7 +402,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         if (n < max) n else Math.nextAfter(max, Double.NegativeInfinity)
       }
 
-  def either[R, A, B](left: Gen[R, A], right: Gen[R, B])(implicit
+  def either[R, A, B](left: => Gen[R, A], right: => Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, Either[A, B]] =
     oneOf(left.map(Left(_)), right.map(Right(_)))
@@ -425,7 +425,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * fixed values.
    */
   def fromIterable[R, A](
-    as: Iterable[A],
+    as: => Iterable[A],
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
   )(implicit trace: Trace): Gen[R, A] =
     Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
@@ -449,13 +449,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * Constructs a generator from an effect that constructs a value.
    */
-  def fromZIO[R, A](effect: URIO[R, A])(implicit trace: Trace): Gen[R, A] =
+  def fromZIO[R, A](effect: => URIO[R, A])(implicit trace: Trace): Gen[R, A] =
     fromZIOSample(effect.map(Sample.noShrink))
 
   /**
    * Constructs a generator from an effect that constructs a sample.
    */
-  def fromZIOSample[R, A](effect: ZIO[R, Nothing, Sample[R, A]])(implicit trace: Trace): Gen[R, A] =
+  def fromZIOSample[R, A](effect: => ZIO[R, Nothing, Sample[R, A]])(implicit trace: Trace): Gen[R, A] =
     Gen(ZStream.fromZIO(effect))
 
   /**
@@ -501,7 +501,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of integers inside the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def int(min: Int, max: Int)(implicit trace: Trace): Gen[Any, Int] =
+  def int(min: => Int, max: => Int)(implicit trace: Trace): Gen[Any, Int] =
     Gen.fromZIOSample {
       if (min > max) ZIO.die(new IllegalArgumentException("invalid bounds"))
       else {
@@ -523,7 +523,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A sized generator that uses a uniform distribution of size values. A large
    * number of larger sizes will be generated.
    */
-  def large[R, A](f: Int => Gen[R, A], min: Int = 0)(implicit
+  def large[R, A](f: Int => Gen[R, A], min: => Int = 0)(implicit
     trace: Trace
   ): Gen[R, A] =
     size.flatMap(max => int(min, max)).flatMap(f)
@@ -531,13 +531,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A sized generator of lists.
    */
-  def listOf[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, List[A]] =
+  def listOf[R, A](g: => Gen[R, A])(implicit trace: Trace): Gen[R, List[A]] =
     small(listOfN(_)(g))
 
   /**
    * A sized generator of non-empty lists.
    */
-  def listOf1[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, ::[A]] =
+  def listOf1[R, A](g: => Gen[R, A])(implicit trace: Trace): Gen[R, ::[A]] =
     for {
       h <- g
       t <- small(n => listOfN(n - 1 max 0)(g))
@@ -546,7 +546,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of lists whose size falls within the specified bounds.
    */
-  def listOfBounded[R, A](min: Int, max: Int)(g: Gen[R, A])(implicit
+  def listOfBounded[R, A](min: => Int, max: => Int)(g: Gen[R, A])(implicit
     trace: Trace
   ): Gen[R, List[A]] =
     bounded(min, max)(listOfN(_)(g))
@@ -554,7 +554,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of lists of the specified size.
    */
-  def listOfN[R, A](n: Int)(g: Gen[R, A])(implicit trace: Trace): Gen[R, List[A]] =
+  def listOfN[R, A](n: => Int)(g: => Gen[R, A])(implicit trace: Trace): Gen[R, List[A]] =
     collectAll(List.fill(n)(g))
 
   /**
@@ -567,7 +567,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of long values in the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def long(min: Long, max: Long)(implicit trace: Trace): Gen[Any, Long] =
+  def long(min: => Long, max: => Long)(implicit trace: Trace): Gen[Any, Long] =
     Gen.fromZIOSample {
       if (min > max) ZIO.die(new IllegalArgumentException("invalid bounds"))
       else {
@@ -582,7 +582,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A sized generator of maps.
    */
-  def mapOf[R, A, B](key: Gen[R, A], value: Gen[R, B])(implicit
+  def mapOf[R, A, B](key: => Gen[R, A], value: => Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, Map[A, B]] =
     listOf(key.zip(value)).map(_.toMap)
@@ -590,7 +590,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A sized generator of non-empty maps.
    */
-  def mapOf1[R, A, B](key: Gen[R, A], value: Gen[R, B])(implicit
+  def mapOf1[R, A, B](key: => Gen[R, A], value: => Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, Map[A, B]] =
     listOf1(key.zip(value)).map(_.toMap)
@@ -598,7 +598,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of maps of the specified size.
    */
-  def mapOfN[R, A, B](n: Int)(key: Gen[R, A], value: Gen[R, B])(implicit
+  def mapOfN[R, A, B](n: => Int)(key: => Gen[R, A], value: => Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, Map[A, B]] =
     setOfN(n)(key).zipWith(listOfN(n)(value))(_.zip(_).toMap)
@@ -606,7 +606,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of maps whose size falls within the specified bounds.
    */
-  def mapOfBounded[R, A, B](min: Int, max: Int)(key: Gen[R, A], value: Gen[R, B])(implicit
+  def mapOfBounded[R, A, B](min: => Int, max: => Int)(key: => Gen[R, A], value: => Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, Map[A, B]] =
     mapOfN(min)(key, value).zipWith(listOfBounded(0, max - min)(key.zip(value)))(_ ++ _)
@@ -616,7 +616,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * majority of sizes will be towards the lower end of the range but some
    * larger sizes will be generated as well.
    */
-  def medium[R, A](f: Int => Gen[R, A], min: Int = 0)(implicit
+  def medium[R, A](f: Int => Gen[R, A], min: => Int = 0)(implicit
     trace: Trace
   ): Gen[R, A] = {
     val gen = for {
@@ -641,7 +641,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of optional values. Shrinks toward `None`.
    */
-  def option[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Option[A]] =
+  def option[R, A](gen: => Gen[R, A])(implicit trace: Trace): Gen[R, Option[A]] =
     oneOf(none, gen.map(Some(_)))
 
   def oneOf[R, A](as: Gen[R, A]*)(implicit trace: Trace): Gen[R, A] =
@@ -653,7 +653,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * thus will be guaranteed to generate the same `B` value or both be outside
    * the partial function's domain, if they have the same `hashCode`.
    */
-  def partialFunction[R, A, B](gen: Gen[R, B])(implicit
+  def partialFunction[R, A, B](gen: => Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, PartialFunction[A, B]] =
     partialFunctionWith(gen)(_.hashCode)
@@ -666,7 +666,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * domain, if they have have the same hash. This is useful when `A` does not
    * implement `hashCode` in a way that is consistent with equality.
    */
-  def partialFunctionWith[R, A, B](gen: Gen[R, B])(hash: A => Int)(implicit
+  def partialFunctionWith[R, A, B](gen: => Gen[R, B])(hash: A => Int)(implicit
     trace: Trace
   ): Gen[R, PartialFunction[A, B]] =
     functionWith(option(gen))(hash).map(Function.unlift)
@@ -686,19 +686,19 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A sized generator of sets.
    */
-  def setOf[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
+  def setOf[R, A](gen: => Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
     listOf(gen).map(_.toSet)
 
   /**
    * A sized generator of non-empty sets.
    */
-  def setOf1[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
+  def setOf1[R, A](gen: => Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
     listOf1(gen).map(_.toSet)
 
   /**
    * A generator of sets whose size falls within the specified bounds.
    */
-  def setOfBounded[R, A](min: Int, max: Int)(g: Gen[R, A])(implicit
+  def setOfBounded[R, A](min: => Int, max: => Int)(g: => Gen[R, A])(implicit
     trace: Trace
   ): Gen[R, Set[A]] =
     setOfN(min)(g).zipWith(listOfBounded(0, max - min)(g))(_ ++ _)
@@ -706,7 +706,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of sets of the specified size.
    */
-  def setOfN[R, A](n: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] = {
+  def setOfN[R, A](n: => Int)(gen: => Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] = {
 
     def loop(n: Int, gen: Gen[R, A], set: Set[A]): Gen[R, Set[A]] =
       if (n <= 0) Gen.const(set)
@@ -733,7 +733,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of short values inside the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def short(min: Short, max: Short)(implicit trace: Trace): Gen[Any, Short] =
+  def short(min: => Short, max: => Short)(implicit trace: Trace): Gen[Any, Short] =
     int(min.toInt, max.toInt).map(_.toShort)
 
   def size(implicit trace: Trace): Gen[Any, Int] =
@@ -750,7 +750,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * values generated will be strongly concentrated towards the lower end of the
    * range but a few larger values will still be generated.
    */
-  def small[R, A](f: Int => Gen[R, A], min: Int = 0)(implicit
+  def small[R, A](f: Int => Gen[R, A], min: => Int = 0)(implicit
     trace: Trace
   ): Gen[R, A] = {
     val gen = for {
@@ -760,7 +760,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     gen.reshrink(Sample.shrinkIntegral(min)).flatMap(f)
   }
 
-  def some[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Option[A]] =
+  def some[R, A](gen: => Gen[R, A])(implicit trace: Trace): Gen[R, Option[A]] =
     gen.map(Some(_))
 
   /**
@@ -772,19 +772,19 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A sized generator of strings.
    */
-  def string[R](char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
+  def string[R](char: => Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
     listOf(char).map(_.mkString)
 
   /**
    * A sized generator of non-empty strings.
    */
-  def string1[R](char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
+  def string1[R](char: => Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
     listOf1(char).map(_.mkString)
 
   /**
    * A generator of strings whose size falls within the specified bounds.
    */
-  def stringBounded[R](min: Int, max: Int)(g: Gen[R, Char])(implicit
+  def stringBounded[R](min: => Int, max: => Int)(g: Gen[R, Char])(implicit
     trace: Trace
   ): Gen[R, String] =
     bounded(min, max)(stringN(_)(g))
@@ -792,7 +792,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of strings of the specified size.
    */
-  def stringN[R](n: Int)(char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
+  def stringN[R](n: => Int)(char: => Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
     listOfN(n)(char).map(_.mkString)
 
   /**
@@ -812,7 +812,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A sized generator of collections, where each collection is generated by
    * repeatedly applying a function to an initial state.
    */
-  def unfoldGen[R, S, A](s: S)(f: S => Gen[R, (S, A)])(implicit
+  def unfoldGen[R, S, A](s: => S)(f: S => Gen[R, (S, A)])(implicit
     trace: Trace
   ): Gen[R, List[A]] =
     small(unfoldGenN(_)(s)(f))
@@ -822,7 +822,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * collection is generated by repeatedly applying a function to an initial
    * state.
    */
-  def unfoldGenN[R, S, A](n: Int)(s: S)(f: S => Gen[R, (S, A)])(implicit trace: Trace): Gen[R, List[A]] =
+  def unfoldGenN[R, S, A](n: => Int)(s: => S)(f: S => Gen[R, (S, A)])(implicit trace: Trace): Gen[R, List[A]] =
     if (n <= 0)
       Gen.const(List.empty)
     else
@@ -850,7 +850,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * Constructs a generator from an effect that produces a generator.
    */
-  def unwrap[R, A](zio: ZIO[R, Nothing, Gen[R, A]])(implicit trace: Trace): Gen[R, A] =
+  def unwrap[R, A](zio: => ZIO[R, Nothing, Gen[R, A]])(implicit trace: Trace): Gen[R, A] =
     fromZIO(zio).flatten
 
   /**
@@ -869,19 +869,19 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A sized generator of vectors.
    */
-  def vectorOf[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
+  def vectorOf[R, A](g: => Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
     listOf(g).map(_.toVector)
 
   /**
    * A sized generator of non-empty vectors.
    */
-  def vectorOf1[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
+  def vectorOf1[R, A](g: => Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
     listOf1(g).map(_.toVector)
 
   /**
    * A generator of vectors whose size falls within the specified bounds.
    */
-  def vectorOfBounded[R, A](min: Int, max: Int)(g: Gen[R, A])(implicit
+  def vectorOfBounded[R, A](min: => Int, max: => Int)(g: => Gen[R, A])(implicit
     trace: Trace
   ): Gen[R, Vector[A]] =
     bounded(min, max)(vectorOfN(_)(g))
@@ -889,7 +889,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of vectors of the specified size.
    */
-  def vectorOfN[R, A](n: Int)(g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
+  def vectorOfN[R, A](n: => Int)(g: => Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
     listOfN(n)(g).map(_.toVector)
 
   /**
@@ -916,12 +916,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.elements((Char.MinValue to Char.MaxValue).filter(_.isWhitespace): _*)
 
   final class ScopedPartiallyApplied[R] {
-    def apply[A](zio: ZIO[Scope with R, Nothing, A])(implicit trace: Trace): Gen[R, A] =
+    def apply[A](zio: => ZIO[Scope with R, Nothing, A])(implicit trace: Trace): Gen[R, A] =
       Gen(ZStream.scoped[R](zio).map(Sample.noShrink))
   }
 
   final class UnwrapScopedPartiallyApplied[R] {
-    def apply[A](zio: ZIO[Scope with R, Nothing, Gen[R, A]])(implicit trace: Trace): Gen[R, A] =
+    def apply[A](zio: => ZIO[Scope with R, Nothing, Gen[R, A]])(implicit trace: Trace): Gen[R, A] =
       scoped[R](zio).flatten
   }
 
