@@ -427,7 +427,7 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
     }
   )
-  .jvmSettings(mimaSettings(failOnProblem = false))
+  .jvmSettings(mimaSettings(failOnProblem = true))
   .jsSettings(
     jsSettings,
     libraryDependencies ++= List(
