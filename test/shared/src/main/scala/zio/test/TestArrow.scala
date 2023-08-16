@@ -43,9 +43,9 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 }
 
 object TestResult {
-  def all(assert: TestResult, asserts: TestResult*): TestResult = asserts.foldLeft(assert)(_ && _)
+  def allSuccesses(assert: TestResult, asserts: TestResult*): TestResult = asserts.foldLeft(assert)(_ && _)
 
-  def any(assert: TestResult, asserts: TestResult*): TestResult = asserts.foldLeft(assert)(_ || _)
+  def anySuccesses(assert: TestResult, asserts: TestResult*): TestResult = asserts.foldLeft(assert)(_ || _)
 
   implicit def liftTestResultToZIO[R, E](result: TestResult)(implicit trace: Trace): ZIO[R, E, TestResult] =
     if (result.isSuccess)
@@ -55,9 +55,11 @@ object TestResult {
 
   private[zio] final case class Exit(result: TestResult) extends Throwable
 
-  private def all(asserts: TestResult*): TestResult = asserts.reduce(_ && _)
+  @deprecated("Use allSuccesses", "2.0.16")
+  def all(asserts: TestResult*): TestResult = asserts.reduce(_ && _)
 
-  private def any(asserts: TestResult*): TestResult = asserts.reduce(_ || _)
+  @deprecated("Use anySuccesses", "2.0.16")
+  def any(asserts: TestResult*): TestResult = asserts.reduce(_ || _)
 }
 
 sealed trait TestArrow[-A, +B] { self =>
