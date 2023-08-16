@@ -70,18 +70,18 @@ object ZState {
    * specified patch type to combine updates to the state by different fibers in
    * a compositional way.
    */
-  def initialPatch[S: EnvironmentTag, Patch](s: => S, differ: => Differ[S, Patch])(implicit
+  def initialPatch[State: EnvironmentTag, Patch](state: => State, differ: => Differ[State, Patch])(implicit
     trace: Trace
-  ): ZLayer[Any, Nothing, ZState[S]] =
+  ): ZLayer[Any, Nothing, ZState[State]] =
     ZLayer.scoped {
       for {
-        fiberRef <- FiberRef.makePatch(s, differ)
-      } yield new ZState[S] {
-        def get(implicit trace: Trace): UIO[S] =
+        fiberRef <- FiberRef.makePatch(state, differ)
+      } yield new ZState[State] {
+        def get(implicit trace: Trace): UIO[State] =
           fiberRef.get
-        def set(s: S)(implicit trace: Trace): UIO[Unit] =
-          fiberRef.set(s)
-        def update(f: S => S)(implicit trace: Trace): UIO[Unit] =
+        def set(state: State)(implicit trace: Trace): UIO[Unit] =
+          fiberRef.set(state)
+        def update(f: State => State)(implicit trace: Trace): UIO[Unit] =
           fiberRef.update(f)
       }
     }
