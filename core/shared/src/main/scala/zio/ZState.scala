@@ -63,14 +63,14 @@ object ZState {
    * A layer that allocates the initial state of a stateful workflow.
    */
   def initial[S: EnvironmentTag](s: => S)(implicit trace: Trace): ZLayer[Any, Nothing, ZState[S]] =
-    initial(s, Differ.update[S])
+    initialPatch(s, Differ.update[S])
 
   /**
    * A layer that allocates the initial state of a stateful workflow, using the
    * specified patch type to combine updates to the state by different fibers in
    * a compositional way.
    */
-  def initial[S: EnvironmentTag, Patch](s: => S, differ: => Differ[S, Patch])(implicit
+  def initialPatch[S: EnvironmentTag, Patch](s: => S, differ: => Differ[S, Patch])(implicit
     trace: Trace
   ): ZLayer[Any, Nothing, ZState[S]] =
     ZLayer.scoped {
