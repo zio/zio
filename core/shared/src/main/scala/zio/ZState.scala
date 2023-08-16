@@ -75,4 +75,25 @@ object ZState {
           fiberRef.update(f)
       }
     }
+
+  /**
+   * A layer that allocates the initial state of a stateful workflow, using the
+   * specified patch type to combine updates to the state by different fibers in
+   * a compositional way.
+   */
+  def initial[S: EnvironmentTag, Patch](s: => S, differ: => Differ[S, Patch])(implicit
+    trace: Trace
+  ): ZLayer[Any, Nothing, ZState[S]] =
+    ZLayer.scoped {
+      for {
+        fiberRef <- FiberRef.makePatch(s, differ)
+      } yield new ZState[S] {
+        def get(implicit trace: Trace): UIO[S] =
+          fiberRef.get
+        def set(s: S)(implicit trace: Trace): UIO[Unit] =
+          fiberRef.set(s)
+        def update(f: S => S)(implicit trace: Trace): UIO[Unit] =
+          fiberRef.update(f)
+      }
+    }
 }

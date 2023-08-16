@@ -5381,6 +5381,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       s: S
     )(zio: => ZIO[ZState[S] with R, E, A])(implicit tag: EnvironmentTag[S], trace: Trace): ZIO[R, E, A] =
       zio.provideSomeLayer[R](ZState.initial(s))
+    def apply[S, Patch, E, A](
+      s: S,
+      differ: Differ[S, Patch]
+    )(zio: => ZIO[ZState[S] with R, E, A])(implicit
+      tag: EnvironmentTag[S],
+      trace: Trace
+    ): ZIO[R, E, A] =
+      zio.provideSomeLayer[R](ZState.initial(s, differ))
   }
 
   final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {
