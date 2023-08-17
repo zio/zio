@@ -2685,6 +2685,18 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(isEmpty)
           }
         ),
+        test("mergeSorted") {
+          val genSorted = for {
+            chunk  <- Gen.chunkOf(Gen.int(1, 100))
+            chunks <- splitChunks(Chunk(chunk.sorted))
+          } yield ZStream.fromChunks(chunks: _*)
+          check(genSorted, genSorted) { (left, right) =>
+            for {
+              actual   <- left.mergeSorted(right).runCollect
+              expected <- (left ++ right).runCollect.map(_.sorted)
+            } yield assertTrue(actual == expected)
+          }
+        },
         suite("mergeWith")(
           test("equivalence with set union")(check(streamOfInts, streamOfInts) {
             (s1: ZStream[Any, String, Int], s2: ZStream[Any, String, Int]) =>
