@@ -764,6 +764,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         queueReader = ZChannel.fromInput(input)
         pullL      <- (queueReader >>> self).toPull
         pullR      <- (queueReader >>> that).toPull
+        scope      <- ZIO.scope
       } yield {
         def handleSide[Err, Done, Err2, Done2](
           exit: Exit[Err, Either[Done, OutElem1]],
@@ -794,7 +795,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           exit match {
             case Exit.Success(Right(elem)) =>
               ZIO.succeed {
-                ZChannel.write(elem) *> ZChannel.fromZIO(pull.forkDaemon).flatMap { leftFiber =>
+                ZChannel.write(elem) *> ZChannel.fromZIO(pull.forkIn(scope)).flatMap { leftFiber =>
                   go(both(leftFiber, fiber))
                 }
               }
@@ -856,7 +857,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           }
 
         ZChannel
-          .fromZIO(pullL.forkDaemon.zipWith(pullR.forkDaemon)(BothRunning(_, _): MergeState))
+          .fromZIO(pullL.forkIn(scope).zipWith(pullR.forkIn(scope))(BothRunning(_, _): MergeState))
           .flatMap(go)
           .embedInput(input)
       }
