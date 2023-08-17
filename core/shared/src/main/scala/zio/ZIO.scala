@@ -4601,6 +4601,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def stateful[R]: StatefulPartiallyApplied[R] =
     new StatefulPartiallyApplied[R]
 
+  /**
+   * Provides a stateful ZIO workflow with its initial state, using the
+   * specified patch type to combine updates to the state by different fibers in
+   * a compositional way.
+   */
+  def statefulPatch[R]: StatefulPatchPartiallyApplied[R] =
+    new StatefulPatchPartiallyApplied[R]
+
   def succeedBlockingUnsafe[A](a: Unsafe => A)(implicit trace: Trace): UIO[A] =
     ZIO.blocking(ZIO.succeedUnsafe(a))
 
@@ -5381,6 +5389,17 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       s: S
     )(zio: => ZIO[ZState[S] with R, E, A])(implicit tag: EnvironmentTag[S], trace: Trace): ZIO[R, E, A] =
       zio.provideSomeLayer[R](ZState.initial(s))
+  }
+
+  final class StatefulPatchPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[State, Patch, E, A](
+      state: State,
+      differ: Differ[State, Patch]
+    )(zio: => ZIO[ZState[State] with R, E, A])(implicit
+      tag: EnvironmentTag[State],
+      trace: Trace
+    ): ZIO[R, E, A] =
+      zio.provideSomeLayer[R](ZState.initialPatch(state, differ))
   }
 
   final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {

@@ -369,6 +369,17 @@ object FiberRef {
    */
   def makePatch[Value, Patch](
     initial: Value,
+    differ: Differ[Value, Patch]
+  )(implicit trace: Trace): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
+    makePatch(initial, differ, differ.empty)
+
+  /**
+   * Creates a new `FiberRef` with the specified initial value, using the
+   * specified patch type to combine updates to the value in a compositional
+   * way.
+   */
+  def makePatch[Value, Patch](
+    initial: Value,
     differ: Differ[Value, Patch],
     fork: Patch
   )(implicit trace: Trace): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
