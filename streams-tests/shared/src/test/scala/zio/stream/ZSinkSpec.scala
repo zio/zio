@@ -784,7 +784,14 @@ object ZSinkSpec extends ZIOBaseSpec {
             assertZIO(ZStream(1, 2, 3).run(ZSink.head.zipParLeft(ZSink.succeed("Hello"))))(
               equalTo(Some(1))
             )
-          })
+          }),
+          test("early termination") {
+            val stream = ZStream.range(0, 1000, 1)
+            val sink   = ZSink.drain <&> ZSink.succeed(20)
+            for {
+              _ <- stream.run(sink)
+            } yield assertCompletes
+          }
         ),
         suite("splitWhere")(
           test("should split a stream on predicate and run each part into the sink") {
