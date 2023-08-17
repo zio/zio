@@ -39,7 +39,7 @@ export default function PopupChatWindow({ visible, onClose }) {
     <div
       ref={ref}
       id="container"
-      className={`fixed w-min bottom-0 right-0 ${visible ? 'block' : 'hidden'} `}>
+      className={`fixed 2xl:w-[30%] xl:w-[40%] lg:w-[50%] md:w-[100%] sm:w-[100%] bottom-0 right-0 ${visible ? 'block' : 'hidden'} `}>
       <ChatPrompt
         title="ZIO Chat"
         defaultQuestion="Write a question about ZIO!"

@@ -45,7 +45,7 @@ li {
 }
 
 pre {
-  width: auto;
-  max-width: 28em;
   color: black;
+  white-space: pre-wrap;
+  word-break: break-word;
 }

@@ -1,10 +1,9 @@
-import React from 'react';
+import hljs from "highlight.js";
+import "highlight.js/styles/github.css";
+import React, { useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import bot from './bot.png';
 import user from './user.png';
-import ReactMarkdown from 'react-markdown'
-import hljs from "highlight.js";
-import { useEffect } from 'react';
-import "highlight.js/styles/github.css";
 
 function ChatMessage(props) {
   useEffect(() => {
@@ -20,48 +19,17 @@ function ChatMessage(props) {
   let chatMessage;
   if (props.userType === "user") {
     chatMessage =
-      <div className="chat-message user-message" id={props.id} >
-        <div className="flex items-end">
-          <div className="flex flex-col space-y-2 text-base mx-2 order-2 items-start">
-            <div>
-              <span className=
-                "px-4 py-2 rounded-lg inline-block rounded-bl-none bg-gray-300 text-gray-600">
-                <ReactMarkdown>{props.text}</ReactMarkdown>
-              </span>
-            </div>
-          </div>
-          <img src={user} alt="User Profile" className="w-6 h-6 rounded-full order-1" />
-        </div>
+      <div className="w-full chat-message user-message text-base flex flex-row space-x-2" id={props.id} >
+        <img src={user} alt="User Profile" className="w-6 h-6 rounded-full" />
+        <ReactMarkdown className='px-4 py-2 rounded-lg rounded-bl-none bg-gray-300 text-gray-600'>{props.text}</ReactMarkdown>
       </div>
   } else if (props.userType === "bot") {
     chatMessage =
-      <div className="w-[30em] chat-message bot-message" id={props.id}>
-        <div className="">
-          <div className="flex items-end">
-            <div className="flex flex-col space-y-2 text-base mx-2 order-2 items-start">
-              <div className="flex flex-col">
-                <div className="w-full px-4 py-2 space-y-2 rounded-t-lg inline-block bg-blue-600 text-white">
-                  <ReactMarkdown>{props.text}</ReactMarkdown>
-                </div>
-
-                {props.references !== undefined && props.references.length > 0 ?
-                  <div className="flex flex-wrap text-xs w-full px-4 py-2 space-y-2 rounded-b-lg rounded-br-none bg-blue-500 text-white">
-                    <p className='text-sm'>You can discover more information by checking out the pages mentioned below:</p>
-                    <ol className="flex flex-wrap list-inside">
-                      {
-                        props.references.map((item, index) => (
-                          <li key={index} className="mr-2">
-                            <a className="underline text-white text-sm" href={item.url}>{item.title}</a>
-                          </li>
-                        ))
-
-                      }</ol>
-                  </div> : null
-                }
-              </div>
-            </div>
-            <img src={bot} alt="Robot Profile" className="w-6 h-6 rounded-full order-1" />
-          </div>
+      <div className="w-full chat-message bot-message text-base flex flex-row space-x-2" id={props.id}>
+        <img src={bot} alt="Robot Profile" className="w-6 h-6 rounded-full" />
+        <div className="w-full">
+          <ReactMarkdown className='px-4 py-2 space-y-2 rounded-t-lg bg-blue-600 text-white'>{props.text}</ReactMarkdown>
+          <References items={props.references} />
         </div>
       </div>
   }
@@ -70,3 +38,21 @@ function ChatMessage(props) {
 }
 
 export default ChatMessage
+
+function References(props) {
+  return (
+    <> {props.items !== undefined && props.items.length > 0 ? (
+      <div className="flex flex-wrap text-xs px-4 py-2 rounded-b-lg rounded-br-none bg-blue-500 text-white">
+        <p className='text-sm'>You can discover more information by checking out the pages mentioned below:</p>
+        <ol className="flex flex-wrap list-inside">
+          {
+            props.items.map((item, index) => (
+              <li key={index} className="mr-2">
+                <a className="underline text-white text-sm" href={item.url}>{item.title}</a>
+              </li>
+            ))
+          }</ol>
+      </div>) : null}
+    </>
+  )
+}
