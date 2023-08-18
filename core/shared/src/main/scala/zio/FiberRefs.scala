@@ -104,35 +104,32 @@ final class FiberRefs private (
               parentStack: List[(FiberId.Runtime, Any)],
               childStack: List[(FiberId.Runtime, Any)],
               childModified: Boolean = false
-            ): (Any, Boolean) =
+            ): (Any, Any, Boolean) =
               (parentStack, childStack) match {
-                case ((parentFiberId, _) :: parentAncestors, (childFiberId, childValue) :: childAncestors) =>
+                case ((parentFiberId, parentValue) :: parentAncestors, (childFiberId, childValue) :: childAncestors) =>
                   val compare = compareFiberId(parentFiberId, childFiberId)
                   if (compare < 0) findAncestor(parentStack, childAncestors, true)
                   else if (compare > 0) findAncestor(parentAncestors, childStack, childModified)
-                  else (childValue, childModified)
+                  else (childValue, parentValue, childModified)
                 case _ =>
-                  (ref.initial, true)
+                  (ref.initial, ref.initial, true)
               }
 
-            val (ancestor, wasModified) = findAncestor(parentStack, childStack)
+            val (childAncestor, parentAncestor, wasModified) = findAncestor(parentStack, childStack)
 
-            if (!wasModified) parentFiberRefs
+            val patch = if (wasModified) ref.diff(childAncestor, childValue) else ref.diff(parentAncestor, childValue)
+
+            val oldValue = parentStack.head._2
+            val newValue = ref.join(oldValue, ref.patch(patch)(oldValue))
+
+            if (oldValue == newValue) parentFiberRefs
             else {
-              val patch = ref.diff(ancestor, childValue)
-
-              val oldValue = parentStack.head._2
-              val newValue = ref.join(oldValue, ref.patch(patch)(oldValue))
-
-              if (oldValue == newValue) parentFiberRefs
-              else {
-                val newStack = parentStack match {
-                  case (parentFiberId, _) :: tail =>
-                    if (parentFiberId == fiberId) ::((parentFiberId, newValue), tail)
-                    else ::((fiberId, newValue), parentStack)
-                }
-                parentFiberRefs.updated(ref, newStack)
+              val newStack = parentStack match {
+                case (parentFiberId, _) :: tail =>
+                  if (parentFiberId == fiberId) ::((parentFiberId, newValue), tail)
+                  else ::((fiberId, newValue), parentStack)
               }
+              parentFiberRefs.updated(ref, newStack)
             }
           }
       }

@@ -440,6 +440,39 @@ object FiberRefSpec extends ZIOBaseSpec {
              }
         value <- promise.await
       } yield assertTrue(value)
+    },
+    test("child fiber inherits changes made by parent after fork when joining parent") {
+      def parent(
+        fiberRef: FiberRef[Set[String]],
+        promise: Promise[Nothing, Fiber.Runtime[Any, Any]]
+      ): ZIO[Any, Nothing, Set[String]] =
+        for {
+          parent  <- promise.await
+          promise <- Promise.make[Nothing, Fiber.Runtime[Any, Any]]
+          _       <- fiberRef.update(_ + "parent before")
+          child   <- child(fiberRef, promise).fork
+          _       <- fiberRef.update(_ + "parent after")
+          _       <- promise.succeed(parent)
+          value   <- child.join
+        } yield value
+
+      def child(
+        fiberRef: FiberRef[Set[String]],
+        promise: Promise[Nothing, Fiber.Runtime[Any, Any]]
+      ): ZIO[Any, Nothing, Set[String]] =
+        for {
+          parent <- promise.await
+          _      <- parent.inheritAll
+          value  <- fiberRef.get
+        } yield value
+
+      for {
+        fiberRef <- FiberRef.makeSet(Set.empty[String])
+        promise  <- Promise.make[Nothing, Fiber.Runtime[Any, Any]]
+        parent   <- parent(fiberRef, promise).fork
+        _        <- promise.succeed(parent)
+        value    <- parent.join
+      } yield assertTrue(value == Set("parent before", "parent after"))
     }
   ) @@ TestAspect.fromLayer(Runtime.enableCurrentFiber) @@ TestAspect.sequential
 }
