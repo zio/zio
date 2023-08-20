@@ -99,7 +99,7 @@ function Home() {
       description={`${siteConfig.tagline}`}
       image='/img/navbar_brand2x.png'>
       <header className={styles.headerContainer}>
-        <div className={`container ${styles.headerInnerContainer}`}>
+        <div className={`container ${styles.headerInnerContainer} flex justify-center`}>
           <img className={styles.headerImage} src="/img/jumbotron_pattern.png" alt={`${siteConfig.title}`} />
           <div className={styles.headerDetailContainer}>
             <p className={styles.headerTagline}>{siteConfig.tagline}</p>

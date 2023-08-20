@@ -61,7 +61,7 @@ sealed trait FiberId extends Serializable { self =>
 object FiberId {
 
   def apply(id: Int, startTimeSeconds: Int, location: Trace): FiberId =
-    Runtime(id, startTimeSeconds, location)
+    Runtime(id, startTimeSeconds * 1000L, location)
 
   private[zio] def make(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime =
     FiberId.Runtime(_fiberCounter.getAndIncrement(), java.lang.System.currentTimeMillis(), location)
