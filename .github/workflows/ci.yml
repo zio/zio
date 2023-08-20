@@ -107,7 +107,7 @@ jobs:
     runs-on: ubuntu-20.04
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
-      - name: Checkout series/2.x Branch
+      - name: Checkout Current Branch
         uses: actions/checkout@v3
         with:
           fetch-depth: '0'
@@ -125,8 +125,9 @@ jobs:
 
       - name: Compile Docs
         run: |
-          sbt docs/mdoc
-          sbt docs/unidoc
+          while true; do free -h; sleep 5; done &
+          sbt -mem 2048 docs/mdoc -verbose
+          sbt -mem 2048 docs/unidoc -verbose
 
       - name: Build The Website
         working-directory: ./website
