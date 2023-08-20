@@ -110,39 +110,39 @@ jobs:
       - name: Checkout series/2.x Branch
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.ref }}
           fetch-depth: '0'
-          path: 'series/2.x'
-
+          
       - name: Setup Scala and Java
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
-      - uses: actions/setup-node@v3
+          
+      - name: Install NodeJS
+        uses: actions/setup-node@v3
         with:
           node-version: 16
 
-      - name: Generate Series 2.x Docs
-        working-directory: ./series/2.x
+      - name: Compile Docs
         run: |
           sbt docs/mdoc
           sbt docs/unidoc
 
-      - name: Install The Whole Website
-        working-directory: ./series/2.x/website
+      - name: Build The Website
+        working-directory: ./website
         run: |
           rm -Rf node_modules
           yarn install 
           yarn build 
 
-      - uses: actions/upload-artifact@v3
+      - name: Cache Website's Build Artifacts
+        uses: actions/upload-artifact@v3
         with:
           name: website-artifact
-          path: ./series/2.x/website/build
+          path: ./website/build
 
       - name: Print All Generated Files
-        run: find ./series/2.x/website/build -print
+        run: find ./website/build -print
 
   test:
     runs-on: ubuntu-20.04
