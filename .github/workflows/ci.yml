@@ -107,9 +107,6 @@ jobs:
     runs-on: ubuntu-20.04
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
-      - name: Print Memory Info
-        run: while true; do free -h; sleep 5; done &
-    
       - name: Checkout Current Branch
         uses: actions/checkout@v3
         with:
@@ -128,6 +125,7 @@ jobs:
 
       - name: Compile Docs
         run: |
+          while true; do free -h; sleep 5; done &
           sbt -mem 2048 docs/mdoc -verbose
           sbt -mem 2048 docs/unidoc -verbose
 
