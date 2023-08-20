@@ -123,12 +123,12 @@ jobs:
         with:
           node-version: 16
 
-      - name: Generate Series 2.x Docs
+      - name: Compile Docs
         run: |
           sbt docs/mdoc
           sbt docs/unidoc
 
-      - name: Install The Whole Website
+      - name: Build The Website
         working-directory: ./website
         run: |
           rm -Rf node_modules
