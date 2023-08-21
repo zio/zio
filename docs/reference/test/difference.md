@@ -137,12 +137,9 @@ For more custom types you could provide type-class instances your self by implem
 
 ```scala mdoc:silent
 // somewhere defined in your domain package
-object Custom {
-  final case class Percentage(repr: Int) extends AnyVal  
-}
+case class Percentage(repr: Int)
 
-
-implicit val diffPercentage: Diff[Custom.Percentage] = Diff[Double].contramap(_.repr)
+implicit val diffPercentage: Diff[Percentage] = Diff[Double].contramap(_.repr)
 ```
 
 ### Be wary of `LowPriDiff`
