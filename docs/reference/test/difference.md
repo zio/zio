@@ -1,11 +1,11 @@
 ---
 id: zio-test-diff
-title: "zio.test.Diff"
-sidebar_label: "zio.test.Diff"
+title: "zio.test.diff.Diff"
+sidebar_label: "zio.test.diff.Diff"
 ---
 
 ```scala mdoc:invisible
-import zio.test.Diff
+import zio.test.diff.Diff
 ```
 
 When asserting two things are the same it's sometimes difficult to see the difference. Luckily there is a `zio.test.Diff` type-class. The purpose this type class is to output the difference between two things.
@@ -19,7 +19,7 @@ To _derive_ a type-class for a case class or a algebraic data type you can inclu
 To make it work you need to import the `DeriveDiff` object/trait:
 
 ```scala mdoc:silent
-import zio.test.DeriveDiff._
+import zio.test.magnolia.DeriveDiff._
 ```
 
 An example of a difference output inside a test may look like this
@@ -133,15 +133,18 @@ An example of a difference output inside a test may look like this
 
 ### Custom types
 
-For more custom types you could provide type-class instances your self by implementing the `zio.test.Diff` type-class.
+For more custom types you could provide type-class instances your self by implementing the `zio.test.diff.Diff` type-class.
 
 ```scala mdoc:silent
 // somewhere defined in your domain package
-final case class Percentage(repr: Int) extends AnyVal
+object Custom {
+  final case class Percentage(repr: Int) extends AnyVal  
+}
 
-implicit val diffPercentage: Diff[Percentage] = Diff[Double].contramap(_.repr)
+
+implicit val diffPercentage: Diff[Custom.Percentage] = Diff[Double].contramap(_.repr)
 ```
 
 ### Be wary of `LowPriDiff`
 
-One thing to note that there is a trait `LowPriDiff` which is stacked on the companion object of `zio.test.Diff`. There is lower priority type-class instance defined at `LowerPriDiff` which is a fallback for `AnyVal`. It's defined as `implicit def anyValDiff[A <: AnyVal]: Diff[A] = anyDiff[A]`, so if some custom types mess up your diff, you might want to check on this topic. 
+One thing to note that there is a trait `LowPriDiff` which is stacked on the companion object of `zio.test.diff.Diff`. There is lower priority type-class instance defined at `LowerPriDiff` which is a fallback for `AnyVal`. It's defined as `implicit def anyValDiff[A <: AnyVal]: Diff[A] = anyDiff[A]`, so if some custom types mess up your diff, you might want to check on this topic. 
