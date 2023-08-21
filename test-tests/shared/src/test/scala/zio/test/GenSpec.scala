@@ -180,10 +180,6 @@ object GenSpec extends ZIOBaseSpec {
         val bigInt = Gen.bigInt(min, max)
         checkSample(bigInt)(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
-      test("bigInt generates constant value when upper and lower bounds are equal") {
-        val bigInt = BigInt("1")
-        checkSample(Gen.bigInt(bigInt, bigInt))(forall(equalTo(bigInt)))
-      },
       test("boolean generates true and false") {
         checkSample(Gen.boolean)(contains(true) && contains(false))
       },
@@ -755,6 +751,11 @@ object GenSpec extends ZIOBaseSpec {
     test("map of keys with small domain") {
       check(Gen.mapOf(Gen.boolean, Gen.boolean)) { map =>
         assert(map)(anything)
+      }
+    },
+    test("bigInt with equal bounds") {
+      check(Gen.bigInt(1, 1)) { n =>
+        assertTrue(n == 1)
       }
     }
   )
