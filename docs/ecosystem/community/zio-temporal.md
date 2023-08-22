@@ -9,19 +9,19 @@ title: "ZIO Temporal"
 
 ZIO Temporal is a ZIO library based on the Temporal Java-SDK. ZIO Temporal brings first-class Scala & ZIO support with additional compile-time checks that Java SDK lacks.
 
-[Temporal](https://temporal.io/) platform helps to eliminate complex error or retry logic, avoid callbacks, and ensure that every workflow you start, completes. Temporal delivers durable execution for your services and applications.
+[Temporal](https://temporal.io/) platform helps to eliminate complex errors or retry logic, avoid callbacks, and ensure that every workflow you start completes. Temporal delivers durable execution for your services and applications.
 
 ## Installation
 
-In order to use this library, we need to add the following dependency:
+To use the library, we need to add the following dependency:
 
 ```scala
-libraryDependencies += "dev.vhonta" %% "zio-temporal-core" % "0.2.0"
+libraryDependencies += "dev.vhonta" %% "zio-temporal-core" % "0.3.0"
 ```
 
 ## Examples
 
-Here we have one ZIO app with two "modules", one which is the worker that executes the workflow activity and the other is the Client which sends the request to the Temporal platform. To run the sample, it's required to download [Temporal cli](https://github.com/temporalio/cli) (recommended for development).
+Here we have one ZIO app with two "modules". One is the worker that executes the workflow activity, and the other is the Client which sends the request to the Temporal platform. To run the sample, it's required to download [Temporal cli](https://github.com/temporalio/cli) (recommended for development).
 
 
 Run the Temporal server on one shell:
@@ -30,16 +30,15 @@ Run the Temporal server on one shell:
 temporal server start-dev --ip 0.0.0.0 --db-filename /tmp/temporal.db
 ```
 
-Now we can run the sample application which is based on Temporal Java SDK docs using [scala-cli](https://scala-cli.virtuslab.org):
+Now we can run the sample application, which is based on Temporal Java SDK docs using [scala-cli](https://scala-cli.virtuslab.org):
 
 ```scala
 //> using scala "3.3.0"
 
-//> using lib "dev.zio::zio:2.0.13"
-//> using lib "dev.vhonta::zio-temporal-core:0.2.0"
-//> using lib "dev.zio::zio-logging:2.1.12"
-//> using lib "dev.zio::zio-logging-slf4j2-bridge:2.1.12"
-//> using option "-source:future", "-Wunused:imports", "-Wvalue-discard"
+//> using lib "dev.zio::zio:2.0.16"
+//> using lib "dev.vhonta::zio-temporal-core:0.3.0"
+//> using lib "dev.zio::zio-logging:2.1.14"
+//> using lib "dev.zio::zio-logging-slf4j2-bridge:2.1.14"
 
 import zio.*
 import zio.temporal.*
