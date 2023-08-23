@@ -318,7 +318,7 @@ object ZEnvironment {
             if (oldService == newService && oldIndex == newIndex)
               map - tag -> patch
             else
-              map - tag -> patch.combine(AddService(newService, tag))
+              map - tag -> patch.combine(UpdateService((_: Any) => newService, tag))
           case _ =>
             map - tag -> patch.combine(AddService(newService, tag))
         }
