@@ -153,14 +153,8 @@ final class ZEnvironment[+R] private (
     private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A
   }
 
-  trait UnsafeAPI3 {
-    private[ZEnvironment] def updateWith[A >: R](tag: LightTypeTag, f: Option[A] => A)(implicit
-      unsafe: Unsafe
-    ): ZEnvironment[R]
-  }
-
-  val unsafe: UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 =
-    new UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 {
+  val unsafe: UnsafeAPI with UnsafeAPI2 =
+    new UnsafeAPI with UnsafeAPI2 {
       private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A] = {
         val self0 = if (index == Int.MaxValue) self.clean else self
         new ZEnvironment(self0.map.updated(tag, a -> self0.index), self0.index + 1)
@@ -194,11 +188,6 @@ final class ZEnvironment[+R] private (
         unsafe: Unsafe
       ): ZEnvironment[R] =
         add[A](tag, f(get(tag)))
-
-      private[ZEnvironment] def updateWith[A >: R](tag: LightTypeTag, f: Option[A] => A)(implicit
-        unsafe: Unsafe
-      ): ZEnvironment[R] =
-        add[A](tag, f(Option(getOrElse(tag, null.asInstanceOf[A]))))
     }
 }
 
@@ -292,7 +281,7 @@ object ZEnvironment {
           case Empty() :: patches                  => loop(environment, patches)
           case RemoveService(tag) :: patches       => loop(environment, patches)
           case UpdateService(update, tag) :: patches =>
-            loop(environment.unsafe.updateWith(tag, update)(Unsafe.unsafe), patches)
+            loop(environment.unsafe.update(tag, update)(Unsafe.unsafe), patches)
           case Nil => environment
         }
 
@@ -329,7 +318,7 @@ object ZEnvironment {
             if (oldService == newService && oldIndex == newIndex)
               map - tag -> patch
             else
-              map - tag -> patch.combine(UpdateService((_: Any) => newService, tag))
+              map - tag -> patch.combine(AddService(newService, tag))
           case _ =>
             map - tag -> patch.combine(AddService(newService, tag))
         }
@@ -345,7 +334,7 @@ object ZEnvironment {
         extends Patch[In, Out2]
     private final case class Empty[Env]()                                   extends Patch[Env, Env]
     private final case class RemoveService[Env, Service](tag: LightTypeTag) extends Patch[Env with Service, Env]
-    private final case class UpdateService[Env, Service](update: Option[Service] => Service, tag: LightTypeTag)
+    private final case class UpdateService[Env, Service](update: Service => Service, tag: LightTypeTag)
         extends Patch[Env with Service, Env with Service]
 
     private def erase[In, Out](patch: Patch[In, Out]): Patch[Any, Any] =
