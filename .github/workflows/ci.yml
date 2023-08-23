@@ -177,7 +177,7 @@ jobs:
       run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
     - name: Test 3
       if: ${{ startsWith(matrix.scala, '3.') }}
-      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}3
+      run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}3
     - name: Upload Test Results 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
       uses: actions/upload-artifact@v3
