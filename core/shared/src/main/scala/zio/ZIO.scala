@@ -28,6 +28,7 @@ import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.control.NoStackTrace
 import izumi.reflect.macrortti.LightTypeTag
+import zio.Chunk.ChunkIteratorWithState
 
 /**
  * A `ZIO[R, E, A]` value is an immutable value (called an "effect") that
@@ -3187,7 +3188,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: Trace): ZIO[R, E, Collection[A]] =
     ZIO
       .foldLeft(as)(bf.newBuilder(as)) { (builder, a) =>
-        f(a).map(b => if (b) builder += a else builder)
+        f(a).map(b => if (b) builder.addOne(a) else builder)
       }
       .map(_.result())
 
@@ -3342,6 +3343,18 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       val builder  = bf.newBuilder(in)
 
       ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
+    }
+
+  def chunkForeach[R, E, A, B](ch: Chunk[A])(
+    f: A => ZIO[R, E, B]
+  )(implicit trace: Trace): ZIO[R, E, Chunk[B]] =
+    ZIO.suspendSucceed {
+      val builder  = ChunkBuilder.make[B](ch.length)
+      val iterator = new ChunkIteratorWithState(ch)
+
+      ZIO
+        .whileLoop(iterator.hasNext)(f(iterator.next()))(builder.addOne _)
+        .as(builder.result())
     }
 
   /**

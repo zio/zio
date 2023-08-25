@@ -19,7 +19,7 @@ package zio
 import zio.Chunk.BitChunkByte
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import scala.collection.mutable.{ArrayBuilder, Builder}
+import scala.collection.mutable.{ArrayBuilder, Buffer, Builder}
 import scala.{
   Boolean => SBoolean,
   Byte => SByte,
@@ -37,7 +37,16 @@ import scala.{
  * build chunks of unboxed primitives and for compatibility with the Scala
  * collection library.
  */
-sealed abstract class ChunkBuilder[A] extends Builder[A, Chunk[A]]
+sealed abstract class ChunkBuilder[A] extends Builder[A, Chunk[A]] {
+
+  override def addAll(xs: IterableOnce[A]): this.type = {
+    val it = xs.iterator
+    while (it.hasNext) {
+      addOne(it.next())
+    }
+    this
+  }
+}
 
 object ChunkBuilder {
 
@@ -103,9 +112,7 @@ object ChunkBuilder {
    */
   final class Boolean extends ChunkBuilder[SBoolean] { self =>
 
-    private val arrayBuilder: ArrayBuilder[SByte] = {
-      new ArrayBuilder.ofByte
-    }
+    private val arrayBuilder      = new ArrayBuilder.ofByte
     private var lastByte: SByte   = 0.toByte
     private var maxBitIndex: SInt = 0
 
@@ -164,15 +171,13 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Byte` values.
    */
   final class Byte extends ChunkBuilder[SByte] { self =>
-    private val arrayBuilder: ArrayBuilder[SByte] = {
-      new ArrayBuilder.ofByte
-    }
+    private val arrayBuilder = new ArrayBuilder.ofByte
     override def addAll(as: IterableOnce[SByte]): this.type = {
-      arrayBuilder ++= as
+      arrayBuilder.addAll(as)
       this
     }
     def addOne(a: SByte): this.type = {
-      arrayBuilder += a
+      arrayBuilder.addOne(a)
       this
     }
     def clear(): Unit =
@@ -194,15 +199,13 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Char` values.
    */
   final class Char extends ChunkBuilder[SChar] { self =>
-    private val arrayBuilder: ArrayBuilder[SChar] = {
-      new ArrayBuilder.ofChar
-    }
+    private val arrayBuilder = new ArrayBuilder.ofChar
     override def addAll(as: IterableOnce[SChar]): this.type = {
-      arrayBuilder ++= as
+      arrayBuilder.addAll(as)
       this
     }
     def addOne(a: SChar): this.type = {
-      arrayBuilder += a
+      arrayBuilder.addOne(a)
       this
     }
     def clear(): Unit =
@@ -225,15 +228,13 @@ object ChunkBuilder {
    * values.
    */
   final class Double extends ChunkBuilder[SDouble] { self =>
-    private val arrayBuilder: ArrayBuilder[SDouble] = {
-      new ArrayBuilder.ofDouble
-    }
+    private val arrayBuilder = new ArrayBuilder.ofDouble
     override def addAll(as: IterableOnce[SDouble]): this.type = {
-      arrayBuilder ++= as
+      arrayBuilder.addAll(as)
       this
     }
     def addOne(a: SDouble): this.type = {
-      arrayBuilder += a
+      arrayBuilder.addOne(a)
       this
     }
     def clear(): Unit =
@@ -255,15 +256,13 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Float` values.
    */
   final class Float extends ChunkBuilder[SFloat] { self =>
-    private val arrayBuilder: ArrayBuilder[SFloat] = {
-      new ArrayBuilder.ofFloat
-    }
+    private val arrayBuilder = new ArrayBuilder.ofFloat
     override def addAll(as: IterableOnce[SFloat]): this.type = {
-      arrayBuilder ++= as
+      arrayBuilder.addAll(as)
       this
     }
     def addOne(a: SFloat): this.type = {
-      arrayBuilder += a
+      arrayBuilder.addOne(a)
       this
     }
     def clear(): Unit =
@@ -285,15 +284,13 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Int` values.
    */
   final class Int extends ChunkBuilder[SInt] { self =>
-    private val arrayBuilder: ArrayBuilder[SInt] = {
-      new ArrayBuilder.ofInt
-    }
+    private val arrayBuilder = new ArrayBuilder.ofInt
     override def addAll(as: IterableOnce[SInt]): this.type = {
-      arrayBuilder ++= as
+      arrayBuilder.addAll(as)
       this
     }
     def addOne(a: SInt): this.type = {
-      arrayBuilder += a
+      arrayBuilder.addOne(a)
       this
     }
     def clear(): Unit =
@@ -315,15 +312,13 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Long` values.
    */
   final class Long extends ChunkBuilder[SLong] { self =>
-    private val arrayBuilder: ArrayBuilder[SLong] = {
-      new ArrayBuilder.ofLong
-    }
+    private val arrayBuilder = new ArrayBuilder.ofLong
     override def addAll(as: IterableOnce[SLong]): this.type = {
-      arrayBuilder ++= as
+      arrayBuilder.addAll(as)
       this
     }
     def addOne(a: SLong): this.type = {
-      arrayBuilder += a
+      arrayBuilder.addOne(a)
       this
     }
     def clear(): Unit =
@@ -345,15 +340,13 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Short` values.
    */
   final class Short extends ChunkBuilder[SShort] { self =>
-    private val arrayBuilder: ArrayBuilder[SShort] = {
-      new ArrayBuilder.ofShort
-    }
+    private val arrayBuilder = new ArrayBuilder.ofShort
     override def addAll(as: IterableOnce[SShort]): this.type = {
-      arrayBuilder ++= as
+      arrayBuilder.addAll(as)
       this
     }
     def addOne(a: SShort): this.type = {
-      arrayBuilder += a
+      arrayBuilder.addOne(a)
       this
     }
     def clear(): Unit =

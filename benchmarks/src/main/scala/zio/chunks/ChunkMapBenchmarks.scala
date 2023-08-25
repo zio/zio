@@ -17,17 +17,22 @@ class ChunkMapBenchmarks {
   var chunk: Chunk[Int]   = _
   var vector: Vector[Int] = _
   var list: List[Int]     = _
+  var array: Array[Int]   = _
 
   @Setup(Level.Trial)
   def setup(): Unit = {
-    val array = (1 to size).toArray
-    chunk = Chunk.fromArray(array)
-    vector = array.toVector
-    list = array.toList
+    val arr = (1 to size).toArray
+    chunk = Chunk.fromArray(arr)
+    vector = arr.toVector
+    list = arr.toList
+    array = arr
   }
 
   @Benchmark
   def mapChunk(): Chunk[Int] = chunk.map(_ * 2)
+
+  @Benchmark
+  def mapArray(): Array[Int] = array.map(_ * 2)
 
   @Benchmark
   def mapVector(): Vector[Int] = vector.map(_ * 2)

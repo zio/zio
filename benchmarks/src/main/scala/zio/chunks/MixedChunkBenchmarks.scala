@@ -51,10 +51,22 @@ class MixedChunkBenchmarks {
   }
 
   @Benchmark
+  def foreach(): Unit = chunk.foreach(_ * 2)
+
+  @Benchmark
+  def foreachMaterialized(): Unit = chunkMaterialized.foreach(_ * 2)
+
+  @Benchmark
   def fold(): Int = chunk.foldLeft(0)(_ + _)
 
   @Benchmark
+  def foldRight(): Int = chunk.foldRight(0)(_ + _)
+
+  @Benchmark
   def foldMaterialized(): Int = chunkMaterialized.foldLeft(0)(_ + _)
+
+  @Benchmark
+  def foldRightMaterialized(): Int = chunkMaterialized.foldRight(0)(_ + _)
 
   @Benchmark
   def filterZIO(): Chunk[Int] =
@@ -65,16 +77,25 @@ class MixedChunkBenchmarks {
     BenchmarkUtil.unsafeRun(chunkMaterialized.filterZIO[Any, Nothing](n => ZIO.succeed(n % 2 == 0)))
 
   @Benchmark
-  def map(): Chunk[Int] = chunk.map(_ * 2)
+  def map(): Chunk[Int] =
+    chunk.map(_ * 2)
 
   @Benchmark
-  def mapMaterialized(): Chunk[Int] = chunkMaterialized.map(_ * 2)
+  def mapMaterialized(): Chunk[Int] =
+    chunkMaterialized.map(_ * 2)
+
+  @Benchmark
+  def mapToLongMaterialized(): Chunk[Long] =
+    chunkMaterialized.map(_ * 2L)
 
   @Benchmark
   def flatMap(): Chunk[Int] = chunk.flatMap(n => Chunk(n + 2))
 
   @Benchmark
   def flatMapMaterialized(): Chunk[Int] = chunkMaterialized.flatMap(n => Chunk(n + 2))
+
+  @Benchmark
+  def flatMap2Materialized(): Chunk[Int] = chunkMaterialized.flatMap(n => Chunk(n, n + 1, n + 2))
 
   @Benchmark
   def find(): Option[Int] = chunk.find(_ > 2)
@@ -89,6 +110,10 @@ class MixedChunkBenchmarks {
   @Benchmark
   def mapZIOMaterialized(): Unit =
     BenchmarkUtil.unsafeRun(chunkMaterialized.mapZIODiscard(_ => ZIO.unit))
+
+  @Benchmark
+  def realMapZIOMaterialized(): Unit =
+    BenchmarkUtil.unsafeRun(chunkMaterialized.mapZIO(i => ZIO.succeed(i * 2)).flatMap(_ => ZIO.unit))
 
   @Benchmark
   def foldZIO(): Int =

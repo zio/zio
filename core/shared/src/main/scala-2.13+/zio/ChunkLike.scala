@@ -88,7 +88,7 @@ trait ChunkLike[+A]
     if (B0 == null) Chunk.empty
     else {
       implicit val B: ClassTag[B] = B0
-      val dest: Array[B]          = Array.ofDim(total)
+      val dest: Array[B]          = B.newArray(total)
       val it                      = chunks.iterator
       var n                       = total
       while (it.hasNext) {
@@ -117,8 +117,7 @@ trait ChunkLike[+A]
   /**
    * Returns a chunk with the elements mapped by the specified function.
    */
-  override final def map[B](f: A => B): Chunk[B] =
-    mapChunk(f)
+  def map[B](f: A => B): Chunk[B]
 
   override def sorted[A1 >: A](implicit ord: Ordering[A1]): Chunk[A] = {
     implicit val classTag = Chunk.classTagOf(self)

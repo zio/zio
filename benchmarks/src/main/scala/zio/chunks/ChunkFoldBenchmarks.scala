@@ -17,17 +17,28 @@ class ChunkFoldBenchmarks {
   var chunk: Chunk[Int]   = _
   var vector: Vector[Int] = _
   var list: List[Int]     = _
+  var array: Array[Int]   = _
 
   @Setup(Level.Trial)
   def setup(): Unit = {
-    val array = (1 to size).toArray
-    chunk = Chunk.fromArray(array)
-    vector = array.toVector
-    list = array.toList
+    val arr = (1 to size).toArray
+    chunk = Chunk.fromArray(arr)
+    vector = arr.toVector
+    list = arr.toList
+    array = arr
   }
 
   @Benchmark
   def foldChunk(): Int = chunk.fold(0)(_ + _)
+
+  @Benchmark
+  def foldArray(): Int = array.fold(0)(_ + _)
+
+  @Benchmark
+  def foldRightChunk(): Int = chunk.foldRight(0)(_ + _)
+
+  @Benchmark
+  def foldRightArray(): Int = array.foldRight(0)(_ + _)
 
   @Benchmark
   def foldVector(): Int = vector.fold(0)(_ + _)
