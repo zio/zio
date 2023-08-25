@@ -2538,21 +2538,20 @@ sealed trait ZIO[-R, +E, +A]
             )
             .forkDaemon
 
-        ZIO.parallelFinalizersMask(restore => fork(restore(self), false).zip(fork(restore(that), true))).flatMap {
-          case (left, right) =>
-            restore(promise.await).foldCauseZIO(
-              cause =>
-                left.interruptFork *> right.interruptFork *>
-                  left.await.zip(right.await).flatMap { case (left, right) =>
-                    left.zipWith(right)(f, _ && _) match {
-                      case Exit.Failure(causes) => ZIO.refailCause(cause.stripFailures && causes)
-                      case _                    => ZIO.refailCause(cause.stripFailures)
-                    }
-                  },
-              leftWins =>
-                if (leftWins) left.join.zipWith(right.join)((a, b) => f(a, b))
-                else right.join.zipWith(left.join)((b, a) => f(a, b))
-            )
+        fork(self, false).zip(fork(that, true)).flatMap { case (left, right) =>
+          restore(promise.await).foldCauseZIO(
+            cause =>
+              left.interruptFork *> right.interruptFork *>
+                left.await.zip(right.await).flatMap { case (left, right) =>
+                  left.zipWith(right)(f, _ && _) match {
+                    case Exit.Failure(causes) => ZIO.refailCause(cause.stripFailures && causes)
+                    case _                    => ZIO.refailCause(cause.stripFailures)
+                  }
+                },
+            leftWins =>
+              if (leftWins) left.join.zipWith(right.join)((a, b) => f(a, b))
+              else right.join.zipWith(left.join)((b, a) => f(a, b))
+          )
         }
       }
     }
@@ -6075,21 +6074,19 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           val promise = Promise.unsafe.make[Unit, Unit](FiberId.None)(Unsafe.unsafe)
           val ref     = new java.util.concurrent.atomic.AtomicInteger(0)
           ZIO.transplant { graft =>
-            ZIO.parallelFinalizersMask { restoreFinalizers =>
-              ZIO.foreach(as) { a =>
-                graft {
-                  restore(restoreFinalizers(ZIO.suspendSucceed(f(a)))).foldCauseZIO(
-                    cause => promise.fail(()) *> ZIO.refailCause(cause),
-                    _ =>
-                      if (ref.incrementAndGet == size) {
-                        promise.unsafe.done(ZIO.unit)(Unsafe.unsafe)
-                        ZIO.unit
-                      } else {
-                        ZIO.unit
-                      }
-                  )
-                }.forkDaemon
-              }
+            ZIO.foreach(as) { a =>
+              graft {
+                restore(ZIO.suspendSucceed(f(a))).foldCauseZIO(
+                  cause => promise.fail(()) *> ZIO.refailCause(cause),
+                  _ =>
+                    if (ref.incrementAndGet == size) {
+                      promise.unsafe.done(ZIO.unit)(Unsafe.unsafe)
+                      ZIO.unit
+                    } else {
+                      ZIO.unit
+                    }
+                )
+              }.forkDaemon
             }
           }.flatMap { fibers =>
             restore(promise.await).foldCauseZIO(

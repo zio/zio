@@ -345,16 +345,7 @@ object ZIOSpec extends ZIOBaseSpec {
           right2    = (promise1.succeed(()) *> ZIO.never).ensuring(promise2.interrupt *> ZIO.never.interruptible)
           exit     <- ZIO.collectAllPar(List(left, ZIO.collectAllPar(List(right1, right2)))).exit
         } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
-      } @@ nonFlaky,
-      test("runs finalizers in parallel") {
-        for {
-          promise1 <- Promise.make[Nothing, Unit]
-          promise2 <- Promise.make[Nothing, Unit]
-          left      = ZIO.addFinalizer(promise1.succeed(())) *> promise2.succeed(())
-          right     = promise2.await *> ZIO.addFinalizer(promise1.await)
-          _        <- ZIO.collectAllPar(List(left, right))
-        } yield assertCompletes
-      }
+      } @@ nonFlaky
     ),
     suite("collectAllParN")(
       test("returns results in the same order") {
@@ -4212,15 +4203,6 @@ object ZIOSpec extends ZIOBaseSpec {
           _        <- fiber.join
           value    <- fiberRef.get
         } yield assertTrue(value == 10)
-      },
-      test("runs finalizers in parallel") {
-        for {
-          promise1 <- Promise.make[Nothing, Unit]
-          promise2 <- Promise.make[Nothing, Unit]
-          left      = ZIO.addFinalizer(promise1.succeed(())) *> promise2.succeed(())
-          right     = promise2.await *> ZIO.addFinalizer(promise1.await)
-          _        <- left.zipPar(right)
-        } yield assertCompletes
       }
     ),
     suite("toFuture")(
