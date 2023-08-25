@@ -93,7 +93,7 @@ private[zio] trait ChunkLike[+A]
    * Returns a chunk with the elements mapped by the specified function.
    */
   override final def map[B, That](f: A => B)(implicit bf: CanBuildFrom[Chunk[A], B, That]): That =
-    if (isChunkCanBuildFrom[A, B, That](bf)) mapChunk(f).asInstanceOf[That]
+    if (isChunkCanBuildFrom[A, B, That](bf)) map(f).asInstanceOf[That]
     else super.map(f)
 
   /**
