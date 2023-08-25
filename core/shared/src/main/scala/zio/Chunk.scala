@@ -469,7 +469,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   /**
    * Folds over the elements in this chunk from the left.
    */
-  final override def foldLeft[S](s0: S)(f: (S, A) => S): S = {
+  override def foldLeft[S](s0: S)(f: (S, A) => S): S = {
     val iterator = self.chunkIterator
     var index    = 0
     var s        = s0
@@ -484,13 +484,13 @@ sealed trait Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   /**
    * Effectfully folds over the elements in this chunk from the left.
    */
-  def foldZIO[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S])(implicit trace: Trace): ZIO[R, E, S] =
+  final def foldZIO[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S])(implicit trace: Trace): ZIO[R, E, S] =
     ZIO.foldLeft(self)(s)(f)
 
   /**
    * Folds over the elements in this chunk from the right.
    */
-  final override def foldRight[S](s0: S)(f: (A, S) => S): S = {
+  override def foldRight[S](s0: S)(f: (A, S) => S): S = {
     val len = self.length
     val it  = self.chunkIterator
     var s   = s0
@@ -670,7 +670,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   /**
    * Effectfully maps the elements of this chunk purely for the effects.
    */
-  def mapZIODiscard[R, E](f: A => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
+  final def mapZIODiscard[R, E](f: A => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
     ZIO.foreachDiscard(self)(f)
 
   /**
