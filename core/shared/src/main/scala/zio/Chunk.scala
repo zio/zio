@@ -665,7 +665,7 @@ sealed trait Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    * Effectfully maps the elements of this chunk.
    */
   final def mapZIO[R, E, B](f: A => ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, Chunk[B]] =
-    ZIO.chunkForeach(self)(f)
+    ZIO.foreach(self)(f)
 
   /**
    * Effectfully maps the elements of this chunk purely for the effects.
@@ -1093,18 +1093,6 @@ sealed trait Chunk[+A] extends ChunkLike[A] with Serializable { self =>
 }
 
 object Chunk extends ChunkFactory with ChunkPlatformSpecific {
-
-  class ChunkIteratorWithState[@specialized A](ch: Chunk[A]) {
-    private var i = 0
-
-    def next(): A = {
-      val res = ch(i)
-      i += 1
-      res
-    }
-
-    def hasNext: Boolean = i < ch.length
-  }
 
   /**
    * Returns a chunk from a number of values.
@@ -1670,6 +1658,32 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       builder.result()
     }
 
+    override def foldLeft[S](s0: S)(f: (S, A) => S): S = {
+      val len = self.length
+      var s   = s0
+
+      var i = 0
+      while (i < len) {
+        s = f(s, self(i))
+        i += 1
+      }
+
+      s
+    }
+
+    override def foldRight[S](s0: S)(f: (A, S) => S): S = {
+      val len = self.length
+      var s   = s0
+
+      var i = len - 1
+      while (i >= 0) {
+        s = f(self(i), s)
+        i -= 1
+      }
+
+      s
+    }
+
     override def foreach[U](f: A => U): Unit = {
       val len = length
       var i   = 0
@@ -1722,8 +1736,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
   }
 
-  private final case class Concat[A](override protected val left: Chunk[A], override protected val right: Chunk[A])
-      extends Chunk[A] {
+  private final case class Concat[@specialized A](
+    override protected val left: Chunk[A],
+    override protected val right: Chunk[A]
+  ) extends Chunk[A] {
     self =>
 
     def chunkIterator: ChunkIterator[A] =
@@ -3010,7 +3026,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    * local memory rather than the iterator having to do it on the heap for array
    * backed chunks.
    */
-  sealed trait ChunkIterator[+A] { self =>
+  sealed trait ChunkIterator[@specialized +A] { self =>
 
     /**
      * Checks if the chunk iterator has another element.
