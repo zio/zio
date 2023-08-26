@@ -1554,7 +1554,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     override def flatMap[B](f: A => IterableOnce[B]): Chunk[B]
 
-    def array: Array[A]
+    val array: Array[A]
 
     implicit val classTag: ClassTag[A] =
       ClassTag(array.getClass.getComponentType)
@@ -1688,7 +1688,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       val len = length
       var i   = 0
       while (i < len) {
-        f(apply(i))
+        f(self(i))
         i += 1
       }
     }
