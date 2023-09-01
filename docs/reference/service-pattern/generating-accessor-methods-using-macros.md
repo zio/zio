@@ -27,6 +27,8 @@ Also, to enable macro expansion we need to setup our project:
   compilerPlugin(("org.scalamacros" % "paradise"  % "2.1.1") cross CrossVersion.full)
   ```
 
+If you are using IntelliJ, macro generated accessors will not be available in IDE hints without [ZIO plugin](../../guides/tutorials/running-our-first-zio-project-with-intellij-idea.md).
+
 :::info
 At the moment these are only available for Scala versions `2.x`, however their equivalents for Scala 3 are on our roadmap.
 :::
