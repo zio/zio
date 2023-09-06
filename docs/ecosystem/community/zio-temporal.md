@@ -16,12 +16,12 @@ ZIO Temporal is a ZIO library based on the Temporal Java-SDK. ZIO Temporal bring
 To use the library, we need to add the following dependency:
 
 ```scala
-libraryDependencies += "dev.vhonta" %% "zio-temporal-core" % "0.3.0"
+libraryDependencies += "dev.vhonta" %% "zio-temporal-core" % "0.4.0"
 ```
 
 ## Examples
 
-Here we have one ZIO app with two "modules". One is the worker that executes the workflow activity, and the other is the Client which sends the request to the Temporal platform. To run the sample, it's required to download [Temporal cli](https://github.com/temporalio/cli) (recommended for development).
+Here we have one ZIO app with two "modules". One is the worker that executes the workflow activity, and the other is the Client that sends the request to the Temporal platform. To run the sample, it's required to download [Temporal cli](https://github.com/temporalio/cli) (recommended for development).
 
 
 Run the Temporal server on one shell:
@@ -36,7 +36,7 @@ Now we can run the sample application, which is based on Temporal Java SDK docs 
 //> using scala "3.3.0"
 
 //> using lib "dev.zio::zio:2.0.16"
-//> using lib "dev.vhonta::zio-temporal-core:0.3.0"
+//> using lib "dev.vhonta::zio-temporal-core:0.4.0"
 //> using lib "dev.zio::zio-logging:2.1.14"
 //> using lib "dev.zio::zio-logging-slf4j2-bridge:2.1.14"
 
