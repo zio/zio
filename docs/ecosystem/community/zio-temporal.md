@@ -21,7 +21,7 @@ libraryDependencies += "dev.vhonta" %% "zio-temporal-core" % "0.4.0"
 
 ## Examples
 
-Here we have one ZIO app with two "modules". One is the worker that executes the workflow activity, and the other is the Client that sends the request to the Temporal platform. To run the sample, it's required to download [Temporal cli](https://github.com/temporalio/cli) (recommended for development).
+Here we have one ZIO app with two "modules". One is the worker that executes the workflow activity, and the other is the Client that sends the request to the Temporal platform. To run the sample, it's required to download [Temporal cli](https://docs.temporal.io/cli) (recommended for development).
 
 
 Run the Temporal server on one shell:
