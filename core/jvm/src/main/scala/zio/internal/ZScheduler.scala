@@ -290,13 +290,13 @@ private final class ZScheduler extends Executor {
                 val worker = cache.poll(null)
                 if (worker eq null) {
                   val worker = makeWorker()
-                  worker.setName(s"ZScheduler-$workerId")
+                  worker.setName(s"ZScheduler-Worker-$workerId")
                   worker.setDaemon(true)
                   workers(workerId) = worker
                   worker.start()
                 } else {
                   state.getAndIncrement()
-                  worker.setName(s"ZScheduler-$workerId")
+                  worker.setName(s"ZScheduler-Worker-$workerId")
                   workers(workerId) = worker
                   worker.blocking = false
                   worker.active = true
