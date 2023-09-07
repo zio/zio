@@ -48,7 +48,7 @@ function References(props) {
           {
             props.items.map((item, index) => (
               <li key={index} className="mr-2">
-                <a className="underline text-white text-sm" href={item.url}>{item.title}</a>
+                <a className="underline text-white text-sm" href={item.page_url}>{item.page_title}</a>
               </li>
             ))
           }</ol>
