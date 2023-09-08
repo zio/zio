@@ -4357,7 +4357,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     (zio.exit raceAll ios.map(_.exit)).flatMap(ZIO.done(_))
 
   /**
-   * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
+   * Retreives the `Random` service for this workflow.
    */
   def random(implicit trace: Trace): UIO[Random] =
     ZIO.randomWith(ZIO.succeed(_))
