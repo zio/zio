@@ -103,7 +103,7 @@ class LoggingService(logPath: String) extends ZLayer.LifecycleHooks[Any, Throwab
 object LoggingService {
   // Note: it's for illustrative example. In a real-world application, you probably won't want
   //       `String` as layer input.
-  val layer: URLayer[String, LoggingService] = ZLayer.derive[LoggingService]
+  val layer: ZLayer[String, Throwable, LoggingService] = ZLayer.derive[LoggingService]
 }
 ```
 

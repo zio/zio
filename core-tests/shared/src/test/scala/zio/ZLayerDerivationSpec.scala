@@ -49,7 +49,7 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
         c.d2 == OneDep("one"),
         c.d3 == 2
       )
-    ),
+    )
   ).provide(
     derivedZero,
     derivedOne,
@@ -58,7 +58,6 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
     ZLayer.succeed("one"),
     ZLayer.succeed(2)
   )
-
 
   class ZeroDepAndPromise(val p1: Promise[Nothing, Int])
   class OneDepAndPromise(val d1: String, val p1: Promise[Throwable, Int])
@@ -83,9 +82,8 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
   val derivedOneAndDefaultTransitive =
     ZLayer.derive[OneDepAndDefaultTransitive]
 
-
   val derivedZeroDepAndPromiseOverriden: URLayer[Promise[Nothing, Int], ZeroDepAndPromise] = locally {
-    implicit val overridenPromise: ZLayer.Default.Aux[Promise[Nothing, Int], Nothing, Promise[Nothing, Int]] = 
+    implicit val overridenPromise: ZLayer.Default.Aux[Promise[Nothing, Int], Nothing, Promise[Nothing, Int]] =
       ZLayer.Default.service[Promise[Nothing, Int]]
 
     ZLayer.derive[ZeroDepAndPromise]
@@ -116,7 +114,7 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
     },
     test("overriden dependency by higher implicit priority") {
       for {
-        svc <- ZIO.service[ZeroDepAndPromise]
+        svc   <- ZIO.service[ZeroDepAndPromise]
         value <- svc.p1.await
       } yield assertTrue(value == 42)
     }.provide(
