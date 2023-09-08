@@ -184,6 +184,7 @@ module.exports = {
             label: "ZIO Layers",
             items: [
               "reference/contextual/zlayer",
+              "reference/contextual/zlayer-derivation",
               {
                 type: "category",
                 collapsed: true,

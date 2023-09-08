@@ -474,6 +474,147 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[RIn, E, ROut] =
     ZLayer.fromZIO(zio)
 
+  /**
+   * Defines lifecycle methods to be utilized during the automatic derivation of
+   * `ZLayer` using [[ZLayer.derive]].
+   *
+   * This trait allows types to specify initialization and cleanup logic during
+   * their construction and destruction, respectively, when a `ZLayer` for the
+   * type is automatically derived. It's especially useful in scenarios where
+   * resources need to be set up or torn down as part of the derived layer's
+   * lifecycle.
+   *
+   * @note
+   *   This trait's lifecycle hooks are specifically designed to work with
+   *   [[ZLayer.derive]]. Using it outside this context won't inherently attach any
+   *   lifecycle behaviors to the type.
+   *
+   * Implementors should define the `initialize` and `cleanup` methods to provide
+   * the desired lifecycle behaviors.
+   */
+  trait LifecycleHooks[-R, +E] {
+    def initialize: ZIO[R, E, Any]
+    def cleanup: ZIO[R, Nothing, Any]
+  }
+
+  /**
+   * Provides a default way to construct or provide an instance of type `A`.
+   *
+   * Used during `ZLayer` derivation to resolve dependencies. If an implicit
+   * `Default[A]` instance exists for a type, it signifies that a default value
+   * can be used, bypassing the dependency in the `ZLayer` environment.
+   *
+   * @note
+   *   When explicitly type-annotating the implicit val, ensure it's in the form
+   *   `Default.Aux[R, E, A]` rather than just `Default[A]` to ensure correct type
+   *   inference and dependency resolution during `ZLayer` derivation.
+   */
+  trait Default[+A] {
+    type R
+    type E
+
+    def layer: ZLayer[R, E, A]
+  }
+  object Default extends DefaultInstances0 {
+
+    type Aux[R0, E0, A] = Default[A] {
+      type R = R0
+      type E = E0
+    }
+
+    /**
+     * Summons the implicit default for the specified type.
+     */
+    def apply[A](implicit ev: Default[A]): Default.Aux[ev.R, ev.E, A] = ev
+
+    /**
+     * Constructs a default layer using the provided value.
+     */
+    def succeed[A: Tag](a: => A)(implicit trace: Trace): Default.Aux[Any, Nothing, A] =
+      Default.fromZIO(ZIO.succeed(a))
+
+    /**
+     * Constructs a default layer using the provided ZIO value.
+     */
+    def fromZIO[R, E, A: Tag](zio: => ZIO[R, E, A])(implicit trace: Trace): Default.Aux[R, E, A] =
+      fromZLayer(ZLayer.fromZIO(zio))
+
+    /**
+     * Uses the provided layer as the default layer.
+     */
+    def fromZLayer[R0, E0, A: Tag](zlayer: => ZLayer[R0, E0, A])(implicit trace: Trace): Default.Aux[R0, E0, A] =
+      new Default[A] {
+        type R = R0
+        type E = E0
+        def layer: ZLayer[R, E, A] = zlayer
+      }
+
+    /**
+     * Makes a default value that requires the specified service from the environment.
+     * 
+     * Used to discard a predefined Default instance for [[ZLayer.derive]].
+     * 
+     * @example
+     * {{{
+     * class Wheels(number: Int)
+     * object Wheels {
+     *   implicit val defaultWheels: Default.Aux[Any, Nothing, Wheels] =
+     *     ZLayer.Default.succeed(Wheels(4)) 
+     * }
+     * class Car(wheels: Wheels)
+     * 
+     * val carLayer1: ULayer[Car] = ZLayer.derive // wheels.number == 4
+     * val carLayer2: URLayer[Wheels, Car] = locally {
+     *   // The default instance is discarded
+     *   implicit val newWheels: Default.Aux[Wheels, Nothing, Wheels] =
+     *      ZLayer.Default.service[Wheels]
+     *   
+     *   ZLayer.derive[Car]
+     * }
+     * }}}
+     */
+    def service[A: Tag](implicit trace: Trace): Default.Aux[A, Nothing, A] =
+      fromZLayer(ZLayer.service[A])
+
+
+    implicit final class ZLayerInvariantOps[R, E, A](private val self: Default.Aux[R, E, A]) extends AnyVal {
+
+      /**
+       * Returns a new default layer mapped by the specified function.
+       */
+      def map[B: Tag](f: A => B)(implicit tag: Tag[A], trace: Trace): Default.Aux[R, E, B] =
+        fromZLayer(self.layer.project(f))
+
+      /**
+       * Constructs a new default layer dynamically based on the output of the current default layer.
+       */
+      def mapZIO[R1 <: R, E1 >: E, B: Tag](k: A => ZIO[R1, E1, B])(implicit tag: Tag[A], trace: Trace): Default.Aux[R1, E1, B] =
+        fromZLayer(self.layer.flatMap(a => ZLayer(k(a.get[A]))))
+    }
+
+
+    implicit def deriveDefaultConfig[A: Tag](implicit ev: Config[A], trace: Trace): Default.Aux[Any, Config.Error, A] =
+      fromZIO(ZIO.config(ev))
+
+    implicit def deriveDefaultPromise[E: Tag, A: Tag](implicit trace: Trace): Default.Aux[Any, Nothing, Promise[E, A]] =
+      fromZIO(Promise.make[E, A])
+
+    implicit def deriveDefaultQueue[A: Tag](implicit trace: Trace): Default.Aux[Any, Nothing, Queue[A]] =
+      fromZIO(Queue.unbounded[A])
+
+    implicit def deriveDefaultHub[A: Tag](implicit trace: Trace): Default.Aux[Any, Nothing, Hub[A]] =
+      fromZIO(Hub.unbounded[A])
+
+    implicit def deriveDefaultRef[A: Tag](implicit ev: Default[A], trace: Trace): Default.Aux[ev.R, ev.E, Ref[A]] =
+      fromZLayer(ev.layer.project(a => Unsafe.unsafe(implicit unsafe => Ref.unsafe.make(a))))
+  }
+
+  private[ZLayer] trait DefaultInstances0 { this: Default.type =>
+
+    implicit def defaultPromiseNothing[A: Tag](implicit trace: Trace): Default.Aux[Any, Nothing, Promise[Nothing, A]] =
+      this.fromZIO(Promise.make[Nothing, A])
+  }
+
   sealed trait Debug
 
   object Debug {
