@@ -578,7 +578,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     def service[A: Tag](implicit trace: Trace): Default.Aux[A, Nothing, A] =
       fromZLayer(ZLayer.service[A])
 
-    implicit final class ZLayerInvariantOps[R, E, A](private val self: Default.Aux[R, E, A]) extends AnyVal {
+    implicit final class ZLayerDefaultInvariantOps[R, E, A](private val self: Default.Aux[R, E, A]) extends AnyVal {
 
       /**
        * Returns a new default layer mapped by the specified function.
