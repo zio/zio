@@ -486,11 +486,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    *
    * @note
    *   This trait's lifecycle hooks are specifically designed to work with
-   *   [[ZLayer.derive]]. Using it outside this context won't inherently attach any
-   *   lifecycle behaviors to the type.
+   *   [[ZLayer.derive]]. Using it outside this context won't inherently attach
+   *   any lifecycle behaviors to the type.
    *
-   * Implementors should define the `initialize` and `cleanup` methods to provide
-   * the desired lifecycle behaviors.
+   * Implementors should define the `initialize` and `cleanup` methods to
+   * provide the desired lifecycle behaviors.
    */
   trait LifecycleHooks[-R, +E] {
     def initialize: ZIO[R, E, Any]
@@ -506,8 +506,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    *
    * @note
    *   When explicitly type-annotating the implicit val, ensure it's in the form
-   *   `Default.Aux[R, E, A]` rather than just `Default[A]` to ensure correct type
-   *   inference and dependency resolution during `ZLayer` derivation.
+   *   `Default.Aux[R, E, A]` rather than just `Default[A]` to ensure correct
+   *   type inference and dependency resolution during `ZLayer` derivation.
    */
   trait Default[+A] {
     type R
@@ -550,32 +550,32 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       }
 
     /**
-     * Makes a default value that requires the specified service from the environment.
-     * 
+     * Makes a default value that requires the specified service from the
+     * environment.
+     *
      * Used to discard a predefined Default instance for [[ZLayer.derive]].
-     * 
+     *
      * @example
      * {{{
      * class Wheels(number: Int)
      * object Wheels {
      *   implicit val defaultWheels: Default.Aux[Any, Nothing, Wheels] =
-     *     ZLayer.Default.succeed(Wheels(4)) 
+     *     ZLayer.Default.succeed(Wheels(4))
      * }
      * class Car(wheels: Wheels)
-     * 
+     *
      * val carLayer1: ULayer[Car] = ZLayer.derive // wheels.number == 4
      * val carLayer2: URLayer[Wheels, Car] = locally {
      *   // The default instance is discarded
      *   implicit val newWheels: Default.Aux[Wheels, Nothing, Wheels] =
-     *      ZLayer.Default.service[Wheels]
-     *   
+     *       ZLayer.Default.service[Wheels]
+     *
      *   ZLayer.derive[Car]
      * }
      * }}}
      */
     def service[A: Tag](implicit trace: Trace): Default.Aux[A, Nothing, A] =
       fromZLayer(ZLayer.service[A])
-
 
     implicit final class ZLayerInvariantOps[R, E, A](private val self: Default.Aux[R, E, A]) extends AnyVal {
 
@@ -586,12 +586,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
         fromZLayer(self.layer.project(f))
 
       /**
-       * Constructs a new default layer dynamically based on the output of the current default layer.
+       * Constructs a new default layer dynamically based on the output of the
+       * current default layer.
        */
-      def mapZIO[R1 <: R, E1 >: E, B: Tag](k: A => ZIO[R1, E1, B])(implicit tag: Tag[A], trace: Trace): Default.Aux[R1, E1, B] =
+      def mapZIO[R1 <: R, E1 >: E, B: Tag](
+        k: A => ZIO[R1, E1, B]
+      )(implicit tag: Tag[A], trace: Trace): Default.Aux[R1, E1, B] =
         fromZLayer(self.layer.flatMap(a => ZLayer(k(a.get[A]))))
     }
-
 
     implicit def deriveDefaultConfig[A: Tag](implicit ev: Config[A], trace: Trace): Default.Aux[Any, Config.Error, A] =
       fromZIO(ZIO.config(ev))
