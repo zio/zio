@@ -28,7 +28,7 @@ import java.util.concurrent.locks.LockSupport
  * applications. Inspired by "Making the Tokio Scheduler 10X Faster" by Carl
  * Lerche. [[https://tokio.rs/blog/2019-10-scheduler]]
  */
-private final class ZScheduler extends Executor {
+private final class ZScheduler(autoBlocking: Boolean) extends Executor {
   private[this] val poolSize           = java.lang.Runtime.getRuntime.availableProcessors
   private[this] val cache              = MutableConcurrentQueue.unbounded[ZScheduler.Worker]
   private[this] val globalQueue        = MutableConcurrentQueue.unbounded[Runnable]
@@ -47,7 +47,7 @@ private final class ZScheduler extends Executor {
   }
   workers.foreach(_.start())
 
-  private[this] val supervisor = makeSupervisor()
+  private[this] val supervisor = makeSupervisor(autoBlocking)
   supervisor.setName("ZScheduler-Supervisor")
   supervisor.setDaemon(true)
   supervisor.start()
@@ -257,58 +257,60 @@ private final class ZScheduler extends Executor {
       }
     }
 
-  private[this] def makeSupervisor(): ZScheduler.Supervisor =
+  private[this] def makeSupervisor(autoBlocking: Boolean): ZScheduler.Supervisor =
     new ZScheduler.Supervisor {
       override def run(): Unit = {
         var currentTime         = java.lang.System.currentTimeMillis()
         val identifiedLocations = makeLocations()
         val previousOpCounts    = Array.fill(poolSize)(-1L)
         while (!isInterrupted) {
-          var workerId = 0
-          while (workerId != poolSize) {
-            val currentWorker = workers(workerId)
-            if (currentWorker.active) {
-              val currentOpCount  = currentWorker.opCount
-              val previousOpCount = previousOpCounts(workerId)
-              if (currentOpCount == previousOpCount) {
-                val currentRunnable = currentWorker.currentRunnable
-                if (currentRunnable.isInstanceOf[FiberRunnable]) {
-                  val fiberRunnable = currentRunnable.asInstanceOf[FiberRunnable]
-                  val location      = fiberRunnable.location
-                  if (location ne Trace.empty) {
-                    val identifiedCount = identifiedLocations.put(location)
-                    val submittedCount  = submittedLocations.get(location)
-                    if (submittedCount > 64 && identifiedCount >= submittedCount / 2) {
-                      blockingLocations += location
+          if (autoBlocking) {
+            var workerId = 0
+            while (workerId != poolSize) {
+              val currentWorker = workers(workerId)
+              if (currentWorker.active) {
+                val currentOpCount  = currentWorker.opCount
+                val previousOpCount = previousOpCounts(workerId)
+                if (currentOpCount == previousOpCount) {
+                  val currentRunnable = currentWorker.currentRunnable
+                  if (currentRunnable.isInstanceOf[FiberRunnable]) {
+                    val fiberRunnable = currentRunnable.asInstanceOf[FiberRunnable]
+                    val location      = fiberRunnable.location
+                    if (location ne Trace.empty) {
+                      val identifiedCount = identifiedLocations.put(location)
+                      val submittedCount  = submittedLocations.get(location)
+                      if (submittedCount > 64 && identifiedCount >= submittedCount / 2) {
+                        blockingLocations += location
+                      }
                     }
                   }
-                }
-                previousOpCounts(workerId) = -1L
-                currentWorker.blocking = true
-                val runnables = currentWorker.localQueue.pollUpTo(256)
-                globalQueue.offerAll(runnables)
-                val worker = cache.poll(null)
-                if (worker eq null) {
-                  val worker = makeWorker()
-                  worker.setName(s"ZScheduler-Worker-$workerId")
-                  worker.setDaemon(true)
-                  workers(workerId) = worker
-                  worker.start()
+                  previousOpCounts(workerId) = -1L
+                  currentWorker.blocking = true
+                  val runnables = currentWorker.localQueue.pollUpTo(256)
+                  globalQueue.offerAll(runnables)
+                  val worker = cache.poll(null)
+                  if (worker eq null) {
+                    val worker = makeWorker()
+                    worker.setName(s"ZScheduler-Worker-$workerId")
+                    worker.setDaemon(true)
+                    workers(workerId) = worker
+                    worker.start()
+                  } else {
+                    state.getAndIncrement()
+                    worker.setName(s"ZScheduler-Worker-$workerId")
+                    workers(workerId) = worker
+                    worker.blocking = false
+                    worker.active = true
+                    LockSupport.unpark(worker)
+                  }
                 } else {
-                  state.getAndIncrement()
-                  worker.setName(s"ZScheduler-Worker-$workerId")
-                  workers(workerId) = worker
-                  worker.blocking = false
-                  worker.active = true
-                  LockSupport.unpark(worker)
+                  previousOpCounts(workerId) = currentOpCount
                 }
               } else {
-                previousOpCounts(workerId) = currentOpCount
+                previousOpCounts(workerId) = -1L
               }
-            } else {
-              previousOpCounts(workerId) = -1L
+              workerId += 1
             }
-            workerId += 1
           }
           val deadline = currentTime + 100
           var loop     = true
