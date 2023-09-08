@@ -506,8 +506,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    *
    * @note
    *   When explicitly type-annotating the implicit val, ensure it's in the form
-   *   `Default.Aux[R, E, A]` rather than just `Default[A]` to ensure correct
-   *   type inference and dependency resolution during `ZLayer` derivation.
+   *   `ZLayer.Default.Aux[R, E, A]` rather than just `ZLayer.Default[A]` to
+   *   ensure correct type inference and dependency resolution during `ZLayer`
+   *   derivation.
    */
   trait Default[+A] {
     type R
@@ -559,15 +560,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * {{{
      * class Wheels(number: Int)
      * object Wheels {
-     *   implicit val defaultWheels: Default.Aux[Any, Nothing, Wheels] =
-     *     ZLayer.Default.succeed(Wheels(4))
+     *   implicit val defaultWheels: ZLayer.Default.Aux[Any, Nothing, Wheels] =
+     *     ZLayer.Default.succeed(new Wheels(4))
      * }
      * class Car(wheels: Wheels)
      *
      * val carLayer1: ULayer[Car] = ZLayer.derive // wheels.number == 4
      * val carLayer2: URLayer[Wheels, Car] = locally {
      *   // The default instance is discarded
-     *   implicit val newWheels: Default.Aux[Wheels, Nothing, Wheels] =
+     *   implicit val newWheels: ZLayer.Default.Aux[Wheels, Nothing, Wheels] =
      *       ZLayer.Default.service[Wheels]
      *
      *   ZLayer.derive[Car]
