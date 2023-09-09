@@ -183,7 +183,7 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
     }
   )
 
-  class HasUnresolvedDefault(dep: HasUnspecifiedDefault.Dep)
+  class HasUnresolvedDefault(dep: HasUnresolvedDefault.Dep)
   object HasUnresolvedDefault {
     case class Dep(s: String)
 
