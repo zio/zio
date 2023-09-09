@@ -28,7 +28,7 @@ private[zio] class ZLayerDerivationMacros(val c: whitebox.Context) {
 
     def findDefaultExpr(tpe: Type) = {
       val defaultType = appliedType(
-        weakTypeOf[Default.Aux[_, _, _]].typeConstructor,
+        weakTypeOf[Default.Resolved[_, _, _]].typeConstructor,
         WildcardType,
         WildcardType,
         tpe
@@ -56,16 +56,18 @@ private[zio] class ZLayerDerivationMacros(val c: whitebox.Context) {
                 sym.pos,
                 s"""|Failed to derive a ZLayer for `${tpe.typeSymbol.fullName}`.
                     |
-                    |The type information `R`, `E` in `ZLayer.Default[A]` for the parameter `$name` is missing. The resolved default instance is:
+                    |The type information `R`, `E` in `ZLayer.Default[A]` for the parameter 
+                    |`$name` is missing. The resolved default instance is:
                     |
                     |  ${defaultExpr}: ${defaultExpr.tpe} 
                     |
-                    |A frequent reason for this issue is using an explicit type annotation like `implicit val Default[A] = ???`.
-                    |This can lead to the loss of specific type details.
+                    |A frequent reason for this issue is using an explicit type annotation like 
+                    |`implicit val defaultA: Default[A] = ???`.  This can lead to the loss of 
+                    |specific type details.
                     |
-                    |To resolve, either:
-                    |  1. Remove the type annotation.
-                    |  2. Replace it with `Default.Aux[R, E, A]`.
+                    |To resolve, replace it with `Default.Resolved[R, E, A]`. If you're using an 
+                    |IDE, remove the type annotations and add the inferred type annotation using
+                    |the IDE's assistant feature.
                     |""".stripMargin
               )
 

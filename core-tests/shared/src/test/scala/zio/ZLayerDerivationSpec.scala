@@ -16,11 +16,11 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
 
   case class ZeroDep()
   case class OneDep(val d1: String)
-  case class TwoDependencies(val d1: String, val d2: Int)
+  case class TwoDeps(val d1: String, val d2: Int)
 
   val derivedZero = ZLayer.derive[ZeroDep]
   val derivedOne  = ZLayer.derive[OneDep]
-  val derivedTwo  = ZLayer.derive[TwoDependencies]
+  val derivedTwo  = ZLayer.derive[TwoDeps]
 
   class Curried(val d1: String)(val d2: OneDep)(implicit val d3: Int)
   val derivedCurried = ZLayer.derive[Curried]
@@ -38,8 +38,8 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
     },
     test("two dependencies") {
       for {
-        d2 <- ZIO.service[TwoDependencies]
-      } yield assertTrue(d2 == TwoDependencies("one", 2))
+        d2 <- ZIO.service[TwoDeps]
+      } yield assertTrue(d2 == TwoDeps("one", 2))
     },
     test("curried constructor")(
       for {
@@ -75,7 +75,7 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
   class OneDepAndDefaultTransitive(i: Int, val d: OneDepAndDefaultTransitive.TransitiveString)
   object OneDepAndDefaultTransitive {
     case class TransitiveString(s: String)
-    implicit val defaultTransitiveString: ZLayer.Default.Aux[String, Nothing, TransitiveString] =
+    implicit val defaultTransitiveString: ZLayer.Default.Resolved[String, Nothing, TransitiveString] =
       ZLayer.Default.fromZIO(ZIO.serviceWith[String](TransitiveString(_)))
   }
 
@@ -83,7 +83,7 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
     ZLayer.derive[OneDepAndDefaultTransitive]
 
   val derivedZeroDepAndPromiseOverriden: URLayer[Promise[Nothing, Int], ZeroDepAndPromise] = locally {
-    implicit val overridenPromise: ZLayer.Default.Aux[Promise[Nothing, Int], Nothing, Promise[Nothing, Int]] =
+    implicit val overridenPromise: ZLayer.Default.Resolved[Promise[Nothing, Int], Nothing, Promise[Nothing, Int]] =
       ZLayer.Default.service[Promise[Nothing, Int]]
 
     ZLayer.derive[ZeroDepAndPromise]
@@ -183,11 +183,11 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
     }
   )
 
-  class HasUnspecifiedDefault(dep: HasUnspecifiedDefault.Dep)
-  object HasUnspecifiedDefault {
+  class HasUnresolvedDefault(dep: HasUnspecifiedDefault.Dep)
+  object HasUnresolvedDefault {
     case class Dep(s: String)
 
-    // correct annotation  : ZLayer.Default.Aux[Any, Nothing, Dep]
+    // correct annotation  : ZLayer.Default.Resolved[Any, Nothing, Dep]
     implicit val defaultDep: ZLayer.Default[Dep] = ZLayer.Default.succeed(Dep("default"))
   }
 
@@ -197,7 +197,7 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
   def failureSuite = suite("fails to derive")(
     test("ZLayer.Default[A] with incorrect type annotation")(
       for {
-        res <- typeCheck("ZLayer.derive[HasUnspecifiedDefault]")
+        res <- typeCheck("ZLayer.derive[HasUnresolvedDefault]")
       } yield
         if (TestVersion.isScala2)
           assertTrue(res.left.exists(_.startsWith("Failed to derive a ZLayer")))

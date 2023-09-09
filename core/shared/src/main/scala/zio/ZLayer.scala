@@ -506,9 +506,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    *
    * @note
    *   When explicitly type-annotating the implicit val, ensure it's in the form
-   *   `ZLayer.Default.Aux[R, E, A]` rather than just `ZLayer.Default[A]` to
-   *   ensure correct type inference and dependency resolution during `ZLayer`
-   *   derivation.
+   *   `ZLayer.Default.Resolved[R, E, A]` rather than just `ZLayer.Default[A]`
+   *   to ensure correct type inference and dependency resolution during
+   *   `ZLayer` derivation.
    */
   trait Default[+A] {
     type R
@@ -518,7 +518,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   }
   object Default extends DefaultInstances0 {
 
-    type Aux[R0, E0, A] = Default[A] {
+    type Resolved[R0, E0, A] = Default[A] {
       type R = R0
       type E = E0
     }
@@ -526,24 +526,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     /**
      * Summons the implicit default for the specified type.
      */
-    def apply[A](implicit ev: Default[A]): Default.Aux[ev.R, ev.E, A] = ev
+    def apply[A](implicit ev: Default[A]): Default.Resolved[ev.R, ev.E, A] = ev
 
     /**
      * Constructs a default layer using the provided value.
      */
-    def succeed[A: Tag](a: => A)(implicit trace: Trace): Default.Aux[Any, Nothing, A] =
+    def succeed[A: Tag](a: => A)(implicit trace: Trace): Default.Resolved[Any, Nothing, A] =
       Default.fromZIO(ZIO.succeed(a))
 
     /**
      * Constructs a default layer using the provided ZIO value.
      */
-    def fromZIO[R, E, A: Tag](zio: => ZIO[R, E, A])(implicit trace: Trace): Default.Aux[R, E, A] =
-      fromZLayer(ZLayer.fromZIO(zio))
+    def fromZIO[R, E, A: Tag](zio: => ZIO[R, E, A])(implicit trace: Trace): Default.Resolved[R, E, A] =
+      fromLayer(ZLayer.fromZIO(zio))
 
     /**
      * Uses the provided layer as the default layer.
      */
-    def fromZLayer[R0, E0, A: Tag](zlayer: => ZLayer[R0, E0, A])(implicit trace: Trace): Default.Aux[R0, E0, A] =
+    def fromLayer[R0, E0, A: Tag](zlayer: => ZLayer[R0, E0, A])(implicit trace: Trace): Default.Resolved[R0, E0, A] =
       new Default[A] {
         type R = R0
         type E = E0
@@ -560,7 +560,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * {{{
      * class Wheels(number: Int)
      * object Wheels {
-     *   implicit val defaultWheels: ZLayer.Default.Aux[Any, Nothing, Wheels] =
+     *   implicit val defaultWheels: ZLayer.Default.Resolved[Any, Nothing, Wheels] =
      *     ZLayer.Default.succeed(new Wheels(4))
      * }
      * class Car(wheels: Wheels)
@@ -568,23 +568,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * val carLayer1: ULayer[Car] = ZLayer.derive // wheels.number == 4
      * val carLayer2: URLayer[Wheels, Car] = locally {
      *   // The default instance is discarded
-     *   implicit val newWheels: ZLayer.Default.Aux[Wheels, Nothing, Wheels] =
+     *   implicit val newWheels: ZLayer.Default.Resolved[Wheels, Nothing, Wheels] =
      *       ZLayer.Default.service[Wheels]
      *
      *   ZLayer.derive[Car]
      * }
      * }}}
      */
-    def service[A: Tag](implicit trace: Trace): Default.Aux[A, Nothing, A] =
-      fromZLayer(ZLayer.service[A])
+    def service[A: Tag](implicit trace: Trace): Default.Resolved[A, Nothing, A] =
+      fromLayer(ZLayer.service[A])
 
-    implicit final class ZLayerDefaultInvariantOps[R, E, A](private val self: Default.Aux[R, E, A]) extends AnyVal {
+    implicit final class ZLayerDefaultInvariantOps[R, E, A](private val self: Default.Resolved[R, E, A])
+        extends AnyVal {
 
       /**
        * Returns a new default layer mapped by the specified function.
        */
-      def map[B: Tag](f: A => B)(implicit tag: Tag[A], trace: Trace): Default.Aux[R, E, B] =
-        fromZLayer(self.layer.project(f))
+      def map[B: Tag](f: A => B)(implicit tag: Tag[A], trace: Trace): Default.Resolved[R, E, B] =
+        fromLayer(self.layer.project(f))
 
       /**
        * Constructs a new default layer dynamically based on the output of the
@@ -592,29 +593,36 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
        */
       def mapZIO[R1 <: R, E1 >: E, B: Tag](
         k: A => ZIO[R1, E1, B]
-      )(implicit tag: Tag[A], trace: Trace): Default.Aux[R1, E1, B] =
-        fromZLayer(self.layer.flatMap(a => ZLayer(k(a.get[A]))))
+      )(implicit tag: Tag[A], trace: Trace): Default.Resolved[R1, E1, B] =
+        fromLayer(self.layer.flatMap(a => ZLayer(k(a.get[A]))))
     }
 
-    implicit def deriveDefaultConfig[A: Tag](implicit ev: Config[A], trace: Trace): Default.Aux[Any, Config.Error, A] =
+    implicit def deriveDefaultConfig[A: Tag](implicit
+      ev: Config[A],
+      trace: Trace
+    ): Default.Resolved[Any, Config.Error, A] =
       fromZIO(ZIO.config(ev))
 
-    implicit def deriveDefaultPromise[E: Tag, A: Tag](implicit trace: Trace): Default.Aux[Any, Nothing, Promise[E, A]] =
+    implicit def deriveDefaultPromise[E: Tag, A: Tag](implicit
+      trace: Trace
+    ): Default.Resolved[Any, Nothing, Promise[E, A]] =
       fromZIO(Promise.make[E, A])
 
-    implicit def deriveDefaultQueue[A: Tag](implicit trace: Trace): Default.Aux[Any, Nothing, Queue[A]] =
+    implicit def deriveDefaultQueue[A: Tag](implicit trace: Trace): Default.Resolved[Any, Nothing, Queue[A]] =
       fromZIO(Queue.unbounded[A])
 
-    implicit def deriveDefaultHub[A: Tag](implicit trace: Trace): Default.Aux[Any, Nothing, Hub[A]] =
+    implicit def deriveDefaultHub[A: Tag](implicit trace: Trace): Default.Resolved[Any, Nothing, Hub[A]] =
       fromZIO(Hub.unbounded[A])
 
-    implicit def deriveDefaultRef[A: Tag](implicit ev: Default[A], trace: Trace): Default.Aux[ev.R, ev.E, Ref[A]] =
-      fromZLayer(ev.layer.project(a => Unsafe.unsafe(implicit unsafe => Ref.unsafe.make(a))))
+    implicit def deriveDefaultRef[A: Tag](implicit ev: Default[A], trace: Trace): Default.Resolved[ev.R, ev.E, Ref[A]] =
+      fromLayer(ev.layer.project(a => Unsafe.unsafe(implicit unsafe => Ref.unsafe.make(a))))
   }
 
   private[ZLayer] trait DefaultInstances0 { this: Default.type =>
 
-    implicit def defaultPromiseNothing[A: Tag](implicit trace: Trace): Default.Aux[Any, Nothing, Promise[Nothing, A]] =
+    implicit def defaultPromiseNothing[A: Tag](implicit
+      trace: Trace
+    ): Default.Resolved[Any, Nothing, Promise[Nothing, A]] =
       this.fromZIO(Promise.make[Nothing, A])
   }
 

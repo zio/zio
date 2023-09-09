@@ -49,7 +49,7 @@ There are three main ways to create a `ZLayer.Default`:
 
 1. `ZLayer.Default.succeed` for creating default values from simple values.
 2. `ZLayer.Default.fromZIO` for creating default values from effects.
-3. `ZLayer.Default.fromZLayer` for creating default values from layers.
+3. `ZLayer.Default.fromLayer` for creating default values from layers.
 
 ### Overriding Predefined Default Values
 
@@ -64,7 +64,7 @@ import zio._
 
 class Wheels(number: Int)
 object Wheels {
-  implicit val defaultWheels: ZLayer.Default.Aux[Any, Nothing, Wheels] =
+  implicit val defaultWheels: ZLayer.Default.Resolved[Any, Nothing, Wheels] =
     ZLayer.Default.succeed(new Wheels(4)) 
 }
 class Car(wheels: Wheels)
@@ -72,14 +72,14 @@ class Car(wheels: Wheels)
 val carLayer1: ZLayer[Any, Nothing, Car] = ZLayer.derive[Car] // wheels.number == 4
 val carLayer2: ZLayer[Wheels, Nothing, Car] = locally {
   // The default instance is discarded
-  implicit val newWheels: ZLayer.Default.Aux[Wheels, Nothing, Wheels] =
+  implicit val newWheels: ZLayer.Default.Resolved[Wheels, Nothing, Wheels] =
      ZLayer.Default.service[Wheels]
   
   ZLayer.derive[Car]
 }
 ```
 
-### Caveat: Use `ZLayer.Default.Aux[R, E, A]` instead of `ZLayer.Default[A]` for explicit type annotation
+### Caveat: Use `ZLayer.Default.Resolved[R, E, A]` instead of `ZLayer.Default[A]` for explicit type annotation
 
 ## Lifecycle Hooks
 

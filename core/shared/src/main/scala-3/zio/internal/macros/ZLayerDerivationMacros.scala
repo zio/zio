@@ -38,7 +38,7 @@ object ZLayerDerivationMacros {
     val (fromServices, fromDefaults) = params.partitionMap { p =>
       p.tpt.tpe.asType match {
         case '[r] =>
-          Expr.summon[Default.Aux[_, _, r]] match {
+          Expr.summon[Default.Resolved[_, _, r]] match {
             case Some(d) => Right((p, d))
             case None    => Left(p)
           }
@@ -130,16 +130,17 @@ object ZLayerDerivationMacros {
           report.errorAndAbort(
             s"""|Failed to derive a ZLayer for `${tpeSymbol.fullName}`.
                 |
-                |The type information `R`, `E` in `ZLayer.Default[A]` for the parameter `${p.name}` is missing. The resolved default instance is:
+                |The type information `R`, `E` in `ZLayer.Default[A]` for the parameter 
+                |`${p.name}` is missing. The resolved default instance is:
                 |
                 |  ${d.show}: ${d.asTerm.tpe.widen.show} 
                 |
-                |A frequent reason for this issue is using an explicit type annotation like `implicit val Default[A] = ???`.
-                |This can lead to the loss of specific type details.
+                |A frequent reason for this issue is using an explicit type annotation like 
+                |`given Default[A] = ???`.  This can lead to the loss of specific type details.
                 |
-                |To resolve, either:
-                |  1. Remove the type annotation.
-                |  2. Replace it with `Default.Aux[R, E, A]`.
+                |To resolve, replace it with `Default.Resolved[R, E, A]`. If you're using an 
+                |IDE, remove the type annotations and add the inferred type annotation using
+                |the IDE's assistant feature.
                 |""".stripMargin,
             d.asTerm.pos
           )
