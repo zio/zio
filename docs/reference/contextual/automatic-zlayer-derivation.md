@@ -79,10 +79,10 @@ val carLayer2: ZLayer[Wheels, Nothing, Car] = locally {
 }
 ```
 
-### Caveat: Use `ZLayer.Default.Resolved[R, E, A]` instead of `ZLayer.Default[A]` for explicit type annotation
+### Caveat: Use `ZLayer.Default.Resolved[R, E, A]` instead of `ZLayer.Default[A]` for type annotation
 
-When providing explicit type annotations for `ZLayer.derive`, you must use `ZLayer.Default.Derived[R, E, A]` instead of
-the more general `ZLayer.Default[A]`. Using the latter will result in a compilation error due to missing type details.
+When providing type annotations for `ZLayer.derive`, you must use `ZLayer.Default.Derived[R, E, A]` instead of the more
+general `ZLayer.Default[A]`. Using the latter will result in a compilation error due to missing type details.
 
 If you're uncertain about the exact type signature, a practical approach is to omit the type annotation initially. Then,
 use your IDE's autocomplete feature to insert the inferred type.

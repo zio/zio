@@ -138,7 +138,7 @@ object ZLayerDerivationMacros {
                 |
                 |  ${d.show}: ${d.asTerm.tpe.widen.show} 
                 |
-                |A frequent reason for this issue is using an explicit type annotation like 
+                |A frequent reason for this issue is using an incomplete type annotation like 
                 |`given ZLayer.Default[A] = ???`.  This can lead to the loss of specific type
                 |details.
                 |
