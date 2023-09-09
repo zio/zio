@@ -51,7 +51,10 @@ object ZLayerDerivationMacros {
         case sym =>
           sym.typeArgs match {
             case r :: e :: Nil => Some((r, e))
-            case other         => report.errorAndAbort(s"Failed to derive a ZLayer for `${tpeSymbol.fullName}`: Defect in `ZLayer.derive` found.")
+            case other =>
+              report.errorAndAbort(
+                s"Failed to derive a ZLayer for `${tpeSymbol.fullName}`: Defect in `ZLayer.derive` found."
+              )
           }
       }
 
@@ -136,10 +139,11 @@ object ZLayerDerivationMacros {
                 |  ${d.show}: ${d.asTerm.tpe.widen.show} 
                 |
                 |A frequent reason for this issue is using an explicit type annotation like 
-                |`given Default[A] = ???`.  This can lead to the loss of specific type details.
+                |`given ZLayer.Default[A] = ???`.  This can lead to the loss of specific type
+                |details.
                 |
-                |To resolve, replace it with `Default.Resolved[R, E, A]`. If you're using an 
-                |IDE, remove the type annotations and add the inferred type annotation using
+                |To resolve, replace it with `ZLayer.Default.Resolved[R, E, A]`. If you're using
+                |an IDE, remove the type annotations and add the inferred type annotation using
                 |the IDE's assistant feature.
                 |""".stripMargin,
             d.asTerm.pos
@@ -176,7 +180,8 @@ object ZLayerDerivationMacros {
                       ps,
                       args.updated(
                         param.name,
-                        Select.unique(Ident(arg1.symbol.termRef), "get")
+                        Select
+                          .unique(Ident(arg1.symbol.termRef), "get")
                           .appliedToType(paramType)
                       )
                     ).changeOwner(meth)

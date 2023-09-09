@@ -62,11 +62,11 @@ private[zio] class ZLayerDerivationMacros(val c: whitebox.Context) {
                     |  ${defaultExpr}: ${defaultExpr.tpe} 
                     |
                     |A frequent reason for this issue is using an explicit type annotation like 
-                    |`implicit val defaultA: Default[A] = ???`.  This can lead to the loss of 
+                    |`implicit val defaultA: ZLayer.Default[A] = ???`.  This can lead to the loss of
                     |specific type details.
                     |
-                    |To resolve, replace it with `Default.Resolved[R, E, A]`. If you're using an 
-                    |IDE, remove the type annotations and add the inferred type annotation using
+                    |To resolve, replace it with `ZLayer.Default.Resolved[R, E, A]`. If you're using
+                    |an IDE, remove the type annotations and add the inferred type annotation using
                     |the IDE's assistant feature.
                     |""".stripMargin
               )
