@@ -25,8 +25,8 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
   class Curried(val d1: String)(val d2: OneDep)(implicit val d3: Int)
   val derivedCurried = ZLayer.derive[Curried]
 
-  class PolySimple[A](val a: A)
-  val derivedPolySimpleInt = ZLayer.derive[PolySimple[Int]]
+  class PolySimple[A, B](val b: B)(val a: A)
+  val derivedPolySimple = ZLayer.derive[PolySimple[Int, String]]
 
   def basicSuite = suite("derives")(
     test("zero dependency") {
@@ -55,15 +55,18 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
     ),
     test("parametric polymorphism")(
       for {
-        p <- ZIO.service[PolySimple[Int]]
-      } yield assertTrue(p.a == 2)
+        p <- ZIO.service[PolySimple[Int, String]]
+      } yield assertTrue(
+        p.a == 2,
+        p.b == "one"
+      )
     )
   ).provide(
     derivedZero,
     derivedOne,
     derivedTwo,
     derivedCurried,
-    derivedPolySimpleInt,
+    derivedPolySimple,
     ZLayer.succeed("one"),
     ZLayer.succeed(2)
   )

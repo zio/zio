@@ -37,7 +37,7 @@ object ZLayerDerivationMacros {
     // we need to find the actual types for type parameters by ourselves.
     //
     // For now, it only works for classes with simply parameterized
-    // consructors like `class Service[A, B](a: B, b: B)`.
+    // consructors like `class Service[A, B](a: A, b: B)`.
     //
     // Refer to: https://github.com/lampepfl/dotty/discussions/14957
     val paramTypes = locally {
