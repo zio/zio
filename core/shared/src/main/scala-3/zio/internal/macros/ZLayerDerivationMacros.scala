@@ -33,17 +33,43 @@ object ZLayerDerivationMacros {
     val paramss = constructor.tree.asInstanceOf[DefDef].termParamss
     val params  = paramss.flatMap(_.params.asInstanceOf[List[ValDef]])
 
+    // Scala 3 reflection API does not expose `asSeenFrom` yet ,so that 
+    // we need to find the actual types for type parameters by ourselves.
+    //
+    // For now, it only works for classes with simply parameterized
+    // consructors like `class Service[A, B](a: B, b: B)`.
+    //
+    // Refer to: https://github.com/lampepfl/dotty/discussions/14957
+    val paramTypes = locally {
+      val builder = List.newBuilder[TypeRepr]
+
+      def unroll(meth: TypeRepr): List[TypeRepr] =
+        meth match {
+          case MethodType(_, pTypes, res) =>
+            builder ++= pTypes
+            unroll(res)
+          case _ =>
+            builder.result()
+        }
+
+      val ctorType =
+        tpe.memberType(constructor).appliedTo(tpe.typeArgs)
+
+      unroll(ctorType)
+    }
+
     val trace = '{ summon[Trace] }.asTerm
 
-    val (fromServices, fromDefaults) = params.partitionMap { p =>
-      p.tpt.tpe.asType match {
-        case '[r] =>
-          Expr.summon[Default.Resolved[_, _, r]] match {
-            case Some(d) => Right((p, d))
-            case None    => Left(p)
-          }
+    val (fromServices, fromDefaults) =
+      params.zip(paramTypes).partitionMap { case (pTerm, pType) =>
+        pType.asType match {
+          case '[r] =>
+            Expr.summon[Default.Resolved[_, _, r]] match {
+              case Some(d) => Right((pTerm.name, pType, d))
+              case None    => Left((pTerm.name, pType))
+            }
+        }
       }
-    }
 
     val hookRETypes =
       tpe.baseType(TypeRepr.of[LifecycleHooks].typeSymbol) match {
@@ -60,14 +86,17 @@ object ZLayerDerivationMacros {
 
     val (rInit, eInit) = hookRETypes.getOrElse((TypeRepr.of[Any], TypeRepr.of[Nothing]))
 
-    val serviceTypes = fromServices.scanRight(rInit)((p, r0) => AndType(p.tpt.tpe, r0))
+    val serviceTypes = fromServices.scanRight(rInit) { case ((_, pType), r0) =>
+      AndType(pType, r0)
+    }
 
-    def runNoDefault(remains: List[(ValDef, TypeRepr)], args: Map[String, Term]): Term =
+    def runNoDefault(remains: List[((String, TypeRepr), TypeRepr)], args: Map[String, Term]): Term =
       remains match {
         case Nil =>
           val newInstance =
             New(TypeTree.of[A])
               .select(constructor)
+              .appliedToTypes(tpe.typeArgs)
               .appliedToArgss(paramss.map(_.params.map(p => args(p.name))))
               .asExprOf[A]
 
@@ -89,21 +118,20 @@ object ZLayerDerivationMacros {
               }
           }
 
-        case (param, rType) :: ps =>
-          val paramType = param.tpt.tpe.dealias
-          (rType.asType, eInit.asType, paramType.asType) match {
-            case ('[r], '[e], '[p]) =>
-              val nextEffect = '{ ZIO.service[p] }
+        case ((pName, pType), rType) :: ps =>
+          (rType.asType, eInit.asType, pType.asType) match {
+            case ('[r], '[e], '[a]) =>
+              val nextEffect = '{ ZIO.service[a] }
 
               val lambda = Lambda(
                 Symbol.spliceOwner,
-                MethodType(List(param.name))(
-                  _ => param.tpt.tpe :: Nil,
+                MethodType(List(pName))(
+                  _ => pType :: Nil,
                   _ => TypeRepr.of[ZIO[r with Scope, e, A]]
                 ),
                 {
                   case (meth, (arg1: Term) :: Nil) =>
-                    runNoDefault(ps, args.updated(param.name, Ident(arg1.symbol.termRef)))
+                    runNoDefault(ps, args.updated(pName, Ident(arg1.symbol.termRef)))
                       .changeOwner(meth)
 
                   case _ =>
@@ -123,7 +151,7 @@ object ZLayerDerivationMacros {
       }
 
     val reTypes =
-      fromDefaults.scanRight((serviceTypes.head, eInit)) { case ((p, d), (r0, e0)) =>
+      fromDefaults.scanRight((serviceTypes.head, eInit)) { case ((pName, _, d), (r0, e0)) =>
         val dType = d.asTerm.tpe.dealias
         val r     = dType.select(dType.typeSymbol.typeMember("R")).dealias
         val e     = dType.select(dType.typeSymbol.typeMember("E")).dealias
@@ -134,7 +162,7 @@ object ZLayerDerivationMacros {
             s"""|Failed to derive a ZLayer for `${tpeSymbol.fullName}`.
                 |
                 |The type information `R`, `E` in `ZLayer.Default[A]` for the parameter 
-                |`${p.name}` is missing. The resolved default instance is:
+                |`${pName}` is missing. The resolved default instance is:
                 |
                 |  ${d.show}: ${d.asTerm.tpe.widen.show} 
                 |
@@ -153,24 +181,29 @@ object ZLayerDerivationMacros {
         (AndType(r0, r), OrType(e0, e))
       }
 
-    def runDefault(remaining: List[((ValDef, Expr[Default[_]]), (TypeRepr, TypeRepr))], args: Map[String, Term]): Term =
+    def runDefault(
+      remaining: List[((String, TypeRepr, Expr[Default[_]]), (TypeRepr, TypeRepr))],
+      args: Map[String, Term]
+    ): Term =
       remaining match {
         case Nil =>
           (serviceTypes.head.asType, eInit.asType) match {
             case ('[r], '[e]) =>
-              val make = runNoDefault(fromServices.zip(serviceTypes), args).asExprOf[ZIO[r with Scope, e, A]]
+              val make =
+                runNoDefault(fromServices.zip(serviceTypes), args)
+                  .asExprOf[ZIO[r with Scope, e, A]]
+
               '{ ZLayer.scoped($make) }.asTerm
           }
 
-        case ((param, d), (rType, eType)) :: ps =>
-          val paramType = param.tpt.tpe
-          (rType.asType, eType.asType, paramType.asType) match {
+        case ((pName, pType, d), (rType, eType)) :: ps =>
+          (rType.asType, eType.asType, pType.asType) match {
             case ('[r], '[e], '[a]) =>
               val nextEffect = '{ $d.layer }
 
               val lambda = Lambda(
                 Symbol.spliceOwner,
-                MethodType(List(param.name))(
+                MethodType(List(pName))(
                   _ => TypeRepr.of[ZEnvironment[a]] :: Nil,
                   _ => TypeRepr.of[ZLayer[r, e, A]]
                 ),
@@ -179,10 +212,10 @@ object ZLayerDerivationMacros {
                     runDefault(
                       ps,
                       args.updated(
-                        param.name,
+                        pName,
                         Select
                           .unique(Ident(arg1.symbol.termRef), "get")
-                          .appliedToType(paramType)
+                          .appliedToType(pType)
                       )
                     ).changeOwner(meth)
 
@@ -205,7 +238,8 @@ object ZLayerDerivationMacros {
 
     (rType.simplified.asType, eType.simplified.asType) match {
       case ('[r], '[e]) =>
-        runDefault(fromDefaults.zip(reTypes), Map.empty).asExprOf[ZLayer[r, e, A]]
+        runDefault(fromDefaults.zip(reTypes), Map.empty)
+          .asExprOf[ZLayer[r, e, A]]
     }
   }
 }

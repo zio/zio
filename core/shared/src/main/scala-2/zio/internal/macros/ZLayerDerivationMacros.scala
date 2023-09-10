@@ -39,7 +39,7 @@ private[zio] class ZLayerDerivationMacros(val c: whitebox.Context) {
     val params: List[Param] =
       ctor.paramLists.flatMap(_.map { sym =>
         val name    = sym.name.toTermName
-        val depType = sym.typeSignature
+        val depType = sym.info.asSeenFrom(tpe, tpe.typeSymbol)
 
         val defaultExpr = findDefaultExpr(depType)
 
