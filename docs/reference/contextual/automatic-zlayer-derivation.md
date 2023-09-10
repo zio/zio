@@ -64,7 +64,7 @@ import zio._
 
 class Wheels(number: Int)
 object Wheels {
-  implicit val defaultWheels: ZLayer.Default.Resolved[Any, Nothing, Wheels] =
+  implicit val defaultWheels: ZLayer.Default.WithContext[Any, Nothing, Wheels] =
     ZLayer.Default.succeed(new Wheels(4)) 
 }
 class Car(wheels: Wheels)
@@ -72,17 +72,17 @@ class Car(wheels: Wheels)
 val carLayer1: ZLayer[Any, Nothing, Car] = ZLayer.derive[Car] // wheels.number == 4
 val carLayer2: ZLayer[Wheels, Nothing, Car] = locally {
   // The default instance is discarded
-  implicit val newWheels: ZLayer.Default.Resolved[Wheels, Nothing, Wheels] =
+  implicit val newWheels: ZLayer.Default.WithContext[Wheels, Nothing, Wheels] =
      ZLayer.Default.service[Wheels]
   
   ZLayer.derive[Car]
 }
 ```
 
-### Caveat: Use `ZLayer.Default.Resolved[R, E, A]` instead of `ZLayer.Default[A]` for type annotation
+### Caveat: Use `ZLayer.Default.WithContext[R, E, A]` instead of `ZLayer.Default[A]` for type annotation
 
-When providing type annotations for `ZLayer.derive`, you must use `ZLayer.Default.Derived[R, E, A]` instead of the more
-general `ZLayer.Default[A]`. Using the latter will result in a compilation error due to missing type details.
+When providing type annotations for `ZLayer.derive`, you must use `ZLayer.Default.WithContext[R, E, A]` instead of the
+more general `ZLayer.Default[A]`. Using the latter will result in a compilation error due to missing type details.
 
 If you're uncertain about the exact type signature, a practical approach is to omit the type annotation initially. Then,
 use your IDE's autocomplete feature to insert the inferred type.

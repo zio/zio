@@ -33,7 +33,7 @@ object ZLayerDerivationMacros {
     val paramss = constructor.tree.asInstanceOf[DefDef].termParamss
     val params  = paramss.flatMap(_.params.asInstanceOf[List[ValDef]])
 
-    // Scala 3 reflection API does not expose `asSeenFrom` yet ,so that 
+    // Scala 3 reflection API does not expose `asSeenFrom` yet ,so that
     // we need to find the actual types for type parameters by ourselves.
     //
     // For now, it only works for classes with simply parameterized
@@ -64,7 +64,7 @@ object ZLayerDerivationMacros {
       params.zip(paramTypes).partitionMap { case (pTerm, pType) =>
         pType.asType match {
           case '[r] =>
-            Expr.summon[Default.Resolved[_, _, r]] match {
+            Expr.summon[Default.WithContext[_, _, r]] match {
               case Some(d) => Right((pTerm.name, pType, d))
               case None    => Left((pTerm.name, pType))
             }
@@ -170,9 +170,9 @@ object ZLayerDerivationMacros {
                 |`given ZLayer.Default[A] = ???`.  This can lead to the loss of specific type
                 |details.
                 |
-                |To resolve, replace it with `ZLayer.Default.Resolved[R, E, A]`. If you're using
-                |an IDE, remove the type annotations and add the inferred type annotation using
-                |the IDE's assistant feature.
+                |To resolve, replace it with `ZLayer.Default.WithContext[R, E, A]`. If you're  
+                |using an IDE, remove the type annotations and add the inferred type annotation
+                |using the IDE's assistant feature.
                 |""".stripMargin,
             d.asTerm.pos
           )

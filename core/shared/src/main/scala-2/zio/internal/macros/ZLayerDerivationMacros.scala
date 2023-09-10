@@ -28,7 +28,7 @@ private[zio] class ZLayerDerivationMacros(val c: whitebox.Context) {
 
     def findDefaultExpr(tpe: Type) = {
       val defaultType = appliedType(
-        weakTypeOf[Default.Resolved[_, _, _]].typeConstructor,
+        weakTypeOf[Default.WithContext[_, _, _]].typeConstructor,
         WildcardType,
         WildcardType,
         tpe
@@ -65,9 +65,9 @@ private[zio] class ZLayerDerivationMacros(val c: whitebox.Context) {
                     |`implicit val defaultA: ZLayer.Default[A] = ???`.  This can lead to the loss of
                     |specific type details.
                     |
-                    |To resolve, replace it with `ZLayer.Default.Resolved[R, E, A]`. If you're using
-                    |an IDE, remove the type annotations and add the inferred type annotation using
-                    |the IDE's assistant feature.
+                    |To resolve, replace it with `ZLayer.Default.WithContext[R, E, A]`. If you're
+                    |using an IDE, remove the type annotations and add the inferred type annotation
+                     using the IDE's assistant feature.
                     |""".stripMargin
               )
 

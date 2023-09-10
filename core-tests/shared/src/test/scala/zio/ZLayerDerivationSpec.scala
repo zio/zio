@@ -87,7 +87,7 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
   class OneDepAndDefaultTransitive(i: Int, val d: OneDepAndDefaultTransitive.TransitiveString)
   object OneDepAndDefaultTransitive {
     case class TransitiveString(s: String)
-    implicit val defaultTransitiveString: ZLayer.Default.Resolved[String, Nothing, TransitiveString] =
+    implicit val defaultTransitiveString: ZLayer.Default.WithContext[String, Nothing, TransitiveString] =
       ZLayer.Default.fromZIO(ZIO.serviceWith[String](TransitiveString(_)))
   }
 
@@ -95,7 +95,7 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
     ZLayer.derive[OneDepAndDefaultTransitive]
 
   val derivedZeroDepAndPromiseOverriden: URLayer[Promise[Nothing, Int], ZeroDepAndPromise] = locally {
-    implicit val overridenPromise: ZLayer.Default.Resolved[Promise[Nothing, Int], Nothing, Promise[Nothing, Int]] =
+    implicit val overridenPromise: ZLayer.Default.WithContext[Promise[Nothing, Int], Nothing, Promise[Nothing, Int]] =
       ZLayer.Default.service[Promise[Nothing, Int]]
 
     ZLayer.derive[ZeroDepAndPromise]
@@ -199,7 +199,7 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
   object HasUnresolvedDefault {
     case class Dep(s: String)
 
-    // correct annotation  : ZLayer.Default.Resolved[Any, Nothing, Dep]
+    // correct annotation  : ZLayer.Default.WithContext[Any, Nothing, Dep]
     implicit val defaultDep: ZLayer.Default[Dep] = ZLayer.Default.succeed(Dep("default"))
   }
 

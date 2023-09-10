@@ -505,10 +505,10 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * can be used, bypassing the dependency in the `ZLayer` environment.
    *
    * @note
-   *   When explicitly type-annotating the implicit val, ensure it's in the form
-   *   `ZLayer.Default.Resolved[R, E, A]` rather than just `ZLayer.Default[A]`
-   *   to ensure correct type inference and dependency resolution during
-   *   `ZLayer` derivation.
+   *   When type-annotating the implicit val, ensure it's in the form
+   *   `ZLayer.Default.WithContext[R, E, A]` rather than just
+   *   `ZLayer.Default[A]` to ensure correct type inference and dependency
+   *   resolution during `ZLayer` derivation.
    */
   trait Default[+A] {
     type R
@@ -518,7 +518,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   }
   object Default extends DefaultInstances0 {
 
-    type Resolved[R0, E0, A] = Default[A] {
+    type WithContext[R0, E0, A] = Default[A] {
       type R = R0
       type E = E0
     }
@@ -526,24 +526,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     /**
      * Summons the implicit default for the specified type.
      */
-    def apply[A](implicit ev: Default[A]): Default.Resolved[ev.R, ev.E, A] = ev
+    def apply[A](implicit ev: Default[A]): Default.WithContext[ev.R, ev.E, A] = ev
 
     /**
      * Constructs a default layer using the provided value.
      */
-    def succeed[A: Tag](a: => A)(implicit trace: Trace): Default.Resolved[Any, Nothing, A] =
+    def succeed[A: Tag](a: => A)(implicit trace: Trace): Default.WithContext[Any, Nothing, A] =
       Default.fromZIO(ZIO.succeed(a))
 
     /**
      * Constructs a default layer using the provided ZIO value.
      */
-    def fromZIO[R, E, A: Tag](zio: => ZIO[R, E, A])(implicit trace: Trace): Default.Resolved[R, E, A] =
+    def fromZIO[R, E, A: Tag](zio: => ZIO[R, E, A])(implicit trace: Trace): Default.WithContext[R, E, A] =
       fromLayer(ZLayer.fromZIO(zio))
 
     /**
      * Uses the provided layer as the default layer.
      */
-    def fromLayer[R0, E0, A: Tag](zlayer: => ZLayer[R0, E0, A])(implicit trace: Trace): Default.Resolved[R0, E0, A] =
+    def fromLayer[R0, E0, A: Tag](zlayer: => ZLayer[R0, E0, A])(implicit trace: Trace): Default.WithContext[R0, E0, A] =
       new Default[A] {
         type R = R0
         type E = E0
@@ -560,7 +560,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * {{{
      * class Wheels(number: Int)
      * object Wheels {
-     *   implicit val defaultWheels: ZLayer.Default.Resolved[Any, Nothing, Wheels] =
+     *   implicit val defaultWheels: ZLayer.Default.WithContext[Any, Nothing, Wheels] =
      *     ZLayer.Default.succeed(new Wheels(4))
      * }
      * class Car(wheels: Wheels)
@@ -568,23 +568,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * val carLayer1: ULayer[Car] = ZLayer.derive // wheels.number == 4
      * val carLayer2: URLayer[Wheels, Car] = locally {
      *   // The default instance is discarded
-     *   implicit val newWheels: ZLayer.Default.Resolved[Wheels, Nothing, Wheels] =
+     *   implicit val newWheels: ZLayer.Default.WithContext[Wheels, Nothing, Wheels] =
      *       ZLayer.Default.service[Wheels]
      *
      *   ZLayer.derive[Car]
      * }
      * }}}
      */
-    def service[A: Tag](implicit trace: Trace): Default.Resolved[A, Nothing, A] =
+    def service[A: Tag](implicit trace: Trace): Default.WithContext[A, Nothing, A] =
       fromLayer(ZLayer.service[A])
 
-    implicit final class ZLayerDefaultInvariantOps[R, E, A](private val self: Default.Resolved[R, E, A])
+    implicit final class ZLayerDefaultInvariantOps[R, E, A](private val self: Default.WithContext[R, E, A])
         extends AnyVal {
 
       /**
        * Returns a new default layer mapped by the specified function.
        */
-      def map[B: Tag](f: A => B)(implicit tag: Tag[A], trace: Trace): Default.Resolved[R, E, B] =
+      def map[B: Tag](f: A => B)(implicit tag: Tag[A], trace: Trace): Default.WithContext[R, E, B] =
         fromLayer(self.layer.project(f))
 
       /**
@@ -593,28 +593,31 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
        */
       def mapZIO[R1 <: R, E1 >: E, B: Tag](
         k: A => ZIO[R1, E1, B]
-      )(implicit tag: Tag[A], trace: Trace): Default.Resolved[R1, E1, B] =
+      )(implicit tag: Tag[A], trace: Trace): Default.WithContext[R1, E1, B] =
         fromLayer(self.layer.flatMap(a => ZLayer(k(a.get[A]))))
     }
 
     implicit def deriveDefaultConfig[A: Tag](implicit
       ev: Config[A],
       trace: Trace
-    ): Default.Resolved[Any, Config.Error, A] =
+    ): Default.WithContext[Any, Config.Error, A] =
       fromZIO(ZIO.config(ev))
 
     implicit def deriveDefaultPromise[E: Tag, A: Tag](implicit
       trace: Trace
-    ): Default.Resolved[Any, Nothing, Promise[E, A]] =
+    ): Default.WithContext[Any, Nothing, Promise[E, A]] =
       fromZIO(Promise.make[E, A])
 
-    implicit def deriveDefaultQueue[A: Tag](implicit trace: Trace): Default.Resolved[Any, Nothing, Queue[A]] =
+    implicit def deriveDefaultQueue[A: Tag](implicit trace: Trace): Default.WithContext[Any, Nothing, Queue[A]] =
       fromZIO(Queue.unbounded[A])
 
-    implicit def deriveDefaultHub[A: Tag](implicit trace: Trace): Default.Resolved[Any, Nothing, Hub[A]] =
+    implicit def deriveDefaultHub[A: Tag](implicit trace: Trace): Default.WithContext[Any, Nothing, Hub[A]] =
       fromZIO(Hub.unbounded[A])
 
-    implicit def deriveDefaultRef[A: Tag](implicit ev: Default[A], trace: Trace): Default.Resolved[ev.R, ev.E, Ref[A]] =
+    implicit def deriveDefaultRef[A: Tag](implicit
+      ev: Default[A],
+      trace: Trace
+    ): Default.WithContext[ev.R, ev.E, Ref[A]] =
       fromLayer(ev.layer.project(a => Unsafe.unsafe(implicit unsafe => Ref.unsafe.make(a))))
   }
 
@@ -622,7 +625,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
     implicit def defaultPromiseNothing[A: Tag](implicit
       trace: Trace
-    ): Default.Resolved[Any, Nothing, Promise[Nothing, A]] =
+    ): Default.WithContext[Any, Nothing, Promise[Nothing, A]] =
       this.fromZIO(Promise.make[Nothing, A])
   }
 
