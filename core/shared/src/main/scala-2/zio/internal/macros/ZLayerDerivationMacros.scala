@@ -2,7 +2,6 @@ package zio.internal.macros
 
 import zio._
 import scala.reflect.macros.whitebox
-import ZLayer.{Default, LifecycleHooks}
 
 private[zio] class ZLayerDerivationMacros(val c: whitebox.Context) {
   import c.universe._
@@ -28,7 +27,7 @@ private[zio] class ZLayerDerivationMacros(val c: whitebox.Context) {
 
     def findDefaultExpr(tpe: Type) = {
       val defaultType = appliedType(
-        weakTypeOf[Default.WithContext[_, _, _]].typeConstructor,
+        weakTypeOf[ZLayer.Default.WithContext[_, _, _]].typeConstructor,
         WildcardType,
         WildcardType,
         tpe
@@ -99,12 +98,12 @@ private[zio] class ZLayerDerivationMacros(val c: whitebox.Context) {
     val newInstance = q"new $tpe(...$constructorArgss)"
 
     val (zlayerCtor, make) =
-      if (tpe <:< typeOf[LifecycleHooks[_, _]]) {
+      if (tpe <:< typeOf[ZLayer.Derive.Scoped[_, _]]) {
         q"_root_.zio.ZLayer.scoped" ->
-          q"""_root_.zio.ZIO.suspendSucceed {
+          q"""{
             val instance = $newInstance
-            instance.initialize.as(instance)
-          }.withFinalizer(_.cleanup)"""
+            instance.scoped.as(instance)
+          }"""
       } else
         q"_root_.zio.ZLayer.apply" ->
           q"_root_.zio.ZIO.succeed[$tpe]($newInstance)"

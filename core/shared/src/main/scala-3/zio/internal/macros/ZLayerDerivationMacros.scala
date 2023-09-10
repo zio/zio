@@ -1,7 +1,6 @@
 package zio.internal.macros
 
 import zio._
-import zio.ZLayer.{Default, LifecycleHooks}
 import scala.quoted._
 import zio.internal.macros.StringUtils.StringOps
 import zio.internal.ansi.AnsiStringOps
@@ -64,7 +63,7 @@ object ZLayerDerivationMacros {
       params.zip(paramTypes).partitionMap { case (pTerm, pType) =>
         pType.asType match {
           case '[r] =>
-            Expr.summon[Default.WithContext[_, _, r]] match {
+            Expr.summon[ZLayer.Default.WithContext[_, _, r]] match {
               case Some(d) => Right((pTerm.name, pType, d))
               case None    => Left((pTerm.name, pType))
             }
@@ -72,7 +71,7 @@ object ZLayerDerivationMacros {
       }
 
     val hookRETypes =
-      tpe.baseType(TypeRepr.of[LifecycleHooks].typeSymbol) match {
+      tpe.baseType(TypeRepr.of[ZLayer.Derive.Scoped].typeSymbol) match {
         case sym if sym.typeSymbol.isNoSymbol => None
         case sym =>
           sym.typeArgs match {
@@ -108,12 +107,8 @@ object ZLayerDerivationMacros {
               (rType.asType, eType.asType) match {
                 case ('[r], '[e]) =>
                   '{
-                    ZIO
-                      .suspendSucceed[r, e, A] {
-                        val instance = ${ newInstance }
-                        instance.asInstanceOf[LifecycleHooks[r, e]].initialize.as(instance)
-                      }
-                      .withFinalizer(_.asInstanceOf[LifecycleHooks[r, e]].cleanup)
+                    val instance = ${ newInstance }
+                    instance.asInstanceOf[ZLayer.Derive.Scoped[r, e]].scoped.as(instance)
                   }.asTerm
               }
           }
@@ -182,7 +177,7 @@ object ZLayerDerivationMacros {
       }
 
     def runDefault(
-      remaining: List[((String, TypeRepr, Expr[Default[_]]), (TypeRepr, TypeRepr))],
+      remaining: List[((String, TypeRepr, Expr[ZLayer.Default[_]]), (TypeRepr, TypeRepr))],
       args: Map[String, Term]
     ): Term =
       remaining match {

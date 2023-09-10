@@ -474,27 +474,47 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[RIn, E, ROut] =
     ZLayer.fromZIO(zio)
 
-  /**
-   * Defines lifecycle methods to be utilized during the automatic derivation of
-   * `ZLayer` using [[ZLayer.derive]].
-   *
-   * This trait allows types to specify initialization and cleanup logic during
-   * their construction and destruction, respectively, when a `ZLayer` for the
-   * type is automatically derived. It's especially useful in scenarios where
-   * resources need to be set up or torn down as part of the derived layer's
-   * lifecycle.
-   *
-   * @note
-   *   This trait's lifecycle hooks are specifically designed to work with
-   *   [[ZLayer.derive]]. Using it outside this context won't inherently attach
-   *   any lifecycle behaviors to the type.
-   *
-   * Implementors should define the `initialize` and `cleanup` methods to
-   * provide the desired lifecycle behaviors.
-   */
-  trait LifecycleHooks[-R, +E] {
-    def initialize: ZIO[R, E, Any]
-    def cleanup: ZIO[R, Nothing, Any]
+  object Derive {
+
+    /**
+     * Defines lifecycle methods to be utilized during the automatic derivation
+     * of `ZLayer` using [[ZLayer.derive]].
+     *
+     * This trait allows types to specify initialization and cleanup logic
+     * during their construction and destruction, respectively, when a `ZLayer`
+     * for the type is automatically derived. It's especially useful in
+     * scenarios where resources need to be set up or torn down as part of the
+     * derived layer's lifecycle.
+     *
+     * @note
+     *   This trait is specifically designed to work with [[ZLayer.derive]].
+     *   Using it outside this context won't inherently attach any lifecycle
+     *   behaviors to the type.
+     */
+    trait Scoped[-R, +E] {
+      def scoped(implicit trace: Trace): ZIO[R & Scope, E, Any]
+    }
+
+    /**
+     * A special form of [[Scoped]] for convenience.
+     *
+     * When using [[ZLayer.derive]] with a type that implements
+     * `AcquireRelease`, the provided `acquire` and `release` methods will be
+     * automatically utilized as the lifecycle hooks.
+     *
+     * @note
+     *   This trait's lifecycle hooks are specifically designed to work with
+     *   [[ZLayer.derive]]. Using it outside this context won't inherently
+     *   attach any lifecycle behaviors to the type.
+     */
+    trait AcquireRelease[-R, +E] extends Scoped[R, E] {
+      final def scoped(implicit trace: Trace): ZIO[R & Scope, E, Any] =
+        ZIO.acquireRelease(acquire)(_ => release)
+
+      def acquire: ZIO[R, E, Any]
+
+      def release: ZIO[R, Nothing, Any]
+    }
   }
 
   /**
