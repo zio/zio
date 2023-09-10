@@ -108,7 +108,7 @@ def deleteFile(file: File): ZIO[Any, Throwable, Unit] = ???
 class ASingletonService(lockFilePath: String) extends ZLayer.Derive.AcquireRelease[Any, Throwable, File] {
 
   override def acquire: ZIO[Any, Throwable, File] =
-     acquireLockFile(acquire)
+     acquireLockFile(lockFilePath)
 
   override def release(lockFile: File): ZIO[Any, Nothing, Any] =
      deleteFile(lockFile).ignore
