@@ -90,18 +90,22 @@ use your IDE's autocomplete feature to insert the inferred type.
 ## Lifecycle Hooks
 
 For services requiring initialization or cleanup, `ZLayer.derive` offers built-in support for lifecycle hooks.
-When a service `A` implements the `ZLayer.LifecycleHooks[R, E]` trait, `ZLayer.derive[A]` automatically recognizes
-it. As a result, the initializer and finalizer methods are executed during the layer's construction and finalization
+When a service `A` implements the `ZLayer.Derive.Scoped[R, E]` trait, `ZLayer.derive[A]` automatically recognizes
+it. As a result, the `scoped` effect is executed during the layer's construction and finalization
 phases.
+
+Additionally, there's the `ZLayer.Derive.AcquireRelease[R, E]` trait. This is a specialized version of
+`ZLayer.Derive.Scoped` designed for added convenience, allowing users to define initialization and finalization hooks
+distinctly.
 
 ```scala mdoc:compile-only
 import zio._
 
 def ensurePathExists(path: String): ZIO[Any, Throwable, Unit] = ???
 
-class LoggingService(logPath: String) extends ZLayer.LifecycleHooks[Any, Throwable] {
-  override def initialize: ZIO[Any, Throwable, Any] = ensurePathExists(logPath)
-  override def cleanup: ZIO[Any, Nothing, Any] = flush.ignore
+class LoggingService(logPath: String) extends ZLayer.Derive.AcquireRelease[Any, Throwable] {
+  override def acquire: ZIO[Any, Throwable, Any] = ensurePathExists(logPath)
+  override def release: ZIO[Any, Nothing, Any] = flush.ignore
 
   def flush: ZIO[Any, Throwable, Any] = ???
 }
@@ -113,7 +117,8 @@ object LoggingService {
 }
 ```
 
-### Caveat: Manual layers do not respect `ZLayer.LifecycleHooks`
+### Caveat: Manual layers do not respect `ZLayer.Derive.Scoped` and `ZLayer.Derive.AcquireRelease`
 
-When manually creating ZLayer instances without using ZLayer.derive, the lifecycle hooks (initialize and cleanup) won't
-be automatically invoked. Refer to [Resource Management in ZIO](../resource/index.md) for more details.
+When manually creating ZLayer instances without using ZLayer.derive, the lifecycle hooks won't be automatically
+invoked. Refer to [Resource Management in ZIO](../resource/index.md) for more details about general resource management
+in ZIO.
