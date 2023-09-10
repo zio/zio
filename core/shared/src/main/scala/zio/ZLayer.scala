@@ -507,13 +507,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      *   [[ZLayer.derive]]. Using it outside this context won't inherently
      *   attach any lifecycle behaviors to the type.
      */
-    trait AcquireRelease[-R, +E] extends Scoped[R, E] {
-      final def scoped(implicit trace: Trace): ZIO[R & Scope, E, Any] =
-        ZIO.acquireRelease(acquire)(_ => release)
+    trait AcquireRelease[-R, +E, A] extends Scoped[R, E] {
+      final def scoped(implicit trace: Trace): ZIO[R & Scope, E, A] =
+        ZIO.acquireRelease(acquire)(release)
 
-      def acquire: ZIO[R, E, Any]
+      def acquire: ZIO[R, E, A]
 
-      def release: ZIO[R, Nothing, Any]
+      def release(a: A): ZIO[R, Nothing, Any]
     }
   }
 

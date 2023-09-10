@@ -94,31 +94,35 @@ When a service `A` implements the `ZLayer.Derive.Scoped[R, E]` trait, `ZLayer.de
 it. As a result, the `scoped` effect is executed during the layer's construction and finalization
 phases.
 
-Additionally, there's the `ZLayer.Derive.AcquireRelease[R, E]` trait. This is a specialized version of
+Additionally, there's the `ZLayer.Derive.AcquireRelease[R, E, A]` trait. This is a specialized version of
 `ZLayer.Derive.Scoped` designed for added convenience, allowing users to define initialization and finalization hooks
 distinctly.
 
 ```scala mdoc:compile-only
 import zio._
+import java.io.File
 
-def ensurePathExists(path: String): ZIO[Any, Throwable, Unit] = ???
+def acquireLockFile(path: String): ZIO[Any, Throwable, File] = ???
+def deleteFile(file: File): ZIO[Any, Throwable, Unit] = ???
 
-class LoggingService(logPath: String) extends ZLayer.Derive.AcquireRelease[Any, Throwable] {
-  override def acquire: ZIO[Any, Throwable, Any] = ensurePathExists(logPath)
-  override def release: ZIO[Any, Nothing, Any] = flush.ignore
+class ASingletonService(lockFilePath: String) extends ZLayer.Derive.AcquireRelease[Any, Throwable, File] {
 
-  def flush: ZIO[Any, Throwable, Any] = ???
+  override def acquire: ZIO[Any, Throwable, File] =
+     acquireLockFile(acquire)
+
+  override def release(lockFile: File): ZIO[Any, Nothing, Any] =
+     deleteFile(lockFile).ignore
 }
 
-object LoggingService {
+object ASingletonService {
   // Note: it's for illustrative example. In a real-world application, you probably won't want
   //       `String` as layer input.
-  val layer: ZLayer[String, Throwable, LoggingService] = ZLayer.derive[LoggingService]
+  val layer: ZLayer[String, Throwable, ASingletonService] = ZLayer.derive[ASingletonService]
 }
 ```
 
 ### Caveat: Manual layers do not respect `ZLayer.Derive.Scoped` and `ZLayer.Derive.AcquireRelease`
 
-When manually creating ZLayer instances without using ZLayer.derive, the lifecycle hooks won't be automatically
+When manually creating `ZLayer` instances without using `ZLayer.derive`, the lifecycle hooks won't be automatically
 invoked. Refer to [Resource Management in ZIO](../resource/index.md) for more details about general resource management
 in ZIO.

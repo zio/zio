@@ -141,12 +141,13 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
     ZLayer.succeed(2)
   )
 
-  class HasLifecycleHooks(ref: Ref[String], shouldFail: Boolean) extends ZLayer.Derive.AcquireRelease[Any, String] {
-    override def acquire: ZIO[Any, String, Any] =
-      ZIO.fail("Failed!").when(shouldFail) *> ref.set("Initialized")
+  class HasLifecycleHooks(ref: Ref[String], shouldFail: Boolean)
+      extends ZLayer.Derive.AcquireRelease[Any, String, Int] {
+    override def acquire: ZIO[Any, String, Int] =
+      ZIO.fail("Failed!").when(shouldFail) *> ref.set("Initialized").as(42)
 
-    override def release: ZIO[Any, Nothing, Any] =
-      ref.set("Cleaned up")
+    override def release(n: Int): ZIO[Any, Nothing, Any] =
+      ref.set(s"Cleaned up $n resources")
   }
   val derivedHasLifecycleHooks: ZLayer[Ref[String] with Boolean, String, HasLifecycleHooks] =
     ZLayer.derive[HasLifecycleHooks]
@@ -169,7 +170,7 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
         afterCleanup <- ref.get
       } yield assertTrue(
         afterInit == "Initialized",
-        afterCleanup == "Cleaned up"
+        afterCleanup == "Cleaned up 42 resources"
       )
     },
     test("can fail during initialize") {
