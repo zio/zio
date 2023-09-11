@@ -19,39 +19,101 @@ package zio.test
 import zio.{Duration, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-final case class Summary(
+import java.time.Instant
+
+sealed case class Summary(
   success: Int,
   fail: Int,
   ignore: Int,
   failureDetails: String,
   duration: Duration = Duration.Zero
-) {
-  val status: Summary.Status =
+) { self =>
+  import Summary.Interval
+
+  final def add(executionEvent: ExecutionEvent)(implicit trace: Trace): Summary =
+    SummaryBuilder.buildSummary(executionEvent, self)
+
+  final def add(that: Summary): Summary =
+    Summary(
+      self.success + that.success,
+      self.fail + that.fail,
+      self.ignore + that.ignore,
+      self.failureDetails +
+        (if (that.failureDetails.trim.isEmpty)
+           ""
+         else
+           "\n" + that.failureDetails),
+      self.interval <> that.interval
+    )
+
+  def interval: Interval =
+    Interval.empty
+
+  final def status: Summary.Status =
     if (failureDetails.trim.isEmpty)
       Summary.Success
     else
       Summary.Failure
-  def total: Int = success + fail + ignore
 
-  def add(executionEvent: ExecutionEvent)(implicit trace: Trace): Summary =
-    SummaryBuilder.buildSummary(executionEvent, this)
-
-  def add(other: Summary): Summary =
+  final def timed(start: Instant, end: Instant): Summary =
     Summary(
-      success + other.success,
-      fail + other.fail,
-      ignore + other.ignore,
-      failureDetails +
-        (if (other.failureDetails.trim.isEmpty)
-           ""
-         else
-           "\n" + other.failureDetails),
-      duration.plus(other.duration)
+      self.success,
+      self.fail,
+      self.ignore,
+      self.failureDetails,
+      Interval.finite(start, end)
     )
+
+  def total: Int =
+    success + fail + ignore
 }
 
 object Summary {
-  val empty = Summary(0, 0, 0, "")
+
+  def apply(
+    success: Int,
+    fail: Int,
+    ignore: Int,
+    failureDetails: String,
+    interval0: Interval
+  ): Summary =
+    new Summary(success, fail, ignore, failureDetails, interval0.duration) {
+      override def interval: Interval = interval0
+    }
+
+  val empty: Summary =
+    Summary(0, 0, 0, "")
+
+  sealed trait Interval { self =>
+
+    final def <>(that: Interval): Interval =
+      (self, that) match {
+        case (self, Interval.Empty) => self
+        case (Interval.Empty, that) => that
+        case (Interval.Finite(start1, end1), Interval.Finite(start2, end2)) =>
+          val start = if (start1.isBefore(start2)) start1 else start2
+          val end   = if (end1.isAfter(end2)) end1 else end2
+          Interval.Finite(start, end)
+      }
+
+    final def duration: Duration =
+      self match {
+        case Interval.Empty              => Duration.Zero
+        case Interval.Finite(start, end) => Duration.fromInterval(start, end)
+      }
+  }
+
+  object Interval {
+
+    val empty: Interval =
+      Empty
+
+    def finite(start: Instant, end: Instant): Interval =
+      Finite(start, end)
+
+    private case object Empty                                     extends Interval
+    private final case class Finite(start: Instant, end: Instant) extends Interval
+  }
 
   sealed trait Status
   object Success extends Status
