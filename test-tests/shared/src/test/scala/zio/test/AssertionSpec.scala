@@ -6,12 +6,18 @@ import zio.{Chunk, Exit, ZIO}
 import scala.collection.immutable.SortedSet
 import scala.util.{Failure, Success}
 
+import java.time.Duration
+import zio.duration2DurationOps
+
 object AssertionSpec extends ZIOBaseSpec {
 
   val failing = TestAspect.failing
 
   def spec: Spec[Any, TestFailure[Any]] =
     suite("AssertionSpec")(
+      test("fail to compile a smart assertion with Duration on Scala 3.3.0") {
+        assertTrue(Duration.ofSeconds(1) > Duration.ofSeconds(0))
+      },
       test("and must succeed when both assertions are satisfied") {
         assert(sampleUser)(nameStartsWithU && ageGreaterThan20)
       },
