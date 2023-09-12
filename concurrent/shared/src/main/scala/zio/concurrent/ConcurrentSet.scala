@@ -145,7 +145,7 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
    * Removes all elements which satisfy the given predicate.
    */
   def removeIf(p: A => Boolean): UIO[Boolean] =
-    ZIO.succeed(underlying.removeIf(makePredicate(a => !p(a))))
+    ZIO.succeed(underlying.removeIf(makePredicate(p)))
 
   /**
    * Retain all the entries for the given values if they are mapped to an
@@ -158,7 +158,7 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
    * Removes all elements which do not satisfy the given predicate.
    */
   def retainIf(p: A => Boolean): UIO[Boolean] =
-    ZIO.succeed(underlying.removeIf(makePredicate(p)))
+    ZIO.succeed(underlying.removeIf(makePredicate(a => !p(a))))
 
   /**
    * Number of elements in the set.
