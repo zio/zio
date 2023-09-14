@@ -537,14 +537,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * Provides a default way to construct or provide an instance of type `A`.
      *
      * Used during `ZLayer` derivation to resolve dependencies. If an implicit
-     * `Default[A]` instance exists for a type, it signifies that a default
-     * value can be used, bypassing the dependency in the `ZLayer` environment.
+     * `ZLayer.Derive.Default[A]` instance exists for a type, it signifies that
+     * a default value can be used, bypassing the dependency in the `ZLayer`
+     * environment.
      *
      * @note
      *   When type-annotating the implicit val, ensure it's in the form
-     *   `ZLayer.Default.WithContext[R, E, A]` rather than just
-     *   `ZLayer.Default[A]` to ensure correct type inference and dependency
-     *   resolution during `ZLayer` derivation.
+     *   `Default.WithContext[R, E, A]` rather than just `Default[A]` to ensure
+     *   correct type inference and dependency resolution during `ZLayer`
+     *   derivation.
      */
     trait Default[+A] {
       type R
@@ -659,7 +660,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
         fromLayer(ev.layer.project(a => Unsafe.unsafe(implicit unsafe => Ref.unsafe.make(a))))
     }
 
-    private[ZLayer] trait DefaultInstances0 { this: Default.type =>
+    private[Derive] trait DefaultInstances0 { this: Default.type =>
 
       implicit def defaultPromiseNothing[A: Tag](implicit
         trace: Trace
