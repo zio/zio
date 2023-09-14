@@ -27,7 +27,7 @@ private[zio] class ZLayerDerivationMacros(val c: whitebox.Context) {
 
     def findDefaultExpr(tpe: Type) = {
       val defaultType = appliedType(
-        weakTypeOf[ZLayer.Default.WithContext[_, _, _]].typeConstructor,
+        weakTypeOf[ZLayer.Derive.Default.WithContext[_, _, _]].typeConstructor,
         WildcardType,
         WildcardType,
         tpe
@@ -55,18 +55,18 @@ private[zio] class ZLayerDerivationMacros(val c: whitebox.Context) {
                 sym.pos,
                 s"""|Failed to derive a ZLayer for `${tpe.typeSymbol.fullName}`.
                     |
-                    |The type information `R`, `E` in `ZLayer.Default[A]` for the parameter 
+                    |The type information `R`, `E` in `ZLayer.Derive.Default[A]` for the parameter
                     |`$name` is missing. The resolved default instance is:
                     |
                     |  ${defaultExpr}: ${defaultExpr.tpe} 
                     |
-                    |A frequent reason for this issue is using an incomplete type annotation like 
-                    |`implicit val defaultA: ZLayer.Default[A] = ???`.  This can lead to the loss of
-                    |specific type details.
+                    |A frequent reason for this issue is using an incomplete type annotation like
+                    |`implicit val defaultA: ZLayer.Derive.Default[A] = ???`.  This can lead to the
+                    |loss of specific type details.
                     |
-                    |To resolve, replace it with `ZLayer.Default.WithContext[R, E, A]`. If you're
-                    |using an IDE, remove the type annotations and add the inferred type annotation
-                     using the IDE's assistant feature.
+                    |To resolve, replace it with `ZLayer.Derive.Default.WithContext[R, E, A]`.
+                    |If you're using an IDE, remove the type annotations and add the inferred type
+                    |annotation using the IDE's assistant feature.
                     |""".stripMargin
               )
 

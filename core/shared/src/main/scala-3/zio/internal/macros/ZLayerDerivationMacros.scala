@@ -63,7 +63,7 @@ object ZLayerDerivationMacros {
       params.zip(paramTypes).partitionMap { case (pTerm, pType) =>
         pType.asType match {
           case '[r] =>
-            Expr.summon[ZLayer.Default.WithContext[_, _, r]] match {
+            Expr.summon[ZLayer.Derive.Default.WithContext[_, _, r]] match {
               case Some(d) => Right((pTerm.name, pType, d))
               case None    => Left((pTerm.name, pType))
             }
@@ -156,18 +156,18 @@ object ZLayerDerivationMacros {
           report.errorAndAbort(
             s"""|Failed to derive a ZLayer for `${tpeSymbol.fullName}`.
                 |
-                |The type information `R`, `E` in `ZLayer.Default[A]` for the parameter 
+                |The type information `R`, `E` in `ZLayer.Derive.Default[A]` for the parameter
                 |`${pName}` is missing. The resolved default instance is:
                 |
                 |  ${d.show}: ${d.asTerm.tpe.widen.show} 
                 |
                 |A frequent reason for this issue is using an incomplete type annotation like 
-                |`given ZLayer.Default[A] = ???`.  This can lead to the loss of specific type
-                |details.
+                |`given ZLayer.Derive.Default[A] = ???`. This can lead to the loss of specific
+                |type details.
                 |
-                |To resolve, replace it with `ZLayer.Default.WithContext[R, E, A]`. If you're  
-                |using an IDE, remove the type annotations and add the inferred type annotation
-                |using the IDE's assistant feature.
+                |To resolve, replace it with `ZLayer.Derive.Default.WithContext[R, E, A]`. If
+                |you're using an IDE, remove the type annotations and add the inferred type
+                |annotation using the IDE's assistant feature.
                 |""".stripMargin,
             d.asTerm.pos
           )
@@ -177,7 +177,7 @@ object ZLayerDerivationMacros {
       }
 
     def runDefault(
-      remaining: List[((String, TypeRepr, Expr[ZLayer.Default[_]]), (TypeRepr, TypeRepr))],
+      remaining: List[((String, TypeRepr, Expr[ZLayer.Derive.Default[_]]), (TypeRepr, TypeRepr))],
       args: Map[String, Term]
     ): Term =
       remaining match {

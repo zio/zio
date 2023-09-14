@@ -87,21 +87,22 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
   class OneDepAndDefaultTransitive(i: Int, val d: OneDepAndDefaultTransitive.TransitiveString)
   object OneDepAndDefaultTransitive {
     case class TransitiveString(s: String)
-    implicit val defaultTransitiveString: ZLayer.Default.WithContext[String, Nothing, TransitiveString] =
-      ZLayer.Default.fromZIO(ZIO.serviceWith[String](TransitiveString(_)))
+    implicit val defaultTransitiveString: ZLayer.Derive.Default.WithContext[String, Nothing, TransitiveString] =
+      ZLayer.Derive.Default.fromZIO(ZIO.serviceWith[String](TransitiveString(_)))
   }
 
   val derivedOneAndDefaultTransitive =
     ZLayer.derive[OneDepAndDefaultTransitive]
 
   val derivedZeroDepAndPromiseOverriden: URLayer[Promise[Nothing, Int], ZeroDepAndPromise] = locally {
-    implicit val overridenPromise: ZLayer.Default.WithContext[Promise[Nothing, Int], Nothing, Promise[Nothing, Int]] =
-      ZLayer.Default.service[Promise[Nothing, Int]]
+    implicit val overridenPromise
+      : ZLayer.Derive.Default.WithContext[Promise[Nothing, Int], Nothing, Promise[Nothing, Int]] =
+      ZLayer.Derive.Default.service[Promise[Nothing, Int]]
 
     ZLayer.derive[ZeroDepAndPromise]
   }
 
-  def defaultSuite = suite("with ZLayer.Default[A]")(
+  def defaultSuite = suite("with ZLayer.Derive.Default[A]")(
     test("zero dependency and Promise") {
       for {
         svc    <- ZIO.service[ZeroDepAndPromise]
@@ -200,15 +201,15 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
   object HasUnresolvedDefault {
     case class Dep(s: String)
 
-    // correct annotation  : ZLayer.Default.WithContext[Any, Nothing, Dep]
-    implicit val defaultDep: ZLayer.Default[Dep] = ZLayer.Default.succeed(Dep("default"))
+    // correct annotation  : ZLayer.Derive.Default.WithContext[Any, Nothing, Dep]
+    implicit val defaultDep: ZLayer.Derive.Default[Dep] = ZLayer.Derive.Default.succeed(Dep("default"))
   }
 
   abstract class AnAbstractClass(d1: Int)
   trait ATrait
 
   def failureSuite = suite("fails to derive")(
-    test("ZLayer.Default[A] with incorrect type annotation")(
+    test("ZLayer.Derive.Default[A] with incorrect type annotation")(
       for {
         res <- typeCheck("ZLayer.derive[HasUnresolvedDefault]")
       } yield
