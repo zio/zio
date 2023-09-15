@@ -752,6 +752,11 @@ object GenSpec extends ZIOBaseSpec {
       check(Gen.mapOf(Gen.boolean, Gen.boolean)) { map =>
         assert(map)(anything)
       }
+    },
+    test("bigInt with equal bounds") {
+      check(Gen.bigInt(1, 1)) { n =>
+        assertTrue(n == 1)
+      }
     }
   )
 }

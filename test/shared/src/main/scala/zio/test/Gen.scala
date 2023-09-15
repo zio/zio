@@ -243,6 +243,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def bigInt(min: BigInt, max: BigInt)(implicit trace: Trace): Gen[Any, BigInt] =
     Gen.fromZIOSample {
       if (min > max) ZIO.die(new IllegalArgumentException("invalid bounds"))
+      else if (min == max) ZIO.succeed(Sample.noShrink(min))
       else {
         val bitLength  = (max - min).bitLength
         val byteLength = ((bitLength.toLong + 7) / 8).toInt
