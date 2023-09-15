@@ -212,7 +212,7 @@ object Random extends Serializable {
         override def nextBoolean()(implicit unsafe: Unsafe): Boolean =
           scala.util.Random.nextBoolean()
 
-        override def nextBytes(length: RuntimeFlags)(implicit unsafe: Unsafe): Chunk[Byte] = {
+        override def nextBytes(length: Int)(implicit unsafe: Unsafe): Chunk[Byte] = {
           val array = Array.ofDim[Byte](length)
           scala.util.Random.nextBytes(array)
           Chunk.fromArray(array)
@@ -233,15 +233,15 @@ object Random extends Serializable {
         override def nextGaussian()(implicit unsafe: Unsafe): Double =
           scala.util.Random.nextGaussian()
 
-        override def nextInt()(implicit unsafe: Unsafe): RuntimeFlags =
+        override def nextInt()(implicit unsafe: Unsafe): Int =
           scala.util.Random.nextInt()
 
-        override def nextIntBetween(minInclusive: RuntimeFlags, maxExclusive: RuntimeFlags)(implicit
+        override def nextIntBetween(minInclusive: Int, maxExclusive: Int)(implicit
           unsafe: Unsafe
-        ): RuntimeFlags =
+        ): Int =
           nextIntBetweenWith(minInclusive, maxExclusive)(() => nextInt(), nextIntBounded(_))
 
-        override def nextIntBounded(n: RuntimeFlags)(implicit unsafe: Unsafe): RuntimeFlags =
+        override def nextIntBounded(n: Int)(implicit unsafe: Unsafe): Int =
           scala.util.Random.nextInt(n)
 
         override def nextLong()(implicit unsafe: Unsafe): Long =
@@ -256,7 +256,7 @@ object Random extends Serializable {
         override def nextPrintableChar()(implicit unsafe: Unsafe): Char =
           scala.util.Random.nextPrintableChar()
 
-        override def nextString(length: RuntimeFlags)(implicit unsafe: Unsafe): String =
+        override def nextString(length: Int)(implicit unsafe: Unsafe): String =
           scala.util.Random.nextString(length)
 
         override def nextUUID()(implicit unsafe: Unsafe): UUID =
@@ -340,7 +340,7 @@ object Random extends Serializable {
         override def nextBoolean()(implicit unsafe: Unsafe): Boolean =
           random.nextBoolean()
 
-        override def nextBytes(length: RuntimeFlags)(implicit unsafe: Unsafe): Chunk[Byte] = {
+        override def nextBytes(length: Int)(implicit unsafe: Unsafe): Chunk[Byte] = {
           val array = Array.ofDim[Byte](length)
           random.nextBytes(array)
           Chunk.fromArray(array)
@@ -361,15 +361,15 @@ object Random extends Serializable {
         override def nextGaussian()(implicit unsafe: Unsafe): Double =
           random.nextGaussian()
 
-        override def nextInt()(implicit unsafe: Unsafe): RuntimeFlags =
+        override def nextInt()(implicit unsafe: Unsafe): Int =
           random.nextInt()
 
-        override def nextIntBetween(minInclusive: RuntimeFlags, maxExclusive: RuntimeFlags)(implicit
+        override def nextIntBetween(minInclusive: Int, maxExclusive: Int)(implicit
           unsafe: Unsafe
-        ): RuntimeFlags =
+        ): Int =
           nextIntBetweenWith(minInclusive, maxExclusive)(() => nextInt(), nextIntBounded(_))
 
-        override def nextIntBounded(n: RuntimeFlags)(implicit unsafe: Unsafe): RuntimeFlags =
+        override def nextIntBounded(n: Int)(implicit unsafe: Unsafe): Int =
           random.nextInt(n)
 
         override def nextLong()(implicit unsafe: Unsafe): Long =
@@ -384,7 +384,7 @@ object Random extends Serializable {
         override def nextPrintableChar()(implicit unsafe: Unsafe): Char =
           random.nextPrintableChar()
 
-        override def nextString(length: RuntimeFlags)(implicit unsafe: Unsafe): String =
+        override def nextString(length: Int)(implicit unsafe: Unsafe): String =
           random.nextString(length)
 
         override def nextUUID()(implicit unsafe: Unsafe): UUID =
