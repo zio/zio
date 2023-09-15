@@ -75,19 +75,19 @@ object ConcurrentSetSpec extends ZIOSpecDefault {
         notForall <- set.forall(_ > 5)
       } yield assertTrue(forall, !notForall)
     },
-    test("filter") {
+    test("removeIf") {
       for {
         set    <- ConcurrentSet.make(1, 2, 3, 4)
         _      <- set.removeIf(_ % 2 == 0)
         result <- set.toSet
-      } yield assertTrue(result == Set(2, 4))
+      } yield assertTrue(result == Set(1, 3))
     },
-    test("filterNot") {
+    test("retainIf") {
       for {
         set    <- ConcurrentSet.make(1, 2, 3, 4)
         _      <- set.retainIf(_ % 2 == 0)
         result <- set.toSet
-      } yield assertTrue(result == Set(1, 3))
+      } yield assertTrue(result == Set(2, 4))
     },
     test("find") {
       for {
