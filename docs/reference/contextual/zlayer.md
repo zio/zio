@@ -118,6 +118,7 @@ object CLive {
     }
 }
 ```
+
 ### From Functions
 
 A `ZLayer[R, E, A]` can be thought of as a function from `R` to `A`. So we can convert functions to the `ZLayer` using the `ZLayer.fromFunction` constructor.
@@ -192,6 +193,10 @@ object MainApp extends ZIOAppDefault {
 ```scala mdoc:invisible:reset
 
 ```
+
+### Automatic Derivation
+
+Simple layers can be derived using `ZLayer.derive`. See [Automatic ZLayer Derivation](./automatic-zlayer-derivation.md).
 
 
 ## Converting a Layer to a Scoped Value
