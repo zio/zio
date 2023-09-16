@@ -74,6 +74,16 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     self.orElse(that)
 
   /**
+   * Returns a new layer that applies the specified aspect to this layer.
+   * Aspects are "transformers" that modify the behavior of their input in some
+   * well-defined way (for example, adding a timeout).
+   */
+  final def @@[LowerRIn <: UpperRIn, UpperRIn <: RIn, LowerE >: E, UpperE >: LowerE, LowerROut >: ROut, UpperROut >: LowerROut](
+    aspect: => ZLayerAspect[LowerRIn, UpperRIn, LowerE, UpperE, LowerROut, UpperROut]
+  )(implicit trace: Trace): ZLayer[UpperRIn, LowerE, LowerROut] =
+    ZLayer.suspend(aspect(self))
+
+  /**
    * A named alias for `++`.
    */
   final def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
