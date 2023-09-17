@@ -77,6 +77,14 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
   def filter(f: A => Boolean)(implicit trace: Trace): Gen[R, A] =
     self.flatMap(a => if (f(a)) Gen.const(a) else Gen.empty)
 
+  /** Effectfully filters the values produced by this generator. */
+  def filterZIO[R1 <: R](f: A => ZIO[R1, Nothing, Boolean])(implicit trace: Trace): Gen[R1, A] =
+    Gen {
+      self.sample
+        .filterZIO(sample => f(sample.value))
+        .map(sample => sample.copy(shrink = sample.shrink.filterZIO(sample => f(sample.value))))
+    }
+
   /**
    * Filters the values produced by this generator, discarding any values that
    * meet the specified predicate.
