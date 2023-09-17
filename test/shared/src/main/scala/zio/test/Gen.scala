@@ -80,6 +80,20 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 
   /**
    * Filters the values produced by this generator, discarding any values that
+   * do not meet the specified effectual predicate. Using `filterZIO` can reduce
+   * test performance, especially if many values must be discarded. It is
+   * recommended to use combinators such as `map` and `flatMap` to create
+   * generators of the desired values instead.
+   *
+   * {{{
+   * val evens: Gen[Any, Int] = Gen.int.map(_ * 2)
+   * }}}
+   */
+  def filterZIO[R1 <: R](f: A => ZIO[R1, Nothing, Boolean])(implicit trace: Trace): Gen[R1, A] =
+    self.flatMap(a => Gen.fromZIO(f(a)).flatMap(p => if (p) Gen.const(a) else Gen.empty))
+
+  /**
+   * Filters the values produced by this generator, discarding any values that
    * meet the specified predicate.
    */
   def filterNot(f: A => Boolean)(implicit trace: Trace): Gen[R, A] =
