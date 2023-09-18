@@ -5,7 +5,7 @@ addSbtPlugin("com.github.sbt"                    % "sbt-unidoc"                 
 addSbtPlugin("com.github.sbt"                    % "sbt-ci-release"                % "1.5.10")
 addSbtPlugin("com.github.cb372"                  % "sbt-explicit-dependencies"     % "0.2.16")
 addSbtPlugin("com.thoughtworks.sbt-api-mappings" % "sbt-api-mappings"              % "3.0.2")
-addSbtPlugin("com.typesafe"                      % "sbt-mima-plugin"               % "1.1.0")
+addSbtPlugin("com.typesafe"                      % "sbt-mima-plugin"               % "1.1.3")
 addSbtPlugin("de.heikoseeberger"                 % "sbt-header"                    % "5.7.0")
 addSbtPlugin("org.portable-scala"                % "sbt-scala-native-crossproject" % "1.2.0")
 addSbtPlugin("org.portable-scala"                % "sbt-scalajs-crossproject"      % "1.2.0")
