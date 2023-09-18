@@ -120,7 +120,7 @@ object TestExecutor {
                           fullyQualifiedName
                         )
                       )
-                    result  <- ZIO.withClock(ClockLive)(test.timed.either)
+                    result  <- Live.withLive(test)(_.timed).either
                     duration = result.map(_._1.toMillis).fold(_ => 1L, identity)
                     event =
                       ExecutionEvent
