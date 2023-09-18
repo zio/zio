@@ -225,7 +225,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .jsSettings(
     jsSettings,
     libraryDependencies ++= List(
-      "org.scala-js"  %%% "scala-js-macrotask-executor" % "1.0.0",
+      "org.scala-js"  %%% "scala-js-macrotask-executor" % "1.1.1",
       ("org.scala-js" %%% "scalajs-weakreferences"      % "1.0.0").cross(CrossVersion.for3Use2_13),
       "org.scala-js"  %%% "scalajs-dom"                 % "2.0.0"
     ),
