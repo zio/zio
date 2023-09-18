@@ -484,7 +484,7 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
         )
       else
         Seq(
-          ("com.softwaremill.magnolia1_2" %%% "magnolia" % "1.1.1")
+          ("com.softwaremill.magnolia1_2" %%% "magnolia" % "1.1.6")
             .exclude("org.scala-lang", "scala-compiler")
         )
     }
