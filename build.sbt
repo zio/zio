@@ -681,7 +681,7 @@ lazy val benchmarks = project.module
         "io.projectreactor"          % "reactor-core"    % "3.5.4",
         "io.reactivex.rxjava2"       % "rxjava"          % "2.2.21",
         "org.jctools"                % "jctools-core"    % "4.0.1",
-        "org.ow2.asm"                % "asm"             % "9.4",
+        "org.ow2.asm"                % "asm"             % "9.5",
         "org.scala-lang"             % "scala-compiler"  % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"   % scalaVersion.value,
         "org.typelevel"             %% "cats-effect"     % catsEffectVersion,
