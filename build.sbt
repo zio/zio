@@ -227,7 +227,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     libraryDependencies ++= List(
       "org.scala-js"  %%% "scala-js-macrotask-executor" % "1.0.0",
       ("org.scala-js" %%% "scalajs-weakreferences"      % "1.0.0").cross(CrossVersion.for3Use2_13),
-      "org.scala-js"  %%% "scalajs-dom"                 % "2.0.0"
+      "org.scala-js"  %%% "scalajs-dom"                 % "2.6.0"
     ),
     scalacOptions ++= {
       if (scalaVersion.value == Scala3) {
