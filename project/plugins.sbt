@@ -3,7 +3,7 @@ addSbtPlugin("ch.epfl.scala"                     % "sbt-scalafix"               
 addSbtPlugin("com.eed3si9n"                      % "sbt-buildinfo"                 % "0.11.0")
 addSbtPlugin("com.github.sbt"                    % "sbt-unidoc"                    % "0.5.0")
 addSbtPlugin("com.github.sbt"                    % "sbt-ci-release"                % "1.5.10")
-addSbtPlugin("com.github.cb372"                  % "sbt-explicit-dependencies"     % "0.2.16")
+addSbtPlugin("com.github.cb372"                  % "sbt-explicit-dependencies"     % "0.3.1")
 addSbtPlugin("com.thoughtworks.sbt-api-mappings" % "sbt-api-mappings"              % "3.0.2")
 addSbtPlugin("com.typesafe"                      % "sbt-mima-plugin"               % "1.1.0")
 addSbtPlugin("de.heikoseeberger"                 % "sbt-header"                    % "5.7.0")
