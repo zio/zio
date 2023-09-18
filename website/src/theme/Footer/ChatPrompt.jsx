@@ -20,17 +20,6 @@ export const ChatPrompt = (props) => {
     fullScreen,
   } = props
 
-  useEffect(() => {
-    // Change the title when the component mounts
-    const original_title = document.title;
-    document.title = title;
-
-    // Optionally, you can revert the title when the component unmounts
-    return () => {
-      document.title = original_title;
-    };
-  }, []);
-
   const greetings = welcomeMessages.map(m => ({
     userType: "bot",
     message: m,
