@@ -603,8 +603,8 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform) // TODO: make plain pr
       "junit"                   % "junit"     % "4.13.2" % Test,
       "org.scala-lang.modules" %% "scala-xml" % "2.1.0"  % Test,
       // required to run embedded maven in the tests
-      "org.apache.maven"       % "maven-embedder"         % "3.8.5"  % Test,
-      "org.apache.maven"       % "maven-compat"           % "3.8.5"  % Test,
+      "org.apache.maven"       % "maven-embedder"         % "3.8.8"  % Test,
+      "org.apache.maven"       % "maven-compat"           % "3.8.8"  % Test,
       "org.apache.maven.wagon" % "wagon-http"             % "3.5.1"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
