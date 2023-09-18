@@ -56,15 +56,15 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       case (self, Chunk.Empty) => self
       case (Chunk.Empty, that) => that
       case (self, that) =>
-        val diff = that.depth - self.depth
+        val diff = that.concatDepth - self.concatDepth
         if (math.abs(diff) <= 1) Chunk.Concat(self, that)
         else if (diff < -1) {
-          if (self.left.depth >= self.right.depth) {
+          if (self.left.concatDepth >= self.right.concatDepth) {
             val nr = self.right ++ that
             Chunk.Concat(self.left, nr)
           } else {
             val nrr = self.right.right ++ that
-            if (nrr.depth == self.depth - 3) {
+            if (nrr.concatDepth == self.concatDepth - 3) {
               val nr = Chunk.Concat(self.right.left, nrr)
               Chunk.Concat(self.left, nr)
             } else {
@@ -73,12 +73,12 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
             }
           }
         } else {
-          if (that.right.depth >= that.left.depth) {
+          if (that.right.concatDepth >= that.left.concatDepth) {
             val nl = self ++ that.left
             Chunk.Concat(nl, that.right)
           } else {
             val nll = self ++ that.left.left
-            if (nll.depth == that.depth - 3) {
+            if (nll.concatDepth == that.concatDepth - 3) {
               val nl = Chunk.Concat(nll, that.left.right)
               Chunk.Concat(nl, that.right)
             } else {
@@ -274,38 +274,14 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   /**
    * Drops the first `n` elements of the chunk.
    */
-  override def drop(n: Int): Chunk[A] = {
-    val len = self.length
-
-    if (n <= 0) self
-    else if (n >= len) Chunk.empty
-    else
-      self match {
-        case Chunk.Slice(c, o, l) => Chunk.Slice(c, o + n, l - n)
-        case Chunk.Concat(l, r) =>
-          if (n > l.length) r.drop(n - l.length)
-          else Chunk.Concat(l.drop(n), r)
-        case _ => Chunk.Slice(self, n, len - n)
-      }
-  }
+  override def drop(n: Int): Chunk[A] =
+    slice(n, length)
 
   /**
    * Drops the last `n` elements of the chunk.
    */
-  override def dropRight(n: Int): Chunk[A] = {
-    val len = self.length
-
-    if (n <= 0) self
-    else if (n >= len) Chunk.empty
-    else
-      self match {
-        case Chunk.Slice(c, o, l) => Chunk.Slice(c, o, l - n)
-        case Chunk.Concat(l, r) =>
-          if (n > r.length) l.dropRight(n - r.length)
-          else Chunk.Concat(l, r.dropRight(n))
-        case _ => Chunk.Slice(self, 0, len - n)
-      }
-  }
+  override def dropRight(n: Int): Chunk[A] =
+    slice(0, length - n)
 
   /**
    * Drops all elements until the predicate returns true.
@@ -723,7 +699,20 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   override def slice(from: Int, until: Int): Chunk[A] = {
     val start = if (from < 0) 0 else if (from > length) length else from
     val end   = if (until < start) start else if (until > length) length else until
-    Chunk.Slice(self, start, end - start)
+    if (end - start == length) self
+    else if (end - start == 0) Chunk.Empty
+    else
+      self match {
+        case Chunk.Slice(chunk, offset, length) =>
+          Chunk.Slice(chunk, offset + start, end - start)
+        case Chunk.Concat(left, right) =>
+          if (start < left.length && end <= left.length) left.slice(start, end)
+          else if (start >= left.length) right.slice(start - left.length, end - left.length)
+          else left.slice(start, left.length) ++ right.slice(0, end - left.length)
+        case _ =>
+          if (depth >= Chunk.MaxDepthBeforeMaterialize) Chunk.Slice(self.materialize, start, end - start)
+          else Chunk.Slice(self, start, end - start)
+      }
   }
 
   override def span(f: A => Boolean): (Chunk[A], Chunk[A]) =
@@ -795,31 +784,13 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    * Takes the first `n` elements of the chunk.
    */
   override def take(n: Int): Chunk[A] =
-    if (n <= 0) Chunk.Empty
-    else if (n >= length) this
-    else
-      self match {
-        case Chunk.Slice(c, o, _) => Chunk.Slice(c, o, n)
-        case Chunk.Concat(l, r) =>
-          if (n > l.length) Chunk.Concat(l, r.take(n - l.length))
-          else l.take(n)
-        case _ => Chunk.Slice(self, 0, n)
-      }
+    slice(0, n)
 
   /**
    * Takes the last `n` elements of the chunk.
    */
   override def takeRight(n: Int): Chunk[A] =
-    if (n <= 0) Chunk.Empty
-    else if (n >= length) this
-    else
-      self match {
-        case Chunk.Slice(c, o, l) => Chunk.Slice(c, o + l - n, n)
-        case Chunk.Concat(l, r) =>
-          if (n > r.length) Chunk.Concat(l.takeRight(n - r.length), r)
-          else r.takeRight(n)
-        case _ => Chunk.Slice(self, length - n, n)
-      }
+    slice(length - n, length)
 
   /**
    * Takes all elements so long as the predicate returns true.
@@ -1001,7 +972,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   protected def append[A1 >: A](a1: A1): Chunk[A1] = {
     val buffer = Array.ofDim[AnyRef](Chunk.BufferSize)
     buffer(0) = a1.asInstanceOf[AnyRef]
-    Chunk.AppendN(self, buffer, 1, new AtomicInteger(1))
+    if (depth >= Chunk.MaxDepthBeforeMaterialize) Chunk.AppendN(self.materialize, buffer, 1, new AtomicInteger(1))
+    else Chunk.AppendN(self, buffer, 1, new AtomicInteger(1))
   }
 
   /**
@@ -1009,6 +981,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    */
   protected def collectChunk[B](pf: PartialFunction[A, B]): Chunk[B] =
     if (isEmpty) Chunk.empty else self.materialize.collectChunk(pf)
+
+  protected def concatDepth: Int =
+    0
 
   protected def depth: Int =
     0
@@ -1039,7 +1014,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   protected def prepend[A1 >: A](a1: A1): Chunk[A1] = {
     val buffer = Array.ofDim[AnyRef](Chunk.BufferSize)
     buffer(Chunk.BufferSize - 1) = a1.asInstanceOf[AnyRef]
-    Chunk.PrependN(self, buffer, 1, new AtomicInteger(1))
+    if (depth >= Chunk.MaxDepthBeforeMaterialize) Chunk.PrependN(self.materialize, buffer, 1, new AtomicInteger(1))
+    else Chunk.PrependN(self, buffer, 1, new AtomicInteger(1))
   }
 
   protected def right: Chunk[A] =
@@ -1055,6 +1031,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       val bufferValues  = Array.ofDim[AnyRef](Chunk.UpdateBufferSize)
       bufferIndices(0) = index
       bufferValues(0) = a1.asInstanceOf[AnyRef]
+      if (depth >= Chunk.MaxDepthBeforeMaterialize)
+        Chunk.Update(self.materialize, bufferIndices, bufferValues, 1, new AtomicInteger(1))
       Chunk.Update(self, bufferIndices, bufferValues, 1, new AtomicInteger(1))
     }
 
@@ -1402,6 +1380,12 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     64
 
   /**
+   * The maximum depth of elements in the chunk before it is materialized.
+   */
+  private val MaxDepthBeforeMaterialize: Int =
+    128
+
+  /**
    * The maximum number of elements in the buffer for fast update.
    */
   private val UpdateBufferSize: Int =
@@ -1414,6 +1398,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       start.chunkIterator ++ ChunkIterator.fromArray(buffer.asInstanceOf[Array[A]]).sliceIterator(0, bufferUsed)
 
     implicit val classTag: ClassTag[A] = classTagOf(start)
+
+    override val depth: Int =
+      start.depth + 1
 
     val length: Int =
       start.length + bufferUsed
@@ -1450,6 +1437,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         .sliceIterator(BufferSize - bufferUsed, bufferUsed) ++ end.chunkIterator
 
     implicit val classTag: ClassTag[A] = classTagOf(end)
+
+    override val depth: Int =
+      end.depth + 1
 
     val length: Int =
       end.length + bufferUsed
@@ -1489,6 +1479,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       ChunkIterator.fromArray(self.toArray)
 
     implicit val classTag: ClassTag[A] = Chunk.classTagOf(chunk)
+
+    override val depth: Int =
+      chunk.depth + 1
 
     val length: Int =
       chunk.length
@@ -1740,6 +1733,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         case _     => classTagOf(left)
       }
 
+    override val concatDepth: Int =
+      1 + math.max(left.concatDepth, right.concatDepth)
+
     override val depth: Int =
       1 + math.max(left.depth, right.depth)
 
@@ -1805,6 +1801,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     implicit val classTag: ClassTag[A] =
       classTagOf(chunk)
+
+    override val depth: Int =
+      chunk.depth + 1
 
     override val length: Int =
       l
