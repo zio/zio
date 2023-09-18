@@ -431,15 +431,15 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .jsSettings(
     jsSettings,
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.5.0",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.5.0"
     )
   )
   .nativeSettings(
     nativeSettings,
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0",
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.5.0",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.5.0",
       "com.github.lolgab" %%% "scala-native-crypto"  % "0.0.4"
     )
   )
