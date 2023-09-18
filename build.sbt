@@ -184,7 +184,7 @@ lazy val root3 = project
   )
 
 val catsEffectVersion = "3.4.8"
-val fs2Version        = "3.6.1"
+val fs2Version        = "3.9.2"
 
 lazy val root = project
   .in(file("."))
