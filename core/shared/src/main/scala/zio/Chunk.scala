@@ -274,14 +274,42 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   /**
    * Drops the first `n` elements of the chunk.
    */
-  override def drop(n: Int): Chunk[A] =
-    slice(n, length)
+  override def drop(n: Int): Chunk[A] = {
+    val len = self.length
+
+    if (n <= 0) self
+    else if (n >= len) Chunk.empty
+    else
+      self match {
+        case Chunk.Slice(c, o, l) => Chunk.Slice(c, o + n, l - n)
+        case Chunk.Concat(l, r) =>
+          if (n > l.length) r.drop(n - l.length)
+          else Chunk.Concat(l.drop(n), r)
+        case _ =>
+          if (depth >= Chunk.MaxDepthBeforeMaterialize) Chunk.Slice(self.materialize, n, len - n)
+          else Chunk.Slice(self, n, len - n)
+      }
+  }
 
   /**
    * Drops the last `n` elements of the chunk.
    */
-  override def dropRight(n: Int): Chunk[A] =
-    slice(0, length - n)
+  override def dropRight(n: Int): Chunk[A] = {
+    val len = self.length
+
+    if (n <= 0) self
+    else if (n >= len) Chunk.empty
+    else
+      self match {
+        case Chunk.Slice(c, o, l) => Chunk.Slice(c, o, l - n)
+        case Chunk.Concat(l, r) =>
+          if (n > r.length) l.dropRight(n - r.length)
+          else Chunk.Concat(l, r.dropRight(n))
+        case _ =>
+          if (depth >= Chunk.MaxDepthBeforeMaterialize) Chunk.Slice(self.materialize, 0, len - n)
+          else Chunk.Slice(self, 0, len - n)
+      }
+  }
 
   /**
    * Drops all elements until the predicate returns true.
@@ -699,20 +727,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   override def slice(from: Int, until: Int): Chunk[A] = {
     val start = if (from < 0) 0 else if (from > length) length else from
     val end   = if (until < start) start else if (until > length) length else until
-    if (end - start == length) self
-    else if (end - start == 0) Chunk.Empty
-    else
-      self match {
-        case Chunk.Slice(chunk, offset, length) =>
-          Chunk.Slice(chunk, offset + start, end - start)
-        case Chunk.Concat(left, right) =>
-          if (start < left.length && end <= left.length) left.slice(start, end)
-          else if (start >= left.length) right.slice(start - left.length, end - left.length)
-          else left.slice(start, left.length) ++ right.slice(0, end - left.length)
-        case _ =>
-          if (depth >= Chunk.MaxDepthBeforeMaterialize) Chunk.Slice(self.materialize, start, end - start)
-          else Chunk.Slice(self, start, end - start)
-      }
+    if (depth > Chunk.MaxDepthBeforeMaterialize) Chunk.Slice(self.materialize, start, end - start)
+    else Chunk.Slice(self, start, end - start)
   }
 
   override def span(f: A => Boolean): (Chunk[A], Chunk[A]) =
@@ -784,13 +800,35 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    * Takes the first `n` elements of the chunk.
    */
   override def take(n: Int): Chunk[A] =
-    slice(0, n)
+    if (n <= 0) Chunk.Empty
+    else if (n >= length) this
+    else
+      self match {
+        case Chunk.Slice(c, o, _) => Chunk.Slice(c, o, n)
+        case Chunk.Concat(l, r) =>
+          if (n > l.length) Chunk.Concat(l, r.take(n - l.length))
+          else l.take(n)
+        case _ =>
+          if (depth >= Chunk.MaxDepthBeforeMaterialize) Chunk.Slice(self.materialize, 0, n)
+          else Chunk.Slice(self, 0, n)
+      }
 
   /**
    * Takes the last `n` elements of the chunk.
    */
   override def takeRight(n: Int): Chunk[A] =
-    slice(length - n, length)
+    if (n <= 0) Chunk.Empty
+    else if (n >= length) this
+    else
+      self match {
+        case Chunk.Slice(c, o, l) => Chunk.Slice(c, o + l - n, n)
+        case Chunk.Concat(l, r) =>
+          if (n > r.length) Chunk.Concat(l.takeRight(n - r.length), r)
+          else r.takeRight(n)
+        case _ =>
+          if (depth >= Chunk.MaxDepthBeforeMaterialize) Chunk.Slice(self.materialize, length - n, n)
+          else Chunk.Slice(self, length - n, n)
+      }
 
   /**
    * Takes all elements so long as the predicate returns true.
@@ -1033,7 +1071,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       bufferValues(0) = a1.asInstanceOf[AnyRef]
       if (depth >= Chunk.MaxDepthBeforeMaterialize)
         Chunk.Update(self.materialize, bufferIndices, bufferValues, 1, new AtomicInteger(1))
-      Chunk.Update(self, bufferIndices, bufferValues, 1, new AtomicInteger(1))
+      else Chunk.Update(self, bufferIndices, bufferValues, 1, new AtomicInteger(1))
     }
 
   private final def fromBuilder[A1 >: A, B[_]](builder: Builder[A1, B[A1]]): B[A1] = {
