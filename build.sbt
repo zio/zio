@@ -183,8 +183,8 @@ lazy val root3 = project
       )): _*
   )
 
-val catsEffectVersion = "3.4.8"
-val fs2Version        = "3.6.1"
+val catsEffectVersion = "3.5.1"
+val fs2Version        = "3.9.2"
 
 lazy val root = project
   .in(file("."))
@@ -225,9 +225,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .jsSettings(
     jsSettings,
     libraryDependencies ++= List(
-      "org.scala-js"  %%% "scala-js-macrotask-executor" % "1.0.0",
+      "org.scala-js"  %%% "scala-js-macrotask-executor" % "1.1.1",
       ("org.scala-js" %%% "scalajs-weakreferences"      % "1.0.0").cross(CrossVersion.for3Use2_13),
-      "org.scala-js"  %%% "scalajs-dom"                 % "2.0.0"
+      "org.scala-js"  %%% "scalajs-dom"                 % "2.7.0"
     ),
     scalacOptions ++= {
       if (scalaVersion.value == Scala3) {
@@ -431,15 +431,15 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .jsSettings(
     jsSettings,
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.5.0",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.5.0"
     )
   )
   .nativeSettings(
     nativeSettings,
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0",
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.5.0",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.5.0",
       "com.github.lolgab" %%% "scala-native-crypto"  % "0.0.4"
     )
   )
@@ -479,12 +479,12 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
     libraryDependencies ++= {
       if (scalaVersion.value == Scala3)
         Seq(
-          ("com.softwaremill.magnolia1_3" %%% "magnolia" % "1.1.1")
+          ("com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.3")
             .exclude("org.scala-lang", "scala-compiler")
         )
       else
         Seq(
-          ("com.softwaremill.magnolia1_2" %%% "magnolia" % "1.1.1")
+          ("com.softwaremill.magnolia1_2" %%% "magnolia" % "1.1.6")
             .exclude("org.scala-lang", "scala-compiler")
         )
     }
@@ -515,7 +515,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
   .settings(
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.10.1").cross(CrossVersion.for3Use2_13)
+        ("eu.timepit" %% "refined" % "0.11.0").cross(CrossVersion.for3Use2_13)
       )
   )
   .jsSettings(jsSettings)
@@ -527,7 +527,7 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(crossProjectSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.scalacheck" %%% "scalacheck" % "1.16.0")
+      ("org.scalacheck" %%% "scalacheck" % "1.17.0")
     )
   )
   .jsSettings(jsSettings)
@@ -601,11 +601,11 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform) // TODO: make plain pr
   .settings(
     libraryDependencies ++= Seq(
       "junit"                   % "junit"     % "4.13.2" % Test,
-      "org.scala-lang.modules" %% "scala-xml" % "2.1.0"  % Test,
+      "org.scala-lang.modules" %% "scala-xml" % "2.2.0"  % Test,
       // required to run embedded maven in the tests
-      "org.apache.maven"       % "maven-embedder"         % "3.8.5"  % Test,
-      "org.apache.maven"       % "maven-compat"           % "3.8.5"  % Test,
-      "org.apache.maven.wagon" % "wagon-http"             % "3.5.1"  % Test,
+      "org.apache.maven"       % "maven-embedder"         % "3.9.4"  % Test,
+      "org.apache.maven"       % "maven-compat"           % "3.9.4"  % Test,
+      "org.apache.maven.wagon" % "wagon-http"             % "3.5.3"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
       "org.slf4j"              % "slf4j-simple"           % "1.7.36" % Test
@@ -675,21 +675,21 @@ lazy val benchmarks = project.module
       Seq(
         "co.fs2"                    %% "fs2-core"        % fs2Version,
         "com.google.code.findbugs"   % "jsr305"          % "3.0.2",
-        "com.twitter"               %% "util-core"       % "21.12.0",
-        "com.typesafe.akka"         %% "akka-stream"     % "2.8.0",
-        "io.github.timwspence"      %% "cats-stm"        % "0.13.3",
-        "io.projectreactor"          % "reactor-core"    % "3.5.4",
+        "com.twitter"               %% "util-core"       % "22.12.0",
+        "com.typesafe.akka"         %% "akka-stream"     % "2.8.4",
+        "io.github.timwspence"      %% "cats-stm"        % "0.13.4",
+        "io.projectreactor"          % "reactor-core"    % "3.5.10",
         "io.reactivex.rxjava2"       % "rxjava"          % "2.2.21",
         "org.jctools"                % "jctools-core"    % "4.0.1",
-        "org.ow2.asm"                % "asm"             % "9.4",
+        "org.ow2.asm"                % "asm"             % "9.5",
         "org.scala-lang"             % "scala-compiler"  % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"   % scalaVersion.value,
         "org.typelevel"             %% "cats-effect"     % catsEffectVersion,
         "org.typelevel"             %% "cats-effect-std" % catsEffectVersion,
         "org.scalacheck"            %% "scalacheck"      % "1.17.0",
         "qa.hedgehog"               %% "hedgehog-core"   % "0.10.1",
-        "com.github.japgolly.nyaya" %% "nyaya-gen"       % "0.10.0",
-        "org.springframework"        % "spring-core"     % "6.0.9"
+        "com.github.japgolly.nyaya" %% "nyaya-gen"       % "1.1.0",
+        "org.springframework"        % "spring-core"     % "6.0.12"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid =>
@@ -708,13 +708,13 @@ lazy val benchmarks = project.module
   )
 
 lazy val jsdocs = project
-  .settings(libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "1.0.0").cross(CrossVersion.for3Use2_13))
+  .settings(libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "2.7.0").cross(CrossVersion.for3Use2_13))
   .enablePlugins(ScalaJSPlugin)
 
-val http4sV     = "0.23.6"
-val doobieV     = "1.0.0-RC1"
-val catsEffectV = "3.2.9"
-val zioActorsV  = "0.0.9"
+val http4sV     = "0.23.23"
+val doobieV     = "1.0.0-RC2"
+val catsEffectV = "3.5.1"
+val zioActorsV  = "0.1.0"
 
 lazy val scalafixSettings = List(
   scalaVersion := Scala213,
@@ -734,7 +734,7 @@ lazy val scalafixRules = project.module
     libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.10.4"
   )
 
-val zio1Version = "1.0.12"
+val zio1Version = "1.0.18"
 
 lazy val scalafixInput = project
   .in(file("scalafix/input"))
@@ -805,87 +805,87 @@ lazy val docs = project.module
     docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     libraryDependencies ++= Seq(
-      "commons-io"             % "commons-io"                  % "2.11.0" % "provided",
+      "commons-io"             % "commons-io"                  % "2.13.0" % "provided",
       "io.d11"                %% "zhttp"                       % "2.0.0-RC10",
-      "io.7mind.izumi"        %% "distage-core"                % "1.0.8",
-      "io.7mind.izumi"        %% "logstage-core"               % "1.0.8",
-      "org.jsoup"              % "jsoup"                       % "1.14.3" % "provided",
-      "org.reactivestreams"    % "reactive-streams-examples"   % "1.0.3"  % "provided",
+      "io.7mind.izumi"        %% "distage-core"                % "1.1.0",
+      "io.7mind.izumi"        %% "logstage-core"               % "1.1.0",
+      "org.jsoup"              % "jsoup"                       % "1.16.1" % "provided",
+      "org.reactivestreams"    % "reactive-streams-examples"   % "1.0.4"  % "provided",
       "org.typelevel"         %% "cats-effect"                 % catsEffectV,
       "dev.zio"               %% "zio-actors"                  % zioActorsV,
-      "dev.zio"               %% "zio-akka-cluster"            % "0.2.0",
-      "dev.zio"               %% "zio-cache"                   % "0.2.0-RC6",
-      "dev.zio"               %% "zio-config"                  % "3.0.1",
-      "dev.zio"               %% "zio-config-magnolia"         % "3.0.1",
-      "dev.zio"               %% "zio-config-typesafe"         % "3.0.1",
-      "dev.zio"               %% "zio-config-refined"          % "3.0.1",
-      "dev.zio"               %% "zio-ftp"                     % "0.3.3",
-      "dev.zio"               %% "zio-json"                    % "0.3.0-RC10",
-      "dev.zio"               %% "zio-kafka"                   % "2.1.1",
-      "dev.zio"               %% "zio-logging"                 % "2.0.0",
-      "dev.zio"               %% "zio-logging-slf4j"           % "2.0.0",
+      "dev.zio"               %% "zio-akka-cluster"            % "0.3.0",
+      "dev.zio"               %% "zio-cache"                   % "0.2.3",
+      "dev.zio"               %% "zio-config"                  % "3.0.7",
+      "dev.zio"               %% "zio-config-magnolia"         % "3.0.7",
+      "dev.zio"               %% "zio-config-typesafe"         % "3.0.7",
+      "dev.zio"               %% "zio-config-refined"          % "3.0.7",
+      "dev.zio"               %% "zio-ftp"                     % "0.4.1",
+      "dev.zio"               %% "zio-json"                    % "0.6.2",
+      "dev.zio"               %% "zio-kafka"                   % "2.4.2",
+      "dev.zio"               %% "zio-logging"                 % "2.1.14",
+      "dev.zio"               %% "zio-logging-slf4j"           % "2.1.14",
       "dev.zio"               %% "zio-metrics-prometheus"      % "1.0.12",
       "dev.zio"               %% "zio-metrics-connectors"      % "2.0.0-RC6",
-      "dev.zio"               %% "zio-nio"                     % "1.0.0-RC11",
-      "dev.zio"               %% "zio-optics"                  % "0.1.0",
-      "dev.zio"               %% "zio-prelude"                 % "1.0.0-RC6",
-      "dev.zio"               %% "zio-process"                 % "0.5.0",
-      "dev.zio"               %% "zio-rocksdb"                 % "0.3.0",
-      "dev.zio"               %% "zio-s3"                      % "0.3.7",
-      "dev.zio"               %% "zio-schema"                  % "0.1.1",
-      "dev.zio"               %% "zio-sqs"                     % "0.4.2",
-      "dev.zio"               %% "zio-opentracing"             % "0.8.2",
-      "io.laserdisc"          %% "tamer-db"                    % "0.16.1",
-      "io.jaegertracing"       % "jaeger-core"                 % "1.6.0",
-      "io.jaegertracing"       % "jaeger-client"               % "1.6.0",
-      "io.jaegertracing"       % "jaeger-zipkin"               % "1.6.0",
-      "io.zipkin.reporter2"    % "zipkin-reporter"             % "2.16.3",
-      "io.zipkin.reporter2"    % "zipkin-sender-okhttp3"       % "2.16.3",
-      "dev.zio"               %% "zio-interop-cats"            % "3.1.1.0",
+      "dev.zio"               %% "zio-nio"                     % "2.0.2",
+      "dev.zio"               %% "zio-optics"                  % "0.2.1",
+      "dev.zio"               %% "zio-prelude"                 % "1.0.0-RC21",
+      "dev.zio"               %% "zio-process"                 % "0.7.2",
+      "dev.zio"               %% "zio-rocksdb"                 % "0.4.3",
+      "dev.zio"               %% "zio-s3"                      % "0.4.2",
+      "dev.zio"               %% "zio-schema"                  % "0.4.14",
+      "dev.zio"               %% "zio-sqs"                     % "0.6.0",
+      "dev.zio"               %% "zio-opentracing"             % "2.0.3",
+      "io.laserdisc"          %% "tamer-db"                    % "0.19.0",
+      "io.jaegertracing"       % "jaeger-core"                 % "1.8.1",
+      "io.jaegertracing"       % "jaeger-client"               % "1.8.1",
+      "io.jaegertracing"       % "jaeger-zipkin"               % "1.8.1",
+      "io.zipkin.reporter2"    % "zipkin-reporter"             % "2.16.4",
+      "io.zipkin.reporter2"    % "zipkin-sender-okhttp3"       % "2.16.4",
+      "dev.zio"               %% "zio-interop-cats"            % "23.0.03",
       "dev.zio"               %% "zio-interop-scalaz7x"        % "7.3.3.0",
-      "dev.zio"               %% "zio-interop-reactivestreams" % "1.3.7",
-      "dev.zio"               %% "zio-interop-twitter"         % "20.10.0.0",
-      "dev.zio"               %% "zio-zmx"                     % "0.0.9",
-      "dev.zio"               %% "zio-query"                   % "0.2.10",
-      "dev.zio"               %% "zio-mock"                    % "1.0.0-RC9",
-      "org.polynote"          %% "uzhttp"                      % "0.2.8",
+      "dev.zio"               %% "zio-interop-reactivestreams" % "2.0.2",
+      "dev.zio"               %% "zio-interop-twitter"         % "20.10.2",
+      "dev.zio"               %% "zio-zmx"                     % "0.0.13",
+      "dev.zio"               %% "zio-query"                   % "0.4.0",
+      "dev.zio"               %% "zio-mock"                    % "1.0.0-RC11",
+      "org.polynote"          %% "uzhttp"                      % "0.3.0-RC1",
       "org.tpolecat"          %% "doobie-core"                 % doobieV,
       "org.tpolecat"          %% "doobie-h2"                   % doobieV,
       "org.tpolecat"          %% "doobie-hikari"               % doobieV,
-      "org.http4s"            %% "http4s-blaze-server"         % http4sV,
-      "org.http4s"            %% "http4s-blaze-client"         % http4sV,
+      "org.http4s"            %% "http4s-blaze-server"         % "0.23.15",
+      "org.http4s"            %% "http4s-blaze-client"         % "0.23.15",
       "org.http4s"            %% "http4s-dsl"                  % http4sV,
       "com.github.ghostdogpr" %% "caliban"                     % "2.0.0",
       "com.github.ghostdogpr" %% "caliban-zio-http"            % "2.0.0",
-      "org.scalameta"         %% "munit"                       % "1.0.0-M6",
+      "org.scalameta"         %% "munit"                       % "1.0.0-M10",
       "com.github.poslegm"    %% "munit-zio"                   % "0.1.1",
-      "nl.vroste"             %% "rezilience"                  % "0.7.0",
-      "io.github.gaelrenoux"  %% "tranzactio"                  % "2.1.0",
+      "nl.vroste"             %% "rezilience"                  % "0.9.4",
+      "io.github.gaelrenoux"  %% "tranzactio"                  % "4.2.0",
       "io.github.neurodyne"   %% "zio-arrow"                   % "0.2.1",
-      "nl.vroste"             %% "zio-amqp"                    % "0.2.2",
+      "nl.vroste"             %% "zio-amqp"                    % "0.5.0",
 //      "dev.zio"                       %% "zio-aws-core"                  % "5.17.102.7",
 //      "dev.zio"                       %% "zio-aws-ec2"                   % "5.17.102.7",
 //      "dev.zio"                       %% "zio-aws-elasticbeanstalk"      % "5.17.102.7",
 //      "dev.zio"                       %% "zio-aws-netty"                 % "5.17.102.7",
       "io.github.neurodyne"           %% "zio-aws-s3"                    % "0.4.13",
-      "com.coralogix"                 %% "zio-k8s-client"                % "1.3.4",
-      "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.3.14",
-      "nl.vroste"                     %% "zio-kinesis"                   % "0.20.0",
-      "com.vladkopanev"               %% "zio-saga-core"                 % "0.4.0",
-      "io.scalac"                     %% "zio-slick-interop"             % "0.4",
-      "com.typesafe.slick"            %% "slick-hikaricp"                % "3.3.3",
-      "info.senia"                    %% "zio-test-akka-http"            % "1.0.3",
-      "io.getquill"                   %% "quill-jdbc-zio"                % "3.10.0",
-      "com.typesafe.akka"             %% "akka-http"                     % "10.2.10",
-      "com.typesafe.akka"             %% "akka-cluster-typed"            % "2.6.20",
-      "com.typesafe.akka"             %% "akka-cluster-sharding-typed"   % "2.6.20",
+      "com.coralogix"                 %% "zio-k8s-client"                % "2.1.0",
+      "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.9.0",
+      "nl.vroste"                     %% "zio-kinesis"                   % "0.32.0",
+      "com.vladkopanev"               %% "zio-saga-core"                 % "0.6.0",
+      "io.scalac"                     %% "zio-slick-interop"             % "0.6.0",
+      "com.typesafe.slick"            %% "slick-hikaricp"                % "3.4.1",
+      "info.senia"                    %% "zio-test-akka-http"            % "2.0.14",
+      "io.getquill"                   %% "quill-jdbc-zio"                % "4.6.1",
+      "com.typesafe.akka"             %% "akka-http"                     % "10.5.2",
+      "com.typesafe.akka"             %% "akka-cluster-typed"            % "2.8.4",
+      "com.typesafe.akka"             %% "akka-cluster-sharding-typed"   % "2.8.4",
       "com.devsisters"                %% "shardcake-core"                % "2.0.0",
       "com.devsisters"                %% "shardcake-storage-redis"       % "2.0.0",
       "com.devsisters"                %% "shardcake-protocol-grpc"       % "2.0.0",
       "com.devsisters"                %% "shardcake-entities"            % "2.0.0",
       "com.devsisters"                %% "shardcake-manager"             % "2.0.0",
       "com.devsisters"                %% "shardcake-serialization-kryo"  % "2.0.0",
-      "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core"                 % "0.6.0-test4",
+      "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core"                 % "0.6.0",
       "dev.zio"                       %% "zio-http"                      % "0.0.5",
       "dev.zio"                       %% "zio-metrics-connectors"        % "2.0.7"
     ),
