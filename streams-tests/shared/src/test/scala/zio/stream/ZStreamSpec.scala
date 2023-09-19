@@ -4550,7 +4550,9 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("dies if the partial function throws an exception") {
             val exception = new Exception
-            assertZIO(ZStream.whenCase(Option.empty[Int]) { case _ => throw exception }.runDrain.exit)(dies(equalTo(exception)))
+            assertZIO(ZStream.whenCase(Option.empty[Int]) { case _ => throw exception }.runDrain.exit)(
+              dies(equalTo(exception))
+            )
           }
         ),
         suite("whenCaseZIO")(
