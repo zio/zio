@@ -86,7 +86,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
   private[sbt] def tasksZ(
     defs: Array[TaskDef],
     console: zio.Console
-  )(implicit trace: Trace): Array[ZTestTask[Any]] = {
+  )(implicit trace: Trace): Array[ZTestTask[TestOutput]] = {
     val testArgs = TestArgs.parse(args)
 
     renderer = testArgs.testRenderer // Ensures summary is pretty in same style as rest of the test output
