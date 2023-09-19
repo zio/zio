@@ -35,7 +35,7 @@ final case class StackTrace(
    * element into a Java stack trace element.
    */
   def toJava: Chunk[StackTraceElement] =
-    stackTrace.flatMap(Trace.toJava)
+    stackTrace.flatMap(Trace.toJava).dedupe
 
   def prettyPrint(prefix: String): String = prettyPrint(Some(prefix))
 
