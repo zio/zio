@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.{Runtime, Scope, Trace, Unsafe, ZIO, ZIOAppArgs, ZLayer}
-import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract}
+import zio.test.{ExecutionEventPrinter, Summary, TestArgs, TestOutput, ZIOSpecAbstract}
 
 import java.util.concurrent.atomic.AtomicReference
 import zio.stacktracer.TracingImplicits.disableAutoTrace
@@ -86,10 +86,11 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
   private[sbt] def tasksZ(
     defs: Array[TaskDef],
     console: zio.Console
-  )(implicit trace: Trace): Array[ZTestTask[Any]] = {
+  )(implicit trace: Trace): Array[ZTestTask[TestOutput]] = {
     val testArgs = TestArgs.parse(args)
 
     renderer = testArgs.testRenderer // Ensures summary is pretty in same style as rest of the test output
+    val sharedTestOutputLayer = ExecutionEventPrinter.live(console, testArgs.testEventRenderer) >>> TestOutput.live
 
     val specTasks: Array[ZIOSpecAbstract] = defs.map(disectTask(_, testClassLoader))
     val sharedLayerFromSpecs: ZLayer[Any, Any, Any] =
@@ -97,8 +98,11 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
         .map(_.bootstrap)
         .foldLeft(ZLayer.empty: ZLayer[ZIOAppArgs, Any, Any])(_ +!+ _)
 
-    val runtime =
-      zio.Runtime.unsafe.fromLayer(sharedLayerFromSpecs)(Trace.empty, Unsafe.unsafe)
+    val sharedLayer: ZLayer[Any, Any, TestOutput] =
+      sharedLayerFromSpecs +!+ sharedTestOutputLayer
+
+    val runtime: Runtime.Scoped[TestOutput] =
+      zio.Runtime.unsafe.fromLayer(sharedLayer)(Trace.empty, Unsafe.unsafe)
 
     shutdownHook = Some(() => runtime.unsafe.shutdown()(Unsafe.unsafe))
 
