@@ -225,6 +225,9 @@ object GenSpec extends ZIOBaseSpec {
       test("filter filters values according to predicate") {
         checkSample(smallInt.filter(_ % 2 == 0))(forall(equalTo(0)), _.map(_ % 2))
       },
+      test("filterZIO filters values according to predicate") {
+        checkSample(smallInt.filterZIO(n => ZIO.succeed(n % 2 == 0)))(forall(equalTo(0)), _.map(_ % 2))
+      },
       test("finiteDuration generates values in range") {
         val min = 42.minutes + 23222.nanos
         val max = 3.hours + 30.seconds + 887999.nanos
@@ -534,6 +537,9 @@ object GenSpec extends ZIOBaseSpec {
       },
       test("filter filters shrinks according to predicate") {
         checkShrink(Gen.int(1, 10).filter(_ % 2 == 0))(2)
+      },
+      test("filterZIO filters shrinks according to predicate") {
+        checkShrink(Gen.int(1, 10).filterZIO(n => ZIO.succeed(n % 2 == 0)))(2)
       },
       test("finiteDuration shrinks to min") {
         val min = 97.minutes + 13.seconds + 32.nanos
