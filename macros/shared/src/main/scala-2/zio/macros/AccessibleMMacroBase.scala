@@ -16,6 +16,7 @@
 
 package zio.macros
 
+import scala.annotation.nowarn
 import scala.reflect.macros.whitebox
 
 private[macros] abstract class AccessibleMMacroBase(override val c: whitebox.Context) extends AccessibleMacroBase(c) {
@@ -26,6 +27,7 @@ private[macros] abstract class AccessibleMMacroBase(override val c: whitebox.Con
 
   protected def aliases: Seq[Tree]
 
+  @nowarn("msg=pattern var [^\\s]+ in method unapply is never used")
   protected val tp: Tree = c.prefix.tree match {
     case q"new ${macroNm: Ident}[$typeParam]" if macroNm.name == TypeName(macroName) =>
       typeParam
@@ -44,6 +46,7 @@ private[macros] abstract class AccessibleMMacroBase(override val c: whitebox.Con
   private lazy val types: Map[Type, Tree] =
     aliases.map(a => c.typecheck(tq"$a", c.TYPEmode).tpe -> a).toMap
 
+  @nowarn("msg=pattern var [^\\s]+ in method unapply is never used")
   protected def macroApply(annottees: Seq[c.Tree]): MacroApply = new MacroApply(annottees) {
 
     private val typeParamToInject = {
