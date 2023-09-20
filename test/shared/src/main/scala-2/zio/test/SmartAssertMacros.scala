@@ -1,9 +1,8 @@
 package zio.test
 
-import com.github.ghik.silencer.silent
 import zio.{Cause, Exit}
 
-import scala.annotation.tailrec
+import scala.annotation.{nowarn, tailrec}
 import scala.reflect.macros.blackbox
 
 class SmartAssertMacros(val c: blackbox.Context) {
@@ -165,7 +164,7 @@ class SmartAssertMacros(val c: blackbox.Context) {
     def getStart(tree: c.Tree): Int      = tree.pos.start - start
   }
 
-  @silent("never used")
+  @nowarn("msg=never used")
   def parseExpr(tree: c.Tree)(implicit pos: PositionContext): AST = {
     val end = pos.getEnd(tree)
 
@@ -220,7 +219,7 @@ $TestResult($ast.withCode($codeString).withLocation)
   }
 
   object UnwrapImplicit {
-    @silent("never used")
+    @nowarn("msg=never used")
     def unapply(tree: c.Tree): Option[c.Tree] =
       tree match {
         case q"$wrapper($lhs)" if wrapper.symbol.isImplicit =>
@@ -230,7 +229,7 @@ $TestResult($ast.withCode($codeString).withLocation)
   }
 
   object MethodCall {
-    @silent("never used")
+    @nowarn("msg=never used")
     def unapply(tree: c.Tree): Option[(c.Tree, TermName, List[Type], Option[List[c.Tree]])] =
       tree match {
         case q"${UnwrapImplicit(lhs)}.$name[..$tpes]"

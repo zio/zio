@@ -1,10 +1,11 @@
 package zio
 
-import com.github.ghik.silencer.silent
 import zio.test.Assertion._
 import zio.test._
 
-@silent("never used")
+import scala.annotation.nowarn
+
+@nowarn("msg=never used")
 object ZLayerDerivationSpec extends ZIOBaseSpec {
 
   override def spec = suite("ZLayer.derive[A]")(

@@ -1,10 +1,10 @@
 package zio.metrics.jvm
 
-import com.github.ghik.silencer.silent
 import zio._
 import zio.metrics._
 
 import java.lang.management.ManagementFactory
+import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
 final case class GarbageCollector(
@@ -13,7 +13,7 @@ final case class GarbageCollector(
 )
 
 object GarbageCollector {
-  @silent("JavaConverters")
+  @nowarn("msg=JavaConverters")
   val live: ZLayer[JvmMetricsSchedule, Throwable, GarbageCollector] =
     ZLayer.scoped {
       for {

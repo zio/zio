@@ -3,9 +3,9 @@ package zio.concurrent
 import zio.{Chunk, ChunkBuilder, UIO, ZIO}
 
 import java.util.concurrent.ConcurrentHashMap
-import com.github.ghik.silencer.silent
 
 import java.util.function.BiConsumer
+import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
 /**
@@ -111,7 +111,7 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
    * Adds all new key-value pairs
    */
   def putAll(keyValues: (K, V)*): UIO[Unit] =
-    ZIO.succeed(underlying.putAll(keyValues.toMap.asJava): @silent("JavaConverters"))
+    ZIO.succeed(underlying.putAll(keyValues.toMap.asJava): @nowarn("msg=JavaConverters"))
 
   /**
    * Adds a new key-value pair, unless the key is already bound to some other

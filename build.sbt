@@ -210,14 +210,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.3.8")
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
-  .settings(
-    scalacOptions ++= {
-      if (scalaVersion.value == Scala3)
-        Seq.empty
-      else
-        Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
-    }
-  )
+  .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
   .jvmSettings(
     replSettings,
     mimaSettings(failOnProblem = true)
@@ -282,14 +275,7 @@ lazy val managed = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
-  .settings(
-    scalacOptions ++= {
-      if (scalaVersion.value == Scala3)
-        Seq.empty
-      else
-        Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
-    }
-  )
+  .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
   .jvmSettings(
     mimaSettings(failOnProblem = false)
   )
@@ -367,14 +353,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
-  .settings(
-    scalacOptions ++= {
-      if (scalaVersion.value == Scala3)
-        Seq.empty
-      else
-        Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
-    }
-  )
+  .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
   .jvmSettings(mimaSettings(failOnProblem = true))
   .jsSettings(jsSettings)
   .nativeSettings(nativeSettings)
@@ -419,14 +398,7 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         .cross(CrossVersion.for3Use2_13)
     )
   )
-  .settings(
-    scalacOptions ++= {
-      if (scalaVersion.value == Scala3)
-        Seq.empty
-      else
-        Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
-    }
-  )
+  .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
   .jvmSettings(mimaSettings(failOnProblem = true))
   .jsSettings(
     jsSettings,
@@ -553,14 +525,7 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(crossProjectSettings)
   .settings(Test / run / mainClass := Some("zio.test.sbt.TestMain"))
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .settings(
-    scalacOptions ++= {
-      if (scalaVersion.value == Scala3)
-        Seq.empty
-      else
-        Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
-    }
-  )
+  .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
   .dependsOn(core)
   .dependsOn(tests)
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
