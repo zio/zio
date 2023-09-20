@@ -320,6 +320,7 @@ lazy val macros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroExpansionSettings)
   .jsSettings(jsSettings)
   .nativeSettings(nativeSettings)
+  .settings(scalacOptions += "-Wconf:msg=[@nowarn annotation does not suppress any warnings]:silent")
 
 lazy val macrosTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("macros-tests"))
@@ -609,6 +610,7 @@ lazy val concurrent = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .jvmSettings(mimaSettings(failOnProblem = false))
   .jsSettings(jsSettings)
   .nativeSettings(nativeSettings)
+  .settings(scalacOptions += "-Wconf:msg=[@nowarn annotation does not suppress any warnings]:silent")
 
 /**
  * Examples sub-project that is not included in the root project.
