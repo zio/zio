@@ -1,12 +1,13 @@
-import com.github.ghik.silencer.silent
 import zio.test._
+
+import scala.annotation.nowarn
 
 object REPLSpec extends ZIOSpecDefault {
 
   def spec = suite("REPLSpec")(
     test("settings compile") {
       import zio._
-      @silent("never used")
+      @nowarn("msg=never used")
       implicit class RunSyntax[A](io: ZIO[Any, Any, A]) {
         def unsafeRun: A =
           Unsafe.unsafe { implicit unsafe =>

@@ -25,8 +25,6 @@ object BuildHelper {
   val Scala213: String = versions("2.13")
   val Scala3: String   = versions("3")
 
-  val SilencerVersion = "1.7.12"
-
   private val stdOptions = Seq(
     "-deprecation",
     "-encoding",
@@ -187,17 +185,6 @@ object BuildHelper {
         List("-Xfatal-warnings")
       else
         List()
-    },
-    libraryDependencies ++= {
-      if (scalaVersion.value == Scala3)
-        Seq(
-          "com.github.ghik" % s"silencer-lib_$Scala213" % SilencerVersion % Provided
-        )
-      else
-        Seq(
-          "com.github.ghik" % "silencer-lib" % SilencerVersion % Provided cross CrossVersion.full,
-          compilerPlugin("com.github.ghik" % "silencer-plugin" % SilencerVersion cross CrossVersion.full)
-        )
     },
     Test / parallelExecution := false,
     incOptions ~= (_.withLogRecompileOnMacro(false)),

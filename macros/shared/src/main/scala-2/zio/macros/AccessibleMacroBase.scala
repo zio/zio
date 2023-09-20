@@ -16,8 +16,7 @@
 
 package zio.macros
 
-import com.github.ghik.silencer.silent
-
+import scala.annotation.nowarn
 import scala.reflect.macros.whitebox
 
 private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
@@ -121,7 +120,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
       case _ => None
     }).getOrElse(abort(s"@$macroName macro can only be applied to objects containing `Service` trait."))
 
-    @silent("pattern var [^\\s]+ in method unapply is never used")
+    @nowarn("msg=pattern var [^\\s]+ in method unapply is never used")
     private def typeInfo(tree: Tree): TypeInfo =
       (tree: @unchecked) match {
         case tq"$_[..$typeParams]" =>
@@ -235,7 +234,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
       }
     }
 
-    @silent("pattern var [^\\s]+ in method unapply is never used")
+    @nowarn("msg=pattern var [^\\s]+ in method unapply is never used")
     private def withThrowing(mods: Modifiers, tree: Tree) = {
       val isThrowing = mods.annotations.exists {
         case q"new $name" => name.toString == classOf[throwing].getSimpleName()
@@ -248,7 +247,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
       }
     }
 
-    @silent("pattern var [^\\s]+ in method unapply is never used")
+    @nowarn("msg=pattern var [^\\s]+ in method unapply is never used")
     final def apply(): c.Tree = {
 
       val accessors =

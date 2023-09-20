@@ -4268,11 +4268,11 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       },
       test("promise ugly path test") {
-        val func: String => String = s => s.toUpperCase
+        val func: String => String = _ => throw new Exception("side-effect")
         for {
           promise <- ZIO.succeed(scala.concurrent.Promise[String]())
           _ <- ZIO.attempt {
-                 Try(func(null)) match {
+                 Try(func("hello world from future")) match {
                    case Success(value)     => promise.success(value)
                    case Failure(exception) => promise.failure(exception)
                  }
