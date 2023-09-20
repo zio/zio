@@ -255,7 +255,7 @@ private[this] class BaseContext {
   protected def createJavaSet(values: Array[TestKey] = new Array[TestKey](0)): util.Set[TestKey] = {
     import scala.jdk.CollectionConverters._
     val set = Collections.synchronizedSet(Collections.newSetFromMap(new util.WeakHashMap[TestKey, java.lang.Boolean]()))
-    set.addAll(values.toSet.asJava): @@nowarn("msg=JavaConverters")
+    set.addAll(values.toSet.asJava): @nowarn("msg=JavaConverters")
     set
   }
 
@@ -265,7 +265,7 @@ private[this] class BaseContext {
     import scala.jdk.CollectionConverters._
     val map =
       new SpringConcurrentReferenceHashMap[TestKey, Boolean](16, SpringConcurrentReferenceHashMap.ReferenceType.WEAK)
-    map.putAll(values.map((_, true)).toMap.asJava): @@nowarn("msg=JavaConverters")
+    map.putAll(values.map((_, true)).toMap.asJava): @nowarn("msg=JavaConverters")
     map
   }
 
