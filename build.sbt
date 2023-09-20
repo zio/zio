@@ -885,7 +885,7 @@ lazy val docs = project.module
       "com.devsisters"                %% "shardcake-entities"            % "2.0.0",
       "com.devsisters"                %% "shardcake-manager"             % "2.0.0",
       "com.devsisters"                %% "shardcake-serialization-kryo"  % "2.0.0",
-      "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core"                 % "0.6.0",
+      "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core"                 % "0.6.0-test4",
       "dev.zio"                       %% "zio-http"                      % "0.0.5",
       "dev.zio"                       %% "zio-metrics-connectors"        % "2.0.7"
     ),
