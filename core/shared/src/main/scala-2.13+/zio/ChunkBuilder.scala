@@ -99,23 +99,6 @@ object ChunkBuilder {
   }
 
   /**
-   * Constructs a specialized `ChunkBuilder` if the type is a value type and a
-   * generic `ChunkBuilder` otherwise.
-   */
-  def make[A](tag: ClassTag[A]): ChunkBuilder[A] =
-    tag match {
-      case ClassTag.Boolean => (new Boolean).asInstanceOf[ChunkBuilder[A]]
-      case ClassTag.Byte    => (new Byte).asInstanceOf[ChunkBuilder[A]]
-      case ClassTag.Char    => (new Char).asInstanceOf[ChunkBuilder[A]]
-      case ClassTag.Double  => (new Double).asInstanceOf[ChunkBuilder[A]]
-      case ClassTag.Float   => (new Float).asInstanceOf[ChunkBuilder[A]]
-      case ClassTag.Int     => (new Int).asInstanceOf[ChunkBuilder[A]]
-      case ClassTag.Long    => (new Long).asInstanceOf[ChunkBuilder[A]]
-      case ClassTag.Short   => (new Short).asInstanceOf[ChunkBuilder[A]]
-      case _                => make[A]()
-    }
-
-  /**
    * A `ChunkBuilder` specialized for building chunks of unboxed `Boolean`
    * values.
    */
