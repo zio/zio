@@ -187,7 +187,7 @@ object ChunkBuilder {
     override def addAll(as: TraversableOnce[SByte]): this.type =
       self ++= as
     override def addOne(a: SByte): this.type =
-      self.addOne(a)
+      self += a
     def clear(): Unit =
       arrayBuilder.clear()
     override def equals(that: Any): SBoolean =
@@ -221,7 +221,7 @@ object ChunkBuilder {
     override def addAll(as: TraversableOnce[SChar]): this.type =
       self ++= as
     override def addOne(a: SChar): this.type =
-      self.addOne(a)
+      self += a
     def clear(): Unit =
       arrayBuilder.clear()
     override def equals(that: Any): SBoolean =
