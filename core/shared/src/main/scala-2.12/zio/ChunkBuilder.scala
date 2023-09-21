@@ -47,6 +47,23 @@ sealed abstract class ChunkBuilder[A] extends Builder[A, Chunk[A]] { self =>
 object ChunkBuilder {
 
   /**
+    * Constructs a specialized `ChunkBuilder` if the type is a value type and a
+    * generic `ChunkBuilder` otherwise.
+    */
+  def make[A](tag: ClassTag[A]): ChunkBuilder[A] =
+    tag match {
+      case ClassTag.Boolean => (new Boolean).asInstanceOf[ChunkBuilder[A]]
+      case ClassTag.Byte    => (new Byte).asInstanceOf[ChunkBuilder[A]]
+      case ClassTag.Char    => (new Char).asInstanceOf[ChunkBuilder[A]]
+      case ClassTag.Double  => (new Double).asInstanceOf[ChunkBuilder[A]]
+      case ClassTag.Float   => (new Float).asInstanceOf[ChunkBuilder[A]]
+      case ClassTag.Int     => (new Int).asInstanceOf[ChunkBuilder[A]]
+      case ClassTag.Long    => (new Long).asInstanceOf[ChunkBuilder[A]]
+      case ClassTag.Short   => (new Short).asInstanceOf[ChunkBuilder[A]]
+      case _                => make[A]()
+    }
+
+  /**
    * Constructs a generic `ChunkBuilder`.
    */
   def make[A](): ChunkBuilder[A] =
@@ -108,7 +125,7 @@ object ChunkBuilder {
    */
   final class Boolean extends ChunkBuilder[SBoolean] { self =>
 
-    private val arrayBuilder: ArrayBuilder[SByte] = {
+    private val arrayBuilder: ArrayBuilder.ofByte = {
       new ArrayBuilder.ofByte
     }
     private var lastByte: SByte   = 0.toByte
@@ -173,7 +190,7 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Byte` values.
    */
   final class Byte extends ChunkBuilder[SByte] { self =>
-    private val arrayBuilder: ArrayBuilder[SByte] = {
+    private val arrayBuilder: ArrayBuilder.ofByte = {
       new ArrayBuilder.ofByte
     }
     override def ++=(as: TraversableOnce[SByte]): this.type = {
@@ -187,7 +204,7 @@ object ChunkBuilder {
     override def addAll(as: TraversableOnce[SByte]): this.type =
       self ++= as
     override def addOne(a: SByte): this.type =
-      self += a
+      self.addOne(a)
     def clear(): Unit =
       arrayBuilder.clear()
     override def equals(that: Any): SBoolean =
@@ -207,7 +224,7 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Char` values.
    */
   final class Char extends ChunkBuilder[SChar] { self =>
-    private val arrayBuilder: ArrayBuilder[SChar] = {
+    private val arrayBuilder: ArrayBuilder.ofChar = {
       new ArrayBuilder.ofChar
     }
     override def ++=(as: TraversableOnce[SChar]): this.type = {
@@ -221,7 +238,7 @@ object ChunkBuilder {
     override def addAll(as: TraversableOnce[SChar]): this.type =
       self ++= as
     override def addOne(a: SChar): this.type =
-      self += a
+      self.addOne(a)
     def clear(): Unit =
       arrayBuilder.clear()
     override def equals(that: Any): SBoolean =
@@ -242,7 +259,7 @@ object ChunkBuilder {
    * values.
    */
   final class Double extends ChunkBuilder[SDouble] { self =>
-    private val arrayBuilder: ArrayBuilder[SDouble] = {
+    private val arrayBuilder: ArrayBuilder.ofDouble = {
       new ArrayBuilder.ofDouble
     }
     override def ++=(as: TraversableOnce[SDouble]): this.type = {
@@ -276,7 +293,7 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Float` values.
    */
   final class Float extends ChunkBuilder[SFloat] { self =>
-    private val arrayBuilder: ArrayBuilder[SFloat] = {
+    private val arrayBuilder: ArrayBuilder.ofFloat = {
       new ArrayBuilder.ofFloat
     }
     override def ++=(as: TraversableOnce[SFloat]): this.type = {
@@ -310,7 +327,7 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Int` values.
    */
   final class Int extends ChunkBuilder[SInt] { self =>
-    private val arrayBuilder: ArrayBuilder[SInt] = {
+    private val arrayBuilder: ArrayBuilder.ofInt = {
       new ArrayBuilder.ofInt
     }
     override def ++=(as: TraversableOnce[SInt]): this.type = {
@@ -344,7 +361,7 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Long` values.
    */
   final class Long extends ChunkBuilder[SLong] { self =>
-    private val arrayBuilder: ArrayBuilder[SLong] = {
+    private val arrayBuilder: ArrayBuilder.ofLong = {
       new ArrayBuilder.ofLong
     }
     override def ++=(as: TraversableOnce[SLong]): this.type = {
@@ -378,7 +395,7 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Short` values.
    */
   final class Short extends ChunkBuilder[SShort] { self =>
-    private val arrayBuilder: ArrayBuilder[SShort] = {
+    private val arrayBuilder: ArrayBuilder.ofShort = {
       new ArrayBuilder.ofShort
     }
     override def ++=(as: TraversableOnce[SShort]): this.type = {

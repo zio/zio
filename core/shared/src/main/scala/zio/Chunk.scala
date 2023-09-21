@@ -2618,17 +2618,22 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override def int(index: Int)(implicit ev: Int <:< Int): Int =
       array(index + offset)
     override protected def mapChunk[B](f: Int => B): Chunk[B] = {
-      val len     = self.length
-      val builder = ChunkBuilder.make[B]()
-      builder.sizeHint(len)
+      val len = self.length
+      if (len == 0) Chunk.empty
+      else if (len == 1) Chunk.single(f(self(0)))
+      else {
+        val tag     = Tags.fromValue(f(self(0)))
+        val builder = ChunkBuilder.make(tag)
+        builder.sizeHint(len)
 
-      var i = 0
-      while (i < len) {
-        builder += f(self(i))
-        i += 1
+        var i = 0
+        while (i < len) {
+          builder += f(self(i))
+          i += 1
+        }
+
+        builder.result()
       }
-
-      builder.result()
     }
     def nextAt(index: Int): Int =
       array(index + offset)
