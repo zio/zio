@@ -48,9 +48,9 @@ sealed abstract class ChunkBuilder[A] extends Builder[A, Chunk[A]] { self =>
 object ChunkBuilder {
 
   /**
-    * Constructs a specialized `ChunkBuilder` if the type is a value type and a
-    * generic `ChunkBuilder` otherwise.
-    */
+   * Constructs a specialized `ChunkBuilder` if the type is a value type and a
+   * generic `ChunkBuilder` otherwise.
+   */
   def make[A](tag: ClassTag[A]): ChunkBuilder[A] =
     tag match {
       case ClassTag.Boolean => (new Boolean).asInstanceOf[ChunkBuilder[A]]
