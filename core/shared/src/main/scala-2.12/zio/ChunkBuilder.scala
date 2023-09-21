@@ -20,7 +20,6 @@ import zio.Chunk.BitChunkByte
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.collection.mutable.{ArrayBuilder, Builder}
-import scala.reflect.ClassTag
 import scala.{
   Boolean => SBoolean,
   Byte => SByte,
