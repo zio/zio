@@ -585,27 +585,58 @@ object Metric {
   /**
    * Creates a timer metric, based on a histogram, which keeps track of
    * durations in the specified unit of time (milliseconds, seconds, etc.). The
-   * unit of time will automatically be added to the metric as a tag
-   * ("time_unit: milliseconds").
+   * histogram will have 64 buckets, starting at 1.0 and doubling each time
+   * (1.0*2^x, where x = 0 to 63). The unit of time will automatically be added
+   * to the metric as a tag ("time_unit: milliseconds").
    */
   def timer(
     name: String,
     chronoUnit: ChronoUnit
   ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] =
-    timer(name, chronoUnit, Chunk.iterate(1.0, 64)(_ * 2.0))
+    timer(name, 64, chronoUnit)
 
   /**
    * Creates a timer metric, based on a histogram, which keeps track of
    * durations in the specified unit of time (milliseconds, seconds, etc.). The
-   * unit of time will automatically be added to the metric as a tag
-   * ("time_unit: milliseconds").
+   * histogram will have the provided number of buckets, starting at 1.0 and
+   * doubling each time (1.0*2^x). The unit of time will automatically be added
+   * to the metric as a tag ("time_unit: milliseconds").
+   */
+  def timer(
+    name: String,
+    buckets: Int,
+    chronoUnit: ChronoUnit
+  ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] =
+    timer(name, chronoUnit, Chunk.iterate(1.0, buckets)(_ * 2.0))
+
+  /**
+   * Creates a timer metric, based on a histogram, which keeps track of
+   * durations in the specified unit of time (milliseconds, seconds, etc.). The
+   * histogram will have 64 buckets, starting at 1.0 and doubling each time
+   * (1.0*2^x, where x = 0 to 63). The unit of time will automatically be added
+   * to the metric as a tag ("time_unit: milliseconds").
    */
   def timer(
     name: String,
     description: String,
     chronoUnit: ChronoUnit
   ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] =
-    timer(name, description, chronoUnit, Chunk.iterate(1.0, 64)(_ * 2.0))
+    timer(name, description, 64, chronoUnit)
+
+  /**
+   * Creates a timer metric, based on a histogram, which keeps track of
+   * durations in the specified unit of time (milliseconds, seconds, etc.). The
+   * histogram will have the provided number of buckets, starting at 1.0 and
+   * doubling each time (1.0*2^x). The unit of time will automatically be added
+   * to the metric as a tag ("time_unit: milliseconds").
+   */
+  def timer(
+    name: String,
+    description: String,
+    buckets: Int,
+    chronoUnit: ChronoUnit
+  ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] =
+    timer(name, description, chronoUnit, Chunk.iterate(1.0, buckets)(_ * 2.0))
 
   def timer(
     name: String,
