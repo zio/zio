@@ -98,4 +98,10 @@ class MixedChunkBenchmarks {
   def foldZIOMaterialized(): Int =
     BenchmarkUtil.unsafeRun(chunkMaterialized.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
 
+  @Benchmark
+  def filter(): Chunk[Int] = chunk.filter(_ % 2 == 0)
+
+  @Benchmark
+  def filterMaterialized(): Chunk[Int] = chunkMaterialized.filter(_ % 2 == 0)
+
 }
