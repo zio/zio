@@ -252,8 +252,8 @@ trait TimeVariants {
       val yearValue = year.getValue
       (min.getYear, max.getYear) match {
         case (`yearValue`, `yearValue`) => Gen.int(min.getMonthValue, max.getMonthValue)
-        case (_, `yearValue`)           => Gen.int(min.getMonthValue, max.getMonthValue)
-        case (`yearValue`, _)           => Gen.int(min.getMonthValue, max.getMonthValue)
+        case (_, `yearValue`)           => Gen.int(1, max.getMonthValue)
+        case (`yearValue`, _)           => Gen.int(min.getMonthValue, 12)
         case (_, _)                     => Gen.int(1, 12)
       }
     }
