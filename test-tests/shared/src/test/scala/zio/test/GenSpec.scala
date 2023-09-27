@@ -159,6 +159,11 @@ object GenSpec extends ZIOBaseSpec {
       test("yearMonth generates java.time.YearMonth values") {
         checkSample(Gen.yearMonth)(isNonEmpty)
       },
+      test("yearMonth generates values in range") {
+        val min = YearMonth.of(2000, 8)
+        val max = YearMonth.of(2020, 4)
+        checkSample(Gen.yearMonth(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
+      },
       test("zonedDateTime generates java.time.ZonedDateTime values") {
         checkSample(Gen.zonedDateTime)(isNonEmpty)
       },
@@ -498,6 +503,9 @@ object GenSpec extends ZIOBaseSpec {
       },
       test("yearMonth shrinks to YearMonth.of(Year.MIN_VALUE, Month.JANUARY)") {
         checkShrink(Gen.yearMonth)(YearMonth.of(Year.MIN_VALUE, Month.JANUARY))
+      },
+      test("yearMonth shrinks to bottom of range") {
+        checkShrink(Gen.yearMonth(YearMonth.of(1980, 11), YearMonth.of(2100, 1)))(YearMonth.of(1980, 11))
       },
       test("zoneOffset shrinks to ZoneOffset.MIN") {
         checkShrink(Gen.zoneOffset)(ZoneOffset.MIN)
