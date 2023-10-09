@@ -1,5 +1,5 @@
 ---
-title: ZIO ChatBot: Your AI-Powered ZIO Guide
+title: "ZIO ChatBot: Your AI-Powered ZIO Guide"
 description: Introducing ZIO Chat—your AI companion for ZIO, unlocking its potential with quick assistance through the ZIO website and Discord channel.
 slug: zio-chat-announcement
 tags: [chat bot, announcement, documentation]
