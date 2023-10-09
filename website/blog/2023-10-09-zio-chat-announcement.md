@@ -23,7 +23,7 @@ Immerse yourself in the convenience of a pop-up chatbot window on the ZIO websit
 
 ## 2. Discord Interface
 
-It's also integrated into the ZIO Discord server, ready to assist you within the familiar environment of Discord channels.
+It's also integrated into the [ZIO Discord server](https://discord.gg/2ccFBr4), ready to assist you within the familiar environment of Discord channels.
 
 You can interact with ZIO Chat via discord in two ways:
 
