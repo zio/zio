@@ -167,7 +167,7 @@ val scan = ZStream(1, 2, 3, 4, 5).scan(0)(_ + _)
 // 10 + 5 => 15
 
 val fold = ZStream(1, 2, 3, 4, 5).runFold(0)(_ + _)
-// Output: 10 (ZIO effect containing 15)
+// Output: 15 (ZIO effect containing 15)
 ```
 
 ## Draining
