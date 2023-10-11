@@ -771,6 +771,11 @@ object GenSpec extends ZIOBaseSpec {
       check(Gen.bigInt(1, 1)) { n =>
         assertTrue(n == 1)
       }
+    },
+    test("set of deterministic elements") {
+      check(Gen.setOfN(2)(Gen.fromIterable(List(1, 2, 3)))) { set =>
+        assertTrue(set.size == 2)
+      }
     }
   )
 }
