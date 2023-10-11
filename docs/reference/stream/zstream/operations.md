@@ -157,7 +157,7 @@ Scans are like folds, but with a history. Like folds, they take a binary operato
 
 ```scala mdoc:silent:nest
 val scan = ZStream(1, 2, 3, 4, 5).scan(0)(_ + _)
-// Output: 0, 1, 3, 6, 10
+// Output: 0, 1, 3, 6, 10, 15
 // Iterations:
 //        =>  0 (initial value)
 //  0 + 1 =>  1
@@ -167,7 +167,7 @@ val scan = ZStream(1, 2, 3, 4, 5).scan(0)(_ + _)
 // 10 + 5 => 15
 
 val fold = ZStream(1, 2, 3, 4, 5).runFold(0)(_ + _)
-// Output: 10 (ZIO effect containing 10)
+// Output: 10 (ZIO effect containing 15)
 ```
 
 ## Draining
