@@ -715,18 +715,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of sets of the specified size.
    */
-  def setOfN[R, A](n: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] = {
-
-    def loop(n: Int, gen: Gen[R, A], set: Set[A]): Gen[R, Set[A]] =
-      if (n <= 0) Gen.const(set)
-      else
-        gen.flatMap { a =>
-          if (set(a)) loop(n, gen, set)
-          else loop(n - 1, gen, set + a)
-        }
-
-    loop(n, gen, Set.empty)
-  }
+  def setOfN[R, A](n: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
+    List.fill(n)(gen).foldLeft[Gen[R, Set[A]]](const(Set.empty)) { (acc, gen) =>
+      for {
+        set  <- acc
+        elem <- gen.filterNot(set)
+      } yield set + elem
+    }
 
   /**
    * A generator of shorts. Shrinks toward '0'.
