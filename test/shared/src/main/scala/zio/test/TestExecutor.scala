@@ -165,10 +165,9 @@ object TestExecutor {
               topParent
             )
 
-            TestDebug.createDebugFile(fullyQualifiedName) *>
-              ZIO.scoped {
-                loop(List.empty, scopedSpec, defExec, List.empty, topParent)
-              } *> processEvent(topLevelFlush) *> TestDebug.deleteIfEmpty(fullyQualifiedName)
+            ZIO.scoped(loop(List.empty, scopedSpec, defExec, List.empty, topParent)) *>
+              processEvent(topLevelFlush) *>
+              TestDebug.deleteIfEmpty(fullyQualifiedName)
 
           }
           summary <- sink.getSummary
