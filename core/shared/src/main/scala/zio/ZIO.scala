@@ -2580,7 +2580,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
       val childFiber = ZIO.unsafe.makeChildFiber(trace, effect, parentFiber, parentRuntimeFlags, overrideScope)
 
-      childFiber.resume(effect)
+      childFiber.startConcurrently(effect)
 
       childFiber
     }
@@ -5823,6 +5823,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     }
     final case class UpdateTrace(trace: Trace) extends EvaluationStep
     object Continuation {
+      def withEffect(f: () => Unit): EvaluationStep = {
+        ZIO.OnSuccessAndFailure(Trace.empty, null, (a: Any) => { f(); Exit.succeed(a) }, (cause: Cause[Any]) => { f(); Exit.failCause(cause) })
+      }
+
       def fromSuccess[R, E, A, B](
         f: A => ZIO[R, E, B]
       )(implicit trace0: Trace): EvaluationStep = ZIO.OnSuccess(trace0, null.asInstanceOf[ZIO[R, E, A]], f)
