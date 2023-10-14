@@ -1,7 +1,6 @@
 package zio.internal
 
 import zio._
-import zio.ZIO.EvaluationStep
 
 import scala.util.control.NoStackTrace
 

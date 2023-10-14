@@ -308,7 +308,7 @@ sealed trait ZIO[-R, +E, +A]
   final def catchAllCause[R1 <: R, E2, A1 >: A](h: Cause[E] => ZIO[R1, E2, A1])(implicit
     trace: Trace
   ): ZIO[R1, E2, A1] =
-    ZIO.OnFailure(trace, self, h)
+    ZIO.Continuation(trace, self, failureK = h)
 
   /**
    * Recovers from all defects with provided function.
@@ -626,7 +626,7 @@ sealed trait ZIO[-R, +E, +A]
    * }}}
    */
   def flatMap[R1 <: R, E1 >: E, B](k: A => ZIO[R1, E1, B])(implicit trace: Trace): ZIO[R1, E1, B] =
-    ZIO.OnSuccess(trace, self, k)
+    ZIO.Continuation(trace, self, successK = k)
 
   /**
    * Creates a composite effect that represents this effect followed by another
@@ -690,7 +690,7 @@ sealed trait ZIO[-R, +E, +A]
     failure: Cause[E] => ZIO[R1, E2, B],
     success: A => ZIO[R1, E2, B]
   )(implicit trace: Trace): ZIO[R1, E2, B] =
-    ZIO.OnSuccessAndFailure(trace, self, success, failure)
+    ZIO.Continuation(trace, self, success, failure)
 
   /**
    * A version of `foldZIO` that gives you the trace of the error.
@@ -5798,71 +5798,24 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       def isTraced: Boolean = true
     }
   }
-
-  private[zio] sealed trait EvaluationStep { self =>
-    def trace: Trace
+  private[zio] final case class Continuation[R, E1, E2, A1, A2](
+    trace: Trace,
+    first: ZIO[R, E1, A1],
+    successK: A1 => ZIO[R, E2, A2] = null,
+    failureK: Cause[E1] => ZIO[R, E2, A2] = null,
+    finalizer: Cause[Any] => ZIO[Any, Any, Nothing] = null
+  ) extends ZIO[R, E2, A2] {
+    def erase: Continuation.Erased = this.asInstanceOf[Continuation.Erased]
   }
-  private[zio] object EvaluationStep {
-    sealed trait UpdateRuntimeFlags extends EvaluationStep {
-      final def trace = Trace.empty
-
-      def update: RuntimeFlags.Patch
-    }
-    object UpdateRuntimeFlags {
-      def apply(patch: RuntimeFlags.Patch): UpdateRuntimeFlags =
-        new UpdateRuntimeFlags {
-          override def update: RuntimeFlags.Patch = patch
-        }
-
-      case object MakeInterruptible extends UpdateRuntimeFlags {
-        final val update = RuntimeFlags.enable(RuntimeFlag.Interruption)
-      }
-      case object MakeUninterruptible extends UpdateRuntimeFlags {
-        final val update = RuntimeFlags.disable(RuntimeFlag.Interruption)
-      }
-    }
-    final case class UpdateTrace(trace: Trace) extends EvaluationStep
-    object Continuation {
-      def fromSuccess[R, E, A, B](
-        f: A => ZIO[R, E, B]
-      )(implicit trace0: Trace): EvaluationStep = ZIO.OnSuccess(trace0, null.asInstanceOf[ZIO[R, E, A]], f)
-
-      def fromFailure[R, E1, E2, A](
-        f: Cause[E1] => ZIO[R, E2, A]
-      )(implicit trace0: Trace): EvaluationStep = ZIO.OnFailure(trace0, null.asInstanceOf[ZIO[R, E1, A]], f)
-
-      def fromSuccessAndFailure[R, E1, E2, A, B](successK: A => ZIO[R, E2, B], failureK: Cause[E1] => ZIO[R, E2, B])(
-        implicit trace0: Trace
-      ): EvaluationStep =
-        ZIO.OnSuccessAndFailure(trace0, null.asInstanceOf[ZIO[R, E1, A]], successK, failureK)
-    }
+  object Continuation {
+    type Erased = Continuation[Any, Any, Any, Any, Any]
   }
-
   private[zio] final case class Sync[A](trace: Trace, eval: () => A) extends ZIO[Any, Nothing, A]
   private[zio] final case class Async[R, E, A](
     trace: Trace,
     registerCallback: (ZIO[R, E, A] => Unit) => ZIO[R, E, A],
     blockingOn: () => FiberId
   ) extends ZIO[R, E, A]
-  private[zio] final case class Finalizer(finalizer: Cause[Any] => ZIO[Any, Any, Nothing]) extends EvaluationStep {
-    def trace: Trace = Trace.empty
-  }
-  private[zio] final case class OnSuccessAndFailure[R, E1, E2, A, B](
-    trace: Trace,
-    first: ZIO[R, E1, A],
-    successK: A => ZIO[R, E2, B],
-    failureK: Cause[E1] => ZIO[R, E2, B]
-  ) extends ZIO[R, E2, B]
-      with EvaluationStep
-  private[zio] final case class OnSuccess[R, A, E, B](trace: Trace, first: ZIO[R, E, A], successK: A => ZIO[R, E, B])
-      extends ZIO[R, E, B]
-      with EvaluationStep
-  private[zio] final case class OnFailure[R, E1, E2, A](
-    trace: Trace,
-    first: ZIO[R, E1, A],
-    failureK: Cause[E1] => ZIO[R, E2, A]
-  ) extends ZIO[R, E2, A]
-      with EvaluationStep
   private[zio] final case class UpdateRuntimeFlags(trace: Trace, update: RuntimeFlags.Patch)
       extends ZIO[Any, Nothing, Unit]
   private[zio] sealed trait UpdateRuntimeFlagsWithin[R, E, A] extends ZIO[R, E, A] {
