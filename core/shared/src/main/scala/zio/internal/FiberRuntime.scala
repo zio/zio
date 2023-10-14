@@ -915,6 +915,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                         cur = Exit.Failure(getInterruptedCause())
 
                     case k: EvaluationStep.UpdateTrace => updateLastTrace(k.trace)
+
+                    case k: ZIO.Finalizer =>
+                      cur = k.finalizer(null)
                   }
                 }
 
@@ -970,7 +973,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
             case effect: Async[_, _, _] =>
               self._blockingOn = effect.blockingOn
-              
+
               self.reifiedStack.ensureCapacity(currentDepth)
 
               cur = initiateAsync(effect.registerCallback)
@@ -1029,7 +1032,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                       cur = Exit.Failure(zioError.cause)
 
                     case reifyStack: ReifyStack =>
-                      self.reifiedStack += EvaluationStep.UpdateRuntimeFlags(revertFlags) // Go backward, on the heap
+                      self.reifiedStack +=
+                        ZIO.Finalizer { cause =>
+                          patchRuntimeFlags(revertFlags)
+
+                          if (shouldInterrupt())
+                            if (cause ne null) Exit.Failure(cause ++ getInterruptedCause())
+                            else Exit.Failure(getInterruptedCause())
+                          else null
+                        }
+                      // EvaluationStep.UpdateRuntimeFlags(revertFlags) // Go backward, on the heap
 
                       throw reifyStack
 
@@ -1085,6 +1097,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                       cur = Exit.Failure(getInterruptedCause())
 
                   case k: EvaluationStep.UpdateTrace => updateLastTrace(k.trace)
+
+                  case k: ZIO.Finalizer =>
+                    cur = k.finalizer(null)
                 }
               }
 
@@ -1123,6 +1138,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                     }
 
                   case k: EvaluationStep.UpdateTrace => updateLastTrace(k.trace)
+
+                  case k: ZIO.Finalizer =>
+                    cur = k.finalizer(cause)
                 }
               }
 

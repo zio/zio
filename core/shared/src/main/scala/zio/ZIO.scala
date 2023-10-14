@@ -5823,10 +5823,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     }
     final case class UpdateTrace(trace: Trace) extends EvaluationStep
     object Continuation {
-      def withEffect(f: () => Unit): EvaluationStep = {
-        ZIO.OnSuccessAndFailure(Trace.empty, null, (a: Any) => { f(); Exit.succeed(a) }, (cause: Cause[Any]) => { f(); Exit.failCause(cause) })
-      }
-
       def fromSuccess[R, E, A, B](
         f: A => ZIO[R, E, B]
       )(implicit trace0: Trace): EvaluationStep = ZIO.OnSuccess(trace0, null.asInstanceOf[ZIO[R, E, A]], f)
@@ -5848,6 +5844,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     registerCallback: (ZIO[R, E, A] => Unit) => ZIO[R, E, A],
     blockingOn: () => FiberId
   ) extends ZIO[R, E, A]
+  private[zio] final case class Finalizer(finalizer: Cause[Any] => ZIO[Any, Any, Nothing]) extends EvaluationStep {
+    def trace: Trace = Trace.empty
+  }
   private[zio] final case class OnSuccessAndFailure[R, E1, E2, A, B](
     trace: Trace,
     first: ZIO[R, E1, A],
