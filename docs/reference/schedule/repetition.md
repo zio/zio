@@ -27,7 +27,7 @@ val policy: Schedule[R1, A, B] = ???
 val repeated = action repeat policy
 ```
 
-There is another version of `repeat` that helps us to have a fallback strategy in case of erros, if something goes wrong we can handle that by using the `ZIO#repeatOrElse` function, which helps up to add an `orElse` callback that will run in case of repetition failure:
+There is another version of `repeat` that helps us to have a fallback strategy in case of errors, if something goes wrong we can handle that by using the `ZIO#repeatOrElse` function, which helps up to add an `orElse` callback that will run in case of repetition failure:
 
 ```scala
 val action:       ZIO[R, E, A] = ???
