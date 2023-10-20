@@ -2409,6 +2409,22 @@ object ZStreamSpec extends ZIOBaseSpec {
                                    .runHead
             } yield assert(interruptible)(isSome(equalTo(InterruptStatus.Interruptible))) &&
               assert(uninterruptible)(isSome(equalTo(InterruptStatus.Uninterruptible)))
+          },
+          test("failure of inner finalizers does not affect outer finalizers") {
+            def resource(ref: Ref[Chunk[String]])(name: String): ZIO[Scope, Nothing, Unit] =
+              ZIO.acquireRelease(ref.update(_ :+ s"Acquiring $name"))(_ => ref.update(_ :+ s"Releasing $name"))
+            def badResource(ref: Ref[Chunk[String]])(name: String): ZIO[Scope, Nothing, Unit] =
+              ZIO.acquireRelease(ref.update(_ :+ s"Acquiring $name"))(_ => ZIO.dieMessage("Die"))
+            def stream(ref: Ref[Chunk[String]]): ZStream[Any, Nothing, Unit] =
+              ZStream.scoped(resource(ref)("A")) *>
+                ZStream.scoped(resource(ref)("B")) *>
+                ZStream.scoped(badResource(ref)("C"))
+            for {
+              ref   <- Ref.make[Chunk[String]](Chunk.empty)
+              exit  <- stream(ref).runDrain.exit
+              value <- ref.get
+            } yield assert(exit)(dies(hasMessage(equalTo("Die")))) &&
+              assert(value)(equalTo(Chunk("Acquiring A", "Acquiring B", "Acquiring C", "Releasing B", "Releasing A")))
           }
         ),
         test("map")(check(pureStreamOfInts, Gen.function(Gen.int)) { (s, f) =>
