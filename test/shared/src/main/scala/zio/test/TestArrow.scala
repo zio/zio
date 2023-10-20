@@ -3,9 +3,11 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.language.implicitConversions
-import zio.{Trace, ZIO}
+import zio.{Chunk, ChunkBuilder, Trace, ZIO}
 import zio.internal.stacktracer.SourceLocation
+import zio.test.Assertion.Arguments
 
+import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
 case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
@@ -63,6 +65,44 @@ object TestResult {
 }
 
 sealed trait TestArrow[-A, +B] { self =>
+
+  def render: String = {
+    val builder = ChunkBuilder.make[String]()
+
+    @tailrec
+    def loop(arrows: List[Either[String, TestArrow[_, _]]]): Unit =
+      if (arrows.nonEmpty) {
+        arrows.head match {
+          case Right(TestArrow.And(left, right)) =>
+            loop(Left("(") :: Right(left) :: Left(" && ") :: Right(right) :: Left(")") :: arrows.tail)
+          case Right(TestArrow.Or(left, right)) =>
+            loop(Left("(") :: Right(left) :: Left(" || ") :: Right(right) :: Left(")") :: arrows.tail)
+          case Right(TestArrow.Not(arrow)) =>
+            loop(Left("not") :: Left("(") :: Right(arrow) :: Left(")") :: arrows.tail)
+          case Right(TestArrow.AndThen(left, right)) =>
+            loop(Right(left) :: Left("(") :: Right(right) :: Left(")") :: arrows.tail)
+          case Right(arrow: TestArrow.Meta[_, _]) =>
+            val code = arrow.code.map { code =>
+              if (arrow.arguments.nonEmpty) s"${code}(${arrow.arguments.mkString(", ")})" else code
+            }
+            builder += code.mkString
+            loop(arrows.tail)
+          case Right(arrow @ TestArrow.TestArrowF(_)) =>
+            builder += arrow.toString
+            loop(arrows.tail)
+          case Right(arrow @ TestArrow.Suspend(_)) =>
+            builder += arrow.toString
+            loop(arrows.tail)
+          case Left(str) =>
+            builder += str
+            loop(arrows.tail)
+        }
+      }
+
+    loop(List(Right(self)))
+    builder.result.mkString
+  }
+
   def ??(message: String): TestArrow[A, B] = self.label(message)
 
   def label(message: String): TestArrow[A, B] = self.meta(customLabel = Some(message))
@@ -81,16 +121,19 @@ sealed trait TestArrow[-A, +B] { self =>
     customLabel: Option[String] = None,
     genFailureDetails: Option[GenFailureDetails] = None
   ): TestArrow[A, B] = self match {
-    case meta: Meta[A, B] =>
-      meta.copy(
-        span = meta.span.orElse(span),
-        parentSpan = meta.parentSpan.orElse(parentSpan),
-        code = code.orElse(meta.code),
-        location = meta.location.orElse(location),
-        completeCode = meta.completeCode.orElse(completeCode),
-        customLabel = meta.customLabel.orElse(customLabel),
-        genFailureDetails = meta.genFailureDetails.orElse(genFailureDetails)
-      )
+    case self: Meta[A, B] =>
+      new Meta(
+        self.arrow,
+        self.span.orElse(span),
+        self.parentSpan.orElse(parentSpan),
+        code.orElse(self.code),
+        self.location.orElse(location),
+        self.completeCode.orElse(completeCode),
+        self.customLabel.orElse(customLabel),
+        self.genFailureDetails.orElse(genFailureDetails)
+      ) {
+        override def arguments: Chunk[Arguments] = self.arguments
+      }
     case _ =>
       Meta(
         arrow = self,
@@ -109,6 +152,35 @@ sealed trait TestArrow[-A, +B] { self =>
 
   def withCode(code: String): TestArrow[A, B] =
     meta(code = Some(code))
+
+  def withCode(code: String, arguments0: Arguments*): TestArrow[A, B] = self match {
+    case self: Meta[A, B] =>
+      new Meta(
+        self.arrow,
+        self.span,
+        self.parentSpan,
+        Some(code),
+        self.location,
+        self.completeCode,
+        self.customLabel,
+        self.genFailureDetails
+      ) {
+        override def arguments: Chunk[Arguments] = Chunk.fromIterable(arguments0)
+      }
+    case _ =>
+      new Meta(
+        arrow = self,
+        span = None,
+        parentSpan = None,
+        code = Some(code),
+        location = None,
+        completeCode = None,
+        customLabel = None,
+        genFailureDetails = None
+      ) {
+        override def arguments: Chunk[Arguments] = Chunk.fromIterable(arguments0)
+      }
+  }
 
   def withCompleteCode(completeCode: String): TestArrow[A, B] =
     meta(completeCode = Some(completeCode))
@@ -213,7 +285,7 @@ object TestArrow {
     def substring(str: String): String = str.substring(start, end)
   }
 
-  case class Meta[-A, +B](
+  sealed case class Meta[-A, +B](
     arrow: TestArrow[A, B],
     span: Option[Span],
     parentSpan: Option[Span],
@@ -222,7 +294,9 @@ object TestArrow {
     completeCode: Option[String],
     customLabel: Option[String],
     genFailureDetails: Option[GenFailureDetails]
-  ) extends TestArrow[A, B]
+  ) extends TestArrow[A, B] {
+    def arguments: Chunk[Arguments] = Chunk.empty
+  }
   case class TestArrowF[-A, +B](f: Either[Throwable, A] => TestTrace[B])       extends TestArrow[A, B]
   case class AndThen[A, B, C](f: TestArrow[A, B], g: TestArrow[B, C])          extends TestArrow[A, C]
   case class And[A](left: TestArrow[A, Boolean], right: TestArrow[A, Boolean]) extends TestArrow[A, Boolean]
