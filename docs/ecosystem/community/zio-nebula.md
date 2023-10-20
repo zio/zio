@@ -3,7 +3,7 @@ id: zio-nebula
 title: "ZIO NebulaGraph"
 ---
 
-[zio-nebula](https://github.com/hjfruit/zio-nebula) is a simple wrapper around [nebula-java](https://github.com/vesoft-inc/nebula-java/) for easier integration with [NebulaGraph](https://github.com/vesoft-inc/nebula) into Scala, ZIO applications.
+[zio-nebula](https://github.com/nebula-contrib/zio-nebula) is a simple wrapper around [nebula-java](https://github.com/vesoft-inc/nebula-java/) for easier integration with [NebulaGraph](https://github.com/vesoft-inc/nebula) into Scala, ZIO applications.
 
 ## Introduction
 
