@@ -83,7 +83,7 @@ sealed trait TestArrow[-A, +B] { self =>
             loop(Right(left) :: Left("(") :: Right(right) :: Left(")") :: arrows.tail)
           case Right(arrow: TestArrow.Meta[_, _]) =>
             val code = arrow.code.map { code =>
-              if (arrow.arguments.nonEmpty) s"${code}(${arrow.arguments.mkString(", ")})" else code
+              if (arrow.codeArguments.nonEmpty) s"${code}(${arrow.codeArguments.mkString(", ")})" else code
             }
             builder += code.mkString
             loop(arrows.tail)
@@ -132,7 +132,7 @@ sealed trait TestArrow[-A, +B] { self =>
         self.customLabel.orElse(customLabel),
         self.genFailureDetails.orElse(genFailureDetails)
       ) {
-        override def arguments: Chunk[Arguments] = self.arguments
+        override def codeArguments: Chunk[Arguments] = self.codeArguments
       }
     case _ =>
       Meta(
@@ -153,7 +153,7 @@ sealed trait TestArrow[-A, +B] { self =>
   def withCode(code: String): TestArrow[A, B] =
     meta(code = Some(code))
 
-  def withCode(code: String, arguments0: Arguments*): TestArrow[A, B] = self match {
+  def withCode(code: String, arguments: Arguments*): TestArrow[A, B] = self match {
     case self: Meta[A, B] =>
       new Meta(
         self.arrow,
@@ -165,7 +165,7 @@ sealed trait TestArrow[-A, +B] { self =>
         self.customLabel,
         self.genFailureDetails
       ) {
-        override def arguments: Chunk[Arguments] = Chunk.fromIterable(arguments0)
+        override def codeArguments: Chunk[Arguments] = Chunk.fromIterable(arguments)
       }
     case _ =>
       new Meta(
@@ -178,7 +178,7 @@ sealed trait TestArrow[-A, +B] { self =>
         customLabel = None,
         genFailureDetails = None
       ) {
-        override def arguments: Chunk[Arguments] = Chunk.fromIterable(arguments0)
+        override def codeArguments: Chunk[Arguments] = Chunk.fromIterable(arguments)
       }
   }
 
@@ -295,7 +295,7 @@ object TestArrow {
     customLabel: Option[String],
     genFailureDetails: Option[GenFailureDetails]
   ) extends TestArrow[A, B] {
-    def arguments: Chunk[Arguments] = Chunk.empty
+    def codeArguments: Chunk[Arguments] = Chunk.empty
   }
   case class TestArrowF[-A, +B](f: Either[Throwable, A] => TestTrace[B])       extends TestArrow[A, B]
   case class AndThen[A, B, C](f: TestArrow[A, B], g: TestArrow[B, C])          extends TestArrow[A, C]
