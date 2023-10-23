@@ -299,6 +299,11 @@ Sometimes we have to deal with a high volume of incoming requests. In spite of p
 Each actor in Akka has a mailbox that is used to store incoming messages. The mailbox is a FIFO queue. Actors only process one message at a time. If an actor receives more messages than it can process, the messages will be pending in the mailbox:
 
 ```scala
+import akka.actor.{Actor, ActorSystem, Props}
+
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 object MainApp extends scala.App {
   val actorSystem = ActorSystem("parallel-app")
   val worker = actorSystem.actorOf(Props[JobRunner], "worker")
@@ -310,6 +315,8 @@ object MainApp extends scala.App {
   }
 
   println("All messages were sent to the actor!")
+
+  Await.result(actorSystem.whenTerminated, Duration.Inf)
 }
 ```
 
@@ -329,16 +336,13 @@ trait Actor[-In] {
 
 object Actor {
   def make[In](receive: In => UIO[Unit]): ZIO[Scope, Nothing, Actor[In]] =
-    ZIO.acquireRelease {
-      for {
-        queue <- Queue.unbounded[In]
-        fiber <- queue.take.flatMap(receive).forever.fork
-        actor = new Actor[In] {
-                  override def tell(i: In): UIO[Boolean] =
-                    queue.offer(i)
-                }
-      } yield (actor, fiber)
-    }(_._2.join).map(_._1)
+    for {
+      queue <- Queue.unbounded[In]
+      _     <- queue.take.flatMap(receive).forever.forkScoped
+    } yield new Actor[In] {
+      override def tell(i: In): UIO[Boolean] =
+        queue.offer(i)
+    }
 }
 ```
 
@@ -353,10 +357,12 @@ object MainApp extends ZIOAppDefault {
       actor <- Actor.make[Int](n => ZIO.debug(s"processing job-$n").delay(1.second))
       _     <- ZIO.foreachParDiscard(1 to 1000)(actor.tell)
       _     <- ZIO.debug("All messages were sent to the actor!")
+      _     <- ZIO.never
     } yield ()
   }
 }
 ```
+
 ## 4. Streaming
 
 ### Streaming in Akka
