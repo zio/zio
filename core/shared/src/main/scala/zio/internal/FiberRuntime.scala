@@ -48,6 +48,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private val reifiedStack    = PinchableArray.make[Continuation.Erased](-1)
   private var runningExecutor = null.asInstanceOf[Executor]
+  private var _stack          = null.asInstanceOf[Array[Continuation.Erased]]
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
     val tags = getFiberRef(FiberRef.currentTags)(Unsafe.unsafe)
@@ -327,6 +328,17 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
 
     resumption
+  }
+
+  private def ensureStack(size: Int): Unit = {
+    // Ensure stack size is multiple of 2:
+    val newSize = if ((size & (size - 1)) == 0) size else Integer.highestOneBit(size) << 1
+    
+    if (_stack == null) {
+      _stack = new Array[Continuation.Erased](if (newSize < 16) 16 else newSize)
+    } else if (_stack.length < newSize) {
+      _stack = new Array[Continuation.Erased](newSize)
+    }
   }
 
   /**
