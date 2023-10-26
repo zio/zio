@@ -626,7 +626,7 @@ sealed trait ZIO[-R, +E, +A]
    * }}}
    */
   def flatMap[R1 <: R, E1 >: E, B](k: A => ZIO[R1, E1, B])(implicit trace: Trace): ZIO[R1, E1, B] =
-    ZIO.Continuation(trace, self, successK = k)
+    ZIO.FlatMap(trace, self, k)
 
   /**
    * Creates a composite effect that represents this effect followed by another
@@ -1098,7 +1098,7 @@ sealed trait ZIO[-R, +E, +A]
         success => {
           val result = Exit.succeed(success)
 
-          cleanup(result) *> result
+          cleanup(result).flatMap(_ => result)
         }
       )
     }
@@ -5777,6 +5777,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       }
   }
 
+  private[zio] type Erased = ZIO[Any, Any, Any]
+
   private[zio] sealed abstract class ZIOError extends Exception with NoStackTrace { self =>
     def cause: Cause[Any]
 
@@ -5798,17 +5800,40 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       def isTraced: Boolean = true
     }
   }
-  private[zio] final case class Continuation[R, E1, E2, A1, A2](
+  private[zio] final case class FlatMap[R, E, A1, A2](
     trace: Trace,
-    first: ZIO[R, E1, A1],
-    successK: A1 => ZIO[R, E2, A2] = null,
-    failureK: Cause[E1] => ZIO[R, E2, A2] = null,
-    finalizer: Cause[Any] => ZIO[Any, Any, Nothing] = null
-  ) extends ZIO[R, E2, A2] {
-    def erase: Continuation.Erased = this.asInstanceOf[Continuation.Erased]
+    first: ZIO[R, E, A1],
+    successK: A1 => ZIO[R, E, A2]
+  ) extends Continuation[R, E, E, A1, A2] {
+    def failureK: Cause[E] => ZIO[R, E, A2]             = null
+    def finalizer: Cause[Any] => ZIO[Any, Any, Nothing] = null
+  }
+  private[zio] sealed abstract class Continuation[R, E1, E2, A1, A2] extends ZIO[R, E2, A2] {
+    def trace: Trace
+    def first: ZIO[R, E1, A1]
+    def successK: A1 => ZIO[R, E2, A2]
+    def failureK: Cause[E1] => ZIO[R, E2, A2]
+    def finalizer: Cause[Any] => ZIO[Any, Any, Nothing]
   }
   object Continuation {
     type Erased = Continuation[Any, Any, Any, Any, Any]
+
+    def apply[R, E1, E2, A1, A2](
+      trace: Trace,
+      first: ZIO[R, E1, A1],
+      successK: A1 => ZIO[R, E2, A2] = null,
+      failureK: Cause[E1] => ZIO[R, E2, A2] = null,
+      finalizer: Cause[Any] => ZIO[Any, Any, Nothing] = null
+    ): Continuation[R, E1, E2, A1, A2] =
+      FoldZIO[R, E1, E2, A1, A2](trace, first, successK, failureK, finalizer)
+
+    private[zio] final case class FoldZIO[R, E1, E2, A1, A2](
+      trace: Trace,
+      first: ZIO[R, E1, A1],
+      successK: A1 => ZIO[R, E2, A2],
+      failureK: Cause[E1] => ZIO[R, E2, A2],
+      finalizer: Cause[Any] => ZIO[Any, Any, Nothing]
+    ) extends Continuation[R, E1, E2, A1, A2]
   }
   private[zio] final case class Sync[A](trace: Trace, eval: () => A) extends ZIO[Any, Nothing, A]
   private[zio] final case class Async[R, E, A](
@@ -5819,6 +5844,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   private[zio] final case class UpdateRuntimeFlags(trace: Trace, update: RuntimeFlags.Patch)
       extends ZIO[Any, Nothing, Unit]
   private[zio] sealed trait UpdateRuntimeFlagsWithin[R, E, A] extends ZIO[R, E, A] {
+
     def update: RuntimeFlags.Patch
 
     def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A]
@@ -5849,9 +5875,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   private[zio] final case class Stateful[R, E, A](
     trace: Trace,
     onState: (Fiber.Runtime[E, A], Fiber.Status.Running) => ZIO[R, E, A]
-  ) extends ZIO[R, E, A] { self =>
-    def erase: Stateful[Any, Any, Any] = self.asInstanceOf[Stateful[Any, Any, Any]]
-  }
+  ) extends ZIO[R, E, A]
   private[zio] final case class WhileLoop[R, E, A](
     trace: Trace,
     check: () => Boolean,

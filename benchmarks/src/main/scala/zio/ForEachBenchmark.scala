@@ -11,8 +11,9 @@ import java.util.concurrent.TimeUnit
 @State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Measurement(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 3)
-@Warmup(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 3)
+@Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
+@Threads(16)
 @Fork(1)
 class ForEachBenchmark {
 
