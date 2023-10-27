@@ -2168,6 +2168,12 @@ sealed trait ZIO[-R, +E, +A]
     self.fork.flatMap(_.toFutureWith(f))
 
   /**
+   * Adds the specified stack trace to the trace of the error.
+   */
+  final def traced(stackTrace: StackTrace)(implicit trace: Trace): ZIO[R, E, A] =
+    self.mapErrorCause(_.traced(stackTrace))
+
+  /**
    * When this effect succeeds with a cause, then this method returns a new
    * effect that either fails with the cause that this effect succeeded with, or
    * succeeds with unit, depending on whether the cause is empty.
@@ -2452,16 +2458,6 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def withRuntimeFlags(patch: RuntimeFlags.Patch)(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.UpdateRuntimeFlagsWithin.DynamicNoBox(trace, patch, _ => self)
-
-  /**
-   * Captures the Java stack trace at the current point and adds it to the trace of the error.
-   */
-  final def withStackTrace(implicit trace: Trace): ZIO[R, E, A] =
-    for {
-      fiberId    <- ZIO.fiberId
-      stackTrace <- ZIO.succeed(Thread.currentThread.getStackTrace)
-      a          <- self.mapErrorCause(_.traced(StackTrace.fromJava(fiberId, stackTrace)))
-    } yield a
 
   /**
    * Executes this workflow with the specified implementation of the system
