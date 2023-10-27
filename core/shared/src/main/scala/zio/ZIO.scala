@@ -2170,7 +2170,7 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Adds the specified stack trace to the trace of the error.
    */
-  final def traced(stackTrace: StackTrace)(implicit trace: Trace): ZIO[R, E, A] =
+  final def traced(stackTrace: => StackTrace)(implicit trace: Trace): ZIO[R, E, A] =
     self.mapErrorCause(_.traced(stackTrace))
 
   /**
