@@ -60,6 +60,9 @@ final case class StackTrace(
 
 object StackTrace {
 
+  /**
+   * Constructs a ZIO stack trace from a Java stack trace.
+   */
   def fromJava(fiberId: FiberId, stackTrace: Array[StackTraceElement])(implicit trace: Trace): StackTrace =
     StackTrace(fiberId, Chunk.fromArray(stackTrace).map(Trace.fromJava))
 
