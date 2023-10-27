@@ -61,13 +61,7 @@ final case class StackTrace(
 object StackTrace {
 
   def fromJava(fiberId: FiberId, stackTrace: Array[StackTraceElement])(implicit trace: Trace): StackTrace =
-    StackTrace(
-      fiberId,
-      Chunk
-        .fromArray(stackTrace.takeWhile(_.getClassName != "zio.internal.FiberRuntime"))
-        .map(Trace.fromJava)
-        .takeWhile(!Trace.equalIgnoreLocation(_, trace))
-    )
+    StackTrace(fiberId, Chunk.fromArray(stackTrace).map(Trace.fromJava))
 
   val none: StackTrace =
     StackTrace(FiberId.None, Chunk.empty)

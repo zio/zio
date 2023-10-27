@@ -2454,6 +2454,16 @@ sealed trait ZIO[-R, +E, +A]
     ZIO.UpdateRuntimeFlagsWithin.DynamicNoBox(trace, patch, _ => self)
 
   /**
+   * Captures the Java stack trace at the current point and adds it to the trace of the error.
+   */
+  final def withStackTrace(implicit trace: Trace): ZIO[R, E, A] =
+    for {
+      fiberId    <- ZIO.fiberId
+      stackTrace <- ZIO.succeed(Thread.currentThread.getStackTrace)
+      a          <- self.mapErrorCause(_.traced(StackTrace.fromJava(fiberId, stackTrace)))
+    } yield a
+
+  /**
    * Executes this workflow with the specified implementation of the system
    * service.
    */
