@@ -1421,19 +1421,19 @@ sealed trait ZIO[-R, +E, +A]
       val rightFiber =
         ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, rightScope)(Unsafe.unsafe)
 
-      val startLeftFiber  = leftFiber.startSuspended()(Unsafe.unsafe)
-      val startRightFiber = rightFiber.startSuspended()(Unsafe.unsafe)
+      val startLeftFiber  = leftFiber.startSuspended()
+      val startRightFiber = rightFiber.startSuspended()
 
       ZIO
         .async[R1, E2, C](
           { cb =>
             leftFiber.addObserver { _ =>
               complete(leftFiber, rightFiber, leftWins, raceIndicator, cb)
-            }(Unsafe.unsafe)
+            }
 
             rightFiber.addObserver { _ =>
               complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
-            }(Unsafe.unsafe)
+            }
 
             startLeftFiber(self)
             startRightFiber(right)
@@ -2594,7 +2594,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
       val childId         = FiberId.make(trace)
       val parentFiberRefs = parentFiber.getFiberRefs()
-      val childFiberRefs  = parentFiberRefs.forkAs(childId)
+      val childFiberRefs  = parentFiberRefs.forkAs(childId) // TODO: Optimize
 
       val childFiber = internal.FiberRuntime[E1, A](childId, childFiberRefs, parentRuntimeFlags)
 
@@ -3066,9 +3066,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         Fiber.Descriptor(
           fiberState.id,
           status,
-          fiberState.getFiberRef(FiberRef.interruptedCause)(Unsafe.unsafe).interruptors,
-          fiberState.getCurrentExecutor()(Unsafe.unsafe),
-          fiberState.getFiberRef(FiberRef.overrideExecutor)(Unsafe.unsafe).isDefined
+          fiberState.getFiberRef(FiberRef.interruptedCause).interruptors,
+          fiberState.getCurrentExecutor(),
+          fiberState.getFiberRef(FiberRef.overrideExecutor).isDefined
         )
 
       f(descriptor)
@@ -3678,7 +3678,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def getFiberRefs(implicit trace: Trace): UIO[FiberRefs] =
     ZIO.withFiberRuntime[Any, Nothing, FiberRefs] { (fiberState, _) =>
-      ZIO.succeed(fiberState.getFiberRefs()(Unsafe.unsafe))
+      ZIO.succeed(fiberState.getFiberRefs())
     }
 
   /**
@@ -3899,7 +3899,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def log(message: => String)(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-      fiberState.log(() => message, Cause.empty, None, trace)(Unsafe.unsafe)
+      fiberState.log(() => message, Cause.empty, None, trace)
 
       ZIO.unit
     }
@@ -3915,7 +3915,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def logCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-      fiberState.log(() => message, cause, None, trace)(Unsafe.unsafe)
+      fiberState.log(() => message, cause, None, trace)
 
       ZIO.unit
     }
@@ -3968,7 +3968,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def logDebugCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-      fiberState.log(() => message, cause, someDebug, trace)(Unsafe.unsafe)
+      fiberState.log(() => message, cause, someDebug, trace)
 
       ZIO.unit
     }
@@ -3990,7 +3990,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def logErrorCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-      fiberState.log(() => message, cause, someError, trace)(Unsafe.unsafe)
+      fiberState.log(() => message, cause, someError, trace)
 
       ZIO.unit
     }
@@ -4012,7 +4012,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def logFatalCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-      fiberState.log(() => message, cause, someFatal, trace)(Unsafe.unsafe)
+      fiberState.log(() => message, cause, someFatal, trace)
 
       ZIO.unit
     }
@@ -4034,7 +4034,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def logInfoCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-      fiberState.log(() => message, cause, someInfo, trace)(Unsafe.unsafe)
+      fiberState.log(() => message, cause, someInfo, trace)
 
       ZIO.unit
     }
@@ -4092,7 +4092,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def logTraceCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-      fiberState.log(() => message, cause, someTrace, trace)(Unsafe.unsafe)
+      fiberState.log(() => message, cause, someTrace, trace)
 
       ZIO.unit
     }
@@ -4114,7 +4114,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def logWarningCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-      fiberState.log(() => message, cause, someWarning, trace)(Unsafe.unsafe)
+      fiberState.log(() => message, cause, someWarning, trace)
 
       ZIO.unit
     }
@@ -4560,17 +4560,17 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def shift(executor: => Executor)(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberRuntime, _) =>
       val newExecutor = executor
-      fiberRuntime.getFiberRef(FiberRef.overrideExecutor)(Unsafe.unsafe) match {
+      fiberRuntime.getFiberRef(FiberRef.overrideExecutor) match {
         case None =>
-          fiberRuntime.setFiberRef(FiberRef.overrideExecutor, Some(newExecutor))(Unsafe.unsafe)
-          fiberRuntime.getRunningExecutor()(Unsafe.unsafe) match {
+          fiberRuntime.setFiberRef(FiberRef.overrideExecutor, Some(newExecutor))
+          fiberRuntime.getRunningExecutor() match {
             case Some(runningExecutor) if runningExecutor == newExecutor => ZIO.unit
             case _                                                       => ZIO.yieldNow
           }
         case Some(overrideExecutor) =>
           if (overrideExecutor == newExecutor) ZIO.unit
           else {
-            fiberRuntime.setFiberRef(FiberRef.overrideExecutor, Some(newExecutor))(Unsafe.unsafe)
+            fiberRuntime.setFiberRef(FiberRef.overrideExecutor, Some(newExecutor))
             ZIO.yieldNow
           }
       }
@@ -4707,7 +4707,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def transplant[R, E, A](f: Grafter => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.withFiberRuntime[R, E, A] { (fiberState, _) =>
-      val scopeOverride = fiberState.getFiberRef(FiberRef.forkScopeOverride)(Unsafe.unsafe)
+      val scopeOverride = fiberState.getFiberRef(FiberRef.forkScopeOverride)
       val scope         = scopeOverride.getOrElse(fiberState.scope)
 
       f(new Grafter(scope))
@@ -4777,7 +4777,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def updateFiberRefs(f: (FiberId.Runtime, FiberRefs) => FiberRefs)(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (state, _) =>
-      state.setFiberRefs(f(state.id, state.getFiberRefs()(Unsafe.unsafe)))(Unsafe.unsafe)
+      state.setFiberRefs(f(state.id, state.getFiberRefs()))
 
       ZIO.unit
     }

@@ -50,7 +50,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _stackSize      = 0
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-    val tags = getFiberRef(FiberRef.currentTags)(Unsafe.unsafe)
+    val tags = getFiberRef(FiberRef.currentTags)
     Metric.runtime.fibersStarted.unsafe.update(1, tags)(Unsafe.unsafe)
     Metric.runtime.fiberForkLocations.unsafe.update(fiberId.location.toString, tags)(Unsafe.unsafe)
   }
@@ -66,11 +66,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             val cb = (exit: Exit[_, _]) => k(Exit.Success(exit.asInstanceOf[Exit[E, A]]))
             tell(FiberMessage.Stateful { (fiber, _) =>
               if (fiber._exitValue ne null) cb(fiber._exitValue)
-              else fiber.addObserver(cb)(Unsafe.unsafe)
-            })(Unsafe.unsafe)
+              else fiber.addObserver(cb)
+            })
             Left(ZIO.succeed(tell(FiberMessage.Stateful { (fiber, _) =>
-              fiber.removeObserver(cb)(Unsafe.unsafe)
-            })(Unsafe.unsafe)))
+              fiber.removeObserver(cb)
+            })))
           },
           id
         )
@@ -120,19 +120,19 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     ZIO.succeed {
       val cause = Cause.interrupt(fiberId).traced(StackTrace(fiberId, Chunk(trace)))
 
-      tell(FiberMessage.InterruptSignal(cause))(Unsafe.unsafe)
+      tell(FiberMessage.InterruptSignal(cause))
     }
 
   def location: Trace = fiberId.location
 
   def poll(implicit trace: Trace): UIO[Option[Exit[E, A]]] =
-    ZIO.succeed(Option(self.exitValue()(Unsafe.unsafe)))
+    ZIO.succeed(Option(self.exitValue()))
 
   override def run(): Unit =
-    drainQueueOnCurrentThread(0)(Unsafe.unsafe)
+    drainQueueOnCurrentThread(0)
 
   override def run(depth: Int): Unit =
-    drainQueueOnCurrentThread(depth)(Unsafe.unsafe)
+    drainQueueOnCurrentThread(depth)
 
   def runtimeFlags(implicit trace: Trace): UIO[RuntimeFlags] =
     ZIO.succeed(_runtimeFlags)
@@ -140,16 +140,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   lazy val scope: FiberScope = FiberScope.make(this)
 
   def status(implicit trace: Trace): UIO[zio.Fiber.Status] =
-    ZIO.succeed(getStatus()(Unsafe.unsafe))
+    ZIO.succeed(getStatus())
 
   def trace(implicit trace: Trace): UIO[StackTrace] =
-    ZIO.async[Any, Nothing, StackTrace] { k =>
-      tell(FiberMessage.GenStackTrace(trace => k(Exit.succeed(trace))))(
-        Unsafe.unsafe
-      )
+    ZIO.succeed {
+      generateStackTrace()
     }
 
-  private[zio] def addChild(child: Fiber.Runtime[_, _])(implicit unsafe: Unsafe): Unit =
+  private[zio] def addChild(child: Fiber.Runtime[_, _]): Unit =
     if (isAlive()) {
       getChildren().add(child)
 
@@ -165,7 +163,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def addInterruptedCause(cause: Cause[Nothing])(implicit unsafe: Unsafe): Unit = {
+  private def addInterruptedCause(cause: Cause[Nothing]): Unit = {
     val oldSC = getFiberRef(FiberRef.interruptedCause)
 
     setFiberRef(FiberRef.interruptedCause, oldSC ++ cause)
@@ -176,18 +174,19 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private[zio] def addObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit =
+  private[zio] def addObserver(observer: Exit[E, A] => Unit): Unit =
     if (_exitValue ne null) observer(_exitValue)
     else observers = observer :: observers
 
-  private[zio] def computeNextFromZioError(zioError: ZIOError)(implicit unsafe: Unsafe): ZIO.Erased =
+  private def computeNextFromZioError(zioError: ZIOError, failureK: Cause[Any] => ZIO.Erased): ZIO.Erased =
     if (shouldInterrupt()) {
       Exit.failCause(zioError.cause.stripFailures)
     } else {
-      Exit.Failure(zioError.cause)
+      if (failureK ne null) failureK(zioError.cause)
+      else Exit.Failure(zioError.cause)
     }
 
-  private[zio] def deleteFiberRef(ref: FiberRef[_])(implicit unsafe: Unsafe): Unit =
+  private[zio] def deleteFiberRef(ref: FiberRef[_]): Unit =
     _fiberRefs = _fiberRefs.delete(ref)
 
   /**
@@ -198,7 +197,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   @tailrec
-  private def drainQueueOnCurrentThread(depth: Int)(implicit unsafe: Unsafe): Unit = {
+  private def drainQueueOnCurrentThread(depth: Int): Unit = {
     assert(running.get)
 
     var evaluationSignal: EvaluationSignal = EvaluationSignal.Continue
@@ -237,11 +236,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def drainQueueLaterOnExecutor()(implicit unsafe: Unsafe): Unit = {
+  private def drainQueueLaterOnExecutor(): Unit = {
     assert(running.get)
 
     runningExecutor = self.getCurrentExecutor()
-    runningExecutor.submitOrThrow(self)
+    runningExecutor.submitOrThrow(self)(Unsafe.unsafe)
   }
 
   /**
@@ -253,7 +252,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private def drainQueueWhileRunning(
     cur0: ZIO.Erased
-  )(implicit unsafe: Unsafe): ZIO.Erased = {
+  ): ZIO.Erased = {
     var cur = cur0
 
     while (!inbox.isEmpty) {
@@ -266,17 +265,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           if (isInterruptible()) {
             cur = Exit.Failure(cause)
           }
-
-        case FiberMessage.GenStackTrace(onTrace) =>
-          val oldCur = cur
-
-          // TODO: This can be clobbered in the event of InterruptSignal above.
-          cur = ZIO
-            .stackTrace(Trace.empty)
-            .flatMap({ stackTrace =>
-              onTrace(stackTrace)
-              oldCur
-            })(Trace.empty)
 
         case FiberMessage.Stateful(onFiber) =>
           processStatefulMessage(onFiber)
@@ -299,9 +287,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def drainQueueAfterAsync()(implicit
-    unsafe: Unsafe
-  ): ZIO.Erased = {
+  private def drainQueueAfterAsync(): ZIO.Erased = {
     var resumption: ZIO.Erased = null
 
     var message                      = inbox.poll()
@@ -366,7 +352,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private def evaluateEffect(
     initialDepth: Int,
     effect0: ZIO.Erased
-  )(implicit unsafe: Unsafe): Exit[E, A] = {
+  ): Exit[E, A] = {
     assert(running.get)
 
     self._asyncContWith = null
@@ -376,7 +362,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
     val supervisor = getSupervisor()
 
-    if (supervisor ne Supervisor.none) supervisor.onResume(self)
+    if (supervisor ne Supervisor.none) supervisor.onResume(self)(Unsafe.unsafe)
 
     try {
       var effect      = effect0
@@ -399,7 +385,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 Exit.Failure(zioError.cause.asInstanceOf[Cause[E]])
             }
 
-          if (supervisor ne Supervisor.none) supervisor.onEnd(exit, self)
+          if (supervisor ne Supervisor.none) supervisor.onEnd(exit, self)(Unsafe.unsafe)
 
           self._runtimeFlags = RuntimeFlags.enable(_runtimeFlags)(RuntimeFlag.WindDown)
 
@@ -450,7 +436,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     } finally {
       val supervisor = getSupervisor()
 
-      if (supervisor ne Supervisor.none) supervisor.onSuspend(self)
+      if (supervisor ne Supervisor.none) supervisor.onSuspend(self)(Unsafe.unsafe)
     }
   }
 
@@ -461,19 +447,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def evaluateMessageWhileSuspended(depth: Int, fiberMessage: FiberMessage)(implicit
-    unsafe: Unsafe
-  ): EvaluationSignal = {
+  private def evaluateMessageWhileSuspended(depth: Int, fiberMessage: FiberMessage): EvaluationSignal = {
     assert(running.get)
 
     fiberMessage match {
       case FiberMessage.InterruptSignal(cause) =>
         processNewInterruptSignal(cause)
-
-        EvaluationSignal.Continue
-
-      case FiberMessage.GenStackTrace(onTrace) =>
-        onTrace(generateStackTrace())
 
         EvaluationSignal.Continue
 
@@ -501,7 +480,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * This method may be invoked on any fiber.
    */
-  private[zio] def exitValue()(implicit unsafe: Unsafe): Exit[E, A] = _exitValue
+  private[zio] def exitValue(): Exit[E, A] = _exitValue
 
   /**
    * Generates a full stack trace from the reified stack.
@@ -535,26 +514,26 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private[zio] def getChildren()(implicit unsafe: Unsafe): JavaSet[Fiber.Runtime[_, _]] = {
+  private[zio] def getChildren(): JavaSet[Fiber.Runtime[_, _]] = {
     if (_children eq null) {
-      _children = Platform.newConcurrentWeakSet[Fiber.Runtime[_, _]]()
+      _children = Platform.newConcurrentWeakSet[Fiber.Runtime[_, _]]()(Unsafe.unsafe)
     }
     _children
   }
 
-  private[zio] def getCurrentExecutor()(implicit unsafe: Unsafe): Executor =
+  private[zio] def getCurrentExecutor(): Executor =
     getFiberRef(FiberRef.overrideExecutor) match {
       case None        => Runtime.defaultExecutor
       case Some(value) => value
     }
 
-  private[zio] def getFiberRef[A](fiberRef: FiberRef[A])(implicit unsafe: Unsafe): A =
+  private[zio] def getFiberRef[A](fiberRef: FiberRef[A]): A =
     _fiberRefs.getOrDefault(fiberRef)
 
   /**
    * Retrieves the state of the fiber ref, or else the specified value.
    */
-  private[zio] def getFiberRefOrElse[A](fiberRef: FiberRef[A], orElse: => A)(implicit unsafe: Unsafe): A =
+  private[zio] def getFiberRefOrElse[A](fiberRef: FiberRef[A], orElse: => A): A =
     _fiberRefs.get(fiberRef).getOrElse(orElse)
 
   /**
@@ -565,10 +544,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * on this fiber, then values derived from the fiber's state (including the
    * log annotations and log level) may not be up-to-date.
    */
-  private[zio] def getFiberRefOption[A](fiberRef: FiberRef[A])(implicit unsafe: Unsafe): Option[A] =
+  private[zio] def getFiberRefOption[A](fiberRef: FiberRef[A]): Option[A] =
     _fiberRefs.get(fiberRef)
 
-  private[zio] def getFiberRefs()(implicit unsafe: Unsafe): FiberRefs = {
+  private[zio] def getFiberRefs(): FiberRefs = {
     setFiberRef(FiberRef.currentRuntimeFlags, _runtimeFlags)
     _fiberRefs
   }
@@ -581,7 +560,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * on this fiber, then values derived from the fiber's state (including the
    * log annotations and log level) may not be up-to-date.
    */
-  private[zio] def getInterruptedCause()(implicit unsafe: Unsafe): Cause[Nothing] = getFiberRef(
+  private[zio] def getInterruptedCause(): Cause[Nothing] = getFiberRef(
     FiberRef.interruptedCause
   )
 
@@ -592,7 +571,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * on this fiber, then values derived from the fiber's state (including the
    * log annotations and log level) may not be up-to-date.
    */
-  private[zio] def getLoggers()(implicit unsafe: Unsafe): Set[ZLogger[String, Any]] =
+  private[zio] def getLoggers(): Set[ZLogger[String, Any]] =
     getFiberRef(FiberRef.currentLoggers)
 
   /**
@@ -602,13 +581,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * on this fiber, then values derived from the fiber's state (including the
    * log annotations and log level) may not be up-to-date.
    */
-  private[zio] def getReportFatal()(implicit unsafe: Unsafe): Throwable => Nothing =
+  private[zio] def getReportFatal(): Throwable => Nothing =
     getFiberRef(FiberRef.currentReportFatal)
 
-  private[zio] def getRunningExecutor()(implicit unsafe: Unsafe): Option[Executor] =
+  private[zio] def getRunningExecutor(): Option[Executor] =
     if (runningExecutor eq null) None else Some(runningExecutor)
 
-  private[zio] def getStatus()(implicit unsafe: Unsafe): Fiber.Status =
+  private[zio] def getStatus(): Fiber.Status =
     if (_exitValue ne null) Fiber.Status.Done
     else {
       if (_asyncContWith ne null) Fiber.Status.Suspended(self._runtimeFlags, _lastTrace, _blockingOn())
@@ -622,7 +601,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * on this fiber, then values derived from the fiber's state (including the
    * log annotations and log level) may not be up-to-date.
    */
-  private[zio] def getSupervisor()(implicit unsafe: Unsafe): Supervisor[Any] =
+  private[zio] def getSupervisor(): Supervisor[Any] =
     getFiberRef(FiberRef.currentSupervisor)
 
   /**
@@ -632,7 +611,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private def handleFatalError(throwable: Throwable): Nothing = {
     FiberRuntime.catastrophicFailure.set(true)
-    val errorReporter = getReportFatal()(Unsafe.unsafe)
+    val errorReporter = getReportFatal()
     errorReporter(throwable)
   }
 
@@ -645,8 +624,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private def initiateAsync(
     asyncRegister: (ZIO.Erased => Unit) => ZIO.Erased
-  )(implicit
-    unsafe: Unsafe
   ): ZIO.Erased = {
     val alreadyCalled = new AtomicBoolean(false)
 
@@ -695,7 +672,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def interruptAllChildren()(implicit unsafe: Unsafe): UIO[Any] =
+  private def interruptAllChildren(): UIO[Any] =
     if (sendInterruptSignalToAllChildren(_children)) {
       val iterator = _children.iterator()
 
@@ -712,10 +689,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         .whileLoop(iterator.hasNext)(body())(_ => ())(id.location)
     } else null
 
-  private[zio] def isAlive()(implicit unsafe: Unsafe): Boolean =
+  private[zio] def isAlive(): Boolean =
     _exitValue eq null
 
-  private[zio] def isDone()(implicit unsafe: Unsafe): Boolean =
+  private[zio] def isDone(): Boolean =
     _exitValue ne null
 
   /**
@@ -725,7 +702,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * on this fiber, then values derived from the fiber's state (including the
    * log annotations and log level) may not be up-to-date.
    */
-  private[zio] def isInterrupted()(implicit unsafe: Unsafe): Boolean = {
+  private[zio] def isInterrupted(): Boolean = {
     val interruptedCause = getFiberRef(FiberRef.interruptedCause)
 
     interruptedCause.nonEmpty || {
@@ -737,7 +714,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
   }
 
-  private[zio] def isInterruptible()(implicit unsafe: Unsafe): Boolean =
+  private[zio] def isInterruptible(): Boolean =
     RuntimeFlags.interruptible(_runtimeFlags)
 
   private[zio] def log(
@@ -745,7 +722,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     cause: Cause[Any],
     overrideLogLevel: Option[LogLevel],
     trace: Trace
-  )(implicit unsafe: Unsafe): Unit = {
+  ): Unit = {
     val logLevel =
       if (overrideLogLevel.isDefined) overrideLogLevel.get
       else getFiberRef(FiberRef.currentLogLevel)
@@ -760,9 +737,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
   }
 
-  private def processStatefulMessage(onFiber: (FiberRuntime[_, _], Fiber.Status) => Unit)(implicit
-    unsafe: Unsafe
-  ): Unit =
+  private def processStatefulMessage(onFiber: (FiberRuntime[_, _], Fiber.Status) => Unit): Unit =
     try {
       onFiber(self, getStatus())
     } catch {
@@ -806,7 +781,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def processNewInterruptSignal(cause: Cause[Nothing])(implicit unsafe: Unsafe): Unit = {
+  private def processNewInterruptSignal(cause: Cause[Nothing]): Unit = {
     self.addInterruptedCause(cause)
     self.sendInterruptSignalToAllChildren(_children)
 
@@ -834,7 +809,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private[zio] def removeChild(child: FiberRuntime[_, _])(implicit unsafe: Unsafe): Unit =
+  private[zio] def removeChild(child: FiberRuntime[_, _]): Unit =
     if (_children ne null) {
       _children.remove(child)
       ()
@@ -846,7 +821,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private[zio] def removeObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit =
+  private[zio] def removeObserver(observer: Exit[E, A] => Unit): Unit =
     observers = observers.filter(_ ne observer)
 
   /**
@@ -860,7 +835,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     minStackIndex: Int,
     startStackIndex: Int,
     currentDepth: Int
-  )(implicit unsafe: Unsafe): AnyRef = {
+  ): AnyRef = {
     assert(running.get)
 
     type Erased         = ZIO.Erased
@@ -882,7 +857,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
     while (cur ne null) {
       if (RuntimeFlags.opSupervision(_runtimeFlags)) {
-        self.getSupervisor().onEffect(self, cur)
+        self.getSupervisor().onEffect(self, cur)(Unsafe.unsafe)
       }
 
       updateLastTrace(cur.trace)
@@ -952,7 +927,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   stackIndex -= 1
                   popStackFrame(stackIndex)
 
-                  cur = computeNextFromZioError(zioError)
+                  cur = computeNextFromZioError(zioError, null)
               }
 
             case effect0: Continuation[_, _, _, _, _] =>
@@ -974,13 +949,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   stackIndex -= 1
                   popStackFrame(stackIndex)
 
-                  if (shouldInterrupt()) {
-                    cur = Exit.failCause(zioError.cause.stripFailures)
-                  } else {
-                    if (effect.failureK ne null)
-                      cur = effect.failureK(zioError.cause)
-                    else cur = Exit.Failure(zioError.cause)
-                  }
+                  cur = computeNextFromZioError(zioError, effect.failureK)
               }
 
             case effect: Async[_, _, _] =>
@@ -1226,7 +1195,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     done
   }
 
-  private def sendInterruptSignalToAllChildrenConcurrently()(implicit unsafe: Unsafe): Boolean = {
+  private def sendInterruptSignalToAllChildrenConcurrently(): Boolean = {
     val c = _children
 
     if (c ne null) {
@@ -1238,7 +1207,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   private def sendInterruptSignalToAllChildren(
     children: JavaSet[Fiber.Runtime[_, _]]
-  )(implicit unsafe: Unsafe): Boolean =
+  ): Boolean =
     if (children == null || children.isEmpty) false
     else {
       // Initiate asynchronous interruption of all children:
@@ -1266,8 +1235,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def setExitValue(e: Exit[E, A])(implicit unsafe: Unsafe): Unit = {
-    def reportExitValue(v: Exit[E, A])(implicit unsafe: Unsafe): Unit = v match {
+  private def setExitValue(e: Exit[E, A]): Unit = {
+    def reportExitValue(v: Exit[E, A]): Unit = v match {
       case Exit.Failure(cause) =>
         try {
           if (!cause.isInterruptedOnly) {
@@ -1281,7 +1250,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
           if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
             val tags = getFiberRef(FiberRef.currentTags)
-            Metric.runtime.fiberFailures.unsafe.update(1, tags)
+            Metric.runtime.fiberFailures.unsafe.update(1, tags)(Unsafe.unsafe)
             cause.foldContext(tags)(FiberRuntime.fiberFailureTracker)
           }
         } catch {
@@ -1296,7 +1265,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       case _ =>
         if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
           val tags = getFiberRef(FiberRef.currentTags)
-          Metric.runtime.fiberSuccesses.unsafe.update(1, tags)
+          Metric.runtime.fiberSuccesses.unsafe.update(1, tags)(Unsafe.unsafe)
         }
     }
 
@@ -1308,7 +1277,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       val lifetime        = (endTimeMillis - startTimeMillis) / 1000.0
 
       val tags = getFiberRef(FiberRef.currentTags)
-      Metric.runtime.fiberLifetimes.unsafe.update(lifetime, tags)
+      Metric.runtime.fiberLifetimes.unsafe.update(lifetime, tags)(Unsafe.unsafe)
     }
 
     reportExitValue(e)
@@ -1324,13 +1293,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     observers = Nil
   }
 
-  private[zio] def setFiberRef[A](fiberRef: FiberRef[A], value: A)(implicit unsafe: Unsafe): Unit =
+  private[zio] def setFiberRef[A](fiberRef: FiberRef[A], value: A): Unit =
     _fiberRefs = _fiberRefs.updatedAs(fiberId)(fiberRef, value)
 
-  private[zio] def setFiberRefs(fiberRefs0: FiberRefs)(implicit unsafe: Unsafe): Unit =
+  private[zio] def setFiberRefs(fiberRefs0: FiberRefs): Unit =
     this._fiberRefs = fiberRefs0
 
-  private[zio] def shouldInterrupt()(implicit unsafe: Unsafe): Boolean = isInterruptible() && isInterrupted()
+  private[zio] def shouldInterrupt(): Boolean = isInterruptible() && isInterrupted()
 
   /**
    * Begins execution of the effect associated with this fiber on the current
@@ -1340,7 +1309,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * This is not the normal way of starting a fiber, but it is useful when the
    * express goal of executing the fiber is to synchronously produce its exit.
    */
-  private[zio] def start[R](effect: ZIO[R, E, A])(implicit unsafe: Unsafe): Exit[E, A] =
+  private[zio] def start[R](effect: ZIO[R, E, A]): Exit[E, A] =
     if (running.compareAndSet(false, true)) {
       var previousFiber = null.asInstanceOf[Fiber.Runtime[_, _]]
       try {
@@ -1372,10 +1341,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * background, and on the correct thread pool. This can be called to "kick
    * off" execution of a fiber after it has been created.
    */
-  private[zio] def startConcurrently(effect: ZIO[_, E, A])(implicit unsafe: Unsafe): Unit =
+  private[zio] def startConcurrently(effect: ZIO[_, E, A]): Unit =
     tell(FiberMessage.Resume(effect))
 
-  private[zio] def startSuspended()(implicit unsafe: Unsafe): ZIO[_, E, A] => Any = {
+  private[zio] def startSuspended(): ZIO[_, E, A] => Any = {
     val alreadyCalled = new AtomicBoolean(false)
     val callback = (effect: ZIO[_, E, A]) => {
       if (alreadyCalled.compareAndSet(false, true)) {
@@ -1398,7 +1367,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * stolen work would itself immediately trampoline, defeating the potential
    * gains of work stealing.
    */
-  private def stealWork(depth0: Int, flags: RuntimeFlags)(implicit unsafe: Unsafe): Boolean = {
+  private def stealWork(depth0: Int, flags: RuntimeFlags): Boolean = {
     val depth = depth0 + FiberRuntime.WorkStealingSafetyMargin
 
     val stolen =
@@ -1417,17 +1386,17 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   /**
    * Adds a message to be processed by the fiber on the fiber.
    */
-  private[zio] def tell(message: FiberMessage)(implicit unsafe: Unsafe): Unit = {
+  private[zio] def tell(message: FiberMessage): Unit = {
     inbox.add(message)
 
     // Attempt to spin up fiber, if it's not already running:
     if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
   }
 
-  private[zio] def tellAddChild(child: Fiber.Runtime[_, _])(implicit unsafe: Unsafe): Unit =
+  private[zio] def tellAddChild(child: Fiber.Runtime[_, _]): Unit =
     tell(FiberMessage.Stateful((parentFiber, _) => parentFiber.addChild(child)))
 
-  private[zio] def tellInterrupt(cause: Cause[Nothing])(implicit unsafe: Unsafe): Unit =
+  private[zio] def tellInterrupt(cause: Cause[Nothing]): Unit =
     tell(FiberMessage.InterruptSignal(cause))
 
   /**
@@ -1436,7 +1405,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private[zio] def updateFiberRef[A](fiberRef: FiberRef[A])(f: A => A)(implicit unsafe: Unsafe): Unit =
+  private[zio] def updateFiberRef[A](fiberRef: FiberRef[A])(f: A => A): Unit =
     setFiberRef(fiberRef, f(getFiberRef(fiberRef)))
 
   private[zio] def updateLastTrace(newTrace: Trace): Unit =
