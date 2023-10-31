@@ -46,3 +46,60 @@ What is nice about those tests is that test reporters will tell you exactly whic
 [info]       User(Jonny,26,Address(Denmark,Copenhagen)) did not satisfy (hasField("age", _.age, isGreaterThanEqualTo(45)) && hasField("country", _.country, not(equalTo(USA))))
 [info]       26 did not satisfy isGreaterThanEqualTo(45)
 ```
+
+## Example 3: Test if a ZIO Effect Fails With a Particular Error Type
+
+The following example shows how to test if a ZIO effect fails with a particular error type. To test if a ZIO effect fails with a particular error type, we can use the `ZIO#exit` to determine the exit type of that effect. 
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{ test, _ }
+import zio.test.Assertion._
+
+case class MyError(msg: String) extends Exception
+
+val effect: ZIO[Any, MyError, Unit] = ZIO.fail(MyError("my error msg"))
+
+test("test if a ZIO effect fails with a particular error type") {
+  for {
+    exit <- effect.exit
+  } yield assertTrue(exit == Exit.fail(MyError("my error msg")))
+}
+```
+
+The exit method on a ZIO effect returns an `Exit` value, which represents the outcome of the effect. The `Exit` value can be either `Exit.succeed` or `Exit.fail`. If the effect succeeded, the `Exit.succeed` value will contain the result of the effect. If the effect failed, the `Exit.fail` value will contain the error that caused the failure.
+
+## Example 4: Test if a ZIO Effect Fails With a Subtype of a Particular Error Type
+
+To test if a ZIO effect fails with a `subtype` of a particular error type, we can use the `assertZIO` function and the two `fails`, and `isSubtype` assertions from the zio-test library. The `assertZIO` function takes a ZIO effect and an assertion. The assertion is called with the result of the ZIO effect. If the assertion returns true, then the `assertZIO` will succeed, otherwise it will fail.
+
+Assume we have these error types:
+
+```scala mdoc:silent
+sealed trait MyError extends Exception
+case class E1(msg: String) extends MyError
+case class E2(msg: String) extends MyError
+```
+
+To assert if an error type is a subtype of a particular error type, we need to combine the `fails` and `isSubtype` assertions together:
+
+
+```scala mdoc:compile-only
+import zio.test.Assertion._
+
+Assertion.fails(isSubtype[MyError](anything))
+```
+
+Now let's look at an example:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{ test, _ }
+import zio.test.Assertion._
+
+val effect = ZIO.fail(E1("my error msg"))
+
+test("Test if a ZIO effect fails with a MyError") {
+  assertZIO(effect.exit)(fails(isSubtype[MyError](anything)))
+}
+```
