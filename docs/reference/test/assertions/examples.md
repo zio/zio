@@ -52,7 +52,8 @@ What is nice about those tests is that test reporters will tell you exactly whic
 The following example shows how to test if a ZIO effect fails with a particular error type. To test if a ZIO effect fails with a particular error type, we can use the `ZIO#exit` to determine the exit type of that effect. 
 
 ```scala mdoc:compile-only
-import zio.test._
+import zio._
+import zio.test.{ test, _ }
 import zio.test.Assertion._
 
 case class MyError(msg: String) extends Exception
@@ -72,6 +73,14 @@ The exit method on a ZIO effect returns an `Exit` value, which represents the ou
 
 To test if a ZIO effect fails with a `subtype` of a particular error type, we can use the `assertZIO` function and the two `fails`, and `isSubtype` assertions from the zio-test library. The `assertZIO` function takes a ZIO effect and an assertion. The assertion is called with the result of the ZIO effect. If the assertion returns true, then the `assertZIO` will succeed, otherwise it will fail.
 
+Assume we have these error types:
+
+```scala mdoc:silent
+sealed trait MyError extends Exception
+case class E1(msg: String) extends MyError
+case class E2(msg: String) extends MyError
+```
+
 To assert if an error type is a subtype of a particular error type, we need to combine the `fails` and `isSubtype` assertions together:
 
 
@@ -84,12 +93,9 @@ Assertion.fails(isSubtype[MyError](anything))
 Now let's look at an example:
 
 ```scala mdoc:compile-only
-import zio.test._
+import zio._
+import zio.test.{ test, _ }
 import zio.test.Assertion._
-
-sealed trait MyError extends Exception
-case class E1(msg: String) extends MyError
-case class E2(msg: String) extends MyError
 
 val effect = ZIO.fail(E1("my error msg"))
 
