@@ -104,7 +104,7 @@
   },
   "devDependencies": {
     "@tsconfig/docusaurus": "2.0.2",
-    "@types/react": "18.2.35",
+    "@types/react": "18.2.36",
     "@types/react-helmet": "6.1.8",
     "@types/react-router-dom": "5.3.3",
     "typescript": "5.2.2"
