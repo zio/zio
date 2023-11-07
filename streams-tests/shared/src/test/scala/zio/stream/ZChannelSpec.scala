@@ -747,6 +747,13 @@ object ZChannelSpec extends ZIOBaseSpec {
                     .runDrain
                     .exit
         } yield assertTrue(exit.isFailure)
+      },
+      test("fiberRef values are restored") {
+        for {
+          fiberRef <- FiberRef.make(true)
+          _        <- ZChannel.scoped(fiberRef.locallyScoped(false)).runDrain
+          value    <- fiberRef.get
+        } yield assertTrue(value)
       }
     )
   )
