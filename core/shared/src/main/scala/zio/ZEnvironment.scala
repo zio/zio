@@ -206,15 +206,13 @@ object ZEnvironment {
     empty.add[A](a)
 
   /**
-   * Constructs a new environment holding the specified services. The service
-   * must be monomorphic. Parameterized services are not supported.
+   * Constructs a new environment holding the specified services.
    */
   def apply[A: Tag, B: Tag](a: A, b: B): ZEnvironment[A with B] =
     ZEnvironment(a).add[B](b)
 
   /**
-   * Constructs a new environment holding the specified services. The service
-   * must be monomorphic. Parameterized services are not supported.
+   * Constructs a new environment holding the specified services.
    */
   def apply[A: Tag, B: Tag, C: Tag](
     a: A,
@@ -224,8 +222,7 @@ object ZEnvironment {
     ZEnvironment(a).add(b).add[C](c)
 
   /**
-   * Constructs a new environment holding the specified services. The service
-   * must be monomorphic. Parameterized services are not supported.
+   * Constructs a new environment holding the specified services.
    */
   def apply[A: Tag, B: Tag, C: Tag, D: Tag](
     a: A,
@@ -236,8 +233,7 @@ object ZEnvironment {
     ZEnvironment(a).add(b).add(c).add[D](d)
 
   /**
-   * Constructs a new environment holding the specified services. The service
-   * must be monomorphic. Parameterized services are not supported.
+   * Constructs a new environment holding the specified services.
    */
   def apply[
     A: Tag,
