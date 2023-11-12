@@ -5919,6 +5919,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       if (status.isInterruptible) MakeInterruptible
       else MakeUninterruptible
 
+    def make(implicit trace: Trace): ZIO[Any, Nothing, InterruptibilityRestorer] =
+      ZIO.checkInterruptible(status => ZIO.succeed(InterruptibilityRestorer(status)))
+
     case object MakeInterruptible extends InterruptibilityRestorer {
       def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         ZIO.UpdateRuntimeFlagsWithin.Interruptible(trace, effect)
