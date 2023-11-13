@@ -121,6 +121,12 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
     ZIO.succeed(Option(underlying.putIfAbsent(key, value)))
 
   /**
+   * True if there are no elements in this map.
+   */
+  def isEmpty: UIO[Boolean] =
+    ZIO.succeed(underlying.isEmpty)
+
+  /**
    * Removes the entry for the given key, optionally returning value associated
    * with it.
    */
@@ -160,6 +166,12 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
         }
       }
     )
+
+  /**
+   * Removes all elements.
+   */
+  def clear: UIO[Unit] =
+    ZIO.succeed(underlying.clear())
 
   /**
    * Replaces the entry for the given key only if it is mapped to some value.
