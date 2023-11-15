@@ -109,6 +109,7 @@ object BuildHelper {
         Seq(
           "-language:implicitConversions",
           "-Xignore-scala2-macros",
+          "-Xmax-inlines:64",
           "-noindent"
         )
       case Some((2, 13)) =>

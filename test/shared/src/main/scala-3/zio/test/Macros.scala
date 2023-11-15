@@ -18,7 +18,8 @@ package zio.test
 
 import zio._
 import zio.internal.stacktracer.SourceLocation
-import zio.test.internal.SmartAssertions
+import zio.test.diff.Diff
+import zio.test.internal.{OptionalImplicit, SmartAssertions}
 
 import scala.quoted._
 import scala.reflect.ClassTag
@@ -166,7 +167,14 @@ object SmartAssertMacros {
 
       case Unseal(MethodCall(lhs, "==", tpes, Some(List(rhs)))) =>
         val span = getSpan(rhs)
-        '{${transform(lhs.asExpr)} >>> SmartAssertions.equalTo(${rhs.asExpr}).span($span)}.asExprOf[TestArrow[Any, A]]
+        lhs.tpe.widen.asType match {
+          case '[l] =>
+            Expr.summon[OptionalImplicit[Diff[l]]] match {
+              case Some(optDiff) =>
+                '{${transform(lhs.asExpr)} >>> SmartAssertions.equalTo(${rhs.asExpr})($optDiff.asInstanceOf[OptionalImplicit[Diff[Any]]]).span($span)}.asExprOf[TestArrow[Any, A]]
+              case _ => throw new Error("OptionalImplicit should be always available")
+            }
+        }
 
       case Unseal(MethodCall(lhs, "&&", tpes, Some(List(rhs)))) if isBool(lhs) =>
         val span = getSpan(rhs)
