@@ -304,25 +304,27 @@ object ZEnvironment {
      * Constructs a patch that describes the updates necessary to transform the
      * specified old environment into the specified new environment.
      */
-    def diff[In, Out](oldValue: ZEnvironment[In], newValue: ZEnvironment[Out]): Patch[In, Out] = {
-      val sorted = newValue.map.toList.sortBy { case (_, (_, index)) => index }
-      val (missingServices, patch) = sorted.foldLeft[(Map[LightTypeTag, (Any, Int)], Patch[In, Out])](
-        oldValue.map -> Patch.Empty().asInstanceOf[Patch[In, Out]]
-      ) { case ((map, patch), (tag, (newService, newIndex))) =>
-        map.get(tag) match {
-          case Some((oldService, oldIndex)) =>
-            if (oldService == newService && oldIndex == newIndex)
-              map - tag -> patch
-            else
+    def diff[In, Out](oldValue: ZEnvironment[In], newValue: ZEnvironment[Out]): Patch[In, Out] =
+      if (oldValue == newValue) Patch.Empty().asInstanceOf[Patch[In, Out]]
+      else {
+        val sorted = newValue.map.toList.sortBy { case (_, (_, index)) => index }
+        val (missingServices, patch) = sorted.foldLeft[(Map[LightTypeTag, (Any, Int)], Patch[In, Out])](
+          oldValue.map -> Patch.Empty().asInstanceOf[Patch[In, Out]]
+        ) { case ((map, patch), (tag, (newService, newIndex))) =>
+          map.get(tag) match {
+            case Some((oldService, oldIndex)) =>
+              if (oldService == newService && oldIndex == newIndex)
+                map - tag -> patch
+              else
+                map - tag -> patch.combine(AddService(newService, tag))
+            case _ =>
               map - tag -> patch.combine(AddService(newService, tag))
-          case _ =>
-            map - tag -> patch.combine(AddService(newService, tag))
+          }
+        }
+        missingServices.foldLeft(patch) { case (patch, (tag, _)) =>
+          patch.combine(RemoveService(tag))
         }
       }
-      missingServices.foldLeft(patch) { case (patch, (tag, _)) =>
-        patch.combine(RemoveService(tag))
-      }
-    }
 
     private final case class AddService[Env, Service](service: Service, tag: LightTypeTag)
         extends Patch[Env, Env with Service]
