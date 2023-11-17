@@ -632,7 +632,7 @@ object RuntimeBootstrapTests {
     asyncInterruptionOfNever()
     interruptRacedForks()
     useInheritance()
-    // useInheritance2()
+    useInheritance2()
     asyncUninterruptible()
     uninterruptibleClosingScope()
     syncInterruption2()

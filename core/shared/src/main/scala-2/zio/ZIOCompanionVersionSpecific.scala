@@ -104,7 +104,7 @@ trait ZIOCompanionVersionSpecific {
         case t: Throwable =>
           ZIO.withFiberRuntime[Any, Throwable, A] { (fiberState, _) =>
             if (!fiberState.isFatal(t))
-              throw ZIOError.Traced(Cause.fail(t))
+              throw ZIOError.traced(Cause.fail(t))
             else
               throw t
           }

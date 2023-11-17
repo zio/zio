@@ -305,10 +305,10 @@ sealed trait ZIO[-R, +E, +A]
    *   [[absorb]], [[sandbox]], [[mapErrorCause]] - other functions that can
    *   recover from defects
    */
-  final def catchAllCause[R1 <: R, E2, A1 >: A](h: Cause[E] => ZIO[R1, E2, A1])(implicit
+  final def catchAllCause[R1 <: R, E2, A1 >: A](k: Cause[E] => ZIO[R1, E2, A1])(implicit
     trace: Trace
   ): ZIO[R1, E2, A1] =
-    ZIO.Continuation(trace, self, failureK = h)
+    ZIO.FoldZIO(trace, self, ZIO.successFn[A], k)
 
   /**
    * Recovers from all defects with provided function.
@@ -690,7 +690,7 @@ sealed trait ZIO[-R, +E, +A]
     failure: Cause[E] => ZIO[R1, E2, B],
     success: A => ZIO[R1, E2, B]
   )(implicit trace: Trace): ZIO[R1, E2, B] =
-    ZIO.Continuation(trace, self, success, failure)
+    ZIO.FoldZIO(trace, self, success, failure)
 
   /**
    * A version of `foldZIO` that gives you the trace of the error.
@@ -4628,7 +4628,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.isFatalWith { isFatal =>
       try rio
       catch {
-        case t: Throwable if !isFatal(t) => throw ZIOError.Traced(Cause.fail(t))
+        case t: Throwable if !isFatal(t) => throw ZIOError.traced(Cause.fail(t))
       }
     }
 
@@ -5135,11 +5135,15 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   private val _IdentityFn: Any => Any = (a: Any) => a
 
+  private val _SuccessFn: Any => Exit[Nothing, Any] = a => Exit.Success(a)
+
   private val _SecondFn: (Any, Any) => Any = (_: Any, b: Any) => b
 
   private[zio] def secondFn[A]: (Any, A) => A = _SecondFn.asInstanceOf[(Any, A) => A]
 
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
+
+  private[zio] def successFn[A]: A => Exit[Nothing, A] = _SuccessFn.asInstanceOf[A => Exit[Nothing, A]]
 
   private[zio] def partitionMap[A, A1, A2](
     iterable: Iterable[A]
@@ -5779,62 +5783,39 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   private[zio] type Erased = ZIO[Any, Any, Any]
 
-  private[zio] sealed abstract class ZIOError extends Exception with NoStackTrace { self =>
-    def cause: Cause[Any]
-
-    def isTraced: Boolean
-
+  private[zio] final case class ZIOError(isTraced: Boolean, cause: Cause[Any]) extends Exception with NoStackTrace { self =>
     final def isUntraced: Boolean = !isTraced
 
-    final def toEffect(implicit trace: Trace): ZIO[Any, Any, Any] =
+    final def toEffect(implicit trace: Trace): ZIO[Any, Any, Nothing] =
       if (self.isUntraced) Exit.Failure(self.cause)
       else ZIO.failCause(self.cause)(trace)
   }
   private[zio] object ZIOError {
-    def apply(cause: Cause[Any]): ZIOError = Untraced(cause)
+    def apply(cause: Cause[Any]): ZIOError = untraced(cause)
 
-    final case class Untraced(cause: Cause[Any]) extends ZIOError {
-      def isTraced: Boolean = false
-    }
-    final case class Traced(cause: Cause[Any]) extends ZIOError {
-      def isTraced: Boolean = true
-    }
+    def untraced(cause: Cause[Any]): ZIOError = ZIOError(false, cause)
+
+    def traced(cause: Cause[Any]): ZIOError = ZIOError(true, cause)
   }
   private[zio] final case class FlatMap[R, E, A1, A2](
     trace: Trace,
     first: ZIO[R, E, A1],
     successK: A1 => ZIO[R, E, A2]
-  ) extends Continuation[R, E, E, A1, A2] {
-    def failureK: Cause[E] => ZIO[R, E, A2]             = null
-    def finalizer: Cause[Any] => ZIO[Any, Any, Nothing] = null
-  }
-  private[zio] sealed abstract class Continuation[R, E1, E2, A1, A2] extends ZIO[R, E2, A2] {
+  ) extends Continuation with ZIO[R, E, A2]
+  
+  private[zio] sealed abstract class Continuation {
     def trace: Trace
-    def first: ZIO[R, E1, A1]
-    def successK: A1 => ZIO[R, E2, A2]
-    def failureK: Cause[E1] => ZIO[R, E2, A2]
-    def finalizer: Cause[Any] => ZIO[Any, Any, Nothing]
   }
   object Continuation {
-    type Erased = Continuation[Any, Any, Any, Any, Any]
-
-    def apply[R, E1, E2, A1, A2](
-      trace: Trace,
-      first: ZIO[R, E1, A1],
-      successK: A1 => ZIO[R, E2, A2] = null,
-      failureK: Cause[E1] => ZIO[R, E2, A2] = null,
-      finalizer: Cause[Any] => ZIO[Any, Any, Nothing] = null
-    ): Continuation[R, E1, E2, A1, A2] =
-      FoldZIO[R, E1, E2, A1, A2](trace, first, successK, failureK, finalizer)
-
-    private[zio] final case class FoldZIO[R, E1, E2, A1, A2](
-      trace: Trace,
-      first: ZIO[R, E1, A1],
-      successK: A1 => ZIO[R, E2, A2],
-      failureK: Cause[E1] => ZIO[R, E2, A2],
-      finalizer: Cause[Any] => ZIO[Any, Any, Nothing]
-    ) extends Continuation[R, E1, E2, A1, A2]
+    def apply[R, E, A, B](f: A => ZIO[R, E, B])(implicit trace: Trace): Continuation = 
+      FlatMap[R, E, A, B](trace, null, f)
   }
+  private[zio] case class FoldZIO[R, E1, E2, A1, A2](
+    trace: Trace,
+    first: ZIO[R, E1, A1],
+    successK: A1 => ZIO[R, E2, A2],
+    failureK: Cause[E1] => ZIO[R, E2, A2]
+  ) extends Continuation with ZIO[R, E2, A2]
   private[zio] final case class Sync[A](trace: Trace, eval: () => A) extends ZIO[Any, Nothing, A]
   private[zio] final case class Async[R, E, A](
     trace: Trace,
@@ -5842,7 +5823,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     blockingOn: () => FiberId
   ) extends ZIO[R, E, A]
   private[zio] final case class UpdateRuntimeFlags(trace: Trace, update: RuntimeFlags.Patch)
-      extends ZIO[Any, Nothing, Unit]
+      extends Continuation with ZIO[Any, Nothing, Unit]
   private[zio] sealed trait UpdateRuntimeFlagsWithin[R, E, A] extends ZIO[R, E, A] {
 
     def update: RuntimeFlags.Patch

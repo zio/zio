@@ -46,7 +46,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
-  private var _stack          = null.asInstanceOf[Array[Continuation.Erased]]
+  private var _stack          = null.asInstanceOf[Array[Continuation]]
   private var _stackSize      = 0
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
@@ -328,14 +328,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     if (stack == null) {
       val newSize = if ((size & (size - 1)) == 0) size else Integer.highestOneBit(size) << 1
 
-      _stack = new Array[Continuation.Erased](if (newSize < 16) 16 else newSize)
+      _stack = new Array[Continuation](if (newSize < 16) 16 else newSize)
     } else {
       val stackLength = stack.length
 
       if (stackLength < size) {
         val newSize = if ((size & (size - 1)) == 0) size else Integer.highestOneBit(size) << 1
 
-        val newStack = new Array[Continuation.Erased](newSize)
+        val newStack = new Array[Continuation](newSize)
 
         java.lang.System.arraycopy(stack, 0, newStack, 0, _stackSize)
 
@@ -494,13 +494,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     val size  = _stackSize // racy
 
     if (stack ne null) {
-      var i = (if (stack.length < size) stack.length else size) - 1 // racy
+      var i = (if (stack.length < size) stack.length else size) - 1
       while (i >= 0) {
         val k = stack(i)
         if (k ne null) { // racy
           builder += k.trace
           i -= 1
-        } else i = -1
+        }
       }
     }
 
@@ -762,17 +762,25 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def patchRuntimeFlags(patch: RuntimeFlags.Patch): Unit = {
+  private def patchRuntimeFlags[R, E, A](patch: RuntimeFlags.Patch, cause: Cause[E], continueEffect: ZIO[R, E, A]): ZIO[R, E, A] = {
+    val flags = _runtimeFlags
+
     if (RuntimeFlags.Patch.isEnabled(patch)(RuntimeFlag.CurrentFiber)) {
       Fiber._currentFiber.set(self)
     } else if (RuntimeFlags.Patch.isDisabled(patch)(RuntimeFlag.CurrentFiber)) Fiber._currentFiber.set(null)
 
     _runtimeFlags = RuntimeFlags.patch(patch)(_runtimeFlags)
+    
+    if (shouldInterrupt()) { // TODO: Be smarter
+      if (cause ne null) Exit.Failure(cause ++ getInterruptedCause())
+      else Exit.Failure(getInterruptedCause())
+    } else if (cause ne null) Exit.Failure(cause)
+    else continueEffect 
   }
 
   @inline
   private def popStackFrame(nextStackIndex: Int): Unit = {
-    _stack(nextStackIndex) = null
+    _stack(nextStackIndex) = null // GC
     _stackSize = nextStackIndex
   }
 
@@ -793,7 +801,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   }
 
   @inline
-  private def pushStackFrame(k: Continuation.Erased, stackIndex: Int): Int = {
+  private def pushStackFrame(k: Continuation, stackIndex: Int): Int = {
     val newSize = stackIndex + 1
 
     ensureStackCapacity(newSize)
@@ -850,7 +858,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
     if (currentDepth >= FiberRuntime.MaxDepthBeforeTrampoline) {
       inbox.add(FiberMessage.YieldNow)
-      inbox.add(FiberMessage.resumeUnit)
+      inbox.add(FiberMessage.Resume(effect))
 
       throw AsyncJump
     }
@@ -881,17 +889,26 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
                 cur = null
 
-                while ((cur eq null) && stackIndex > minStackIndex) {
+                while ((cur eq null) && stackSegmentIsNonEmpty(stackIndex, minStackIndex)) {
                   stackIndex -= 1
 
                   val continuation = _stack(stackIndex)
 
                   popStackFrame(stackIndex)
 
-                  if (continuation.successK ne null) {
-                    cur = continuation.successK.asInstanceOf[ErasedSuccessK](value)
-                  } else if (continuation.finalizer ne null) {
-                    cur = continuation.finalizer(null)
+                  continuation match {
+                    case flatMap : ZIO.FlatMap[_, _, _, _] => 
+                      val f = flatMap.successK.asInstanceOf[Any => ZIO.Erased]
+
+                      cur = f(value)
+
+                    case foldZIO : ZIO.FoldZIO[_, _, _, _, _] => 
+                      val f = foldZIO.successK.asInstanceOf[Any => ZIO.Erased]
+
+                      cur = f(value)
+
+                    case updateFlags : ZIO.UpdateRuntimeFlags => 
+                      cur = patchRuntimeFlags(updateFlags.update, null, null)
                   }
                 }
 
@@ -899,6 +916,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   done = value.asInstanceOf[AnyRef]
                 }
               } catch {
+                case AsyncJump => throw AsyncJump 
+
                 case zioError: ZIOError =>
                   cur = zioError.toEffect(effect.trace)
 
@@ -930,8 +949,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   cur = computeNextFromZioError(zioError, null)
               }
 
-            case effect0: Continuation[_, _, _, _, _] =>
-              val effect = effect0.asInstanceOf[Continuation.Erased]
+            case effect0: FoldZIO[_, _, _, _, _] =>
+              val effect = effect0.asInstanceOf[FoldZIO[Any, Any, Any, Any, Any]]
 
               try {
                 stackIndex = pushStackFrame(effect, stackIndex)
@@ -941,9 +960,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 stackIndex -= 1
                 popStackFrame(stackIndex)
 
-                if (effect.successK ne null)
-                  cur = effect.successK(result)
-                else cur = Exit.Success(result)
+                cur = effect.successK(result)
               } catch {
                 case zioError: ZIOError =>
                   stackIndex -= 1
@@ -969,7 +986,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 cur = Exit.failCause(getInterruptedCause())
               }
 
-            case effect: UpdateRuntimeFlagsWithin[_, _, _] =>
+            case effect: UpdateRuntimeFlagsWithin[_, _, _] =>   
               val updateFlags     = effect.update
               val oldRuntimeFlags = _runtimeFlags
               val newRuntimeFlags = RuntimeFlags.patch(updateFlags)(oldRuntimeFlags)
@@ -985,27 +1002,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   cur = Exit.Failure(getInterruptedCause())
                 } else {
                   // Impossible to short circuit, so record the changes:
-                  patchRuntimeFlags(updateFlags)
+                  patchRuntimeFlags(updateFlags, null, null)
 
                   // Since we updated the flags, we need to revert them:
                   val revertFlags = RuntimeFlags.diff(newRuntimeFlags, oldRuntimeFlags)
 
                   try {
-                    val k = // TODO: Eliminate allocation
-                      ZIO
-                        .Continuation(
-                          Trace.empty,
-                          null,
-                          finalizer = { cause =>
-                            patchRuntimeFlags(revertFlags)
-
-                            if (shouldInterrupt())
-                              if (cause ne null) Exit.Failure(cause ++ getInterruptedCause())
-                              else Exit.Failure(getInterruptedCause())
-                            else null
-                          }
-                        )
-                        .asInstanceOf[Continuation.Erased]
+                    val k = ZIO.UpdateRuntimeFlags(Trace.empty, revertFlags)
 
                     stackIndex = pushStackFrame(k, stackIndex)
 
@@ -1020,13 +1023,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                     popStackFrame(stackIndex)
 
                     // Go backward, on the stack:
-                    patchRuntimeFlags(revertFlags)
-
-                    if (shouldInterrupt())
-                      cur = Exit.Failure(getInterruptedCause())
-                    else {
-                      cur = Exit.Success(value)
-                    }
+                    cur = patchRuntimeFlags(revertFlags, null, Exit.Success(value))
                   } catch {
                     case AsyncJump => throw AsyncJump
 
@@ -1034,18 +1031,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                       stackIndex -= 1
                       popStackFrame(stackIndex)
 
-                      patchRuntimeFlags(revertFlags)
-
-                      cur = Exit.Failure(zioError.cause)
+                      cur = patchRuntimeFlags(revertFlags, zioError.cause, null)
 
                     case throwable: Throwable =>
                       stackIndex -= 1
                       popStackFrame(stackIndex)
 
                       // Non-recoverable or fatal error:
-                      patchRuntimeFlags(revertFlags)
-
-                      throw throwable
+                      cur = patchRuntimeFlags(revertFlags, null, ZIO.die(throwable)(_lastTrace))
                   }
                 }
               }
@@ -1072,17 +1065,26 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               cur = null
 
-              while ((cur eq null) && stackIndex > minStackIndex) {
+              while ((cur eq null) && stackSegmentIsNonEmpty(stackIndex, minStackIndex)) {
                 stackIndex -= 1
 
                 val continuation = _stack(stackIndex)
 
                 popStackFrame(stackIndex)
 
-                if (continuation.successK ne null) {
-                  cur = continuation.successK.asInstanceOf[ErasedSuccessK](value)
-                } else if (continuation.finalizer ne null) {
-                  cur = continuation.finalizer(null)
+                continuation match {
+                  case flatMap : ZIO.FlatMap[_, _, _, _] => 
+                    val f = flatMap.successK.asInstanceOf[Any => ZIO.Erased]
+
+                    cur = f(value)
+
+                  case foldZIO : ZIO.FoldZIO[_, _, _, _, _] => 
+                    val f = foldZIO.successK.asInstanceOf[Any => ZIO.Erased]
+
+                    cur = f(value)
+
+                  case updateFlags : ZIO.UpdateRuntimeFlags => 
+                    cur = patchRuntimeFlags(updateFlags.update, null, null)
                 }
               }
 
@@ -1095,33 +1097,30 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               cur = null
 
-              while ((cur eq null) && stackIndex > minStackIndex) {
+              while ((cur eq null) && stackSegmentIsNonEmpty(stackIndex, minStackIndex)) {
                 stackIndex -= 1
 
                 val continuation = _stack(stackIndex)
 
                 popStackFrame(stackIndex)
 
-                if (continuation.failureK ne null) {
-                  if (shouldInterrupt())
-                    cause = cause.stripFailures // Skipped an error handler which changed E1 => E2, so must discard
-                  else
-                    cur = continuation.failureK.asInstanceOf[ErasedFailureK](cause)
-                } else if (continuation.finalizer ne null) {
-                  cur = continuation.finalizer(cause)
+                continuation match {
+                  case flatMap : ZIO.FlatMap[_, _, _, _] =>
+
+                  case foldZIO : ZIO.FoldZIO[_, _, _, _, _] => 
+                    val f = foldZIO.failureK.asInstanceOf[Cause[Any] => ZIO.Erased]
+
+                    cur = f(cause)
+
+                  case updateFlags : ZIO.UpdateRuntimeFlags => 
+                    cur = patchRuntimeFlags(updateFlags.update, cause, null)
                 }
               }
 
               if (cur eq null) throw ZIOError(cause)
 
             case updateRuntimeFlags: UpdateRuntimeFlags =>
-              patchRuntimeFlags(updateRuntimeFlags.update)
-
-              if (shouldInterrupt()) {
-                cur = Exit.Failure(getInterruptedCause())
-              } else {
-                cur = ZIO.unit
-              }
+              cur = patchRuntimeFlags(updateRuntimeFlags.update, null, ZIO.unit)
 
             case iterate0: WhileLoop[_, _, _] =>
               val iterate = iterate0.asInstanceOf[WhileLoop[Any, Any, Any]]
@@ -1129,14 +1128,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               val check = iterate.check
 
               val k = // TODO: Push into WhileLoop so we don't have to allocate here
-                Continuation(
-                  iterate.trace,
-                  null,
-                  successK = { (element: Any) =>
-                    iterate.process(element)
-                    iterate
-                  }
-                ).asInstanceOf[Continuation.Erased]
+                ZIO.Continuation({(element: Any) =>
+                  iterate.process(element)
+                  iterate
+                })(iterate.trace)
 
               stackIndex = pushStackFrame(k, stackIndex)
 
@@ -1185,8 +1180,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             if (isFatal(throwable)) {
               cur = handleFatalError(throwable)
             } else {
-              val trace = _lastTrace
-              cur = ZIO.failCause(Cause.die(throwable))(trace)
+              cur = ZIO.failCause(Cause.die(throwable))(_lastTrace)
             }
         }
       }
@@ -1196,11 +1190,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   }
 
   private def sendInterruptSignalToAllChildrenConcurrently(): Boolean = {
-    val c = _children
+    val childFibers = _children
 
-    if (c ne null) {
-      internal.Sync(c) {
-        sendInterruptSignalToAllChildren(c)
+    if (childFibers ne null) {
+      internal.Sync(childFibers) {
+        sendInterruptSignalToAllChildren(childFibers)
       }
     } else false
   }
@@ -1300,6 +1294,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     this._fiberRefs = fiberRefs0
 
   private[zio] def shouldInterrupt(): Boolean = isInterruptible() && isInterrupted()
+
+  private[zio] def stackSegmentIsEmpty(currentStackIndex: Int, segmentStackIndex: Int): Boolean = 
+    currentStackIndex <= segmentStackIndex
+
+  private[zio] def stackSegmentIsNonEmpty(currentStackIndex: Int, segmentStackIndex: Int): Boolean = 
+    currentStackIndex > segmentStackIndex  
 
   /**
    * Begins execution of the effect associated with this fiber on the current
