@@ -1927,6 +1927,24 @@ sealed trait ZIO[-R, +E, +A]
     )
 
   /**
+   * Applies the effectful function `f` to the `Some` case of the optional value
+   * and returns the result in a new `Option[C]`.
+   */
+  final def flatMapSome[R1 <: R, E1 >: E, B, C](
+    f: B => ZIO[R1, E1, C]
+  )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R1, E1, Option[C]] =
+    self.flatMap(a => ZIO.foreach(ev(a))(f))
+
+  /**
+   * Applies the function `f` to the `Some` case of the optional value and
+   * returns the result in a new `Option[C]`.
+   */
+  final def mapSome[B, C](
+    f: B => C
+  )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R, E, Option[C]] =
+    self.flatMapSome((b: B) => ZIO.succeed(f(b)))
+
+  /**
    * Companion helper to `sandbox`. Allows recovery, and partial recovery, from
    * errors and defects alike, as in:
    *
