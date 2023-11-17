@@ -178,14 +178,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     if (_exitValue ne null) observer(_exitValue)
     else observers = observer :: observers
 
-  private def computeNextFromZioError(zioError: ZIOError, failureK: Cause[Any] => ZIO.Erased): ZIO.Erased =
-    if (shouldInterrupt()) {
-      Exit.failCause(zioError.cause.stripFailures)
-    } else {
-      if (failureK ne null) failureK(zioError.cause)
-      else Exit.Failure(zioError.cause)
-    }
-
   private[zio] def deleteFiberRef(ref: FiberRef[_]): Unit =
     _fiberRefs = _fiberRefs.delete(ref)
 
@@ -763,15 +755,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private def patchRuntimeFlags[R, E, A](patch: RuntimeFlags.Patch, cause: Cause[E], continueEffect: ZIO[R, E, A]): ZIO[R, E, A] = {
-    val flags = _runtimeFlags
+    import RuntimeFlags.Patch.{isEnabled, isDisabled}
 
-    if (RuntimeFlags.Patch.isEnabled(patch)(RuntimeFlag.CurrentFiber)) {
+    if (isEnabled(patch)(RuntimeFlag.CurrentFiber)) {
       Fiber._currentFiber.set(self)
-    } else if (RuntimeFlags.Patch.isDisabled(patch)(RuntimeFlag.CurrentFiber)) Fiber._currentFiber.set(null)
+    } else if (isDisabled(patch)(RuntimeFlag.CurrentFiber)) Fiber._currentFiber.set(null)
 
     _runtimeFlags = RuntimeFlags.patch(patch)(_runtimeFlags)
     
-    if (shouldInterrupt()) { // TODO: Be smarter
+    if (shouldInterrupt()) { // TODO: Be smarter; don't do the whole check since we can deduce the condition.
       if (cause ne null) Exit.Failure(cause ++ getInterruptedCause())
       else Exit.Failure(getInterruptedCause())
     } else if (cause ne null) Exit.Failure(cause)
@@ -875,10 +867,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       ops += 1
 
       if (ops > FiberRuntime.MaxOperationsBeforeYield) {
-        ops = 0
-        val oldCur = cur
-        val trace  = _lastTrace
-        cur = ZIO.YieldNow(trace, true).flatMap(_ => oldCur)(trace)
+        inbox.add(FiberMessage.YieldNow)
+        inbox.add(FiberMessage.Resume(cur))
+
+        throw AsyncJump
       } else {
         try {
           cur match {
@@ -916,17 +908,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   done = value.asInstanceOf[AnyRef]
                 }
               } catch {
-                case AsyncJump => throw AsyncJump 
-
                 case zioError: ZIOError =>
                   cur = zioError.toEffect(effect.trace)
-
-                case throwable: Throwable =>
-                  if (isFatal(throwable)) {
-                    cur = handleFatalError(throwable)
-                  } else {
-                    cur = ZIO.failCause(Cause.die(throwable))(effect.trace)
-                  }
               }
 
             case flatMap0: FlatMap[_, _, _, _] =>
@@ -946,7 +929,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   stackIndex -= 1
                   popStackFrame(stackIndex)
 
-                  cur = computeNextFromZioError(zioError, null)
+                  cur = Exit.Failure(zioError.cause) 
               }
 
             case effect0: FoldZIO[_, _, _, _, _] =>
@@ -966,7 +949,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   stackIndex -= 1
                   popStackFrame(stackIndex)
 
-                  cur = computeNextFromZioError(zioError, effect.failureK)
+                  cur = effect.failureK(zioError.cause)
               }
 
             case effect: Async[_, _, _] =>
@@ -1024,21 +1007,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
                     // Go backward, on the stack:
                     cur = patchRuntimeFlags(revertFlags, null, Exit.Success(value))
-                  } catch {
-                    case AsyncJump => throw AsyncJump
-
+                  } catch {                    
                     case zioError: ZIOError =>
                       stackIndex -= 1
                       popStackFrame(stackIndex)
 
                       cur = patchRuntimeFlags(revertFlags, zioError.cause, null)
-
-                    case throwable: Throwable =>
-                      stackIndex -= 1
-                      popStackFrame(stackIndex)
-
-                      // Non-recoverable or fatal error:
-                      cur = patchRuntimeFlags(revertFlags, null, ZIO.die(throwable)(_lastTrace))
                   }
                 }
               }
@@ -1295,9 +1269,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   private[zio] def shouldInterrupt(): Boolean = isInterruptible() && isInterrupted()
 
+  @inline
   private[zio] def stackSegmentIsEmpty(currentStackIndex: Int, segmentStackIndex: Int): Boolean = 
     currentStackIndex <= segmentStackIndex
 
+  @inline
   private[zio] def stackSegmentIsNonEmpty(currentStackIndex: Int, segmentStackIndex: Int): Boolean = 
     currentStackIndex > segmentStackIndex  
 
