@@ -20,7 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.TSemaphore
 
 import scala.annotation.tailrec
-import scala.collection.immutable.Queue
+import scala.collection.immutable.{Queue => ScalaQueue}
 
 /**
  * An asynchronous semaphore, which is a generalization of a mutex. Semaphores
@@ -78,7 +78,7 @@ object Semaphore {
   object unsafe {
     def make(permits: Long)(implicit unsafe: Unsafe): Semaphore =
       new Semaphore {
-        val ref = Ref.unsafe.make[Either[Queue[(Promise[Nothing, Unit], Long)], Long]](Right(permits))
+        val ref = Ref.unsafe.make[Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]](Right(permits))
 
         def available(implicit trace: Trace): UIO[Long] =
           ref.get.map {
@@ -111,7 +111,7 @@ object Semaphore {
                 case Right(permits) if permits >= n =>
                   Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
                 case Right(permits) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(Queue(promise -> (n - permits)))
+                  Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
                 case Left(queue) =>
                   Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
               }
@@ -133,9 +133,9 @@ object Semaphore {
           @tailrec
           def loop(
             n: Long,
-            state: Either[Queue[(Promise[Nothing, Unit], Long)], Long],
+            state: Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long],
             acc: UIO[Any]
-          ): (UIO[Any], Either[Queue[(Promise[Nothing, Unit], Long)], Long]) =
+          ): (UIO[Any], Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]) =
             state match {
               case Right(permits) => acc -> Right(permits + n)
               case Left(queue) =>
