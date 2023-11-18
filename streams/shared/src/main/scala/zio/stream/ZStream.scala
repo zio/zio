@@ -3989,8 +3989,22 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Submerges the error case of an `Either` into the `ZStream`.
    */
-  def absolve[R, E, O](xs: ZStream[R, E, Either[E, O]])(implicit trace: Trace): ZStream[R, E, O] =
-    xs.mapZIO(ZIO.fromEither(_))
+  def absolve[R, E, O](xs: ZStream[R, E, Either[E, O]])(implicit trace: Trace): ZStream[R, E, O] = {
+    lazy val loop: ZChannel[Any, E, Chunk[Either[E, O]], Any, E, Chunk[O], Any] = ZChannel.readWithCause(
+      (in: Chunk[Either[E, O]]) => {
+        val mapped = in.collectWhile { case Right(o) => o }
+        if (mapped.size == in.size) ZChannel.write(mapped) *> loop
+        else {
+          val firstError = in(mapped.size).asInstanceOf[Left[E, O]]
+          ZChannel.write(mapped) *> ZChannel.fail(firstError.value)
+        }
+      },
+      (cause: Cause[E]) => ZChannel.refailCause(cause),
+      (_: Any) => ZChannel.unit
+    )
+
+    xs.pipeThroughChannel(loop)
+  }
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
