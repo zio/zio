@@ -490,6 +490,14 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assertTrue(someParent.contains(someChild))
       } @@ failing
     ),
+    suite("subtype seq")(
+      test("contains") {
+        assertTrue(Seq(Seq[Any](1)).contains(Seq[Int](1)))
+      },
+      test("contains failure") {
+        assertTrue(Seq(Seq[Any]()).contains(Seq[Int](1)))
+      } @@ failing
+    ),
     suite("custom assertions")(
       test("reports source location of actual usage") {
         customAssertion("hello")
