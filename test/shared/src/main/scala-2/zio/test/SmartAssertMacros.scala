@@ -438,7 +438,7 @@ $TestResult($ast.withCode($codeString).withLocation)
     val containsSeq: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "contains", _, Some(args), _) if lhsTpe <:< weakTypeOf[Seq[_]] =>
-          AssertAST("containsSeq", args = args)
+          AssertAST("containsSeq", args = args, tpes = List(args.head.tpe.dealias, lhsTpe.typeArgs.head.dealias))
       }
 
     val containsOption: ASTConverter =
