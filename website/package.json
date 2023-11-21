@@ -26,6 +26,7 @@
     "@zio.dev/izumi-reflect": "2.2.3",
     "@zio.dev/zio-actors": "0.1.0",
     "@zio.dev/zio-akka-cluster": "0.3.0",
+    "@zio.dev/zio-amqp": "1.0.0-alpha.3",
     "@zio.dev/zio-aws": "2022.11.23-f353ed48e161",
     "@zio.dev/zio-bson": "1.0.4",
     "@zio.dev/zio-cache": "0.2.3",
