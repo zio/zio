@@ -31,11 +31,4 @@ package object metrics {
       }
     }
   }
-
-  private[metrics] case class ResolvedQuantile(
-    quantile: Double,      // The Quantile that shall be resolved
-    value: Option[Double], // Some(d) if a value for the quantile could be found, None otherwise
-    consumed: Int,         // How many samples have been consumed before this quantile
-    rest: Chunk[Double]    // The rest of the samples after the quantile has been resolved
-  )
 }
