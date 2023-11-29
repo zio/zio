@@ -129,7 +129,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
         }
       }
 
-      zio.internal.metrics.calculateQuantiles(error, sortedQuantiles, builder.result().sorted(DoubleOrdering))
+      zio.internal.metrics.calculateQuantiles(sortedQuantiles, builder.result().sorted(DoubleOrdering))
     }
 
     // Assuming that the instant of observed values is continuously increasing
