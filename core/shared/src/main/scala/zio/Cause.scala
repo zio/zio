@@ -544,14 +544,12 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    */
   final def squashWith(f: E => Throwable): Throwable =
     failureOption.map(f) orElse
-      (if (isInterrupted)
-         Some(
-           new InterruptedException(
-             "Interrupted by fibers: " + interruptors.flatMap(_.ids).map("#" + _).mkString(", ")
-           )
-         )
-       else None) orElse
-      defects.headOption getOrElse (new InterruptedException)
+      defects.headOption getOrElse
+      new InterruptedException(
+        if (interruptors.nonEmpty)
+          "Interrupted by fibers: " + interruptors.flatMap(_.ids).map("#" + _).mkString(", ")
+        else ""
+      )
 
   /**
    * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most
