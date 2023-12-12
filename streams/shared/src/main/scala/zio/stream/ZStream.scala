@@ -307,12 +307,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           }
         }
 
-        ZStream.unwrapScoped[R1] {
+        ZStream.unwrapScopedWith { scope =>
           for {
-            _             <- (self.channel >>> handoffProducer).run.forkScoped
-            sinkFiber     <- (handoffConsumer pipeToOrFail sink.channel).collectElements.run.forkScoped
-            scheduleFiber <- timeout(None).forkScoped
-            scope         <- ZIO.scope
+            _             <- (self.channel >>> handoffProducer).run.forkIn(scope)
+            sinkFiber     <- (handoffConsumer pipeToOrFail sink.channel).collectElements.run.forkIn(scope)
+            scheduleFiber <- timeout(None).forkIn(scope)
           } yield new ZStream(scheduledAggregator(sinkFiber, scheduleFiber, scope))
         }
     }
@@ -783,7 +782,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
               }
             )
 
-          ZStream.scoped[R]((self.channel >>> producer).runScoped.forkScoped) *>
+          ZStream.scopedWith(scope => (self.channel >>> producer).runIn(scope).forkIn(scope)) *>
             new ZStream(consumer(NotStarted))
         }
       }
@@ -913,14 +912,14 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         )
 
     new ZStream(
-      ZChannel.unwrapScoped[R1] {
+      ZChannel.unwrapScopedWith { scope =>
         for {
           left     <- ZStream.Handoff.make[Exit[Option[E], A]]
           right    <- ZStream.Handoff.make[Exit[Option[E1], A2]]
           latchL   <- ZStream.Handoff.make[Unit]
           latchR   <- ZStream.Handoff.make[Unit]
-          _        <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left, latchL)).runScoped.forkScoped
-          _        <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right, latchR)).runScoped.forkScoped
+          _        <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left, latchL)).runIn(scope).forkIn(scope)
+          _        <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right, latchR)).runIn(scope).forkIn(scope)
           pullLeft  = latchL.offer(()) *> left.take.flatMap(ZIO.done(_))
           pullRight = latchR.offer(()) *> right.take.flatMap(ZIO.done(_))
         } yield ZStream.unfoldZIO(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).unsome)).channel
@@ -954,14 +953,14 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         )
 
     new ZStream(
-      ZChannel.unwrapScoped[R1] {
+      ZChannel.unwrapScopedWith { scope =>
         for {
           left     <- ZStream.Handoff.make[Take[E, A]]
           right    <- ZStream.Handoff.make[Take[E1, A2]]
           latchL   <- ZStream.Handoff.make[Unit]
           latchR   <- ZStream.Handoff.make[Unit]
-          _        <- (self.channel >>> producer(left, latchL)).runScoped.forkScoped
-          _        <- (that.channel >>> producer(right, latchR)).runScoped.forkScoped
+          _        <- (self.channel >>> producer(left, latchL)).runIn(scope).forkIn(scope)
+          _        <- (that.channel >>> producer(right, latchR)).runIn(scope).forkIn(scope)
           pullLeft  = latchL.offer(()) *> left.take.flatMap(_.done)
           pullRight = latchR.offer(()) *> right.take.flatMap(_.done)
         } yield ZStream.unfoldChunkZIO(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).unsome)).channel
@@ -1162,9 +1161,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   )(implicit trace: Trace): ZStream[R1, E1, A] =
     ZStream.fromZIO(Promise.make[E1, Nothing]).flatMap { bgDied =>
       ZStream
-        .scoped[R1](
-          other.runForeachScoped(_ => ZIO.unit).catchAllCause(bgDied.failCause(_)).forkScoped
-        ) *>
+        .scopedWith(scope => other.channel.drain.runIn(scope).catchAllCause(bgDied.failCause(_)).forkIn(scope)) *>
         self.interruptWhen(bgDied)
     }
 
@@ -1573,11 +1570,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
               }
           )
 
-        ZStream.unwrapScoped[R] {
+        ZStream.unwrapScopedWith { scope =>
           for {
             map   <- ZIO.succeed(mutable.Map.empty[K, Queue[Take[E, A]]])
-            queue <- Queue.unbounded[Take[E, (K, Queue[Take[E, A]])]].withFinalizer(_.shutdown)
-            _     <- (self.channel >>> groupByKey(map, queue)).drain.runScoped.forkScoped
+            queue <- Queue.unbounded[Take[E, (K, Queue[Take[E, A]])]]
+            _     <- scope.addFinalizer(queue.shutdown)
+            _     <- (self.channel >>> groupByKey(map, queue)).drain.runIn(scope).forkIn(scope)
           } yield ZStream.fromQueueWithShutdown(queue).flattenTake
         }
       }
@@ -1627,8 +1625,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       }
 
     new ZStream(
-      ZChannel.unwrapScoped[R1] {
-        io.forkScoped.map { fiber =>
+      ZChannel.unwrapScopedWith { scope =>
+        io.forkIn(scope).map { fiber =>
           self.channel >>> writer(fiber)
         }
       }
@@ -1699,12 +1697,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       )
 
     new ZStream(
-      ZChannel.unwrapScoped[R1] {
+      ZChannel.unwrapScopedWith { scope =>
         for {
           left  <- ZStream.Handoff.make[Take[E1, A1]]
           right <- ZStream.Handoff.make[Take[E1, A1]]
-          _     <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left)).runScoped.forkScoped
-          _     <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right)).runScoped.forkScoped
+          _     <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left)).runIn(scope).forkIn(scope)
+          _     <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right)).runIn(scope).forkIn(scope)
         } yield {
           def process(leftDone: Boolean, rightDone: Boolean): ZChannel[R1, E1, Boolean, Any, E1, Chunk[A1], Unit] =
             ZChannel.readWithCause[R1, E1, Boolean, Any, E1, Chunk[A1], Unit](
@@ -2436,8 +2434,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     layer: => ZLayer[R0, E1, R]
   )(implicit trace: Trace): ZStream[R0, E1, A] =
     new ZStream(
-      ZChannel.unwrapScoped[R0] {
-        layer.build.map(r => self.channel.provideEnvironment(r))
+      ZChannel.unwrapScopedWith { scope =>
+        layer.build(scope).map(r => self.channel.provideEnvironment(r))
       }
     )
 
@@ -2695,7 +2693,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * the stream to a value of type `S`.
    */
   def runFold[S](s: => S)(f: (S, A) => S)(implicit trace: Trace): ZIO[R, E, S] =
-    ZIO.scoped[R](runFoldWhileScoped(s)(_ => true)((s, a) => f(s, a)))
+    runFoldWhile(s)(_ => true)((s, a) => f(s, a))
 
   /**
    * Executes a pure fold over the stream of values. Returns a scoped value that
@@ -2721,7 +2719,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * }}}
    */
   def runFoldWhile[S](s: => S)(cont: S => Boolean)(f: (S, A) => S)(implicit trace: Trace): ZIO[R, E, S] =
-    ZIO.scoped[R](runFoldWhileScoped(s)(cont)((s, a) => f(s, a)))
+    run(ZSink.fold(s)(cont)(f))
 
   /**
    * Executes an effectful fold over the stream of values. Returns a scoped
@@ -2756,7 +2754,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def runFoldWhileZIO[R1 <: R, E1 >: E, S](s: => S)(cont: S => Boolean)(
     f: (S, A) => ZIO[R1, E1, S]
   )(implicit trace: Trace): ZIO[R1, E1, S] =
-    ZIO.scoped[R1](runFoldWhileScopedZIO[R1, E1, S](s)(cont)(f))
+    run(ZSink.foldZIO(s)(cont)(f))
 
   /**
    * Executes a pure fold over the stream of values. Returns a scoped value that
@@ -2774,7 +2772,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def runFoldZIO[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
     trace: Trace
   ): ZIO[R1, E1, S] =
-    ZIO.scoped[R1](runFoldWhileScopedZIO[R1, E1, S](s)(_ => true)(f))
+    runFoldWhileZIO[R1, E1, S](s)(_ => true)(f)
 
   /**
    * Consumes all elements of the stream, passing them to the specified
@@ -4764,6 +4762,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     new ScopedPartiallyApplied[R]
 
   /**
+   * Creates a single-valued stream from a scoped resource
+   */
+  def scopedWith[R, E, A](f: Scope => ZIO[R, E, A])(implicit trace: Trace): ZStream[R, E, A] =
+    new ZStream(ZChannel.scopedWith(scope => f(scope).map(Chunk.single)))
+
+  /**
    * Merges a variable list of streams in a non-deterministic fashion. Up to `n`
    * streams may be consumed in parallel and up to `outputBuffer` chunks may be
    * buffered by this operator.
@@ -5079,6 +5083,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def unwrapScoped[R]: UnwrapScopedPartiallyApplied[R] =
     new UnwrapScopedPartiallyApplied[R]
+
+  /**
+   * Creates a stream produced from a scoped [[ZIO]]
+   */
+  def unwrapScopedWith[R, E, A](f: Scope => ZIO[R, E, ZStream[R, E, A]])(implicit trace: Trace): ZStream[R, E, A] =
+    scopedWith(scope => f(scope)).flatten
 
   /**
    * Returns the specified stream if the given condition is satisfied, otherwise
