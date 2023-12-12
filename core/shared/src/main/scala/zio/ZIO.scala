@@ -1244,10 +1244,7 @@ sealed trait ZIO[-R, +E, +A]
   final def provideLayer[E1 >: E, R0](
     layer: => ZLayer[R0, E1, R]
   )(implicit trace: Trace): ZIO[R0, E1, A] =
-    ZIO.acquireReleaseExitWith(Scope.make)((scope: Scope.Closeable, exit: Exit[Any, Any]) => scope.close(exit)) {
-      scope =>
-        layer.build(scope).flatMap(r => self.provideEnvironment(r))
-    }
+    ZIO.scopedWith(scope => layer.build(scope).flatMap(r => self.provideEnvironment(r)))
 
   /**
    * Transforms the environment being provided to this effect with the specified
@@ -4469,6 +4466,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     new ScopedPartiallyApplied[R]
 
   /**
+   * Creates a scope, uses it to perform the specified effect, and closes the
+   * scope as soon as the effect completes, whether by success, failure, or
+   * interruption.
+   */
+  def scopedWith[R, E, A](f: Scope => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    Scope.make.flatMap(scope => f(scope).onExit(scope.close(_)))
+
+  /**
    * Accesses the current scope and uses it to perform the specified effect.
    */
   def scopeWith[R, E, A](f: Scope => ZIO[R, E, A])(implicit trace: Trace): ZIO[R with Scope, E, A] =
@@ -5346,13 +5351,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     def apply[R1, E, A, B](
       resource: ZIO[R with Scope, E, A]
     )(use: A => ZIO[R1, E, B])(implicit trace: Trace): ZIO[R with R1, E, B] =
-      ZIO.acquireReleaseExitWith {
-        Scope.make
-      } { (scope: Scope.Closeable, exit: Exit[Any, Any]) =>
-        scope.close(exit)
-      } { scope =>
-        scope.extend[R](resource).flatMap(use)
-      }
+      ZIO.scopedWith(_.extend[R](resource).flatMap(use))
   }
 
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {

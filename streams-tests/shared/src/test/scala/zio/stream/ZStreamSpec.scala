@@ -1605,7 +1605,30 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(results)(
               equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire"))
             )
-          } @@ nonFlaky
+          } @@ nonFlaky,
+          test("preserves the scope") {
+            for {
+              ref   <- Ref.make[Chunk[String]](Chunk.empty)
+              scope <- Scope.make
+              _ <- scope.extend {
+                     ZStream(1, 2)
+                       .flatMapPar(1) { i =>
+                         ZStream.fromZIO {
+                           ZIO.acquireRelease {
+                             ref.update(_ :+ s"acquire $i")
+                           } { _ =>
+                             ref.update(_ :+ s"release $i")
+                           }
+                         }
+                       }
+                       .runDrain
+                   }
+              before <- ref.getAndSet(Chunk.empty)
+              _      <- scope.close(Exit.unit)
+              after  <- ref.get
+            } yield assertTrue(before == Chunk("acquire 1", "acquire 2")) &&
+              assertTrue(after == Chunk("release 2", "release 1"))
+          }
         ),
         suite("flatMapParSwitch")(
           test("guarantee ordering no parallelism") {

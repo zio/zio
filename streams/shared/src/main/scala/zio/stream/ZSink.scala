@@ -471,11 +471,11 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     leftDone: Exit[E, Z] => ZChannel.MergeDecision[R1, E1, Z1, E1, Z2],
     rightDone: Exit[E1, Z1] => ZChannel.MergeDecision[R1, E, Z, E1, Z2]
   )(implicit trace: Trace): ZSink[R1, E1, In1, L1, Z2] = {
-    val scoped =
+    def scoped(scope: Scope) =
       for {
         hub   <- Hub.bounded[Either[Exit[Nothing, Any], Chunk[In1]]](capacity)
-        s1    <- hub.subscribe
-        s2    <- hub.subscribe
+        s1    <- scope.extend(hub.subscribe)
+        s2    <- scope.extend(hub.subscribe)
         reader = ZChannel.toHub[Nothing, Any, Chunk[In1]](hub)
         writer = (ZChannel.fromQueue(s1) >>> self.channel <* ZChannel.fromZIO(s1.shutdown))
                    .mergeWith((ZChannel.fromQueue(s2) >>> that.channel <* ZChannel.fromZIO(s2.shutdown)))(
@@ -487,7 +487,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
                     done => ZChannel.MergeDecision.done(ZIO.done(done))
                   )
       } yield new ZSink[R1, E1, In1, L1, Z2](channel)
-    ZSink.unwrapScoped(scoped)
+    ZSink.unwrapScopedWith(scoped)
   }
 
   def refineOrDie[E1](
@@ -1735,6 +1735,14 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def unwrapScoped[R]: UnwrapScopedPartiallyApplied[R] =
     new UnwrapScopedPartiallyApplied[R]
+
+  /**
+   * Creates a sink produced from a scoped effect.
+   */
+  def unwrapScopedWith[R, E, In, L, Z](
+    f: Scope => ZIO[R, E, ZSink[R, E, In, L, Z]]
+  )(implicit trace: Trace): ZSink[R, E, In, L, Z] =
+    new ZSink(ZChannel.unwrapScopedWith(scope => f(scope).map(_.channel)))
 
   final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[Z](
