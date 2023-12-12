@@ -1628,6 +1628,12 @@ object ZStreamSpec extends ZIOBaseSpec {
               after  <- ref.get
             } yield assertTrue(before == Chunk("acquire 1", "acquire 2")) &&
               assertTrue(after == Chunk("release 2", "release 1"))
+          },
+          test("interruption propagation") {
+            val stream = ZStream(1, 2, 3, 4, 5).flatMapPar(2)(_ => ZStream.fromZIO(ZIO.interrupt))
+            for {
+              exit <- stream.runDrain.exit
+            } yield assertTrue(exit.isInterrupted)
           }
         ),
         suite("flatMapParSwitch")(
