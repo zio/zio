@@ -51,6 +51,7 @@ final case class LayerBuilder[Type, Expr](
   providedLayers0: List[Expr],
   layerToDebug: PartialFunction[Expr, Debug],
   sideEffectType: Type,
+  anyType: Type,
   typeEquals: (Type, Type) => Boolean,
   foldTree: LayerTree[Expr] => Expr,
   method: ProvideMethod,
@@ -114,13 +115,28 @@ final case class LayerBuilder[Type, Expr](
    * confusing the user and breaking stuff.
    */
   private def assertNoAmbiguity(): Unit = {
-    val typesToExprs: Map[String, List[String]] =
-      groupMap(providedLayerNodes.flatMap { node =>
-        node.outputs.map(output => showType(output) -> showExpr(node.value))
-      })(_._1)(_._2)
+    val simpleDuplicates: Map[String, List[String]] =
+      groupMap {
+        providedLayerNodes.flatMap { node =>
+          node.outputs.map(output => showType(output) -> showExpr(node.value))
+        }
+      }(_._1)(_._2)
+
+    val subtypingDuplicates: Map[String, List[String]] =
+      groupMap {
+        distinctBy {
+          (target ++ providedLayerNodes.flatMap(_.inputs))
+            .filterNot(typeEquals(anyType, _))
+            .map(tpe => tpe -> showType(tpe))
+        }(_._2).flatMap { case (tpe, prettyTpe) =>
+          providedLayerNodes.flatMap { node =>
+            node.outputs.collect { case output if typeEquals(output, tpe) => showExpr(node.value) }
+          }.map(prettyTpe -> _)
+        }
+      }(_._1)(_._2)
 
     val duplicates: List[(String, List[String])] =
-      typesToExprs.toList.filter { case (_, list) => list.size > 1 }
+      (simpleDuplicates ++ subtypingDuplicates).toList.filter { case (_, list) => list.size > 1 }
 
     if (duplicates.nonEmpty) {
       val message = "\n" + TerminalRendering.ambiguousLayersError(duplicates)
@@ -316,6 +332,21 @@ final case class LayerBuilder[Type, Expr](
     }
     result
   }
+
+  // Backwards compatibility for 2.12
+  private def distinctBy[A, B](as: List[A])(f: A => B): List[A] =
+    if (as.lengthCompare(1) <= 0) as
+    else {
+      val builder   = new ListBuffer[A]
+      val seen      = mutable.HashSet.empty[B]
+      val it        = as.iterator
+      var different = false
+      while (it.hasNext) {
+        val next = it.next()
+        if (seen.add(f(next))) builder += next else different = true
+      }
+      if (different) builder.result() else as
+    }
 
   final case class MermaidGraph(
     topLevel: Chunk[String],
