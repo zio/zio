@@ -5783,33 +5783,18 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   private[zio] type Erased = ZIO[Any, Any, Any]
 
-  private[zio] final case class ZIOError(isTraced: Boolean, cause: Cause[Any]) extends Exception with NoStackTrace { self =>
-    final def isUntraced: Boolean = !isTraced
-
-    final def toEffect(stripFailures: Boolean)(implicit trace: Trace): ZIO[Any, Any, Nothing] = {
-      val cause2 = if (stripFailures) cause.stripFailures else cause
-      if (self.isUntraced) Exit.Failure(cause2)
-      else ZIO.failCause(cause2)(trace)
-    }
-  }
-  private[zio] object ZIOError {
-    def apply(cause: Cause[Any]): ZIOError = untraced(cause)
-
-    def untraced(cause: Cause[Any]): ZIOError = ZIOError(false, cause)
-
-    def traced(cause: Cause[Any]): ZIOError = ZIOError(true, cause)
-  }
   private[zio] final case class FlatMap[R, E, A1, A2](
     trace: Trace,
     first: ZIO[R, E, A1],
     successK: A1 => ZIO[R, E, A2]
-  ) extends Continuation with ZIO[R, E, A2]
-  
+  ) extends Continuation
+      with ZIO[R, E, A2]
+
   private[zio] sealed abstract class Continuation {
     def trace: Trace
   }
   object Continuation {
-    def apply[R, E, A, B](f: A => ZIO[R, E, B])(implicit trace: Trace): Continuation = 
+    def apply[R, E, A, B](f: A => ZIO[R, E, B])(implicit trace: Trace): Continuation =
       FlatMap[R, E, A, B](trace, null, f)
   }
   private[zio] case class FoldZIO[R, E1, E2, A1, A2](
@@ -5817,7 +5802,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     first: ZIO[R, E1, A1],
     successK: A1 => ZIO[R, E2, A2],
     failureK: Cause[E1] => ZIO[R, E2, A2]
-  ) extends Continuation with ZIO[R, E2, A2]
+  ) extends Continuation
+      with ZIO[R, E2, A2]
   private[zio] final case class Sync[A](trace: Trace, eval: () => A) extends ZIO[Any, Nothing, A]
   private[zio] final case class Async[R, E, A](
     trace: Trace,
@@ -5825,7 +5811,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     blockingOn: () => FiberId
   ) extends ZIO[R, E, A]
   private[zio] final case class UpdateRuntimeFlags(trace: Trace, update: RuntimeFlags.Patch)
-      extends Continuation with ZIO[Any, Nothing, Unit]
+      extends Continuation
+      with ZIO[Any, Nothing, Unit]
   private[zio] sealed trait UpdateRuntimeFlagsWithin[R, E, A] extends ZIO[R, E, A] {
 
     def update: RuntimeFlags.Patch
@@ -6133,6 +6120,12 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     self match {
       case Failure(cause) => Some(cause)
       case _              => None
+    }
+
+  private[zio] final def causeOrNull: Cause[E] =
+    self match {
+      case Failure(cause) => cause
+      case _              => null.asInstanceOf[Cause[E]]
     }
 
   final def exists(p: A => Boolean): Boolean =

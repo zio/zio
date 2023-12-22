@@ -96,21 +96,17 @@ trait ZIOCompanionVersionSpecific {
    * }}}
    */
   def attempt[A](code: Unsafe ?=> A)(implicit trace: Trace): Task[A] =
-    ZIO.suspendSucceed {
+    ZIO.withFiberRuntime[Any, Throwable, A] { (fiberState, _) =>
       try {
         given Unsafe = Unsafe.unsafe
 
-        val result = code
-
-        Exit.succeed(result)
+        Exit.succeed(code)
       } catch {
-        case t: Throwable =>
-          ZIO.withFiberRuntime[Any, Throwable, A] { (fiberState, _) =>
-            if (!fiberState.isFatal(t)(Unsafe.unsafe))
-              throw ZIOError.Traced(Cause.fail(t))
-            else
-              throw t
-          }
+        case t: Throwable =>          
+          if (!fiberState.isFatal(t))
+            ZIO.failCause(Cause.fail(t))
+          else
+            throw t          
       }
     }
 

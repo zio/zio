@@ -2843,12 +2843,12 @@ object ZIOSpec extends ZIOBaseSpec {
                            .ensuring(ensuring.succeed(()) *> ZIO.interruptible(ZIO.never))
                            .mapError(_ => 42)
                        )
-                         .catchAllCause(cause => ZIO.succeed(cause.defects))
+                         .catchAllCause(cause => ZIO.succeed(cause))
                          .fork
                      }
-            failures <- ensuring.await *> fiber.interrupt.flatMap(ZIO.done(_))
-          } yield assertTrue(failures.length == 1)
-        }
+            cause <- ensuring.await *> fiber.interrupt.flatMap(ZIO.done(_))
+          } yield assertTrue(cause.defects.length == 1)
+        } @@ nonFlaky
 
     } @@ zioTag(interruption),
     suite("RTS concurrency correctness")(
