@@ -4628,7 +4628,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.isFatalWith { isFatal =>
       try rio
       catch {
-        case t: Throwable if !isFatal(t) => throw ZIOError.traced(Cause.fail(t))
+        case t: Throwable if !isFatal(t) => Exit.Failure(Cause.fail(t))
       }
     }
 
@@ -5786,9 +5786,11 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   private[zio] final case class ZIOError(isTraced: Boolean, cause: Cause[Any]) extends Exception with NoStackTrace { self =>
     final def isUntraced: Boolean = !isTraced
 
-    final def toEffect(implicit trace: Trace): ZIO[Any, Any, Nothing] =
-      if (self.isUntraced) Exit.Failure(self.cause)
-      else ZIO.failCause(self.cause)(trace)
+    final def toEffect(stripFailures: Boolean)(implicit trace: Trace): ZIO[Any, Any, Nothing] = {
+      val cause2 = if (stripFailures) cause.stripFailures else cause
+      if (self.isUntraced) Exit.Failure(cause2)
+      else ZIO.failCause(cause2)(trace)
+    }
   }
   private[zio] object ZIOError {
     def apply(cause: Cause[Any]): ZIOError = untraced(cause)

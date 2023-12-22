@@ -909,7 +909,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 }
               } catch {
                 case zioError: ZIOError =>
-                  cur = zioError.toEffect(effect.trace)
+                  cur = zioError.toEffect(false)(effect.trace)
               }
 
             case flatMap0: FlatMap[_, _, _, _] =>
@@ -949,7 +949,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   stackIndex -= 1
                   popStackFrame(stackIndex)
 
-                  cur = effect.failureK(zioError.cause)
+                  if (shouldInterrupt()) {
+                    cur = zioError.toEffect(true)(effect.first.trace).asInstanceOf[ZIO.Erased]
+                  } else {
+                    cur = effect.failureK(zioError.cause)
+                  }
               }
 
             case effect: Async[_, _, _] =>
@@ -991,7 +995,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   val revertFlags = RuntimeFlags.diff(newRuntimeFlags, oldRuntimeFlags)
 
                   try {
-                    val k = ZIO.UpdateRuntimeFlags(Trace.empty, revertFlags)
+                    val k = ZIO.UpdateRuntimeFlags(effect.trace, revertFlags)
 
                     stackIndex = pushStackFrame(k, stackIndex)
 
@@ -1030,7 +1034,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 )
               } catch {
                 case zioError: ZIOError =>
-                  cur = zioError.toEffect(stateful.trace)
+                  cur = zioError.toEffect(false)(stateful.trace)
               }
 
             case success: Exit.Success[_] =>
@@ -1082,9 +1086,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case flatMap : ZIO.FlatMap[_, _, _, _] =>
 
                   case foldZIO : ZIO.FoldZIO[_, _, _, _, _] => 
-                    val f = foldZIO.failureK.asInstanceOf[Cause[Any] => ZIO.Erased]
+                    if (shouldInterrupt()) {
+                        cause = cause.stripFailures
+                    } else {
+                      val f = foldZIO.failureK.asInstanceOf[Cause[Any] => ZIO.Erased]
 
-                    cur = f(cause)
+                      cur = f(cause)
+                    }
 
                   case updateFlags : ZIO.UpdateRuntimeFlags => 
                     cur = patchRuntimeFlags(updateFlags.update, cause, null)
