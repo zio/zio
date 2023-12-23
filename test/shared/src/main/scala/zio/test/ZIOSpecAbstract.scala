@@ -76,7 +76,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
              console.printLine(testArgs.testRenderer.renderSummary(summary)).orDie
            }
       _ <- ZIO.when(summary.status == Summary.Failure) {
-             ZIO.fail(new RuntimeException())
+             ZIO.fail(new RuntimeException("Tests failed."))
            }
     } yield summary
 
