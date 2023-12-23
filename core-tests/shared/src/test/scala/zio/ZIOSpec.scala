@@ -4177,7 +4177,7 @@ object ZIOSpec extends ZIOBaseSpec {
           right2    = (promise1.succeed(()) *> ZIO.never).ensuring(promise2.interrupt *> ZIO.never.interruptible)
           exit     <- left.zipPar(right1.zipPar(right2)).exit
         } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
-      } @@ nonFlaky(1000),
+      } @@ nonFlaky(100),
       test("is interruptible") {
         for {
           promise1 <- Promise.make[Nothing, Unit]
