@@ -187,19 +187,6 @@ object BuildHelper {
       else
         List()
     },
-    javacOptions ++= Seq("--enable-preview", "--release", "19"),
-    javaOptions ++= Seq("--enable-preview"),
-    libraryDependencies ++= {
-      if (scalaVersion.value == Scala3)
-        Seq(
-          "com.github.ghik" % s"silencer-lib_$Scala213" % SilencerVersion % Provided
-        )
-      else
-        Seq(
-          "com.github.ghik" % "silencer-lib" % SilencerVersion % Provided cross CrossVersion.full,
-          compilerPlugin("com.github.ghik" % "silencer-plugin" % SilencerVersion cross CrossVersion.full)
-        )
-    },
     Test / parallelExecution := false,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     // autoAPIMappings := true,
