@@ -1,6 +1,6 @@
 package zio
 
-import zio.ZIO.{Async, ZIOError, asyncInterrupt, blocking}
+import zio.ZIO.{Async, asyncInterrupt, blocking}
 
 import java.io.IOException
 
@@ -166,7 +166,7 @@ trait ZIOCompanionVersionSpecific {
       } catch {
         case t: Throwable =>
           ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-            if (!fiberState.isFatal(t)(Unsafe.unsafe))
+            if (!fiberState.isFatal(t))
               Exit.unit
             else
               throw t
