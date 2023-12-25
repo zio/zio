@@ -402,21 +402,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             // Terminate this evaluation, async resumption will continue evaluation:
             effect = null
 
-          case t: Throwable =>
-            if (isFatal(t)) {
-              handleFatalError(t)
+          case throwable: Throwable =>
+            if (isFatal(throwable)) {
+              effect = handleFatalError(throwable)
             } else {
-              val death = Cause.die(t)
-
-              // No error should escape to this level.
-              self.log(
-                () => s"An unhandled error was encountered on fiber ${id.threadName}, created at ${id.location}.",
-                death,
-                ZIO.someError,
-                id.location
-              )
-
-              effect = null
+              effect = ZIO.failCause(Cause.die(throwable))(_lastTrace)
             }
         }
       }
@@ -850,7 +840,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     var stackIndex = startStackIndex
 
     if (currentDepth >= FiberRuntime.MaxDepthBeforeTrampoline) {
-      inbox.add(FiberMessage.YieldNow)
       inbox.add(FiberMessage.Resume(effect))
 
       throw AsyncJump
@@ -1122,19 +1111,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
           }
         } catch {
-          case AsyncJump =>
-            throw AsyncJump
-
           // TODO: ClosedByInterruptException (but Scala.js??)
           case interruptedException: InterruptedException =>
             cur = drainQueueWhileRunning(Exit.Failure(Cause.interrupt(FiberId.None) ++ Cause.die(interruptedException)))
-
-          case throwable: Throwable =>
-            if (isFatal(throwable)) {
-              cur = handleFatalError(throwable)
-            } else {
-              cur = ZIO.failCause(Cause.die(throwable))(_lastTrace)
-            }
         }
       }
     }
