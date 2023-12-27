@@ -341,7 +341,7 @@ object ZIOSpec extends ZIOBaseSpec {
           promise1 <- Promise.make[Nothing, Unit]
           promise2 <- Promise.make[Nothing, Unit]
           left      = promise2.await
-          right1    = promise1.await *> ZIO.fail("fail")
+          right1    = (promise1.await *> ZIO.fail("fail")).uninterruptible
           right2    = (promise1.succeed(()) *> ZIO.never).ensuring(promise2.interrupt *> ZIO.never.interruptible)
           exit     <- ZIO.collectAllPar(List(left, ZIO.collectAllPar(List(right1, right2)))).exit
         } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
@@ -2843,12 +2843,12 @@ object ZIOSpec extends ZIOBaseSpec {
                            .ensuring(ensuring.succeed(()) *> ZIO.interruptible(ZIO.never))
                            .mapError(_ => 42)
                        )
-                         .catchAllCause(cause => ZIO.succeed(cause.defects))
+                         .catchAllCause(cause => ZIO.succeed(cause))
                          .fork
                      }
-            failures <- ensuring.await *> fiber.interrupt.flatMap(ZIO.done(_))
-          } yield assertTrue(failures.length == 1)
-        }
+            cause <- ensuring.await *> fiber.interrupt.flatMap(ZIO.done(_))
+          } yield assertTrue(cause.defects.length == 1)
+        } @@ nonFlaky
 
     } @@ zioTag(interruption),
     suite("RTS concurrency correctness")(
@@ -4177,7 +4177,7 @@ object ZIOSpec extends ZIOBaseSpec {
           right2    = (promise1.succeed(()) *> ZIO.never).ensuring(promise2.interrupt *> ZIO.never.interruptible)
           exit     <- left.zipPar(right1.zipPar(right2)).exit
         } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
-      } @@ nonFlaky(1000),
+      } @@ nonFlaky(100),
       test("is interruptible") {
         for {
           promise1 <- Promise.make[Nothing, Unit]

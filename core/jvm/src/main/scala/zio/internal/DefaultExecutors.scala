@@ -22,7 +22,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.util.concurrent.{RejectedExecutionException, ThreadPoolExecutor}
 
 private[zio] abstract class DefaultExecutors {
-
   final def makeDefault(): zio.Executor =
     makeDefault(true)
 
