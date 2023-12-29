@@ -4,9 +4,11 @@ title: "Before, After, and Around Test Aspects"
 sidebar_label: "Before, After, and Around"
 ---
 
-1. We can run a test _before_, _after_, or _around_ every test:
+1. We can run an effect _before_, _after_, or _around_ every test:
 - `TestAspect.before`
 - `TestAspect.after`
+- `TestAspect.afterFailure`
+- `TestAspect.afterSuccess`
 - `TestAspect.around`
 
 ```scala mdoc:invisible
