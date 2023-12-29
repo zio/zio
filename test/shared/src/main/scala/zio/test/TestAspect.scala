@@ -113,15 +113,49 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * Constructs an aspect that runs the specified effect after all tests.
+   */
+  def afterAll[R0](effect: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, Nothing, Any] =
+    aroundAll(ZIO.unit, effect)
+
+  /**
+   * Constructs an aspect that runs the specified effect after all tests if
+   * there is at least one failure.
+   */
+  def afterAllFailure[R0](f: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, Nothing, Any] =
+    new TestAspect[Nothing, R0, Nothing, Any] {
+      def some[R <: R0, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
+        Spec.scoped[R](
+          Ref.make(false).flatMap { failure =>
+            ZIO.acquireRelease(ZIO.unit)(_ => f.whenZIO(failure.get)).as(afterFailure(failure.set(true))(spec))
+          }
+        )
+    }
+
+  /**
+   * Constructs an aspect that runs the specified effect after all tests if
+   * there are no failures.
+   */
+  def afterAllSuccess[R0](f: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, Nothing, Any] =
+    new TestAspect[Nothing, R0, Nothing, Any] {
+      def some[R <: R0, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
+        Spec.scoped[R](
+          Ref.make(true).flatMap { success =>
+            ZIO.acquireRelease(ZIO.unit)(_ => f.whenZIO(success.get)).as(afterFailure(success.set(false))(spec))
+          }
+        )
+    }
+
+  /**
    * Constructs an aspect that runs the specified effect after every failed
    * test.
    */
-  def afterFailure[R0, E0](effect: Cause[TestFailure[_]] => ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
+  def afterFailure[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E >: E0](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
-        test.tapErrorCause(effect(_).catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))))
+        test.tapErrorCause(_ => effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))))
     }
 
   /**
@@ -133,17 +167,8 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: R0, E >: E0](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
-        for {
-          testResult <- test
-          _          <- effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))).exit
-        } yield testResult
+        test.tap(_ => effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))))
     }
-
-  /**
-   * Constructs an aspect that runs the specified effect after all tests.
-   */
-  def afterAll[R0](effect: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, Nothing, Any] =
-    aroundAll(ZIO.unit, effect)
 
   /**
    * Annotates tests with the specified test annotation.
