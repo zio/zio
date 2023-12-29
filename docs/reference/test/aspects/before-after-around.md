@@ -35,6 +35,6 @@ test("before and after") {
 
 2. The `TestAspect.aroundTest` takes a scoped resource and evaluates every test within the context of the scoped function.
 
-3. There are also `TestAspect.beforeAll`, `TestAspect.afterAll`, and `TestAspect.aroundAll` variants.
+3. There are also `TestAspect.beforeAll`, `TestAspect.afterAll`, `afterAllFailure`, `afterAllSuccess`, and `TestAspect.aroundAll` variants.
 
 4. Using `TestAspect.aroundWith` and `TestAspect.aroundAllWith` we can evaluate every test or all test between two given effects, `before` and `after`, where the result of the `before` effect can be used in the `after` effect.
