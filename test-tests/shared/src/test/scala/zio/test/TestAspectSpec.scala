@@ -80,7 +80,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         ref <- Ref.make(0)
         spec = test("test") {
                  ZIO.fail("error")
-               } @@ afterFailure(_ => ref.set(-1))
+               } @@ afterFailure(ref.set(-1))
         result <- succeeded(spec)
         after  <- ref.get
       } yield {
@@ -93,7 +93,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         ref <- Ref.make(0)
         spec = test("test") {
                  assertZIO(ref.get)(equalTo(0))
-               } @@ afterFailure(_ => ref.set(-1))
+               } @@ afterFailure(ref.set(-1))
         result <- succeeded(spec)
         after  <- ref.get
       } yield {
