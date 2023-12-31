@@ -137,7 +137,8 @@ We can do the same for the rest of the HTTP request handlers in our web service.
 In the following sections, we are going to utilize the `zio-metrics-connector` module from the ZIO ZMX project and also provide metrics as a REST API. So let's add the following dependency to our project:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-metrics-connectors" % "2.0.0-RC6"
+libraryDependencies += "dev.zio" %% "zio-metrics-connectors" % "2.2.0"
+libraryDependencies += "dev.zio" %% "zio-metrics-connectors-prometheus" % "2.2.0"
 ```
 
 This module provides various connectors for metrics backend, e.g. Prometheus.

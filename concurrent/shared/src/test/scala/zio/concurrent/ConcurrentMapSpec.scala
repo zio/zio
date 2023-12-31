@@ -196,6 +196,27 @@ object ConcurrentMapSpec extends ZIOSpecDefault {
           )
         }
       ),
+      suite("isEmpty")(
+        test("returns true for newly created empty map") {
+          for {
+            map <- ConcurrentMap.empty[Int, String]
+            res <- map.isEmpty
+          } yield assertTrue(res)
+        },
+        test("returns false for a map with entries") {
+          for {
+            map <- ConcurrentMap.make((1, "A"), (2, "B"), (3, "C"))
+            res <- map.isEmpty
+          } yield assertTrue(!res)
+        },
+        test("returns false for a map with all entries removed") {
+          for {
+            map <- ConcurrentMap.make((1, "A"), (2, "B"), (3, "C"))
+            _   <- map.clear
+            res <- map.isEmpty
+          } yield assertTrue(res)
+        }
+      ),
       suite("remove")(
         test("returns the value associated with removed key") {
           for {
@@ -239,6 +260,15 @@ object ConcurrentMapSpec extends ZIOSpecDefault {
             bRes.isEmpty,
             cRes.isEmpty
           )
+        }
+      ),
+      suite("clear")(
+        test("removes all elements") {
+          for {
+            map <- ConcurrentMap.make((1, "A"), (2, "B"), (3, "C"))
+            _   <- map.clear
+            res <- map.toList
+          } yield assertTrue(res == List.empty[(Int, String)])
         }
       ),
       suite("replace")(

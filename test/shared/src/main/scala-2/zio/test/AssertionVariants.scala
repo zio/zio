@@ -17,6 +17,7 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.test.Assertion.Arguments.valueArgument
 import zio.test.{ErrorMessage => M}
 
 trait AssertionVariants {
@@ -34,6 +35,6 @@ trait AssertionVariants {
             M.pretty(actual) + M.equals + M.pretty(expected)
           }
         }
-        .withCode("equalTo")
+        .withCode("equalTo", valueArgument(expected))
     )
 }

@@ -341,20 +341,11 @@ object ZIOSpec extends ZIOBaseSpec {
           promise1 <- Promise.make[Nothing, Unit]
           promise2 <- Promise.make[Nothing, Unit]
           left      = promise2.await
-          right1    = promise1.await *> ZIO.fail("fail")
+          right1    = (promise1.await *> ZIO.fail("fail")).uninterruptible
           right2    = (promise1.succeed(()) *> ZIO.never).ensuring(promise2.interrupt *> ZIO.never.interruptible)
           exit     <- ZIO.collectAllPar(List(left, ZIO.collectAllPar(List(right1, right2)))).exit
         } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
-      } @@ nonFlaky,
-      test("runs finalizers in parallel") {
-        for {
-          promise1 <- Promise.make[Nothing, Unit]
-          promise2 <- Promise.make[Nothing, Unit]
-          left      = ZIO.addFinalizer(promise1.succeed(())) *> promise2.succeed(())
-          right     = promise2.await *> ZIO.addFinalizer(promise1.await)
-          _        <- ZIO.collectAllPar(List(left, right))
-        } yield assertCompletes
-      }
+      } @@ nonFlaky
     ),
     suite("collectAllParN")(
       test("returns results in the same order") {
@@ -2852,12 +2843,12 @@ object ZIOSpec extends ZIOBaseSpec {
                            .ensuring(ensuring.succeed(()) *> ZIO.interruptible(ZIO.never))
                            .mapError(_ => 42)
                        )
-                         .catchAllCause(cause => ZIO.succeed(cause.defects))
+                         .catchAllCause(cause => ZIO.succeed(cause))
                          .fork
                      }
-            failures <- ensuring.await *> fiber.interrupt.flatMap(ZIO.done(_))
-          } yield assertTrue(failures.length == 1)
-        }
+            cause <- ensuring.await *> fiber.interrupt.flatMap(ZIO.done(_))
+          } yield assertTrue(cause.defects.length == 1)
+        } @@ nonFlaky
 
     } @@ zioTag(interruption),
     suite("RTS concurrency correctness")(
@@ -4186,7 +4177,7 @@ object ZIOSpec extends ZIOBaseSpec {
           right2    = (promise1.succeed(()) *> ZIO.never).ensuring(promise2.interrupt *> ZIO.never.interruptible)
           exit     <- left.zipPar(right1.zipPar(right2)).exit
         } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
-      } @@ nonFlaky(1000),
+      } @@ nonFlaky(100),
       test("is interruptible") {
         for {
           promise1 <- Promise.make[Nothing, Unit]
@@ -4212,15 +4203,6 @@ object ZIOSpec extends ZIOBaseSpec {
           _        <- fiber.join
           value    <- fiberRef.get
         } yield assertTrue(value == 10)
-      },
-      test("runs finalizers in parallel") {
-        for {
-          promise1 <- Promise.make[Nothing, Unit]
-          promise2 <- Promise.make[Nothing, Unit]
-          left      = ZIO.addFinalizer(promise1.succeed(())) *> promise2.succeed(())
-          right     = promise2.await *> ZIO.addFinalizer(promise1.await)
-          _        <- left.zipPar(right)
-        } yield assertCompletes
       }
     ),
     suite("toFuture")(
@@ -4286,11 +4268,11 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       },
       test("promise ugly path test") {
-        val func: String => String = s => s.toUpperCase
+        val func: String => String = _ => throw new Exception("side-effect")
         for {
           promise <- ZIO.succeed(scala.concurrent.Promise[String]())
           _ <- ZIO.attempt {
-                 Try(func(null)) match {
+                 Try(func("hello world from future")) match {
                    case Success(value)     => promise.success(value)
                    case Failure(exception) => promise.failure(exception)
                  }

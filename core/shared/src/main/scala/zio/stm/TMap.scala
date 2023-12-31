@@ -180,6 +180,13 @@ final class TMap[K, V] private (
     get(k).map(_.getOrElse(default))
 
   /**
+   * Retrieves value associated with given key or transactional default value,
+   * in case the key isn't present.
+   */
+  def getOrElseSTM[R, E](k: K, default: => ZSTM[R, E, V]): ZSTM[R, E, V] =
+    get(k).flatMap(_.fold(default)(STM.succeedNow))
+
+  /**
    * Collects all keys stored in map.
    */
   def keys: USTM[List[K]] =
@@ -195,6 +202,17 @@ final class TMap[K, V] private (
       val v1 = f(v0, v)
       put(k, v1).as(v1)
     })
+
+  /**
+   * If the key `k` is not already associated with a value, stores the provided
+   * value, otherwise merge the existing value with the new one using
+   * transactional function `f` and store the result
+   */
+  def mergeSTM[R, E](k: K, v: V)(f: (V, V) => ZSTM[R, E, V]): ZSTM[R, E, V] =
+    get(k).flatMap {
+      case None     => put(k, v).as(v)
+      case Some(v0) => f(v0, v).flatMap(v1 => put(k, v1).as(v1))
+    }
 
   /**
    * Stores new binding into the map.
@@ -599,6 +617,20 @@ final class TMap[K, V] private (
    */
   def updateWith(k: K)(f: Option[V] => Option[V]): USTM[Option[V]] =
     get(k).flatMap(f(_).fold[USTM[Option[V]]](delete(k).as(None))(v => put(k, v).as(Some(v))))
+
+  /**
+   * Updates the mapping for the specified key with the specified transactional
+   * function, which takes the current value of the key as an input, if it
+   * exists, and either returns `Some` with a new value to indicate to update
+   * the value in the map or `None` to remove the value from the map. Returns
+   * `Some` with the updated value or `None` if the value was removed from the
+   * map.
+   */
+  def updateWithSTM[R, E](k: K)(f: Option[V] => ZSTM[R, E, Option[V]]): ZSTM[R, E, Option[V]] =
+    get(k).flatMap(f).flatMap {
+      case None    => delete(k).as(None)
+      case Some(v) => put(k, v).as(Some(v))
+    }
 
   /**
    * Collects all values stored in map.

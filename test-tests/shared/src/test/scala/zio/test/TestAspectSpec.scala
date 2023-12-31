@@ -75,6 +75,58 @@ object TestAspectSpec extends ZIOBaseSpec {
         assert(after)(equalTo(-1))
       }
     },
+    test("afterFailure evaluates in case if test IO fails") {
+      for {
+        ref <- Ref.make(0)
+        spec = test("test") {
+                 ZIO.fail("error")
+               } @@ afterFailure(ref.set(-1))
+        result <- succeeded(spec)
+        after  <- ref.get
+      } yield {
+        assert(result)(isFalse) &&
+        assert(after)(equalTo(-1))
+      }
+    },
+    test("afterFailure does not evaluate in case if test IO succeeds") {
+      for {
+        ref <- Ref.make(0)
+        spec = test("test") {
+                 assertZIO(ref.get)(equalTo(0))
+               } @@ afterFailure(ref.set(-1))
+        result <- succeeded(spec)
+        after  <- ref.get
+      } yield {
+        assert(result)(isTrue) &&
+        assert(after)(equalTo(0))
+      }
+    },
+    test("afterSuccess evaluates in case if test IO succeeds") {
+      for {
+        ref <- Ref.make(0)
+        spec = test("test") {
+                 assertZIO(ref.get)(equalTo(0))
+               } @@ afterSuccess(ref.set(-1))
+        result <- succeeded(spec)
+        after  <- ref.get
+      } yield {
+        assert(result)(isTrue) &&
+        assert(after)(equalTo(-1))
+      }
+    },
+    test("afterSuccess does not evaluate in case if test IO fails") {
+      for {
+        ref <- Ref.make(0)
+        spec = test("test") {
+                 ZIO.fail("error")
+               } @@ afterSuccess(ref.set(-1))
+        result <- succeeded(spec)
+        after  <- ref.get
+      } yield {
+        assert(result)(isFalse) &&
+        assert(after)(equalTo(0))
+      }
+    },
     test("exceptJS runs tests on all platforms except ScalaJS") {
       assert(TestPlatform.isJS)(isFalse)
     } @@ exceptJS,

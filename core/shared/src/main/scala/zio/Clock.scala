@@ -119,7 +119,8 @@ object Clock extends ClockPlatformSpecific with Serializable {
               inst.getEpochSecond * 1000000000 + inst.getNano
             case TimeUnit.MICROSECONDS =>
               inst.getEpochSecond * 1000000 + inst.getNano / 1000
-            case _ => unit.convert(inst.toEpochMilli, TimeUnit.MILLISECONDS)
+            case TimeUnit.MILLISECONDS => inst.toEpochMilli
+            case _                     => unit.convert(inst.toEpochMilli, TimeUnit.MILLISECONDS)
           }
         }
 

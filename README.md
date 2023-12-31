@@ -55,6 +55,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/ser
 * [Avast](https://www.avast.com)
 * [Bank of America](https://www.bofa.com)
 * [Believe](https://www.believe.com)
+* [Blue Insight Digital](https://www.blueinsight.digital/)
 * [BlueLabs](https://www.bluelabs.eu/)
 * [Bpp](https://www.bpp.it/)
 * [Broad](https://broad.app)

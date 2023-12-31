@@ -490,6 +490,14 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assertTrue(someParent.contains(someChild))
       } @@ failing
     ),
+    suite("subtype seq")(
+      test("contains") {
+        assertTrue(Seq(Seq[Any](1)).contains(Seq[Int](1)))
+      },
+      test("contains failure") {
+        assertTrue(Seq(Seq[Any]()).contains(Seq[Int](1)))
+      } @@ failing
+    ),
     suite("custom assertions")(
       test("reports source location of actual usage") {
         customAssertion("hello")
@@ -513,6 +521,44 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("equalTo on java.lang.Boolean works") {
         val jBool = java.lang.Boolean.FALSE
         assertTrue(jBool == false)
+      }, {
+        final case class Bar(valid: Boolean = true)
+        final case class Foo(bar: Bar, otherField: Boolean) {
+          def bar(b: Bar): Foo = copy(bar = b)
+        }
+        object Foo {
+          def apply(v: Boolean): Foo = Foo(Bar(v), v)
+
+          def sameName(v: Boolean): Foo = Foo(Bar(v), v)
+        }
+        suite("test complex class with same name for method and field")(
+          test("one line default apply field check") {
+            assertTrue(Foo(Bar(), true).otherField)
+          },
+          test("one line default apply nested same name check") {
+            assertTrue(Foo(Bar(), true).bar.valid)
+          },
+          test("one line companion apply field check") {
+            assertTrue(Foo(true).otherField)
+          },
+          test("one line companion apply nested same name check") {
+            assertTrue(Foo(true).bar.valid)
+          },
+          test("one line other create method field check") {
+            assertTrue(Foo.sameName(true).otherField)
+          },
+          test("one line other create method nested same name check") {
+            assertTrue(Foo.sameName(true).bar.valid)
+          },
+          test("external assigned object nested same name check") {
+            val externalFoo = Foo(true)
+            assertTrue(externalFoo.bar.valid)
+          },
+          test("external assigned object nested same name field") {
+            val externalBar = Foo(true).bar
+            assertTrue(externalBar.valid)
+          }
+        )
       }
     )
   )

@@ -295,13 +295,19 @@ object NonEmptyChunk {
     NonEmptyChunk(a)
 
   /**
-   * Extracts the elements from a `NonEmptyChunk`.
+   * Extracts the elements from a `Chunk`.
    */
   def unapplySeq[A](seq: Seq[A]): Option[Seq[A]] =
     seq match {
       case chunk: Chunk[A] if chunk.nonEmpty => Some(chunk)
       case _                                 => None
     }
+
+  /**
+   * Extracts the elements from a `NonEmptyChunk`.
+   */
+  def unapplySeq[A](nonEmptyChunk: NonEmptyChunk[A]): Some[Seq[A]] =
+    Some(nonEmptyChunk.chunk)
 
   /**
    * The unit non-empty chunk.

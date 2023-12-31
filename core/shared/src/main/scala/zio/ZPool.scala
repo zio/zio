@@ -161,63 +161,83 @@ object ZPool {
     def excess(implicit trace: Trace): UIO[Int] =
       state.get.map { case State(free, size) => size - range.start min free }
 
-    def get(implicit trace: Trace): ZIO[Scope, E, A] = {
+    def get(implicit trace: Trace): ZIO[Scope, E, A] =
+      ZIO.InterruptibilityRestorer.make.flatMap { restore =>
+        def acquire: UIO[Attempted[E, A]] =
+          isShuttingDown.get.flatMap { down =>
+            if (down) ZIO.interrupt
+            else
+              state.modify { case State(size, free) =>
+                if (free > 0 || size >= range.end)
+                  (
+                    items.take.flatMap { attempted =>
+                      attempted.result match {
+                        case Exit.Success(item) =>
+                          invalidated.get.flatMap { set =>
+                            if (set.contains(item)) finalizeInvalid(attempted) *> acquire
+                            else ZIO.succeed(attempted)
+                          }
+                        case _ =>
+                          ZIO.succeed(attempted)
+                      }
+                    },
+                    State(size, free - 1)
+                  )
+                else if (size >= 0)
+                  allocate *> acquire -> State(size + 1, free + 1)
+                else
+                  ZIO.interrupt -> State(size, free)
+              }.flatten
+          }
 
-      def acquire: UIO[Attempted[E, A]] =
-        isShuttingDown.get.flatMap { down =>
-          if (down) ZIO.interrupt
-          else
-            state.modify { case State(size, free) =>
-              if (free > 0 || size >= range.end)
-                (
-                  items.take.flatMap { attempted =>
-                    attempted.result match {
-                      case Exit.Success(item) =>
-                        invalidated.get.flatMap { set =>
-                          if (set.contains(item)) finalizeInvalid(attempted) *> acquire
-                          else ZIO.succeed(attempted)
-                        }
-                      case _ =>
-                        ZIO.succeed(attempted)
-                    }
-                  },
-                  State(size, free - 1)
-                )
-              else if (size >= 0)
-                allocate *> acquire -> State(size + 1, free + 1)
-              else
-                ZIO.interrupt -> State(size, free)
-            }.flatten
-        }
+        def release(attempted: Attempted[E, A]): UIO[Any] =
+          attempted.result match {
+            case Exit.Success(item) =>
+              invalidated.get.flatMap { set =>
+                if (set.contains(item)) finalizeInvalid(attempted)
+                else
+                  state.update(state => state.copy(free = state.free + 1)) *>
+                    items.offer(attempted) *>
+                    track(attempted.result) *>
+                    getAndShutdown.whenZIO(isShuttingDown.get)
+              }
 
-      def release(attempted: Attempted[E, A]): UIO[Any] =
-        attempted.result match {
-          case Exit.Success(item) =>
-            invalidated.get.flatMap { set =>
-              if (set.contains(item)) finalizeInvalid(attempted)
-              else
-                state.update(state => state.copy(free = state.free + 1)) *>
-                  items.offer(attempted) *>
-                  track(attempted.result) *>
-                  getAndShutdown.whenZIO(isShuttingDown.get)
-            }
+            case Exit.Failure(_) =>
+              state.modify { case State(size, free) =>
+                if (size <= range.start)
+                  allocate -> State(size, free + 1)
+                else
+                  ZIO.unit -> State(size - 1, free)
+              }.flatten
+          }
 
-          case Exit.Failure(_) =>
+        def finalizeInvalid(attempted: Attempted[E, A]): UIO[Any] =
+          attempted.forEach(a => invalidated.update(_ - a)) *>
+            attempted.finalizer *>
             state.modify { case State(size, free) =>
               if (size <= range.start)
                 allocate -> State(size, free + 1)
               else
                 ZIO.unit -> State(size - 1, free)
             }.flatten
-        }
 
-      for {
-        releaseAndAttempted <- ZIO.acquireRelease(acquire)(release(_)).withEarlyRelease.disconnect
-        (release, attempted) = releaseAndAttempted
-        _                   <- release.when(attempted.isFailure)
-        item                <- attempted.toZIO
-      } yield item
-    }
+        def allocate: UIO[Any] =
+          for {
+            scope     <- Scope.make
+            exit      <- restore(scope.extend(creator)).exit
+            attempted <- ZIO.succeed(Attempted(exit, scope.close(Exit.succeed(()))))
+            _         <- items.offer(attempted)
+            _         <- track(attempted.result)
+            _         <- getAndShutdown.whenZIO(isShuttingDown.get)
+          } yield attempted
+
+        for {
+          releaseAndAttempted <- ZIO.acquireRelease(acquire)(release(_)).withEarlyRelease.disconnect
+          (release, attempted) = releaseAndAttempted
+          _                   <- release.when(attempted.isFailure)
+          item                <- attempted.toZIO
+        } yield item
+      }
 
     /**
      * Begins pre-allocating pool entries based on minimum pool size.
@@ -247,16 +267,6 @@ object ZPool {
     def invalidate(item: A)(implicit trace: zio.Trace): UIO[Unit] =
       invalidated.update(_ + item)
 
-    private def finalizeInvalid(attempted: Attempted[E, A])(implicit trace: zio.Trace): UIO[Any] =
-      attempted.forEach(a => invalidated.update(_ - a)) *>
-        attempted.finalizer *>
-        state.modify { case State(size, free) =>
-          if (size <= range.start)
-            allocate -> State(size, free + 1)
-          else
-            ZIO.unit -> State(size - 1, free)
-        }.flatten
-
     /**
      * Shrinks the pool down, but never to less than the minimum size.
      */
@@ -275,18 +285,6 @@ object ZPool {
           else
             ZIO.unit -> State(size, free)
         }.flatten
-      }
-
-    private def allocate(implicit trace: Trace): UIO[Any] =
-      ZIO.uninterruptibleMask { restore =>
-        for {
-          scope     <- Scope.make
-          exit      <- restore(scope.extend(creator)).exit
-          attempted <- ZIO.succeed(Attempted(exit, scope.close(Exit.succeed(()))))
-          _         <- items.offer(attempted)
-          _         <- track(attempted.result)
-          _         <- getAndShutdown.whenZIO(isShuttingDown.get)
-        } yield attempted
       }
 
     /**

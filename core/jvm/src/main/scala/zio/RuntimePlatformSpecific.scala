@@ -16,13 +16,13 @@
 
 package zio
 
-import zio.internal.{Blocking, IsFatal}
+import zio.internal.{Blocking, IsFatal, LoomSupport}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] trait RuntimePlatformSpecific {
 
   final val defaultExecutor: Executor =
-    Executor.makeDefault()
+    LoomSupport.newVirtualThreadPerTaskExecutor().map(Executor.fromJavaExecutor(_)).getOrElse(Executor.makeDefault())
 
   final val defaultBlockingExecutor: Executor =
     Blocking.blockingExecutor

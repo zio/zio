@@ -16,10 +16,10 @@
 
 package zio.test
 
-import com.github.ghik.silencer.silent
 import zio.{Duration, Trace}
 
 import java.time._
+import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
 trait TimeVariants {
@@ -252,8 +252,8 @@ trait TimeVariants {
       val yearValue = year.getValue
       (min.getYear, max.getYear) match {
         case (`yearValue`, `yearValue`) => Gen.int(min.getMonthValue, max.getMonthValue)
-        case (_, `yearValue`)           => Gen.int(min.getMonthValue, max.getMonthValue)
-        case (`yearValue`, _)           => Gen.int(min.getMonthValue, max.getMonthValue)
+        case (_, `yearValue`)           => Gen.int(1, max.getMonthValue)
+        case (`yearValue`, _)           => Gen.int(min.getMonthValue, 12)
         case (_, _)                     => Gen.int(1, 12)
       }
     }
@@ -287,7 +287,7 @@ trait TimeVariants {
   /**
    * A generator of `java.time.ZoneId` values. Doesn't have any shrinking.
    */
-  @silent("JavaConverters")
+  @nowarn("msg=JavaConverters")
   final def zoneId(implicit trace: Trace): Gen[Any, ZoneId] =
     Gen.elements(ZoneId.getAvailableZoneIds.asScala.map(ZoneId.of).toList: _*).noShrink
 

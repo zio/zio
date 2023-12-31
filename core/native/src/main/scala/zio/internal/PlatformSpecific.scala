@@ -53,6 +53,8 @@ private[zio] trait PlatformSpecific {
    */
   final def getCurrentThreadGroup()(implicit unsafe: zio.Unsafe): String = ""
 
+  final val hasGreenThreads: Boolean = false
+
   /**
    * Returns whether the current platform is ScalaJS.
    */

@@ -197,7 +197,7 @@ def bar: ZIO[ServiceB & ServiceC, Throwable, String] = ???
 // Requires ServicB and produces a value of type Double
 def baz(a: Int, b: String): ZIO[ServiceB, Nothing, Double] = ???
 
-// Requires ServiceB and ServiceB and ServiceC and produces a value of type Double
+// Requires ServiceA and ServiceB and ServiceC and produces a value of type Double
 val myApp: ZIO[ServiceA & ServiceB & ServiceC, Throwable, Double] =
   for {
     a <- foo

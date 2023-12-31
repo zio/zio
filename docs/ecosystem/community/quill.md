@@ -3,7 +3,7 @@ id: quill
 title: "Quill"
 ---
 
-[Quil](https://github.com/getquill/quill) is a Compile-time Language Integrated Queries for Scala.
+[Quill](https://github.com/getquill/quill) is a Compile-time Language Integrated Queries for Scala.
 
 ## Introduction
 

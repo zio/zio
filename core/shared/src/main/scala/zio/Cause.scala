@@ -462,6 +462,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       (cause, stackless) => Stackless(cause, stackless)
     )
 
+  final def nonEmpty: Boolean = !isEmpty
+
   /**
    * Returns a `String` with the cause pretty-printed.
    */
@@ -493,7 +495,19 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       unified.trace.foreach(trace => append(s"${traceIndent}at ${trace}"))
     }
 
-    self.linearize.foreach(appendCause)
+    val (die, fail, interrupt) =
+      self.linearize.foldLeft((Set.empty[Cause[E]], Set.empty[Cause[E]], Set.empty[Cause[E]])) {
+        case ((die, fail, interrupt), cause) =>
+          cause.find {
+            case Die(_, _)       => (die + cause, fail, interrupt)
+            case Fail(_, _)      => (die, fail + cause, interrupt)
+            case Interrupt(_, _) => (die, fail, interrupt + cause)
+          }.getOrElse((die, fail, interrupt))
+      }
+
+    die.foreach(appendCause)
+    fail.foreach(appendCause)
+    interrupt.foreach(appendCause)
     builder.result.mkString("\n")
   }
 

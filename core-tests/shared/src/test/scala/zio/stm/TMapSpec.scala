@@ -41,6 +41,14 @@ object TMapSpec extends ZIOBaseSpec {
         val tx = TMap.empty[String, Int].flatMap[Any, Nothing, Int](_.getOrElse("a", 10))
         assertZIO(tx.commit)(equalTo(10))
       },
+      test("getOrElseSTM existing element") {
+        val tx = TMap.make("a" -> 1, "b" -> 2).flatMap[Any, Nothing, Int](_.getOrElseSTM("a", STM.succeed(10)))
+        assertZIO(tx.commit)(equalTo(1))
+      },
+      test("getOrElseSTM non-existing element") {
+        val tx = TMap.empty[String, Int].flatMap[Any, Nothing, Int](_.getOrElseSTM("a", STM.succeed(10)))
+        assertZIO(tx.commit)(equalTo(10))
+      },
       test("contains existing element") {
         val tx = TMap.make("a" -> 1, "b" -> 2).flatMap[Any, Nothing, Boolean](_.contains("a"))
         assertZIO(tx.commit)(isTrue)
@@ -176,6 +184,16 @@ object TMapSpec extends ZIOBaseSpec {
             tmap <- TMap.make("a" -> 1)
             a    <- tmap.merge("a", 2)(_ + _)
             b    <- tmap.merge("b", 2)(_ + _)
+          } yield (a, b)
+
+        assertZIO(tx.commit)(equalTo((3, 2)))
+      },
+      test("mergeSTM") {
+        val tx =
+          for {
+            tmap <- TMap.make("a" -> 1)
+            a    <- tmap.mergeSTM("a", 2)((v1, v2) => STM.succeed(v1 + v2))
+            b    <- tmap.mergeSTM("b", 2)((v1, v2) => STM.succeed(v1 + v2))
           } yield (a, b)
 
         assertZIO(tx.commit)(equalTo((3, 2)))
@@ -318,6 +336,16 @@ object TMapSpec extends ZIOBaseSpec {
           _    <- tmap.updateWith("b")(_ => None)
           _    <- tmap.updateWith("c")(_ => Some(3))
           _    <- tmap.updateWith("d")(_ => None)
+          res  <- tmap.toMap
+        } yield assertTrue(res == Map("a" -> 2, "c" -> 3))
+      },
+      test("updateWithSTM") {
+        for {
+          tmap <- TMap.make("a" -> 1, "b" -> 2)
+          _    <- tmap.updateWithSTM("a")(v => STM.succeed(v.map(_ + 1)))
+          _    <- tmap.updateWithSTM("b")(_ => STM.succeed(None))
+          _    <- tmap.updateWithSTM("c")(_ => STM.succeed(Some(3)))
+          _    <- tmap.updateWithSTM("d")(_ => STM.succeed(None))
           res  <- tmap.toMap
         } yield assertTrue(res == Map("a" -> 2, "c" -> 3))
       }

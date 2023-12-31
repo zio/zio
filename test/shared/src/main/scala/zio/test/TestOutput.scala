@@ -21,7 +21,7 @@ private[test] object TestOutput {
       for {
         executionEventPrinter <- ZIO.service[ExecutionEventPrinter]
         // If you need to enable the debug output to diagnose flakiness, set this to true
-        outputLive <- TestOutputLive.make(executionEventPrinter, debug = true)
+        outputLive <- TestOutputLive.make(executionEventPrinter, debug = false)
       } yield outputLive
     )
 

@@ -30,9 +30,16 @@ private[test] final case class TestArgs(
 ) {
   val testEventRenderer: ReporterEventRenderer =
     testRenderer match {
-      case renderer: ConsoleRenderer  => ConsoleEventRenderer
-      case renderer: IntelliJRenderer => IntelliJEventRenderer
-      case _                          => ???
+      case _: ConsoleRenderer  => ConsoleEventRenderer
+      case _: IntelliJRenderer => IntelliJEventRenderer
+    }
+
+  def ignoreFailures: Boolean =
+    // When calling from IntelliJ, we want to ignore emitting a non-0 exit code.
+    // Test running and termination is entirely handled by IntelliJ.
+    testRenderer match {
+      case _: IntelliJRenderer => true
+      case _                   => false
     }
 }
 

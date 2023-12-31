@@ -9,8 +9,10 @@ object CompileSpec extends ZIOBaseSpec {
       assertZIO(typeCheck("1 + 1"))(isRight(anything))
     },
     test("typeCheck must return Left with an error message otherwise") {
-      val expected = "value ++ is not a member of Int"
-      if (TestVersion.isScala2) assertZIO(typeCheck("1 ++ 1"))(isLeft(equalTo(expected)))
+      val scala212Expected = "value ++ is not a member of Int"
+      val scala213Expected = scala212Expected + "\n" + "did you mean +?"
+      if (TestVersion.isScala212) assertZIO(typeCheck("1 ++ 1"))(isLeft(equalTo(scala212Expected)))
+      else if (TestVersion.isScala213) assertZIO(typeCheck("1 ++ 1"))(isLeft(equalTo(scala213Expected)))
       else assertZIO(typeCheck("1 ++ 1"))(isLeft(anything))
     },
     test("typeCheck expansion must use Left and Right from scala.util") {

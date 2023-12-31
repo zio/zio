@@ -40,7 +40,7 @@ libraryDependencies += Seq(
 
 1. **ZIO Kafka** is a ZIO native client for Apache Kafka. It has a high-level streaming API on top of the Java client. So we can produce and consume events using the declarative concurrency model of ZIO Streams.
 
-2. **ZIO Stream** introduces a high-level API for working with streams of values. It is designated to work in a highly concurrent environment. It has seamless integration with ZIO, so we have the ability to use all the features of the ZIO along with the streams, e.g. `Scope`, `Schedule`, `ZLayer`, `Quque`, `Hub` etc. To learn more about ZIO Stream, we have a comprehensive section in on that [here](../../reference/stream/index.md).
+2. **ZIO Stream** introduces a high-level API for working with streams of values. It is designated to work in a highly concurrent environment. It has seamless integration with ZIO, so we have the ability to use all the features of the ZIO along with the streams, e.g. `Scope`, `Schedule`, `ZLayer`, `Queue`, `Hub` etc. To learn more about ZIO Stream, we have a comprehensive section in on that [here](../../reference/stream/index.md).
 
 3. **ZIO JSON** is a library to serialize and deserialize data from/to JSON data type. We will be using this library to serialize and deserialize data when reading and writing JSON data from/to Kafka topics.
 

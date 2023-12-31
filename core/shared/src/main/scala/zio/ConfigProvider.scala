@@ -434,7 +434,7 @@ object ConfigProvider {
         zio.System.envs.map { envs =>
           val keyPaths = Chunk.fromIterable(envs.keys).map(_.toUpperCase).map(unmakePathString)
 
-          keyPaths.filter(_.startsWith(path)).map(_.drop(path.length).take(1)).flatten.toSet
+          keyPaths.filter(_.startsWith(path.map(_.toUpperCase))).map(_.drop(path.length).take(1)).flatten.toSet
 
         }.mapError(sourceUnavailable(path))
 

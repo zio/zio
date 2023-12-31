@@ -19,7 +19,6 @@ object ExecutionEventSinkSpec extends ZIOBaseSpec {
                   uuid,
                   randomId
                 )
-        _       <- TestDebug.createDebugFile(randomId)
         _       <- ExecutionEventSink.process(event)
         _       <- TestDebug.deleteIfEmpty(randomId)
         summary <- ExecutionEventSink.getSummary
@@ -37,7 +36,6 @@ object ExecutionEventSinkSpec extends ZIOBaseSpec {
                   uuid,
                   randomId
                 )
-        _       <- TestDebug.createDebugFile(randomId)
         _       <- ExecutionEventSink.process(event)
         _       <- TestDebug.deleteIfEmpty(randomId)
         summary <- ExecutionEventSink.getSummary
@@ -55,7 +53,6 @@ object ExecutionEventSinkSpec extends ZIOBaseSpec {
                   uuid,
                   randomId
                 )
-        _       <- TestDebug.createDebugFile(randomId)
         _       <- ExecutionEventSink.process(event)
         _       <- TestDebug.deleteIfEmpty(randomId)
         summary <- ExecutionEventSink.getSummary

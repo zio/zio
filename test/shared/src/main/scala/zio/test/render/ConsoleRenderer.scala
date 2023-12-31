@@ -217,7 +217,7 @@ trait ConsoleRenderer extends TestRenderer {
   def renderSummary(summary: Summary): String =
     s"""${summary.success} tests passed. ${summary.fail} tests failed. ${summary.ignore} tests ignored.
        |${summary.failureDetails}
-       |Executed in ${summary.duration.render}
+       |Executed in ${summary.interval.duration.render}
        |""".stripMargin
 
   def render(cause: Cause[_], labels: List[String]): Option[String] =

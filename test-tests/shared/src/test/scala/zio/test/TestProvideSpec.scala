@@ -28,6 +28,42 @@ object TestProvideSpec extends ZIOBaseSpec {
           }
             .provide(doubleLayer, stringLayer, intLayer)
         },
+        test("reports ambiguous layers") {
+          import TestLayer._
+          val gp: ULayer[Repository]    = GreenplumRepository.live
+          val mongo: ULayer[Repository] = MongoRepository.live
+
+          val program: URIO[Repository, String] = ZIO.succeed("test")
+          val _                                 = (gp, mongo, program)
+
+          val checked = typeCheck("""test("foo")(assertZIO(program)(anything)).provide(gp, mongo)""")
+          assertZIO(checked)(isLeft(containsStringWithoutAnsi("Ambiguous layers")))
+        } @@ TestAspect.exceptScala3,
+        test("reports ambiguous layers which are subtypes of some requirement") {
+          import TestLayer._
+          val gp    = GreenplumRepository.live
+          val mongo = MongoRepository.live
+          val repo  = RepositoryLive.live
+
+          val program: URIO[Repository, String] = ZIO.succeed("test")
+          val _                                 = (gp, mongo, repo, program)
+
+          val checked = typeCheck("""test("foo")(assertZIO(program)(anything)).provide(repo, gp, mongo)""")
+          assertZIO(checked)(isLeft(containsStringWithoutAnsi("Ambiguous layers")))
+        } @@ TestAspect.exceptScala3,
+        test("reports ambiguous layers which are subtypes of some transitive requirement") {
+          import TestLayer._
+          val gp    = GreenplumRepository.live
+          val mongo = MongoRepository.live
+          val repo  = RepositoryLive.live
+
+          val program: URIO[Service, String] = ZIO.succeed("test")
+          val _                              = (gp, mongo, repo, program)
+
+          val checked =
+            typeCheck("""test("foo")(assertZIO(program)(anything)).provide(ServiceLive.live, repo, gp, mongo)""")
+          assertZIO(checked)(isLeft(containsStringWithoutAnsi("Ambiguous layers")))
+        } @@ TestAspect.exceptScala3,
         test("reports missing top-level dependencies") {
           val program: URIO[String with Int, String] = ZIO.succeed("test")
           val _                                      = program
@@ -173,6 +209,31 @@ object TestProvideSpec extends ZIOBaseSpec {
     object Spider {
       def live: ULayer[Spider] = ZLayer.succeed(new Spider {})
     }
+
+    trait Repository
+
+    case class MongoRepository() extends Repository
+    object MongoRepository {
+      val live: ULayer[MongoRepository] = ZLayer.fromFunction(MongoRepository.apply _)
+    }
+
+    case class GreenplumRepository() extends Repository
+    object GreenplumRepository {
+      val live: ULayer[GreenplumRepository] = ZLayer.fromFunction(GreenplumRepository.apply _)
+    }
+
+    case class RepositoryLive(mongo: MongoRepository, gp: GreenplumRepository) extends Repository
+    object RepositoryLive {
+      val live: URLayer[MongoRepository with GreenplumRepository, RepositoryLive] =
+        ZLayer.fromFunction(RepositoryLive.apply _)
+    }
+
+    trait Service
+    case class ServiceLive(repo: Repository) extends Service
+    object ServiceLive {
+      val live: URLayer[Repository, ServiceLive] = ZLayer.fromFunction(ServiceLive.apply _)
+    }
+
   }
 
 }

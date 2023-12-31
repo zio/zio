@@ -50,6 +50,14 @@ object ExecutionEventSink {
       )
     )
 
+  val live: ZLayer[TestOutput, Nothing, ExecutionEventSink] =
+    ZLayer {
+      for {
+        testOutput <- ZIO.service[TestOutput]
+        sink       <- ExecutionEventSinkLive(testOutput)
+      } yield sink
+    }
+
   val silent: ULayer[ExecutionEventSink] =
     ZLayer.succeed(
       new ExecutionEventSink {

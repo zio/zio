@@ -103,6 +103,7 @@ Basic operations are provided to manipulate the values in the `ConcurrentMap`:
 | `remove(key: K, value: V): UIO[Boolean]`    | Removes the entry for the given key if it is mapped to a given value.                                      |                                      
 | `removeIf(p: (K, V) => Boolean): UIO[Unit]` | Removes all elements which do not satisfy the given predicate.                                             |
 | `retainIf(p: (K, V) => Boolean): UIO[Unit]` | Removes all elements which do not satisfy the given predicate.                                             |
+| `clear: UIO[Unit]`                          | Removes all elements.                                                                                      |
 
 ### Replacing values
 
@@ -128,6 +129,7 @@ Basic operations are provided to manipulate the values in the `ConcurrentMap`:
 | `collectFirst[B](pf: PartialFunction[(K, V), B]): UIO[Option[B]]` | Finds the first element of a map for which the partial function is defined and applies the function to it. | 
 | `fold[S](zero: S)(f: (S, (K, V)) => S): UIO[S]`                   | Folds the elements of a map using the given binary operator.                                               |
 | `forall(p: (K, V) => Boolean): UIO[Boolean]`                      | Tests whether a predicate is satisfied by all elements of a map.                                           |
+| `isEmpty: UIO[Boolean]`                                           | True if there are no elements in this map.                                                                 |
 | `toChunk: UIO[Chunk[(K, V)]]`                                     | Collects all entries into a chunk.                                                                         |                                                                         
 | `toList: UIO[List[(K, V)]]`                                       | Collects all entries into a list.                                                                          |                                                                          
 
@@ -169,3 +171,4 @@ for {
 | `mapA.removeIf((k, _) => k != 1).get(2)`                 | None    |
 | `mapA.retainIf((k, _) => k == 1).get(1)`                 | "A"     |
 | `mapA.retainIf((k, _) => k == 1).get(2)`                 | None    |
+| `mapA.clear.isEmpty`                                     | true    |

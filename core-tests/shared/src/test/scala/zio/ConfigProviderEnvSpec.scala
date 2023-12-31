@@ -56,6 +56,12 @@ object ConfigProviderEnvSpec extends ZIOBaseSpec {
           _      <- TestSystem.putEnv("ADDRESS", "221B Baker Street")
           config <- ConfigProvider.envProvider.load(Config.table(Config.string))
         } yield assertTrue(config == Map("NAME" -> "Sherlock Holmes", "ADDRESS" -> "221B Baker Street"))
+      } +
+      test("nested map env") {
+        for {
+          _      <- TestSystem.putEnv("MAPPINGS_ABC", "ERROR")
+          config <- ConfigProvider.envProvider.load(Config.table("mappings", Config.string))
+        } yield assertTrue(config == Map("ABC" -> "ERROR"))
       }
   }
 }

@@ -59,6 +59,7 @@ private[zio] trait LayerMacroUtils {
       providedLayers0 = layers.toList,
       layerToDebug = debugMap,
       sideEffectType = c.weakTypeOf[Unit].dealias,
+      anyType = c.weakTypeOf[Any].dealias,
       typeEquals = _ <:< _,
       foldTree = buildFinalTree,
       method = provideMethod,

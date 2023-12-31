@@ -1,11 +1,11 @@
 package zio.metrics.jvm
 
-import com.github.ghik.silencer.silent
 import zio._
 import zio.metrics.MetricKeyType.Gauge
 import zio.metrics._
 
 import java.lang.management.{ManagementFactory, MemoryPoolMXBean, MemoryUsage}
+import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
 final case class MemoryPools(
@@ -81,7 +81,7 @@ object MemoryPools {
       )
     )
 
-  @silent("JavaConverters")
+  @nowarn("msg=JavaConverters")
   val live: ZLayer[JvmMetricsSchedule, Throwable, MemoryPools] =
     ZLayer.scoped {
       for {

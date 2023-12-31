@@ -440,6 +440,17 @@ object FiberRefSpec extends ZIOBaseSpec {
              }
         value <- promise.await
       } yield assertTrue(value)
+    },
+    test("child fiber inherits subsequent changes made by parent when joining sibling") {
+      for {
+        fiberRef <- FiberRef.make(false)
+        promise  <- Promise.make[Nothing, Fiber.Runtime[Any, Any]]
+        child1   <- (promise.await.flatMap(_.join) *> fiberRef.get).fork
+        _        <- fiberRef.set(true)
+        child2   <- ZIO.unit.fork
+        _        <- promise.succeed(child2)
+        value    <- child1.join
+      } yield assertTrue(value)
     }
   ) @@ TestAspect.fromLayer(Runtime.enableCurrentFiber) @@ TestAspect.sequential
 }

@@ -120,7 +120,7 @@ object TestExecutor {
                           fullyQualifiedName
                         )
                       )
-                    result  <- ZIO.withClock(ClockLive)(test.timed.either)
+                    result  <- Live.withLive(test)(_.timed).either
                     duration = result.map(_._1.toMillis).fold(_ => 1L, identity)
                     event =
                       ExecutionEvent
@@ -165,10 +165,9 @@ object TestExecutor {
               topParent
             )
 
-            TestDebug.createDebugFile(fullyQualifiedName) *>
-              ZIO.scoped {
-                loop(List.empty, scopedSpec, defExec, List.empty, topParent)
-              } *> processEvent(topLevelFlush) *> TestDebug.deleteIfEmpty(fullyQualifiedName)
+            ZIO.scoped(loop(List.empty, scopedSpec, defExec, List.empty, topParent)) *>
+              processEvent(topLevelFlush) *>
+              TestDebug.deleteIfEmpty(fullyQualifiedName)
 
           }
           summary <- sink.getSummary

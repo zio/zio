@@ -1,12 +1,12 @@
 package zio.internal.stacktracer
 
-import com.github.ghik.silencer.silent
 import zio.internal.stacktracer.Tracer.createTrace
 import zio.stacktracer.DisableAutoTrace
 
+import scala.annotation.nowarn
 import scala.quoted._
 
-@silent
+@nowarn
 object Macros {
 
   def sourceLocation(using ctx: Quotes): Expr[SourceLocation] = {

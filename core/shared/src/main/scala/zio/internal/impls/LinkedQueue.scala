@@ -16,12 +16,12 @@
 
 package zio.internal
 
-import com.github.ghik.silencer.silent
 import zio.Chunk
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicLong
+import scala.annotation.nowarn
 
 private[zio] final class LinkedQueue[A] extends MutableConcurrentQueue[A] with Serializable {
   override final val capacity = Int.MaxValue
@@ -50,7 +50,7 @@ private[zio] final class LinkedQueue[A] extends MutableConcurrentQueue[A] with S
 
   override def offerAll[A1 <: A](as: Iterable[A1]): Chunk[A1] = {
     import collection.JavaConverters._
-    jucConcurrentQueue.addAll(as.asJavaCollection): @silent("JavaConverters")
+    jucConcurrentQueue.addAll(as.asJavaCollection): @nowarn("msg=JavaConverters")
     enqueuedCounter.addAndGet(as.size.toLong)
     Chunk.empty
   }

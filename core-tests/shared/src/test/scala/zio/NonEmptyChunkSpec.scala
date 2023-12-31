@@ -84,6 +84,15 @@ object NonEmptyChunkSpec extends ZIOBaseSpec {
         }
         val expected = None
         assert(actual)(equalTo(expected))
+      },
+      test("matches a NonEmptyChunk") {
+        val nonEmptyChunk = NonEmptyChunk(1, 2, 3)
+        val actual = nonEmptyChunk match {
+          case NonEmptyChunk(x, y, z) => Some((x, y, z))
+          case _                      => None
+        }
+        val expected = Some((1, 2, 3))
+        assert(actual)(equalTo(expected))
       }
     )
   )

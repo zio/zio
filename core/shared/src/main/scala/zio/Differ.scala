@@ -302,26 +302,28 @@ object Differ {
      */
     def diff[Value, Patch](oldValue: Chunk[Value], newValue: Chunk[Value])(
       differ: Differ[Value, Patch]
-    ): ChunkPatch[Value, Patch] = {
-      var i           = 0
-      val oldIterator = oldValue.chunkIterator
-      val newIterator = newValue.chunkIterator
-      var patch       = empty[Value, Patch]
-      while (oldIterator.hasNextAt(i) && newIterator.hasNextAt(i)) {
-        val oldValue   = oldIterator.nextAt(i)
-        val newValue   = newIterator.nextAt(i)
-        val valuePatch = differ.diff(oldValue, newValue)
-        if (valuePatch != differ.empty) { patch = patch combine Update(i, valuePatch) }
-        i += 1
+    ): ChunkPatch[Value, Patch] =
+      if (oldValue == newValue) Empty()
+      else {
+        var i           = 0
+        val oldIterator = oldValue.chunkIterator
+        val newIterator = newValue.chunkIterator
+        var patch       = empty[Value, Patch]
+        while (oldIterator.hasNextAt(i) && newIterator.hasNextAt(i)) {
+          val oldValue   = oldIterator.nextAt(i)
+          val newValue   = newIterator.nextAt(i)
+          val valuePatch = differ.diff(oldValue, newValue)
+          if (valuePatch != differ.empty) { patch = patch combine Update(i, valuePatch) }
+          i += 1
+        }
+        if (oldIterator.hasNextAt(i)) {
+          patch = patch combine Slice(0, i)
+        }
+        if (newIterator.hasNextAt(i)) {
+          patch = patch combine Append(newValue.drop(i))
+        }
+        patch
       }
-      if (oldIterator.hasNextAt(i)) {
-        patch = patch combine Slice(0, i)
-      }
-      if (newIterator.hasNextAt(i)) {
-        patch = patch combine Append(newValue.drop(i))
-      }
-      patch
-    }
 
     /**
      * Constructs an empty chunk patch.
@@ -386,22 +388,24 @@ object Differ {
      */
     def diff[Key, Value, Patch](oldValue: Map[Key, Value], newValue: Map[Key, Value])(
       differ: Differ[Value, Patch]
-    ): MapPatch[Key, Value, Patch] = {
-      val (removed, patch) = newValue.foldLeft[(Map[Key, Value], MapPatch[Key, Value, Patch])](oldValue -> empty) {
-        case ((map, patch), (key, newValue)) =>
-          map.get(key) match {
-            case Some(oldValue) =>
-              val valuePatch = differ.diff(oldValue, newValue)
-              if (valuePatch == differ.empty)
-                map - key -> patch
-              else
-                map - key -> patch.combine(Update(key, valuePatch))
-            case _ =>
-              map - key -> patch.combine(Add(key, newValue))
-          }
+    ): MapPatch[Key, Value, Patch] =
+      if (oldValue == newValue) Empty()
+      else {
+        val (removed, patch) = newValue.foldLeft[(Map[Key, Value], MapPatch[Key, Value, Patch])](oldValue -> empty) {
+          case ((map, patch), (key, newValue)) =>
+            map.get(key) match {
+              case Some(oldValue) =>
+                val valuePatch = differ.diff(oldValue, newValue)
+                if (valuePatch == differ.empty)
+                  map - key -> patch
+                else
+                  map - key -> patch.combine(Update(key, valuePatch))
+              case _ =>
+                map - key -> patch.combine(Add(key, newValue))
+            }
+        }
+        removed.foldLeft(patch) { case (patch, (key, _)) => patch.combine(Remove(key)) }
       }
-      removed.foldLeft(patch) { case (patch, (key, _)) => patch.combine(Remove(key)) }
-    }
 
     /**
      * Constructs an empty map patch.
@@ -563,13 +567,15 @@ object Differ {
     /**
      * Constructs a set patch from a new set of values.
      */
-    def diff[A](oldValue: Set[A], newValue: Set[A]): SetPatch[A] = {
-      val (removed, patch) = newValue.foldLeft[(Set[A], SetPatch[A])](oldValue -> empty) { case ((set, patch), a) =>
-        if (set.contains(a)) (set - a, patch)
-        else (set, patch.combine(Add(a)))
+    def diff[A](oldValue: Set[A], newValue: Set[A]): SetPatch[A] =
+      if (oldValue == newValue) Empty()
+      else {
+        val (removed, patch) = newValue.foldLeft[(Set[A], SetPatch[A])](oldValue -> empty) { case ((set, patch), a) =>
+          if (set.contains(a)) (set - a, patch)
+          else (set, patch.combine(Add(a)))
+        }
+        removed.foldLeft(patch)((patch, a) => patch.combine(Remove(a)))
       }
-      removed.foldLeft(patch)((patch, a) => patch.combine(Remove(a)))
-    }
 
     /**
      * Constructs an empty set patch.

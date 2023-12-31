@@ -143,6 +143,14 @@ object ZPoolSpec extends ZIOBaseSpec {
           for {
             _ <- ZIO.scoped(ZPool.make(ZIO.unit, 10 to 15, 60.seconds).uninterruptible)
           } yield assertCompletes
+        } +
+        test("make preserves interruptibility") {
+          val get = ZIO.checkInterruptible(status => ZIO.succeed(status.isInterruptible))
+          for {
+            pool          <- ZPool.make(get, 10 to 15, 60.seconds)
+            _             <- pool.get.repeatN(9)
+            interruptible <- pool.get
+          } yield assertTrue(interruptible)
         }
     }
 }

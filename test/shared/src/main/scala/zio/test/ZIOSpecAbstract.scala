@@ -75,9 +75,11 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       _ <- ZIO.when(testArgs.printSummary) {
              console.printLine(testArgs.testRenderer.renderSummary(summary)).orDie
            }
-      _ <- ZIO.when(summary.status == Summary.Failure) {
-             ZIO.fail(new RuntimeException())
-           }
+      _ <- ZIO
+             .when(summary.status == Summary.Failure) {
+               ZIO.fail(new RuntimeException("Tests failed."))
+             }
+             .unless(testArgs.ignoreFailures)
     } yield summary
 
   /*
@@ -137,15 +139,15 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   ): UIO[Summary] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
-    val castedRuntime: Runtime[Environment] =
-      runtime.asInstanceOf[Runtime[Environment]]
+    val castedRuntime: Runtime[Environment with TestOutput] =
+      runtime.asInstanceOf[Runtime[Environment with TestOutput]]
 
     TestRunner(
       TestExecutor
         .default[Environment, Any](
           ZLayer.succeedEnvironment(castedRuntime.environment),
           testEnvironment ++ Scope.default,
-          ExecutionEventSink.live(console, testArgs.testEventRenderer),
+          ZLayer.succeedEnvironment(castedRuntime.environment) >>> ExecutionEventSink.live,
           testEventHandler
         )
     ).run(fullyQualifiedName, aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)

@@ -121,7 +121,7 @@ jobs:
       - name: Install NodeJS
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 20
 
       - name: Compile Docs
         run: |
@@ -152,7 +152,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scala: ['2.12.17', '2.13.10', '3.3.0']
+        scala: ['2.12.18', '2.13.12', '3.3.1']
         java: ['17']
         platform: ['JVM']
     steps:
@@ -216,7 +216,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['8', '11']
+        java: ['11']
         platform: ['JVM']
     steps:
       - name: Checkout current branch
@@ -232,12 +232,6 @@ jobs:
       - name: Test on different JVM versions
         run: ./sbt test${{ matrix.platform }}
 
-      - name: Report Test Death JVM 8
-        if: ${{ failure() &&  startsWith(matrix.java, '8') }}
-        uses: actions/upload-artifact@v3
-        with:
-          name: zio-test-debug-JVM-8
-          path: ./**/test-reports-zio/**_debug.txt
       - name: Report Test Death JVM 11
         if: ${{ failure() &&  startsWith(matrix.java, '11') }}
         uses: actions/upload-artifact@v3

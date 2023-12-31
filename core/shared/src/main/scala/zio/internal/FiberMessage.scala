@@ -27,8 +27,9 @@ import zio._
 private[zio] sealed trait FiberMessage
 private[zio] object FiberMessage {
   final case class InterruptSignal(cause: Cause[Nothing])                        extends FiberMessage
-  final case class GenStackTrace(onTrace: StackTrace => Unit)                    extends FiberMessage
   final case class Stateful(onFiber: (FiberRuntime[_, _], Fiber.Status) => Unit) extends FiberMessage
   final case class Resume(effect: ZIO[_, _, _])                                  extends FiberMessage
   case object YieldNow                                                           extends FiberMessage
+
+  val resumeUnit: FiberMessage = Resume(ZIO.unit)
 }

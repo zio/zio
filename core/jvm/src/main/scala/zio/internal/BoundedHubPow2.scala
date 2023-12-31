@@ -315,7 +315,7 @@ private final class BoundedHubPow2[A](requestedCapacity: Int) extends Hub[A] {
               val currentState           = state.get
               val currentPublisherIndex  = (currentState >> 32).toInt
               val currentSubscriberIndex = subscriberIndex.get
-              val currentIndex           = currentSubscriberIndex % capacity
+              val currentIndex           = currentSubscriberIndex & mask
               if (currentSubscriberIndex == currentPublisherIndex) {
                 loop = false
               } else {
