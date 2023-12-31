@@ -429,13 +429,13 @@ object Metric {
    * A counter, which can be incremented by integers.
    */
   def counterInt(name: String): Counter[Int] =
-    counterDouble(name).contramap[Int](_.toInt)
+    counterDouble(name).contramap[Int](_.toDouble)
 
   /**
    * A counter, which can be incremented by integers.
    */
   def counterInt(name: String, description: String): Counter[Int] =
-    counterDouble(name, description).contramap[Int](_.toInt)
+    counterDouble(name, description).contramap[Int](_.toDouble)
 
   /**
    * A string histogram metric, which keeps track of the counts of different
