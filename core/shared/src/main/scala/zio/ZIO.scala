@@ -4324,6 +4324,21 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     (zio.exit raceAll ios.map(_.exit)).flatMap(ZIO.done(_))
 
   /**
+   * Returns an effect that races this effect with all the specified effects,
+   * yielding the first result to complete, whether by success or failure. If
+   * neither effect completes, then the composed effect will not complete.
+   *
+   * WARNING: The raced effect will safely interrupt the "losers", but will not
+   * resume until the losers have been cleanly terminated. If early return is
+   * desired, then instead of performing `ZIO.raceFirst(l, r)`, perform
+   * `ZIO.raceFirst(l.disconnect, r.disconnect)`, which disconnects left and
+   * right interrupt signal, allowing a fast return, with interruption performed
+   * in the background.
+   */
+  def raceFirst[R, R1 <: R, E, A](zio: ZIO[R, E, A], ios: ZIO[R1, E, A]*)(implicit trace: Trace): ZIO[R1, E, A] =
+    raceFirst(zio, ios: Iterable[ZIO[R1, E, A]])
+
+  /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
    */
   def random(implicit trace: Trace): UIO[Random] =
