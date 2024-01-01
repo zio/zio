@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -117,6 +117,58 @@ object TestAspect extends TimeoutVariants {
    */
   def afterAll[R0](effect: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, Nothing, Any] =
     aroundAll(ZIO.unit, effect)
+
+  /**
+   * Constructs an aspect that runs the specified effect after all tests if
+   * there is at least one failure.
+   */
+  def afterAllFailure[R0](f: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, Nothing, Any] =
+    new TestAspect[Nothing, R0, Nothing, Any] {
+      def some[R <: R0, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
+        Spec.scoped[R](
+          Ref.make(false).flatMap { failure =>
+            ZIO.acquireRelease(ZIO.unit)(_ => f.whenZIO(failure.get)).as(afterFailure(failure.set(true))(spec))
+          }
+        )
+    }
+
+  /**
+   * Constructs an aspect that runs the specified effect after all tests if
+   * there are no failures.
+   */
+  def afterAllSuccess[R0](f: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, Nothing, Any] =
+    new TestAspect[Nothing, R0, Nothing, Any] {
+      def some[R <: R0, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
+        Spec.scoped[R](
+          Ref.make(true).flatMap { success =>
+            ZIO.acquireRelease(ZIO.unit)(_ => f.whenZIO(success.get)).as(afterFailure(success.set(false))(spec))
+          }
+        )
+    }
+
+  /**
+   * Constructs an aspect that runs the specified effect after every failed
+   * test.
+   */
+  def afterFailure[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
+    new TestAspect.PerTest[Nothing, R0, E0, Any] {
+      def perTest[R <: R0, E >: E0](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
+        test.tapErrorCause(_ => effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))))
+    }
+
+  /**
+   * Constructs an aspect that runs the specified effect after every successful
+   * test.
+   */
+  def afterSuccess[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
+    new TestAspect.PerTest[Nothing, R0, E0, Any] {
+      def perTest[R <: R0, E >: E0](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
+        test.tap(_ => effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))))
+    }
 
   /**
    * Annotates tests with the specified test annotation.
@@ -359,7 +411,7 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that records the state of fibers spawned by the current test in
    * [[TestAnnotation.fibers]]. Applied by default in [[ZIOSpecAbstract]]. This
-   * aspect is required for the proper functioning * of `TestClock.adjust`.
+   * aspect is required for the proper functioning of `TestClock.adjust`.
    */
   lazy val fibers: TestAspectPoly =
     new PerTest.Poly {
@@ -427,12 +479,23 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * Constructs an aspect from a layer that does not produce any services.
+   * An aspect that provides each test with the specified layer that does not
+   * produce any services.
    */
   def fromLayer[R0, E0](layer: ZLayer[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect[Nothing, R0, E0, Any] {
       def some[R <: R0, E >: E0](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
         spec.provideSomeLayer[R](layer)
+    }
+
+  /**
+   * An aspect that provides all tests with a shared version of the specified
+   * layer that does not produce any services.
+   */
+  def fromLayerShared[R0, E0](layer: ZLayer[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
+    new TestAspect[Nothing, R0, E0, Any] {
+      def some[R <: R0, E >: E0](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
+        spec.provideSomeLayerShared[R](layer)
     }
 
   /**
@@ -640,15 +703,13 @@ object TestAspect extends TimeoutVariants {
     val repeat = new PerTest.AtLeastR[R0] {
       def perTest[R <: R0, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
-      )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
-        ZIO.environmentWithZIO { r =>
-          val repeatSchedule: Schedule[Any, TestSuccess, TestSuccess] =
-            schedule
-              .zipRight(Schedule.identity[TestSuccess])
-              .tapOutput(_ => Annotations.annotate(TestAnnotation.repeated, 1))
-              .provideEnvironment(r)
-          Live.live(test.provideEnvironment(r).repeat(repeatSchedule))
-        }
+      )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] = {
+        val repeatSchedule: Schedule[R0, TestSuccess, TestSuccess] =
+          schedule
+            .zipRight(Schedule.identity[TestSuccess])
+            .tapOutput(_ => Annotations.annotate(TestAnnotation.repeated, 1))
+        Live.withLive(test)(_.repeat(repeatSchedule))
+      }
     }
     restoreTestEnvironment >>> repeat
   }
@@ -752,14 +813,11 @@ object TestAspect extends TimeoutVariants {
     val retry = new TestAspect.PerTest[Nothing, R0, Nothing, E0] {
       def perTest[R <: R0, E <: E0](
         test: ZIO[R, TestFailure[E], TestSuccess]
-      )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
-        ZIO.environmentWithZIO[R] { r =>
-          val retrySchedule: Schedule[Any, TestFailure[E0], Any] =
-            schedule
-              .tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1))
-              .provideEnvironment(r)
-          Live.live(test.provideEnvironment(r).retry(retrySchedule))
-        }
+      )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] = {
+        val retrySchedule: Schedule[R0, TestFailure[E0], Any] =
+          schedule.tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1))
+        Live.withLive(test)(_.retry(retrySchedule))
+      }
     }
     restoreTestEnvironment >>> retry
   }

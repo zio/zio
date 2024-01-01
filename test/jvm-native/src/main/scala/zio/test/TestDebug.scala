@@ -1,6 +1,7 @@
 package zio.test
 
-import zio.ZIO
+import zio.{Unsafe, ZIO}
+import zio.internal.Platform
 import java.io.{File, PrintWriter}
 import java.nio.file.{Files, Paths}
 import scala.io.Source
@@ -8,12 +9,15 @@ import scala.io.Source
 private[test] object TestDebug {
   private val outputDirectory                 = "target/test-reports-zio"
   private def outputFileForTask(task: String) = s"$outputDirectory/${task}_debug.txt"
+  private val tasks                           = Platform.newConcurrentSet[String]()(Unsafe.unsafe)
 
-  def createDebugFile(fullyQualifiedTaskName: String): ZIO[Any, Nothing, Unit] = ZIO.succeed {
-    makeOutputDirectory()
-    val file = new File(outputFileForTask(fullyQualifiedTaskName))
-    if (file.exists()) file.delete()
-    file.createNewFile()
+  private def createDebugFile(fullyQualifiedTaskName: String): ZIO[Any, Nothing, Unit] = ZIO.succeed {
+    if (tasks.add(fullyQualifiedTaskName)) {
+      makeOutputDirectory()
+      val file = new File(outputFileForTask(fullyQualifiedTaskName))
+      if (file.exists()) file.delete()
+      file.createNewFile()
+    }
   }
 
   private def makeOutputDirectory() = {
@@ -22,13 +26,15 @@ private[test] object TestDebug {
   }
 
   def deleteIfEmpty(fullyQualifiedTaskName: String): ZIO[Any, Nothing, Unit] = ZIO.succeed {
-    val file = new File(outputFileForTask(fullyQualifiedTaskName))
-    if (file.exists()) {
-      val source        = Source.fromFile(file)
-      val nonBlankLines = source.getLines.filterNot(isBlank).toList
-      source.close()
-      if (nonBlankLines.isEmpty) {
-        file.delete()
+    if (tasks.remove(fullyQualifiedTaskName)) {
+      val file = new File(outputFileForTask(fullyQualifiedTaskName))
+      if (file.exists()) {
+        val source        = Source.fromFile(file)
+        val nonBlankLines = source.getLines.filterNot(isBlank).toList
+        source.close()
+        if (nonBlankLines.isEmpty) {
+          file.delete()
+        }
       }
     }
   }
@@ -39,10 +45,12 @@ private[test] object TestDebug {
   def print(executionEvent: ExecutionEvent, lock: TestDebugFileLock) =
     executionEvent match {
       case t: ExecutionEvent.TestStarted =>
-        write(t.fullyQualifiedName, s"${t.labels.mkString(" - ")} STARTED\n", true, lock)
+        createDebugFile(t.fullyQualifiedName) *>
+          write(t.fullyQualifiedName, s"${t.labels.mkString(" - ")} STARTED\n", true, lock)
 
       case t: ExecutionEvent.Test[_] =>
-        removeLine(t.fullyQualifiedName, t.labels.mkString(" - ") + " STARTED", lock)
+        createDebugFile(t.fullyQualifiedName) *>
+          removeLine(t.fullyQualifiedName, t.labels.mkString(" - ") + " STARTED", lock)
 
       case _ => ZIO.unit
     }
@@ -66,15 +74,18 @@ private[test] object TestDebug {
   private def removeLine(fullyQualifiedTaskName: String, searchString: String, lock: TestDebugFileLock) =
     lock.updateFile {
       ZIO.succeed {
-        val source = Source.fromFile(outputFileForTask(fullyQualifiedTaskName))
+        val file = new File(outputFileForTask(fullyQualifiedTaskName))
+        if (file.exists()) {
+          val source = Source.fromFile(file)
 
-        val remainingLines =
-          source.getLines.filterNot(_.contains(searchString)).toList
+          val remainingLines =
+            source.getLines.filterNot(_.contains(searchString)).toList
 
-        val pw = new PrintWriter(outputFileForTask(fullyQualifiedTaskName))
-        pw.write(remainingLines.mkString("\n") + "\n")
-        pw.close()
-        source.close()
+          val pw = new PrintWriter(outputFileForTask(fullyQualifiedTaskName))
+          pw.write(remainingLines.mkString("\n") + "\n")
+          pw.close()
+          source.close()
+        }
       }
     }
 }

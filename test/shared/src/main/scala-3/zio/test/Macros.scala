@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2021-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,8 @@ package zio.test
 
 import zio._
 import zio.internal.stacktracer.SourceLocation
-import zio.test.internal.SmartAssertions
+import zio.test.diff.Diff
+import zio.test.internal.{OptionalImplicit, SmartAssertions}
 
 import scala.quoted._
 import scala.reflect.ClassTag
@@ -166,7 +167,14 @@ object SmartAssertMacros {
 
       case Unseal(MethodCall(lhs, "==", tpes, Some(List(rhs)))) =>
         val span = getSpan(rhs)
-        '{${transform(lhs.asExpr)} >>> SmartAssertions.equalTo(${rhs.asExpr}).span($span)}.asExprOf[TestArrow[Any, A]]
+        lhs.tpe.widen.asType match {
+          case '[l] =>
+            Expr.summon[OptionalImplicit[Diff[l]]] match {
+              case Some(optDiff) =>
+                '{${transform(lhs.asExpr)} >>> SmartAssertions.equalTo(${rhs.asExpr})($optDiff.asInstanceOf[OptionalImplicit[Diff[Any]]]).span($span)}.asExprOf[TestArrow[Any, A]]
+              case _ => throw new Error("OptionalImplicit should be always available")
+            }
+        }
 
       case Unseal(MethodCall(lhs, "&&", tpes, Some(List(rhs)))) if isBool(lhs) =>
         val span = getSpan(rhs)
@@ -189,10 +197,18 @@ object SmartAssertMacros {
               try Select.unique(param, name)
               catch {
                 case _: AssertionError =>
-                  // Tries to find directly the referenced method on lhs's type
-                  lhs.symbol.declaredMethods.filter(_.name == name).headOption match {
-                    case Some(method) => Select(param, method)
-                    case None => throw new Error(s"Could not resolve $name on $lhs")
+                  // Tries to find directly the referenced method on lhs's type (or if lhs is method, on lhs's returned type)
+                  lhs.symbol.tree match {
+                    case DefDef(_, _, tpt, _) =>
+                      tpt.symbol.declaredFields.find(_.name == name).orElse(tpt.symbol.declaredMethods.find(_.name == name)) match {
+                        case Some(fieldOrMethod) => Select(param, fieldOrMethod)
+                        case None => throw new Error(s"Could not resolve $name on $tpt")
+                      }
+                    case _ =>
+                      lhs.symbol.declaredFields.find(_.name == name).orElse(lhs.symbol.declaredMethods.find(_.name == name)) match {
+                        case Some(fieldOrMethod) => Select(param, fieldOrMethod)
+                        case None => throw new Error(s"Could not resolve $name on $lhs")
+                      }
                   }
               }
             case (tpeArgs, Some(args)) => Select.overloaded(param, name, tpeArgs, args)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2022-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -125,7 +125,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
     import key.keyType.{maxSize, maxAge, error, quantiles}
 
     val values = new AtomicReferenceArray[(Double, java.time.Instant)](maxSize)
-    val head   = new AtomicInteger(0)
+    val head   = new AtomicLong(0)
     val count  = new LongAdder
     val sum    = new DoubleAdder
     val min    = AtomicDouble.make(Double.MaxValue)
@@ -167,14 +167,14 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
         }
       }
 
-      zio.internal.metrics.calculateQuantiles(error, sortedQuantiles, builder.result().sorted(DoubleOrdering))
+      zio.internal.metrics.calculateQuantiles(sortedQuantiles, builder.result().sorted(DoubleOrdering))
     }
 
     // Assuming that the instant of observed values is continuously increasing
     // While Observing we cut off the first sample if we have already maxSize samples
     def observe(tuple: (Double, java.time.Instant)): Unit = {
       if (maxSize > 0) {
-        val target = head.incrementAndGet() % maxSize
+        val target = (head.incrementAndGet() % maxSize).toInt
         values.set(target, tuple)
       }
 

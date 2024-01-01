@@ -651,6 +651,11 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(Chunk.fromIterable(as).toList)(equalTo(as))
       }
     },
+    test("chunks can be mapped with heterogeneous functions") {
+      check(Gen.listOf(Gen.int), Gen.function(Gen.oneOf(Gen.int, Gen.string, Gen.none))) { (as, f) =>
+        assert(Chunk.fromIterable(as).map(f).toList)(equalTo(as.map(f)))
+      }
+    },
     test("unfold") {
       assert(
         Chunk.unfold(0)(n => if (n < 10) Some((n, n + 1)) else None)
@@ -834,6 +839,12 @@ object ChunkSpec extends ZIOBaseSpec {
           assertTrue(vector1 == vector2)
         }
       }
-    )
+    ),
+    test("sorted") {
+      check(Gen.chunkOf(Gen.int)) { chunk =>
+        val sorted = chunk.sorted
+        assertTrue(sorted.toVector == chunk.toVector.sorted)
+      }
+    }
   )
 }

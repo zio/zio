@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,6 +52,12 @@ final class ZEnvironment[+R] private (
    */
   def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tagged: EnvironmentTag[Map[K, V]]): Option[V] =
     unsafe.get[Map[K, V]](taggedTagType(tagged))(Unsafe.unsafe).get(k)
+
+  /**
+   * Retrieves a service from the environment if it exists in the environment.
+   */
+  def getDynamic[A](implicit tag: Tag[A]): Option[A] =
+    Option(unsafe.getOrElse(tag.tag, null.asInstanceOf[A])(Unsafe.unsafe))
 
   override def hashCode: Int =
     map.hashCode
@@ -143,14 +149,21 @@ final class ZEnvironment[+R] private (
     ): ZEnvironment[R]
   }
 
-  val unsafe: UnsafeAPI =
-    new UnsafeAPI {
+  trait UnsafeAPI2 {
+    private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A
+  }
+
+  val unsafe: UnsafeAPI with UnsafeAPI2 =
+    new UnsafeAPI with UnsafeAPI2 {
       private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A] = {
         val self0 = if (index == Int.MaxValue) self.clean else self
         new ZEnvironment(self0.map.updated(tag, a -> self0.index), self0.index + 1)
       }
 
       def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A =
+        getOrElse(tag, throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}"))
+
+      private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A =
         self.cache.get(tag) match {
           case Some(a) => a.asInstanceOf[A]
           case None =>
@@ -164,7 +177,7 @@ final class ZEnvironment[+R] private (
                 service = curService.asInstanceOf[A]
               }
             }
-            if (service == null) throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}")
+            if (service == null) default
             else {
               self.cache = self.cache.updated(tag, service)
               service
@@ -193,15 +206,13 @@ object ZEnvironment {
     empty.add[A](a)
 
   /**
-   * Constructs a new environment holding the specified services. The service
-   * must be monomorphic. Parameterized services are not supported.
+   * Constructs a new environment holding the specified services.
    */
   def apply[A: Tag, B: Tag](a: A, b: B): ZEnvironment[A with B] =
     ZEnvironment(a).add[B](b)
 
   /**
-   * Constructs a new environment holding the specified services. The service
-   * must be monomorphic. Parameterized services are not supported.
+   * Constructs a new environment holding the specified services.
    */
   def apply[A: Tag, B: Tag, C: Tag](
     a: A,
@@ -211,8 +222,7 @@ object ZEnvironment {
     ZEnvironment(a).add(b).add[C](c)
 
   /**
-   * Constructs a new environment holding the specified services. The service
-   * must be monomorphic. Parameterized services are not supported.
+   * Constructs a new environment holding the specified services.
    */
   def apply[A: Tag, B: Tag, C: Tag, D: Tag](
     a: A,
@@ -223,8 +233,7 @@ object ZEnvironment {
     ZEnvironment(a).add(b).add(c).add[D](d)
 
   /**
-   * Constructs a new environment holding the specified services. The service
-   * must be monomorphic. Parameterized services are not supported.
+   * Constructs a new environment holding the specified services.
    */
   def apply[
     A: Tag,
@@ -295,25 +304,27 @@ object ZEnvironment {
      * Constructs a patch that describes the updates necessary to transform the
      * specified old environment into the specified new environment.
      */
-    def diff[In, Out](oldValue: ZEnvironment[In], newValue: ZEnvironment[Out]): Patch[In, Out] = {
-      val sorted = newValue.map.toList.sortBy { case (_, (_, index)) => index }
-      val (missingServices, patch) = sorted.foldLeft[(Map[LightTypeTag, (Any, Int)], Patch[In, Out])](
-        oldValue.map -> Patch.Empty().asInstanceOf[Patch[In, Out]]
-      ) { case ((map, patch), (tag, (newService, newIndex))) =>
-        map.get(tag) match {
-          case Some((oldService, oldIndex)) =>
-            if (oldService == newService && oldIndex == newIndex)
-              map - tag -> patch
-            else
-              map - tag -> patch.combine(UpdateService((_: Any) => newService, tag))
-          case _ =>
-            map - tag -> patch.combine(AddService(newService, tag))
+    def diff[In, Out](oldValue: ZEnvironment[In], newValue: ZEnvironment[Out]): Patch[In, Out] =
+      if (oldValue == newValue) Patch.Empty().asInstanceOf[Patch[In, Out]]
+      else {
+        val sorted = newValue.map.toList.sortBy { case (_, (_, index)) => index }
+        val (missingServices, patch) = sorted.foldLeft[(Map[LightTypeTag, (Any, Int)], Patch[In, Out])](
+          oldValue.map -> Patch.Empty().asInstanceOf[Patch[In, Out]]
+        ) { case ((map, patch), (tag, (newService, newIndex))) =>
+          map.get(tag) match {
+            case Some((oldService, oldIndex)) =>
+              if (oldService == newService && oldIndex == newIndex)
+                map - tag -> patch
+              else
+                map - tag -> patch.combine(AddService(newService, tag))
+            case _ =>
+              map - tag -> patch.combine(AddService(newService, tag))
+          }
+        }
+        missingServices.foldLeft(patch) { case (patch, (tag, _)) =>
+          patch.combine(RemoveService(tag))
         }
       }
-      missingServices.foldLeft(patch) { case (patch, (tag, _)) =>
-        patch.combine(RemoveService(tag))
-      }
-    }
 
     private final case class AddService[Env, Service](service: Service, tag: LightTypeTag)
         extends Patch[Env, Env with Service]

@@ -3,7 +3,7 @@ package zio.test
 import zio._
 import zio.test.Assertion._
 import zio.test.GenUtils._
-import zio.test.TestAspect.{nonFlaky, scala2Only}
+import zio.test.TestAspect.{jvmOnly, nonFlaky, scala2Only}
 import zio.test.{check => Check, checkN => CheckN}
 
 import java.time.{Duration => _, _}
@@ -159,6 +159,11 @@ object GenSpec extends ZIOBaseSpec {
       test("yearMonth generates java.time.YearMonth values") {
         checkSample(Gen.yearMonth)(isNonEmpty)
       },
+      test("yearMonth generates values in range") {
+        val min = YearMonth.of(2000, 8)
+        val max = YearMonth.of(2020, 4)
+        checkSample(Gen.yearMonth(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
+      },
       test("zonedDateTime generates java.time.ZonedDateTime values") {
         checkSample(Gen.zonedDateTime)(isNonEmpty)
       },
@@ -213,6 +218,9 @@ object GenSpec extends ZIOBaseSpec {
       test("const generates constant value") {
         checkSample(Gen.const("constant"))(forall(equalTo("constant")))
       },
+      test("currency generates java.util.Currency values") {
+        checkSample(Gen.currency)(isTrue, cs => cs.forall(java.util.Currency.getAvailableCurrencies.contains))
+      } @@ jvmOnly,
       test("double generates values in range") {
         checkSample(Gen.double(5.0, 9.0))(forall(isGreaterThanEqualTo(5.0) && isLessThan(9.0)))
       },
@@ -221,6 +229,9 @@ object GenSpec extends ZIOBaseSpec {
       },
       test("filter filters values according to predicate") {
         checkSample(smallInt.filter(_ % 2 == 0))(forall(equalTo(0)), _.map(_ % 2))
+      },
+      test("filterZIO filters values according to predicate") {
+        checkSample(smallInt.filterZIO(n => ZIO.succeed(n % 2 == 0)))(forall(equalTo(0)), _.map(_ % 2))
       },
       test("finiteDuration generates values in range") {
         val min = 42.minutes + 23222.nanos
@@ -493,6 +504,9 @@ object GenSpec extends ZIOBaseSpec {
       test("yearMonth shrinks to YearMonth.of(Year.MIN_VALUE, Month.JANUARY)") {
         checkShrink(Gen.yearMonth)(YearMonth.of(Year.MIN_VALUE, Month.JANUARY))
       },
+      test("yearMonth shrinks to bottom of range") {
+        checkShrink(Gen.yearMonth(YearMonth.of(1980, 11), YearMonth.of(2100, 1)))(YearMonth.of(1980, 11))
+      },
       test("zoneOffset shrinks to ZoneOffset.MIN") {
         checkShrink(Gen.zoneOffset)(ZoneOffset.MIN)
       },
@@ -531,6 +545,9 @@ object GenSpec extends ZIOBaseSpec {
       },
       test("filter filters shrinks according to predicate") {
         checkShrink(Gen.int(1, 10).filter(_ % 2 == 0))(2)
+      },
+      test("filterZIO filters shrinks according to predicate") {
+        checkShrink(Gen.int(1, 10).filterZIO(n => ZIO.succeed(n % 2 == 0)))(2)
       },
       test("finiteDuration shrinks to min") {
         val min = 97.minutes + 13.seconds + 32.nanos
@@ -748,6 +765,16 @@ object GenSpec extends ZIOBaseSpec {
     test("map of keys with small domain") {
       check(Gen.mapOf(Gen.boolean, Gen.boolean)) { map =>
         assert(map)(anything)
+      }
+    },
+    test("bigInt with equal bounds") {
+      check(Gen.bigInt(1, 1)) { n =>
+        assertTrue(n == 1)
+      }
+    },
+    test("set of deterministic elements") {
+      check(Gen.setOfN(2)(Gen.fromIterable(List(1, 2, 3)))) { set =>
+        assertTrue(set.size == 2)
       }
     }
   )

@@ -1,8 +1,9 @@
 package zio
 
 import zio.ZIOAspect._
-import zio.metrics._
+import zio.internal.metrics.metricRegistry
 import zio.metrics.MetricKeyType.Histogram
+import zio.metrics._
 import zio.test._
 
 import java.time.temporal.ChronoUnit
@@ -95,6 +96,126 @@ object MetricSpec extends ZIOBaseSpec {
           _     <- ZIO.succeed("!") @@ c
           state <- base.tagged(MetricLabel("dyn", "!")).value
         } yield assertTrue(state == MetricState.Counter(2.0))
+      },
+      test("trackAll") {
+        val base = Metric.counter("c11")
+        val c    = base.trackAll(1)
+
+        for {
+          _     <- ZIO.succeed("tracked") @@ c
+          _     <- ZIO.succeed("tracked") @@ c
+          _     <- (ZIO.fail("tracked") @@ c).ignore
+          state <- base.value
+        } yield assertTrue(
+          state == MetricState.Counter(3.0),
+          state.count == 3.0
+        )
+      },
+      test("trackSuccess") {
+        val base = Metric.counter("c12").contramap[String](_ => 1)
+        val c    = base.trackSuccess
+
+        for {
+          _     <- ZIO.succeed("tracked") @@ c
+          _     <- ZIO.succeed("tracked") @@ c
+          _     <- (ZIO.fail("not tracked") @@ c).ignore
+          state <- base.value
+        } yield assertTrue(
+          state == MetricState.Counter(2.0),
+          state.count == 2.0
+        )
+      },
+      test("trackSuccessWith") {
+        val base = Metric.counter("c13")
+        val c    = base.trackSuccessWith[String](_ => 1)
+
+        for {
+          _     <- ZIO.succeed("tracked") @@ c
+          _     <- ZIO.succeed("tracked") @@ c
+          _     <- (ZIO.fail("not tracked") @@ c).ignore
+          state <- base.value
+        } yield assertTrue(
+          state == MetricState.Counter(2.0),
+          state.count == 2.0
+        )
+      },
+      test("trackError") {
+        val base = Metric.counter("c14").contramap[String](_ => 1)
+        val c    = base.trackError
+
+        for {
+          _     <- ZIO.succeed("not tracked") @@ c
+          _     <- (ZIO.fail("tracked") @@ c).ignore
+          _     <- (ZIO.fail("tracked") @@ c).ignore
+          state <- base.value
+        } yield assertTrue(
+          state == MetricState.Counter(2.0),
+          state.count == 2.0
+        )
+      },
+      test("trackErrorWith") {
+        val base = Metric.counter("c15")
+        val c    = base.trackErrorWith[String](_ => 1)
+
+        for {
+          _     <- ZIO.succeed("not tracked") @@ c
+          _     <- (ZIO.fail("tracked") @@ c).ignore
+          _     <- (ZIO.fail("tracked") @@ c).ignore
+          state <- base.value
+        } yield assertTrue(
+          state == MetricState.Counter(2.0),
+          state.count == 2.0
+        )
+      },
+      test("trackDefect") {
+        val base = Metric.counter("c16").contramap[Throwable](_ => 1)
+        val c    = base.trackDefect
+
+        for {
+          _     <- ZIO.succeed("not tracked") @@ c
+          _     <- (ZIO.dieMessage("tracked") @@ c).exit
+          _     <- (ZIO.dieMessage("tracked") @@ c).exit
+          state <- base.value
+        } yield assertTrue(
+          state == MetricState.Counter(2.0),
+          state.count == 2.0
+        )
+      },
+      test("trackDefectWith") {
+        val base = Metric.counter("c17")
+        val c    = base.trackDefectWith(_ => 1)
+
+        for {
+          _     <- ZIO.succeed("not tracked") @@ c
+          _     <- (ZIO.dieMessage("tracked") @@ c).exit
+          _     <- (ZIO.dieMessage("tracked") @@ c).exit
+          state <- base.value
+        } yield assertTrue(
+          state == MetricState.Counter(2.0),
+          state.count == 2.0
+        )
+      },
+      test("trackDuration") {
+        val base = Metric.counter("c18").contramap[Duration](_.toMillis)
+        val c    = base.trackDuration
+
+        for {
+          _     <- TestClock.adjust(1.milliseconds) @@ c
+          state <- base.value
+        } yield assertTrue(
+          state.count > 0.0
+        )
+      },
+      test("trackDurationWith") {
+        val base = Metric.counter("c19")
+        val c    = base.trackDurationWith(_.toMillis)
+
+        for {
+          _     <- TestClock.adjust(1.milliseconds) @@ c
+          state <- base.value
+        } yield assertTrue(
+          state.count > 0.0
+        )
       }
     ),
     suite("Gauge")(
@@ -225,13 +346,18 @@ object MetricSpec extends ZIOBaseSpec {
         } yield assertTrue(r0.count == 0L, r1.count == 1L, r2.count == 1L)
       },
       test("linear boundaries") {
-        val expected = Chunk(0, 10, 20, 30, 40, 50, 60, 70, 80, 90).map(_.toDouble) :+ Double.MaxValue
+        val expected = Chunk(10, 20, 30, 40, 50, 60, 70, 80, 90).map(_.toDouble) :+ Double.MaxValue
         val actual   = Histogram.Boundaries.linear(0, 10, 10).values
         assertTrue(actual == expected)
       },
       test("exponential boundaries") {
         val expected = Chunk(1, 2, 4, 8, 16, 32, 64, 128, 256, 512).map(_.toDouble) :+ Double.MaxValue
         val actual   = Histogram.Boundaries.exponential(1, 2, 10).values
+        assertTrue(actual == expected)
+      },
+      test("custom boundaries without zero and negative values") {
+        val expected = Chunk(10, 20).map(_.toDouble) :+ Double.MaxValue
+        val actual   = Histogram.Boundaries.fromChunk(Chunk(-10, 0, 10, 20)).values
         assertTrue(actual == expected)
       }
     ),
@@ -389,6 +515,44 @@ object MetricSpec extends ZIOBaseSpec {
         _ <- ZIO.unit @@ timer.trackDuration
         _ <- ZIO.unit @@ timerWithBoundaries.trackDuration
       } yield assertCompletes
+    },
+    test("timer with duration smaller than the unit") {
+      val timer = Metric.timer("timer", ChronoUnit.SECONDS)
+      for {
+        _         <- TestClock.adjust(1.milliseconds) @@ timer.trackDuration
+        histogram <- timer.value
+      } yield assertTrue(histogram.sum > 0d)
+    },
+    test("metrics with description") {
+      val name = "counterName"
+
+      val counter1 = Metric.counter(name)
+      val counter2 = Metric.counter(name, "description1")
+      val counter3 = Metric.counter(name, "description2")
+
+      for {
+        _        <- counter1.update(1L)
+        _        <- counter2.update(1L)
+        _        <- counter3.update(1L)
+        r1       <- counter1.value
+        r2       <- counter2.value
+        r3       <- counter3.value
+        snapshot <- ZIO.succeed(Unsafe.unsafe(implicit unsafe => metricRegistry.snapshot()))
+        pair1    <- ZIO.fromOption(snapshot.find(_.metricKey == MetricKey.counter(name)))
+        pair2    <- ZIO.fromOption(snapshot.find(_.metricKey == MetricKey.counter(name, "description1")))
+        pair3    <- ZIO.fromOption(snapshot.find(_.metricKey == MetricKey.counter(name, "description2")))
+      } yield assertTrue(
+        r1 == MetricState.Counter(1.0),
+        r2 == MetricState.Counter(1.0),
+        r3 == MetricState.Counter(1.0),
+        pair1.metricState == MetricState.Counter(1.0),
+        pair1.metricKey.description.isEmpty,
+        pair2.metricState == MetricState.Counter(1.0),
+        pair2.metricKey.description.contains("description1"),
+        pair2.metricKey.toString == "MetricKey(counterName,Counter,Set(),Some(description1))",
+        pair3.metricState == MetricState.Counter(1.0),
+        pair3.metricKey.description.contains("description2")
+      )
     }
   )
 }

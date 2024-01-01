@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2022-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,7 +59,8 @@ object MetricKeyType {
 
     object Boundaries {
 
-      def fromChunk(chunk: Chunk[Double]): Boundaries = Boundaries((chunk ++ Chunk(Double.MaxValue)).distinct)
+      def fromChunk(chunk: Chunk[Double]): Boundaries =
+        Boundaries((chunk.filter(_ > 0) ++ Chunk(Double.MaxValue)).distinct)
 
       /**
        * A helper method to create histogram bucket boundaries for a histogram

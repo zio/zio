@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import java.nio.{Buffer, ByteBuffer, CharBuffer}
 import java.nio.charset.{
   CharacterCodingException,
   Charset,
+  CharsetDecoder,
   CoderResult,
   MalformedInputException,
   StandardCharsets,
@@ -272,6 +273,13 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     that: => ZPipeline[Env1, Err1, In2, In]
   )(implicit trace: Trace): ZPipeline[Env1, Err1, In2, Out] =
     self <<< that
+
+  /**
+   * Returns a new pipeline which is the same as this one but applies the given
+   * function to the pipeline's input.
+   */
+  def contramap[In2](f: In2 => In)(implicit trace: Trace): ZPipeline[Env, Err, In2, Out] =
+    ZPipeline.fromChannel(channel.contramapIn(_.map(f)))
 
   /**
    * Converts this pipeline to a pipeline that executes its effects but emits no
@@ -911,8 +919,18 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     charset: => Charset,
     bufSize: => Int = 4096
   )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, Char] =
+    decodeCharsWithDecoder(charset.newDecoder(), bufSize)
+
+  /**
+   * Creates a pipeline that decodes a stream of bytes into a stream of
+   * characters using the given charset decoder.
+   */
+  def decodeCharsWithDecoder(
+    charsetDecoder: => CharsetDecoder,
+    bufSize: => Int = 4096
+  )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, Char] =
     ZPipeline.suspend {
-      val decoder    = charset.newDecoder()
+      val decoder    = charsetDecoder
       val byteBuffer = ByteBuffer.allocate(bufSize)
       val charBuffer = CharBuffer.allocate((bufSize.toFloat * decoder.averageCharsPerByte).round)
 
@@ -1824,6 +1842,18 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
     val target = scala.math.max(n, 1)
     new ZPipeline(ZChannel.suspend(process(new ZStream.Rechunker(target), target)))
+  }
+
+  /**
+   * Creates a pipeline that randomly samples elements according to the
+   * specified percentage.
+   */
+  def sample[In](p: => Double)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] = {
+    val clamped = if (p.isNaN || p < 0.0d) 0.0d else if (p > 1.0d) 1.0d else p
+    val channel = ZChannel
+      .identity[Nothing, Chunk[In], Any]
+      .mapOutZIO(_.filterZIO(_ => Random.nextDoubleBetween(0.0d, 1.0d).map(_ < clamped)))
+    ZPipeline.fromChannel(channel)
   }
 
   /**

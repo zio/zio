@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2021-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -315,7 +315,7 @@ private final class BoundedHubPow2[A](requestedCapacity: Int) extends Hub[A] {
               val currentState           = state.get
               val currentPublisherIndex  = (currentState >> 32).toInt
               val currentSubscriberIndex = subscriberIndex.get
-              val currentIndex           = currentSubscriberIndex % capacity
+              val currentIndex           = currentSubscriberIndex & mask
               if (currentSubscriberIndex == currentPublisherIndex) {
                 loop = false
               } else {

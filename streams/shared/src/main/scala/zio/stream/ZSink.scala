@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2018-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.nio.charset.{Charset, StandardCharsets}
 import java.util.concurrent.atomic.AtomicReference
+import scala.annotation.tailrec
 import scala.reflect.ClassTag
 
 final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z])
@@ -318,8 +319,20 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     failure: E => ZSink[R1, E2, In1, L1, Z1],
     success: Z => ZSink[R1, E2, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E2, In1, L1, Z1] =
+    this.foldCauseSink(
+      _.failureOrCause match {
+        case Left(err) => failure(err)
+        case Right(c)  => ZSink.failCause(c)
+      },
+      success
+    )
+
+  def foldCauseSink[R1 <: R, E2, In1 <: In, L1 >: L <: In1, Z1](
+    failure: Cause[E] => ZSink[R1, E2, In1, L1, Z1],
+    success: Z => ZSink[R1, E2, In1, L1, Z1]
+  )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E2, In1, L1, Z1] =
     new ZSink(
-      channel.collectElements.foldChannel(
+      channel.collectElements.foldCauseChannel(
         failure(_).channel,
         { case (leftovers, z) =>
           ZChannel.suspend {
@@ -379,7 +392,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     new ZSink(channel.mapZIO(f))
 
   /** Switch to another sink in case of failure */
-  def orElse[R1 <: R, In1 <: In, E2 >: E, L1 >: L, Z1 >: Z](
+  def orElse[R1 <: R, In1 <: In, E2, L1 >: L, Z1 >: Z](
     that: => ZSink[R1, E2, In1, L1, Z1]
   )(implicit trace: Trace): ZSink[R1, E2, In1, L1, Z1] =
     new ZSink[R1, E2, In1, L1, Z1](self.channel.orElse(that.channel))
@@ -458,22 +471,23 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     leftDone: Exit[E, Z] => ZChannel.MergeDecision[R1, E1, Z1, E1, Z2],
     rightDone: Exit[E1, Z1] => ZChannel.MergeDecision[R1, E, Z, E1, Z2]
   )(implicit trace: Trace): ZSink[R1, E1, In1, L1, Z2] = {
-    val scoped =
+    def scoped(scope: Scope) =
       for {
         hub   <- Hub.bounded[Either[Exit[Nothing, Any], Chunk[In1]]](capacity)
-        c1    <- ZChannel.fromHubScoped(hub)
-        c2    <- ZChannel.fromHubScoped(hub)
+        s1    <- scope.extend(hub.subscribe)
+        s2    <- scope.extend(hub.subscribe)
         reader = ZChannel.toHub[Nothing, Any, Chunk[In1]](hub)
-        writer = (c1 >>> self.channel).mergeWith(c2 >>> that.channel)(
-                   leftDone,
-                   rightDone
-                 )
+        writer = (ZChannel.fromQueue(s1) >>> self.channel <* ZChannel.fromZIO(s1.shutdown))
+                   .mergeWith((ZChannel.fromQueue(s2) >>> that.channel <* ZChannel.fromZIO(s2.shutdown)))(
+                     leftDone,
+                     rightDone
+                   )
         channel = reader.mergeWith(writer)(
                     _ => ZChannel.MergeDecision.await(ZIO.done(_)),
                     done => ZChannel.MergeDecision.done(ZIO.done(done))
                   )
       } yield new ZSink[R1, E1, In1, L1, Z2](channel)
-    ZSink.unwrapScoped(scoped)
+    ZSink.unwrapScopedWith(scoped)
   }
 
   def refineOrDie[E1](
@@ -921,19 +935,15 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     z: => S
   )(contFn: S => Boolean)(f: (S, In) => S)(implicit trace: Trace): ZSink[Any, Nothing, In, In, S] =
     ZSink.suspend {
-      def foldChunkSplit(z: S, chunk: Chunk[In])(
-        contFn: S => Boolean
-      )(f: (S, In) => S): (S, Chunk[In]) = {
+      def foldChunkSplit(z: S, chunk: Chunk[In]): (S, Chunk[In]) = {
+        @tailrec
         def fold(s: S, chunk: Chunk[In], idx: Int, len: Int): (S, Chunk[In]) =
-          if (idx == len) {
-            (s, Chunk.empty)
-          } else {
+          if (idx == len) (s, Chunk.empty)
+          else {
             val s1 = f(s, chunk(idx))
-            if (contFn(s1)) {
-              fold(s1, chunk, idx + 1, len)
-            } else {
-              (s1, chunk.drop(idx + 1))
-            }
+
+            if (contFn(s1)) fold(s1, chunk, idx + 1, len)
+            else (s1, chunk.drop(idx + 1))
           }
 
         fold(z, chunk, 0, chunk.length)
@@ -944,13 +954,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         else
           ZChannel.readWithCause(
             (in: Chunk[In]) => {
-              val (nextS, leftovers) = foldChunkSplit(s, in)(contFn)(f)
+              val (nextS, leftovers) = foldChunkSplit(s, in)
 
               if (leftovers.nonEmpty) ZChannel.write(leftovers).as(nextS)
               else reader(nextS)
             },
             (err: Cause[ZNothing]) => ZChannel.refailCause(err),
-            (x: Any) => ZChannel.succeedNow(s)
+            (_: Any) => ZChannel.succeedNow(s)
           )
 
       new ZSink(reader(z))
@@ -1038,8 +1048,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def foldLeftZIO[R, Err, In, S](z: => S)(
     f: (S, In) => ZIO[R, Err, S]
-  )(implicit trace: Trace): ZSink[R, Err, In, In, S] =
-    foldZIO[R, Err, In, S](z)(_ => true)(f)
+  )(implicit trace: Trace): ZSink[R, Err, In, Nothing, S] =
+    foldZIO[R, Err, In, S](z)(_ => true)(f).ignoreLeftover
 
   /**
    * Creates a sink that folds elements of type `In` into a structure of type
@@ -1725,6 +1735,14 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def unwrapScoped[R]: UnwrapScopedPartiallyApplied[R] =
     new UnwrapScopedPartiallyApplied[R]
+
+  /**
+   * Creates a sink produced from a scoped effect.
+   */
+  def unwrapScopedWith[R, E, In, L, Z](
+    f: Scope => ZIO[R, E, ZSink[R, E, In, L, Z]]
+  )(implicit trace: Trace): ZSink[R, E, In, L, Z] =
+    new ZSink(ZChannel.unwrapScopedWith(scope => f(scope).map(_.channel)))
 
   final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[Z](

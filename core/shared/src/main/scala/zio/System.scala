@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,8 @@ package zio
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import com.github.ghik.silencer.silent
-
 import java.lang.{System => JSystem}
+import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
 trait System extends Serializable { self =>
@@ -149,14 +148,14 @@ object System extends Serializable {
         override def envOrOption(variable: String, alt: => Option[String])(implicit unsafe: Unsafe): Option[String] =
           envOrOptionWith(variable, alt)(env)
 
-        @silent("JavaConverters")
+        @nowarn("msg=JavaConverters")
         override def envs()(implicit unsafe: Unsafe): Map[String, String] =
           JSystem.getenv.asScala.toMap
 
         override def lineSeparator()(implicit unsafe: Unsafe): String =
           JSystem.lineSeparator
 
-        @silent("JavaConverters")
+        @nowarn("msg=JavaConverters")
         override def properties()(implicit unsafe: Unsafe): Map[String, String] =
           JSystem.getProperties.asScala.toMap
 

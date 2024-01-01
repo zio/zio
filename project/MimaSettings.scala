@@ -6,7 +6,7 @@ import com.typesafe.tools.mima.core._
 import com.typesafe.tools.mima.core.ProblemFilters._
 
 object MimaSettings {
-  lazy val bincompatVersionToCompare = "2.0.10"
+  lazy val bincompatVersionToCompare = "2.0.18"
 
   def mimaSettings(failOnProblem: Boolean) =
     Seq(
@@ -20,7 +20,11 @@ object MimaSettings {
         exclude[Problem]("zio.stream.internal*"),
         exclude[MissingClassProblem]("zio.stream.ZChannel$ChildExecutorDecision*"),
         exclude[MissingClassProblem]("zio.stream.ZChannel$UpstreamPullRequest*"),
-        exclude[MissingClassProblem]("zio.stream.ZChannel$UpstreamPullStrategy*")
+        exclude[MissingClassProblem]("zio.stream.ZChannel$UpstreamPullStrategy*"),
+        exclude[MissingClassProblem]("zio.ZIO$EvaluationStep*"),
+        exclude[MissingClassProblem]("zio.ZIO$ZIOError*"),
+        exclude[MissingClassProblem]("zio.ZIO$OnFailure*"),
+        exclude[MissingClassProblem]("zio.ZIO$OnSuccess*")
       ),
       mimaFailOnProblem := failOnProblem
     )

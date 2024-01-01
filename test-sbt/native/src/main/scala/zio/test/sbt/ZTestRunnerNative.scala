@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -90,7 +90,15 @@ sealed class ZTestTask(
   sendSummary: SendSummary,
   testArgs: TestArgs,
   spec: ZIOSpecAbstract
-) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, zio.Runtime.default) {
+) extends BaseTestTask(
+      taskDef,
+      testClassLoader,
+      sendSummary,
+      testArgs,
+      spec,
+      zio.Runtime.default,
+      zio.Console.ConsoleLive
+    ) {
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[sbt.testing.Task] = {
     val fiber = Runtime.default.unsafe.fork {
@@ -126,7 +134,7 @@ sealed class ZTestTask(
     }(Trace.empty, Unsafe.unsafe)
     fiber.unsafe.addObserver { exit =>
       exit match {
-        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed.")
+        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed. $cause")
         case _                   =>
       }
     }(Unsafe.unsafe)

@@ -1,8 +1,8 @@
 name: CI
 
 env:
-  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx6G -Xss4M # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
-  JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx6G -Xss4M # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
+  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx6G -Xss4M -XX:+UseG1GC # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
+  JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx6G -Xss4M -XX:+UseG1GC # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
   NODE_OPTIONS: --max_old_space_size=6144
 
 on:
@@ -107,63 +107,43 @@ jobs:
     runs-on: ubuntu-20.04
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
-      - name: Checkout series/2.x Branch
+      - name: Checkout Current Branch
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.ref }}
           fetch-depth: '0'
-          path: 'series/2.x'
-
-      - name: Checkout series/1.x Branch
-        uses: actions/checkout@v3
-        with:
-          ref: 'series/1.x'
-          fetch-depth: '0'
-          path: 'series/1.x'
-
+          
       - name: Setup Scala and Java
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
-      - uses: actions/setup-node@v3
+          
+      - name: Install NodeJS
+        uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 20
 
-      - name: Generate Series 1.x Docs
-        working-directory: ./series/1.x
+      - name: Compile Docs
         run: |
-          sbt docs/mdoc
-          sbt docs/unidoc
+          while true; do free -h; sleep 5; done &
+          sbt -mem 2048 docs/mdoc -verbose
+          sbt -mem 2048 docs/unidoc -verbose
 
-      - name: Generate Series 2.x Docs
-        working-directory: ./series/2.x
-        run: |
-          sbt docs/mdoc
-          sbt docs/unidoc
-
-      - name: Move Series 1.x Docs To 2.x Docs
-        working-directory: ./
-        run: |
-          mkdir -p ./series/2.x/website/versioned_docs/version-1.x
-          mv ./series/1.x/zio-docs/target/mdoc/* ./series/2.x/website/versioned_docs/version-1.x
-          mkdir -p ./series/2.x/website/static/api/1.x
-          mv ./series/1.x/website/static/api ./series/2.x/website/static/api-1.x
-
-      - name: Install The Whole Website
-        working-directory: ./series/2.x/website
+      - name: Build The Website
+        working-directory: ./website
         run: |
           rm -Rf node_modules
           yarn install 
           yarn build 
 
-      - uses: actions/upload-artifact@v3
+      - name: Cache Website's Build Artifacts
+        uses: actions/upload-artifact@v3
         with:
           name: website-artifact
-          path: ./series/2.x/website/build
+          path: ./website/build
 
       - name: Print All Generated Files
-        run: find ./series/2.x/website/build -print
+        run: find ./website/build -print
 
   test:
     runs-on: ubuntu-20.04
@@ -172,7 +152,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scala: ['2.12.17', '2.13.10', '3.2.2']
+        scala: ['2.12.18', '2.13.12', '3.3.1']
         java: ['17']
         platform: ['JVM']
     steps:
@@ -236,7 +216,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['8', '11']
+        java: ['11']
         platform: ['JVM']
     steps:
       - name: Checkout current branch
@@ -252,12 +232,6 @@ jobs:
       - name: Test on different JVM versions
         run: ./sbt test${{ matrix.platform }}
 
-      - name: Report Test Death JVM 8
-        if: ${{ failure() &&  startsWith(matrix.java, '8') }}
-        uses: actions/upload-artifact@v3
-        with:
-          name: zio-test-debug-JVM-8
-          path: ./**/test-reports-zio/**_debug.txt
       - name: Report Test Death JVM 11
         if: ${{ failure() &&  startsWith(matrix.java, '11') }}
         uses: actions/upload-artifact@v3
@@ -332,7 +306,7 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout series/1.x Branch
+      - name: Checkout
         uses: actions/checkout@v3
         with:
           fetch-depth: 0

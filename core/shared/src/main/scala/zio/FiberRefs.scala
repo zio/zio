@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import scala.annotation.tailrec
  * example between an asynchronous producer and consumer.
  */
 final class FiberRefs private (
-  private[zio] val fiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]
+  private[zio] val fiberRefLocals: Map[FiberRef[_], (::[(FiberId.Runtime, Any, Int)], Int)]
 ) { self =>
 
   /**
@@ -47,11 +47,11 @@ final class FiberRefs private (
    * individual fiber refs that make up the collection.
    */
   def forkAs(childId: FiberId.Runtime): FiberRefs = {
-    val childFiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]] =
-      fiberRefLocals.transform { case (fiberRef, stack) =>
+    val childFiberRefLocals: Map[FiberRef[_], (::[(FiberId.Runtime, Any, Int)], Int)] =
+      fiberRefLocals.transform { case (fiberRef, (stack, depth)) =>
         val oldValue = stack.head._2.asInstanceOf[fiberRef.Value]
         val newValue = fiberRef.patch(fiberRef.fork)(oldValue)
-        if (oldValue == newValue) stack else ::(childId -> newValue, stack)
+        if (oldValue == newValue) (stack, depth) else (::((childId, newValue, 0), stack), depth + 1)
       }
 
     FiberRefs(childFiberRefLocals)
@@ -62,7 +62,7 @@ final class FiberRefs private (
    * values if it exists or `None` otherwise.
    */
   def get[A](fiberRef: FiberRef[A]): Option[A] =
-    fiberRefLocals.get(fiberRef).map(_.head._2.asInstanceOf[A])
+    fiberRefLocals.get(fiberRef).map(_._1.head._2.asInstanceOf[A])
 
   /**
    * Gets the value of the specified `FiberRef` in this collection of `FiberRef`
@@ -80,45 +80,47 @@ final class FiberRefs private (
     val parentFiberRefs = self.fiberRefLocals
     val childFiberRefs  = that.fiberRefLocals
 
-    val fiberRefLocals = childFiberRefs.foldLeft(parentFiberRefs) { case (parentFiberRefs, (fiberRef, childStack)) =>
-      val ref        = fiberRef.asInstanceOf[FiberRef[Any]]
-      val childValue = childStack.head._2
+    val fiberRefLocals = childFiberRefs.foldLeft(parentFiberRefs) {
+      case (parentFiberRefs, (fiberRef, (childStack, childDepth))) =>
+        val ref        = fiberRef.asInstanceOf[FiberRef[Any]]
+        val childValue = childStack.head._2
 
-      if (childStack.head._1 == fiberId) {
-        parentFiberRefs
-      } else {
+        if (childStack.head._1 == fiberId) {
+          parentFiberRefs
+        } else {
 
-        parentFiberRefs
-          .get(ref)
-          .fold {
-            if (childValue == ref.initial) parentFiberRefs
-            else parentFiberRefs.updated(ref, ::((fiberId, ref.join(ref.initial, childValue)), Nil))
-          } { parentStack =>
-            def compareFiberId(left: FiberId.Runtime, right: FiberId.Runtime): Int = {
-              val compare = left.startTimeMillis.compare(right.startTimeMillis)
-              if (compare == 0) left.id.compare(right.id) else compare
-            }
+          parentFiberRefs
+            .get(ref)
+            .fold {
+              if (childValue == ref.initial) parentFiberRefs
+              else parentFiberRefs.updated(ref, (::((fiberId, ref.join(ref.initial, childValue), 0), Nil), 1))
+            } { case (parentStack, parentDepth) =>
+              @tailrec
+              def findAncestor(
+                parentStack: List[(FiberId.Runtime, Any, Int)],
+                parenthDepth: Int,
+                childStack: List[(FiberId.Runtime, Any, Int)],
+                childDepth: Int
+              ): Any =
+                (parentStack, childStack) match {
+                  case (
+                        (parentFiberId, parentValue, parentVersion) :: parentAncestors,
+                        (childFiberId, childValue, childVersion) :: childAncestors
+                      ) =>
+                    if (parentFiberId == childFiberId)
+                      if (childVersion > parentVersion) parentValue else childValue
+                    else if (childDepth > parentDepth)
+                      findAncestor(parentStack, parentDepth, childAncestors, childDepth - 1)
+                    else if (childDepth < parentDepth)
+                      findAncestor(parentAncestors, parentDepth - 1, childStack, childDepth)
+                    else
+                      findAncestor(parentAncestors, parentDepth - 1, childAncestors, childDepth - 1)
+                  case _ =>
+                    (ref.initial)
+                }
 
-            @tailrec
-            def findAncestor(
-              parentStack: List[(FiberId.Runtime, Any)],
-              childStack: List[(FiberId.Runtime, Any)],
-              childModified: Boolean = false
-            ): (Any, Boolean) =
-              (parentStack, childStack) match {
-                case ((parentFiberId, _) :: parentAncestors, (childFiberId, childValue) :: childAncestors) =>
-                  val compare = compareFiberId(parentFiberId, childFiberId)
-                  if (compare < 0) findAncestor(parentStack, childAncestors, true)
-                  else if (compare > 0) findAncestor(parentAncestors, childStack, childModified)
-                  else (childValue, childModified)
-                case _ =>
-                  (ref.initial, true)
-              }
+              val ancestor = findAncestor(parentStack, parentDepth, childStack, childDepth)
 
-            val (ancestor, wasModified) = findAncestor(parentStack, childStack)
-
-            if (!wasModified) parentFiberRefs
-            else {
               val patch = ref.diff(ancestor, childValue)
 
               val oldValue = parentStack.head._2
@@ -126,16 +128,15 @@ final class FiberRefs private (
 
               if (oldValue == newValue) parentFiberRefs
               else {
-                val newStack = parentStack match {
-                  case (parentFiberId, _) :: tail =>
-                    if (parentFiberId == fiberId) ::((parentFiberId, newValue), tail)
-                    else ::((fiberId, newValue), parentStack)
+                val (newStack, newDepth) = parentStack match {
+                  case (parentFiberId, _, parentVersion) :: tail =>
+                    if (parentFiberId == fiberId) (::((parentFiberId, newValue, parentVersion + 1), tail), parentDepth)
+                    else (::((fiberId, newValue, 0), parentStack), parentDepth + 1)
                 }
-                parentFiberRefs.updated(ref, newStack)
+                parentFiberRefs.updated(ref, (newStack, newDepth))
               }
             }
-          }
-      }
+        }
     }
 
     FiberRefs(fiberRefLocals)
@@ -149,14 +150,15 @@ final class FiberRefs private (
   override final def toString(): String = fiberRefLocals.mkString("FiberRefLocals(", ",", ")")
 
   def updatedAs[A](fiberId: FiberId.Runtime)(fiberRef: FiberRef[A], value: A): FiberRefs = {
-    val oldStack = fiberRefLocals.get(fiberRef).getOrElse(List.empty)
-    val newStack =
-      if (oldStack.isEmpty) ::((fiberId, value.asInstanceOf[Any]), Nil)
-      else if (oldStack.head._1 == fiberId) ::((fiberId, value.asInstanceOf[Any]), oldStack.tail)
-      else if (oldStack.head._2 == value) ::(oldStack.head, oldStack.tail)
-      else ::((fiberId, value), oldStack)
+    val (oldStack, oldDepth) = fiberRefLocals.get(fiberRef).getOrElse((List.empty, 0))
+    val (newStack, newDepth) =
+      if (oldStack.isEmpty) (::((fiberId, value.asInstanceOf[Any], 0), Nil), 1)
+      else if (oldStack.head._1 == fiberId)
+        (::((fiberId, value.asInstanceOf[Any], oldStack.head._3 + 1), oldStack.tail), oldDepth)
+      else if (oldStack.head._2 == value) (::(oldStack.head, oldStack.tail), oldDepth)
+      else (::((fiberId, value, 0), oldStack), oldDepth + 1)
 
-    FiberRefs(fiberRefLocals.updated(fiberRef, newStack))
+    FiberRefs(fiberRefLocals.updated(fiberRef, (newStack, newDepth)))
   }
 }
 
@@ -168,7 +170,7 @@ object FiberRefs {
   val empty: FiberRefs =
     FiberRefs(Map.empty)
 
-  private[zio] def apply(fiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]): FiberRefs =
+  private[zio] def apply(fiberRefLocals: Map[FiberRef[_], (::[(FiberId.Runtime, Any, Int)], Int)]): FiberRefs =
     new FiberRefs(fiberRefLocals)
 
   /**
@@ -232,7 +234,7 @@ object FiberRefs {
      */
     def diff(oldValue: FiberRefs, newValue: FiberRefs): Patch = {
       val (removed, patch) = newValue.fiberRefLocals.foldLeft[(FiberRefs, Patch)](oldValue -> empty) {
-        case ((fiberRefs, patch), (fiberRef, (_, newValue) :: _)) =>
+        case ((fiberRefs, patch), (fiberRef, ((_, newValue, _) :: _, _))) =>
           fiberRefs.get(fiberRef) match {
             case Some(oldValue) =>
               if (oldValue == newValue)

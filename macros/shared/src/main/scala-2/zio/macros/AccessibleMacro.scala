@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,7 @@
 
 package zio.macros
 
-import com.github.ghik.silencer.silent
-
+import scala.annotation.nowarn
 import scala.reflect.macros.whitebox
 
 /**
@@ -29,7 +28,7 @@ private[macros] class AccessibleMacro(override val c: whitebox.Context) extends 
 
   protected val macroName: String = "accessible"
 
-  @silent("pattern var [^\\s]+ in method unapply is never used")
+  @nowarn("msg=pattern var [^\\s]+ in method unapply is never used")
   override def macroApply(annottees: Seq[c.Tree]): MacroApply = new MacroApply(annottees) {
     protected def treeTpe(tree: Tree): Type =
       (tree: @unchecked) match {

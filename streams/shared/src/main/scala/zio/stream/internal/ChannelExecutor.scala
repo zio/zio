@@ -475,15 +475,20 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
     closeFns: (Exit[Any, Any]) => URIO[Env, Any]*
   )(implicit trace: Trace): ChannelState[Env, Any] = {
     addFinalizer { _ =>
-      ZIO.foreachDiscard(closeFns) { closeFn =>
-        ZIO.succeed(closeFn(subexecDone)).flatMap { closeEffect =>
-          if (closeEffect ne null) {
-            closeEffect
-          } else {
-            ZIO.unit
-          }
+      ZIO
+        .foreach(closeFns) { closeFn =>
+          ZIO
+            .succeed(closeFn(subexecDone))
+            .flatMap { closeEffect =>
+              if (closeEffect ne null) {
+                closeEffect
+              } else {
+                ZIO.unit
+              }
+            }
+            .exit
         }
-      }
+        .flatMap(Exit.collectAll(_).getOrElse(Exit.unit))
     }
 
     val state = subexecDone.foldExit(doneHalt, doneSucceed)

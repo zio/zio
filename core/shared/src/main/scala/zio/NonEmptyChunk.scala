@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -295,13 +295,19 @@ object NonEmptyChunk {
     NonEmptyChunk(a)
 
   /**
-   * Extracts the elements from a `NonEmptyChunk`.
+   * Extracts the elements from a `Chunk`.
    */
   def unapplySeq[A](seq: Seq[A]): Option[Seq[A]] =
     seq match {
       case chunk: Chunk[A] if chunk.nonEmpty => Some(chunk)
       case _                                 => None
     }
+
+  /**
+   * Extracts the elements from a `NonEmptyChunk`.
+   */
+  def unapplySeq[A](nonEmptyChunk: NonEmptyChunk[A]): Some[Seq[A]] =
+    Some(nonEmptyChunk.chunk)
 
   /**
    * The unit non-empty chunk.

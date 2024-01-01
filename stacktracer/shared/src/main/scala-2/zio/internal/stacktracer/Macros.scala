@@ -1,11 +1,9 @@
 package zio.internal.stacktracer
 
 import scala.reflect.macros.{blackbox, whitebox}
-import com.github.ghik.silencer.silent
 import zio.internal.stacktracer.Tracer.createTrace
 import zio.stacktracer.DisableAutoTrace
 
-@silent
 object Macros {
 
   def sourceLocation(c: blackbox.Context): c.Tree = {

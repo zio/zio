@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,6 +72,23 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     that: => ZLayer[RIn1, E1, ROut1]
   )(implicit ev: CanFail[E], trace: Trace): ZLayer[RIn1, E1, ROut1] =
     self.orElse(that)
+
+  /**
+   * Returns a new layer that applies the specified aspect to this layer.
+   * Aspects are "transformers" that modify the behavior of their input in some
+   * well-defined way (for example, adding a timeout).
+   */
+  final def @@[
+    LowerRIn <: UpperRIn,
+    UpperRIn <: RIn,
+    LowerE >: E,
+    UpperE >: LowerE,
+    LowerROut >: ROut,
+    UpperROut >: LowerROut
+  ](
+    aspect: => ZLayerAspect[LowerRIn, UpperRIn, LowerE, UpperE, LowerROut, UpperROut]
+  )(implicit trace: Trace): ZLayer[UpperRIn, LowerE, LowerROut] =
+    ZLayer.suspend(aspect(self))
 
   /**
    * A named alias for `++`.
@@ -419,9 +436,14 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
       case ZLayer.ZipWith(self, that, f) =>
         ZIO.succeed(memoMap => memoMap.getOrElseMemoize(scope)(self).zipWith(memoMap.getOrElseMemoize(scope)(that))(f))
       case ZLayer.ZipWithPar(self, that, f) =>
-        ZIO.succeed(memoMap =>
-          memoMap.getOrElseMemoize(scope)(self).zipWithPar(memoMap.getOrElseMemoize(scope)(that))(f)
-        )
+        ZIO.succeed { memoMap =>
+          for {
+            parallel <- scope.forkWith(ExecutionStrategy.Parallel)
+            left     <- parallel.forkWith(scope.executionStrategy)
+            right    <- parallel.forkWith(scope.executionStrategy)
+            out      <- memoMap.getOrElseMemoize(left)(self).zipWithPar(memoMap.getOrElseMemoize(right)(that))(f)
+          } yield out
+        }
     }
 }
 
@@ -468,6 +490,202 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     trace: Trace
   ): ZLayer[RIn, E, ROut] =
     ZLayer.fromZIO(zio)
+
+  object Derive {
+
+    /**
+     * Defines a resourceful effect that will be attached to the lifetime of the
+     * `ZLayer` derived by [[ZLayer.derive]].
+     *
+     * The 'resourceful' effect might be a background task, a lock file, or
+     * etc., that can be managed by [[Scope]].
+     *
+     * If [[scoped]] fails during resource acquisition, the entire `ZLayer`
+     * initialization process fails.
+     *
+     * @note
+     *   This trait is specifically designed to work with [[ZLayer.derive]].
+     *   Using it outside this context won't inherently attach any resourceful
+     *   behaviors to the type.
+     *
+     * {{{
+     * class ThirdPartyService(connection: Connection) extends ZLayer.Derive.Scoped[Any, Nothing] {
+     *
+     *   // Repeats health check every 10 seconds in background during the layer's lifetime
+     *   override def scoped(implicit trace: Trace): ZIO[Scope, Nothing, Any] =
+     *     connection.healthCheck
+     *       .ignoreLogged
+     *       .repeat(Schedule.spaced(10.seconds))
+     *       .forkScoped
+     * }
+     *
+     * object ThirdPartyService {
+     *   // `ZLayer.Derive.Scoped` should be used with `ZLayer.derive`
+     *   val layer = ZLayer.derive[ThirdPartyService]
+     * }
+     * }}}
+     */
+    trait Scoped[-R, +E] {
+      def scoped(implicit trace: Trace): ZIO[R & Scope, E, Any]
+    }
+
+    /**
+     * A special form of [[Scoped]] for convenience.
+     *
+     * When using [[ZLayer.derive]] with a type that implements
+     * `AcquireRelease`, the provided `acquire` and `release` methods will be
+     * automatically utilized as the lifecycle hooks.
+     *
+     * @note
+     *   This trait's lifecycle hooks are specifically designed to work with
+     *   [[ZLayer.derive]]. Using it outside this context won't inherently
+     *   attach any lifecycle behaviors to the type.
+     */
+    trait AcquireRelease[-R, +E, A] extends Scoped[R, E] {
+      final def scoped(implicit trace: Trace): ZIO[R & Scope, E, A] =
+        ZIO.acquireRelease(acquire)(release)
+
+      def acquire: ZIO[R, E, A]
+
+      def release(a: A): ZIO[R, Nothing, Any]
+    }
+
+    /**
+     * Provides a default way to construct or provide an instance of type `A`.
+     *
+     * Used during `ZLayer` derivation to resolve dependencies. If an implicit
+     * `ZLayer.Derive.Default[A]` instance exists for a type, it signifies that
+     * a default value can be used, bypassing the dependency in the `ZLayer`
+     * environment.
+     *
+     * @note
+     *   When type-annotating the implicit val, ensure it's in the form
+     *   `Default.WithContext[R, E, A]` rather than just `Default[A]` to ensure
+     *   correct type inference and dependency resolution during `ZLayer`
+     *   derivation.
+     */
+    trait Default[+A] {
+      type R
+      type E
+
+      def layer: ZLayer[R, E, A]
+    }
+    object Default extends DefaultInstances0 {
+
+      type WithContext[R0, E0, A] = Default[A] {
+        type R = R0
+        type E = E0
+      }
+
+      /**
+       * Summons the implicit default for the specified type.
+       */
+      def apply[A](implicit ev: Default[A]): Default.WithContext[ev.R, ev.E, A] = ev
+
+      /**
+       * Constructs a default layer using the provided value.
+       */
+      def succeed[A: Tag](a: => A)(implicit trace: Trace): Default.WithContext[Any, Nothing, A] =
+        Default.fromZIO(ZIO.succeed(a))
+
+      /**
+       * Constructs a default layer using the provided ZIO value.
+       */
+      def fromZIO[R, E, A: Tag](zio: => ZIO[R, E, A])(implicit trace: Trace): Default.WithContext[R, E, A] =
+        fromLayer(ZLayer.fromZIO(zio))
+
+      /**
+       * Uses the provided layer as the default layer.
+       */
+      def fromLayer[R0, E0, A: Tag](
+        zlayer: => ZLayer[R0, E0, A]
+      )(implicit trace: Trace): Default.WithContext[R0, E0, A] =
+        new Default[A] {
+          type R = R0
+          type E = E0
+          def layer: ZLayer[R, E, A] = zlayer
+        }
+
+      /**
+       * Makes a default value that requires the specified service from the
+       * environment.
+       *
+       * Used to discard a predefined Default instance for [[ZLayer.derive]].
+       *
+       * @example
+       * {{{
+       * class Wheels(number: Int)
+       * object Wheels {
+       *   implicit val defaultWheels: ZLayer.Default.WithContext[Any, Nothing, Wheels] =
+       *     ZLayer.Default.succeed(new Wheels(4))
+       * }
+       * class Car(wheels: Wheels)
+       *
+       * val carLayer1: ULayer[Car] = ZLayer.derive // wheels.number == 4
+       * val carLayer2: URLayer[Wheels, Car] = locally {
+       *   // The default instance is discarded
+       *   implicit val newWheels: ZLayer.Default.WithContext[Wheels, Nothing, Wheels] =
+       *       ZLayer.Default.service[Wheels]
+       *
+       *   ZLayer.derive[Car]
+       * }
+       * }}}
+       */
+      def service[A: Tag](implicit trace: Trace): Default.WithContext[A, Nothing, A] =
+        fromLayer(ZLayer.service[A])
+
+      implicit final class ZLayerDefaultInvariantOps[R, E, A](private val self: Default.WithContext[R, E, A])
+          extends AnyVal {
+
+        /**
+         * Returns a new default layer mapped by the specified function.
+         */
+        def map[B: Tag](f: A => B)(implicit tag: Tag[A], trace: Trace): Default.WithContext[R, E, B] =
+          fromLayer(self.layer.project(f))
+
+        /**
+         * Constructs a new default layer dynamically based on the output of the
+         * current default layer.
+         */
+        def mapZIO[R1 <: R, E1 >: E, B: Tag](
+          k: A => ZIO[R1, E1, B]
+        )(implicit tag: Tag[A], trace: Trace): Default.WithContext[R1, E1, B] =
+          fromLayer(self.layer.flatMap(a => ZLayer(k(a.get[A]))))
+      }
+
+      implicit def deriveDefaultConfig[A: Tag](implicit
+        ev: Config[A],
+        trace: Trace
+      ): Default.WithContext[Any, Config.Error, A] =
+        fromZIO(ZIO.config(ev))
+
+      implicit def deriveDefaultPromise[E: Tag, A: Tag](implicit
+        trace: Trace
+      ): Default.WithContext[Any, Nothing, Promise[E, A]] =
+        fromZIO(Promise.make[E, A])
+
+      implicit def deriveDefaultQueue[A: Tag](implicit trace: Trace): Default.WithContext[Any, Nothing, Queue[A]] =
+        fromZIO(Queue.unbounded[A])
+
+      implicit def deriveDefaultHub[A: Tag](implicit trace: Trace): Default.WithContext[Any, Nothing, Hub[A]] =
+        fromZIO(Hub.unbounded[A])
+
+      implicit def deriveDefaultRef[A: Tag](implicit
+        ev: Default[A],
+        trace: Trace
+      ): Default.WithContext[ev.R, ev.E, Ref[A]] =
+        fromLayer(ev.layer.project(a => Unsafe.unsafe(implicit unsafe => Ref.unsafe.make(a))))
+    }
+
+    private[Derive] trait DefaultInstances0 { this: Default.type =>
+
+      implicit def defaultPromiseNothing[A: Tag](implicit
+        trace: Trace
+      ): Default.WithContext[Any, Nothing, Promise[Nothing, A]] =
+        this.fromZIO(Promise.make[Nothing, A])
+    }
+
+  }
 
   sealed trait Debug
 

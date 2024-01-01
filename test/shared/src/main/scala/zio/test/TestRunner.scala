@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,11 +38,10 @@ final case class TestRunner[R, E](executor: TestExecutor[R, E]) { self =>
     implicit trace: Trace
   ): UIO[Summary] =
     for {
-      start    <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
-      summary  <- executor.run(fullyQualifiedName, spec, defExec)
-      finished <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
-      duration  = Duration.fromMillis(finished - start)
-    } yield summary.copy(duration = duration)
+      start   <- ClockLive.instant
+      summary <- executor.run(fullyQualifiedName, spec, defExec)
+      end     <- ClockLive.instant
+    } yield summary.timed(start, end)
 
   trait UnsafeAPI {
     def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Unit

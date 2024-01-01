@@ -1,12 +1,10 @@
 package zio.metrics.jvm
 
-import com.github.ghik.silencer.silent
-
 import zio._
 import zio.metrics._
 
 import java.lang.management.{BufferPoolMXBean, ManagementFactory}
-
+import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
 final case class BufferPools(
@@ -16,7 +14,7 @@ final case class BufferPools(
 )
 
 object BufferPools {
-  @silent("JavaConverters")
+  @nowarn("msg=JavaConverters")
   val live: ZLayer[JvmMetricsSchedule, Throwable, Reloadable[BufferPools]] =
     ZLayer.scoped {
       for {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -105,7 +105,7 @@ trait FiberRef[A] extends Serializable { self =>
 
   def delete(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-      fiberState.deleteFiberRef(self)(Unsafe.unsafe)
+      fiberState.deleteFiberRef(self)
       ZIO.unit
     }
 
@@ -194,9 +194,9 @@ trait FiberRef[A] extends Serializable { self =>
    */
   def modify[B](f: A => (B, A))(implicit trace: Trace): UIO[B] =
     ZIO.withFiberRuntime[Any, Nothing, B] { (fiberState, _) =>
-      val (b, a) = f(fiberState.getFiberRef(self)(Unsafe.unsafe))
+      val (b, a) = f(fiberState.getFiberRef(self))
 
-      fiberState.setFiberRef(self, a)(Unsafe.unsafe)
+      fiberState.setFiberRef(self, a)
 
       ZIO.succeed(b)
     }
@@ -347,8 +347,8 @@ object FiberRef {
    */
   def make[A](
     initial: => A,
-    fork: A => A = (a: A) => a,
-    join: (A, A) => A = ((_: A, a: A) => a)
+    fork: A => A = ZIO.identityFn[A],
+    join: (A, A) => A = ZIO.secondFn[A]
   )(implicit trace: Trace): ZIO[Scope, Nothing, FiberRef[A]] =
     makeWith(unsafe.make(initial, fork, join)(Unsafe.unsafe))
 
@@ -361,6 +361,17 @@ object FiberRef {
     trace: Trace
   ): ZIO[Scope, Nothing, FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]]] =
     makeWith(unsafe.makeEnvironment(initial)(Unsafe.unsafe))
+
+  /**
+   * Creates a new `FiberRef` with the specified initial value, using the
+   * specified patch type to combine updates to the value in a compositional
+   * way.
+   */
+  def makePatch[Value, Patch](
+    initial: Value,
+    differ: Differ[Value, Patch]
+  )(implicit trace: Trace): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
+    makePatch(initial, differ, differ.empty)
 
   /**
    * Creates a new `FiberRef` with the specified initial value, using the
@@ -388,7 +399,7 @@ object FiberRef {
     def make[A](
       initial: A,
       fork: A => A = ZIO.identityFn[A],
-      join: (A, A) => A = ((_: A, a: A) => a)
+      join: (A, A) => A = ZIO.secondFn[A]
     )(implicit unsafe: Unsafe): FiberRef.WithPatch[A, A => A] =
       makePatch[A, A => A](
         initial,
@@ -455,12 +466,12 @@ object FiberRef {
 
         override def get(implicit trace: Trace): UIO[Value] =
           ZIO.withFiberRuntime[Any, Nothing, Value] { (fiberState, _) =>
-            ZIO.succeed(fiberState.getFiberRef(self)(Unsafe.unsafe))
+            ZIO.succeed(fiberState.getFiberRef(self))
           }
 
         override def getWith[R, E, A](f: Value => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
           ZIO.withFiberRuntime[R, E, A] { (fiberState, _) =>
-            f(fiberState.getFiberRef(self)(Unsafe.unsafe))
+            f(fiberState.getFiberRef(self))
           }
 
         override def locally[R, E, A](newValue: Value)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
@@ -469,12 +480,12 @@ object FiberRef {
 
             fiberState.setFiberRef(self, newValue)
 
-            zio.ensuring(ZIO.succeed(fiberState.setFiberRef(self, oldValue)(Unsafe.unsafe)))
+            zio.ensuring(ZIO.succeed(fiberState.setFiberRef(self, oldValue)))
           }
 
         override def set(value: Value)(implicit trace: Trace): UIO[Unit] =
           ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-            fiberState.setFiberRef(self, value)(Unsafe.unsafe)
+            fiberState.setFiberRef(self, value)
 
             ZIO.unit
           }

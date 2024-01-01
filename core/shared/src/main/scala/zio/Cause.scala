@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -462,6 +462,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       (cause, stackless) => Stackless(cause, stackless)
     )
 
+  final def nonEmpty: Boolean = !isEmpty
+
   /**
    * Returns a `String` with the cause pretty-printed.
    */
@@ -493,7 +495,19 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       unified.trace.foreach(trace => append(s"${traceIndent}at ${trace}"))
     }
 
-    self.linearize.foreach(appendCause)
+    val (die, fail, interrupt) =
+      self.linearize.foldLeft((Set.empty[Cause[E]], Set.empty[Cause[E]], Set.empty[Cause[E]])) {
+        case ((die, fail, interrupt), cause) =>
+          cause.find {
+            case Die(_, _)       => (die + cause, fail, interrupt)
+            case Fail(_, _)      => (die, fail + cause, interrupt)
+            case Interrupt(_, _) => (die, fail, interrupt + cause)
+          }.getOrElse((die, fail, interrupt))
+      }
+
+    die.foreach(appendCause)
+    fail.foreach(appendCause)
+    interrupt.foreach(appendCause)
     builder.result.mkString("\n")
   }
 

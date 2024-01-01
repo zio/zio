@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2021-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -171,13 +171,15 @@ object Hub {
           else ZIO.succeed(hub.size())
         }
       def subscribe(implicit trace: Trace): ZIO[Scope, Nothing, Dequeue[A]] =
-        ZIO.acquireRelease {
-          makeSubscription(hub, subscribers, strategy).tap { dequeue =>
-            scope.addFinalizer(dequeue.shutdown)
-          }
-        } { dequeue =>
-          dequeue.shutdown
-        }
+        ZIO.acquireReleaseExit {
+          for {
+            child   <- scope.fork
+            dequeue <- makeSubscription(hub, subscribers, strategy)
+            _       <- child.addFinalizer(dequeue.shutdown)
+          } yield (dequeue, child)
+        } { case ((_, scope), exit) =>
+          scope.close(exit)
+        }.map(_._1)
     }
 
   /**
@@ -229,8 +231,11 @@ object Hub {
           ZIO
             .whenZIO(shutdownHook.succeed(())) {
               ZIO.foreachPar(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
-                ZIO.succeed(subscription.unsubscribe()) *>
-                ZIO.succeed(strategy.unsafeOnHubEmptySpace(hub, subscribers))
+                ZIO.succeed {
+                  subscribers.remove(subscription -> pollers)
+                  subscription.unsubscribe()
+                  strategy.unsafeOnHubEmptySpace(hub, subscribers)
+                }
             }
             .unit
         }.uninterruptible

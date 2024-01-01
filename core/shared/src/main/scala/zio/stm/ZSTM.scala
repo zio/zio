@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,13 @@
 
 package zio.stm
 
-import com.github.ghik.silencer.silent
 import zio._
 import zio.internal.{Stack, Sync}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 import java.util.{HashMap => MutableMap}
-import scala.annotation.tailrec
+import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable.Builder
 import scala.util.{Failure, Success, Try}
 
@@ -1712,7 +1711,7 @@ object ZSTM {
 
           loop = !todo.compareAndSet(oldTodo, emptyTodo)
 
-          if (!loop) allTodos.putAll(oldTodo.asJava): @silent("JavaConverters")
+          if (!loop) allTodos.putAll(oldTodo.asJava): @nowarn("msg=JavaConverters")
         }
       }
 

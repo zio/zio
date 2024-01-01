@@ -9,7 +9,7 @@ import zio._
 ```
 
 ## Why Chunk?
-Arrays are fast and don’t box primitive values. ZIO Chunk is a wrapper on Java array. So also Chunks have zero boxing for primitives, but due to ClassTag requirements and mutability, they are painful to use and don’t integrate well into functional code.
+Arrays are fast and don’t box primitive values but due to `ClassTag` requirements and mutability they are painful to use and don't integrate well info functional code. ZIO chunks are backed by arrays so they also have zero boxing for primitives while providing an immutable interface and avoiding `ClassTag` requirements.
 
 Lets to get more details behind why Chunk invented:
 

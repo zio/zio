@@ -299,6 +299,11 @@ Sometimes we have to deal with a high volume of incoming requests. In spite of p
 Each actor in Akka has a mailbox that is used to store incoming messages. The mailbox is a FIFO queue. Actors only process one message at a time. If an actor receives more messages than it can process, the messages will be pending in the mailbox:
 
 ```scala
+import akka.actor.{Actor, ActorSystem, Props}
+
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 object MainApp extends scala.App {
   val actorSystem = ActorSystem("parallel-app")
   val worker = actorSystem.actorOf(Props[JobRunner], "worker")
@@ -310,6 +315,8 @@ object MainApp extends scala.App {
   }
 
   println("All messages were sent to the actor!")
+
+  Await.result(actorSystem.whenTerminated, Duration.Inf)
 }
 ```
 
@@ -329,16 +336,13 @@ trait Actor[-In] {
 
 object Actor {
   def make[In](receive: In => UIO[Unit]): ZIO[Scope, Nothing, Actor[In]] =
-    ZIO.acquireRelease {
-      for {
-        queue <- Queue.unbounded[In]
-        fiber <- queue.take.flatMap(receive).forever.fork
-        actor = new Actor[In] {
-                  override def tell(i: In): UIO[Boolean] =
-                    queue.offer(i)
-                }
-      } yield (actor, fiber)
-    }(_._2.join).map(_._1)
+    for {
+      queue <- Queue.unbounded[In]
+      _     <- queue.take.flatMap(receive).forever.forkScoped
+    } yield new Actor[In] {
+      override def tell(i: In): UIO[Boolean] =
+        queue.offer(i)
+    }
 }
 ```
 
@@ -353,10 +357,12 @@ object MainApp extends ZIOAppDefault {
       actor <- Actor.make[Int](n => ZIO.debug(s"processing job-$n").delay(1.second))
       _     <- ZIO.foreachParDiscard(1 to 1000)(actor.tell)
       _     <- ZIO.debug("All messages were sent to the actor!")
+      _     <- ZIO.never
     } yield ()
   }
 }
 ```
+
 ## 4. Streaming
 
 ### Streaming in Akka
@@ -1222,13 +1228,13 @@ There is also a work-in-progress implementation of the Raft protocol called [ZIO
 [25]: https://github.com/sangria-graphql/sangria-akka-http-example
 [26]: ../../ecosystem/community/caliban.md
 [27]: https://doc.akka.io/docs/alpakka-kafka/current/home.html
-[28]: ../../ecosystem/officials/zio-kafka.md
+[28]: ../../zio-kafka/index.md
 [29]: https://doc.akka.io/docs/alpakka/current/s3.html
-[30]: ../../ecosystem/officials/zio-aws.md
+[30]: ../../zio-aws/index.md
 [31]: https://doc.akka.io/docs/alpakka/current/sns.html
 [32]: https://github.com/zio/zio-s3
 [33]: https://doc.akka.io/docs/alpakka/current/sqs.html
-[34]: ../../ecosystem/officials/zio-sqs.md
+[34]: ../../zio-sqs/index.md
 [35]: https://doc.akka.io/docs/alpakka/current/amqp.html
 [36]: ../../ecosystem/community/zio-amqp.md
 [37]: https://doc.akka.io/docs/alpakka/current/kinesis.html
@@ -1244,14 +1250,14 @@ There is also a work-in-progress implementation of the Raft protocol called [ZIO
 [47]: https://doc.akka.io/docs/alpakka/current/elasticsearch.html 
 [48]: https://github.com/aparo/zio-elasticsearch
 [49]: https://doc.akka.io/docs/alpakka/current/ftp.html
-[50]: ../../ecosystem/officials/zio-ftp.md
+[50]: ../../zio-ftp/index.md
 [51]: https://github.com/mbannour/zio-mongodb
-[52]: ../../ecosystem/officials/zio-redis.md
+[52]: ../../zio-redis/index.md
 [53]: https://doc.akka.io/docs/alpakka/current/avroparquet.html
-[54]: ../../ecosystem/officials/zio-schema.md
+[54]: ../../zio-schema/index.md
 [55]: https://doc.akka.io/docs/akka-http/current/index.html
 [56]: https://github.com/zio/zio-http
-[57]: ../../ecosystem/officials/zio-nio.md
+[57]: ../../zio-nio/index.md
 [58]: https://doc.akka.io/docs/alpakka/current/slick.html
 [59]: ../../ecosystem/community/zio-slick-interop.md
 [60]: https://doc.akka.io/docs/alpakka/current/external/tcp.html
@@ -1260,13 +1266,13 @@ There is also a work-in-progress implementation of the Raft protocol called [ZIO
 [63]: https://github.com/zio/zio-gcp 
 [64]: https://doc.akka.io/docs/alpakka/current/google-cloud-storage.html
 [65]: https://doc.akka.io/docs/alpakka/current/data-transformations/json.html
-[66]: ../../ecosystem/officials/zio-json.md
+[66]: ../../zio-json/index.md
 [67]: https://doc.akka.io/docs/alpakka/current/orientdb.html
-[68]: ../../ecosystem/community/quill.md
+[68]: ../../zio-quill/index.md
 [69]: https://doc.akka.io/docs/akka/current/typed/logging.html
-[70]: ../../ecosystem/officials/zio-logging.md
+[70]: ../../zio-logging/index.md
 [71]: https://doc.akka.io/docs/akka-http/current/common/caching.html
-[72]: ../../ecosystem/officials/zio-cache.md
+[72]: ../../zio-cache/index.md
 [73]: https://devsisters.github.io/shardcake/ 
 [74]: https://doc.akka.io/docs/akka/current/typed/cluster-sharding.html
 [75]: ../../reference/state-management/global-shared-state.md
@@ -1282,9 +1288,9 @@ There is also a work-in-progress implementation of the Raft protocol called [ZIO
 [85]: ../../reference/concurrency/hub.md
 [86]: ../../reference/concurrency/semaphore.md
 [87]: https://scalapb.github.io/ 
-[88]: ../../ecosystem/officials/zio-schema.md
+[88]: ../../zio-schema/index.md
 [89]: https://github.com/zio/zio-flow 
 [90]: https://zio.github.io/zio-keeper/
 [91]: https://github.com/ariskk/zio-raft
-[92]: ../../ecosystem/officials/zio-logging.md
-[93]: ../../ecosystem/officials/zio-metrics.md
+[92]: ../../zio-logging/index.md
+[93]: ../../zio-metrics/index.md

@@ -52,14 +52,6 @@ import zio._
 val s1 = ZIO.succeed(42)
 ```
 
-We can also use methods in the companion objects of the `ZIO` type aliases:
-
-```scala mdoc:compile-only
-import zio._
-
-val s2: Task[Int] = ZIO.succeed(42)
-```
-
 ### Failure Values
 
 Using the `ZIO.fail` method, we can create an effect that models failure:
@@ -163,9 +155,9 @@ val r3: ZIO[Any, NumberFormatException, Int] =
 
 4. **`ZIO.nonOrFail`**— It lifts an option into a ZIO value. If the option is empty it succeeds with `Unit` and if the option is defined it fails with a proper error type:
 
-- `ZIO.nonOrFail` fails with the content of the optional value.
-- `ZIO.nonOrFailUnit` fails with the `Unit` error type.
-- `ZIO.nonOrFailWith` fails with custom error type.
+- `ZIO.noneOrFail` fails with the content of the optional value.
+- `ZIO.noneOrFailUnit` fails with the `Unit` error type.
+- `ZIO.noneOrFailWith` fails with custom error type.
 
 ```scala mdoc:compile-only
 import zio._
@@ -353,7 +345,7 @@ ZIO has a separate **blocking thread pool** specially designed for **Blocking I/
 ZIO has an auto-blocking mechanism that detects blocking operations and runs them on a separate blocking thread pool. However, if you know that some code is blocking you can use the `ZIO.blocking` constructor to give a "hint" of this to the ZIO runtime.
 :::
 
-The `blocking` operator takes a ZIO effect and return another effect that is going to run on a blocking thread pool:
+The `blocking` operator takes a ZIO effect and returns another effect that is going to run on a blocking thread pool:
 
 ```scala mdoc:invisible
 import zio._
@@ -361,7 +353,7 @@ import zio._
 def blockingTask(i: Int): ZIO[Any, Throwable, Unit] = ???
 ```
 
-```scala mdoc:nest
+```scala mdoc:nest:silent
 val program = ZIO.foreachPar((1 to 100).toArray)(t => ZIO.blocking(blockingTask(t)))
 ```
 
@@ -881,9 +873,9 @@ io.ensuring(f1)
  .ensuring(f3)
 ```
 
-### AcquireRelease
+### Acquire Release
 
-In Scala the `try` / `finally` is often used to manage resources. A common use for `try` / `finally` is safely acquiring and releasing resources, such as new socket connections or opened files:
+In Scala `try` / `finally` is often used to manage resources. A common use for `try` / `finally` is safely acquiring and releasing resources, such as new socket connections or opened files:
 
 ```scala
 val handle = openFile(name)
@@ -973,7 +965,7 @@ So they don't affect the return type of our workflows, but they add some new asp
 
 To increase the modularity of our applications, we can separate cross-cutting concerns from the main logic of our programs. ZIO supports this programming paradigm, which is called _ aspect-oriented programming_.
 
-The `ZIO` effect has a data type called `ZIOAspect`, which allows modifying a `ZIO` effect and convert it into a specialized `ZIO` effect. We can add a new aspect to a `ZIO` effect with `@@` syntax like this:
+The `ZIO` effect has a data type called `ZIOAspect`, which allows modifying a `ZIO` effect and converting it into a specialized `ZIO` effect. We can add a new aspect to a `ZIO` effect with `@@` syntax like this:
 
 ```scala mdoc:compile-only
 import zio._

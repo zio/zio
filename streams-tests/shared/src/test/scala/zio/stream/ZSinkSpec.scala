@@ -570,6 +570,29 @@ object ZSinkSpec extends ZIOBaseSpec {
               .fail("boom")
               .foldSink(err => ZSink.collectAll[Int].map(c => (c, err)), _ => sys.error("impossible"))
           assertZIO(ZStream(1, 2, 3).run(s))(equalTo((Chunk(1, 2, 3), "boom")))
+        },
+        test("foldSink over a dying sink") {
+          case object Death extends RuntimeException("not today!")
+          val dyingSink: ZSink[Any, Nothing, Any, Nothing, Nothing] = ZSink.failCause(Cause.die(Death))
+          val foldedSink: ZSink[Any, String, Any, Nothing, String] = dyingSink
+            .foldSink(
+              _ => ZSink.fail("it's a fail"),
+              _ => ZSink.succeed("it's a success")
+            )
+
+          val ex = ZStream
+            .range(0, 40, 10)
+            .run(foldedSink)
+            .exit
+
+          ex.map { ex1 =>
+            assertTrue {
+              ex1.isFailure &&
+              ex1.causeOption.flatMap(_.dieOption) ==
+                Some(Death)
+            }
+          }
+
         }
       ),
       suite("refine")(
@@ -761,7 +784,14 @@ object ZSinkSpec extends ZIOBaseSpec {
             assertZIO(ZStream(1, 2, 3).run(ZSink.head.zipParLeft(ZSink.succeed("Hello"))))(
               equalTo(Some(1))
             )
-          })
+          }),
+          test("early termination") {
+            val stream = ZStream.range(0, 1000, 1)
+            val sink   = ZSink.drain <&> ZSink.succeed(20)
+            for {
+              _ <- stream.run(sink)
+            } yield assertCompletes
+          }
         ),
         suite("splitWhere")(
           test("should split a stream on predicate and run each part into the sink") {

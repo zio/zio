@@ -15,3 +15,4 @@ List of ZIO compatible libraries:
 - [doobie](https://github.com/tpolecat/doobie) — Functional JDBC layer for Scala.
 - [fs2](https://github.com/typelevel/fs2) — Compositional, streaming I/O library for Scala
 - [http4s](https://github.com/http4s/http4s) — A minimal, idiomatic Scala interface for HTTP
+- [Automorph](https://automorph.org) - RPC in a few lines of Scala code

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,11 @@ private[zio] final class OneShot[A] private (var value: A) {
   def get(): A = {
     if (value == null) throw new Error("Cannot block for result to be set in JavaScript")
     value
+  }
+
+  def get(timeout: Long): A = {
+    val _ = timeout
+    get()
   }
 }
 

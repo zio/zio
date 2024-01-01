@@ -1,8 +1,6 @@
 package zio
 
-import zio.internal.macros.LayerMacros
-import zio.internal.macros.LayerMacroUtils
-import zio.internal.macros.ProvideMethod
+import zio.internal.macros._
 import scala.deriving._
 
 final class WirePartiallyApplied[R](val dummy: Boolean = true) extends AnyVal {
@@ -27,7 +25,7 @@ trait ZLayerCompanionVersionSpecific {
   inline def make[R]: WirePartiallyApplied[R] =
     new WirePartiallyApplied[R]()
 
-    /**
+  /**
    * Automatically assembles a layer for the provided type `R`,
    * leaving a remainder `R0`.
    *
@@ -42,18 +40,14 @@ trait ZLayerCompanionVersionSpecific {
     new WireSomePartiallyApplied[R0, R]
 
   /**
-   * Derives a simple layer for a case class given as a type parameter.
+   * Automatically derives a simple layer for the provided type.
+   * 
    * {{{
-   * case class Car(engine: Engine, wheels: Wheels)
-   * val derivedLayer: ZLayer[Engine & Wheels, Nothing, Car] = ZLayer.deriveLayer[Car]
-   * // equivalent to:
-   * val manualLayer: ZLayer[Engine & Wheels, Nothing, Car] =
-   *   ZLayer.fromFunction(Car(_, _))
+   * class Car(wheels: Wheels, engine: Engine) { /* ... */ }
+   * 
+   * val carLayer: URLayer[Wheels & Engine, Car] = ZLayer.derive[Car]
    * }}}
-   *
    */
-   inline def derive[A](
-    using m: Mirror.ProductOf[A]
-  ): URLayer[LayerMacroUtils.Env[m.MirroredElemTypes], A] =
-    LayerMacroUtils.genLayer[m.MirroredElemTypes, A]
+  transparent inline def derive[A]: ZLayer[Nothing, Any, A] =
+    ZLayerDerivationMacros.deriveLayer[A]
 }

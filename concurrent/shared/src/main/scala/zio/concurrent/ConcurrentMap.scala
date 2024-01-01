@@ -3,9 +3,9 @@ package zio.concurrent
 import zio.{Chunk, ChunkBuilder, UIO, ZIO}
 
 import java.util.concurrent.ConcurrentHashMap
-import com.github.ghik.silencer.silent
 
 import java.util.function.BiConsumer
+import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
 /**
@@ -111,7 +111,7 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
    * Adds all new key-value pairs
    */
   def putAll(keyValues: (K, V)*): UIO[Unit] =
-    ZIO.succeed(underlying.putAll(keyValues.toMap.asJava): @silent("JavaConverters"))
+    ZIO.succeed(underlying.putAll(keyValues.toMap.asJava): @nowarn("msg=JavaConverters"))
 
   /**
    * Adds a new key-value pair, unless the key is already bound to some other
@@ -119,6 +119,12 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
    */
   def putIfAbsent(key: K, value: V): UIO[Option[V]] =
     ZIO.succeed(Option(underlying.putIfAbsent(key, value)))
+
+  /**
+   * True if there are no elements in this map.
+   */
+  def isEmpty: UIO[Boolean] =
+    ZIO.succeed(underlying.isEmpty)
 
   /**
    * Removes the entry for the given key, optionally returning value associated
@@ -160,6 +166,12 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
         }
       }
     )
+
+  /**
+   * Removes all elements.
+   */
+  def clear: UIO[Unit] =
+    ZIO.succeed(underlying.clear())
 
   /**
    * Replaces the entry for the given key only if it is mapped to some value.

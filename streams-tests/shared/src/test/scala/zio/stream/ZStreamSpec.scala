@@ -1605,7 +1605,36 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(results)(
               equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire"))
             )
-          } @@ nonFlaky
+          } @@ nonFlaky,
+          test("preserves the scope") {
+            for {
+              ref   <- Ref.make[Chunk[String]](Chunk.empty)
+              scope <- Scope.make
+              _ <- scope.extend {
+                     ZStream(1, 2)
+                       .flatMapPar(1) { i =>
+                         ZStream.fromZIO {
+                           ZIO.acquireRelease {
+                             ref.update(_ :+ s"acquire $i")
+                           } { _ =>
+                             ref.update(_ :+ s"release $i")
+                           }
+                         }
+                       }
+                       .runDrain
+                   }
+              before <- ref.getAndSet(Chunk.empty)
+              _      <- scope.close(Exit.unit)
+              after  <- ref.get
+            } yield assertTrue(before == Chunk("acquire 1", "acquire 2")) &&
+              assertTrue(after == Chunk("release 2", "release 1"))
+          },
+          test("interruption propagation") {
+            val stream = ZStream(1, 2, 3, 4, 5).flatMapPar(2)(_ => ZStream.fromZIO(ZIO.interrupt))
+            for {
+              exit <- stream.runDrain.exit
+            } yield assertTrue(exit.isInterrupted)
+          }
         ),
         suite("flatMapParSwitch")(
           test("guarantee ordering no parallelism") {
@@ -2409,6 +2438,22 @@ object ZStreamSpec extends ZIOBaseSpec {
                                    .runHead
             } yield assert(interruptible)(isSome(equalTo(InterruptStatus.Interruptible))) &&
               assert(uninterruptible)(isSome(equalTo(InterruptStatus.Uninterruptible)))
+          },
+          test("failure of inner finalizers does not affect outer finalizers") {
+            def resource(ref: Ref[Chunk[String]])(name: String): ZIO[Scope, Nothing, Unit] =
+              ZIO.acquireRelease(ref.update(_ :+ s"Acquiring $name"))(_ => ref.update(_ :+ s"Releasing $name"))
+            def badResource(ref: Ref[Chunk[String]])(name: String): ZIO[Scope, Nothing, Unit] =
+              ZIO.acquireRelease(ref.update(_ :+ s"Acquiring $name"))(_ => ZIO.dieMessage("Die"))
+            def stream(ref: Ref[Chunk[String]]): ZStream[Any, Nothing, Unit] =
+              ZStream.scoped(resource(ref)("A")) *>
+                ZStream.scoped(resource(ref)("B")) *>
+                ZStream.scoped(badResource(ref)("C"))
+            for {
+              ref   <- Ref.make[Chunk[String]](Chunk.empty)
+              exit  <- stream(ref).runDrain.exit
+              value <- ref.get
+            } yield assert(exit)(dies(hasMessage(equalTo("Die")))) &&
+              assert(value)(equalTo(Chunk("Acquiring A", "Acquiring B", "Acquiring C", "Releasing B", "Releasing A")))
           }
         ),
         test("map")(check(pureStreamOfInts, Gen.function(Gen.int)) { (s, f) =>
@@ -2685,6 +2730,18 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(isEmpty)
           }
         ),
+        test("mergeSorted") {
+          val genSorted = for {
+            chunk  <- Gen.chunkOf(Gen.int(1, 100))
+            chunks <- splitChunks(Chunk(chunk.sorted))
+          } yield ZStream.fromChunks(chunks: _*)
+          check(genSorted, genSorted) { (left, right) =>
+            for {
+              actual   <- left.mergeSorted(right).runCollect
+              expected <- (left ++ right).runCollect.map(_.sorted)
+            } yield assertTrue(actual == expected)
+          }
+        },
         suite("mergeWith")(
           test("equivalence with set union")(check(streamOfInts, streamOfInts) {
             (s1: ZStream[Any, String, Int], s2: ZStream[Any, String, Int]) =>
@@ -2829,7 +2886,79 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               exit <- stream.peel(sink).exit
             } yield assert(exit)(fails(equalTo("fail")))
-          }
+          },
+          test("preserves the scope") {
+            for {
+              ref     <- Ref.make[Chunk[String]](Chunk.empty)
+              resource = (i: Int) => ZIO.acquireRelease(ZIO.succeed(i))(i => ref.update(_ :+ s"closing $i"))
+              fiber <- ZStream.unwrapScoped {
+                         ZStream
+                           .scoped(ZIO.foreach(1 to 5)(resource))
+                           .flattenIterables
+                           .rechunk(10)
+                           .peel(ZSink.head[Int])
+                           .map { case (head, tail) =>
+                             (ZStream.fromIterable(head) ++ tail)
+                               .mapZIO(i => ref.update(_ :+ s"processing $i").as(i))
+                               .schedule(Schedule.spaced(1.second))
+                           }
+                       }.runDrain.fork
+              _     <- TestClock.adjust(5.seconds)
+              _     <- fiber.join
+              value <- ref.get
+            } yield assertTrue(
+              value == Chunk(
+                "processing 1",
+                "processing 2",
+                "processing 3",
+                "processing 4",
+                "processing 5",
+                "closing 5",
+                "closing 4",
+                "closing 3",
+                "closing 2",
+                "closing 1"
+              )
+            )
+          },
+          test("failing sink") {
+            val failingSink = ZSink.fail("it's really bad man!")
+            val ex = ZIO.scoped[Any] {
+              ZStream
+                .range(0, 40, 10)
+                .peel(failingSink)
+                .map(_._1)
+                .exit
+            }
+
+            ex.map { ex1 =>
+              assertTrue {
+                ex1.isFailure &&
+                ex1.causeOption
+                  .flatMap(_.failureOption) ==
+                  Some("it's really bad man!")
+              }
+            }
+          },
+          test("dying sink") {
+            case object Death extends RuntimeException("not today!")
+            val dyingSink: ZSink[Any, Nothing, Any, Nothing, Nothing] = ZSink.failCause(Cause.die(Death))
+            val ex: ZIO[Any, Nothing, Exit[Nothing, Any]] = ZIO.scoped[Any] {
+              ZStream
+                .range(0, 40, 10)
+                .peel(dyingSink)
+                .map(_._1)
+                .exit
+            }
+
+            ex.map { ex1 =>
+              assertTrue {
+                ex1.isFailure &&
+                ex1.causeOption.flatMap(_.dieOption) ==
+                  Some(Death)
+              }
+            }
+          } @@ zio.test.TestAspect.timeout(5.seconds)
         ),
         test("onError") {
           for {
@@ -3977,7 +4106,19 @@ object ZStreamSpec extends ZIOBaseSpec {
                 )
               }
             )(equalTo(bytes))
-          }
+          },
+          test("Preserves errors") {
+            val stream = ZStream.fail(new Throwable("fail"))
+            val pipeline = ZPipeline.fromFunction[Scope, Throwable, Byte, Unit] { s =>
+              ZStream.fromZIO {
+                for {
+                  is <- s.toInputStream.debug("toInputStream")
+                  _  <- ZIO.attemptBlocking(is.read())
+                } yield ()
+              }
+            }
+            assertZIO(stream.via(pipeline).runCollect.exit)(fails(hasMessage(containsString("fail"))))
+          } @@ TestAspect.jvmOnly
         ),
         test("toIterator") {
           ZIO.scoped {
@@ -4454,7 +4595,9 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("dies if the partial function throws an exception") {
             val exception = new Exception
-            assertZIO(ZStream.whenCase(()) { case _ => throw exception }.runDrain.exit)(dies(equalTo(exception)))
+            assertZIO(ZStream.whenCase(Option.empty[Int]) { case _ => throw exception }.runDrain.exit)(
+              dies(equalTo(exception))
+            )
           }
         ),
         suite("whenCaseZIO")(
@@ -4479,7 +4622,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("dies if the given partial function throws an exception") {
             val exception = new Exception
-            assertZIO(ZStream.whenCaseZIO(ZIO.unit) { case _ => throw exception }.runDrain.exit)(
+            assertZIO(ZStream.whenCaseZIO(ZIO.succeed(Option.empty[Int])) { case _ => throw exception }.runDrain.exit)(
               dies(equalTo(exception))
             )
           },

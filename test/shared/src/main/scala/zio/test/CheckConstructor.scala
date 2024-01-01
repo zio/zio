@@ -39,7 +39,7 @@ trait CheckConstructorLowPriority1 extends CheckConstructorLowPriority2 {
     }
 }
 
-trait CheckConstructorLowPriority2 {
+trait CheckConstructorLowPriority2 extends CheckConstructorLowPriority3 {
 
   implicit def AssertZSTMConstructor[R, R1, E, A <: TestResult]
     : CheckConstructor.WithOut[R, ZSTM[R1, E, A], R with R1, E] =
@@ -48,5 +48,16 @@ trait CheckConstructorLowPriority2 {
       type OutError       = E
       def apply(input: => ZSTM[R1, E, A])(implicit trace: Trace): ZIO[OutEnvironment, OutError, TestResult] =
         input.commit
+    }
+}
+
+trait CheckConstructorLowPriority3 {
+
+  implicit def AssertEitherConstructor[R, E, A <: TestResult]: CheckConstructor.WithOut[R, Either[E, A], R, E] =
+    new CheckConstructor[R, Either[E, A]] {
+      type OutEnvironment = R
+      type OutError       = E
+      def apply(input: => Either[E, A])(implicit trace: Trace): ZIO[OutEnvironment, OutError, TestResult] =
+        ZIO.fromEither(input)
     }
 }

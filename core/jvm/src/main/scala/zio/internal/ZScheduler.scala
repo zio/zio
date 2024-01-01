@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2021-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,11 +28,11 @@ import java.util.concurrent.locks.LockSupport
  * applications. Inspired by "Making the Tokio Scheduler 10X Faster" by Carl
  * Lerche. [[https://tokio.rs/blog/2019-10-scheduler]]
  */
-private final class ZScheduler extends Executor {
+private final class ZScheduler(autoBlocking: Boolean) extends Executor {
   private[this] val poolSize           = java.lang.Runtime.getRuntime.availableProcessors
   private[this] val cache              = MutableConcurrentQueue.unbounded[ZScheduler.Worker]
   private[this] val globalQueue        = MutableConcurrentQueue.unbounded[Runnable]
-  private[this] val idle               = MutableConcurrentQueue.bounded[ZScheduler.Worker](poolSize)
+  private[this] val idle               = MutableConcurrentQueue.unbounded[ZScheduler.Worker]
   private[this] val state              = new AtomicInteger(poolSize << 16)
   private[this] val submittedLocations = makeLocations()
   private[this] val workers            = Array.ofDim[ZScheduler.Worker](poolSize)
@@ -47,10 +47,12 @@ private final class ZScheduler extends Executor {
   }
   workers.foreach(_.start())
 
-  private[this] val supervisor = makeSupervisor()
-  supervisor.setName("ZScheduler-Supervisor")
-  supervisor.setDaemon(true)
-  supervisor.start()
+  if (autoBlocking) {
+    val supervisor = makeSupervisor()
+    supervisor.setName("ZScheduler-Supervisor")
+    supervisor.setDaemon(true)
+    supervisor.start()
+  }
 
   def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics] = {
     val metrics = new ExecutionMetrics {
@@ -101,7 +103,7 @@ private final class ZScheduler extends Executor {
     Some(metrics)
   }
 
-  override def stealWork(depth: Int)(implicit unsafe: Unsafe): Boolean = {
+  override def stealWork(depth: Int): Boolean = {
     val currentThread = Thread.currentThread
     if (currentThread.isInstanceOf[ZScheduler.Worker]) {
       val worker   = currentThread.asInstanceOf[ZScheduler.Worker]
@@ -290,13 +292,13 @@ private final class ZScheduler extends Executor {
                 val worker = cache.poll(null)
                 if (worker eq null) {
                   val worker = makeWorker()
-                  worker.setName(s"ZScheduler-$workerId")
+                  worker.setName(s"ZScheduler-Worker-$workerId")
                   worker.setDaemon(true)
                   workers(workerId) = worker
                   worker.start()
                 } else {
                   state.getAndIncrement()
-                  worker.setName(s"ZScheduler-$workerId")
+                  worker.setName(s"ZScheduler-Worker-$workerId")
                   workers(workerId) = worker
                   worker.blocking = false
                   worker.active = true

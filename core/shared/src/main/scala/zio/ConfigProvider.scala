@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2022-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,9 @@
  */
 package zio
 
-import java.time.format.DateTimeFormatter
 import scala.annotation.tailrec
+import scala.collection.immutable.TreeSet
 import scala.util.Try
-import scala.util.matching.Regex
 
 /**
  * A ConfigProvider is a service that provides configuration given a description
@@ -208,8 +207,8 @@ object ConfigProvider {
             r <- ZIO.fromEither(that.patch(path)).flatMap(that.enumerateChildren).either
             result <- (l, r) match {
                         case (Left(e1), Left(e2)) => ZIO.fail(e1 && e2)
-                        case (Left(e1), Right(_)) => ZIO.fail(e1)
-                        case (Right(_), Left(e2)) => ZIO.fail(e2)
+                        case (Left(_), Right(r))  => ZIO.succeed(r)
+                        case (Right(l), Left(_))  => ZIO.succeed(l)
                         case (Right(l), Right(r)) => ZIO.succeed(l ++ r)
                       }
           } yield result
@@ -435,7 +434,7 @@ object ConfigProvider {
         zio.System.envs.map { envs =>
           val keyPaths = Chunk.fromIterable(envs.keys).map(_.toUpperCase).map(unmakePathString)
 
-          keyPaths.filter(_.startsWith(path)).map(_.drop(path.length).take(1)).flatten.toSet
+          keyPaths.filter(_.startsWith(path.map(_.toUpperCase))).map(_.drop(path.length).take(1)).flatten.toSet
 
         }.mapError(sourceUnavailable(path))
 
@@ -643,10 +642,16 @@ object ConfigProvider {
         } yield results
       }
 
+      lazy val keyPaths = TreeSet.empty[String] ++ mapWithIndexSplit.keySet
+
       def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]] =
         ZIO.succeed {
-          val keyPaths = Chunk.fromIterable(mapWithIndexSplit.keys).map(unmakePathString)
-          keyPaths.filter(_.startsWith(path)).map(_.drop(path.length).take(1)).flatten.toSet
+          val pathString = if (path.nonEmpty) path.mkString("", pathDelim, pathDelim) else ""
+          keyPaths
+            .iteratorFrom(pathString)
+            .takeWhile(_.startsWith(pathString))
+            .flatMap(s => unmakePathString(s).slice(path.length, path.length + 1))
+            .toSet
         }
 
       def load[A](path: Chunk[String], primitive: Config.Primitive[A])(implicit
@@ -780,5 +785,4 @@ object ConfigProvider {
 
         optionalString.flatMap(str => optionalIndex.map(ind => (str, ind)))
       }
-
 }

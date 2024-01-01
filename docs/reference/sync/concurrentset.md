@@ -82,8 +82,8 @@ for {
 | `setA.containsAll(Chunk(1, 2, 3))`        | true                  |
 | `setA.exists(_ > 4)`                      | false                 |
 | `setA.forAll(_ < 5)`                      | true                  |
-| `setA.removeIf(_ % 2 == 0)`               | Set(2, 4)             |
-| `setA.retainIf(_ % 2 == 0)`               | Set(1, 3)             |
+| `setA.removeIf(_ % 2 == 0)`               | Set(1, 3)             |
+| `setA.retainIf(_ % 2 == 0)`               | Set(2, 4)             |
 | `setA.find(_ > 2)`                        | Set(3, 4)             |
 | `setA.collectFirst { case 3 => "Three" }` | Set(3)                |
 | `setA.size`                               | 4                     |

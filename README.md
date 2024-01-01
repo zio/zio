@@ -38,7 +38,7 @@ To learn more about ZIO, see the following references:
 Following is a partial list of companies happily using ZIO in
 production to craft concurrent applications.
 
-Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/master/README.md)!
+Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/series/2.x/README.md)!
 
 * [AdGear / Samsung Ads](https://adgear.com/en/)
 * [Adidas](https://www.adidas.com/)
@@ -46,6 +46,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [adsquare](https://www.adsquare.com/)
 * [Amazon](https://www.amazon.com/)
 * [Anduin Transactions](https://www.anduintransact.com/)
+* [AnyMind Group](https://anymindgroup.com)
 * [Ayolab](https://www.ayolab.com/)
 * [Asana](https://asana.com/)
 * [Aurinko](https://www.aurinko.io/)
@@ -53,6 +54,8 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [AutoScout24](https://www.autoscout24.de)
 * [Avast](https://www.avast.com)
 * [Bank of America](https://www.bofa.com)
+* [Believe](https://www.believe.com)
+* [Blue Insight Digital](https://www.blueinsight.digital/)
 * [BlueLabs](https://www.bluelabs.eu/)
 * [Bpp](https://www.bpp.it/)
 * [Broad](https://broad.app)
@@ -139,6 +142,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [PIM Solutions](https://pimsolutions.ru/)
 * [Remember The Milk](https://www.rememberthemilk.com/)
 * [REWE Digital](http://rewe-digital.com/)
+* [LKWfee](https://lkwfee.de/)
 * [Risk Ident](https://riskident.com/)
 * [Rocker](https://rocker.com/)
 * [Rudder](https://www.rudder.io/)
@@ -219,7 +223,7 @@ Come chat with us on [![Badge-Discord]][Link-Discord].
 
 ### Legal
 
-Copyright 2017 - 2023 John A. De Goes and the ZIO Contributors. All rights reserved.
+Copyright 2017 - 2024 John A. De Goes and the ZIO Contributors. All rights reserved.
 
 
 [Link-Codecov]: https://codecov.io/gh/zio/zio?branch=master "Codecov"

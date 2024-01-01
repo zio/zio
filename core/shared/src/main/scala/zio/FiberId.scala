@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@ sealed trait FiberId extends Serializable { self =>
 object FiberId {
 
   def apply(id: Int, startTimeSeconds: Int, location: Trace): FiberId =
-    Runtime(id, startTimeSeconds, location)
+    Runtime(id, startTimeSeconds * 1000L, location)
 
   private[zio] def make(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime =
     FiberId.Runtime(_fiberCounter.getAndIncrement(), java.lang.System.currentTimeMillis(), location)

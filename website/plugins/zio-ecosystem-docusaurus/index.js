@@ -54,11 +54,20 @@ function zioEcosystemPlugin(context, options) {
                     };
                 }
                 var result = zioProjects
+                    // If the sidebar is simple and doesn't have label
+                    .filter(function (e) { return (require("@zio.dev/".concat(e.routeBasePath, "/").concat(e.sidebarPath)).sidebar[0] == "index"); })
                     .map(function (project) {
                     return mapConfig(categoryTemplate(project.name, require("@zio.dev/".concat(project.routeBasePath, "/").concat(project.sidebarPath))
                         .sidebar
                         .filter(function (e) { return e != "index"; })), "".concat(project.routeBasePath, "/"));
-                }).concat(["zio-sbt", "zio-direct", "zio-logging", "zio2-interop-cats3", "zio2-interop-cats2", "zio-http"].map(function (project) {
+                })
+                    .concat(zioProjects
+                    // If the sidebar has all the metadata including the label
+                    .filter(function (e) {
+                    return require("@zio.dev/".concat(e.routeBasePath, "/").concat(e.sidebarPath)).sidebar[0].label !== undefined;
+                })
+                    .map(function (p) { return p.routeBasePath; })
+                    .map(function (project) {
                     return mapConfig(require("@zio.dev/".concat(project, "/sidebars.js")).sidebar[0], "".concat(project, "/"));
                 }))
                     .sort(function (a, b) { return a.label < b.label ? -1 : a.label > b.label ? 1 : 0; });
@@ -324,6 +333,36 @@ var zioProjects = [
         name: 'ZIO Webhooks',
         routeBasePath: 'zio-webhooks',
         sidebarPath: 'sidebars.js'
+    },
+    {
+        name: 'ZIO SBT',
+        routeBasePath: 'zio-sbt',
+        sidebarPath: 'sidebars.js'
+    },
+    {
+        name: 'ZIO Direct Style',
+        routeBasePath: 'zio-direct',
+        sidebarPath: 'sidebars.js'
+    },
+    {
+        name: 'ZIO Logging',
+        routeBasePath: 'zio-logging',
+        sidebarPath: 'sidebars.js'
+    },
+    {
+        name: 'ZIO 2.x Interop Cats 3.x',
+        routeBasePath: 'zio2-interop-cats3',
+        sidebarPath: 'sidebars.js'
+    },
+    {
+        name: 'ZIO 2.x Interop Cats 2.x',
+        routeBasePath: 'zio2-interop-cats2',
+        sidebarPath: 'sidebars.js'
+    },
+    {
+        name: 'ZIO HTTP',
+        routeBasePath: 'zio-http',
+        sidebarPath: 'sidebars.js'
     }
 ];
 function isSidebarItemCategoryConfig(item) {
@@ -334,7 +373,7 @@ function mapConfig(config, prefix) {
         return prefix + config;
     }
     else if (isSidebarItemCategoryConfig(config)) {
-        return __assign(__assign({}, config), { link: config.link ? __assign(__assign({}, config.link), { 'id': prefix + config.link.id }) : undefined, items: config.items
+        return __assign(__assign({}, config), { collapsed: true, link: config.link ? __assign(__assign({}, config.link), { 'id': prefix + config.link.id }) : undefined, items: config.items
                 .map(function (item) { return mapConfig(item, prefix); }) });
     }
 }

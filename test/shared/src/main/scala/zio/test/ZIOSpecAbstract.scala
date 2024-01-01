@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2021-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,9 +75,11 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       _ <- ZIO.when(testArgs.printSummary) {
              console.printLine(testArgs.testRenderer.renderSummary(summary)).orDie
            }
-      _ <- ZIO.when(summary.status == Summary.Failure) {
-             ZIO.fail(new RuntimeException())
-           }
+      _ <- ZIO
+             .when(summary.status == Summary.Failure) {
+               ZIO.fail(new RuntimeException("Tests failed."))
+             }
+             .unless(testArgs.ignoreFailures)
     } yield summary
 
   /*
@@ -130,21 +132,22 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     spec: Spec[Environment with TestEnvironment with Scope, Any],
     testArgs: TestArgs,
     runtime: Runtime[_],
-    testEventHandler: ZTestEventHandler
+    testEventHandler: ZTestEventHandler,
+    console: Console
   )(implicit
     trace: Trace
   ): UIO[Summary] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
-    val castedRuntime: Runtime[Environment with ExecutionEventSink] =
-      runtime.asInstanceOf[Runtime[Environment with ExecutionEventSink]]
+    val castedRuntime: Runtime[Environment with TestOutput] =
+      runtime.asInstanceOf[Runtime[Environment with TestOutput]]
 
     TestRunner(
       TestExecutor
         .default[Environment, Any](
           ZLayer.succeedEnvironment(castedRuntime.environment),
           testEnvironment ++ Scope.default,
-          ZLayer.succeedEnvironment(castedRuntime.environment),
+          ZLayer.succeedEnvironment(castedRuntime.environment) >>> ExecutionEventSink.live,
           testEventHandler
         )
     ).run(fullyQualifiedName, aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)

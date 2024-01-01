@@ -4,11 +4,11 @@ title: "Introduction to ZIO's Control Flow Operators"
 sidebar_label: "Control Flow"
 ---
 
-Although we have access to built-in scala control flow structures, ZIO has several control flow combinators. In this section, we are going to introduce different ways of controlling flows in ZIO applications.
+Although we have access to built-in Scala control flow structures, ZIO has several control flow combinators. In this section, we are going to introduce different ways of controlling flows in ZIO applications.
 
 ## `if` Expression
 
-When working with ZIO values, we can also work with built-in scala if-then-else expressions:
+When working with ZIO values, we can use built-in Scala if-then-else expressions:
 
 ```scala mdoc:compile-only
 import zio._
@@ -124,7 +124,7 @@ def flipTheCoin: ZIO[Any, IOException, Unit] =
 
 ## Loop Operators
 
-In imperative scala code base, sometime we may use `while(condition) { statement }` or `do { statement } while (condition)` structs to perform loops:
+In imperative Scala code bases, sometimes we may use `while(condition) { statement }` or `do { statement } while (condition)` constructs to perform loops:
 
 ```scala mdoc:compile-only
 object MainApp extends scala.App {
@@ -143,7 +143,7 @@ object MainApp extends scala.App {
 // 3
 ```
 
-But in functional scala, we tend to not use mutable variable. So to have a loop, we would like to use recursions. Let's rewrite the previous example, using recursion:
+But in functional Scala, we tend to avoid mutable variables. So to have a loop, we would like to use recursion. Let's rewrite the previous example using recursion:
 
 ```scala mdoc:compile-only
 import scala.annotation.tailrec
@@ -198,11 +198,11 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-After this very short introduction to writing loops in functional scala, now let us go deep into ZIO specific combinators for writing loops:
+After this short introduction to writing loops in functional Scala, now let us go further into ZIO-specific combinators for writing loops:
 
 ### `loop`
 
-The `ZIO.loop` operator takes an initial state, then repeatedly change the state based on the given `inc` function, until the given `cont` function is evaluated to true:
+The `ZIO.loop` operator takes an initial state, then repeatedly changes the state based on the given `inc` function, until the given `cont` function evaluates to true:
 
 ```scala
 object ZIO {
@@ -215,9 +215,9 @@ object ZIO {
   )(cont: S => Boolean, inc: S => S)(body: S => ZIO[R, E, Any]): ZIO[R, E, Unit]
 ```
 
-The `ZIO#loop` collects all intermediate states in a list and returns it finally, while the `ZIO.loopDiscard` discards all results.
+`ZIO.loop` collects all intermediate states in a list and returns it finally, while the `ZIO.loopDiscard` discards all results.
 
-We can think of `ZIO#loop` as a moral equivalent of the following while loop:
+We can think of `ZIO.loop` as a moral equivalent of the following while loop:
 
 ```scala
 var s  = initial
@@ -281,7 +281,7 @@ val r5: ZIO[Any, IOException, List[String]] =
 
 ### `iterate`
 
-To iterate with the given effectful operation we can use the `ZIO.interate` combinator. During each iteration, it uses an effectful `body` operation to change the state, and it will continue the iteration while the `cont` function evaluates to true:
+To iterate with the given effectful operation we can use the `ZIO.iterate` combinator. During each iteration, it uses an effectful `body` operation to change the state, and it will continue the iteration while the `cont` function evaluates to true:
 
 ```scala
 object ZIO {
@@ -372,7 +372,7 @@ def getNames: ZIO[Any, IOException, List[String]] =
 
 ### `foreach`
 
-Note that, in several cases, we can avoid these low-level operators and instead use the high-level ones. For example, let's try to rewrite the `r5` with `ZIO.foreach`:
+Note that, in several cases, we can avoid these low-level operators and instead use high-level ones. For example, let's try to rewrite the `r5` with `ZIO.foreach`:
 
 ```scala mdoc:compile-only
 import zio._
@@ -390,13 +390,13 @@ Console.printLine("Please enter three names:") *>
 
 ## try/catch/finally
 
-When working with resources, just like the scala's `try`/`catch`/`finally` construct, in ZIO we have a similar operator called `acquireRelease` and also `ensuring`. We discussed them in more detail in the [resource management section](../resource/index.md). But, for now, we want to focus on their control flow behaviors.
+When working with resources, just like Scala's `try`/`catch`/`finally` construct, in ZIO we have a similar operator called `acquireRelease` and also `ensuring`. We discussed them in more detail in the [resource management section](../resource/index.md). But, for now, we want to focus on their control flow behaviors.
 
 Let's learn about the `ZIO.acquireReleaseWith` operator. This operator takes three effects:
 
-1. **`acquire`** an effect that describes the resource acquisition
-2. **`release`** an effect that describes the release of the resource
-3. **`use`** an effect that describes resource usage
+1. **`acquire`**, an effect that describes the resource acquisition
+2. **`release`**, an effect that describes the release of the resource
+3. **`use`**, an effect that describes resource usage
 
 ```scala mdoc:compile-only
 import zio._
@@ -404,7 +404,7 @@ import zio._
 ZIO.acquireReleaseWith(acquire = ???)(release = ???)(use = ???)
 ```
 
-This operator guarantees us that if the _resource acquisition (acquire)_ the _release_ effect will be executed whether the _use_ effect succeeded or not:
+This operator guarantees us that if the _resource acquisition (acquire)_ succeeds, the _release_ effect will be executed whether the _use_ effect succeeded or not:
 
 ```scala mdoc:compile-only
 import java.io.IOException

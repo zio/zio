@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.{Runtime, Scope, Trace, Unsafe, ZIO, ZIOAppArgs, ZLayer}
-import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract}
+import zio.test.{ExecutionEventPrinter, Summary, TestArgs, TestOutput, ZIOSpecAbstract}
 
 import java.util.concurrent.atomic.AtomicReference
 import zio.stacktracer.TracingImplicits.disableAutoTrace
@@ -86,11 +86,11 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
   private[sbt] def tasksZ(
     defs: Array[TaskDef],
     console: zio.Console
-  )(implicit trace: Trace): Array[ZTestTask[ExecutionEventSink]] = {
+  )(implicit trace: Trace): Array[ZTestTask[TestOutput]] = {
     val testArgs = TestArgs.parse(args)
 
     renderer = testArgs.testRenderer // Ensures summary is pretty in same style as rest of the test output
-    val sharedSinkLayer = ExecutionEventSink.live(console, testArgs.testEventRenderer)
+    val sharedTestOutputLayer = ExecutionEventPrinter.live(console, testArgs.testEventRenderer) >>> TestOutput.live
 
     val specTasks: Array[ZIOSpecAbstract] = defs.map(disectTask(_, testClassLoader))
     val sharedLayerFromSpecs: ZLayer[Any, Any, Any] =
@@ -98,15 +98,15 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
         .map(_.bootstrap)
         .foldLeft(ZLayer.empty: ZLayer[ZIOAppArgs, Any, Any])(_ +!+ _)
 
-    val sharedLayer: ZLayer[Any, Any, ExecutionEventSink] =
-      sharedLayerFromSpecs +!+ sharedSinkLayer
+    val sharedLayer: ZLayer[Any, Any, TestOutput] =
+      sharedLayerFromSpecs +!+ sharedTestOutputLayer
 
-    val runtime: Runtime.Scoped[ExecutionEventSink] =
+    val runtime: Runtime.Scoped[TestOutput] =
       zio.Runtime.unsafe.fromLayer(sharedLayer)(Trace.empty, Unsafe.unsafe)
 
     shutdownHook = Some(() => runtime.unsafe.shutdown()(Unsafe.unsafe))
 
-    defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs, runtime))
+    defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs, runtime, console))
   }
 
   private def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): ZIOSpecAbstract = {
@@ -127,8 +127,9 @@ final class ZTestTask[T](
   sendSummary: SendSummary,
   testArgs: TestArgs,
   spec: ZIOSpecAbstract,
-  runtime: zio.Runtime[T]
-) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, runtime)
+  runtime: zio.Runtime[T],
+  console: zio.Console
+) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, runtime, console)
 
 object ZTestTask {
   def apply[T](
@@ -136,10 +137,11 @@ object ZTestTask {
     testClassLoader: ClassLoader,
     sendSummary: SendSummary,
     args: TestArgs,
-    runtime: zio.Runtime[T]
+    runtime: zio.Runtime[T],
+    console: zio.Console
   ): ZTestTask[T] = {
     val zioSpec = disectTask(taskDef, testClassLoader)
-    new ZTestTask(taskDef, testClassLoader, sendSummary, args, zioSpec, runtime)
+    new ZTestTask(taskDef, testClassLoader, sendSummary, args, zioSpec, runtime, console)
   }
 
   private def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): ZIOSpecAbstract = {

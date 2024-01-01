@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -217,7 +217,7 @@ trait ConsoleRenderer extends TestRenderer {
   def renderSummary(summary: Summary): String =
     s"""${summary.success} tests passed. ${summary.fail} tests failed. ${summary.ignore} tests ignored.
        |${summary.failureDetails}
-       |Executed in ${summary.duration.render}
+       |Executed in ${summary.interval.duration.render}
        |""".stripMargin
 
   def render(cause: Cause[_], labels: List[String]): Option[String] =

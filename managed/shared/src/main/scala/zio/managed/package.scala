@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2018-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -105,6 +105,13 @@ package object managed extends ZManagedCompatPlatformSpecific {
       trace: Trace
     ): ZIO[R, E, B] =
       ZManaged.fromReservationZIO(reservation).use(use)
+  }
+
+  implicit final class ZManagedZLayerSyntax[R, E, A](private val self: ZLayer[R, E, A]) extends AnyVal {
+
+    /** Converts this layer to a ZManaged value. */
+    def toManaged(implicit trace: Trace): ZManaged[R, E, ZEnvironment[A]] =
+      ZManaged.scoped[R](self.build)
   }
 
   implicit final class ZManagedZLayerCompanionSyntax(private val self: ZLayer.type) extends AnyVal {

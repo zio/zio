@@ -1,10 +1,10 @@
 package zio.concurrent
 
-import com.github.ghik.silencer.silent
 import zio.{UIO, ZIO}
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.{Consumer, Predicate}
+import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
 /**
@@ -24,7 +24,7 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
    * Adds all new values.
    */
   def addAll(xs: Iterable[A]): UIO[Boolean] =
-    ZIO.succeed(underlying.addAll(xs.asJavaCollection): @silent("JavaConverters"))
+    ZIO.succeed(underlying.addAll(xs.asJavaCollection): @nowarn("msg=JavaConverters"))
 
   /**
    * Removes all elements.
@@ -139,26 +139,26 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
    * existing element.
    */
   def removeAll(xs: Iterable[A]): UIO[Boolean] =
-    ZIO.succeed(underlying.removeAll(xs.asJavaCollection): @silent("JavaConverters"))
+    ZIO.succeed(underlying.removeAll(xs.asJavaCollection): @nowarn("msg=JavaConverters"))
 
   /**
    * Removes all elements which satisfy the given predicate.
    */
   def removeIf(p: A => Boolean): UIO[Boolean] =
-    ZIO.succeed(underlying.removeIf(makePredicate(a => !p(a))))
+    ZIO.succeed(underlying.removeIf(makePredicate(p)))
 
   /**
    * Retain all the entries for the given values if they are mapped to an
    * existing element.
    */
   def retainAll(xs: Iterable[A]): UIO[Boolean] =
-    ZIO.succeed(underlying.retainAll(xs.asJavaCollection): @silent("JavaConverters"))
+    ZIO.succeed(underlying.retainAll(xs.asJavaCollection): @nowarn("msg=JavaConverters"))
 
   /**
    * Removes all elements which do not satisfy the given predicate.
    */
   def retainIf(p: A => Boolean): UIO[Boolean] =
-    ZIO.succeed(underlying.removeIf(makePredicate(p)))
+    ZIO.succeed(underlying.removeIf(makePredicate(a => !p(a))))
 
   /**
    * Number of elements in the set.
@@ -170,12 +170,12 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
    * Convert the ConcurrentSet to Set.
    */
   def toSet: UIO[Set[A]] =
-    ZIO.succeed(underlying.asScala.toSet: @silent("JavaConverters"))
+    ZIO.succeed(underlying.asScala.toSet: @nowarn("msg=JavaConverters"))
 
   /**
    * Transform all elements of the ConcurrentSet using the given function.
    */
-  @silent("JavaConverters")
+  @nowarn("msg=JavaConverters")
   def transform(f: A => A): UIO[Unit] =
     ZIO.succeed {
       val set = underlying.asScala.toSet

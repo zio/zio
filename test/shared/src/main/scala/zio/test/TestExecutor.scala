@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,17 +62,29 @@ object TestExecutor {
                   loop(label :: labels, spec, exec, ancestors, sectionId)
 
                 case Spec.ScopedCase(managed) =>
-                  ZIO
-                    .scoped(
-                      managed
-                        .flatMap(loop(labels, _, exec, ancestors, sectionId))
-                    )
-                    .catchAllCause { e =>
-                      val event =
-                        ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
+                  Scope.make.flatMap { scope =>
+                    scope
+                      .extend(managed.flatMap(loop(labels, _, exec, ancestors, sectionId)))
+                      .onExit { exit =>
+                        val warning =
+                          "Warning: ZIO Test is attempting to close the scope of suite " +
+                            s"${labels.reverse.mkString(" - ")} in $fullyQualifiedName, " +
+                            "but closing the scope has taken more than 60 seconds to " +
+                            "complete. This may indicate a resource leak."
+                        for {
+                          warning <-
+                            ZIO.logWarning(warning).delay(60.seconds).withClock(ClockLive).interruptible.forkDaemon
+                          finalizer <- scope.close(exit).ensuring(warning.interrupt).forkDaemon
+                          exit      <- warning.await
+                          _         <- finalizer.join.when(exit.isInterrupted)
+                        } yield ()
+                      }
+                  }.catchAllCause { e =>
+                    val event =
+                      ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
 
-                      processEvent(event)
-                    }
+                    processEvent(event)
+                  }
 
                 case Spec.MultipleCase(specs) =>
                   ZIO.uninterruptibleMask(restore =>
@@ -108,7 +120,7 @@ object TestExecutor {
                           fullyQualifiedName
                         )
                       )
-                    result  <- ZIO.withClock(ClockLive)(test.timed.either)
+                    result  <- Live.withLive(test)(_.timed).either
                     duration = result.map(_._1.toMillis).fold(_ => 1L, identity)
                     event =
                       ExecutionEvent
@@ -153,10 +165,9 @@ object TestExecutor {
               topParent
             )
 
-            TestDebug.createDebugFile(fullyQualifiedName) *>
-              ZIO.scoped {
-                loop(List.empty, scopedSpec, defExec, List.empty, topParent)
-              } *> processEvent(topLevelFlush) *> TestDebug.deleteIfEmpty(fullyQualifiedName)
+            ZIO.scoped(loop(List.empty, scopedSpec, defExec, List.empty, topParent)) *>
+              processEvent(topLevelFlush) *>
+              TestDebug.deleteIfEmpty(fullyQualifiedName)
 
           }
           summary <- sink.getSummary

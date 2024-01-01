@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,9 +22,11 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.util.concurrent.{RejectedExecutionException, ThreadPoolExecutor}
 
 private[zio] abstract class DefaultExecutors {
-
   final def makeDefault(): zio.Executor =
-    new ZScheduler
+    makeDefault(true)
+
+  final def makeDefault(autoBlocking: Boolean): zio.Executor =
+    new ZScheduler(autoBlocking)
 
   final def fromThreadPoolExecutor(
     es: ThreadPoolExecutor

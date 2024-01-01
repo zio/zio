@@ -58,6 +58,6 @@ ZIO Logging calculates the running duration of that span and includes that in th
 
 ## Further Reading
 
-* [ZIO Logging](../../ecosystem/officials/index.md)
+* [ZIO Logging](https://zio.dev/zio-logging)
 * [How to Enable Logging in a ZIO Application](../../guides/tutorials/enable-logging-in-a-zio-application.md)
 * [How to Create a Custom Logger for a ZIO Application?](../../guides/tutorials/create-custom-logger-for-a-zio-application.md)

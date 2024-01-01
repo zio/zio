@@ -37,6 +37,7 @@ private [zio] object LayerMacroUtils {
       layerToDebug = layerToDebug,
       typeEquals = _ <:< _,
       sideEffectType = TypeRepr.of[Unit],
+      anyType = TypeRepr.of[Any],
       foldTree = buildFinalTree,
       method = provideMethod,
       exprToNode = getNode,
@@ -121,70 +122,5 @@ private [zio] object LayerMacroUtils {
       }
 
     loop(TypeRepr.of[T])
-  }
-
-  type Env[Elems] =
-    Elems match {
-    case t *: EmptyTuple => t
-    case t *: rest => t & Env[rest]
-  }
-
-  inline def genLayer[T <: Tuple, A]: URLayer[Env[T], A] =
-    ${ genLayerImpl[T, A] }
-
-  def genLayerImpl[T <: Tuple: Type, A: Type](using ctx: Quotes): Expr[URLayer[Env[T], A]] = {
-    import ctx.reflect.*
-    val clsSymbol = TypeRepr.of[A].classSymbol.get
-
-    if clsSymbol.flags.is(Flags.Case) then deriveLayer[T, A]
-    else report.errorAndAbort("Only case classes are supported")
-  }
-
-  private def deriveLayer[T <: Tuple: Type, A: Type](using ctx: Quotes): Expr[URLayer[Env[T], A]] = {
-    import ctx.reflect._
-    val caseFields = TypeTree.of[A].symbol.caseFields
-    val fieldTypes = caseFields.map(_.tree).map { case ValDef(_, tpe, _) => tpe.tpe.asType }
-    val clsSymbol = TypeRepr.of[A].classSymbol.get
-
-    def caseClassApply(input: List[Term]) =
-      Apply(Select.unique(Ref(clsSymbol.companionModule), "apply"), input)
-
-    def genDeps(caseClassFields: List[Tree]): Expr[URIO[Env[T], Tuple]] =
-      caseClassFields.foldLeft[Expr[URIO[Env[T], Tuple]]]('{ZIO.succeed(EmptyTuple)}) {
-        case (acc, ValDef(_, tp, _)) =>
-          tp.tpe.asType match {
-            case'[t] =>
-          '{
-          ${
-          acc
-          }.zipWith (ZIO.serviceWith[t] (dep => Tuple1 (dep) ) ) (_ ++ _)
-          }
-          .asInstanceOf[Expr[URIO[Env[T], Tuple]]]
-          }
-      }
-
-    def genLayer(fields: List[Tree]): Expr[URIO[Env[T], A]] =
-      if fields.size == 1
-
-    then'{ZIO.serviceWith(dep => ${caseClassApply('{dep}.asTerm :: Nil).asExprOf[A]})}
-    else
-    '{${genDeps(fields)}.map(deps => ${depsDefs('{deps.asInstanceOf[T]}).asExprOf[A]})}
-
-    def depsDefs(deps: Expr[T]) = {
-      ValDef.let(
-        Symbol.spliceOwner,
-        fieldTypes.zipWithIndex.map { case ('[t
-          ], i
-          ) =>
-          Apply(
-            TypeApply(Select.unique(deps.asTerm, "apply"), List(TypeTree.of[T])),
-            List(Literal(IntConstant(i))),
-            )
-        },
-        )(caseClassApply(_)).asExprOf[A]
-
-    }
-
-    '{ZLayer(${genLayer(caseFields.map(_.tree))})}
   }
 }

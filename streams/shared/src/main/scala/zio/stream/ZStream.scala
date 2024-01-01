@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2018-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -191,194 +191,129 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     import ZStream.HandoffSignal._
     type SinkEndReason = ZStream.SinkEndReason
     import ZStream.SinkEndReason._
-    import java.time.OffsetDateTime
-    import java.util.concurrent.atomic._
 
-    def getAndUpdate[A](value: AtomicReference[A])(f: A => A): A = {
-      var loop       = true
-      var current: A = null.asInstanceOf[A]
-      while (loop) {
-        current = value.get
-        val next = f(current)
-        loop = !value.compareAndSet(current, next)
-      }
-      current
-    }
+    val layer =
+      ZStream.Handoff.make[HandoffSignal] <*>
+        Ref.make[SinkEndReason](ScheduleEnd) <*>
+        Ref.make(Chunk[A1]()) <*>
+        schedule.driver <*>
+        Ref.make(false) <*>
+        Ref.make(false)
 
-    trait Driver[-Env, -In, +Out] {
-      def next(now: OffsetDateTime, in: In): ZIO[Env, None.type, Out]
-      def reset: ZIO[Env, Nothing, Unit]
-    }
+    ZStream.fromZIO(layer).flatMap {
+      case (handoff, sinkEndReason, sinkLeftovers, scheduleDriver, consumed, endAfterEmit) =>
+        lazy val handoffProducer: ZChannel[Any, E1, Chunk[A], Any, Nothing, Nothing, Any] =
+          ZChannel.readWithCause(
+            (in: Chunk[A]) => ZChannel.fromZIO(handoff.offer(Emit(in)).when(in.nonEmpty)) *> handoffProducer,
+            (cause: Cause[E1]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
+            (_: Any) => ZChannel.fromZIO(handoff.offer(End(UpstreamEnd)))
+          )
 
-    def driver[Env, In, Out](schedule: Schedule[Env, In, Out]): ZIO[Any, Nothing, Driver[Env, In, Out]] =
-      for {
-        clock <- ZIO.clock
-        ref   <- Ref.make(schedule.initial)
-      } yield new Driver[Env, In, Out] {
-        def next(now: OffsetDateTime, in: In): ZIO[Env, None.type, Out] =
-          for {
-            state    <- ref.get
-            decision <- schedule.step(now, in, state)
-            value <- decision match {
-                       case (state, out, Schedule.Decision.Done) =>
-                         ref.set(state) *> ZIO.fail(None)
-                       case (state, out, Schedule.Decision.Continue(interval)) =>
-                         ref.set(state) *> clock.sleep(Duration.fromInterval(now, interval.start)) as out
-                     }
-
-          } yield value
-        val reset: ZIO[Any, Nothing, Unit] =
-          ref.set(schedule.initial)
-      }
-
-    sealed trait ScheduleState
-
-    final case class Suspended(c: C, resume: Promise[Nothing, (OffsetDateTime, Option[B], Long)]) extends ScheduleState
-    final case class DownstreamPulled(lastB: Option[B], started: OffsetDateTime, epoch: Long)     extends ScheduleState
-    final case class Running(lastB: Option[B], started: OffsetDateTime, epoch: Long)              extends ScheduleState
-
-    val layer = ZStream.Handoff.make[HandoffSignal] <*> driver(schedule) <*> ZIO.clock <*> Clock.currentDateTime
-
-    ZStream.fromZIO(layer).flatMap { case (handoff, scheduleDriver, clock, now) =>
-      val sinkEndReason = new AtomicReference[SinkEndReason](ScheduleEnd)
-      val sinkLeftovers = new AtomicReference[Chunk[A1]](Chunk.empty)
-      val scheduleState = new AtomicReference[ScheduleState](Running(None, now, 0L))
-      val consumed      = new AtomicBoolean(false)
-      val endAfterEmit  = new AtomicBoolean(false)
-
-      lazy val handoffProducer: ZChannel[Any, E1, Chunk[A], Any, Nothing, Nothing, Any] =
-        ZChannel.readWithCause(
-          (in: Chunk[A]) =>
-            if (in.nonEmpty) ZChannel.fromZIO(handoff.offer(Emit(in))) *> handoffProducer
-            else handoffProducer,
-          (cause: Cause[E1]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
-          (_: Any) => ZChannel.fromZIO(handoff.offer(End(UpstreamEnd)))
-        )
-
-      lazy val handoffConsumer: ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Unit] =
-        ZChannel.suspend {
-          val leftovers = sinkLeftovers.getAndSet(Chunk.empty)
-          if (leftovers.nonEmpty) {
-            consumed.set(true)
-            ZChannel.write(leftovers) *> handoffConsumer
-          } else
-            ZChannel.fromZIO(handoff.take).flatMap {
-              case Emit(chunk) =>
-                consumed.set(true)
-                ZChannel.write(chunk).flatMap { _ =>
-                  if (endAfterEmit.get) ZChannel.unit
-                  else handoffConsumer
+        lazy val handoffConsumer: ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Unit] =
+          ZChannel.unwrap(
+            sinkLeftovers.getAndSet(Chunk.empty).flatMap { leftovers =>
+              if (leftovers.nonEmpty) {
+                consumed.set(true) *> ZIO.succeed(ZChannel.write(leftovers) *> handoffConsumer)
+              } else
+                handoff.take.map {
+                  case Emit(chunk) =>
+                    ZChannel.fromZIO(consumed.set(true)) *>
+                      ZChannel.write(chunk) *>
+                      ZChannel.fromZIO(endAfterEmit.get).flatMap {
+                        case false => handoffConsumer
+                        case true  => ZChannel.unit
+                      }
+                  case Halt(cause) => ZChannel.refailCause(cause)
+                  case End(ScheduleEnd) =>
+                    ZChannel.unwrap {
+                      consumed.get.map { p =>
+                        if (p) ZChannel.fromZIO(sinkEndReason.set(ScheduleEnd) *> endAfterEmit.set(true))
+                        else
+                          ZChannel
+                            .fromZIO(sinkEndReason.set(ScheduleEnd) *> endAfterEmit.set(true)) *> handoffConsumer
+                      }
+                    }
+                  case End(reason) => ZChannel.fromZIO(sinkEndReason.set(reason) *> endAfterEmit.set(true))
                 }
-              case Halt(cause) =>
-                ZChannel.refailCause(cause)
-              case End(ScheduleEnd) =>
-                if (consumed.get) {
-                  sinkEndReason.set(ScheduleEnd)
-                  endAfterEmit.set(true)
-                  ZChannel.unit
-                } else {
-                  sinkEndReason.set(ScheduleEnd)
-                  endAfterEmit.set(true)
-                  handoffConsumer
-                }
-              case End(reason) =>
-                sinkEndReason.set(reason)
-                endAfterEmit.set(true)
-                ZChannel.unit
-            }
-        }
-
-      def timeout(now: OffsetDateTime, lastB: Option[B], scheduleEpoch: Long): ZIO[R1, Nothing, Nothing] =
-        scheduleDriver
-          .next(now, lastB)
-          .foldZIO(
-            _ => scheduleDriver.reset *> timeout(now, lastB, scheduleEpoch),
-            c => {
-              val now    = clock.unsafe.currentDateTime()(Unsafe.unsafe)
-              val resume = Promise.unsafe.make[Nothing, (OffsetDateTime, Option[B], Long)](FiberId.None)(Unsafe.unsafe)
-              val currentScheduleState = getAndUpdate(scheduleState) {
-                case DownstreamPulled(lastB, started, epoch) =>
-                  if (scheduleEpoch == epoch) Suspended(c, resume)
-                  else DownstreamPulled(lastB, started, epoch)
-                case Running(lastB, started, epoch) =>
-                  if (scheduleEpoch == epoch) Suspended(c, resume)
-                  else Running(lastB, started, epoch)
-                case Suspended(end, resume) =>
-                  Suspended(end, resume)
-              }
-              currentScheduleState match {
-                case DownstreamPulled(lastB, started, epoch) =>
-                  if (scheduleEpoch == epoch)
-                    handoff.offer(End(ScheduleEnd)) *>
-                      resume.await.flatMap { case (now, lastB, epoch) => timeout(now, lastB, epoch) }
-                  else
-                    timeout(started, lastB, epoch)
-                case Running(lastB, started, epoch) =>
-                  if (scheduleEpoch == epoch)
-                    resume.await.flatMap { case (now, lastB, epoch) => timeout(now, lastB, epoch) }
-                  else
-                    timeout(started, lastB, epoch)
-                case Suspended(_, resume) =>
-                  resume.await.flatMap { case (now, lastB, epoch) => timeout(now, lastB, epoch) }
-              }
             }
           )
 
-      lazy val writeDone: ZChannel[Any, E1, Chunk[A1], B, E1, Chunk[Either[C, B]], B] =
-        ZChannel.suspend {
-          def loop(c: Option[C]): ZChannel[Any, E1, Chunk[A1], B, E1, Chunk[Either[C, B]], B] =
-            ZChannel.readWithCause(
-              elem => {
-                getAndUpdate(sinkLeftovers)(_ ++ elem)
-                loop(c)
-              },
-              err => ZChannel.refailCause(err),
-              out =>
-                if (consumed.get) {
-                  val toWrite = c.fold[Chunk[Either[C, B]]](Chunk(Right(out)))(c => Chunk(Right(out), Left(c)))
-                  ZChannel.write(toWrite) *> ZChannel.succeed(out)
-                } else ZChannel.succeed(out)
-            )
-          val currentScheduleState = getAndUpdate(scheduleState) {
-            case Suspended(end, resume)                  => Suspended(end, resume)
-            case DownstreamPulled(lastB, started, epoch) => DownstreamPulled(lastB, started, epoch)
-            case Running(lastB, started, epoch)          => DownstreamPulled(lastB, started, epoch)
-          }
-          currentScheduleState match {
-            case Suspended(end, resume) =>
-              ZChannel.fromZIO(handoff.offer(End(ScheduleEnd)).forkDaemon) *> loop(Some(end))
-            case _ =>
-              loop(None)
-          }
-        }
+        def timeout(lastB: Option[B]): ZIO[R1, None.type, C] =
+          scheduleDriver.next(lastB)
 
-      def scheduledAggregator(sinkEpoch: Long): ZChannel[R1, Any, Any, Any, E1, Chunk[Either[C, B]], Any] =
-        (handoffConsumer pipeToOrFail sink.channel.pipeTo(writeDone)).flatMap { b =>
-          sinkEndReason.get match {
-            case ScheduleEnd =>
-              ZChannel.suspend {
-                val now                  = clock.unsafe.currentDateTime()(Unsafe.unsafe)
-                val currentScheduleState = scheduleState.getAndSet(Running(Some(b), now, sinkEpoch + 1))
-                currentScheduleState match {
-                  case Suspended(end, resume) =>
-                    resume.unsafe.done(ZIO.succeed((now, None, sinkEpoch + 1)))(Unsafe.unsafe)
-                  case _ =>
+        def scheduledAggregator(
+          sinkFiber: Fiber.Runtime[E1, (Chunk[Chunk[A1]], B)],
+          scheduleFiber: Fiber.Runtime[None.type, C],
+          scope: Scope
+        ): ZChannel[R1, Any, Any, Any, E1, Chunk[Either[C, B]], Any] = {
+
+          val forkSink =
+            consumed.set(false) *> endAfterEmit
+              .set(false) *> (handoffConsumer pipeToOrFail sink.channel).collectElements.run.forkIn(scope)
+
+          def handleSide(leftovers: Chunk[Chunk[A1]], b: B, c: Option[C]) =
+            ZChannel.unwrap(
+              sinkLeftovers.set(leftovers.flatten) *>
+                sinkEndReason.get.map {
+                  case ScheduleEnd =>
+                    ZChannel.unwrap {
+                      for {
+                        consumed      <- consumed.get
+                        sinkFiber     <- forkSink
+                        scheduleFiber <- timeout(Some(b)).forkIn(scope)
+                        toWrite        = c.fold[Chunk[Either[C, B]]](Chunk(Right(b)))(c => Chunk(Right(b), Left(c)))
+                      } yield
+                        if (consumed)
+                          ZChannel
+                            .write(toWrite) *> scheduledAggregator(sinkFiber, scheduleFiber, scope)
+                        else scheduledAggregator(sinkFiber, scheduleFiber, scope)
+                    }
+                  case UpstreamEnd =>
+                    ZChannel.unwrap {
+                      consumed.get.map { p =>
+                        if (p) ZChannel.write(Chunk(Right(b)))
+                        else ZChannel.unit
+                      }
+                    }
                 }
-                consumed.set(false)
-                endAfterEmit.set(false)
-                scheduledAggregator(sinkEpoch + 1)
-              }
-            case UpstreamEnd =>
-              ZChannel.unit
+            )
+
+          ZChannel.unwrap {
+            sinkFiber.join.raceWith(scheduleFiber.join)(
+              (sinkExit, _) =>
+                scheduleFiber.interrupt *>
+                  ZIO.done(sinkExit).map { case (leftovers, b) => handleSide(leftovers, b, None) },
+              (scheduleExit, _) =>
+                ZIO
+                  .done(scheduleExit)
+                  .foldCauseZIO(
+                    _.failureOrCause match {
+                      case Left(_) =>
+                        handoff.offer(End(ScheduleEnd)).forkDaemon *> sinkFiber.join.map { case (leftovers, b) =>
+                          handleSide(leftovers, b, None)
+                        }
+                      case Right(cause) =>
+                        handoff.offer(Halt(cause)).forkDaemon *> sinkFiber.join.map { case (leftovers, b) =>
+                          handleSide(leftovers, b, None)
+                        }
+                    },
+                    c =>
+                      handoff.offer(End(ScheduleEnd)).forkDaemon *>
+                        sinkFiber.join.map { case (leftovers, b) =>
+                          handleSide(leftovers, b, Some(c))
+                        }
+                  )
+            )
           }
         }
 
-      ZStream.unwrapScoped[R1] {
-        for {
-          _ <- (self.channel >>> handoffProducer).run.forkScoped
-          _ <- timeout(now, None, 0L).forkScoped
-        } yield new ZStream(scheduledAggregator(0L))
-      }
+        ZStream.unwrapScopedWith { scope =>
+          for {
+            _             <- (self.channel >>> handoffProducer).run.forkIn(scope)
+            sinkFiber     <- (handoffConsumer pipeToOrFail sink.channel).collectElements.run.forkIn(scope)
+            scheduleFiber <- timeout(None).forkIn(scope)
+          } yield new ZStream(scheduledAggregator(sinkFiber, scheduleFiber, scope))
+        }
     }
   }
 
@@ -847,7 +782,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
               }
             )
 
-          ZStream.scoped[R]((self.channel >>> producer).runScoped.forkScoped) *>
+          ZStream.scopedWith(scope => (self.channel >>> producer).runIn(scope).forkIn(scope)) *>
             new ZStream(consumer(NotStarted))
         }
       }
@@ -977,14 +912,14 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         )
 
     new ZStream(
-      ZChannel.unwrapScoped[R1] {
+      ZChannel.unwrapScopedWith { scope =>
         for {
           left     <- ZStream.Handoff.make[Exit[Option[E], A]]
           right    <- ZStream.Handoff.make[Exit[Option[E1], A2]]
           latchL   <- ZStream.Handoff.make[Unit]
           latchR   <- ZStream.Handoff.make[Unit]
-          _        <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left, latchL)).runScoped.forkScoped
-          _        <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right, latchR)).runScoped.forkScoped
+          _        <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left, latchL)).runIn(scope).forkIn(scope)
+          _        <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right, latchR)).runIn(scope).forkIn(scope)
           pullLeft  = latchL.offer(()) *> left.take.flatMap(ZIO.done(_))
           pullRight = latchR.offer(()) *> right.take.flatMap(ZIO.done(_))
         } yield ZStream.unfoldZIO(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).unsome)).channel
@@ -1018,14 +953,14 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         )
 
     new ZStream(
-      ZChannel.unwrapScoped[R1] {
+      ZChannel.unwrapScopedWith { scope =>
         for {
           left     <- ZStream.Handoff.make[Take[E, A]]
           right    <- ZStream.Handoff.make[Take[E1, A2]]
           latchL   <- ZStream.Handoff.make[Unit]
           latchR   <- ZStream.Handoff.make[Unit]
-          _        <- (self.channel >>> producer(left, latchL)).runScoped.forkScoped
-          _        <- (that.channel >>> producer(right, latchR)).runScoped.forkScoped
+          _        <- (self.channel >>> producer(left, latchL)).runIn(scope).forkIn(scope)
+          _        <- (that.channel >>> producer(right, latchR)).runIn(scope).forkIn(scope)
           pullLeft  = latchL.offer(()) *> left.take.flatMap(_.done)
           pullRight = latchR.offer(()) *> right.take.flatMap(_.done)
         } yield ZStream.unfoldChunkZIO(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).unsome)).channel
@@ -1226,9 +1161,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   )(implicit trace: Trace): ZStream[R1, E1, A] =
     ZStream.fromZIO(Promise.make[E1, Nothing]).flatMap { bgDied =>
       ZStream
-        .scoped[R1](
-          other.runForeachScoped(_ => ZIO.unit).catchAllCause(bgDied.failCause(_)).forkScoped
-        ) *>
+        .scopedWith(scope => other.channel.drain.runIn(scope).catchAllCause(bgDied.failCause(_)).forkIn(scope)) *>
         self.interruptWhen(bgDied)
     }
 
@@ -1385,7 +1318,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def flatMap[R1 <: R, E1 >: E, B](f: A => ZStream[R1, E1, B])(implicit
     trace: Trace
   ): ZStream[R1, E1, B] =
-    new ZStream(channel.concatMap(as => as.map(f).map(_.channel).fold(ZChannel.unit)(_ *> _)))
+    new ZStream(
+      channel.concatMap(as =>
+        as.foldLeft[ZChannel[R1, Any, Any, Any, E1, zio.Chunk[B], Any]](ZChannel.unit) { case (acc, a) =>
+          acc *> f(a).channel
+        }
+      )
+    )
 
   /**
    * Maps each element of this stream to another stream and returns the
@@ -1631,11 +1570,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
               }
           )
 
-        ZStream.unwrapScoped[R] {
+        ZStream.unwrapScopedWith { scope =>
           for {
             map   <- ZIO.succeed(mutable.Map.empty[K, Queue[Take[E, A]]])
-            queue <- Queue.unbounded[Take[E, (K, Queue[Take[E, A]])]].withFinalizer(_.shutdown)
-            _     <- (self.channel >>> groupByKey(map, queue)).drain.runScoped.forkScoped
+            queue <- Queue.unbounded[Take[E, (K, Queue[Take[E, A]])]]
+            _     <- scope.addFinalizer(queue.shutdown)
+            _     <- (self.channel >>> groupByKey(map, queue)).drain.runIn(scope).forkIn(scope)
           } yield ZStream.fromQueueWithShutdown(queue).flattenTake
         }
       }
@@ -1685,8 +1625,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       }
 
     new ZStream(
-      ZChannel.unwrapScoped[R1] {
-        io.forkScoped.map { fiber =>
+      ZChannel.unwrapScopedWith { scope =>
+        io.forkIn(scope).map { fiber =>
           self.channel >>> writer(fiber)
         }
       }
@@ -1757,12 +1697,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       )
 
     new ZStream(
-      ZChannel.unwrapScoped[R1] {
+      ZChannel.unwrapScopedWith { scope =>
         for {
           left  <- ZStream.Handoff.make[Take[E1, A1]]
           right <- ZStream.Handoff.make[Take[E1, A1]]
-          _     <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left)).runScoped.forkScoped
-          _     <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right)).runScoped.forkScoped
+          _     <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left)).runIn(scope).forkIn(scope)
+          _     <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right)).runIn(scope).forkIn(scope)
         } yield {
           def process(leftDone: Boolean, rightDone: Boolean): ZChannel[R1, E1, Boolean, Any, E1, Chunk[A1], Unit] =
             ZChannel.readWithCause[R1, E1, Boolean, Any, E1, Chunk[A1], Unit](
@@ -2090,6 +2030,139 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     self.drain.merge(that)
 
   /**
+   * Merges this stream that is sorted and the specified stream that is sorted
+   * to produce a new stream that is sorted.
+   */
+  def mergeSorted[R1 <: R, E1 >: E, A1 >: A](
+    that: => ZStream[R1, E1, A1]
+  )(implicit ord: Ordering[A1], trace: Trace): ZStream[R1, E1, A1] = {
+    sealed trait State
+    case object DrainLeft                            extends State
+    case object DrainRight                           extends State
+    case object PullBoth                             extends State
+    final case class PullLeft(rightChunk: Chunk[A1]) extends State
+    final case class PullRight(leftChunk: Chunk[A1]) extends State
+
+    def pull(
+      state: State,
+      pullLeft: ZIO[R, Option[E], Chunk[A1]],
+      pullRight: ZIO[R1, Option[E1], Chunk[A1]]
+    ): ZIO[R1, Nothing, Exit[Option[E1], (Chunk[A1], State)]] =
+      state match {
+        case DrainLeft =>
+          pullLeft.fold(
+            e => Exit.fail(e),
+            leftChunk => Exit.succeed(leftChunk -> DrainLeft)
+          )
+        case DrainRight =>
+          pullRight.fold(
+            e => Exit.fail(e),
+            rightChunk => Exit.succeed(rightChunk -> DrainRight)
+          )
+        case PullBoth =>
+          pullLeft.unsome
+            .zipPar(pullRight.unsome)
+            .foldZIO(
+              e => ZIO.succeed(Exit.fail(Some(e))),
+              {
+                case (Some(leftChunk), Some(rightChunk)) =>
+                  if (leftChunk.isEmpty && rightChunk.isEmpty) pull(PullBoth, pullLeft, pullRight)
+                  else if (leftChunk.isEmpty) pull(PullLeft(rightChunk), pullLeft, pullRight)
+                  else if (rightChunk.isEmpty) pull(PullRight(leftChunk), pullLeft, pullRight)
+                  else ZIO.succeed(Exit.succeed(mergeSortedChunk(leftChunk, rightChunk)))
+                case (Some(leftChunk), None) =>
+                  if (leftChunk.isEmpty) pull(DrainLeft, pullLeft, pullRight)
+                  else ZIO.succeed(Exit.succeed(leftChunk -> DrainLeft))
+                case (None, Some(rightChunk)) =>
+                  if (rightChunk.isEmpty) pull(DrainRight, pullLeft, pullRight)
+                  else
+                    ZIO.succeed(Exit.succeed(rightChunk -> DrainRight))
+                case (None, None) => ZIO.succeed(Exit.fail(None))
+              }
+            )
+        case PullLeft(rightChunk) =>
+          pullLeft.foldZIO(
+            {
+              case Some(e) => ZIO.succeed(Exit.fail(Some(e)))
+              case None =>
+                ZIO.succeed(Exit.succeed(rightChunk -> DrainRight))
+            },
+            leftChunk =>
+              if (leftChunk.isEmpty) pull(PullLeft(rightChunk), pullLeft, pullRight)
+              else ZIO.succeed(Exit.succeed(mergeSortedChunk(leftChunk, rightChunk)))
+          )
+        case PullRight(leftChunk) =>
+          pullRight.foldZIO(
+            {
+              case Some(e) => ZIO.succeed(Exit.fail(Some(e)))
+              case None    => ZIO.succeed(Exit.succeed(leftChunk -> DrainLeft))
+            },
+            rightChunk =>
+              if (rightChunk.isEmpty) pull(PullRight(leftChunk), pullLeft, pullRight)
+              else ZIO.succeed(Exit.succeed(mergeSortedChunk(leftChunk, rightChunk)))
+          )
+      }
+
+    def mergeSortedChunk(
+      leftChunk: Chunk[A1],
+      rightChunk: Chunk[A1]
+    ): (Chunk[A1], State) = {
+      val builder       = ChunkBuilder.make[A1]()
+      var state         = null.asInstanceOf[State]
+      val leftIterator  = leftChunk.iterator
+      val rightIterator = rightChunk.iterator
+      var left          = leftIterator.next()
+      var right         = rightIterator.next()
+      var loop          = true
+      while (loop) {
+        val compare = ord.compare(left, right)
+        if (compare == 0) {
+          builder += left
+          builder += right
+          if (leftIterator.hasNext && rightIterator.hasNext) {
+            left = leftIterator.next()
+            right = rightIterator.next()
+          } else if (leftIterator.hasNext) {
+            state = PullRight(Chunk.fromIterator(leftIterator))
+            loop = false
+          } else if (rightIterator.hasNext) {
+            state = PullLeft(Chunk.fromIterator(rightIterator))
+            loop = false
+          } else {
+            state = PullBoth
+            loop = false
+          }
+        } else if (compare < 0) {
+          builder += left
+          if (leftIterator.hasNext) {
+            left = leftIterator.next()
+          } else {
+            val rightBuilder = ChunkBuilder.make[A1]()
+            rightBuilder += right
+            rightBuilder ++= rightIterator
+            state = PullLeft(rightBuilder.result())
+            loop = false
+          }
+        } else {
+          builder += right
+          if (rightIterator.hasNext) {
+            right = rightIterator.next()
+          } else {
+            val leftBuilder = ChunkBuilder.make[A1]()
+            leftBuilder += left
+            leftBuilder ++= leftIterator
+            state = PullRight(leftBuilder.result())
+            loop = false
+          }
+        }
+      }
+      (builder.result(), state)
+    }
+
+    self.combineChunks[R1, E1, State, A1, A1](that)(PullBoth)(pull)
+  }
+
+  /**
    * Merges this stream and the specified stream together to a common element
    * type with the specified mapping functions.
    *
@@ -2285,8 +2358,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       handoff <- ZStream.Handoff.make[Signal]
     } yield {
       val consumer: ZSink[R1, E1, A1, A1, Unit] = sink.collectLeftover
-        .foldSink(
-          e => ZSink.fromZIO(p.fail(e)) *> ZSink.fail(e),
+        .foldCauseSink(
+          c => ZSink.fromZIO(p.failCause(c)) *> ZSink.failCause(c),
           { case (z1, leftovers) =>
             lazy val loop: ZChannel[Any, E, Chunk[A1], Any, E1, Chunk[A1], Unit] = ZChannel.readWithCause(
               (in: Chunk[A1]) => ZChannel.fromZIO(handoff.offer(Signal.Emit(in))) *> loop,
@@ -2361,8 +2434,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     layer: => ZLayer[R0, E1, R]
   )(implicit trace: Trace): ZStream[R0, E1, A] =
     new ZStream(
-      ZChannel.unwrapScoped[R0] {
-        layer.build.map(r => self.channel.provideEnvironment(r))
+      ZChannel.unwrapScopedWith { scope =>
+        layer.build(scope).map(r => self.channel.provideEnvironment(r))
       }
     )
 
@@ -2620,7 +2693,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * the stream to a value of type `S`.
    */
   def runFold[S](s: => S)(f: (S, A) => S)(implicit trace: Trace): ZIO[R, E, S] =
-    ZIO.scoped[R](runFoldWhileScoped(s)(_ => true)((s, a) => f(s, a)))
+    runFoldWhile(s)(_ => true)((s, a) => f(s, a))
 
   /**
    * Executes a pure fold over the stream of values. Returns a scoped value that
@@ -2646,7 +2719,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * }}}
    */
   def runFoldWhile[S](s: => S)(cont: S => Boolean)(f: (S, A) => S)(implicit trace: Trace): ZIO[R, E, S] =
-    ZIO.scoped[R](runFoldWhileScoped(s)(cont)((s, a) => f(s, a)))
+    run(ZSink.fold(s)(cont)(f))
 
   /**
    * Executes an effectful fold over the stream of values. Returns a scoped
@@ -2681,7 +2754,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def runFoldWhileZIO[R1 <: R, E1 >: E, S](s: => S)(cont: S => Boolean)(
     f: (S, A) => ZIO[R1, E1, S]
   )(implicit trace: Trace): ZIO[R1, E1, S] =
-    ZIO.scoped[R1](runFoldWhileScopedZIO[R1, E1, S](s)(cont)(f))
+    run(ZSink.foldZIO(s)(cont)(f))
 
   /**
    * Executes a pure fold over the stream of values. Returns a scoped value that
@@ -2699,7 +2772,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def runFoldZIO[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
     trace: Trace
   ): ZIO[R1, E1, S] =
-    ZIO.scoped[R1](runFoldWhileScopedZIO[R1, E1, S](s)(_ => true)(f))
+    runFoldWhileZIO[R1, E1, S](s)(_ => true)(f)
 
   /**
    * Consumes all elements of the stream, passing them to the specified
@@ -3168,7 +3241,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def tapError[R1 <: R, E1 >: E](
     f: E => ZIO[R1, E1, Any]
   )(implicit ev: CanFail[E], trace: Trace): ZStream[R1, E1, A] =
-    catchAll(e => ZStream.fromZIO(f(e) *> ZIO.fail(e)))
+    tapErrorCause(_.failureOrCause.fold(f, _ => ZIO.unit))
 
   /**
    * Returns a stream that effectfully "peeks" at the cause of failure of the
@@ -3176,8 +3249,16 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    */
   def tapErrorCause[R1 <: R, E1 >: E](
     f: Cause[E] => ZIO[R1, E1, Any]
-  )(implicit ev: CanFail[E], trace: Trace): ZStream[R1, E1, A] =
-    catchAllCause(e => ZStream.fromZIO(f(e) *> ZIO.refailCause(e)))
+  )(implicit ev: CanFail[E], trace: Trace): ZStream[R1, E1, A] = {
+    lazy val tapErrorCause: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
+      ZChannel.readWithCause(
+        chunk => ZChannel.write(chunk) *> tapErrorCause,
+        cause => ZChannel.fromZIO(f(cause)) *> ZChannel.refailCause(cause),
+        done => ZChannel.succeedNow(done)
+      )
+
+    new ZStream(self.channel.pipeTo(tapErrorCause))
+  }
 
   /**
    * Sends all elements emitted by this stream to the specified sink in addition
@@ -3212,8 +3293,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                 _ => ZChannel.unit
               )
         )
-      new ZStream((self.channel >>> loop).ensuring(queue.offer(Take.end).forkDaemon *> promise.await))
-        .merge(ZStream.execute(right.run(sink).ensuring(queue.shutdown *> promise.succeed(()))), HaltStrategy.Both)
+      new ZStream(
+        ZChannel.fromZIO(promise.await) *> self.channel
+          .pipeTo(loop)
+          .ensuring(queue.offer(Take.end).forkDaemon *> queue.awaitShutdown) *> ZChannel.unit
+      )
+        .merge(ZStream.execute((promise.succeed(()) *> right.run(sink)).ensuring(queue.shutdown)), HaltStrategy.Both)
     }
 
   /**
@@ -3902,8 +3987,22 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Submerges the error case of an `Either` into the `ZStream`.
    */
-  def absolve[R, E, O](xs: ZStream[R, E, Either[E, O]])(implicit trace: Trace): ZStream[R, E, O] =
-    xs.mapZIO(ZIO.fromEither(_))
+  def absolve[R, E, O](xs: ZStream[R, E, Either[E, O]])(implicit trace: Trace): ZStream[R, E, O] = {
+    lazy val loop: ZChannel[Any, E, Chunk[Either[E, O]], Any, E, Chunk[O], Any] = ZChannel.readWithCause(
+      (in: Chunk[Either[E, O]]) => {
+        val mapped = in.collectWhile { case Right(o) => o }
+        if (mapped.size == in.size) ZChannel.write(mapped) *> loop
+        else {
+          val firstError = in(mapped.size).asInstanceOf[Left[E, O]]
+          ZChannel.write(mapped) *> ZChannel.fail(firstError.value)
+        }
+      },
+      (cause: Cause[E]) => ZChannel.refailCause(cause),
+      (_: Any) => ZChannel.unit
+    )
+
+    xs.pipeThroughChannel(loop)
+  }
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
@@ -4337,33 +4436,41 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def fromIteratorSucceed[A](iterator: => Iterator[A], maxChunkSize: => Int = DefaultChunkSize)(implicit
     trace: Trace
-  ): ZStream[Any, Nothing, A] =
-    ZStream.unwrap {
-      ZIO.succeed(ChunkBuilder.make[A]()).map { builder =>
-        def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
-          ZChannel.unwrap {
-            ZIO.succeed {
-              if (maxChunkSize == 1) {
-                if (iterator.hasNext) {
-                  ZChannel.write(Chunk.single(iterator.next())) *> loop(iterator)
-                } else ZChannel.unit
-              } else {
-                builder.clear()
-                var count = 0
-                while (count < maxChunkSize && iterator.hasNext) {
-                  builder += iterator.next()
-                  count += 1
-                }
-                if (count > 0) {
-                  ZChannel.write(builder.result()) *> loop(iterator)
-                } else ZChannel.unit
-              }
-            }
-          }
+  ): ZStream[Any, Nothing, A] = {
 
-        new ZStream(loop(iterator))
+    def writeOneByOne(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
+      if (iterator.hasNext)
+        ZChannel.write(Chunk.single(iterator.next())) *> writeOneByOne(iterator)
+      else
+        ZChannel.unit
+
+    def writeChunks(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
+      ZChannel.succeed(ChunkBuilder.make[A]()).flatMap { builder =>
+        def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] = {
+          builder.clear()
+          var count = 0
+          while (count < maxChunkSize && iterator.hasNext) {
+            builder += iterator.next()
+            count += 1
+          }
+          if (count > 0)
+            ZChannel.write(builder.result()) *> loop(iterator)
+          else
+            ZChannel.unit
+        }
+
+        loop(iterator)
+      }
+
+    ZStream.fromChannel {
+      ZChannel.suspend {
+        if (maxChunkSize == 1)
+          writeOneByOne(iterator)
+        else
+          writeChunks(iterator)
       }
     }
+  }
 
   /**
    * Creates a stream from an iterator that may potentially throw exceptions
@@ -4653,6 +4760,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def scoped[R]: ScopedPartiallyApplied[R] =
     new ScopedPartiallyApplied[R]
+
+  /**
+   * Creates a single-valued stream from a scoped resource
+   */
+  def scopedWith[R, E, A](f: Scope => ZIO[R, E, A])(implicit trace: Trace): ZStream[R, E, A] =
+    new ZStream(ZChannel.scopedWith(scope => f(scope).map(Chunk.single)))
 
   /**
    * Merges a variable list of streams in a non-deterministic fashion. Up to `n`
@@ -4970,6 +5083,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def unwrapScoped[R]: UnwrapScopedPartiallyApplied[R] =
     new UnwrapScopedPartiallyApplied[R]
+
+  /**
+   * Creates a stream produced from a scoped [[ZIO]]
+   */
+  def unwrapScopedWith[R, E, A](f: Scope => ZIO[R, E, ZStream[R, E, A]])(implicit trace: Trace): ZStream[R, E, A] =
+    scopedWith(scope => f(scope)).flatten
 
   /**
    * Returns the specified stream if the given condition is satisfied, otherwise

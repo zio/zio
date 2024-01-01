@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 John A. De Goes and the ZIO Contributors
+ * Copyright 2022-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -540,6 +540,10 @@ object Config {
   }
 
   def logLevel(name: String): Config[LogLevel] = logLevel.nested(name)
+
+  def long: Config[Long] = bigInt.map(_.toLong)
+
+  def long(name: String): Config[Long] = long.nested(name)
 
   def offsetDateTime: Config[java.time.OffsetDateTime] = OffsetDateTime
 
