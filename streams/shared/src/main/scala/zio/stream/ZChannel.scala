@@ -1794,7 +1794,9 @@ object ZChannel {
                                  (queueReader >>> channel)
                                    .toPullIn(scope)
                                    .flatMap(
-                                     evaluatePull(_).raceAwait(errorSignal.await.interruptible).raceAwait(canceler.await.interruptible)
+                                     evaluatePull(_)
+                                       .raceAwait(errorSignal.await.interruptible)
+                                       .raceAwait(canceler.await.interruptible)
                                    )
                                }
                              childFiber <- permits
