@@ -140,10 +140,10 @@ object Semaphore {
               case Right(permits) => acc -> Right(permits + n)
               case Left(queue) =>
                 queue.dequeueOption match {
-                  case None => acc -> Right(permits)
+                  case None => acc -> Right(n)
                   case Some(((promise, permits), queue)) =>
                     if (n > permits)
-                      loop(n - permits, Left(queue), acc <* promise.succeed(()))
+                      loop(n - permits, Left(queue), acc *> promise.succeed(()))
                     else if (n == permits)
                       (acc *> promise.succeed(())) -> Left(queue)
                     else
