@@ -103,7 +103,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
     Some(metrics)
   }
 
-  override def stealWork(depth: Int): Boolean = {
+  override def stealWork(depth: Int)(implicit unsafe: Unsafe): Boolean = {
     val currentThread = Thread.currentThread
     if (currentThread.isInstanceOf[ZScheduler.Worker]) {
       val worker   = currentThread.asInstanceOf[ZScheduler.Worker]

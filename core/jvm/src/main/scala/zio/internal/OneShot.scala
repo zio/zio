@@ -18,16 +18,11 @@ package zio.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.locks.ReentrantLock
-import java.util.concurrent.locks.Condition
-
 /**
  * A variable that can be set a single time. The synchronous, effectful
  * equivalent of `Promise`.
  */
-private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
-  @volatile private var value                 = null.asInstanceOf[A with AnyRef]
-  private final val isSetCondition: Condition = this.newCondition()
+private[zio] final class OneShot[A] private (@volatile var value: A) {
 
   import OneShot._
 
@@ -38,16 +33,12 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
   def set(v: A): Unit = {
     if (v == null) throw new Error("Defect: OneShot variable cannot be set to null value")
 
-    this.lock()
-
-    try {
+    this.synchronized {
       if (value != null) throw new Error("Defect: OneShot variable being set twice")
 
-      value = v.asInstanceOf[A with AnyRef]
+      value = v
 
-      this.isSetCondition.signalAll()
-    } finally {
-      this.unlock()
+      this.notifyAll()
     }
   }
 
@@ -64,40 +55,36 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
    * @throws Error
    *   if the timeout is reached without the value being set.
    */
-  def get(timeout: Long): A =
-    if (value ne null) value
-    else {
-      this.lock()
-
-      try {
-        if (value == null) this.isSetCondition.await(timeout, java.util.concurrent.TimeUnit.MILLISECONDS)
-      } finally {
-        this.unlock()
+  def get(timeout: Long): A = {
+    var remainingNano = math.min(timeout, Long.MaxValue / nanosPerMilli) * nanosPerMilli
+    while (value == null && remainingNano > 0L) {
+      val waitMilli = remainingNano / nanosPerMilli
+      val waitNano  = (remainingNano % nanosPerMilli).toInt
+      val start     = System.nanoTime()
+      this.synchronized {
+        if (value == null) this.wait(waitMilli, waitNano)
       }
-
-      if (value == null) throw new Error("Timed out waiting for variable to be set")
-
-      value
+      remainingNano -= System.nanoTime() - start
     }
+
+    if (value == null) throw new Error("Timed out waiting for variable to be set")
+
+    value
+  }
 
   /**
    * Retrieves the value of the variable, blocking if necessary.
    *
    * This will block until the value is set or the thread is interrupted.
    */
-  def get(): A =
-    if (value ne null) value
-    else {
-      this.lock()
-
-      try {
-        while (value == null) this.isSetCondition.await()
-      } finally {
-        this.unlock()
+  def get(): A = {
+    while (value == null) {
+      this.synchronized {
+        if (value == null) this.wait()
       }
-
-      value
     }
+    value
+  }
 
 }
 
@@ -108,5 +95,5 @@ private[zio] object OneShot {
   /**
    * Makes a new (unset) variable.
    */
-  def make[A]: OneShot[A] = new OneShot()
+  def make[A]: OneShot[A] = new OneShot(null.asInstanceOf[A])
 }

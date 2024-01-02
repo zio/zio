@@ -24,7 +24,7 @@ object SupervisorSpec extends ZIOBaseSpec {
         f           <- ZIO.sleep(10.millis).fork.supervised(onEndSup)
         _           <- (f.await).supervised(onResumeSup)
         value       <- onResumeSup.value
-      } yield assertTrue(value > 0)
+      } yield assertTrue(value == 1)
     } @@ TestAspect.nonFlaky @@ TestAspect.withLiveClock,
     suite("laws") {
       DifferSpec.diffLaws(Differ.supervisor)(genSupervisor)((left, right) =>

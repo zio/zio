@@ -46,11 +46,6 @@ private[zio] final class OneShot[A] private (var value: A) {
     if (value == null) throw new Error("Cannot block for result to be set in JavaScript")
     value
   }
-
-  def get(timeout: Long): A = {
-    val _ = timeout
-    get()
-  }
 }
 
 private[zio] object OneShot {

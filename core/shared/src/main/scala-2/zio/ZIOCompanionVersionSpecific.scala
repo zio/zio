@@ -1,6 +1,6 @@
 package zio
 
-import zio.ZIO.{Async, asyncInterrupt, blocking}
+import zio.ZIO.{Async, ZIOError, asyncInterrupt, blocking}
 
 import java.io.IOException
 
@@ -95,15 +95,19 @@ trait ZIOCompanionVersionSpecific {
    * }}}
    */
   def attempt[A](code: => A)(implicit trace: Trace): Task[A] =
-    ZIO.withFiberRuntime[Any, Throwable, A] { (fiberState, _) =>
+    ZIO.suspendSucceed {
       try {
-        Exit.succeed(code)
+        val result = code
+
+        Exit.succeed(result)
       } catch {
         case t: Throwable =>
-          if (!fiberState.isFatal(t))
-            ZIO.failCause(Cause.fail(t))
-          else
-            throw t
+          ZIO.withFiberRuntime[Any, Throwable, A] { (fiberState, _) =>
+            if (!fiberState.isFatal(t)(Unsafe.unsafe))
+              throw ZIOError.Traced(Cause.fail(t))
+            else
+              throw t
+          }
       }
     }
 
@@ -161,7 +165,7 @@ trait ZIOCompanionVersionSpecific {
       } catch {
         case t: Throwable =>
           ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-            if (!fiberState.isFatal(t))
+            if (!fiberState.isFatal(t)(Unsafe.unsafe))
               Exit.unit
             else
               throw t

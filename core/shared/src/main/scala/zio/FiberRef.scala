@@ -105,7 +105,7 @@ trait FiberRef[A] extends Serializable { self =>
 
   def delete(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-      fiberState.deleteFiberRef(self)
+      fiberState.deleteFiberRef(self)(Unsafe.unsafe)
       ZIO.unit
     }
 
@@ -194,9 +194,9 @@ trait FiberRef[A] extends Serializable { self =>
    */
   def modify[B](f: A => (B, A))(implicit trace: Trace): UIO[B] =
     ZIO.withFiberRuntime[Any, Nothing, B] { (fiberState, _) =>
-      val (b, a) = f(fiberState.getFiberRef(self))
+      val (b, a) = f(fiberState.getFiberRef(self)(Unsafe.unsafe))
 
-      fiberState.setFiberRef(self, a)
+      fiberState.setFiberRef(self, a)(Unsafe.unsafe)
 
       ZIO.succeed(b)
     }
@@ -466,12 +466,12 @@ object FiberRef {
 
         override def get(implicit trace: Trace): UIO[Value] =
           ZIO.withFiberRuntime[Any, Nothing, Value] { (fiberState, _) =>
-            ZIO.succeed(fiberState.getFiberRef(self))
+            ZIO.succeed(fiberState.getFiberRef(self)(Unsafe.unsafe))
           }
 
         override def getWith[R, E, A](f: Value => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
           ZIO.withFiberRuntime[R, E, A] { (fiberState, _) =>
-            f(fiberState.getFiberRef(self))
+            f(fiberState.getFiberRef(self)(Unsafe.unsafe))
           }
 
         override def locally[R, E, A](newValue: Value)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
@@ -480,12 +480,12 @@ object FiberRef {
 
             fiberState.setFiberRef(self, newValue)
 
-            zio.ensuring(ZIO.succeed(fiberState.setFiberRef(self, oldValue)))
+            zio.ensuring(ZIO.succeed(fiberState.setFiberRef(self, oldValue)(Unsafe.unsafe)))
           }
 
         override def set(value: Value)(implicit trace: Trace): UIO[Unit] =
           ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-            fiberState.setFiberRef(self, value)
+            fiberState.setFiberRef(self, value)(Unsafe.unsafe)
 
             ZIO.unit
           }

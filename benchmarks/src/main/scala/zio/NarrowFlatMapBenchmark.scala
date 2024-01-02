@@ -10,10 +10,6 @@ import scala.concurrent.Await
 @State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
-@Threads(16)
-@Fork(1)
 class NarrowFlatMapBenchmark {
   @Param(Array("1000"))
   var size: Int = _

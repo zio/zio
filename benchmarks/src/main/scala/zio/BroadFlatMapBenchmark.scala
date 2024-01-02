@@ -10,9 +10,8 @@ import scala.concurrent.Await
 @State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
-@Threads(16)
+@Warmup(iterations = 10, time = 1)
+@Measurement(iterations = 10, time = 1)
 @Fork(1)
 class BroadFlatMapBenchmark {
   @Param(Array("20"))
@@ -42,6 +41,32 @@ class BroadFlatMapBenchmark {
 
     fib(depth)
       .get()
+  }
+
+  @Benchmark
+  def monoBroadFlatMap(): BigInt = {
+    import reactor.core.publisher.Mono
+
+    def fib(n: Int): Mono[BigInt] =
+      if (n <= 1) Mono.fromSupplier(() => n)
+      else
+        fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => Mono.fromSupplier(() => a + b)))
+
+    fib(depth)
+      .block()
+  }
+
+  @Benchmark
+  def rxSingleBroadFlatMap(): BigInt = {
+    import io.reactivex.Single
+
+    def fib(n: Int): Single[BigInt] =
+      if (n <= 1) Single.fromCallable(() => n)
+      else
+        fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => Single.fromCallable(() => a + b)))
+
+    fib(depth)
+      .blockingGet()
   }
 
   @Benchmark

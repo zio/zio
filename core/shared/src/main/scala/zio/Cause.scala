@@ -462,8 +462,6 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       (cause, stackless) => Stackless(cause, stackless)
     )
 
-  final def nonEmpty: Boolean = !isEmpty
-
   /**
    * Returns a `String` with the cause pretty-printed.
    */
