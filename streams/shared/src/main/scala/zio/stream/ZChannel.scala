@@ -1756,7 +1756,7 @@ object ZChannel {
                        ZIO.succeed(false),
                    {
                      case Left(outDone) =>
-                       errorSignal.await.raceWith(permits.withPermits(n.toLong)(ZIO.unit))(
+                       errorSignal.await.interruptible.raceWith(permits.withPermits(n.toLong)(ZIO.unit).interruptible)(
                          leftDone = (_, permitAcquisition) => permitAcquisition.interrupt.as(false),
                          rightDone = (_, failureAwait) =>
                            failureAwait.interrupt *>
@@ -1774,7 +1774,7 @@ object ZChannel {
                                ZIO.scopedWith { scope =>
                                  (queueReader >>> channel)
                                    .toPullIn(scope)
-                                   .flatMap(evaluatePull(_).raceAwait(errorSignal.await))
+                                   .flatMap(evaluatePull(_).raceAwait(errorSignal.await.interruptible))
                                }
                              childFiber <- permits
                                              .withPermit(latch.succeed(()) *> raceIOs)
@@ -1794,7 +1794,7 @@ object ZChannel {
                                  (queueReader >>> channel)
                                    .toPullIn(scope)
                                    .flatMap(
-                                     evaluatePull(_).raceAwait(errorSignal.await).raceAwait(canceler.await)
+                                     evaluatePull(_).raceAwait(errorSignal.await.interruptible).raceAwait(canceler.await.interruptible)
                                    )
                                }
                              childFiber <- permits
