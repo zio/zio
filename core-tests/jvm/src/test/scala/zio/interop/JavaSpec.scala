@@ -128,7 +128,7 @@ object JavaSpec extends ZIOBaseSpec {
           promise <- Promise.make[Nothing, Int]
           future  <- promise.await.toCompletableFuture
           _       <- promise.succeed(42)
-          value   <- ZIO.succeed(future.get())
+          value   <- ZIO.succeedBlocking(future.get())
         } yield assertTrue(value == 42)
       }
     ) @@ zioTag(future),
