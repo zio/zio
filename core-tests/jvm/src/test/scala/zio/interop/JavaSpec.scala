@@ -122,6 +122,14 @@ object JavaSpec extends ZIOBaseSpec {
       test("return a `CompletableFuture` that produces the value from `IO`") {
         val someIO = ZIO.succeed[Int](42)
         assertZIO(someIO.toCompletableFuture.map(_.get()))(equalTo(42))
+      },
+      test("return a `CompletableFuture` immediately") {
+        for {
+          promise <- Promise.make[Nothing, Int]
+          future  <- promise.await.toCompletableFuture
+          _       <- promise.succeed(42)
+          value   <- ZIO.succeedBlocking(future.get())
+        } yield assertTrue(value == 42)
       }
     ) @@ zioTag(future),
     suite("`ZIO.toCompletableFutureE` must")(

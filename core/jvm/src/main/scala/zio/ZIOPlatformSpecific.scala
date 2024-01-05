@@ -37,7 +37,17 @@ private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
   def toCompletableFutureWith[A1 >: A](f: E => Throwable)(implicit
     trace: Trace
   ): URIO[R, CompletableFuture[A1]] =
-    self.mapError(f).fold(javaz.CompletableFuture_.failedFuture, CompletableFuture.completedFuture[A1])
+    ZIO.uninterruptibleMask { restore =>
+      for {
+        future <- ZIO.succeed(new CompletableFuture[A1])
+        _ <- restore(self)
+               .foldCause(
+                 cause => future.completeExceptionally(cause.squashTraceWith(f)),
+                 a => future.complete(a)
+               )
+               .fork
+      } yield future
+    }
 }
 
 private[zio] trait ZIOCompanionPlatformSpecific {
