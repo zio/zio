@@ -146,6 +146,21 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
+   * Crates a base64 encoded string based on the chunk's data.
+   */
+  def asBase64String(implicit ev: Chunk.IsText[A]): String = {
+    val encoder = java.util.Base64.getEncoder
+    ev match {
+      case Chunk.IsText.byteIsText =>
+        encoder.encodeToString(self.asInstanceOf[Chunk[Byte]].toArray)
+      case Chunk.IsText.charIsText =>
+        encoder.encodeToString(self.asInstanceOf[Chunk[Char]].toArray.map(_.toByte))
+      case Chunk.IsText.strIsText =>
+        encoder.encodeToString(ev.convert(self).getBytes)
+    }
+  }
+
+  /**
    * Converts a chunk of ints to a chunk of bits.
    */
   final def asBitsInt(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Int): Chunk[Boolean] =
