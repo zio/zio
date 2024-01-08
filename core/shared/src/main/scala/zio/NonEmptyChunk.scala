@@ -106,14 +106,25 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) extends Seri
    * Groups the values in this `NonEmptyChunk` using the specified function.
    */
   def groupBy[K](f: A => K): Map[K, NonEmptyChunk[A]] =
-    chunk.groupBy(f).map { case (k, v) => (k, nonEmpty(v)) }
+    groupMap(f)(identity)
 
   /**
    * Groups and transformers the values in this `NonEmptyChunk` using the
    * specified function.
    */
-  def groupMap[K, V](key: A => K)(f: A => V): Map[K, NonEmptyChunk[V]] =
-    chunk.groupBy(key).map { case (k, v) => (k, nonEmpty(v.map(f))) }
+  def groupMap[K, V](key: A => K)(f: A => V): Map[K, NonEmptyChunk[V]] = {
+    val m = collection.mutable.Map.empty[K, ChunkBuilder[V]]
+    for (elem <- chunk) {
+      val k       = key(elem)
+      val builder = m.getOrElseUpdate(k, ChunkBuilder.make[V])
+      builder += f(elem)
+    }
+    var result = collection.immutable.Map.empty[K, NonEmptyChunk[V]]
+    m.foreach { case (k, v) =>
+      result = result + ((k, nonEmpty(v.result())))
+    }
+    result
+  }
 
   /**
    * Returns the hashcode of this `NonEmptyChunk`.
