@@ -494,6 +494,14 @@ object Config {
 
   def chunkOf[A](name: String, config: Config[A]): Config[Chunk[A]] = chunkOf(config).nested(name)
 
+  def nonEmptyChunkOf[A](config: Config[A]): Config[NonEmptyChunk[A]] =
+    chunkOf(config).mapOrFail(
+      NonEmptyChunk.fromChunk(_).toRight(Config.Error.Unsupported(message = "must not be empty"))
+    )
+
+  def nonEmptyChunkOf[A](name: String, config: Config[A]): Config[NonEmptyChunk[A]] =
+    nonEmptyChunkOf(config).nested(name)
+
   def defer[A](config: => Config[A]): Config[A] =
     Lazy(() => config)
 
