@@ -113,7 +113,7 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) extends Seri
    * specified function.
    */
   def groupMap[K, V](key: A => K)(f: A => V): Map[K, NonEmptyChunk[V]] =
-    chunk.groupMap(key)(f).map { case (k, v) => (k, nonEmpty(v)) }
+    chunk.groupBy(key).map { case (k, v) => (k, nonEmpty(v.map(f))) }
 
   /**
    * Returns the hashcode of this `NonEmptyChunk`.
