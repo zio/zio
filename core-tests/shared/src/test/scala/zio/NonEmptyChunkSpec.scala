@@ -47,8 +47,9 @@ object NonEmptyChunkSpec extends ZIOBaseSpec {
     },
     test("groupMap") {
       check(genNonEmptyChunk, genIntFunction, genIntFunction)((as, f, g) =>
-        assert(as.groupMap(f)(g).map { case (k, v) => (k, v.toChunk) })(equalTo(as.toChunk.groupBy(f).map { case (k, v) =>
-          (k, v.map(g))
+        assert(as.groupMap(f)(g).map { case (k, v) => (k, v.toChunk) })(equalTo(as.toChunk.groupBy(f).map {
+          case (k, v) =>
+            (k, v.map(g))
         }))
       )
     },
