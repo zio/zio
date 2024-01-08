@@ -496,7 +496,7 @@ object Config {
 
   def nonEmptyChunkOf[A](config: Config[A]): Config[NonEmptyChunk[A]] =
     chunkOf(config).mapOrFail(
-      NonEmptyChunk.fromChunk(_).toRight(Config.Error.Unsupported(message = "must not be empty"))
+      NonEmptyChunk.fromChunk(_).toRight(Config.Error.InvalidData(message = "Expected a NonEmptyChunk, but found Chunk.Empty"))
     )
 
   def nonEmptyChunkOf[A](name: String, config: Config[A]): Config[NonEmptyChunk[A]] =
