@@ -110,6 +110,19 @@ object ZStreamPlatformSpecific2Spec extends ZIOBaseSpec {
             .runDrain
             .exit
             .map(assert(_)(fails(isSubtype[IOException](anything))))
+        },
+        test("readFile") {
+          ZIO.acquireReleaseWith {
+            ZIO.attempt(Files.createTempFile("stream", "reader"))
+          } { path =>
+            ZIO.succeed(Files.delete(path))
+          } { path =>
+            for {
+              data <- ZIO.succeed((0 to 100).mkString)
+              _    <- ZIO.attempt(Files.write(path, data.getBytes("UTF-8")))
+              read <- ZStream.readFile(path)
+            } yield assert(read)(equalTo(data))
+          }
         }
       )
     )

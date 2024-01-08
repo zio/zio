@@ -544,14 +544,4 @@ private[stream] trait ZPipelinePlatformSpecificConstructors {
     }
   }
 
-  def readFile(path: => Path)(implicit trace: Trace, d: DummyImplicit): ZIO[Any, IOException, String] =
-    readFile(path.toString)
-
-  def readFile(name: => String)(implicit trace: Trace): ZIO[Any, IOException, String] =
-    ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(scala.io.Source.fromFile(name)))(s =>
-      ZIO.attemptBlocking(s.close()).orDie
-    ) { s =>
-      ZIO.attemptBlockingIO(s.mkString)
-    }
-
 }

@@ -27,6 +27,7 @@ import zio.stream.internal.{ZInputStream, ZReader}
 import java.io.{IOException, InputStream}
 import scala.collection.mutable
 import scala.reflect.ClassTag
+import java.nio.file.Path
 
 final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]) { self =>
 
@@ -6064,4 +6065,15 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       (cl.take(cr.size).zipWith(cr)(f), Left(cl.drop(cr.size)))
     else
       (cl.zipWith(cr.take(cl.size))(f), Right(cr.drop(cl.size)))
+
+  def readFile(path: => Path)(implicit trace: Trace, d: DummyImplicit): ZIO[Any, IOException, String] =
+    readFile(path.toString)
+
+  def readFile(name: => String)(implicit trace: Trace): ZIO[Any, IOException, String] =
+    ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(scala.io.Source.fromFile(name)))(s =>
+      ZIO.attemptBlocking(s.close()).orDie
+    ) { s =>
+      ZIO.attemptBlockingIO(s.mkString)
+    }
+
 }
