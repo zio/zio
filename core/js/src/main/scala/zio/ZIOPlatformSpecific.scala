@@ -35,6 +35,29 @@ private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    */
   def toPromiseJSWith(f: E => Throwable)(implicit trace: Trace): URIO[R, JSPromise[A]] =
     self.foldCause(c => JSPromise.reject(c.squashWith(f)), JSPromise.resolve[A](_))
+
+  /**
+   * Reads a file in the browser environment using FileReader API. This method
+   * uses the browser's File API.
+   *
+   * @param file
+   *   Input file to read
+   * @return
+   *   ZIO effect with the file content as a String
+   */
+  def readFile(file: js.File)(implicit trace: Trace): Task[String] =
+    Task.effectAsync[String] { callback =>
+      val reader = new js.FileReader()
+      reader.onload = (_: js.Any) => {
+        val result = reader.result.asInstanceOf[String]
+        callback(ZIO.succeed(result))
+      }
+      reader.onerror = (_: js.Any) => {
+        val error = new RuntimeException("Error reading file")
+        callback(ZIO.fail(error))
+      }
+      reader.readAsText(file)
+    }
 }
 
 private[zio] trait ZIOCompanionPlatformSpecific { self: ZIO.type =>
@@ -69,4 +92,7 @@ private[zio] trait ZIOCompanionPlatformSpecific { self: ZIO.type =>
       }
       promise.`then`[Unit](onFulfilled, js.defined(onRejected))
     }
+
+  def readFile(file: js.File)(implicit trace: Trace): Task[String] =
+    ZIO.accessM(_.readFile(file))
 }
