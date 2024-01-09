@@ -21,7 +21,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{UIO, ZIO, Trace}
 
 import scala.annotation.tailrec
-import scala.compiletime.testing.typeChecks
+import scala.compiletime.testing.{typeCheckErrors, Error}
 
 trait CompileVariants {
 
@@ -32,15 +32,14 @@ trait CompileVariants {
    * compile time.
    */
   inline def typeCheck(inline code: String): UIO[Either[String, Unit]] =
-    try {
-      if (typeChecks(code)) ZIO.succeed(Right(()))
-      else ZIO.succeed(Left(errorMessage))
-    } catch {
-      case _: Throwable => ZIO.die(new RuntimeException("Compilation failed"))
+    try failWith(typeCheckErrors(code))
+    catch { case cause: Throwable => 
+      ZIO.die(new RuntimeException("Compilation failed", cause))
     }
 
-  private val errorMessage =
-    "Reporting of compilation error messages on Scala 3 is not currently supported due to instability of the underlying APIs."
+  private def failWith(errors: List[Error])(using Trace) =
+    if errors.isEmpty then ZIO.right(())
+    else ZIO.left(errors.iterator.map(_.message).mkString("\n"))
 
   inline def assertTrue(inline exprs: => Boolean*)(implicit sourceLocation: SourceLocation): TestResult =
     ${SmartAssertMacros.smartAssert('exprs, 'sourceLocation)}

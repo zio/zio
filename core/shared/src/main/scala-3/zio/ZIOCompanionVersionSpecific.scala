@@ -102,11 +102,11 @@ trait ZIOCompanionVersionSpecific {
 
         Exit.succeed(code)
       } catch {
-        case t: Throwable =>          
+        case t: Throwable =>
           if (!fiberState.isFatal(t))
             ZIO.failCause(Cause.fail(t))
           else
-            throw t          
+            throw t
       }
     }
 
