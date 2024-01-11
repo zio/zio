@@ -21,25 +21,36 @@ import zio.test.Assertion.Arguments.valueArgument
 import zio.test.{ErrorMessage => M}
 
 trait AssertionVariants {
-  def diffProduct(obj1: Any, obj2: Any, paramNames: List[String] = Nil, rootClassName: Option[String] = None): String = {
+  def diffProduct(
+    obj1: Any,
+    obj2: Any,
+    paramNames: List[String] = Nil,
+    rootClassName: Option[String] = None
+  ): String = {
     val currClassName = rootClassName.getOrElse(obj1.getClass.getSimpleName)
 
     (obj1, obj2) match {
       case (seq1: Iterable[Any], seq2: Iterable[Any]) if seq1.size == seq2.size =>
-        seq1.zip(seq2).zipWithIndex.flatMap {
-          case ((subObj1, subObj2), index) =>
+        seq1
+          .zip(seq2)
+          .zipWithIndex
+          .flatMap { case ((subObj1, subObj2), index) =>
             val newParamName = s"[$index]"
             diffProduct(subObj1, subObj2, newParamName :: paramNames, Some(currClassName))
-        }.mkString
+          }
+          .mkString
       case (obj1: Product, obj2: Product) if obj1.productArity == obj2.productArity =>
-        obj1.productIterator.zip(obj2.productIterator).zip(obj1.productElementNames).flatMap {
-          case ((subObj1, subObj2), paramName) =>
+        obj1.productIterator
+          .zip(obj2.productIterator)
+          .zip(obj1.productElementNames)
+          .flatMap { case ((subObj1, subObj2), paramName) =>
             val newParamName = if (paramName.nonEmpty) s".$paramName" else ""
             if (subObj1 != subObj2 && !subObj1.isInstanceOf[Product])
               s"$currClassName${paramNames.reverse.mkString("")}$newParamName : expected '$subObj1' got '$subObj2'\n"
             else
               diffProduct(subObj1, subObj2, newParamName :: paramNames, Some(currClassName))
-        }.mkString
+          }
+          .mkString
       case _ => ""
     }
   }
@@ -54,9 +65,9 @@ trait AssertionVariants {
             case (left, right)                             => left == right
           }
           TestTrace.boolean(result) {
-            if(expected.isInstanceOf[Product]){
+            if (expected.isInstanceOf[Product]) {
               M.text(diffProduct(actual, expected))
-            }else{
+            } else {
               M.pretty(actual) + M.equals + M.pretty(expected)
             }
           }
