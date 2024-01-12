@@ -21,7 +21,7 @@ import zio.test.{ErrorMessage => M}
 import zio.test.Assertion.Arguments.valueArgument
 
 trait AssertionVariants {
-  def diffProduct(
+  private def diffProduct(
     obj1: Any,
     obj2: Any,
     paramNames: List[String] = Nil,
