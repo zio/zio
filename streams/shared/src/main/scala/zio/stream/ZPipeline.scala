@@ -295,6 +295,13 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self >>> ZPipeline.drain
 
   /**
+   * Transforms the input and output types of this pipeline using the specified
+   * functions.
+   */
+  def dimap[In2, Out2](f: In2 => In, g: Out => Out2)(implicit trace: Trace): ZPipeline[Env, Err, In2, Out2] =
+    contramap(f).map(g)
+
+  /**
    * Drops the specified number of elements from this stream.
    */
   def drop(n: => Int)(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
