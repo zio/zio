@@ -15,11 +15,11 @@
  */
 
 package zio
-import zio._
+
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.FileReader
-import org.scalajs.dom.Blob
+
 import scala.scalajs.js
 import scala.scalajs.js.{Function1, Promise => JSPromise, Thenable, |}
 
@@ -38,14 +38,16 @@ private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
   def toPromiseJSWith(f: E => Throwable)(implicit trace: Trace): URIO[R, JSPromise[A]] =
     self.foldCause(c => JSPromise.reject(c.squashWith(f)), JSPromise.resolve[A](_))
 
+ private[zio] object ZIOPlatformSpecific {
+
   /**
-   * Reads a file in the browser environment using FileReader API. This method
-   * uses the browser's File API.
+   * Reads the content of a file in the browser environment using the FileReader API.
+   * This method utilizes the browser's File API.
    *
    * @param file
-   *   Input file to read
+   *   The input file to read.
    * @return
-   *   ZIO effect with the file content as a String
+   *   A ZIO effect with the file content as a String.
    */
   def readFile(file: js.File)(implicit trace: Trace): Task[String] =
     Task.effectAsync[String] { callback =>
@@ -55,6 +57,7 @@ private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
         callback(ZIO.succeed(result))
       }
       reader.onerror = (_: js.Any) => {
+        // Use a more specific exception type, e.g., FileReadError, for better error handling.
         val error = new RuntimeException("Error reading file")
         callback(ZIO.fail(error))
       }
@@ -95,5 +98,5 @@ private[zio] trait ZIOCompanionPlatformSpecific { self: ZIO.type =>
       promise.`then`[Unit](onFulfilled, js.defined(onRejected))
     }
   def readFile(file: js.File)(implicit trace: Trace): Task[String] =
-    ZIO.accessM(_.readFile(file))
+    ZIOPlatformSpecific.readFile(file)
 }

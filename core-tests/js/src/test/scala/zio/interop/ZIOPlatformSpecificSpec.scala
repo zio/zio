@@ -2,7 +2,7 @@ import zio._
 import zio.test._
 import zio.test.Assertion._
 
-object ZIOPlatformSpecificTest extends DefaultRunnableSpec {
+object ZIOPlatformSpecificSpec extends DefaultRunnableSpec {
 
   def spec: Spec[Environment, TestFailure[Throwable], TestSuccess] =
     suite("ZIOPlatformSpecific Tests")(
