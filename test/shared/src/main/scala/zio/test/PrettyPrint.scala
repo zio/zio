@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.internal.ansi.AnsiStringOps
+import zio.internal.ansi.AnsiStringOps._
 import zio.{Chunk, NonEmptyChunk}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
