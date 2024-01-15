@@ -550,7 +550,7 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
    * Takes all elements of the pipeline until the specified effectual predicate
    * evaluates to `true`.
    */
-  def takeUntileZIO[Env1 <: Env, Err1 >: Err](f: Out => ZIO[Env1, Err1, Boolean])(implicit
+  def takeUntilZIO[Env1 <: Env, Err1 >: Err](f: Out => ZIO[Env1, Err1, Boolean])(implicit
     trace: Trace
   ): ZPipeline[Env1, Err1, In, Out] =
     self >>> ZPipeline.takeUntilZIO(f)
