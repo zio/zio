@@ -124,10 +124,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   }
 
   private def renderFailureDetails(label: String, result: TestResult): Message = {
-    val assertResultLines = scala.util.Try(ConsoleRenderer.renderAssertionResult(result.result, 0)) match {
-      case scala.util.Success(message) => message
-      case scala.util.Failure(e)       => Message(s"Detected exception as rendering assertion results: $e")
-    }
+    val assertResultLines = ConsoleRenderer.renderAssertionResult(result.result, 0)
     Message(
       ConsoleRenderer
         .rendered(
