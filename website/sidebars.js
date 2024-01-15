@@ -573,6 +573,7 @@ module.exports = {
         "ecosystem/community/zio-slick-interop",
         "ecosystem/community/zio-temporal",
         "ecosystem/community/zio-test-akka-http",
+        "ecosystem/community/zio-nebula",
       ],
     },
     "ecosystem/compatible",
