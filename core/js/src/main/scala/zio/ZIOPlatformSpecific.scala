@@ -19,7 +19,6 @@ package zio
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.FileReader
-
 import scala.scalajs.js
 import scala.scalajs.js.{Function1, Promise => JSPromise, Thenable, |}
 
@@ -63,6 +62,7 @@ private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
       }
       reader.readAsText(file)
     }
+  }
 }
 
 private[zio] trait ZIOCompanionPlatformSpecific { self: ZIO.type =>
