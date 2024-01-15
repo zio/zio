@@ -3191,26 +3191,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    */
   def takeUntilZIO[R1 <: R, E1 >: E](
     f: A => ZIO[R1, E1, Boolean]
-  )(implicit trace: Trace): ZStream[R1, E1, A] = {
-
-    def loop(chunkIterator: Chunk.ChunkIterator[A], index: Int): ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
-      if (chunkIterator.hasNextAt(index))
-        ZChannel.unwrap {
-          val a = chunkIterator.nextAt(index)
-          f(a).map { b =>
-            if (b) ZChannel.write(Chunk.single(a))
-            else ZChannel.write(Chunk.single(a)) *> loop(chunkIterator, index + 1)
-          }
-        }
-      else
-        ZChannel.readWithCause(
-          elem => loop(elem.chunkIterator, 0),
-          err => ZChannel.refailCause(err),
-          done => ZChannel.succeed(done)
-        )
-
-    new ZStream(self.channel >>> loop(Chunk.ChunkIterator.empty, 0))
-  }
+  )(implicit trace: Trace): ZStream[R1, E1, A] =
+    self >>> ZPipeline.takeUntilZIO(f)
 
   /**
    * Takes all elements of the stream for as long as the specified predicate
@@ -3218,6 +3200,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    */
   def takeWhile(f: A => Boolean)(implicit trace: Trace): ZStream[R, E, A] =
     self >>> ZPipeline.takeWhile(f)
+
+  /**
+   * Takes all elements of the stream for as long as the specified effectual
+   * predicate evaluates to `true`.
+   */
+  def takeWhileZIO[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit trace: Trace): ZStream[R1, E1, A] =
+    self >>> ZPipeline.takeWhileZIO(f)
 
   /**
    * Adds an effect to consumption of every element of the stream.

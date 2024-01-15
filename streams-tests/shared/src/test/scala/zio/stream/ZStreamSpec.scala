@@ -3572,6 +3572,26 @@ object ZStreamSpec extends ZIOBaseSpec {
               .either
           )(isRight(isUnit))
         ),
+        suite("takeWhileZIO")(
+          test("takeWhileZIO") {
+            check(streamOfInts, Gen.function(Gen.successes(Gen.boolean))) { (s, p) =>
+              for {
+                streamTakeWhileZIO <- s.takeWhileZIO(p).runCollect.exit
+                chunkTakeWhileZIO  <- s.runCollect.flatMap(_.takeWhileZIO(p)).exit
+              } yield assert(chunkTakeWhileZIO.isSuccess)(isTrue) implies assert(streamTakeWhileZIO)(
+                equalTo(chunkTakeWhileZIO)
+              )
+            }
+          },
+          test("takeWhileZIO - laziness on chunks") {
+            assertZIO(
+              ZStream(1, 2, 3).takeWhileZIO {
+                case 2 => ZIO.fail("boom")
+                case _ => ZIO.succeed(true)
+              }.either.runCollect
+            )(equalTo(Chunk(Right(1), Left("boom"))))
+          }
+        ),
         suite("tap")(
           test("tap") {
             for {
