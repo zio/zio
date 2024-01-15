@@ -547,11 +547,29 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self >>> ZPipeline.takeUntil(f)
 
   /**
+   * Takes all elements of the pipeline until the specified effectual predicate
+   * evaluates to `true`.
+   */
+  def takeUntileZIO[Env1 <: Env, Err1 >: Err](f: Out => ZIO[Env1, Err1, Boolean])(implicit
+    trace: Trace
+  ): ZPipeline[Env1, Err1, In, Out] =
+    self >>> ZPipeline.takeUntilZIO(f)
+
+  /**
    * Takes all elements of the pipeline for as long as the specified predicate
    * evaluates to `true`.
    */
   def takeWhile(f: Out => Boolean)(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     self >>> ZPipeline.takeWhile(f)
+
+  /**
+   * Takes all elements of the pipeline for as long as the specified effectual
+   * predicate evaluates to `true`.
+   */
+  def takeWhileZIO[Env1 <: Env, Err1 >: Err](f: Out => ZIO[Env1, Err1, Boolean])(implicit
+    trace: Trace
+  ): ZPipeline[Env1, Err1, In, Out] =
+    self >>> ZPipeline.takeWhileZIO(f)
 
   /**
    * Adds an effect to consumption of every element of the pipeline.
@@ -2078,6 +2096,33 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(loop)
   }
 
+  def takeUntilZIO[Env, Err, In](
+    f: In => ZIO[Env, Err, Boolean]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = {
+    lazy val read: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[In], Any] =
+      ZChannel.readWithCause(
+        elem => write(elem.chunkIterator, 0),
+        err => ZChannel.refailCause(err),
+        done => ZChannel.succeed(done)
+      )
+
+    def write(
+      chunkIterator: Chunk.ChunkIterator[In],
+      index: Int
+    ): ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[In], Any] =
+      if (chunkIterator.hasNextAt(index))
+        ZChannel.unwrap {
+          val a = chunkIterator.nextAt(index)
+          f(a).map { b =>
+            if (b) ZChannel.write(Chunk.single(a))
+            else ZChannel.write(Chunk.single(a)) *> write(chunkIterator, index + 1)
+          }
+        }
+      else read
+
+    new ZPipeline(read)
+  }
+
   /**
    * Creates a pipeline that takes elements while the specified predicate
    * evaluates to true.
@@ -2098,6 +2143,37 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         )
 
     new ZPipeline(loop)
+  }
+
+  /**
+   * Creates a pipeline that takes elements while the specified effectual
+   * predicate evaluates to true.
+   */
+  def takeWhileZIO[Env, Err, In](
+    f: In => ZIO[Env, Err, Boolean]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = {
+    lazy val read: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[In], Any] =
+      ZChannel.readWithCause(
+        elem => write(elem.chunkIterator, 0),
+        err => ZChannel.refailCause(err),
+        done => ZChannel.succeed(done)
+      )
+
+    def write(
+      chunkIterator: Chunk.ChunkIterator[In],
+      index: Int
+    ): ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[In], Any] =
+      if (chunkIterator.hasNextAt(index))
+        ZChannel.unwrap {
+          val a = chunkIterator.nextAt(index)
+          f(a).map { b =>
+            if (b) ZChannel.write(Chunk.single(a)) *> write(chunkIterator, index + 1)
+            else ZChannel.unit
+          }
+        }
+      else read
+
+    new ZPipeline(read)
   }
 
   /**
