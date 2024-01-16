@@ -52,7 +52,7 @@ trait AssertionVariants {
       case (obj1: Product, obj2: Product) if obj1.productArity == obj2.productArity =>
         obj1.productIterator
           .zip(obj2.productIterator)
-          .zip(obj1.getClass.getDeclaredFields.map(_.getName))
+          .zip(obj1.productElementNames)
           .flatMap { case ((subObj1, subObj2), paramName) =>
             val newParamName = if (paramName.nonEmpty) s".$paramName" else ""
             if (subObj1 != subObj2 && !subObj1.isInstanceOf[Product])
