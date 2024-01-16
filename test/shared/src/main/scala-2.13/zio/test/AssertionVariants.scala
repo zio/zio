@@ -30,8 +30,8 @@ trait AssertionVariants {
     val currClassName = rootClassName.getOrElse(obj1.getClass.getSimpleName)
 
     (obj1, obj2) match {
-      case (seq1: Iterable[Any], seq2: Iterable[Any]) =>{
-        val maxSize = math.max(seq1.size, seq2.size)
+      case (seq1: Iterable[Any], seq2: Iterable[Any]) => {
+        val maxSize    = math.max(seq1.size, seq2.size)
         val paddedSeq1 = seq1.toVector.padTo(maxSize, null)
         val paddedSeq2 = seq2.toVector.padTo(maxSize, null)
 
@@ -40,15 +40,15 @@ trait AssertionVariants {
           .zipWithIndex
           .flatMap { case ((subObj1, subObj2), index) =>
             val newParamName = s"[$index]"
-            if(subObj1 != subObj2 && !subObj1.isInstanceOf[Product]){
+            if (subObj1 != subObj2 && !subObj1.isInstanceOf[Product]) {
               val paramName = s"${paramNames.reverse.mkString("")}[$index]"
               Some(s"$currClassName$paramName : expected '$subObj2' got '$subObj1'\n")
-            }else{
+            } else {
               diffProduct(subObj1, subObj2, newParamName :: paramNames, Some(currClassName))
             }
           }
           .mkString
-        }
+      }
       case (obj1: Product, obj2: Product) if obj1.productArity == obj2.productArity =>
         obj1.productIterator
           .zip(obj2.productIterator)
