@@ -124,7 +124,6 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   }
 
   private def renderFailureDetails(label: String, result: TestResult): Message = {
-    val assertResultLines = ConsoleRenderer.renderAssertionResult(result.result, 0)
     Message(
       ConsoleRenderer
         .rendered(
@@ -132,7 +131,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
           label,
           Failed,
           0,
-          assertResultLines.lines: _*
+          ConsoleRenderer.renderAssertionResult(result.result, 0).lines: _*
         )
         .streamingLines
     )
