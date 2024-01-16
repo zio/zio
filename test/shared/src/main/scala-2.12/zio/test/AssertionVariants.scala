@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2019-2024 John A. De Goes and the ZIO Contributors
  *
@@ -32,7 +31,7 @@ trait AssertionVariants {
 
     (obj1, obj2) match {
       case (seq1: Iterable[Any], seq2: Iterable[Any]) => {
-        val maxSize = math.max(seq1.size, seq2.size)
+        val maxSize    = math.max(seq1.size, seq2.size)
         val paddedSeq1 = seq1.toVector.padTo(maxSize, null)
         val paddedSeq2 = seq2.toVector.padTo(maxSize, null)
 
@@ -42,10 +41,10 @@ trait AssertionVariants {
           .flatMap { case ((subObj1, subObj2), index) =>
             val newParamName = s"[$index]"
 
-            if(subObj1 != subObj2 && !subObj1.isInstanceOf[Product]){
+            if (subObj1 != subObj2 && !subObj1.isInstanceOf[Product]) {
               val paramName = s"${paramNames.reverse.mkString("")}[$index]"
               Some(s"$currClassName$paramName : expected '$subObj2' got '$subObj1'\n")
-            }else{
+            } else {
               diffProduct(subObj1, subObj2, newParamName :: paramNames, Some(currClassName))
             }
           }
