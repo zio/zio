@@ -24,6 +24,7 @@ import zio.test.render.ExecutionResult.Status.{Failed, Ignored, Passed}
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.{Fragment, Line, Message}
 import zio.{Cause, _}
+import scala.util.Try
 
 trait TestRenderer {
   final def render(reporterEvent: ExecutionEvent, includeCause: Boolean)(implicit trace: Trace): Seq[String] =
@@ -139,14 +140,17 @@ trait TestRenderer {
   }
 
   def renderAssertionResult(assertionResult: TestTrace[Boolean], offset: Int): Message = {
-    val failures = FailureCase.fromTrace(assertionResult, Chunk.empty)
-    failures
-      .map(fc =>
-        renderGenFailureDetails(assertionResult.getGenFailureDetails, offset) ++
-          Message(renderFailureCase(fc, offset, None))
-      )
-      .foldLeft(Message.empty)(_ ++ _)
+   val failures = FailureCase.fromTrace(assertionResult, Chunk.empty)
+
+    val renderedMessages = failures.flatMap { fc =>
+     Try {
+      renderGenFailureDetails(assertionResult.getGenFailureDetails, offset) ++
+        Message(renderFailureCase(fc, offset, None))
+     }.getOrElse(Message.empty)
+    }
+   renderedMessages.foldLeft(Message.empty)(_ ++ _)
   }
+
 
   def renderFailureCase(failureCase: FailureCase, offset: Int, testLabel: Option[String]): Chunk[Line] =
     failureCase match {
