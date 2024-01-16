@@ -123,7 +123,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
     notifier.fireTestFailure(label, path, renderToString(rendered))
   }
 
-  private def renderFailureDetails(label: String, result: TestResult): Message = 
+  private def renderFailureDetails(label: String, result: TestResult): Message =
     Message(
       ConsoleRenderer
         .rendered(
