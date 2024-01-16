@@ -123,7 +123,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
     notifier.fireTestFailure(label, path, renderToString(rendered))
   }
 
-  private def renderFailureDetails(label: String, result: TestResult): Message = {
+  private def renderFailureDetails(label: String, result: TestResult): Message = 
     Message(
       ConsoleRenderer
         .rendered(
@@ -135,7 +135,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
         )
         .streamingLines
     )
-  }
+
   private def testDescription(label: String, path: Vector[String]): Description = {
     val uniqueId = path.mkString(":") + ":" + label
     Description.createTestDescription(className, label, uniqueId)
