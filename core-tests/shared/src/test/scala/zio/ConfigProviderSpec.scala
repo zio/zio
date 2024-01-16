@@ -380,6 +380,18 @@ object ConfigProviderSpec extends ZIOBaseSpec {
                   "parent2.child.employees[1].age" -> "31",
                   "parent2.child.employees[1].id"  -> "41"
                 )
+              ) orElse
+              ConfigProvider.fromMap(
+                Map(
+                  "parent1.child.employees[0].age" -> "111",
+                  "parent1.child.employees[0].id"  -> "211",
+                  "parent1.child.employees[1].age" -> "311",
+                  "parent1.child.employees[1].id"  -> "411",
+                  "parent1.child.employees[2].age" -> "511",
+                  "parent1.child.employees[2].id"  -> "611",
+                  "parent1.child.employees[3].age" -> "711",
+                  "parent1.child.employees[3].id"  -> "811"
+                )
               )
 
             val product    = Config.int("age").zip(Config.int("id"))

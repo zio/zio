@@ -209,7 +209,12 @@ object ConfigProvider {
                         case (Left(e1), Left(e2)) => ZIO.fail(e1 && e2)
                         case (Left(_), Right(r))  => ZIO.succeed(r)
                         case (Right(l), Left(_))  => ZIO.succeed(l)
-                        case (Right(l), Right(r)) => ZIO.succeed(l ++ r)
+                        case (Right(l), Right(r)) =>
+                          ZIO.succeed {
+                            val combined = l ++ r
+                            if (combined.size == l.size + r.size) combined
+                            else l // `r` was only partially successful
+                          }
                       }
           } yield result
 
