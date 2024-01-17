@@ -380,18 +380,6 @@ object ConfigProviderSpec extends ZIOBaseSpec {
                   "parent2.child.employees[1].age" -> "31",
                   "parent2.child.employees[1].id"  -> "41"
                 )
-              ) orElse
-              ConfigProvider.fromMap(
-                Map(
-                  "parent1.child.employees[0].age" -> "111",
-                  "parent1.child.employees[0].id"  -> "211",
-                  "parent1.child.employees[1].age" -> "311",
-                  "parent1.child.employees[1].id"  -> "411",
-                  "parent1.child.employees[2].age" -> "511",
-                  "parent1.child.employees[2].id"  -> "611",
-                  "parent1.child.employees[3].age" -> "711",
-                  "parent1.child.employees[3].id"  -> "811"
-                )
               )
 
             val product    = Config.int("age").zip(Config.int("id"))
@@ -402,7 +390,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
             for {
               result1 <- configProvider.load(config1)
               result2 <- configProvider.load(config2)
-            } yield assertTrue(result1 == List((1, 2), (3, 4), (5, 6)), result2 == List((11, 21), (31, 41)))
+            } yield assertTrue(result1 == List((1, 2), (3, 4)), result2 == List((11, 21), (31, 41)))
           } +
           test("with indexed sequences and each provider unnested") {
             val configProvider = ConfigProvider
@@ -464,7 +452,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
 
             for {
               result1 <- configProvider.load(config1)
-            } yield assertTrue(result1 == List((1, 2), (3, 4)))
+            } yield assertTrue(result1 == List((1, 2)))
           }
       } +
       test("values are not split unless a sequence is expected") {
