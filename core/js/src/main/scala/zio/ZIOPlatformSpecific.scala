@@ -28,7 +28,6 @@ import scala.util.Failure
 import scala.util.Success
 import scala.concurrent.Future
 
-
 private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
   /**
@@ -78,27 +77,27 @@ private[zio] trait ZIOCompanionPlatformSpecific { self: ZIO.type =>
       promise.`then`[Unit](onFulfilled, js.defined(onRejected))
     }
 
-    private def readFileJs(file: dom.File): Future[String] = {
-            val promise: Promise[String] = Promise[String]()
+  private def readFileJs(file: dom.File): Future[String] = {
+    val promise: Promise[String] = Promise[String]()
 
-            val reader = new FileReader()
+    val reader = new FileReader()
 
-            reader.onload = (event: dom.Event) => {
-              val result = reader.result.asInstanceOf[String]
-              // Process the content of the file here
-              promise.complete(Success(result))
-            }
+    reader.onload = (event: dom.Event) => {
+      val result = reader.result.asInstanceOf[String]
+      // Process the content of the file here
+      promise.complete(Success(result))
+    }
 
-            reader.onerror = (event: dom.Event) => {
-              val error = reader.error
-              // Process the error here
-              promise.complete(Failure(new Exception(error.message)))
-            }
-            reader.readAsText(file)
-            promise.future
-          }
+    reader.onerror = (event: dom.Event) => {
+      val error = reader.error
+      // Process the error here
+      promise.complete(Failure(new Exception(error.message)))
+    }
+    reader.readAsText(file)
+    promise.future
+  }
 
-    def readFile(file: => dom.File)(implicit trace: Trace): ZIO[Any, Throwable, String] = 
-     ZIO.fromFuture(_ => readFileJs(file))
-      
+  def readFile(file: => dom.File)(implicit trace: Trace): ZIO[Any, Throwable, String] =
+    ZIO.fromFuture(_ => readFileJs(file))
+
 }
