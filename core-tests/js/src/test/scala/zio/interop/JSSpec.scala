@@ -5,7 +5,8 @@ import zio.test.Assertion._
 import zio.test._
 
 import scala.scalajs.js.{Promise => JSPromise}
-
+import org.scalajs.dom
+import scala.scalajs.js
 object JSSpec extends ZIOBaseSpec {
   def spec: Spec[Any, Throwable] = suite("JSSpec")(
     suite("Task.fromPromiseJS must")(
@@ -69,6 +70,13 @@ object JSSpec extends ZIOBaseSpec {
         val zio                        = ZIO.succeed(42)
         val resolvedPromise: Task[Int] = zio.toPromiseJS.flatMap(p => ZIO.fromFuture(_ => p.toFuture))
         assertZIO(resolvedPromise)(equalTo(42))
+      }
+    ),
+    suite("ZIO#readFile")(
+      test("readFile") {
+        val file: dom.File    = new dom.File(js.Array("file content"), "file.txt")
+        val zio: Task[String] = ZIO.readFile(file)
+        assertZIO(zio)(equalTo("file content"))
       }
     )
   )
