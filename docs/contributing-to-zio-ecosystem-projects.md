@@ -8,11 +8,11 @@ The ZIO ecosystem is provided by a worldwide community, just like the project it
 
 Please read the [Contributor Guideline](contributor-guidelines.md) before contributing to the ecosystem.
 
-## Branching Model
+## Branching Naming Convention
 
-Until now, the [ZIO core library](https://github.com/zio/zio) has had two major releases: 1.x and 2.x. Therefore, the ZIO ecosystem projects may have two branches: series/1.x and series/2.x, with the default branch usually being series/2.x. The series/1.x branch is used for releases that are compatible with ZIO 1.x, and the series/2.x branch is used for releases that are compatible with ZIO 2.x.
+Until now, the [ZIO core library](https://github.com/zio/zio) has undergone two major releases: 1.x and 2.x. Therefore, the ZIO ecosystem projects may maintain two branches: `series/1.x` and `series/2.x`, with the default branch typically set to `series/2.x`. The `series/1.x` branch accomodates releases compatible with ZIO 1.x, while the `series/2.x` branch is designated for releases compatible with ZIO 2.x.
 
-So if you want to contribute to a ZIO ecosystem project, you should first check for which ZIO version you want to contribute. Then you can checkout the corresponding branch, do your work, and send a pull request against that branch.
+When considering a contribution to a ZIO ecosystem project, it's essential to determine the targeted ZIO version beforehand. Once identified, we can proceed to checkout the corresponding branch, make changes, and submit a pull request against that specific branch.
 
 ## Documentation
 
