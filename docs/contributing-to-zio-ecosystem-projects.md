@@ -16,7 +16,11 @@ When considering a contribution to a ZIO ecosystem project, it's essential to de
 
 ## Documentation
 
-The documentation for official libraries is also part of the ZIO documentation, but the source code for their documentation is not in the [ZIO repository](https://github.com/zio/zio). Instead, they are located in the `docs` directory of each library repository. For example, the documentation for the ZIO Prelude library, which is deployed at [https://zio.dev/zio-prelude](https://zio.dev/zio-prelude), can be found at [https://github.com/zio/zio-prelude/tree/series/2.x/docs](https://github.com/zio/zio-prelude/tree/series/2.x/docs).
+The documentation for official libraries is also part of the ZIO documentation. However, the source code for their documentation is not housed within the [ZIO repository](https://github.com/zio/zio). Instead, they are located in the `docs` directory of each library repository.
+
+As an example, the documentation for the ZIO Prelude library, accessible at [https://zio.dev/zio-prelude](https://zio.dev/zio-prelude), can be found within its respective respository at [https://github.com/zio/zio-prelude/tree/series/2.x/docs](https://github.com/zio/zio-prelude/tree/series/2.x/docs).
+
+Each official ZIO project maintains its dedicated documentation project, which is published with every release to the npm registry under the [@zio.dev](https://www.npmjs.com/package/@zio.dev/) organization. Subsequently, these documentation projects are seamlessly integrated into the [ZIO Website](https://zio.dev) during the CI process of [ZIO core](https://github.com/zio/zio) repository.
 
 ### Documentation Structure
 
