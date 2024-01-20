@@ -96,7 +96,7 @@ The `index.md` file is the primary source for generating the `README.md` file of
 
 #### The `sidebars.js` File
 
-Inside the `sidebars.js` file, we can specify the structure of the documentation, such as the order of the pages and the order of the sections of each page and aslo introducing sections and sub-sections. The structure of this file is as follows:
+Inside the `sidebars.js` file, we can specify the documentation's structure, including the order of pages, the arrangement of sections within each page, and the introduction of sections and subsections. The structure of this file is as follows:
 
 ```js
 const sidebars = {
@@ -114,7 +114,7 @@ const sidebars = {
 module.exports = sidebars;
 ```
 
-To add a new page to the documentation besides the `index.md` page, we can add a new item to the `items` array. For example, to add a new page with id `getting-started` we can add we can do the following:
+To add a new page to the documentation, in addition to the `index.md` page, we can include a new item in the `items` array. For instance, to add a new page with the id `getting-started`, we can do the following:
 
 ```js
 const sidebars = {
@@ -132,7 +132,7 @@ const sidebars = {
 module.exports = sidebars;
 ```
 
-To introduce a new section, simply append a new object to the `items` array. Set the `type` field to `category`, the `label` field to the desired section name, the `link` field to the main page's ID that corresponds to the section, and finally, populate the items field with a list of pages to be included in that section:
+To introduce a new section, simply append a new object to the `items` array. Set the `type` field to `category`, the `label` field to the desired section name, the `link` field to the main page's ID corresponding to the section, and finally, populate the `items` field with a list of pages to be included in that section:
 
 ```js
 const sidebars = {
@@ -164,7 +164,7 @@ const sidebars = {
 module.exports = sidebars;
 ```
 
-In the above example, we have introduced a new section called `Examples` wich refers to the `examples/index.md` page. Also, we have added two pages to this section.
+In the above example, we have introduced a new section called `Examples` which refers to the `examples/index.md` page. Additionally, we have added two pages to this section.
 
 To learn more about the `sidebars.js` file, please refer to the [Docusaurus documentation](https://docusaurus.io/docs/sidebar).
 
