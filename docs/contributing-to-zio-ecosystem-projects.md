@@ -1,6 +1,6 @@
 ---
-id: contributing-to-zio-ecosystem-projects
-slug: contributing-to-zio-ecosystem-projects
+id: contributing-to-zio-ecosystem
+slug: contributing-to-zio-ecosystem
 title: "Contributing to the ZIO Ecosystem Projects"
 ---
 
@@ -54,43 +54,45 @@ That is, the name of the documentation project must be `@zio.dev/<library-name>`
 
 The `index.md` file serves as the main page of the documentation, providing a description of the library and its features. The structure of this file is as follows:
 
-
-<pre>
-<code>
----
-id: index
-title: "Introduction to ZIO XYZ"
-sidebar_title: "ZIO XYZ"
----
-
-ZIO XYZ is a library that ...
-
-@PROJECT_BADGES@
-
-## Introduction
-
-Key features of ZIO XYZ are:
-  - Feature 1
-  - Feature 2
-  - ...
-
-## Installation
-
-In order to use this library, we need to add the following line in our `build.sbt` file:
-
-```scala
-libraryDependencies += "dev.zio" %% "zio-xyz" % "@VERSION@"
+```scala mdoc:passthrough
+println(
+  """
+    |```markdown
+    |---
+    |id: index
+    |title: "Introduction to ZIO XYZ"
+    |sidebar_title: "ZIO XYZ"
+    |---
+    |
+    |ZIO XYZ is a library that ...
+    |
+    |@‎PROJECT_BADGES@
+    |
+    |## Introduction
+    |
+    |Key features of ZIO XYZ are:
+    |  - Feature 1
+    |  - Feature 2
+    |  - ...
+    |
+    |## Installation
+    |
+    |In order to use this library, we need to add the following line in our `build.sbt` file:
+    |
+    |```scala
+    |libraryDependencies += "dev.zio" %% "zio-xyz" % "@‎VERSION@"
+    |```
+    |
+    |## Example
+    |
+    |Let's see an example of how to use this library:
+    |
+    |....
+    |```
+    |""".stripMargin)
 ```
 
-## Example
-
-Let's see an example of how to use this library:
-
-....
-</code>
-</pre>
-
-Inside the `index.md` file, we can use the `@PROJECT_BADGES@` placeholder to add badges to the documentation. The `@PROJECT_BADGES@` placeholder will be replaced with the badges of the library. Also, the `@VERSION@` placeholder will be replaced with the latest version of the library.
+Inside the `index.md` file, we can use the `@‎PROJECT_BADGES@` placeholder to add badges to the documentation. The `@‎PROJECT_BADGES@` placeholder will be replaced with the badges of the library. Also, the `@‎VERSION@` placeholder will be replaced with the latest version of the library.
 
 The `index.md` file is the primary source for generating the `README.md` file of the library. Further details on this process will be discussed in the [Generating README File](#generating-readme-file) section.
 
@@ -208,8 +210,8 @@ lazy val docs = (project in file("zio-xyz-docs"))
 Let's explain the above settings:
 
 - `projectName`: This setting is used to set the name of the documentation project.
-- `mainModuleName`: This setting is used to specify the name of the main module of the library. It is employed to create the `@PROJECT_BADGES@` placeholder in the `docs/index.md` file.
-- `projectStage`: This setting is used to determine the stage of the documentation project. Possible values are `ProductionReady`, `Development`, `Experimental`, `Research`, `Concept`, and `Deprecated`. It is utilized to create the `@PROJECT_STAGE@` placeholder in the `docs/index.md` file. To learn more about these stages, please refer to [this page](https://github.com/zio#project-status).
+- `mainModuleName`: This setting is used to specify the name of the main module of the library. It is employed to create the `@‎PROJECT_BADGES@` placeholder in the `docs/index.md` file.
+- `projectStage`: This setting is used to determine the stage of the documentation project. Possible values are `ProductionReady`, `Development`, `Experimental`, `Research`, `Concept`, and `Deprecated`. It is utilized to create the `@‎PROJECT_STAGE@` placeholder in the `docs/index.md` file. To learn more about these stages, please refer to [this page](https://github.com/zio#project-status).
 
 #### Generating README File
 
@@ -265,7 +267,6 @@ To achieve this, the only thing that needs to be done from the library repositor
 
 1. Write a manual CI job responsible for publishing the documentation package after each release of the library.
 2. Use the ZIO SBT CI plugin to generate the CI jobs automatically, including the job for publishing the documentation package.
-
 
 #### Manual CI Job
 
