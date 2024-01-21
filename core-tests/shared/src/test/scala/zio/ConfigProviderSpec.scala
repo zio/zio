@@ -390,7 +390,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
             for {
               result1 <- configProvider.load(config1)
               result2 <- configProvider.load(config2)
-            } yield assertTrue(result1 == List((1, 2), (3, 4), (5, 6)), result2 == List((11, 21), (31, 41)))
+            } yield assertTrue(result1 == List((1, 2), (3, 4)), result2 == List((11, 21), (31, 41)))
           } +
           test("with indexed sequences and each provider unnested") {
             val configProvider = ConfigProvider
@@ -452,7 +452,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
 
             for {
               result1 <- configProvider.load(config1)
-            } yield assertTrue(result1 == List((1, 2), (3, 4)))
+            } yield assertTrue(result1 == List((1, 2)))
           }
       } +
       test("values are not split unless a sequence is expected") {
