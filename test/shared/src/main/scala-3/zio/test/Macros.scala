@@ -25,11 +25,11 @@ import scala.quoted._
 import scala.reflect.ClassTag
 
 object SmartAssertMacros {
-  def smartAssertSingle(expr: Expr[Boolean], sourceLocation: Expr[SourceLocation])(using Quotes): Expr[TestResult] =
-    SmartAssertMacros.smartAssertSingle_impl(expr, sourceLocation)
+  def smartAssertSingle(expr: Expr[Boolean])(using Quotes): Expr[TestResult] =
+    SmartAssertMacros.smartAssertSingle_impl(expr)
 
-  def smartAssert(exprs: Expr[Seq[Boolean]], sourceLocation: Expr[SourceLocation])(using Quotes): Expr[TestResult] =
-    SmartAssertMacros.smartAssert_impl(exprs, sourceLocation)
+  def smartAssert(exprs: Expr[Seq[Boolean]])(using Quotes): Expr[TestResult] =
+    SmartAssertMacros.smartAssert_impl(exprs)
 
 
   extension (using Quotes)(typeRepr: quotes.reflect.TypeRepr) {
@@ -239,26 +239,29 @@ object SmartAssertMacros {
     }
   }
 
-  def smartAssertSingle_impl(using Quotes)(value: Expr[Boolean], sourceLocation: Expr[SourceLocation]): Expr[TestResult] = {
+  def smartAssertSingle_impl(using Quotes)(value: Expr[Boolean]): Expr[TestResult] = {
     import quotes.reflect._
-    val code = Macros.showExpr(value)
+    val (stats, expr) = value.asTerm match {
+      case Block(stats, tree) => (stats, tree.asExprOf[Boolean])
+      case _ => (Nil, value)
+    }
 
-    implicit val ptx: PositionContext = 
-      PositionContext(value.asTerm)
-
-    val ast = transform(value)
-
-    val arrow = ast.asExprOf[TestArrow[Any, Boolean]]
-    '{TestResult($arrow.withCode(${Expr(code)}).withLocation($sourceLocation))}
+    given PositionContext = PositionContext(expr.asTerm)
+    val code = Expr(Macros.showExpr(expr))
+    val arrow = transform(expr).asExprOf[TestArrow[Any, Boolean]]
+    val pos = expr.asTerm.pos
+    val location = Expr(Some(s"${pos.sourceFile.path}:${pos.endLine + 1}"))
+    val result = '{TestResult($arrow.withCode($code).meta(location = $location))}
+    if stats.isEmpty then result else Block(stats, result.asTerm).asExprOf[TestResult]
   }
 
-  def smartAssert_impl(using Quotes)(values: Expr[Seq[Boolean]], sourceLocation: Expr[SourceLocation]): Expr[TestResult] = {
+  def smartAssert_impl(using Quotes)(values: Expr[Seq[Boolean]]): Expr[TestResult] = {
     import quotes.reflect._
 
     values match {
         case Varargs(head +: tail) =>
-          tail.foldLeft(smartAssertSingle_impl(head, sourceLocation)) { (acc, expr) =>
-            '{$acc && ${smartAssertSingle_impl(expr, sourceLocation)}}
+          tail.foldLeft(smartAssertSingle_impl(head)) { (acc, expr) =>
+            '{$acc && ${smartAssertSingle_impl(expr)}}
         }
 
         case other =>
