@@ -213,9 +213,13 @@ Let's explain the above settings:
 - `mainModuleName`: This setting is used to specify the name of the main module of the library. It is employed to create the `@‎PROJECT_BADGES@` placeholder in the `docs/index.md` file.
 - `projectStage`: This setting is used to determine the stage of the documentation project. Possible values are `ProductionReady`, `Development`, `Experimental`, `Research`, `Concept`, and `Deprecated`. It is utilized to create the `@‎PROJECT_STAGE@` placeholder in the `docs/index.md` file. To learn more about these stages, please refer to [this page](https://github.com/zio#project-status).
 
-#### Generating README File
+#### README Auto-Generation
 
 After installing the plugin, we can generate the `README.md` file by running the `sbt docs/generateReadme` command. This command will generate the `README.md` file from the `docs/index.md` file and place it in the root directory of the repository.
+
+:::note
+As a contributor to a well-established official library, you don't need to update the `README.md` file every time you make changes to the `docs/index.md` file. The CI of the ZIO repository will take care of this for you. After merging any pull request that has changes to the `docs/index.md` file, the CI of the ZIO repository will automatically create a new pull request to update the `README.md` file.
+:::
 
 There are some sbt settings used to generate the `README.md` file, and they have default values. However, if you want to customize them, you can do so. These settings are as follows:
 
@@ -257,7 +261,9 @@ Before creating pull requests for the documentation of an official library, it i
 
 By editing the documentation source code of the library, we can observe the changes on the local website.
 
-Note: If the `sbt docs/previewWebsite` command fails, please clean the `target` directory for the documentation module and try again from step 1.
+:::note
+If the `sbt docs/previewWebsite` command fails, please clean the `target` directory for the documentation module and try again from step 1.
+:::
 
 ### Publishing Documentation
 
@@ -313,4 +319,6 @@ addSbtPlugin("dev.zio" % "zio-sbt-ci" % "<version>")
 
 By adding this line, the plugin will be enabled, and we can use the `sbt ciGenerateGithubWorkflow` command to generate the CI jobs. The generated CI jobs will be placed in the `.github/workflows/ci.yml`.
 
-Note: After each release of an official library, the documentation for that library will be published to the npm registry. In the CI of the ZIO repository, the latest versions of documentations that are published to the NPM registry will be downloaded and integrated into the zio.dev site.
+:::note
+After each release of an official library, the documentation for that library will be published to the npm registry. In the CI of the ZIO repository, the latest versions of documentations that are published to the NPM registry will be downloaded and integrated into the zio.dev site.
+:::
