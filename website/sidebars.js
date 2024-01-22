@@ -569,6 +569,7 @@ module.exports = {
         "ecosystem/community/zio-grpc",
         "ecosystem/community/zio-k8s",
         "ecosystem/community/zio-kinesis",
+        "ecosystem/community/zio-nebula",
         "ecosystem/community/zio-pulsar",
         "ecosystem/community/zio-saga",
         "ecosystem/community/zio-slick-interop",
