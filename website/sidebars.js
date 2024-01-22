@@ -554,6 +554,7 @@ module.exports = {
       items: [
         "ecosystem/community/caliban",
         "ecosystem/community/distage",
+        "ecosystem/community/fhir-indexer",
         "ecosystem/community/logstage",
         "ecosystem/community/munit-zio",
         "ecosystem/community/quill",
