@@ -198,24 +198,22 @@ class SmartAssertMacros(val c: blackbox.Context) {
   }
 
   def assertOne_impl(expr: Expr[Boolean]): c.Tree = {
-    val (stmts, tree) = expr.tree match {
-      case Block(others, expr) => (others, expr)
-      case other               => (List.empty, other)
+    val (stats, tree) = expr.tree match {
+      case Block(stats, expr) => (stats, expr)
+      case other              => (Nil, other)
     }
 
-    val (_, start, codeString) = text(tree)
-    implicit val pos           = PositionContext(start, codeString)
+    val (_, start, codeString)        = text(tree)
+    implicit val pos: PositionContext = PositionContext(start, codeString)
 
-    val parsed = parseExpr(tree)
-    val ast    = astToAssertion(parsed)
+    val parsed   = parseExpr(tree)
+    val ast      = astToAssertion(parsed)
+    val location = Some(s"${tree.pos.source.file.path}:${tree.pos.line}")
 
-    val block =
-      q"""
-..$stmts
-$TestResult($ast.withCode($codeString).withLocation)
-        """
-
-    block
+    q"""
+..$stats
+$TestResult($ast.withCode($codeString).meta(location = $location))
+"""
   }
 
   object UnwrapImplicit {
