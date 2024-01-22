@@ -77,27 +77,10 @@ private[zio] trait ZIOCompanionPlatformSpecific { self: ZIO.type =>
       promise.`then`[Unit](onFulfilled, js.defined(onRejected))
     }
 
-  private def readFileJs(file: dom.File): Future[String] = {
-    val promise: Promise[String] = Promise[String]()
-
-    val reader = new FileReader()
-
-    reader.onload = (event: dom.Event) => {
-      val result = reader.result.asInstanceOf[String]
-      // Process the content of the file here
-      promise.complete(Success(result))
-    }
-
-    reader.onerror = (event: dom.Event) => {
-      val error = reader.error
-      // Process the error here
-      promise.complete(Failure(new Exception(error.message)))
-    }
-    reader.readAsText(file)
-    promise.future
+  def readFile(file: => String)(implicit trace: Trace): ZIO[Any, Throwable, String] = {
+    import scalajs.js.Dynamic.{global => g}
+    val fs = g.require("fs")
+    zio.ZIO.attemptBlocking(fs.readFileSync(file).toString)
   }
-
-  def readFile(file: => dom.File)(implicit trace: Trace): ZIO[Any, Throwable, String] =
-    ZIO.fromFuture(_ => readFileJs(file))
 
 }
