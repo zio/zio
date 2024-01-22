@@ -60,12 +60,11 @@ object ScopedRef {
    * value.
    */
   def fromAcquire[R, E, A](acquire: ZIO[R, E, A])(implicit trace: Trace): ZIO[R with Scope, E, ScopedRef[A]] =
-    ZIO.uninterruptibleMask { restore =>
+    ZIO.uninterruptible {
       for {
         newScope <- Scope.make
-        a <- restore(acquire.provideSomeEnvironment[R](_.add[Scope](newScope))).onError(cause =>
-               newScope.close(Exit.fail(cause))
-             )
+        a <-
+          acquire.provideSomeEnvironment[R](_.add[Scope](newScope)).onError(cause => newScope.close(Exit.fail(cause)))
         ref      <- Ref.Synchronized.make((newScope, a))
         scopedRef = Synch(ref)
         _        <- ZIO.addFinalizer(scopedRef.close)
@@ -82,11 +81,11 @@ object ScopedRef {
 
     final def set[R, E](acquire: ZIO[R with Scope, E, A])(implicit trace: Trace): ZIO[R, E, Unit] =
       ref.modifyZIO { case (oldScope, a) =>
-        ZIO.uninterruptibleMask { restore =>
+        ZIO.uninterruptible {
           for {
             _        <- oldScope.close(Exit.unit)
             newScope <- Scope.make
-            exit     <- restore(newScope.extend[R](acquire)).exit
+            exit     <- newScope.extend[R](acquire).exit
             result <- exit match {
                         case Exit.Failure(cause) =>
                           newScope.close(Exit.unit).as(ZIO.refailCause(cause) -> (oldScope -> a))
