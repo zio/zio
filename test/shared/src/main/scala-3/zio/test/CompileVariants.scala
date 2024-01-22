@@ -41,8 +41,8 @@ trait CompileVariants {
     if errors.isEmpty then ZIO.right(())
     else ZIO.left(errors.iterator.map(_.message).mkString("\n"))
 
-  inline def assertTrue(inline exprs: => Boolean*)(implicit sourceLocation: SourceLocation): TestResult =
-    ${SmartAssertMacros.smartAssert('exprs, 'sourceLocation)}
+  inline def assertTrue(inline exprs: => Boolean*): TestResult =
+    ${SmartAssertMacros.smartAssert('exprs)}
 
   inline def assert[A](inline value: => A)(inline assertion: Assertion[A])(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =
     ${Macros.assert_impl('value)('assertion, 'trace, 'sourceLocation)}

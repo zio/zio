@@ -1,6 +1,7 @@
 package zio.test
 
 import zio._
+import zio.internal.stacktracer.SourceLocation
 import zio.test.SmartTestTypes._
 
 import java.time.LocalDateTime
@@ -559,6 +560,27 @@ object SmartAssertionSpec extends ZIOBaseSpec {
             assertTrue(externalBar.valid)
           }
         )
+      }
+    ),
+    suite("TestFailure")(
+      test("location") {
+        val empty = SourceLocation("", 0)
+        assertTrue(implicitly[SourceLocation] == empty) && assertTrue(
+          implicitly[SourceLocation] == empty
+        ) && assertTrue(
+          implicitly[SourceLocation] == empty,
+          implicitly[SourceLocation] == empty
+        ) && assertTrue {
+          val _ = "this is a statement"
+          // this is a comment
+          implicitly[SourceLocation] == empty
+        }
+      } @@ TestAspect.failing[Nothing] {
+        case TestFailure.Assertion(result, _) =>
+          val expected = result.result.values.collect { case SourceLocation(path, line) => s"$path:$line" }
+          val actual   = FailureCase.fromTrace(result.result, Chunk.empty).map(_.location)
+          actual.length == 5 && actual == expected
+        case _ => false
       }
     )
   )
