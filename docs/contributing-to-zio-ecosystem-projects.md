@@ -64,7 +64,7 @@ println(
     |sidebar_title: "ZIO XYZ"
     |---
     |
-    |ZIO XYZ is a library that ...
+    |ZIO XYZ is a ZIO Scala library that ...
     |
     |@‎PROJECT_BADGES@
     |
@@ -79,9 +79,9 @@ println(
     |
     |In order to use this library, we need to add the following line in our `build.sbt` file:
     |
-    |```scala
+    |‎`‎`‎`‎scala
     |libraryDependencies += "dev.zio" %% "zio-xyz" % "@‎VERSION@"
-    |```
+    |`‎`‎`‎
     |
     |## Example
     |
@@ -92,7 +92,9 @@ println(
     |""".stripMargin)
 ```
 
-Inside the `index.md` file, we can use the `@‎PROJECT_BADGES@` placeholder to add badges to the documentation. The `@‎PROJECT_BADGES@` placeholder will be replaced with the badges of the library. Also, the `@‎VERSION@` placeholder will be replaced with the latest version of the library.
+Inside the `index.md` file, the `sidebar_title` field is used to set the name of the library in the sidebar of the documentation website on [this page](ecosystem/officials/index.md). Therefore, make sure to set it at the top of the `docs/index.md` file.
+
+Also, we can use `@‎PROJECT_BADGES@` placeholder to add badges to the documentation. The `@‎PROJECT_BADGES@` placeholder will be replaced with the badges of the library. Also, the `@‎VERSION@` placeholder will be replaced with the latest version of the library.
 
 The `index.md` file is the primary source for generating the `README.md` file of the library. Further details on this process will be discussed in the [Generating README File](#generating-readme-file) section.
 
@@ -177,9 +179,7 @@ After preparing the documentation source code inside the `docs` directory of the
 With this plugin, we gain the capability to enhance our documentation in several ways:
 
 1. **Ensure Type-Checked Code Snippets:** Leverage the power of the [`mdoc`](https://scalameta.org/mdoc/) tool to include type-checked code snippets seamlessly within our documentation.
-
 2. **Effortless README.md Generation:** Streamline our documentation process by generating the `README.md` file automatically from the content inside `docs/index.md` file.
-
 3. **Simplified Documentation Deployment:** Install and preview our documentation website effortlessly.
 
 #### Installing the Plugin
@@ -305,6 +305,108 @@ release-docs:
 ```
 
 The `NPM_TOKEN` is a secret used to publish the documentation to the npm registry. All official libraries under GitHub's [ZIO organization](https://github.com/zio) have access to this secret.
+
+##### Checking Website Build
+
+Before releasing the documentation package, it is advisable to check if everything is fine. To do so, we can add the following CI steps to `build` phase of the CI:
+
+```diff
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4.1.1
+      - name: Setup Java
+        uses: actions/setup-java@v2.5.1
+        with:
+          distribution: temurin
+          java-version: 8
+          check-latest: true
++     - name: Setup NodeJs
++       uses: actions/setup-node@v4
++       with:
++         node-version: 16.x
++         registry-url: https://registry.npmjs.org
+      - name: Cache scala dependencies
+        uses: coursier/cache-action@v6
+      - name: Install libuv
+        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
+      - name: Check Building Packages
+        run: ./sbt +publishLocal
++     - name: Check Website Build Process
++       run: sbt docs/clean; sbt docs/buildWebsite
+```
+
+##### Automate README Generation
+
+Everytime we change the content of the `docs/index.md` file, we need to update the `README.md` file. To automate this process, we can add the following CI job to the `.github/workflows/<workflow-name>.yaml` file:
+
+```yaml
+  update-readme:
+    name: Update README
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    if: ${{ github.event_name == 'push' }}
+    steps:
+    - name: Git Checkout
+      uses: actions/checkout@v4.1.1
+      with:
+        fetch-depth: '0'
+    - name: Install libuv
+      run: sudo apt-get update && sudo apt-get install -y libuv1-dev
+    - name: Setup Scala
+      uses: actions/setup-java@v3.13.0
+      with:
+        distribution: corretto
+        java-version: '17'
+        check-latest: true
+    - name: Cache Dependencies
+      uses: coursier/cache-action@v6
+    - name: Generate Readme
+      run: sbt docs/generateReadme
+    - name: Commit Changes
+      run: |
+        git config --local user.email "zio-assistant[bot]@users.noreply.github.com"
+        git config --local user.name "ZIO Assistant"
+        git add README.md
+        git commit -m "Update README.md" || echo "No changes to commit"
+    - name: Generate Token
+      id: generate-token
+      uses: zio/generate-github-app-token@v1.0.0
+      with:
+        app_id: ${{ secrets.APP_ID }}
+        app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+    - name: Create Pull Request
+      id: cpr
+      uses: peter-evans/create-pull-request@v5.0.2
+      with:
+        body: |-
+          Autogenerated changes after running the `sbt docs/generateReadme` command of the [zio-sbt-website](https://zio.dev/zio-sbt) plugin.
+
+          I will automatically update the README.md file whenever there is new change for README.md, e.g.
+            - After each release, I will update the version in the installation section.
+            - After any changes to the "docs/index.md" file, I will update the README.md file accordingly.
+        branch: zio-sbt-website/update-readme
+        commit-message: Update README.md
+        token: ${{ steps.generate-token.outputs.token }}
+        delete-branch: true
+        title: Update README.md
+    - name: Approve PR
+      if: ${{ steps.cpr.outputs.pull-request-number }}
+      run: gh pr review "$PR_URL" --approve
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PR_URL: ${{ steps.cpr.outputs.pull-request-url }}
+    - name: Enable Auto-Merge
+      if: ${{ steps.cpr.outputs.pull-request-number }}
+      run: gh pr merge --auto --squash "$PR_URL" || gh pr merge --squash "$PR_URL"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PR_URL: ${{ steps.cpr.outputs.pull-request-url }}
+```
+
+This CI job will create a new pull request to update the `README.md` file after each push event. The pull request will be merged automatically if the CI job is successful. It utilizes the [ZIO Assistant](https://github.com/apps/zio-assistant) bot.
 
 #### Automatic CI Job (Recommended)
 
