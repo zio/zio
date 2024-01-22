@@ -22,7 +22,7 @@ As an example, the documentation for the ZIO Prelude library, accessible at [htt
 
 Each official ZIO project maintains its dedicated documentation project, which is published with every release to the npm registry under the [@zio.dev](https://www.npmjs.com/package/@zio.dev/) organization. Subsequently, these documentation projects are seamlessly integrated into the [ZIO Website](https://zio.dev) during the CI process of [ZIO core](https://github.com/zio/zio) repository.
 
-### Documentation Structure
+## Documentation Structure
 
 The base minimum structure of the documentation source code under the `docs` directory of each library repository is as follows:
 
@@ -36,7 +36,7 @@ docs
 
 Now, let's delve into each of them.
 
-#### The `package.json` File
+### The `package.json` File
 
 Each library's documentation source code is a NPM project that will be published to the NPM registry. So the `package.json` file is required. The file is used to specify the name, description, and license of the documentation project. Example:
 
@@ -98,7 +98,7 @@ Also, we can use `@‎PROJECT_BADGES@` placeholder to add badges to the document
 
 The `index.md` file is the primary source for generating the `README.md` file of the library. Further details on this process will be discussed in the [Generating README File](#generating-readme-file) section.
 
-#### The `sidebars.js` File
+### The `sidebars.js` File
 
 Inside the `sidebars.js` file, we can specify the documentation's structure, including the order of pages, the arrangement of sections within each page, and the introduction of sections and subsections. The structure of this file is as follows:
 
@@ -172,7 +172,7 @@ In the above example, we have introduced a new section called `Examples` which r
 
 To learn more about the `sidebars.js` file, please refer to the [Docusaurus documentation](https://docusaurus.io/docs/sidebar).
 
-### ZIO SBT Website Plugin
+## ZIO SBT Website Plugin
 
 After preparing the documentation source code inside the `docs` directory of the library repository, we are ready to compile the documentation. To do this, we need to install the `zio-sbt-website` plugin.
 
@@ -182,7 +182,7 @@ With this plugin, we gain the capability to enhance our documentation in several
 2. **Effortless README.md Generation:** Streamline our documentation process by generating the `README.md` file automatically from the content inside `docs/index.md` file.
 3. **Simplified Documentation Deployment:** Install and preview our documentation website effortlessly.
 
-#### Installing the Plugin
+### Installing the Plugin
 
 To install the plugin, we need to add the following line to the `project/plugins.sbt` file of the library repository:
 
@@ -213,12 +213,12 @@ Let's explain the above settings:
 - `mainModuleName`: This setting is used to specify the name of the main module of the library. It is employed to create the `@‎PROJECT_BADGES@` placeholder in the `docs/index.md` file.
 - `projectStage`: This setting is used to determine the stage of the documentation project. Possible values are `ProductionReady`, `Development`, `Experimental`, `Research`, `Concept`, and `Deprecated`. It is utilized to create the `@‎PROJECT_STAGE@` placeholder in the `docs/index.md` file. To learn more about these stages, please refer to [this page](https://github.com/zio#project-status).
 
-#### README Auto-Generation
+### Configuring Readme Settings
 
 After installing the plugin, we can generate the `README.md` file by running the `sbt docs/generateReadme` command. This command will generate the `README.md` file from the `docs/index.md` file and place it in the root directory of the repository.
 
 :::note
-As a contributor to a well-established official library, you don't need to update the `README.md` file every time you make changes to the `docs/index.md` file. The CI of the ZIO repository will take care of this for you. After merging any pull request that has changes to the `docs/index.md` file, the CI of the ZIO repository will automatically create a new pull request to update the `README.md` file.
+As a contributor to a well-established official library, you don't need to update the `README.md` file every time you make changes to the `docs/index.md` file. The CI of the ZIO repository will take care of this for you. After merging any pull request that has changes to the `docs/index.md` file, the CI of the ZIO repository will automatically create a new pull request to update the `README.md` file. We will discuss this later.
 :::
 
 There are some sbt settings used to generate the `README.md` file, and they have default values. However, if you want to customize them, you can do so. These settings are as follows:
@@ -249,7 +249,7 @@ lazy val docs = (project in file("zio-xyz-docs"))
   )
 ```
 
-#### Live Preview
+### Live Preview of Documentation Website
 
 Before creating pull requests for the documentation of an official library, it is advisable to check if everything is fine, especially when there are numerous changes to the documentation. To do so, we can locally build the documentation by following these steps:
 
@@ -263,7 +263,7 @@ By editing the documentation source code of the library, we can observe the chan
 If the `sbt docs/previewWebsite` command fails, please clean the `target` directory for the documentation module and try again from step 1.
 :::
 
-### Publishing Documentation
+## Publishing Documentation
 
 To contribute to the documentation of an official library, one must make changes to the documentation source code of that library and then create a pull request to the respective repository. Upon merging that pull request, the goal is to have the documentation for that library updated on the zio.dev website with the release of the next version of the library.
 
@@ -272,7 +272,7 @@ To achieve this, the only thing that needs to be done from the library repositor
 1. Write a manual CI job responsible for publishing the documentation package after each release of the library.
 2. Use the ZIO SBT CI plugin to generate the CI jobs automatically, including the job for publishing the documentation package.
 
-#### Manual CI Job
+## Writing Manual CI for Publishing Documentation 
 
 By adding the following CI job to the `.github/workflows/<workflow-name>.yaml` file, we can utilize the `sbt docs/publishToNpm` command provided by the ZIO SBT Website plugin to publish the documentation package to the npm registry:
 
@@ -304,7 +304,7 @@ release-docs:
 
 The `NPM_TOKEN` is a secret used to publish the documentation to the npm registry. All official libraries under GitHub's [ZIO organization](https://github.com/zio) have access to this secret.
 
-##### Checking Website Build
+### Checking Website Build
 
 Before releasing the documentation package, it is advisable to check if everything is fine. To do so, we can add the following CI steps to `build` phase of the CI:
 
@@ -336,7 +336,7 @@ Before releasing the documentation package, it is advisable to check if everythi
 +       run: sbt docs/clean; sbt docs/buildWebsite
 ```
 
-##### Automate README Generation
+### Automate README Generation
 
 Everytime we change the content of the `docs/index.md` file, we need to update the `README.md` file. To automate this process, we can add the following CI job to the `.github/workflows/<workflow-name>.yaml` file:
 
@@ -406,7 +406,7 @@ update-readme:
 
 This CI job will create a new pull request to update the `README.md` file after each push event. The pull request will be merged automatically if the CI job is successful. It utilizes the [ZIO Assistant](https://github.com/apps/zio-assistant), which requires a token to be generated. The token will be generated using the [`zio/generate-github-app-token`](https://github.com/zio/generate-github-app-token) action.
 
-#### Automatic CI Job (Recommended)
+## Utilizing Autogenerated CI through the ZIO SBT CI Plugin (Recommended)
 
 The ZIO SBT CI plugin can generate the CI jobs automatically, including the job for publishing the documentation package to the NPM registry.
 
