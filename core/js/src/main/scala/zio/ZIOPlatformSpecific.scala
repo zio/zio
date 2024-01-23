@@ -21,13 +21,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.scalajs.js
 import scala.scalajs.js.{Function1, Promise => JSPromise, Thenable, |}
 
-import org.scalajs.dom
-import org.scalajs.dom.FileReader
-import scala.concurrent.Promise
-import scala.util.Failure
-import scala.util.Success
-import scala.concurrent.Future
-
 private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
   /**
