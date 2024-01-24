@@ -14,9 +14,9 @@ println(s"""libraryDependencies ++= Seq(
   "dev.zio" %% "zio-test-magnolia" % "${zio.BuildInfo.version.split('+').head}" % Test
 )
 println(s"""```""")
+```
 
 If our SBT version is older than 1.8.0, we also need to add the test framework manually:
-println(s"""```scala""")
+```scala mdoc
 testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")""")
-println(s"""```""")
 ```
