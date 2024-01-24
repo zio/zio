@@ -18,5 +18,5 @@ println(s"""```""")
 
 If our SBT version is older than 1.8.0, we also need to add the test framework manually:
 ```scala mdoc
-testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")""")
+testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 ```
