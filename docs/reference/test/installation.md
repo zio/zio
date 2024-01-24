@@ -12,7 +12,7 @@ println(s"""libraryDependencies ++= Seq(
   "dev.zio" %% "zio-test"          % "${zio.BuildInfo.version.split('+').head}" % Test,
   "dev.zio" %% "zio-test-sbt"      % "${zio.BuildInfo.version.split('+').head}" % Test,
   "dev.zio" %% "zio-test-magnolia" % "${zio.BuildInfo.version.split('+').head}" % Test
-)
+)""")
 println(s"""```""")
 ```
 
