@@ -272,7 +272,9 @@ To achieve this, the only thing that needs to be done from the library repositor
 1. Write a manual CI job responsible for publishing the documentation package after each release of the library.
 2. Use the ZIO SBT CI plugin to generate the CI jobs automatically, including the job for publishing the documentation package.
 
-## Writing Manual CI for Publishing Documentation 
+## Writing Manual CI for Publishing Documentation
+
+### Releasing Documentation Package
 
 By adding the following CI job to the `.github/workflows/<workflow-name>.yaml` file, we can utilize the `sbt docs/publishToNpm` command provided by the ZIO SBT Website plugin to publish the documentation package to the npm registry:
 
@@ -303,6 +305,43 @@ release-docs:
 ```
 
 The `NPM_TOKEN` is a secret used to publish the documentation to the npm registry. All official libraries under GitHub's [ZIO organization](https://github.com/zio) have access to this secret.
+
+### Notifying the Main Repository
+
+After publishing the documentation package, we need to notify the main repository about the new release of the documentation package. To do so, we can add the following CI job to the `.github/workflows/<workflow-name>.yaml` file:
+
+```yaml
+notify-docs-release:
+  name: Notify Docs Release
+  runs-on: ubuntu-latest
+  continue-on-error: false
+  needs:
+  - release-docs
+  if: ${{ (github.event_name == 'release') && (github.event.action == 'published') }}
+  steps:
+  - name: Git Checkout
+    uses: actions/checkout@v4.1.1
+    with:
+      fetch-depth: '0'
+  - name: notify the main repo about the new release of docs package
+    run: |
+      PACKAGE_NAME=$(cat docs/package.json | grep '"name"' | awk -F'"' '{print $4}')
+      PACKAGE_VERSION=$(npm view $PACKAGE_NAME version)
+      curl -L \
+        -X POST \
+        -H "Accept: application/vnd.github+json" \
+        -H "Authorization: token ${{ secrets.PAT_TOKEN }}"\
+          https://api.github.com/repos/zio/zio/dispatches \
+          -d '{
+                "event_type":"update-docs",
+                "client_payload":{
+                  "package_name":"'"${PACKAGE_NAME}"'",
+                  "package_version": "'"${PACKAGE_VERSION}"'"
+                }
+              }'
+```
+
+This CI job will create a new dispatch event to the ZIO repository, which will then generate a new pull request to update the documentation package version in the `website/package.json` file of the ZIO repository. After merging that pull request, the new version of the documentation will be deployed to the zio.dev website.
 
 ### Checking Website Build
 
