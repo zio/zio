@@ -461,3 +461,75 @@ By adding this line, the plugin will be enabled, and we can use the `sbt ciGener
 :::note
 After each release of an official library, the documentation for that library will be published to the npm registry. In the CI of the ZIO repository, the latest versions of documentations that are published to the NPM registry will be downloaded and integrated into the zio.dev site.
 :::
+
+## ZIO SBT Ecosystem Plugin (Configuring Project's SBT Settings)
+
+Over time, within the ZIO Ecosystem projects, we've identified a common thread: the need to configure specific settings when initiating a new project. These settings often share a commonality across projects, albeit with some variations.
+
+This involves setting up crucial elements such as build information, test configurations, documentation settings, macro settings, activating industry-standard plugins, ensuring cross-platform compatibility, and configuring supported Scala versions, among other essential parameters.
+
+The ZIO SBT Ecosystem was created to address this need. It attempts to configure common settings among ZIO ecosystem projects. Besides providing various sbt tasks/settings, it also configures and installs essential SBT plugins.
+
+Let's take a closer look at this plugin and see how to use it.
+
+### Installing the Plugin
+
+To install the plugin, we need to add the following line to the `project/plugins.sbt` file of the library repository:
+
+```scala
+// replace <version> with the latest version currently 0.4.0-alpha.22
+addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "<version>")
+```
+
+Then add the following line to the `build.sbt` file of the library repository:
+
+```scala
+enablePlugins(ZioSbtEcosystemPlugin)
+```
+
+Now, let's explore the various settings available for configuring our project modules:
+
+### Global Settings
+
+After enabling the `zio-sbt-ecosystem` plugin, it will automatically apply some global settings, such as `licenses` to `Apache2`, `organization` to `dev.zio`, homepage to `https://zio.dev/<project-name>`, and also configuring the `scmInfo` setting.
+
+### Project Settings
+
+Additionally, there are some settings that will be activated in the scope of each project, such as introducing new commands and tasks, as well as the help manual:
+
+1. Commands:
+   1. `fix` - Fixes source files using scalafix.
+   2. `fmt` - Formats source files using scalafmt.
+   3. `quiet` - Disable/enable welcome banner.
+   4. `lint` - Verifies that all source files are properly formatted and have had all scalafix rules applied.
+   5. `prepare` - Prepares sources by applying scalafmt and running scalafix:
+   6. `publishAll` - Signs and publishes all artifacts to Maven Central.
+2. Tasks:
+   1. `build` - Compiles all sources including tests.
+   2 `enableStrictCompile` - Enables strict compile option.
+   3 `disableStrictCompile` - Disables strict compile option.
+
+### Build Settings
+
+The following settings will be activated at the build scope:
+
+1. `scala3` - Version of Scala 3 to use.
+2. `scala212` - Version of Scala 2.12 to use.
+3. `scalaVersion` - The default version of scala used for build.
+4. `crossScalaVersions` - The versions of Scala used when cross-building which by default is set to `Seq(scala212.value, scala213.value, scala3.value)`
+5. `zioVersion` - The version of ZIO to use.
+6. `javaPlatform` - The java platform to use which by default is set to `8`
+
+### Helper Functions
+
+The ZIO SBT Ecosystem Plugin also provides some helper functions that can be used in the `build.sbt` file to configure the project:
+
+1. `stdSettings`
+2. `enableZIO` 
+3. `crossProjectSettings`
+4. `scalafixSettings`
+5. `scalaReflectTestSettings`
+6. `buildInfoSettings`  
+7. `macroDefinitionSettings`
+8. `jsSettings` and `scalajs`
+9. `nativeSettings`
