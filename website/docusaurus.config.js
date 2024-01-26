@@ -223,6 +223,7 @@ const config = {
       };
     },
     [path.join(__dirname, './plugins/zio-ecosystem-docusaurus'), {}],
+    ['@docusaurus/plugin-client-redirects',{}]
   ],
   markdown: {
     mermaid: true,
