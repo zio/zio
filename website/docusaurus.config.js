@@ -227,8 +227,8 @@ const config = {
       {
         redirects: [
           {
-            to: '/zio.dev/contributor-guidelines',
-            from: '/zio.dev/about/contributing',
+            to: '/contributor-guidelines',
+            from: '/1.0.18/about/about_contributing',
 					},
         ],
       },
