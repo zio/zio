@@ -229,7 +229,7 @@ const config = {
           {
             to: '/contributor-guidelines',
             from: '/about/about_contributing',
-					},
+          },
         ],
       },
     ],
