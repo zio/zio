@@ -533,3 +533,40 @@ The ZIO SBT Ecosystem Plugin also provides some helper functions that can be use
 7. `macroDefinitionSettings`
 8. `jsSettings` and `scalajs`
 9. `nativeSettings`
+
+## Configuring Scala Steward
+
+[Scala Steward](https://github.com/scala-steward-org/scala-steward) is a bot that helps you keep library dependencies and sbt plugins up-to-date. It is a GitHub App that automatically updates dependencies in Scala projects with pull requests.
+
+To configure Scala Steward on a repository inside the ZIO organization, we have two options:
+
+1. Using the public Scala Steward instance (recommended)
+2. Using the ZIO Scala Steward instance
+
+Most of the ZIO ecosystem projects use the public instance of Scala Steward, and we recommend using it. To enable Scala Steward on a repository, you can add the project to [this file](https://github.com/VirtusLab/scala-steward-repos/blob/main/repos-github.md) and then create a pull request.
+
+However, some projects may require the ZIO Scala Steward instance hosted on the ZIO organization. In this case, please contact the ZIO team through the [ZIO's Contributor Channel on Discord](https://discord.com/channels/629491597070827530/629491597070827534). After enabling the ZIO Scala Steward bot on the repository, add the following CI job to the `.github/workflows/scala-steward.yml` file:
+
+```yaml
+name: Scala Steward
+
+# This workflow will launch everyday at 00:00
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  scala-steward:
+    timeout-minutes: 45
+    runs-on: ubuntu-latest
+    name: Scala Steward
+    steps:
+      - name: Scala Steward
+        uses: scala-steward-org/scala-steward-action@v2.61.0
+        with:
+          github-app-id: ${{ secrets.SCALA_STEWARD_GITHUB_APP_ID }}
+          github-app-installation-id: ${{ secrets.SCALA_STEWARD_GITHUB_APP_INSTALLATION_ID }}
+          github-app-key: ${{ secrets.SCALA_STEWARD_GITHUB_APP_PRIVATE_KEY }}
+          github-app-auth-only: true
+```
