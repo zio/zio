@@ -572,3 +572,42 @@ jobs:
           github-app-key: ${{ secrets.SCALA_STEWARD_GITHUB_APP_PRIVATE_KEY }}
           github-app-auth-only: true
 ```
+
+## Project Checklist
+
+As a ZIO ecosystem contributor, you can help us improve by checking if the project follows our guidelines. Some are must-follow, others are optional. Follow as many as you can. If the project doesn't meet any, kindly make a pull request to fix it. Here are the guidelines:
+
+### General Checklist
+
+1. [ ] The project has a `LICENSE` file (required).
+2. [ ] The CI workflow is generated using the `zio-sbt-ci` plugin (optional).
+3. [ ] The project uses the `zio-sbt-ecosystem` plugin to configure SBT settings (optional).
+
+### Documentation Checklist
+
+1. [ ] The documentation project uses the `zio-sbt-website` plugin (required).
+2. [ ] The project has well-written documentation in the `docs` directory (required).
+3. [ ] The project has a `docs/index.md` file that serves as the main page of the documentation (required).
+4. [ ] The project has a `docs/sidebars.js` file that defines the structure of the documentation (required).
+5. [ ] The project has a `docs/package.json` file that defines the name, description, and license of the documentation project (required).
+6. [ ] The documentation project uses type-safe code snippets using the `mdoc` tool (optional).
+
+### CI Checklist
+
+Check if all the following items are done on `pull_request` and `push` (push to the main branch) and `release` events:
+
+1. [ ] Lint: Check if all source files are properly formatted (required).
+2. [ ] Test: Check if all tests are passing (required).
+3. [ ] Build: The CI checks if the documentation is building successfully (required).
+   1. [ ] Check if all source files (including the test sources) are compiled successfully.
+   2. [ ] Check if packaging the project is successful.
+   3. [ ] Check if packaging the documentation project is successful.
+
+For releasing the project, check if all the following items are done on `release` event:
+
+1. [ ] If the lint, test, and build CI jobs are successful, release the project and its documentation package to the Maven Central and NPM registries (required).
+2. [ ] After the release job, notify the main repository about the new release of the project (optional).
+
+On `push` events to the main branch, check if all the following items are done:
+
+1. [ ] The CI generates a pull request to update the `README.md` file and creates a pull request to the main repository (optional).
