@@ -462,6 +462,8 @@ By adding this line, the plugin will be enabled, and we can use the `sbt ciGener
 After each release of an official library, the documentation for that library will be published to the npm registry. In the CI of the ZIO repository, the latest versions of documentations that are published to the NPM registry will be downloaded and integrated into the zio.dev site.
 :::
 
+To learn more about the ZIO SBT CI plugin, please refer to [this page](https://zio.dev/zio-sbt).
+
 ## ZIO SBT Ecosystem Plugin (Configuring Project's SBT Settings)
 
 Over time, within the ZIO Ecosystem projects, we've identified a common thread: the need to configure specific settings when initiating a new project. These settings often share a commonality across projects, albeit with some variations.
