@@ -228,7 +228,7 @@ const config = {
         redirects: [
           {
             to: '/contributor-guidelines',
-            from: '/1.0.18/about/about_contributing',
+            from: '/about/about_contributing',
 					},
         ],
       },
