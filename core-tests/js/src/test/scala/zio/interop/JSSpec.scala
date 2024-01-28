@@ -73,8 +73,20 @@ object JSSpec extends ZIOBaseSpec {
     ),
     suite("ZIO#readFile")(
       test("readFile") {
-        val file = "core-tests/resources/file.txt"
-        assertZIO(ZIO.readFile(file))(equalTo("Hello World"))
+        def getTempDir: String = {
+          import scalajs.js.Dynamic.{global => g}
+          val os = g.require("os")
+          os.tmpdir().toString
+        }
+
+        val content = "Hello World"
+        for {
+          randomFileName <- Random.nextUUID.map(_.toString)
+          tempDir        <- ZIO.attempt(getTempDir)
+          file            = tempDir + randomFileName + ".txt"
+          _              <- ZIO.writeFile(file, content)
+          fileContent    <- ZIO.readFile(file)
+        } yield assertTrue(fileContent == content)
       }
     )
   )
