@@ -83,7 +83,7 @@ object JSSpec extends ZIOBaseSpec {
         for {
           randomFileName <- Random.nextUUID.map(_.toString)
           tempDir        <- ZIO.attempt(getTempDir)
-          file            = tempDir + randomFileName + ".txt"
+          file            = tempDir + "/" + randomFileName + ".txt"
           _              <- ZIO.writeFile(file, content)
           fileContent    <- ZIO.readFile(file)
         } yield assertTrue(fileContent == content)
