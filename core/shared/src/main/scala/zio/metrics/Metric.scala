@@ -204,14 +204,8 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         zio.foldCauseZIO(
-          cause => {
-            unsafe.update(in)(Unsafe.unsafe)
-            ZIO.refailCause(cause)
-          },
-          a => {
-            unsafe.update(in)(Unsafe.unsafe)
-            ZIO.succeed(a)
-          }
+          cause => update(in) *> ZIO.refailCause(cause),
+          a => update(in) *> ZIO.succeed(a)
         )
     }
 
@@ -230,11 +224,11 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
    */
   final def trackDefectWith(f: Throwable => In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      val updater: Throwable => Unit =
-        defect => unsafe.update(f(defect))(Unsafe.unsafe)
+      val updater: Throwable => UIO[Unit] =
+        defect => update(f(defect))
 
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-        zio.tapDefect(cause => ZIO.succeed(cause.defects.foreach(updater)))
+        zio.tapDefect(cause => ZIO.foreachDiscard(cause.defects)(updater))
     }
 
   /**
@@ -256,12 +250,11 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
         ZIO.suspendSucceed {
           val startTime = java.lang.System.nanoTime()
 
-          zio.map { a =>
+          zio.tap { a =>
             val endTime  = java.lang.System.nanoTime()
             val duration = Duration.fromNanos(endTime - startTime)
 
-            unsafe.update(f(duration))(Unsafe.unsafe)
-            a
+            update(f(duration))
           }
         }
     }
