@@ -25,7 +25,8 @@ object ZTestFrameworkSbtSpec {
 //    test("should correctly display colorized output for multi-line strings")(testColored()),
 //    test("should test only selected test")(testTestSelection()),
 //    test("should return summary when done")(testSummary()),
-    test("should use a shared layer without re-initializing it")(testSharedLayer())
+    test("should use a shared layer without re-initializing it")(testSharedLayer()),
+    test("should honor `TestSelector`s")(testTestSelector())
 //    test("should warn when no tests are executed")(testNoTestsExecutedWarning())
   )
 
@@ -106,6 +107,42 @@ object ZTestFrameworkSbtSpec {
           s"""${reset("info: ")}${ConsoleRenderer.renderSummary(Summary(0, 1, 0, ""))}"""
         ).mkString("\n")
       )
+    )
+  }
+
+  def testTestSelector(): Unit = {
+    val loggers               = Array(new MockLogger: Logger)
+    val events                = ArrayBuffer.empty[Event]
+    val handler: EventHandler = (e: Event) => events.append(e)
+    val framework             = new ZTestFramework()
+    val runner                = framework.runner(Array.empty, Array.empty, getClass.getClassLoader)
+    val fqcn                  = FrameworkSpecInstances.SimpleFailingSharedSpec.getClass.getName.stripSuffix("$")
+
+    val taskDef0         = new TaskDef(fqcn, ZioSpecFingerprint, true, Array(new SuiteSelector))
+    val entireSuiteTasks = runner.tasks(Array(taskDef0))
+    entireSuiteTasks.head.execute(handler, loggers)
+
+    val failingSelector = events.collect { case e if e.status() == Status.Failure => e.selector() }.toArray
+    assertEquals("events received", events.length, 3)
+    assertEquals("failing tests", failingSelector.length, 1)
+    events.clear()
+
+    val taskDef1 = new TaskDef(
+      taskDef0.fullyQualifiedName(),
+      taskDef0.fingerprint(),
+      taskDef0.explicitlySpecified(),
+      failingSelector
+    )
+    val singleTestCaseTasks = runner.tasks(Array(taskDef1))
+    singleTestCaseTasks.foreach(_.execute(handler, loggers))
+
+    assertEquals("events received", events.size, 1)
+    assertEquals("event's FQCN", events.head.fullyQualifiedName(), fqcn)
+    assertEquals("event's status", events.head.status(), Status.Failure)
+    assertEquals(
+      "event's selector",
+      events.head.selector().asInstanceOf[TestSelector].testName(),
+      "some suite - failing test"
     )
   }
 
