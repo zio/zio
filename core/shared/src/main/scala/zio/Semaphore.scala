@@ -78,12 +78,12 @@ object Semaphore {
   object unsafe {
     def make(permits: Long)(implicit unsafe: Unsafe): Semaphore =
       new Semaphore {
-        val ref = Ref.unsafe.make[Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]](Right(permits))
+        val ref = Ref.unsafe.make[SemaphoreState](Available(permits))
 
         def available(implicit trace: Trace): UIO[Long] =
           ref.get.map {
-            case Left(_)        => 0L
-            case Right(permits) => permits
+            case Exhausted(_)                => 0L
+            case Available(availablePermits) => availablePermits
           }
 
         def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
@@ -93,14 +93,12 @@ object Semaphore {
           withPermitsScoped(1L)
 
         def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-          ZIO.acquireReleaseWith(reserve(n))(_.release)(_.acquire *> zio)
+          ZIO.acquireReleaseWith(reservePermits(n))(_.releasePermits)(_.awaitPermits *> zio)
 
         def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-          ZIO.acquireRelease(reserve(n))(_.release).flatMap(_.acquire)
+          ZIO.acquireRelease(reservePermits(n))(_.releasePermits).flatMap(_.awaitPermits)
 
-        case class Reservation(acquire: UIO[Unit], release: UIO[Any])
-
-        def reserve(n: Long)(implicit trace: Trace): UIO[Reservation] =
+        def reservePermits(n: Long)(implicit trace: Trace): UIO[Reservation] =
           if (n < 0)
             ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
           else if (n == 0L)
@@ -108,51 +106,62 @@ object Semaphore {
           else
             Promise.make[Nothing, Unit].flatMap { promise =>
               ref.modify {
-                case Right(permits) if permits >= n =>
-                  Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
-                case Right(permits) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
-                case Left(queue) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
+                case Available(availablePermits) if availablePermits >= n =>
+                  Reservation(ZIO.unit, releasePermits(n)) -> Available(availablePermits - n)
+                case Available(availablePermits) =>
+                  Reservation(promise.await, restorePermits(promise, n)) -> Exhausted(promise, n - availablePermits)
+                case e @ Exhausted(_) =>
+                  Reservation(promise.await, restorePermits(promise, n)) -> e.enqueue(promise, n)
               }
             }
 
-        def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
+        def restorePermits(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
           ref.modify {
-            case Left(queue) =>
-              queue
-                .find(_._1 == promise)
-                .fold(releaseN(n) -> Left(queue)) { case (_, permits) =>
-                  releaseN(n - permits) -> Left(queue.filter(_._1 != promise))
+            case e @ Exhausted(blocked) =>
+              blocked
+                .find(_.promise eq promise)
+                .fold(releasePermits(n) -> e) { case Blocked(_, neededPermits) =>
+                  releasePermits(n - neededPermits) -> Exhausted(blocked.filter(_.promise ne promise))
                 }
-            case Right(permits) => ZIO.unit -> Right(permits + n)
+            case Available(availablePermits) =>
+              ZIO.unit -> Available(availablePermits + n)
           }.flatten
 
-        def releaseN(n: Long)(implicit trace: Trace): UIO[Any] = {
-
+        def releasePermits(releasedPermits: Long)(implicit trace: Trace): UIO[Any] = {
           @tailrec
-          def loop(
-            n: Long,
-            state: Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long],
-            acc: UIO[Any]
-          ): (UIO[Any], Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]) =
+          def loop(releasedPermits: Long, state: SemaphoreState, acc: UIO[Any]): (UIO[Any], SemaphoreState) =
             state match {
-              case Right(permits) => acc -> Right(permits + n)
-              case Left(queue) =>
-                queue.dequeueOption match {
-                  case None => acc -> Right(n)
-                  case Some(((promise, permits), queue)) =>
-                    if (n > permits)
-                      loop(n - permits, Left(queue), acc *> promise.succeed(()))
-                    else if (n == permits)
-                      (acc *> promise.succeed(())) -> Left(queue)
+              case Available(availablePermits) =>
+                acc -> Available(availablePermits + releasedPermits)
+              case Exhausted(blocked) =>
+                blocked.dequeueOption match {
+                  case None =>
+                    acc -> Available(releasedPermits)
+                  case Some((Blocked(promise, neededPermits), remainingBlocked)) =>
+                    if (releasedPermits > neededPermits)
+                      loop(releasedPermits - neededPermits, Exhausted(remainingBlocked), acc *> promise.succeed(()))
+                    else if (releasedPermits == neededPermits)
+                      (acc *> promise.succeed(())) -> Exhausted(remainingBlocked)
                     else
-                      acc -> Left((promise -> (permits - n)) +: queue)
+                      acc -> Exhausted(Blocked(promise, neededPermits - releasedPermits) +: remainingBlocked)
                 }
             }
 
-          ref.modify(loop(n, _, ZIO.unit)).flatten
+          ref.modify(loop(releasedPermits, _, ZIO.unit)).flatten
         }
       }
+
+    private trait SemaphoreState
+    private final case class Available(availablePermits: Long) extends SemaphoreState
+    private final case class Exhausted(blocked: ScalaQueue[Blocked]) extends SemaphoreState {
+      def enqueue(promise: Promise[Nothing, Unit], neededPermits: Long): SemaphoreState =
+        Exhausted(blocked.enqueue(Blocked(promise, neededPermits)))
+    }
+    private object Exhausted {
+      def apply(promise: Promise[Nothing, Unit], neededPermits: Long): Exhausted =
+        Exhausted(ScalaQueue(Blocked(promise, neededPermits)))
+    }
+    private final case class Blocked(promise: Promise[Nothing, Unit], neededPermits: Long)
+    private final case class Reservation(awaitPermits: UIO[Unit], releasePermits: UIO[Any])
   }
 }
