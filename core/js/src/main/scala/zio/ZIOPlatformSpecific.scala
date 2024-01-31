@@ -71,14 +71,12 @@ private[zio] trait ZIOCompanionPlatformSpecific { self: ZIO.type =>
     }
 
   def writeFile(file: => String, content: => String)(implicit trace: Trace): ZIO[Any, Throwable, Unit] = {
-    import scalajs.js.Dynamic.{global => g}
-    val fs = g.require("fs")
-    ZIO.attemptBlocking(fs.writeFileSync(file, content)).unit
+    val fs = scalajs.js.Dynamic.global.requires("fs")
+    ZIO.attemptBlocking(fs.writeFileSync(file, content))
   }
 
   def readFile(file: => String)(implicit trace: Trace): ZIO[Any, Throwable, String] = {
-    import scalajs.js.Dynamic.{global => g}
-    val fs = g.require("fs")
+    val fs = scalajs.js.Dynamic.global.requires("fs")
     ZIO.attemptBlocking(fs.readFileSync(file).toString)
   }
 
