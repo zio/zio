@@ -554,6 +554,7 @@ module.exports = {
       items: [
         "ecosystem/community/caliban",
         "ecosystem/community/distage",
+        "ecosystem/community/fhir-indexer",
         "ecosystem/community/logstage",
         "ecosystem/community/munit-zio",
         "ecosystem/community/quill",
@@ -568,6 +569,7 @@ module.exports = {
         "ecosystem/community/zio-grpc",
         "ecosystem/community/zio-k8s",
         "ecosystem/community/zio-kinesis",
+        "ecosystem/community/zio-nebula",
         "ecosystem/community/zio-pulsar",
         "ecosystem/community/zio-saga",
         "ecosystem/community/zio-slick-interop",

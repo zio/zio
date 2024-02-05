@@ -129,6 +129,10 @@ const config = {
               href: '/contributor-guidelines'
             },
             {
+              label: 'Contributing to ZIO Ecosystem',
+              href: '/contributing-to-zio-ecosystem'
+            },
+            {
               label: 'Contributing to The ZIO Documentation',
               href: '/contributing-to-documentation'
             },
@@ -219,6 +223,16 @@ const config = {
       };
     },
     [path.join(__dirname, './plugins/zio-ecosystem-docusaurus'), {}],
+    ['@docusaurus/plugin-client-redirects',
+      {
+        redirects: [
+          {
+            to: '/contributor-guidelines',
+            from: '/about/about_contributing',
+          },
+        ],
+      },
+    ],
   ],
   markdown: {
     mermaid: true,
