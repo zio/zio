@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkzio_site=self.webpackChunkzio_site||[]).push([[23472],{10840:e=>{e.exports=JSON.parse('{"label":"documentation","permalink":"/blog/tags/documentation","allTagsPath":"/blog/tags","count":1}')}}]);
