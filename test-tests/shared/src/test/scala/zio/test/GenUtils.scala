@@ -103,4 +103,12 @@ object GenUtils {
     if (n == 0) (n, ZStream.empty)
     else (n, ZStream(n - 1))
   }))
+
+  implicit class ExistsFaster[A](val l: List[A]) {
+    /**
+     * Use optimized List iterator StrictOptimizedLinearSeqOps exists, instead of List.exists.
+     */
+    def existsFast(p: A => Boolean): Boolean = l.iterator.exists(e => p(e))
+  }
+
 }
