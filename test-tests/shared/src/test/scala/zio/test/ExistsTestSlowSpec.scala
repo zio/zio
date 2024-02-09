@@ -6,19 +6,19 @@ import zio.test.GenUtils.ExistsFaster
 object ExistsTestSlowSpec extends ZIOSpecDefault {
 
   case class ComplexObject(
-                            id: String,
-                            name: String,
-                            name2: String,
-                            name3: String,
-                            name4: String,
-                            name5: String,
-                            name6: String,
-                            name7: String,
-                            name8: String,
-                            name9: String,
-                            name10: String,
-                            name11: String
-                          )
+    id: String,
+    name: String,
+    name2: String,
+    name3: String,
+    name4: String,
+    name5: String,
+    name6: String,
+    name7: String,
+    name8: String,
+    name9: String,
+    name10: String,
+    name11: String
+  )
 
   object ComplexObject {
     def of(i: Int): ComplexObject = ComplexObject(
@@ -37,37 +37,35 @@ object ExistsTestSlowSpec extends ZIOSpecDefault {
     )
   }
 
-  val toIndex: Int = 10000
+  val toIndex: Int  = 10000
   val numSteps: Int = 100
-  val stepInc: Int = toIndex / numSteps
-  val hugeList = (1 to toIndex).map(i => ComplexObject.of(i)).toList
+  val stepInc: Int  = toIndex / numSteps
+  val hugeList      = (1 to toIndex).map(i => ComplexObject.of(i)).toList
 
   def spec = suite("ExistsTestSlowIssue")(
-
     test("testSlowExistsInList") {
       for {
         _ <- ZIO.unit
 
-        allShouldHave = (1 to toIndex by stepInc).map(i => assertTrue(hugeList.exists(_.name3 == i.toString)))
+        allShouldHave    = (1 to toIndex by stepInc).map(i => assertTrue(hugeList.exists(_.name3 == i.toString)))
         allShouldNotHave = (1 to toIndex by stepInc).map(i => assertTrue(!hugeList.exists(_.name4 == (-i).toString)))
 
       } yield TestResult.allSuccesses(
         allShouldNotHave.concat(allShouldHave)
       )
     },
-
     test("testSlowExistsInListFixed") {
       for {
         _ <- ZIO.unit
 
         allShouldHave = (1 to toIndex by stepInc).map(i => assertTrue(hugeList.existsFast(_.name3 == i.toString)))
-        allShouldNotHave = (1 to toIndex by stepInc).map(i => assertTrue(!hugeList.existsFast(_.name4 == (-i).toString)))
+        allShouldNotHave =
+          (1 to toIndex by stepInc).map(i => assertTrue(!hugeList.existsFast(_.name4 == (-i).toString)))
 
       } yield TestResult.allSuccesses(
         allShouldNotHave.concat(allShouldHave)
       )
-    },
-
+    }
   ) @@ TestAspect.timed
 
 }
