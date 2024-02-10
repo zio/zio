@@ -51,7 +51,7 @@ object ExistsTestSlowSpec extends ZIOSpecDefault {
         allShouldNotHave = (1 to toIndex by stepInc).map(i => assertTrue(!hugeList.exists(_.name4 == (-i).toString)))
 
       } yield TestResult.allSuccesses(
-        allShouldNotHave.concat(allShouldHave)
+        allShouldNotHave ++ allShouldHave
       )
     },
     test("testSlowExistsInListFixed") {
@@ -63,7 +63,41 @@ object ExistsTestSlowSpec extends ZIOSpecDefault {
           (1 to toIndex by stepInc).map(i => assertTrue(!hugeList.existsFast(_.name4 == (-i).toString)))
 
       } yield TestResult.allSuccesses(
-        allShouldNotHave.concat(allShouldHave)
+        allShouldNotHave ++ allShouldHave
+      )
+    },
+    test("testSlowFixed") {
+      for {
+        _ <- ZIO.unit
+        // sample of complex objects
+        hugeList = (1 to 1000).map(i => ComplexObject.of(i)).toList
+
+        shouldNotHave20  = assertTrue(!hugeList.existsFast(_.name3 == "-20"))
+        shouldNotHave510 = assertTrue(!hugeList.existsFast(_.name3 == "-510"))
+        shouldNotHave780 = assertTrue(!hugeList.existsFast(_.name3 == "-780"))
+        shouldNotHave999 = assertTrue(!hugeList.existsFast(_.name3 == "-999"))
+      } yield TestResult.allSuccesses(
+        shouldNotHave20,
+        shouldNotHave510,
+        shouldNotHave780,
+        shouldNotHave999
+      )
+    },
+    test("testOrig") {
+      for {
+        _ <- ZIO.unit
+        // sample of complex objects
+        hugeList = (1 to 1000).map(i => ComplexObject.of(i)).toList
+
+        shouldNotHave20  = assertTrue(!hugeList.exists(_.name3 == "-20"))
+        shouldNotHave510 = assertTrue(!hugeList.exists(_.name3 == "-510"))
+        shouldNotHave780 = assertTrue(!hugeList.exists(_.name3 == "-780"))
+        shouldNotHave999 = assertTrue(!hugeList.exists(_.name3 == "-999"))
+      } yield TestResult.allSuccesses(
+        shouldNotHave20,
+        shouldNotHave510,
+        shouldNotHave780,
+        shouldNotHave999
       )
     }
   ) @@ TestAspect.timed
