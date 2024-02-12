@@ -25,10 +25,10 @@ package zio
 object RuntimeFlags {
 
   def cooperativeYielding(flags: RuntimeFlags): Boolean =
-    isEnabled(flags)(RuntimeFlag.CooperativeYielding)
+    isEnabled(flags, RuntimeFlag.CooperativeYielding.mask)
 
   def currentFiber(flags: RuntimeFlags): Boolean =
-    isEnabled(flags)(RuntimeFlag.CurrentFiber)
+    isEnabled(flags, RuntimeFlag.CurrentFiber.mask)
 
   def diff(oldValue: RuntimeFlags, newValue: RuntimeFlags): RuntimeFlags.Patch =
     RuntimeFlags.Patch(oldValue ^ newValue, newValue)
@@ -46,7 +46,7 @@ object RuntimeFlags {
     self | that
 
   def fiberRoots(flags: RuntimeFlags): Boolean =
-    isEnabled(flags)(RuntimeFlag.FiberRoots)
+    isEnabled(flags, RuntimeFlag.FiberRoots.mask)
 
   /**
    * This method returns true only if the flag `Interruption` is ENABLED, and
@@ -60,19 +60,26 @@ object RuntimeFlags {
     interruption(flags) && !windDown(flags)
 
   def interruption(flags: RuntimeFlags): Boolean =
-    isEnabled(flags)(RuntimeFlag.Interruption)
+    isEnabled(flags, RuntimeFlag.Interruption.mask)
 
   def isDisabled(flags: RuntimeFlags)(flag: RuntimeFlag): Boolean =
-    !isEnabled(flags)(flag)
+    !isEnabled(flags, flag.mask)
 
   def isEnabled(flags: RuntimeFlags)(flag: RuntimeFlag): Boolean =
-    (flags & flag.mask) != 0
+    isEnabled(flags, flag.mask)
+
+  /**
+   * Optimized variant which doesn't rely on the megamorphic call to `.mask`.
+   * Prefer using this method when the RuntimeFlag being tested is statically known
+   */
+  private def isEnabled(flags: RuntimeFlags, mask: Int): Boolean =
+    (flags & mask) != 0
 
   def opLog(flags: RuntimeFlags): Boolean =
-    isEnabled(flags)(RuntimeFlag.OpLog)
+    isEnabled(flags, RuntimeFlag.OpLog.mask)
 
   def opSupervision(flags: RuntimeFlags): Boolean =
-    isEnabled(flags)(RuntimeFlag.OpSupervision)
+    isEnabled(flags, RuntimeFlag.OpSupervision.mask)
 
   def patch(patch: RuntimeFlags.Patch)(flags: RuntimeFlags): RuntimeFlags =
     Patch.patch(patch)(flags)
@@ -81,16 +88,16 @@ object RuntimeFlags {
     toSet(flags).mkString("RuntimeFlags(", ", ", ")")
 
   def runtimeMetrics(flags: RuntimeFlags): Boolean =
-    isEnabled(flags)(RuntimeFlag.RuntimeMetrics)
+    isEnabled(flags, RuntimeFlag.RuntimeMetrics.mask)
 
   def toSet(flags: RuntimeFlags): Set[RuntimeFlag] =
     RuntimeFlag.all.filter(isEnabled(flags))
 
   def windDown(flags: RuntimeFlags): Boolean =
-    isEnabled(flags)(RuntimeFlag.WindDown)
+    isEnabled(flags, RuntimeFlag.WindDown.mask)
 
   def workStealing(flags: RuntimeFlags): Boolean =
-    isEnabled(flags)(RuntimeFlag.WorkStealing)
+    isEnabled(flags, RuntimeFlag.WorkStealing.mask)
 
   type Patch = Long
 
@@ -126,16 +133,37 @@ object RuntimeFlags {
       Patch(active(patch), ~enabled(patch))
 
     def isActive(patch: Patch)(flag: RuntimeFlag): Boolean =
-      (active(patch) & flag.mask) != 0
+      isActive(patch, flag.mask)
+
+    /**
+     * Optimized variant of [[isEnabled]] that doesn't rely on the megamorphic
+     * call to `.mask`
+     */
+    private def isActive(patch: Patch, mask: Int): Boolean =
+      (active(patch) & mask) != 0
 
     def isDisabled(patch: Patch)(flag: RuntimeFlag): Boolean =
-      isActive(patch)(flag) && ((enabled(patch) & flag.mask) == 0)
+      isDisabled(patch, flag.mask)
+
+    /**
+     * Optimized variant of [[isDisabled]] that doesn't rely on the megamorphic
+     * call to `.mask`
+     */
+    private[zio] def isDisabled(patch: Patch, mask: Int): Boolean =
+      isActive(patch, mask) && ((enabled(patch) & mask) == 0)
 
     def isEmpty(patch: Patch): Boolean =
       active(patch) == 0L
 
     def isEnabled(patch: Patch)(flag: RuntimeFlag): Boolean =
-      isActive(patch)(flag) && ((enabled(patch) & flag.mask) != 0)
+      isEnabled(patch, flag.mask)
+
+    /**
+     * Optimized variant of [[isEnabled]] that doesn't rely on the megamorphic
+     * call to `.mask`
+     */
+    private[zio] def isEnabled(patch: Patch, mask: Int): Boolean =
+      isActive(patch, mask) && ((enabled(patch) & mask) != 0)
 
     def patch(patch: Patch)(flags: RuntimeFlags): RuntimeFlags =
       (flags & (~active(patch) | enabled(patch))) | (active(patch) & enabled(patch))
