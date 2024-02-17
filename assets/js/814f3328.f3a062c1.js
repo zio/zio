@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkzio_site=self.webpackChunkzio_site||[]).push([[45512],{4352:e=>{e.exports=JSON.parse('{"title":"Recent posts","items":[{"title":"ZIO ChatBot: Your AI-Powered ZIO Guide","permalink":"/blog/zio-chat-announcement"},{"title":"Welcome to The ZIO Blog","permalink":"/blog/welcome-to-the-zio-blog"}]}')}}]);
