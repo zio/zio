@@ -70,7 +70,8 @@ object RuntimeFlags {
 
   /**
    * Optimized variant which doesn't rely on the megamorphic call to `.mask`.
-   * Prefer using this method when the RuntimeFlag being tested is statically known
+   * Prefer using this method when the RuntimeFlag being tested is statically
+   * known
    */
   private def isEnabled(flags: RuntimeFlags, mask: Int): Boolean =
     (flags & mask) != 0
