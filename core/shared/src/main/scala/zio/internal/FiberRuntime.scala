@@ -50,6 +50,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var runningExecutor = null.asInstanceOf[Executor]
   private var _stack          = null.asInstanceOf[Array[Continuation]]
   private var _stackSize      = 0
+  private val emptyTrace      = Trace.empty
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
     val tags = getFiberRef(FiberRef.currentTags)
@@ -203,9 +204,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       }
 
       while (evaluationSignal == EvaluationSignal.Continue) {
-        evaluationSignal =
-          if (inbox.isEmpty) EvaluationSignal.Done
-          else evaluateMessageWhileSuspended(depth, inbox.poll())
+        evaluationSignal = {
+          val message = inbox.poll()
+          if (message eq null) EvaluationSignal.Done
+          else evaluateMessageWhileSuspended(depth, message)
+        }
       }
     } finally {
       running.set(false)
@@ -249,9 +252,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   ): ZIO.Erased = {
     var cur = cur0
 
-    while (!inbox.isEmpty) {
-      val message = inbox.poll()
+    var message = inbox.poll()
 
+    while (message ne null) {
       message match {
         case FiberMessage.InterruptSignal(cause) =>
           processNewInterruptSignal(cause)
@@ -269,6 +272,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         case FiberMessage.YieldNow =>
         // Ignore yield message
       }
+      message = inbox.poll()
     }
 
     cur
@@ -319,7 +323,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private def ensureStackCapacity(size: Int): Unit = {
     val stack = _stack
 
-    if (stack == null) {
+    if (stack eq null) {
       val newSize = if ((size & (size - 1)) == 0) size else Integer.highestOneBit(size) << 1
 
       _stack = new Array[Continuation](if (newSize < 16) 16 else newSize)
@@ -748,9 +752,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   ): ZIO[R, E, A] = {
     import RuntimeFlags.Patch.{isEnabled, isDisabled}
 
-    if (isEnabled(patch)(RuntimeFlag.CurrentFiber)) {
+    if (isEnabled(patch, RuntimeFlag.CurrentFiber.mask)) {
       Fiber._currentFiber.set(self)
-    } else if (isDisabled(patch)(RuntimeFlag.CurrentFiber)) Fiber._currentFiber.set(null)
+    } else if (isDisabled(patch, RuntimeFlag.CurrentFiber.mask)) Fiber._currentFiber.set(null)
 
     _runtimeFlags = RuntimeFlags.patch(patch)(_runtimeFlags)
 
@@ -850,13 +854,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         self.getSupervisor().onEffect(self, cur)(Unsafe.unsafe)
       }
 
-      updateLastTrace(cur.trace)
-
       cur = drainQueueWhileRunning(cur)
 
       ops += 1
 
       if (ops > FiberRuntime.MaxOperationsBeforeYield) {
+        updateLastTrace(cur.trace)
         inbox.add(FiberMessage.YieldNow)
         inbox.add(FiberMessage.Resume(cur))
 
@@ -865,6 +868,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         try {
           cur match {
             case sync: Sync[_] =>
+              updateLastTrace(sync.trace)
               val value = sync.asInstanceOf[Sync[Any]].eval()
 
               cur = null
@@ -925,6 +929,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               if (cur eq null) done = success
 
             case flatMap0: FlatMap[_, _, _, _] =>
+              updateLastTrace(flatMap0.trace)
               val effect = flatMap0.asInstanceOf[FlatMap[Any, Any, Any, Any]]
 
               stackIndex = pushStackFrame(effect, stackIndex)
@@ -943,6 +948,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
             case stateful0: Stateful[_, _, _] =>
+              updateLastTrace(stateful0.trace)
               val stateful = stateful0.asInstanceOf[Stateful[Any, Any, Any]]
 
               cur = stateful.onState(
@@ -951,6 +957,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               )
 
             case effect0: FoldZIO[_, _, _, _, _] =>
+              updateLastTrace(effect0.trace)
               val effect = effect0.asInstanceOf[FoldZIO[Any, Any, Any, Any, Any]]
 
               stackIndex = pushStackFrame(effect, stackIndex)
@@ -975,6 +982,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
             case effect: Async[_, _, _] =>
+              updateLastTrace(effect.trace)
               self._blockingOn = effect.blockingOn
 
               cur = initiateAsync(effect.registerCallback)
@@ -992,6 +1000,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
             case effect: UpdateRuntimeFlagsWithin[_, _, _] =>
+              updateLastTrace(effect.trace)
               val updateFlags     = effect.update
               val oldRuntimeFlags = _runtimeFlags
               val newRuntimeFlags = RuntimeFlags.patch(updateFlags)(oldRuntimeFlags)
@@ -1031,7 +1040,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 }
               }
 
-            case _: GenerateStackTrace =>
+            case gen0: GenerateStackTrace =>
+              updateLastTrace(gen0.trace)
               cur = Exit.succeed(generateStackTrace())
 
             case failure: Exit.Failure[_] =>
@@ -1066,9 +1076,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               if (cur eq null) done = failure
 
             case updateRuntimeFlags: UpdateRuntimeFlags =>
+              updateLastTrace(updateRuntimeFlags.trace)
               cur = patchRuntimeFlags(updateRuntimeFlags.update, null, Exit.unit)
 
             case iterate0: WhileLoop[_, _, _] =>
+              updateLastTrace(iterate0.trace)
               val iterate = iterate0.asInstanceOf[WhileLoop[Any, Any, Any]]
 
               val check = iterate.check
@@ -1101,6 +1113,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               if (cur eq null) cur = Exit.unit
 
             case yieldNow: ZIO.YieldNow =>
+              updateLastTrace(yieldNow.trace)
               if (yieldNow.forceAsync || !stealWork(currentDepth)) {
                 inbox.add(FiberMessage.YieldNow)
                 inbox.add(FiberMessage.resumeUnit)
@@ -1113,6 +1126,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         } catch {
           // TODO: ClosedByInterruptException (but Scala.js??)
           case interruptedException: InterruptedException =>
+            updateLastTrace(cur.trace)
             cur = drainQueueWhileRunning(Exit.Failure(Cause.interrupt(FiberId.None) ++ Cause.die(interruptedException)))
         }
       }
@@ -1343,7 +1357,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     setFiberRef(fiberRef, f(getFiberRef(fiberRef)))
 
   private[zio] def updateLastTrace(newTrace: Trace): Unit =
-    if ((newTrace ne null) && (newTrace ne Trace.empty)) _lastTrace = newTrace
+    if ((newTrace ne null) && (newTrace ne emptyTrace)) _lastTrace = newTrace
 
   def unsafe: UnsafeAPI =
     new UnsafeAPI {
