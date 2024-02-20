@@ -1361,7 +1361,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     setFiberRef(fiberRef, f(getFiberRef(fiberRef)))
 
   private[zio] def updateLastTrace(newTrace: Trace): Unit =
-    if ((newTrace ne null) && (newTrace ne emptyTrace) && (newTrace ne _lastTrace)) _lastTrace = newTrace
+    if ((newTrace ne null) && (newTrace ne emptyTrace)) _lastTrace = newTrace
 
   def unsafe: UnsafeAPI =
     new UnsafeAPI {
