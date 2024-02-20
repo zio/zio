@@ -912,7 +912,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
                 cur = null
 
-                while ((cur eq null) && stackIndex < localStack.length) {
+                val localStackLength = localStack.length
+                while ((cur eq null) && stackIndex < localStackLength) {
                   val element = localStack(stackIndex)
 
                   stackIndex += 1
@@ -941,12 +942,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 if (cur eq null) done = value.asInstanceOf[AnyRef]
               } catch {
                 case zioError: ZIOError =>
-                  cur = zioError.toEffect(effect.trace)
+                  cur = zioError.toEffect(nextTrace)
                 case throwable: Throwable =>
                   if (isFatal(throwable)) {
                     cur = handleFatalError(throwable)
                   } else {
-                    cur = ZIO.failCause(Cause.die(throwable))(effect.trace)
+                    cur = ZIO.failCause(Cause.die(throwable))(nextTrace)
                   }
               }
 
@@ -1089,7 +1090,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 )
               } catch {
                 case zioError: ZIOError =>
-                  cur = zioError.toEffect(stateful.trace)
+                  cur = zioError.toEffect(nextTrace)
               }
 
             case success: Exit.Success[_] =>
@@ -1223,13 +1224,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
             case yieldNow: ZIO.YieldNow =>
+              val nextTrace = yieldNow.trace
+              if (nextTrace ne emptyTrace) lastTrace = nextTrace
               if (yieldNow.forceAsync || !stealWork(currentDepth, runtimeFlags)) {
-                self.reifiedStack += EvaluationStep.UpdateTrace(yieldNow.trace)
+                self.reifiedStack += EvaluationStep.UpdateTrace(nextTrace)
 
                 throw Trampoline(ZIO.unit, true)
               } else {
-                val nextTrace = yieldNow.trace
-                if (nextTrace ne emptyTrace) lastTrace = nextTrace
                 cur = ZIO.unit
               }
           }
@@ -1254,8 +1255,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             if (isFatal(throwable)) {
               cur = handleFatalError(throwable)
             } else {
-              val nextTrace = cur.trace
-              if (nextTrace ne emptyTrace) lastTrace = nextTrace
               cur = ZIO.failCause(Cause.die(throwable))(lastTrace)
             }
         }
