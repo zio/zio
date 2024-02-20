@@ -854,11 +854,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         self.getSupervisor().onEffect(self, cur)(Unsafe.unsafe)
       }
 
-      try {
-        cur = drainQueueWhileRunning(cur)
-      } catch {
-        case _: Exception => updateLastTrace(cur.trace)
-      }
+      cur = drainQueueWhileRunning(cur)
 
       ops += 1
 
