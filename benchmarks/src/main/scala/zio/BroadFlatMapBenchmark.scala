@@ -71,6 +71,20 @@ class BroadFlatMapBenchmark {
   }
 
   @Benchmark
+  def zioBroadFlatMapTracePropagation(): BigInt = zioBroadFlatMapTracePropagation(BenchmarkUtil)
+
+  private[this] def zioBroadFlatMapTracePropagation(runtime: Runtime[Any]): BigInt = {
+    def fib(n: Int)(implicit trace: Trace): UIO[BigInt] =
+      if (n <= 1) ZIO.succeed[BigInt](n)
+      else
+        fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => ZIO.succeed(a + b)))
+
+    Unsafe.unsafe { implicit unsafe =>
+      runtime.unsafe.run(fib(depth)).getOrThrowFiberFailure()
+    }
+  }
+
+  @Benchmark
   def catsBroadFlatMap(): BigInt = {
     import cats.effect._
 
