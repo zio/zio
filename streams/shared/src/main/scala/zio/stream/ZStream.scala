@@ -4616,6 +4616,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     unwrap(schedule.driver.map(driver => repeatZIOOption(driver.next(()))))
 
   /**
+   * Creates a stream from a [[zio.stm.TPriorityQueue]] of values.
+   */
+  def fromTPriorityQueue[A](queue: => TPriorityQueue[A])(implicit trace: Trace): ZStream[Any, Nothing, A] =
+    repeatZIOChunk(queue.take.map(Chunk.single(_)).commit)
+
+  /**
    * Creates a stream from a [[zio.stm.TQueue]] of values.
    */
   def fromTQueue[A](queue: => TDequeue[A])(implicit trace: Trace): ZStream[Any, Nothing, A] =
