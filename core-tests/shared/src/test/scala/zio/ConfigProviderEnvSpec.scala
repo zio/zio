@@ -62,6 +62,12 @@ object ConfigProviderEnvSpec extends ZIOBaseSpec {
           _      <- TestSystem.putEnv("MAPPINGS_ABC", "ERROR")
           config <- ConfigProvider.envProvider.load(Config.table("mappings", Config.string))
         } yield assertTrue(config == Map("ABC" -> "ERROR"))
+      } +
+      test("envProvider should replace dashes with underscores") {
+        for {
+          _      <- TestSystem.putEnv("SNAKE_CASE", "TRUE")
+          config <- ConfigProvider.envProvider.load(Config.string("snake-case"))
+        } yield assertTrue(config == "TRUE")
       }
   }
 }
