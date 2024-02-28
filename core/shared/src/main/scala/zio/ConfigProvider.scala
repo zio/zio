@@ -392,7 +392,7 @@ object ConfigProvider {
    * using the default System service.
    */
   lazy val envProvider: ConfigProvider =
-    fromEnv().contramapPath(_.replaceAll("-", "_"))
+    fromEnv()
 
   /**
    * Constructs a ConfigProvider that loads configuration information from
@@ -442,7 +442,7 @@ object ConfigProvider {
         trace: Trace
       ): IO[Config.Error, Chunk[A]] =
         load(path, primitive, true)
-    })
+    }).contramapPath(_.replaceAll("-", "_"))
 
   /**
    * Constructs a new ConfigProvider from a key/value (flat) provider, where
