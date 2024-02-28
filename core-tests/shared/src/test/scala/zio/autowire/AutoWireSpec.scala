@@ -135,14 +135,12 @@ object AutoWireSpec extends ZIOBaseSpec {
             var timesBuilt = 0
 
             trait Service1
-
             object Service1 {
               val live: ZLayer[Any, Throwable, Service1] =
                 ZLayer.fromZIO(ZIO.attempt(timesBuilt += 1).as(new Service1 {}))
             }
 
             trait Service2
-
             object Service2 {
               val live: ZLayer[Service1, Nothing, Service2] =
                 ZLayer.fromZIO(ZIO.unit.as(new Service2 {}))
