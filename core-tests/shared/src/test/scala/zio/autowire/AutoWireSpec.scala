@@ -131,6 +131,25 @@ object AutoWireSpec extends ZIOBaseSpec {
             val provided = ZIO.service[Int].provideLayer(layer)
             assertZIO(provided)(equalTo(128))
           },
+          test("building fresh layer only once") {
+            var timesBuilt = 0
+
+            trait Service1
+            object Service1 {
+              val live: ZLayer[Any, Throwable, Service1] =
+                ZLayer.fromZIO(ZIO.attempt(timesBuilt += 1).as(new Service1 {}))
+            }
+
+            trait Service2
+            object Service2 {
+              val live: ZLayer[Service1, Nothing, Service2] =
+                ZLayer.fromZIO(ZIO.unit.as(new Service2 {}))
+            }
+
+            assertZIO(
+              ZLayer.make[Service1 & Service2](Service1.live.fresh, Service2.live).build *> ZIO.succeed(timesBuilt)
+            )(equalTo(1))
+          },
           test("correctly decomposes nested, aliased intersection types") {
             type StringAlias           = String
             type HasBooleanDoubleAlias = Boolean with Double
