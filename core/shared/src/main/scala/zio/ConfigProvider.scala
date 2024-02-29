@@ -442,7 +442,7 @@ object ConfigProvider {
         trace: Trace
       ): IO[Config.Error, Chunk[A]] =
         load(path, primitive, true)
-    })
+    }).contramapPath(_.replaceAll("-", "_"))
 
   /**
    * Constructs a new ConfigProvider from a key/value (flat) provider, where
