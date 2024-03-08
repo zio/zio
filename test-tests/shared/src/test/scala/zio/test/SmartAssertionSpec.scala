@@ -199,6 +199,21 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       val list: List[Int] = List(1, 2, 3, 4)
       assertTrue(list.filter(_ => false) == List.empty[Int])
     },
+    test("equalTo compiles when comparing different types") {
+      val a = 1
+      val b = 1L
+      assertTrue(a == b) && assertTrue(b == a)
+    },
+    test("comparison compiles when comparing different types") {
+      val a  = 1
+      val b  = 2
+      val aL = 1L
+      val bL = 2L
+      assertTrue(a < bL) && assertTrue(aL < b) &&
+      assertTrue(a <= bL) && assertTrue(aL <= b) &&
+      assertTrue(b > aL) && assertTrue(bL > a) &&
+      assertTrue(b >= aL) && assertTrue(bL >= a)
+    },
     test("exists must succeed when at least one element of iterable satisfy specified assertion") {
       assertTrue(Seq(1, 42, 5).exists(_ == 42))
     },
