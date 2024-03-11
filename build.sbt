@@ -565,12 +565,14 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform) // TODO: make plain pr
       "junit"                   % "junit"     % "4.13.2" % Test,
       "org.scala-lang.modules" %% "scala-xml" % "2.2.0"  % Test,
       // required to run embedded maven in the tests
-      "org.apache.maven"       % "maven-embedder"         % "3.9.4"  % Test,
-      "org.apache.maven"       % "maven-compat"           % "3.9.4"  % Test,
-      "org.apache.maven.wagon" % "wagon-http"             % "3.5.3"  % Test,
-      "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
-      "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
-      "org.slf4j"              % "slf4j-simple"           % "1.7.36" % Test
+      "org.apache.maven"          % "maven-embedder"                 % "3.9.6"  % Test,
+      "org.apache.maven"          % "maven-compat"                   % "3.9.6"  % Test,
+      "com.google.inject"         % "guice"                          % "4.0"    % Test,
+      "org.eclipse.sisu"          % "org.eclipse.sisu.inject"        % "0.3.5"  % Test,
+      "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.18" % Test,
+      "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.18" % Test,
+      "org.codehaus.plexus"       % "plexus-component-annotations"   % "2.2.0"  % Test,
+      "org.slf4j"                 % "slf4j-simple"                   % "1.7.36" % Test
     )
   )
   .dependsOn(
@@ -584,6 +586,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform) // TODO: make plain pr
         .dependsOn(testJunitRunner / publishM2)
         .dependsOn(tests.jvm / publishM2)
         .dependsOn(core.jvm / publishM2)
+        .dependsOn(internalMacros.jvm / publishM2)
         .dependsOn(streams.jvm / publishM2)
         .dependsOn(stacktracer.jvm / publishM2)
         .value
