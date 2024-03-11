@@ -145,6 +145,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
       }
 
     private def makeAccessor(
+      mods: Modifiers,
       name: TermName,
       info: TypeInfo,
       serviceTypeParams: List[TypeDef],
@@ -225,11 +226,11 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
           accessorTypeParams.map(tp => TypeDef(Modifiers(Flag.PARAM), tp.name, tp.tparams, tp.rhs)) ::: typeParams
         paramLists match {
           case Nil =>
-            q"def $name[..$allTypeParams](implicit ev: _root_.izumi.reflect.Tag[$serviceName[..$serviceTypeArgs]]): $returnType = $returnValue"
+            q"$mods def $name[..$allTypeParams](implicit ev: _root_.izumi.reflect.Tag[$serviceName[..$serviceTypeArgs]]): $returnType = $returnValue"
           case List(Nil) =>
-            q"def $name[..$allTypeParams]()(implicit ev: _root_.izumi.reflect.Tag[$serviceName[..$serviceTypeArgs]]): $returnType = $returnValue"
+            q"$mods def $name[..$allTypeParams]()(implicit ev: _root_.izumi.reflect.Tag[$serviceName[..$serviceTypeArgs]]): $returnType = $returnValue"
           case _ =>
-            q"def $name[..$allTypeParams](...$paramLists)(implicit ev: _root_.izumi.reflect.Tag[$serviceName[..$serviceTypeArgs]]): $returnType = $returnValue"
+            q"$mods def $name[..$allTypeParams](...$paramLists)(implicit ev: _root_.izumi.reflect.Tag[$serviceName[..$serviceTypeArgs]]): $returnType = $returnValue"
         }
       }
     }
@@ -254,6 +255,12 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
         moduleInfo.service.impl.body.collect {
           case DefDef(mods, termName, tparams, argLists, tree: Tree, _) if termName != constructorName =>
             makeAccessor(
+              NoMods.mapAnnotations { _ =>
+                mods.annotations.filter {
+                  case q"new $name" => name.toString.contains("deprecated")
+                  case _            => false
+                }
+              },
               termName,
               withThrowing(mods, tree),
               moduleInfo.serviceTypeParams,
@@ -265,6 +272,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
 
           case ValDef(_, termName, tree: Tree, _) =>
             makeAccessor(
+              NoMods,
               termName,
               typeInfo(tree),
               moduleInfo.serviceTypeParams,
