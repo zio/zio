@@ -147,22 +147,27 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   ): Spec[R, E] = {
     type ZSpecCase = Spec.SpecCase[R, E, Spec[R, E]]
     def instrumentTest(label: String, path: Vector[String], test: ZIO[R, TestFailure[E], TestSuccess]) =
-      test.tapBoth(
-        {
-          case Assertion(result, _) =>
-            notifier.fireTestStarted(label, path) *>
-              reportAssertionFailure(notifier, path, label, result)
-          case Runtime(cause, _) =>
-            notifier.fireTestStarted(label, path) *>
-              reportRuntimeFailure(notifier, path, label, cause)
-        },
-        {
-          case Succeeded(_) =>
-            notifier.fireTestStarted(label, path) *>
-              notifier.fireTestFinished(label, path)
-          case Ignored(_) => notifier.fireTestIgnored(label, path)
+      test
+        .tapBoth(
+          {
+            case Assertion(result, _) =>
+              notifier.fireTestStarted(label, path) *>
+                reportAssertionFailure(notifier, path, label, result)
+            case Runtime(cause, _) =>
+              notifier.fireTestStarted(label, path) *>
+                reportRuntimeFailure(notifier, path, label, cause)
+          },
+          {
+            case Succeeded(_) =>
+              notifier.fireTestStarted(label, path) *>
+                notifier.fireTestFinished(label, path)
+            case Ignored(_) => notifier.fireTestIgnored(label, path)
+          }
+        )
+        .tapDefect { e =>
+          notifier.fireTestStarted(label, path) *>
+            reportRuntimeFailure(notifier, path, label, e)
         }
-      )
     def loop(specCase: ZSpecCase, path: Vector[String] = Vector.empty): ZSpecCase =
       specCase match {
         case Spec.ExecCase(exec, spec) =>
