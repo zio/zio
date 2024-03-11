@@ -146,24 +146,96 @@ object SmartAssertMacros {
       case Unseal(Inlined(a, b, expr)) => Inlined(a, b, transform(expr.asExprOf[A]).asTerm).asExprOf[zio.test.TestArrow[Any, A]]
 
       case Unseal(Apply(Select(lhs, op @ (">" | ">=" | "<" | "<=")), List(rhs))) =>
-        val span = getSpan(rhs)
-        lhs.tpe.widen.asType match {
-          case '[l] => 
-            Expr.summon[Ordering[l]] match { 
-              case Some(ord) =>
-                op match {
-                    case ">" =>
-                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[TestArrow[Any, A]]
-                    case ">=" =>
-                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[TestArrow[Any, A]]
-                    case "<" =>
-                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[TestArrow[Any, A]]
-                    case "<=" =>
-                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[TestArrow[Any, A]]
+        def tpesPriority (tpe: TypeRepr): Int =
+          tpe.toString match {
+            case "Byte" => 0
+            case "Short" => 1
+            case "Char" => 2
+            case "Int" => 3
+            case "Long" => 4
+            case "Float" => 5
+            case "Double" => 6
+            case _ => -1
+          }
+
+        // `true` for conversion from `lhs` to `rhs`.
+        def implicitConversionDirection(lhs: TypeRepr, rhs: TypeRepr): Option[Boolean] =
+          if (tpesPriority(lhs) == -1 || tpesPriority(rhs) == -1) {
+            (lhs.asType, rhs.asType) match {
+              case ('[l], '[r]) =>
+       Expr.summon[l => r] match {
+                  case None => {
+                    Expr.summon[r => l] match {
+                      case None => None
+                      case _ => Some(false)
+                    }
+                  }
+                  case _ => Some(true)
                 }
-              case _ => throw new Error("NO")
+            }
+          }
+          else if (tpesPriority(lhs) -tpesPriority(rhs) > 0) Some(true)
+          else Some(false)
+
+        val span = getSpan(rhs)
+        implicitConversionDirection(lhs.tpe.widen, rhs.tpe.widen) match {
+          case Some(true) =>
+            (lhs.tpe.widen.asType, rhs.tpe.widen.asType) match {
+              case ('[l], '[r]) => 
+                (Expr.summon[Ordering[r]], Expr.summon[l => r]) match { 
+                  case (Some(ord), Some(conv)) =>
+                    op match {
+                        case ">" =>
+                          '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThanL(${rhs.asExprOf[r]})($ord, $conv).span($span)}.asExprOf[TestArrow[Any, A]]
+                        case ">=" =>
+                          '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThanOrEqualToL(${rhs.asExprOf[r]})($ord, $conv).span($span)}.asExprOf[TestArrow[Any, A]]
+                        case "<" =>
+                          '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThanL(${rhs.asExprOf[r]})($ord, $conv).span($span)}.asExprOf[TestArrow[Any, A]]
+                        case "<=" =>
+                          '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThanOrEqualToL(${rhs.asExprOf[r]})($ord, $conv).span($span)}.asExprOf[TestArrow[Any, A]]
+                    }
+                  case _ => throw new Error("NO")
+                }
+            }
+          case Some(false) =>
+            (lhs.tpe.widen.asType, rhs.tpe.widen.asType) match {
+              case ('[l], '[r]) => 
+                (Expr.summon[Ordering[l]], Expr.summon[r => l]) match { 
+                  case (Some(ord), Some(conv)) =>
+                    op match {
+                        case ">" =>
+                          '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThanR(${rhs.asExprOf[r]})($ord, $conv).span($span)}.asExprOf[TestArrow[Any, A]]
+                        case ">=" =>
+                          '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThanOrEqualToR(${rhs.asExprOf[r]})($ord, $conv).span($span)}.asExprOf[TestArrow[Any, A]]
+                        case "<" =>
+                          '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThanR(${rhs.asExprOf[r]})($ord, $conv).span($span)}.asExprOf[TestArrow[Any, A]]
+                        case "<=" =>
+                          '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThanOrEqualToR(${rhs.asExprOf[r]})($ord, $conv).span($span)}.asExprOf[TestArrow[Any, A]]
+                    }
+                  case _ => throw new Error("NO")
+                }
+            }
+          case None =>
+            lhs.tpe.widen.asType match {
+              case '[l] => 
+                Expr.summon[Ordering[l]] match { 
+                  case Some(ord) =>
+                    op match {
+                        case ">" =>
+                          '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[TestArrow[Any, A]]
+                        case ">=" =>
+                          '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[TestArrow[Any, A]]
+                        case "<" =>
+                          '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[TestArrow[Any, A]]
+                        case "<=" =>
+                          '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[TestArrow[Any, A]]
+                    }
+                  case _ => throw new Error("NO")
+                }
             }
         }
+          
+        
 
       case Unseal(MethodCall(lhs, "==", tpes, Some(List(rhs)))) =>
         val span = getSpan(rhs)

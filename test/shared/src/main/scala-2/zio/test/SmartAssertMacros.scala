@@ -311,6 +311,46 @@ $TestResult($ast.withCode($codeString).meta(location = $location))
   }
 
   object Matcher {
+
+    def tpesPriority(tpe: Type): Int =
+      tpe.toString match {
+        case "Byte"   => 0
+        case "Short"  => 1
+        case "Char"   => 2
+        case "Int"    => 3
+        case "Long"   => 4
+        case "Float"  => 5
+        case "Double" => 6
+        case _        => -1
+      }
+
+    // `true` for conversion from `lhs` to `rhs`.
+    def implicitConversionDirection(lhs: Type, rhs: Type): Option[Boolean] =
+      if (tpesPriority(lhs) == -1 || tpesPriority(rhs) == -1) {
+        scala.util.Try(c.inferImplicitValue((tq"$lhs => $rhs").tpe)).getOrElse(EmptyTree) match {
+          case EmptyTree => {
+            scala.util.Try(c.inferImplicitValue((tq"$rhs => $lhs").tpe)).getOrElse(EmptyTree) match {
+              case EmptyTree => None
+              case _         => Some(false)
+            }
+          }
+          case _ => Some(true)
+        }
+      } else if (tpesPriority(rhs) - tpesPriority(lhs) > 0) Some(true)
+      else Some(false)
+
+    def comparisonConverter(lhsTpe: Type, args: List[c.Tree], methodName: String): AssertAST = {
+      val rhsTpe = args.head.tpe.widen
+      if (lhsTpe =:= rhsTpe)
+        AssertAST(methodName, List(lhsTpe), args)
+      else
+        implicitConversionDirection(lhsTpe, rhsTpe) match {
+          case Some(true)  => AssertAST(methodName ++ "L", List(lhsTpe, rhsTpe), args)
+          case Some(false) => AssertAST(methodName ++ "R", List(lhsTpe, rhsTpe), args)
+          case None        => AssertAST(methodName, List(lhsTpe), args)
+        }
+    }
+
     def unapply(method: AST.Method): Option[(AST, AssertAST, (Int, Int))] =
       all.reduce(_ orElse _).unapply(method)
 
@@ -326,7 +366,7 @@ $TestResult($ast.withCode($codeString).meta(location = $location))
 
     val equalTo: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "$eq$eq", _, Some(args), _) =>
-        AssertAST("equalTo", List(lhsTpe), args)
+        comparisonConverter(lhsTpe, args, "equalTo")
       }
 
     val get: ASTConverter =
@@ -373,22 +413,22 @@ $TestResult($ast.withCode($codeString).meta(location = $location))
 
     val greaterThan: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "$greater", _, Some(args), _) =>
-        AssertAST("greaterThan", List(lhsTpe), args)
+        comparisonConverter(lhsTpe, args, "greaterThan")
       }
 
     val greaterThanOrEqualTo: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "$greater$eq", _, Some(args), _) =>
-        AssertAST("greaterThanOrEqualTo", List(lhsTpe), args)
+        comparisonConverter(lhsTpe, args, "greaterThanOrEqualTo")
       }
 
     val lessThan: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "$less", _, Some(args), _) =>
-        AssertAST("lessThan", List(lhsTpe), args)
+        comparisonConverter(lhsTpe, args, "lessThan")
       }
 
     val lessThanOrEqualTo: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "$less$eq", _, Some(args), _) =>
-        AssertAST("lessThanOrEqualTo", List(lhsTpe), args)
+        comparisonConverter(lhsTpe, args, "lessThanOrEqualTo")
       }
 
     val head: ASTConverter =
