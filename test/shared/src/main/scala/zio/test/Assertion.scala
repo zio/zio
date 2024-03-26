@@ -8,6 +8,7 @@ import zio.test.internal.SmartAssertions
 import zio.test.{ErrorMessage => M}
 import zio.{Cause, Exit, Trace, ZIO}
 
+import zio.test.IntDiffRender
 import scala.reflect.ClassTag
 import scala.util.Try
 
