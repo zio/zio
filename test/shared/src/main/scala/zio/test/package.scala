@@ -23,6 +23,7 @@ import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 import zio.test.Spec.LabeledCase
 
 import scala.language.implicitConversions
+import zio.test.BooleanDiffRender
 
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.

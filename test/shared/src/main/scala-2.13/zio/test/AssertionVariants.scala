@@ -19,6 +19,40 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion.Arguments.valueArgument
 import zio.test.{ErrorMessage => M}
+import zio.test.diff.{Diff, DiffResult}
+
+trait DiffRender[A] {
+  def renderDiff(expected: A, actual: A): String
+}
+
+object DiffRender {
+  def defaultRender[A](expected: A, actual: A): String =
+    (expected, actual) match {
+      // when the test case or args involves integers
+      case (a: Int, b: Int) => s"Difference found between expected value $a and actual $b"
+      // for string args
+      case (a: String, b: String) => s"Difference found between expected value $a and actual $b"
+      // other types/args
+      case (_, _) => s"Difference found between expected value $expected and actual $actual"
+      // bools
+      case (a: Boolean, b: Boolean) => s"Difference found between expected value $a and actual $b"
+    }
+}
+
+object IntDiffRender extends DiffRender[Int] {
+  override def renderDiff(expected: Int, actual: Int): String =
+    s"Difference found between expected value $expected and actual $actual for Int"
+}
+
+object StringDiffRender extends DiffRender[String] {
+  override def renderDiff(expected: String, actual: String): String =
+    s"Difference found between expected value '$expected' and actual '$actual' for String"
+}
+
+object BooleanDiffRender extends DiffRender[Boolean] {
+  override def renderDiff(expected: Boolean, actual: Boolean): String =
+    s"Difference found between expected value '$expected' and actual '$actual'"
+}
 
 trait AssertionVariants {
   private def diffProduct[T](
@@ -65,18 +99,16 @@ trait AssertionVariants {
     }
   }
 
-  def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
-    Assertion[B](
+  def equalTo[A](expected: A)(implicit diffRender: DiffRender[A]): Assertion[A] =
+    Assertion[A](
       TestArrow
-        .make[B, Boolean] { actual =>
-          val result = (actual, expected) match {
-            case (left: Array[_], right: Array[_])         => left.sameElements[Any](right)
-            case (left: CharSequence, right: CharSequence) => left.toString == right.toString
-            case (left, right)                             => left == right
-          }
+        .make[A, Boolean] { actual =>
+          val result = actual == expected
           TestTrace.boolean(result) {
-            if (expected.isInstanceOf[Product]) {
-              M.text(diffProduct(actual, expected))
+            if (!result) {
+              val diff = diffRender.renderDiff(expected, actual)
+              M.choice("There was a difference", "There was no difference") ++
+                M.custom(diff)
             } else {
               M.pretty(actual) + M.equals + M.pretty(expected)
             }
