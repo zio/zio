@@ -418,7 +418,6 @@ object ConfigProvider {
       ): IO[Config.Error, Chunk[A]] = {
         val pathString  = makePathString(path)
         val name        = path.lastOption.getOrElse("<unnamed>")
-        val description = primitive.description
 
         for {
           valueOpt <- zio.System.env(pathString).mapError(sourceUnavailable(path))
@@ -508,7 +507,7 @@ object ConfigProvider {
                 if (indices.isEmpty) {
                   returnEmptyListIfValueIsNil(
                     prefix = patchedPrefix,
-                    continue = loop(_, config, split = true).map(Chunk(_))
+                    continue = _ => loop(prefix, config, split = true).map(Chunk(_))
                   )
                 } else
                   ZIO
@@ -540,8 +539,8 @@ object ConfigProvider {
           case table: Table[valueType] =>
             import table.valueConfig
             for {
-              prefix <- ZIO.fromEither(flat.patch(prefix))
-              keys   <- flat.enumerateChildren(prefix)
+              patchedPrefix <- ZIO.fromEither(flat.patch(prefix))
+              keys   <- flat.enumerateChildren(patchedPrefix)
               values <- ZIO.foreach(Chunk.fromIterable(keys))(key => loop(prefix ++ Chunk(key), valueConfig, split))
             } yield
               if (values.isEmpty) Chunk(Map.empty[String, valueType])
@@ -631,7 +630,6 @@ object ConfigProvider {
       ): IO[Config.Error, Chunk[A]] = {
         val pathString  = makePathString(path)
         val name        = path.lastOption.getOrElse("<unnamed>")
-        val description = primitive.description
         val valueOpt    = mapWithIndexSplit.get(pathString)
 
         for {
@@ -683,7 +681,6 @@ object ConfigProvider {
       ): IO[Config.Error, Chunk[A]] = {
         val pathString  = makePathString(path)
         val name        = path.lastOption.getOrElse("<unnamed>")
-        val description = primitive.description
 
         for {
           valueOpt <- zio.System.property(pathString).mapError(sourceUnavailable(path))
