@@ -71,7 +71,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
     )
   }
 
-  final case class Settings(settings:Map[String, String])
+  final case class Settings(settings: Map[String, String])
   object Settings {
     val config: Config[Settings] = (Config.table("settings", Config.string)).map(Settings(_))
 
@@ -334,11 +334,18 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         } yield assertTrue(result1 == "value") && assertTrue(result2 == "value")
       } +
       test("nested with table") {
-        val configProvider = ConfigProvider.fromMap(Map("web.targets" -> "https://zio.dev,https://tak.tak")).nested("web")
-        configProvider.load(WebScrapingTargets.config).map(r => assertTrue(r.targets == Set(new java.net.URI("https://zio.dev"), new java.net.URI("https://tak.tak"))))
+        val configProvider =
+          ConfigProvider.fromMap(Map("web.targets" -> "https://zio.dev,https://tak.tak")).nested("web")
+        configProvider
+          .load(WebScrapingTargets.config)
+          .map(r =>
+            assertTrue(r.targets == Set(new java.net.URI("https://zio.dev"), new java.net.URI("https://tak.tak")))
+          )
       } +
       test("nested with map") {
-        val configProvider = ConfigProvider.fromMap(Map("example.settings.key1" -> "value1", "example.settings.key2" -> "value2")).nested("example")
+        val configProvider = ConfigProvider
+          .fromMap(Map("example.settings.key1" -> "value1", "example.settings.key2" -> "value2"))
+          .nested("example")
         configProvider.load(Settings.config).map(r => assertTrue(r == Settings.default))
       } +
       test("nested with variable arguments") {

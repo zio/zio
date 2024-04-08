@@ -416,8 +416,8 @@ object ConfigProvider {
       override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
         trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
-        val pathString  = makePathString(path)
-        val name        = path.lastOption.getOrElse("<unnamed>")
+        val pathString = makePathString(path)
+        val name       = path.lastOption.getOrElse("<unnamed>")
 
         for {
           valueOpt <- zio.System.env(pathString).mapError(sourceUnavailable(path))
@@ -540,8 +540,8 @@ object ConfigProvider {
             import table.valueConfig
             for {
               patchedPrefix <- ZIO.fromEither(flat.patch(prefix))
-              keys   <- flat.enumerateChildren(patchedPrefix)
-              values <- ZIO.foreach(Chunk.fromIterable(keys))(key => loop(prefix ++ Chunk(key), valueConfig, split))
+              keys          <- flat.enumerateChildren(patchedPrefix)
+              values        <- ZIO.foreach(Chunk.fromIterable(keys))(key => loop(prefix ++ Chunk(key), valueConfig, split))
             } yield
               if (values.isEmpty) Chunk(Map.empty[String, valueType])
               else values.transpose.map(values => keys.zip(values).toMap)
@@ -628,9 +628,9 @@ object ConfigProvider {
       override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
         trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
-        val pathString  = makePathString(path)
-        val name        = path.lastOption.getOrElse("<unnamed>")
-        val valueOpt    = mapWithIndexSplit.get(pathString)
+        val pathString = makePathString(path)
+        val name       = path.lastOption.getOrElse("<unnamed>")
+        val valueOpt   = mapWithIndexSplit.get(pathString)
 
         for {
           value <- ZIO
@@ -679,8 +679,8 @@ object ConfigProvider {
       override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
         trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
-        val pathString  = makePathString(path)
-        val name        = path.lastOption.getOrElse("<unnamed>")
+        val pathString = makePathString(path)
+        val name       = path.lastOption.getOrElse("<unnamed>")
 
         for {
           valueOpt <- zio.System.property(pathString).mapError(sourceUnavailable(path))
