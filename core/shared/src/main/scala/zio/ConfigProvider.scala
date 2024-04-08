@@ -468,14 +468,14 @@ object ConfigProvider {
 
       def returnEmptyListIfValueIsNil[A](
         prefix: Chunk[String],
-        continue: Chunk[String] => ZIO[Any, Error, Chunk[Chunk[A]]]
+        continue: ZIO[Any, Error, Chunk[Chunk[A]]]
       ): ZIO[Any, Error, Chunk[Chunk[A]]] =
         (for {
           possibleNil <- flat.load(prefix, Config.Text, split = false)
           result <- if (possibleNil.headOption.exists(string => string.toLowerCase().trim == "<nil>"))
                       ZIO.succeed(Chunk(Chunk.empty))
-                    else continue(prefix)
-        } yield result).orElse(continue(prefix))
+                    else continue
+        } yield result).orElse(continue)
 
       def loop[A](prefix: Chunk[String], config: Config[A], split: Boolean)(implicit
         trace: Trace
@@ -507,7 +507,7 @@ object ConfigProvider {
                 if (indices.isEmpty) {
                   returnEmptyListIfValueIsNil(
                     prefix = patchedPrefix,
-                    continue = _ => loop(prefix, config, split = true).map(Chunk(_))
+                    continue = loop(prefix, config, split = true).map(Chunk(_))
                   )
                 } else
                   ZIO
