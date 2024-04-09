@@ -259,10 +259,16 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) extends Seri
 object NonEmptyChunk {
 
   /**
+   * Constructs a `NonEmptyChunk` from one value.
+   */
+  def apply[A](a: A): NonEmptyChunk[A] =
+    single(a)
+
+  /**
    * Constructs a `NonEmptyChunk` from one or more values.
    */
   def apply[A](a: A, as: A*): NonEmptyChunk[A] =
-    nonEmpty(Chunk(a) ++ Chunk.fromIterable(as))
+    fromIterable(a, as)
 
   /**
    * Checks if a `chunk` is not empty and constructs a `NonEmptyChunk` from it.
@@ -292,7 +298,7 @@ object NonEmptyChunk {
    * Constructs a `NonEmptyChunk` from a single value.
    */
   def single[A](a: A): NonEmptyChunk[A] =
-    NonEmptyChunk(a)
+    nonEmpty(Chunk(a))
 
   /**
    * Extracts the elements from a `Chunk`.

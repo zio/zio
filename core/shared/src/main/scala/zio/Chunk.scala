@@ -1099,6 +1099,12 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
 object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
   /**
+   * Returns a chunk from a single value
+   */
+  def apply[A](a: A): Chunk[A] =
+    single(a)
+
+  /**
    * Returns a chunk from a number of values.
    */
   override def apply[A](as: A*): Chunk[A] =
