@@ -324,7 +324,7 @@ object NonEmptyChunk {
    * Constructs a `NonEmptyChunk` from a single value.
    */
   def single[A](a: A): NonEmptyChunk[A] =
-    NonEmptyChunk(a)
+    nonEmpty(Chunk.single(a))
 
   /**
    * Extracts the elements from a `Chunk`.
