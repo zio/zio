@@ -2883,6 +2883,19 @@ object ZIOSpec extends ZIOBaseSpec {
           r <- f.join
         } yield assert(r)(equalTo(42))
       },
+      test("propagates FiberRef value even if the effect failed") {
+        for {
+          ref     <- FiberRef.make[Set[String]](Set("parent"))
+          workflow = ref.update(_ + "child") *> ZIO.sleep(2.seconds) *> ZIO.fail(new RuntimeException("Boom!"))
+          f       <- workflow.fork
+          _       <- TestClock.adjust(2.seconds)
+          res     <- f.join.flip
+          set     <- ref.get
+        } yield {
+          assert(res)(isSubtype[RuntimeException](anything)) &&
+          assert(set)(hasSameElements(Set("parent", "child")))
+        }
+      },
       test("deep fork/join identity") {
         val n = 20
         assertZIO(concurrentFib(n))(equalTo(fib(n)))

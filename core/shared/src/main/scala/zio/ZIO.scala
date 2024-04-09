@@ -1272,9 +1272,10 @@ sealed trait ZIO[-R, +E, +A]
 
   /**
    * Returns an effect that races this effect with the specified effect,
-   * returning the first successful `A` from the faster side. If one effect
-   * succeeds, the other will be interrupted. If neither succeeds, then the
-   * effect will fail with some error.
+   * returning the first successful `A` from the faster side and propagates its
+   * all [[FiberRef]] values. If one effect succeeds, the other will be
+   * interrupted. If neither succeeds, then the effect will fail with some
+   * error, and no [[FiberRef]] values will be inherited.
    *
    * WARNING: The raced effect will safely interrupt the "loser", but will not
    * resume until the loser has been cleanly terminated. If early return is
@@ -1287,12 +1288,12 @@ sealed trait ZIO[-R, +E, +A]
       (self.raceWith(that))(
         (exit, right) =>
           exit.foldExitZIO[Any, E1, A1](
-            cause => right.join.mapErrorCause(cause && _),
+            cause => right.await.unexit.mapErrorCause(cause && _) <* right.inheritAll,
             a => right.interruptAs(parentFiberId).as(a)
           ),
         (exit, left) =>
           exit.foldExitZIO[Any, E1, A1](
-            cause => left.join.mapErrorCause(_ && cause),
+            cause => left.await.unexit.mapErrorCause(_ && cause) <* left.inheritAll,
             a => left.interruptAs(parentFiberId).as(a)
           )
       )
