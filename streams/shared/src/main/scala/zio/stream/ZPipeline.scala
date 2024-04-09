@@ -2011,10 +2011,10 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           },
           err =>
             if (stringBuilder.isEmpty) ZChannel.refailCause(err)
-            else ZChannel.write(Chunk(stringBuilder.result)) *> ZChannel.refailCause(err),
+            else ZChannel.write(Chunk.single(stringBuilder.result)) *> ZChannel.refailCause(err),
           done =>
             if (stringBuilder.isEmpty) ZChannel.succeed(done)
-            else ZChannel.write(Chunk(stringBuilder.result)) *> ZChannel.succeed(done)
+            else ZChannel.write(Chunk.single(stringBuilder.result)) *> ZChannel.succeed(done)
         )
 
       new ZPipeline(loop)

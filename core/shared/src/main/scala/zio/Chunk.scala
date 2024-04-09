@@ -1102,7 +1102,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    * Returns a chunk from a number of values.
    */
   override def apply[A](as: A*): Chunk[A] =
-    fromIterable(as)
+    if (as.size == 1) single(as.head) else fromIterable(as)
 
   /*
    * Performs bitwise operations on boolean chunks returning a Chunk.BitChunk
