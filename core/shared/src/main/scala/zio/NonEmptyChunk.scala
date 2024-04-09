@@ -286,7 +286,7 @@ object NonEmptyChunk {
    * Constructs a `NonEmptyChunk` from one or more values.
    */
   def apply[A](a: A, as: A*): NonEmptyChunk[A] =
-    nonEmpty(Chunk(a) ++ Chunk.fromIterable(as))
+    nonEmpty(Chunk.single(a) ++ Chunk.fromIterable(as))
 
   /**
    * Checks if a `chunk` is not empty and constructs a `NonEmptyChunk` from it.
