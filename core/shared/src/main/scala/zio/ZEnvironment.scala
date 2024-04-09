@@ -164,9 +164,8 @@ final class ZEnvironment[+R] private (
         getOrElse(tag, throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}"))
 
       private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A =
-        self.cache.get(tag) match {
-          case Some(a) => a.asInstanceOf[A]
-          case None =>
+        self.cache.getOrElse(tag, null) match {
+          case null =>
             var index      = -1
             val iterator   = self.map.iterator
             var service: A = null.asInstanceOf[A]
@@ -182,6 +181,7 @@ final class ZEnvironment[+R] private (
               self.cache = self.cache.updated(tag, service)
               service
             }
+          case a => a.asInstanceOf[A]
         }
 
       private[ZEnvironment] def update[A >: R](tag: LightTypeTag, f: A => A)(implicit
