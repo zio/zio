@@ -140,7 +140,7 @@ object Hub {
             strategy.unsafeCompleteSubscribers(hub, subscribers)
             ZIO.succeed(true)
           } else {
-            strategy.handleSurplus(hub, subscribers, Chunk(a), shutdownFlag)
+            strategy.handleSurplus(hub, subscribers, Chunk.single(a), shutdownFlag)
           }
         }
       def publishAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
