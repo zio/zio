@@ -48,7 +48,7 @@ trait Runtime[+R] { self =>
    * Runs the effect "purely" through an async boundary. Useful for testing.
    */
   final def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): IO[E, A] =
-    ZIO.fiberId.flatMap { fiberId =>
+    ZIO.fiberIdWith { fiberId =>
       ZIO.asyncInterrupt[Any, E, A] { callback =>
         val fiber = unsafe.fork(zio)(trace, Unsafe.unsafe)
         fiber.unsafe.addObserver(exit => callback(ZIO.done(exit)))(Unsafe.unsafe)

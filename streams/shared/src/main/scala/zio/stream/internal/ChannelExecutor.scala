@@ -841,7 +841,7 @@ private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
     takeWith(c => Exit.failCause(c.map(Left(_))), Exit.succeed(_), d => Exit.fail(Right(d)))
 
   def close(implicit trace: Trace): UIO[Any] =
-    ZIO.fiberId.flatMap(id => error(Cause.interrupt(id)))
+    ZIO.fiberIdWith(id => error(Cause.interrupt(id)))
 
   def awaitRead(implicit trace: Trace): UIO[Any] =
     ref.modify {

@@ -308,14 +308,14 @@ object TestClock extends Serializable {
      * Returns a set of all fibers in this test.
      */
     def supervisedFibers(implicit trace: Trace): UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
-      ZIO.descriptorWith { descriptor =>
+      ZIO.fiberIdWith { fiberId =>
         annotations.get(TestAnnotation.fibers).flatMap {
           case Left(_) => ZIO.succeed(SortedSet.empty[Fiber.Runtime[Any, Any]])
           case Right(refs) =>
             ZIO
               .foreach(refs)(ref => ZIO.succeed(ref.get))
               .map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _))
-              .map(_.filter(_.id != descriptor.id))
+              .map(_.filter(_.id != fiberId))
         }
       }
 

@@ -166,7 +166,7 @@ abstract class Fiber[+E, +A] { self =>
    *   `UIO[Exit, E, A]]`
    */
   final def interrupt(implicit trace: Trace): UIO[Exit[E, A]] =
-    ZIO.fiberId.flatMap(fiberId => self.interruptAs(fiberId))
+    ZIO.fiberIdWith(fiberId => self.interruptAs(fiberId))
 
   /**
    * Interrupts the fiber as if interrupted from the specified fiber. If the
@@ -914,7 +914,7 @@ object Fiber extends FiberPlatformSpecific {
    *   `UIO[Unit]`
    */
   def interruptAll(fs: Iterable[Fiber[Any, Any]])(implicit trace: Trace): UIO[Unit] =
-    ZIO.fiberId.flatMap(interruptAllAs(_)(fs))
+    ZIO.fiberIdWith(interruptAllAs(_)(fs))
 
   /**
    * Interrupts all fibers as by the specified fiber, awaiting their

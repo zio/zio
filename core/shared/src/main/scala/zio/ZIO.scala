@@ -3118,13 +3118,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Retrieves the executor for this effect.
    */
   def executor(implicit trace: Trace): UIO[Executor] =
-    ZIO.descriptorWith(descriptor => ZIO.succeed(descriptor.executor))
+    ZIO.executorWith(ZIO.succeed(_))
 
   /**
    * Constructs an effect based on the current executor.
    */
   def executorWith[R, E, A](f: Executor => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.descriptorWith(descriptor => f(descriptor.executor))
+    ZIO.withFiberRuntime[R, E, A]((fiberState, _) => f(fiberState.getCurrentExecutor()))
 
   /**
    * Determines whether any element of the `Iterable[A]` satisfies the effectual
@@ -3171,7 +3171,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * effect that calls this method.
    */
   def fiberIdWith[R, E, A](f: FiberId.Runtime => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.descriptorWith(descriptor => f(descriptor.id))
+    ZIO.withFiberRuntime[R, E, A]((fiberState, _) => f(fiberState.id))
 
   /**
    * Filters the collection using the specified effectual predicate.
@@ -3584,9 +3584,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * [[scala.concurrent.ExecutionContext]] that is backed by ZIO's own executor.
    */
   def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A])(implicit trace: Trace): Task[A] =
-    ZIO.descriptorWith { d =>
+    ZIO.executorWith { executor =>
       import scala.util.{Failure, Success}
-      val ec = d.executor.asExecutionContext
+      val ec = executor.asExecutionContext
       ZIO.attempt(make(ec)).flatMap { f =>
         val canceler: UIO[Unit] = f match {
           case cancelable: CancelableFuture[A] =>
@@ -3627,9 +3627,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def fromFutureInterrupt[A](
     make: ExecutionContext => scala.concurrent.Future[A]
   )(implicit trace: Trace): Task[A] =
-    ZIO.descriptorWith { d =>
+    ZIO.executorWith { executor =>
       import scala.util.{Failure, Success}
-      val ec          = d.executor.asExecutionContext
+      val ec          = executor.asExecutionContext
       val interrupted = new java.util.concurrent.atomic.AtomicBoolean(false)
       val latch       = scala.concurrent.Promise[Unit]()
       val interruptibleEC = new scala.concurrent.ExecutionContext {
@@ -3743,7 +3743,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * method.
    */
   def interrupt(implicit trace: Trace): UIO[Nothing] =
-    descriptorWith(descriptor => interruptAs(descriptor.id))
+    fiberIdWith(interruptAs(_))
 
   /**
    * Returns an effect that is interrupted as if by the specified fiber.

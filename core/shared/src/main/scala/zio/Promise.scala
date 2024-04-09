@@ -159,7 +159,7 @@ final class Promise[E, A] private (
    * waiting on the value of the promise as by the fiber calling this method.
    */
   def interrupt(implicit trace: Trace): UIO[Boolean] =
-    ZIO.fiberId.flatMap(id => completeWith(ZIO.interruptAs(id)))
+    ZIO.fiberIdWith(id => completeWith(ZIO.interruptAs(id)))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers

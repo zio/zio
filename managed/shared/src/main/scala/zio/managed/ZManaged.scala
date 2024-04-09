@@ -967,7 +967,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
           a <- raceResult match {
                  case Right(value) => ZIO.succeed(Some(value))
                  case Left(fiber) =>
-                   ZIO.fiberId.flatMap { id =>
+                   ZIO.fiberIdWith { id =>
                      fiber.interrupt
                        .ensuring(innerReleaseMap.releaseAll(Exit.interrupt(id), ExecutionStrategy.Sequential))
                        .forkDaemon
@@ -2136,7 +2136,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * method.
    */
   def interrupt(implicit trace: Trace): ZManaged[Any, Nothing, Nothing] =
-    ZManaged.fromZIO(ZIO.descriptor).flatMap(d => failCause(Cause.interrupt(d.id)))
+    ZManaged.fromZIO(ZIO.fiberId).flatMap(id => failCause(Cause.interrupt(id)))
 
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
@@ -2707,7 +2707,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     ZManaged.unwrap(Supervisor.track(true).map { supervisor =>
       // Filter out the fiber id of whoever is calling this:
       ZManaged(
-        get(supervisor.value.flatMap(children => ZIO.descriptor.map(d => children.filter(_.id != d.id)))).zio
+        get(supervisor.value.flatMap(children => ZIO.fiberId.map(id => children.filter(_.id != id)))).zio
           .supervised(supervisor)
       )
     })

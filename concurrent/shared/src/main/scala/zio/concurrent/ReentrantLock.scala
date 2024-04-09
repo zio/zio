@@ -16,7 +16,7 @@ final class ReentrantLock private (fairness: Boolean, state: Ref[ReentrantLock.S
 
   /** Queries the number of holds on this lock by the current fiber. */
   lazy val holdCount: UIO[Int] =
-    ZIO.fiberId.flatMap { fiberId =>
+    ZIO.fiberIdWith { fiberId =>
       state.get.map {
         case State(_, Some(`fiberId`), cnt, _) => cnt
         case _                                 => 0
@@ -28,7 +28,7 @@ final class ReentrantLock private (fairness: Boolean, state: Ref[ReentrantLock.S
 
   /** Queries if this lock is held by the current fiber. */
   lazy val isHeldByCurrentFiber: UIO[Boolean] =
-    ZIO.fiberId.flatMap { fiberId =>
+    ZIO.fiberIdWith { fiberId =>
       state.get.map {
         case State(_, Some(`fiberId`), _, _) => true
         case _                               => false
@@ -91,7 +91,7 @@ final class ReentrantLock private (fairness: Boolean, state: Ref[ReentrantLock.S
    * invocation.
    */
   lazy val tryLock: UIO[Boolean] =
-    ZIO.fiberId.flatMap { fiberId =>
+    ZIO.fiberIdWith { fiberId =>
       state.modify {
         case State(ep, Some(`fiberId`), cnt, holders) =>
           true -> State(ep + 1, Some(fiberId), cnt + 1, holders)
@@ -110,7 +110,7 @@ final class ReentrantLock private (fairness: Boolean, state: Ref[ReentrantLock.S
    * the current thread is not the holder of this lock then nothing happens.
    */
   lazy val unlock: UIO[Unit] =
-    ZIO.fiberId.flatMap { fiberId =>
+    ZIO.fiberIdWith { fiberId =>
       state.modify {
         case State(ep, Some(`fiberId`), 1, holders) =>
           relock(ep, holders)
