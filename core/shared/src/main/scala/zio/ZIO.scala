@@ -3171,7 +3171,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * effect that calls this method.
    */
   def fiberIdWith[R, E, A](f: FiberId.Runtime => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    withFiberRuntime[R, E, A]((fiberState, _) => f(fiberState.id))
+    ZIO.withFiberRuntime[R, E, A]((fiberState, _) => f(fiberState.id))
 
   /**
    * Filters the collection using the specified effectual predicate.
