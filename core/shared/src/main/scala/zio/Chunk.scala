@@ -1266,9 +1266,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    */
   def fromIterable[A](it: Iterable[A]): Chunk[A] =
     it match {
-      case chunk: Chunk[A]              => chunk
-      case iterable if iterable.isEmpty => Empty
-      case vector: Vector[A]            => VectorChunk(vector)
+      case chunk: Chunk[A]                     => chunk
+      case iterable if iterable.isEmpty        => Empty
+      case iterable if iterable.sizeCompare(1) => single(iterable.head)
+      case vector: Vector[A]                   => VectorChunk(vector)
       case iterable =>
         val builder = ChunkBuilder.make[A]()
         builder.sizeHint(iterable)
