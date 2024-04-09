@@ -261,8 +261,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                         consumed      <- consumed.get
                         sinkFiber     <- forkSink
                         scheduleFiber <- timeout(Some(b)).forkIn(scope)
-                        toWrite =
-                          c.fold[Chunk[Either[C, B]]](Chunk.single(Right(b)))(c => Chunk.single(Right(b), Left(c)))
+                        toWrite        = c.fold[Chunk[Either[C, B]]](Chunk.single(Right(b)))(c => Chunk(Right(b), Left(c)))
                       } yield
                         if (consumed)
                           ZChannel
@@ -2992,7 +2991,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
             .foldZIO(
               _ =>
                 driver.last.orDie.map { b =>
-                  ZChannel.write(Chunk.single(f(a), g(b))) *> loop(driver, chunkIterator, index + 1)
+                  ZChannel.write(Chunk(f(a), g(b))) *> loop(driver, chunkIterator, index + 1)
                 } <* driver.reset,
               _ => ZIO.succeed(ZChannel.write(Chunk.single(f(a))) *> loop(driver, chunkIterator, index + 1))
             )
