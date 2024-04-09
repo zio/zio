@@ -3124,7 +3124,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Constructs an effect based on the current executor.
    */
   def executorWith[R, E, A](f: Executor => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.withFiberRuntime[R, E, A]((fiberState, _) => f(fiberState.getCurrentExecutor()(Unsafe.unsafe)))
+    ZIO.withFiberRuntime[R, E, A]((fiberState, _) => f(fiberState.getCurrentExecutor()))
 
   /**
    * Determines whether any element of the `Iterable[A]` satisfies the effectual
