@@ -9,7 +9,7 @@ on:
   pull_request:
   push:
     branches:
-      - 'series/2.x'
+      - 'series/2.0.x'
   release:
     types:
       - published
