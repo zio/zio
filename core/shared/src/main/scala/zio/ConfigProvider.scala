@@ -416,9 +416,8 @@ object ConfigProvider {
       override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
         trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
-        val pathString  = makePathString(path)
-        val name        = path.lastOption.getOrElse("<unnamed>")
-        val description = primitive.description
+        val pathString = makePathString(path)
+        val name       = path.lastOption.getOrElse("<unnamed>")
 
         for {
           valueOpt <- zio.System.env(pathString).mapError(sourceUnavailable(path))
@@ -469,14 +468,14 @@ object ConfigProvider {
 
       def returnEmptyListIfValueIsNil[A](
         prefix: Chunk[String],
-        continue: Chunk[String] => ZIO[Any, Error, Chunk[Chunk[A]]]
+        continue: ZIO[Any, Error, Chunk[Chunk[A]]]
       ): ZIO[Any, Error, Chunk[Chunk[A]]] =
         (for {
           possibleNil <- flat.load(prefix, Config.Text, split = false)
           result <- if (possibleNil.headOption.exists(string => string.toLowerCase().trim == "<nil>"))
                       ZIO.succeed(Chunk(Chunk.empty))
-                    else continue(prefix)
-        } yield result).orElse(continue(prefix))
+                    else continue
+        } yield result).orElse(continue)
 
       def loop[A](prefix: Chunk[String], config: Config[A], split: Boolean)(implicit
         trace: Trace
@@ -508,7 +507,7 @@ object ConfigProvider {
                 if (indices.isEmpty) {
                   returnEmptyListIfValueIsNil(
                     prefix = patchedPrefix,
-                    continue = loop(_, config, split = true).map(Chunk(_))
+                    continue = loop(prefix, config, split = true).map(Chunk(_))
                   )
                 } else
                   ZIO
@@ -540,9 +539,9 @@ object ConfigProvider {
           case table: Table[valueType] =>
             import table.valueConfig
             for {
-              prefix <- ZIO.fromEither(flat.patch(prefix))
-              keys   <- flat.enumerateChildren(prefix)
-              values <- ZIO.foreach(Chunk.fromIterable(keys))(key => loop(prefix ++ Chunk(key), valueConfig, split))
+              patchedPrefix <- ZIO.fromEither(flat.patch(prefix))
+              keys          <- flat.enumerateChildren(patchedPrefix)
+              values        <- ZIO.foreach(Chunk.fromIterable(keys))(key => loop(prefix ++ Chunk(key), valueConfig, split))
             } yield
               if (values.isEmpty) Chunk(Map.empty[String, valueType])
               else values.transpose.map(values => keys.zip(values).toMap)
@@ -629,10 +628,9 @@ object ConfigProvider {
       override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
         trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
-        val pathString  = makePathString(path)
-        val name        = path.lastOption.getOrElse("<unnamed>")
-        val description = primitive.description
-        val valueOpt    = mapWithIndexSplit.get(pathString)
+        val pathString = makePathString(path)
+        val name       = path.lastOption.getOrElse("<unnamed>")
+        val valueOpt   = mapWithIndexSplit.get(pathString)
 
         for {
           value <- ZIO
@@ -681,9 +679,8 @@ object ConfigProvider {
       override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
         trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
-        val pathString  = makePathString(path)
-        val name        = path.lastOption.getOrElse("<unnamed>")
-        val description = primitive.description
+        val pathString = makePathString(path)
+        val name       = path.lastOption.getOrElse("<unnamed>")
 
         for {
           valueOpt <- zio.System.property(pathString).mapError(sourceUnavailable(path))
