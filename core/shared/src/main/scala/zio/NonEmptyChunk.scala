@@ -286,7 +286,7 @@ object NonEmptyChunk {
    * Constructs a `NonEmptyChunk` from one or more values.
    */
   def apply[A](a: A, as: A*): NonEmptyChunk[A] =
-    nonEmpty(Chunk(a) ++ Chunk.fromIterable(as))
+    fromIterable(a, as)
 
   /**
    * Checks if a `chunk` is not empty and constructs a `NonEmptyChunk` from it.
@@ -304,7 +304,15 @@ object NonEmptyChunk {
    * Constructs a `NonEmptyChunk` from an `Iterable`.
    */
   def fromIterable[A](a: A, as: Iterable[A]): NonEmptyChunk[A] =
-    nonEmpty(Chunk.single(a) ++ Chunk.fromIterable(as))
+    if (as.isEmpty) single(a)
+    else
+      nonEmpty {
+        val builder = ChunkBuilder.make[A]()
+        builder.sizeHint(as, 1)
+        builder += a
+        builder ++= as
+        builder.result()
+      }
 
   /**
    * Constructs a `NonEmptyChunk` from an `Iterable` or `None` otherwise.
@@ -316,7 +324,7 @@ object NonEmptyChunk {
    * Constructs a `NonEmptyChunk` from a single value.
    */
   def single[A](a: A): NonEmptyChunk[A] =
-    NonEmptyChunk(a)
+    nonEmpty(Chunk.single(a))
 
   /**
    * Extracts the elements from a `Chunk`.

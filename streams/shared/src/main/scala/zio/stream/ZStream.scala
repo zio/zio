@@ -261,7 +261,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                         consumed      <- consumed.get
                         sinkFiber     <- forkSink
                         scheduleFiber <- timeout(Some(b)).forkIn(scope)
-                        toWrite        = c.fold[Chunk[Either[C, B]]](Chunk(Right(b)))(c => Chunk(Right(b), Left(c)))
+                        toWrite        = c.fold[Chunk[Either[C, B]]](Chunk.single(Right(b)))(c => Chunk(Right(b), Left(c)))
                       } yield
                         if (consumed)
                           ZChannel
@@ -271,7 +271,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                   case UpstreamEnd =>
                     ZChannel.unwrap {
                       consumed.get.map { p =>
-                        if (p) ZChannel.write(Chunk(Right(b)))
+                        if (p) ZChannel.write(Chunk.single(Right(b)))
                         else ZChannel.unit
                       }
                     }
@@ -2993,7 +2993,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                 driver.last.orDie.map { b =>
                   ZChannel.write(Chunk(f(a), g(b))) *> loop(driver, chunkIterator, index + 1)
                 } <* driver.reset,
-              _ => ZIO.succeed(ZChannel.write(Chunk(f(a))) *> loop(driver, chunkIterator, index + 1))
+              _ => ZIO.succeed(ZChannel.write(Chunk.single(f(a))) *> loop(driver, chunkIterator, index + 1))
             )
         }
       else
@@ -4645,7 +4645,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
             case Some(e) => ZChannel.fail(e)
             case None    => ZChannel.unit
           },
-          a => ZChannel.write(Chunk(a))
+          a => ZChannel.write(Chunk.single(a))
         )
       )
     )
@@ -5755,7 +5755,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * terminates with the specified cause if this `Exit` is a `Failure`.
      */
     def done(exit: Exit[E, A])(implicit trace: Trace): B =
-      apply(ZIO.done(exit.mapBothExit(e => Some(e), a => Chunk(a))))
+      apply(ZIO.done(exit.mapBothExit(e => Some(e), a => Chunk.single(a))))
 
     /**
      * Terminates with an end of stream signal.
@@ -5774,7 +5774,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * with the failure value of this effect.
      */
     def fromEffect(zio: ZIO[R, E, A])(implicit trace: Trace): B =
-      apply(zio.mapBoth(e => Some(e), a => Chunk(a)))
+      apply(zio.mapBoth(e => Some(e), a => Chunk.single(a)))
 
     /**
      * Either emits the success value of this effect or terminates the stream
@@ -5793,7 +5793,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Emits a chunk containing the specified value.
      */
     def single(a: A)(implicit trace: Trace): B =
-      apply(ZIO.succeed(Chunk(a)))
+      apply(ZIO.succeed(Chunk.single(a)))
   }
 
   /**

@@ -165,7 +165,7 @@ object Queue {
             if (succeeded)
               ZIO.succeed(true)
             else
-              strategy.handleSurplus(Chunk(a), queue, takers, shutdownFlag)
+              strategy.handleSurplus(Chunk.single(a), queue, takers, shutdownFlag)
           }
         }
       }
