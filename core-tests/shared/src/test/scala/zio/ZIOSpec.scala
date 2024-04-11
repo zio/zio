@@ -2261,6 +2261,31 @@ object ZIOSpec extends ZIOBaseSpec {
         assertZIO(io.flip.flip)(equalTo(42))
       }
     ),
+    suite("Timeout don't lose all values from parent fiber")(
+      test("When effect is winner and failed") {
+        val (initial, update) = ("initial", "update")
+        def effect(fiberRef: FiberRef[String]) =
+          fiberRef.set(update) *> ZIO.fail(new Throwable("Effect failed"))
+        for {
+          fiberRef <- FiberRef.make[String](initial)
+          _ <- effect(fiberRef)
+                 .timeout(Duration.Infinity)
+                 .catchAll(_ => ZIO.unit)
+          res <- fiberRef.get
+        } yield assert(res)(equalTo(update))
+      },
+      test("When effect is loser") {
+        val (initial, update) = ("initial", "update")
+        def effect(fiberRef: FiberRef[String]) =
+          fiberRef.set(update) *>
+            Clock.sleep(1.second)
+        for {
+          fiberRef <- FiberRef.make[String](initial)
+          _        <- effect(fiberRef).timeout(10.millis)
+          res      <- fiberRef.get
+        } yield assert(res)(equalTo(update))
+      }
+    ) @@ TestAspect.withLiveClock,
     suite("RTS failure")(
       test("error in sync effect") {
         val io = ZIO.attempt[Unit](throw ExampleError).fold[Option[Throwable]](Some(_), _ => None)

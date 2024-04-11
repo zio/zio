@@ -5282,14 +5282,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
               case Exit.Success(a) =>
                 winner.inheritAll *> loser.interruptAs(parentFiberId).as(f(a))
               case Exit.Failure(cause) =>
-                loser.interruptAs(parentFiberId) *> ZIO.refailCause(cause)
+                winner.inheritAll *> loser.interruptAs(parentFiberId) *> ZIO.refailCause(cause)
             },
           (winner, loser) =>
             winner.await.flatMap {
               case Exit.Success(_) =>
-                winner.inheritAll *> loser.interruptAs(parentFiberId).as(b())
+                loser.inheritAll *> loser.interruptAs(parentFiberId).as(b())
               case Exit.Failure(cause) =>
-                loser.interruptAs(parentFiberId) *> ZIO.refailCause(cause)
+                loser.inheritAll *> loser.interruptAs(parentFiberId) *> ZIO.refailCause(cause)
             },
           null,
           FiberScope.global
