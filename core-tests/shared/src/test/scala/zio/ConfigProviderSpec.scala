@@ -556,6 +556,13 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value")
       } +
+      test("kebabCase when no kamelCase provided ") {
+        val configProvider = ConfigProvider.fromMap(Map("1A:2D:5C" -> "tak")).kebabCase
+        val config         = Config.string("1A:2D:5C")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "tak")
+      } +
       test("lowerCase") {
         val configProvider = ConfigProvider.fromMap(Map("lowercase" -> "value")).lowerCase
         val config         = Config.string("lowerCase")
@@ -569,6 +576,13 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         for {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value")
+      } +
+      test("snakeCase when no kamelCase provided ") {
+        val configProvider = ConfigProvider.fromMap(Map("1A:2D:5C" -> "tak")).snakeCase
+        val config         = Config.string("1A:2D:5C")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "tak")
       } +
       test("upperCase") {
         val configProvider = ConfigProvider.fromMap(Map("UPPERCASE" -> "value")).upperCase
