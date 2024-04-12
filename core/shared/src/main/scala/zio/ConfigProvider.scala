@@ -26,7 +26,7 @@ import scala.util.Try
 trait ConfigProvider {
   self =>
 
-  private val camelCaseRegex = "(?<=[a-z])[A-Z]".r
+  private lazy val camelCaseRegex = "(?<=[a-z])[A-Z]".r
 
   /**
    * Loads the specified configuration, or fails with a config error.
