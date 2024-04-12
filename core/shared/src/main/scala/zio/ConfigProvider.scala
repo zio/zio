@@ -26,6 +26,8 @@ import scala.util.Try
 trait ConfigProvider {
   self =>
 
+  private val camelCaseRegex = "(?<=[a-z])[A-Z]".r
+
   /**
    * Loads the specified configuration, or fails with a config error.
    */
@@ -60,7 +62,7 @@ trait ConfigProvider {
    * to the naming convention of a config provider.
    */
   final def kebabCase: ConfigProvider =
-    contramapPath(path => "(?<=[a-z])[A-Z]".r.replaceAllIn(path, m => "-" + m.group(0).toLowerCase))
+    contramapPath(path => camelCaseRegex.replaceAllIn(path, m => "-" + m.group(0).toLowerCase))
 
   /**
    * Returns a new config provider that will automatically convert all property
@@ -95,7 +97,7 @@ trait ConfigProvider {
    * to the naming convention of a config provider.
    */
   final def snakeCase: ConfigProvider =
-    contramapPath(path => "(?<=[a-z])[A-Z]".r.replaceAllIn(path, m => "_" + m.group(0).toLowerCase))
+    contramapPath(path => camelCaseRegex.replaceAllIn(path, m => "_" + m.group(0).toLowerCase))
 
   /**
    * Returns a new config provider that will automatically unnest all
