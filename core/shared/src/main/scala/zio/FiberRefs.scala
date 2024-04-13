@@ -27,7 +27,7 @@ import scala.annotation.tailrec
  * example between an asynchronous producer and consumer.
  */
 final class FiberRefs private (
-  private val fiberRefLocals: Map[FiberRef[_], FiberRefs.Value]
+  private[zio] val fiberRefLocals: Map[FiberRef[_], FiberRefs.Value]
 ) { self =>
   import zio.FiberRefs.{StackEntry, Value}
 
@@ -35,7 +35,8 @@ final class FiberRefs private (
    * Returns a new fiber refs with the specified ref deleted from it.
    */
   def delete(fiberRef: FiberRef[_]): FiberRefs =
-    FiberRefs(fiberRefLocals - fiberRef)
+    if (!fiberRefLocals.contains(fiberRef)) self
+    else FiberRefs(fiberRefLocals - fiberRef)
 
   /**
    * Returns a set of each `FiberRef` in this collection.
@@ -45,23 +46,13 @@ final class FiberRefs private (
 
   /**
    * Boolean flag which indicates whether the FiberRefs map contains an entry
-   * that will cause the map to be changed when [[forkAs]] is called. In many
-   * common cases, this flag will be false, and the initial overhead of checking
-   * this flag will be amortized over many calls to [[forkAs]]. In the worst
-   * case, this flag will be true, and we iterate over the Map twice which is a
-   * small overhead
+   * that will cause the map to be changed when [[forkAs]] is called.
+   *
+   * This way we can avoid calling `fiberRefLocals.transform` on every
+   * invocation of [[forkAs]] when we already know that the map will not be
+   * transformed
    */
-  private lazy val needsTransformWhenForked: Boolean = {
-    val iter   = fiberRefLocals.iterator
-    var result = false
-    while (iter.hasNext && !result) {
-      val (fiberRef, value) = iter.next()
-      val oldValue          = value.stack.head.value
-      val newValue          = fiberRef.patch(fiberRef.fork)(oldValue.asInstanceOf[fiberRef.Value])
-      if (oldValue != newValue) result = true
-    }
-    result
-  }
+  @volatile private var needsTransformWhenForked: Boolean = true
 
   /**
    * Forks this collection of fiber refs as the specified child fiber id. This
@@ -70,15 +61,19 @@ final class FiberRefs private (
    */
   def forkAs(childId: FiberId.Runtime): FiberRefs =
     if (needsTransformWhenForked) {
-      val childFiberRefLocals: Map[FiberRef[_], Value] =
+      val childFiberRefLocals =
         fiberRefLocals.transform { case (fiberRef, entry @ Value(stack, depth)) =>
           val oldValue = stack.head.value.asInstanceOf[fiberRef.Value]
           val newValue = fiberRef.patch(fiberRef.fork)(oldValue)
           if (oldValue == newValue) entry
           else Value(::(StackEntry(childId, newValue, 0), stack), depth + 1)
         }
-
-      FiberRefs(childFiberRefLocals)
+      if (fiberRefLocals eq childFiberRefLocals) {
+        needsTransformWhenForked = false
+        self
+      } else {
+        FiberRefs(childFiberRefLocals)
+      }
     } else self
 
   /**
@@ -112,7 +107,7 @@ final class FiberRefs private (
     val parentFiberRefs = self.fiberRefLocals
     val childFiberRefs  = that.fiberRefLocals
 
-    val fiberRefLocals = childFiberRefs.foldLeft(parentFiberRefs) {
+    val fiberRefLocals0 = childFiberRefs.foldLeft(parentFiberRefs) {
       case (parentFiberRefs, (fiberRef, Value(childStack, childDepth))) =>
         val ref        = fiberRef.asInstanceOf[FiberRef[Any]]
         val childValue = childStack.head.value
@@ -177,7 +172,8 @@ final class FiberRefs private (
         }
     }
 
-    FiberRefs(fiberRefLocals)
+    if (self.fiberRefLocals eq fiberRefLocals0) self
+    else FiberRefs(fiberRefLocals0)
   }
 
   def setAll(implicit trace: Trace): UIO[Unit] =
@@ -192,16 +188,16 @@ final class FiberRefs private (
   )(fiberRef: FiberRef[A], value: A): FiberRefs = {
     val oldEntry = fiberRefLocals.getOrElse(fiberRef, null)
 
-    val oldStack = if (oldEntry ne null) oldEntry.stack else null
+    val oldStack = if (oldEntry ne null) oldEntry.stack.asInstanceOf[::[StackEntry[A]]] else null
     val oldDepth = if (oldEntry ne null) oldEntry.depth else 0
     val newEntry =
       if (oldEntry eq null) Value(::(StackEntry(fiberId, value, 0), List.empty), 1)
       else if (oldStack.head.id == fiberId) {
-        val oldValue = oldStack.head.asInstanceOf[StackEntry[A]].value
+        val oldValue = oldStack.head.value
         if (oldValue == value) oldEntry
         else
           Value(
-            ::(StackEntry(fiberId, value.asInstanceOf[Any], oldStack.head.version + 1), oldStack.tail),
+            ::(StackEntry(fiberId, value, oldStack.head.version + 1), oldStack.tail),
             oldEntry.depth
           )
       } else if (oldStack.head.value == value)
@@ -209,19 +205,19 @@ final class FiberRefs private (
       else
         Value(::(StackEntry(fiberId, value, 0), oldStack), oldDepth + 1)
 
-    if ((oldEntry ne null) && oldEntry == newEntry) self
+    if (oldEntry eq newEntry) self
     else FiberRefs(fiberRefLocals.updated(fiberRef, newEntry))
   }
 
 }
 
 object FiberRefs {
-  private case class StackEntry[@specialized(SpecializeInt) A](
+  private[zio] case class StackEntry[@specialized(SpecializeInt) A](
     id: FiberId.Runtime,
     value: A,
     version: Int
   )
-  private case class Value(stack: ::[StackEntry[?]], depth: Int)
+  private[zio] case class Value(stack: ::[StackEntry[?]], depth: Int)
 
   /**
    * The empty collection of `FiberRef` values.

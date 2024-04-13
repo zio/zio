@@ -24,10 +24,11 @@ import scala.annotation.tailrec
 private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: A => Boolean) {
   private[this] implicit val unsafe: Unsafe = Unsafe.unsafe
 
-  private[this] val poolSize  = java.lang.Runtime.getRuntime.availableProcessors
-  private[this] val nursery   = new PartitionedRingBuffer[WeakReference[A]](poolSize, nurserySize)
-  private[this] val graduates = Platform.newConcurrentSet[WeakReference[A]](nursery.capacity)
-  private[this] val gcStatus  = new AtomicBoolean(false)
+  private[this] val poolSize = java.lang.Runtime.getRuntime.availableProcessors
+  private[this] val gcStatus = new AtomicBoolean(false)
+
+  val nursery   = new PartitionedRingBuffer[WeakReference[A]](poolSize << 1, nurserySize)
+  val graduates = Platform.newConcurrentSet[WeakReference[A]](nursery.capacity)
 
   /**
    * Adds a new value to the weak concurrent bag, graduating nursery occupants
@@ -68,7 +69,7 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: A =
 
   private[this] val gcPredicate: Predicate[WeakReference[A]] = { ref =>
     val value = ref.get()
-    value == null || !isAlive(value)
+    (value eq null) || !isAlive(value)
   }
 
   /**
@@ -82,16 +83,15 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: A =
     graduate(ThreadLocalRandom.current(), upTo = Int.MaxValue, maxMisses = Int.MaxValue)
 
   final private def graduate(random: ThreadLocalRandom, upTo: Int, maxMisses: Int): Unit = {
-    var element = nursery.poll(null, random, maxMisses = maxMisses)
-    var i       = 0
-    while ((element ne null) && i < upTo) {
-      val value = element.get()
+    var ref = nursery.poll(null, random, maxMisses)
+    var i   = 0
+    while ((ref ne null) && i < upTo) {
+      val value = ref.get()
       if ((value ne null) && isAlive(value)) {
-        graduates.add(element)
+        graduates.add(ref)
       }
-
+      ref = nursery.poll(null, random, maxMisses)
       i += 1
-      element = nursery.poll(null, random, maxMisses = maxMisses)
     }
 
     if (graduates.size() > nurserySize) gc()
@@ -110,7 +110,7 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: A =
 
       @tailrec
       def prefetch(): A =
-        if (it.hasNext()) {
+        if (it.hasNext) {
           val next = it.next().get()
 
           if (next == null) prefetch()

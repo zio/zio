@@ -38,24 +38,23 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   import ZIO._
   import FiberRuntime.EvaluationSignal
 
-  private var _lastTrace       = fiberId.location
-  private var _fiberRefs       = fiberRefs0
-  private var _runtimeFlags    = runtimeFlags0
-  private var _runtimeFlagsOld = new AtomicInteger(Int.MinValue)
-  private var _blockingOn      = FiberRuntime.notBlockingOn
-  private var _asyncContWith   = null.asInstanceOf[ZIO.Erased => Any]
-  private val running          = new AtomicBoolean(false)
-  private val inbox            = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
-  private var _children        = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
-  private var observers        = Nil: List[Exit[E, A] => Unit]
-  private var runningExecutor  = null.asInstanceOf[Executor]
-  private var _stack           = null.asInstanceOf[Array[Continuation]]
-  private var _stackSize       = 0
-  private val emptyTrace       = Trace.empty
-  private val _forkedChildren  = new AtomicInteger(0)
+  private var _lastTrace      = fiberId.location
+  private var _fiberRefs      = fiberRefs0
+  private var _runtimeFlags   = runtimeFlags0
+  private var _blockingOn     = FiberRuntime.notBlockingOn
+  private var _asyncContWith  = null.asInstanceOf[ZIO.Erased => Any]
+  private val running         = new AtomicBoolean(false)
+  private val inbox           = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
+  private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
+  private var observers       = Nil: List[Exit[E, A] => Unit]
+  private var runningExecutor = null.asInstanceOf[Executor]
+  private var _stack          = null.asInstanceOf[Array[Continuation]]
+  private var _stackSize      = 0
+  private val emptyTrace      = Trace.empty
+  private val nForkedFibers   = new AtomicInteger(0)
 
   private[zio] def shouldYieldBeforeFork(): Boolean =
-    (_forkedChildren.incrementAndGet() % FiberRuntime.MaxForksBeforeYield) == 0
+    (nForkedFibers.incrementAndGet() % FiberRuntime.MaxForksBeforeYield) == 0
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
     val tags = getFiberRef(FiberRef.currentTags)

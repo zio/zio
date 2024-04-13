@@ -16,7 +16,6 @@
 
 package zio.internal
 
-import zio.{Chunk, ChunkBuilder}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ThreadLocalRandom
@@ -118,7 +117,7 @@ private[zio] final class PartitionedRingBuffer[A <: AnyRef](
     val nq = nQueues
     var i  = 0
     while (i < nq) {
-      if (!queues(i).isEmpty) return false
+      if (!queues(i).isEmpty()) return false
       i += 1
     }
     true

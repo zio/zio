@@ -125,7 +125,7 @@ private[zio] final class PartitionedLinkedQueue[A <: AnyRef](
     var i    = 0
     while (i < nq) {
       val idx = (from + i) & mask
-      if (!queues(idx).isEmpty) return false
+      if (!queues(idx).isEmpty()) return false
       i += 1
     }
     true
