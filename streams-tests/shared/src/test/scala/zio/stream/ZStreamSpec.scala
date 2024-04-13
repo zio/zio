@@ -2,6 +2,7 @@ package zio.stream
 
 import zio._
 import zio.stm.TQueue
+import zio.stream.ZStream.HaltStrategy
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
 import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, withLiveClock}
@@ -2677,6 +2678,36 @@ object ZStreamSpec extends ZIOBaseSpec {
               ZStream.fromIterable(0 to 3).mapZIOParUnordered(10)(_ => ZIO.fail("fail"))
             assertZIO(stream.runDrain.exit)(fails(equalTo("fail")))
           } @@ nonFlaky @@ TestAspect.diagnose(10.seconds)
+        ),
+        suite("mergeLeft/Right")(
+          test("mergeLeft with HaltStrategy.Right terminates as soon as the right stream terminates") {
+            for {
+              queue1 <- Queue.unbounded[Int]
+              queue2 <- Queue.unbounded[Int]
+              stream1 = ZStream.fromQueue(queue1)
+              stream2 = ZStream.fromQueue(queue2)
+              fiber  <- stream1.mergeLeft(stream2, HaltStrategy.Right).runCollect.fork
+              _      <- queue1.offer(1) *> TestClock.adjust(1.second)
+              _      <- queue1.offer(2) *> TestClock.adjust(1.second)
+              _      <- queue2.shutdown *> TestClock.adjust(1.second)
+              _      <- queue1.offer(3)
+              result <- fiber.join
+            } yield assert(result)(equalTo(Chunk(1, 2)))
+          },
+          test("mergeRight with HaltStrategy.Left terminates as soon as the left stream terminates") {
+            for {
+              queue1 <- Queue.unbounded[Int]
+              queue2 <- Queue.unbounded[Int]
+              stream1 = ZStream.fromQueue(queue1)
+              stream2 = ZStream.fromQueue(queue2)
+              fiber  <- stream1.mergeRight(stream2, HaltStrategy.Left).runCollect.fork
+              _      <- queue2.offer(1) *> TestClock.adjust(1.second)
+              _      <- queue1.offer(2) *> TestClock.adjust(1.second)
+              _      <- queue1.shutdown *> TestClock.adjust(1.second)
+              _      <- queue2.offer(3)
+              result <- fiber.join
+            } yield assert(result)(equalTo(Chunk(1)))
+          }
         ),
         suite("mergeHaltLeft")(
           test("terminates as soon as the first stream terminates") {

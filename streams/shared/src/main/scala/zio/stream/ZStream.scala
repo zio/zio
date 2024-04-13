@@ -2015,7 +2015,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   )(implicit
     trace: Trace
   ): ZStream[R1, E1, A] =
-    self.merge(that.drain)
+    self.merge(that.drain, strategy)
 
   /**
    * Merges this stream and the specified stream together, discarding the values
@@ -2027,7 +2027,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   )(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    self.drain.merge(that)
+    self.drain.merge(that, strategy)
 
   /**
    * Merges this stream that is sorted and the specified stream that is sorted
