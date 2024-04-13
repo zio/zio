@@ -103,7 +103,7 @@ private[zio] abstract class MutableConcurrentQueue[A] {
    * A non-blocking enqueue of multiple elements.
    */
   def offerAll[A1 <: A](as: Iterable[A1]): Chunk[A1] = {
-    val builder  = ChunkBuilder.make[A1](as.size)
+    val builder  = ChunkBuilder.make[A1]()
     val iterator = as.iterator
     var loop     = true
     while (loop && iterator.hasNext) {
@@ -134,7 +134,7 @@ private[zio] abstract class MutableConcurrentQueue[A] {
    * A non-blocking dequeue of multiple elements.
    */
   def pollUpTo(n: Int): Chunk[A] = {
-    val builder = ChunkBuilder.make[A](n)
+    val builder = ChunkBuilder.make[A]()
     val default = null.asInstanceOf[A]
     var i       = n
     while (i > 0) {

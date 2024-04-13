@@ -480,7 +480,7 @@ private[zio] abstract class RingBuffer[A](override final val capacity: Int)
       // We have successfully reserved space in the queue and have exclusive
       // ownership of each space until we publish our changes. Dequeue the
       // elements sequentially and publish our changes as we go.
-      val builder = ChunkBuilder.make[A]()
+      val builder = ChunkBuilder.make[A](n.min(aCapacity))
       builder.sizeHint((deqTail - deqHead).toInt)
       while (deqHead < deqTail) {
         curIdx = posToIdx(deqHead, aCapacity)
