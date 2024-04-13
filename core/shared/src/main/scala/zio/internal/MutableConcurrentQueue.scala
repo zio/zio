@@ -31,7 +31,41 @@ private[zio] object MutableConcurrentQueue {
     if (capacity == 1) new OneElementConcurrentQueue()
     else RingBuffer[A](capacity)
 
-  def unbounded[A]: MutableConcurrentQueue[A] = new LinkedQueue[A]
+  def unbounded[A]: LinkedQueue[A] =
+    unbounded[A](addMetrics = true)
+
+  def unbounded[A](addMetrics: Boolean = true): LinkedQueue[A] =
+    new LinkedQueue[A](addMetrics)
+
+  def unboundedPartitioned[A <: AnyRef](
+    preferredPartitions: Int,
+    addMetrics: Boolean = true
+  ): PartitionedLinkedQueue[A] =
+    new PartitionedLinkedQueue[A](preferredPartitions, addMetrics)
+
+  def unboundedPartitioned[A <: AnyRef](
+    preferredPartitions: Int,
+    capacity: Int
+  ): PartitionedRingBuffer[A] =
+    new PartitionedRingBuffer[A](preferredPartitions, capacity)
+
+  /**
+   * Rounds up to the nearest power of 2 and subtracts 1. e.g.,
+   *
+   * {{{
+   * maskFor(3) // 3
+   * maskFor(4) // 3
+   * maskFor(5) // 7
+   * }}}
+   */
+  def maskFor(n: Int): Int = {
+    var value = n - 1
+    value |= value >> 1
+    value |= value >> 2
+    value |= value >> 4
+    value |= value >> 8
+    value | value >> 16
+  }
 }
 
 /**
@@ -69,7 +103,7 @@ private[zio] abstract class MutableConcurrentQueue[A] {
    * A non-blocking enqueue of multiple elements.
    */
   def offerAll[A1 <: A](as: Iterable[A1]): Chunk[A1] = {
-    val builder  = ChunkBuilder.make[A1]()
+    val builder  = ChunkBuilder.make[A1](as.size)
     val iterator = as.iterator
     var loop     = true
     while (loop && iterator.hasNext) {
@@ -100,13 +134,13 @@ private[zio] abstract class MutableConcurrentQueue[A] {
    * A non-blocking dequeue of multiple elements.
    */
   def pollUpTo(n: Int): Chunk[A] = {
-    val builder = ChunkBuilder.make[A]()
+    val builder = ChunkBuilder.make[A](n)
     val default = null.asInstanceOf[A]
     var i       = n
     while (i > 0) {
       val a = poll(default)
       if (a == default) i = 0
-      else builder += a
+      else builder.addOne(a)
       i -= 1
     }
     builder.result()

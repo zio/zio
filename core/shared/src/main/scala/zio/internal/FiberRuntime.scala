@@ -19,15 +19,15 @@ package zio.internal
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.tailrec
-
 import java.util.{Set => JavaSet}
-import java.util.concurrent.atomic.AtomicBoolean
-
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import zio._
 import zio.metrics.{Metric, MetricLabel}
+
 import java.nio.channels.ClosedByInterruptException
 import zio.Exit.Failure
 import zio.Exit.Success
+import zio.internal.SpecializationHelpers.SpecializeInt
 
 final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtimeFlags0: RuntimeFlags)
     extends Fiber.Runtime.Internal[E, A]
@@ -38,19 +38,24 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   import ZIO._
   import FiberRuntime.EvaluationSignal
 
-  private var _lastTrace      = fiberId.location
-  private var _fiberRefs      = fiberRefs0
-  private var _runtimeFlags   = runtimeFlags0
-  private var _blockingOn     = FiberRuntime.notBlockingOn
-  private var _asyncContWith  = null.asInstanceOf[ZIO.Erased => Any]
-  private val running         = new AtomicBoolean(false)
-  private val inbox           = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
-  private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
-  private var observers       = Nil: List[Exit[E, A] => Unit]
-  private var runningExecutor = null.asInstanceOf[Executor]
-  private var _stack          = null.asInstanceOf[Array[Continuation]]
-  private var _stackSize      = 0
-  private val emptyTrace      = Trace.empty
+  private var _lastTrace       = fiberId.location
+  private var _fiberRefs       = fiberRefs0
+  private var _runtimeFlags    = runtimeFlags0
+  private var _runtimeFlagsOld = new AtomicInteger(Int.MinValue)
+  private var _blockingOn      = FiberRuntime.notBlockingOn
+  private var _asyncContWith   = null.asInstanceOf[ZIO.Erased => Any]
+  private val running          = new AtomicBoolean(false)
+  private val inbox            = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
+  private var _children        = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
+  private var observers        = Nil: List[Exit[E, A] => Unit]
+  private var runningExecutor  = null.asInstanceOf[Executor]
+  private var _stack           = null.asInstanceOf[Array[Continuation]]
+  private var _stackSize       = 0
+  private val emptyTrace       = Trace.empty
+  private val _forkedChildren  = new AtomicInteger(0)
+
+  private[zio] def shouldYieldBeforeFork(): Boolean =
+    (_forkedChildren.incrementAndGet() % FiberRuntime.MaxForksBeforeYield) == 0
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
     val tags = getFiberRef(FiberRef.currentTags)
@@ -196,10 +201,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     assert(running.get)
 
     var evaluationSignal: EvaluationSignal = EvaluationSignal.Continue
-    var previousFiber                      = null.asInstanceOf[FiberRuntime[_, _]]
     try {
       if (RuntimeFlags.currentFiber(_runtimeFlags)) {
-        val previousFiber = Fiber._currentFiber.get()
         Fiber._currentFiber.set(self)
       }
 
@@ -212,8 +215,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       }
     } finally {
       running.set(false)
-
-      if ((previousFiber ne null) || RuntimeFlags.currentFiber(_runtimeFlags)) Fiber._currentFiber.set(previousFiber)
     }
 
     // Maybe someone added something to the inbox between us checking, and us
@@ -363,9 +364,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     if (supervisor ne Supervisor.none) supervisor.onResume(self)(Unsafe.unsafe)
 
     try {
-      var effect      = effect0
-      var trampolines = 0
-      var finalExit   = null.asInstanceOf[Exit[E, A]]
+      var effect    = effect0
+      var finalExit = null.asInstanceOf[Exit[E, A]]
 
       while (effect ne null) {
         try {
@@ -517,7 +517,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * Retrieves the state of the fiber ref, or else the specified value.
    */
   private[zio] def getFiberRefOrElse[A](fiberRef: FiberRef[A], orElse: => A): A =
-    _fiberRefs.get(fiberRef).getOrElse(orElse)
+    _fiberRefs.getOrNull(fiberRef) match {
+      case null => orElse
+      case a    => a
+    }
 
   /**
    * Retrieves the value of the specified fiber ref, or `None` if this fiber is
@@ -1223,7 +1226,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     reportExitValue(e)
 
     // ensure we notify observers in the same order they subscribed to us
-    val iterator = observers.reverse.iterator
+    val iterator = observers.reverseIterator
 
     while (iterator.hasNext) {
       val observer = iterator.next()
@@ -1233,7 +1236,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     observers = Nil
   }
 
-  private[zio] def setFiberRef[A](fiberRef: FiberRef[A], value: A): Unit =
+  private[zio] def setFiberRef[@specialized(SpecializeInt) A](fiberRef: FiberRef[A], value: A): Unit =
     _fiberRefs = _fiberRefs.updatedAs(fiberId)(fiberRef, value)
 
   private[zio] def setFiberRefs(fiberRefs0: FiberRefs): Unit =
@@ -1377,6 +1380,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
 object FiberRuntime {
   private[zio] final val MaxTrampolinesBeforeYield = 5
+  private[zio] final val MaxForksBeforeYield       = 100
   private[zio] final val MaxOperationsBeforeYield  = 1024 * 10
   private[zio] final val MaxDepthBeforeTrampoline  = 300
   private[zio] final val MaxWorkStealingDepth      = 150
@@ -1384,11 +1388,11 @@ object FiberRuntime {
 
   private[zio] final val IgnoreContinuation: Any => Unit = _ => ()
 
-  private[zio] sealed trait EvaluationSignal
+  private[zio] type EvaluationSignal = Int
   private[zio] object EvaluationSignal {
-    case object Continue extends EvaluationSignal
-    case object YieldNow extends EvaluationSignal
-    case object Done     extends EvaluationSignal
+    final val Continue = 1
+    final val YieldNow = 2
+    final val Done     = 3
   }
   import java.util.concurrent.atomic.AtomicBoolean
 

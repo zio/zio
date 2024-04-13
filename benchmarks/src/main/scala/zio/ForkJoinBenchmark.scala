@@ -42,7 +42,7 @@ class ForkJoinBenchmark {
   @Benchmark
   def zioForkJoin(): Unit = {
     val forkFiber     = ZIO.unit.forkDaemon
-    val forkAllFibers = ZIO.foreach(range)(_ => forkFiber)
+    val forkAllFibers = ZIO.yieldNow *> ZIO.foreach(range)(_ => forkFiber)
 
     val _ =
       unsafeRun(

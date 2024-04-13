@@ -111,7 +111,11 @@ private[zio] trait PlatformSpecific {
   final def newWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
     Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
 
-  final def newConcurrentSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] = ConcurrentHashMap.newKeySet[A]()
+  final def newConcurrentSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
+    ConcurrentHashMap.newKeySet[A]()
+
+  final def newConcurrentSet[A](initialCapacity: Int)(implicit unsafe: zio.Unsafe): JSet[A] =
+    ConcurrentHashMap.newKeySet[A](initialCapacity)
 
   final def newWeakReference[A](value: A)(implicit unsafe: zio.Unsafe): () => A = {
     val ref = new WeakReference[A](value)

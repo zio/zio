@@ -18,7 +18,7 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import scala.annotation.tailrec
+import java.util.concurrent.ThreadLocalRandom
 
 /**
  * The identity of a Fiber, described by the time it began life, and a
@@ -63,10 +63,10 @@ object FiberId {
   def apply(id: Int, startTimeSeconds: Int, location: Trace): FiberId =
     Runtime(id, startTimeSeconds * 1000L, location)
 
-  private[zio] def make(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime =
-    FiberId.Runtime(_fiberCounter.getAndIncrement(), java.lang.System.currentTimeMillis(), location)
-
-  private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)
+  private[zio] def make(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime = {
+    val id = ThreadLocalRandom.current().nextInt(Int.MaxValue)
+    FiberId.Runtime(id, java.lang.System.currentTimeMillis(), location)
+  }
 
   case object None                                                          extends FiberId
   final case class Runtime(id: Int, startTimeMillis: Long, location: Trace) extends FiberId

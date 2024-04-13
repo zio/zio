@@ -1,8 +1,11 @@
 package zio.internal
 
+import zio.Unsafe
+
 import java.lang.ref.WeakReference
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicReferenceArray
+import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.function.Predicate
 import scala.annotation.tailrec
 
 /**
@@ -18,37 +21,54 @@ import scala.annotation.tailrec
  * possible performance of the `add` method, which has to do maintenance of the
  * nursery and occassional garbage collection.
  */
-private[zio] class WeakConcurrentBag[A](nurserySize: Int, isAlive: A => Boolean) {
-  val nursery   = RingBuffer[A](nurserySize)
-  val graduates = Platform.newConcurrentSet[WeakReference[A]]()(zio.Unsafe.unsafe)
+private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: A => Boolean) {
+  private[this] implicit val unsafe: Unsafe = Unsafe.unsafe
+
+  private[this] val poolSize  = java.lang.Runtime.getRuntime.availableProcessors
+  private[this] val nursery   = new PartitionedRingBuffer[WeakReference[A]](poolSize, nurserySize)
+  private[this] val graduates = Platform.newConcurrentSet[WeakReference[A]](nursery.capacity)
+  private[this] val gcStatus  = new AtomicBoolean(false)
 
   /**
    * Adds a new value to the weak concurrent bag, graduating nursery occupants
    * if necessary to make room.
    */
-  final def add(a: A): Unit =
-    if (!nursery.offer(a)) {
-      graduate()
-      add(a)
-    }
+  final def add(a: A): Unit = {
+    val rnd = ThreadLocalRandom.current()
+    val ref = new WeakReference(a)
+
+    /**
+     * NOTE on misses:
+     *
+     * If we're start missing when offering, we're approaching the nursery
+     * capacity limit. There's no reason to try all the underlying partitions as
+     * we'll very soon need to GC anyways.
+     *
+     * Similar, when graduating, if we're missing it means the nursery is almost
+     * empty, so no need to keep trying all the partitions
+     */
+    @tailrec
+    def loop(): Unit =
+      if (!nursery.offer(ref, rnd, maxMisses = 0)) {
+        graduate(rnd, upTo = 500, maxMisses = 0)
+        loop()
+      }
+    loop()
+  }
 
   /**
    * Performs a garbage collection, which consists of traversing long-term
    * storage, identifying dead or GC'd values, and removing them.
    */
-  final def gc(): Unit = {
-    val iterator = graduates.iterator()
-
-    while (iterator.hasNext()) {
-      val weakRef = iterator.next()
-      val value   = weakRef.get()
-
-      if (value == null) {
-        graduates.remove(weakRef) // TODO: Reuse weakref
-      } else {
-        if (!isAlive(value)) graduates.remove(weakRef)
-      }
+  final def gc(): Unit =
+    if (gcStatus.compareAndSet(false, true)) {
+      graduates.removeIf(gcPredicate)
+      gcStatus.set(false)
     }
+
+  private[this] val gcPredicate: Predicate[WeakReference[A]] = { ref =>
+    val value = ref.get()
+    value == null || !isAlive(value)
   }
 
   /**
@@ -58,22 +78,23 @@ private[zio] class WeakConcurrentBag[A](nurserySize: Int, isAlive: A => Boolean)
    * This method will occassionally perform garbage collection, but only when
    * the size of long-term storage exceeds the nursery size.
    */
-  final def graduate(): Unit = {
-    var element = nursery.poll(null.asInstanceOf[A])
+  final def graduate(): Unit =
+    graduate(ThreadLocalRandom.current(), upTo = Int.MaxValue, maxMisses = Int.MaxValue)
 
-    while (element != null) {
-      if (isAlive(element)) {
-        val weakRef = new WeakReference[A](element)
-
-        graduates.add(weakRef)
+  final private def graduate(random: ThreadLocalRandom, upTo: Int, maxMisses: Int): Unit = {
+    var element = nursery.poll(null, random, maxMisses = maxMisses)
+    var i       = 0
+    while ((element ne null) && i < upTo) {
+      val value = element.get()
+      if ((value ne null) && isAlive(value)) {
+        graduates.add(element)
       }
 
-      element = nursery.poll(null.asInstanceOf[A])
+      i += 1
+      element = nursery.poll(null, random, maxMisses = maxMisses)
     }
 
-    if (graduates.size() > nurserySize) {
-      gc()
-    }
+    if (graduates.size() > nurserySize) gc()
   }
 
   /**
@@ -121,6 +142,6 @@ private[zio] class WeakConcurrentBag[A](nurserySize: Int, isAlive: A => Boolean)
   override final def toString(): String = iterator.mkString("WeakConcurrentBag(", ",", ")")
 }
 private[zio] object WeakConcurrentBag {
-  def apply[A](capacity: Int, isAlive: A => Boolean = (_: A) => true): WeakConcurrentBag[A] =
+  def apply[A <: AnyRef](capacity: Int, isAlive: A => Boolean = (_: A) => true): WeakConcurrentBag[A] =
     new WeakConcurrentBag(capacity, isAlive)
 }

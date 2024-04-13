@@ -477,6 +477,8 @@ object Fiber extends FiberPlatformSpecific {
    */
   sealed abstract class Runtime[+E, +A] extends Fiber.Internal[E, A] { self =>
 
+    private[zio] def shouldYieldBeforeFork(): Boolean
+
     /**
      * The location the fiber was forked from.
      */
@@ -627,7 +629,7 @@ object Fiber extends FiberPlatformSpecific {
   private[zio] object Runtime {
 
     implicit def fiberOrdering[E, A]: Ordering[Fiber.Runtime[E, A]] =
-      Ordering.by[Fiber.Runtime[E, A], (Long, Long)](fiber => (fiber.id.startTimeMillis, fiber.id.id))
+      Ordering.by[Fiber.Runtime[E, A], Long](_.id.startTimeMillis)
 
     abstract class Internal[+E, +A] extends Runtime[E, A]
   }
