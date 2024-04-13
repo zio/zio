@@ -28,7 +28,7 @@ private[zio] final class PartitionedRingBuffer[A <: AnyRef](
 
   private[this] val mask: Int          = MutableConcurrentQueue.maskFor(preferredPartitions)
   private[this] val nQueues: Int       = mask + 1
-  private[this] val ringBufferCapacity = (preferredCapacity / nQueues).max(2)
+  private[this] val ringBufferCapacity = Math.ceil(preferredCapacity.toDouble / nQueues).toInt.max(2)
   private[this] val queues             = Array.fill(nQueues)(RingBuffer[A](ringBufferCapacity))
 
   override final val capacity = nQueues * ringBufferCapacity

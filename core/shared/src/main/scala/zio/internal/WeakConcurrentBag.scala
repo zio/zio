@@ -24,11 +24,10 @@ import scala.annotation.tailrec
 private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: A => Boolean) {
   private[this] implicit val unsafe: Unsafe = Unsafe.unsafe
 
-  private[this] val poolSize = java.lang.Runtime.getRuntime.availableProcessors
-  private[this] val gcStatus = new AtomicBoolean(false)
-
-  val nursery   = new PartitionedRingBuffer[WeakReference[A]](poolSize << 1, nurserySize)
-  val graduates = Platform.newConcurrentSet[WeakReference[A]](nursery.capacity)
+  private[this] val poolSize  = java.lang.Runtime.getRuntime.availableProcessors
+  private[this] val nursery   = new PartitionedRingBuffer[WeakReference[A]](poolSize << 1, nurserySize)
+  private[this] val graduates = Platform.newConcurrentSet[WeakReference[A]](nursery.capacity)
+  private[this] val gcStatus  = new AtomicBoolean(false)
 
   /**
    * Adds a new value to the weak concurrent bag, graduating nursery occupants
@@ -51,7 +50,7 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: A =
     @tailrec
     def loop(): Unit =
       if (!nursery.offer(ref, rnd, maxMisses = 0)) {
-        graduate(rnd, upTo = 500, maxMisses = 0)
+        graduate0(rnd, upTo = 500, maxMisses = 0, forceGc = false)
         loop()
       }
     loop()
@@ -61,15 +60,13 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: A =
    * Performs a garbage collection, which consists of traversing long-term
    * storage, identifying dead or GC'd values, and removing them.
    */
-  final def gc(): Unit =
-    if (gcStatus.compareAndSet(false, true)) {
-      graduates.removeIf(gcPredicate)
-      gcStatus.set(false)
-    }
+  final def gc(): Unit = graduates.removeIf(notAlive)
 
-  private[this] val gcPredicate: Predicate[WeakReference[A]] = { ref =>
-    val value = ref.get()
-    (value eq null) || !isAlive(value)
+  private[this] val notAlive = new Predicate[WeakReference[A]] {
+    def test(ref: WeakReference[A]): Boolean = {
+      val value = ref.get()
+      (value eq null) || !isAlive(value)
+    }
   }
 
   /**
@@ -80,9 +77,15 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: A =
    * the size of long-term storage exceeds the nursery size.
    */
   final def graduate(): Unit =
-    graduate(ThreadLocalRandom.current(), upTo = Int.MaxValue, maxMisses = Int.MaxValue)
+    graduate0(ThreadLocalRandom.current(), upTo = Int.MaxValue, maxMisses = Int.MaxValue, forceGc = true)
 
-  final private def graduate(random: ThreadLocalRandom, upTo: Int, maxMisses: Int): Unit = {
+  final private def graduate0(
+    random: ThreadLocalRandom,
+    upTo: Int,
+    maxMisses: Int,
+    // Ideally a single thread should perform GC as it's cheaper, but we want to maintain the same behavior as v2.0.x
+    forceGc: Boolean
+  ): Unit = {
     var ref = nursery.poll(null, random, maxMisses)
     var i   = 0
     while ((ref ne null) && i < upTo) {
@@ -94,7 +97,11 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: A =
       i += 1
     }
 
-    if (graduates.size() > nurserySize) gc()
+    if (graduates.size() > nurserySize && (forceGc || gcStatus.compareAndSet(false, true))) {
+      // NOTE: try-finally most probably not needed; just being extra cautious not to accidentally lock GC
+      try gc()
+      finally if (!forceGc) gcStatus.set(false)
+    }
   }
 
   /**
@@ -102,7 +109,8 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: A =
    * throw exceptions even in the presence of concurrent modifications.
    */
   final def iterator: Iterator[A] = {
-    graduate()
+    // No need to force GC if another thread is already doing it as we'll remove the entry in the iterator below
+    graduate0(ThreadLocalRandom.current(), upTo = Int.MaxValue, maxMisses = Int.MaxValue, forceGc = false)
 
     new Iterator[A] {
       val it    = graduates.iterator()
@@ -113,8 +121,10 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: A =
         if (it.hasNext) {
           val next = it.next().get()
 
-          if (next == null) prefetch()
-          else next
+          if (next == null) {
+            it.remove() // Remove dead reference since we're iterating over the set
+            prefetch()
+          } else next
         } else {
           null.asInstanceOf[A]
         }
