@@ -19,7 +19,7 @@ package zio.internal
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.{ConcurrentHashMap, ThreadLocalRandom}
+import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import java.util.concurrent.locks.LockSupport
 import scala.collection.mutable
@@ -109,7 +109,7 @@ private final class ZScheduler(autoBlocking: Boolean, trackBlockedLocations: Boo
   }
 
   override def stealWork(depth: Int): Boolean = {
-    val worker = getWorkerOrNull
+    val worker = workerOrNull()
     if (worker ne null) {
       var runnable = null.asInstanceOf[Runnable]
       if (worker.nextRunnable ne null) {
@@ -144,14 +144,14 @@ private final class ZScheduler(autoBlocking: Boolean, trackBlockedLocations: Boo
    * If the current thread is a [[ZScheduler.Worker]] then it is returned,
    * otherwise returns null
    */
-  private def getWorkerOrNull: ZScheduler.Worker =
+  private def workerOrNull(): ZScheduler.Worker =
     Thread.currentThread() match {
       case w: ZScheduler.Worker => w
       case _                    => null
     }
 
   def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
-    val worker = getWorkerOrNull
+    val worker = workerOrNull()
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
@@ -180,7 +180,7 @@ private final class ZScheduler(autoBlocking: Boolean, trackBlockedLocations: Boo
   }
 
   override def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
-    val worker = getWorkerOrNull
+    val worker = workerOrNull()
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
