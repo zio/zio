@@ -16,51 +16,61 @@
 
 package zio.internal
 
+import zio.Chunk
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ThreadLocalRandom
 
 private[zio] final class PartitionedRingBuffer[A <: AnyRef](
   preferredPartitions: Int,
-  preferredCapacity: Int
+  preferredCapacity: Int,
+  roundToPow2: Boolean
 ) extends MutableConcurrentQueue[A]
     with Serializable {
 
-  private[this] val mask: Int          = MutableConcurrentQueue.maskFor(preferredPartitions)
-  private[this] val nQueues: Int       = mask + 1
-  private[this] val ringBufferCapacity = Math.ceil(preferredCapacity.toDouble / nQueues).toInt.max(2)
-  private[this] val queues             = Array.fill(nQueues)(RingBuffer[A](ringBufferCapacity))
+  private[this] val mask: Int    = MutableConcurrentQueue.maskFor(preferredPartitions)
+  private[this] val nQueues: Int = mask + 1
 
-  override final val capacity = nQueues * ringBufferCapacity
+  private[this] val partitionSize: Int = {
+    val cap = Math.ceil(preferredCapacity.toDouble / nQueues).toInt.max(2)
+    if (roundToPow2) RingBuffer.nextPow2(cap) else cap
+  }
+
+  private[this] val queues = Array.fill(nQueues)(RingBuffer[A](partitionSize))
+
+  override final val capacity = nQueues * partitionSize
 
   override def size(): Int = {
-    val nq   = nQueues
+    val from = ThreadLocalRandom.current().nextInt(nQueues)
     var i    = 0
     var size = 0
-    while (i < nq) {
-      size += queues(i).size()
+    while (i < nQueues) {
+      val idx = (from + i) & mask
+      size += queues(idx).size()
       i += 1
     }
     size
   }
 
   override def enqueuedCount(): Long = {
-    val nq   = nQueues
+    val from = ThreadLocalRandom.current().nextInt(nQueues)
     var i    = 0
     var size = 0L
-    while (i < nq) {
-      size += queues(i).enqueuedCount()
+    while (i < nQueues) {
+      val idx = (from + i) & mask
+      size += queues(idx).enqueuedCount()
       i += 1
     }
     size
   }
 
   override def dequeuedCount(): Long = {
-    val nq   = nQueues
+    val from = ThreadLocalRandom.current().nextInt(nQueues)
     var i    = 0
     var size = 0L
-    while (i < nq) {
-      size += queues(i).dequeuedCount()
+    while (i < nQueues) {
+      val idx = (from + i) & mask
+      size += queues(idx).dequeuedCount()
       i += 1
     }
     size
@@ -73,16 +83,20 @@ private[zio] final class PartitionedRingBuffer[A <: AnyRef](
    *   How many partitions to try before giving up
    */
   def offer(a: A, random: ThreadLocalRandom, maxMisses: Int): Boolean = {
-    val maxI = nQueues.min(maxMisses + 1)
-    val from = random.nextInt(nQueues)
-    var i    = 0
-    while (i < maxI) {
+    val maxI   = nQueues.min(maxMisses + 1)
+    val from   = random.nextInt(nQueues)
+    var i      = 0
+    var result = false
+    while (i < maxI && !result) {
       val idx = (from + i) & mask
-      if (queues(idx).offer(a)) return true
+      result = queues(idx).offer(a)
       i += 1
     }
-    false
+    result
   }
+
+  def randomPartition(random: ThreadLocalRandom): RingBuffer[A] =
+    queues(random.nextInt(nQueues))
 
   override def offer(a: A): Boolean =
     offer(a, ThreadLocalRandom.current(), nQueues)
@@ -95,12 +109,11 @@ private[zio] final class PartitionedRingBuffer[A <: AnyRef](
    *   How many partitions to try polling from before giving up
    */
   def poll(default: A, random: ThreadLocalRandom, maxMisses: Int): A = {
-    val nq     = nQueues
     val from   = random.nextInt(nQueues)
     var i      = 0
     var result = null.asInstanceOf[A]
     var misses = 0
-    while ((result eq null) && i < nq && misses <= maxMisses) {
+    while ((result eq null) && i < nQueues && misses <= maxMisses) {
       val idx   = (from + i) & mask
       val queue = queues(idx)
       result = queue.poll(default)
@@ -114,14 +127,46 @@ private[zio] final class PartitionedRingBuffer[A <: AnyRef](
     poll(default, ThreadLocalRandom.current(), nQueues)
 
   override def isEmpty(): Boolean = {
-    val nq = nQueues
-    var i  = 0
-    while (i < nq) {
-      if (!queues(i).isEmpty()) return false
+    val from   = ThreadLocalRandom.current().nextInt(nQueues)
+    var i      = 0
+    var result = true
+    while (result && i < nQueues) {
+      val idx = (from + i) & mask
+      result = queues(idx).isEmpty()
       i += 1
     }
-    true
+    result
   }
 
-  override def isFull(): Boolean = false
+  override def isFull(): Boolean = {
+    val from   = ThreadLocalRandom.current().nextInt(nQueues)
+    var i      = 0
+    var result = true
+    while (result && i < nQueues) {
+      val idx = (from + i) & mask
+      result = queues(idx).isFull()
+      i += 1
+    }
+    result
+  }
+
+  def partitionIterator: Iterator[RingBuffer[A]] = new Iterator[RingBuffer[A]] {
+    private[this] val from    = ThreadLocalRandom.current().nextInt(nQueues)
+    private[this] var i       = 0
+    private[this] val _size   = nQueues
+    private[this] val _mask   = mask
+    private[this] val _queues = queues
+
+    def hasNext: Boolean = i < _size
+
+    def next(): RingBuffer[A] =
+      if (!hasNext) throw new NoSuchElementException("next on empty iterator")
+      else {
+        val idx = (from + i) & _mask
+        val q   = _queues(idx)
+        i += 1
+        q
+      }
+  }
+
 }

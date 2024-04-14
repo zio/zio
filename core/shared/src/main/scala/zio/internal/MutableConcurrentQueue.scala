@@ -31,23 +31,29 @@ private[zio] object MutableConcurrentQueue {
     if (capacity == 1) new OneElementConcurrentQueue()
     else RingBuffer[A](capacity)
 
+  /**
+   * @param preferredCapacity
+   *   The preferred total capacity of the queue. The actual capacity of each
+   *   partition will vary depending on the number of partition and whether
+   *   `roundToPow2` is set to true.
+   * @param roundToPow2
+   *   whether to round the capacity of each partition to the nearest power of
+   *   2.
+   */
+  def boundedPartitioned[A <: AnyRef](preferredCapacity: Int, roundToPow2: Boolean = true): PartitionedRingBuffer[A] =
+    new PartitionedRingBuffer[A](defaultPartitions, preferredCapacity, roundToPow2)
+
   def unbounded[A]: LinkedQueue[A] =
     unbounded[A](addMetrics = true)
 
   def unbounded[A](addMetrics: Boolean = true): LinkedQueue[A] =
     new LinkedQueue[A](addMetrics)
 
-  def unboundedPartitioned[A <: AnyRef](
-    preferredPartitions: Int,
-    addMetrics: Boolean = true
-  ): PartitionedLinkedQueue[A] =
-    new PartitionedLinkedQueue[A](preferredPartitions, addMetrics)
+  def unboundedPartitioned[A <: AnyRef](addMetrics: Boolean = true): PartitionedLinkedQueue[A] =
+    new PartitionedLinkedQueue[A](defaultPartitions, addMetrics)
 
-  def unboundedPartitioned[A <: AnyRef](
-    preferredPartitions: Int,
-    capacity: Int
-  ): PartitionedRingBuffer[A] =
-    new PartitionedRingBuffer[A](preferredPartitions, capacity)
+  private val defaultPartitions =
+    java.lang.Runtime.getRuntime.availableProcessors() << 2
 
   /**
    * Rounds up to the nearest power of 2 and subtracts 1. e.g.,

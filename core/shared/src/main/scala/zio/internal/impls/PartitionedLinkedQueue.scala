@@ -33,24 +33,13 @@ private[zio] final class PartitionedLinkedQueue[A <: AnyRef](
   private[this] val nQueues = mask + 1
   private[this] val queues  = Array.fill(nQueues)(new LinkedQueue[A](addMetrics = addMetrics))
 
-  def size(random: ThreadLocalRandom): Int = {
-    val nq   = nQueues
-    val from = random.nextInt(nQueues)
+  override def size(): Int = {
+    val from = ThreadLocalRandom.current().nextInt(nQueues)
     var i    = 0
     var size = 0
-    while (i < nq) {
+    while (i < nQueues) {
       val idx = (from + i) & mask
       size += queues(idx).size()
-      i += 1
-    }
-    size
-  }
-  override def size(): Int = {
-    val nq   = nQueues
-    var i    = 0
-    var size = 0
-    while (i < nq) {
-      size += queues(i).size()
       i += 1
     }
     size
@@ -58,27 +47,30 @@ private[zio] final class PartitionedLinkedQueue[A <: AnyRef](
 
   override def enqueuedCount(): Long =
     if (addMetrics) {
-      val nq   = nQueues
+      val from = ThreadLocalRandom.current().nextInt(nQueues)
       var i    = 0
       var size = 0L
-      while (i < nq) {
-        size += queues(i).enqueuedCount()
+      while (i < nQueues) {
+        val idx = (from + i) & mask
+        size += queues(idx).enqueuedCount()
         i += 1
       }
       size
-    } else 0
+    } else 0L
 
   override def dequeuedCount(): Long =
     if (addMetrics) {
-      val nq   = nQueues
-      var i    = 0
-      var size = 0L
-      while (i < nq) {
-        size += queues(i).dequeuedCount()
+      val random = ThreadLocalRandom.current()
+      val from   = random.nextInt(nQueues)
+      var i      = 0
+      var size   = 0L
+      while (i < nQueues) {
+        val idx = (from + i) & mask
+        size += queues(idx).dequeuedCount()
         i += 1
       }
       size
-    } else 0
+    } else 0L
 
   def offer(a: A, random: ThreadLocalRandom): Boolean = {
     val idx = random.nextInt(nQueues)
@@ -104,11 +96,10 @@ private[zio] final class PartitionedLinkedQueue[A <: AnyRef](
     offerAll(as, ThreadLocalRandom.current())
 
   def poll(default: A, random: ThreadLocalRandom): A = {
-    val nq     = nQueues
     val from   = random.nextInt(nQueues)
     var i      = 0
     var result = null.asInstanceOf[A]
-    while ((result eq null) && i < nq) {
+    while ((result eq null) && i < nQueues) {
       val idx = (from + i) & mask
       result = queues(idx).poll(default)
       i += 1
@@ -119,20 +110,18 @@ private[zio] final class PartitionedLinkedQueue[A <: AnyRef](
   override def poll(default: A): A =
     poll(default, ThreadLocalRandom.current())
 
-  def isEmpty(random: ThreadLocalRandom): Boolean = {
-    val nq   = nQueues
-    val from = random.nextInt(nQueues)
-    var i    = 0
-    while (i < nq) {
+  override def isEmpty(): Boolean = {
+    val random = ThreadLocalRandom.current()
+    val from   = random.nextInt(nQueues)
+    var i      = 0
+    var result = true
+    while (result && i < nQueues) {
       val idx = (from + i) & mask
-      if (!queues(idx).isEmpty()) return false
+      result = queues(idx).isEmpty()
       i += 1
     }
-    true
+    result
   }
-
-  override def isEmpty(): Boolean =
-    isEmpty(ThreadLocalRandom.current())
 
   override def isFull(): Boolean = false
 }

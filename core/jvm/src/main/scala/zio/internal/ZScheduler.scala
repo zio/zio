@@ -29,19 +29,17 @@ import scala.collection.mutable
  * applications. Inspired by "Making the Tokio Scheduler 10X Faster" by Carl
  * Lerche. [[https://tokio.rs/blog/2019-10-scheduler]]
  */
-private final class ZScheduler(autoBlocking: Boolean, trackBlockedLocations: Boolean = true) extends Executor {
+private final class ZScheduler(autoBlocking: Boolean) extends Executor {
 
-  private[this] val poolSize = java.lang.Runtime.getRuntime.availableProcessors
-  private[this] val cache    = MutableConcurrentQueue.unbounded[ZScheduler.Worker](addMetrics = false)
-  private[this] val globalQueue = {
-    val nPartitions = if (poolSize == 1) poolSize else poolSize << 1
-    MutableConcurrentQueue.unboundedPartitioned[Runnable](nPartitions, addMetrics = false)
-  }
-  private[this] val idle                                    = MutableConcurrentQueue.unbounded[ZScheduler.Worker](addMetrics = false)
-  private[this] val globalLocations                         = makeLocations()
-  private[this] val state                                   = new AtomicInteger(poolSize << 16)
-  private[this] val workers                                 = Array.ofDim[ZScheduler.Worker](poolSize)
-  private[this] val emptyTrace                              = Trace.empty
+  private[this] val poolSize        = java.lang.Runtime.getRuntime.availableProcessors
+  private[this] val cache           = MutableConcurrentQueue.unbounded[ZScheduler.Worker](addMetrics = false)
+  private[this] val globalQueue     = MutableConcurrentQueue.unboundedPartitioned[Runnable](addMetrics = false)
+  private[this] val idle            = MutableConcurrentQueue.unbounded[ZScheduler.Worker](addMetrics = false)
+  private[this] val globalLocations = makeLocations()
+  private[this] val state           = new AtomicInteger(poolSize << 16)
+  private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
+  private[this] val emptyTrace      = Trace.empty
+
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
   (0 until poolSize).foreach { workerId =>
@@ -229,7 +227,7 @@ private final class ZScheduler(autoBlocking: Boolean, trackBlockedLocations: Boo
     } else false
 
   private[this] def makeLocations(): ZScheduler.Locations =
-    if (autoBlocking && trackBlockedLocations) new ZScheduler.Locations.Enabled
+    if (autoBlocking) new ZScheduler.Locations.Enabled
     else ZScheduler.Locations.Disabled
 
   private[this] def makeSupervisor(): ZScheduler.Supervisor =
@@ -247,12 +245,11 @@ private final class ZScheduler(autoBlocking: Boolean, trackBlockedLocations: Boo
       }
 
       override def run(): Unit = {
-        var currentTime         = java.lang.System.currentTimeMillis()
         val identifiedLocations = makeLocations()
         val previousOpCounts    = Array.fill(poolSize)(-1L)
         while (!isInterrupted) {
           var workerId = 0
-          while (workerId != poolSize) {
+          while (workerId < poolSize) {
             val currentWorker = workers(workerId)
             if (currentWorker.active) {
               val currentOpCount  = currentWorker.opCount
@@ -297,12 +294,11 @@ private final class ZScheduler(autoBlocking: Boolean, trackBlockedLocations: Boo
             }
             workerId += 1
           }
-          val deadline = currentTime + 100
+          val deadline = java.lang.System.currentTimeMillis() + 100
           var loop     = true
           while (loop) {
             LockSupport.parkUntil(deadline)
-            currentTime = java.lang.System.currentTimeMillis()
-            loop = currentTime < deadline
+            loop = java.lang.System.currentTimeMillis() < deadline
           }
           Fiber._roots.graduate()
         }
