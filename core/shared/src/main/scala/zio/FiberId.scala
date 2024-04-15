@@ -18,8 +18,6 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import scala.annotation.tailrec
-
 /**
  * The identity of a Fiber, described by the time it began life, and a
  * monotonically increasing sequence number generated from an atomic counter.
@@ -31,6 +29,7 @@ sealed trait FiberId extends Serializable { self =>
 
   final def combine(that: FiberId): FiberId =
     (self, that) match {
+      case (None, None) => None
       case (None, that) => that
       case (that, None) => that
       case (self, that) => FiberId.Composite(self, that)
@@ -45,17 +44,23 @@ sealed trait FiberId extends Serializable { self =>
       case Composite(l, r)   => l.ids ++ r.ids
     }
 
-  final def isNone: Boolean = toSet.forall(_.isNone)
+  final def isNone: Boolean =
+    self match {
+      case None                     => true
+      case FiberId.Runtime(_, _, _) => false
+      case Composite(_, _)          => false
+    }
 
   final def threadName: String = s"zio-fiber-${self.ids.mkString(",")}"
 
   final def toOption: Option[FiberId] = toSet.asInstanceOf[Set[FiberId]].reduceOption(_.combine(_))
 
-  final def toSet: Set[FiberId.Runtime] = self match {
-    case None                          => Set.empty[FiberId.Runtime]
-    case Composite(l, r)               => l.toSet ++ r.toSet
-    case id @ FiberId.Runtime(_, _, _) => Set(id)
-  }
+  final def toSet: Set[FiberId.Runtime] =
+    self match {
+      case None                          => Set.empty[FiberId.Runtime]
+      case id @ FiberId.Runtime(_, _, _) => Set(id)
+      case Composite(l, r)               => l.toSet ++ r.toSet
+    }
 }
 
 object FiberId {
@@ -68,7 +73,7 @@ object FiberId {
 
   private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)
 
-  case object None                                                          extends FiberId
-  final case class Runtime(id: Int, startTimeMillis: Long, location: Trace) extends FiberId
-  final case class Composite(left: FiberId, right: FiberId)                 extends FiberId
+  case object None                                                                        extends FiberId
+  final case class Runtime private[zio] (id: Int, startTimeMillis: Long, location: Trace) extends FiberId
+  final case class Composite private[zio] (left: FiberId, right: FiberId)                 extends FiberId
 }
