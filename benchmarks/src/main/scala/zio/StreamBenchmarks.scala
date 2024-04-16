@@ -275,6 +275,18 @@ class StreamBenchmarks {
   }
 
   @Benchmark
+  def zioIdentityFromFunction2 : Long = {
+    val result = ZStream
+      .fromChunks(zioChunks: _*)
+      .via{
+        ZPipeline.fromFunction2(strmIdFunc)
+      }
+      .runCount
+
+    unsafeRun(result)
+  }
+
+  @Benchmark
   def zioIdentityMap : Long = {
     val result = ZStream
       .fromChunks(zioChunks: _*)
@@ -325,6 +337,18 @@ class StreamBenchmarks {
       .fromChunks(zioChunks: _*)
       .via{
         ZPipeline.fromFunction(strmIncFunc)
+      }
+      .runCount
+
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def zioIncFromFunction2 : Long = {
+    val result = ZStream
+      .fromChunks(zioChunks: _*)
+      .via{
+        ZPipeline.fromFunction2(strmIncFunc)
       }
       .runCount
 
