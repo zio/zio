@@ -164,9 +164,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
             }
           }
         } else {
-          val rnd = ThreadLocalRandom.current()
-          globalQueue.offerAll(worker.localQueue.pollUpTo(128), rnd)
-          globalQueue.offer(runnable, rnd)
+          handleFullWorkerQueue(worker, runnable)
         }
       } else {
         globalQueue.offer(runnable)
@@ -198,9 +196,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
           }
           notify = true
         } else {
-          val rnd = ThreadLocalRandom.current()
-          globalQueue.offerAll(worker.localQueue.pollUpTo(128), rnd)
-          globalQueue.offer(runnable, rnd)
+          handleFullWorkerQueue(worker, runnable)
           notify = true
         }
       } else {
@@ -212,6 +208,17 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
         maybeUnparkWorker(currentState)
       }
       true
+    }
+  }
+
+  private def handleFullWorkerQueue(worker: ZScheduler.Worker, runnable: Runnable): Unit = {
+    val rnd    = ThreadLocalRandom.current
+    val polled = worker.localQueue.pollUpTo(128)
+    globalQueue.offerAll(polled, rnd)
+    val accepted = worker.localQueue.offer(runnable)
+    if (!accepted) {
+      // We should never ever need to come here, this is just a precaution in the case we've introduced a bug
+      globalQueue.offer(runnable, rnd)
     }
   }
 
@@ -259,7 +266,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
                 if (currentRunnable.isInstanceOf[FiberRunnable]) {
                   val fiberRunnable = currentRunnable.asInstanceOf[FiberRunnable]
                   val location      = fiberRunnable.location
-                  if (location ne Trace.empty) {
+                  if (location ne emptyTrace) {
                     val identifiedCount = identifiedLocations.put(location)
                     val submittedCount  = countSubmittedAt(location)
                     if (submittedCount > 64 && identifiedCount >= submittedCount / 2) {
@@ -307,7 +314,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
 
   private[this] def makeWorker(): ZScheduler.Worker =
     new ZScheduler.Worker { self =>
-      val submittedLocations = makeLocations()
+      override val submittedLocations = makeLocations()
 
       override def run(): Unit = {
         var currentBlocking = false
@@ -363,16 +370,12 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
                   if ((worker ne self) && !worker.blocking) {
                     val size = worker.localQueue.size()
                     if (size > 0) {
-                      val runnables = worker.localQueue.pollUpTo(size - size / 2)
-                      if (runnables.nonEmpty) {
-                        var i    = 1
-                        val iter = runnables.chunkIterator
-                        runnable = iter.nextAt(0)
-                        while (iter.hasNextAt(i)) {
-                          val next1 = iter.nextAt(i)
-                          localQueue.offer(next1)
-                          i += 1
-                        }
+                      val chunk = worker.localQueue.pollUpTo(size - size / 2)
+                      val chunkSize = chunk.size
+                      val iter  = chunk.iterator
+                      if (chunkSize != 0) {
+                        runnable = iter.next()
+                        if (chunkSize != 1) localQueue.offerAll(iter, chunkSize - 1)
                         currentBlocking = blocking
                         if (currentBlocking) {
                           val runnables = localQueue.pollUpTo(256)
@@ -483,9 +486,9 @@ private[zio] object ZScheduler {
 
   private object Locations {
 
-    final class Enabled(initialSize: Int = 64) extends Locations {
+    final class Enabled(sizeHint: Int = 64) extends Locations {
       private[this] val locations = mutable.HashMap.empty[Trace, AtomicLong]
-      locations.sizeHint((initialSize / 0.75d).toInt)
+      locations.sizeHint(sizeHint)
 
       def get(trace: Trace): Long = {
         val v = locations.getOrElse(trace, null)
@@ -493,9 +496,7 @@ private[zio] object ZScheduler {
       }
 
       def put(trace: Trace): Long =
-        locations
-          .getOrElseUpdate(trace, new AtomicLong(0L))
-          .getAndIncrement()
+        locations.getOrElseUpdate(trace, new AtomicLong()).getAndIncrement()
     }
 
     object Disabled extends Locations {
@@ -542,8 +543,8 @@ private[zio] object ZScheduler {
     /**
      * The local work queue for this worker.
      */
-    val localQueue: MutableConcurrentQueue[Runnable] =
-      MutableConcurrentQueue.bounded[Runnable](256)
+    val localQueue: RingBufferPow2[Runnable] =
+      RingBufferPow2[Runnable](256)
 
     /**
      * An optional field providing fast access to the next task to be executed

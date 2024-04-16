@@ -72,15 +72,17 @@ private[zio] final class PartitionedLinkedQueue[A <: AnyRef](
       size
     } else 0L
 
-  def offer(a: A, random: ThreadLocalRandom): Boolean = {
+  def offer(a: A, random: ThreadLocalRandom): Unit = {
     val idx = random.nextInt(nQueues)
     queues(idx).offer(a)
   }
 
-  override def offer(a: A): Boolean =
+  override def offer(a: A): Boolean = {
     offer(a, ThreadLocalRandom.current())
+    true
+  }
 
-  def offerAll[A1 <: A](as: Iterable[A1], random: ThreadLocalRandom): Chunk[A1] = {
+  def offerAll[A1 <: A](as: Iterable[A1], random: ThreadLocalRandom): Unit = {
     val from = random.nextInt(nQueues)
     var i    = 0
     val iter = as.iterator
@@ -90,10 +92,12 @@ private[zio] final class PartitionedLinkedQueue[A <: AnyRef](
       queues(idx).offer(value)
       i += 1
     }
+  }
+
+  override def offerAll[A1 <: A](as: Iterable[A1]): Chunk[A1] = {
+    offerAll(as, ThreadLocalRandom.current())
     Chunk.empty
   }
-  override def offerAll[A1 <: A](as: Iterable[A1]): Chunk[A1] =
-    offerAll(as, ThreadLocalRandom.current())
 
   def poll(default: A, random: ThreadLocalRandom): A = {
     val from   = random.nextInt(nQueues)

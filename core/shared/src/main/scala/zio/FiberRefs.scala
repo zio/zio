@@ -34,9 +34,11 @@ final class FiberRefs private (
   /**
    * Returns a new fiber refs with the specified ref deleted from it.
    */
-  def delete(fiberRef: FiberRef[_]): FiberRefs =
-    if (!fiberRefLocals.contains(fiberRef)) self
-    else FiberRefs(fiberRefLocals - fiberRef)
+  def delete(fiberRef: FiberRef[_]): FiberRefs = {
+    val newMap = fiberRefLocals - fiberRef
+    if (newMap eq fiberRefLocals) self
+    else FiberRefs(newMap)
+  }
 
   /**
    * Returns a set of each `FiberRef` in this collection.
@@ -188,22 +190,24 @@ final class FiberRefs private (
   )(fiberRef: FiberRef[A], value: A): FiberRefs = {
     val oldEntry = fiberRefLocals.getOrElse(fiberRef, null)
 
-    val oldStack = if (oldEntry ne null) oldEntry.stack.asInstanceOf[::[StackEntry[A]]] else null
-    val oldDepth = if (oldEntry ne null) oldEntry.depth else 0
     val newEntry =
       if (oldEntry eq null) Value(::(StackEntry(fiberId, value, 0), List.empty), 1)
-      else if (oldStack.head.id == fiberId) {
-        val oldValue = oldStack.head.value
-        if (oldValue == value) oldEntry
+      else {
+        val oldStack = oldEntry.stack.asInstanceOf[::[StackEntry[A]]]
+        val oldDepth = oldEntry.depth
+        if (oldStack.head.id == fiberId) {
+          val oldValue = oldStack.head.value
+          if (oldValue == value) oldEntry
+          else
+            Value(
+              ::(StackEntry(fiberId, value, oldStack.head.version + 1), oldStack.tail),
+              oldEntry.depth
+            )
+        } else if (oldStack.head.value == value)
+          oldEntry
         else
-          Value(
-            ::(StackEntry(fiberId, value, oldStack.head.version + 1), oldStack.tail),
-            oldEntry.depth
-          )
-      } else if (oldStack.head.value == value)
-        oldEntry
-      else
-        Value(::(StackEntry(fiberId, value, 0), oldStack), oldDepth + 1)
+          Value(::(StackEntry(fiberId, value, 0), oldStack), oldDepth + 1)
+      }
 
     if (oldEntry eq newEntry) self
     else FiberRefs(fiberRefLocals.updated(fiberRef, newEntry))
@@ -290,22 +294,22 @@ object FiberRefs {
     def diff(oldValue: FiberRefs, newValue: FiberRefs): Patch = {
       val (removed, patch) = newValue.fiberRefLocals.foldLeft[(FiberRefs, Patch)](oldValue -> empty) {
         case ((fiberRefs, patch), (fiberRef, Value(StackEntry(_, newValue, _) :: _, _))) =>
+          type V = fiberRef.Value
           fiberRefs.getOrNull(fiberRef) match {
             case null =>
-              fiberRefs.delete(fiberRef) -> patch.combine(
-                Add(fiberRef.asInstanceOf[FiberRef[fiberRef.Value]], newValue.asInstanceOf[fiberRef.Value])
-              )
+              fiberRefs -> patch.combine(Add(fiberRef.asInstanceOf[FiberRef[V]], newValue.asInstanceOf[V]))
             case oldValue =>
-              if (oldValue == newValue)
-                fiberRefs.delete(fiberRef) -> patch
-              else {
-                fiberRefs.delete(fiberRef) -> patch.combine(
-                  Update(
-                    fiberRef.asInstanceOf[FiberRef.WithPatch[fiberRef.Value, fiberRef.Patch]],
-                    fiberRef.diff(oldValue.asInstanceOf[fiberRef.Value], newValue.asInstanceOf[fiberRef.Value])
+              val patch0 =
+                if (oldValue == newValue) patch
+                else {
+                  patch.combine(
+                    Update(
+                      fiberRef.asInstanceOf[FiberRef.WithPatch[V, fiberRef.Patch]],
+                      fiberRef.diff(oldValue.asInstanceOf[V], newValue.asInstanceOf[V])
+                    )
                   )
-                )
-              }
+                }
+              fiberRefs.delete(fiberRef) -> patch0
           }
       }
       removed.fiberRefLocals.foldLeft(patch) { case (patch, (fiberRef, _)) => patch.combine(Remove(fiberRef)) }
