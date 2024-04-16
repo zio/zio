@@ -271,7 +271,18 @@ object ZPipelineSpec extends ZIOBaseSpec {
                 .exit
           } yield assert(result)(fails(equalTo(EncodingException("Not a valid hex digit: 'g'"))))
         }
-      )
+      ),
+      test("fromFunction2") {
+        ZStream
+          .range(0, 20, 5)
+          .via{
+            ZPipeline.fromFunction2 { strm: ZStream[Any, Any, Int] =>
+              strm.map(_ + 1)
+            }
+          }
+          .runCollect
+          .map(assert(_)(equalTo(Chunk.range(1, 21))))
+      }
     )
 
   val weirdStringGenForSplitLines: Gen[Any, Chunk[String]] = Gen

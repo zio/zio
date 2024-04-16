@@ -183,6 +183,19 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
                 )
               }
 
+            case ZChannel.DeferedUpstream(mkChannel) =>
+              val inpAsChannel: ZChannel[Env, Any, Any, Any, Any, Any, Any] = execToPullingChannel(input)
+              val nextChannel = mkChannel(inpAsChannel.asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]])
+
+              val previousInput = input
+              input = null
+              addFinalizer { exit =>
+                val effect = restorePipe(exit, previousInput)
+
+                if (effect ne null) effect
+                else ZIO.unit
+              }
+              currentChannel = nextChannel
             case ZChannel.PipeTo(left, right) =>
               val previousInput = input
 
@@ -744,6 +757,49 @@ private[zio] object ChannelExecutor {
 
     read()
   }
+
+  private[zio] def execToPull[Env](exec : ErasedExecutor[Env])(implicit trace: Trace) : ZIO[Env, Any, Either[Any, Any]] = {
+    def interpret(st : ChannelState[Env, Any]) : ZIO[Env, Any, Either[Any, Any]] =
+      st match {
+        case ChannelState.Done =>
+          exec.getDone match {
+            case Exit.Success(done)  => ZIO.succeed(Left(done))
+            case Exit.Failure(cause) => ZIO.refailCause(cause)
+          }
+        case ChannelState.Emit =>
+          ZIO.succeed(Right(exec.getEmit))
+        case ChannelState.Effect(zio) =>
+          zio *> interpret(exec.run())
+        case r @ ChannelState.Read(upstream, onEffect, onEmit, onDone) =>
+          ChannelExecutor.readUpstream[Env, Any, Any, Either[Any, Any]](
+            r.asInstanceOf[ChannelState.Read[Env, Any]],
+            () => interpret(exec.run()),
+            ZIO.refailCause
+          )
+      }
+
+    ZIO.succeed(exec.run()).flatMap(interpret)
+  }
+
+  private[zio] def execToPullingChannel[Env](exec : ErasedExecutor[Env])(implicit trace: Trace) : ZChannel[Env, Any, Any, Any, Any, Any, Any] = {
+    val pullExec = execToPull(exec)
+    lazy val ch : ZChannel[Env, Any, Any, Any, Any, Any, Any] = {
+      ZChannel
+        .fromZIO(pullExec)
+        .foldCauseChannel(
+          ZChannel.refailCause(_),
+          {
+            case Right(v) =>
+              ZChannel.write(v) *> ch
+            case Left(done) =>
+              ZChannel.succeedNow(done)
+          }
+        )
+    }
+    ch
+  }
+
+
 }
 
 /**
