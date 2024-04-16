@@ -758,45 +758,32 @@ private[zio] object ChannelExecutor {
     read()
   }
 
-  private[zio] def execToPull[Env](exec : ErasedExecutor[Env])(implicit trace: Trace) : ZIO[Env, Any, Either[Any, Any]] = {
-    def interpret(st : ChannelState[Env, Any]) : ZIO[Env, Any, Either[Any, Any]] =
+  private[zio] def execToPullingChannel[Env](exec : ErasedExecutor[Env])(implicit trace: Trace) : ZChannel[Env, Any, Any, Any, Any, Any, Any] = {
+    def ch2(st : ChannelState[Env, Any]) : ZChannel[Env, Any, Any, Any, Any, Any, Any] = {
       st match {
         case ChannelState.Done =>
           exec.getDone match {
-            case Exit.Success(done)  => ZIO.succeed(Left(done))
-            case Exit.Failure(cause) => ZIO.refailCause(cause)
+            case Exit.Success(res) =>
+              ZChannel.succeedNow(res)
+            case Exit.Failure(c) =>
+              ZChannel.refailCause(c)
           }
         case ChannelState.Emit =>
-          ZIO.succeed(Right(exec.getEmit))
+              ZChannel.write(exec.getEmit)  *>
+              ch2(exec.run())
         case ChannelState.Effect(zio) =>
-          zio *> interpret(exec.run())
+          ZChannel.fromZIO(zio) *> ch2(exec.run())
         case r @ ChannelState.Read(upstream, onEffect, onEmit, onDone) =>
-          ChannelExecutor.readUpstream[Env, Any, Any, Either[Any, Any]](
-            r.asInstanceOf[ChannelState.Read[Env, Any]],
-            () => interpret(exec.run()),
-            ZIO.refailCause
-          )
+          ZChannel.fromZIO {
+            ChannelExecutor.readUpstream[Env, Any, Any, Any](
+              r.asInstanceOf[ChannelState.Read[Env, Any]],
+              () => ZIO.unit,
+              ZIO.refailCause
+            )
+          } *> ch2(exec.run())
       }
-
-    ZIO.succeed(exec.run()).flatMap(interpret)
-  }
-
-  private[zio] def execToPullingChannel[Env](exec : ErasedExecutor[Env])(implicit trace: Trace) : ZChannel[Env, Any, Any, Any, Any, Any, Any] = {
-    val pullExec = execToPull(exec)
-    lazy val ch : ZChannel[Env, Any, Any, Any, Any, Any, Any] = {
-      ZChannel
-        .fromZIO(pullExec)
-        .foldCauseChannel(
-          ZChannel.refailCause(_),
-          {
-            case Right(v) =>
-              ZChannel.write(v) *> ch
-            case Left(done) =>
-              ZChannel.succeedNow(done)
-          }
-        )
     }
-    ch
+    ZChannel.suspend(ch2(exec.run()))
   }
 
 
