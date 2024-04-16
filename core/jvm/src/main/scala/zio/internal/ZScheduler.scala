@@ -370,12 +370,12 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
                   if ((worker ne self) && !worker.blocking) {
                     val size = worker.localQueue.size()
                     if (size > 0) {
-                      val chunk     = worker.localQueue.pollUpTo(size - size / 2)
-                      val chunkSize = chunk.size
-                      val iter      = chunk.iterator
-                      if (chunkSize != 0) {
+                      val runnables  = worker.localQueue.pollUpTo(size - size / 2)
+                      val nRunnables = runnables.size
+                      if (nRunnables > 0) {
+                        val iter = runnables.iterator
                         runnable = iter.next()
-                        if (chunkSize != 1) localQueue.offerAll(iter, chunkSize - 1)
+                        if (nRunnables > 1) localQueue.offerAll(iter, nRunnables - 1)
                         currentBlocking = blocking
                         if (currentBlocking) {
                           val runnables = localQueue.pollUpTo(256)
@@ -496,7 +496,7 @@ private[zio] object ZScheduler {
       }
 
       def put(trace: Trace): Long =
-        locations.getOrElseUpdate(trace, new AtomicLong()).getAndIncrement()
+        locations.getOrElseUpdate(trace, new AtomicLong(0L)).getAndIncrement()
     }
 
     object Disabled extends Locations {
