@@ -54,7 +54,7 @@ final class FiberRefs private (
    * invocation of [[forkAs]] when we already know that the map will not be
    * transformed
    */
-  @volatile private var needsTransformWhenForked: Boolean = true
+  private var needsTransformWhenForked: Boolean = true
 
   /**
    * Forks this collection of fiber refs as the specified child fiber id. This
@@ -63,18 +63,21 @@ final class FiberRefs private (
    */
   def forkAs(childId: FiberId.Runtime): FiberRefs =
     if (needsTransformWhenForked) {
-      val childFiberRefLocals =
-        fiberRefLocals.transform { case (fiberRef, entry @ Value(stack, depth)) =>
-          val oldValue = stack.head.value.asInstanceOf[fiberRef.Value]
-          val newValue = fiberRef.patch(fiberRef.fork)(oldValue)
-          if (oldValue == newValue) entry
-          else Value(::(StackEntry(childId, newValue, 0), stack), depth + 1)
+      var modified = false
+      val childMap = fiberRefLocals.transform { case (fiberRef, entry @ Value(stack, depth)) =>
+        val oldValue = stack.head.value.asInstanceOf[fiberRef.Value]
+        val newValue = fiberRef.patch(fiberRef.fork)(oldValue)
+        if (oldValue == newValue) entry
+        else {
+          modified = true
+          Value(::(StackEntry(childId, newValue, 0), stack), depth + 1)
         }
-      if (fiberRefLocals eq childFiberRefLocals) {
+      }
+
+      if (modified) FiberRefs(childMap)
+      else {
         needsTransformWhenForked = false
         self
-      } else {
-        FiberRefs(childFiberRefLocals)
       }
     } else self
 
