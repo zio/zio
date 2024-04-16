@@ -370,9 +370,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
                   if ((worker ne self) && !worker.blocking) {
                     val size = worker.localQueue.size()
                     if (size > 0) {
-                      val chunk = worker.localQueue.pollUpTo(size - size / 2)
+                      val chunk     = worker.localQueue.pollUpTo(size - size / 2)
                       val chunkSize = chunk.size
-                      val iter  = chunk.iterator
+                      val iter      = chunk.iterator
                       if (chunkSize != 0) {
                         runnable = iter.next()
                         if (chunkSize != 1) localQueue.offerAll(iter, chunkSize - 1)
