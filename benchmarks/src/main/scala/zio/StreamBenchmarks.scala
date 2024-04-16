@@ -240,6 +240,106 @@ class StreamBenchmarks {
     unsafeRun(result)
   }
 
+  val strmIdFunc : ZStream[Any, Nothing, Int] => ZStream[Any, Nothing, Int] = identity
+
+  @Benchmark
+  def zioIdentityDirect : Long = {
+    val result = strmIdFunc(ZStream
+        .fromChunks(zioChunks: _*)
+      )
+      .runCount
+
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def zioIdentityVia : Long = {
+    val result = ZStream
+      .fromChunks(zioChunks: _*)
+      .via(ZPipeline.map(identity[Int]))
+      .runCount
+
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def zioIdentityFromFunction : Long = {
+    val result = ZStream
+      .fromChunks(zioChunks: _*)
+      .via{
+        ZPipeline.fromFunction(strmIdFunc)
+      }
+      .runCount
+
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def zioIdentityMap : Long = {
+    val result = ZStream
+      .fromChunks(zioChunks: _*)
+      .map(identity)
+      .runCount
+
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def zioIdentityMapChunks : Long = {
+    val result = ZStream
+      .fromChunks(zioChunks: _*)
+      .chunks
+      .map(identity)
+      .flattenChunks
+      .runCount
+
+    unsafeRun(result)
+  }
+
+  val incIntFunc : Int => Int = _ + 1
+  val strmIncFunc : ZStream[Any, Nothing, Int] => ZStream[Any, Nothing, Int] = _.map(incIntFunc)
+
+  @Benchmark
+  def zioIncDirect : Long = {
+    val result = strmIncFunc(ZStream
+      .fromChunks(zioChunks: _*)
+    )
+    .runCount
+
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def zioIncVia : Long = {
+    val result = ZStream
+      .fromChunks(zioChunks: _*)
+      .via(ZPipeline.map(incIntFunc))
+      .runCount
+
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def zioIncFromFunction : Long = {
+    val result = ZStream
+      .fromChunks(zioChunks: _*)
+      .via{
+        ZPipeline.fromFunction(strmIncFunc)
+      }
+      .runCount
+
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def zioIncMap : Long = {
+    val result = ZStream
+      .fromChunks(zioChunks: _*)
+      .map(incIntFunc)
+      .runCount
+
+    unsafeRun(result)
+  }
 }
 
 @State(JScope.Thread)
