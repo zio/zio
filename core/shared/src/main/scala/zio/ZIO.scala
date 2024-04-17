@@ -5210,17 +5210,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       self.refineOrDie { case e: E1 => e }
   }
 
-  final class ProvideSomeLayer[R0, -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
-    def apply[E1 >: E, R1](
-      layer: => ZLayer[R0, E1, R1]
-    )(implicit
-      ev: R0 with R1 <:< R,
-      tagged: EnvironmentTag[R1],
-      trace: Trace
-    ): ZIO[R0, E1, A] =
-      self.asInstanceOf[ZIO[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
-  }
-
   final class UpdateService[-R, +E, +A, M](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[R1 <: R with M](
       f: M => M
