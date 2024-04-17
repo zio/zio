@@ -240,130 +240,52 @@ class StreamBenchmarks {
     unsafeRun(result)
   }
 
-  val strmIdFunc : ZStream[Any, Nothing, Int] => ZStream[Any, Nothing, Int] = identity
+  val chunkToConst : Chunk[Int] => Int = _ => 1
+  val strmChunkToStrmConsts : ZStream[Any, Nothing, Chunk[Int]] => ZStream[Any, Nothing, Int] = _.map(chunkToConst)
 
   @Benchmark
-  def zioIdentityDirect : Long = {
-    val result = strmIdFunc(ZStream
-        .fromChunks(zioChunks: _*)
-      )
-      .runCount
+  def zioChunkToConstDirect : Long = {
+    val result =
+      strmChunkToStrmConsts(ZStream
+        .fromChunks(zioChunks: _*).chunks
+      ).runCount
 
     unsafeRun(result)
   }
 
   @Benchmark
-  def zioIdentityVia : Long = {
-    val result = ZStream
-      .fromChunks(zioChunks: _*)
-      .via(ZPipeline.map(identity[Int]))
-      .runCount
-
-    unsafeRun(result)
-  }
-
-  @Benchmark
-  def zioIdentityFromFunction : Long = {
-    val result = ZStream
-      .fromChunks(zioChunks: _*)
-      .via{
-        ZPipeline.fromFunction(strmIdFunc)
-      }
-      .runCount
-
-    unsafeRun(result)
-  }
-
-  @Benchmark
-  def zioIdentityFromFunction2 : Long = {
-    val result = ZStream
-      .fromChunks(zioChunks: _*)
-      .via{
-        ZPipeline.fromFunction2(strmIdFunc)
-      }
-      .runCount
-
-    unsafeRun(result)
-  }
-
-  @Benchmark
-  def zioIdentityMap : Long = {
-    val result = ZStream
-      .fromChunks(zioChunks: _*)
-      .map(identity)
-      .runCount
-
-    unsafeRun(result)
-  }
-
-  @Benchmark
-  def zioIdentityMapChunks : Long = {
+  def zioChunkToConstBaseline : Long = {
     val result = ZStream
       .fromChunks(zioChunks: _*)
       .chunks
-      .map(identity)
-      .flattenChunks
-      .runCount
-
-    unsafeRun(result)
-  }
-
-  val incIntFunc : Int => Int = _ + 1
-  val strmIncFunc : ZStream[Any, Nothing, Int] => ZStream[Any, Nothing, Int] = _.map(incIntFunc)
-
-  @Benchmark
-  def zioIncDirect : Long = {
-    val result = strmIncFunc(ZStream
-      .fromChunks(zioChunks: _*)
-    )
-    .runCount
-
-    unsafeRun(result)
-  }
-
-  @Benchmark
-  def zioIncVia : Long = {
-    val result = ZStream
-      .fromChunks(zioChunks: _*)
-      .via(ZPipeline.map(incIntFunc))
+      .via(ZPipeline.map(chunkToConst))
       .runCount
 
     unsafeRun(result)
   }
 
   @Benchmark
-  def zioIncFromFunction : Long = {
-    val result = ZStream
+  def zioChunkToConstFromFunction : Long = {
+    val result =ZStream
       .fromChunks(zioChunks: _*)
-      .via{
-        ZPipeline.fromFunction(strmIncFunc)
-      }
+      .chunks
+      .via(ZPipeline.fromFunction(strmChunkToStrmConsts))
       .runCount
 
     unsafeRun(result)
   }
 
   @Benchmark
-  def zioIncFromFunction2 : Long = {
-    val result = ZStream
+  def zioChunkToConstFromFunction2 : Long = {
+    val result =ZStream
       .fromChunks(zioChunks: _*)
-      .via{
-        ZPipeline.fromFunction2(strmIncFunc)
-      }
+      .chunks
+      .via(ZPipeline.fromFunction2(strmChunkToStrmConsts))
       .runCount
 
     unsafeRun(result)
   }
 
-  @Benchmark
-  def zioIncMap : Long = {
-    val result = ZStream
-      .fromChunks(zioChunks: _*)
-      .map(incIntFunc)
-      .runCount
-
-    unsafeRun(result)
-  }
 }
 
 @State(JScope.Thread)
