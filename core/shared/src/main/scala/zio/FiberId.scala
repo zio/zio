@@ -33,15 +33,15 @@ sealed trait FiberId extends Serializable { self =>
    */
   final def combine(that: FiberId): FiberId =
     self match {
-      case FiberId.None =>
+      case None =>
         that match {
-          case FiberId.None => None // (None, None)
-          case _            => that // (None, that)
+          case None => None // (None, None)
+          case _    => that // (None, that)
         }
       case _ =>
         that match {
-          case FiberId.None => self                          // (self, None)
-          case _            => FiberId.Composite(self, that) // (self, that)
+          case None => self                  // (self, None)
+          case _    => Composite(self, that) // (self, that)
         }
     }
 
@@ -56,8 +56,8 @@ sealed trait FiberId extends Serializable { self =>
 
   final def isNone: Boolean =
     self match {
-      case None                     => true
-      case FiberId.Runtime(_, _, _) => false
+      case None             => true
+      case Runtime(_, _, _) => false
       case Composite(l, r) =>
         try l.isNone && r.isNone
         catch {
@@ -72,9 +72,9 @@ sealed trait FiberId extends Serializable { self =>
 
   final def toSet: Set[FiberId.Runtime] =
     self match {
-      case None                          => Set.empty[FiberId.Runtime]
-      case id @ FiberId.Runtime(_, _, _) => Set(id)
-      case Composite(l, r)               => l.toSet ++ r.toSet
+      case None                  => Set.empty[FiberId.Runtime]
+      case id @ Runtime(_, _, _) => Set(id)
+      case Composite(l, r)       => l.toSet ++ r.toSet
     }
 }
 
