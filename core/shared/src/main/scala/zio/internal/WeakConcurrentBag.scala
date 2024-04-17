@@ -40,7 +40,7 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
 
   def withAutoGc(every: Duration): WeakConcurrentBag[A] = {
     if (autoGc.compareAndSet(false, true)) {
-      assert(every.toSeconds >= 1, "Auto-gc interval must be >= 1 second")
+      assert(every.toMillis >= 1000, "Auto-gc interval must be >= 1 second")
 
       val thread = new GcThread(every)
       thread.setName(s"zio.internal.WeakConcurrentBag.GcThread")
