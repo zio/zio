@@ -18,8 +18,6 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import scala.annotation.tailrec
-
 /**
  * The identity of a Fiber, described by the time it began life, and a
  * monotonically increasing sequence number generated from an atomic counter.
@@ -29,11 +27,22 @@ sealed trait FiberId extends Serializable { self =>
 
   final def <>(that: FiberId): FiberId = self.combine(that)
 
+  /**
+   * Implemented this way and not just pattern matching on (self, that) because
+   * of: https://github.com/zio/zio/pull/8746#discussion_r1567448064
+   */
   final def combine(that: FiberId): FiberId =
-    (self, that) match {
-      case (None, that) => that
-      case (that, None) => that
-      case (self, that) => FiberId.Composite(self, that)
+    self match {
+      case None =>
+        that match {
+          case None => None // (None, None)
+          case _    => that // (None, that)
+        }
+      case _ =>
+        that match {
+          case None => self                  // (self, None)
+          case _    => Composite(self, that) // (self, that)
+        }
     }
 
   final def getOrElse(that: => FiberId): FiberId = if (isNone) that else self
@@ -45,17 +54,28 @@ sealed trait FiberId extends Serializable { self =>
       case Composite(l, r)   => l.ids ++ r.ids
     }
 
-  final def isNone: Boolean = toSet.forall(_.isNone)
+  final def isNone: Boolean =
+    self match {
+      case None             => true
+      case Runtime(_, _, _) => false
+      case Composite(l, r) =>
+        try l.isNone && r.isNone
+        catch {
+          // Can stack overflow for deeply nested fiber ids
+          case _: StackOverflowError => toSet.forall(_.isNone)
+        }
+    }
 
   final def threadName: String = s"zio-fiber-${self.ids.mkString(",")}"
 
   final def toOption: Option[FiberId] = toSet.asInstanceOf[Set[FiberId]].reduceOption(_.combine(_))
 
-  final def toSet: Set[FiberId.Runtime] = self match {
-    case None                          => Set.empty[FiberId.Runtime]
-    case Composite(l, r)               => l.toSet ++ r.toSet
-    case id @ FiberId.Runtime(_, _, _) => Set(id)
-  }
+  final def toSet: Set[FiberId.Runtime] =
+    self match {
+      case None                  => Set.empty[FiberId.Runtime]
+      case id @ Runtime(_, _, _) => Set(id)
+      case Composite(l, r)       => l.toSet ++ r.toSet
+    }
 }
 
 object FiberId {
