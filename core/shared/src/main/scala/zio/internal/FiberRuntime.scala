@@ -21,9 +21,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.annotation.tailrec
 import java.util.{Set => JavaSet}
 import java.util.concurrent.atomic.AtomicBoolean
+
 import zio._
 import zio.metrics.{Metric, MetricLabel}
-
 import zio.Exit.Failure
 import zio.Exit.Success
 import zio.internal.SpecializationHelpers.SpecializeInt
@@ -1381,12 +1381,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 }
 
 object FiberRuntime {
-  private[zio] final val MaxTrampolinesBeforeYield = 5
-  private[zio] final val MaxForksBeforeYield       = 128
-  private[zio] final val MaxOperationsBeforeYield  = 1024 * 10
-  private[zio] final val MaxDepthBeforeTrampoline  = 300
-  private[zio] final val MaxWorkStealingDepth      = 150
-  private[zio] final val WorkStealingSafetyMargin  = 50
+  private[zio] final val MaxForksBeforeYield      = 128
+  private[zio] final val MaxOperationsBeforeYield = 1024 * 10
+  private[zio] final val MaxDepthBeforeTrampoline = 300
+  private[zio] final val MaxWorkStealingDepth     = 150
+  private[zio] final val WorkStealingSafetyMargin = 50
 
   private[zio] final val IgnoreContinuation: Any => Unit = _ => ()
 

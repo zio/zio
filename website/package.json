@@ -16,7 +16,7 @@
     "@babel/plugin-transform-parameters": "^7.18.8",
     "@bytebrain.ai/bytebrain-ui": "0.0.8",
     "@docusaurus/core": "^2.2.0",
-    "@docusaurus/plugin-client-redirects": "3.1.1",
+    "@docusaurus/plugin-client-redirects": "^2.2.0",
     "@docusaurus/preset-classic": "^2.2.0",
     "@docusaurus/theme-mermaid": "^2.2.0",
     "@docusaurus/theme-search-algolia": "^2.2.0",
@@ -106,7 +106,7 @@
   },
   "devDependencies": {
     "@tsconfig/docusaurus": "2.0.2",
-    "@types/react": "18.2.77",
+    "@types/react": "18.2.79",
     "@types/react-helmet": "6.1.9",
     "@types/react-router-dom": "5.3.3",
     "typescript": "5.4.5"
