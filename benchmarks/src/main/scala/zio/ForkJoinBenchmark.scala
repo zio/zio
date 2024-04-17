@@ -26,8 +26,8 @@ import java.util.concurrent.TimeUnit
  * JDK 17 (ZScheduler)
  * [info] Benchmark                                    (n)   Mode  Cnt     Score     Error  Units
  * [info] ForkJoinBenchmark.catsForkJoin             10000  thrpt   10  2906.462 ±  14.976  ops/s
- * [info] ForkJoinBenchmark.zioForkJoin              10000  thrpt   10  1439.081 ±  47.475  ops/s
- * [info] ForkJoinBenchmark.zioForkJoinNoFiberRoots  10000  thrpt   10  3919.496 ± 218.537  ops/s
+ * [info] ForkJoinBenchmark.zioForkJoin              10000  thrpt   10  1931.372 ±  19.676  ops/s
+ * [info] ForkJoinBenchmark.zioForkJoinNoFiberRoots  10000  thrpt   10  4812.394 ± 114.765  ops/s
  *
  * JDK 21 (Loom)
  * [info] Benchmark                                    (n)   Mode  Cnt     Score    Error  Units
