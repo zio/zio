@@ -6,7 +6,6 @@ import zio.{Chunk, Duration, Unsafe}
 import java.lang.ref.WeakReference
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.locks.LockSupport
 import java.util.function.Predicate
 import scala.annotation.tailrec
 
@@ -38,15 +37,18 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
     }
   }
 
+  /**
+   * Schedules a thread (if not already running) which will wake up on the
+   * specified interval and remove dead references from long term storage by
+   * running `gc(false)`.
+   *
+   * @note
+   *   this method is only supported on the JVM. On Scala JS and Scala Native,
+   *   it is a no-op.
+   */
   def withAutoGc(every: Duration): WeakConcurrentBag[A] = {
     if (autoGc.compareAndSet(false, true)) {
-      assert(every.toMillis >= 1000, "Auto-gc interval must be >= 1 second")
-
-      val thread = new GcThread(every)
-      thread.setName(s"zio.internal.WeakConcurrentBag.GcThread")
-      thread.setPriority(4)
-      thread.setDaemon(true)
-      thread.start()
+      WeakConcurrentBagGc.start(self, every)
     }
     self
   }
@@ -60,7 +62,7 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
 
     if (flushed.nonEmpty) {
       addToLongTermStorage(flushed)
-      if (graduates.size() > nurseryActualSize) gc(force = false)
+      if (graduates.size() > nurseryActualSize) gc(false)
     }
   }
 
@@ -70,7 +72,7 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
    */
   final def gc(): Unit = gc(true)
 
-  final private def gc(force: Boolean): Unit = {
+  final def gc(force: Boolean): Unit = {
     val lockAcquired = gcStatus.compareAndSet(false, true)
 
     // NOTE: try-finally most probably not needed; just being extra cautious not to accidentally lock GC
@@ -177,18 +179,6 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
   def size = graduates.size() + nursery.size()
 
   override final def toString(): String = iterator.mkString("WeakConcurrentBag(", ",", ")")
-
-  private final class GcThread(sleepFor: Duration) extends Thread {
-    override def run(): Unit = {
-      val sleepForNanos = sleepFor.toNanos
-      while (!isInterrupted) {
-        LockSupport.parkNanos(sleepForNanos)
-        // We clear the long-term storage first so that we don't iterate over the new elements that were flushed to it
-        gc(false)
-        flushNurseryToLongTermStorage()
-      }
-    }
-  }
 }
 
 private[zio] object WeakConcurrentBag {
@@ -204,4 +194,5 @@ private[zio] object WeakConcurrentBag {
   object IsAlive {
     val always: IsAlive[Any] = _ => true
   }
+
 }
