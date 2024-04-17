@@ -68,7 +68,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             val cb = (exit: Exit[_, _]) => k(Exit.Success(exit.asInstanceOf[Exit[E, A]]))
             tell(FiberMessage.Stateful { (fiber, _) =>
               if (fiber._exitValue ne null) cb(fiber._exitValue)
-              else fiber.addObserver(cb)
+              else fiber.addObserver(cb)(Unsafe.unsafe)
             })
             Left(ZIO.succeed(tell(FiberMessage.Stateful { (fiber, _) =>
               fiber.removeObserver(cb)
@@ -176,7 +176,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private[zio] def addObserver(observer: Exit[E, A] => Unit): Unit =
+  private[zio] def addObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit =
     if (_exitValue ne null) observer(_exitValue)
     else observers = observer :: observers
 
