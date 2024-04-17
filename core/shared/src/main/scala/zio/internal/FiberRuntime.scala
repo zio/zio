@@ -1291,7 +1291,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def startConcurrently(effect: ZIO[_, E, A]): Unit =
     tell(FiberMessage.Resume(effect))
 
-  private[zio] def startSuspended(): ZIO[_, E, A] => Any = {
+  private[zio] def startSuspended()(implicit unsafe: Unsafe): ZIO[_, E, A] => Any = {
     val alreadyCalled = new AtomicBoolean(false)
     val callback = (effect: ZIO[_, E, A]) => {
       if (alreadyCalled.compareAndSet(false, true)) {
