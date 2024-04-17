@@ -58,7 +58,12 @@ sealed trait FiberId extends Serializable { self =>
     self match {
       case None                     => true
       case FiberId.Runtime(_, _, _) => false
-      case Composite(_, _)          => false
+      case Composite(l, r) =>
+        try l.isNone && r.isNone
+        catch {
+          // Can stack overflow for deeply nested fiber ids
+          case _: StackOverflowError => toSet.forall(_.isNone)
+        }
     }
 
   final def threadName: String = s"zio-fiber-${self.ids.mkString(",")}"
@@ -83,7 +88,7 @@ object FiberId {
 
   private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)
 
-  case object None                                                                        extends FiberId
-  final case class Runtime private[zio] (id: Int, startTimeMillis: Long, location: Trace) extends FiberId
-  final case class Composite private[zio] (left: FiberId, right: FiberId)                 extends FiberId
+  case object None                                                          extends FiberId
+  final case class Runtime(id: Int, startTimeMillis: Long, location: Trace) extends FiberId
+  final case class Composite(left: FiberId, right: FiberId)                 extends FiberId
 }
