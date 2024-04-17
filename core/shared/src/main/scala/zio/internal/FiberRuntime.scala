@@ -20,11 +20,10 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.tailrec
 import java.util.{Set => JavaSet}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.AtomicBoolean
 import zio._
 import zio.metrics.{Metric, MetricLabel}
 
-import java.nio.channels.ClosedByInterruptException
 import zio.Exit.Failure
 import zio.Exit.Success
 import zio.internal.SpecializationHelpers.SpecializeInt
@@ -51,10 +50,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _stack          = null.asInstanceOf[Array[Continuation]]
   private var _stackSize      = 0
   private val emptyTrace      = Trace.empty
-  private val nForkedFibers   = new AtomicInteger(0)
 
-  private[zio] def shouldYieldBeforeFork(): Boolean =
-    (nForkedFibers.incrementAndGet() % FiberRuntime.MaxForksBeforeYield) == 0
+  private var _forksSinceYield = 0
+
+  private[zio] def shouldYieldBeforeFork(): Boolean = {
+    _forksSinceYield += 1
+    _forksSinceYield >= FiberRuntime.MaxForksBeforeYield
+  }
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
     val tags = getFiberRef(FiberRef.currentTags)
@@ -402,6 +404,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           }
         } catch {
           case AsyncJump =>
+            _forksSinceYield = 0
             // Terminate this evaluation, async resumption will continue evaluation:
             effect = null
 
@@ -1379,7 +1382,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
 object FiberRuntime {
   private[zio] final val MaxTrampolinesBeforeYield = 5
-  private[zio] final val MaxForksBeforeYield       = 100
+  private[zio] final val MaxForksBeforeYield       = 128
   private[zio] final val MaxOperationsBeforeYield  = 1024 * 10
   private[zio] final val MaxDepthBeforeTrampoline  = 300
   private[zio] final val MaxWorkStealingDepth      = 150

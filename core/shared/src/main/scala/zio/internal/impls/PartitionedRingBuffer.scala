@@ -16,7 +16,6 @@
 
 package zio.internal
 
-import zio.Chunk
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ThreadLocalRandom
@@ -28,7 +27,7 @@ private[zio] final class PartitionedRingBuffer[A <: AnyRef](
 ) extends MutableConcurrentQueue[A]
     with Serializable {
 
-  private[this] val mask: Int    = MutableConcurrentQueue.maskFor(preferredPartitions)
+  private[this] val mask: Int    = MutableConcurrentQueue.roundToPow2MinusOne(preferredPartitions)
   private[this] val nQueues: Int = mask + 1
 
   private[this] val partitionSize: Int = {

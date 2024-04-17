@@ -1,11 +1,12 @@
 package zio.internal
 
-import zio.{Chunk, Fiber, Unsafe}
 import zio.internal.WeakConcurrentBag.IsAlive
+import zio.{Chunk, Duration, Unsafe}
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.locks.LockSupport
 import java.util.function.Predicate
 import scala.annotation.tailrec
 
@@ -22,24 +23,44 @@ import scala.annotation.tailrec
  * possible performance of the `add` method, which has to do maintenance of the
  * nursery and occassional garbage collection.
  */
-private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsAlive[A]) {
-  private[this] val nursery   = MutableConcurrentQueue.boundedPartitioned[WeakReference[A]](nurserySize)
-  private[this] val graduates = Platform.newConcurrentSet[WeakReference[A]](nursery.capacity * 2)(Unsafe.unsafe)
+private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsAlive[A]) { self =>
+  private[this] val nursery           = MutableConcurrentQueue.boundedPartitioned[WeakReference[A]](nurserySize)
+  private[this] val nurseryActualSize = nursery.capacity
+
+  private[this] val graduates = Platform.newConcurrentSet[WeakReference[A]](nurseryActualSize * 2)(Unsafe.unsafe)
   private[this] val gcStatus  = new AtomicBoolean(false)
+  private[this] val autoGc    = new AtomicBoolean(false)
+
+  private[this] val notAlive = new Predicate[WeakReference[A]] {
+    def test(ref: WeakReference[A]): Boolean = {
+      val value = ref.get()
+      (value eq null) || !isAlive(value)
+    }
+  }
+
+  def withAutoGc(every: Duration): WeakConcurrentBag[A] = {
+    if (autoGc.compareAndSet(false, true)) {
+      assert(every.toSeconds >= 1, "Auto-gc interval must be >= 1 second")
+
+      val thread = new GcThread(every)
+      thread.setName(s"zio.internal.WeakConcurrentBag.GcThread")
+      thread.setPriority(4)
+      thread.setDaemon(true)
+      thread.start()
+    }
+    self
+  }
 
   /**
    * Adds a new value to the weak concurrent bag, graduating nursery occupants
    * if necessary to make room.
    */
   final def add(a: A): Unit = {
-    val ref     = new WeakReference(a)
-    val flushed = maybeFlushAndOffer(ref)
+    val flushed = maybeFlushAndOffer(new WeakReference[A](a))
 
     if (flushed.nonEmpty) {
       addToLongTermStorage(flushed)
-      if (graduates.size() > nurserySize) {
-        gc(force = false)
-      }
+      if (graduates.size() > nurseryActualSize) gc(force = false)
     }
   }
 
@@ -51,16 +72,10 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
 
   final private def gc(force: Boolean): Unit = {
     val lockAcquired = gcStatus.compareAndSet(false, true)
+
     // NOTE: try-finally most probably not needed; just being extra cautious not to accidentally lock GC
     try if (force || lockAcquired) graduates.removeIf(notAlive)
     finally if (lockAcquired) gcStatus.set(false)
-  }
-
-  private[this] val notAlive = new Predicate[WeakReference[A]] {
-    def test(ref: WeakReference[A]): Boolean = {
-      val value = ref.get()
-      (value eq null) || !isAlive(value)
-    }
   }
 
   /**
@@ -71,15 +86,16 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
    * the size of long-term storage exceeds the nursery size.
    */
   final def graduate(): Unit = {
+    flushNurseryToLongTermStorage()
+    if (graduates.size() > nurseryActualSize) gc(false)
+  }
+
+  private def flushNurseryToLongTermStorage(): Unit = {
     val partitions = nursery.partitionIterator
 
     while (partitions.hasNext) {
       val partition = partitions.next()
       addToLongTermStorage(partition.pollUpTo(partition.capacity))
-    }
-
-    if (graduates.size() > nurserySize) {
-      gc(force = false)
     }
   }
 
@@ -110,9 +126,7 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
     while (iter.hasNextAt(i)) {
       val ref   = iter.nextAt(i)
       val value = ref.get()
-      if ((value ne null) && isAlive(value)) {
-        graduates.add(ref)
-      }
+      if ((value ne null) && isAlive(value)) graduates.add(ref)
       i += 1
     }
   }
@@ -123,7 +137,7 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
    */
   final def iterator: Iterator[A] = {
     // No need to force GC if another thread is already doing it as we'll remove the entry in the iterator below
-    graduate()
+    flushNurseryToLongTermStorage()
 
     new Iterator[A] {
       val it    = graduates.iterator()
@@ -163,8 +177,22 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
   def size = graduates.size() + nursery.size()
 
   override final def toString(): String = iterator.mkString("WeakConcurrentBag(", ",", ")")
+
+  private final class GcThread(sleepFor: Duration) extends Thread {
+    override def run(): Unit = {
+      val sleepForNanos = sleepFor.toNanos
+      while (!isInterrupted) {
+        LockSupport.parkNanos(sleepForNanos)
+        // We clear the long-term storage first so that we don't iterate over the new elements that were flushed to it
+        gc(false)
+        flushNurseryToLongTermStorage()
+      }
+    }
+  }
 }
+
 private[zio] object WeakConcurrentBag {
+
   def apply[A <: AnyRef](capacity: Int, isAlive: IsAlive[A] = IsAlive.always): WeakConcurrentBag[A] =
     new WeakConcurrentBag(capacity, isAlive)
 
@@ -176,5 +204,4 @@ private[zio] object WeakConcurrentBag {
   object IsAlive {
     val always: IsAlive[Any] = _ => true
   }
-
 }

@@ -29,7 +29,7 @@ private[zio] final class PartitionedLinkedQueue[A <: AnyRef](
 
   override final val capacity = Int.MaxValue
 
-  private[this] val mask    = MutableConcurrentQueue.maskFor(preferredPartitions)
+  private[this] val mask    = MutableConcurrentQueue.roundToPow2MinusOne(preferredPartitions)
   private[this] val nQueues = mask + 1
   private[this] val queues  = Array.fill(nQueues)(new LinkedQueue[A](addMetrics = addMetrics))
 

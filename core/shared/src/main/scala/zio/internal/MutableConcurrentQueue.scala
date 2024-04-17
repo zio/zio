@@ -59,12 +59,12 @@ private[zio] object MutableConcurrentQueue {
    * Rounds up to the nearest power of 2 and subtracts 1. e.g.,
    *
    * {{{
-   * maskFor(3) // 3
-   * maskFor(4) // 3
-   * maskFor(5) // 7
+   * roundToPow2MinusOne(3) // 3
+   * roundToPow2MinusOne(4) // 3
+   * roundToPow2MinusOne(5) // 7
    * }}}
    */
-  def maskFor(n: Int): Int = {
+  def roundToPow2MinusOne(n: Int): Int = {
     var value = n - 1
     value |= value >> 1
     value |= value >> 2

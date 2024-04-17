@@ -307,7 +307,6 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
             LockSupport.parkUntil(deadline)
             loop = java.lang.System.currentTimeMillis() < deadline
           }
-          Fiber._roots.graduate()
         }
       }
     }
