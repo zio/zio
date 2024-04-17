@@ -27,12 +27,22 @@ sealed trait FiberId extends Serializable { self =>
 
   final def <>(that: FiberId): FiberId = self.combine(that)
 
+  /**
+   * Implemented this way and not just pattern matching on (self, that) because
+   * of: https://github.com/zio/zio/pull/8746#discussion_r1567448064
+   */
   final def combine(that: FiberId): FiberId =
-    (self, that) match {
-      case (None, None) => None
-      case (None, that) => that
-      case (that, None) => that
-      case (self, that) => FiberId.Composite(self, that)
+    self match {
+      case FiberId.None =>
+        that match {
+          case FiberId.None => None // (None, None)
+          case _            => that // (None, that)
+        }
+      case _ =>
+        that match {
+          case FiberId.None => self                          // (self, None)
+          case _            => FiberId.Composite(self, that) // (self, that)
+        }
     }
 
   final def getOrElse(that: => FiberId): FiberId = if (isNone) that else self
