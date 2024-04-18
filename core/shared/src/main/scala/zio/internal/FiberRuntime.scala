@@ -1390,6 +1390,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       null
     }
 
+  /**
+   * Begins execution of the effect associated with this fiber on in the
+   * background, and on the correct thread pool. This can be called to "kick
+   * off" execution of a fiber after it has been created.
+   */
+  private[zio] def startConcurrently(effect: ZIO[_, E, A]): Unit =
+    tell(FiberMessage.Resume(effect))(Unsafe.unsafe)
+
   private[zio] def startSuspended()(implicit unsafe: Unsafe): ZIO[_, E, A] => Any = {
     val alreadyCalled = new AtomicBoolean(false)
     val callback = (effect: ZIO[_, E, A]) => {
