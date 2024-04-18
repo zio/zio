@@ -69,7 +69,8 @@ object InflateSpec extends ZIOBaseSpec {
           case (chunk, n, bufferSize) =>
             assertZIO(for {
               deflated <- ZIO.succeed(noWrapDeflatedStream(chunk.toArray))
-              out      <- (deflated.rechunk(n).channel >>> makeInflater(bufferSize, noWrap = true)).runCollect.map(_._1.flatten)
+              out <-
+                (deflated.rechunk(n).channel >>> makeInflater(bufferSize, noWrap = true)).runCollect.map(_._1.flatten)
             } yield out.toList)(equalTo(chunk))
         }
       ),
@@ -83,7 +84,10 @@ object InflateSpec extends ZIOBaseSpec {
       ),
       test("fail if input stream finished unexpected")(
         assertZIO(
-          (ZStream.fromIterable(jdkGzip(longText, syncFlush = true)).take(800).channel >>> makeInflater()).runCollect.exit
+          (ZStream
+            .fromIterable(jdkGzip(longText, syncFlush = true))
+            .take(800)
+            .channel >>> makeInflater()).runCollect.exit
         )(fails(anything))
       )
     )
