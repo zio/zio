@@ -3,7 +3,7 @@ name: CI
 env:
   JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xms6G -Xmx6G -Xss4M -XX:+UseG1GC # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
   JVM_OPTS: -XX:+PrintCommandLineFlags -Xms6G -Xmx6G -Xss4M -XX:+UseG1GC # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
-  #SBT_OPTS: -XX:+PrintCommandLineFlags -Xms6G -Xmx6G -Xss4M -XX:+UseG1GC # Needed for sbt
+  SBT_OPTS: -XX:+PrintCommandLineFlags -Xms6G -Xmx6G -Xss4M -XX:+UseG1GC # Needed for sbt
   NODE_OPTIONS: --max_old_space_size=6144
 
 on:
@@ -47,7 +47,6 @@ jobs:
       matrix:
         scala: ['2.12.x', '2.13.x', '3.x']
     steps:
-      - run: echo SBT_OPTS $SBT_OPTS
       - name: Checkout current branch
         uses: actions/checkout@v4.1.1
       - name: Setup Java
@@ -64,7 +63,6 @@ jobs:
         uses: pierotofy/set-swap-space@master
         with:
           swap-size-gb: 7
-      - run: echo SBT_OPTS $SBT_OPTS
       - name: Test/compile 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
         run: free --si -tmws 10 & sbt -v ++${{ matrix.scala }} root212/Test/compile
