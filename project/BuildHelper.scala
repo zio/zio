@@ -177,8 +177,8 @@ object BuildHelper {
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     // autoAPIMappings := true,
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
-    Compile / fork := true,
-    Test / fork    := true, // set fork to `true` to improve log readability
+    Compile / fork := false, // if true, Xmx value isn't picked up by the forked JVM
+    Test / fork    := true,
     // For compatibility with Java 9+ module system;
     // without Automatic-Module-Name, the module name is derived from the jar file which is invalid because of the scalaVersion suffix.
     Compile / packageBin / packageOptions +=
