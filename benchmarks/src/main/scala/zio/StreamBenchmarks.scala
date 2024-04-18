@@ -267,17 +267,6 @@ class StreamBenchmarks {
   }
 
   @Benchmark
-  def zioChunkToConstFromFunctionOrig: Long = {
-    val result = ZStream
-      .fromChunks(zioChunks: _*)
-      .chunks
-      .via(ZPipeline.fromFunctionOrig(strmChunkToStrmConsts))
-      .runCount
-
-    unsafeRun(result)
-  }
-
-  @Benchmark
   def zioChunkToConstFromFunction: Long = {
     val result = ZStream
       .fromChunks(zioChunks: _*)

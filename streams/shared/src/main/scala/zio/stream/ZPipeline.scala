@@ -1440,21 +1440,6 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * Constructs a pipeline from a stream transformation function.
    */
-  def fromFunctionOrig[Env, Err, In, Out](
-    f: ZStream[Any, Nothing, In] => ZStream[Env, Err, Out]
-  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
-
-    val channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
-      ZChannel.unwrap {
-        for {
-          input <- SingleProducerAsyncInput.make[ZNothing, Chunk[In], Any]
-          stream = ZStream.fromChannel(ZChannel.fromInput(input))
-        } yield f(stream).channel.embedInput(input)
-      }
-
-    new ZPipeline(channel)
-  }
-
   def fromFunction[Env, Err, In, Out](
     f: ZStream[Any, Nothing, In] => ZStream[Env, Err, Out]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
