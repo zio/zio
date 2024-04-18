@@ -1405,6 +1405,8 @@ sealed trait ZIO[-R, +E, +A]
     ZIO.withFiberRuntime[R1, E2, C] { (parentFiber, parentStatus) =>
       import java.util.concurrent.atomic.AtomicBoolean
 
+      implicit val unsafe: Unsafe = Unsafe.unsafe
+
       val parentRuntimeFlags = parentStatus.runtimeFlags
 
       @inline def complete[E0, E1, A, B](
@@ -1420,9 +1422,9 @@ sealed trait ZIO[-R, +E, +A]
 
       val raceIndicator = new AtomicBoolean(true)
 
-      val leftFiber = ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, leftScope)(Unsafe.unsafe)
+      val leftFiber = ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, leftScope)
       val rightFiber =
-        ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, rightScope)(Unsafe.unsafe)
+        ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, rightScope)
 
       val startLeftFiber  = leftFiber.startSuspended()
       val startRightFiber = rightFiber.startSuspended()
