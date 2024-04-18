@@ -1440,7 +1440,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * Constructs a pipeline from a stream transformation function.
    */
-  def fromFunction[Env, Err, In, Out](
+  def fromFunctionOrig[Env, Err, In, Out](
     f: ZStream[Any, Nothing, In] => ZStream[Env, Err, Out]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
 
@@ -1455,7 +1455,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(channel)
   }
 
-  def fromFunction2[Env, Err, In, Out](
+  def fromFunction[Env, Err, In, Out](
     f: ZStream[Any, Nothing, In] => ZStream[Env, Err, Out]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
     def fc(
