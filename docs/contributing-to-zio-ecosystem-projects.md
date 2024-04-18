@@ -355,7 +355,7 @@ Before releasing the documentation package, it is advisable to check if everythi
       - name: Checkout current branch
         uses: actions/checkout@v4.1.1
       - name: Setup Java
-        uses: actions/setup-java@v2.5.1
+        uses: actions/setup-java@v4.2.1
         with:
           distribution: temurin
           java-version: 8
@@ -393,7 +393,7 @@ update-readme:
   - name: Install libuv
     run: sudo apt-get update && sudo apt-get install -y libuv1-dev
   - name: Setup Scala
-    uses: actions/setup-java@v3.13.0
+    uses: actions/setup-java@v4.2.1
     with:
       distribution: corretto
       java-version: '17'
