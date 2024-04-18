@@ -46,8 +46,6 @@ jobs:
       matrix:
         scala: ['2.12.x', '2.13.x', '3.x']
     steps:
-      - run: |
-          ls -al ~
       - name: Checkout current branch
         uses: actions/checkout@v4.1.1
       - name: Setup Java
@@ -64,6 +62,8 @@ jobs:
         uses: pierotofy/set-swap-space@master
         with:
           swap-size-gb: 7
+      - run: |
+          ls -al ~
       - name: Test/compile 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
         run: free --si -tmws 10 & sbt -v ++${{ matrix.scala }} root212/Test/compile
