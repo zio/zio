@@ -63,13 +63,13 @@ jobs:
           swap-size-gb: 7
       - name: Test/compile 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
-        run: free --si -tmws 10 & sbt ++${{ matrix.scala }} root212/Test/compile
+        run: free --si -tmws 10 & sbt -v ++${{ matrix.scala }} root212/Test/compile
       - name: Test/compile 2.13
         if: ${{ startsWith(matrix.scala, '2.13.') }}
-        run: free --si -tmws 10 & sbt ++${{ matrix.scala }} root213/Test/compile
+        run: free --si -tmws 10 & sbt -v ++${{ matrix.scala }} root213/Test/compile
       - name: Test/compile 3
         if: ${{ startsWith(matrix.scala, '3.') }}
-        run: free --si -tmws 10 & sbt ++${{ matrix.scala }} root3/Test/compile
+        run: free --si -tmws 10 & sbt -v ++${{ matrix.scala }} root3/Test/compile
 
   publishLocal:
     runs-on: ubuntu-20.04
