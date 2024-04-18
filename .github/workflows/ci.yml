@@ -64,6 +64,8 @@ jobs:
           swap-size-gb: 7
       - run: |
           ls -al ~
+          ls -al ~/.sbt
+          cat ~/.sbt/1.0/global.sbt
       - name: Test/compile 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
         run: free --si -tmws 10 & sbt -v ++${{ matrix.scala }} root212/Test/compile
