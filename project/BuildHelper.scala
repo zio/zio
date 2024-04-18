@@ -225,10 +225,10 @@ object BuildHelper {
 
   def welcomeMessage = onLoadMessage := {
 
-    def header(text: String): String = s"${Console.RED}$text${Console.RESET}"
+    def header(text: String): String = s"${scala.Console.RED}$text${scala.Console.RESET}"
 
-    def item(text: String): String    = s"${Console.GREEN}> ${Console.CYAN}$text${Console.RESET}"
-    def subItem(text: String): String = s"  ${Console.YELLOW}> ${Console.CYAN}$text${Console.RESET}"
+    def item(text: String): String    = s"${scala.Console.GREEN}> ${scala.Console.CYAN}$text${scala.Console.RESET}"
+    def subItem(text: String): String = s"  ${scala.Console.YELLOW}> ${scala.Console.CYAN}$text${scala.Console.RESET}"
 
     s"""|${header(" ________ ___")}
         |${header("|__  /_ _/ _ \\")}
