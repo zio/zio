@@ -48,7 +48,6 @@ jobs:
     steps:
       - run: |
           ls -al
-          ls -al ~/.sbt
       - name: Checkout current branch
         uses: actions/checkout@v4.1.1
       - name: Setup Java
