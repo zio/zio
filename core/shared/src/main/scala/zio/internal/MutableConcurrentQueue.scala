@@ -31,7 +31,47 @@ private[zio] object MutableConcurrentQueue {
     if (capacity == 1) new OneElementConcurrentQueue()
     else RingBuffer[A](capacity)
 
-  def unbounded[A]: MutableConcurrentQueue[A] = new LinkedQueue[A]
+  /**
+   * @param preferredCapacity
+   *   The preferred total capacity of the queue. The actual capacity of each
+   *   partition will vary depending on the number of partition and whether
+   *   `roundToPow2` is set to true.
+   * @param roundToPow2
+   *   whether to round the capacity of each partition to the nearest power of
+   *   2.
+   */
+  def boundedPartitioned[A <: AnyRef](preferredCapacity: Int, roundToPow2: Boolean = true): PartitionedRingBuffer[A] =
+    new PartitionedRingBuffer[A](defaultPartitions, preferredCapacity, roundToPow2)
+
+  def unbounded[A]: LinkedQueue[A] =
+    unbounded[A](addMetrics = true)
+
+  def unbounded[A](addMetrics: Boolean = true): LinkedQueue[A] =
+    new LinkedQueue[A](addMetrics)
+
+  def unboundedPartitioned[A <: AnyRef](addMetrics: Boolean = true): PartitionedLinkedQueue[A] =
+    new PartitionedLinkedQueue[A](defaultPartitions, addMetrics)
+
+  private val defaultPartitions =
+    java.lang.Runtime.getRuntime.availableProcessors() << 2
+
+  /**
+   * Rounds up to the nearest power of 2 and subtracts 1. e.g.,
+   *
+   * {{{
+   * roundToPow2MinusOne(3) // 3
+   * roundToPow2MinusOne(4) // 3
+   * roundToPow2MinusOne(5) // 7
+   * }}}
+   */
+  def roundToPow2MinusOne(n: Int): Int = {
+    var value = n - 1
+    value |= value >> 1
+    value |= value >> 2
+    value |= value >> 4
+    value |= value >> 8
+    value | value >> 16
+  }
 }
 
 /**
@@ -106,7 +146,7 @@ private[zio] abstract class MutableConcurrentQueue[A] {
     while (i > 0) {
       val a = poll(default)
       if (a == default) i = 0
-      else builder += a
+      else builder.addOne(a)
       i -= 1
     }
     builder.result()

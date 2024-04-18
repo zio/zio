@@ -24,7 +24,7 @@ private[zio] object RingBuffer {
    * @note
    *   minimum supported capacity is 2
    */
-  def apply[A](requestedCapacity: Int): MutableConcurrentQueue[A] = {
+  def apply[A](requestedCapacity: Int): RingBuffer[A] = {
     assert(requestedCapacity >= 2)
 
     if (nextPow2(requestedCapacity) == requestedCapacity) RingBufferPow2(requestedCapacity)

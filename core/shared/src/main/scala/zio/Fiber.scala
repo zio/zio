@@ -477,6 +477,8 @@ object Fiber extends FiberPlatformSpecific {
    */
   sealed abstract class Runtime[+E, +A] extends Fiber.Internal[E, A] { self =>
 
+    private[zio] def shouldYieldBeforeFork(): Boolean
+
     /**
      * The location the fiber was forked from.
      */
@@ -626,8 +628,8 @@ object Fiber extends FiberPlatformSpecific {
 
   private[zio] object Runtime {
 
-    implicit def fiberOrdering[E, A]: Ordering[Fiber.Runtime[E, A]] =
-      Ordering.by[Fiber.Runtime[E, A], (Long, Long)](fiber => (fiber.id.startTimeMillis, fiber.id.id))
+    implicit val fiberOrdering: Ordering[Fiber.Runtime[?, ?]] =
+      Ordering.by[Fiber.Runtime[?, ?], Long](_.id.startTimeMillis)
 
     abstract class Internal[+E, +A] extends Runtime[E, A]
   }
@@ -1005,5 +1007,6 @@ object Fiber extends FiberPlatformSpecific {
     new ThreadLocal[Fiber.Runtime[_, _]]()
 
   private[zio] val _roots: WeakConcurrentBag[Fiber.Runtime[_, _]] =
-    WeakConcurrentBag(10000, _.isAlive())
+    WeakConcurrentBag[Fiber.Runtime[_, _]](10000, _.isAlive())
+      .withAutoGc(5.seconds)
 }

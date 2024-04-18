@@ -16,13 +16,14 @@
 
 package zio
 
+import zio.internal.LoomSupport.LoomNotAvailableException
 import zio.internal.{Blocking, IsFatal, LoomSupport}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] trait RuntimePlatformSpecific {
 
   final val defaultExecutor: Executor =
-    LoomSupport.newVirtualThreadPerTaskExecutor().map(Executor.fromJavaExecutor(_)).getOrElse(Executor.makeDefault())
+    Executor.makeDefault(autoBlocking = false)
 
   final val defaultBlockingExecutor: Executor =
     Blocking.blockingExecutor
@@ -44,4 +45,17 @@ private[zio] trait RuntimePlatformSpecific {
 
   final val defaultSupervisor: Supervisor[Any] =
     Supervisor.none
+
+  def enableLoomBasedExecutor(implicit trace: Trace): ZLayer[Any, LoomNotAvailableException, Unit] =
+    ZLayer.suspend {
+      LoomSupport.newVirtualThreadPerTaskExecutor() match {
+        case None           => ZLayer.fail(LoomNotAvailableException("Loom API not available", null))
+        case Some(executor) => Runtime.setExecutor(Executor.fromJavaExecutor(executor))
+      }
+    }
+
+  def enableAutoBlockingExecutor(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.suspend {
+      Runtime.setExecutor(Executor.makeDefault(autoBlocking = true))
+    }
 }
