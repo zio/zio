@@ -167,16 +167,16 @@ jobs:
       uses: coursier/cache-action@v6
     - name: Mima Checks
       if: ${{ !startsWith(matrix.scala, '3.') }}
-      run: sbt ++${{ matrix.scala }}! mimaChecks
+      run: sbt ++${{ matrix.scala }} mimaChecks
     - name: Test 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
-      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
+      run: sbt ++${{ matrix.scala }} test${{ matrix.platform }}
     - name: Test 2.13
       if: ${{ startsWith(matrix.scala, '2.13.') }}
-      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
+      run: sbt ++${{ matrix.scala }} test${{ matrix.platform }}
     - name: Test 3
       if: ${{ startsWith(matrix.scala, '3.') }}
-      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}3
+      run: sbt ++${{ matrix.scala }} test${{ matrix.platform }}3
     - name: Upload Test Results 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
       uses: actions/upload-artifact@v3
