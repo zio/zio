@@ -497,7 +497,7 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(crossProjectSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.scalacheck" %%% "scalacheck" % "1.18.0")
+      ("org.scalacheck" %%% "scalacheck" % "1.17.1")
     )
   )
   .jsSettings(jsSettings)
@@ -650,7 +650,7 @@ lazy val benchmarks = project.module
         "org.scala-lang"             % "scala-reflect"   % scalaVersion.value,
         "org.typelevel"             %% "cats-effect"     % catsEffectVersion,
         "org.typelevel"             %% "cats-effect-std" % catsEffectVersion,
-        "org.scalacheck"            %% "scalacheck"      % "1.18.0",
+        "org.scalacheck"            %% "scalacheck"      % "1.17.1",
         "qa.hedgehog"               %% "hedgehog-core"   % "0.10.1",
         "com.github.japgolly.nyaya" %% "nyaya-gen"       % "0.10.0",
         "org.springframework"        % "spring-core"     % "6.0.19"
