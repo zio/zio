@@ -331,8 +331,7 @@ private[zio] abstract class RingBuffer[A](override final val capacity: Int)
       }
     }
     // If there was no space in the queue we return the remainder of the iterator
-    if (as.hasNext) Chunk.fromIterator(as)
-    else Chunk.empty
+    Chunk.fromIterator(as)
   }
 
   override final def poll(default: A): A = {

@@ -1279,11 +1279,12 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   /**
    * Creates a chunk from an iterator.
    */
-  def fromIterator[A](iterator: Iterator[A]): Chunk[A] = {
-    val builder = ChunkBuilder.make[A]()
-    builder ++= iterator
-    builder.result()
-  }
+  def fromIterator[A](iterator: Iterator[A]): Chunk[A] =
+    if (iterator.hasNext) {
+      val builder = ChunkBuilder.make[A]()
+      builder ++= iterator
+      builder.result()
+    } else Empty
 
   /**
    * Returns a chunk backed by a Java iterable.
