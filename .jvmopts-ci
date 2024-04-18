@@ -1,0 +1,6 @@
+# This is a comment
+-Dfile.encoding=UTF8
+-Xms6M
+-Xmx6G
+-XX:+UseG1GC
+-Dcats.effect.stackTracingMode=full
