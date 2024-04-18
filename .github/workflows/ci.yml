@@ -22,7 +22,7 @@ jobs:
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v3.0.2
+      uses: actions/checkout@v4.1.1
     - name: Setup Java
       uses: actions/setup-java@v4.2.1
       with:
@@ -46,7 +46,7 @@ jobs:
         scala: ['2.12.x', '2.13.x', '3.x']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v3.0.2
+        uses: actions/checkout@v4.1.1
       - name: Setup Java
         uses: actions/setup-java@v4.2.1
         with:
@@ -81,7 +81,7 @@ jobs:
         scala: ['2.12.x', '2.13.x', '3.x']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v3.0.2
+        uses: actions/checkout@v4.1.1
       - name: Setup Java
         uses: actions/setup-java@v4.2.1
         with:
@@ -107,7 +107,7 @@ jobs:
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
       - name: Checkout Current Branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
         with:
           fetch-depth: '0'
           
@@ -156,7 +156,7 @@ jobs:
         platform: ['JVM']
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v3.0.2
+      uses: actions/checkout@v4.1.1
     - name: Setup Java
       uses: actions/setup-java@v4.2.1
       with:
@@ -219,7 +219,7 @@ jobs:
         platform: ['JVM']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v3.0.2
+        uses: actions/checkout@v4.1.1
       - name: Setup Java
         uses: actions/setup-java@v4.2.1
         with:
@@ -249,7 +249,7 @@ jobs:
         platform: ['JS', 'Native']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v3.0.2
+        uses: actions/checkout@v4.1.1
       - name: Setup Java
         uses: actions/setup-java@v4.2.1
         with:
@@ -281,7 +281,7 @@ jobs:
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v3.0.2
+        uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
       - name: Setup Java
@@ -306,7 +306,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
 
@@ -326,7 +326,7 @@ jobs:
     if: ${{ ((github.event_name == 'repository_dispatch') && (github.event.action == 'update-docs')) }}
     steps:
       - name: Git Checkout
-        uses: actions/checkout@v3.3.0
+        uses: actions/checkout@v4.1.1
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: '0'
