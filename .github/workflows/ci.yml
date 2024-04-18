@@ -95,13 +95,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: publishLocal 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
-        run: sbt ++${{ matrix.scala }} root212/publishLocal
+        run: sbt -v ++${{ matrix.scala }} root212/publishLocal
       - name: publishLocal 2.13
         if: ${{ startsWith(matrix.scala, '2.13.') }}
-        run: sbt ++${{ matrix.scala }} root213/publishLocal
+        run: sbt -v ++${{ matrix.scala }} root213/publishLocal
       - name: publishLocal 3
         if: ${{ startsWith(matrix.scala, '3.') }}
-        run: sbt ++${{ matrix.scala }} root3/publishLocal
+        run: sbt -v ++${{ matrix.scala }} root3/publishLocal
 
   build-website:
     runs-on: ubuntu-20.04
@@ -169,16 +169,16 @@ jobs:
       uses: coursier/cache-action@v6
     - name: Mima Checks
       if: ${{ !startsWith(matrix.scala, '3.') }}
-      run: sbt ++${{ matrix.scala }} mimaChecks
+      run: sbt -v ++${{ matrix.scala }} mimaChecks
     - name: Test 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
-      run: sbt ++${{ matrix.scala }} test${{ matrix.platform }}
+      run: sbt -v ++${{ matrix.scala }} test${{ matrix.platform }}
     - name: Test 2.13
       if: ${{ startsWith(matrix.scala, '2.13.') }}
-      run: sbt ++${{ matrix.scala }} test${{ matrix.platform }}
+      run: sbt -v ++${{ matrix.scala }} test${{ matrix.platform }}
     - name: Test 3
       if: ${{ startsWith(matrix.scala, '3.') }}
-      run: sbt ++${{ matrix.scala }} test${{ matrix.platform }}3
+      run: sbt -v ++${{ matrix.scala }} test${{ matrix.platform }}3
     - name: Upload Test Results 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
       uses: actions/upload-artifact@v3
@@ -231,7 +231,7 @@ jobs:
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Test on different JVM versions
-        run: sbt test${{ matrix.platform }}
+        run: sbt -v test${{ matrix.platform }}
 
       - name: Report Test Death JVM 11
         if: ${{ failure() &&  startsWith(matrix.java, '11') }}
@@ -267,7 +267,7 @@ jobs:
         with:
           swap-size-gb: 9
       - name: Test on different Scala target platforms
-        run: free --si -tmws 10 & sbt test${{ matrix.platform }}
+        run: free --si -tmws 10 & sbt -v test${{ matrix.platform }}
 
   ci:
     runs-on: ubuntu-20.04
@@ -295,7 +295,7 @@ jobs:
       - name: Install libuv
         run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Release
-        run: sbt ci-release
+        run: sbt -v ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
