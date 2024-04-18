@@ -53,6 +53,15 @@ object MutableConcurrentQueueSpec extends ZIOBaseSpec {
         && assert(q.poll(-1))(equalTo(-1))
         && assert(q.isEmpty())(isTrue))
       }
+    ),
+    suite("Partitioned queues")(
+      test("partitioned queues have n * 4 rounded to the next power of 2 capacity") {
+        val q1       = MutableConcurrentQueue.unboundedPartitioned().nPartitions()
+        val q2       = MutableConcurrentQueue.boundedPartitioned(100).nPartitions()
+        val expected = RingBuffer.nextPow2(java.lang.Runtime.getRuntime.availableProcessors() * 4)
+
+        assertTrue(q1 == expected, q2 == expected)
+      }
     )
   )
 }

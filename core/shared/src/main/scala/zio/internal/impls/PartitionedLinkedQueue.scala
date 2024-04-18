@@ -33,6 +33,8 @@ private[zio] final class PartitionedLinkedQueue[A <: AnyRef](
   private[this] val nQueues = mask + 1
   private[this] val queues  = Array.fill(nQueues)(new LinkedQueue[A](addMetrics = addMetrics))
 
+  def nPartitions(): Int = nQueues
+
   override def size(): Int = {
     val from = ThreadLocalRandom.current().nextInt(nQueues)
     var i    = 0

@@ -39,6 +39,8 @@ private[zio] final class PartitionedRingBuffer[A <: AnyRef](
 
   override final val capacity = nQueues * partitionSize
 
+  def nPartitions(): Int = nQueues
+
   override def size(): Int = {
     val from = ThreadLocalRandom.current().nextInt(nQueues)
     var i    = 0
@@ -75,18 +77,11 @@ private[zio] final class PartitionedRingBuffer[A <: AnyRef](
     size
   }
 
-  /**
-   * Offers an element to the queue, returning whether the offer was successful.
-   *
-   * @param maxMisses
-   *   How many partitions to try before giving up
-   */
-  def offer(a: A, random: ThreadLocalRandom, maxMisses: Int): Boolean = {
-    val maxI   = nQueues.min(maxMisses + 1)
+  def offer(a: A, random: ThreadLocalRandom): Boolean = {
     val from   = random.nextInt(nQueues)
     var i      = 0
     var result = false
-    while (i < maxI && !result) {
+    while (i < nQueues && !result) {
       val idx = (from + i) & mask
       result = queues(idx).offer(a)
       i += 1
@@ -98,32 +93,23 @@ private[zio] final class PartitionedRingBuffer[A <: AnyRef](
     queues(random.nextInt(nQueues))
 
   override def offer(a: A): Boolean =
-    offer(a, ThreadLocalRandom.current(), nQueues)
+    offer(a, ThreadLocalRandom.current())
 
-  /**
-   * Polls an element to the queue, returning the element or `default` if the
-   * queue is empty.
-   *
-   * @param maxMisses
-   *   How many partitions to try polling from before giving up
-   */
-  def poll(default: A, random: ThreadLocalRandom, maxMisses: Int): A = {
+  def poll(default: A, random: ThreadLocalRandom): A = {
     val from   = random.nextInt(nQueues)
     var i      = 0
     var result = null.asInstanceOf[A]
-    var misses = 0
-    while ((result eq null) && i < nQueues && misses <= maxMisses) {
+    while ((result eq null) && i < nQueues) {
       val idx   = (from + i) & mask
       val queue = queues(idx)
-      result = queue.poll(default)
-      if (result eq null) misses += 1
+      result = queue.poll(result)
       i += 1
     }
-    result
+    if (result eq null) default else result
   }
 
   override def poll(default: A): A =
-    poll(default, ThreadLocalRandom.current(), nQueues)
+    poll(default, ThreadLocalRandom.current())
 
   override def isEmpty(): Boolean = {
     val from   = ThreadLocalRandom.current().nextInt(nQueues)
@@ -166,6 +152,7 @@ private[zio] final class PartitionedRingBuffer[A <: AnyRef](
         i += 1
         q
       }
+
   }
 
 }
