@@ -124,7 +124,7 @@ trait Runtime[+R] { self =>
 
     def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): internal.FiberRuntime[E, A] = {
       val fiber = makeFiber(zio)
-      fiber.start[R](zio)
+      fiber.startConcurrently(zio)
       fiber
     }
 
@@ -175,7 +175,7 @@ trait Runtime[+R] { self =>
 
       fiber.addObserver(_.foldExit(cause => p.failure(cause.squashTraceWith(identity)), p.success))
 
-      fiber.start(zio)
+      fiber.startConcurrently(zio)
 
       new CancelableFuture[A](p.future) {
         def cancel(): Future[Exit[Throwable, A]] = {
