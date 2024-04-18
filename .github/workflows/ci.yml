@@ -86,7 +86,7 @@ jobs:
         uses: actions/setup-java@v4.2.1
         with:
           distribution: temurin
-          java-version: 8
+          java-version: 17
           check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
@@ -114,8 +114,9 @@ jobs:
       - name: Setup Scala and Java
         uses: actions/setup-java@v4.2.1
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: 17
+          check-latest: true
           
       - name: Install NodeJS
         uses: actions/setup-node@v3
@@ -288,7 +289,7 @@ jobs:
         uses: actions/setup-java@v4.2.1
         with:
           distribution: temurin
-          java-version: 8
+          java-version: 17
           check-latest: true
       - name: Install libuv
         run: sudo apt-get update && sudo apt-get install -y libuv1-dev

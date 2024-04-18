@@ -358,7 +358,7 @@ Before releasing the documentation package, it is advisable to check if everythi
         uses: actions/setup-java@v4.2.1
         with:
           distribution: temurin
-          java-version: 8
+          java-version: 17
           check-latest: true
 +     - name: Setup NodeJs
 +       uses: actions/setup-node@v4
@@ -395,8 +395,8 @@ update-readme:
   - name: Setup Scala
     uses: actions/setup-java@v4.2.1
     with:
-      distribution: corretto
-      java-version: '17'
+      distribution: temurin
+      java-version: 17
       check-latest: true
   - name: Cache Dependencies
     uses: coursier/cache-action@v6
