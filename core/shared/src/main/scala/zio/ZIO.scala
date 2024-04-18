@@ -161,7 +161,7 @@ sealed trait ZIO[-R, +E, +A]
    * `ZIO`. The inverse operation of `ZIO.either`.
    */
   final def absolve[E1 >: E, B](implicit ev: A IsSubtypeOfOutput Either[E1, B], trace: Trace): ZIO[R, E1, B] =
-    ZIO.absolve(self.map(ev))
+    self.flatMap(ev(_).fold(ZIO.fail(_), ZIO.succeed(_)))
 
   /**
    * Attempts to convert defects into a failure, throwing away all information
