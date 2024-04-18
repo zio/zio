@@ -161,7 +161,10 @@ sealed trait ZIO[-R, +E, +A]
    * `ZIO`. The inverse operation of `ZIO.either`.
    */
   final def absolve[E1 >: E, B](implicit ev: A IsSubtypeOfOutput Either[E1, B], trace: Trace): ZIO[R, E1, B] =
-    ZIO.absolve(self.map(ev))
+    self.flatMap(ev(_) match {
+      case Right(v) => ZIO.succeed(v)
+      case Left(e)  => ZIO.fail(e)
+    })
 
   /**
    * Attempts to convert defects into a failure, throwing away all information
@@ -1403,6 +1406,8 @@ sealed trait ZIO[-R, +E, +A]
     ZIO.withFiberRuntime[R1, E2, C] { (parentFiber, parentStatus) =>
       import java.util.concurrent.atomic.AtomicBoolean
 
+      implicit val unsafe: Unsafe = Unsafe.unsafe
+
       val parentRuntimeFlags = parentStatus.runtimeFlags
 
       @inline def complete[E0, E1, A, B](
@@ -1418,9 +1423,9 @@ sealed trait ZIO[-R, +E, +A]
 
       val raceIndicator = new AtomicBoolean(true)
 
-      val leftFiber = ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, leftScope)(Unsafe.unsafe)
+      val leftFiber = ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, leftScope)
       val rightFiber =
-        ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, rightScope)(Unsafe.unsafe)
+        ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, rightScope)
 
       val startLeftFiber  = leftFiber.startSuspended()
       val startRightFiber = rightFiber.startSuspended()
