@@ -183,8 +183,8 @@ lazy val root3 = project
       )): _*
   )
 
-val catsEffectVersion = "3.5.1"
-val fs2Version        = "3.9.2"
+val catsEffectVersion = "3.5.4"
+val fs2Version        = "3.10.2"
 
 lazy val root = project
   .in(file("."))
@@ -220,7 +220,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     libraryDependencies ++= List(
       "org.scala-js"  %%% "scala-js-macrotask-executor" % "1.1.1",
       ("org.scala-js" %%% "scalajs-weakreferences"      % "1.0.0").cross(CrossVersion.for3Use2_13),
-      "org.scala-js"  %%% "scalajs-dom"                 % "2.7.0"
+      "org.scala-js"  %%% "scalajs-dom"                 % "2.8.0"
     ),
     scalacOptions ++= {
       if (scalaVersion.value == Scala3) {
@@ -485,7 +485,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
   .settings(
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.11.0").cross(CrossVersion.for3Use2_13)
+        ("eu.timepit" %% "refined" % "0.11.1").cross(CrossVersion.for3Use2_13)
       )
   )
   .jsSettings(jsSettings)
@@ -497,7 +497,7 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(crossProjectSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.scalacheck" %%% "scalacheck" % "1.17.0")
+      ("org.scalacheck" %%% "scalacheck" % "1.18.0")
     )
   )
   .jsSettings(jsSettings)
@@ -639,21 +639,21 @@ lazy val benchmarks = project.module
       Seq(
         "co.fs2"                    %% "fs2-core"        % fs2Version,
         "com.google.code.findbugs"   % "jsr305"          % "3.0.2",
-        "com.twitter"               %% "util-core"       % "22.12.0",
-        "com.typesafe.akka"         %% "akka-stream"     % "2.8.4",
+        "com.twitter"               %% "util-core"       % "23.11.0",
+        "com.typesafe.akka"         %% "akka-stream"     % "2.8.5",
         "io.github.timwspence"      %% "cats-stm"        % "0.13.4",
-        "io.projectreactor"          % "reactor-core"    % "3.5.10",
+        "io.projectreactor"          % "reactor-core"    % "3.6.5",
         "io.reactivex.rxjava2"       % "rxjava"          % "2.2.21",
-        "org.jctools"                % "jctools-core"    % "4.0.1",
-        "org.ow2.asm"                % "asm"             % "9.5",
+        "org.jctools"                % "jctools-core"    % "4.0.3",
+        "org.ow2.asm"                % "asm"             % "9.7",
         "org.scala-lang"             % "scala-compiler"  % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"   % scalaVersion.value,
         "org.typelevel"             %% "cats-effect"     % catsEffectVersion,
         "org.typelevel"             %% "cats-effect-std" % catsEffectVersion,
-        "org.scalacheck"            %% "scalacheck"      % "1.17.0",
+        "org.scalacheck"            %% "scalacheck"      % "1.18.0",
         "qa.hedgehog"               %% "hedgehog-core"   % "0.10.1",
         "com.github.japgolly.nyaya" %% "nyaya-gen"       % "0.10.0",
-        "org.springframework"        % "spring-core"     % "6.0.12"
+        "org.springframework"        % "spring-core"     % "6.0.19"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid =>
@@ -673,12 +673,12 @@ lazy val benchmarks = project.module
   .settings(scalacOptions += "-Wconf:msg=[@nowarn annotation does not suppress any warnings]:silent")
 
 lazy val jsdocs = project
-  .settings(libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "2.7.0").cross(CrossVersion.for3Use2_13))
+  .settings(libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "2.8.0").cross(CrossVersion.for3Use2_13))
   .enablePlugins(ScalaJSPlugin)
 
 val http4sV     = "0.23.23"
 val doobieV     = "1.0.0-RC2"
-val catsEffectV = "3.5.1"
+val catsEffectV = "3.5.4"
 val zioActorsV  = "0.1.0"
 
 lazy val scalafixSettings = List(
@@ -724,7 +724,7 @@ lazy val scalafixTests = project
   .settings(
     scalafixSettings,
     publish / skip                        := true,
-    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.10.1" % Test cross CrossVersion.full,
+    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.12.0" % Test cross CrossVersion.full,
     Compile / compile :=
       (Compile / compile).dependsOn(scalafixInput / Compile / compile).value,
     scalafixTestkitOutputSourceDirectories :=

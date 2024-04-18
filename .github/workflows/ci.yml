@@ -152,7 +152,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scala: ['2.12.18', '2.13.12', '3.3.1']
+        scala: ['2.12.19', '2.13.13', '3.3.1']
         java: ['17']
         platform: ['JVM']
     steps:
