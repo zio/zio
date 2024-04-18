@@ -1421,7 +1421,15 @@ object ZChannel {
   ) extends ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
 
   private[zio] final case class DeferedUpstream[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone](
-    mkChannel : ZChannel[Any, Any, Any, Any, InErr, InElem, InDone] => ZChannel[Env, Any, Any, Any, OutErr, OutElem, OutDone]
+    mkChannel: ZChannel[Any, Any, Any, Any, InErr, InElem, InDone] => ZChannel[
+      Env,
+      Any,
+      Any,
+      Any,
+      OutErr,
+      OutElem,
+      OutDone
+    ]
   ) extends ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
 
   private[zio] final case class BracketOut[R, E, Z](

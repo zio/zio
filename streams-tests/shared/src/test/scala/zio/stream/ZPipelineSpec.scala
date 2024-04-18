@@ -275,7 +275,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
       test("fromFunction2") {
         ZStream
           .range(0, 20, 5)
-          .via{
+          .via {
             ZPipeline.fromFunction2 { strm: ZStream[Any, Any, Int] =>
               strm.map(_ + 1)
             }
