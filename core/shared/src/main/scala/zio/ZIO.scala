@@ -814,9 +814,10 @@ sealed trait ZIO[-R, +E, +A]
     scopeOverride: FiberScope
   )(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
     ZIO.withFiberRuntime[R, Nothing, Fiber.Runtime[E, A]] { (parentFiber, parentStatus) =>
-      ZIO.succeed(
+      val f = ZIO.succeed(
         ZIO.unsafe.fork(trace, self, parentFiber, parentStatus.runtimeFlags, scopeOverride)(Unsafe.unsafe)
       )
+      if (parentFiber.shouldYieldBeforeFork()) ZIO.yieldNow *> f else f
     }
 
   /**
