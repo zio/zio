@@ -183,6 +183,19 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
                 )
               }
 
+            case ZChannel.DeferedUpstream(mkChannel) =>
+              val inpAsChannel: ZChannel[Env, Any, Any, Any, Any, Any, Any] = execToPullingChannel(input)
+              val nextChannel                                               = mkChannel(inpAsChannel.asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]])
+
+              val previousInput = input
+              input = null
+              addFinalizer { exit =>
+                val effect = restorePipe(exit, previousInput)
+
+                if (effect ne null) effect
+                else ZIO.unit
+              }
+              currentChannel = nextChannel
             case ZChannel.PipeTo(left, right) =>
               val previousInput = input
 
@@ -744,6 +757,36 @@ private[zio] object ChannelExecutor {
 
     read()
   }
+
+  private[zio] def execToPullingChannel[Env](
+    exec: ErasedExecutor[Env]
+  )(implicit trace: Trace): ZChannel[Env, Any, Any, Any, Any, Any, Any] = {
+    def ch2(st: ChannelState[Env, Any]): ZChannel[Env, Any, Any, Any, Any, Any, Any] =
+      st match {
+        case ChannelState.Done =>
+          exec.getDone match {
+            case Exit.Success(res) =>
+              ZChannel.succeedNow(res)
+            case Exit.Failure(c) =>
+              ZChannel.refailCause(c)
+          }
+        case ChannelState.Emit =>
+          ZChannel.write(exec.getEmit) *>
+            ch2(exec.run())
+        case ChannelState.Effect(zio) =>
+          ZChannel.fromZIO(zio) *> ch2(exec.run())
+        case r @ ChannelState.Read(upstream, onEffect, onEmit, onDone) =>
+          ZChannel.fromZIO {
+            ChannelExecutor.readUpstream[Env, Any, Any, Any](
+              r.asInstanceOf[ChannelState.Read[Env, Any]],
+              () => ZIO.unit,
+              ZIO.refailCause
+            )
+          } *> ch2(exec.run())
+      }
+    ZChannel.suspend(ch2(exec.run()))
+  }
+
 }
 
 /**
