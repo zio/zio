@@ -217,7 +217,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['11', '17', '21']
+        java: ['11', '21']
         platform: ['JVM']
     steps:
       - name: Checkout current branch
