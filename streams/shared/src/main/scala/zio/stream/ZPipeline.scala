@@ -1443,16 +1443,15 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def fromFunction[Env, Err, In, Out](
     f: ZStream[Any, Nothing, In] => ZStream[Env, Err, Out]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
+    def fc(
+      upstream: ZChannel[Any, Any, Any, Any, ZNothing, Chunk[In], Any]
+    ): ZChannel[Env, Any, Any, Any, Err, Chunk[Out], Any] =
+      f(upstream.toStream).toChannel
 
-    val channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
-      ZChannel.unwrap {
-        for {
-          input <- SingleProducerAsyncInput.make[ZNothing, Chunk[In], Any]
-          stream = ZStream.fromChannel(ZChannel.fromInput(input))
-        } yield f(stream).channel.embedInput(input)
-      }
-
-    new ZPipeline(channel)
+    val resCh: ZChannel.DeferedUpstream[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.DeferedUpstream(fc)
+    val resPl: ZPipeline[Env, Err, In, Out] = resCh.toPipeline
+    resPl
   }
 
   /**
