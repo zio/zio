@@ -272,7 +272,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
           } yield assert(result)(fails(equalTo(EncodingException("Not a valid hex digit: 'g'"))))
         }
       ),
-      test("fromFunction2") {
+      test("fromFunction") {
         ZStream
           .range(0, 20, 5)
           .via {
