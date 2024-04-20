@@ -212,7 +212,7 @@ final class FiberRefs private (
 }
 
 object FiberRefs {
-  private[zio] final case class FiberRefStackEntry[@specialized(SpecializeInt) A] private[FiberRefs] (
+  private[FiberRefs] final case class FiberRefStackEntry[@specialized(SpecializeInt) A](
     fiberId: FiberId.Runtime,
     value: A,
     version: Int
