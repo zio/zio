@@ -161,8 +161,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
     def unapply(tree: Tree)(implicit sdoc: SemanticDocument): Option[Patch] =
       tree match {
-        case matcher(name @ Name(_)) =>
-          Some(Patch.renameSymbol(name.symbol, newName))
+        case matcher(name0 @ Name(_)) =>
+          Some(Patch.renameSymbol(name0.symbol, newName))
         case _ => None
       }
   }
@@ -642,19 +642,19 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         case t @ q"import zio.blocking.Blocking" =>
           Patch.removeTokens(t.tokens)
 
-        case q"${name @ CompanianAliases(Name(_))}.$_" =>
-          Patch.replaceTree(name, s"ZIO")
+        case q"${name0 @ CompanianAliases(Name(_))}.$_" =>
+          Patch.replaceTree(name0, s"ZIO")
 
-        case q"${name @ q"IO"}.$_" =>
-          Patch.replaceTree(name, s"ZIO")
+        case q"${name0 @ q"IO"}.$_" =>
+          Patch.replaceTree(name0, s"ZIO")
 
-        case q"${name @ UIOAlias(Name(_))}($_)"  => Patch.replaceTree(name, s"ZIO.succeed")
-        case q"${name @ URIOAlias(Name(_))}($_)" => Patch.replaceTree(name, s"ZIO.succeed")
+        case q"${name0 @ UIOAlias(Name(_))}($_)"  => Patch.replaceTree(name0, s"ZIO.succeed")
+        case q"${name0 @ URIOAlias(Name(_))}($_)" => Patch.replaceTree(name0, s"ZIO.succeed")
 
-        case q"${name @ TaskAlias(Name(_))}($_)" => Patch.replaceTree(name, s"ZIO.attempt")
-        case q"${name @ RIOAlias(Name(_))}($_)"  => Patch.replaceTree(name, s"ZIO.attempt")
+        case q"${name0 @ TaskAlias(Name(_))}($_)" => Patch.replaceTree(name0, s"ZIO.attempt")
+        case q"${name0 @ RIOAlias(Name(_))}($_)"  => Patch.replaceTree(name0, s"ZIO.attempt")
 
-        case q"${name @ ZIOAlias(Name(_))}($_)" => Patch.replaceTree(name, s"ZIO.attempt")
+        case q"${name0 @ ZIOAlias(Name(_))}($_)" => Patch.replaceTree(name0, s"ZIO.attempt")
 
         case zManagedNormalized(_) =>
           Patch.addGlobalImport(wildcardImport(q"zio.managed"))

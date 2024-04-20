@@ -10,9 +10,9 @@
 
     <properties>
         <encoding>UTF-8</encoding>
-        <scala.version>2.13.12</scala.version>
+        <scala.version>2.13.13</scala.version>
         <scala.compat.version>2.12</scala.compat.version>
-        <zio.version>2.0.21</zio.version>
+        <zio.version>2.0.22</zio.version>
     </properties>
 
     <dependencies>

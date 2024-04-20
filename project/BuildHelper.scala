@@ -1,29 +1,15 @@
-import explicitdeps.ExplicitDepsPlugin.autoImport._
+import explicitdeps.ExplicitDepsPlugin.autoImport.*
 import mdoc.MdocPlugin.autoImport.{mdocIn, mdocOut}
-import sbt.Keys._
-import sbt._
-import sbtbuildinfo.BuildInfoKeys._
-import sbtbuildinfo._
-import sbtcrossproject.CrossPlugin.autoImport._
-
-import scala.jdk.CollectionConverters._
-import org.snakeyaml.engine.v2.api.{Load, LoadSettings}
+import sbt.*
+import sbt.Keys.*
+import sbtbuildinfo.*
+import sbtbuildinfo.BuildInfoKeys.*
+import sbtcrossproject.CrossPlugin.autoImport.*
 
 object BuildHelper {
-  private val versions: Map[String, String] = {
-
-    import java.util.{List => JList, Map => JMap}
-    val doc = new Load(LoadSettings.builder().build())
-      .loadFromReader(scala.io.Source.fromFile(".github/workflows/ci.yml").bufferedReader())
-    val yaml = doc.asInstanceOf[JMap[String, JMap[String, JMap[String, JMap[String, JMap[String, JList[String]]]]]]]
-    val list = yaml.get("jobs").get("test").get("strategy").get("matrix").get("scala").asScala
-    list.map { v =>
-      val vs = v.split('.'); val init = vs.take(vs(0) match { case "2" => 2; case _ => 1 }); (init.mkString("."), v)
-    }.toMap
-  }
-  val Scala212: String = versions("2.12")
-  val Scala213: String = versions("2.13")
-  val Scala3: String   = versions("3")
+  val Scala212: String = "2.12.19"
+  val Scala213: String = "2.13.13"
+  val Scala3: String   = "3.3.3"
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -238,12 +224,11 @@ object BuildHelper {
   )
 
   def welcomeMessage = onLoadMessage := {
-    import scala.Console
 
-    def header(text: String): String = s"${Console.RED}$text${Console.RESET}"
+    def header(text: String): String = s"${scala.Console.RED}$text${scala.Console.RESET}"
 
-    def item(text: String): String    = s"${Console.GREEN}> ${Console.CYAN}$text${Console.RESET}"
-    def subItem(text: String): String = s"  ${Console.YELLOW}> ${Console.CYAN}$text${Console.RESET}"
+    def item(text: String): String    = s"${scala.Console.GREEN}> ${scala.Console.CYAN}$text${scala.Console.RESET}"
+    def subItem(text: String): String = s"  ${scala.Console.YELLOW}> ${scala.Console.CYAN}$text${scala.Console.RESET}"
 
     s"""|${header(" ________ ___")}
         |${header("|__  /_ _/ _ \\")}
