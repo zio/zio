@@ -27,7 +27,7 @@ import scala.annotation.tailrec
  * example between an asynchronous producer and consumer.
  */
 final class FiberRefs private (
-  private[zio] val fiberRefLocals: Map[FiberRef[_], FiberRefs.FiberRefStack]
+  private[zio] val fiberRefLocals: Map[FiberRef[_], FiberRefs.FiberRefStack[_]]
 ) { self =>
   import zio.FiberRefs.{FiberRefStack, FiberRefStackEntry}
 
@@ -100,7 +100,7 @@ final class FiberRefs private (
 
   private[zio] def getOrNull[A](fiberRef: FiberRef[A]): A = {
     val out = fiberRefLocals.getOrElse(fiberRef, null)
-    if (out eq null) null else out.head.value
+    if (out eq null) null else out.value
   }.asInstanceOf[A]
 
   /**
@@ -217,27 +217,44 @@ object FiberRefs {
     value: A,
     version: Int
   )
-  private[zio] object FiberRefStackEntry {
-    @inline def make[A](fiberId: FiberId.Runtime, value: A): FiberRefStackEntry[A] =
-      FiberRefStackEntry(fiberId, value, 0)
-  }
 
-  private[zio] final case class FiberRefStack private (
-    head: FiberRefStackEntry[?],
+  /**
+   * The 'head' of the stack is inlined in the `FiberRefStack` data structure:
+   *
+   * Instead of having
+   * {{{
+   *   FiberRefStack(
+   *     head: FiberRefStackEntry[?],
+   *     tail: List[FiberRefStackEntry[?],
+   *     depth: Int
+   *   )
+   * }}}
+   * we inline the content of the `head: FiberRefStackEntry` data structure
+   * directly into the `FiberRefStack` to avoid to have to instantiate this
+   * `FiberRefStackEntry` as much as possible.
+   */
+  private[zio] final case class FiberRefStack[@specialized(SpecializeInt) A] private[FiberRefs] (
+    headFiberId: FiberId.Runtime,
+    headValue: A,
+    headVersion: Int,
     tail: List[FiberRefStackEntry[?]],
     depth: Int
   ) {
-    @inline def stack: List[FiberRefStackEntry[?]] = head :: tail
-    @inline def fiberId: FiberId.Runtime           = head.fiberId
-    @inline def value: Any                         = head.value
-    @inline def version: Int                       = head.version
+    // nicer names for these variables when used outside of the FiberRefStack
+    @inline def fiberId: FiberId.Runtime = headFiberId
+    @inline def value: A                 = headValue
+    @inline def version: Int             = headVersion
+
+    @inline def stack: List[FiberRefStackEntry[?]] = FiberRefStackEntry(headFiberId, headValue, headVersion) :: tail
 
     /**
      * Update the value of the head entry
      */
-    @inline def updateValue(value: Any): FiberRefStack =
+    @inline def updateValue(newValue: Any): FiberRefStack[?] =
       FiberRefStack(
-        head = head.copy(value = value, version = version + 1),
+        headFiberId = headFiberId,
+        headValue = newValue,
+        headVersion = headVersion + 1,
         tail = tail,
         depth = depth
       )
@@ -245,17 +262,18 @@ object FiberRefs {
     /**
      * Add a new entry on top of the Stack
      */
-    @inline def put(fiberId: FiberId.Runtime, value: Any): FiberRefStack =
+    @inline def put(fiberId: FiberId.Runtime, value: Any): FiberRefStack[?] =
       FiberRefStack(
-        head = FiberRefStackEntry.make(fiberId, value),
+        headFiberId = fiberId,
+        headValue = value,
+        headVersion = 0,
         tail = stack,
         depth = depth + 1
       )
   }
   private[zio] object FiberRefStack {
-    @inline def init[A](id: FiberId.Runtime, value: A): FiberRefStack =
-      FiberRefStack(FiberRefStackEntry.make(id, value), List.empty, 1)
-
+    @inline def init[A](fiberId: FiberId.Runtime, value: A): FiberRefStack[?] =
+      FiberRefStack(fiberId, value, 0, List.empty, 1)
   }
 
   /**
@@ -264,7 +282,7 @@ object FiberRefs {
   val empty: FiberRefs =
     FiberRefs(Map.empty)
 
-  private[zio] def apply(fiberRefLocals: Map[FiberRef[_], FiberRefStack]): FiberRefs =
+  private[zio] def apply(fiberRefLocals: Map[FiberRef[_], FiberRefStack[_]]): FiberRefs =
     new FiberRefs(fiberRefLocals)
 
   /**
