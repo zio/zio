@@ -245,7 +245,8 @@ object FiberRefs {
     @inline def value: A                 = headValue
     @inline def version: Int             = headVersion
 
-    @inline def stack: List[FiberRefStackEntry[?]] = FiberRefStackEntry(headFiberId, headValue, headVersion) :: tail
+    @inline private def head: FiberRefStackEntry[A] = FiberRefStackEntry(headFiberId, headValue, headVersion)
+    @inline def stack: List[FiberRefStackEntry[?]]  = head :: tail
 
     /**
      * Update the value of the head entry
