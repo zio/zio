@@ -333,8 +333,7 @@ object FiberRefs {
           val newValue0 = fiberRefStack.value.asInstanceOf[V]
 
           fiberRefs.getOrNull(fiberRef) match {
-            case null =>
-              fiberRefs -> patch.combine(Add(fiberRef, newValue0))
+            case null => fiberRefs -> patch.combine(Add(fiberRef.asInstanceOf[FiberRef[V]], newValue0))
             case oldValue =>
               val patch0 =
                 if (oldValue == newValue0) patch
