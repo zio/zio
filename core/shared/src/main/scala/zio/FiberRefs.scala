@@ -234,9 +234,9 @@ object FiberRefs {
    * `FiberRefStackEntry` as much as possible.
    */
   private[zio] final case class FiberRefStack[@specialized(SpecializeInt) A] private[FiberRefs] (
-    headFiberId: FiberId.Runtime,
-    headValue: A,
-    headVersion: Int,
+    headFiberId: FiberId.Runtime, // should be `private val` but https://github.com/scala/bug/issues/12988. Prefer usage of `.fiberId`
+    headValue: A,                 // should be `private val` but https://github.com/scala/bug/issues/12988. Prefer usage of `.value`
+    headVersion: Int,             // should be `private val` but https://github.com/scala/bug/issues/12988. Prefer usage of `.version`
     tail: List[FiberRefStackEntry[?]],
     depth: Int
   ) {
