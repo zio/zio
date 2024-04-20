@@ -272,7 +272,7 @@ object FiberRefs {
       )
   }
   private[zio] object FiberRefStack {
-    @inline def init[A](fiberId: FiberId.Runtime, value: A): FiberRefStack[?] =
+    @inline def init[@specialized(SpecializeInt) A](fiberId: FiberId.Runtime, value: A): FiberRefStack[?] =
       FiberRefStack(headFiberId = fiberId, headValue = value, headVersion = 0, tail = List.empty, depth = 1)
   }
 
