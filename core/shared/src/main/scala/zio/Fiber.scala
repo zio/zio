@@ -1006,6 +1006,7 @@ object Fiber extends FiberPlatformSpecific {
   private[zio] val _currentFiber: ThreadLocal[Fiber.Runtime[_, _]] =
     new ThreadLocal[Fiber.Runtime[_, _]]()
 
+  // TODO Jules: Can we avoid allocating this and starting the associated thread if the `FiberRoot` runtime flag is deactivated?
   private[zio] val _roots: WeakConcurrentBag[Fiber.Runtime[_, _]] =
     WeakConcurrentBag[Fiber.Runtime[_, _]](10000, _.isAlive())
       .withAutoGc(5.seconds)
