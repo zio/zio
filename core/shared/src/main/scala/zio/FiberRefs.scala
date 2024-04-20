@@ -142,7 +142,7 @@ final class FiberRefs private (
 
     val fiberRefLocals0 = childFiberRefs.foldLeft(parentFiberRefs) {
       case (parentFiberRefs, (childFiberRef, childStack)) =>
-        if (childStack.id == fiberId) parentFiberRefs
+        if (childStack.fiberId == fiberId) parentFiberRefs
         else {
           val ref               = childFiberRef.asInstanceOf[FiberRef[Any]]
           val childInitialValue = ref.initial
@@ -171,7 +171,7 @@ final class FiberRefs private (
               if (oldValue == newValue) parentFiberRefs
               else {
                 val newEntry =
-                  if (parentStack.id == fiberId) parentStack.updateValue(newValue)
+                  if (parentStack.fiberId == fiberId) parentStack.updateValue(newValue)
                   else parentStack.put(fiberId, newValue)
 
                 parentFiberRefs.updated(ref, newEntry)
@@ -199,7 +199,7 @@ final class FiberRefs private (
     val newStack =
       if (oldStack eq null) FiberRefStack.init(fiberId, value)
       else {
-        if (oldStack.id == fiberId) {
+        if (oldStack.fiberId == fiberId) {
           if (oldStack.value == value) oldStack else oldStack.updateValue(value)
         } else if (oldStack.value == value) oldStack
         else oldStack.put(fiberId, value)
@@ -213,27 +213,25 @@ final class FiberRefs private (
 
 object FiberRefs {
   private[zio] final case class FiberRefStackEntry[@specialized(SpecializeInt) A] private[FiberRefs] (
-    id: FiberId.Runtime,
+    fiberId: FiberId.Runtime,
     value: A,
     version: Int
   )
   private[zio] object FiberRefStackEntry {
-    @inline def make[A](id: FiberId.Runtime, value: A): FiberRefStackEntry[A] = FiberRefStackEntry(id, value, 0)
+    @inline def make[A](fiberId: FiberId.Runtime, value: A): FiberRefStackEntry[A] =
+      FiberRefStackEntry(fiberId, value, 0)
   }
 
   private[zio] final case class FiberRefStack private (stack: ::[FiberRefStackEntry[?]], depth: Int) {
     @inline private def head: FiberRefStackEntry[?]       = stack.head
     @inline private def tail: List[FiberRefStackEntry[?]] = stack.tail
 
-    @inline def id: FiberId.Runtime = stack.head.id
-    @inline def value: Any          = stack.head.value
-    @inline def version: Int        = stack.head.version
+    @inline def fiberId: FiberId.Runtime = head.fiberId
+    @inline def value: Any               = head.value
+    @inline def version: Int             = head.version
 
     /**
      * Update the value of the head entry
-     *
-     * @param value
-     * @return
      */
     @inline def updateValue(value: Any): FiberRefStack =
       FiberRefStack(
@@ -244,10 +242,6 @@ object FiberRefs {
 
     /**
      * Add a new entry on top of the Stack
-     *
-     * @param fiberId
-     * @param value
-     * @return
      */
     @inline def put(fiberId: FiberId.Runtime, value: Any): FiberRefStack =
       FiberRefStack(
