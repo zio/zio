@@ -100,7 +100,7 @@ final class FiberRefs private (
 
   private[zio] def getOrNull[A](fiberRef: FiberRef[A]): A = {
     val out = fiberRefLocals.getOrElse(fiberRef, null)
-    if (out eq null) null else out.stack.head.value
+    if (out eq null) null else out.head.value
   }.asInstanceOf[A]
 
   /**
@@ -222,13 +222,15 @@ object FiberRefs {
       FiberRefStackEntry(fiberId, value, 0)
   }
 
-  private[zio] final case class FiberRefStack private (stack: ::[FiberRefStackEntry[?]], depth: Int) {
-    @inline private def head: FiberRefStackEntry[?]       = stack.head
-    @inline private def tail: List[FiberRefStackEntry[?]] = stack.tail
-
-    @inline def fiberId: FiberId.Runtime = head.fiberId
-    @inline def value: Any               = head.value
-    @inline def version: Int             = head.version
+  private[zio] final case class FiberRefStack private (
+    head: FiberRefStackEntry[?],
+    tail: List[FiberRefStackEntry[?]],
+    depth: Int
+  ) {
+    @inline def stack: List[FiberRefStackEntry[?]] = head :: tail
+    @inline def fiberId: FiberId.Runtime           = head.fiberId
+    @inline def value: Any                         = head.value
+    @inline def version: Int                       = head.version
 
     /**
      * Update the value of the head entry
@@ -252,10 +254,8 @@ object FiberRefs {
   }
   private[zio] object FiberRefStack {
     @inline def init[A](id: FiberId.Runtime, value: A): FiberRefStack =
-      FiberRefStack(::(FiberRefStackEntry.make(id, value), List.empty), 1)
+      FiberRefStack(FiberRefStackEntry.make(id, value), List.empty, 1)
 
-    @inline def apply(head: FiberRefStackEntry[?], tail: List[FiberRefStackEntry[?]], depth: Int): FiberRefStack =
-      FiberRefStack(::(head, tail), depth)
   }
 
   /**
