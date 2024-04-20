@@ -101,7 +101,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   def inheritAll(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (parentFiber, parentStatus) =>
-      implicit val unsafe = Unsafe.unsafe
+      implicit val unsafe: Unsafe = Unsafe.unsafe
 
       val parentFiberId      = parentFiber.id
       val parentFiberRefs    = parentFiber.getFiberRefs()
@@ -787,6 +787,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
     val k = self._asyncContWith
 
+    // TODO: To fix?
+    //         1. `k` is `_asyncContWith` which is a `ZIO[Any, Any, Any] => Any`
+    //         2. `notBlockingOn` is a `() => FiberId`
+    //         3. `notBlockingOn` seems to never be assigned to `_asyncContWith` (needs a deeper look to be sure about this)
+    //         4. which would mean that `k ne FiberRuntime.notBlockingOn` would always be `true`
+    //         5. which would mean that this `(k ne FiberRuntime.notBlockingOn)` test is useless
+    //      Some questions to answer then:
+    //         1. Why and when was it added?
+    //         2. If it's indeed incorrect/useless, should it be removed or replaced with something else? What was the intention of the original author?
     if ((k ne null) && (k ne FiberRuntime.notBlockingOn)) {
       k(Exit.Failure(cause))
     }
