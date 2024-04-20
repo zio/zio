@@ -16,8 +16,6 @@
 
 package zio
 
-import izumi.reflect.macrortti.LightTypeTag
-
 import scala.annotation.tailrec
 
 final class ZEnvironment[+R] private (
@@ -294,22 +292,23 @@ object ZEnvironment {
 
   object Patch {
 
+    private val _empty = Empty()
+
     /**
      * An empty patch which returns the environment unchanged.
      */
-    def empty[A]: Patch[A, A] =
-      Empty()
+    def empty[A]: Patch[A, A] = _empty.asInstanceOf[Patch[A, A]]
 
     /**
      * Constructs a patch that describes the updates necessary to transform the
      * specified old environment into the specified new environment.
      */
     def diff[In, Out](oldValue: ZEnvironment[In], newValue: ZEnvironment[Out]): Patch[In, Out] =
-      if (oldValue == newValue) Patch.Empty().asInstanceOf[Patch[In, Out]]
+      if (oldValue == newValue) Patch.empty.asInstanceOf[Patch[In, Out]]
       else {
         val sorted = newValue.map.toList.sortBy { case (_, (_, index)) => index }
         val (missingServices, patch) = sorted.foldLeft[(Map[LightTypeTag, (Any, Int)], Patch[In, Out])](
-          oldValue.map -> Patch.Empty().asInstanceOf[Patch[In, Out]]
+          oldValue.map -> Patch.empty.asInstanceOf[Patch[In, Out]]
         ) { case ((map, patch), (tag, (newService, newIndex))) =>
           map.get(tag) match {
             case Some((oldService, oldIndex)) =>
