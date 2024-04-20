@@ -192,6 +192,7 @@ trait Runtime[+R] { self =>
       zio: ZIO[R, E, A]
     )(implicit trace: Trace, unsafe: Unsafe): internal.FiberRuntime[E, A] = {
       val fiberId   = FiberId.make(trace)
+      // TODO Jules: Inspect deeper
       val fiberRefs = self.fiberRefs.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
       val fiber     = FiberRuntime[E, A](fiberId, fiberRefs.forkAs(fiberId), runtimeFlags)
 
