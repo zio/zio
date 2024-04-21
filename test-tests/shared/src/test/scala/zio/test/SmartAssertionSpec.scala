@@ -571,10 +571,10 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         }
         suite("test complex class with same name for method and field")(
           test("one line default apply field check") {
-            assertTrue(Foo(Bar(), true).otherField)
+            assertTrue(Foo(Bar(), otherField = true).otherField)
           },
           test("one line default apply nested same name check") {
-            assertTrue(Foo(Bar(), true).bar.valid)
+            assertTrue(Foo(Bar(), otherField = true).bar.valid)
           },
           test("one line companion apply field check") {
             assertTrue(Foo(true).otherField)

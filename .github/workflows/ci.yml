@@ -1,8 +1,8 @@
 name: CI
 
 env:
-  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx6G -Xss4M -XX:+UseG1GC # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
-  JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx6G -Xss4M -XX:+UseG1GC # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
+  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xms6G -Xmx6G -Xss4M -XX:+UseG1GC # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
+  SBT_OPTS: -XX:+PrintCommandLineFlags -Xms6G -Xmx6G -Xss4M -XX:+UseG1GC # Needed for sbt
   NODE_OPTIONS: --max_old_space_size=6144
 
 on:
@@ -23,9 +23,9 @@ jobs:
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v3.0.2
+      uses: actions/checkout@v4.1.1
     - name: Setup Java
-      uses: actions/setup-java@v2.5.0
+      uses: actions/setup-java@v4.2.1
       with:
         distribution: temurin
         java-version: 17
@@ -35,7 +35,7 @@ jobs:
     - name: Install libuv
       run: sudo apt-get update && sudo apt-get install -y libuv1-dev
     - name: Lint code
-      run: ./sbt check
+      run: sbt check
 
   compile:
     runs-on: ubuntu-20.04
@@ -44,12 +44,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scala: ['2.12.*', '2.13.*', '3.*']
+        scala: ['2.12.x', '2.13.x', '3.x']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v3.0.2
+        uses: actions/checkout@v4.1.1
       - name: Setup Java
-        uses: actions/setup-java@v2.5.0
+        uses: actions/setup-java@v4.2.1
         with:
           distribution: temurin
           java-version: 17
@@ -64,13 +64,13 @@ jobs:
           swap-size-gb: 7
       - name: Test/compile 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
-        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root212/Test/compile
+        run: free --si -tmws 10 & sbt -v ++${{ matrix.scala }} root212/Test/compile
       - name: Test/compile 2.13
         if: ${{ startsWith(matrix.scala, '2.13.') }}
-        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root213/Test/compile
+        run: free --si -tmws 10 & sbt -v ++${{ matrix.scala }} root213/Test/compile
       - name: Test/compile 3
         if: ${{ startsWith(matrix.scala, '3.') }}
-        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root3/Test/compile
+        run: free --si -tmws 10 & sbt -v ++${{ matrix.scala }} root3/Test/compile
 
   publishLocal:
     runs-on: ubuntu-20.04
@@ -79,15 +79,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scala: ['2.12.*', '2.13.*', '3.*']
+        scala: ['2.12.x', '2.13.x', '3.x']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v3.0.2
+        uses: actions/checkout@v4.1.1
       - name: Setup Java
-        uses: actions/setup-java@v2.5.0
+        uses: actions/setup-java@v4.2.1
         with:
           distribution: temurin
-          java-version: 8
+          java-version: 17
           check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
@@ -95,28 +95,29 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: publishLocal 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
-        run: ./sbt ++${{ matrix.scala }} root212/publishLocal
+        run: sbt -v ++${{ matrix.scala }} root212/publishLocal
       - name: publishLocal 2.13
         if: ${{ startsWith(matrix.scala, '2.13.') }}
-        run: ./sbt ++${{ matrix.scala }} root213/publishLocal
+        run: sbt -v ++${{ matrix.scala }} root213/publishLocal
       - name: publishLocal 3
         if: ${{ startsWith(matrix.scala, '3.') }}
-        run: ./sbt ++${{ matrix.scala }} root3/publishLocal
+        run: sbt -v ++${{ matrix.scala }} root3/publishLocal
 
   build-website:
     runs-on: ubuntu-20.04
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
       - name: Checkout Current Branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
         with:
           fetch-depth: '0'
           
       - name: Setup Scala and Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4.2.1
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: 17
+          check-latest: true
           
       - name: Install NodeJS
         uses: actions/setup-node@v3
@@ -126,8 +127,8 @@ jobs:
       - name: Compile Docs
         run: |
           while true; do free -h; sleep 5; done &
-          sbt -mem 2048 docs/mdoc -verbose
-          sbt -mem 2048 docs/unidoc -verbose
+          sbt -mem 4096 docs/mdoc -verbose
+          sbt -mem 4096 docs/unidoc -verbose
 
       - name: Build The Website
         working-directory: ./website
@@ -152,14 +153,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scala: ['2.12.18', '2.13.12', '3.3.1']
+        scala: ['2.12.x', '2.13.x', '3.x']
         java: ['17']
         platform: ['JVM']
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v3.0.2
+      uses: actions/checkout@v4.1.1
     - name: Setup Java
-      uses: actions/setup-java@v2.5.0
+      uses: actions/setup-java@v4.2.1
       with:
         distribution: temurin
         java-version: ${{ matrix.java }}
@@ -168,16 +169,16 @@ jobs:
       uses: coursier/cache-action@v6
     - name: Mima Checks
       if: ${{ !startsWith(matrix.scala, '3.') }}
-      run: ./sbt ++${{ matrix.scala }}! mimaChecks
+      run: sbt -v ++${{ matrix.scala }} mimaChecks
     - name: Test 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
-      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
+      run: sbt -v ++${{ matrix.scala }} test${{ matrix.platform }}
     - name: Test 2.13
       if: ${{ startsWith(matrix.scala, '2.13.') }}
-      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
+      run: sbt -v ++${{ matrix.scala }} test${{ matrix.platform }}
     - name: Test 3
       if: ${{ startsWith(matrix.scala, '3.') }}
-      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}3
+      run: sbt -v ++${{ matrix.scala }} test${{ matrix.platform }}3
     - name: Upload Test Results 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
       uses: actions/upload-artifact@v3
@@ -216,13 +217,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['11']
+        java: ['11', '21']
         platform: ['JVM']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v3.0.2
+        uses: actions/checkout@v4.1.1
       - name: Setup Java
-        uses: actions/setup-java@v2.5.0
+        uses: actions/setup-java@v4.2.1
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
@@ -230,7 +231,7 @@ jobs:
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Test on different JVM versions
-        run: ./sbt test${{ matrix.platform }}
+        run: sbt -v test${{ matrix.platform }}
 
       - name: Report Test Death JVM 11
         if: ${{ failure() &&  startsWith(matrix.java, '11') }}
@@ -250,9 +251,9 @@ jobs:
         platform: ['JS', 'Native']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v3.0.2
+        uses: actions/checkout@v4.1.1
       - name: Setup Java
-        uses: actions/setup-java@v2.5.0
+        uses: actions/setup-java@v4.2.1
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
@@ -266,7 +267,7 @@ jobs:
         with:
           swap-size-gb: 9
       - name: Test on different Scala target platforms
-        run: free --si -tmws 10 & ./sbt test${{ matrix.platform }}
+        run: free --si -tmws 10 & sbt -v test${{ matrix.platform }}
 
   ci:
     runs-on: ubuntu-20.04
@@ -282,19 +283,19 @@ jobs:
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v3.0.2
+        uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
       - name: Setup Java
-        uses: actions/setup-java@v2.5.0
+        uses: actions/setup-java@v4.2.1
         with:
           distribution: temurin
-          java-version: 8
+          java-version: 17
           check-latest: true
       - name: Install libuv
         run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Release
-        run: ./sbt ci-release
+        run: sbt -v ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
@@ -307,7 +308,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
 
@@ -327,7 +328,7 @@ jobs:
     if: ${{ ((github.event_name == 'repository_dispatch') && (github.event.action == 'update-docs')) }}
     steps:
       - name: Git Checkout
-        uses: actions/checkout@v3.3.0
+        uses: actions/checkout@v4.1.1
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: '0'

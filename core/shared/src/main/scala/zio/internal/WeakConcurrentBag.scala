@@ -23,7 +23,8 @@ import scala.annotation.tailrec
  * nursery and occassional garbage collection.
  */
 private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsAlive[A]) { self =>
-  private[this] val nursery           = MutableConcurrentQueue.boundedPartitioned[WeakReference[A]](nurserySize)
+  private[this] def nCpu              = java.lang.Runtime.getRuntime.availableProcessors()
+  private[this] val nursery           = new PartitionedRingBuffer[WeakReference[A]](nCpu * 4, nurserySize, roundToPow2 = true)
   private[this] val nurseryActualSize = nursery.capacity
 
   private[this] val graduates = Platform.newConcurrentSet[WeakReference[A]](nurseryActualSize * 2)(Unsafe.unsafe)

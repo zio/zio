@@ -27,13 +27,13 @@ object DeriveDiffSpec extends ZIOBaseSpec {
             "Boboo",
             Some("Babbo\nThe\nBibber"),
             300,
-            Pet("The Beautiful Crumb", false, l1, Instant.MIN),
+            Pet("The Beautiful Crumb", hasBone = false, l1, Instant.MIN),
             Some(
               Person(
                 "Boboo",
                 Some("Babbo\nThe\nBibber"),
                 300,
-                Pet("The Beautiful Crumb", false, l1, Instant.MIN)
+                Pet("The Beautiful Crumb", hasBone = false, l1, Instant.MIN)
               )
             )
           )
@@ -41,13 +41,13 @@ object DeriveDiffSpec extends ZIOBaseSpec {
           "Bibi",
           Some("Bibbo\nThe\nBibber\nBobber"),
           300,
-          Pet("The Beautiful Destroyer", false, l2, Instant.now),
+          Pet("The Beautiful Destroyer", hasBone = false, l2, Instant.now),
           Some(
             Person(
               "Bibi",
               Some("Bibbo\nThe\nBibber\nBobber"),
               300,
-              Pet("The Beautiful Destroyer", false, l2, Instant.now)
+              Pet("The Beautiful Destroyer", hasBone = false, l2, Instant.now)
             )
           )
         )

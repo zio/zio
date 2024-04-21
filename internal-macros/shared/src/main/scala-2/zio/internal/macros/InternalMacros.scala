@@ -11,7 +11,7 @@ class InternalMacros(val c: blackbox.Context) {
       case x if x.typeSymbol.isParameter =>
         try {
           val serviceTagType = c.typecheck(q"_root_.zio.Tag[$x]").tpe
-          c.inferImplicitValue(serviceTagType, silent = false, true)
+          c.inferImplicitValue(serviceTagType, silent = false, withMacrosDisabled = true)
         } catch {
           case _: Throwable =>
             c.abort(c.enclosingPosition, s"Cannot find implicit for Tag[$x]")

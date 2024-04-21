@@ -1381,16 +1381,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 }
 
 object FiberRuntime {
-  private[zio] final val MaxForksBeforeYield      = 128
-  private[zio] final val MaxOperationsBeforeYield = 1024 * 10
-  private[zio] final val MaxDepthBeforeTrampoline = 300
-  private[zio] final val MaxWorkStealingDepth     = 150
-  private[zio] final val WorkStealingSafetyMargin = 50
+  private final val MaxForksBeforeYield      = 128
+  private final val MaxOperationsBeforeYield = 1024 * 10
+  private final val MaxDepthBeforeTrampoline = 300
+  private final val MaxWorkStealingDepth     = 150
+  private final val WorkStealingSafetyMargin = 50
 
-  private[zio] final val IgnoreContinuation: Any => Unit = _ => ()
+  private final val IgnoreContinuation: Any => Unit = _ => ()
 
-  private[zio] type EvaluationSignal = Int
-  private[zio] object EvaluationSignal {
+  private type EvaluationSignal = Int
+  private object EvaluationSignal {
     final val Continue = 1
     final val YieldNow = 2
     final val Done     = 3
