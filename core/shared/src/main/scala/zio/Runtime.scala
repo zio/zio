@@ -243,25 +243,36 @@ object Runtime extends RuntimePlatformSpecific {
   val default: Runtime[Any] =
     Runtime(ZEnvironment.empty, FiberRefs.empty, RuntimeFlags.default)
 
-  def enableCooperativeYielding(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+  def disableFlags(flags: RuntimeFlag*)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped {
-      ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.CooperativeYielding))
+      ZIO.foreachDiscard(flags)(f => ZIO.withRuntimeFlagsScoped(RuntimeFlags.disable(f)))
     }
 
+  def enableCooperativeYielding(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    enableFlags(RuntimeFlag.CooperativeYielding)
+
   def enableCurrentFiber(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    enableFlags(RuntimeFlag.CurrentFiber)
+
+  def enableFlags(flags: RuntimeFlag*)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped {
-      ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.CurrentFiber))
+      ZIO.foreachDiscard(flags)(f => ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(f)))
     }
 
   def enableFiberRoots(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
-    ZLayer.scoped {
-      ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.FiberRoots))
-    }
+    enableFlags(RuntimeFlag.FiberRoots)
 
   def enableOpLog(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
-    ZLayer.scoped {
-      ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.OpLog))
-    }
+    enableFlags(RuntimeFlag.OpLog)
+
+  def enableOpSupervision(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    enableFlags(RuntimeFlag.OpSupervision)
+
+  def enableRuntimeMetrics(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    enableFlags(RuntimeFlag.RuntimeMetrics)
+
+  def enableWorkStealing(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    enableFlags(RuntimeFlag.WorkStealing)
 
   val removeDefaultLoggers: ZLayer[Any, Nothing, Unit] = {
     implicit val trace = Trace.empty
@@ -282,21 +293,6 @@ object Runtime extends RuntimePlatformSpecific {
 
   def setReportFatal(reportFatal: Throwable => Nothing)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentReportFatal.locallyScoped(reportFatal))
-
-  def enableOpSupervision(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
-    ZLayer.scoped {
-      ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.OpSupervision))
-    }
-
-  def enableRuntimeMetrics(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
-    ZLayer.scoped {
-      ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.RuntimeMetrics))
-    }
-
-  def enableWorkStealing(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
-    ZLayer.scoped {
-      ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.WorkStealing))
-    }
 
   object unsafe {
 
