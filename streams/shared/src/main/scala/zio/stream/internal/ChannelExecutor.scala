@@ -709,10 +709,10 @@ private[zio] object ChannelExecutor {
     val readStack = scala.collection.mutable.Stack
       .empty[ChannelState.Read[Any, Any]]
 
-    @tailrec def read(optTillYield: Int, current: ChannelState.Read[Any, Any]): ZIO[R, E2, A] =
+    @tailrec def read(opsTillYield: Int, current: ChannelState.Read[Any, Any]): ZIO[R, E2, A] =
       if (current.upstream eq null) {
         ZIO.dieMessage("Unexpected end of input for channel execution")
-      } else if (0 == optTillYield) {
+      } else if (0 == opsTillYield) {
         ZIO.suspendSucceed(readAux(current))
       } else {
         current.upstream.run() match {
@@ -724,7 +724,7 @@ private[zio] object ChannelExecutor {
                 emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => onSuccess())
             } else {
               val next = readStack.pop()
-              if (emitEffect eq null) read(optTillYield - 1, next)
+              if (emitEffect eq null) read(opsTillYield - 1, next)
               else (emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => readAux(next)))
             }
           case ChannelState.Done =>
@@ -735,7 +735,7 @@ private[zio] object ChannelExecutor {
                 doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => onSuccess())
             } else {
               val next = readStack.pop()
-              if (doneEffect eq null) read(optTillYield - 1, next)
+              if (doneEffect eq null) read(opsTillYield - 1, next)
               else (doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => readAux(next)))
             }
           case ChannelState.Effect(zio) =>
@@ -751,7 +751,7 @@ private[zio] object ChannelExecutor {
               .foldCauseZIO(onFailure, _ => readAux(current))
           case r2 @ ChannelState.Read(upstream2, onEffect2, onEmit2, onDone2) =>
             readStack.push(current.asInstanceOf[ChannelState.Read[Any, Any]])
-            read(optTillYield - 1, r2)
+            read(opsTillYield - 1, r2.asInstanceOf[ChannelState.Read[Any, Any]])
         }
       }
 
