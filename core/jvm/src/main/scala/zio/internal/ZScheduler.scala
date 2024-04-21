@@ -32,9 +32,9 @@ import scala.collection.mutable
 private final class ZScheduler(autoBlocking: Boolean) extends Executor {
 
   private[this] val poolSize        = java.lang.Runtime.getRuntime.availableProcessors
-  private[this] val cache           = MutableConcurrentQueue.unbounded[ZScheduler.Worker](addMetrics = false)
-  private[this] val globalQueue     = MutableConcurrentQueue.unboundedPartitioned[Runnable](addMetrics = false)
-  private[this] val idle            = MutableConcurrentQueue.unbounded[ZScheduler.Worker](addMetrics = false)
+  private[this] val globalQueue     = new PartitionedLinkedQueue[Runnable](poolSize * 4, addMetrics = false)
+  private[this] val cache           = new LinkedQueue[ZScheduler.Worker](addMetrics = false)
+  private[this] val idle            = new LinkedQueue[ZScheduler.Worker](addMetrics = false)
   private[this] val globalLocations = makeLocations()
   private[this] val state           = new AtomicInteger(poolSize << 16)
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
@@ -461,7 +461,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
     Blocking.blockingExecutor.submit(runnable)
 }
 
-private[zio] object ZScheduler {
+private object ZScheduler {
 
   /**
    * `Locations` tracks the number of observations of a fiber forked from a
