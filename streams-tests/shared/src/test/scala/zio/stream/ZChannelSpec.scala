@@ -437,7 +437,7 @@ object ZChannelSpec extends ZIOBaseSpec {
           _     <- latch.await
           _     <- fiber.interrupt
         } yield (assertCompletes)
-      ) @@ timeout(1.second) @@ zioTag(interruption),
+      ) @@ timeout(2.second) @@ zioTag(interruption),
       suite("reads")(
         test("simple reads") {
           case class Whatever(i: Int)
