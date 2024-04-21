@@ -709,15 +709,12 @@ private[zio] object ChannelExecutor {
     val readStack = scala.collection.mutable.Stack
       .empty[ChannelState.Read[Any, Any]]
 
-    @tailrec def read(optTillYield : Int, current : ChannelState.Read[Any, Any] ): ZIO[R, E2, A] = {
+    @tailrec def read(optTillYield: Int, current: ChannelState.Read[Any, Any]): ZIO[R, E2, A] =
       if (current.upstream eq null) {
         ZIO.dieMessage("Unexpected end of input for channel execution")
-      }
-      else if(0 == optTillYield)
-      {
+      } else if (0 == optTillYield) {
         ZIO.suspendSucceed(readAux(current))
-      }
-      else {
+      } else {
         current.upstream.run() match {
           case ChannelState.Emit =>
             val emitEffect = current.onEmit(current.upstream.getEmit)
@@ -757,9 +754,8 @@ private[zio] object ChannelExecutor {
             read(optTillYield - 1, r2)
         }
       }
-    }
 
-    def readAux(current : ChannelState.Read[Any, Any]): ZIO[R, E2, A] =
+    def readAux(current: ChannelState.Read[Any, Any]): ZIO[R, E2, A] =
       ZIO.unit *> read(2048, current)
 
     readAux(r.asInstanceOf[ChannelState.Read[Any, Any]])
