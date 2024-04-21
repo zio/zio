@@ -709,11 +709,17 @@ private[zio] object ChannelExecutor {
     val readStack = scala.collection.mutable.Stack
       .apply[ChannelState.Read[Any, Any]](r.asInstanceOf[ChannelState.Read[Any, Any]])
 
-    def read(): ZIO[R, E2, A] = {
+    @tailrec def read(optTillYield : Int ): ZIO[R, E2, A] = {
       val current = readStack.pop()
       if (current.upstream eq null) {
         ZIO.dieMessage("Unexpected end of input for channel execution")
-      } else {
+      }
+      else if(0 == optTillYield)
+      {
+        readStack.push(current)
+        ZIO.suspendSucceed(readAux())
+      }
+      else {
         current.upstream.run() match {
           case ChannelState.Emit =>
             val emitEffect = current.onEmit(current.upstream.getEmit)
@@ -722,8 +728,8 @@ private[zio] object ChannelExecutor {
               else
                 emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => onSuccess())
             } else {
-              if (emitEffect eq null) read()
-              else (emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => read()))
+              if (emitEffect eq null) read(optTillYield - 1)
+              else (emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => readAux()))
             }
           case ChannelState.Done =>
             val doneEffect = current.onDone(current.upstream.getDone)
@@ -732,8 +738,8 @@ private[zio] object ChannelExecutor {
               else
                 doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => onSuccess())
             } else {
-              if (doneEffect eq null) read()
-              else (doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => read()))
+              if (doneEffect eq null) read(optTillYield - 1)
+              else (doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => readAux()))
             }
           case ChannelState.Effect(zio) =>
             readStack.push(current)
@@ -746,16 +752,19 @@ private[zio] object ChannelExecutor {
                   else doneEffect
                 }
               }
-              .foldCauseZIO(onFailure, _ => read())
+              .foldCauseZIO(onFailure, _ => readAux())
           case r2 @ ChannelState.Read(upstream2, onEffect2, onEmit2, onDone2) =>
             readStack.push(current.asInstanceOf[ChannelState.Read[Any, Any]])
             readStack.push(r2.asInstanceOf[ChannelState.Read[Any, Any]])
-            ZIO.succeed(()) *> read()
+            /*ZIO.succeed(()) *> */read(optTillYield - 1)
         }
       }
     }
 
-    read()
+    def readAux(): ZIO[R, E2, A] =
+      ZIO.unit *> read(2048)
+
+    readAux()
   }
 
   private[zio] def execToPullingChannel[Env](
