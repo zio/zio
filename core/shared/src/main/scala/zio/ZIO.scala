@@ -2598,8 +2598,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       parentRuntimeFlags: RuntimeFlags,
       overrideScope: FiberScope
     )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
-      val childId         = FiberId.make(trace)
       val parentFiberRefs = parentFiber.getFiberRefs()
+      val childId         = FiberId.generate(parentFiberRefs)(trace)
       val childFiberRefs  = parentFiberRefs.forkAs(childId) // TODO: Optimize
 
       val childFiber = internal.FiberRuntime[E1, A](childId, childFiberRefs, parentRuntimeFlags)

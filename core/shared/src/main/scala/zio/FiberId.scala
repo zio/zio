@@ -85,12 +85,48 @@ object FiberId {
   def apply(id: Int, startTimeSeconds: Int, location: Trace): FiberId =
     Runtime(id, startTimeSeconds * 1000L, location)
 
-  private[zio] def make(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime = {
-    val id = ThreadLocalRandom.current().nextInt(Int.MaxValue)
-    FiberId.Runtime(id, java.lang.System.currentTimeMillis(), location)
-  }
+  @deprecated("use `generate` instead", "1.0.0")
+  private[zio] def make(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime =
+    Gen.Random.make(location)
+
+  private[zio] def generate(fiberRefs: FiberRefs)(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime =
+    fiberRefs.getOrDefault(FiberRef.currentFiberIdGenerator).make(location)
 
   case object None                                                          extends FiberId
   final case class Runtime(id: Int, startTimeMillis: Long, location: Trace) extends FiberId
   final case class Composite(left: FiberId, right: FiberId)                 extends FiberId
+
+  private[zio] trait Gen {
+    def make(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime
+  }
+
+  private[zio] object Gen {
+
+    /**
+     * Generates a fiber ID where the `id` is a random integer.
+     *
+     * This is more performant than using `FiberId.Gen.Ordered`, but cannot be
+     * used in cases that rely on strict ordering of fibers (e.g., in zio-test)
+     */
+    object Random extends Gen {
+      def make(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime = {
+        val id = ThreadLocalRandom.current().nextInt(Int.MaxValue)
+        FiberId.Runtime(id, java.lang.System.currentTimeMillis(), location)
+      }
+    }
+
+    /**
+     * Generates a fiber ID where the `id` is a monotonically increasing
+     * integer.
+     *
+     * This is less performant than generating IDs randomly, but is required for
+     * cases that rely on strict ordering of fibers (e.g., in zio-test)
+     */
+    object Monotonic extends Gen {
+      private[this] val counter = new java.util.concurrent.atomic.AtomicInteger(0)
+      def make(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime =
+        FiberId.Runtime(counter.getAndIncrement(), java.lang.System.currentTimeMillis(), location)
+    }
+  }
+
 }
