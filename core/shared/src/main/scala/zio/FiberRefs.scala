@@ -248,7 +248,7 @@ object FiberRefs {
      * Applies the changes described by this patch to the specified collection
      * of `FiberRef` values.
      */
-    def apply(fiberId: FiberId.Runtime, fiberRefs: FiberRefs): FiberRefs = {
+    final def apply(fiberId: FiberId.Runtime, fiberRefs: FiberRefs): FiberRefs = {
 
       @tailrec
       def loop(fiberRefs: FiberRefs, patches: List[Patch]): FiberRefs =
@@ -278,7 +278,7 @@ object FiberRefs {
      * describes applying the changes from this patch and the specified patch
      * sequentially.
      */
-    def combine(that: Patch): Patch =
+    final def combine(that: Patch): Patch =
       AndThen(self, that)
   }
 
