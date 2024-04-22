@@ -444,37 +444,37 @@ object FiberRef {
     )(implicit unsafe: Unsafe): FiberRef.WithPatch[Value0, Patch0] =
       new FiberRef[Value0] {
         self =>
-        type Patch = Patch0
+        override type Patch = Patch0
 
-        def combine(first: Patch, second: Patch): Patch =
+        override final def combine(first: Patch, second: Patch): Patch =
           differ.combine(first, second)
 
-        def diff(oldValue: Value, newValue: Value): Patch =
+        override final def diff(oldValue: Value, newValue: Value): Patch =
           differ.diff(oldValue, newValue)
 
-        def fork: Patch =
+        override final def fork: Patch =
           fork0
 
-        def initial: Value =
+        override final def initial: Value =
           initialValue0
 
-        def patch(patch: Patch)(oldValue: Value): Value =
+        override final def patch(patch: Patch)(oldValue: Value): Value =
           differ.patch(patch)(oldValue)
 
-        def join(oldValue: Value, newValue: Value): Value =
+        override final def join(oldValue: Value, newValue: Value): Value =
           join0(oldValue, newValue)
 
-        override def get(implicit trace: Trace): UIO[Value] =
+        override final def get(implicit trace: Trace): UIO[Value] =
           ZIO.withFiberRuntime[Any, Nothing, Value] { (fiberState, _) =>
             ZIO.succeed(fiberState.getFiberRef(self))
           }
 
-        override def getWith[R, E, A](f: Value => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+        override final def getWith[R, E, A](f: Value => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
           ZIO.withFiberRuntime[R, E, A] { (fiberState, _) =>
             f(fiberState.getFiberRef(self))
           }
 
-        override def locally[R, E, A](newValue: Value)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+        override final def locally[R, E, A](newValue: Value)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
           ZIO.withFiberRuntime[R, E, A] { (fiberState, _) =>
             val oldValue = fiberState.getFiberRef(self)
 
@@ -483,7 +483,7 @@ object FiberRef {
             zio.ensuring(ZIO.succeed(fiberState.setFiberRef(self, oldValue)))
           }
 
-        override def set(value: Value)(implicit trace: Trace): UIO[Unit] =
+        override final def set(value: Value)(implicit trace: Trace): UIO[Unit] =
           ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
             fiberState.setFiberRef(self, value)
 
