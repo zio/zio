@@ -186,7 +186,7 @@ final class FiberRefs private (
       fiberRef.asInstanceOf[FiberRef[Any]].set(getOrDefault(fiberRef))
     }
 
-  override final def toString(): String = fiberRefLocals.mkString("FiberRefLocals(", ",", ")")
+  override def toString: String = fiberRefLocals.mkString("FiberRefLocals(", ",", ")")
 
   def updatedAs[@specialized(SpecializeInt) A](
     fiberId: FiberId.Runtime
