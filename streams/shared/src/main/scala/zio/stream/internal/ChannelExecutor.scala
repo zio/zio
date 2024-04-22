@@ -756,7 +756,7 @@ private[zio] object ChannelExecutor {
       }
 
     def readAux(current: ChannelState.Read[Any, Any]): ZIO[R, E2, A] =
-      ZIO.unit *> read(2048, current)
+      ZIO.unit *> read(128, current)
 
     readAux(r.asInstanceOf[ChannelState.Read[Any, Any]])
   }
