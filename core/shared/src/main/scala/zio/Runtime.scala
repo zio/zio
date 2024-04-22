@@ -232,9 +232,9 @@ object Runtime extends RuntimePlatformSpecific {
     runtimeFlags0: RuntimeFlags
   ): Runtime[R] =
     new Runtime[R] {
-      val environment           = r
-      override val fiberRefs    = fiberRefs0
-      override val runtimeFlags = runtimeFlags0
+      override final val environment: ZEnvironment[R] = r
+      override final val fiberRefs: FiberRefs         = fiberRefs0
+      override final val runtimeFlags: RuntimeFlags   = runtimeFlags0
     }
 
   /**
@@ -326,10 +326,9 @@ object Runtime extends RuntimePlatformSpecific {
   }
 
   class Proxy[+R](underlying: Runtime[R]) extends Runtime[R] {
-    def environment = underlying.environment
-    def fiberRefs   = underlying.fiberRefs
-
-    def runtimeFlags = underlying.runtimeFlags
+    def environment: ZEnvironment[R] = underlying.environment
+    def fiberRefs: FiberRefs         = underlying.fiberRefs
+    def runtimeFlags: RuntimeFlags   = underlying.runtimeFlags
   }
 
   /**
