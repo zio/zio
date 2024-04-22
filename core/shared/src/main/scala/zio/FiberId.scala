@@ -87,7 +87,7 @@ object FiberId {
 
   @deprecated("use `generate` instead", "1.0.0")
   private[zio] def make(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime =
-    Gen.Random.make(location)
+    Gen.Live.make(location)
 
   private[zio] def generate(fiberRefs: FiberRefs)(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime =
     fiberRefs.getOrDefault(FiberRef.currentFiberIdGenerator).make(location)
@@ -108,7 +108,7 @@ object FiberId {
      * This is more performant than using `FiberId.Gen.Ordered`, but cannot be
      * used in cases that rely on strict ordering of fibers (e.g., in zio-test)
      */
-    object Random extends Gen {
+    object Live extends Gen {
       def make(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime = {
         val id = ThreadLocalRandom.current().nextInt(Int.MaxValue)
         FiberId.Runtime(id, java.lang.System.currentTimeMillis(), location)

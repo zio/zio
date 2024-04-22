@@ -538,7 +538,7 @@ object FiberRef {
     FiberRef.unsafe.makeIsFatal(Runtime.defaultFatal)(Unsafe.unsafe)
 
   private[zio] val currentFiberIdGenerator: FiberRef[FiberId.Gen] =
-    FiberRef.unsafe.make[FiberId.Gen](FiberId.Gen.Random)(Unsafe.unsafe)
+    FiberRef.unsafe.make[FiberId.Gen](FiberId.Gen.Live)(Unsafe.unsafe)
 
   private[zio] val currentLoggers: FiberRef.WithPatch[Set[ZLogger[String, Any]], SetPatch[ZLogger[String, Any]]] =
     FiberRef.unsafe.makeSet(Runtime.defaultLoggers)(Unsafe.unsafe)
