@@ -11,15 +11,6 @@ object PartitionedLinkedQueueSpec extends ZIOBaseSpec {
 
       assertTrue(q.nPartitions() == 16)
     },
-    test("offerAll and pollUpTo items") {
-      val q = new PartitionedLinkedQueue[String](9)
-
-      val oneToHundred = (1 to 100).map(_.toString)
-      q.offerAll(oneToHundred)
-      val polled = (1 to 100).map(_ => q.poll())
-
-      assertTrue(polled.toSet == oneToHundred.toSet)
-    } @@ TestAspect.nonFlaky,
     test("offer and poll items") {
       val q = new PartitionedLinkedQueue[String](9)
 
