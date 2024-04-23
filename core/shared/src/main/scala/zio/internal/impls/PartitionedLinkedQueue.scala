@@ -21,17 +21,15 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ThreadLocalRandom
 
-private[zio] final class PartitionedLinkedQueue[A <: AnyRef](
-  preferredPartitions: Int,
-  addMetrics: Boolean
-) extends MutableConcurrentQueue[A]
+private[zio] final class PartitionedLinkedQueue[A <: AnyRef](preferredPartitions: Int)
+    extends MutableConcurrentQueue[A]
     with Serializable {
 
   override final val capacity = Int.MaxValue
 
   private[this] val mask    = MutableConcurrentQueue.roundToPow2MinusOne(preferredPartitions)
   private[this] val nQueues = mask + 1
-  private[this] val queues  = Array.fill(nQueues)(if (addMetrics) new LinkedQueue[A] else new FastLinkedQueue[A])
+  private[this] val queues  = Array.fill(nQueues)(new FastLinkedQueue[A])
 
   def nPartitions(): Int = nQueues
 
@@ -47,32 +45,9 @@ private[zio] final class PartitionedLinkedQueue[A <: AnyRef](
     size
   }
 
-  override def enqueuedCount(): Long =
-    if (addMetrics) {
-      val from = ThreadLocalRandom.current().nextInt(nQueues)
-      var i    = 0
-      var size = 0L
-      while (i < nQueues) {
-        val idx = (from + i) & mask
-        size += queues(idx).enqueuedCount()
-        i += 1
-      }
-      size
-    } else 0L
+  override def enqueuedCount(): Long = 0L
 
-  override def dequeuedCount(): Long =
-    if (addMetrics) {
-      val random = ThreadLocalRandom.current()
-      val from   = random.nextInt(nQueues)
-      var i      = 0
-      var size   = 0L
-      while (i < nQueues) {
-        val idx = (from + i) & mask
-        size += queues(idx).dequeuedCount()
-        i += 1
-      }
-      size
-    } else 0L
+  override def dequeuedCount(): Long = 0L
 
   def offer(a: A, random: ThreadLocalRandom): Unit = {
     val idx = random.nextInt(nQueues)

@@ -22,7 +22,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.util.concurrent.ConcurrentLinkedQueue
 import scala.annotation.nowarn
 
-private[zio] final class FastLinkedQueue[A] extends MutableConcurrentQueue[A] with Serializable {
+private final class FastLinkedQueue[A] extends MutableConcurrentQueue[A] with Serializable {
   override final val capacity = Int.MaxValue
 
   private[this] val jucConcurrentQueue = new ConcurrentLinkedQueue[A]()
