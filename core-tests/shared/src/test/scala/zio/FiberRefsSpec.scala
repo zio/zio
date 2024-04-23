@@ -16,8 +16,8 @@ object FiberRefsSpec extends ZIOBaseSpec {
       } yield assertTrue(value)
     } +
       test("interruptedCause") {
-        val parent = Unsafe.unsafe(implicit unsafe => FiberId.make(Trace.empty))
-        val child  = Unsafe.unsafe(implicit unsafe => FiberId.make(Trace.empty))
+        val parent = Unsafe.unsafe(implicit unsafe => FiberId.Gen.Live.make(Trace.empty))
+        val child  = Unsafe.unsafe(implicit unsafe => FiberId.Gen.Live.make(Trace.empty))
 
         val parentFiberRefs = FiberRefs.empty
         val childFiberRefs  = parentFiberRefs.updatedAs(child)(FiberRef.interruptedCause, Cause.interrupt(parent))
@@ -33,7 +33,7 @@ object FiberRefsSpec extends ZIOBaseSpec {
        */
       suite("optimizations") {
         implicit val unsafe: Unsafe = Unsafe.unsafe
-        val fiberId                 = FiberId.make(implicitly)
+        val fiberId                 = FiberId.Gen.Live.make(implicitly)
 
         val fiberRefs = List(
           FiberRef.unsafe.make[Int](0, join = (a, b) => a + b),
@@ -53,24 +53,24 @@ object FiberRefsSpec extends ZIOBaseSpec {
         } +
           test("forkAs returns the same map if no fibers are modified during fork") {
             val fr   = makeFiberRefs(fiberRefs.take(4))
-            val isEq = fr.forkAs(FiberId.make(implicitly)) eq fr
+            val isEq = fr.forkAs(FiberId.Gen.Live.make(implicitly)) eq fr
             assertTrue(isEq)
           } +
           test("joinAs returns the same map when fiber refs are unchanged after joining") {
             val fr1  = makeFiberRefs(fiberRefs.drop(1))
             val fr2  = makeFiberRefs(fiberRefs.drop(2))
-            val isEq = fr1.joinAs(FiberId.make(implicitly))(fr2) eq fr1
+            val isEq = fr1.joinAs(FiberId.Gen.Live.make(implicitly))(fr2) eq fr1
             assertTrue(isEq)
           } +
           // Sanity checks
           test("forkAs returns a different map if forked fibers are modified") {
             val fr   = makeFiberRefs(fiberRefs)
-            val isEq = fr.forkAs(FiberId.make(implicitly)) ne fr
+            val isEq = fr.forkAs(FiberId.Gen.Live.make(implicitly)) ne fr
             assertTrue(isEq)
           } +
           test("joinAs returns a different map when fiber refs are changed after joining") {
             val fr1, fr2 = makeFiberRefs(fiberRefs)
-            val isEq     = fr1.joinAs(FiberId.make(implicitly))(fr2) ne fr1
+            val isEq     = fr1.joinAs(FiberId.Gen.Live.make(implicitly))(fr2) ne fr1
             assertTrue(isEq)
           }
       }

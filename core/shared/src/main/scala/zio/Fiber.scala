@@ -628,8 +628,11 @@ object Fiber extends FiberPlatformSpecific {
 
   private[zio] object Runtime {
 
-    implicit val fiberOrdering: Ordering[Fiber.Runtime[?, ?]] =
-      Ordering.by[Fiber.Runtime[?, ?], Long](_.id.startTimeMillis)
+    implicit val fiberOrdering: Ordering[Fiber.Runtime[?, ?]] = { (x, y) =>
+      val byTime = x.id.startTimeMillis.compare(y.id.startTimeMillis)
+      if (byTime == 0) x.id.id.compare(y.id.id)
+      else byTime
+    }
 
     abstract class Internal[+E, +A] extends Runtime[E, A]
   }
