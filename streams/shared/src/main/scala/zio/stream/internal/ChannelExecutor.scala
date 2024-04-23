@@ -788,7 +788,7 @@ private[zio] object ChannelExecutor {
               ZIO.refailCause
             )
           } *> ch2(exec.run())*/
-          readChAux0(r.asInstanceOf[ChannelState.Read[Env, Any]], Stack.empty) *>
+          readChAux0(r.asInstanceOf[ChannelState.Read[Env, Any]], Stack.empty[ChannelState.Read[Env, Any]]) *>
             ch2(exec.run())
       }
 
