@@ -33,8 +33,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
 
   private[this] val poolSize        = java.lang.Runtime.getRuntime.availableProcessors
   private[this] val globalQueue     = new PartitionedLinkedQueue[Runnable](poolSize * 4, addMetrics = false)
-  private[this] val cache           = new LinkedQueue[ZScheduler.Worker](addMetrics = false)
-  private[this] val idle            = new LinkedQueue[ZScheduler.Worker](addMetrics = false)
+  private[this] val cache           = new FastLinkedQueue[ZScheduler.Worker]
+  private[this] val idle            = new FastLinkedQueue[ZScheduler.Worker]
   private[this] val globalLocations = makeLocations()
   private[this] val state           = new AtomicInteger(poolSize << 16)
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)

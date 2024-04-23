@@ -31,7 +31,7 @@ private[zio] final class PartitionedLinkedQueue[A <: AnyRef](
 
   private[this] val mask    = MutableConcurrentQueue.roundToPow2MinusOne(preferredPartitions)
   private[this] val nQueues = mask + 1
-  private[this] val queues  = Array.fill(nQueues)(new LinkedQueue[A](addMetrics = addMetrics))
+  private[this] val queues  = Array.fill(nQueues)(if (addMetrics) new LinkedQueue[A] else new FastLinkedQueue[A])
 
   def nPartitions(): Int = nQueues
 
