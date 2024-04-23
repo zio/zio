@@ -126,6 +126,139 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
             case null =>
               result = ChannelState.Done
 
+            case ZChannel.Fold(value, k) =>
+              doneStack.push(k.asInstanceOf[ErasedContinuation[Env]])
+              currentChannel = value
+
+            case ZChannel.Emit(out) =>
+              emitted = out
+              currentChannel = if (activeSubexecutor ne null) null else ZChannel.unit
+              result = ChannelState.Emit
+
+            case ZChannel.SucceedNow(terminal) =>
+              result = doneSucceed(terminal)
+
+            case ZChannel.Succeed(effect) =>
+              result = doneSucceed(effect())
+
+            case ZChannel.Fail(error) =>
+              result = doneHalt(error())
+
+            case ZChannel.Suspend(effect) =>
+              currentChannel = effect()
+
+            case ZChannel.FromZIO(zio) =>
+              val pzio =
+                (if (providedEnv eq null) zio()
+                else zio().provideEnvironment(providedEnv.asInstanceOf[ZEnvironment[Env]]))
+                  .asInstanceOf[ZIO[Env, OutErr, OutDone]]
+
+              result = ChannelState.Effect(
+                pzio
+                  .foldCauseZIO(
+                    cause =>
+                      doneHalt(cause) match {
+                        case ChannelState.Effect(zio) => zio
+                        case _                        => ZIO.unit
+                      },
+                    z =>
+                      doneSucceed(z) match {
+                        case ChannelState.Effect(zio) => zio
+                        case _                        => ZIO.unit
+                      }
+                  )
+              )
+
+            case ZChannel.PipeTo(left, right) =>
+              val previousInput = input
+
+              val leftExec: ErasedExecutor[Env] = new ChannelExecutor(left, providedEnv, executeCloseLastSubstream)
+              leftExec.input = previousInput
+              input = leftExec
+
+              addFinalizer { exit =>
+                val effect = restorePipe(exit, previousInput)
+
+                if (effect ne null) effect
+                else ZIO.unit
+              }
+
+              currentChannel = right().asInstanceOf[Channel[Env]]
+
+            case read @ ZChannel.Read(_, _) =>
+              result = ChannelState.Read(
+                input,
+                onEffect = identity[ZIO[Env, Nothing, Unit]],
+                onEmit = { (out: Any) =>
+                  try {
+                    currentChannel = read.more(out)
+                  } catch {
+                    case e: Throwable =>
+                      currentChannel = read.done.onExit(Exit.die(e))
+                  }
+                  null
+                },
+                onDone = { (exit: Exit[Any, Any]) =>
+                  val onExit: Exit[Any, Any] => Channel[Env] =
+                    (read.done.onExit _).asInstanceOf[Exit[Any, Any] => Channel[Env]]
+                  currentChannel = onExit(exit)
+                  null
+                }
+              )
+
+
+            case ensuring @ ZChannel.Ensuring(_, _) =>
+              runEnsuring(ensuring.asInstanceOf[ZChannel.Ensuring[Env, Any, Any, Any, Any, Any, Any]])
+
+            case ZChannel.ConcatAll(combineSubK, combineSubKAndInner, value, k) =>
+              val innerExecuteLastClose =
+                (f: URIO[Env, Any]) =>
+                  ZIO.succeed {
+                    val prevLastClose = if (closeLastSubstream eq null) ZIO.unit else closeLastSubstream
+                    closeLastSubstream = prevLastClose *> f
+                  }
+
+              val exec: ErasedExecutor[Env] = new ChannelExecutor(value, providedEnv, innerExecuteLastClose)
+              exec.input = input
+
+              activeSubexecutor = Subexecutor.PullFromUpstream(
+                exec,
+                k.asInstanceOf[Any => Channel[Env]],
+                lastDone = null,
+                combineSubK.asInstanceOf[(Any, Any) => Any],
+                combineSubKAndInner.asInstanceOf[(Any, Any) => Any]
+              )
+              closeLastSubstream = null
+              currentChannel = null
+
+            case bracketOut @ ZChannel.BracketOut(_, _) =>
+              result = runBracketOut(bracketOut.asInstanceOf[ZChannel.BracketOut[Env, Any, Any]])
+
+            case ZChannel.Provide(env, inner) =>
+              val previousEnv = providedEnv
+              providedEnv = env()
+              currentChannel = inner.asInstanceOf[Channel[Env]]
+
+              addFinalizer { _ =>
+                ZIO.succeed {
+                  providedEnv = previousEnv
+                }
+              }
+
+            case ZChannel.DeferedUpstream(mkChannel) =>
+              val inpAsChannel: ZChannel[Env, Any, Any, Any, Any, Any, Any] = execToPullingChannel(input)
+              val nextChannel                                               = mkChannel(inpAsChannel.asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]])
+
+              val previousInput = input
+              input = null
+              addFinalizer { exit =>
+                val effect = restorePipe(exit, previousInput)
+
+                if (effect ne null) effect
+                else ZIO.unit
+              }
+              currentChannel = nextChannel
+
             case ZChannel.Bridge(bridgeInput, channel) =>
               // PipeTo(left, Bridge(queue, channel))
               // In a fiber: repeatedly run left and push its outputs to the queue
@@ -181,137 +314,6 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
                     })
                   }
                 )
-              }
-
-            case ZChannel.DeferedUpstream(mkChannel) =>
-              val inpAsChannel: ZChannel[Env, Any, Any, Any, Any, Any, Any] = execToPullingChannel(input)
-              val nextChannel                                               = mkChannel(inpAsChannel.asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]])
-
-              val previousInput = input
-              input = null
-              addFinalizer { exit =>
-                val effect = restorePipe(exit, previousInput)
-
-                if (effect ne null) effect
-                else ZIO.unit
-              }
-              currentChannel = nextChannel
-            case ZChannel.PipeTo(left, right) =>
-              val previousInput = input
-
-              val leftExec: ErasedExecutor[Env] = new ChannelExecutor(left, providedEnv, executeCloseLastSubstream)
-              leftExec.input = previousInput
-              input = leftExec
-
-              addFinalizer { exit =>
-                val effect = restorePipe(exit, previousInput)
-
-                if (effect ne null) effect
-                else ZIO.unit
-              }
-
-              currentChannel = right().asInstanceOf[Channel[Env]]
-
-            case read @ ZChannel.Read(_, _) =>
-              result = ChannelState.Read(
-                input,
-                onEffect = identity[ZIO[Env, Nothing, Unit]],
-                onEmit = { (out: Any) =>
-                  try {
-                    currentChannel = read.more(out)
-                  } catch {
-                    case e: Throwable =>
-                      currentChannel = read.done.onExit(Exit.die(e))
-                  }
-                  null
-                },
-                onDone = { (exit: Exit[Any, Any]) =>
-                  val onExit: Exit[Any, Any] => Channel[Env] =
-                    (read.done.onExit _).asInstanceOf[Exit[Any, Any] => Channel[Env]]
-                  currentChannel = onExit(exit)
-                  null
-                }
-              )
-
-            case ZChannel.SucceedNow(terminal) =>
-              result = doneSucceed(terminal)
-
-            case ZChannel.Fail(error) =>
-              result = doneHalt(error())
-
-            case ZChannel.Succeed(effect) =>
-              result = doneSucceed(effect())
-
-            case ZChannel.Suspend(effect) =>
-              currentChannel = effect()
-
-            case ZChannel.FromZIO(zio) =>
-              val pzio =
-                (if (providedEnv eq null) zio()
-                 else zio().provideEnvironment(providedEnv.asInstanceOf[ZEnvironment[Env]]))
-                  .asInstanceOf[ZIO[Env, OutErr, OutDone]]
-
-              result = ChannelState.Effect(
-                pzio
-                  .foldCauseZIO(
-                    cause =>
-                      doneHalt(cause) match {
-                        case ChannelState.Effect(zio) => zio
-                        case _                        => ZIO.unit
-                      },
-                    z =>
-                      doneSucceed(z) match {
-                        case ChannelState.Effect(zio) => zio
-                        case _                        => ZIO.unit
-                      }
-                  )
-              )
-
-            case ZChannel.Emit(out) =>
-              emitted = out
-              currentChannel = if (activeSubexecutor ne null) null else ZChannel.unit
-              result = ChannelState.Emit
-
-            case ensuring @ ZChannel.Ensuring(_, _) =>
-              runEnsuring(ensuring.asInstanceOf[ZChannel.Ensuring[Env, Any, Any, Any, Any, Any, Any]])
-
-            case ZChannel.ConcatAll(combineSubK, combineSubKAndInner, value, k) =>
-              val innerExecuteLastClose =
-                (f: URIO[Env, Any]) =>
-                  ZIO.succeed {
-                    val prevLastClose = if (closeLastSubstream eq null) ZIO.unit else closeLastSubstream
-                    closeLastSubstream = prevLastClose *> f
-                  }
-
-              val exec: ErasedExecutor[Env] = new ChannelExecutor(value, providedEnv, innerExecuteLastClose)
-              exec.input = input
-
-              activeSubexecutor = Subexecutor.PullFromUpstream(
-                exec,
-                k.asInstanceOf[Any => Channel[Env]],
-                lastDone = null,
-                combineSubK.asInstanceOf[(Any, Any) => Any],
-                combineSubKAndInner.asInstanceOf[(Any, Any) => Any]
-              )
-              closeLastSubstream = null
-              currentChannel = null
-
-            case ZChannel.Fold(value, k) =>
-              doneStack.push(k.asInstanceOf[ErasedContinuation[Env]])
-              currentChannel = value
-
-            case bracketOut @ ZChannel.BracketOut(_, _) =>
-              result = runBracketOut(bracketOut.asInstanceOf[ZChannel.BracketOut[Env, Any, Any]])
-
-            case ZChannel.Provide(env, inner) =>
-              val previousEnv = providedEnv
-              providedEnv = env()
-              currentChannel = inner.asInstanceOf[Channel[Env]]
-
-              addFinalizer { _ =>
-                ZIO.succeed {
-                  providedEnv = previousEnv
-                }
               }
           }
         } catch {
