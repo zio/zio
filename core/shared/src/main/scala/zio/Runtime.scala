@@ -122,6 +122,8 @@ trait Runtime[+R] { self =>
 
   protected abstract class UnsafeAPIV1 extends UnsafeAPI with UnsafeAPI3 {
 
+    private val fiberIdGen = self.fiberRefs.getOrDefault(FiberRef.currentFiberIdGenerator)
+
     def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): internal.FiberRuntime[E, A] = {
       val fiber = makeFiber(zio)
       fiber.startConcurrently(zio)
@@ -145,7 +147,7 @@ trait Runtime[+R] { self =>
     )(implicit trace: Trace, unsafe: Unsafe): Either[internal.FiberRuntime[E, A], Exit[E, A]] = {
       import internal.FiberRuntime
 
-      val fiberId   = FiberId.make(trace)
+      val fiberId   = fiberIdGen.make(trace)
       val fiberRefs = self.fiberRefs.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
       val fiber     = FiberRuntime[E, A](fiberId, fiberRefs.forkAs(fiberId), runtimeFlags)
 
@@ -191,7 +193,7 @@ trait Runtime[+R] { self =>
     private def makeFiber[E, A](
       zio: ZIO[R, E, A]
     )(implicit trace: Trace, unsafe: Unsafe): internal.FiberRuntime[E, A] = {
-      val fiberId   = FiberId.make(trace)
+      val fiberId   = fiberIdGen.make(trace)
       val fiberRefs = self.fiberRefs.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
       val fiber     = FiberRuntime[E, A](fiberId, fiberRefs.forkAs(fiberId), runtimeFlags)
 
