@@ -80,9 +80,12 @@ package object test extends CompileVariants {
     )
   }
 
+  private def testFiberRefGen(implicit trace: Trace): ULayer[Unit] =
+    ZLayer.scoped(FiberRef.currentFiberIdGenerator.locallyScoped(FiberId.Gen.Monotonic))
+
   val testEnvironment: ZLayer[Any, Nothing, TestEnvironment] = {
     implicit val trace = Tracer.newTrace
-    liveEnvironment >>> TestEnvironment.live
+    liveEnvironment >>> (TestEnvironment.live ++ testFiberRefGen)
   }
 
   /**
