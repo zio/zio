@@ -764,6 +764,7 @@ private[zio] object ChannelExecutor {
   private[zio] def execToPullingChannel[Env](
     exec: ErasedExecutor[Env]
   )(implicit trace: Trace): ZChannel[Env, Any, Any, Any, Any, Any, Any] = {
+    val MAX_STEPS = 128
     def ch2(st: ChannelState[Env, Any]): ZChannel[Env, Any, Any, Any, Any, Any, Any] =
       st match {
         case ChannelState.Done =>
@@ -786,13 +787,17 @@ private[zio] object ChannelExecutor {
               ZIO.refailCause
             )
           } *> ch2(exec.run())*/
-          readChAux(r.asInstanceOf[ChannelState.Read[Env, Any]], Stack.empty) *>
+          readChAux0(r.asInstanceOf[ChannelState.Read[Env, Any]], Stack.empty) *>
           ch2(exec.run())
       }
 
     def readChAux(current : ChannelState.Read[Env, Any],
                readStack : Stack[ChannelState.Read[Env, Any]]) : ZChannel[Env, Any, Any, Any, Any, Any, Any] =
-               ZChannel.fromZIO(ZIO.unit) *> readCh(current, readStack, 2048)
+               ZChannel.unwrap(ZIO.unit as readChAux0(current, readStack))
+
+    def readChAux0(current : ChannelState.Read[Env, Any],
+                  readStack : Stack[ChannelState.Read[Env, Any]]) : ZChannel[Env, Any, Any, Any, Any, Any, Any] =
+      readCh(current, readStack, MAX_STEPS)
 
     @tailrec def readCh(current : ChannelState.Read[Env, Any],
                         readStack : Stack[ChannelState.Read[Env, Any]],
@@ -812,7 +817,7 @@ private[zio] object ChannelExecutor {
               if (emitEffect eq null)
                 readCh(next, readStack, opsTillYield - 1)
               else {
-                ZChannel.fromZIO(emitEffect) *> readChAux(next, readStack)
+                ZChannel.fromZIO(emitEffect) *> readChAux0(next, readStack)
               }
             }
           case ChannelState.Done =>
@@ -828,7 +833,7 @@ private[zio] object ChannelExecutor {
               if (doneEffect eq null)
                 readCh(next, readStack, opsTillYield - 1)
               else {
-                ZChannel.fromZIO(doneEffect) *> readChAux(next, readStack)
+                ZChannel.fromZIO(doneEffect) *> readChAux0(next, readStack)
               }
             }
           case ChannelState.Effect(zio) =>
@@ -843,7 +848,7 @@ private[zio] object ChannelExecutor {
                     }
                   }
               } *>
-              readChAux(current, readStack)
+              readChAux0(current, readStack)
           case r2 @ ChannelState.Read(upstream2, onEffect2, onEmit2, onDone2) =>
             readStack.push(current)
             readCh(r2.asInstanceOf[ChannelState.Read[Env, Any]], readStack, opsTillYield - 1)
