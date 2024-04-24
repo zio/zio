@@ -14,7 +14,7 @@ ZIO is a zero-dependency Scala library for asynchronous and concurrent programmi
 
 Powered by highly-scalable, non-blocking fibers that never waste or leak resources, ZIO lets you build scalable, resilient, and reactive applications that meet the needs of your business.
 
- - **High-performance**. Build scalable applications with 100x the performance of Scala's `Future`.
+ - **High-performance**. Build scalable applications with minimal runtime overhead.
  - **Type-safe**. Use the full power of the Scala compiler to catch bugs at compile time.
  - **Concurrent**. Easily build concurrent apps without deadlocks, race conditions, or complexity.
  - **Asynchronous**. Write sequential code that looks the same whether it's asynchronous or synchronous.
