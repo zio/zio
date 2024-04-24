@@ -12,7 +12,7 @@ const baseUrl = '/';
 const features = [
   {
     title: 'High-performance',
-    content: 'Build scalable applications with 100x the performance of Scala’s Future',
+    content: 'Build scalable applications with minimal runtime overhead',
   },
   {
     title: 'Type-safe',
