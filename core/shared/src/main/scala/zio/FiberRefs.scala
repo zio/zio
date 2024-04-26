@@ -233,7 +233,7 @@ object FiberRefs {
     headFiberId: FiberId.Runtime, // should be `private val` but https://github.com/scala/bug/issues/12988. Prefer usage of `#fiberId` when outside of the `FiberRefStack`
     headValue: A,                 // should be `private val` but https://github.com/scala/bug/issues/12988. Prefer usage of `#value` when version of the `FiberRefStack`
     headVersion: Int,             // should be `private val` but https://github.com/scala/bug/issues/12988. Prefer usage of `#version` when version of the `FiberRefStack`
-    tail: List[FiberRefStackEntry[?]],
+    tail: List[FiberRefStackEntry[A]],
     depth: Int
   ) {
     // nicer names for these variables when used outside of the FiberRefStack
