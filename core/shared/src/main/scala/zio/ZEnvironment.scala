@@ -272,7 +272,7 @@ object ZEnvironment {
         patches match {
           case AddService(service, tag) :: patches => loop(environment.unsafe.add(tag, service)(Unsafe.unsafe), patches)
           case AndThen(first, second) :: patches   => loop(environment, erase(first) :: erase(second) :: patches)
-          case Patch.Empty :: patches              => loop(environment, patches)
+          case Patch.Empty() :: patches              => loop(environment, patches)
           case RemoveService(_) :: patches         => loop(environment, patches)
           case UpdateService(update, tag) :: patches =>
             loop(environment.unsafe.update(tag, update)(Unsafe.unsafe), patches)
@@ -295,18 +295,18 @@ object ZEnvironment {
     /**
      * An empty patch which returns the environment unchanged.
      */
-    @inline def empty[In, Out]: Patch[In, Out] = Empty.asInstanceOf[Patch[In, Out]]
+    def empty[A]: Patch[A, A] = Empty()
 
     /**
      * Constructs a patch that describes the updates necessary to transform the
      * specified old environment into the specified new environment.
      */
     def diff[In, Out](oldValue: ZEnvironment[In], newValue: ZEnvironment[Out]): Patch[In, Out] =
-      if (oldValue == newValue) Patch.empty
+      if (oldValue == newValue) Patch.Empty().asInstanceOf[Patch[In, Out]]
       else {
         val sorted = newValue.map.toList.sortBy { case (_, (_, index)) => index }
         val (missingServices, patch) = sorted.foldLeft[(Map[LightTypeTag, (Any, Int)], Patch[In, Out])](
-          oldValue.map -> Patch.empty
+          oldValue.map -> Patch.Empty().asInstanceOf[Patch[In, Out]]
         ) { case ((map, patch), (tag, (newService, newIndex))) =>
           map.get(tag) match {
             case Some((oldService, oldIndex)) =>
@@ -327,7 +327,7 @@ object ZEnvironment {
         extends Patch[Env, Env with Service]
     private final case class AndThen[In, Out, Out2](first: Patch[In, Out], second: Patch[Out, Out2])
         extends Patch[In, Out2]
-    private final case object Empty                                         extends Patch[Any, Any]
+    private final case class Empty[Env]()                                        extends Patch[Env, Env]
     private final case class RemoveService[Env, Service](tag: LightTypeTag) extends Patch[Env with Service, Env]
     private final case class UpdateService[Env, Service](update: Service => Service, tag: LightTypeTag)
         extends Patch[Env with Service, Env with Service]
