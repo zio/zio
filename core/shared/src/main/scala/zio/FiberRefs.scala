@@ -190,7 +190,7 @@ final class FiberRefs private (
   def updatedAs[@specialized(SpecializeInt) A](
     fiberId: FiberId.Runtime
   )(fiberRef: FiberRef[A], value: A): FiberRefs = {
-    val oldStack = fiberRefLocals.getOrElse(fiberRef, null)
+    val oldStack = fiberRefLocals.getOrElse(fiberRef, null).asInstanceOf[FiberRefStack[A]]
 
     val newStack =
       if (oldStack eq null) FiberRefStack.init(fiberId, value)
