@@ -1,20 +1,27 @@
 package zio
 
 import zio.test._
+import zio.test.Assertion._
 
 object FiberRefsSpec extends ZIOBaseSpec {
 
-  def spec = suite("FiberRefSpec")(
-    test("propagate FiberRef values across fiber boundaries") {
-      for {
-        fiberRef <- FiberRef.make(false)
-        queue    <- Queue.unbounded[FiberRefs]
-        producer <- (fiberRef.set(true) *> ZIO.getFiberRefs.flatMap(queue.offer)).fork
-        consumer <- (queue.take.flatMap(ZIO.setFiberRefs(_)) *> fiberRef.get).fork
-        _        <- producer.join
-        value    <- consumer.join
-      } yield assertTrue(value)
-    } +
+  private val joinAsSpec =
+    suite("#joinAs")(
+      test("truthiness")(assert(true)(isTrue))
+    )
+
+  def spec = suite("FiberRefs")(
+    joinAsSpec +
+      test("propagate FiberRef values across fiber boundaries") {
+        for {
+          fiberRef <- FiberRef.make(false)
+          queue    <- Queue.unbounded[FiberRefs]
+          producer <- (fiberRef.set(true) *> ZIO.getFiberRefs.flatMap(queue.offer)).fork
+          consumer <- (queue.take.flatMap(ZIO.setFiberRefs(_)) *> fiberRef.get).fork
+          _        <- producer.join
+          value    <- consumer.join
+        } yield assertTrue(value)
+      } +
       test("interruptedCause") {
         val parent = Unsafe.unsafe(implicit unsafe => FiberId.Gen.Live.make(Trace.empty))
         val child  = Unsafe.unsafe(implicit unsafe => FiberId.Gen.Live.make(Trace.empty))
