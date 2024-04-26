@@ -251,7 +251,7 @@ object FiberRefs {
     /**
      * Update the value of the head entry
      */
-    @inline def updateValue(newValue: Any): FiberRefStack[?] =
+    @inline def updateValue(newValue: A): FiberRefStack[A] =
       this.copy(headValue = newValue, headVersion = headVersion + 1)
 
     /**
