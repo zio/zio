@@ -18,7 +18,6 @@ package zio
 
 import zio.FiberRefs.{FiberRefStack, FiberRefStackEntry}
 import zio.internal.SpecializationHelpers.SpecializeInt
-import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.tailrec
 
@@ -64,9 +63,10 @@ final class FiberRefs private (
   def forkAs(childId: FiberId.Runtime): FiberRefs =
     if (needsTransformWhenForked) {
       var modified = false
-      val childMap = fiberRefLocals.transform { case (fiberRef, fiberRefStack) =>
-        val oldValue = fiberRefStack.value.asInstanceOf[fiberRef.Value]
-        val newValue = fiberRef.patch(fiberRef.fork)(oldValue)
+      val childMap = fiberRefLocals.transform { case (fiberRef, _stack) =>
+        val fiberRefStack = _stack.asInstanceOf[FiberRefStack[fiberRef.Value]]
+        val oldValue      = fiberRefStack.value
+        val newValue      = fiberRef.patch(fiberRef.fork)(oldValue)
         if (oldValue == newValue) fiberRefStack
         else {
           modified = true
@@ -258,7 +258,7 @@ object FiberRefs {
      * Add a new entry on top of the Stack
      */
     @inline def put(fiberId: FiberId.Runtime, value: A): FiberRefStack[A] =
-      FiberRefStack(
+      FiberRefStack[A](
         headFiberId = fiberId,
         headValue = value,
         headVersion = 0,
