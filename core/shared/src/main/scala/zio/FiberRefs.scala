@@ -246,7 +246,7 @@ object FiberRefs {
      * function (unlike [[fiberId]] for example). It does some allocations
      * therefor it must be used with care.
      */
-    @inline def stack(): ::[FiberRefStackEntry[?]] = ::(FiberRefStackEntry(headFiberId, headValue, headVersion), tail)
+    @inline def stack(): ::[FiberRefStackEntry[A]] = ::(FiberRefStackEntry(headFiberId, headValue, headVersion), tail)
 
     /**
      * Update the value of the head entry
