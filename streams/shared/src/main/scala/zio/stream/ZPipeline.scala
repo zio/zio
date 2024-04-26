@@ -1814,13 +1814,22 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def mapZIOParUnordered[Env, Err, In, Out](n: => Int)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
-  ): ZPipeline[Env, Err, In, Out] =
-    new ZPipeline(
+  ): ZPipeline[Env, Err, In, Out] = {
+    ZPipeline.fromFunction{ (strm : ZStream[Any, Nothing, In]) =>
+      /*strm
+        .toChannel
+        .concatMap(ZChannel.writeChunk(_))
+        .mergeMap(n, 16)(in => ZStream.fromZIO(f(in)).channel)
+        .toStream*/
+      strm.mapZIOParUnordered(n)(f)
+    }
+    /*new ZPipeline(
       ZChannel
         .identity[Nothing, Chunk[In], Any]
         .concatMap(ZChannel.writeChunk(_))
         .mergeMap(n, 16)(in => ZStream.fromZIO(f(in)).channel)
-    )
+    )*/
+  }
 
   /**
    * Emits the provided chunk before emitting any other value.
