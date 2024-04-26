@@ -21,7 +21,7 @@ import zio.internal.{SingleThreadedRingBuffer, UniqueKey}
 import zio.metrics.MetricLabel
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm._
-import zio.stream.ZStream.{DebounceState, HandoffSignal, zipChunks}
+import zio.stream.ZStream.{DebounceState, HandoffSignal, failCause, zipChunks}
 import zio.stream.internal.{ZInputStream, ZReader}
 
 import java.io.{IOException, InputStream}
@@ -1941,6 +1941,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       q <- zio.Queue.bounded[zio.stream.Take[E1, Fiber[E1, A2]]](bufferSize)
       permits <- zio.Semaphore.make(n)
       failureSignal <- zio.Promise.make[E1, Nothing]
+      //completionSignal <- zio.Promise.make[Nothing, Any]
     } yield {
       def forkF(a : A): ZIO[R1, Nothing, Fiber.Runtime[E1, A2]] = ZIO.uninterruptibleMask { restore =>
         for {
@@ -1949,7 +1950,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           fib <- restore(f(a))
             .tapError(failureSignal.fail(_))
             .onExit(localScope.close(_))
-            .forkIn(scope)
+            .fork
         } yield fib
       }
       val enqueuer: URIO[R1, Fiber.Runtime[Nothing, Unit]] = self
@@ -1970,13 +1971,15 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
               ZStream.unwrap {
                 (f.join.exit race failureSignal.await.exit).map { ex =>
                   ex.foldExit(
-                    ZStream.failCause(_),
+                    { cause =>
+                      ZStream.fromZIO(failureSignal.await)
+                    },
                     ZStream.succeed(_)
                   )
                 }
               }
             }
-            .concat(ZStream.execute(fib.join))
+            //.concat(ZStream.execute(completionSignal.succeed(()) *> fib.join))
         }
     }
 
@@ -2016,38 +2019,46 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       q <- zio.Queue.bounded[zio.stream.Take[E1, A2]](bufferSize)
       permits <- zio.Semaphore.make(n)
     } yield {
-      def enqueue(a : A) = ZIO.uninterruptibleMask { restore =>
+      def enqueue(a : A): ZIO[R1, Nothing, Unit] = ZIO.uninterruptibleMask { restore =>
         for {
           localScope <- zio.Scope.make
           _ <- restore(permits.withPermitScoped.provideEnvironment(ZEnvironment(localScope)))
-          fib <- restore {
-              zio.stream.Take.fromZIO(f(a))
-                .flatMap(q.offer(_))
-            }
-            .onExit(localScope.close(_))
-            .unit
-            .forkIn(scope)
+          z0 = f(a)
+          t = zio.stream.Take.fromZIO(z0)
+          offer = t.flatMap{tt =>
+            q.offer(tt)
+          }
+          fib <- {
+            offer
+              .onExit(localScope.close(_))
+              .unit
+              .fork
+          }
         } yield ()
       }
 
       val enqueuer = self
-        .runForeach(enqueue)
+        .runForeach(enqueue _)
         .onExit{ex =>
           val t = ex.foldExit(
             zio.stream.Take.failCause(_),
             _ => zio.stream.Take.end
           )
-          q.offer(t)
+          permits
+            .withPermits(n) {
+              q.offer(t)
+            }
+            .interruptible
         }
         .forkIn(scope)
 
       val s0 = ZStream
         .fromZIO(enqueuer)
         .flatMap { enqFib =>
+          //ZStream.never *>
           ZStream
             .fromQueue(q)
             .flattenTake
-            .concat(ZStream.execute(enqFib.join))
         }
 
       s0
