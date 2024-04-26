@@ -152,7 +152,7 @@ final class FiberRefs private (
                 childFiberRef,
                 FiberRefStack.init(fiberId, childFiberRef.join(childFiberInitialValue, childStackCurrentValue))
               )
-          case parentStack =>
+          case parentStack: FiberRefStack[Any] =>
             val ancestor =
               findAncestor(childFiberInitialValue)(
                 parentStack.stack(),
