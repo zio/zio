@@ -257,7 +257,7 @@ object FiberRefs {
     /**
      * Add a new entry on top of the Stack
      */
-    @inline def put(fiberId: FiberId.Runtime, value: Any): FiberRefStack[?] =
+    @inline def put(fiberId: FiberId.Runtime, value: A): FiberRefStack[A] =
       FiberRefStack(
         headFiberId = fiberId,
         headValue = value,
