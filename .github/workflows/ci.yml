@@ -127,8 +127,8 @@ jobs:
       - name: Compile Docs
         run: |
           while true; do free -h; sleep 5; done &
-          sbt -mem 4096 docs/mdoc -verbose
-          sbt -mem 4096 docs/unidoc -verbose
+          sbt -mem 6144 docs/mdoc -verbose
+          sbt -mem 6144 docs/unidoc -verbose
 
       - name: Build The Website
         working-directory: ./website
