@@ -24,46 +24,52 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
       } yield result).provideLayer(newLayer.tapErrorCause(ZIO.logErrorCause(_)))
 
     runtime.unsafe.run {
-      for {
-        fiberId <- ZIO.fiberId
-        fiber <- workflow
-                   .foldCauseZIO(
-                     cause => interruptRootFibers(fiberId) *> exit(ExitCode.failure) *> ZIO.refailCause(cause),
-                     _ => interruptRootFibers(fiberId) *> exit(ExitCode.success)
-                   )
-                   .fork
-        _ <-
-          ZIO.succeed(Platform.addShutdownHook { () =>
-            if (!shuttingDown.getAndSet(true)) {
+      ZIO.uninterruptibleMask { restore =>
+        for {
+          fiberId  <- ZIO.fiberId
+          p        <- Promise.make[Nothing, Set[FiberId.Runtime]]
+          interrupt = interruptRootFibers(p)
+          fiber <- restore(workflow)
+                     .foldCauseZIO(
+                       cause => interrupt *> exit(ExitCode.failure) *> ZIO.refailCause(cause),
+                       _ => interrupt *> exit(ExitCode.success)
+                     )
+                     .fork
+          _ <-
+            ZIO.succeed(Platform.addShutdownHook { () =>
+              if (!shuttingDown.getAndSet(true)) {
 
-              if (FiberRuntime.catastrophicFailure.get) {
-                println(
-                  "**** WARNING ****\n" +
-                    "Catastrophic error encountered. " +
-                    "Application not safely interrupted. " +
-                    "Resources may be leaked. " +
-                    "Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context."
-                )
-              } else {
-                try {
-                  runtime.unsafe.run(fiber.interrupt)
-                } catch {
-                  case _: Throwable =>
+                if (FiberRuntime.catastrophicFailure.get) {
+                  println(
+                    "**** WARNING ****\n" +
+                      "Catastrophic error encountered. " +
+                      "Application not safely interrupted. " +
+                      "Resources may be leaked. " +
+                      "Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context."
+                  )
+                } else {
+                  try {
+                    val completePromise = ZIO.fiberIdWith(fid2 => p.succeed(Set(fiberId, fid2)))
+                    runtime.unsafe.run(completePromise *> fiber.interrupt)
+                  } catch {
+                    case _: Throwable =>
+                  }
                 }
-              }
 
-              ()
-            }
-          })
-        result <- fiber.join
-      } yield result
+                ()
+              }
+            })
+          result <- fiber.join
+        } yield result
+      }
     }.getOrThrowFiberFailure()
   }
 
-  private def interruptRootFibers(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
+  private def interruptRootFibers(p: Promise[Nothing, Set[FiberId.Runtime]])(implicit trace: Trace): UIO[Unit] =
     for {
-      roots <- Fiber.roots
-      _     <- Fiber.interruptAll(roots.view.filter(fiber => fiber.isAlive() && fiber.id != fiberId))
+      ignoredIds <- p.await
+      roots      <- Fiber.roots
+      _          <- Fiber.interruptAll(roots.view.filter(fiber => fiber.isAlive() && !ignoredIds(fiber.id)))
     } yield ()
 
 }
