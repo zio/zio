@@ -32,7 +32,7 @@
     "@zio.dev/zio-bson": "1.0.6",
     "@zio.dev/zio-cache": "0.2.3",
     "@zio.dev/zio-cli": "0.5.0",
-    "@zio.dev/zio-config": "4.0.1",
+    "@zio.dev/zio-config": "4.0.2",
     "@zio.dev/zio-connect": "0.4.4",
     "@zio.dev/zio-constraintless": "0.3.2",
     "@zio.dev/zio-crypto": "0.0.0--120-8d0af0b1-SNAPSHOT",
