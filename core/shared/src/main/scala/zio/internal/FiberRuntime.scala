@@ -43,11 +43,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _blockingOn     = FiberRuntime.notBlockingOn
   private var _asyncContWith  = null.asInstanceOf[ZIO.Erased => Any]
   private val running         = new AtomicBoolean(false)
-  private val inbox           = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
+  private val inbox           = new FiberRuntime.Inbox()
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
-  private var _stack          = null.asInstanceOf[Array[Continuation]]
+  private var _stack          = new Array[Continuation](16)
   private var _stackSize      = 0
   private val emptyTrace      = Trace.empty
 
@@ -249,12 +249,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def drainQueueWhileRunning(
-    cur0: ZIO.Erased
-  ): ZIO.Erased = {
-    var cur = cur0
+  private def drainQueueWhileRunning(cur0: ZIO.Erased): ZIO.Erased = {
+    if (inbox.unsafeIsEmpty) return cur0
 
+    var cur     = cur0
     var message = inbox.poll()
+
+    // Unfortunately we can't avoid the virtual call to `trace` here
+    if (message ne null) updateLastTrace(cur.trace)
 
     while (message ne null) {
       message match {
@@ -277,6 +279,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       message = inbox.poll()
     }
 
+    inbox.refreshStatus()
+
     cur
   }
 
@@ -290,8 +294,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private def drainQueueAfterAsync(): ZIO.Erased = {
     var resumption: ZIO.Erased = null
 
-    var message                      = inbox.poll()
-    var leftover: List[FiberMessage] = Nil
+    var message = inbox.poll()
 
     while (message ne null) {
       message match {
@@ -308,40 +311,28 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
         case FiberMessage.YieldNow =>
 
-        case message =>
-          leftover = message :: leftover
       }
 
       message = inbox.poll()
-    }
-
-    if (leftover ne Nil) {
-      leftover.foreach(inbox.offer)
     }
 
     resumption
   }
 
   private def ensureStackCapacity(size: Int): Unit = {
-    val stack = _stack
+    val stack       = _stack
+    val stackLength = stack.length
 
-    if (stack eq null) {
+    if (stackLength < size) {
       val newSize = if ((size & (size - 1)) == 0) size else Integer.highestOneBit(size) << 1
 
-      _stack = new Array[Continuation](if (newSize < 16) 16 else newSize)
-    } else {
-      val stackLength = stack.length
+      val newStack = new Array[Continuation](newSize)
 
-      if (stackLength < size) {
-        val newSize = if ((size & (size - 1)) == 0) size else Integer.highestOneBit(size) << 1
+      java.lang.System.arraycopy(stack, 0, newStack, 0, stackLength)
 
-        val newStack = new Array[Continuation](newSize)
-
-        java.lang.System.arraycopy(stack, 0, newStack, 0, _stackSize)
-
-        _stack = newStack
-      }
+      _stack = newStack
     }
+    ()
   }
 
   /**
@@ -419,6 +410,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       finalExit
     } finally {
+      gcStack()
+
       val supervisor = getSupervisor()
 
       if (supervisor ne Supervisor.none) supervisor.onSuspend(self)(Unsafe.unsafe)
@@ -771,9 +764,24 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   }
 
   @inline
-  private def popStackFrame(nextStackIndex: Int): Unit = {
-    _stack(nextStackIndex) = null // GC
+  private[this] def popStackFrame(nextStackIndex: Int): Unit =
     _stackSize = nextStackIndex
+
+  /**
+   * Removes references of entries from the stack higher than the current index
+   * so that they can be garbage collected.
+   *
+   * @note
+   *   This method MUST be invoked by the fiber itself while it's still running.
+   */
+  private[this] def gcStack(): Unit = {
+    var from = _stackSize
+    val size = _stack.length
+
+    while (from < size) {
+      _stack(from) = null
+      from += 1
+    }
   }
 
   /**
@@ -836,11 +844,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     startStackIndex: Int,
     currentDepth: Int
   ): Exit[Any, Any] = {
-    assert(running.get)
-
-    type Erased         = ZIO.Erased
-    type ErasedSuccessK = Any => ZIO.Erased
-    type ErasedFailureK = Cause[Any] => ZIO.Erased
 
     // Note that assigning `cur` as the result of `try` or `if` can cause Scalac to box local variables.
     var cur        = effect
@@ -865,8 +868,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       if (ops > FiberRuntime.MaxOperationsBeforeYield) {
         updateLastTrace(cur.trace)
-        inbox.add(FiberMessage.YieldNow)
-        inbox.add(FiberMessage.Resume(cur))
+        inbox.add(
+          FiberMessage.YieldNow,
+          FiberMessage.Resume(cur)
+        )
 
         throw AsyncJump
       } else {
@@ -1120,8 +1125,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             case yieldNow: ZIO.YieldNow =>
               updateLastTrace(yieldNow.trace)
               if (yieldNow.forceAsync || !stealWork(currentDepth)) {
-                inbox.add(FiberMessage.YieldNow)
-                inbox.add(FiberMessage.resumeUnit)
+                inbox.add(
+                  FiberMessage.YieldNow,
+                  FiberMessage.resumeUnit
+                )
 
                 throw AsyncJump
               } else {
@@ -1247,11 +1254,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def shouldInterrupt(): Boolean = isInterruptible() && isInterrupted()
 
   @inline
-  private[zio] def stackSegmentIsEmpty(currentStackIndex: Int, segmentStackIndex: Int): Boolean =
-    currentStackIndex <= segmentStackIndex
-
-  @inline
-  private[zio] def stackSegmentIsNonEmpty(currentStackIndex: Int, segmentStackIndex: Int): Boolean =
+  private def stackSegmentIsNonEmpty(currentStackIndex: Int, segmentStackIndex: Int): Boolean =
     currentStackIndex > segmentStackIndex
 
   /**
@@ -1361,8 +1364,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def updateFiberRef[A](fiberRef: FiberRef[A])(f: A => A): Unit =
     setFiberRef(fiberRef, f(getFiberRef(fiberRef)))
 
-  private[zio] def updateLastTrace(newTrace: Trace): Unit =
-    if ((newTrace ne null) && (newTrace ne emptyTrace)) _lastTrace = newTrace
+  private def updateLastTrace(newTrace: Trace): Unit =
+    if ((newTrace ne null) && (newTrace ne emptyTrace) && (_lastTrace ne newTrace)) _lastTrace = newTrace
 
   def unsafe: UnsafeAPI =
     new UnsafeAPI {
@@ -1418,4 +1421,36 @@ object FiberRuntime {
     }
 
   private val notBlockingOn: () => FiberId = () => FiberId.None
+
+  private final class Inbox {
+    private[this] val queue    = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
+    private[this] var _isEmpty = true
+
+    def add(message: FiberMessage): Unit = {
+      queue.add(message)
+      _isEmpty = false
+    }
+
+    def add(m1: FiberMessage, m2: FiberMessage): Unit = {
+      queue.add(m1)
+      queue.add(m2)
+      _isEmpty = false
+    }
+
+    def isEmpty: Boolean     = queue.isEmpty
+    def poll(): FiberMessage = queue.poll()
+
+    /**
+     * Unsafely checks whether the inbox is empty.
+     *
+     * This method has better performance over [[isEmpty]] at the cost of being
+     * weakly consistent. This is acceptable ONLY when we're checking the flag
+     * as part of `drainQueueWhileRunning` where we expect that the fiber will
+     * recheck the flag in the next iteration
+     */
+    def unsafeIsEmpty: Boolean = _isEmpty
+
+    def refreshStatus(): Unit =
+      _isEmpty = queue.isEmpty
+  }
 }
