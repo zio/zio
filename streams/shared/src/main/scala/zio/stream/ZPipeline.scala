@@ -1801,11 +1801,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   ): ZPipeline[Env, Err, In, Out] = {
     ZPipeline.fromFunction{ (strm : ZStream[Any, Nothing, In]) =>
       strm
-        .toChannel
+        /*.toChannel
         .concatMap(ZChannel.writeChunk(_))
         .mapOutZIOPar(n)(f)
         .mapOut(Chunk.single)
-        .toStream
+        .toStream*/
+        .mapZIOPar(n)(f)
     }
   }
 

@@ -1931,14 +1931,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    self >>> ZPipeline.mapZIOPar(n)(f)
-    /*this.mapZIOPar2[R1, E1, A2](n)(f)*/
+    /*self >>> ZPipeline.mapZIOPar(n)(f)*/
+    this.mapZIOPar2[R1, E1, A2](n)(f)
 
   def mapZIOPar2[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: => Int = 16)(f: A => ZIO[R1, E1, A2])(implicit
                                                                           trace: Trace
   ): ZStream[R1, E1, A2] = {
-    val z0: ZIO[Scope, Nothing, ZStream[R1, E1, A2]] = for {
-      scope <- ZIO.scope
+    val z0: ZIO[Any, Nothing, ZStream[R1, E1, A2]] = for {
       q <- zio.Queue.bounded[zio.stream.Take[E1, Fiber[E1, A2]]](bufferSize)
       permits <- zio.Semaphore.make(n)
       failureSignal <- zio.Promise.make[E1, Nothing]
@@ -1949,25 +1948,27 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           localScope <- zio.Scope.make
           _ <- restore(permits.withPermitScoped.provideEnvironment(ZEnvironment(localScope)))
           fib <- restore(f(a))
-            .tapError(failureSignal.fail(_))
-            .onExit(localScope.close(_))
+            .foldCauseZIO(
+              c => failureSignal.failCause(c) *> localScope.close(Exit.failCause(c)) *> ZIO.refailCause(c),
+              u => localScope.close(Exit.succeed(u)) as u
+            )
             .fork
         } yield fib
       }
-      val enqueuer: URIO[R1, Fiber.Runtime[Nothing, Unit]] = self
-        .mapZIO(forkF)
-        .runIntoQueue(q)
-        .forkIn(scope)
+      val enqueuer: ZIO[R1 with Scope, Nothing, Fiber.Runtime[Nothing, Unit]] = ZIO
+      .transplant { grafter =>
+        self
+          .mapZIO(a => grafter(forkF(a)))
+          .runIntoQueue(q)
+          .forkScoped
+      }
 
       ZStream
-        .fromZIO(enqueuer)
+        .scoped[R1](enqueuer)
         .flatMap { fib =>
           ZStream
             .fromQueue(q)
             .flattenTake
-            /*.mapZIO{f =>
-              (f.join race failureSignal.await.debug("err signaled")).debug("raced")
-            }*/
             .flatMap { f =>
               ZStream.unwrap {
                 (f.join.exit race failureSignal.await.exit).map { ex =>
@@ -1980,12 +1981,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                 }
               }
             }
-            //.concat(ZStream.execute(completionSignal.succeed(()) *> fib.join))
         }
     }
 
     ZStream
-      .unwrapScoped[R1](z0)
+      .unwrap(z0)
   }
 
   /**
