@@ -47,7 +47,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
-  private var _stack          = new Array[Continuation](16)
+  private var _stack          = null.asInstanceOf[Array[Continuation]]
   private var _stackSize      = 0
   private val emptyTrace      = Trace.empty
 
@@ -354,6 +354,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     val supervisor = getSupervisor()
 
     if (supervisor ne Supervisor.none) supervisor.onResume(self)(Unsafe.unsafe)
+    if (_stack eq null) _stack = new Array[Continuation](FiberRuntime.InitialStackSize)
 
     try {
       var effect    = effect0
@@ -763,24 +764,46 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     else continueEffect
   }
 
+  /**
+   * Sets the `_stackSize` to `nextStackIndex`.
+   *
+   * This method might also null out the entry in the stack to allow it to be
+   * GC'd, but only if the index is >= `FiberRuntime.StackIdxGcThreshold`.
+   *
+   * This is based on the assumption that when the stack is shallow, the entries
+   * in the array will keep being overwritten as the pointer moves up and down.
+   */
   @inline
-  private[this] def popStackFrame(nextStackIndex: Int): Unit =
+  private[this] def popStackFrame(nextStackIndex: Int): Unit = {
+    if (nextStackIndex >= FiberRuntime.StackIdxGcThreshold) {
+      _stack(nextStackIndex) = null
+    }
+
     _stackSize = nextStackIndex
+  }
 
   /**
    * Removes references of entries from the stack higher than the current index
    * so that they can be garbage collected.
    *
    * @note
+   *   We only GC up to the [[FiberRuntime.StackIdxGcThreshold]] index because
+   *   we know that entries in indices higher than that have been auto-gc'd
+   *   during the runloop
+   * @note
    *   This method MUST be invoked by the fiber itself while it's still running.
    */
   private[this] def gcStack(): Unit = {
     var from = _stackSize
-    val size = _stack.length
-
-    while (from < size) {
-      _stack(from) = null
-      from += 1
+    if (from == 0) { // No need to iterate, just dereference the whole array
+      _stack = null
+    } else {
+      val stack = _stack
+      val size  = _stack.length.min(FiberRuntime.StackIdxGcThreshold)
+      while (from < size) {
+        stack(from) = null
+        from += 1
+      }
     }
   }
 
@@ -1389,6 +1412,9 @@ object FiberRuntime {
   private final val MaxDepthBeforeTrampoline = 300
   private final val MaxWorkStealingDepth     = 150
   private final val WorkStealingSafetyMargin = 50
+
+  private final val InitialStackSize    = 16
+  private final val StackIdxGcThreshold = 128
 
   private final val IgnoreContinuation: Any => Unit = _ => ()
 
