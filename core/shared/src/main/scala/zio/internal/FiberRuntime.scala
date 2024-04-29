@@ -794,15 +794,19 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *   This method MUST be invoked by the fiber itself while it's still running.
    */
   private[this] def gcStack(): Unit = {
-    var from = _stackSize
-    if (from == 0) { // No need to iterate, just dereference the whole array
+    val from = _stackSize
+    if (from == 0) {
+      // There aren't meant to be any entries in the array, just dereference the whole thing
       _stack = null
     } else {
-      val stack = _stack
-      val size  = _stack.length.min(FiberRuntime.StackIdxGcThreshold)
-      while (from < size) {
-        stack(from) = null
-        from += 1
+      val stack       = _stack
+      val stackLength = stack.length
+      val nNulls      = stackLength - from
+
+      // If the next entry is null, it means we don't need to GC
+      if ((nNulls > 0) && (stack(from) ne null)) {
+        val nullArray = new Array[Continuation](nNulls)
+        java.lang.System.arraycopy(nullArray, 0, stack, from, nNulls)
       }
     }
   }
@@ -867,6 +871,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     startStackIndex: Int,
     currentDepth: Int
   ): Exit[Any, Any] = {
+    assert(running.get)
 
     // Note that assigning `cur` as the result of `try` or `if` can cause Scalac to box local variables.
     var cur        = effect
