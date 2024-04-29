@@ -21,6 +21,13 @@ $ git clone git@github.com:zio/zio-quickstarts.git
 $ cd zio-quickstarts/zio-quickstart-restful-webservice-custom-logger
 ```
 
+if the above throws an error , try cloning via https:
+
+```bash 
+$ git clone https://github.com/zio/zio-quickstarts.git
+$ cd zio-quickstarts/zio-quickstart-restful-webservice-custom-logger
+```
+
 And finally, run the application using sbt:
 
 ```bash

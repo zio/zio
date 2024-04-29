@@ -14,9 +14,16 @@ Creating GraphQL API using Caliban is an easy process. We can define our data mo
 
 First, open the console and clone the [ZIO Quickstarts](https://github.com/zio/zio-quickstarts) project using `git` (or you can simply download the project) and then change the directory:
 
-```scala
-git clone git@github.com:zio/zio-quickstarts.git 
-cd zio-quickstarts/zio-quickstart-graphql-webservice
+```bash
+$ git clone git@github.com:zio/zio-quickstarts.git 
+$ cd zio-quickstarts/zio-quickstart-graphql-webservice
+```
+
+if the above throws an error, try cloning via https:
+
+```bash 
+$ git clone https://github.com/zio/zio-quickstarts.git
+$ cd zio-quickstarts/zio-quickstart-graphql-webservice
 ```
 
 Once you are inside the project directory, run the application:

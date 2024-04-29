@@ -17,6 +17,13 @@ $ git clone git@github.com:zio/zio-quickstarts.git
 $ cd zio-quickstarts/zio-quickstart-encode-decode-json-data
 ```
 
+if the above throws an error , try cloning via https:
+
+```bash 
+$ git clone https://github.com/zio/zio-quickstarts.git
+$ cd zio-quickstarts/zio-quickstart-encode-decode-json-data
+```
+
 To run all tests, execute the following command:
 
 ```bash

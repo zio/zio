@@ -21,6 +21,13 @@ $ git clone git@github.com:zio/zio-quickstarts.git
 $ cd zio-quickstarts/zio-quickstart-restful-webservice-dockerize
 ```
 
+if the above throws an error, try cloning via https:
+
+```bash 
+$ git clone https://github.com/zio/zio-quickstarts.git
+$ cd zio-quickstarts/zio-quickstart-restful-webservice-dockerize
+```
+
 ## Prerequisites
 
 Before we can dockerize our web service, we need to [download and install Docker](https://docs.docker.com/get-docker/). So we assume that the reader has already installed Docker.

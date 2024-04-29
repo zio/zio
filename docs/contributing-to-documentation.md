@@ -47,8 +47,15 @@ ZIO contributors are encouraged to use this approach for introducing new documen
 1. First, we need to clone the ZIO project on our machine:
 
 ```bash
-git clone git@github.com:zio/zio.git
-cd zio
+$ git clone git@github.com:zio/zio.git
+$ cd zio
+```
+
+if the above throws an error , try cloning via https:
+
+```bash 
+$ git clone https://github.com/zio/zio.git
+$ cd zio
 ```
 
 2. The documentation source code can be found in the `docs` directory and they are all in Markdown format. Now we can begin improving the existing documentation or adding new documentation.
