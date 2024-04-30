@@ -768,9 +768,10 @@ lazy val docs = project.module
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
     docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
+    resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
     libraryDependencies ++= Seq(
       "commons-io"             % "commons-io"                        % "2.13.0" % "provided",
-      "io.d11"                %% "zhttp"                             % "2.0.0-RC10",
+      "dev.zio"               %% "zio-http"                          % "3.0.0-RC6+36-d283e073-SNAPSHOT",
       "io.7mind.izumi"        %% "distage-core"                      % "1.1.0",
       "io.7mind.izumi"        %% "logstage-core"                     % "1.1.0",
       "org.jsoup"              % "jsoup"                             % "1.16.1" % "provided",
@@ -850,7 +851,6 @@ lazy val docs = project.module
       "com.devsisters"                %% "shardcake-manager"             % "2.0.0",
       "com.devsisters"                %% "shardcake-serialization-kryo"  % "2.0.0",
       "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core"                 % "0.6.0-test4",
-      "dev.zio"                       %% "zio-http"                      % "0.0.5",
       "dev.zio"                       %% "zio-metrics-connectors"        % "2.0.7"
     ),
     resolvers += "Confluent" at "https://packages.confluent.io/maven",
