@@ -13,9 +13,9 @@ This quickstart shows how to build a RESTful web service using ZIO. It uses
 
 First, open the console and clone the project using `git` (or you can simply download the project) and then change the directory:
 
-```scala
-git clone git@github.com:zio/zio-quickstarts.git 
-cd zio-quickstarts/zio-quickstart-restful-webservice
+```bash
+$ git clone https://github.com/zio/zio-quickstarts.git
+$ cd zio-quickstarts/zio-quickstart-restful-webservice
 ```
 
 Once you are inside the project directory, run the application:
