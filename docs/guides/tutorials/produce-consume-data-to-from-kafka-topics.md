@@ -14,13 +14,6 @@ In this tutorial, we will learn how to use ZIO Streams and ZIO Kafka to produce 
 
 To access the code examples, you can clone the [ZIO Quickstarts](http://github.com/zio/zio-quickstarts) project:
 
-```bash
-$ git clone git@github.com:zio/zio-quickstarts.git
-$ cd zio-quickstarts/zio-quickstart-kafka
-```
-
-if the above throws an error, try cloning via https:
-
 ```bash 
 $ git clone https://github.com/zio/zio-quickstarts.git
 $ cd zio-quickstarts/zio-quickstart-kafka

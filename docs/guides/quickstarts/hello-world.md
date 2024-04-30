@@ -10,13 +10,6 @@ This is the simplest quickstart for a ZIO application. You can download and run 
 
 First, open the console and clone the [ZIO Quickstarts](https://github.com/zio/zio-quickstarts) project using `git` (or you can simply download the project) and then change the directory:
 
-```bash
-$ git clone git@github.com:zio/zio-quickstarts.git 
-$ cd zio-quickstarts/zio-quickstart-hello-world
-```
-
-if the above throws an error , try cloning via https:
-
 ```bash 
 $ git clone https://github.com/zio/zio-quickstarts.git
 $ cd zio-quickstarts/zio-quickstart-hello-world

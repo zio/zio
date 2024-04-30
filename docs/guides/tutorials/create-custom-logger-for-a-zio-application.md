@@ -16,13 +16,6 @@ In [this article](enable-logging-in-a-zio-application.md), we enabled logging fo
 
 To run the code, clone the repository and checkout the [ZIO Quickstarts](http://github.com/zio/zio-quickstarts) project:
 
-```bash
-$ git clone git@github.com:zio/zio-quickstarts.git 
-$ cd zio-quickstarts/zio-quickstart-restful-webservice-custom-logger
-```
-
-if the above throws an error , try cloning via https:
-
 ```bash 
 $ git clone https://github.com/zio/zio-quickstarts.git
 $ cd zio-quickstarts/zio-quickstart-restful-webservice-custom-logger
