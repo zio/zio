@@ -37,13 +37,7 @@ import scala.{
  * build chunks of unboxed primitives and for compatibility with the Scala
  * collection library.
  */
-sealed abstract class ChunkBuilder[A] extends Builder[A, Chunk[A]] {
-
-  /**
-   * Determines if the builder is empty.
-   */
-  def isEmpty: Boolean
-}
+sealed abstract class ChunkBuilder[A] extends Builder[A, Chunk[A]]
 
 object ChunkBuilder {
 
@@ -51,50 +45,7 @@ object ChunkBuilder {
    * Constructs a generic `ChunkBuilder`.
    */
   def make[A](): ChunkBuilder[A] =
-    new ChunkBuilder[A] {
-      var arrayBuilder: ArrayBuilder[A] = null
-      var size: SInt                    = -1
-      def addOne(a: A): this.type = {
-        if (arrayBuilder eq null) {
-          implicit val tag = Chunk.Tags.fromValue(a)
-          arrayBuilder = ArrayBuilder.make
-          if (size != -1) {
-            arrayBuilder.sizeHint(size)
-          }
-        }
-        try {
-          arrayBuilder.addOne(a)
-        } catch {
-          case _: ClassCastException =>
-            val as = arrayBuilder.result()
-            arrayBuilder = ArrayBuilder.make[AnyRef].asInstanceOf[ArrayBuilder[A]]
-            if (size != -1) {
-              arrayBuilder.sizeHint(size)
-            }
-            arrayBuilder.addAll(as)
-            arrayBuilder.addOne(a)
-        }
-        this
-      }
-      def clear(): Unit =
-        if (arrayBuilder ne null) {
-          arrayBuilder.clear()
-        }
-      def isEmpty: SBoolean =
-        (arrayBuilder eq null) || arrayBuilder.length == 0
-      def result(): Chunk[A] =
-        if (arrayBuilder eq null) {
-          Chunk.empty
-        } else {
-          Chunk.fromArray(arrayBuilder.result())
-        }
-      override def sizeHint(n: SInt): Unit =
-        if (arrayBuilder eq null) {
-          size = n
-        } else {
-          arrayBuilder.sizeHint(n)
-        }
-    }
+    new Obj[A]
 
   /**
    * Constructs a generic `ChunkBuilder` with size hint.
@@ -393,5 +344,51 @@ object ChunkBuilder {
       arrayBuilder.sizeHint(n)
     override def toString: String =
       "ChunkBuilder.Short"
+  }
+
+  final class Obj[A] extends ChunkBuilder[A] {
+    private[this] var arrayBuilder: ArrayBuilder[A] = null
+    private[this] var size: SInt                    = -1
+
+    def addOne(a: A): this.type = {
+      if (arrayBuilder eq null) {
+        implicit val tag = Chunk.Tags.fromValue(a)
+        arrayBuilder = ArrayBuilder.make
+        if (size != -1) {
+          arrayBuilder.sizeHint(size)
+        }
+      }
+      try {
+        arrayBuilder.addOne(a)
+      } catch {
+        case _: ClassCastException =>
+          val as = arrayBuilder.result()
+          arrayBuilder = ArrayBuilder.make[AnyRef].asInstanceOf[ArrayBuilder[A]]
+          if (size != -1) {
+            arrayBuilder.sizeHint(size)
+          }
+          arrayBuilder.addAll(as)
+          arrayBuilder.addOne(a)
+      }
+      this
+    }
+    def clear(): Unit =
+      if (arrayBuilder ne null) {
+        arrayBuilder.clear()
+      }
+    def isEmpty: SBoolean =
+      (arrayBuilder eq null) || arrayBuilder.length == 0
+    def result(): Chunk[A] =
+      if (arrayBuilder eq null) {
+        Chunk.empty
+      } else {
+        Chunk.fromArray(arrayBuilder.result())
+      }
+    override def sizeHint(n: SInt): Unit =
+      if (arrayBuilder eq null) {
+        size = n
+      } else {
+        arrayBuilder.sizeHint(n)
+      }
   }
 }

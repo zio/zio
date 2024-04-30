@@ -28,7 +28,7 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
       test("isEmpty") {
         check(Gen.chunkOf1(Gen.boolean)) { as =>
           val builder = new ChunkBuilder.Boolean
-          testIsEmpty(builder, as)
+          testIsEmpty(builder, builder.isEmpty, as)
         }
       }
     ),
@@ -54,7 +54,7 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
       test("isEmpty") {
         check(Gen.chunkOf1(Gen.byte)) { as =>
           val builder = new ChunkBuilder.Byte
-          testIsEmpty(builder, as)
+          testIsEmpty(builder, builder.isEmpty, as)
         }
       }
     ),
@@ -80,7 +80,7 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
       test("isEmpty") {
         check(Gen.chunkOf1(Gen.char)) { as =>
           val builder = new ChunkBuilder.Char
-          testIsEmpty(builder, as)
+          testIsEmpty(builder, builder.isEmpty, as)
         }
       }
     ),
@@ -106,7 +106,7 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
       test("isEmpty") {
         check(Gen.chunkOf1(Gen.double)) { as =>
           val builder = new ChunkBuilder.Double
-          testIsEmpty(builder, as)
+          testIsEmpty(builder, builder.isEmpty, as)
         }
       }
     ),
@@ -132,7 +132,7 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
       test("isEmpty") {
         check(Gen.chunkOf1(Gen.float)) { as =>
           val builder = new ChunkBuilder.Float
-          testIsEmpty(builder, as)
+          testIsEmpty(builder, builder.isEmpty, as)
         }
       }
     ),
@@ -158,7 +158,7 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
       test("isEmpty") {
         check(Gen.chunkOf1(Gen.int)) { as =>
           val builder = new ChunkBuilder.Int
-          testIsEmpty(builder, as)
+          testIsEmpty(builder, builder.isEmpty, as)
         }
       }
     ),
@@ -184,7 +184,7 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
       test("isEmpty") {
         check(Gen.chunkOf1(Gen.long)) { as =>
           val builder = new ChunkBuilder.Long
-          testIsEmpty(builder, as)
+          testIsEmpty(builder, builder.isEmpty, as)
         }
       }
     ),
@@ -210,11 +210,11 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
       test("isEmpty") {
         check(Gen.chunkOf1(Gen.short)) { as =>
           val builder = new ChunkBuilder.Short
-          testIsEmpty(builder, as)
+          testIsEmpty(builder, builder.isEmpty, as)
         }
       }
     ),
-    suite("AnyRef")(
+    suite("Obj")(
       test("addOne")(
         check(Gen.chunkOf(Gen.string)) { as =>
           val builder = ChunkBuilder.make[String]()
@@ -231,23 +231,23 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
       },
       test("isEmpty") {
         check(Gen.chunkOf1(Gen.string)) { as =>
-          val builder = ChunkBuilder.make[String]()
-          testIsEmpty(builder, as)
+          val builder = new ChunkBuilder.Obj[String]
+          testIsEmpty(builder, builder.isEmpty, as)
         }
       }
     )
   )
 
-  private def testIsEmpty[A](builder: ChunkBuilder[A], as: NonEmptyChunk[A]): TestResult = {
-    val a0 = builder.isEmpty
+  private def testIsEmpty[A](builder: ChunkBuilder[A], check: => Boolean, as: NonEmptyChunk[A]): TestResult = {
+    val a0 = check
     builder.sizeHint(16)
-    val a1 = builder.isEmpty
+    val a1 = check
     builder += as(0)
-    val a2 = builder.isEmpty
+    val a2 = check
     builder ++= as
-    val a3 = builder.isEmpty
+    val a3 = check
     builder.clear()
-    val a4 = builder.isEmpty
+    val a4 = check
     assertTrue(a0, a1, !a2, !a3, a4)
   }
 }
