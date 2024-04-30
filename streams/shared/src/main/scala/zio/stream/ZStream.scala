@@ -2016,7 +2016,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     f: A => ZIO[R1, E1, A2]
   )(implicit trace: Trace): ZStream[R1, E1, A2] = {
     val z0: ZIO[Any, Nothing, ZStream[R1, E1, A2]] = for {
-      q <- zio.Queue.bounded[zio.stream.Take[E1, A2]](bufferSize)
+      q <- zio.Queue.bounded[zio.Exit[Option[E1], A2]](bufferSize)
       permits <- zio.Semaphore.make(n)
     } yield {
       def enqueue(a : A): ZIO[R1, Nothing, Unit] = ZIO.uninterruptibleMask { restore =>
@@ -2024,10 +2024,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           localScope <- zio.Scope.make
           _ <- restore(permits.withPermitScoped.provideEnvironment(ZEnvironment(localScope)))
           z1 = f(a)
-          t = zio.stream.Take.fromZIO(z1)
+          /*t = zio.stream.Take.fromZIO(z1)
           offer = t.flatMap{tt =>
             q.offer(tt)
-          }
+          }*/
+          offer = z1.mapError(Some(_)) .exit.flatMap(ex => q.offer(ex))
           fib <- {
             offer
               .interruptible
@@ -2045,26 +2046,38 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
             c => {
               permits
                 .withPermits(n) {
-                  q.offer(zio.stream.Take.failCause(c))
+                  q.offer(zio.Exit.failCause(c.map(Some(_))))
                 }
             },
             _ => {
               permits
                 .withPermits(n) {
-                  q.offer(zio.stream.Take.end)
+                  q.offer(zio.Exit.fail(None))
                 }
             }
           )
           }
           .forkScoped
 
+      lazy val reader : ZChannel[Any, Any, Any, Any, E1, Chunk[A2], Any] =
+        ZChannel
+          .fromZIO(q.take)
+          .flatMap { ex =>
+            ex.foldExit(
+              c => {
+                Cause
+                  .flipCauseOption(c)
+                  .map(ZChannel.refailCause(_))
+                  .getOrElse(ZChannel.unit)
+              },
+              a2 => ZChannel.write(Chunk.single(a2)) *> reader
+            )
+          }
+
       val s0: ZStream[R1, E1, A2] = ZStream
         .scoped[R1](enqueuer)
         .flatMap { enqFib =>
-          //ZStream.never *>
-          ZStream
-            .fromQueue(q)
-            .flattenTake
+          reader.toStream
         }
 
       s0
