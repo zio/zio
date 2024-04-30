@@ -20,6 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.tailrec
 import java.util.{Set => JavaSet}
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
 import zio._
@@ -43,7 +44,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _blockingOn     = FiberRuntime.notBlockingOn
   private var _asyncContWith  = null.asInstanceOf[ZIO.Erased => Any]
   private val running         = new AtomicBoolean(false)
-  private val inbox           = new FiberRuntime.Inbox()
+  private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
@@ -250,8 +251,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private def drainQueueWhileRunning(cur0: ZIO.Erased): ZIO.Erased = {
-    if (inbox.unsafeIsEmpty) return cur0
-
     var cur     = cur0
     var message = inbox.poll()
 
@@ -278,8 +277,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       }
       message = inbox.poll()
     }
-
-    inbox.refreshStatus()
 
     cur
   }
@@ -896,10 +893,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       if (ops > FiberRuntime.MaxOperationsBeforeYield) {
         updateLastTrace(cur.trace)
-        inbox.add(
-          FiberMessage.YieldNow,
-          FiberMessage.Resume(cur)
-        )
+        inbox.add(FiberMessage.YieldNow)
+        inbox.add(FiberMessage.Resume(cur))
 
         throw AsyncJump
       } else {
@@ -1153,10 +1148,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             case yieldNow: ZIO.YieldNow =>
               updateLastTrace(yieldNow.trace)
               if (yieldNow.forceAsync || !stealWork(currentDepth)) {
-                inbox.add(
-                  FiberMessage.YieldNow,
-                  FiberMessage.resumeUnit
-                )
+                inbox.add(FiberMessage.YieldNow)
+                inbox.add(FiberMessage.resumeUnit)
 
                 throw AsyncJump
               } else {
@@ -1453,35 +1446,4 @@ object FiberRuntime {
 
   private val notBlockingOn: () => FiberId = () => FiberId.None
 
-  private final class Inbox {
-    private[this] val queue    = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
-    private[this] var _isEmpty = true
-
-    def add(message: FiberMessage): Unit = {
-      queue.add(message)
-      _isEmpty = false
-    }
-
-    def add(m1: FiberMessage, m2: FiberMessage): Unit = {
-      queue.add(m1)
-      queue.add(m2)
-      _isEmpty = false
-    }
-
-    def isEmpty: Boolean     = queue.isEmpty
-    def poll(): FiberMessage = queue.poll()
-
-    /**
-     * Unsafely checks whether the inbox is empty.
-     *
-     * This method has better performance over [[isEmpty]] at the cost of being
-     * weakly consistent. This is acceptable ONLY when we're checking the flag
-     * as part of `drainQueueWhileRunning` where we expect that the fiber will
-     * recheck the flag in the next iteration
-     */
-    def unsafeIsEmpty: Boolean = _isEmpty
-
-    def refreshStatus(): Unit =
-      _isEmpty = queue.isEmpty
-  }
 }
