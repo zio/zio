@@ -37,7 +37,13 @@ import scala.{
  * build chunks of unboxed primitives and for compatibility with the Scala
  * collection library.
  */
-sealed abstract class ChunkBuilder[A] extends Builder[A, Chunk[A]]
+sealed abstract class ChunkBuilder[A] extends Builder[A, Chunk[A]] {
+
+  /**
+   * Determines if the builder is empty.
+   */
+  def isEmpty: Boolean
+}
 
 object ChunkBuilder {
 
@@ -74,6 +80,8 @@ object ChunkBuilder {
         if (arrayBuilder ne null) {
           arrayBuilder.clear()
         }
+      def isEmpty: SBoolean =
+        (arrayBuilder eq null) || arrayBuilder.length == 0
       def result(): Chunk[A] =
         if (arrayBuilder eq null) {
           Chunk.empty
@@ -148,6 +156,8 @@ object ChunkBuilder {
             self.lastByte == that.lastByte
         case _ => false
       }
+    def isEmpty: SBoolean =
+      maxBitIndex == 0
     def result(): Chunk[SBoolean] = {
       val bytes: Chunk[SByte] = Chunk.fromArray(arrayBuilder.result() :+ lastByte)
       BitChunkByte(bytes, 0, 8 * (bytes.length - 1) + maxBitIndex)
@@ -182,6 +192,8 @@ object ChunkBuilder {
         case that: Byte => self.arrayBuilder == that.arrayBuilder
         case _          => false
       }
+    def isEmpty: SBoolean =
+      arrayBuilder.length == 0
     def result(): Chunk[SByte] =
       Chunk.fromArray(arrayBuilder.result())
     override def sizeHint(n: SInt): Unit =
@@ -212,6 +224,8 @@ object ChunkBuilder {
         case that: Char => self.arrayBuilder == that.arrayBuilder
         case _          => false
       }
+    def isEmpty: SBoolean =
+      arrayBuilder.length == 0
     def result(): Chunk[SChar] =
       Chunk.fromArray(arrayBuilder.result())
     override def sizeHint(n: SInt): Unit =
@@ -243,6 +257,8 @@ object ChunkBuilder {
         case that: Double => self.arrayBuilder == that.arrayBuilder
         case _            => false
       }
+    def isEmpty: SBoolean =
+      arrayBuilder.length == 0
     def result(): Chunk[SDouble] =
       Chunk.fromArray(arrayBuilder.result())
     override def sizeHint(n: SInt): Unit =
@@ -273,6 +289,8 @@ object ChunkBuilder {
         case that: Float => self.arrayBuilder == that.arrayBuilder
         case _           => false
       }
+    def isEmpty: SBoolean =
+      arrayBuilder.length == 0
     def result(): Chunk[SFloat] =
       Chunk.fromArray(arrayBuilder.result())
     override def sizeHint(n: SInt): Unit =
@@ -303,6 +321,8 @@ object ChunkBuilder {
         case that: Int => self.arrayBuilder == that.arrayBuilder
         case _         => false
       }
+    def isEmpty: SBoolean =
+      arrayBuilder.length == 0
     def result(): Chunk[SInt] =
       Chunk.fromArray(arrayBuilder.result())
     override def sizeHint(n: SInt): Unit =
@@ -333,6 +353,8 @@ object ChunkBuilder {
         case that: Long => self.arrayBuilder == that.arrayBuilder
         case _          => false
       }
+    def isEmpty: SBoolean =
+      arrayBuilder.length == 0
     def result(): Chunk[SLong] =
       Chunk.fromArray(arrayBuilder.result())
     override def sizeHint(n: SInt): Unit =
@@ -363,6 +385,8 @@ object ChunkBuilder {
         case that: Short => self.arrayBuilder == that.arrayBuilder
         case _           => false
       }
+    def isEmpty: SBoolean =
+      arrayBuilder.length == 0
     def result(): Chunk[SShort] =
       Chunk.fromArray(arrayBuilder.result())
     override def sizeHint(n: SInt): Unit =

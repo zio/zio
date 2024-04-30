@@ -15,6 +15,7 @@ object MimaSettings {
         exclude[Problem]("zio.internal.*"),
         exclude[FinalMethodProblem]("zio.ZIO#EvaluationStep#*"),
         exclude[IncompatibleResultTypeProblem]("zio.Chunk.iterate"),
+        exclude[ReversedMissingMethodProblem]("zio.ChunkBuilder.isEmpty"),
         exclude[Problem]("zio.stm.ZSTM#internal*"),
         exclude[Problem]("zio.stm.ZSTM$internal*"),
         exclude[Problem]("zio.stream.internal*"),
