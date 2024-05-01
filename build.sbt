@@ -771,9 +771,9 @@ lazy val docs = project.module
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
     mdocVariables ++= Map(
-      "ZIO_METRICS_CONNECTORS_VERSION" -> ZioMetricsConnectorsVersion,
+      "ZIO_METRICS_CONNECTORS_VERSION" -> ZioMetricsConnectorsVersion
     ),
-      libraryDependencies ++= Seq(
+    libraryDependencies ++= Seq(
       "commons-io"             % "commons-io"                        % "2.13.0" % "provided",
       "dev.zio"               %% "zio-http"                          % "3.0.0-RC6+36-d283e073-SNAPSHOT",
       "io.7mind.izumi"        %% "distage-core"                      % "1.1.0",
