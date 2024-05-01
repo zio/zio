@@ -11,6 +11,8 @@ import zio.test.{ErrorMessage => M, SmartAssertionOps => _, _}
 
 object SmartAssertions {
 
+  case class ComparisonResult[A](isEqual: Boolean, diff: Option[DiffResult])
+
   val anything: TestArrow[Any, Boolean] =
     TestArrow.make[Any, Boolean](_ => TestTrace.boolean(true)(M.was + "anything"))
 
@@ -340,37 +342,36 @@ object SmartAssertions {
           M.pretty(a) + M.was + "less than or equal to" + M.pretty(that)
         }
       }
-
-  def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
-    TestArrow
-      .make[A, Boolean] { a =>
-        val result = (a, that) match {
-          case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
-          case _                             => a == that
-        }
+  
+  def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] = 
+      TestArrow
+        .make[A, Boolean] { a =>
+          val result = (a, that) match {
+            case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
+            case _                             => a == that
+          }
 
         TestTrace.boolean(result) {
           diff.value match {
             case Some(diff) if !diff.isLowPriority && !result =>
               val diffResult = diff.diff(that, a)
-              diffResult match {
-                case DiffResult.Different(_, _, None) =>
-                  M.pretty(a) + M.equals + M.pretty(that)
-                case diffResult =>
-                  M.choice("There was no difference", "There was a difference") ++
-                    M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
-                    M.custom(
-                      ConsoleUtils.underlined(
-                        "Diff"
-                      ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
-                    ) ++
-                    M.custom(scala.Console.RESET + diffResult.render)
-              }
+              ComparisonResult(result, diffResult)
             case _ =>
-              M.pretty(a) + M.equals + M.pretty(that)
+              ComparisonResult(result, None)
           }
         }
       }
+
+  def renderComparisonResult[A](result: ComparisonResult[A]): String = {
+    result match {
+      case ComparisonResult(true, _) =>
+        "Values are equal"
+      case ComparisonResult(false, Some(diffResult)) =>
+        "Differences found: " + diffResult.render
+      case ComparisonResult(false, None) =>
+        "Values are not equal"
+    }
+  }
 
   def equalToL[A, B](that: B)(implicit diff: OptionalImplicit[Diff[B]], conv: (A => B)): TestArrow[A, Boolean] =
     TestArrow
@@ -384,21 +385,9 @@ object SmartAssertions {
           diff.value match {
             case Some(diff) if !diff.isLowPriority && !result =>
               val diffResult = diff.diff(that, conv(a))
-              diffResult match {
-                case DiffResult.Different(_, _, None) =>
-                  M.pretty(a) + M.equals + M.pretty(that)
-                case diffResult =>
-                  M.choice("There was no difference", "There was a difference") ++
-                    M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
-                    M.custom(
-                      ConsoleUtils.underlined(
-                        "Diff"
-                      ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
-                    ) ++
-                    M.custom(scala.Console.RESET + diffResult.render)
-              }
+              ComparisonResult(result, diffResult)
             case _ =>
-              M.pretty(a) + M.equals + M.pretty(that)
+              ComparisonResult(result, None)
           }
         }
       }
@@ -415,21 +404,10 @@ object SmartAssertions {
           diff.value match {
             case Some(diff) if !diff.isLowPriority && !result =>
               val diffResult = diff.diff(conv(that), a)
-              diffResult match {
-                case DiffResult.Different(_, _, None) =>
-                  M.pretty(a) + M.equals + M.pretty(that)
-                case diffResult =>
-                  M.choice("There was no difference", "There was a difference") ++
-                    M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
-                    M.custom(
-                      ConsoleUtils.underlined(
-                        "Diff"
-                      ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
-                    ) ++
-                    M.custom(scala.Console.RESET + diffResult.render)
-              }
+                ComparisonResult(result, diffResult)
+
             case _ =>
-              M.pretty(a) + M.equals + M.pretty(that)
+                ComparisonResult(result, None)
           }
         }
       }
