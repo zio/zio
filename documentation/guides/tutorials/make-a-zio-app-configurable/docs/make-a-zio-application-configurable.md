@@ -139,81 +139,8 @@ Application started with following configuration:
 
 Great! We have ZIO application that can access the configuration data. It works! Now, let's apply the same approach to our RESTful Web Service.
 
-```scala mdoc:invisible:reset
-
-```
-
-```scala mdoc:silent
-import zio._
-import zio.http._
-import zio.config.magnolia.deriveConfig
-
-object GreetingApp {
-  def apply() = Http.empty
-}
-
-object DownloadApp {
-  def apply() = Http.empty
-}
-
-object CounterApp {
-  def apply() = Http.empty
-}
-
-object UserApp {
-  def apply() = Http.empty
-}
-
-trait UserRepo
-
-object InmemoryUserRepo {
-  val layer = ZLayer.succeed(new UserRepo{})
-}
-
-case class HttpServerConfig(host: String, port: Int, nThreads: Int)
-
-object HttpServerConfig {
-  val config: Config[HttpServerConfig] =
-    deriveConfig[HttpServerConfig].nested("HttpServerConfig")
-}
-```
-
-```scala mdoc:compile-only
-import zio._
-import zio.http._
-
-import java.net.InetSocketAddress
-
-object MainApp extends ZIOAppDefault {
-  val serverConfig: ZLayer[Any, Config.Error, ServerConfig] =
-    ZLayer
-      .fromZIO(
-        ZIO.config[HttpServerConfig](HttpServerConfig.config).map { c =>
-          ServerConfig(
-            address = new InetSocketAddress(c.port),
-            nThreads = c.nThreads
-          )
-        }
-      )
-
-  val myApp: Http[UserRepo with Ref[Int], Nothing, Request, Response] =
-    GreetingApp() ++ DownloadApp() ++ CounterApp() ++ UserApp()
-
-  def run =
-    Server
-      .serve(myApp)
-      .provide(
-        // Http server layer with its configuration
-        serverConfig,
-        Server.live,
-
-        // A layer responsible for storing the state of the `counterApp`
-        ZLayer.fromZIO(Ref.make(0)),
-
-        // To use the persistence layer, provide the `PersistentUserRepo.layer` layer instead
-        InmemoryUserRepo.layer,
-      )
-}
+```scala mdoc:passthrough
+utils.printSource("documentation/guides/tutorials/make-a-zio-app-configurable/src/main/scala/dev/zio/quickstart/MainApp.scala")
 ```
 
 Until now, we made our RESTful web service configurable to be able to use its config from the ZIO environment with a simple configuration layer.
@@ -279,51 +206,8 @@ Runtime.setConfigProvider(
 
 Then we should change the default `ConfigProvider` to the new one by using `Runtime.setConfigProvider` layer:
 
-```scala mdoc:compile-only
-import zio._
-import zio.config.typesafe.TypesafeConfigProvider
-import zio.http._
-
-import java.net.InetSocketAddress
-
-object MainApp extends ZIOAppDefault {
-  override val bootstrap: ZLayer[ZIOAppArgs, Any, Any] =
-    Runtime.setConfigProvider(
-      TypesafeConfigProvider
-        .fromResourcePath()
-    )
-
-  val myApp: Http[UserRepo with Ref[Int], Nothing, Request, Response] =
-    GreetingApp() ++ DownloadApp() ++ CounterApp() ++ UserApp()
-
-  val serverConfig: ZLayer[Any, Config.Error, ServerConfig] =
-    ZLayer
-      .fromZIO(
-        ZIO.config[HttpServerConfig](HttpServerConfig.config).map { c =>
-          ServerConfig(
-            address = new InetSocketAddress(c.port),
-            nThreads = c.nThreads
-          )
-        }
-      )
-
-  def run =
-    (Server
-      .install(myApp)
-      .flatMap(port =>
-        Console.printLine(s"Started server on port: $port")
-      ) *> ZIO.never)
-      .provide(
-        serverConfig,
-        Server.live,
-
-        // A layer responsible for storing the state of the `counterApp`
-        ZLayer.fromZIO(Ref.make(0)),
-
-        // To use the persistence layer, provide the `PersistentUserRepo.layer` layer instead
-        InmemoryUserRepo.layer
-      )
-}
+```scala mdoc:passthrough
+utils.printSource("documentation/guides/tutorials/make-a-zio-app-configurable/src/main/scala/dev/zio/quickstart/MainApp.scala")
 ```
 
 ## Step 4: Running The Application
