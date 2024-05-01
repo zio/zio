@@ -2028,7 +2028,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           offer = t.flatMap{tt =>
             q.offer(tt)
           }*/
-          offer = z1.mapError(Some(_)) .exit.flatMap(ex => q.offer(ex))
+          offer = z1.mapError(Some(_)).exit.flatMap(ex => q.offer(ex))
           fib <- {
             offer
               .interruptible
@@ -2039,9 +2039,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         } yield ()
       }
 
-      val enqueuer = ZIO.transplant { grafter =>
-        self
-          .runForeach(a => grafter(enqueue(a)))
+      val enqueuer = self
+          .runScoped(ZSink.foreach(enqueue(_)))
           .foldCauseZIO (
             c => {
               permits
@@ -2056,7 +2055,6 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                 }
             }
           )
-          }
           .forkScoped
 
       lazy val reader : ZChannel[Any, Any, Any, Any, E1, Chunk[A2], Any] =
