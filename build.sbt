@@ -624,7 +624,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     libraryDependencies ++= List(
       `zio-http`,
       `zio-metrics-connectors`,
-      `zio-metrics-connectors-prometheus`,
+      `zio-metrics-connectors-prometheus`
     )
   )
   .dependsOn(macros, testRunner)
@@ -814,7 +814,7 @@ lazy val docs = project.module
       `zio-zmx`,
       `zio-query`,
       `zio-mock`,
-      "commons-io" % "commons-io" % "2.13.0" % "provided",
+      "commons-io"             % "commons-io"                % "2.13.0" % "provided",
       "org.jsoup"              % "jsoup"                     % "1.16.1" % "provided",
       "org.reactivestreams"    % "reactive-streams-examples" % "1.0.4"  % "provided",
       "org.typelevel"         %% "cats-effect"               % catsEffectV,
@@ -862,7 +862,7 @@ lazy val docs = project.module
       "com.devsisters"                %% "shardcake-entities"            % "2.0.0",
       "com.devsisters"                %% "shardcake-manager"             % "2.0.0",
       "com.devsisters"                %% "shardcake-serialization-kryo"  % "2.0.0",
-      "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core"                 % "0.6.0-test4",
+      "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core"                 % "0.6.0-test4"
     ),
     resolvers += "Confluent" at "https://packages.confluent.io/maven",
     fork           := true,
