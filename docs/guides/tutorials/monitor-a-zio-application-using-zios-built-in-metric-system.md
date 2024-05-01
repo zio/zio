@@ -56,7 +56,7 @@ In this example, we are going to calculate the Fibonacci number for a given numb
 
 This is a pedagogical example of how to use metrics. In real life, we will probably want to poll the metrics using a web API and feed them to a monitoring system, e.g. Prometheus. In the following sections, we will learn how to do that by applying the metrics to our RESTful web service.
 
-## Applying the Metrics to Our Restful Web Service
+## Built-in ZIO HTTP Metrics
 
 ZIO HTTP has built-in support for metrics. We can attach metrics middleware to our HTTP application using the `@@` syntax:
 
