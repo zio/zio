@@ -624,7 +624,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     libraryDependencies ++= List(
       `zio-http`,
       `zio-metrics-connectors`,
-      `zio-metrics-connectors-prometheus`
+      `zio-metrics-connectors-prometheus`,
     )
   )
   .dependsOn(macros, testRunner)
