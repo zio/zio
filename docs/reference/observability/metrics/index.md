@@ -33,48 +33,16 @@ After adding metrics into our application, whenever we want we can capture snaps
 
 Here is an example of adding a Prometheus connector to our application:
 
-```scala mdoc:compile-only
-import zio._
-import zio.metrics.Metric
+```scala mdoc:passthrough
+import utils._
 
-import zio.http._
-import zio.http.model.Method
-import zio.metrics.connectors.prometheus.PrometheusPublisher
-import zio.metrics.connectors.{MetricsConfig, prometheus}
+printSource("examples/jvm/src/main/scala/zio/examples/metrics/MetricAppExample.scala")
+```
 
-object SampleMetricApp extends ZIOAppDefault {
-  
-  def memoryUsage: ZIO[Any, Nothing, Double] = {
-    import java.lang.Runtime._
-    ZIO
-      .succeed(getRuntime.totalMemory() - getRuntime.freeMemory())
-      .map(_ / (1024.0 * 1024.0)) @@ Metric.gauge("memory_usage")
-  }
+To run this example we need to add following lines to our `build.sbt` file:
 
-  private val httpApp =
-    Http
-      .collectZIO[Request] {
-        case Method.GET -> !! / "metrics" =>
-          ZIO.serviceWithZIO[PrometheusPublisher](_.get.map(Response.text))
-        case Method.GET -> !! / "foo" =>
-          for {
-            _ <- memoryUsage
-            time <- Clock.currentDateTime
-          } yield Response.text(s"$time\t/foo API called")
-      }
+```scala
 
-  override def run = Server
-    .serve(httpApp)
-    .provide(
-      // ZIO Http default server layer, default port: 8080
-      Server.default,
-      // The prometheus reporting layer
-      prometheus.prometheusLayer,
-      prometheus.publisherLayer,
-      // Interval for polling metrics
-      ZLayer.succeed(MetricsConfig(5.seconds))
-    )
-}
 ```
 
 ZIO Metrics Connectors currently supports the following backends:
