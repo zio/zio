@@ -1,4 +1,5 @@
 import BuildHelper._
+import Dependencies._
 import MimaSettings.mimaSettings
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 import sbt.Keys
@@ -769,7 +770,10 @@ lazy val docs = project.module
     docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
-    libraryDependencies ++= Seq(
+    mdocVariables ++= Map(
+      "ZIO_METRICS_CONNECTORS_VERSION" -> ZioMetricsConnectorsVersion,
+    ),
+      libraryDependencies ++= Seq(
       "commons-io"             % "commons-io"                        % "2.13.0" % "provided",
       "dev.zio"               %% "zio-http"                          % "3.0.0-RC6+36-d283e073-SNAPSHOT",
       "io.7mind.izumi"        %% "distage-core"                      % "1.1.0",
@@ -851,7 +855,7 @@ lazy val docs = project.module
       "com.devsisters"                %% "shardcake-manager"             % "2.0.0",
       "com.devsisters"                %% "shardcake-serialization-kryo"  % "2.0.0",
       "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core"                 % "0.6.0-test4",
-      "dev.zio"                       %% "zio-metrics-connectors"        % "2.0.7"
+      "dev.zio"                       %% "zio-metrics-connectors"        % ZioMetricsConnectorsVersion
     ),
     resolvers += "Confluent" at "https://packages.confluent.io/maven",
     fork           := true,
