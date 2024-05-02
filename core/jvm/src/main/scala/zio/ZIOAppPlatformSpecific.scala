@@ -47,6 +47,7 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
                       "Resources may be leaked. " +
                       "Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context."
                   )
+                  p.unsafe.done(Exit.succeed(Set(fiberId)))
                 } else {
                   try {
                     val completePromise = ZIO.fiberIdWith(fid2 => p.succeed(Set(fiberId, fid2)))
