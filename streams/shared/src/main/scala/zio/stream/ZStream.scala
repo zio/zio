@@ -21,7 +21,7 @@ import zio.internal.{PartitionedRingBuffer, SingleThreadedRingBuffer, UniqueKey}
 import zio.metrics.MetricLabel
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm._
-import zio.stream.ZStream.{DebounceState, HandoffSignal, failCause, zipChunks}
+import zio.stream.ZStream.{DebounceState, HandoffSignal, QRes, failCause, zipChunks}
 import zio.stream.internal.{ZInputStream, ZReader}
 
 import java.io.{IOException, InputStream}
@@ -2026,7 +2026,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           z1 = f(a)
           offer = //z1.flatMap(q.offer(_))
             z1.foldCauseZIO(
-              c => q.offer(Left(c)),
+              c => q.offer(QRes.failCause(c)),
               a2 => q.offer(a2)
             )
           fib <- {
@@ -2059,13 +2059,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           .foldCauseZIO (
             //this message terminates processing so it's ok for it to race with in-flight computations
             c => {
-              q.offer(Left(c))
+              q.offer(QRes.failCause(c))
             },
             _ => {
               //make sure this is the last message in the queue
               permits
                 .withPermits(n) {
-                  q.offer(Right(()))
+                  q.offer(QRes.unit)
                 }
             }
           )
@@ -2075,11 +2075,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         lazy val reader0 : ZChannel[Any, Any, Any, Any, E1, Chunk[A2], Any] = ZChannel
           .fromZIO(q.take/*.debug(s"reader(seen=$seenRows, n=$nRows")*/)
           .flatMap {
-            case e: Either[Cause[E1], ZStream.NRows] @unchecked =>
-              e match {
-                case Right(_) =>
+            case QRes(v) =>
+              v match {
+                case () =>
                   ZChannel.unit
-                case Left(c) =>
+                case c : Cause[E1] @unchecked =>
                   ZChannel.refailCause(c)
               }
             case a2: A2 @unchecked =>
@@ -6204,5 +6204,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     else
       (cl.zipWith(cr.take(cl.size))(f), Right(cr.drop(cl.size)))
 
-  private case class NRows(n : Int)
+  private case class QRes[A](value : A)
+
+  private object QRes {
+    val unit: QRes[Unit] = QRes(())
+    def failCause[E](c : Cause[E]): QRes[Cause[E]] = QRes(c)
+  }
 }
