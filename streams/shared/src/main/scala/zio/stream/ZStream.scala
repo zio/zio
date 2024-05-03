@@ -2016,7 +2016,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     f: A => ZIO[R1, E1, A2]
   )(implicit trace: Trace): ZStream[R1, E1, A2] = {
     val z0: ZIO[Any, Nothing, ZStream[R1, E1, A2]] = for {
-      q <- zio.Queue.bounded/*[zio.Exit[Option[E1], A2]]*/[/*zio.Exit[Either[E1, Int], A2]*/ Any](bufferSize)
+      q <- zio.Queue.bounded[Any](bufferSize)
       permits <- zio.Semaphore.make(n)
     } yield {
       def enqueue(a : A): ZIO[R1, Nothing, Unit] = ZIO.uninterruptibleMask { restore =>
@@ -2039,16 +2039,14 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         } yield ()
       }
 
-      val countingForeach: ZChannel[R1, E, Chunk[A], Any, E1, Nothing, ZStream.NRows] = ZChannel.suspend{
-        var nRows = 0
-        lazy val proc : ZChannel[R1, E, Chunk[A], Any, E1, Nothing, ZStream.NRows] =
+      val foreachCh: ZChannel[R1, E, Chunk[A], Any, E1, Nothing, Any] = {
+        lazy val proc : ZChannel[R1, E, Chunk[A], Any, E1, Nothing, Any] =
           ZChannel.readWithCause(
             in => {
-              nRows += in.size
               ZChannel.fromZIO(ZIO.foreachDiscard(in)(enqueue)) *> proc
             },
             ZChannel.refailCause(_),
-            _ => ZChannel.succeedNow(ZStream.NRows(nRows))
+            _ => ZChannel.unit
           )
 
         proc
@@ -2056,45 +2054,36 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
 
       val enqueuer = self
         .toChannel
-        .pipeTo(countingForeach)
+        .pipeTo(foreachCh)
         .runScoped
           .foldCauseZIO (
+            //this message terminates processing so it's ok for it to race with in-flight computations
             c => {
               q.offer(Left(c))
             },
-            nRows => {
-              /*permits
-                .withPermits(n)*/ {
-                  q.offer(Right(nRows))
+            _ => {
+              //make sure this is the last message in the queue
+              permits
+                .withPermits(n) {
+                  q.offer(Right(()))
                 }
             }
           )
           .forkScoped
 
-      val reader : ZChannel[Any, Any, Any, Any, E1, Chunk[A2], Any] = ZChannel.suspend {
-        var seenRows = 0
-        var nRows = -1
+      val reader : ZChannel[Any, Any, Any, Any, E1, Chunk[A2], Any] = {
         lazy val reader0 : ZChannel[Any, Any, Any, Any, E1, Chunk[A2], Any] = ZChannel
           .fromZIO(q.take/*.debug(s"reader(seen=$seenRows, n=$nRows")*/)
           .flatMap {
             case e: Either[Cause[E1], ZStream.NRows] @unchecked =>
               e match {
-                case Right(nr) =>
-                  if (seenRows == nr.n)
-                    ZChannel.unit
-                  else {
-                    nRows = nr.n
-                    reader0
-                  }
+                case Right(_) =>
+                  ZChannel.unit
                 case Left(c) =>
                   ZChannel.refailCause(c)
               }
             case a2: A2 @unchecked =>
-              seenRows += 1
-              if (nRows == seenRows)
-                ZChannel.write(Chunk.single(a2))
-              else
-                ZChannel.write(Chunk.single(a2)) *> reader0
+              ZChannel.write(Chunk.single(a2)) *> reader0
           }
 
         reader0
