@@ -17,7 +17,7 @@
 package zio.stream
 
 import zio._
-import zio.internal.{SingleThreadedRingBuffer, UniqueKey}
+import zio.internal.{PartitionedRingBuffer, SingleThreadedRingBuffer, UniqueKey}
 import zio.metrics.MetricLabel
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm._
@@ -2016,7 +2016,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     f: A => ZIO[R1, E1, A2]
   )(implicit trace: Trace): ZStream[R1, E1, A2] = {
     val z0: ZIO[Any, Nothing, ZStream[R1, E1, A2]] = for {
-      q <- zio.Queue.bounded[zio.Exit[Option[E1], A2]](bufferSize)
+      q <- zio.Queue.bounded/*[zio.Exit[Option[E1], A2]]*/[/*zio.Exit[Either[E1, Int], A2]*/ Any](bufferSize)
       permits <- zio.Semaphore.make(n)
     } yield {
       def enqueue(a : A): ZIO[R1, Nothing, Unit] = ZIO.uninterruptibleMask { restore =>
@@ -2024,11 +2024,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           localScope <- zio.Scope.make
           _ <- restore(permits.withPermitScoped.provideEnvironment(ZEnvironment(localScope)))
           z1 = f(a)
-          /*t = zio.stream.Take.fromZIO(z1)
-          offer = t.flatMap{tt =>
-            q.offer(tt)
-          }*/
-          offer = z1.mapError(Some(_)).exit.flatMap(ex => q.offer(ex))
+          offer = //z1.flatMap(q.offer(_))
+            z1.foldCauseZIO(
+              c => q.offer(Left(c)),
+              a2 => q.offer(a2)
+            )
           fib <- {
             offer
               .interruptible
@@ -2039,38 +2039,66 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         } yield ()
       }
 
+      val countingForeach: ZChannel[R1, E, Chunk[A], Any, E1, Nothing, ZStream.NRows] = ZChannel.suspend{
+        var nRows = 0
+        lazy val proc : ZChannel[R1, E, Chunk[A], Any, E1, Nothing, ZStream.NRows] =
+          ZChannel.readWithCause(
+            in => {
+              nRows += in.size
+              ZChannel.fromZIO(ZIO.foreachDiscard(in)(enqueue)) *> proc
+            },
+            ZChannel.refailCause(_),
+            _ => ZChannel.succeedNow(ZStream.NRows(nRows))
+          )
+
+        proc
+      }
+
       val enqueuer = self
-          .runScoped(ZSink.foreach(enqueue(_)))
+        .toChannel
+        .pipeTo(countingForeach)
+        .runScoped
           .foldCauseZIO (
             c => {
-              permits
-                .withPermits(n) {
-                  q.offer(zio.Exit.failCause(c.map(Some(_))))
-                }
+              q.offer(Left(c))
             },
-            _ => {
-              permits
-                .withPermits(n) {
-                  q.offer(zio.Exit.fail(None))
+            nRows => {
+              /*permits
+                .withPermits(n)*/ {
+                  q.offer(Right(nRows))
                 }
             }
           )
           .forkScoped
 
-      lazy val reader : ZChannel[Any, Any, Any, Any, E1, Chunk[A2], Any] =
-        ZChannel
-          .fromZIO(q.take)
-          .flatMap { ex =>
-            ex.foldExit(
-              c => {
-                Cause
-                  .flipCauseOption(c)
-                  .map(ZChannel.refailCause(_))
-                  .getOrElse(ZChannel.unit)
-              },
-              a2 => ZChannel.write(Chunk.single(a2)) *> reader
-            )
+      val reader : ZChannel[Any, Any, Any, Any, E1, Chunk[A2], Any] = ZChannel.suspend {
+        var seenRows = 0
+        var nRows = -1
+        lazy val reader0 : ZChannel[Any, Any, Any, Any, E1, Chunk[A2], Any] = ZChannel
+          .fromZIO(q.take/*.debug(s"reader(seen=$seenRows, n=$nRows")*/)
+          .flatMap {
+            case e: Either[Cause[E1], ZStream.NRows] @unchecked =>
+              e match {
+                case Right(nr) =>
+                  if (seenRows == nr.n)
+                    ZChannel.unit
+                  else {
+                    nRows = nr.n
+                    reader0
+                  }
+                case Left(c) =>
+                  ZChannel.refailCause(c)
+              }
+            case a2: A2 @unchecked =>
+              seenRows += 1
+              if (nRows == seenRows)
+                ZChannel.write(Chunk.single(a2))
+              else
+                ZChannel.write(Chunk.single(a2)) *> reader0
           }
+
+        reader0
+      }
 
       val s0: ZStream[R1, E1, A2] = ZStream
         .scoped[R1](enqueuer)
@@ -6186,4 +6214,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       (cl.take(cr.size).zipWith(cr)(f), Left(cl.drop(cr.size)))
     else
       (cl.zipWith(cr.take(cl.size))(f), Right(cr.drop(cl.size)))
+
+  private case class NRows(n : Int)
 }
