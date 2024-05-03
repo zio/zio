@@ -1191,7 +1191,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       while (iterator.hasNext) {
         val next = iterator.next()
 
-        if (next ne null) {
+        if ((next ne null) && next.isAlive()) {
           next.tellInterrupt(cause)
 
           told = true
@@ -1402,6 +1402,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       def removeObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit =
         self.removeObserver(observer)
     }
+
+  override def hashCode(): Int = fiberId.hashCode()
 }
 
 object FiberRuntime {

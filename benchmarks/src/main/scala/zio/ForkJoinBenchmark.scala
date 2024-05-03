@@ -39,8 +39,8 @@ import java.util.concurrent.TimeUnit
 @State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Warmup(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
+@Warmup(iterations = 4, time = 1, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 4, time = 1, timeUnit = TimeUnit.SECONDS)
 @Threads(16)
 @Fork(1)
 class ForkJoinBenchmark {
@@ -55,19 +55,25 @@ class ForkJoinBenchmark {
   def setup(): Unit =
     range = (0 to n).toList
 
-  private val zioEffect = {
-    val forkFiber     = ZIO.unit.forkDaemon
+  private def zioEffect(forkFiber: UIO[Fiber.Runtime[Nothing, Unit]]) = {
     val forkAllFibers = ZIO.yieldNow *> ZIO.foreach(range)(_ => forkFiber)
     forkAllFibers.flatMap(fibers => ZIO.foreach(fibers)(_.await))
   }
 
-  @Benchmark
-  def zioForkJoin(): Unit =
-    unsafeRun(zioEffect)
+  private val zioFork       = zioEffect(ZIO.unit.fork)
+  private val zioForkDaemon = zioEffect(ZIO.unit.forkDaemon)
 
   @Benchmark
-  def zioForkJoinNoFiberRoots(): Unit =
-    unsafeRun(zioEffect, fiberRootsEnabled = false)
+  def zioForkJoin(): Unit =
+    unsafeRun(zioFork)
+
+  @Benchmark
+  def zioForkDaemonJoin(): Unit =
+    unsafeRun(zioForkDaemon)
+
+  @Benchmark
+  def zioForkDaemonJoinNoFiberRoots(): Unit =
+    unsafeRun(zioForkDaemon, fiberRootsEnabled = false)
 
   @Benchmark
   def catsForkJoin(): Unit = {
