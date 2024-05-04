@@ -55,19 +55,25 @@ class ForkJoinBenchmark {
   def setup(): Unit =
     range = (0 to n).toList
 
-  private val zioEffect = {
-    val forkFiber     = ZIO.unit.forkDaemon
+  private def zioEffect(forkFiber: UIO[Fiber.Runtime[Nothing, Unit]]) = {
     val forkAllFibers = ZIO.yieldNow *> ZIO.foreach(range)(_ => forkFiber)
     forkAllFibers.flatMap(fibers => ZIO.foreach(fibers)(_.await))
   }
 
-  @Benchmark
-  def zioForkJoin(): Unit =
-    unsafeRun(zioEffect)
+  private val zioFork       = zioEffect(ZIO.unit.fork)
+  private val zioForkDaemon = zioEffect(ZIO.unit.forkDaemon)
 
   @Benchmark
-  def zioForkJoinNoFiberRoots(): Unit =
-    unsafeRun(zioEffect, fiberRootsEnabled = false)
+  def zioForkJoin(): Unit =
+    unsafeRun(zioFork)
+
+  @Benchmark
+  def zioForkDaemonJoin(): Unit =
+    unsafeRun(zioForkDaemon)
+
+  @Benchmark
+  def zioForkDaemonJoinNoFiberRoots(): Unit =
+    unsafeRun(zioForkDaemon, fiberRootsEnabled = false)
 
   @Benchmark
   def catsForkJoin(): Unit = {
