@@ -1938,49 +1938,77 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                                                                           trace: Trace
   ): ZStream[R1, E1, A2] = {
     val z0: ZIO[Any, Nothing, ZStream[R1, E1, A2]] = for {
-      q <- zio.Queue.bounded[zio.stream.Take[E1, Fiber[E1, A2]]](bufferSize)
+      q <- zio.Queue.bounded[Fiber[Option[E1], A2]](bufferSize)
       permits <- zio.Semaphore.make(n)
       failureSignal <- zio.Promise.make[E1, Nothing]
       //completionSignal <- zio.Promise.make[Nothing, Any]
     } yield {
-      def forkF(a : A): ZIO[R1, Nothing, Fiber.Runtime[E1, A2]] = ZIO.uninterruptibleMask { restore =>
+      def forkF(a : A): ZIO[R1, Nothing, Fiber.Runtime[Option[E1], A2]] = ZIO.uninterruptibleMask { restore =>
         for {
           localScope <- zio.Scope.make
           _ <- restore(permits.withPermitScoped.provideEnvironment(ZEnvironment(localScope)))
           fib <- restore(f(a))
             .foldCauseZIO(
-              c => failureSignal.failCause(c) *> localScope.close(Exit.failCause(c)) *> ZIO.refailCause(c),
+              c => failureSignal.failCause(c) *> localScope.close(Exit.failCause(c)) *> ZIO.refailCause(c.map(Some(_))),
               u => localScope.close(Exit.succeed(u)) as u
             )
             .fork
         } yield fib
       }
-      val enqueuer: ZIO[R1 with Scope, Nothing, Fiber.Runtime[Nothing, Unit]] = ZIO
-      .transplant { grafter =>
-        self
-          .mapZIO(a => grafter(forkF(a)))
-          .runIntoQueue(q)
-          .forkScoped
-      }
+      lazy val enqueueCh : ZChannel[R1, E, Chunk[A], Any, Nothing, Nothing, Any] = ZChannel
+        .readWithCause(
+          in => ZChannel.fromZIO(ZIO.foreachDiscard(in)(a => forkF(a).flatMap(q.offer(_)))/*.debug(s"enqueueCh.in(${in.size})")*/) *> enqueueCh,
+          err => ZChannel.fromZIO(failureSignal.failCause(err) *> q.offer(zio.Fiber.failCause(err.map(Some(_))))/*.debug(s"enqueueCh.err($err)")*/),
+          done => ZChannel.fromZIO(permits.withPermits(n)(q.offer(zio.Fiber.fail(None)))/*.debug("enqueueCh.done")*/)
+        )
+      val enqueuer: ZIO[R1 with Scope, Nothing, Fiber.Runtime[Nothing, Any]] = self
+        .toChannel
+        .pipeTo(enqueueCh.unit)
+        .runScoped
+        .forkScoped
+
+      lazy val readerCh : ZChannel[Any, Any, Any, Any, E1, Chunk[A2], Any] =
+        ZChannel
+          .unwrap {
+            val z: ZIO[Any, Nothing, ZChannel[Any, Any, Any, Any, E1, Chunk[A2], Any]] = q
+              .take
+              .flatMap(_.join)
+              .raceWith(failureSignal.await)(
+                (leftEx, rightFib) => {
+                  leftEx.foldCauseZIO(
+                    c => Cause
+                      .flipCauseOption(c)
+                      .map{ c2 =>
+                        ZIO.succeed(ZChannel.fromZIO(rightFib.join))
+                      }
+                      .getOrElse{
+                        rightFib.interrupt.as(ZChannel.unit)
+                      },
+                    a2 => rightFib.interrupt.as{
+                      ZChannel.write(Chunk.single(a2)) *> readerCh
+                    }
+                  )
+                },
+                (rightEx, leftFib) => {
+                  leftFib
+                    .interrupt
+                    .as{
+                      rightEx.foldExit(
+                        ZChannel.refailCause(_),
+                        //how on earth?
+                        nothing => ZChannel.failCause(Cause.die(new RuntimeException(s"no idea how we got '$nothing' through the failureSignal")))
+                      )
+                    }
+                }
+              )
+
+            z
+          }
 
       ZStream
         .scoped[R1](enqueuer)
         .flatMap { fib =>
-          ZStream
-            .fromQueue(q)
-            .flattenTake
-            .flatMap { f =>
-              ZStream.unwrap {
-                (f.join.exit race failureSignal.await.exit).map { ex =>
-                  ex.foldExit(
-                    { cause =>
-                      ZStream.fromZIO(failureSignal.await)
-                    },
-                    ZStream.succeed(_)
-                  )
-                }
-              }
-            }
+          readerCh.toStream
         }
     }
 
