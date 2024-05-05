@@ -1947,12 +1947,27 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         for {
           localScope <- zio.Scope.make
           _ <- restore(permits.withPermitScoped.provideEnvironment(ZEnvironment(localScope)))
-          fib <- restore(f(a))
-            .foldCauseZIO(
-              c => failureSignal.failCause(c) *> localScope.close(Exit.failCause(c)) *> ZIO.refailCause(c.map(Some(_))),
-              u => localScope.close(Exit.succeed(u)) as u
-            )
-            .fork
+          fib <- restore {
+            f(a)  //.debug("forkF.f(a)")
+              .foldCauseZIO(
+                c => failureSignal.failCause(c) *> ZIO.refailCause(c.map(Some(_))),
+                u => ZIO.succeed(u)
+              )
+              //.debug("forkF.folded")
+              .raceWith(failureSignal.await.mapError(Some(_)))(
+                {
+                  case (leftEx, rightFib) =>
+                    rightFib.interrupt *> leftEx
+                },
+                {
+                  case (rightEx, leftFib) =>
+                    leftFib.interrupt *> rightEx
+                }
+              )
+              //.debug("forkF.race")
+          }
+          .onExit(localScope.close(_))
+          .fork
         } yield fib
       }
       lazy val enqueueCh : ZChannel[R1, E, Chunk[A], Any, Nothing, Nothing, Any] = ZChannel
@@ -1973,33 +1988,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
             val z: ZIO[Any, Nothing, ZChannel[Any, Any, Any, Any, E1, Chunk[A2], Any]] = q
               .take
               .flatMap(_.join)
-              .raceWith(failureSignal.await)(
-                (leftEx, rightFib) => {
-                  leftEx.foldCauseZIO(
-                    c => Cause
-                      .flipCauseOption(c)
-                      .map{ c2 =>
-                        ZIO.succeed(ZChannel.fromZIO(rightFib.join))
-                      }
-                      .getOrElse{
-                        rightFib.interrupt.as(ZChannel.unit)
-                      },
-                    a2 => rightFib.interrupt.as{
-                      ZChannel.write(Chunk.single(a2)) *> readerCh
-                    }
-                  )
-                },
-                (rightEx, leftFib) => {
-                  leftFib
-                    .interrupt
-                    .as{
-                      rightEx.foldExit(
-                        ZChannel.refailCause(_),
-                        //how on earth?
-                        nothing => ZChannel.failCause(Cause.die(new RuntimeException(s"no idea how we got '$nothing' through the failureSignal")))
-                      )
-                    }
-                }
+              .foldCause(
+                c => Cause.flipCauseOption(c)
+                  .map(ZChannel.refailCause(_))
+                  .getOrElse(ZChannel.unit),
+                a2 =>
+                  ZChannel.write(Chunk.single(a2)) *> readerCh
               )
 
             z
