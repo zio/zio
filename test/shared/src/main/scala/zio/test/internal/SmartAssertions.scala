@@ -4,6 +4,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio._
 import zio.internal.ansi.AnsiStringOps
 import zio.test.diff.{Diff, DiffResult}
+import zio.test.ErrorMessage
 
 import scala.reflect.ClassTag
 import scala.util.Try
@@ -341,7 +342,7 @@ object SmartAssertions {
         }
       }
 
-  def equalTo[A](that: A, render: (Boolean, A, A) => zio.test.ErrorMessage = renderTestResult)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
+  def equalTo[A](that: A, render: (Boolean, A, A) => zio.test.ErrorMessage = renderTestResult _)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
   TestArrow.make[A, Boolean] { a =>
     val result = (a, that) match {
       case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
@@ -350,7 +351,7 @@ object SmartAssertions {
 
     TestTrace.boolean(result) {
       val errorMessage = render(result, a, that)
-      if (result) TestResult.success else TestResult.failure(errorMessage)
+      if (result) TestTrace.succeed else TestTrace.fail(errorMessage)
     }
   }
 
