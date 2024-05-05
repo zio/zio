@@ -354,23 +354,24 @@ def equalTo[A](that: A, render: (Boolean, A, A, DiffResult) => TestResult)(impli
     render(result, a, that, diffResult)
   }
 
-def defaultRender(result: Boolean, a: A, that: A, diffResult: DiffResult): TestResult = {
-  if (!result) {
-    diffResult match {
-      case DiffResult.Different(_, _, None) =>
-        TestResult.failure(s"${M.pretty(a)}${M.equals}${M.pretty(that)}")
-      case diffResult =>
-        TestResult.failure(
-          M.choice("There was no difference", "There was a difference") ++
-            M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
-            M.custom(
-              ConsoleUtils.underlined("Diff") + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
-            ) ++
-            M.custom(scala.Console.RESET + diffResult.render)
-        )
+  def defaultRender[A](result: Boolean, a: A, that: A, diffResult: DiffResult): TestResult = {
+    if (!result) {
+      diffResult match {
+        case DiffResult.Different(_, _, None) =>
+          TestTrace.fail(s"${M.pretty(a)}${M.equals}${M.pretty(that)}")
+        case diffResult =>
+          TestTrace.fail(
+            M.choice("There was no difference", "There was a difference") ++
+              M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
+              M.custom(
+                ConsoleUtils.underlined("Diff") + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
+              ) ++
+              M.custom(scala.Console.RESET + diffResult.render)
+          )
+      }
+    } else {
+      TestTrace.succeed
     }
-  } else {
-    TestResult.success
   }
 }
 
