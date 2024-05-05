@@ -519,9 +519,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     _fiberRefs.get(fiberRef)
 
   private[zio] def getFiberRefs(): FiberRefs = {
-    // We only include flags that can be inherited by the parent fiber
+    // NOTE: Only include flags that can be inherited by the parent fiber in the FiberRefs
+    // Including them won't cause a bug, but it degrades performance as
+    // it makes the joining of the FiberRefs more complex in `inheritAll`
     val flags0 = FiberRuntime.excludeNonInheritable(_runtimeFlags)
     setFiberRef(FiberRef.currentRuntimeFlags, flags0)
+
     _fiberRefs
   }
 

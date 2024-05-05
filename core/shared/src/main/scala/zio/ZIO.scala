@@ -2533,17 +2533,19 @@ sealed trait ZIO[-R, +E, +A]
             .foldCauseZIO(
               cause =>
                 ZIO.withFiberRuntime[Any, E, A] { (childFiber, _) =>
-                  childFiber.transferChildren(parentScope)
-                  promise.fail(()) *> ZIO.refailCause(cause)
+                  ZIO.suspendSucceed {
+                    childFiber.transferChildren(parentScope)
+                    promise.fail(()) *> ZIO.refailCause(cause)
+                  }
                 },
               a =>
                 ZIO.withFiberRuntime[Any, Nothing, A] { (childFiber, _) =>
-                  childFiber.transferChildren(parentScope)
-                  if (ref.getAndSet(true)) {
-                    promise.unsafe.done(ZIO.succeedNow(side))(Unsafe.unsafe)
-                    ZIO.succeed(a)
-                  } else {
-                    ZIO.succeed(a)
+                  ZIO.succeed {
+                    childFiber.transferChildren(parentScope)
+                    if (ref.getAndSet(true)) {
+                      promise.unsafe.done(ZIO.succeed(side))(Unsafe.unsafe)
+                    }
+                    a
                   }
                 }
             )
@@ -6038,7 +6040,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       else {
         ZIO.uninterruptibleMask { restore =>
           val promise = Promise.unsafe.make[Unit, Unit](FiberId.None)(Unsafe.unsafe)
-          val ref     = new java.util.concurrent.atomic.AtomicInteger(0)
+          val ref     = new java.util.concurrent.atomic.AtomicInteger(size)
           ZIO
             .withFiberRuntime[R, Nothing, Iterable[Fiber.Runtime[E, Unit]]] { (fiber, _) =>
               ZIO.foreach(as) { a =>
@@ -6046,14 +6048,16 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                   .foldCauseZIO(
                     cause =>
                       ZIO.withFiberRuntime[Any, E, Unit] { (childFiber, _) =>
-                        childFiber.transferChildren(fiber.scope)
-                        promise.fail(()) *> ZIO.refailCause(cause)
+                        ZIO.suspendSucceed {
+                          childFiber.transferChildren(fiber.scope)
+                          promise.fail(()) *> ZIO.refailCause(cause)
+                        }
                       },
                     _ => {
                       ZIO.withFiberRuntime[Any, Nothing, Unit] { (childFiber, _) =>
                         ZIO.succeed {
                           childFiber.transferChildren(fiber.scope)
-                          if (ref.incrementAndGet == size) {
+                          if (ref.decrementAndGet() == 0) {
                             promise.unsafe.done(ZIO.unit)(Unsafe.unsafe)
                           }
                         }
