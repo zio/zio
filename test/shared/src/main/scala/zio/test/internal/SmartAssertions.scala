@@ -341,40 +341,40 @@ object SmartAssertions {
         }
       }
 
-def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
-  TestArrow.make[A, Boolean] { a =>
-    val result = (a, that) match {
-      case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
-      case _                             => a == that
-    }
-
-    TestTrace.boolean(result) {
-      renderTestResult(result, a, that)
-    }
-  }
-
-def renderTestResult[A](result: Boolean, a: A, that: A)(implicit diff: OptionalImplicit[Diff[A]]): String =
-  result match {
-    case false =>
-      diff.value match {
-        case Some(diff) if !diff.isLowPriority =>
-          val diffResult = diff.diff(that, a)
-          diffResult match {
-            case DiffResult.Different(_, _, None) =>
-              s"${M.pretty(a)}${M.equals}${M.pretty(that)}"
-            case diffResult =>
-              s"${M.choice("There was no difference", "There was a difference")}" +
-                s"${M.custom(ConsoleUtils.underlined("Expected"))}${M.custom(PrettyPrint(that))}" +
-                s"${M.custom(ConsoleUtils.underlined("Diff") + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint)}" +
-                s"${M.custom(scala.Console.RESET + diffResult.render)}"
-          }
-        case _ =>
-          s"${M.pretty(a)}${M.equals}${M.pretty(that)}"
+  def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
+    TestArrow.make[A, Boolean] { a =>
+      val result = (a, that) match {
+        case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
+        case _                             => a == that
       }
-    case true =>
-      s"${M.pretty(a)}${M.equals}${M.pretty(that)}"
-  }
 
+      TestTrace.boolean(result) {
+        val errorMessage: zio.test.ErrorMessage = renderTestResult(result, a, that)
+        TestResult.Assertion(result, errorMessage)
+      }
+    }
+
+  def renderTestResult[A](result: Boolean, a: A, that: A)(implicit diff: OptionalImplicit[Diff[A]]): String =
+    result match {
+      case false =>
+        diff.value match {
+          case Some(diff) if !diff.isLowPriority =>
+            val diffResult = diff.diff(that, a)
+            diffResult match {
+              case DiffResult.Different(_, _, None) =>
+                s"${M.pretty(a)}${M.equals}${M.pretty(that)}"
+              case diffResult =>
+                s"${M.choice("There was no difference", "There was a difference")}" +
+                  s"${M.custom(ConsoleUtils.underlined("Expected"))}${M.custom(PrettyPrint(that))}" +
+                  s"${M.custom(ConsoleUtils.underlined("Diff") + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint)}" +
+                  s"${M.custom(scala.Console.RESET + diffResult.render)}"
+            }
+          case _ =>
+            s"${M.pretty(a)}${M.equals}${M.pretty(that)}"
+        }
+      case true =>
+        s"${M.pretty(a)}${M.equals}${M.pretty(that)}"
+    }
 
   def equalToL[A, B](that: B)(implicit diff: OptionalImplicit[Diff[B]], conv: (A => B)): TestArrow[A, Boolean] =
     TestArrow
