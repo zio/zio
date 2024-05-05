@@ -546,8 +546,12 @@ object FiberRef {
   private[zio] val currentReportFatal: FiberRef[Throwable => Nothing] =
     FiberRef.unsafe.make(Runtime.defaultReportFatal)(Unsafe.unsafe)
 
-  private[zio] val currentRuntimeFlags: FiberRef.WithPatch[RuntimeFlags, RuntimeFlags.Patch] =
+  private[zio] val currentInheritableRuntimeFlags: FiberRef.WithPatch[RuntimeFlags, RuntimeFlags.Patch] =
     FiberRef.unsafe.makeRuntimeFlags(RuntimeFlags.none)(Unsafe.unsafe)
+
+  @deprecated("Kept for binary compatibility purposes, use currentInheritableRuntimeFlags instead", "2.1.0")
+  private[zio] val currentRuntimeFlags: FiberRef.WithPatch[RuntimeFlags, RuntimeFlags.Patch] =
+    currentInheritableRuntimeFlags
 
   private[zio] val currentSupervisor: FiberRef.WithPatch[Supervisor[Any], Supervisor.Patch] =
     FiberRef.unsafe.makeSupervisor(Runtime.defaultSupervisor)(Unsafe.unsafe)

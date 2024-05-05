@@ -102,8 +102,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   def inheritAll(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (parentFiber, parentStatus) =>
-      implicit val unsafe = Unsafe.unsafe
-
       val parentFiberId      = parentFiber.id
       val parentFiberRefs    = parentFiber.getFiberRefs()
       val parentRuntimeFlags = parentStatus.runtimeFlags
@@ -113,16 +111,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       parentFiber.setFiberRefs(updatedFiberRefs)
 
-      val updatedRuntimeFlags = parentFiber.getFiberRef(FiberRef.currentRuntimeFlags)
+      val updatedRuntimeFlags = updatedFiberRefs.getOrDefault(FiberRef.currentInheritableRuntimeFlags)
+
       // Do not inherit WindDown or Interruption!
-
-      val patch =
-        RuntimeFlags.Patch.exclude(
-          RuntimeFlags.Patch.exclude(
-            RuntimeFlags.diff(parentRuntimeFlags, updatedRuntimeFlags)
-          )(RuntimeFlag.WindDown)
-        )(RuntimeFlag.Interruption)
-
+      val patch = FiberRuntime.patchExcludeInheritable(RuntimeFlags.diff(parentRuntimeFlags, updatedRuntimeFlags))
       ZIO.updateRuntimeFlags(patch)
     }
 
@@ -527,7 +519,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     _fiberRefs.get(fiberRef)
 
   private[zio] def getFiberRefs(): FiberRefs = {
-    setFiberRef(FiberRef.currentRuntimeFlags, _runtimeFlags)
+    val flags0 = FiberRuntime.excludeNonInheritable(_runtimeFlags)
+    setFiberRef(FiberRef.currentInheritableRuntimeFlags, flags0)
     _fiberRefs
   }
 
@@ -748,11 +741,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   ): ZIO[R, E, A] = {
     import RuntimeFlags.Patch.{isEnabled, isDisabled}
 
+    val oldFlags = _runtimeFlags
+    val newFlags = RuntimeFlags.patch(patch)(oldFlags)
+    if (oldFlags == newFlags) return continueEffect
+
     if (isEnabled(patch, RuntimeFlag.CurrentFiber.mask)) {
       Fiber._currentFiber.set(self)
     } else if (isDisabled(patch, RuntimeFlag.CurrentFiber.mask)) Fiber._currentFiber.set(null)
 
-    _runtimeFlags = RuntimeFlags.patch(patch)(_runtimeFlags)
+    _runtimeFlags = newFlags
 
     if (shouldInterrupt()) { // TODO: Be smarter; don't do the whole check since we can deduce the condition.
       if (cause ne null) Exit.Failure(cause ++ getInterruptedCause())
@@ -1049,7 +1046,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   cur = Exit.Failure(getInterruptedCause())
                 } else {
                   // Impossible to short circuit, so record the changes:
-                  patchRuntimeFlags(updateFlags, null, null)
+                  val _ = patchRuntimeFlags(updateFlags, null, null)
 
                   // Since we updated the flags, we need to revert them:
                   val revertFlags = RuntimeFlags.diff(newRuntimeFlags, oldRuntimeFlags)
@@ -1376,6 +1373,24 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def tellInterrupt(cause: Cause[Nothing]): Unit =
     tell(FiberMessage.InterruptSignal(cause))
 
+  private[zio] def transferChildren(scope: FiberScope): Unit = {
+    val children = _children
+    if ((children ne null) && !children.isEmpty) {
+      // Initiate asynchronous interruption of all children:
+      val iterator = children.iterator()
+      val flags    = _runtimeFlags
+
+      while (iterator.hasNext) {
+        val next = iterator.next()
+
+        if ((next ne null) && next.isAlive()) {
+          scope.add(self, flags, next)(location, Unsafe.unsafe)
+          iterator.remove()
+        }
+      }
+    }
+  }
+
   /**
    * Updates a fiber ref belonging to this fiber by using the provided update
    * function.
@@ -1426,7 +1441,11 @@ object FiberRuntime {
   }
   import java.util.concurrent.atomic.AtomicBoolean
 
-  def apply[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs, runtimeFlags: RuntimeFlags): FiberRuntime[E, A] =
+  def apply[E, A](
+    fiberId: FiberId.Runtime,
+    fiberRefs: FiberRefs,
+    runtimeFlags: RuntimeFlags
+  ): FiberRuntime[E, A] =
     new FiberRuntime(fiberId, fiberRefs, runtimeFlags)
 
   private[zio] val catastrophicFailure: AtomicBoolean = new AtomicBoolean(false)
@@ -1445,6 +1464,18 @@ object FiberRuntime {
       def thenCase(context: Set[MetricLabel], left: Unit, right: Unit): Unit                       = ()
       def stacklessCase(context: Set[MetricLabel], value: Unit, stackless: Boolean): Unit          = ()
     }
+
+  private def patchExcludeInheritable(patch: RuntimeFlags.Patch): RuntimeFlags.Patch =
+    RuntimeFlags.Patch.exclude(RuntimeFlags.Patch.exclude(patch)(RuntimeFlag.Interruption))(RuntimeFlag.WindDown)
+
+  private def excludeNonInheritable(flags: RuntimeFlags): RuntimeFlags =
+    RuntimeFlags.patch(inheritableFlagsPatch)(flags)
+
+  private[this] val inheritableFlagsPatch: RuntimeFlags.Patch =
+    RuntimeFlags.Patch.both(
+      RuntimeFlags.disable(RuntimeFlag.Interruption),
+      RuntimeFlags.disable(RuntimeFlag.WindDown)
+    )
 
   private val notBlockingOn: () => FiberId = () => FiberId.None
 
