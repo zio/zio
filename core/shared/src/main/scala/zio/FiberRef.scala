@@ -19,6 +19,8 @@ package zio
 import zio.internal.{FiberScope, IsFatal}
 import zio.metrics.MetricLabel
 
+import scala.util.hashing.MurmurHash3
+
 /**
  * A `FiberRef` is ZIO's equivalent of Java's `ThreadLocal`. The value of a
  * `FiberRef` is automatically propagated to child fibers when they are forked
@@ -489,6 +491,10 @@ object FiberRef {
 
             ZIO.unit
           }
+
+        // Store the hash code in a val to avoid recomputing it on every access of the FiberRefs map
+        // Ideally we'd do that in `FiberRef` itself, but that's not binary compatible
+        final override val hashCode: Int = super.hashCode()
       }
 
     def makeRuntimeFlags(
