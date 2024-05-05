@@ -341,18 +341,20 @@ object SmartAssertions {
         }
       }
 
-  def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
-    TestArrow.make[A, Boolean] { a =>
-      val result = (a, that) match {
-        case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
-        case _                             => a == that
-      }
-
-      TestTrace.boolean(result) {
-        val errorMessage: zio.test.ErrorMessage = renderTestResult(result, a, that)
-        if (result) TestResult.success else TestResult.failure(errorMessage)
-      }
+  def equalTo[A](that: A, render: (Boolean, A, A) => zio.test.ErrorMessage = renderTestResult)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
+  TestArrow.make[A, Boolean] { a =>
+    val result = (a, that) match {
+      case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
+      case _                             => a == that
     }
+
+    TestTrace.boolean(result) {
+      val errorMessage = render(result, a, that)
+      if (result) TestResult.success else TestResult.failure(errorMessage)
+    }
+  }
+
+  
 
   def renderTestResult[A](result: Boolean, a: A, that: A)(implicit diff: OptionalImplicit[Diff[A]]): zio.test.ErrorMessage =
   if (!result) {
@@ -364,10 +366,10 @@ object SmartAssertions {
             ErrorMessage.fail(s"${M.pretty(a)}${M.equals}${M.pretty(that)}")
           case diffResult =>
             ErrorMessage.assertion(
-              s"${M.choice("There was no difference", "There was a difference")}" +
-                s"${M.custom(ConsoleUtils.underlined("Expected"))}${M.custom(PrettyPrint(that))}" +
-                s"${M.custom(ConsoleUtils.underlined("Diff") + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint)}" +
-                s"${M.custom(scala.Console.RESET + diffResult.render)}"
+              M.choice("There was no difference", "There was a difference") +
+                M.custom(ConsoleUtils.underlined("Expected: ")) + M.custom(PrettyPrint(that)) +
+                M.custom(ConsoleUtils.underlined("Diff: ") + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint) +
+                M.custom(scala.Console.RESET + diffResult.render)
             )
         }
       case _ =>
