@@ -277,36 +277,160 @@ object SmartAssertions {
         }
       }
 
-  def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): (Boolean, A, A) =
-  ((a, that) match {
-    case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
-    case _                             => a == that
-  }, a, that)
+  def greaterThanL[A, B](that: B)(implicit ordering: Ordering[B], conv: (A => B)): TestArrow[A, Boolean] =
+    TestArrow
+      .make[A, Boolean] { (a: A) =>
+        TestTrace.boolean(ordering.gt(conv(a), that)) {
+          M.pretty(a) + M.was + "greater than" + M.pretty(that)
+        }
+      }
 
+  def greaterThanOrEqualToL[A, B](that: B)(implicit ordering: Ordering[B], conv: (A => B)): TestArrow[A, Boolean] =
+    TestArrow
+      .make[A, Boolean] { a =>
+        TestTrace.boolean(ordering.gteq(conv(a), that)) {
+          M.pretty(a) + M.was + s"greater than or equal to" + M.pretty(that)
+        }
+      }
+
+  def lessThanL[A, B](that: B)(implicit ordering: Ordering[B], conv: (A => B)): TestArrow[A, Boolean] =
+    TestArrow
+      .make[A, Boolean] { a =>
+        TestTrace.boolean(ordering.lt(conv(a), that)) {
+          M.pretty(a) + M.was + "less than" + M.pretty(that)
+        }
+      }
+
+  def lessThanOrEqualToL[A, B](that: B)(implicit ordering: Ordering[B], conv: (A => B)): TestArrow[A, Boolean] =
+    TestArrow
+      .make[A, Boolean] { a =>
+        TestTrace.boolean(ordering.lteq(conv(a), that)) {
+          M.pretty(a) + M.was + "less than or equal to" + M.pretty(that)
+        }
+      }
+
+  def greaterThanR[A, B](that: B)(implicit ordering: Ordering[A], conv: (B => A)): TestArrow[A, Boolean] =
+    TestArrow
+      .make[A, Boolean] { (a: A) =>
+        TestTrace.boolean(ordering.gt(a, conv(that))) {
+          M.pretty(a) + M.was + "greater than" + M.pretty(that)
+        }
+      }
+
+  def greaterThanOrEqualToR[A, B](that: B)(implicit ordering: Ordering[A], conv: (B => A)): TestArrow[A, Boolean] =
+    TestArrow
+      .make[A, Boolean] { a =>
+        TestTrace.boolean(ordering.gteq(a, conv(that))) {
+          M.pretty(a) + M.was + s"greater than or equal to" + M.pretty(that)
+        }
+      }
+
+  def lessThanR[A, B](that: B)(implicit ordering: Ordering[A], conv: (B => A)): TestArrow[A, Boolean] =
+    TestArrow
+      .make[A, Boolean] { a =>
+        TestTrace.boolean(ordering.lt(a, conv(that))) {
+          M.pretty(a) + M.was + "less than" + M.pretty(that)
+        }
+      }
+
+  def lessThanOrEqualToR[A, B](that: B)(implicit ordering: Ordering[A], conv: (B => A)): TestArrow[A, Boolean] =
+    TestArrow
+      .make[A, Boolean] { a =>
+        TestTrace.boolean(ordering.lteq(a, conv(that))) {
+          M.pretty(a) + M.was + "less than or equal to" + M.pretty(that)
+        }
+      }
+
+  def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
+    TestArrow
+      .make[A, Boolean] { a =>
+        val result = (a, that) match {
+          case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
+          case _                             => a == that
+        }
+
+        TestTrace.boolean(result) {
+          diff.value match {
+            case Some(diff) if !diff.isLowPriority && !result =>
+              val diffResult = diff.diff(that, a)
+              diffResult match {
+                case DiffResult.Different(_, _, None) =>
+                  M.pretty(a) + M.equals + M.pretty(that)
+                case diffResult =>
+                  M.choice("There was no difference", "There was a difference") ++
+                    M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
+                    M.custom(
+                      ConsoleUtils.underlined(
+                        "Diff"
+                      ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
+                    ) ++
+                    M.custom(scala.Console.RESET + diffResult.render)
+              }
+            case _ =>
+              M.pretty(a) + M.equals + M.pretty(that)
+          }
+        }
+      }
+
+  def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): (Boolean, A, A) =
+    ((a, that) match {
+      case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
+      case _                             => a == that
+    }, a, that)
 
   def renderTestResult[A](result: Boolean, a: A, that: A)(implicit diff: OptionalImplicit[Diff[A]]): String = {
-  result match {
-    case false =>
-      diff.value match {
-        case Some(diff) if !diff.isLowPriority =>
-          val diffResult = diff.diff(that, a)
-          diffResult match {
-            case DiffResult.Different(_, _, None) =>
-              s"${M.pretty(a)}${M.equals}${M.pretty(that)}"
-            case diffResult =>
-              s"${M.choice("There was no difference", "There was a difference")}" +
-                s"${M.custom(ConsoleUtils.underlined("Expected"))}${M.custom(PrettyPrint(that))}" +
-                s"${M.custom(ConsoleUtils.underlined("Diff") + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint)}" +
-                s"${M.custom(scala.Console.RESET + diffResult.render)}"
-          }
-        case _ =>
-          s"${M.pretty(a)}${M.equals}${M.pretty(that)}"
-      }
-    case true =>
-      s"${M.pretty(a)}${M.equals}${M.pretty(that)}"
+    result match {
+      case false =>
+        diff.value match {
+          case Some(diff) if !diff.isLowPriority =>
+            val diffResult = diff.diff(that, a)
+            diffResult match {
+              case DiffResult.Different(_, _, None) =>
+                s"${M.pretty(a)}${M.equals}${M.pretty(that)}"
+              case diffResult =>
+                s"${M.choice("There was no difference", "There was a difference")}" +
+                  s"${M.custom(ConsoleUtils.underlined("Expected"))}${M.custom(PrettyPrint(that))}" +
+                  s"${M.custom(ConsoleUtils.underlined("Diff") + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint)}" +
+                  s"${M.custom(scala.Console.RESET + diffResult.render)}"
+            }
+          case _ =>
+            s"${M.pretty(a)}${M.equals}${M.pretty(that)}"
+        }
+      case true =>
+        s"${M.pretty(a)}${M.equals}${M.pretty(that)}"
+    }
   }
-}
 
+  def equalToR[A, B](that: B)(implicit diff: OptionalImplicit[Diff[A]], conv: (B => A)): TestArrow[A, Boolean] =
+    TestArrow
+      .make[A, Boolean] { a =>
+        val result = (a, that) match {
+          case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
+          case _                             => a == that
+        }
+
+        TestTrace.boolean(result) {
+          diff.value match {
+            case Some(diff) if !diff.isLowPriority && !result =>
+              val diffResult = diff.diff(conv(that), a)
+              diffResult match {
+                case DiffResult.Different(_, _, None) =>
+                  M.pretty(a) + M.equals + M.pretty(that)
+                case diffResult =>
+                  M.choice("There was no difference", "There was a difference") ++
+                    M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
+                    M.custom(
+                      ConsoleUtils.underlined(
+                        "Diff"
+                      ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
+                    ) ++
+                    M.custom(scala.Console.RESET + diffResult.render)
+              }
+            case _ =>
+              M.pretty(a) + M.equals + M.pretty(that)
+          }
+        }
+      }
 
   def asCauseDie[E]: TestArrow[Cause[E], Throwable] =
     TestArrow
