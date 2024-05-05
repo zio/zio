@@ -2531,7 +2531,11 @@ sealed trait ZIO[-R, +E, +A]
         def fork[R, E, A](zio: => ZIO[R, E, A], side: Boolean): ZIO[R, Nothing, Fiber[E, A]] =
           restore(zio)
             .foldCauseZIO(
-              cause => promise.fail(()) *> ZIO.refailCause(cause),
+              cause =>
+                ZIO.withFiberRuntime[Any, E, A] { (childFiber, _) =>
+                  childFiber.transferChildren(parentScope)
+                  promise.fail(()) *> ZIO.refailCause(cause)
+                },
               a =>
                 ZIO.withFiberRuntime[Any, Nothing, A] { (childFiber, _) =>
                   childFiber.transferChildren(parentScope)
@@ -6040,7 +6044,11 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
               ZIO.foreach(as) { a =>
                 restore(f(a))
                   .foldCauseZIO(
-                    cause => promise.fail(()) *> ZIO.refailCause(cause),
+                    cause =>
+                      ZIO.withFiberRuntime[Any, E, Unit] { (childFiber, _) =>
+                        childFiber.transferChildren(fiber.scope)
+                        promise.fail(()) *> ZIO.refailCause(cause)
+                      },
                     _ => {
                       ZIO.withFiberRuntime[Any, Nothing, Unit] { (childFiber, _) =>
                         ZIO.succeed {
