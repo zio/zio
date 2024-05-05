@@ -373,7 +373,7 @@ def equalTo[A](that: A, render: (Boolean, A, A, DiffResult) => TestResult)(impli
       TestTrace.succeed
     }
   }
-}
+
 
   def equalToL[A, B](that: B)(implicit diff: OptionalImplicit[Diff[B]], conv: (A => B)): TestArrow[A, Boolean] =
     TestArrow
