@@ -9,6 +9,7 @@ import zio.test.{Assertion, assert, TestResult, TestArrow, TestTrace}
 import scala.reflect.ClassTag
 import scala.util.Try
 import zio.test.{ErrorMessage => M, SmartAssertionOps => _, _}
+import scala.util.{Try, Success, Failure}
 
 object SmartAssertions {
 
@@ -343,34 +344,35 @@ object SmartAssertions {
       }
 
   // Modified equalTo method to accept a rendering function
-
-def equalTo[A](that: A, render: (Boolean, A, A, DiffResult) => TestResult)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, TestResult] =
-  TestArrow.make[A, TestResult] { a =>
-    val result = (a, that) match {
-      case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
-      case _                             => a == that
+  def equalTo[A](that: A, render: (Boolean, A, A, DiffResult) => TestResult)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, TestResult] =
+    TestArrow.make[A, TestResult] { a =>
+      val result = (a, that) match {
+        case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
+        case _                             => a == that
+      }
+      val diffResult = if (!result) diff.value.map(_.diff(a, that)).getOrElse(DiffResult.Identical) else DiffResult.Identical
+      render(result, a, that, diffResult)
     }
-    val diffResult = if (!result) diff.value.map(_.diff(a, that)).getOrElse(DiffResult.Identical) else DiffResult.Identical
-    render(result, a, that, diffResult)
-  }
-
+  
   def defaultRender[A](result: Boolean, a: A, that: A, diffResult: DiffResult): TestResult = {
     if (!result) {
-      diffResult match {
-        case DiffResult.Different(_, _, None) =>
-          TestTrace.fail(s"${M.pretty(a)}${M.equals}${M.pretty(that)}")
-        case diffResult =>
-          TestTrace.fail(
-            M.choice("There was no difference", "There was a difference") ++
-              M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
-              M.custom(
-                ConsoleUtils.underlined("Diff") + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
-              ) ++
-              M.custom(scala.Console.RESET + diffResult.render)
-          )
-      }
+      TestResult.fromTrace(
+        diffResult match {
+          case DiffResult.Different(_, _, None) =>
+            TestTrace.fail(s"${M.pretty(a)}${M.equals}${M.pretty(that)}")
+          case diffResult =>
+            TestTrace.fail(
+              M.choice("There was no difference", "There was a difference") ++
+                M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
+                M.custom(
+                  ConsoleUtils.underlined("Diff") + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
+                ) ++
+                M.custom(scala.Console.RESET + diffResult.render)
+            )
+        }
+      )
     } else {
-      TestTrace.succeed
+      TestResult.fromTrace(TestTrace.succeed)
     }
   }
 
