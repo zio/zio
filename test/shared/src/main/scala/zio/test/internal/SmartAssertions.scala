@@ -343,7 +343,7 @@ object SmartAssertions {
         }
       }
 
-  // Modified equalTo method to accept a rendering function
+  // Modified equalTo method to accept a rendering function and handle types correctly
   def equalTo[A](that: A, render: (Boolean, A, A, DiffResult) => TestResult)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, TestResult] =
     TestArrow.make[A, TestResult] { a =>
       val result = (a, that) match {
@@ -353,28 +353,28 @@ object SmartAssertions {
       val diffResult = if (!result) diff.value.map(_.diff(a, that)).getOrElse(DiffResult.Identical) else DiffResult.Identical
       render(result, a, that, diffResult)
     }
-  
+
+  // Define the rendering function with generic type parameters
   def defaultRender[A](result: Boolean, a: A, that: A, diffResult: DiffResult): TestResult = {
     if (!result) {
-      TestResult.fromTrace(
+      TestTrace.fail(
         diffResult match {
           case DiffResult.Different(_, _, None) =>
-            TestTrace.fail(s"${M.pretty(a)}${M.equals}${M.pretty(that)}")
+            s"${M.pretty(a)}${M.equals}${M.pretty(that)}"
           case diffResult =>
-            TestTrace.fail(
-              M.choice("There was no difference", "There was a difference") ++
-                M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
-                M.custom(
-                  ConsoleUtils.underlined("Diff") + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
-                ) ++
-                M.custom(scala.Console.RESET + diffResult.render)
-            )
+            M.choice("There was no difference", "There was a difference") ++
+              M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
+              M.custom(
+                ConsoleUtils.underlined("Diff") + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
+              ) ++
+              M.custom(scala.Console.RESET + diffResult.render)
         }
       )
     } else {
-      TestResult.fromTrace(TestTrace.succeed)
+      TestTrace.succeed(())
     }
   }
+}
 
 
   def equalToL[A, B](that: B)(implicit diff: OptionalImplicit[Diff[B]], conv: (A => B)): TestArrow[A, Boolean] =
