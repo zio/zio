@@ -95,16 +95,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
     bldr.result()
   }
-  def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = {
-
-    ZIO.succeed {
-      val childs = _children
-      if (childs == null) Chunk.empty
-      else
-        zio.internal.Sync(childs) {
-          Chunk.fromJavaIterable(childs)
-        }
-    }
+  def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] =
     ZIO.withFiberRuntime[Any, Nothing, Chunk[Fiber.Runtime[_, _]]] { case (fib, _) =>
       if (fib eq self)
         ZIO.succeed(self.childrenChunk)
@@ -120,7 +111,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         }
       }
     }
-  }
 
   def fiberRefs(implicit trace: Trace): UIO[FiberRefs] = ZIO.succeed(_fiberRefs)
 

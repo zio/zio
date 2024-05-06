@@ -715,7 +715,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.unwrap(z)
   }
 
-  final def mapOutZIOParUnordered[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int)(
+  final def mapOutZIOParUnordered[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] = {
     val z0: ZIO[Any, Nothing, ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone]] = for {
