@@ -19,6 +19,7 @@ package zio
 import izumi.reflect.macrortti.LightTypeTag
 
 import scala.annotation.tailrec
+import scala.collection.immutable.HashMap
 import scala.collection.mutable
 
 final class ZEnvironment[+R] private (
@@ -76,29 +77,29 @@ final class ZEnvironment[+R] private (
    */
   def prune[R1 >: R](implicit tagged: EnvironmentTag[R1]): ZEnvironment[R1] = {
     val tag = taggedTagType(tagged)
-    val set = taggedGetServices(tag)
+
+    // Mutable set lookups are much faster. It also iterates faster. We're better off just allocating here
+    // Why are immutable set lookups so slow???
+    val set = new mutable.HashSet ++= taggedGetServices(tag)
 
     if (set.isEmpty || self.map.isEmpty) self
     else {
-      // Mutable set lookups are much faster. It also iterates faster. We're better off just allocating here
-      // Why are immutable set lookups so slow???
-      val mSet    = new mutable.HashSet ++= set
-      val builder = Map.newBuilder[LightTypeTag, Entry]
+      val builder = if (set.size > 4) HashMap.newBuilder[LightTypeTag, Entry] else Map.newBuilder[LightTypeTag, Entry]
       val found   = new mutable.HashSet[LightTypeTag]
-      found.sizeHint(mSet.size)
+      found.sizeHint(set.size)
 
       val it0 = self.map.iterator
       while (it0.hasNext) {
         val next @ (leftTag, _) = it0.next()
 
-        if (mSet.contains(leftTag)) {
+        if (set.contains(leftTag)) {
           // Exact match, no need to loop
           found.add(leftTag)
           builder += next
         } else {
           // Need to check whether it's a subtype
           var loop = true
-          val it1  = mSet.iterator
+          val it1  = set.iterator
           while (it1.hasNext && loop) {
             val rightTag = it1.next()
             if (taggedIsSubtype(leftTag, rightTag)) {
