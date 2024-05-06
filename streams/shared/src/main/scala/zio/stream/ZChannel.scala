@@ -656,13 +656,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                          u => ZIO.succeed(u)
                        )
                        //.debug("forkF.folded")
-                       .raceWith(failureSignal.await)(
+                       .raceWith[Env1, Option[OutErr1], Option[OutErr1], Nothing, OutElem2](failureSignal.await)(
                          { case (leftEx, rightFib) =>
                            rightFib.interrupt *> leftEx
                          },
                          { case (rightEx, leftFib) =>
-                           //assist the scala3 compiler...
-                           val rightEx1: Exit[Option[OutErr1], OutElem2] = rightEx
                            leftFib.interrupt *> rightEx
                          }
                        )
