@@ -496,8 +496,8 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
   ): ZPipeline[Env2, Err2, In, Out2] =
     self >>> ZPipeline.mapZIOPar(n)(f)
 
-  def mapZIOPar[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize : => Int)(f: Out => ZIO[Env2, Err2, Out2])(implicit
-                                                                                            trace: Trace
+  def mapZIOPar[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int)(f: Out => ZIO[Env2, Err2, Out2])(implicit
+    trace: Trace
   ): ZPipeline[Env2, Err2, In, Out2] =
     self >>> ZPipeline.mapZIOPar(n, bufferSize)(f)
 
@@ -511,8 +511,10 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
   ): ZPipeline[Env2, Err2, In, Out2] =
     self >>> ZPipeline.mapZIOParUnordered(n)(f)
 
-  def mapZIOParUnordered[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize : => Int)(f: Out => ZIO[Env2, Err2, Out2])(implicit
-                                                                                                     trace: Trace
+  def mapZIOParUnordered[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int)(
+    f: Out => ZIO[Env2, Err2, Out2]
+  )(implicit
+    trace: Trace
   ): ZPipeline[Env2, Err2, In, Out2] =
     self >>> ZPipeline.mapZIOParUnordered(n, bufferSize)(f)
 
@@ -1808,21 +1810,19 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def mapZIOPar[Env, Err, In, Out](n: => Int)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
-  ): ZPipeline[Env, Err, In, Out] = {
-    ZPipeline.fromFunction{ (strm : ZStream[Any, Nothing, In]) =>
+  ): ZPipeline[Env, Err, In, Out] =
+    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
       strm
         .mapZIOPar(n)(f)
     }
-  }
 
-  def mapZIOPar[Env, Err, In, Out](n: => Int, bufferSize : => Int)(f: In => ZIO[Env, Err, Out])(implicit
-                                                                           trace: Trace
-  ): ZPipeline[Env, Err, In, Out] = {
-    ZPipeline.fromFunction{ (strm : ZStream[Any, Nothing, In]) =>
+  def mapZIOPar[Env, Err, In, Out](n: => Int, bufferSize: => Int)(f: In => ZIO[Env, Err, Out])(implicit
+    trace: Trace
+  ): ZPipeline[Env, Err, In, Out] =
+    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
       strm
         .mapZIOPar(n, bufferSize)(f)
     }
-  }
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -1831,19 +1831,17 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def mapZIOParUnordered[Env, Err, In, Out](n: => Int)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
-  ): ZPipeline[Env, Err, In, Out] = {
-    ZPipeline.fromFunction{ (strm : ZStream[Any, Nothing, In]) =>
+  ): ZPipeline[Env, Err, In, Out] =
+    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
       strm.mapZIOParUnordered(n)(f)
     }
-  }
 
-  def mapZIOParUnordered[Env, Err, In, Out](n: => Int, bufferSize : => Int)(f: In => ZIO[Env, Err, Out])(implicit
-                                                                                    trace: Trace
-  ): ZPipeline[Env, Err, In, Out] = {
-    ZPipeline.fromFunction{ (strm : ZStream[Any, Nothing, In]) =>
+  def mapZIOParUnordered[Env, Err, In, Out](n: => Int, bufferSize: => Int)(f: In => ZIO[Env, Err, Out])(implicit
+    trace: Trace
+  ): ZPipeline[Env, Err, In, Out] =
+    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
       strm.mapZIOParUnordered(n, bufferSize)(f)
     }
-  }
 
   /**
    * Emits the provided chunk before emitting any other value.

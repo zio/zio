@@ -86,10 +86,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         )
     }
 
-  private def childrenChunk = if(_children eq null) Chunk.empty else {
+  private def childrenChunk = if (_children eq null) Chunk.empty
+  else {
     val bldr = Chunk.newBuilder[Fiber.Runtime[_, _]]
     _children.forEach { child =>
-      if((child ne null) && child.isAlive())
+      if ((child ne null) && child.isAlive())
         bldr.addOne(child)
     }
     bldr.result()
@@ -104,25 +105,22 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           Chunk.fromJavaIterable(childs)
         }
     }
-    ZIO.withFiberRuntime[Any, Nothing, Chunk[Fiber.Runtime[_, _]]] {
-      case (fib, _) =>
-        if (fib eq self)
-          ZIO.succeed(self.childrenChunk)
-        else {
-          ZIO.asyncZIO[Any, Nothing, Chunk[Fiber.Runtime[_, _]]] { k =>
-            ZIO.succeed {
-              this.tell {
-                FiberMessage.Stateful {
-                  case (fib, _) =>
-                    k(ZIO.succeed(fib.childrenChunk))
-                }
+    ZIO.withFiberRuntime[Any, Nothing, Chunk[Fiber.Runtime[_, _]]] { case (fib, _) =>
+      if (fib eq self)
+        ZIO.succeed(self.childrenChunk)
+      else {
+        ZIO.asyncZIO[Any, Nothing, Chunk[Fiber.Runtime[_, _]]] { k =>
+          ZIO.succeed {
+            this.tell {
+              FiberMessage.Stateful { case (fib, _) =>
+                k(ZIO.succeed(fib.childrenChunk))
               }
             }
           }
         }
+      }
     }
   }
-
 
   def fiberRefs(implicit trace: Trace): UIO[FiberRefs] = ZIO.succeed(_fiberRefs)
 
@@ -520,7 +518,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private[zio] def getChildren(): JavaSet[Fiber.Runtime[_, _]] = {
     if (_children eq null) {
-      _children = Platform./*newConcurrentWeakSet*/newWeakSet[Fiber.Runtime[_, _]]()(Unsafe.unsafe)
+      _children = Platform. /*newConcurrentWeakSet*/ newWeakSet[Fiber.Runtime[_, _]]()(Unsafe.unsafe)
     }
     _children
   }
@@ -688,17 +686,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       def skip() = {
         curr = null
-        while(iterator.hasNext && (curr eq null)) {
+        while (iterator.hasNext && (curr eq null)) {
           curr = iterator.next()
-          if((curr ne null) && !curr.isAlive())
+          if ((curr ne null) && !curr.isAlive())
             curr = null
         }
       }
 
       skip()
 
-
-      if(null ne curr) {
+      if (null ne curr) {
         val body = () => {
           val c = curr
           skip()
@@ -708,8 +705,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         // Now await all children to finish:
         ZIO
           .whileLoop(null ne curr)(body())(_ => ())(id.location)
-      }
-      else null
+      } else null
     } else null
 
   private[zio] def isAlive(): Boolean =
