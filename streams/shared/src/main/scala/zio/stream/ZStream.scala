@@ -1932,7 +1932,17 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     trace: Trace
   ): ZStream[R1, E1, A2] =
     /*self >>> ZPipeline.mapZIOPar(n)(f)*/
-    this.mapZIOPar2[R1, E1, A2](n)(f)
+    this.mapZIOPar[R1, E1, A2](n, n)(f)
+
+  def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int, bufferSize : Int)(f: A => ZIO[R1, E1, A2])(implicit
+                                                                                            trace: Trace
+  ): ZStream[R1, E1, A2] = {
+    self
+      .toChannel
+      .concatMap(ZChannel.writeChunk(_))
+      .mapOutZIOPar[R1, E1, Chunk[A2]](n, bufferSize)(a => f(a).map(Chunk.single(_)))
+      .toStream
+  }
 
   def mapZIOPar2[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: => Int = 16)(f: A => ZIO[R1, E1, A2])(implicit
                                                                           trace: Trace
@@ -2010,16 +2020,6 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       .unwrap(z0)
   }
 
-  def mapZIOPar3[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: => Int = 16)(f: A => ZIO[R1, E1, A2])(implicit
-                                                                                                    trace: Trace
-  ): ZStream[R1, E1, A2] = {
-    self
-      .toChannel
-      .concatMap(ZChannel.writeChunk(_))
-      .mapOutZIOPar2[R1, E1, Chunk[A2]](n)(a => f(a).map(Chunk.single(_)))
-      .toStream
-  }
-
   /**
    * Maps over elements of the stream with the specified effectful function,
    * partitioned by `p` executing invocations of `f` concurrently. The number of
@@ -2042,7 +2042,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIOParUnordered[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    /*self >>> ZPipeline.mapZIOParUnordered(n)(f)*/ this.mapZIOParUnordered2[R1, E1, A2](n)(f)
+    /*self >>> ZPipeline.mapZIOParUnordered(n)(f)*/ this.mapZIOParUnordered3[R1, E1, A2](n)(f)
 
   def mapZIOParUnordered2[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: => Int = 16)(
     f: A => ZIO[R1, E1, A2]
@@ -2132,6 +2132,15 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
 
     ZStream.unwrap(z0)
   }
+
+  def mapZIOParUnordered3[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: => Int = 16)(
+    f: A => ZIO[R1, E1, A2]
+  )(implicit trace: Trace): ZStream[R1, E1, A2] =
+    self
+      .toChannel
+      .concatMap(ZChannel.writeChunk(_))
+      .mapOutZIOParUnordered[R1, E1, Chunk[A2]](n, bufferSize)(a => f(a).map(Chunk.single(_)))
+      .toStream
 
   /**
    * Merges this stream and the specified stream together.
