@@ -18,13 +18,13 @@ package zio
 
 import izumi.reflect.macrortti.LightTypeTag
 
-import scala.annotation.{tailrec, unused}
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 final class ZEnvironment[+R] private (
   private val map: Map[LightTypeTag, ZEnvironment.Entry],
   private val index: Int,
-  @unused private val dummy: Map[Nothing, Any] = null // For bin-compat only!
+  private val dummy: Map[Nothing, Any] = null // For bin-compat only!
 ) extends Serializable { self =>
   import ZEnvironment.Entry
 
