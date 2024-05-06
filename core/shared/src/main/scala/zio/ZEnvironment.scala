@@ -202,7 +202,7 @@ final class ZEnvironment[+R] private (
             var service: A = null.asInstanceOf[A]
             while (iterator.hasNext) {
               val (curTag, entry) = iterator.next()
-              if (taggedIsSubtype(curTag, tag) && entry.index > index) {
+              if (entry.index > index && taggedIsSubtype(curTag, tag)) {
                 index = entry.index
                 service = entry.service.asInstanceOf[A]
               }
