@@ -109,9 +109,6 @@ jobs:
     steps:
       - name: Checkout Current Branch
         uses: actions/checkout@v4.1.1
-        with:
-          fetch-depth: '0'
-          
       - name: Setup Scala and Java
         uses: actions/setup-java@v4.2.1
         with:
@@ -284,8 +281,6 @@ jobs:
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v4.1.1
-        with:
-          fetch-depth: 0
       - name: Setup Java
         uses: actions/setup-java@v4.2.1
         with:
@@ -309,9 +304,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
-        with:
-          fetch-depth: 0
-
       - uses: actions/download-artifact@v3
         with:
           name: website-artifact
@@ -331,7 +323,6 @@ jobs:
         uses: actions/checkout@v4.1.1
         with:
           ref: ${{ github.head_ref }}
-          fetch-depth: '0'
       - name: Commit Changes
         run: |
           cd website

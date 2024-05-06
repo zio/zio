@@ -20,6 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.tailrec
 import java.util.{Set => JavaSet}
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
 import zio._
@@ -43,7 +44,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _blockingOn     = FiberRuntime.notBlockingOn
   private var _asyncContWith  = null.asInstanceOf[ZIO.Erased => Any]
   private val running         = new AtomicBoolean(false)
-  private val inbox           = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
+  private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
@@ -88,7 +89,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private def childrenChunk = if(_children eq null) Chunk.empty else {
     val bldr = Chunk.newBuilder[Fiber.Runtime[_, _]]
     _children.forEach { child =>
-      if((child ne null) && !child.unsafe.alreadyExited(Unsafe.unsafe))
+      if((child ne null) && child.isAlive())
         bldr.addOne(child)
     }
     bldr.result()
@@ -277,12 +278,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def drainQueueWhileRunning(
-    cur0: ZIO.Erased
-  ): ZIO.Erased = {
-    var cur = cur0
-
+  private def drainQueueWhileRunning(cur0: ZIO.Erased): ZIO.Erased = {
+    var cur     = cur0
     var message = inbox.poll()
+
+    // Unfortunately we can't avoid the virtual call to `trace` here
+    if (message ne null) updateLastTrace(cur.trace)
 
     while (message ne null) {
       message match {
@@ -318,8 +319,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private def drainQueueAfterAsync(): ZIO.Erased = {
     var resumption: ZIO.Erased = null
 
-    var message                      = inbox.poll()
-    var leftover: List[FiberMessage] = Nil
+    var message = inbox.poll()
 
     while (message ne null) {
       message match {
@@ -336,40 +336,28 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
         case FiberMessage.YieldNow =>
 
-        case message =>
-          leftover = message :: leftover
       }
 
       message = inbox.poll()
-    }
-
-    if (leftover ne Nil) {
-      leftover.foreach(inbox.offer)
     }
 
     resumption
   }
 
   private def ensureStackCapacity(size: Int): Unit = {
-    val stack = _stack
+    val stack       = _stack
+    val stackLength = stack.length
 
-    if (stack eq null) {
+    if (stackLength < size) {
       val newSize = if ((size & (size - 1)) == 0) size else Integer.highestOneBit(size) << 1
 
-      _stack = new Array[Continuation](if (newSize < 16) 16 else newSize)
-    } else {
-      val stackLength = stack.length
+      val newStack = new Array[Continuation](newSize)
 
-      if (stackLength < size) {
-        val newSize = if ((size & (size - 1)) == 0) size else Integer.highestOneBit(size) << 1
+      java.lang.System.arraycopy(stack, 0, newStack, 0, stackLength)
 
-        val newStack = new Array[Continuation](newSize)
-
-        java.lang.System.arraycopy(stack, 0, newStack, 0, _stackSize)
-
-        _stack = newStack
-      }
+      _stack = newStack
     }
+    ()
   }
 
   /**
@@ -391,6 +379,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     val supervisor = getSupervisor()
 
     if (supervisor ne Supervisor.none) supervisor.onResume(self)(Unsafe.unsafe)
+    if (_stack eq null) _stack = new Array[Continuation](FiberRuntime.InitialStackSize)
 
     try {
       var effect    = effect0
@@ -447,6 +436,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       finalExit
     } finally {
+      gcStack()
+
       val supervisor = getSupervisor()
 
       if (supervisor ne Supervisor.none) supervisor.onSuspend(self)(Unsafe.unsafe)
@@ -699,7 +690,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         curr = null
         while(iterator.hasNext && (curr eq null)) {
           curr = iterator.next()
-          if((curr ne null) && curr.unsafe.alreadyExited(zio.Unsafe.unsafe))
+          if((curr ne null) && !curr.isAlive())
             curr = null
         }
       }
@@ -814,10 +805,51 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     else continueEffect
   }
 
+  /**
+   * Sets the `_stackSize` to `nextStackIndex`.
+   *
+   * This method might also null out the entry in the stack to allow it to be
+   * GC'd, but only if the index is >= `FiberRuntime.StackIdxGcThreshold`.
+   *
+   * This is based on the assumption that when the stack is shallow, the entries
+   * in the array will keep being overwritten as the pointer moves up and down.
+   */
   @inline
-  private def popStackFrame(nextStackIndex: Int): Unit = {
-    _stack(nextStackIndex) = null // GC
+  private[this] def popStackFrame(nextStackIndex: Int): Unit = {
+    if (nextStackIndex >= FiberRuntime.StackIdxGcThreshold) {
+      _stack(nextStackIndex) = null
+    }
+
     _stackSize = nextStackIndex
+  }
+
+  /**
+   * Removes references of entries from the stack higher than the current index
+   * so that they can be garbage collected.
+   *
+   * @note
+   *   We only GC up to the [[FiberRuntime.StackIdxGcThreshold]] index because
+   *   we know that entries in indices higher than that have been auto-gc'd
+   *   during the runloop
+   * @note
+   *   This method MUST be invoked by the fiber itself while it's still running.
+   */
+  private[this] def gcStack(): Unit = {
+    val from = _stackSize
+    if (from == 0) {
+      // There aren't meant to be any entries in the array, just dereference the whole thing
+      _stack = null
+    } else {
+      val stack       = _stack
+      val stackLength = stack.length
+      val nNulls      = stackLength - from
+
+      // If the next entry is null, it means we don't need to GC
+      if ((nNulls > 0) && (stack(from) ne null)) {
+        val nullArray = new Array[Continuation](nNulls)
+        java.lang.System.arraycopy(nullArray, 0, stack, from, nNulls)
+      }
+    }
   }
 
   /**
@@ -881,10 +913,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     currentDepth: Int
   ): Exit[Any, Any] = {
     assert(running.get)
-
-    type Erased         = ZIO.Erased
-    type ErasedSuccessK = Any => ZIO.Erased
-    type ErasedFailureK = Cause[Any] => ZIO.Erased
 
     // Note that assigning `cur` as the result of `try` or `if` can cause Scalac to box local variables.
     var cur        = effect
@@ -1207,7 +1235,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       while (iterator.hasNext) {
         val next = iterator.next()
 
-        if ((next ne null) && !next.unsafe.alreadyExited(zio.Unsafe.unsafe)) {
+        if ((next ne null) && next.isAlive()) {
           next.tellInterrupt(cause)
 
           told = true
@@ -1291,11 +1319,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def shouldInterrupt(): Boolean = isInterruptible() && isInterrupted()
 
   @inline
-  private[zio] def stackSegmentIsEmpty(currentStackIndex: Int, segmentStackIndex: Int): Boolean =
-    currentStackIndex <= segmentStackIndex
-
-  @inline
-  private[zio] def stackSegmentIsNonEmpty(currentStackIndex: Int, segmentStackIndex: Int): Boolean =
+  private def stackSegmentIsNonEmpty(currentStackIndex: Int, segmentStackIndex: Int): Boolean =
     currentStackIndex > segmentStackIndex
 
   /**
@@ -1405,8 +1429,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def updateFiberRef[A](fiberRef: FiberRef[A])(f: A => A): Unit =
     setFiberRef(fiberRef, f(getFiberRef(fiberRef)))
 
-  private[zio] def updateLastTrace(newTrace: Trace): Unit =
-    if ((newTrace ne null) && (newTrace ne emptyTrace)) _lastTrace = newTrace
+  private def updateLastTrace(newTrace: Trace): Unit =
+    if ((newTrace ne null) && (newTrace ne emptyTrace) && (_lastTrace ne newTrace)) _lastTrace = newTrace
 
   def unsafe: UnsafeAPI =
     new UnsafeAPI {
@@ -1421,9 +1445,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       def removeObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit =
         self.removeObserver(observer)
-
-      override def alreadyExited(implicit unsafe: Unsafe): Boolean = _exitValue ne null
     }
+
+  override def hashCode(): Int = fiberId.hashCode()
 }
 
 object FiberRuntime {
@@ -1432,6 +1456,9 @@ object FiberRuntime {
   private final val MaxDepthBeforeTrampoline = 300
   private final val MaxWorkStealingDepth     = 150
   private final val WorkStealingSafetyMargin = 50
+
+  private final val InitialStackSize    = 16
+  private final val StackIdxGcThreshold = 128
 
   private final val IgnoreContinuation: Any => Unit = _ => ()
 
@@ -1464,4 +1491,5 @@ object FiberRuntime {
     }
 
   private val notBlockingOn: () => FiberId = () => FiberId.None
+
 }

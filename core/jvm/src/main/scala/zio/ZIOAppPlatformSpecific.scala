@@ -26,15 +26,15 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
     runtime.unsafe.run {
       ZIO.uninterruptibleMask { restore =>
         for {
-          fiberId  <- ZIO.fiberId
-          p        <- Promise.make[Nothing, Set[FiberId.Runtime]]
-          interrupt = interruptRootFibers(p)
-          fiber <- restore(workflow)
-                     .foldCauseZIO(
-                       cause => interrupt *> exit(ExitCode.failure) *> ZIO.refailCause(cause),
-                       _ => interrupt *> exit(ExitCode.success)
-                     )
-                     .fork
+          fiberId <- ZIO.fiberId
+          p       <- Promise.make[Nothing, Set[FiberId.Runtime]]
+          fiber <- restore(workflow).onExit { exit0 =>
+                     val exitCode  = if (exit0.isSuccess) ExitCode.success else ExitCode.failure
+                     val interrupt = interruptRootFibers(p)
+                     // If we're shutting down due to an external signal, the shutdown hook will fulfill the promise
+                     // Otherwise it means we're shutting down due to normal completion and we need to fulfill the promise
+                     ZIO.unless(shuttingDown.get())(p.succeed(Set(fiberId))) *> interrupt *> exit(exitCode)
+                   }.fork
           _ <-
             ZIO.succeed(Platform.addShutdownHook { () =>
               if (!shuttingDown.getAndSet(true)) {
