@@ -22,7 +22,6 @@ import scala.annotation.{tailrec, unused}
 import scala.collection.mutable
 
 final class ZEnvironment[+R] private (
-  // TODO: Do we even need this as a Map? All we do is make it into a list or iterate over it
   private val map: Map[LightTypeTag, ZEnvironment.Entry],
   private val index: Int,
   @unused private val dummy: Map[Nothing, Any] = null // For bin-compat only!
