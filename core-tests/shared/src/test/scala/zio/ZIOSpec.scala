@@ -337,15 +337,17 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res._1)(not(equalTo(res._2)))
       },
       test("preserves failures") {
-        for {
-          promise1 <- Promise.make[Nothing, Unit]
-          promise2 <- Promise.make[Nothing, Unit]
-          left      = promise2.await
-          right1    = (promise1.await *> ZIO.fail("fail")).uninterruptible
-          right2    = (promise1.succeed(()) *> ZIO.never).ensuring(promise2.interrupt *> ZIO.never.interruptible)
-          exit     <- ZIO.collectAllPar(List(left, ZIO.collectAllPar(List(right1, right2)))).exit
-        } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
-      } @@ nonFlaky
+        ZIO.uninterruptible {
+          for {
+            promise1 <- Promise.make[Nothing, Unit]
+            promise2 <- Promise.make[Nothing, Unit]
+            left      = promise2.await.interruptible
+            right1    = promise1.await *> ZIO.fail("fail")
+            right2    = (promise1.succeed(()) *> ZIO.never).ensuring(promise2.interrupt).interruptible
+            exit     <- ZIO.collectAllPar(List(left, ZIO.collectAllPar(List(right1, right2)))).exit
+          } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
+        }
+      } @@ nonFlaky(500)
     ),
     suite("collectAllParN")(
       test("returns results in the same order") {
@@ -4194,15 +4196,17 @@ object ZIOSpec extends ZIOBaseSpec {
         )
       },
       test("preserves failures") {
-        for {
-          promise1 <- Promise.make[Nothing, Unit]
-          promise2 <- Promise.make[Nothing, Unit]
-          left      = promise2.await
-          right1    = (promise1.await *> ZIO.fail("fail")).uninterruptible
-          right2    = (promise1.succeed(()) *> ZIO.never).ensuring(promise2.interrupt *> ZIO.never.interruptible)
-          exit     <- left.zipPar(right1.zipPar(right2)).exit
-        } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
-      } @@ nonFlaky(100),
+        ZIO.uninterruptible {
+          for {
+            promise1 <- Promise.make[Nothing, Unit]
+            promise2 <- Promise.make[Nothing, Unit]
+            left      = promise2.await.interruptible
+            right1    = promise1.await *> ZIO.fail("fail")
+            right2    = (promise1.succeed(()) *> ZIO.never).ensuring(promise2.interrupt).interruptible
+            exit     <- left.zipPar(right1.zipPar(right2)).exit
+          } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
+        }
+      } @@ nonFlaky(500),
       test("is interruptible") {
         for {
           promise1 <- Promise.make[Nothing, Unit]
