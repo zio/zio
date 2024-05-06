@@ -2682,10 +2682,11 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               interrupted <- Ref.make(false)
               latch       <- Promise.make[Nothing, Unit]
-              fib <- ZStream(())
-                .mapZIOParUnordered(1)(_ => (latch.succeed(()) *> ZIO.infinity).onInterrupt(interrupted.set(true)))
-                .runDrain
-                .fork
+              fib <-
+                ZStream(())
+                  .mapZIOParUnordered(1)(_ => (latch.succeed(()) *> ZIO.infinity).onInterrupt(interrupted.set(true)))
+                  .runDrain
+                  .fork
               _      <- latch.await
               _      <- fib.interrupt
               result <- interrupted.get
@@ -2697,13 +2698,13 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch1      <- Promise.make[Nothing, Unit]
               latch2      <- Promise.make[Nothing, Unit]
               result <- ZStream(1, 2, 3)
-                .mapZIOParUnordered(3) {
-                  case 1 => (latch1.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
-                  case 2 => (latch2.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
-                  case 3 => latch1.await *> latch2.await *> ZIO.fail("Boom")
-                }
-                .runDrain
-                .exit
+                          .mapZIOParUnordered(3) {
+                            case 1 => (latch1.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
+                            case 2 => (latch2.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
+                            case 3 => latch1.await *> latch2.await *> ZIO.fail("Boom")
+                          }
+                          .runDrain
+                          .exit
               count <- interrupted.get
             } yield assert(count)(equalTo(2)) && assert(result)(fails(equalTo("Boom")))
           } @@ nonFlaky,
@@ -2721,9 +2722,9 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("propagates error of original stream") {
             for {
               fiber <- (ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) ++ ZStream.fail(new Throwable("Boom")))
-                .mapZIOParUnordered(2)(_ => ZIO.sleep(1.second))
-                .runDrain
-                .fork
+                         .mapZIOParUnordered(2)(_ => ZIO.sleep(1.second))
+                         .runDrain
+                         .fork
               _    <- TestClock.adjust(5.seconds)
               exit <- fiber.await
             } yield assert(exit)(fails(hasMessage(equalTo("Boom"))))

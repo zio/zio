@@ -661,6 +661,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                            rightFib.interrupt *> leftEx
                          },
                          { case (rightEx, leftFib) =>
+                           //assist the scala3 compiler...
+                           val rightEx1: Exit[Option[OutErr1], OutElem2] = rightEx
                            leftFib.interrupt *> rightEx
                          }
                        )
