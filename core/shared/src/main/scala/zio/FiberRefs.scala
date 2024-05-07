@@ -153,30 +153,25 @@ final class FiberRefs private (
                   case _ =>
                     (ref.initial)
                 }
+              val childValue = childHead.value
 
-              if (parentStack.head eq childHead) {
-                parentFiberRefs
-              } else {
-                val childValue = childHead.value
+              val ancestor = findAncestor(parentStack, parentDepth, childStack, childDepth)
 
-                val ancestor = findAncestor(parentStack, parentDepth, childStack, childDepth)
+              val patch = ref.diff(ancestor, childValue)
 
-                val patch = ref.diff(ancestor, childValue)
+              val oldValue = parentStack.head.value
+              val newValue = ref.join(oldValue, ref.patch(patch)(oldValue))
 
-                val oldValue = parentStack.head.value
-                val newValue = ref.join(oldValue, ref.patch(patch)(oldValue))
-
-                if (oldValue == newValue) parentFiberRefs
-                else {
-                  val newEntry = parentStack match {
-                    case StackEntry(parentFiberId, _, parentVersion) :: tail =>
-                      if (parentFiberId == fiberId)
-                        Value(::(StackEntry(parentFiberId, newValue, parentVersion + 1), tail), parentDepth)
-                      else
-                        Value(::(StackEntry(fiberId, newValue, 0), parentStack), parentDepth + 1)
-                  }
-                  parentFiberRefs.updated(ref, newEntry)
+              if (oldValue == newValue) parentFiberRefs
+              else {
+                val newEntry = parentStack match {
+                  case StackEntry(parentFiberId, _, parentVersion) :: tail =>
+                    if (parentFiberId == fiberId)
+                      Value(::(StackEntry(parentFiberId, newValue, parentVersion + 1), tail), parentDepth)
+                    else
+                      Value(::(StackEntry(fiberId, newValue, 0), parentStack), parentDepth + 1)
                 }
+                parentFiberRefs.updated(ref, newEntry)
               }
             }
         }

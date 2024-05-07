@@ -2594,7 +2594,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       parentRuntimeFlags: RuntimeFlags,
       overrideScope: FiberScope = null
     )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
-      val childFiber = makeChildFiber(trace, effect, parentFiber, parentRuntimeFlags, overrideScope)(unsafe)
+      val childFiber = ZIO.unsafe.makeChildFiber(trace, effect, parentFiber, parentRuntimeFlags, overrideScope)
 
       childFiber.startConcurrently(effect)
 
