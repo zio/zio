@@ -650,11 +650,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             localScope <- zio.Scope.make
             _          <- restore(permits.withPermitScoped.provideEnvironment(ZEnvironment(localScope)))
             fib <- restore {
-                     f(a)
-                       .foldCauseZIO(
-                         c => failureSignal.failCause(c.map(Some(_))) *> ZIO.refailCause(c.map(Some(_))),
-                         u => ZIO.succeed(u)
-                       )
+                     f(a).catchAllCause { c =>
+                       failureSignal.failCause(c.map(Some(_))) *> ZIO.refailCause(c.map(Some(_)))
+                     }
                        .raceWith[Env1, Option[OutErr1], Option[OutErr1], Nothing, OutElem2](failureSignal.await)(
                          { case (leftEx, rightFib) =>
                            rightFib.interrupt *> leftEx
