@@ -178,7 +178,7 @@ object Scope {
 
   final class ExtendPartiallyApplied[R](private val scope: Scope) extends AnyVal {
     def apply[E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-      zio.provideSomeEnvironment[R](_.union[Scope](ZEnvironment(scope)))
+      zio.provideSomeEnvironment[R](_.add(scope))
   }
 
   final class UsePartiallyApplied[R](private val scope: Scope.Closeable) extends AnyVal {
