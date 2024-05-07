@@ -1931,8 +1931,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    /*self >>> ZPipeline.mapZIOPar(n)(f)*/
-    this.mapZIOPar[R1, E1, A2](n, n)(f)
+    self.mapZIOPar[R1, E1, A2](n, n)(f)
 
   def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace

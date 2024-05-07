@@ -650,12 +650,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             localScope <- zio.Scope.make
             _          <- restore(permits.withPermitScoped.provideEnvironment(ZEnvironment(localScope)))
             fib <- restore {
-                     f(a) //.debug("forkF.f(a)")
+                     f(a)
                        .foldCauseZIO(
                          c => failureSignal.failCause(c.map(Some(_))) *> ZIO.refailCause(c.map(Some(_))),
                          u => ZIO.succeed(u)
                        )
-                       //.debug("forkF.folded")
                        .raceWith[Env1, Option[OutErr1], Option[OutErr1], Nothing, OutElem2](failureSignal.await)(
                          { case (leftEx, rightFib) =>
                            rightFib.interrupt *> leftEx
@@ -664,7 +663,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                            leftFib.interrupt *> rightEx
                          }
                        )
-                     //.debug("forkF.race")
                    }
                      .onExit(localScope.close(_))
                      .fork
@@ -728,14 +726,15 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         for {
           localScope <- zio.Scope.make
           _          <- restore(permits.withPermitScoped.provideEnvironment(ZEnvironment(localScope)))
-          z1          = f(a)
-          offer = z1
-                    .foldCauseZIO(
-                      c => q.offer(QRes.failCause(c)),
-                      a2 => q.offer(a2)
-                    )
           fib <- {
-            restore(offer)
+            restore {
+              val z1 = f(a)
+              z1
+                .foldCauseZIO(
+                  c => q.offer(QRes.failCause(c)),
+                  a2 => q.offer(a2)
+                )
+            }
               .onExit(localScope.close(_))
               .unit
               .fork

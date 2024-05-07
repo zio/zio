@@ -95,6 +95,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
     bldr.result()
   }
+
   def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] =
     ZIO.withFiberRuntime[Any, Nothing, Chunk[Fiber.Runtime[_, _]]] { case (fib, _) =>
       if (fib eq self)
@@ -102,9 +103,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       else {
         ZIO.asyncZIO[Any, Nothing, Chunk[Fiber.Runtime[_, _]]] { k =>
           ZIO.succeed {
-            this.tell {
+            self.tell {
               FiberMessage.Stateful { case (fib, _) =>
-                k(ZIO.succeed(fib.childrenChunk))
+                val childs = fib.childrenChunk
+                k(Exit.succeed(childs))
               }
             }
           }
@@ -506,9 +508,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private[zio] def getChildren(): JavaSet[Fiber.Runtime[_, _]] = {
+  private def getChildren(): JavaSet[Fiber.Runtime[_, _]] = {
     if (_children eq null) {
-      _children = Platform. /*newConcurrentWeakSet*/ newWeakSet[Fiber.Runtime[_, _]]()(Unsafe.unsafe)
+      _children = Platform.newWeakSet[Fiber.Runtime[_, _]]()(Unsafe.unsafe)
     }
     _children
   }
@@ -674,6 +676,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       var curr: Fiber.Runtime[_, _] = null
 
+      //this finds the next operable child fiber and stores it in the `curr` variable
       def skip() = {
         curr = null
         while (iterator.hasNext && (curr eq null)) {
@@ -683,18 +686,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         }
       }
 
+      //find the first operable child fiber
+      //if there isn't any we can simply return null and save ourselves an effect evaluation
       skip()
 
       if (null ne curr) {
-        val body = () => {
-          val c = curr
-          skip()
-          c.await(id.location)
-        }
-
-        // Now await all children to finish:
         ZIO
-          .whileLoop(null ne curr)(body())(_ => ())(id.location)
+          .whileLoop(null ne curr)(curr.await(id.location))(_ => skip())(id.location)
       } else null
     } else null
 
@@ -871,7 +869,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private[zio] def removeChild(child: FiberRuntime[_, _]): Unit =
+  private def removeChild(child: FiberRuntime[_, _]): Unit =
     if (_children ne null) {
       _children.remove(child)
       ()
@@ -1196,16 +1194,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
 
     done
-  }
-
-  private def sendInterruptSignalToAllChildrenConcurrently(): Boolean = {
-    val childFibers = _children
-
-    if (childFibers ne null) {
-      internal.Sync(childFibers) {
-        sendInterruptSignalToAllChildren(childFibers)
-      }
-    } else false
   }
 
   private def sendInterruptSignalToAllChildren(
