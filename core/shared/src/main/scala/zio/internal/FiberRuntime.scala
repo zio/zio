@@ -678,12 +678,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       //this finds the next operable child fiber and stores it in the `curr` variable
       def skip() = {
-        curr = null
-        while (iterator.hasNext && (curr eq null)) {
-          curr = iterator.next()
-          if ((curr ne null) && !curr.isAlive())
-            curr = null
+        var next = null
+        while (iterator.hasNext && (next eq null)) {
+          next = iterator.next()
+          if ((next ne null) && !next.isAlive())
+            next = null
         }
+        curr = next
       }
 
       //find the first operable child fiber
