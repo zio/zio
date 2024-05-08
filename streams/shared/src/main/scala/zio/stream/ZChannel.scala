@@ -2261,7 +2261,7 @@ object ZChannel {
       self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 
-  private case class QRes[A](value: A)
+  private case class QRes[A](value: A) extends AnyVal
 
   private object QRes {
     val unit: QRes[Unit]                          = QRes(())
