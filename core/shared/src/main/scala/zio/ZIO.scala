@@ -2523,20 +2523,30 @@ sealed trait ZIO[-R, +E, +A]
     that: => ZIO[R1, E1, B]
   )(f: (A, B) => C)(implicit trace: Trace): ZIO[R1, E1, C] =
     ZIO.uninterruptibleMask { restore =>
-      ZIO.transplant { graft =>
-        val promise = Promise.unsafe.make[Unit, Boolean](FiberId.None)(Unsafe.unsafe)
-        val ref     = new java.util.concurrent.atomic.AtomicBoolean(false)
+      ZIO.withFiberRuntime[R1, E1, C] { (fiber, _) =>
+        val promise     = Promise.unsafe.make[Unit, Boolean](FiberId.None)(Unsafe.unsafe)
+        val ref         = new java.util.concurrent.atomic.AtomicBoolean(false)
+        val parentScope = fiber.scope
 
         def fork[R, E, A](zio: => ZIO[R, E, A], side: Boolean): ZIO[R, Nothing, Fiber[E, A]] =
-          graft(restore(zio))
+          restore(zio)
             .foldCauseZIO(
-              cause => promise.fail(()) *> ZIO.refailCause(cause),
+              cause =>
+                ZIO.withFiberRuntime[Any, E, A] { (childFiber, _) =>
+                  ZIO.suspendSucceed {
+                    childFiber.transferChildren(parentScope)
+                    promise.fail(()) *> ZIO.refailCause(cause)
+                  }
+                },
               a =>
-                if (ref.getAndSet(true)) {
-                  promise.unsafe.done(ZIO.succeedNow(side))(Unsafe.unsafe)
-                  ZIO.succeed(a)
-                } else {
-                  ZIO.succeed(a)
+                ZIO.withFiberRuntime[Any, Nothing, A] { (childFiber, _) =>
+                  ZIO.succeed {
+                    childFiber.transferChildren(parentScope)
+                    if (ref.getAndSet(true)) {
+                      promise.unsafe.done(ZIO.succeed(side))(Unsafe.unsafe)
+                    }
+                    a
+                  }
                 }
             )
             .forkDaemon
@@ -2605,11 +2615,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       val childFiber = internal.FiberRuntime[E1, A](childId, childFiberRefs, parentRuntimeFlags)
 
       // Call the supervisor who can observe the fork of the child fiber
-      val childEnvironment = childFiberRefs.getOrDefault(FiberRef.currentEnvironment)
-
       val supervisor = childFiber.getSupervisor()
 
       if (supervisor ne Supervisor.none) {
+        val childEnvironment = childFiberRefs.getOrDefault(FiberRef.currentEnvironment)
         supervisor.onStart(
           childEnvironment,
           effect.asInstanceOf[ZIO[Any, Any, Any]],
@@ -2628,6 +2637,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
       childFiber
     }
+
   }
 
   /**
@@ -6030,34 +6040,45 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       else {
         ZIO.uninterruptibleMask { restore =>
           val promise = Promise.unsafe.make[Unit, Unit](FiberId.None)(Unsafe.unsafe)
-          val ref     = new java.util.concurrent.atomic.AtomicInteger(0)
-          ZIO.transplant { graft =>
-            ZIO.foreach(as) { a =>
-              graft {
-                restore(ZIO.suspendSucceed(f(a))).foldCauseZIO(
-                  cause => promise.fail(()) *> ZIO.refailCause(cause),
-                  _ =>
-                    if (ref.incrementAndGet == size) {
-                      promise.unsafe.done(ZIO.unit)(Unsafe.unsafe)
-                      ZIO.unit
-                    } else {
-                      ZIO.unit
+          val ref     = new java.util.concurrent.atomic.AtomicInteger(size)
+          ZIO
+            .withFiberRuntime[R, Nothing, Iterable[Fiber.Runtime[E, Unit]]] { (fiber, _) =>
+              ZIO.foreach(as) { a =>
+                restore(f(a))
+                  .foldCauseZIO(
+                    cause =>
+                      ZIO.withFiberRuntime[Any, E, Unit] { (childFiber, _) =>
+                        ZIO.suspendSucceed {
+                          childFiber.transferChildren(fiber.scope)
+                          promise.fail(()) *> ZIO.refailCause(cause)
+                        }
+                      },
+                    _ => {
+                      ZIO.withFiberRuntime[Any, Nothing, Unit] { (childFiber, _) =>
+                        ZIO.succeed {
+                          childFiber.transferChildren(fiber.scope)
+                          if (ref.decrementAndGet() == 0) {
+                            promise.unsafe.done(ZIO.unit)(Unsafe.unsafe)
+                          }
+                        }
+                      }
                     }
-                )
-              }.forkDaemon
+                  )
+                  .forkDaemon
+              }
             }
-          }.flatMap { fibers =>
-            restore(promise.await).foldCauseZIO(
-              cause =>
-                ZIO
-                  .foreachParUnbounded(fibers)(_.interrupt)
-                  .flatMap(Exit.collectAllPar(_) match {
-                    case Some(Exit.Failure(causes)) => ZIO.refailCause(cause.stripFailures && causes)
-                    case _                          => ZIO.refailCause(cause.stripFailures)
-                  }),
-              _ => ZIO.foreachDiscard(fibers)(_.inheritAll)
-            )
-          }
+            .flatMap { fibers =>
+              restore(promise.await).foldCauseZIO(
+                cause =>
+                  ZIO
+                    .foreachParUnbounded(fibers)(_.interrupt)
+                    .flatMap(Exit.collectAllPar(_) match {
+                      case Some(Exit.Failure(causes)) => ZIO.refailCause(cause.stripFailures && causes)
+                      case _                          => ZIO.refailCause(cause.stripFailures)
+                    }),
+                _ => ZIO.foreachDiscard(fibers)(_.inheritAll)
+              )
+            }
         }
       }
     }

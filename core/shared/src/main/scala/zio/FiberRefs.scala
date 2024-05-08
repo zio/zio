@@ -92,11 +92,11 @@ final class FiberRefs private (
    * Gets the value of the specified `FiberRef` in this collection of `FiberRef`
    * values if it exists or the `initial` value of the `FiberRef` otherwise.
    */
-  def getOrDefault[A](fiberRef: FiberRef[A]): A =
-    getOrNull(fiberRef) match {
-      case null => fiberRef.initial
-      case v    => v
-    }
+  def getOrDefault[@specialized(SpecializeInt) A](fiberRef: FiberRef[A]): A = {
+    val out = fiberRefLocals.getOrElse(fiberRef, null)
+    if (out eq null) fiberRef.initial
+    else out.stack.head.asInstanceOf[StackEntry[A]].value // asInstanceOf needed to avoid boxing
+  }
 
   private[zio] def getOrNull[A](fiberRef: FiberRef[A]): A = {
     val out = fiberRefLocals.getOrElse(fiberRef, null)
@@ -114,16 +114,15 @@ final class FiberRefs private (
 
     val fiberRefLocals0 = childFiberRefs.foldLeft(parentFiberRefs) {
       case (parentFiberRefs, (fiberRef, Value(childStack, childDepth))) =>
-        val ref        = fiberRef.asInstanceOf[FiberRef[Any]]
-        val childValue = childStack.head.value
-
-        if (childStack.head.id == fiberId) {
+        val ref       = fiberRef.asInstanceOf[FiberRef[Any]]
+        val childHead = childStack.head
+        if (childHead.id eq fiberId) {
           parentFiberRefs
         } else {
-
           parentFiberRefs
             .get(ref)
             .fold {
+              val childValue = childHead.value
               if (childValue == ref.initial) parentFiberRefs
               else
                 parentFiberRefs.updated(
@@ -154,6 +153,7 @@ final class FiberRefs private (
                   case _ =>
                     (ref.initial)
                 }
+              val childValue = childHead.value
 
               val ancestor = findAncestor(parentStack, parentDepth, childStack, childDepth)
 
@@ -198,17 +198,14 @@ final class FiberRefs private (
       else {
         val oldStack = oldEntry.stack.asInstanceOf[::[StackEntry[A]]]
         val oldDepth = oldEntry.depth
-        if (oldStack.head.id == fiberId) {
-          val oldValue = oldStack.head.value
-          if (oldValue == value) oldEntry
-          else
-            Value(
-              ::(StackEntry(fiberId, value, oldStack.head.version + 1), oldStack.tail),
-              oldEntry.depth
-            )
-        } else if (oldStack.head.value == value)
+        if (oldStack.head.value == value)
           oldEntry
-        else
+        else if (oldStack.head.id == fiberId) {
+          Value(
+            ::(StackEntry(fiberId, value, oldStack.head.version + 1), oldStack.tail),
+            oldEntry.depth
+          )
+        } else
           Value(::(StackEntry(fiberId, value, 0), oldStack), oldDepth + 1)
       }
 

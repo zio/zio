@@ -624,6 +624,16 @@ object Fiber extends FiberPlatformSpecific {
      * Adds a message to interrupt this fiber.
      */
     private[zio] def tellInterrupt(cause: Cause[Nothing]): Unit
+
+    /**
+     * Transfers all children of this fiber that are currently running to the
+     * specified fiber scope
+     *
+     * '''NOTE''': This method must be invoked by the fiber itself after it has
+     * evaluated the effects but prior to exiting
+     */
+    private[zio] def transferChildren(scope: FiberScope): Unit
+
   }
 
   private[zio] object Runtime {
