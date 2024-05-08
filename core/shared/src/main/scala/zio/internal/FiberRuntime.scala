@@ -1377,6 +1377,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def tellInterrupt(cause: Cause[Nothing]): Unit =
     tell(FiberMessage.InterruptSignal(cause))
 
+  /**
+   * Transfers all children of this fiber that are currently running to the
+   * specified fiber scope
+   *
+   * '''NOTE''': This method must be invoked by the fiber itself after it has
+   * evaluated the effects but prior to exiting
+   */
   private[zio] def transferChildren(scope: FiberScope): Unit = {
     val children = _children
     if ((children ne null) && !children.isEmpty) {
