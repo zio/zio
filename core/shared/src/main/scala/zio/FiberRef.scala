@@ -489,6 +489,10 @@ object FiberRef {
 
             ZIO.unit
           }
+
+        // Store the hash code in a val to avoid recomputing it on every access of the FiberRefs map
+        // Ideally we'd do that in `FiberRef` itself, but that's not binary compatible
+        final override val hashCode: Int = super.hashCode()
       }
 
     def makeRuntimeFlags(
