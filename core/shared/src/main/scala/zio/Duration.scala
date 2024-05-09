@@ -179,6 +179,19 @@ final class DurationOps(private val duration: Duration) extends AnyVal {
     case _                 => ScalaFiniteDuration(duration.toNanos, TimeUnit.NANOSECONDS)
   }
 
+  def asFiniteDuration: Option[ScalaFiniteDuration] = duration match {
+    case Duration.Infinity => None
+    case Duration.Zero     => Some(ScalaDuration.Zero)
+    case _                 => Some(ScalaFiniteDuration(duration.toNanos, TimeUnit.NANOSECONDS))
+  }
+
+  def asFiniteDurationUnsafe: ScalaFiniteDuration = duration match {
+    case Duration.Infinity =>
+      throw new IllegalArgumentException("Duration is infinite but finite duration was expected")
+    case Duration.Zero => ScalaDuration.Zero
+    case _             => ScalaFiniteDuration(duration.toNanos, TimeUnit.NANOSECONDS)
+  }
+
   def asJava: JavaDuration = duration
 
   def max(other: Duration): Duration = if (duration > other) duration else other
