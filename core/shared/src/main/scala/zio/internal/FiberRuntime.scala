@@ -86,14 +86,18 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         )
     }
 
-  private def childrenChunk = if (_children eq null) Chunk.empty
-  else {
-    val bldr = Chunk.newBuilder[Fiber.Runtime[_, _]]
-    _children.forEach { child =>
-      if ((child ne null) && child.isAlive())
-        bldr.addOne(child)
+  private def childrenChunk = {
+    //may be executed by a foreign fiber (under Sync), hence we're risking a race over the _children variable being set back to null by a concurrent transferChildren call
+    val childs = _children
+    if (childs eq null) Chunk.empty
+    else {
+      val bldr = Chunk.newBuilder[Fiber.Runtime[_, _]]
+      childs.forEach { child =>
+        if ((child ne null) && child.isAlive())
+          bldr.addOne(child)
+      }
+      bldr.result()
     }
-    bldr.result()
   }
 
   def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] =
@@ -101,12 +105,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       if (fib eq self) {
         //read by the fiber itself, no need to synchronize as only the fiber itself can mutate the children set
         Exit.succeed(self.childrenChunk)
-      } else if (self._children eq null) {
-        Exit.succeed(Chunk.empty)
       } else {
-        //read by another fiber, must synchronize
-        zio.internal.Sync(_children) {
-          Exit.succeed(self.childrenChunk)
+        //may be racing with the fiber running transferChildren, hence must save _children in a local val
+        val childs = _children
+        if (childs eq null) {
+          Exit.succeed(Chunk.empty)
+        } else {
+          //read by another fiber, must synchronize
+          zio.internal.Sync(childs) {
+            Exit.succeed(self.childrenChunk)
+          }
         }
       }
     }
@@ -538,6 +546,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private def getChildren(): JavaSet[Fiber.Runtime[_, _]] = {
+    //executed by the fiber itself, no risk of racing with transferChildren
     if (_children eq null) {
       _children = Platform.newWeakSet[Fiber.Runtime[_, _]]()(Unsafe.unsafe)
     }
