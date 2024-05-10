@@ -98,18 +98,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] =
     ZIO.withFiberRuntime[Any, Nothing, Chunk[Fiber.Runtime[_, _]]] { case (fib, _) =>
-      if (fib eq self)
-        ZIO.succeed(self.childrenChunk)
-      else {
-        ZIO.asyncZIO[Any, Nothing, Chunk[Fiber.Runtime[_, _]]] { k =>
-          ZIO.succeed {
-            self.tell {
-              FiberMessage.Stateful { case (fib, _) =>
-                val childs = fib.childrenChunk
-                k(Exit.succeed(childs))
-              }
-            }
-          }
+      if (fib eq self) {
+        //read by the fiber itself, no need to synchronize as only the fiber itself can mutate the children set
+        Exit.succeed(self.childrenChunk)
+      } else if(self._children eq null) {
+        Exit.succeed(Chunk.empty)
+      } else {
+        //read by another fiber, must synchronize
+        zio.internal.Sync(_children) {
+          Exit.succeed(self.childrenChunk)
         }
       }
     }
@@ -168,14 +165,22 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
 
   private[zio] def addChild(child: Fiber.Runtime[_, _]): Unit =
-    if (isAlive()) {
-      getChildren().add(child)
+    if(child.isAlive()) {
+      if (isAlive()) {
 
-      if (isInterrupted())
+        val childs = getChildren()
+        //any mutation to the children set must be synchronized
+        zio.internal.Sync(childs) {
+          childs.add(child)
+        }
+
+        if (isInterrupted())
+          child.tellInterrupt(getInterruptedCause())
+      } else {
         child.tellInterrupt(getInterruptedCause())
-    } else {
-      child.tellInterrupt(getInterruptedCause())
+      }
     }
+
 
   /**
    * Adds an interruptor to the set of interruptors that are interrupting this
@@ -873,7 +878,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private def removeChild(child: FiberRuntime[_, _]): Unit =
     if (_children ne null) {
-      _children.remove(child)
+      //any mutation to the children set must be synchronized
+      zio.internal.Sync(_children) {
+        _children.remove(child)
+      }
       ()
     }
 
@@ -1406,6 +1414,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def transferChildren(scope: FiberScope): Unit = {
     val children = _children
     if ((children ne null) && !children.isEmpty) {
+      val childs = _children
+      //we're effectively clearing this set, seems cheaper to 'drop' it and allocate a new one if we spawn more fibers
+      //a concurrent children call might get the stale set, but this method (and its primary usage for dumping threads)
+      //is racy by definition
+      _children = null
+      //not mutating the set, so no need to synchronize
       val iterator = children.iterator()
       val flags    = _runtimeFlags
 
@@ -1416,10 +1430,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         // Unless we forked fibers and didn't await them, we shouldn't have any alive children in the set.
         if ((next ne null) && next.isAlive()) {
           scope.add(self, flags, next)(location, Unsafe.unsafe)
-          iterator.remove()
         }
       }
     }
+
   }
 
   /**
