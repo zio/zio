@@ -131,7 +131,8 @@ final class ZEnvironment[+R] private (
         )
       }
 
-      new ZEnvironment(builder.result())
+      val map = builder.result()
+      new ZEnvironment(map, cache = map)
     }
   }
 
@@ -375,41 +376,41 @@ object ZEnvironment {
         var patch = Patch.Empty.asInstanceOf[Patch[In, Out]]
         var loop  = true
 
+        /**
+         * When the new map is updated, entries in the old map that haven't been
+         * updated will match the same order of non-updated entries in the new
+         * map. Our goal is to loop until we find a common tag that has a
+         * different service.
+         *
+         * Three scenarios here:
+         *   1. We found the tag and the services are the same, so we can
+         *      continue in this loop (no patch required)
+         *   1. We found the tag and the services are different, so we can exit
+         *      this loop
+         *   1. We didn't find the old tag, which means this is a completely
+         *      different map and we should exit this loop.
+         *
+         * (TODO: Maybe discard the whole old map if no common tag was found?)
+         */
         while (loop && oldIt.hasNext && newIt.hasNext) {
           val old                  = oldIt.next()
           var oldTag               = old._1
           var oldService           = old._2
           val (newTag, newService) = newIt.next()
 
-          /**
-           * When the new map is updated, entries in the old map that haven't
-           * been updated will match the same order of non-updated entries in
-           * the new map. Our goal is to loop until we find a common tag that
-           * has a different service.
-           */
           while (oldTag != newTag && oldIt.hasNext) {
             val old = oldIt.next()
             oldTag = old._1
             oldService = old._2
           }
 
-          /**
-           * Three scenarios here:
-           *   1. We found the tag and the services are the same, so we can
-           *      continue in this loop (no patch required)
-           *   1. We found the tag and the services are different, so we can
-           *      exit this loop
-           *   1. We didn't find the old tag, which means this is a completely
-           *      different map and we should exit this loop.
-           *
-           * (TODO: Maybe discard the whole old map if no common tag was found?)
-           */
           if (oldService != newService) {
             loop = false
             patch = patch.combine(AddService(newService, newTag))
           }
         }
 
+        // All entries in the new environment from now on are guaranteed to be new
         while (newIt.hasNext) {
           val (tag, newService) = newIt.next()
           patch = patch.combine(AddService(newService, tag))
