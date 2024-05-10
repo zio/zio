@@ -268,8 +268,8 @@ object TestAspect extends TimeoutVariants {
     aroundAll(effect, ZIO.unit)
 
   /**
-   * An aspect that runs each test on the blocking threadpool.
-   * Useful for tests that contain blocking code
+   * An aspect that runs each test on the blocking threadpool. Useful for tests
+   * that contain blocking code
    */
   val blocking: TestAspectPoly =
     new PerTest.Poly {
