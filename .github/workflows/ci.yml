@@ -109,6 +109,8 @@ jobs:
     steps:
       - name: Checkout Current Branch
         uses: actions/checkout@v4.1.1
+        with:
+          fetch-depth: '0'
       - name: Setup Scala and Java
         uses: actions/setup-java@v4.2.1
         with:
