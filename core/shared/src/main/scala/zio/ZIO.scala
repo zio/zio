@@ -3040,8 +3040,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.configProviderWith(_.load(config))
 
   /**
-   * Uses the current config provider to load the config of type `A`, or fail with
-   * an error of type Config.Error.
+   * Uses the current config provider to load the config of type `A`, or fail
+   * with an error of type Config.Error.
    */
   def config[A](implicit trace: Trace, config: Config[A]): ZIO[Any, Config.Error, A] =
     ZIO.configProviderWith(_.load[A])

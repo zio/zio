@@ -32,7 +32,8 @@ trait ConfigProvider {
   def load[A](config: Config[A])(implicit trace: Trace): IO[Config.Error, A]
 
   /**
-   * Loads the configuration of type `A` using implicit Config[A], or fails with a config error.
+   * Loads the configuration of type `A` using implicit Config[A], or fails with
+   * a config error.
    */
   def load[A](implicit trace: Trace, config: Config[A]): IO[Config.Error, A] = load(config)
 
