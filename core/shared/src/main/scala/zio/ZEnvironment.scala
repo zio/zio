@@ -16,27 +16,29 @@
 
 package zio
 
-import izumi.reflect.macrortti.LightTypeTag
-
 import scala.annotation.tailrec
-import scala.collection.immutable.HashMap
+import scala.collection.immutable.{HashMap, VectorMap}
 import scala.collection.mutable
 
 final class ZEnvironment[+R] private (
-  private val map: Map[LightTypeTag, ZEnvironment.Entry],
-  private val index: Int,
-  private val dummy: Map[Nothing, Any] = null // For bin-compat only!
+  private val map: VectorMap[LightTypeTag, Any],
+  private var cache: Map[LightTypeTag, Any] = HashMap.empty[LightTypeTag, Any]
 ) extends Serializable { self =>
-  import ZEnvironment.Entry
-
-  private val cache: mutable.HashMap[LightTypeTag, Any] = {
-    val cache0 = mutable.HashMap.empty[LightTypeTag, Any]
-    if (map.isEmpty) cache0.update(taggedTagType(ZEnvironment.TaggedAny), ())
-    cache0
-  }
+  import ZEnvironment.ScopeTag
 
   def ++[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.union[R1](that)
+
+  // Cache the reversing so that repeated lookups are faster
+  private lazy val reversedMapEntries = {
+    var l  = List.empty[(LightTypeTag, Any)]
+    val it = map.iterator
+    while (it.hasNext) {
+      val next = it.next()
+      l = next :: l
+    }
+    l
+  }
 
   /**
    * Adds a service to the environment.
@@ -45,8 +47,19 @@ final class ZEnvironment[+R] private (
     unsafe.add[A](tag.tag, a)(Unsafe.unsafe)
 
   override def equals(that: Any): Boolean = that match {
-    case that: ZEnvironment[_] => self.map == that.map
-    case _                     => false
+    case that: ZEnvironment[_] =>
+      if (self.map eq that.map) true
+      else if (self.map.size != that.map.size) false
+      else {
+        val it0   = self.map.iterator
+        val it1   = that.map.iterator
+        var equal = true
+        while (equal && it0.hasNext) {
+          equal = it0.next() == it1.next()
+        }
+        equal
+      }
+    case _ => false
   }
 
   /**
@@ -84,7 +97,7 @@ final class ZEnvironment[+R] private (
 
     if (set.isEmpty || self.map.isEmpty) self
     else {
-      val builder = if (set.size > 4) HashMap.newBuilder[LightTypeTag, Entry] else Map.newBuilder[LightTypeTag, Entry]
+      val builder = VectorMap.newBuilder[LightTypeTag, Any]
       val found   = new mutable.HashSet[LightTypeTag]
       found.sizeHint(set.size)
 
@@ -118,7 +131,7 @@ final class ZEnvironment[+R] private (
         )
       }
 
-      new ZEnvironment(builder.result(), index).asInstanceOf[ZEnvironment[R]]
+      new ZEnvironment(builder.result())
     }
   }
 
@@ -130,7 +143,7 @@ final class ZEnvironment[+R] private (
     map.size
 
   override def toString: String =
-    s"ZEnvironment(${map.toList.sortBy(_._2).map { case (tag, Entry(service, _)) => s"$tag -> $service" }.mkString(", ")})"
+    s"ZEnvironment(${map.toList.map { case (tag, service) => s"$tag -> $service" }.mkString(", ")})"
 
   /**
    * Combines this environment with the specified environment.
@@ -144,13 +157,21 @@ final class ZEnvironment[+R] private (
    * the right hand side will be preferred.
    */
   def unionAll[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] = {
-    val (self0, that0) = if (self.index + that.index < self.index) (self.clean, that.clean) else (self, that)
-    val self0Index     = self0.index
 
-    new ZEnvironment(
-      self0.map ++ that0.map.transform { case (_, entry) => entry.copy(index = self0Index + entry.index) },
-      self0.index + that0.index
-    )
+    val thatKeys = that.map.keySet
+
+    val lb = VectorMap.newBuilder[LightTypeTag, Any]
+    self.map.foreach { kv =>
+      if (!thatKeys.contains(kv._1)) { lb += kv }
+    }
+    lb ++= that.map
+
+    val newMap = lb.result()
+
+    // Let's also populate the cache with the new services.
+    // This won't work too well if we keep adding subtypes to the cache afterwards,
+    // but I think that's a rare enough case to not worry about it
+    new ZEnvironment(newMap, cache = newMap)
   }
 
   /**
@@ -165,56 +186,67 @@ final class ZEnvironment[+R] private (
   def updateAt[K, V](k: K)(f: V => V)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): ZEnvironment[R] =
     self.add[Map[K, V]](unsafe.get[Map[K, V]](taggedTagType(tag))(Unsafe.unsafe).updated(k, f(getAt(k).get)))
 
-  private def clean: ZEnvironment[R] = {
-    val (map, index) = self.map.toList.sortBy(_._2).foldLeft[(Map[LightTypeTag, Entry], Int)]((Map.empty, 0)) {
-      case ((map, index), (tag, entry)) =>
-        map.updated(tag, entry.copy(index = index)) -> (index + 1)
-    }
-    new ZEnvironment(map, index)
-  }
-
   trait UnsafeAPI {
     def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A
     private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A]
-    private[ZEnvironment] def update[A >: R](tag: LightTypeTag, f: A => A)(implicit
-      unsafe: Unsafe
-    ): ZEnvironment[R]
+    private[ZEnvironment] def update[A >: R](tag: LightTypeTag, f: A => A)(implicit unsafe: Unsafe): ZEnvironment[R]
   }
 
   trait UnsafeAPI2 {
     private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A
   }
 
+  private def isScopeTag(tag: LightTypeTag): Boolean =
+    taggedIsSubtype(tag, ScopeTag)
+
   val unsafe: UnsafeAPI with UnsafeAPI2 =
     new UnsafeAPI with UnsafeAPI2 {
-      private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A] = {
-        val self0 = if (index == Int.MaxValue) self.clean else self
-        new ZEnvironment(self0.map.updated(tag, Entry(a, self0.index)), self0.index + 1)
+      private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A] =
+        if (isScopeTag(tag)) {
+          // Fixing scope to the Scope's supertype, so we don't need to do super-type checking on additions as we do below
+          // TODO: Maybe worth to do this for other commonly modified tags
+          addInternal(ScopeTag, a)(cache)
+        } else {
+          // Remove from the cache all entries that are supertypes of the current tag.
+          // Might seem expensive, but still better than busting the cache!
+          addInternal(tag, a)(cache.filterNot { case (k, _) => taggedIsSubtype(tag, k) })
+        }
+
+      private def addInternal[A](tag: LightTypeTag, a: A)(cache: Map[LightTypeTag, Any]) = {
+        val newCache = cache.updated(tag, a)
+        // We need to remove the tag first. VectorMap replaces the existing index otherwise,
+        // but we want to place the updated service at the end
+        new ZEnvironment(map.removed(tag).updated(tag, a), cache = newCache)
       }
 
       def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A =
         getOrElse(tag, throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}"))
 
-      private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A =
+      private[ZEnvironment] def getOrElse[A](tag0: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A = {
+        // Don't know why we need to return this if the environment is empty, but remove it and everything breaks
+        if (map.isEmpty) return ().asInstanceOf[A]
+
+        val tag = if (isScopeTag(tag0)) ScopeTag else tag0
         self.cache.getOrElse(tag, null) match {
           case null =>
-            var index      = -1
-            val iterator   = self.map.iterator
-            var service: A = null.asInstanceOf[A]
-            while (iterator.hasNext) {
-              val (curTag, entry) = iterator.next()
-              if (entry.index > index && taggedIsSubtype(curTag, tag)) {
-                index = entry.index
-                service = entry.service.asInstanceOf[A]
+            var remaining = reversedMapEntries
+            var service   = null.asInstanceOf[A]
+            while ((remaining ne Nil) && service == null) {
+              val (curTag, entry) = remaining.head
+              if (taggedIsSubtype(curTag, tag)) {
+                service = entry.asInstanceOf[A]
               }
+              remaining = remaining.tail
             }
-            if (service == null) default
-            else {
-              self.cache.update(tag, service)
+            if (service == null) {
+              default
+            } else {
+              cache = self.cache.updated(tag, service)
               service
             }
           case a => a.asInstanceOf[A]
         }
+      }
 
       private[ZEnvironment] def update[A >: R](tag: LightTypeTag, f: A => A)(implicit
         unsafe: Unsafe
@@ -224,6 +256,7 @@ final class ZEnvironment[+R] private (
 }
 
 object ZEnvironment {
+  private val ScopeTag: LightTypeTag = taggedTagType(EnvironmentTag[Scope])
 
   /**
    * Constructs a new environment holding no services.
@@ -286,7 +319,7 @@ object ZEnvironment {
    * The empty environment containing no services.
    */
   val empty: ZEnvironment[Any] =
-    new ZEnvironment[Any](Map.empty, 0)
+    new ZEnvironment[Any](VectorMap.empty)
 
   /**
    * A `Patch[In, Out]` describes an update that transforms a `ZEnvironment[In]`
@@ -303,18 +336,17 @@ object ZEnvironment {
 
       @tailrec
       def loop(environment: ZEnvironment[Any], patches: List[Patch[Any, Any]]): ZEnvironment[Any] =
-        patches match {
-          case AddService(service, tag) :: patches => loop(environment.unsafe.add(tag, service)(Unsafe.unsafe), patches)
-          case AndThen(first, second) :: patches   => loop(environment, erase(first) :: erase(second) :: patches)
-          case Empty() :: patches                  => loop(environment, patches)
-          case RemoveService(tag) :: patches       => loop(environment, patches)
-          case UpdateService(update, tag) :: patches =>
-            loop(environment.unsafe.update(tag, update)(Unsafe.unsafe), patches)
-          case Nil => environment
-        }
+        if (patches.isEmpty) environment
+        else
+          patches.head match {
+            case AddService(service, tag) => loop(environment.unsafe.add(tag, service)(Unsafe.unsafe), patches.tail)
+            case AndThen(first, second)   => loop(environment, erase(first) :: erase(second) :: patches.tail)
+            case Empty                    => loop(environment, patches.tail)
+          }
 
-      loop(environment, List(self.asInstanceOf[Patch[Any, Any]])).asInstanceOf[ZEnvironment[Out]]
-    }
+      if (self eq Empty) environment
+      else loop(environment, self.asInstanceOf[Patch[Any, Any]] :: Nil)
+    }.asInstanceOf[ZEnvironment[Out]]
 
     /**
      * Combines two patches to produce a new patch that describes applying the
@@ -329,53 +361,70 @@ object ZEnvironment {
     /**
      * An empty patch which returns the environment unchanged.
      */
-    def empty[A]: Patch[A, A] =
-      Empty()
+    def empty[A]: Patch[A, A] = Empty.asInstanceOf[Patch[A, A]]
 
     /**
      * Constructs a patch that describes the updates necessary to transform the
      * specified old environment into the specified new environment.
      */
     def diff[In, Out](oldValue: ZEnvironment[In], newValue: ZEnvironment[Out]): Patch[In, Out] =
-      if (oldValue == newValue) Patch.Empty().asInstanceOf[Patch[In, Out]]
+      if (oldValue.map eq newValue.map) Patch.Empty.asInstanceOf[Patch[In, Out]]
       else {
-        val sorted = newValue.map.toList.sortBy(_._2)
-        val (missingServices, patch) = sorted.foldLeft[(Map[LightTypeTag, Entry], Patch[In, Out])](
-          oldValue.map -> Patch.Empty().asInstanceOf[Patch[In, Out]]
-        ) { case ((map, patch), (tag, Entry(newService, newIndex))) =>
-          map.getOrElse(tag, null) match {
-            case null =>
-              map - tag -> patch.combine(AddService(newService, tag))
-            case Entry(oldService, oldIndex) =>
-              if (oldService == newService && oldIndex == newIndex)
-                map - tag -> patch
-              else
-                map - tag -> patch.combine(AddService(newService, tag))
+        val oldIt = oldValue.map.iterator
+        val newIt = newValue.map.iterator
+        var patch = Patch.Empty.asInstanceOf[Patch[In, Out]]
+        var loop  = true
+
+        while (loop && oldIt.hasNext && newIt.hasNext) {
+          val old                  = oldIt.next()
+          var oldTag               = old._1
+          var oldService           = old._2
+          val (newTag, newService) = newIt.next()
+
+          /**
+           * When the new map is updated, entries in the old map that haven't
+           * been updated will match the same order of non-updated entries in
+           * the new map. Our goal is to loop until we find a common tag that
+           * has a different service.
+           */
+          while (oldTag != newTag && oldIt.hasNext) {
+            val old = oldIt.next()
+            oldTag = old._1
+            oldService = old._2
+          }
+
+          /**
+           * Three scenarios here:
+           *   1. We found the tag and the services are the same, so we can
+           *      continue in this loop (no patch required)
+           *   1. We found the tag and the services are different, so we can
+           *      exit this loop
+           *   1. We didn't find the old tag, which means this is a completely
+           *      different map and we should exit this loop.
+           *
+           * (TODO: Maybe discard the whole old map if no common tag was found?)
+           */
+          if (oldService != newService) {
+            loop = false
+            patch = patch.combine(AddService(newService, newTag))
           }
         }
-        missingServices.foldLeft(patch) { case (patch, (tag, _)) =>
-          patch.combine(RemoveService(tag))
+
+        while (newIt.hasNext) {
+          val (tag, newService) = newIt.next()
+          patch = patch.combine(AddService(newService, tag))
         }
+        patch
       }
 
     private final case class AddService[Env, Service](service: Service, tag: LightTypeTag)
         extends Patch[Env, Env with Service]
     private final case class AndThen[In, Out, Out2](first: Patch[In, Out], second: Patch[Out, Out2])
         extends Patch[In, Out2]
-    private final case class Empty[Env]()                                   extends Patch[Env, Env]
-    private final case class RemoveService[Env, Service](tag: LightTypeTag) extends Patch[Env with Service, Env]
-    private final case class UpdateService[Env, Service](update: Service => Service, tag: LightTypeTag)
-        extends Patch[Env with Service, Env with Service]
+    private case object Empty extends Patch[Any, Any]
 
     private def erase[In, Out](patch: Patch[In, Out]): Patch[Any, Any] =
       patch.asInstanceOf[Patch[Any, Any]]
   }
 
-  private case class Entry(service: Any, index: Int)
-  private object Entry {
-    implicit val ordering: Ordering[Entry] = (x: Entry, y: Entry) => Ordering.Int.compare(x.index, y.index)
-  }
-
-  private lazy val TaggedAny: EnvironmentTag[Any] =
-    implicitly[EnvironmentTag[Any]]
 }
