@@ -37,8 +37,11 @@ private[zio] sealed trait FiberScope {
     unsafe: Unsafe
   ): Unit
 
-  private[zio] def addAll(currentFiber: Fiber.Runtime[_, _], runtimeFlags: RuntimeFlags, children: Iterable[Fiber.Runtime[_, _]])(
-    implicit
+  private[zio] def addAll(
+    currentFiber: Fiber.Runtime[_, _],
+    runtimeFlags: RuntimeFlags,
+    children: Iterable[Fiber.Runtime[_, _]]
+  )(implicit
     trace: Trace,
     unsafe: Unsafe
   ): Unit
@@ -63,17 +66,19 @@ private[zio] object FiberScope {
         Fiber._roots.add(child)
       }
 
-    private[zio] def addAll(currentFiber: Fiber.Runtime[_, _], runtimeFlags: RuntimeFlags, children: Iterable[Fiber.Runtime[_, _]])(
-      implicit
+    private[zio] def addAll(
+      currentFiber: Fiber.Runtime[_, _],
+      runtimeFlags: RuntimeFlags,
+      children: Iterable[Fiber.Runtime[_, _]]
+    )(implicit
       trace: Trace,
       unsafe: Unsafe
-    ): Unit = {
+    ): Unit =
       if (RuntimeFlags.fiberRoots(runtimeFlags)) {
         children.foreach {
           Fiber._roots.add(_)
         }
       }
-    }
   }
 
   private final class Local(val fiberId: FiberId, parentRef: WeakReference[Fiber.Runtime[_, _]]) extends FiberScope {
@@ -104,11 +109,14 @@ private[zio] object FiberScope {
       }
     }
 
-    private[zio] def addAll(currentFiber: Fiber.Runtime[_, _], runtimeFlags: RuntimeFlags, children: Iterable[Fiber.Runtime[_, _]])(
-      implicit
+    private[zio] def addAll(
+      currentFiber: Fiber.Runtime[_, _],
+      runtimeFlags: RuntimeFlags,
+      children: Iterable[Fiber.Runtime[_, _]]
+    )(implicit
       trace: Trace,
       unsafe: Unsafe
-    ): Unit = if(children.nonEmpty) {
+    ): Unit = if (children.nonEmpty) {
       val parent = parentRef.get()
 
       if (parent ne null) {

@@ -101,7 +101,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       if (fib eq self) {
         //read by the fiber itself, no need to synchronize as only the fiber itself can mutate the children set
         Exit.succeed(self.childrenChunk)
-      } else if(self._children eq null) {
+      } else if (self._children eq null) {
         Exit.succeed(Chunk.empty)
       } else {
         //read by another fiber, must synchronize
@@ -165,7 +165,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
 
   private[zio] def addChild(child: Fiber.Runtime[_, _]): Unit =
-    if(child.isAlive()) {
+    if (child.isAlive()) {
       if (isAlive()) {
 
         val childs = getChildren()
@@ -183,7 +183,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   private[zio] def addChildren(children: Iterable[Fiber.Runtime[_, _]]): Unit = {
     val iter = children.iterator
-    if(isAlive()) {
+    if (isAlive()) {
       val childs = getChildren()
       //any mutation to the children set must be synchronized
       zio.internal.Sync(childs) {
@@ -213,7 +213,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       }
     }
   }
-
 
   /**
    * Adds an interruptor to the set of interruptors that are interrupting this
@@ -1447,17 +1446,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself after it has
    * evaluated the effects but prior to exiting
    */
-  private[zio] def transferChildren(scope: FiberScope): Unit = {
+  private[zio] def transferChildren(scope: FiberScope): Unit =
     if ((_children ne null) && !_children.isEmpty) {
       val childs = childrenChunk
       //we're effectively clearing this set, seems cheaper to 'drop' it and allocate a new one if we spawn more fibers
       //a concurrent children call might get the stale set, but this method (and its primary usage for dumping fibers)
       //is racy by definition
       _children = null
-      val flags    = _runtimeFlags
+      val flags = _runtimeFlags
       scope.addAll(self, flags, childs)(location, Unsafe.unsafe)
     }
-  }
 
   /**
    * Updates a fiber ref belonging to this fiber by using the provided update
