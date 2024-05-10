@@ -181,6 +181,39 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       }
     }
 
+  private[zio] def addChildren(children: Iterable[Fiber.Runtime[_, _]]): Unit = {
+    val iter = children.iterator
+    if(isAlive()) {
+      val childs = getChildren()
+      //any mutation to the children set must be synchronized
+      zio.internal.Sync(childs) {
+        if (isInterrupted()) {
+          val cause = getInterruptedCause()
+          while (iter.hasNext) {
+            val child = iter.next()
+            if (child.isAlive()) {
+              childs.add(child)
+              child.tellInterrupt(cause)
+            }
+          }
+        } else {
+          while (iter.hasNext) {
+            val child = iter.next()
+            if (child.isAlive())
+              childs.add(child)
+          }
+        }
+      }
+    } else {
+      val cause = getInterruptedCause()
+      while (iter.hasNext) {
+        val child = iter.next()
+        if (child.isAlive())
+          child.tellInterrupt(cause)
+      }
+    }
+  }
+
 
   /**
    * Adds an interruptor to the set of interruptors that are interrupting this
@@ -1401,6 +1434,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def tellAddChild(child: Fiber.Runtime[_, _]): Unit =
     tell(FiberMessage.Stateful((parentFiber, _) => parentFiber.addChild(child)))
 
+  private[zio] def tellAddChildren(children: Iterable[Fiber.Runtime[_, _]]): Unit =
+    tell(FiberMessage.Stateful((parentFiber, _) => parentFiber.addChildren(children)))
+
   private[zio] def tellInterrupt(cause: Cause[Nothing]): Unit =
     tell(FiberMessage.InterruptSignal(cause))
 
@@ -1412,28 +1448,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * evaluated the effects but prior to exiting
    */
   private[zio] def transferChildren(scope: FiberScope): Unit = {
-    val children = _children
-    if ((children ne null) && !children.isEmpty) {
-      val childs = _children
+    if ((_children ne null) && !_children.isEmpty) {
+      val childs = childrenChunk
       //we're effectively clearing this set, seems cheaper to 'drop' it and allocate a new one if we spawn more fibers
-      //a concurrent children call might get the stale set, but this method (and its primary usage for dumping threads)
+      //a concurrent children call might get the stale set, but this method (and its primary usage for dumping fibers)
       //is racy by definition
       _children = null
-      //not mutating the set, so no need to synchronize
-      val iterator = children.iterator()
       val flags    = _runtimeFlags
-
-      while (iterator.hasNext) {
-        val next = iterator.next()
-
-        // Only move alive children.
-        // Unless we forked fibers and didn't await them, we shouldn't have any alive children in the set.
-        if ((next ne null) && next.isAlive()) {
-          scope.add(self, flags, next)(location, Unsafe.unsafe)
-        }
-      }
+      scope.addAll(self, flags, childs)(location, Unsafe.unsafe)
     }
-
   }
 
   /**
