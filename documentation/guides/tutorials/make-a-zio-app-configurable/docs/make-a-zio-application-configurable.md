@@ -52,7 +52,7 @@ import zio.Config
 import zio.config.magnolia.deriveConfig
 
 object HttpServerConfig {
-  val config: Config[HttpServerConfig] =
+  implicit val config: Config[HttpServerConfig] =
     deriveConfig[HttpServerConfig].nested("HttpServerConfig")
 }
 ```
@@ -64,7 +64,7 @@ By utilizing the `ZIO.config[HttpServerConfig]` function, we can obtain access t
 ```scala mdoc:compile-only
 import zio._
 
-ZIO.config[HttpServerConfig](HttpServerConfig.config).flatMap { config =>
+ZIO.config[HttpServerConfig].flatMap { config =>
   ??? // Do something with the configuration
 }
 ```
@@ -77,7 +77,7 @@ import zio._
 import java.io.IOException
 
 val workflow: ZIO[Any, Exception, Unit] =
-  ZIO.config[HttpServerConfig](HttpServerConfig.config).flatMap { config =>
+  ZIO.config[HttpServerConfig].flatMap { config =>
     Console.printLine(
       "Application started with following configuration:\n" +
         s"\thost: ${config.host}\n" +
@@ -102,7 +102,7 @@ case class HttpServerConfig(host: String, port: Int)
 object MainApp extends ZIOAppDefault {
 
   val workflow: ZIO[Any, IOException, Unit] =
-    ZIO.service[HttpServerConfig](HttpServerConfig.config).flatMap { config =>
+    ZIO.service[HttpServerConfig].flatMap { config =>
       Console.printLine(
         "Application started with following configuration:\n" +
           s"\thost: ${config.host}\n" +
