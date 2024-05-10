@@ -268,6 +268,18 @@ object TestAspect extends TimeoutVariants {
     aroundAll(effect, ZIO.unit)
 
   /**
+   * An aspect that runs each test on the blocking threadpool. Useful for tests
+   * that contain blocking code
+   */
+  val blocking: TestAspectPoly =
+    new PerTest.Poly {
+      def perTest[R, E](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
+        trace: Trace
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        ZIO.blocking(test)
+    }
+
+  /**
    * An aspect that runs each test on a separate fiber and prints a fiber dump
    * if the test fails or has not terminated within the specified duration.
    */
