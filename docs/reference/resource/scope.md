@@ -20,6 +20,37 @@ trait Scope {
 
 The `addFinalizerExit` operator lets us add a finalizer to the `Scope`. The `close` operator closes the scope, running all the finalizers that have been added to the scope.
 
+In the following example, we create a `Scope`, add a finalizer to it, and then close the scope:
+
+```scala mdoc:compile-only
+for {
+  scope <- Scope.make
+  _ <- ZIO.debug("Scope is created!")
+  _ <- scope.addFinalizer(
+    for {
+      _ <- ZIO.debug("The finalizer is started!")
+      _ <- ZIO.sleep(5.seconds)
+      _ <- ZIO.debug("The finalizer is done!")
+    } yield ()
+  )
+  _ <- ZIO.debug("Leaving scope!")
+  _ <- scope.close(Exit.succeed(()))
+  _ <- ZIO.debug("Scope is closed!")
+} yield ()
+```
+
+The output of this program will be:
+
+```
+Scope is created!
+Leaving scope!
+The finalizer is started!
+The finalizer is done!
+Scope is closed!
+```
+
+We can see that the finalizer is run after we called `close` on the scope. So the finalizer is guaranteed to be run when the scope is closed.
+
 In combination with the ZIO environment, `Scope` gives us an extremely powerful way to manage resources.
 
 We can define a resource using operators such as `ZIO.acquireRelease`, which lets us construct a scoped value from an `acquire` and `release` workflow. For example, here is how we might define a simple resource:
