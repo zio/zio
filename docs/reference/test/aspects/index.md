@@ -163,6 +163,9 @@ object MySpec extends ZIOSpecDefault {
     test("A ignored test") {
       assertTrue(false)
     } @@ ignore, //@@ ignore marks test as ignored
+    test("A test using current time") {
+      assertTrue(true)
+    } @@ withLiveClock //@@ withLiveClock uses the current time in the test
     test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
       assertTrue(false)
     } @@ jvmOnly           // only run on the JVM
