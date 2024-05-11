@@ -1620,18 +1620,16 @@ object ZSTM {
     /**
      * Creates a function that can reset the journal.
      */
-    def prepareResetJournal(journal: Journal): () => Any = {
-      () => {
-        val saved = new MutableMap[TRef[_], Entry](journal.size)
-        val it = journal.entrySet.iterator
-        while (it.hasNext) {
-          val entry = it.next
-          saved.put(entry.getKey, entry.getValue.copy())
-        }
-        journal.clear()
-        journal.putAll(saved)
-        ()
+    def prepareResetJournal(journal: Journal): () => Any = () => {
+      val saved = new MutableMap[TRef[_], Entry](journal.size)
+      val it = journal.entrySet.iterator
+      while (it.hasNext) {
+        val entry = it.next
+        saved.put(entry.getKey, entry.getValue.copy())
       }
+      journal.clear()
+      journal.putAll(saved)
+      ()
     }
 
     /**
