@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
 @OutputTimeUnit(TimeUnit.SECONDS)
 @Warmup(iterations = 2, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
-@Fork(1)
+@Fork(2)
 @Threads(1)
 class ZEnvironmentBenchmark {
   import BenchmarkUtil._
@@ -89,7 +89,18 @@ class ZEnvironmentBenchmark {
 
   @Benchmark
   @OperationsPerInvocation(10000)
-  def accessAfterScoped() =
+  def accessAfterScoped() = {
+    val _ = env.get[Foo025]
+    unsafe.run(
+      ZIO
+        .foreachDiscard(1 to 10000)(_ => ZIO.scoped(ZIO.environmentWith[Foo025](_.get[Foo025])))
+        .provideEnvironment(env)
+    )
+  }
+
+  @Benchmark
+  @OperationsPerInvocation(10000)
+  def accessAfterScopedUncached() =
     unsafe.run(
       ZIO
         .foreachDiscard(1 to 10000)(_ => ZIO.scoped(ZIO.environmentWith[Foo025](_.get[Foo025])))
@@ -293,3 +304,30 @@ object BenchmarkedEnvironment {
     with Foo049
 
 }
+
+/*
+[info] Benchmark                                 Mode  Cnt         Score        Error  Units
+[info] ZEnvironmentBenchmark.access             thrpt    3  15317713.880 ± 691407.634  ops/s
+[info] ZEnvironmentBenchmark.accessAfterScoped  thrpt    3    547842.919 ± 102911.143  ops/s
+[info] ZEnvironmentBenchmark.accessScope        thrpt    3    485502.858 ±  80725.715  ops/s
+[info] ZEnvironmentBenchmark.add                thrpt    3   3404552.760 ± 166969.278  ops/s
+[info] ZEnvironmentBenchmark.addGetMulti        thrpt    3     58094.725 ±   7625.087  ops/s
+[info] ZEnvironmentBenchmark.addGetOne          thrpt    3    707347.468 ±  47408.525  ops/s
+[info] ZEnvironmentBenchmark.addGetRepeat       thrpt    3    569658.211 ±  22241.694  ops/s
+[info] ZEnvironmentBenchmark.prune              thrpt    3     84737.132 ±   6659.910  ops/s
+[info] ZEnvironmentBenchmark.union              thrpt    3   1117896.335 ± 162350.919  ops/s
+ */
+
+/*
+[info] Benchmark                                 Mode  Cnt         Score          Error  Units
+[info] ZEnvironmentBenchmark.access             thrpt    3  11980520.857 ± 11410618.481  ops/s
+[info] ZEnvironmentBenchmark.accessAfterScoped  thrpt    3    501940.803 ±   741989.749  ops/s
+[info] ZEnvironmentBenchmark.accessScope        thrpt    3   2095640.835 ±    47546.164  ops/s
+[info] ZEnvironmentBenchmark.add                thrpt    3   1896121.353 ±    90542.715  ops/s
+[info] ZEnvironmentBenchmark.addGetMulti        thrpt    3    137253.329 ±     6402.602  ops/s
+[info] ZEnvironmentBenchmark.addGetOne          thrpt    3   8441052.400 ±   585066.613  ops/s
+[info] ZEnvironmentBenchmark.addGetRepeat       thrpt    3    237182.895 ±    15012.450  ops/s
+[info] ZEnvironmentBenchmark.prune              thrpt    3    217658.535 ±    22414.355  ops/s
+[info] ZEnvironmentBenchmark.union              thrpt    3   2206037.664 ±    59785.571  ops/s
+
+ */

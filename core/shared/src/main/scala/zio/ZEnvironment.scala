@@ -233,28 +233,28 @@ final class ZEnvironment[+R] private (
         getOrElse(tag, throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}"))
 
       private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A = {
-        // Don't know why we need to return this if the environment is empty, but remove it and everything breaks
-        if (self.isEmpty) return ().asInstanceOf[A]
-        self.cache.getOrElse(tag, null) match {
-          case null if (scope ne null) && isScopeTag(tag) =>
-            scope.asInstanceOf[A]
-          case null =>
-            var remaining = reversedMapEntries
-            var service   = null.asInstanceOf[A]
-            while ((remaining ne Nil) && service == null) {
-              val (curTag, entry) = remaining.head
-              if (taggedIsSubtype(curTag, tag)) {
-                service = entry.asInstanceOf[A]
-              }
-              remaining = remaining.tail
+        val fromCache = self.cache.getOrElse(tag, null)
+        if (fromCache != null) fromCache.asInstanceOf[A]
+        else if ((scope ne null) && isScopeTag(tag)) scope.asInstanceOf[A]
+        else if (!self.isEmpty) {
+          var remaining = reversedMapEntries
+          var service   = null.asInstanceOf[A]
+          while ((remaining ne Nil) && service == null) {
+            val (curTag, entry) = remaining.head
+            if (taggedIsSubtype(curTag, tag)) {
+              service = entry.asInstanceOf[A]
             }
-            if (service == null) {
-              default
-            } else {
-              cache = self.cache.updated(tag, service)
-              service
-            }
-          case a => a.asInstanceOf[A]
+            remaining = remaining.tail
+          }
+          if (service == null) {
+            default
+          } else {
+            cache = self.cache.updated(tag, service)
+            service
+          }
+        } else {
+          // Don't know why we need to return this if the environment is empty, but tests require it
+          ().asInstanceOf[A]
         }
       }
 
