@@ -10,9 +10,9 @@ import java.util.concurrent.TimeUnit
 @State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
+@Warmup(iterations = 2, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
-@Fork(2)
+@Fork(1)
 @Threads(1)
 class ZEnvironmentBenchmark {
   import BenchmarkedEnvironment._
@@ -20,11 +20,14 @@ class ZEnvironmentBenchmark {
 
   implicit val u: Unsafe = Unsafe.unsafe
 
-  var env: ZEnvironment[Env] = _
+  var env: ZEnvironment[Env]           = _
+  var smallEnv: ZEnvironment[SmallEnv] = _
 
   @Setup(Level.Trial)
-  def setup(): Unit =
-    env = BenchmarkedEnvironment.make()
+  def setup(): Unit = {
+    env = BenchmarkedEnvironment.makeLarge()
+    smallEnv = BenchmarkedEnvironment.makeSmall()
+  }
 
   @Benchmark
   def access() = {
@@ -49,50 +52,74 @@ class ZEnvironmentBenchmark {
     env.add(new Bar000).get[Bar000]
 
   @Benchmark
-  def addGetMulti(bh: Blackhole) = bh.consume {
+  @OperationsPerInvocation(100000)
+  def addGetRepeatBaseline(bh: Blackhole) = {
+    var i = 0
+    var e = env
+    while (i < 100000) {
+      e = env.add(new Foo000).add(new Foo001).add(new Foo002).add(new Foo003).add(new Foo004).add(new Foo005).add(new Foo006).add(new Foo007).add(new Foo008).add(new Foo009)
+      bh.consume(e.get[Foo040])
+      i += 1
+    }
+  }
+
+  @Benchmark
+  @OperationsPerInvocation(100000)
+  def addGetRepeat(bh: Blackhole) = {
+    var i = 0
+    var e = env
+    while (i < 100000) {
+      e = e.add(new Foo000).add(new Foo001).add(new Foo002).add(new Foo003).add(new Foo004).add(new Foo005).add(new Foo006).add(new Foo007).add(new Foo008).add(new Foo009)
+      bh.consume(e.get[Foo040])
+      i += 1
+    }
+  }
+
+  @Benchmark
+  def addGetMulti(bh: Blackhole) = {
     val e = env.add(new Bar001)
-    e.get[Bar001]
-    e.get[Foo000]
-    e.get[Foo001]
-    e.get[Foo002]
-    e.get[Foo003]
-    e.get[Foo004]
-    e.get[Foo045]
-    e.get[Foo046]
-    e.get[Foo047]
-    e.get[Foo048]
-    e.get[Foo049]
+    bh.consume(e.get[Bar001])
+    bh.consume(e.get[Foo000])
+    bh.consume(e.get[Foo001])
+    bh.consume(e.get[Foo002])
+    bh.consume(e.get[Foo003])
+    bh.consume(e.get[Foo004])
+    bh.consume(e.get[Foo045])
+    bh.consume(e.get[Foo046])
+    bh.consume(e.get[Foo047])
+    bh.consume(e.get[Foo048])
+    bh.consume(e.get[Foo049])
   }
 
   @Benchmark
   @OperationsPerInvocation(10000)
-  def getService() =
+  def accessAfterScoped() =
     unsafe
       .run(
-        ZIO.foreachDiscard(1 to 10000)(_ =>
-          ZIO
-            .scoped(ZIO.environment[Foo025].map { e =>
-              e.get[Foo025]
-            })
-            .provideEnvironment(env)
-        )
+        ZIO
+          .foreachDiscard(1 to 10000)(_ => ZIO.scoped(ZIO.environmentWith[Foo025](_.get[Foo025])))
+          .provideEnvironment(env)
       )
       .getOrThrowFiberFailure()
 
   @Benchmark
   @OperationsPerInvocation(10000)
-  def getScope() =
+  def accessScope() =
     unsafe
       .run(
-        ZIO.foreachDiscard(1 to 10000)(_ =>
-          ZIO.scoped(ZIO.environment[Scope].map(_.get[Scope])).provideEnvironment(env)
-        )
+        ZIO
+          .foreachDiscard(1 to 10000)(_ => ZIO.scoped(ZIO.environmentWith[Scope](_.get[Scope])))
+          .provideEnvironment(env)
       )
       .getOrThrowFiberFailure()
 
   @Benchmark
   def union() =
-    env.union[Env](env)
+    env.unionAll(smallEnv)
+
+  @Benchmark
+  def prune() =
+    env.prune[Foo001 & Foo002 & Foo003]
 
 }
 
@@ -159,7 +186,15 @@ object BenchmarkedEnvironment {
   final class Foo048
   final class Foo049
 
-  def make(): ZEnvironment[Env] =
+  def makeSmall(): ZEnvironment[SmallEnv] =
+    ZEnvironment.empty
+      .add(new Bar000)
+      .add(new Bar001)
+      .add(new Bar002)
+      .add(new Bar003)
+      .add(new Bar004)
+
+  def makeLarge(): ZEnvironment[Env] =
     ZEnvironment.empty
       .add(new Foo000)
       .add(new Foo001)
@@ -211,6 +246,8 @@ object BenchmarkedEnvironment {
       .add(new Foo047)
       .add(new Foo048)
       .add(new Foo049)
+
+  type SmallEnv = Bar000 & Bar001 & Bar002 & Bar003 & Bar004
 
   type Env = Foo000
     with Foo001
@@ -264,3 +301,28 @@ object BenchmarkedEnvironment {
     with Foo049
 
 }
+
+/**
+ * Better reads: [info] Benchmark Mode Cnt Score Error Units [info]
+ * ZEnvironmentBenchmark.access thrpt 3 6464266.794 ± 938509.883 ops/s [info]
+ * ZEnvironmentBenchmark.accessAfterScoped thrpt 3 1998056.230 ± 170249.830
+ * ops/s [info] ZEnvironmentBenchmark.accessScope thrpt 3 1909702.790 ±
+ * 419198.539 ops/s [info] ZEnvironmentBenchmark.add thrpt 3 132807.631 ±
+ * 24516.382 ops/s [info] ZEnvironmentBenchmark.addGetMulti thrpt 3 668267.898 ±
+ * 45145.420 ops/s [info] ZEnvironmentBenchmark.addGetOne thrpt 3 725006.560 ±
+ * 65943.469 ops/s [info] ZEnvironmentBenchmark.prune thrpt 3 140122.250 ±
+ * 11500.980 ops/s [info] ZEnvironmentBenchmark.union thrpt 3 2034758.145 ±
+ * 90923.902 ops/s
+ */
+
+/**
+ * Better writes [info] Benchmark Mode Cnt Score Error Units [info]
+ * ZEnvironmentBenchmark.access thrpt 3 9155388.767 ± 742744.912 ops/s [info]
+ * ZEnvironmentBenchmark.accessAfterScoped thrpt 3 531923.815 ± 13893.718 ops/s
+ * [info] ZEnvironmentBenchmark.accessScope thrpt 3 1912281.970 ± 368748.569
+ * ops/s [info] ZEnvironmentBenchmark.add thrpt 3 1624264.002 ± 154064.148 ops/s
+ * [info] ZEnvironmentBenchmark.addGetMulti thrpt 3 132649.960 ± 11875.356 ops/s
+ * [info] ZEnvironmentBenchmark.addGetOne thrpt 3 7911050.712 ± 294615.399 ops/s
+ * [info] ZEnvironmentBenchmark.prune thrpt 3 207599.395 ± 16916.273 ops/s
+ * [info] ZEnvironmentBenchmark.union thrpt 3 2069873.448 ± 80499.085 ops/s
+ */

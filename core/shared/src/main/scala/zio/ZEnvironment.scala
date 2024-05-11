@@ -19,17 +19,18 @@ package zio
 import scala.annotation.tailrec
 import scala.collection.immutable.{HashMap, VectorMap}
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
+import scala.util.hashing.MurmurHash3
 
 final class ZEnvironment[+R] private (
   private val map: VectorMap[LightTypeTag, Any],
-  private var cache: HashMap[LightTypeTag, Any]
+  private var cache: HashMap[LightTypeTag, Any],
+  private val scope: Scope
 ) extends Serializable { self =>
   import ZEnvironment.ScopeTag
 
   @deprecated("Kept for binary compatibility only. Do not use", "2.1.2")
   private[ZEnvironment] def this(map: Map[LightTypeTag, Any], index: Int, cache: Map[LightTypeTag, Any] = Map.empty) =
-    this(VectorMap.empty ++ map, HashMap.from(cache))
+    this(VectorMap.empty ++ map, HashMap.from(cache), null)
 
   def ++[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.union[R1](that)
@@ -53,17 +54,10 @@ final class ZEnvironment[+R] private (
 
   override def equals(that: Any): Boolean = that match {
     case that: ZEnvironment[_] =>
-      if (self.map eq that.map) true
+      if (self.scope ne that.scope) false
+      else if (self.map eq that.map) true
       else if (self.map.size != that.map.size) false
-      else {
-        val it0   = self.map.iterator
-        val it1   = that.map.iterator
-        var equal = true
-        while (equal && it0.hasNext) {
-          equal = it0.next() == it1.next()
-        }
-        equal
-      }
+      else self.hashCode == that.hashCode
     case _ => false
   }
 
@@ -86,8 +80,10 @@ final class ZEnvironment[+R] private (
   def getDynamic[A](implicit tag: Tag[A]): Option[A] =
     Option(unsafe.getOrElse(tag.tag, null.asInstanceOf[A])(Unsafe.unsafe))
 
-  override def hashCode: Int =
-    map.hashCode
+  override lazy val hashCode: Int = {
+    // NOTE: We can't use map.hashCode because that doesn't take ordering into account
+    MurmurHash3.productHash((MurmurHash3.orderedHash(map), scope))
+  }
 
   /**
    * Prunes the environment to the set of services statically known to be
@@ -100,7 +96,7 @@ final class ZEnvironment[+R] private (
     // Why are immutable set lookups so slow???
     val set = new mutable.HashSet ++= taggedGetServices(tag)
 
-    if (set.isEmpty || self.map.isEmpty) self
+    if (set.isEmpty || self.isEmpty) self
     else {
       val builder = VectorMap.newBuilder[LightTypeTag, Any]
       val found   = new mutable.HashSet[LightTypeTag]
@@ -128,6 +124,8 @@ final class ZEnvironment[+R] private (
           }
         }
       }
+      val scopeTag = set.find(isScopeTag)
+      scopeTag.foreach(found.add)
 
       if (set.size > found.size) {
         val missing = set -- found
@@ -136,8 +134,11 @@ final class ZEnvironment[+R] private (
         )
       }
 
-      val map = builder.result()
-      new ZEnvironment(map, cache = HashMap.empty)
+      new ZEnvironment(
+        builder.result(),
+        cache = HashMap.empty,
+        scope = if (scopeTag.isEmpty) null else scope
+      )
     }
   }
 
@@ -146,10 +147,16 @@ final class ZEnvironment[+R] private (
    * the environment. This is intended primarily for testing purposes.
    */
   def size: Int =
-    map.size
+    map.size + (if (scope eq null) 0 else 1)
 
-  override def toString: String =
-    s"ZEnvironment(${map.toList.map { case (tag, service) => s"$tag -> $service" }.mkString(", ")})"
+  def isEmpty: Boolean =
+    map.isEmpty && (scope eq null)
+
+  override def toString: String = {
+    val asList  = map.toList
+    val entries = if (scope ne null) (ScopeTag, scope) :: asList else asList
+    s"ZEnvironment(${entries.map { case (tag, service) => s"$tag -> $service" }.mkString(", ")})"
+  }
 
   /**
    * Combines this environment with the specified environment.
@@ -168,8 +175,9 @@ final class ZEnvironment[+R] private (
       val newMap = that.map.foldLeft(self.map) { case (map, (k, v)) =>
         map.removed(k).updated(k, v)
       }
+      val newScope = if (that.scope eq null) self.scope else that.scope
       // Reuse the cache of the right hand-side
-      new ZEnvironment(newMap, cache = that.cache)
+      new ZEnvironment(newMap, cache = that.cache, scope = newScope)
     }
 
   /**
@@ -188,6 +196,9 @@ final class ZEnvironment[+R] private (
     def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A
     private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A]
     private[ZEnvironment] def update[A >: R](tag: LightTypeTag, f: A => A)(implicit unsafe: Unsafe): ZEnvironment[R]
+
+    private[ZEnvironment] def addService[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A]
+    private[zio] def addScope(scope: Scope)(implicit unsafe: Unsafe): ZEnvironment[R with Scope]
   }
 
   trait UnsafeAPI2 {
@@ -200,30 +211,34 @@ final class ZEnvironment[+R] private (
   val unsafe: UnsafeAPI with UnsafeAPI2 =
     new UnsafeAPI with UnsafeAPI2 {
       private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A] =
-        if (isScopeTag(tag)) {
-          // Fixing scope to the Scope's supertype, so we don't need to do super-type checking on additions as we do below
-          // TODO: Maybe worth to do this for other commonly modified tags
-          addInternal(ScopeTag, a)(cache)
-        } else {
-          // Remove from the cache all entries that are supertypes of the current tag.
-          // Might seem expensive, but `filterNot` will preserve the map in cases there were no removals (i.e., no supertypes in the cache)
-          addInternal(tag, a)(cache.filterNot { case (k, _) => taggedIsSubtype(tag, k) && k != tag })
-        }
+        if (a.isInstanceOf[Scope] && isScopeTag(tag))
+          addScope(a.asInstanceOf[Scope]).asInstanceOf[ZEnvironment[R with A]]
+        else
+          addService[A](tag, a)
 
-      private def addInternal[A](tag: LightTypeTag, a: A)(cache: HashMap[LightTypeTag, Any]) =
-        // We need to remove the tag first. VectorMap replaces the existing index otherwise,
-        // but we want to place the updated service at the end
-        new ZEnvironment(map.removed(tag).updated(tag, a), cache = cache.updated(tag, a))
+      private[zio] def addScope(scope: Scope)(implicit unsafe: Unsafe): ZEnvironment[R with Scope] =
+        new ZEnvironment(map, cache = cache, scope = scope)
+
+      private[ZEnvironment] def addService[A](tag: LightTypeTag, a: A)(implicit
+        unsafe: Unsafe
+      ): ZEnvironment[R with A] = {
+        // Remove from the cache all entries that are supertypes of the current tag.
+        // Might seem expensive, but `filterNot` will preserve the map in cases there were no removals (i.e., no supertypes in the cache)
+        // val newCache = cache.filterNot { case (k, _) => taggedIsSubtype(tag, k) && k != tag }.updated(tag, a)
+        val newCache = HashMap(tag -> a)
+        new ZEnvironment(map.removed(tag).updated(tag, a), cache = newCache, scope = scope)
+      }
 
       def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A =
         getOrElse(tag, throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}"))
 
-      private[ZEnvironment] def getOrElse[A](tag0: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A = {
+      private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A = {
         // Don't know why we need to return this if the environment is empty, but remove it and everything breaks
-        if (map.isEmpty) return ().asInstanceOf[A]
-        self.cache.getOrElse(tag0, null) match {
+        if (self.isEmpty) return ().asInstanceOf[A]
+        self.cache.getOrElse(tag, null) match {
+          case null if (scope ne null) && isScopeTag(tag) =>
+            scope.asInstanceOf[A]
           case null =>
-            val tag       = if (isScopeTag(tag0)) ScopeTag else tag0
             var remaining = reversedMapEntries
             var service   = null.asInstanceOf[A]
             while ((remaining ne Nil) && service == null) {
@@ -314,7 +329,7 @@ object ZEnvironment {
    * The empty environment containing no services.
    */
   val empty: ZEnvironment[Any] =
-    new ZEnvironment[Any](VectorMap.empty, cache = HashMap.empty)
+    new ZEnvironment[Any](VectorMap.empty, cache = HashMap.empty, scope = null)
 
   /**
    * A `Patch[In, Out]` describes an update that transforms a `ZEnvironment[In]`
@@ -329,15 +344,16 @@ object ZEnvironment {
      */
     def apply(environment: ZEnvironment[In]): ZEnvironment[Out] = {
       @tailrec
-      def loop(environment: ZEnvironment[Any], patches: List[Patch[Any, Any]]): ZEnvironment[Any] =
-        if (patches eq Nil) environment
+      def loop(env: ZEnvironment[Any], patches: List[Patch[Any, Any]]): ZEnvironment[Any] =
+        if (patches eq Nil) env
         else
           patches.head match {
-            case AddService(service, tag) => loop(environment.unsafe.add(tag, service)(Unsafe.unsafe), patches.tail)
-            case AndThen(first, second)   => loop(environment, erase(first) :: erase(second) :: patches.tail)
-            case _: Empty[?]              => loop(environment, patches.tail)
-            case _: RemoveService[?, ?]   => loop(environment, patches.tail)
-            case _: UpdateService[?, ?]   => loop(environment, patches.tail)
+            case AddService(service, tag) => loop(env.unsafe.addService(tag, service)(Unsafe.unsafe), patches.tail)
+            case AndThen(first, second)   => loop(env, erase(first) :: erase(second) :: patches.tail)
+            case AddScope(scope)          => loop(env.unsafe.addScope(scope)(Unsafe.unsafe), patches.tail)
+            case _: Empty[?]              => loop(env, patches.tail)
+            case _: RemoveService[?, ?]   => loop(env, patches.tail)
+            case _: UpdateService[?, ?]   => loop(env, patches.tail)
           }
 
       if (self eq empty0) environment.asInstanceOf[ZEnvironment[Out]]
@@ -364,8 +380,10 @@ object ZEnvironment {
      * specified old environment into the specified new environment.
      */
     def diff[In, Out](oldValue: ZEnvironment[In], newValue: ZEnvironment[Out]): Patch[In, Out] =
-      if (oldValue.map eq newValue.map) empty0.asInstanceOf[Patch[In, Out]]
-      else {
+      if (oldValue.map eq newValue.map) {
+        if (oldValue.scope eq newValue.scope) empty0.asInstanceOf[Patch[In, Out]]
+        else AddScope(newValue.scope).asInstanceOf[Patch[In, Out]]
+      } else {
         val oldIt = oldValue.map.iterator
         val newIt = newValue.map.iterator
         var patch = empty0.asInstanceOf[Patch[In, Out]]
@@ -408,12 +426,16 @@ object ZEnvironment {
           val (tag, newService) = newIt.next()
           patch = patch.combine(AddService(newService, tag))
         }
+        if (oldValue.scope ne newValue.scope) {
+          patch = patch.combine(AddScope(newValue.scope))
+        }
         patch
       }
 
     private val empty0 = Empty()
     private final case class Empty[Env]() extends Patch[Env, Env]
 
+    private final case class AddScope[Env, Service](scope: Scope) extends Patch[Env, Env with Scope]
     private final case class AddService[Env, Service](service: Service, tag: LightTypeTag)
         extends Patch[Env, Env with Service]
     private final case class AndThen[In, Out, Out2](first: Patch[In, Out], second: Patch[Out, Out2])
