@@ -208,7 +208,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.3.8")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.3.9")
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
   .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
@@ -235,7 +235,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .nativeSettings(
     nativeSettings,
     libraryDependencies ++= Seq(
-      "com.github.lolgab" %%% "native-loop-core" % "0.2.1"
+      "com.github.lolgab" %%% "native-loop-core" % "0.3.0"
     )
   )
 
@@ -404,16 +404,16 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .jsSettings(
     jsSettings,
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.5.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.5.0"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.6.0",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.6.0"
     )
   )
   .nativeSettings(
     nativeSettings,
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.5.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.5.0",
-      "com.github.lolgab" %%% "scala-native-crypto"  % "0.0.4"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.6.0",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.6.0",
+      "com.github.lolgab" %%% "scala-native-crypto"  % "0.0.5"
     )
   )
 
