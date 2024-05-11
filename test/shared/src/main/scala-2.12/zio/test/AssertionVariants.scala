@@ -20,7 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion.Arguments.valueArgument
 import zio.test.{ErrorMessage => M}
 
-trait AssertionVariants {
+trait AssertionVariants extends FieldExtractorPlatformSpecific {
   private def diffProduct[T](
     obj1: T,
     obj2: T,
@@ -53,7 +53,7 @@ trait AssertionVariants {
       case (obj1: Product, obj2: Product) if obj1.productArity == obj2.productArity =>
         obj1.productIterator
           .zip(obj2.productIterator)
-          .zip(obj1.getClass.getDeclaredFields.iterator.map(_.getName))
+          .zip(productFields(obj1))
           .flatMap { case ((subObj1, subObj2), paramName) =>
             val newParamName = if (paramName.nonEmpty) s".$paramName" else ""
             if (subObj1 != subObj2 && !subObj1.isInstanceOf[Product])
