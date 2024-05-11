@@ -1,9 +1,7 @@
 package zio
 
-import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations.{Scope => JScope, _}
 import org.openjdk.jmh.infra.Blackhole
-import zio.BenchmarkedEnvironment.Foo009
 
 import java.util.concurrent.TimeUnit
 
@@ -15,8 +13,8 @@ import java.util.concurrent.TimeUnit
 @Fork(1)
 @Threads(1)
 class ZEnvironmentBenchmark {
-  import BenchmarkedEnvironment._
   import BenchmarkUtil._
+  import BenchmarkedEnvironment._
 
   implicit val u: Unsafe = Unsafe.unsafe
 
@@ -53,23 +51,21 @@ class ZEnvironmentBenchmark {
 
   @Benchmark
   @OperationsPerInvocation(100000)
-  def addGetRepeatBaseline(bh: Blackhole) = {
-    var i = 0
-    var e = env
-    while (i < 100000) {
-      e = env.add(new Foo000).add(new Foo001).add(new Foo002).add(new Foo003).add(new Foo004).add(new Foo005).add(new Foo006).add(new Foo007).add(new Foo008).add(new Foo009)
-      bh.consume(e.get[Foo040])
-      i += 1
-    }
-  }
-
-  @Benchmark
-  @OperationsPerInvocation(100000)
   def addGetRepeat(bh: Blackhole) = {
     var i = 0
     var e = env
     while (i < 100000) {
-      e = e.add(new Foo000).add(new Foo001).add(new Foo002).add(new Foo003).add(new Foo004).add(new Foo005).add(new Foo006).add(new Foo007).add(new Foo008).add(new Foo009)
+      e = e
+        .add(new Foo000)
+        .add(new Foo001)
+        .add(new Foo002)
+        .add(new Foo003)
+        .add(new Foo004)
+        .add(new Foo005)
+        .add(new Foo006)
+        .add(new Foo007)
+        .add(new Foo008)
+        .add(new Foo009)
       bh.consume(e.get[Foo040])
       i += 1
     }
@@ -94,24 +90,20 @@ class ZEnvironmentBenchmark {
   @Benchmark
   @OperationsPerInvocation(10000)
   def accessAfterScoped() =
-    unsafe
-      .run(
-        ZIO
-          .foreachDiscard(1 to 10000)(_ => ZIO.scoped(ZIO.environmentWith[Foo025](_.get[Foo025])))
-          .provideEnvironment(env)
-      )
-      .getOrThrowFiberFailure()
+    unsafe.run(
+      ZIO
+        .foreachDiscard(1 to 10000)(_ => ZIO.scoped(ZIO.environmentWith[Foo025](_.get[Foo025])))
+        .provideEnvironment(env)
+    )
 
   @Benchmark
   @OperationsPerInvocation(10000)
   def accessScope() =
-    unsafe
-      .run(
-        ZIO
-          .foreachDiscard(1 to 10000)(_ => ZIO.scoped(ZIO.environmentWith[Scope](_.get[Scope])))
-          .provideEnvironment(env)
-      )
-      .getOrThrowFiberFailure()
+    unsafe.run(
+      ZIO
+        .foreachDiscard(1 to 10000)(_ => ZIO.scoped(ZIO.environmentWith[Scope](_.get[Scope])))
+        .provideEnvironment(env)
+    )
 
   @Benchmark
   def union() =
@@ -301,28 +293,3 @@ object BenchmarkedEnvironment {
     with Foo049
 
 }
-
-/**
- * Better reads: [info] Benchmark Mode Cnt Score Error Units [info]
- * ZEnvironmentBenchmark.access thrpt 3 6464266.794 ± 938509.883 ops/s [info]
- * ZEnvironmentBenchmark.accessAfterScoped thrpt 3 1998056.230 ± 170249.830
- * ops/s [info] ZEnvironmentBenchmark.accessScope thrpt 3 1909702.790 ±
- * 419198.539 ops/s [info] ZEnvironmentBenchmark.add thrpt 3 132807.631 ±
- * 24516.382 ops/s [info] ZEnvironmentBenchmark.addGetMulti thrpt 3 668267.898 ±
- * 45145.420 ops/s [info] ZEnvironmentBenchmark.addGetOne thrpt 3 725006.560 ±
- * 65943.469 ops/s [info] ZEnvironmentBenchmark.prune thrpt 3 140122.250 ±
- * 11500.980 ops/s [info] ZEnvironmentBenchmark.union thrpt 3 2034758.145 ±
- * 90923.902 ops/s
- */
-
-/**
- * Better writes [info] Benchmark Mode Cnt Score Error Units [info]
- * ZEnvironmentBenchmark.access thrpt 3 9155388.767 ± 742744.912 ops/s [info]
- * ZEnvironmentBenchmark.accessAfterScoped thrpt 3 531923.815 ± 13893.718 ops/s
- * [info] ZEnvironmentBenchmark.accessScope thrpt 3 1912281.970 ± 368748.569
- * ops/s [info] ZEnvironmentBenchmark.add thrpt 3 1624264.002 ± 154064.148 ops/s
- * [info] ZEnvironmentBenchmark.addGetMulti thrpt 3 132649.960 ± 11875.356 ops/s
- * [info] ZEnvironmentBenchmark.addGetOne thrpt 3 7911050.712 ± 294615.399 ops/s
- * [info] ZEnvironmentBenchmark.prune thrpt 3 207599.395 ± 16916.273 ops/s
- * [info] ZEnvironmentBenchmark.union thrpt 3 2069873.448 ± 80499.085 ops/s
- */
