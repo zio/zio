@@ -413,7 +413,7 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     libraryDependencies ++= List(
       "io.github.cquiroz" %%% "scala-java-time"      % "2.6.0",
       "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.6.0",
-      "com.github.lolgab" %%% "scala-native-crypto"  % "0.0.5"
+      "com.github.lolgab" %%% "scala-native-crypto"  % "0.1.0"
     )
   )
 
