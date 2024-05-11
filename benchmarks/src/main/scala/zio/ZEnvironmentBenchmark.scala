@@ -2,6 +2,7 @@ package zio
 
 import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations.{Scope => JScope, _}
+import org.openjdk.jmh.infra.Blackhole
 import zio.BenchmarkedEnvironment.Foo009
 
 import java.util.concurrent.TimeUnit
@@ -26,12 +27,42 @@ class ZEnvironmentBenchmark {
     env = BenchmarkedEnvironment.make()
 
   @Benchmark
-  def addMissingService() =
-    env.add(new StrayFoo)
+  def access() = {
+    env.get[Foo000]
+    env.get[Foo001]
+    env.get[Foo002]
+    env.get[Foo003]
+    env.get[Foo004]
+    env.get[Foo045]
+    env.get[Foo046]
+    env.get[Foo047]
+    env.get[Foo048]
+    env.get[Foo049]
+  }
 
   @Benchmark
-  def addExistingService() =
-    env.add(new Foo025)
+  def add() =
+    env.add(new Bar000).add(new Bar001).add(new Bar002).add(new Bar003).add(new Bar004)
+
+  @Benchmark
+  def addGetOne() =
+    env.add(new Bar000).get[Bar000]
+
+  @Benchmark
+  def addGetMulti(bh: Blackhole) = bh.consume {
+    val e = env.add(new Bar001)
+    e.get[Bar001]
+    e.get[Foo000]
+    e.get[Foo001]
+    e.get[Foo002]
+    e.get[Foo003]
+    e.get[Foo004]
+    e.get[Foo045]
+    e.get[Foo046]
+    e.get[Foo047]
+    e.get[Foo048]
+    e.get[Foo049]
+  }
 
   @Benchmark
   @OperationsPerInvocation(10000)
@@ -67,7 +98,11 @@ class ZEnvironmentBenchmark {
 
 object BenchmarkedEnvironment {
 
-  final class StrayFoo
+  final class Bar000
+  final class Bar001
+  final class Bar002
+  final class Bar003
+  final class Bar004
 
   final class Foo000
   final class Foo001
@@ -124,7 +159,6 @@ object BenchmarkedEnvironment {
   final class Foo048
   final class Foo049
 
-
   def make(): ZEnvironment[Env] =
     ZEnvironment.empty
       .add(new Foo000)
@@ -178,7 +212,8 @@ object BenchmarkedEnvironment {
       .add(new Foo048)
       .add(new Foo049)
 
-  type Env = Foo001
+  type Env = Foo000
+    with Foo001
     with Foo002
     with Foo003
     with Foo004

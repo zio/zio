@@ -60,7 +60,7 @@ private[zio] trait VersionSpecific {
   type LightTypeTag = izumi.reflect.macrortti.LightTypeTag
 
   private[zio] def taggedIsSubtype(left: LightTypeTag, right: LightTypeTag): Boolean =
-    taggedSubtypes.computeIfAbsent((left, right), taggedIsSubtypeFn)
+    taggedSubtypes.computeIfAbsent((left, right), taggedIsSubtypeFn).value
 
   private[zio] def taggedTagType[A](tagged: EnvironmentTag[A]): LightTypeTag =
     tagged.tag
@@ -74,16 +74,16 @@ private[zio] trait VersionSpecific {
   private[zio] def taggedGetServices[A](t: LightTypeTag): Set[LightTypeTag] =
     taggedServices.computeIfAbsent(t, taggedServicesFn)
 
-  private val taggedSubtypes: JMap[(LightTypeTag, LightTypeTag), Boolean] =
+  private val taggedSubtypes: JMap[(LightTypeTag, LightTypeTag), BoxedBool] =
     Platform.newConcurrentMap()(Unsafe.unsafe)
 
   private val taggedServices: JMap[LightTypeTag, Set[LightTypeTag]] =
     Platform.newConcurrentMap()(Unsafe.unsafe)
 
   private[this] val taggedIsSubtypeFn =
-    new java.util.function.Function[(LightTypeTag, LightTypeTag), Boolean] {
-      override def apply(tags: (LightTypeTag, LightTypeTag)): Boolean =
-        tags._1 <:< tags._2
+    new java.util.function.Function[(LightTypeTag, LightTypeTag), BoxedBool] {
+      override def apply(tags: (LightTypeTag, LightTypeTag)): BoxedBool =
+        if (tags._1 <:< tags._2) BoxedBool.True else BoxedBool.False
     }
 
   private[this] val taggedServicesFn =
@@ -91,4 +91,12 @@ private[zio] trait VersionSpecific {
       override def apply(tag: LightTypeTag): Set[LightTypeTag] =
         tag.decompose
     }
+
+  private sealed trait BoxedBool { self =>
+    final def value: Boolean = self eq BoxedBool.True
+  }
+  private object BoxedBool {
+    case object True  extends BoxedBool
+    case object False extends BoxedBool
+  }
 }
