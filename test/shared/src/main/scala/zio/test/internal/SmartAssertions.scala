@@ -343,7 +343,6 @@ object SmartAssertions {
         }
       }
 
-  // Modified equalTo method to accept a rendering function and handle types correctly
   def equalTo[A](that: A, render: (Boolean, A, A, DiffResult) => TestResult)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, TestResult] =
     TestArrow.make[A, TestResult] { a =>
       val result = (a, that) match {
@@ -354,7 +353,6 @@ object SmartAssertions {
       render(result, a, that, diffResult)
     }
 
-  // Define the rendering function with generic type parameters
   def defaultRender[A](result: Boolean, a: A, that: A, diffResult: DiffResult): TestResult = {
     if (!result) {
       TestTrace.fail(
@@ -374,8 +372,6 @@ object SmartAssertions {
       TestTrace.succeed(())
     }
   }
-}
-
 
   def equalToL[A, B](that: B)(implicit diff: OptionalImplicit[Diff[B]], conv: (A => B)): TestArrow[A, Boolean] =
     TestArrow
