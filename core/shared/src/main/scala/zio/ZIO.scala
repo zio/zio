@@ -3040,6 +3040,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.configProviderWith(_.load(config))
 
   /**
+   * Uses the current config provider to load the config of type `A`, or fail
+   * with an error of type Config.Error.
+   */
+  def config[A](implicit trace: Trace, config: Config[A]): ZIO[Any, Config.Error, A] =
+    ZIO.configProviderWith(_.load[A])
+
+  /**
    * Retrieves the current config provider, and passes it to the specified
    * function, which may return an effect that uses the provider to perform some
    * work or compute some value.
@@ -6010,7 +6017,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         for {
           queue <- Queue.bounded[A](size)
           _     <- queue.offerAll(as)
-          _     <- ZIO.collectAllParUnboundedDiscard(ZIO.replicate(n)(worker(queue)))
+          _     <- ZIO.collectAllParUnboundedDiscard(ZIO.replicate(n.min(size))(worker(queue)))
         } yield ()
       }
     }
