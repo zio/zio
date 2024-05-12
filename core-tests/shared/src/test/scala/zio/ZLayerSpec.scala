@@ -362,7 +362,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- ZIO.scoped(layer.build).ignore
           result <- ref.get
         } yield assert(result)(equalTo(4))
-      } @@ withLiveClock,
+      },
       test("error handling") {
         val sleep  = ZIO.sleep(100.milliseconds)
         val layer1 = ZLayer.fail("foo")
