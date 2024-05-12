@@ -165,7 +165,7 @@ object MySpec extends ZIOSpecDefault {
     } @@ ignore, //@@ ignore marks test as ignored
     test("A test using current time") {
       for {
-        _ = TestClock.timeZone
+        _ <- TestClock.timeZone
       } yield assertCompletes
     } @@ withLiveClock //@@ withLiveClock uses the live Clock service from the ZIO runtime in the test
     test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
