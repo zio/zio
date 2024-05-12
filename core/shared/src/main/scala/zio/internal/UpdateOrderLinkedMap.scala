@@ -23,37 +23,37 @@ final class UpdateOrderLinkedMap[K, +V](
       // If the entry to be added is at the tail of the fields, we can just update the value
       new UpdateOrderLinkedMap(self.fields, underlying.updated(key, (self.fields.size - 1, value)))
     } else {
-      var fs = fields
-      val sz = fs.size
-      val s  = existing._1
+      var fs     = fields
+      val oldIdx = existing._1
 
       // Calculate next of kin
-      val next =
-        if (s < sz - 1) fs(s + 1) match {
-          case Tombstone(d) => s + d + 1
-          case _            => s + 1
-        }
-        else s + 1
-
-      fs = fs.updated(s, Tombstone(next - s))
+      val next = fs(oldIdx + 1) match {
+        case Tombstone(d) => oldIdx + d + 1
+        case _            => oldIdx + 1
+      }
 
       // Calculate first index of preceding tombstone sequence
       val first =
-        if (s > 0) {
-          fs(s - 1) match {
-            case Tombstone(d) if d < 0  => if (s + d >= 0) s + d else 0
-            case Tombstone(d) if d == 1 => s - 1
+        if (oldIdx > 0) {
+          fs(oldIdx - 1) match {
+            case Tombstone(d) if d < 0  => if (oldIdx + d >= 0) oldIdx + d else 0
+            case Tombstone(d) if d == 1 => oldIdx - 1
             case Tombstone(d)           => throw new IllegalStateException("tombstone indicate wrong position: " + d)
-            case _                      => s
+            case _                      => oldIdx
           }
-        } else s
-      fs = fs.updated(first, Tombstone(next - first))
+        } else oldIdx
 
       // Calculate last index of succeeding tombstone sequence
       val last = next - 1
+
+      fs = fs.updated(first, Tombstone(next - first))
       if (last != first) {
         fs = fs.updated(last, Tombstone(first - 1 - last))
       }
+      if (oldIdx != first && oldIdx != last) {
+        fs = fs.updated(oldIdx, Tombstone(next - oldIdx))
+      }
+
       new UpdateOrderLinkedMap(fs :+ key, underlying.updated(key, (fields.length, value)))
     }
   }
@@ -114,8 +114,9 @@ final class UpdateOrderLinkedMap[K, +V](
         null.asInstanceOf[K]
       } else {
         fields(nextSlot) match {
+          case Tombstone(d) if d < 0  => findNextKey(nextSlot + d)
           case Tombstone(d) if d == 1 => findNextKey(nextSlot - 1)
-          case Tombstone(d)           => findNextKey(nextSlot + d)
+          case Tombstone(d)           => throw new IllegalStateException("tombstone indicate wrong position: " + d)
           case k =>
             slot = nextSlot
             k.asInstanceOf[K]
