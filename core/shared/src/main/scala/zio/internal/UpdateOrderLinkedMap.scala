@@ -159,6 +159,8 @@ final class UpdateOrderLinkedMap[K, +V](
 
   def toList: List[(K, V)] = iterator.toList
 
+  lazy val reversedLazyList: LazyList[(K, V)] = LazyList.from(reverseIterator)
+
   override def hashCode(): Int = MurmurHash3.orderedHash(iterator)
 }
 
@@ -169,6 +171,12 @@ object UpdateOrderLinkedMap {
     new UpdateOrderLinkedMap[Nothing, Nothing](Vector.empty[Nothing], HashMap.empty[Nothing, (Int, Nothing)])
 
   def empty[K, V]: UpdateOrderLinkedMap[K, V] = EmptyMap.asInstanceOf[UpdateOrderLinkedMap[K, V]]
+
+  def from[K, V](it: IterableOnce[(K, V)]): UpdateOrderLinkedMap[K, V] = {
+    val builder = newBuilder[K, V]
+    builder.addAll(it)
+    builder.result()
+  }
 
   def newBuilder[K, V]: UpdateOrderLinkedMap.Builder[K, V] = new UpdateOrderLinkedMap.Builder[K, V]
 

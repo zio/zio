@@ -30,9 +30,9 @@ final class ZEnvironment[+R] private (
 ) extends Serializable { self =>
   import ZEnvironment.ScopeTag
 
-//  @deprecated("Kept for binary compatibility only. Do not use", "2.1.2")
-//  private[ZEnvironment] def this(map: Map[LightTypeTag, Any], index: Int, cache: Map[LightTypeTag, Any] = Map.empty) =
-//    this(VectorMap.empty ++ map, HashMap.from(cache), null)
+  @deprecated("Kept for binary compatibility only. Do not use", "2.1.2")
+  private[ZEnvironment] def this(map: Map[LightTypeTag, Any], index: Int, cache: Map[LightTypeTag, Any] = Map.empty) =
+    this(UpdateOrderLinkedMap.from(map), HashMap.from(cache), null)
 
   def ++[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.union[R1](that)
@@ -41,7 +41,6 @@ final class ZEnvironment[+R] private (
    * LazyList allows us to iterate over the entries lazily while also caching
    * their computation when we need to create multiple iterators
    */
-  private val reversedMapEntries = LazyList.from(map.reverseIterator)
 
   /**
    * Adds a service to the environment.
@@ -233,14 +232,13 @@ final class ZEnvironment[+R] private (
         if (fromCache != null) fromCache.asInstanceOf[A]
         else if ((scope ne null) && isScopeTag(tag)) scope.asInstanceOf[A]
         else if (!self.isEmpty) {
-          var remaining = reversedMapEntries
+          val remaining = self.map.reversedLazyList.iterator
           var service   = null.asInstanceOf[A]
-          while ((remaining ne Nil) && service == null) {
-            val (curTag, entry) = remaining.head
+          while (service == null && remaining.hasNext) {
+            val (curTag, entry) = remaining.next()
             if (taggedIsSubtype(curTag, tag)) {
               service = entry.asInstanceOf[A]
             }
-            remaining = remaining.tail
           }
           if (service == null) {
             default
