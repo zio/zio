@@ -345,7 +345,7 @@ object SmartAssertions {
 
   def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, DiffResult] =
     TestArrow
-      .make[A, DiffResult] { a =>
+      .make[A, TestTrace[DiffResult]] { a =>
         val result = (a, that) match {
           case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
           case _ => a == that
@@ -353,11 +353,11 @@ object SmartAssertions {
         diff.value match {
           case Some(diff) if !diff.isLowPriority && !result =>
             diff.diff(that, a)
-          case _ => DiffResult.Identical
+          case _ => TestTrace.succeed(DiffResult.Identical)
         }
       }
 
-  def renderDiffResult(result: DiffResult, 
+  def renderDiffResult[A](result: DiffResult, 
                       matched: Boolean, 
                       expected: A, 
                       actual: A): String = {
@@ -366,17 +366,18 @@ object SmartAssertions {
         case DiffResult.Different(_, _, None) =>
           s"${M.pretty(expected)}${M.equals}${M.pretty(actual)}"
         case diffResult =>
-          M.choice("There was no difference", "There was a difference") ++
-            M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(expected)) ++
+           val diffRender = diffResult.render 
+          M.choice("There was no difference", "There was a difference").render ++
+            M.custom(ConsoleUtils.underlined("Expected")).render ++ M.custom(PrettyPrint(expected)).render ++
             M.custom(
               ConsoleUtils.underlined(
                 "Diff"
               ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
-            ) ++
-            M.custom(scala.Console.RESET + diffResult.render)
+            ).render ++
+            M.custom(scala.Console.RESET + diffResult.render).render
       }
     } else {
-      M.pretty(expected) + M.equals + M.pretty(actual)
+      M.pretty(expected).render + M.equals.render + M.pretty(actual).render
     }
   }
 
