@@ -176,3 +176,19 @@ test("zipLatest") {
   } yield assertTrue(result == List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2))
 }
 ```
+### Example 5
+
+In ZIO 2.x, the default services were removed from the environment in favor of integrating these services directly into the ZIO runtime. This means that `TestClock` can be accessed in the live scope using the `withLiveClock` test aspect as shown below:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.Assertion._
+import zio.test.TestAspect._
+
+test("Test using live Clock service") {
+  for {
+    _ <- TestClock.timeZone
+  } yield assertCompletes
+} @@ withLiveClock
+```
+

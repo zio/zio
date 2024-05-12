@@ -24,3 +24,5 @@ println("""```scala""")
 println("""testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")""")
 println("""```""")
 ```
+
+**NOTE**: Default services were removed from the ZIO environment in ZIO 2.x. This also brings some changes to the way we run tests using these services. In order to use the live version of the services in our tests, we can use some new helpful test aspects e.g `withLiveClock`, `withLiveConsole`, `withLiveRandom`, `withLiveSystem`, etc.
