@@ -243,7 +243,7 @@ object SmartAssertMacros {
           case '[l] =>
             Expr.summon[OptionalImplicit[Diff[l]]] match {
               case Some(optDiff) =>
-                '{${transform(lhs.asExpr)} >>> SmartAssertions.equalTo(${rhs.asExpr})($optDiff.asInstanceOf[OptionalImplicit[Diff[Any]]]).span($span)}.asExprOf[TestArrow[Any, A]]
+                '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.equalTo(${rhs.asExprOf[l]})($optDiff).span($span)}.asExprOf[TestArrow[Any, A]]
               case _ => throw new Error("OptionalImplicit should be always available")
             }
         }
