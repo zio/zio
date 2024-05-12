@@ -3346,7 +3346,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def timeout(d: => Duration)(implicit trace: Trace): ZStream[R, E, A] =
     ZStream.succeed(d).flatMap { d =>
       ZStream.fromPull[R, E, A] {
-        self.toPull.map(pull => pull.timeoutFail(None)(d))
+        self.toPull.map { pull =>
+          // None case on the error channel of pull indicates completion/done.
+          // Move it to success channel before calling timeout effect so that it does not log completion as failure.
+          // In the end, move None case back to error channel for further stream processing
+          pull.unsome.timeoutTo(None)(identity)(d).some
+        }
       }
     }
 
@@ -3368,7 +3373,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   )(d: => Duration)(implicit trace: Trace): ZStream[R, E1, A] =
     ZStream.succeed((cause, d)).flatMap { case (cause, d) =>
       ZStream.fromPull[R, E1, A] {
-        self.toPull.map(pull => pull.timeoutFailCause(cause.map(Some(_)))(d))
+        self.toPull.map { pull =>
+          // None case on the error channel of pull indicates completion/done.
+          // Move it to success channel before calling timeout effect so that it does not log completion as failure.
+          // In the end, move None case back to error channel for further stream processing
+          pull.unsome.timeoutFailCause(cause)(d).some
+        }
       }
     }
 
