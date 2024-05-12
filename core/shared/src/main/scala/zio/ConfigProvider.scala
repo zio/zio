@@ -32,6 +32,12 @@ trait ConfigProvider {
   def load[A](config: Config[A])(implicit trace: Trace): IO[Config.Error, A]
 
   /**
+   * Loads the configuration of type `A` using implicit Config[A], or fails with
+   * a config error.
+   */
+  def load[A](implicit trace: Trace, config: Config[A]): IO[Config.Error, A] = load(config)
+
+  /**
    * Returns a new config provider that will automatically tranform all path
    * configuration names with the specified function. This can be utilized to
    * adapt the names of configuration properties from one naming convention to
