@@ -16,35 +16,32 @@
 
 package zio
 
+import zio.internal.UpdateOrderLinkedMap
+
 import scala.annotation.tailrec
 import scala.collection.immutable.{HashMap, VectorMap}
 import scala.collection.mutable
 import scala.util.hashing.MurmurHash3
 
 final class ZEnvironment[+R] private (
-  private val map: VectorMap[LightTypeTag, Any],
+  private val map: UpdateOrderLinkedMap[LightTypeTag, Any],
   private var cache: HashMap[LightTypeTag, Any],
   private val scope: Scope
 ) extends Serializable { self =>
   import ZEnvironment.ScopeTag
 
-  @deprecated("Kept for binary compatibility only. Do not use", "2.1.2")
-  private[ZEnvironment] def this(map: Map[LightTypeTag, Any], index: Int, cache: Map[LightTypeTag, Any] = Map.empty) =
-    this(VectorMap.empty ++ map, HashMap.from(cache), null)
+//  @deprecated("Kept for binary compatibility only. Do not use", "2.1.2")
+//  private[ZEnvironment] def this(map: Map[LightTypeTag, Any], index: Int, cache: Map[LightTypeTag, Any] = Map.empty) =
+//    this(VectorMap.empty ++ map, HashMap.from(cache), null)
 
   def ++[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.union[R1](that)
 
-  // Cache the reversing so that repeated lookups are faster
-  private lazy val reversedMapEntries = {
-    var l  = List.empty[(LightTypeTag, Any)]
-    val it = map.iterator
-    while (it.hasNext) {
-      val next = it.next()
-      l = next :: l
-    }
-    l
-  }
+  /**
+   * LazyList allows us to iterate over the entries lazily while also caching
+   * their computation when we need to create multiple iterators
+   */
+  private val reversedMapEntries = LazyList.from(map.reverseIterator)
 
   /**
    * Adds a service to the environment.
@@ -81,8 +78,7 @@ final class ZEnvironment[+R] private (
     Option(unsafe.getOrElse(tag.tag, null.asInstanceOf[A])(Unsafe.unsafe))
 
   override lazy val hashCode: Int = {
-    // NOTE: We can't use map.hashCode because that doesn't take ordering into account
-    MurmurHash3.productHash((MurmurHash3.orderedHash(map), scope))
+    MurmurHash3.productHash((MurmurHash3.orderedHash(map.iterator), scope))
   }
 
   /**
@@ -98,7 +94,7 @@ final class ZEnvironment[+R] private (
 
     if (set.isEmpty || self.isEmpty) self
     else {
-      val builder = VectorMap.newBuilder[LightTypeTag, Any]
+      val builder = UpdateOrderLinkedMap.newBuilder[LightTypeTag, Any]
       val found   = new mutable.HashSet[LightTypeTag]
       found.sizeHint(set.size)
 
@@ -109,7 +105,7 @@ final class ZEnvironment[+R] private (
         if (set.contains(leftTag)) {
           // Exact match, no need to loop
           found.add(leftTag)
-          builder += next
+          builder addOne next
         } else {
           // Need to check whether it's a subtype
           var loop = true
@@ -118,7 +114,7 @@ final class ZEnvironment[+R] private (
             val rightTag = it1.next()
             if (taggedIsSubtype(leftTag, rightTag)) {
               found.add(rightTag)
-              builder += next
+              builder addOne next
               loop = false
             }
           }
@@ -172,8 +168,8 @@ final class ZEnvironment[+R] private (
   def unionAll[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     if (self == that) that.asInstanceOf[ZEnvironment[R with R1]]
     else {
-      val newMap = that.map.foldLeft(self.map) { case (map, (k, v)) =>
-        map.removed(k).updated(k, v)
+      val newMap = that.map.iterator.foldLeft(self.map) { case (map, (k, v)) =>
+        map.updated(k, v)
       }
       val newScope = if (that.scope eq null) self.scope else that.scope
       // Reuse the cache of the right hand-side
@@ -226,7 +222,7 @@ final class ZEnvironment[+R] private (
         // Might seem expensive, but `filterNot` will preserve the map in cases there were no removals (i.e., no supertypes in the cache)
         // val newCache = cache.filterNot { case (k, _) => taggedIsSubtype(tag, k) && k != tag }.updated(tag, a)
         val newCache = HashMap(tag -> a)
-        new ZEnvironment(map.removed(tag).updated(tag, a), cache = newCache, scope = scope)
+        new ZEnvironment(map.updated(tag, a), cache = newCache, scope = scope)
       }
 
       def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A =
@@ -329,7 +325,7 @@ object ZEnvironment {
    * The empty environment containing no services.
    */
   val empty: ZEnvironment[Any] =
-    new ZEnvironment[Any](VectorMap.empty, cache = HashMap.empty, scope = null)
+    new ZEnvironment[Any](UpdateOrderLinkedMap.empty, cache = HashMap.empty, scope = null)
 
   /**
    * A `Patch[In, Out]` describes an update that transforms a `ZEnvironment[In]`
