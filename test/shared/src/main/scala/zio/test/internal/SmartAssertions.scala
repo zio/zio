@@ -350,7 +350,7 @@ object SmartAssertions {
           case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
           case _ => a == that
         }
-
+        println(s"Result: $result") 
         TestTrace.boolean(result)
       }
 
