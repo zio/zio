@@ -346,14 +346,14 @@ object SmartAssertions {
   def renderDiffResult[A](diffResult: DiffResult, expected: A, actual: A)(implicit diff: OptionalImplicit[Diff[A]]): String = {
     diff.value match {
       case Some(diff) if!diff.isLowPriority &&!diffResult.isLowPriority =>
-        M.choice("There was no difference", "There was a difference") ++
+        M.choice("There was no difference", "There was a difference").render ++
           M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(expected)) ++
           M.custom(
             ConsoleUtils.underlined(
               "Diff"
             ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
           ) ++
-          M.custom(scala.Console.RESET + diffResult.render)
+          M.custom(scala.Console.RESET + diffResult.render.render)
       case _ =>
         M.pretty(expected) + M.equals + M.pretty(actual)
     }
@@ -369,9 +369,9 @@ object SmartAssertions {
 
         TestTrace.boolean(result) {
           diff.value match {
-            case Some(diff) if!diff.isLowPriority &&!result =>
+            case Some(diff) if !diff.isLowPriority && !result =>
               val diffResult = diff.diff(that, a)
-              renderDiffResult(diffResult, that, a)
+              M(renderDiffResult(diffResult, that, a))
             case _ =>
               M.pretty(a) + M.equals + M.pretty(that)
           }
