@@ -144,7 +144,7 @@ class ZEnvironmentBenchmark {
 
   @Benchmark
   def prune() =
-    env.prune[Foo001 & Foo002 & Foo003]
+    env.prune[Foo001 with Foo002 with Foo003]
 
 }
 
@@ -272,7 +272,7 @@ object BenchmarkedEnvironment {
       .add(new Foo048)
       .add(new Foo049)
 
-  type SmallEnv = Bar000 & Bar001 & Bar002 & Bar003 & Bar004
+  type SmallEnv = Bar000 with Bar001 with Bar002 with Bar003 with Bar004
 
   type Env = Foo000
     with Foo001

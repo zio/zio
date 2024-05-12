@@ -162,7 +162,7 @@ final class ZEnvironment[+R] private (
   def unionAll[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     if (self == that) that.asInstanceOf[ZEnvironment[R with R1]]
     else {
-      val newMap = that.map.toList.foldLeft(self.map) { case (map, (k, v)) =>
+      val newMap = that.map.iterator.foldLeft(self.map) { case (map, (k, v)) =>
         map.updated(k, v)
       }
       val newScope = if (that.scope eq null) self.scope else that.scope

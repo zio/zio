@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019-2024 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.internal
 
 import scala.annotation.tailrec
@@ -5,7 +21,7 @@ import scala.collection.AbstractIterator
 import scala.collection.immutable.{HashMap, VectorBuilder}
 import scala.util.hashing.MurmurHash3
 
-final class UpdateOrderLinkedMap[K, +V](
+private[zio] final class UpdateOrderLinkedMap[K, +V](
   fields: Vector[Any],
   underlying: HashMap[K, (Int, V)]
 ) { self =>
@@ -21,7 +37,7 @@ final class UpdateOrderLinkedMap[K, +V](
       new UpdateOrderLinkedMap(self.fields :+ key, underlying.updated(key, (self.fields.size, value)))
     } else if (existing._1 == self.fields.size - 1) {
       // If the entry to be added is at the tail of the fields, we can just update the value
-      new UpdateOrderLinkedMap(self.fields, underlying.updated(key, (self.fields.size - 1, value)))
+      new UpdateOrderLinkedMap(self.fields, underlying.updated(key, existing.copy(_2 = value)))
     } else {
       var fs     = fields
       val oldIdx = existing._1
@@ -139,7 +155,7 @@ final class UpdateOrderLinkedMap[K, +V](
   override def hashCode(): Int = MurmurHash3.orderedHash(iterator)
 }
 
-object UpdateOrderLinkedMap {
+private[zio] object UpdateOrderLinkedMap {
   private final case class Tombstone(distance: Int)
 
   private[this] final val EmptyMap: UpdateOrderLinkedMap[Nothing, Nothing] =
@@ -174,6 +190,7 @@ object UpdateOrderLinkedMap {
       }
       aliased
     }
+
     def addOne(key: K, value: V): UpdateOrderLinkedMap.Builder[K, V] = {
       if (aliased ne null) {
         aliased = aliased.updated(key, value)
@@ -194,18 +211,19 @@ object UpdateOrderLinkedMap {
     }
   }
 
-  private sealed trait LzList[+A] {
-    def head: A
-    def tail: LzList[A]
+  private sealed trait LzList[+A] { self =>
+    protected def head: A
+    protected def tail: LzList[A]
 
     final def isEmpty: Boolean = this eq LzList.Empty
 
-    final def iterator = new AbstractIterator[A] {
-      private[this] var current: LzList[A] = LzList.this
+    final def iterator: Iterator[A] = new AbstractIterator[A] {
+      private[this] var current: LzList[A] = self
 
       override def hasNext: Boolean = !current.isEmpty
 
       override def next(): A = {
+        // Never call `tail` before `head`!
         val result = current.head
         current = current.tail
         result
@@ -220,13 +238,13 @@ object UpdateOrderLinkedMap {
     def empty[A]: LzList[A] = Empty
 
     private case object Empty extends LzList[Nothing] {
-      def head: Nothing         = throw new NoSuchElementException("head of empty list")
-      def tail: LzList[Nothing] = throw new NoSuchElementException("tail of empty list")
+      protected def head: Nothing         = throw new NoSuchElementException("head of empty list")
+      protected def tail: LzList[Nothing] = throw new NoSuchElementException("tail of empty list")
     }
 
-    private final class Cons[A](private val _head: () => A, private val _tail: () => LzList[A]) extends LzList[A] {
-      @transient lazy val head: A         = _head()
-      @transient lazy val tail: LzList[A] = _tail()
+    private final class Cons[A](_head: () => A, _tail: () => LzList[A]) extends LzList[A] {
+      @transient protected lazy val head: A         = _head()
+      @transient protected lazy val tail: LzList[A] = _tail()
     }
   }
 }
