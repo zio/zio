@@ -22,12 +22,13 @@ import scala.annotation.tailrec
 import java.util.{Set => JavaSet}
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
-
 import zio._
 import zio.metrics.{Metric, MetricLabel}
 import zio.Exit.Failure
 import zio.Exit.Success
 import zio.internal.SpecializationHelpers.SpecializeInt
+
+import scala.util.control.ControlThrowable
 
 final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtimeFlags0: RuntimeFlags)
     extends Fiber.Runtime.Internal[E, A]
@@ -36,7 +37,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   type Erased = ZIO.Erased
 
   import ZIO._
-  import FiberRuntime.EvaluationSignal
+  import FiberRuntime.{AsyncJump, EvaluationSignal}
 
   private var _lastTrace      = fiberId.location
   private var _fiberRefs      = fiberRefs0
@@ -1451,6 +1452,9 @@ object FiberRuntime {
     final val YieldNow = 2
     final val Done     = 3
   }
+
+  private object AsyncJump extends ControlThrowable
+
   import java.util.concurrent.atomic.AtomicBoolean
 
   def apply[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs, runtimeFlags: RuntimeFlags): FiberRuntime[E, A] =
