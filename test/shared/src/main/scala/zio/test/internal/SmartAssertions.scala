@@ -343,25 +343,29 @@ object SmartAssertions {
         }
       }
 
-  def renderDiffResult[A](diffResult: DiffResult, expected: A, actual: A)(implicit diff: OptionalImplicit[Diff[A]]): String = {
+  def renderDiffResult[A](diffResult: DiffResult, expected: A, actual: A)(implicit diff: OptionalImplicit[Diff[A]]): TestTrace[ErrorMessage] = {
     diff.value match {
-      case Some(diff) if!diff.isLowPriority &&!diffResult.isLowPriority =>
+      case Some(diff) if !diff.isLowPriority && !diffResult.isLowPriority =>
+      val renderedDiff = 
         M.choice("There was no difference", "There was a difference").render ++
-          M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(expected)) ++
+          M.custom(ConsoleUtils.underlined("Expected")).render ++ M.custom(PrettyPrint(expected)).render ++
           M.custom(
             ConsoleUtils.underlined(
               "Diff"
             ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
-          ) ++
-          M.custom(scala.Console.RESET + diffResult.render.render)
+          ).render ++
+          M.custom(scala.Console.RESET + diffResult.render).render
+      TestTrace.fail(ErrorMessage(renderedDiff))
       case _ =>
-        M.pretty(expected) + M.equals + M.pretty(actual)
+        TestTrace.succeed(ErrorMessage(
+          M.pretty(expected).render + M.equals.render + M.pretty(actual).render
+        ))
     }
   }
 
   def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
     TestArrow
-    .make[A, Boolean] { a =>
+      .make[A, Boolean] { a =>
         val result = (a, that) match {
           case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
           case _                             => a == that
@@ -371,9 +375,11 @@ object SmartAssertions {
           diff.value match {
             case Some(diff) if !diff.isLowPriority && !result =>
               val diffResult = diff.diff(that, a)
-              M(renderDiffResult(diffResult, that, a))
+              renderDiffResult(diffResult, that, a)
             case _ =>
-              M.pretty(a) + M.equals + M.pretty(that)
+              TestTrace.succeed(ErrorMessage(
+                M.pretty(a).render + M.equals.render + M.pretty(that).render
+              ))
           }
         }
       }
