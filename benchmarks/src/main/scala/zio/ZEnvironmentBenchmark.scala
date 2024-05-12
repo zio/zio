@@ -28,17 +28,17 @@ class ZEnvironmentBenchmark {
   }
 
   @Benchmark
-  def access() = {
-    env.get[Foo000]
-    env.get[Foo001]
-    env.get[Foo002]
-    env.get[Foo003]
-    env.get[Foo004]
-    env.get[Foo045]
-    env.get[Foo046]
-    env.get[Foo047]
-    env.get[Foo048]
-    env.get[Foo049]
+  def access(bh: Blackhole) = {
+    bh.consume(env.get[Foo040])
+    bh.consume(env.get[Foo041])
+    bh.consume(env.get[Foo042])
+    bh.consume(env.get[Foo043])
+    bh.consume(env.get[Foo044])
+    bh.consume(env.get[Foo045])
+    bh.consume(env.get[Foo046])
+    bh.consume(env.get[Foo047])
+    bh.consume(env.get[Foo048])
+    bh.consume(env.get[Foo049])
   }
 
   @Benchmark
@@ -50,22 +50,44 @@ class ZEnvironmentBenchmark {
     env.add(new Bar000).get[Bar000]
 
   @Benchmark
-  @OperationsPerInvocation(100000)
+  @OperationsPerInvocation(10000)
   def addGetRepeat(bh: Blackhole) = {
     var i = 0
     var e = env
-    while (i < 100000) {
+    while (i < 10000) {
       e = e
-        .add(new Foo000)
-        .add(new Foo001)
-        .add(new Foo002)
-        .add(new Foo003)
-        .add(new Foo004)
-        .add(new Foo005)
-        .add(new Foo006)
-        .add(new Foo007)
-        .add(new Foo008)
-        .add(new Foo009)
+        .add(new Foo040)
+        .add(new Foo041)
+        .add(new Foo042)
+        .add(new Foo043)
+        .add(new Foo044)
+        .add(new Foo045)
+        .add(new Foo046)
+        .add(new Foo047)
+        .add(new Foo048)
+        .add(new Foo049)
+      bh.consume(e.get[Foo040])
+      i += 1
+    }
+  }
+
+  @Benchmark
+  @OperationsPerInvocation(10000)
+  def addGetRepeatBaseline(bh: Blackhole) = {
+    var i = 0
+    var e = env
+    while (i < 10000) {
+      e = env
+        .add(new Foo040)
+        .add(new Foo041)
+        .add(new Foo042)
+        .add(new Foo043)
+        .add(new Foo044)
+        .add(new Foo045)
+        .add(new Foo046)
+        .add(new Foo047)
+        .add(new Foo048)
+        .add(new Foo049)
       bh.consume(e.get[Foo040])
       i += 1
     }
@@ -75,11 +97,11 @@ class ZEnvironmentBenchmark {
   def addGetMulti(bh: Blackhole) = {
     val e = env.add(new Bar001)
     bh.consume(e.get[Bar001])
-    bh.consume(e.get[Foo000])
-    bh.consume(e.get[Foo001])
-    bh.consume(e.get[Foo002])
-    bh.consume(e.get[Foo003])
-    bh.consume(e.get[Foo004])
+    bh.consume(e.get[Foo040])
+    bh.consume(e.get[Foo041])
+    bh.consume(e.get[Foo042])
+    bh.consume(e.get[Foo043])
+    bh.consume(e.get[Foo044])
     bh.consume(e.get[Foo045])
     bh.consume(e.get[Foo046])
     bh.consume(e.get[Foo047])
@@ -306,28 +328,16 @@ object BenchmarkedEnvironment {
 }
 
 /*
-[info] Benchmark                                 Mode  Cnt         Score        Error  Units
-[info] ZEnvironmentBenchmark.access             thrpt    3  15317713.880 ± 691407.634  ops/s
-[info] ZEnvironmentBenchmark.accessAfterScoped  thrpt    3    547842.919 ± 102911.143  ops/s
-[info] ZEnvironmentBenchmark.accessScope        thrpt    3    485502.858 ±  80725.715  ops/s
-[info] ZEnvironmentBenchmark.add                thrpt    3   3404552.760 ± 166969.278  ops/s
-[info] ZEnvironmentBenchmark.addGetMulti        thrpt    3     58094.725 ±   7625.087  ops/s
-[info] ZEnvironmentBenchmark.addGetOne          thrpt    3    707347.468 ±  47408.525  ops/s
-[info] ZEnvironmentBenchmark.addGetRepeat       thrpt    3    569658.211 ±  22241.694  ops/s
-[info] ZEnvironmentBenchmark.prune              thrpt    3     84737.132 ±   6659.910  ops/s
-[info] ZEnvironmentBenchmark.union              thrpt    3   1117896.335 ± 162350.919  ops/s
- */
-
-/*
-[info] Benchmark                                 Mode  Cnt         Score          Error  Units
-[info] ZEnvironmentBenchmark.access             thrpt    3  11980520.857 ± 11410618.481  ops/s
-[info] ZEnvironmentBenchmark.accessAfterScoped  thrpt    3    501940.803 ±   741989.749  ops/s
-[info] ZEnvironmentBenchmark.accessScope        thrpt    3   2095640.835 ±    47546.164  ops/s
-[info] ZEnvironmentBenchmark.add                thrpt    3   1896121.353 ±    90542.715  ops/s
-[info] ZEnvironmentBenchmark.addGetMulti        thrpt    3    137253.329 ±     6402.602  ops/s
-[info] ZEnvironmentBenchmark.addGetOne          thrpt    3   8441052.400 ±   585066.613  ops/s
-[info] ZEnvironmentBenchmark.addGetRepeat       thrpt    3    237182.895 ±    15012.450  ops/s
-[info] ZEnvironmentBenchmark.prune              thrpt    3    217658.535 ±    22414.355  ops/s
-[info] ZEnvironmentBenchmark.union              thrpt    3   2206037.664 ±    59785.571  ops/s
-
+[info] Benchmark                                         Mode  Cnt        Score        Error  Units
+[info] ZEnvironmentBenchmark.access                     thrpt    6  9350561.124 ±  74526.515  ops/s
+[info] ZEnvironmentBenchmark.accessAfterScoped          thrpt    6  1959546.633 ±  26073.619  ops/s
+[info] ZEnvironmentBenchmark.accessAfterScopedUncached  thrpt    6   832135.422 ±  31198.798  ops/s
+[info] ZEnvironmentBenchmark.accessScope                thrpt    6  1904231.684 ±  19471.317  ops/s
+[info] ZEnvironmentBenchmark.add                        thrpt    6  1828685.550 ±  12715.251  ops/s
+[info] ZEnvironmentBenchmark.addGetMulti                thrpt    6   476091.751 ±  21265.381  ops/s
+[info] ZEnvironmentBenchmark.addGetOne                  thrpt    6  8632006.222 ± 333867.899  ops/s
+[info] ZEnvironmentBenchmark.addGetRepeat               thrpt    6   459445.983 ±  15382.794  ops/s
+[info] ZEnvironmentBenchmark.addGetRepeatBaseline       thrpt    6   560367.659 ±  18064.408  ops/s
+[info] ZEnvironmentBenchmark.prune                      thrpt    6   238747.880 ±   5288.523  ops/s
+[info] ZEnvironmentBenchmark.union                      thrpt    6  2658024.830 ±  53314.151  ops/s
  */

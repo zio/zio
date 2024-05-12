@@ -11,27 +11,21 @@ final class UpdateOrderLinkedMap[K, +V](
 ) { self =>
   import UpdateOrderLinkedMap._
 
-  val size: Int = underlying.size
+  def size: Int = underlying.size
 
   def isEmpty: Boolean = size == 0
 
   def updated[V1 >: V](key: K, value: V1): UpdateOrderLinkedMap[K, V1] = {
-    var fs = fields
-    val sz = fs.size
-
     val existing = underlying.getOrElse(key, null)
     if (existing eq null) {
-      new UpdateOrderLinkedMap(fs :+ key, underlying.updated(key, (sz, value)))
-    } else if (existing._1 == sz - 1) {
+      new UpdateOrderLinkedMap(self.fields :+ key, underlying.updated(key, (self.fields.size, value)))
+    } else if (existing._1 == self.fields.size - 1) {
       // If the entry to be added is at the tail of the fields, we can just update the value
-      new UpdateOrderLinkedMap(fs, underlying.updated(key, (sz - 1, value)))
-    } else if (sz - self.size > 10000) {
-      val builder = newBuilder[K, V1]
-      builder.addAll(self.iterator)
-      builder.addOne(key, value)
-      builder.result()
+      new UpdateOrderLinkedMap(self.fields, underlying.updated(key, (self.fields.size - 1, value)))
     } else {
-      val s = existing._1
+      var fs = fields
+      val sz = fs.size
+      val s  = existing._1
 
       // Calculate next of kin
       val next =
@@ -64,102 +58,82 @@ final class UpdateOrderLinkedMap[K, +V](
     }
   }
 
-  def iterator: Iterator[(K, V)] = new AbstractIterator[(K, V)] {
+  def iterator: Iterator[(K, V)] = iteratorLz.iterator
+
+  private[this] lazy val iteratorLz: LzList[(K, V)] = {
+    val it = iterator0
+    def loop(): LzList[(K, V)] =
+      if (it.hasNext) LzList(it.next(), loop()) else LzList.empty
+    loop()
+  }
+
+  private[this] def iterator0: Iterator[(K, V)] = new AbstractIterator[(K, V)] {
     private[this] val fieldsLength = fields.length
     private[this] var slot         = -1
-    private[this] var key: K       = null.asInstanceOf[K]
 
     @tailrec
-    final private[this] def nextValidField(slot: Int): (Int, K) =
-      if (slot >= fields.size) (-1, null.asInstanceOf[K])
-      else
-        fields(slot) match {
-          case Tombstone(distance) => nextValidField(slot + distance)
-          case k /*: K | Null */   => (slot, k.asInstanceOf[K])
-        }
-
-    final private[this] def advance(): Unit = {
-      val nextSlot = slot + 1
+    final private[this] def findNextKey(nextSlot: Int): K =
       if (nextSlot >= fieldsLength) {
         slot = fieldsLength
-        key = null.asInstanceOf[K]
-      } else {
-        nextValidField(nextSlot) match {
-          case (-1, _) =>
-            slot = fieldsLength
-            key = null.asInstanceOf[K]
-          case (s, k) =>
-            slot = s
-            key = k
+        null.asInstanceOf[K]
+      } else
+        fields(nextSlot) match {
+          case Tombstone(d) => findNextKey(nextSlot + d)
+          case k =>
+            slot = nextSlot
+            k.asInstanceOf[K]
         }
-      }
-    }
 
-    advance()
-
-    override def knownSize: Int = self.size
-
-    override def hasNext: Boolean = slot < fieldsLength
+    override def hasNext: Boolean = slot < fieldsLength - 1
 
     override def next(): (K, V) =
       if (!hasNext) Iterator.empty.next()
       else {
-        val result = (key, underlying(key)._2)
-        advance()
-        result
+        val key = findNextKey(slot + 1)
+        (key, underlying(key)._2)
       }
   }
 
-  def reverseIterator: Iterator[(K, V)] = new AbstractIterator[(K, V)] {
-    private[this] var slot   = fields.length
-    private[this] var key: K = null.asInstanceOf[K]
+  def reverseIterator: Iterator[(K, V)] = reverseIteratorLz.iterator
+
+  private[this] lazy val reverseIteratorLz: LzList[(K, V)] = {
+    val it = reverseIterator0
+    def loop(): LzList[(K, V)] =
+      if (it.hasNext) LzList(it.next(), loop()) else LzList.empty
+
+    loop()
+  }
+
+  private def reverseIterator0: Iterator[(K, V)] = new AbstractIterator[(K, V)] {
+    private[this] var slot = fields.length
 
     @tailrec
-    final private[this] def nextValidField(slot: Int): (Int, K) =
-      if (slot < 0) (-1, null.asInstanceOf[K])
-      else
-        fields(slot) match {
-          case Tombstone(d) if d < 0  => nextValidField(slot + d)
-          case Tombstone(d) if d == 1 => nextValidField(slot - 1)
-          case Tombstone(d)           => throw new IllegalStateException("tombstone indicate wrong position: " + d)
-          case k                      => (slot, k.asInstanceOf[K])
-        }
-
-    final private[this] def advance(): Unit = {
-      val nextSlot = slot - 1
+    final private[this] def findNextKey(nextSlot: Int): K =
       if (nextSlot < 0) {
         slot = -1
-        key = null.asInstanceOf[K]
+        null.asInstanceOf[K]
       } else {
-        nextValidField(nextSlot) match {
-          case (-1, _) =>
-            slot = -1
-            key = null.asInstanceOf[K]
-          case (s, k) =>
-            slot = s
-            key = k
+        fields(nextSlot) match {
+          case Tombstone(d) if d == 1 => findNextKey(nextSlot - 1)
+          case Tombstone(d)           => findNextKey(nextSlot + d)
+          case k =>
+            slot = nextSlot
+            k.asInstanceOf[K]
         }
       }
-    }
 
-    advance()
-
-    override def knownSize: Int = self.size
-
-    override def hasNext: Boolean = slot >= 0
+    override def hasNext: Boolean = slot > 0
 
     override def next(): (K, V) =
       if (!hasNext) Iterator.empty.next()
       else {
+        val key    = findNextKey(slot - 1)
         val result = (key, underlying(key)._2)
-        advance()
         result
       }
   }
 
   def toList: List[(K, V)] = iterator.toList
-
-  lazy val reversedLazyList: LazyList[(K, V)] = LazyList.from(reverseIterator)
 
   override def hashCode(): Int = MurmurHash3.orderedHash(iterator)
 }
@@ -172,7 +146,7 @@ object UpdateOrderLinkedMap {
 
   def empty[K, V]: UpdateOrderLinkedMap[K, V] = EmptyMap.asInstanceOf[UpdateOrderLinkedMap[K, V]]
 
-  def from[K, V](it: IterableOnce[(K, V)]): UpdateOrderLinkedMap[K, V] = {
+  def from[K, V](it: Iterable[(K, V)]): UpdateOrderLinkedMap[K, V] = {
     val builder = newBuilder[K, V]
     builder.addAll(it)
     builder.result()
@@ -184,11 +158,13 @@ object UpdateOrderLinkedMap {
     private[this] val vectorBuilder                       = new VectorBuilder[K]
     private[this] val mapBuilder                          = HashMap.newBuilder[K, (Int, V)]
     private[this] var aliased: UpdateOrderLinkedMap[K, V] = _
+    private[this] var size                                = 0
 
     def clear(): Unit = {
       vectorBuilder.clear()
       mapBuilder.clear()
       aliased = null
+      size = 0
     }
 
     def result(): UpdateOrderLinkedMap[K, V] = {
@@ -201,19 +177,55 @@ object UpdateOrderLinkedMap {
       if (aliased ne null) {
         aliased = aliased.updated(key, value)
       } else {
-        val vectorSize = vectorBuilder.size
-        vectorBuilder.addOne(key)
-        mapBuilder.addOne(key, (vectorSize, value))
+        val vectorSize = size
+        vectorBuilder += key
+        mapBuilder += ((key, (vectorSize, value)))
+        size += 1
       }
       this
     }
 
     def addOne(elem: (K, V)): UpdateOrderLinkedMap.Builder[K, V] = addOne(elem._1, elem._2)
 
-    def addAll(xs: IterableOnce[(K, V)]): UpdateOrderLinkedMap.Builder[K, V] = {
+    def addAll(xs: Iterable[(K, V)]): UpdateOrderLinkedMap.Builder[K, V] = {
       xs.iterator.foreach(addOne)
       self
     }
   }
 
+  private sealed trait LzList[+A] {
+    def head: A
+    def tail: LzList[A]
+
+    final def isEmpty: Boolean = this eq LzList.Empty
+
+    final def iterator = new AbstractIterator[A] {
+      private[this] var current: LzList[A] = LzList.this
+
+      override def hasNext: Boolean = !current.isEmpty
+
+      override def next(): A = {
+        val result = current.head
+        current = current.tail
+        result
+      }
+    }
+  }
+
+  private object LzList {
+    def apply[A](head: => A, tail: => LzList[A]): LzList[A] =
+      new Cons(() => head, () => tail)
+
+    def empty[A]: LzList[A] = Empty
+
+    private case object Empty extends LzList[Nothing] {
+      def head: Nothing         = throw new NoSuchElementException("head of empty list")
+      def tail: LzList[Nothing] = throw new NoSuchElementException("tail of empty list")
+    }
+
+    private final class Cons[A](private val _head: () => A, private val _tail: () => LzList[A]) extends LzList[A] {
+      @transient lazy val head: A         = _head()
+      @transient lazy val tail: LzList[A] = _tail()
+    }
+  }
 }

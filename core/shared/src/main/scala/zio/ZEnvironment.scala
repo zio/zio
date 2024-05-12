@@ -19,7 +19,7 @@ package zio
 import zio.internal.UpdateOrderLinkedMap
 
 import scala.annotation.tailrec
-import scala.collection.immutable.{HashMap, VectorMap}
+import scala.collection.immutable.HashMap
 import scala.collection.mutable
 import scala.util.hashing.MurmurHash3
 
@@ -32,15 +32,10 @@ final class ZEnvironment[+R] private (
 
   @deprecated("Kept for binary compatibility only. Do not use", "2.1.2")
   private[ZEnvironment] def this(map: Map[LightTypeTag, Any], index: Int, cache: Map[LightTypeTag, Any] = Map.empty) =
-    this(UpdateOrderLinkedMap.from(map), HashMap.from(cache), null)
+    this(UpdateOrderLinkedMap.from(map), cache = HashMap.empty[LightTypeTag, Any] ++ cache, null)
 
   def ++[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.union[R1](that)
-
-  /**
-   * LazyList allows us to iterate over the entries lazily while also caching
-   * their computation when we need to create multiple iterators
-   */
 
   /**
    * Adds a service to the environment.
@@ -77,7 +72,7 @@ final class ZEnvironment[+R] private (
     Option(unsafe.getOrElse(tag.tag, null.asInstanceOf[A])(Unsafe.unsafe))
 
   override lazy val hashCode: Int = {
-    MurmurHash3.productHash((MurmurHash3.orderedHash(map.iterator), scope))
+    MurmurHash3.productHash((map, scope))
   }
 
   /**
@@ -167,7 +162,7 @@ final class ZEnvironment[+R] private (
   def unionAll[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     if (self == that) that.asInstanceOf[ZEnvironment[R with R1]]
     else {
-      val newMap = that.map.iterator.foldLeft(self.map) { case (map, (k, v)) =>
+      val newMap = that.map.toList.foldLeft(self.map) { case (map, (k, v)) =>
         map.updated(k, v)
       }
       val newScope = if (that.scope eq null) self.scope else that.scope
@@ -232,10 +227,10 @@ final class ZEnvironment[+R] private (
         if (fromCache != null) fromCache.asInstanceOf[A]
         else if ((scope ne null) && isScopeTag(tag)) scope.asInstanceOf[A]
         else if (!self.isEmpty) {
-          val remaining = self.map.reversedLazyList.iterator
-          var service   = null.asInstanceOf[A]
-          while (service == null && remaining.hasNext) {
-            val (curTag, entry) = remaining.next()
+          val it      = self.map.reverseIterator
+          var service = null.asInstanceOf[A]
+          while (it.hasNext && service == null) {
+            val (curTag, entry) = it.next()
             if (taggedIsSubtype(curTag, tag)) {
               service = entry.asInstanceOf[A]
             }
