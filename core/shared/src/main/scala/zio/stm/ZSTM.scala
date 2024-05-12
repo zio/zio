@@ -1620,16 +1620,31 @@ object ZSTM {
     /**
      * Creates a function that can reset the journal.
      */
-    def prepareResetJournal(journal: Journal): () => Any = () => {
-      val saved = new MutableMap[TRef[_], Entry](journal.size)
-      val it = journal.entrySet.iterator
-      while (it.hasNext) {
-        val entry = it.next
-        saved.put(entry.getKey, entry.getValue.copy())
+    def prepareResetJournal(journal: Journal): () => Any = {
+      val currentNewValues = new MutableMap[TRef[_], Any]
+      val itCapture        = journal.entrySet.iterator
+      while (itCapture.hasNext) {
+        val entry = itCapture.next()
+        currentNewValues.put(entry.getKey, entry.getValue.unsafeGet[Any])
       }
-      journal.clear()
-      journal.putAll(saved)
-      ()
+
+      () => {
+        val saved = new MutableMap[TRef[_], Entry](journal.size)
+        val it    = journal.entrySet.iterator
+        while (it.hasNext) {
+          val entry = it.next()
+          val key   = entry.getKey
+          val resetValue = if (currentNewValues.containsKey(key)) {
+            currentNewValues.get(key)
+          } else {
+            entry.getValue.expected.value
+          }
+          saved.put(entry.getKey, entry.getValue.copy().reset(resetValue))
+        }
+        journal.clear()
+        journal.putAll(saved)
+        ()
+      }
     }
 
     /**
@@ -2049,6 +2064,18 @@ object ZSTM {
         val isNew    = self.isNew
         var newValue = self.newValue
         _isChanged = self.isChanged
+      }
+
+      /**
+       * Resets the Entry with a given value.
+       */
+      def reset(resetValue: Any): Entry = new Entry {
+        type S = self.S
+        val tref     = self.tref
+        val expected = self.expected
+        val isNew    = self.isNew
+        var newValue = resetValue.asInstanceOf[S]
+        _isChanged = false
       }
 
       /**

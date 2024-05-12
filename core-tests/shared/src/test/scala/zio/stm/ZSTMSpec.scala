@@ -873,6 +873,24 @@ object ZSTMSpec extends ZIOBaseSpec {
         val right = STM.fail("right")
 
         (left orElse right).commit.exit.map(assert(_)(fails(equalTo("right"))))
+      },
+      test("retries on LHS variable change") {
+        for {
+          ref1 <- TRef.makeCommit(0)
+          ref2 <- TRef.makeCommit(0)
+          txn1 = ref1.get.flatMap {
+                   case 0 => STM.retry
+                   case n => STM.succeed(n)
+                 } orElse ref2.get.flatMap {
+                   case 0 => STM.retry
+                   case n => STM.succeed(n)
+                 }
+          txn2 = ref1.set(1) // if this is `ref2.set(1)`, it doesn't hang
+          fib    <- txn1.commit.forkDaemon
+          _      <- liveClockSleep(1.second)
+          _      <- txn2.commit
+          result <- fib.join
+        } yield assert(result)(equalTo(1))
       }
     ) @@ zioTag(errors),
     test("orElseEither returns result of the first successful transaction wrapped in either") {
