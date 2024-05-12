@@ -350,8 +350,7 @@ object SmartAssertions {
           case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
           case _ => a == that
         }
-        println(s"Result: $result") 
-        TestTrace.boolean(result)
+        TestTrace.boolean(result)(TestTrace.booleanTrace)
       }
 
   def renderDiffResult[A](result: Boolean, expected: A, actual: A)(implicit diff: OptionalImplicit[Diff[A]]): String = {
@@ -374,7 +373,7 @@ object SmartAssertions {
   }
 
   def renderDiff[A](diffResult: DiffResult, expected: A, actual: A): String = {
-    M.choice("There was no difference", "There was a difference") ++
+    M.choice("There was no difference", "There was a difference").render ++
       M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(actual)) ++
       M.custom(
         ConsoleUtils.underlined(
