@@ -101,23 +101,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   }
 
   def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] =
-    ZIO.withFiberRuntime[Any, Nothing, Chunk[Fiber.Runtime[_, _]]] { case (fib, _) =>
-      if (fib eq self) {
-        //read by the fiber itself, no need to synchronize as only the fiber itself can mutate the children set
-        Exit.succeed(self.childrenChunk)
-      } else {
-        //may be racing with the fiber running transferChildren, hence must save _children in a local val
-        val childs = _children
-        if (childs eq null) {
-          Exit.succeed(Chunk.empty)
-        } else {
-          //read by another fiber, must synchronize
-          zio.internal.Sync(childs) {
-            Exit.succeed(self.childrenChunk)
-          }
-        }
-      }
-    }
+    ZIO.succeed(self.childrenChunk)
 
   def fiberRefs(implicit trace: Trace): UIO[FiberRefs] = ZIO.succeed(_fiberRefs)
 
@@ -175,12 +159,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def addChild(child: Fiber.Runtime[_, _]): Unit =
     if (child.isAlive()) {
       if (isAlive()) {
-
-        val childs = getChildren()
-        //any mutation to the children set must be synchronized
-        zio.internal.Sync(childs) {
-          childs.add(child)
-        }
+        getChildren().add(child)
 
         if (isInterrupted())
           child.tellInterrupt(getInterruptedCause())
@@ -193,23 +172,21 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     val iter = children.iterator
     if (isAlive()) {
       val childs = getChildren()
-      //any mutation to the children set must be synchronized
-      zio.internal.Sync(childs) {
-        if (isInterrupted()) {
-          val cause = getInterruptedCause()
-          while (iter.hasNext) {
-            val child = iter.next()
-            if (child.isAlive()) {
-              childs.add(child)
-              child.tellInterrupt(cause)
-            }
+
+      if (isInterrupted()) {
+        val cause = getInterruptedCause()
+        while (iter.hasNext) {
+          val child = iter.next()
+          if (child.isAlive()) {
+            childs.add(child)
+            child.tellInterrupt(cause)
           }
-        } else {
-          while (iter.hasNext) {
-            val child = iter.next()
-            if (child.isAlive())
-              childs.add(child)
-          }
+        }
+      } else {
+        while (iter.hasNext) {
+          val child = iter.next()
+          if (child.isAlive())
+            childs.add(child)
         }
       }
     } else {
@@ -548,7 +525,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private def getChildren(): JavaSet[Fiber.Runtime[_, _]] = {
     //executed by the fiber itself, no risk of racing with transferChildren
     if (_children eq null) {
-      _children = Platform.newWeakSet[Fiber.Runtime[_, _]]()(Unsafe.unsafe)
+      _children = Platform.newConcurrentWeakSet[Fiber.Runtime[_, _]]()(Unsafe.unsafe)
     }
     _children
   }
@@ -919,10 +896,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private def removeChild(child: FiberRuntime[_, _]): Unit =
     if (_children ne null) {
-      //any mutation to the children set must be synchronized
-      zio.internal.Sync(_children) {
-        _children.remove(child)
-      }
+      _children.remove(child)
       ()
     }
 
