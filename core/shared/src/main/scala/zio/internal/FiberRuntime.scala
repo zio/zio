@@ -19,16 +19,16 @@ package zio.internal
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.tailrec
+import scala.util.control.ControlThrowable
 import java.util.{Set => JavaSet}
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
+
 import zio._
 import zio.metrics.{Metric, MetricLabel}
 import zio.Exit.Failure
 import zio.Exit.Success
 import zio.internal.SpecializationHelpers.SpecializeInt
-
-import scala.util.control.ControlThrowable
 
 final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtimeFlags0: RuntimeFlags)
     extends Fiber.Runtime.Internal[E, A]
