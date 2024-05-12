@@ -6017,7 +6017,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         for {
           queue <- Queue.bounded[A](size)
           _     <- queue.offerAll(as)
-          _     <- ZIO.collectAllParUnboundedDiscard(ZIO.replicate(n)(worker(queue)))
+          _     <- ZIO.collectAllParUnboundedDiscard(ZIO.replicate(n.min(size))(worker(queue)))
         } yield ()
       }
     }
