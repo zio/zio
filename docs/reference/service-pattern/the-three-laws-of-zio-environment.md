@@ -129,7 +129,7 @@ object DocRepo {
 
 
 object InmemoryBlobStorage {
-  val layer = 
+  val layer: ZLayer[Any, Nothing, BlobStorage] = 
     ZLayer {
       ???
     } 
@@ -137,7 +137,7 @@ object InmemoryBlobStorage {
 
 
 object InmemoryMetadataRepo {
-  val layer = 
+  val layer: ZLayer[Any, Nothing, MetadataRepo] = 
     ZLayer {
       ???
     }
