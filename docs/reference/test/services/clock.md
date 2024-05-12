@@ -182,7 +182,7 @@ In ZIO 2.x, the default services were removed from the environment in favor of i
 
 ```scala mdoc:compile-only
 import zio._
-import zio.test._
+import zio.test.{test, _}
 import zio.test.Assertion._
 import zio.test.TestAspect._
 
