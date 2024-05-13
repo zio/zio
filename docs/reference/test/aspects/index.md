@@ -163,7 +163,7 @@ object MySpec extends ZIOSpecDefault {
     test("A ignored test") {
       assertTrue(false)
     } @@ ignore, //@@ ignore marks test as ignored
-    test("A test using current time") {
+    test("A test using a live service instead of the test service") {
       for {
         _ <- TestClock.timeZone
       } yield assertCompletes
