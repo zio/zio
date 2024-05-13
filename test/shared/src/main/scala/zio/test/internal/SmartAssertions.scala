@@ -341,9 +341,9 @@ object SmartAssertions {
         }
       }
 
-  def renderDiffResult[A](diffResult: DiffResult, expected: A, actual: A)(implicit diff: OptionalImplicit[Diff[A]]): TestTrace[ErrorMessage] = 
+  def renderDiffResult[A](diffResult: DiffResult, expected: A, actual: A)(implicit diff: OptionalImplicit[Diff[A]]): String = 
     diff.value match {
-      case Some(diff) if !diff.isLowPriority && !diffResult.isLowPriority =>
+      case Some(diff) if !diff.isLowPriority=>
         val renderedDiff = 
           diffResult match {
             case DiffResult.Different(_, _, None) =>
@@ -358,8 +358,6 @@ object SmartAssertions {
                 ) ++
                 M.custom(scala.Console.RESET + diffResult.render)
           }
-                TestTrace.log(renderedDiff)
-
     }
 
   def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
