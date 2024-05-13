@@ -4,12 +4,10 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio._
 import zio.internal.ansi.AnsiStringOps
 import zio.test.diff.{Diff, DiffResult}
-import zio.test.{Assertion, assert, TestResult, TestArrow, TestTrace}
 
 import scala.reflect.ClassTag
 import scala.util.Try
 import zio.test.{ErrorMessage => M, SmartAssertionOps => _, _}
-import scala.util.{Try, Success, Failure}
 
 object SmartAssertions {
 
@@ -346,22 +344,21 @@ object SmartAssertions {
   def renderDiffResult[A](diffResult: DiffResult, expected: A, actual: A)(implicit diff: OptionalImplicit[Diff[A]]): TestTrace[ErrorMessage] = {
     diff.value match {
       case Some(diff) if !diff.isLowPriority && !diffResult.isLowPriority =>
-      val renderedDiff = 
-        M.choice("There was no difference", "There was a difference").render ++
-          M.custom(ConsoleUtils.underlined("Expected")).render ++ M.custom(PrettyPrint(expected)).render ++
-          M.custom(
-            ConsoleUtils.underlined(
-              "Diff"
-            ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
-          ).render ++
-          M.custom(scala.Console.RESET + diffResult.render).render
-      TestTrace.fail(ErrorMessage(renderedDiff))
-      case _ =>
-        TestTrace.succeed(ErrorMessage(
-          M.pretty(expected).render + M.equals.render + M.pretty(actual).render
-        ))
+        val renderedDiff = 
+          diffResult match {
+            case DiffResult.Different(_, _, None) =>
+              M.pretty(expected) + M.equals + M.pretty(actual)
+            case diffResult=>
+              M.choice("There was no difference", "There was a difference") ++
+                M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(expected)) ++
+                M.custom(
+                  ConsoleUtils.underlined(
+                    "Diff"
+                  ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
+                ) ++
+                M.custom(scala.Console.RESET + diffResult.render)
+          }
     }
-  }
 
   def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
     TestArrow
@@ -377,9 +374,7 @@ object SmartAssertions {
               val diffResult = diff.diff(that, a)
               renderDiffResult(diffResult, that, a)
             case _ =>
-              TestTrace.succeed(ErrorMessage(
-                M.pretty(a).render + M.equals.render + M.pretty(that).render
-              ))
+              M.pretty(a) + M.equals + M.pretty(that)
           }
         }
       }
