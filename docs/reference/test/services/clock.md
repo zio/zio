@@ -179,7 +179,7 @@ test("zipLatest") {
 
 ### Example 5
 
-In ZIO 2.x, the default services were removed from the environment in favor of integrating these services directly into the ZIO runtime. This means that `TestClock` can be accessed in the live scope using the `withLiveClock` test aspect as shown below:
+In ZIO 2.x, we can use the live `Clock` service from the ZIO runtime in our tests using the `withLiveClock` test aspect. This removes the need to advance `TestClock` manually in our tests:
 
 ```scala mdoc:compile-only
 import zio._
