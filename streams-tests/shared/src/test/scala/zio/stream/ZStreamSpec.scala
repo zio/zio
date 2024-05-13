@@ -3949,12 +3949,13 @@ object ZStreamSpec extends ZIOBaseSpec {
         ) @@ TestAspect.timeout(40.seconds),
         suite("timeout")(
           test("succeed") {
-            assertZIO(
-              ZStream
-                .succeed(1)
-                .timeout(Duration.Infinity)
-                .runCollect
-            )(equalTo(Chunk(1)))
+            for {
+              streamOut <- ZStream
+                             .succeed(1)
+                             .timeout(Duration.Infinity)
+                             .runCollect
+              logs <- ZTestLogger.logOutput
+            } yield assert(streamOut)(equalTo(Chunk(1))) && assert(logs)(isEmpty)
           },
           test("should end stream") {
             assertZIO(
@@ -3968,6 +3969,15 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         suite("timeoutFail")(
           test("succeed") {
+            for {
+              streamOut <- ZStream
+                             .succeed(1)
+                             .timeoutFail("Boom!")(Duration.Infinity)
+                             .runCollect
+              logs <- ZTestLogger.logOutput
+            } yield assert(streamOut)(equalTo(Chunk(1))) && assert(logs)(isEmpty)
+          },
+          test("timeout failure") {
             assertZIO(
               ZStream
                 .range(0, 5)
@@ -3979,7 +3989,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .map(_.merge)
             )(isFalse)
           },
-          test("fail") {
+          test("stream failure") {
             for {
               error <- ZStream
                          .fail("OriginalError")
