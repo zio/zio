@@ -17,7 +17,7 @@
 package zio.internal
 
 import scala.annotation.tailrec
-import scala.collection.AbstractIterator
+import scala.collection.{AbstractIterator, mutable}
 import scala.collection.immutable.{HashMap, VectorBuilder}
 import scala.util.hashing.MurmurHash3
 
@@ -34,10 +34,10 @@ private[zio] final class UpdateOrderLinkedMap[K, +V](
   def updated[V1 >: V](key: K, value: V1): UpdateOrderLinkedMap[K, V1] = {
     val existing = underlying.getOrElse(key, null)
     if (existing eq null) {
-      new UpdateOrderLinkedMap(self.fields :+ key, underlying.updated(key, (self.fields.size, value)))
-    } else if (existing._1 == self.fields.size - 1) {
+      new UpdateOrderLinkedMap(fields :+ key, underlying.updated(key, (fields.size, value)))
+    } else if (existing._1 == fields.size - 1) {
       // If the entry to be added is at the tail of the fields, we can just update the value
-      new UpdateOrderLinkedMap(self.fields, underlying.updated(key, existing.copy(_2 = value)))
+      new UpdateOrderLinkedMap(fields, underlying.updated(key, existing.copy(_2 = value)))
     } else {
       var fs     = fields
       val oldIdx = existing._1
@@ -70,9 +70,20 @@ private[zio] final class UpdateOrderLinkedMap[K, +V](
         fs = fs.updated(oldIdx, Tombstone(next - oldIdx))
       }
 
-      new UpdateOrderLinkedMap(fs :+ key, underlying.updated(key, (fields.length, value)))
+      new UpdateOrderLinkedMap(fs :+ key, underlying.updated(key, (fs.length, value))).maybeReindex()
     }
   }
+
+  /**
+   * Rebuilds the underlying vector and map, removing tombstones and reindexing
+   * the elements, but only if the number of dead elements exceeds 10000.
+   *
+   * This should never happen, but we add it as a safeguard against memory leaks
+   * due to weird usage patterns.
+   */
+  private def maybeReindex(): UpdateOrderLinkedMap[K, V] =
+    if (self.fields.size - size > 10000) fromUnsafe(iterator0)
+    else self
 
   def iterator: Iterator[(K, V)] = iteratorLz.iterator
 
@@ -163,51 +174,88 @@ private[zio] object UpdateOrderLinkedMap {
 
   def empty[K, V]: UpdateOrderLinkedMap[K, V] = EmptyMap.asInstanceOf[UpdateOrderLinkedMap[K, V]]
 
-  def from[K, V](it: Iterable[(K, V)]): UpdateOrderLinkedMap[K, V] = {
-    val builder = newBuilder[K, V]
-    builder.addAll(it)
-    builder.result()
+  def fromMap[K, V](map: Map[K, V]): UpdateOrderLinkedMap[K, V] = fromUnsafe(map.iterator)
+
+  /**
+   * Keys in the iterator '''MUST be unique'''!
+   */
+  private def fromUnsafe[K, V](it: Iterator[(K, V)]): UpdateOrderLinkedMap[K, V] = {
+    val vectorBuilder = new VectorBuilder[K]
+    val mapBuilder    = HashMap.newBuilder[K, (Int, V)]
+    var i             = 0
+    while (it.hasNext) {
+      val (k, v) = it.next()
+      vectorBuilder += k
+      mapBuilder += ((k, (i, v)))
+      i += 1
+    }
+    new UpdateOrderLinkedMap(vectorBuilder.result(), mapBuilder.result())
   }
 
   def newBuilder[K, V]: UpdateOrderLinkedMap.Builder[K, V] = new UpdateOrderLinkedMap.Builder[K, V]
 
   final class Builder[K, V] { self =>
-    private[this] val vectorBuilder                       = new VectorBuilder[K]
-    private[this] val mapBuilder                          = HashMap.newBuilder[K, (Int, V)]
+    private[this] var entries: List[(K, V)]               = Nil
     private[this] var aliased: UpdateOrderLinkedMap[K, V] = _
-    private[this] var size                                = 0
 
-    def clear(): Unit = {
-      vectorBuilder.clear()
-      mapBuilder.clear()
-      aliased = null
-      size = 0
-    }
-
-    def result(): UpdateOrderLinkedMap[K, V] = {
-      if (aliased eq null) {
-        aliased = new UpdateOrderLinkedMap(vectorBuilder.result(), mapBuilder.result())
-      }
-      aliased
-    }
-
-    def addOne(key: K, value: V): UpdateOrderLinkedMap.Builder[K, V] = {
+    def addOne(elem: (K, V)): UpdateOrderLinkedMap.Builder[K, V] = {
       if (aliased ne null) {
-        aliased = aliased.updated(key, value)
+        aliased = aliased.updated(elem._1, elem._2)
       } else {
-        val vectorSize = size
-        vectorBuilder += key
-        mapBuilder += ((key, (vectorSize, value)))
-        size += 1
+        // Place them in reverse order, we'll reverse them back during `result()`
+        entries = elem :: entries
       }
       this
     }
 
-    def addOne(elem: (K, V)): UpdateOrderLinkedMap.Builder[K, V] = addOne(elem._1, elem._2)
-
     def addAll(xs: Iterable[(K, V)]): UpdateOrderLinkedMap.Builder[K, V] = {
-      xs.iterator.foreach(addOne)
+      xs.foreach(addOne)
       self
+    }
+
+    def clear(): Unit = {
+      entries = Nil
+      aliased = null
+    }
+
+    def result(): UpdateOrderLinkedMap[K, V] = {
+      if ((aliased eq null) && (entries ne Nil)) {
+        // Iterator that unpacks `entries` while removing duplicated keys
+        val iter = new AbstractIterator[(K, V)] {
+          private[this] var current   = null.asInstanceOf[(K, V)]
+          private[this] var remaining = entries
+          private[this] val set       = mutable.HashSet.empty[K]
+
+          private[this] def advance(): Unit = {
+            var rem  = remaining
+            var curr = null.asInstanceOf[(K, V)]
+            while ((curr eq null) && (rem ne Nil)) {
+              val head = rem.head
+              if (set.add(head._1)) curr = head
+              rem = rem.tail
+            }
+            current = curr
+            remaining = rem
+          }
+
+          advance()
+
+          override def hasNext: Boolean = current ne null
+
+          override def next(): (K, V) =
+            if (!hasNext) Iterator.empty.next()
+            else {
+              val result = current
+              advance()
+              result
+            }
+        }
+
+        aliased = fromUnsafe(iter)
+      } else if (entries eq Nil) {
+        aliased = empty[K, V]
+      }
+      aliased
     }
   }
 

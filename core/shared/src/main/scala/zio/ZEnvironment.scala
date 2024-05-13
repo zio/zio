@@ -32,7 +32,7 @@ final class ZEnvironment[+R] private (
 
   @deprecated("Kept for binary compatibility only. Do not use", "2.1.2")
   private[ZEnvironment] def this(map: Map[LightTypeTag, Any], index: Int, cache: Map[LightTypeTag, Any] = Map.empty) =
-    this(UpdateOrderLinkedMap.from(map), cache = HashMap.empty[LightTypeTag, Any] ++ cache, null)
+    this(UpdateOrderLinkedMap.fromMap(map), cache = HashMap.empty[LightTypeTag, Any] ++ cache, null)
 
   def ++[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.union[R1](that)
@@ -212,9 +212,6 @@ final class ZEnvironment[+R] private (
       private[ZEnvironment] def addService[A](tag: LightTypeTag, a: A)(implicit
         unsafe: Unsafe
       ): ZEnvironment[R with A] = {
-        // Remove from the cache all entries that are supertypes of the current tag.
-        // Might seem expensive, but `filterNot` will preserve the map in cases there were no removals (i.e., no supertypes in the cache)
-        // val newCache = cache.filterNot { case (k, _) => taggedIsSubtype(tag, k) && k != tag }.updated(tag, a)
         val newCache = HashMap(tag -> a)
         new ZEnvironment(map.updated(tag, a), cache = newCache, scope = scope)
       }
