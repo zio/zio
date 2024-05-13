@@ -140,6 +140,15 @@ val finalApp: ZIO[Any, Nothing, Unit] =
   Scope.make.flatMap(scope => resourcefulApp.provide(ZLayer.succeed(scope)).onExit(scope.close(_)))
 ```
 
+Here is the output of the program:
+
+```
+Entering the scope!
+Leaving scope!
+The finalizer is started!
+The finalizer is done!
+```
+
 So we can think of `Scope` as a service that helps us manage resources effectfully. However, the way we utilized it in the previous example is not as per the best practices, and it was only for educational purposes.
 
 In real-world applications, we can easily manage resources by utilizing high-level operators such as `ZIO.acquireRelease` and `ZIO.scoped`.
@@ -275,6 +284,48 @@ trait Closeable extends Scope {
 object ZIO {
   def scoped[R, E, A](zio: => ZIO[R with Scope, E, A]): ZIO[R, E, A] = ???
 }
+```
+
+In the following example, we obtained a `Scope` and added a finalizer to it, and then extended its lifetime to the lifetime of the `resource1` and `resource2`:
+
+```scala mdoc:compile-only
+import zio._
+
+object ExtendingScopesExample extends ZIOAppDefault {
+  val resource1: ZIO[Scope, Nothing, Unit] =
+    ZIO.acquireRelease(ZIO.debug("Acquiring the resource 1"))(_ =>
+      ZIO.debug("Releasing the resource one") *> ZIO.sleep(5.seconds)
+    )
+  val resource2: ZIO[Scope, Nothing, Unit] =
+    ZIO.acquireRelease(ZIO.debug("Acquiring the resource 2"))(_ =>
+      ZIO.debug("Releasing the resource two") *> ZIO.sleep(3.seconds)
+    )
+
+  def run =
+    ZIO.scoped(
+      for {
+        scope <- ZIO.scope
+        _     <- ZIO.debug("Entering the main scope!")
+        _     <- scope.addFinalizer(ZIO.debug("Releasing the main resource!") *> ZIO.sleep(2.seconds))
+        _     <- scope.extend(resource1)
+        _     <- scope.extend(resource2)
+        _     <- ZIO.debug("Leaving scope!")
+      } yield ()
+    )
+
+}
+```
+
+output:
+
+```
+Entering the main scope!
+Acquiring the resource 1
+Acquiring the resource 2
+Leaving scope!
+Releasing the resource two
+Releasing the resource one
+Releasing the main resource!
 ```
 
 ### Extending a Scope
