@@ -16,6 +16,10 @@ trait Scope {
   def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit]
   def close(exit: => Exit[Any, Any]): UIO[Unit]
 }
+
+object Scope {
+  def make: UIO[Scope] = ???
+}
 ```
 
 The `addFinalizerExit` operator lets us add a finalizer to the `Scope`. The `close` operator closes the scope, running all the finalizers that have been added to the scope.
@@ -23,6 +27,8 @@ The `addFinalizerExit` operator lets us add a finalizer to the `Scope`. The `clo
 In the following example, we create a `Scope`, add a finalizer to it, and then close the scope:
 
 ```scala mdoc:compile-only
+import zio._
+
 for {
   scope <- Scope.make
   _ <- ZIO.debug("Scope is created!")
@@ -50,6 +56,8 @@ Scope is closed!
 ```
 
 We can see that the finalizer is run after we called `close` on the scope. So the finalizer is guaranteed to be run when the scope is closed.
+
+## Scopes and The ZIO Environment
 
 In combination with the ZIO environment, `Scope` gives us an extremely powerful way to manage resources.
 
@@ -81,7 +89,15 @@ source("cool.txt").flatMap { source =>
 }
 ```
 
-When we are done working with the file we can close the scope using the `ZIO.scoped` operator, which creates a new `Scope`, provides it to the workflow, and closes the `Scope` when the workflow is done.
+Once we are finished working with the file, we can close the scope using the `ZIO.scoped` operator. This function creates a new `Scope`, provides it to the workflow, and closes the `Scope` once the workflow is complete:
+
+```scala
+object ZIO {
+  def scoped[R, E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] = ???
+}
+```
+
+The `scoped` operator removes the `Scope` from the environment, indicating that there are no longer any resources used by this workflow that require a scope. We now have a workflow that is ready to run:
 
 ```scala mdoc
 def contents(name: => String): ZIO[Any, IOException, Chunk[String]] =
@@ -92,9 +108,61 @@ def contents(name: => String): ZIO[Any, IOException, Chunk[String]] =
   }
 ```
 
-The `scoped` operator removes the `Scope` from the environment, indicating that there are no longer any resources used by this workflow which require a scope. We now have a workflow that is ready to run.
-
 In some cases ZIO applications may provide a `Scope` for us for resources that we don't specify a scope for. For example `ZIOApp` provides a `Scope` for our entire application and ZIO Test provides a `Scope` for each test.
+
+:::note
+Please note that like any other services that we can obtain from the ZIO environment, we can do the same with `Scope`. By calling `ZIO.service[Scope]` we can obtain the `Scope` service and then use it to manage resources by adding finalizers to it:
+
+```scala mdoc:silent
+import zio._
+
+val resourcefulApp: ZIO[Scope, Nothing, Unit] =
+  for {
+    scope <- ZIO.service[Scope]
+    _     <- ZIO.debug("Entering the scope!")
+    _ <- scope.addFinalizer(
+      for {
+        _ <- ZIO.debug("The finalizer is started!")
+        _ <- ZIO.sleep(5.seconds)
+        _ <- ZIO.debug("The finalizer is done!")
+      } yield ()
+    )
+    _ <- ZIO.debug("Leaving scope!")
+  } yield ()
+```
+
+Then we can run the `app` workflow by providing the `Scope` service to it:
+
+```scala mdoc:compile-only
+val finalApp: ZIO[Any, Nothing, Unit] =
+  Scope.make.flatMap(scope => resourcefulApp.provide(ZLayer.succeed(scope)).onExit(scope.close(_)))
+```
+
+So we can think of `Scope` as a service that helps us manage resources effectfully. However, the way we utilized it in the previous example is not as per the best practices, and it was only for educational purposes.
+
+In real-world applications, we can easily manage resources by utilizing high-level operators such as `ZIO.acquireRelease` and `ZIO.scoped`.
+:::
+
+## Scopes are Dynamic
+
+One important thing to note about `Scope` is that they are dynamic. This means that if we have an effect that requires a `Scope` we can `flatMap` over that effect and use its value to create a new effect. The new effect extends the lifetime of the original scope. So as we don't close the scope (by calling `ZIO.scoped`) the resources will not be released, and they can become bigger and bigger until we close them:
+
+```scala mdoc:invisible
+def file(name: String): ZIO[Any, IOException, Source] =
+  ZIO.attemptBlockingIO(Source.fromFile(name))
+
+def getLines(source: Source): ZIO[Any, Throwable, Iterator[String]] =
+  ZIO.from(source.getLines())
+
+def processLines(lines: Iterator[String]): ZIO[Any, Nothing, Unit] =
+  ZIO.succeed(lines.foreach(println))
+```
+
+```scala mdoc:compile-only
+ZIO.scoped {
+  file("path/to/file.txt").flatMap(getLines).flatMap(processLines) 
+}
+```
 
 ## Defining Resources
 
