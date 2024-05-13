@@ -22,7 +22,7 @@ object Scope {
 }
 ```
 
-The `addFinalizerExit` operator lets us add a finalizer to the `Scope`. The `close` operator closes the scope, running all the finalizers that have been added to the scope.
+The `addFinalizerExit` operator lets us add a finalizer to the `Scope`. Based on the `Exit` value that the `Scope` is closed with, the finalizer will be run. The finalizer is guaranteed to be run when the scope is closed. The `close` operator closes the scope, running all the finalizers that have been added to the scope. It takes an `Exit` value and runs the finalizers based on that value.
 
 In the following example, we create a `Scope`, add a finalizer to it, and then close the scope:
 
@@ -56,6 +56,8 @@ Scope is closed!
 ```
 
 We can see that the finalizer is run after we called `close` on the scope. So the finalizer is guaranteed to be run when the scope is closed.
+
+The `Scope#extend` operator, takes a `ZIO` effect that requires a `Scope` and provides it with a `Scope` without closing it afterwards. This allows us to extend the lifetime of a scoped resource to the lifetime of a scope.
 
 ## Scopes and The ZIO Environment
 
@@ -261,11 +263,39 @@ So far we have seen that while `Scope` is the foundation of safe and composable 
 
 In most cases we just use the `acquireRelease` constructor or one of its variants to construct our resource and either work with the resource and close its scope using `ZIO.scoped` or convert the resource into another ZIO data type using an operator such as `ZStream.scoped` or `ZLayer.scoped`. However, for more advanced use cases we may need to work with scopes directly and `Scope` has several useful operators for helping us do so.
 
-First, we can `use` a `Scope` by providing it to a workflow that needs a `Scope` and closing the `Scope` immediately after. This is analogous to the `ZIO.scoped` operator.
+### Using a Scope
 
-Second, we can use the `extend` operator on `Scope` to provide a workflow with a scope without closing it afterwards. This allows us to extend the lifetime of a scoped resource to the lifetime of a scope, effectively allowing us to "extend" the lifetime of that resource.
+First, we can `use` a `Scope` by providing it to a workflow that needs a `Scope` and closing the `Scope` immediately after. This is analogous to the `ZIO.scoped` operator:
 
-Third, we can `close` a `Scope`. One thing to note here is that by default only the creator of a `Scope` can close it.
+```scala
+trait Closeable extends Scope {
+  def use[R, E, A](zio: => ZIO[R with Scope, E, A]): ZIO[R, E, A]
+}
+
+object ZIO {
+  def scoped[R, E, A](zio: => ZIO[R with Scope, E, A]): ZIO[R, E, A] = ???
+}
+```
+
+### Extending a Scope
+
+Second, we can use the `extend` operator on `Scope` to provide a workflow with a scope without closing it afterwards. This allows us to extend the lifetime of a scoped resource to the lifetime of a scope, effectively allowing us to "extend" the lifetime of that resource:
+
+```scala
+trait Scope {
+  def extend[R, E, A](zio: => ZIO[Scope with R, E, A]): ZIO[R, E, A]
+}
+```
+
+### Closing a Scope
+
+Third, we can `close` a `Scope`. One thing to note here is that by default only the creator of a `Scope` can close it:
+
+```scala
+trait Closeable extends Scope {
+  def close(exit: => Exit[Any, Any]): UIO[Unit]
+}
+```
 
 Creating a new `Scope` returns a `Scope.Closeable` which can be closed. Normally users of a `Scope` will only be provided with a `Scope` which does not expose a `close` operator.
 
