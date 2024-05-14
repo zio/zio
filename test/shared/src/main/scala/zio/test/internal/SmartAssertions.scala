@@ -341,7 +341,7 @@ object SmartAssertions {
         }
       }
 
-  def renderDiffResult[A](diffResult: DiffResult, expected: A, actual: A)(implicit diff: OptionalImplicit[Diff[A]]): String = 
+  def renderDiffResult[A](diffResult: DiffResult, expected: A, actual: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] = 
     diff.value match {
       case Some(diff) if !diff.isLowPriority=>
         val renderedDiff = 
@@ -358,7 +358,6 @@ object SmartAssertions {
                 ) ++
                 M.custom(scala.Console.RESET + diffResult.render)
           }
-           renderedDiff
     }
 
   def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
