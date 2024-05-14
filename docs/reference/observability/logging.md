@@ -4,8 +4,7 @@ title: "Introduction to Logging in ZIO"
 sidebar_label: "Logging"
 ---
 
-ZIO supports a lightweight built-in logging facade that standardizes the interface to logging functionality. So it
-doesn't replace existing logging libraries, but also we can plug it into one of the existing logging backends.
+ZIO supports a lightweight built-in logging facade that standardizes the interface to logging functionality. So it doesn't replace existing logging libraries, but also we can plug it into one of the existing logging backends.
 
 We can easily log using the `ZIO.log` function:
 
@@ -97,11 +96,20 @@ timestamp=2024-05-14T15:44:51.534263Z level=INFO thread=#zio-fiber-1775966732 me
 
 ### Typed Log Annotations
 
-In more complex scenarios, we might want to add more structured information to the log messages. For example, we might want to add the user information to the log messages. In such cases, we need a typed log annotation that supports structured information, e.g. a `User` case class that contains the user's id, name, email, etc. In [ZIO Logging](https://zio.dev/zio-logging), we can define typed log annotations using the `LogAnnotation` class.
+In more complex scenarios, we might want to add more structured information to the log messages. For example, we might want to add the user information to the log messages. In such cases, we need a typed log annotation that supports structured information, e.g. a `User` case class that contains the user's id, name, email, etc. 
 
-For example, let's assume we have a `User` case class:
+Using [ZIO Logging](https://zio.dev/zio-logging), we can define typed log annotations using the `LogAnnotation` class. So let's add required dependencies to the `build.sbt` file:
 
 ```scala
+libraryDependencies ++= Seq(
+  "dev.zio" %% "zio-logging" % "@ZIO_CONFIG_VERSION@",
+  "dev.zio" %% "zio-json"    % "@ZIO_JSON_VERSION@"
+)
+```
+
+Now, let's assume we have a `User` case class:
+
+```scala mdoc:compile-only
 case class User(firstName: String, lastName: String)
 ```
 
@@ -112,7 +120,7 @@ import zio.json.{DeriveJsonEncoder, EncoderOps}
 import zio.logging.{LogAnnotation, LogFormat, consoleJson}
 import zio._
 
-object ConsoleJsonApp extends ZIOAppDefault {
+object TypedLogAnnotationExample extends ZIOAppDefault {
 
   case class User(firstName: String, lastName: String)
 
