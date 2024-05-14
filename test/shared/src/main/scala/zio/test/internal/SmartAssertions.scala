@@ -358,6 +358,7 @@ object SmartAssertions {
                 ) ++
                 M.custom(scala.Console.RESET + diffResult.render)
           }
+           renderedDiff
     }
 
   def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
