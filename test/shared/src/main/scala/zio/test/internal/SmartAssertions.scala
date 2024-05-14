@@ -341,7 +341,9 @@ object SmartAssertions {
         }
       }
 
-  def renderDiffResult[A](diffResult: DiffResult, expected: A, actual: A)(implicit diff: OptionalImplicit[Diff[A]]): zio.test.ErrorMessage = 
+  def renderDiffResult[A](diffResult: DiffResult, expected: A, actual: A)(implicit
+    diff: OptionalImplicit[Diff[A]]
+  ): zio.test.ErrorMessage =
     diffResult match {
       case DiffResult.Different(_, _, None) =>
         M.pretty(expected) + M.equals + M.pretty(actual)
