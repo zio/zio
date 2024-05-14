@@ -342,22 +342,18 @@ object SmartAssertions {
       }
 
   def renderDiffResult[A](diffResult: DiffResult, expected: A, actual: A)(implicit diff: OptionalImplicit[Diff[A]]): zio.test.ErrorMessage = 
-    diff.value match {
-      case Some(diff) if !diff.isLowPriority=>
-        val renderedDiff = 
-          diffResult match {
-            case DiffResult.Different(_, _, None) =>
-              M.pretty(expected) + M.equals + M.pretty(actual)
-            case diffResult=>
-              M.choice("There was no difference", "There was a difference") ++
-                M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(expected)) ++
-                M.custom(
-                  ConsoleUtils.underlined(
-                    "Diff"
-                  ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
-                ) ++
-                M.custom(scala.Console.RESET + diffResult.render)
-          }
+    diffResult match {
+      case DiffResult.Different(_, _, None) =>
+        M.pretty(expected) + M.equals + M.pretty(actual)
+      case diffResult =>
+        M.choice("There was no difference", "There was a difference") ++
+          M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(expected)) ++
+          M.custom(
+            ConsoleUtils.underlined(
+              "Diff"
+            ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
+          ) ++
+          M.custom(scala.Console.RESET + diffResult.render)
     }
 
   def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
