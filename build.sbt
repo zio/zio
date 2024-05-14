@@ -780,8 +780,8 @@ lazy val docs = project.module
     resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
     mdocVariables ++= Map(
       "ZIO_METRICS_CONNECTORS_VERSION" -> ZioMetricsConnectorsVersion,
-      "ZIO_CONFIG_VERSION" -> ZioConfigVersion,
-      "ZIO_JSON_VERSION" -> ZioJsonVersion
+      "ZIO_CONFIG_VERSION"             -> ZioConfigVersion,
+      "ZIO_JSON_VERSION"               -> ZioJsonVersion
     ),
     libraryDependencies ++= Seq(
       `zio-http`,
