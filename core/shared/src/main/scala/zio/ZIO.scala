@@ -3091,7 +3091,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           status,
           fiberState.getFiberRef(FiberRef.interruptedCause).interruptors,
           fiberState.getCurrentExecutor(),
-          fiberState.getFiberRef(FiberRef.overrideExecutor).isDefined
+          isLocked = !(
+            RuntimeFlags.contextShiftDeferral(status.runtimeFlags) &&
+              fiberState.getFiberRef(FiberRef.overrideExecutor).isEmpty
+          )
         )
 
       f(descriptor)
