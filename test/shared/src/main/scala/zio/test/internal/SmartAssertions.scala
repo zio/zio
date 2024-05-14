@@ -341,7 +341,7 @@ object SmartAssertions {
         }
       }
 
-  def renderDiffResult[A](diffResult: DiffResult, expected: A, actual: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] = 
+  def renderDiffResult[A](diffResult: DiffResult, expected: A, actual: A)(implicit diff: OptionalImplicit[Diff[A]]): zio.test.ErrorMessage = 
     diff.value match {
       case Some(diff) if !diff.isLowPriority=>
         val renderedDiff = 
