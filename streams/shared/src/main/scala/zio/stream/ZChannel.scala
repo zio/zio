@@ -948,6 +948,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           elem => ZChannel.write(elem) *> writer,
           cause =>
             ZChannel.refailCause(
+              if (channelFailure eq null)
+                cause
+              else
               cause.fold[Cause[OutErr1]](
                 Cause.empty,
                 (e, st) => Cause.fail(e, st),
