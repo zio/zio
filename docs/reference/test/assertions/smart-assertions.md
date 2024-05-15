@@ -18,6 +18,18 @@ test("sum"){
 }
 ```
 
+We can assert multiple assertions inside a single `assertTrue`:
+
+```scala
+test("multiple assertions"){
+  assertTrue(
+    true,
+    1 + 1 == 2,
+    Some(1 + 1) == Some(2)
+  )
+}
+```
+
 ## Asserting ZIO effects
 
 The `assertTrue` method can also be used to assert ZIO effects:
