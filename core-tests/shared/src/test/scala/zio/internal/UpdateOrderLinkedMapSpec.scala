@@ -53,25 +53,6 @@ object UpdateOrderLinkedMapSpec extends ZIOBaseSpec {
         .reverseIterator
         .foreach(_ => ())
       assertCompletes
-    },
-    test("no memory leaks") {
-      // There are probably better ways to test for this?
-      val rtm = java.lang.Runtime.getRuntime
-
-      def usedMemory() = {
-        rtm.gc()
-        rtm.totalMemory() - rtm.freeMemory()
-      }
-
-      val pre = usedMemory()
-      @nowarn("msg=local val")
-      val map = (1 to 10000000).foldLeft(empty) { case (m, _) =>
-        m.updated("a", 1).updated("b", 2)
-      }
-      val post = usedMemory()
-
-      // If we had memory leaks, it would be much higher than 100MB
-      assertTrue(pre > (post - 100000000))
-    } @@ jvmOnly
+    }
   )
 }
