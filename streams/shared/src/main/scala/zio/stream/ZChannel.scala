@@ -951,17 +951,17 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               if (channelFailure eq null)
                 cause
               else
-              cause.fold[Cause[OutErr1]](
-                Cause.empty,
-                (e, st) => Cause.fail(e, st),
-                (t, st) =>
-                  t match {
-                    case t: ChannelFailure if t == channelFailure =>
-                      t.err
-                    case t => Cause.die(t, st)
-                  },
-                (fid, st) => Cause.interrupt(fid, st)
-              )(_ ++ _, _ && _, (cause, _) => cause)
+                cause.fold[Cause[OutErr1]](
+                  Cause.empty,
+                  (e, st) => Cause.fail(e, st),
+                  (t, st) =>
+                    t match {
+                      case t: ChannelFailure if t == channelFailure =>
+                        t.err
+                      case t => Cause.die(t, st)
+                    },
+                  (fid, st) => Cause.interrupt(fid, st)
+                )(_ ++ _, _ && _, (cause, _) => cause)
             ),
           done => ZChannel.succeedNow(done)
         )
