@@ -100,16 +100,12 @@ private[zio] final class UpdateOrderLinkedMap[K, +V](
 
     @tailrec
     final private[this] def findNextKey(nextSlot: Int): K =
-      if (nextSlot >= fieldsLength) {
-        slot = fieldsLength
-        null.asInstanceOf[K]
-      } else
-        fields(nextSlot) match {
-          case Tombstone(d) => findNextKey(nextSlot + d)
-          case k =>
-            slot = nextSlot
-            k.asInstanceOf[K]
-        }
+      fields(nextSlot) match {
+        case Tombstone(d) => findNextKey(nextSlot + d)
+        case k =>
+          slot = nextSlot
+          k.asInstanceOf[K]
+      }
 
     override def hasNext: Boolean = slot < fieldsLength - 1
 
@@ -136,18 +132,13 @@ private[zio] final class UpdateOrderLinkedMap[K, +V](
 
     @tailrec
     final private[this] def findNextKey(nextSlot: Int): K =
-      if (nextSlot < 0) {
-        slot = -1
-        null.asInstanceOf[K]
-      } else {
-        fields(nextSlot) match {
-          case Tombstone(d) if d < 0  => findNextKey(nextSlot + d)
-          case Tombstone(d) if d == 1 => findNextKey(nextSlot - 1)
-          case Tombstone(d)           => throw new IllegalStateException("tombstone indicate wrong position: " + d)
-          case k =>
-            slot = nextSlot
-            k.asInstanceOf[K]
-        }
+      fields(nextSlot) match {
+        case Tombstone(d) if d < 0  => findNextKey(nextSlot + d)
+        case Tombstone(d) if d == 1 => findNextKey(nextSlot - 1)
+        case Tombstone(d)           => throw new IllegalStateException("tombstone indicate wrong position: " + d)
+        case k =>
+          slot = nextSlot
+          k.asInstanceOf[K]
       }
 
     override def hasNext: Boolean = slot > 0
@@ -208,52 +199,22 @@ private[zio] object UpdateOrderLinkedMap {
       this
     }
 
-    def addAll(xs: Iterable[(K, V)]): UpdateOrderLinkedMap.Builder[K, V] = {
-      xs.foreach(addOne)
-      self
-    }
-
     def clear(): Unit = {
       entries = Nil
       aliased = null
     }
 
     def result(): UpdateOrderLinkedMap[K, V] = {
-      if ((aliased eq null) && (entries ne Nil)) {
-        // Iterator that unpacks `entries` while removing duplicated keys
-        val iter = new AbstractIterator[(K, V)] {
-          private[this] var current   = null.asInstanceOf[(K, V)]
-          private[this] var remaining = entries
-          private[this] val set       = mutable.HashSet.empty[K]
-
-          private[this] def advance(): Unit = {
-            var rem  = remaining
-            var curr = null.asInstanceOf[(K, V)]
-            while ((curr eq null) && (rem ne Nil)) {
-              val head = rem.head
-              if (set.add(head._1)) curr = head
-              rem = rem.tail
-            }
-            current = curr
-            remaining = rem
-          }
-
-          advance()
-
-          override def hasNext: Boolean = current ne null
-
-          override def next(): (K, V) =
-            if (!hasNext) Iterator.empty.next()
-            else {
-              val result = current
-              advance()
-              result
-            }
+      if (aliased eq null) {
+        var reversed  = List.empty[(K, V)]
+        var remaining = entries
+        val set       = mutable.HashSet.empty[K]
+        while (remaining ne Nil) {
+          val head = remaining.head
+          if (set.add(head._1)) reversed = head :: reversed
+          remaining = remaining.tail
         }
-
-        aliased = fromUnsafe(iter)
-      } else if (entries eq Nil) {
-        aliased = empty[K, V]
+        aliased = fromUnsafe(reversed.iterator)
       }
       aliased
     }

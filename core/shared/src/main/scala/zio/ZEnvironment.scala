@@ -28,7 +28,7 @@ final class ZEnvironment[+R] private (
   private var cache: HashMap[LightTypeTag, Any],
   private val scope: Scope
 ) extends Serializable { self =>
-  import ZEnvironment.ScopeTag
+  import ZEnvironment.{ScopeTag, TaggedAny}
 
   @deprecated("Kept for binary compatibility only. Do not use", "2.1.2")
   private[ZEnvironment] def this(map: Map[LightTypeTag, Any], index: Int, cache: Map[LightTypeTag, Any] = Map.empty) =
@@ -114,8 +114,8 @@ final class ZEnvironment[+R] private (
           }
         }
       }
-      val scopeTag = set.find(isScopeTag)
-      scopeTag.foreach(found.add)
+      val scopeTags = set.filter(isScopeTag)
+      scopeTags.foreach(found.add)
 
       if (set.size > found.size) {
         val missing = set -- found
@@ -127,7 +127,7 @@ final class ZEnvironment[+R] private (
       new ZEnvironment(
         builder.result(),
         cache = HashMap.empty,
-        scope = if (scopeTag.isEmpty) null else scope
+        scope = if (scopeTags.isEmpty) null else scope
       )
     }
   }
@@ -140,7 +140,7 @@ final class ZEnvironment[+R] private (
     map.size + (if (scope eq null) 0 else 1)
 
   def isEmpty: Boolean =
-    map.isEmpty && (scope eq null)
+    (scope eq null) && map.isEmpty
 
   override def toString: String = {
     val asList  = map.toList
@@ -186,20 +186,22 @@ final class ZEnvironment[+R] private (
     def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A
     private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A]
     private[ZEnvironment] def update[A >: R](tag: LightTypeTag, f: A => A)(implicit unsafe: Unsafe): ZEnvironment[R]
-
-    private[ZEnvironment] def addService[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A]
-    private[zio] def addScope(scope: Scope)(implicit unsafe: Unsafe): ZEnvironment[R with Scope]
   }
 
   trait UnsafeAPI2 {
     private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A
   }
 
+  trait UnsafeAPI3 {
+    private[zio] def addScope(scope: Scope)(implicit unsafe: Unsafe): ZEnvironment[R with Scope]
+    private[ZEnvironment] def addService[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A]
+  }
+
   private def isScopeTag(tag: LightTypeTag): Boolean =
     taggedIsSubtype(tag, ScopeTag)
 
-  val unsafe: UnsafeAPI with UnsafeAPI2 =
-    new UnsafeAPI with UnsafeAPI2 {
+  val unsafe: UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 =
+    new UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 {
       private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A] =
         if (a.isInstanceOf[Scope] && isScopeTag(tag))
           addScope(a.asInstanceOf[Scope]).asInstanceOf[ZEnvironment[R with A]]
@@ -221,9 +223,13 @@ final class ZEnvironment[+R] private (
 
       private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A = {
         val fromCache = self.cache.getOrElse(tag, null)
-        if (fromCache != null) fromCache.asInstanceOf[A]
-        else if ((scope ne null) && isScopeTag(tag)) scope.asInstanceOf[A]
-        else if (!self.isEmpty) {
+        if (fromCache != null)
+          fromCache.asInstanceOf[A]
+        else if ((scope ne null) && isScopeTag(tag))
+          scope.asInstanceOf[A]
+        else if (self.isEmpty && tag == TaggedAny)
+          ().asInstanceOf[A]
+        else {
           val it      = self.map.reverseIterator
           var service = null.asInstanceOf[A]
           while (it.hasNext && service == null) {
@@ -238,9 +244,6 @@ final class ZEnvironment[+R] private (
             cache = self.cache.updated(tag, service)
             service
           }
-        } else {
-          // Don't know why we need to return this if the environment is empty, but tests require it
-          ().asInstanceOf[A]
         }
       }
 
@@ -252,7 +255,6 @@ final class ZEnvironment[+R] private (
 }
 
 object ZEnvironment {
-  private val ScopeTag: LightTypeTag = taggedTagType(EnvironmentTag[Scope])
 
   /**
    * Constructs a new environment holding no services.
@@ -395,7 +397,7 @@ object ZEnvironment {
           var (oldTag, oldService) = oldIt.next()
           val (newTag, newService) = newIt.next()
 
-          while (oldTag != newTag && oldIt.hasNext) {
+          while (oldIt.hasNext && oldTag != newTag) {
             val old = oldIt.next()
             oldTag = old._1
             oldService = old._2
@@ -437,4 +439,9 @@ object ZEnvironment {
       patch.asInstanceOf[Patch[Any, Any]]
   }
 
+  private val ScopeTag: LightTypeTag =
+    taggedTagType(EnvironmentTag[Scope])
+
+  private val TaggedAny: LightTypeTag =
+    taggedTagType(EnvironmentTag[Any])
 }
