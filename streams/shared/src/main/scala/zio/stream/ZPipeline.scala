@@ -496,6 +496,11 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
   ): ZPipeline[Env2, Err2, In, Out2] =
     self >>> ZPipeline.mapZIOPar(n)(f)
 
+  def mapZIOPar[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int)(f: Out => ZIO[Env2, Err2, Out2])(implicit
+    trace: Trace
+  ): ZPipeline[Env2, Err2, In, Out2] =
+    self >>> ZPipeline.mapZIOPar(n, bufferSize)(f)
+
   /**
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. The element order is
@@ -505,6 +510,13 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     trace: Trace
   ): ZPipeline[Env2, Err2, In, Out2] =
     self >>> ZPipeline.mapZIOParUnordered(n)(f)
+
+  def mapZIOParUnordered[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int)(
+    f: Out => ZIO[Env2, Err2, Out2]
+  )(implicit
+    trace: Trace
+  ): ZPipeline[Env2, Err2, In, Out2] =
+    self >>> ZPipeline.mapZIOParUnordered(n, bufferSize)(f)
 
   /**
    * Transforms the errors emitted by this pipeline using `f`.
@@ -1799,13 +1811,18 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapZIOPar[Env, Err, In, Out](n: => Int)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
   ): ZPipeline[Env, Err, In, Out] =
-    new ZPipeline(
-      ZChannel
-        .identity[Nothing, Chunk[In], Any]
-        .concatMap(ZChannel.writeChunk(_))
-        .mapOutZIOPar(n)(f)
-        .mapOut(Chunk.single)
-    )
+    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
+      strm
+        .mapZIOPar(n)(f)
+    }
+
+  def mapZIOPar[Env, Err, In, Out](n: => Int, bufferSize: => Int)(f: In => ZIO[Env, Err, Out])(implicit
+    trace: Trace
+  ): ZPipeline[Env, Err, In, Out] =
+    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
+      strm
+        .mapZIOPar(n, bufferSize)(f)
+    }
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -1815,12 +1832,16 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapZIOParUnordered[Env, Err, In, Out](n: => Int)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
   ): ZPipeline[Env, Err, In, Out] =
-    new ZPipeline(
-      ZChannel
-        .identity[Nothing, Chunk[In], Any]
-        .concatMap(ZChannel.writeChunk(_))
-        .mergeMap(n, 16)(in => ZStream.fromZIO(f(in)).channel)
-    )
+    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
+      strm.mapZIOParUnordered(n)(f)
+    }
+
+  def mapZIOParUnordered[Env, Err, In, Out](n: => Int, bufferSize: => Int)(f: In => ZIO[Env, Err, Out])(implicit
+    trace: Trace
+  ): ZPipeline[Env, Err, In, Out] =
+    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
+      strm.mapZIOParUnordered(n, bufferSize)(f)
+    }
 
   /**
    * Emits the provided chunk before emitting any other value.
