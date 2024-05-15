@@ -1,10 +1,7 @@
 package zio.internal
 
 import zio._
-import zio.test.TestAspect._
 import zio.test._
-
-import scala.annotation.nowarn
 
 object UpdateOrderLinkedMapSpec extends ZIOBaseSpec {
   private val empty = UpdateOrderLinkedMap.empty[String, Int]
