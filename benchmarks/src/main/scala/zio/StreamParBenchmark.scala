@@ -110,4 +110,38 @@ class StreamParBenchmark {
     unsafeRun(result)
   }
 
+  @Benchmark
+  def zioFlatMapPar : Long = {
+    val result = ZStream
+      .fromChunks(zioChunks: _*)
+      .flatMapPar(4)(i => ZStream(i, i + 1))
+      .runCount
+
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def akkaFlatMapPar: Long = {
+    val program = AkkaSource
+      .fromIterator(() => akkaChunks.iterator.flatten)
+      .flatMapMerge(4, i => AkkaSource(Seq(i, i + 1)))
+      .toMat(AkkaSink.fold(0L)((c, _) => c + 1L))(Keep.right)
+
+    Await.result(program.run(), ScalaDuration.Inf)
+  }
+
+  @Benchmark
+  def fs2FlatMapPar: Long = {
+    FS2Stream(fs2Chunks: _*)
+      .flatMap(FS2Stream.chunk(_))
+      .map{i =>
+        FS2Stream(i, i + 1)
+      }
+      .covary[CatsIO]
+      .parJoin(4)
+      .compile
+      .fold(0L)((c, _) => c + 1L)
+      .unsafeRunSync()
+  }
+
 }
