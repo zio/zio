@@ -111,7 +111,7 @@ class StreamParBenchmark {
   }
 
   @Benchmark
-  def zioFlatMapPar : Long = {
+  def zioFlatMapPar: Long = {
     val result = ZStream
       .fromChunks(zioChunks: _*)
       .flatMapPar(4)(i => ZStream(i, i + 1))
@@ -131,10 +131,10 @@ class StreamParBenchmark {
   }
 
   @Benchmark
-  def fs2FlatMapPar: Long = {
+  def fs2FlatMapPar: Long =
     FS2Stream(fs2Chunks: _*)
       .flatMap(FS2Stream.chunk(_))
-      .map{i =>
+      .map { i =>
         FS2Stream(i, i + 1)
       }
       .covary[CatsIO]
@@ -142,6 +142,5 @@ class StreamParBenchmark {
       .compile
       .fold(0L)((c, _) => c + 1L)
       .unsafeRunSync()
-  }
 
 }
