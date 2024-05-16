@@ -26,4 +26,4 @@ println("""```""")
 ```
 
 
-**NOTE**: Default services were removed from the ZIO environment in ZIO 2.x and integrated into the ZIO runtime. This also brings some changes to the way we run tests using these services. In order to use the live version of these services in our tests, we can use some new helpful test aspects e.g `withLiveClock`, `withLiveConsole`, `withLiveRandom`, `withLiveSystem`, etc.
+**NOTE**: In order to use the live version of a service in our tests, we can use some new helpful test aspects e.g `withLiveClock`, `withLiveConsole`, `withLiveRandom`, `withLiveSystem`, etc.

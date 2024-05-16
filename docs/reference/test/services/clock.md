@@ -179,17 +179,53 @@ test("zipLatest") {
 
 ### Example 5
 
-In ZIO 2.x, we can use the live `Clock` service from the ZIO runtime in our tests using the `withLiveClock` test aspect. This removes the need to advance `TestClock` manually in our tests:
+`TestClock` is used to speed up the tests by simulating the passage of time. This is useful for triggering scheduled effects, which is useful for testing time-dependent code. `TestClock` does nothing to advance events on its own and is initialized to 00:00 1/1/70.
+
+However, we can use a live clock to simulate events, enabling a fixed ratio of 'real' to 'test' time. `TestClock.adjust()` can be used to advance time, but a real clock may be required to space out the advancements properly.
+
+The test below creates a stream of 30 elements that are spaced 1 second apart. The test advances the clock by 1 second 30 times, allowing the stream to generate all 30 elements.
 
 ```scala mdoc:compile-only
 import zio._
+import zio.stream._
+import zio.test.{test, _}
+import zio.test.Assertion._
+
+
+test("test clock") {
+  val stream = ZStream.iterate(0)(_ + 1).schedule(Schedule.spaced(1.second))
+  val s1 = stream.take(30)
+  val sink = ZSink.collectAll[Int]
+  for {
+    _ <- TestClock.adjust(1.second)
+    .repeat(Schedule.recurs(30)).fork
+    runner <- s1.run(sink)
+  } yield assert(runner.size)(equalTo(30))
+}
+```
+
+The test doesn't work  because the fast forward is too fast and by the time the stream generator takes the first element, it has moved all the way to the end of the 30 seconds. We need to slow down the rate at which the test clock advances. 
+
+The problem is that the `Schedule` needs a clock to do the spacing. We can't use the test clock since this is what we need to change. We opt to use the live clock instead with the `@@ withLiveClock` test aspect. We also use `Schedule.spaced` to dictate the spacing of the events in real time. 
+
+```scala mdoc:compile-only
+import zio._
+import zio.stream._
 import zio.test.{test, _}
 import zio.test.Assertion._
 import zio.test.TestAspect._
 
-test("Test using live Clock service") {
+
+test("live clock") {
+  val stream = ZStream.iterate(0)(_ + 1).schedule(Schedule.spaced(1.second))
+  val s1 = stream.take(30)
+  val sink = ZSink.collectAll[Int]
   for {
-    _ <- TestClock.timeZone
-  } yield assertCompletes
+    _ <- TestClock.adjust(1.second)
+    .repeat(Schedule.spaced(10.milliseconds)).fork
+    runner <- s1.run(sink)
+  } yield assert(runner.size)(equalTo(30))
 } @@ withLiveClock
 ```
+
+Using this technique, we can simulate the advancement of 1 second in the test clock for every 10 milliseconds in real time using the live clock.
