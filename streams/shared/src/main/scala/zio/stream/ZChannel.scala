@@ -1995,16 +1995,17 @@ object ZChannel {
       //todo: this can simply be a mutable list as it's only accessed by the enqueue fiber
       cancelers     <- Queue.unbounded[UIO[Any]]
       permits       <- Semaphore.make(n.toLong)
+      //reduce contention by striping the outDone updaters
       doneUpdaters         <- Ref.make(Option.empty[OutDone]).replicateZIO(n min bufferSize).map(Chunk.fromIterable(_))
     } yield {
-      lazy val sinkCh : ZChannel[Any, OutErr, OutElem, OutDone, Nothing, Nothing, Option[OutDone]] = ZChannel
+      lazy val sinkCh : ZChannel[Any, OutErr, OutElem, OutDone, OutErr, Nothing, OutDone] = ZChannel
         .readWithCause(
           in => ZChannel.fromZIO(queue.offer(in)) *> sinkCh,
-          err => ZChannel.fromZIO(queue.offer(QRes(err))) *> ZChannel.succeedNow(None),
-          done => ZChannel.succeedNow(Some(done))
+          err => ZChannel.fromZIO(queue.offer(QRes(err))) *> ZChannel.refailCause(err),
+          done => ZChannel.succeedNow(done)
         )
 
-      def backPressureF(ch : ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone], i : Int): ZIO[Any, Nothing, Fiber.Runtime[Nothing, Any]] = {
+      def backPressureF(ch : ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone], i : Int): ZIO[Any, Nothing, Fiber.Runtime[OutErr, Any]] = {
         val boundCh: ZChannel[Any, Any, Any, Any, OutErr, OutElem, OutDone] = queueReader.pipeTo(ch)
         ZIO.uninterruptibleMask{ restore =>
           for{
@@ -2014,15 +2015,12 @@ object ZChannel {
               boundCh
                 .pipeTo(sinkCh)
                 .run
-                .flatMap{
-                  case Some(done) =>
-                    val updater = doneUpdaters(i % n)
-                    updater.update{
-                      case None => Some(done)
-                      case Some(prev) => Some(f(prev, done))
-                    }
-                  case None =>
-                    ZIO.unit
+                .flatMap{ done =>
+                  val updater = doneUpdaters(i % n)
+                  updater.update{
+                    case None => Some(done)
+                    case Some(prev) => Some(f(prev, done))
+                  }
                 }
             }
             .onExit(localScope.close(_))
@@ -2031,7 +2029,7 @@ object ZChannel {
         }
       }
 
-      def slidingF(ch : ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone], i : Int): ZIO[Any, Nothing, Fiber.Runtime[Nothing, Any]] = {
+      def slidingF(ch : ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone], i : Int): ZIO[Any, Nothing, Fiber.Runtime[OutErr, Any]] = {
         for{  //notice we don't need an uninterruptible region here, if we get interrupted it means the entire operator is interrupted
           numCancellers <- cancelers.size
           _ <- cancelers.take.flatten.when(numCancellers == n)
@@ -2042,7 +2040,7 @@ object ZChannel {
         }
       }
 
-      def processF(ch : ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone], i : Int): ZIO[Any, Nothing, Fiber.Runtime[Nothing, Any]] = mergeStrategy match {
+      def processF(ch : ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone], i : Int): ZIO[Any, Nothing, Fiber.Runtime[OutErr, Any]] = mergeStrategy match {
         case MergeStrategy.BackPressure =>
           backPressureF(ch, i)
         case MergeStrategy.BufferSliding  =>
