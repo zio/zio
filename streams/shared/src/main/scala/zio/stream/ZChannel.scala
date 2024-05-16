@@ -1075,12 +1075,23 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       lazy val writer: ZChannel[Env1, OutErr1, OutElem2, OutDone2, OutErr1, OutElem2, OutDone2] =
         ZChannel.readWithCause(
           elem => ZChannel.write(elem) *> writer,
-          {
-            case Cause.Die(value: ChannelFailure, _) if value == channelFailure => {
-              ZChannel.refailCause(channelFailure.err)
-            }
-            case cause => ZChannel.refailCause(cause)
-          },
+          cause =>
+            ZChannel.refailCause(
+              if (channelFailure eq null)
+                cause
+              else
+                cause.fold[Cause[OutErr1]](
+                  Cause.empty,
+                  (e, st) => Cause.fail(e, st),
+                  (t, st) =>
+                    t match {
+                      case t: ChannelFailure if t == channelFailure =>
+                        t.err
+                      case t => Cause.die(t, st)
+                    },
+                  (fid, st) => Cause.interrupt(fid, st)
+                )(_ ++ _, _ && _, (cause, _) => cause)
+            ),
           done => ZChannel.succeedNow(done)
         )
 
