@@ -18,10 +18,10 @@ package zio
 
 import zio.internal.Platform
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-
 import izumi.reflect.macrortti.LightTypeTagRef
 
 import java.util.{Map => JMap}
+import scala.collection.mutable
 
 private[zio] trait VersionSpecific {
 
@@ -60,13 +60,7 @@ private[zio] trait VersionSpecific {
   type LightTypeTag = izumi.reflect.macrortti.LightTypeTag
 
   private[zio] def taggedIsSubtype(left: LightTypeTag, right: LightTypeTag): Boolean =
-    taggedSubtypes.computeIfAbsent(
-      (left, right),
-      new java.util.function.Function[(LightTypeTag, LightTypeTag), Boolean] {
-        override def apply(tags: (LightTypeTag, LightTypeTag)): Boolean =
-          tags._1 <:< tags._2
-      }
-    )
+    taggedSubtypes.computeIfAbsent((left, right), taggedIsSubtypeFn).value
 
   private[zio] def taggedTagType[A](tagged: EnvironmentTag[A]): LightTypeTag =
     tagged.tag
@@ -78,8 +72,31 @@ private[zio] trait VersionSpecific {
    * `Tag[A with B]` should produce `Set(Tag[A], Tag[B])`
    */
   private[zio] def taggedGetServices[A](t: LightTypeTag): Set[LightTypeTag] =
-    t.decompose
+    taggedServices.computeIfAbsent(t, taggedServicesFn)
 
-  private val taggedSubtypes: JMap[(LightTypeTag, LightTypeTag), Boolean] =
+  private val taggedSubtypes: JMap[(LightTypeTag, LightTypeTag), BoxedBool] =
     Platform.newConcurrentMap()(Unsafe.unsafe)
+
+  private val taggedServices: JMap[LightTypeTag, Set[LightTypeTag]] =
+    Platform.newConcurrentMap()(Unsafe.unsafe)
+
+  private[this] val taggedIsSubtypeFn =
+    new java.util.function.Function[(LightTypeTag, LightTypeTag), BoxedBool] {
+      override def apply(tags: (LightTypeTag, LightTypeTag)): BoxedBool =
+        if (tags._1 <:< tags._2) BoxedBool.True else BoxedBool.False
+    }
+
+  private[this] val taggedServicesFn =
+    new java.util.function.Function[LightTypeTag, Set[LightTypeTag]] {
+      override def apply(tag: LightTypeTag): Set[LightTypeTag] =
+        tag.decompose
+    }
+
+  private sealed trait BoxedBool { self =>
+    final def value: Boolean = self eq BoxedBool.True
+  }
+  private object BoxedBool {
+    case object True  extends BoxedBool
+    case object False extends BoxedBool
+  }
 }

@@ -24,7 +24,8 @@ object MimaSettings {
         exclude[MissingClassProblem]("zio.ZIO$EvaluationStep*"),
         exclude[MissingClassProblem]("zio.ZIO$ZIOError*"),
         exclude[MissingClassProblem]("zio.ZIO$OnFailure*"),
-        exclude[MissingClassProblem]("zio.ZIO$OnSuccess*")
+        exclude[MissingClassProblem]("zio.ZIO$OnSuccess*"),
+        exclude[DirectMissingMethodProblem]("zio.ZEnvironment.zio$ZEnvironment$$<init>$default$3")
       ),
       mimaFailOnProblem := failOnProblem
     )
