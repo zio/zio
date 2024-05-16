@@ -2069,7 +2069,7 @@ object ZSTM {
       /**
        * Resets the Entry with a given value.
        */
-      def reset(resetValue: Any): Entry = new Entry {
+      private[stm] def reset(resetValue: Any): Entry = new Entry {
         type S = self.S
         val tref     = self.tref
         val expected = self.expected
