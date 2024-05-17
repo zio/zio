@@ -75,11 +75,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         ZIO.asyncInterrupt[Any, Nothing, Exit[E, A]](
           { k =>
             val cb = (exit: Exit[_, _]) => k(Exit.Success(exit.asInstanceOf[Exit[E, A]]))
-            tell(FiberMessage.Stateful { (fiber, _) =>
+            tell(FiberMessage.Stateful { fiber =>
               if (fiber._exitValue ne null) cb(fiber._exitValue)
               else fiber.addObserver(cb)(Unsafe.unsafe)
             })
-            Left(ZIO.succeed(tell(FiberMessage.Stateful { (fiber, _) =>
+            Left(ZIO.succeed(tell(FiberMessage.Stateful { fiber =>
               fiber.removeObserver(cb)
             })))
           },
@@ -766,9 +766,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
   }
 
-  private def processStatefulMessage(onFiber: (FiberRuntime[_, _], Fiber.Status) => Unit): Unit =
+  private def processStatefulMessage(onFiber: FiberRuntime[_, _] => Unit): Unit =
     try {
-      onFiber(self, getStatus())
+      onFiber(self)
     } catch {
       case throwable: Throwable =>
         if (isFatal(throwable)) {
@@ -1415,10 +1415,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   }
 
   private[zio] def tellAddChild(child: Fiber.Runtime[_, _]): Unit =
-    tell(FiberMessage.Stateful((parentFiber, _) => parentFiber.addChild(child)))
+    tell(FiberMessage.Stateful(parentFiber => parentFiber.addChild(child)))
 
   private[zio] def tellAddChildren(children: Iterable[Fiber.Runtime[_, _]]): Unit =
-    tell(FiberMessage.Stateful((parentFiber, _) => parentFiber.addChildren(children)))
+    tell(FiberMessage.Stateful(parentFiber => parentFiber.addChildren(children)))
 
   private[zio] def tellInterrupt(cause: Cause[Nothing]): Unit =
     tell(FiberMessage.InterruptSignal(cause))
