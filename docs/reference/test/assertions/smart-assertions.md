@@ -164,3 +164,29 @@ Here is the truth table for the iff operator:
 ```scala mdoc:compile-only
 assertTrue(1 + 1 == 3) ?? "1 + 1 should be equal to 2"
 ```
+
+## Test Lenses
+
+There are some operators that can be used inside the `assertTrue` macro to make assertions easy and more readable:
+
+### Is
+
+
+### Arrays
+
+```scala mdoc:compile-only
+import zio.test._
+
+val a1 = Array(1, 2, 3)
+val a2 = Array(1, 2, 3)
+
+suite("array") (
+  test("arrays are equal") {
+    assertTrue(a1 == a2)
+  },
+  test("contains a single element") {
+    assertTrue(a1.contains(3))
+  }
+)
+```
+
