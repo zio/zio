@@ -3,6 +3,94 @@ id: built-in-assertions
 title: "Built-in Assertions"
 ---
 
+A `Assertion[A]` is a statement or piece of code that checks whether a value of type `A` satisfies some condition. If the condition is satisfied, the assertion passes; otherwise, it fails. We can think of the `Assertion[A]` as a function from `A` to `Boolean`:
+
+```scala
+case class Assertion[-A](arrow: TestArrow[A, Boolean]) {
+  def test(value: A): Boolean = ???
+  def run(value: => A): TestResult = ???
+}
+```
+
+It has a companion object with lots of predefined assertions that can be used to test values of different types. For example, the `Assertion.equalTo` takes a value of type `A` and returns an assertion that checks whether the value is equal to the given value:
+
+```scala mdoc
+import zio.test._
+import zio.test.Assertion
+
+def sut = 40 + 2
+val assertion: Assertion[Int] = Assertion.equalTo[Int, Int](42)
+assertion.test(sut)
+```
+
+:::note
+Behind the scenes, the `Assertion` type uses a `TestArrow` type to represent the function from `A` to `Boolean`. For example, instead of using a predefined `equalTo` assertion, we can create our assertion directly from a `TestArrow`:
+
+```scala mdoc:nest
+val assertion: Assertion[Int] = Assertion(TestArrow.fromFunction(_ == 42))
+assertion.test(sut)
+```
+
+Please note that the `TestArrow` is the fundamental building block of assertions specially the complex ones. Usually, as the end user, we do not require interacting with `TestArrow` directly. But it is good to know that it is there and how it works. We will see more about `TestArrow` in the next sections.
+:::
+
+## Combining Assertions
+
+We can create more complex assertions by combining them.
+
+1. **`&&`** - Logical AND operator. Using this operator, the combined assertion will pass only if both the left and right assertions pass. For example, the following assertion will pass only if the value is greater than 40 and less than 50:
+
+```scala mdoc:nest
+val assertion: Assertion[Int] = Assertion.isGreaterThan(40) && Assertion.isLessThan(50)
+```
+
+2. **`||`** - Logical OR operator. Using this operator, the combined assertion will pass if either the left or right or both assertions pass. For example, the following assertion will pass if the value is either less than 40 or greater than 50:
+
+```scala mdoc:nest
+val assertion: Assertion[Int] = Assertion.isLessThan(40) || Assertion.isGreaterThan(50)
+```
+
+3. **`!`** - Logical NOT operator. Using this operator, the combined assertion will pass only if the given assertion fails. For example, the following assertion will pass only if the value is not equal to 42:
+
+```scala mdoc:nest
+val assertion: Assertion[Int] = !Assertion.equalTo(42)
+```
+
+Besides the logical operators, we can also combine assertions like the following to have assertions on more complex types like `Option[Int]`:
+
+```scala mdoc:nest
+val assertion: Assertion[Option[Int]] = Assertion.isSome(Assertion.equalTo(5))
+```
+
+:::note
+Under the hood, the above assertion uses the `>>>` operator of `TestArrow` to make the composition of two assertions sequentially:
+
+```scala mdoc:compile-only:nest
+import zio.test._
+import zio.test.Assertion
+
+def isSome[A]: TestArrow[Option[A], A] = TestArrow.fromFunction(_.get)
+
+def equalTo[A, B](expected: B): TestArrow[B, Boolean] =
+  TestArrow.fromFunction((actual: B) => actual == expected)
+
+val assertion: Assertion[Option[Int]] = {
+  val optionArrow =                    // TestArrow[Option[Int], Boolean]
+    TestArrow.fromFunction(_.get) >>>  // TestArrow[Option[Int], Int] 
+      Assertion.equalTo(5)             // TestArrow[Int, Boolean]
+  Assertion(optionArrow)
+}
+```
+
+By composing an arrow of `[Option[Int], Int]` and `[Int, Boolean]` we can create an arrow of `[Option[Int], Boolean]`. Using this technique, we can compose more arrows to create more and more complex assertions.
+
+We can see that `TestArrow` has the same analogy as `ZLayer`. We are dealing with generalization of functions and composition of functions in a pure and declarative fashion, which is called "arrow" in functional programming. In other words, with `TestArrow`, we have reified the concept of a function and its composition, which allows us to manipulate functions as first-class values.
+
+One of the benefits of reification of assertions into "arrows" is that we can write macros to generate assertions from pure Scala code. This is how the smart assertions work in ZIO Test.
+:::
+
+## Built-in Assertions
+
 To create `Assertion[A]` object one can use functions defined under `zio.test.Assertion`. There are already a number of useful assertions predefined like `equalTo`, `isFalse`, `isTrue`, `contains`, `throws` and more.
 
 Using the `Assertion` type effectively often involves finding the best fitting function for the type of assumptions you would like to verify.
