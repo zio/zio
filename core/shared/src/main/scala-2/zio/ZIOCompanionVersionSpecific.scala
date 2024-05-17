@@ -173,7 +173,9 @@ trait ZIOCompanionVersionSpecific {
    * Returns an effect that models success with the specified value.
    */
   def succeed[A](a: => A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
-    ZIO.Sync(trace, () => a)
+    new ZIO.Sync[A](trace) {
+      def eval() = a
+    }
 
   /**
    * Returns a synchronous effect that does blocking and succeeds with the

@@ -5827,7 +5827,16 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     failureK: Cause[E1] => ZIO[R, E2, A2]
   ) extends Continuation
       with ZIO[R, E2, A2]
-  private[zio] final case class Sync[A](trace: Trace, eval: () => A) extends ZIO[Any, Nothing, A]
+  private[zio] abstract class Sync[A](val trace: Trace) extends ZIO[Any, Nothing, A] {
+    def eval(): A
+    def canEqual(that: Any) = that.isInstanceOf[Sync[_]]
+    def productArity        = 2
+    def productElement(n: Int) =
+      n match {
+        case 0 => trace
+        case 1 => () => eval()
+      }
+  }
   private[zio] final case class Async[R, E, A](
     trace: Trace,
     registerCallback: (ZIO[R, E, A] => Unit) => ZIO[R, E, A],

@@ -178,7 +178,9 @@ trait ZIOCompanionVersionSpecific {
    * Returns an effect that models success with the specified value.
    */
   def succeed[A](a: Unsafe ?=> A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
-    ZIO.Sync(trace, () => Unsafe.unsafe(a))
+    new ZIO.Sync[A](trace) {
+      def eval() = Unsafe.unsafe(a)
+    }
 
   /**
    * Returns a synchronous effect that does blocking and succeeds with the
