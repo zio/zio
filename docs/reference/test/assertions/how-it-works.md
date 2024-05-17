@@ -33,27 +33,3 @@ def assert[A](expr: => A)(assertion: Assertion[A]): TestResult
 ``` 
 
 It takes an expression of type `A` and an `Assertion[A]` and returns the `TestResult` which is the boolean algebra of the `AssertionResult`. Furthermore, we have an `Assertion[A]` which is capable of producing _assertion results_ on any value of type `A`. So the `assert` function can apply the expression to the assertion and produce the `TestResult`.
-
-## The `Assertion` data type
-
-We can think of an `Assertion[A]` as a function of type `A => Boolean`.
-
-As a proposition, assertions compose using logical conjunction and disjunction and can be negated:
-
-```scala mdoc:silent
-import zio.test._
-
-val greaterThanZero: Assertion[Int] = Assertion.isPositive
-val lessThanFive   : Assertion[Int] = Assertion.isLessThan(5)
-val equalTo10      : Assertion[Int] = Assertion.equalTo(10)
-
-val assertion: Assertion[Int] = greaterThanZero && lessThanFive || equalTo10.negate
-```
-
-After composing them, we can run it on any expression:
-
-```scala mdoc:compile-only
-import zio._
-
-val result: TestResult = assertion.run(10)
-```

@@ -412,17 +412,9 @@ module.exports = {
           link: { type: "doc", id: "reference/test/assertions/index" },
           items: [
             "reference/test/assertions/smart-assertions",
-            {
-              type: "category",
-              label: "Classic Assertions",
-              link: { type: "doc", id: "reference/test/assertions/classic-assertions" },
-              items: [
-                "reference/test/assertions/operations",
-                "reference/test/assertions/built-in-assertions",
-                "reference/test/assertions/examples",
-                "reference/test/assertions/how-it-works"
-              ]
-            },
+            "reference/test/assertions/classic-assertions",
+            "reference/test/assertions/built-in-assertions",
+            "reference/test/assertions/how-it-works"
           ]
         },
         "reference/test/test-hierarchies-and-organization",
