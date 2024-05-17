@@ -136,7 +136,7 @@ trait Runtime[+R] { self =>
           import internal.{FiberMessage, OneShot}
           val result = OneShot.make[Exit[E, A]]
           fiber.tell(
-            FiberMessage.Stateful((fiber, _) => fiber.addObserver(exit => result.set(exit.asInstanceOf[Exit[E, A]])))
+            FiberMessage.Stateful(fiber => fiber.addObserver(exit => result.set(exit.asInstanceOf[Exit[E, A]])))
           )
           result.get()
         case Right(exit) => exit
