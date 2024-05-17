@@ -228,7 +228,7 @@ final class ZEnvironment[+R] private (
         else if ((scope ne null) && isScopeTag(tag))
           scope.asInstanceOf[A]
         else if (self.isEmpty && tag == TaggedAny)
-          ().asInstanceOf[A]
+          null.asInstanceOf[A]
         else {
           val it      = self.map.reverseIterator
           var service = null.asInstanceOf[A]
