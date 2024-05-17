@@ -1,5 +1,6 @@
 package zio
 
+import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Keep, Sink => AkkaSink, Source => AkkaSource}
 import cats.effect.unsafe.implicits.global
@@ -124,8 +125,15 @@ class StreamParBenchmark {
   def akkaFlatMapPar: Long = {
     val program = AkkaSource
       .fromIterator(() => akkaChunks.iterator.flatten)
-      .flatMapMerge(4, i => AkkaSource(Seq(i, i + 1)))
-      .toMat(AkkaSink.fold(0L)((c, _) => c + 1L))(Keep.right)
+      .flatMapMerge(
+        4,
+        i => {
+          val ints: scala.collection.immutable.Iterable[Int] = Vector(i, i + 1)
+          val akkaSrc: AkkaSource[Int, NotUsed]              = AkkaSource(ints)
+          akkaSrc
+        }
+      )
+      .toMat(AkkaSink.fold(0L)((c, ignored) => c + 1L))(Keep.right)
 
     Await.result(program.run(), ScalaDuration.Inf)
   }
