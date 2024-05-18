@@ -67,7 +67,7 @@ trait AssertionVariants {
     }
   }
 
-  implicit def convertBtoA[A, B](b: B)(implicit eql: Eql[A, B]): A = b.asInstanceOf[A]
+  implicit def conv[A, B](b: B)(implicit eql: Eql[A, B]): A = b.asInstanceOf[A]
 
   def equalTo[A, B](expected: A)(implicit diff: Diff[A], eql: Eql[A, B]): Assertion[B] =
     Assertion[B](
