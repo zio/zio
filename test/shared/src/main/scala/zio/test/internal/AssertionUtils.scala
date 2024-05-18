@@ -4,6 +4,15 @@ import zio.test.diff.DiffResult
 import zio.test.{ErrorMessage => M}
 import zio.test.ConsoleUtils
 import zio.test.PrettyPrint
+import zio.internal.ansi.AnsiStringOps
+
+/*
+* Renders the difference between expected and actual values based on the provided `DiffResult`.
+* @param diffResult The result of the diff operation.*
+* @param expected The expected value.
+* @param actual The actual value.
+* @return An `ErrorMessage` that represents the difference.
+*/
 
 object AssertionUtils {
   def renderDiffResult[A](diffResult: DiffResult, expected: A, actual: A): M = 
@@ -21,4 +30,3 @@ object AssertionUtils {
           M.custom(scala.Console.RESET + diffResult.render)
     }
 }
-

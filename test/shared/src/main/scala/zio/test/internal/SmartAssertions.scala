@@ -4,7 +4,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio._
 import zio.internal.ansi.AnsiStringOps
 import zio.test.diff.{Diff, DiffResult}
-import zio.test.AssertionUtils.renderDiffResult
+import zio.test.internal.AssertionUtils.renderDiffResult
 
 import scala.reflect.ClassTag
 import scala.util.Try
