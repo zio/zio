@@ -78,7 +78,8 @@ trait AssertionVariants {
           }
           TestTrace.boolean(result) {
             if (expected.isInstanceOf[Product]) {
-              M.text(diffProduct(actual, expected))
+              val diffResult = Diff.diff(expected, actual) 
+              AssertionUtils.renderDiffResult(diffResult, expected, actual)
             } else {
               M.pretty(actual) + M.equals + M.pretty(expected)
             }
@@ -87,24 +88,3 @@ trait AssertionVariants {
         .withCode("equalTo", valueArgument(expected))
     )
 }
-
-def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
-  Assertion[B](
-    TestArrow
-      .make[B, Boolean] { actual =>
-        val result = (actual, expected) match {
-          case (left: Array[_], right: Array[_])         => left.sameElements[Any](right)
-          case (left: CharSequence, right: CharSequence) => left.toString == right.toString
-          case (left, right)                             => left == right
-        }
-        TestTrace.boolean(result) {
-          if (expected.isInstanceOf[Product]) {
-            val diffResult = Diff.diff(expected, actual) 
-            AssertionUtils.renderDiffResult(diffResult, expected, actual)
-          } else {
-            M.pretty(actual) + M.equals + M.pretty(expected)
-          }
-        }
-      }
-      .withCode("equalTo", valueArgument(expected))
-  )
