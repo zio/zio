@@ -78,8 +78,8 @@ trait AssertionVariants {
           }
           TestTrace.boolean(result) {
             if (expected.isInstanceOf[Product]) {
-              val diffResult = diff.diff(expected, actual) 
-              renderDiffResult(diffResult, expected, actual)
+              val diffResult = diff.diff(expected, actual.asInstanceOf[A]) 
+              renderDiffResult(diffResult, expected, actual.asInstanceOf[A])
             } else {
               M.pretty(actual) + M.equals + M.pretty(expected)
             }
