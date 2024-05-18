@@ -60,7 +60,7 @@ object Queue {
    *   `UIO[Queue[A]]`
    */
   def bounded[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A]] =
-    ZIO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.BackPressure()))
+    ZIO.succeedUnsafe(unsafe.bounded(requestedCapacity)(_))
 
   /**
    * Makes a new bounded queue with the dropping strategy. When the capacity of
@@ -79,7 +79,7 @@ object Queue {
    *   `UIO[Queue[A]]`
    */
   def dropping[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A]] =
-    ZIO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.Dropping()))
+    ZIO.succeedUnsafe(unsafe.dropping(requestedCapacity)(_))
 
   /**
    * Makes a new bounded queue with sliding strategy. When the capacity of the
@@ -99,7 +99,7 @@ object Queue {
    *   `UIO[Queue[A]]`
    */
   def sliding[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A]] =
-    ZIO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.Sliding()))
+    ZIO.succeedUnsafe(unsafe.sliding(requestedCapacity)(_))
 
   /**
    * Makes a new unbounded queue.
@@ -110,22 +110,37 @@ object Queue {
    *   `UIO[Queue[A]]`
    */
   def unbounded[A](implicit trace: Trace): UIO[Queue[A]] =
-    ZIO.succeed(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Strategy.Dropping()))
+    ZIO.succeedUnsafe(unsafe.unbounded(_))
 
-  private def createQueue[A](queue: MutableConcurrentQueue[A], strategy: Strategy[A])(implicit
-    trace: Trace
-  ): UIO[Queue[A]] =
-    Promise
-      .make[Nothing, Unit]
-      .map(p =>
-        unsafeCreate(
-          queue,
-          MutableConcurrentQueue.unbounded[Promise[Nothing, A]],
-          p,
-          new AtomicBoolean(false),
-          strategy
-        )
-      )
+  private[zio] object unsafe {
+
+    def bounded[A](requestedCapacity: Int)(implicit unsafe: Unsafe): Queue[A] =
+      createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.BackPressure())
+
+    def dropping[A](requestedCapacity: Int)(implicit unsafe: Unsafe): Queue[A] =
+      createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.Dropping())
+
+    def sliding[A](requestedCapacity: Int)(implicit unsafe: Unsafe): Queue[A] =
+      createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.Sliding())
+
+    def unbounded[A](implicit unsafe: Unsafe): Queue[A] =
+      createQueue(MutableConcurrentQueue.unbounded[A], Strategy.Dropping())
+
+  }
+
+  private def createQueue[A](
+    queue: MutableConcurrentQueue[A],
+    strategy: Strategy[A]
+  )(implicit unsafe: Unsafe): Queue[A] = {
+    val p = Promise.unsafe.make[Nothing, Unit](FiberId.None)
+    unsafeCreate(
+      queue,
+      MutableConcurrentQueue.unbounded[Promise[Nothing, A]],
+      p,
+      new AtomicBoolean(false),
+      strategy
+    )
+  }
 
   private def unsafeCreate[A](
     queue: MutableConcurrentQueue[A],
