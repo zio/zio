@@ -67,7 +67,7 @@ trait AssertionVariants {
     }
   }
 
-  def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
+  def equalTo[A, B](expected: A)(implicit diff: Diff[A], eql: Eql[A, B]): Assertion[B] =
     Assertion[B](
       TestArrow
         .make[B, Boolean] { actual =>
@@ -78,7 +78,7 @@ trait AssertionVariants {
           }
           TestTrace.boolean(result) {
             if (expected.isInstanceOf[Product]) {
-              val diffResult = Diff.diff(expected, actual) 
+              val diffResult = diff.diff(expected, actual) 
               renderDiffResult(diffResult, expected, actual)
             } else {
               M.pretty(actual) + M.equals + M.pretty(expected)
