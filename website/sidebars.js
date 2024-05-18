@@ -414,7 +414,6 @@ module.exports = {
             "reference/test/assertions/classic-assertions",
             "reference/test/assertions/smart-assertions",
             "reference/test/assertions/built-in-assertions",
-            "reference/test/assertions/how-it-works"
           ]
         },
         "reference/test/test-hierarchies-and-organization",
