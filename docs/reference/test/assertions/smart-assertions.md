@@ -95,10 +95,10 @@ suite("||")(
 ```scala mdoc:compile-only
 suite("unary !") (
     test("negate true") {
-        assertTrue(!assertTrue(true)) // this will fail
+        !assertTrue(true) // this will fail
     },
     test("negate false") {
-        assertTrue(!assertTrue(false)) // this will pass
+        !assertTrue(false) // this will pass
     }
 )
 ```
