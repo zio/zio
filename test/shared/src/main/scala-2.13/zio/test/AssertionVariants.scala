@@ -19,8 +19,8 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion.Arguments.valueArgument
 import zio.test.{ErrorMessage => M}
-import zio.test.internal.AssertionUtils.renderDiffResult
-import zio.test.diff.DiffResult
+import zio.test.internal.AssertionUtils.{renderDiffResult}
+import zio.test.diff.{Diff, DiffResult}
 
 trait AssertionVariants {
   private def diffProduct[T](
@@ -79,7 +79,7 @@ trait AssertionVariants {
           TestTrace.boolean(result) {
             if (expected.isInstanceOf[Product]) {
               val diffResult = Diff.diff(expected, actual) 
-              AssertionUtils.renderDiffResult(diffResult, expected, actual)
+              renderDiffResult(diffResult, expected, actual)
             } else {
               M.pretty(actual) + M.equals + M.pretty(expected)
             }
