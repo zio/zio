@@ -411,8 +411,8 @@ module.exports = {
           label: "Assertions",
           link: { type: "doc", id: "reference/test/assertions/index" },
           items: [
-            "reference/test/assertions/smart-assertions",
             "reference/test/assertions/classic-assertions",
+            "reference/test/assertions/smart-assertions",
             "reference/test/assertions/built-in-assertions",
             "reference/test/assertions/how-it-works"
           ]

@@ -134,5 +134,5 @@ One of the benefits of reification of assertions into "arrows" is that we can wr
 ## Testing using Assertions
 
 We have two types of methods for writing test assertions:
-1. **[Smart Assertions](smart-assertions.md)**— This is a unified syntax for asserting both ordinary values and ZIO effects using `assertTrue` method.
-2. **[Classic Assertions](classic-assertions.md)**— This one is the classic old-fashioned way of asserting ordinary values (`assert`) and ZIO effects (`assertZIO`).
+1. **[Classic Assertions](classic-assertions.md)**— This one is the classic way of asserting ordinary values (`assert`) and ZIO effects (`assertZIO`) without using macros.
+2. **[Smart Assertions](smart-assertions.md)**— This is a unified syntax for asserting both ordinary values and ZIO effects using the `assertTrue` macro.
