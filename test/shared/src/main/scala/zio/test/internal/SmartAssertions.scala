@@ -4,6 +4,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio._
 import zio.internal.ansi.AnsiStringOps
 import zio.test.diff.{Diff, DiffResult}
+import zio.test.AssertionUtils.renderDiffResult
 
 import scala.reflect.ClassTag
 import scala.util.Try
@@ -340,23 +341,6 @@ object SmartAssertions {
           M.pretty(a) + M.was + "less than or equal to" + M.pretty(that)
         }
       }
-
-  def renderDiffResult[A](diffResult: DiffResult, expected: A, actual: A)(implicit
-    diff: OptionalImplicit[Diff[A]]
-  ): zio.test.ErrorMessage =
-    diffResult match {
-      case DiffResult.Different(_, _, None) =>
-        M.pretty(expected) + M.equals + M.pretty(actual)
-      case diffResult =>
-        M.choice("There was no difference", "There was a difference") ++
-          M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(expected)) ++
-          M.custom(
-            ConsoleUtils.underlined(
-              "Diff"
-            ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
-          ) ++
-          M.custom(scala.Console.RESET + diffResult.render)
-    }
 
   def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
     TestArrow
