@@ -112,7 +112,7 @@ object Queue {
   def unbounded[A](implicit trace: Trace): UIO[Queue[A]] =
     ZIO.fiberId.map(unsafe.unbounded(_)(Unsafe.unsafe))
 
-  private[zio] object unsafe {
+  object unsafe {
 
     def bounded[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
       createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.BackPressure(), fiberId)
