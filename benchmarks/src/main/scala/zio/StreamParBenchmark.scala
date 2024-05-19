@@ -135,6 +135,20 @@ class StreamParBenchmark {
   }
 
   @Benchmark
+  def zioFlatMapParChunksFair: Long = {
+    val result = ZStream
+      .fromIterable(zioChunks)
+      .flatMapPar(4){ c =>
+        ZStream
+          .fromChunk(c)
+          .flatMap(i => ZStream(i, i + 1))  
+      }
+      .runCount
+
+    unsafeRun(result)
+  }
+
+  @Benchmark
   def akkaFlatMapPar: Long = {
     val program = AkkaSource
       .fromIterator(() => akkaChunks.iterator.flatten)
