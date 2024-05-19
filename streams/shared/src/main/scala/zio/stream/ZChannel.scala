@@ -2207,14 +2207,32 @@ object ZChannel {
             done => ZChannel.succeedNow(done)
           )
 
-      lazy val nestedStreamProcessor: ZIO[Any, OutErr, Unit] = {
-        for {
+      lazy val q0Reader : ZChannel[Any, Any, Any, Any, Nothing, ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone], Any] =
+        ZChannel
+          .fromZIO(q0.take)
+          .flatMap{in =>
+            ZChannel.write(in.provideEnvironment(env))  *> q0Reader
+          }
+
+      lazy val nestedStreamProcessor: ZIO[Any, OutErr, Any] = {
+        val procCh: ZChannel[Any, Any, Any, Any, OutErr, Nothing, Any] = q0Reader
+          .concatMap{ch =>
+            val singleProcCh: ZChannel[Any, Any, Any, Any, OutErr, Nothing, Boolean] = queueReader
+              .pipeTo(ch)
+              .pipeTo(enqueuerCh)
+              .mapZIO{done =>
+                q1.offer(QRes(done))
+              }
+            singleProcCh
+          }
+        procCh.run
+        /*for {
           strm <- q0.take
           strm1 = queueReader.pipeTo(strm.provideEnvironment(env)).pipeTo(enqueuerCh)
           done <- strm1.run
           _ <- q1.offer(QRes(done))
-        } yield ()
-      } *> nestedStreamProcessor //.forever //todo: consider doing this manually as this force yield (q0.take guarantees interruptibility)
+        } yield ()*/
+      } /**> nestedStreamProcessor*/ //.forever //todo: consider doing this manually as this force yield (q0.take guarantees interruptibility)
 
       def upstreamCh(runningFibers : Int, seenStreams : Int) : ZChannel[Any, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone], OutDone, Nothing, Nothing, Any] =
         ZChannel.readWithCause(
