@@ -3,6 +3,7 @@ package zio.test
 import zio._
 import zio.internal.stacktracer.SourceLocation
 import zio.test.SmartTestTypes._
+import zio.test.TestAspect.scala2Only
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
@@ -199,11 +200,30 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       val list: List[Int] = List(1, 2, 3, 4)
       assertTrue(list.filter(_ => false) == List.empty[Int])
     },
-    test("equalTo compiles when comparing different types") {
+    test("equalTo compiles when comparing different primitive types") {
       val a = 1
       val b = 1L
       assertTrue(a == b) && assertTrue(b == a)
     },
+    test("equalTo compiles when comparing parent to child class") {
+      class A {
+        override def equals(o: Any): Boolean = true
+      }
+      class B extends A
+      val a = new A()
+      val b = new B()
+      assertTrue(a == b) && assertTrue(b == a)
+    },
+    test("equalTo does not compile when comparing unrelated types in Scala 2") {
+      val resultZIO = typeCheck("""
+      val a = Vector(1, 2)
+      val l = List(1, 2)
+      assertTrue(a == l) && assertTrue(l == a)
+      """)
+      for {
+        result <- resultZIO
+      } yield assertTrue(result.is(_.left).contains("type mismatch"))
+    } @@ scala2Only,
     test("comparison compiles when comparing different types") {
       val a  = 1
       val b  = 2
