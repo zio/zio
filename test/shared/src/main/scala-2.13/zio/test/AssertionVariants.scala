@@ -67,8 +67,6 @@ trait AssertionVariants {
     }
   }
 
-  implicit def conv[A, B](b: B)(implicit eql: Eql[A, B]): A = b.asInstanceOf[A]
-
   def equalTo[A, B](expected: A)(implicit diff: Diff[A], eql: Eql[A, B]): Assertion[B] =
     Assertion[B](
       TestArrow
@@ -80,8 +78,8 @@ trait AssertionVariants {
           }
           TestTrace.boolean(result) {
             if (expected.isInstanceOf[Product]) {
-              val diffResult = diff.diff(expected, conv(actual)) 
-              renderDiffResult(diffResult, expected, conv(actual))
+              val diffResult = diff.diff(expected, actual) 
+              renderDiffResult(diffResult, expected, actual)
             } else {
               M.pretty(actual) + M.equals + M.pretty(expected)
             }
