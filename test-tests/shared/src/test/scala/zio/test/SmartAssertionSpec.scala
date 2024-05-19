@@ -216,9 +216,11 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     },
     test("equalTo does not compile when comparing unrelated types in Scala 2") {
       val resultZIO = typeCheck("""
-      val a = Vector(1, 2)
-      val l = List(1, 2)
-      assertTrue(a == l) && assertTrue(l == a)
+      class A
+      class B
+      val a = new A()
+      val b = new B()
+      assertTrue(a == b) && assertTrue(b == a)
       """)
       for {
         result <- resultZIO
