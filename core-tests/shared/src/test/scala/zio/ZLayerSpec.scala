@@ -339,6 +339,23 @@ object ZLayerSpec extends ZIOBaseSpec {
           result <- ref.get
         } yield assert(result)(hasSize(equalTo(8)))
       } @@ nonFlaky,
+      test("fresh with combination of other operators maintains freshness") {
+        def makeLayer1(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Service1] = ZLayer {
+          ref.update(_ :+ "1").as(new Service1 {})
+        }
+        def makeLayer2(ref: Ref[Vector[String]]): ZLayer[Service1, Nothing, Service2] = ZLayer {
+          (ZIO.service[Service1] *> ref.update(_ :+ "2")).as(new Service2 {})
+        }
+
+        for {
+          ref   <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          _ <- (ZIO.service[Service1] *> ZIO.service[Service2])
+                 .provide(layer1.fresh.map(identity).update(a => a), layer2)
+          result <- ref.get
+        } yield assert(result)(hasSameElements(Vector("1", "1", "2")))
+      } @@ nonFlaky,
       test("preserves identity of acquired resources") {
         for {
           testRef <- Ref.make(Vector[String]())
