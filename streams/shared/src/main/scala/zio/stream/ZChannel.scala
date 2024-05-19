@@ -2192,7 +2192,8 @@ object ZChannel {
       env           <- ZIO.environment[Env]
       input         <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
       queueReader    = ZChannel.fromInput(input)
-      q0 <- if(n.isFinite)
+      bounded        = n < Int.MaxValue
+      q0 <- if(bounded)
         zio.Queue.bounded[ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]](n)
       else
         zio.Queue.unbounded[ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
@@ -2226,23 +2227,29 @@ object ZChannel {
             singleProcCh
           }
         procCh.run
-        /*for {
-          strm <- q0.take
-          strm1 = queueReader.pipeTo(strm.provideEnvironment(env)).pipeTo(enqueuerCh)
-          done <- strm1.run
-          _ <- q1.offer(QRes(done))
-        } yield ()*/
-      } /**> nestedStreamProcessor*/ //.forever //todo: consider doing this manually as this force yield (q0.take guarantees interruptibility)
+      }
 
       def upstreamCh(runningFibers : Int, seenStreams : Int) : ZChannel[Any, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone], OutDone, Nothing, Nothing, Any] =
         ZChannel.readWithCause(
           in => ZChannel.fromZIO{
             val offer = q0.offer(in)
             if(runningFibers == n)
-              offer
-            else
-              offer *> nestedStreamProcessor.fork.unit
-          } *> upstreamCh((runningFibers + 1) min n, seenStreams + 1 ),
+              offer.as(n)
+            else if (bounded)
+              offer *> nestedStreamProcessor.fork.as(runningFibers + 1)
+            else {
+              //when unbounded, we run the risk of spawning a fiber per channel,
+              //even worse, each such fiber may end up processing one or less channels...
+              //in any case these fibers are kept as long as this channel is running which may incur waste of resources.
+              //this attempts to mitigate this by detecting scenarios where an idle worker was able to immediately pick the enqueued message, as a result we get a 'best effort' behavior of limiting the number of fibers.
+              //the unbounded scenario is used by ZStream.groupBy and indeed it requires a fiber per sub-stream,
+              //furthermore in most cases all sub streams 'survive' till processing ends so we're actually required to keep a fiber per stream in this case.
+              offer *> nestedStreamProcessor.fork.unlessZIO(q0.isEmpty).map{
+                case Some(_) => runningFibers + 1
+                case _ => runningFibers
+              }
+            }
+          }.flatMap(upstreamCh(_, seenStreams + 1)),
           err => ZChannel.fromZIO(q1.offer(QRes(err))),
           done => ZChannel.fromZIO(q1.offer(QRes(QRes(done -> seenStreams))))
         )

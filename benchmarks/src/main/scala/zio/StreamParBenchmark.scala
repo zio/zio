@@ -141,7 +141,7 @@ class StreamParBenchmark {
       .flatMapPar(4){ c =>
         ZStream
           .fromChunk(c)
-          .flatMap(i => ZStream(i, i + 1))  
+          .flatMap(i => ZStream(i, i + 1))
       }
       .runCount
 
