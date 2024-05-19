@@ -2215,13 +2215,14 @@ object ZChannel {
             ZChannel.write(in.provideEnvironment(env))  *> q0Reader
           }
 
-      lazy val nestedStreamProcessor: ZIO[Any, OutErr, Any] = {
+      lazy val nestedStreamsProcessor: ZIO[Any, OutErr, Any] = {
         val procCh: ZChannel[Any, Any, Any, Any, OutErr, Nothing, Any] = q0Reader
           .concatMap{ch =>
             val singleProcCh: ZChannel[Any, Any, Any, Any, OutErr, Nothing, Boolean] = queueReader
               .pipeTo(ch)
               .pipeTo(enqueuerCh)
               .mapZIO{done =>
+                //must be done here, placing this in enqueuerCh breaks a test that validates finalizers order
                 q1.offer(QRes(done))
               }
             singleProcCh
@@ -2236,7 +2237,7 @@ object ZChannel {
             if(runningFibers == n)
               offer.as(n)
             else if (bounded)
-              offer *> nestedStreamProcessor.fork.as(runningFibers + 1)
+              offer *> nestedStreamsProcessor.fork.as(runningFibers + 1)
             else {
               //when unbounded, we run the risk of spawning a fiber per channel,
               //even worse, each such fiber may end up processing one or less channels...
@@ -2244,7 +2245,7 @@ object ZChannel {
               //this attempts to mitigate this by detecting scenarios where an idle worker was able to immediately pick the enqueued message, as a result we get a 'best effort' behavior of limiting the number of fibers.
               //the unbounded scenario is used by ZStream.groupBy and indeed it requires a fiber per sub-stream,
               //furthermore in most cases all sub streams 'survive' till processing ends so we're actually required to keep a fiber per stream in this case.
-              offer *> nestedStreamProcessor.fork.unlessZIO(q0.isEmpty).map{
+              offer *> nestedStreamsProcessor.fork.unlessZIO(q0.isEmpty).map{
                 case Some(_) => runningFibers + 1
                 case _ => runningFibers
               }
@@ -2260,12 +2261,13 @@ object ZChannel {
         .runScoped
         .forkScoped
 
-      def mergeOutDone(prev : Option[OutDone], curr : OutDone) : OutDone = prev match {
-        case None => curr
-        case Some(prev) => f(prev, curr)
-      }
+      def mergeOutDone(prev : OutDone, curr : OutDone, isFirst : Boolean) : OutDone =
+        if(isFirst)
+          curr
+       else
+        f(prev, curr)
 
-      def readerCh(totalStreams : Int, completedStreams : Int, accRes : Option[OutDone]) : ZChannel[Any, Any, Any, Any, OutErr, OutElem, OutDone] =
+      def readerCh(totalStreams : Int, completedStreams : Int, accRes : OutDone) : ZChannel[Any, Any, Any, Any, OutErr, OutElem, OutDone] =
         ZChannel
           .fromZIO(q1.take)
           .flatMap{
@@ -2274,17 +2276,19 @@ object ZChannel {
                 case c : Cause[OutErr @ unchecked] =>
                   ZChannel.refailCause(c)
                 case QRes((outDone : OutDone, total : Int)) =>
-                  val nextAccRes = mergeOutDone(accRes, outDone)
+                  //initial values for totalStreams and completedStreams are -1 and 0, hence their initial sum is -1, since both can only increase so does their sum
+                  //hence we can use that to identify the case where accRes is still uninitialized (we can test for null as well, but null may be a valid completion value which complicates things)
+                  val nextAccRes = mergeOutDone(accRes, outDone, (totalStreams + completedStreams) == -1)
                   if(total == completedStreams)
                     ZChannel.succeedNow(nextAccRes)
                   else
-                    readerCh(total, completedStreams, Some(nextAccRes))
+                    readerCh(total, completedStreams, nextAccRes)
                 case outDone : OutDone @unchecked =>
-                  val nextAccRes = mergeOutDone(accRes, outDone)
+                  val nextAccRes = mergeOutDone(accRes, outDone, (totalStreams + completedStreams) == -1)
                   if(completedStreams + 1 == totalStreams)
                     ZChannel.succeedNow(nextAccRes)
                   else
-                    readerCh(totalStreams, completedStreams + 1, Some(nextAccRes))
+                    readerCh(totalStreams, completedStreams + 1, nextAccRes)
               }
             case outElem : OutElem @unchecked =>
               ZChannel.write(outElem) *> readerCh(totalStreams, completedStreams, accRes)
@@ -2293,7 +2297,7 @@ object ZChannel {
       val resChannel: ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone] = ZChannel
         .scoped[Any](upstreamFiber)
         .concatMapWith {fib =>
-          val reader: ZChannel[Any, Any, Any, Any, OutErr, OutElem, OutDone] = readerCh(-1, 0, None)
+          val reader: ZChannel[Any, Any, Any, Any, OutErr, OutElem, OutDone] = readerCh(-1, 0, null.asInstanceOf[OutDone])
           reader
         } (
           f,
