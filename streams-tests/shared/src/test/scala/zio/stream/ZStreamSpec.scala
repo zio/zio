@@ -3776,6 +3776,19 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- stream.tapSink(sink).take(3).runDrain
               result <- ref.get
             } yield assertTrue(result == 6)
+          },
+          test("check processing with possible early termination") {
+            for {
+              ref    <- Ref.make(0)
+              stream  = ZStream(1, 2, 3, 4, 5).rechunk(1).forever
+              sink    = ZSink.foreach((n: Int) => ZIO.sleep(2.second) *> ref.update(_ + n))
+              fib     <- stream.tapSink(sink).take(1).mapZIO(_ => ZIO.sleep(1.second)).runDrain.fork
+              _       <- TestClock.adjust(3.seconds)
+              _       <- fib.interrupt
+              result <- ref.get
+            } yield {
+              assertTrue(result <= 6) 
+            }
           }
         ),
         suite("throttleEnforce")(
