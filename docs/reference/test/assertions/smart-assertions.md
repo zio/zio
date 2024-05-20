@@ -321,6 +321,39 @@ test("assertion of multiple nested values (TestLens#right.some)") {
 }
 ```
 
+## Custom Assertions
+
+Using `CustomAssertion` we can create our own custom assertions for use in `assertTrue`. We can define custom assertions using the `CustomAssertion.make` method. This method takes a partial function from the type `A` to `Either[String, B]`. If the partial function is defined for the given value, it returns `Right[B]`, otherwise it returns `Left[String]`. 
+
+Here is an example of a custom assertion for a sealed trait and case classes:
+
+```scala mdoc:compile-only
+import zio.test._
+
+// Define the sealed trait and case classes
+sealed trait Book
+case class Novel(pageCount: Int) extends Book
+case class Comic(illustrations: Int) extends Book
+case class Textbook(subject: String) extends Book
+
+// Custom assertion for Book
+val subject =
+  CustomAssertion.make[Book] {
+    case Textbook(subject) => Right(subject)
+    case other => Left(s"Expected $$other to be Textbook")
+  }
+
+// Usage
+suite("custom assertions")(
+  test("subject assertion") {
+    val book: Option[Book] = Some(Textbook("Mathematics"))
+    assertTrue(book.is(_.some.custom(subject)) == "Mathematics")
+  }
+)
+```
+
+In the above example, we define a custom assertion for the `Book` sealed trait. The custom assertion `subject` is defined to extract the `subject` from the `Textbook` case class. So then we can assert the `subject` of the `Textbook` case class.
+
 ## More Examples
 
 The `assertTrue` macro is designed to make it easy to write assertions in a more readable way. Most test cases can be written as when we're comparing ordinary values in Scala. However, we have a [`SmartAssertionSpec`](https://github.com/zio/zio/blob/series/2.x/test-tests/shared/src/test/scala/zio/test/SmartAssertionSpec.scala) which is a collection of examples to demonstrate the power of the `assertTrue` macro.
