@@ -3725,6 +3725,17 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- stream.tapSink(sink).take(3).runDrain
               result <- ref.get
             } yield assertTrue(result == 6)
+          },
+          test("slow sink") {
+            for {
+              ref    <- Ref.make(0)
+              stream  = ZStream(1, 2, 3, 4, 5).rechunk(1).forever
+              sink    = ZSink.foreach((n: Int) => ZIO.sleep(2.second) *> ref.update(_ + n))
+              fib    <- stream.tapSink(sink).take(1).mapZIO(a => ZIO.sleep(1.second) *> ZIO.succeed(a)).runCollect.fork
+              _      <- TestClock.adjust(3.seconds)
+              res    <- fib.join
+              result <- ref.get
+            } yield assert(result)(equalTo(1)) && assert(res)(equalTo(Chunk(1)))
           }
         ),
         suite("throttleEnforce")(

@@ -857,7 +857,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           }
 
         ZChannel
-          .fromZIO(pullL.forkIn(scope).zipWith(pullR.forkIn(scope))(BothRunning(_, _): MergeState))
+          .fromZIO(pullL.forkDaemon.zipWith(pullR.forkDaemon)(BothRunning(_, _): MergeState))
           .flatMap(go)
           .embedInput(input)
       }
