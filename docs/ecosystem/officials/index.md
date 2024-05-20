@@ -18,7 +18,7 @@ Each project in the ZIO organization namespace has a _Stage Badge_ which indicat
 
 ## Highlights Projects
 
-In this section, we introduce a list of top projects that are built on top of ZIO.
+Here is the list of some of the highlighted projects that can be used in everyday ZIO development:
 
 1. [ZIO HTTP](https://zio.dev/zio-http): A type-safe, composable, and feature-rich HTTP library built on top of ZIO.
 2. [ZIO Config](https://zio.dev/zio-config): A functional type-safe configuration library for ZIO applications.
