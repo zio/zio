@@ -90,6 +90,26 @@ def assert[A](expr: => A)(assertion: Assertion[A]): TestResult
 
 It takes an expression of type `A` and an `Assertion[A]` and returns the `TestResult` which is the boolean algebra of the `AssertionResult`. Furthermore, we have an `Assertion[A]` which is capable of producing _assertion results_ on any value of type `A`. So the `assert` function can apply the expression to the assertion and produce the `TestResult`.
 
+## Type-checker Macro
+
+To check if the code compiles, we can use the `typeCheck` macro. It is useful when we want to test if the code compiles without running it. Here is an example of how to use it:
+
+```scala
+import zio.test._
+import zio.test.Assertion._
+
+test("lazy list") {
+  assertZIO(typeCheck(
+    """
+      |val lazyList: LazyList[Int] = LazyList(1, 2, 3, 4, 5)
+      |lazyList.foreach(println)
+      |""".stripMargin))(isRight)
+
+} @@ TestAspect.exceptScala212
+```
+
+The `LazyCheck` introduced in Scala 2.13, so we excluded this test from Scala 2.12.
+
 ## Examples
 
 ### Example 1: Equality Assertion
