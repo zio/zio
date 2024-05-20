@@ -63,25 +63,17 @@ object ZLayerDerivationSpec extends ZIOBaseSpec {
       )
     ),
     test("type parameters") {
-      trait TestTrait[MyC: Tag] {
+      def run[A: Tag](value: A) = {
 
-        def createMyC(): MyC
-
-        def run2() = {
-          (for {
-            _ <- ZIO.service[MyC]
-          } yield ()).provide(provideC, anotherLayer)
-        }
-
-        val provideC: ZLayer[Any, Any, MyC] = ZLayer.succeed(createMyC())
+        val provideA: ZLayer[Any, Any, A]        = ZLayer.succeed(value)
         val anotherLayer: ZLayer[Any, Any, Unit] = ZLayer.succeed(())
 
+        (for {
+          _ <- ZIO.service[A]
+        } yield ()).provide(provideA, anotherLayer)
       }
 
-      new TestTrait[String] {
-        override def createMyC(): String = "test"
-      }
-        .run2()
+      run[String]("test")
         .as(assertTrue(true))
     }
   ).provide(
