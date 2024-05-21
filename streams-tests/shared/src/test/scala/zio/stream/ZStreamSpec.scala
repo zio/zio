@@ -3787,7 +3787,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               _       <- fib.interrupt
               result <- ref.get
             } yield {
-              assertTrue(result == 1) 
+              assertTrue(result == 1)
+            }
           }
         ),
         suite("throttleEnforce")(
