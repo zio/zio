@@ -119,6 +119,10 @@ object SmartAssertMacros {
        val arrow = transformAs[Start, Exit[e, a]](lhs.asInstanceOf[Expr[TestLens[Exit[e, a]]]])(start)
        '{ $arrow >>> SmartAssertions.asExitInterrupted }
 
+      case '{ type e; type a; TestLensExitOps($lhs: TestLens[Exit[`e`, `a`]]).cause } =>
+       val arrow = transformAs[Start, Exit[e, a]](lhs.asInstanceOf[Expr[TestLens[Exit[e, a]]]])(start)
+       '{ $arrow >>> SmartAssertions.asExitCause }
+
      case other =>
        start
     }
