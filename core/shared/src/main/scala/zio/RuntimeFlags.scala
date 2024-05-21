@@ -24,9 +24,6 @@ package zio
  */
 object RuntimeFlags {
 
-  def contextShiftDeferral(flags: RuntimeFlags): Boolean =
-    isEnabled(flags, RuntimeFlag.ExecShiftDeferring.mask)
-
   def cooperativeYielding(flags: RuntimeFlags): Boolean =
     isEnabled(flags, RuntimeFlag.CooperativeYielding.mask)
 
@@ -41,6 +38,9 @@ object RuntimeFlags {
 
   def disableAll(self: RuntimeFlags)(that: RuntimeFlags): RuntimeFlags =
     self & ~that
+
+  def eagerShiftBack(flags: RuntimeFlags): Boolean =
+    isEnabled(flags, RuntimeFlag.EagerShiftBack.mask)
 
   def enable(flags: RuntimeFlags)(flag: RuntimeFlag): RuntimeFlags =
     flags | flag.mask
@@ -196,8 +196,7 @@ object RuntimeFlags {
     RuntimeFlags(
       RuntimeFlag.FiberRoots,
       RuntimeFlag.Interruption,
-      RuntimeFlag.CooperativeYielding,
-      RuntimeFlag.ExecShiftDeferring
+      RuntimeFlag.CooperativeYielding
     )
 
   /**

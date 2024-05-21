@@ -40,7 +40,7 @@ object RuntimeFlag {
       WindDown,
       CooperativeYielding,
       WorkStealing,
-      ExecShiftDeferring
+      EagerShiftBack
     )
 
   /**
@@ -146,16 +146,16 @@ object RuntimeFlag {
   }
 
   /**
-   * Determines whether the ZIO runtime will attempt to minimize execution
-   * context shifts by continuing execution on the same thread as long as
-   * possible.
+   * Determines whether the ZIO runtime will eagerly shift back execution to the
+   * default executor following (enabled) or minimize context shifts by
+   * continuing execution on the same thread as long as possible (disabled).
    *
-   * Disabling this flag can positively or negatively affect performance
+   * Enabling this flag can positively or negatively affect performance
    * depending on the specific characteristics of the application. For more info
    * on this
    * [[https://blog.pierre-ricadat.com/preview/663dc13c046caab7489ff9d7#:~:text=Executor%20override,back%20by%20default. refer to this blog post.]]
    */
-  case object ExecShiftDeferring extends RuntimeFlag {
+  case object EagerShiftBack extends RuntimeFlag {
     final val index   = 9
     final val mask    = 1 << index
     final val notMask = ~mask

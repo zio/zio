@@ -112,21 +112,21 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
                 )
             }
         } +
-        suite("ExecShiftDeferring") {
+        suite("EagerShiftBack") {
           test("enabled") {
             for {
               _    <- ZIO.fiberId
               _    <- ZIO.succeedBlocking(())
               name <- ZIO.succeed(Thread.currentThread().getName)
             } yield assertTrue(name.startsWith("zio-default-blocking"))
-          }.provide(Runtime.enableFlags(RuntimeFlag.ExecShiftDeferring)) +
+          }.provide(Runtime.disableFlags(RuntimeFlag.EagerShiftBack)) +
             test("disabled") {
               for {
                 _    <- ZIO.fiberId
                 _    <- ZIO.succeedBlocking(())
                 name <- ZIO.succeed(Thread.currentThread().getName)
               } yield assertTrue(name.startsWith("ZScheduler-Worker"))
-            }.provide(Runtime.disableFlags(RuntimeFlag.ExecShiftDeferring))
+            }.provide(Runtime.enableFlags(RuntimeFlag.EagerShiftBack))
         } @@ TestAspect.jvmOnly
     }
 }
