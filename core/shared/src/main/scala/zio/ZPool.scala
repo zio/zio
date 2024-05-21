@@ -215,7 +215,7 @@ object ZPool {
           attempted.forEach(a => invalidated.update(_ - a)) *>
             attempted.finalizer *>
             state.modify { case State(size, free) =>
-              if (size <= range.start)
+              if (size <= range.start || free < 0)
                 allocate -> State(size, free + 1)
               else
                 ZIO.unit -> State(size - 1, free)
