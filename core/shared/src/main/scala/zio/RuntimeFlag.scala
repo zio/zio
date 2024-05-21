@@ -130,8 +130,8 @@ object RuntimeFlag {
    * to another fiber while executing long-running effects or continuously
    * forking fibers.
    *
-   * Disabling this flag is highly discouraged but it is necessary for cases where
-   * fine-grained control over fiber scheduling is required.
+   * Disabling this flag is highly discouraged but it is necessary for cases
+   * where fine-grained control over fiber scheduling is required.
    */
   case object CooperativeYielding extends RuntimeFlag {
     final val index   = 7
