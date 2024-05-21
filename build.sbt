@@ -779,7 +779,9 @@ lazy val docs = project.module
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
     mdocVariables ++= Map(
-      "ZIO_METRICS_CONNECTORS_VERSION" -> ZioMetricsConnectorsVersion
+      "ZIO_METRICS_CONNECTORS_VERSION" -> ZioMetricsConnectorsVersion,
+      "ZIO_CONFIG_VERSION"             -> ZioConfigVersion,
+      "ZIO_JSON_VERSION"               -> ZioJsonVersion
     ),
     libraryDependencies ++= Seq(
       `zio-http`,

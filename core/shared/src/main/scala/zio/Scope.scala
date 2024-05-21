@@ -120,7 +120,7 @@ object Scope {
         .acquireReleaseExit(Scope.make(Trace.empty))((scope, exit) => scope.close(exit)(Trace.empty))(
           Trace.empty
         )
-        .map(ZEnvironment[Scope](_))(Trace.empty)
+        .map(ZEnvironment.empty.unsafe.addScope(_)(Unsafe.unsafe))(Trace.empty)
     )(Trace.empty)
 
   /**
@@ -178,7 +178,7 @@ object Scope {
 
   final class ExtendPartiallyApplied[R](private val scope: Scope) extends AnyVal {
     def apply[E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-      zio.provideSomeEnvironment[R](_.add[Scope](scope))
+      zio.provideSomeEnvironment[R](_.unsafe.addScope(scope)(Unsafe.unsafe))
   }
 
   final class UsePartiallyApplied[R](private val scope: Scope.Closeable) extends AnyVal {
