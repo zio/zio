@@ -153,7 +153,7 @@ object RuntimeFlag {
    * Enabling this flag can positively or negatively affect performance
    * depending on the specific characteristics of the application. For more info
    * on this
-   * [[https://blog.pierre-ricadat.com/preview/663dc13c046caab7489ff9d7#:~:text=Executor%20override,back%20by%20default. refer to this blog post.]]
+   * [[https://blog.pierre-ricadat.com/tuning-zio-for-high-performance#heading-executor-override refer to this blog post.]]
    */
   case object EagerShiftBack extends RuntimeFlag {
     final val index   = 9
