@@ -103,6 +103,9 @@ class SmartAssertMacros(val c: blackbox.Context) {
       case AST.Method(lhs, lhsTpe, _, "interrupted", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Cause[_]]] =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asCauseInterrupted.span($span)"
 
+      case AST.Method(lhs, lhsTpe, _, "cause", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Exit[_, _]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitCause.span($span)"
+
       case _ =>
         start
     }

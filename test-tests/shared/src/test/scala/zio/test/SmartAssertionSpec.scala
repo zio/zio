@@ -446,6 +446,10 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         test("success") {
           val exit: Exit[Int, String] = Exit.succeed("Yes")
           assertTrue(exit.is(_.success) == "No")
+        },
+        test("cause") {
+          val exit: Exit[String, String] = Exit.succeed("Success!")
+          assertTrue(exit.is(_.cause) == Cause.fail("Fail!"))
         }
       ),
       suite("subtype")(
