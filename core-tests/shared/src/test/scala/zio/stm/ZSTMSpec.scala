@@ -885,7 +885,7 @@ object ZSTMSpec extends ZIOBaseSpec {
                    case 0 => STM.retry
                    case n => STM.succeed(n)
                  }
-          txn2 = ref1.set(1)
+          txn2    = ref1.set(1)
           fib    <- txn1.commit.forkDaemon
           _      <- liveClockSleep(1.second)
           _      <- txn2.commit
