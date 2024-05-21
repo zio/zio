@@ -483,7 +483,7 @@ object ConfigProvider {
                     else continue
         } yield result).orElse(continue)
 
-      def loop[A](prefix: Chunk[String], config: Config[A], split: Boolean)(implicit
+      def loop[A](prefix: Chunk[String], config: Config[A], split: Boolean, patchTail: Boolean = true)(implicit
         trace: Trace
       ): IO[Config.Error, Chunk[A]] =
         config match {
@@ -528,7 +528,7 @@ object ConfigProvider {
             } yield values
 
           case Nested(name, config) =>
-            loop(prefix ++ Chunk(name), config, split)
+            loop(prefix :+ name, config, split)
 
           case Switch(config, map) =>
             loop(prefix, config, split).flatMap { as =>
@@ -547,7 +547,9 @@ object ConfigProvider {
             for {
               patchedPrefix <- ZIO.fromEither(flat.patch(prefix))
               keys          <- flat.enumerateChildren(patchedPrefix)
-              values        <- ZIO.foreach(Chunk.fromIterable(keys))(key => loop(prefix ++ Chunk(key), valueConfig, split))
+              values <- ZIO.foreach(Chunk.fromIterable(keys))(key =>
+                          loop(prefix ++ Chunk(key), valueConfig, split, patchTail = false)
+                        )
             } yield
               if (values.isEmpty) Chunk(Map.empty[String, valueType])
               else values.transpose.map(values => keys.zip(values).toMap)
@@ -596,8 +598,9 @@ object ConfigProvider {
 
           case primitive: Primitive[A] =>
             for {
-              prefix <- ZIO.fromEither(flat.patch(prefix))
-              vs     <- flat.load(prefix, primitive, split)
+              prefix <- if (patchTail) ZIO.fromEither(flat.patch(prefix))
+                        else ZIO.fromEither(flat.patch(prefix.dropRight(1))).map(_ :+ prefix.last)
+              vs <- flat.load(prefix, primitive, split)
               result <- if (vs.isEmpty)
                           ZIO.fail(primitive.missingError(prefix.lastOption.getOrElse("<n/a>")))
                         else ZIO.succeed(vs)

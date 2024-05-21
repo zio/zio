@@ -563,12 +563,26 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value")
       } +
+      test("kebabCase config keep table names") {
+        val configProvider = ConfigProvider.fromMap(Map("kebab-case.camelCase" -> "camelCase")).kebabCase
+        val config         = Config.table("kebabCase", Config.string)
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == Map("camelCase" -> "camelCase"))
+      } +
       test("snakeCase") {
         val configProvider = ConfigProvider.fromMap(Map("snake_case" -> "value")).snakeCase
         val config         = Config.string("snakeCase")
         for {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value")
+      } +
+      test("snakeCase config keep table names") {
+        val configProvider = ConfigProvider.fromMap(Map("camelCase" -> "camelCase")).snakeCase
+        val config         = Config.table(Config.string)
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == Map("camelCase" -> "camelCase"))
       } +
       test("upperCase") {
         val configProvider = ConfigProvider.fromMap(Map("UPPERCASE" -> "value")).upperCase
