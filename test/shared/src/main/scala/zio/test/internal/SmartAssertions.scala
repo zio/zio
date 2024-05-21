@@ -5,6 +5,7 @@ import zio._
 import zio.internal.ansi.AnsiStringOps
 import zio.test.diff.{Diff, DiffResult}
 import zio.test.internal.AssertionUtils.renderDiffResult
+import zio.test.Assertion.Arguments.valueArgument
 
 import scala.reflect.ClassTag
 import scala.util.Try
