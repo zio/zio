@@ -67,24 +67,25 @@ trait AssertionVariants {
     }
   }
 
-  def equalTo[A](expected: A)(implicit diff: Diff[A]): Assertion[A] =
-    Assertion[A](
-      TestArrow
-        .make[A, Boolean] { actual =>
-          val result = (actual, expected) match {
-            case (left: Array[_], right: Array[_])         => left.sameElements[Any](right)
-            case (left: CharSequence, right: CharSequence) => left.toString == right.toString
-            case (left, right)                             => left == right
-          }
-          TestTrace.boolean(result) {
-            if (!result) {
-              val diffResult = diff.diff(expected, actual) 
-              renderDiffResult(diffResult, expected, actual)
-            } else {
-              M.pretty(actual) + M.equals + M.pretty(expected)
-            }
+
+final def equalTo[A](expected: A)(implicit diff: Diff[A]): Assertion[A] =
+  Assertion[A](
+    TestArrow
+      .make[A, Boolean] { actual =>
+        val result = (actual, expected) match {
+          case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
+          case (left: CharSequence, right: CharSequence) => left.toString == right.toString
+          case (left, right) => left == right
+        }
+        TestTrace.boolean(result) {
+          if (!result) {
+            val diffResult = diff.diff(expected, actual)
+            renderDiffResult(diffResult, expected, actual)
+          } else {
+            M.pretty(actual) + M.equals + M.pretty(expected)
           }
         }
-        .withCode("equalTo", valueArgument(expected))
-    )
+      }
+      .withCode("equalTo", valueArgument(expected))
+  )
 }
