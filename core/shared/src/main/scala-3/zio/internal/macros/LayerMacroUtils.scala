@@ -61,7 +61,8 @@ private [zio] object LayerMacroUtils {
         case '{$lhs: ZLayer[i, e, o]} =>
           rhs match {
             case '{$rhs: ZLayer[i2, e2, o2]} =>
-              val tag = Expr.summon[Tag[o2]].getOrElse(report.errorAndAbort("Tag is always available"))
+              val tag = Expr.summon[EnvironmentTag[o2]]
+                .getOrElse(report.errorAndAbort(s"EnvironmentTag for [${TypeRepr.of[o2].show}] is always available"))
               '{$lhs.++($rhs)(using $tag)}
           }
       }
