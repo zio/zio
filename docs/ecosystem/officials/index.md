@@ -16,6 +16,17 @@ Each project in the ZIO organization namespace has a _Stage Badge_ which indicat
 * **Concept** — The project is just an idea, development hasn't started yet.
 * **Deprecated** — The project is not maintained anymore, and we don't recommend its usage.
 
+## Highlights Projects
+
+Here is the list of some of the highlighted projects that can be used in everyday ZIO development:
+
+1. [ZIO HTTP](https://zio.dev/zio-http): A type-safe, composable, and feature-rich HTTP library built on top of ZIO.
+2. [ZIO Config](https://zio.dev/zio-config): A functional type-safe configuration library for ZIO applications.
+3. [ZIO Logging](https://zio.dev/zio-logging): A logging library to integrate with different logging backends.
+4. [ZIO JSON](https://zio.dev/zio-json): A JSON library to work with JSON data in ZIO applications.
+5. [ZIO Schema](https://zio.dev/zio-schema): A library for generating/defining type-safe schemas for custom data types in ZIO applications.
+6. [ZIO Quill](https://zio.dev/zio-quill): A library to interact with databases using type-safe queries.
+
 ## Official Libraries
 
 import DocCardList from '@theme/DocCardList';
