@@ -19,7 +19,8 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{ErrorMessage => M}
 import zio.test.Assertion.Arguments.valueArgument
-import zio.test.diff.Diff
+import zio.test.internal.AssertionUtils.{renderDiffResult}
+import zio.test.diff.{Diff, DiffResult}
 
 trait AssertionVariants {
   private def diffProduct[T](
