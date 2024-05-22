@@ -50,6 +50,17 @@ object UpdateOrderLinkedMapSpec extends ZIOBaseSpec {
         .reverseIterator
         .foreach(_ => ())
       assertCompletes
+    },
+    test("a,b,c,b") {
+      val m0 = UpdateOrderLinkedMap.empty[String, String]
+      val m1 = m0.updated("a", "a1")
+      val m2 = m1.updated("b", "b1")
+      val m3 = m2.updated("c", "c1")
+      val m4 = m3.updated("b", "b2")
+
+      val asSeq = m4.iterator.toSeq
+
+      zio.test.assert(asSeq)(Assertion.equalTo(Seq("a" -> "a1", "c" -> "c1", "b" -> "b2")))
     }
   )
 }
