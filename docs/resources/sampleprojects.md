@@ -30,3 +30,4 @@ title:  "Sample Projects"
 - [JWT Auth based persisent (reactive MongoDB) RESTful API for managing notes with ZIO 2.0, Scala 3 and ZLayers](https://github.com/Ghurtchu/notes-rest-api) by [Anzori (Nika) Ghurtchumelia](https://github.com/Ghurtchu)
 - [ZIO 2.0 Restful webservice example using zio, zio-http, zio-json, quill, H2, twirl, zio-streams, zio-cache, zio-logging](https://github.com/Fancellu/zio-restful-webservice) by [Dino Fancellu](https://github.com/Fancellu)
 - [Simple web project using Scala3, ZIO2 (with tests), Caliban (with ZQuery), Http4s, Cats, Circe, Doobie](https://github.com/lewapek/DontLetExpireApp) by [Paweł Kołodziejczyk](https://github.com/lewapek)
+- [All in one observability: Scala3 + ZIO + Prometheus metrics + OpenTelemetry tracing (Jaeger)](https://github.com/lewapek/observability-demo-apps) by [Paweł Kołodziejczyk](https://github.com/lewapek)

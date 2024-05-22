@@ -309,6 +309,7 @@ module.exports = {
       items: [
         "reference/resource/scope",
         "reference/resource/zpool",
+        "reference/resource/zkeyedpool",
         "reference/resource/scopedref",
       ]
     },

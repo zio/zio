@@ -530,6 +530,7 @@ object Fiber extends FiberPlatformSpecific {
      * '''NOTE''': This method must be invoked by the fiber itself.
      */
     private[zio] def addChild(child: Fiber.Runtime[_, _]): Unit
+    private[zio] def addChildren(children: Iterable[Fiber.Runtime[_, _]]): Unit
 
     /**
      * Deletes the specified fiber ref.
@@ -619,11 +620,22 @@ object Fiber extends FiberPlatformSpecific {
      * Adds a message to add a child to this fiber.
      */
     private[zio] def tellAddChild(child: Fiber.Runtime[_, _]): Unit
+    private[zio] def tellAddChildren(children: Iterable[Fiber.Runtime[_, _]]): Unit
 
     /**
      * Adds a message to interrupt this fiber.
      */
     private[zio] def tellInterrupt(cause: Cause[Nothing]): Unit
+
+    /**
+     * Transfers all children of this fiber that are currently running to the
+     * specified fiber scope
+     *
+     * '''NOTE''': This method must be invoked by the fiber itself after it has
+     * evaluated the effects but prior to exiting
+     */
+    private[zio] def transferChildren(scope: FiberScope): Unit
+
   }
 
   private[zio] object Runtime {
