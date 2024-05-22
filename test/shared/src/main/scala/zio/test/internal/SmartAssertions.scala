@@ -5,7 +5,6 @@ import zio._
 import zio.internal.ansi.AnsiStringOps
 import zio.test.diff.{Diff, DiffResult}
 import zio.test.internal.AssertionUtils.renderDiffResult
-import zio.test.Assertion.Arguments.valueArgument
 
 import scala.reflect.ClassTag
 import scala.util.Try
@@ -343,26 +342,23 @@ object SmartAssertions {
         }
       }
 
-  def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): Assertion[A] =
-  Assertion[A](
+  def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
     TestArrow
       .make[A, Boolean] { a =>
         val result = (a, that) match {
           case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
           case _                             => a == that
         }
-
         TestTrace.boolean(result) {
-          if (!result) {
-            val diffResult = diff.value.diff(that, a)
-            renderDiffResult(diffResult, that, a)
-          } else {
-            M.pretty(a) + M.equals + M.pretty(that)
+          diff.value match {
+            case Some(diff) if !diff.isLowPriority && !result =>
+              val diffResult = diff.diff(that, a)
+              renderDiffResult(diffResult, that, a)
+            case _ =>
+              M.pretty(a) + M.equals + M.pretty(that)
           }
         }
       }
-      .withCode("equalTo", valueArgument(that))
-  )
 
   def equalToL[A, B](that: B)(implicit diff: OptionalImplicit[Diff[B]], conv: (A => B)): TestArrow[A, Boolean] =
     TestArrow
