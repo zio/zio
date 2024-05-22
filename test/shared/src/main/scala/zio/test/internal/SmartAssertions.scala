@@ -354,7 +354,7 @@ object SmartAssertions {
 
         TestTrace.boolean(result) {
           if (!result) {
-            val diffResult = diff.diff(that, a)
+            val diffResult = diff.value.diff(that, a)
             renderDiffResult(diffResult, that, a)
           } else {
             M.pretty(a) + M.equals + M.pretty(that)
