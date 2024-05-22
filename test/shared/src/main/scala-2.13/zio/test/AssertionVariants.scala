@@ -19,8 +19,6 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion.Arguments.valueArgument
 import zio.test.{ErrorMessage => M}
-import zio.test.internal.AssertionUtils.{renderDiffResult}
-import zio.test.diff.{Diff, DiffResult}
 
 trait AssertionVariants {
   private def diffProduct[T](
@@ -67,25 +65,23 @@ trait AssertionVariants {
     }
   }
 
-
-final def equalTo[A](expected: A)(implicit diff: Diff[A]): Assertion[A] =
-  Assertion[A](
-    TestArrow
-      .make[A, Boolean] { actual =>
-        val result = (actual, expected) match {
-          case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
-          case (left: CharSequence, right: CharSequence) => left.toString == right.toString
-          case (left, right) => left == right
-        }
-        TestTrace.boolean(result) {
-          if (!result) {
-            val diffResult = diff.diff(expected, actual)
-            renderDiffResult(diffResult, expected, actual)
-          } else {
-            M.pretty(actual) + M.equals + M.pretty(expected)
+  def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
+    Assertion[B](
+      TestArrow
+        .make[B, Boolean] { actual =>
+          val result = (actual, expected) match {
+            case (left: Array[_], right: Array[_])         => left.sameElements[Any](right)
+            case (left: CharSequence, right: CharSequence) => left.toString == right.toString
+            case (left, right)                             => left == right
+          }
+          TestTrace.boolean(result) {
+            if (expected.isInstanceOf[Product]) {
+              M.text(diffProduct(actual, expected))
+            } else {
+              M.pretty(actual) + M.equals + M.pretty(expected)
+            }
           }
         }
-      }
-      .withCode("equalTo", valueArgument(expected))
-  )
+        .withCode("equalTo", valueArgument(expected))
+    )
 }
