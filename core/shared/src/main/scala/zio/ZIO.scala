@@ -2201,7 +2201,7 @@ sealed trait ZIO[-R, +E, +A]
    * unit.
    */
   def unit(implicit trace: Trace): ZIO[R, E, Unit] =
-    as(())
+    self.flatMap(ZIO.unitZIOFn)
 
   /**
    * Converts a `ZIO[R, Either[E, B], A]` into a `ZIO[R, E, Either[A, B]]`. The
@@ -5179,7 +5179,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       )
     }
 
-  private[zio] val unitFn: Any => Unit = (_: Any) => ()
+  private[zio] val unitFn: Any => Unit    = (_: Any) => ()
+  private val unitZIOFn: Any => UIO[Unit] = (_: Any) => ZIO.unit
 
   implicit final class ZIOAutoCloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
