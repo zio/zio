@@ -43,14 +43,13 @@ trait ZIOCompanionVersionSpecific {
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.suspendSucceed {
-      given Unsafe = Unsafe.unsafe
       val cancelerRef = new java.util.concurrent.atomic.AtomicReference[URIO[R, Any]](ZIO.unit)
 
       ZIO
         .Async[R, E, A](
           trace,
           { k =>
-            val result = register(k(_))
+            val result = register(using Unsafe.unsafe)(k(_))
 
             result match {
               case Left(canceler) => cancelerRef.set(canceler); null.asInstanceOf[ZIO[R, E, A]]
@@ -96,17 +95,17 @@ trait ZIOCompanionVersionSpecific {
    * }}}
    */
   def attempt[A](code: Unsafe ?=> A)(implicit trace: Trace): Task[A] =
-    ZIO.withFiberRuntime[Any, Throwable, A] { (fiberState, _) =>
+    ZIO.suspendSucceed {
       try {
-        given Unsafe = Unsafe.unsafe
-
-        Exit.succeed(code)
+        Exit.succeed(code(using Unsafe.unsafe))
       } catch {
         case t: Throwable =>
-          if (!fiberState.isFatal(t))
-            ZIO.failCause(Cause.fail(t))
-          else
-            throw t
+          ZIO.isFatalWith { isFatal =>
+            if (!isFatal(t))
+              ZIO.failCause(Cause.fail(t))
+            else
+              throw t
+          }
       }
     }
 
@@ -158,15 +157,13 @@ trait ZIOCompanionVersionSpecific {
   def ignore(code: Unsafe ?=> Any)(implicit trace: Trace): UIO[Unit] =
     ZIO.suspendSucceed {
       try {
-        given Unsafe = Unsafe.unsafe
-
-        code
+        code(using Unsafe.unsafe)
 
         Exit.unit
       } catch {
         case t: Throwable =>
-          ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
-            if (!fiberState.isFatal(t))
+          ZIO.isFatalWith { isFatal =>
+            if (!isFatal(t))
               Exit.unit
             else
               throw t

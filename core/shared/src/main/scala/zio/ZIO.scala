@@ -4649,10 +4649,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * conceptually equivalent to `flatten(effect(io))`.
    */
   def suspend[R, A](rio: => RIO[R, A])(implicit trace: Trace): RIO[R, A] =
-    ZIO.isFatalWith { isFatal =>
+    ZIO.suspendSucceed {
       try rio
       catch {
-        case t: Throwable if !isFatal(t) => Exit.Failure(Cause.fail(t))
+        case t: Throwable =>
+          ZIO.isFatalWith { isFatal =>
+            if (!isFatal(t)) Exit.Failure(Cause.fail(t))
+            else throw t
+          }
       }
     }
 
