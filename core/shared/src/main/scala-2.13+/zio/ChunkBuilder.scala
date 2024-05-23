@@ -159,8 +159,7 @@ object ChunkBuilder {
     }
     override def toString: String =
       "ChunkBuilder.Boolean"
-
-    override def knownSize: SInt = arrayBuilder.knownSize
+    override def knownSize: SInt = arrayBuilder.knownSize * 8 + maxBitIndex
   }
 
   /**
