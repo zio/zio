@@ -1968,11 +1968,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIOParUnordered[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] = {
-    /*self.toChannel
+    self.toChannel
       .concatMap(ZChannel.writeChunk(_))
       .mapOutZIOParUnordered[R1, E1, Chunk[A2]](n, bufferSize)(a => f(a).map(Chunk.single(_)))
-      .toStream*/
-    val channels: ZChannel[R, Any, Any, Any, E, ZChannel[R1, Any, Any, Any, E1, Chunk[A2], Unit], Any] = self
+      .toStream
+    /*val channels: ZChannel[R, Any, Any, Any, E, ZChannel[R1, Any, Any, Any, E1, Chunk[A2], Unit], Any] = self
       .toChannel
       .concatMap { chunk =>
         ZChannel.writeChunk{
@@ -1983,7 +1983,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         }
       }
     val resChannel: ZChannel[R1, Any, Any, Any, E1, Chunk[A2], Any] = ZChannel.mergeAll(channels, n, bufferSize, ZChannel.MergeStrategy.BackPressure)
-    resChannel.toStream
+    resChannel.toStream*/
   }
 
   /**
