@@ -1,6 +1,5 @@
 import zio.ChunkBuilder
 import zio.ZIOBaseSpec
-import zio.test.Assertion._
 import zio.test._
 
 object ChunkBuilderVersionSpecific extends ZIOBaseSpec {
@@ -13,7 +12,7 @@ object ChunkBuilderVersionSpecific extends ZIOBaseSpec {
           as.foreach(builder += _)
           assertTrue(builder.knownSize == as.size)
         }
-      ),
+      )
     ),
     suite("Byte")(
       test("knownSize")(
@@ -22,7 +21,7 @@ object ChunkBuilderVersionSpecific extends ZIOBaseSpec {
           as.foreach(builder += _)
           assertTrue(builder.knownSize == as.size)
         }
-      ),
+      )
     ),
     suite("Char")(
       test("knownSize")(

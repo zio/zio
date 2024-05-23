@@ -91,7 +91,6 @@ object ChunkBuilder {
         } else {
           arrayBuilder.sizeHint(n)
         }
-      override def knownSize: SInt = arrayBuilder.knownSize
     }
 
   /**
@@ -168,7 +167,6 @@ object ChunkBuilder {
     }
     override def toString: String =
       "ChunkBuilder.Boolean"
-    override def knownSize: SInt = arrayBuilder.knownSize * 8 + maxBitIndex
   }
 
   /**
@@ -203,7 +201,6 @@ object ChunkBuilder {
       arrayBuilder.sizeHint(n)
     override def toString: String =
       "ChunkBuilder.Byte"
-    override def knownSize: SInt = arrayBuilder.knownSize
   }
 
   /**
@@ -238,7 +235,6 @@ object ChunkBuilder {
       arrayBuilder.sizeHint(n)
     override def toString: String =
       "ChunkBuilder.Char"
-    override def knownSize: SInt = arrayBuilder.knownSize
   }
 
   /**
@@ -274,7 +270,6 @@ object ChunkBuilder {
       arrayBuilder.sizeHint(n)
     override def toString: String =
       "ChunkBuilder.Double"
-    override def knownSize: SInt = arrayBuilder.knownSize
   }
 
   /**
@@ -309,7 +304,6 @@ object ChunkBuilder {
       arrayBuilder.sizeHint(n)
     override def toString: String =
       "ChunkBuilder.Float"
-    override def knownSize: SInt = arrayBuilder.knownSize
   }
 
   /**
@@ -344,7 +338,6 @@ object ChunkBuilder {
       arrayBuilder.sizeHint(n)
     override def toString: String =
       "ChunkBuilder.Int"
-    override def knownSize: SInt = arrayBuilder.knownSize
   }
 
   /**
@@ -379,7 +372,6 @@ object ChunkBuilder {
       arrayBuilder.sizeHint(n)
     override def toString: String =
       "ChunkBuilder.Long"
-    override def knownSize: SInt = arrayBuilder.knownSize
   }
 
   /**
@@ -414,6 +406,5 @@ object ChunkBuilder {
       arrayBuilder.sizeHint(n)
     override def toString: String =
       "ChunkBuilder.Short"
-    override def knownSize: SInt = arrayBuilder.knownSize
   }
 }
