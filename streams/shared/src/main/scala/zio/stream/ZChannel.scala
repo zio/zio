@@ -711,7 +711,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.unwrap(z)
   }
 
-  final def mapOutZIOParUnordered[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
+  final def mapOutZIOParUnordered0[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] = {
     val z0: ZIO[Any, Nothing, ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone]] = for {
@@ -808,6 +808,19 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     }
 
     ZChannel.unwrap(z0)
+  }
+
+  final def mapOutZIOParUnordered[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
+    f: OutElem => ZIO[Env1, OutErr1, OutElem2]
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] = {
+    val channels: ZChannel[Env, InErr, InElem, InDone, OutErr, ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, None.type], Some[OutDone]] =
+      self
+        .mapOut(a => ZChannel.fromZIO(f(a)).flatMap(ZChannel.write(_).as(None)))
+        .map(Some(_))
+    val res = ZChannel
+      .mergeAllWith[Env1, InErr, InElem, InDone, OutErr1, OutElem2, Option[OutDone]](channels, n, bufferSize, ZChannel.MergeStrategy.BackPressure)((x, y) => x orElse y)
+      .map(_.get)
+    res
   }
 
   /**
