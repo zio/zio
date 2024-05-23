@@ -45,7 +45,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _blockingOn     = FiberRuntime.notBlockingOn
   private var _asyncContWith  = null.asInstanceOf[ZIO.Erased => Any]
   private val running         = new AtomicBoolean(false)
-  private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
+  private val inbox           = new Mailbox[FiberMessage]()
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
@@ -256,7 +256,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     // Maybe someone added something to the inbox between us checking, and us
     // giving up the drain. If so, we need to restart the draining, but only
     // if we beat everyone else to the restart:
-    if (!inbox.isEmpty && running.compareAndSet(false, true)) {
+    if (inbox.nonEmpty() && running.compareAndSet(false, true)) {
       if (evaluationSignal == EvaluationSignal.YieldNow) drainQueueLaterOnExecutor()
       else drainQueueOnCurrentThread(depth)
     }
@@ -409,7 +409,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           val interruption = interruptAllChildren()
 
           if (interruption == null) {
-            if (inbox.isEmpty) {
+            if (inbox.isEmpty()) {
               finalExit = exit
 
               // No more messages to process, so we will allow the fiber to end life:
@@ -1350,7 +1350,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         // for spinning up the fiber if there were new messages added to
         // the inbox between the completion of the effect and the transition
         // to the not running state.
-        if (!inbox.isEmpty && running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
+        if (inbox.nonEmpty() && running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
       }
     } else {
       tell(FiberMessage.Resume(effect))
