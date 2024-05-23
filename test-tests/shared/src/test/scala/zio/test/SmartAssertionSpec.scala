@@ -226,7 +226,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         result <- resultZIO
       } yield assertTrue(result.is(_.left).contains("type mismatch"))
     } @@ scala2Only,
-    test("comparison compiles when comparing different types") {
+    test("comparison compiles when comparing different primitive types") {
       val a  = 1
       val b  = 2
       val aL = 1L
