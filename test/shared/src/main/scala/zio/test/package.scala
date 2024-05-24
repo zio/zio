@@ -1123,6 +1123,21 @@ package object test extends CompileVariants {
     def some: TestLens[A] = throw SmartAssertionExtensionError()
   }
 
+  implicit final class TestLensTryOps[A](private val self: TestLens[scala.util.Try[A]]) extends AnyVal {
+
+    /**
+     * Transforms an [[scala.util.Try]] to its [[scala.util.Success]] value `A`,
+     * otherwise fails if it is a [[scala.util.Failure]].
+     */
+    def success: TestLens[A] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[scala.util.Try]] to a [[scala.Throwable]] if it is a
+     * [[scala.util.Failure]], otherwise fails.
+     */
+    def failure: TestLens[Throwable] = throw SmartAssertionExtensionError()
+  }
+
   implicit final class TestLensEitherOps[E, A](private val self: TestLens[Either[E, A]]) extends AnyVal {
 
     /**

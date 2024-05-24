@@ -6,6 +6,7 @@ import zio.test.SmartTestTypes._
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
+import scala.util.Try
 
 object SmartAssertionSpec extends ZIOBaseSpec {
 
@@ -459,6 +460,16 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         }
       )
     ) @@ failing,
+    suite("Try")(
+      test("success") {
+        val tr: Try[Int] = Try(42)
+        assertTrue(tr.is(_.success) == 42)
+      },
+      test("failure") {
+        val tr: Try[Int] = Try(throw new Exception("FAIL!"))
+        assertTrue(tr.is(_.failure).getMessage == "FAIL!")
+      }
+    ),
     suite("is anything")(
       test("success") {
         val opt: Option[Int] = Option(1)

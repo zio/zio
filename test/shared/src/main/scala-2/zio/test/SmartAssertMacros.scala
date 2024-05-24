@@ -94,6 +94,12 @@ class SmartAssertMacros(val c: blackbox.Context) {
       case AST.Method(lhs, lhsTpe, _, "interrupted", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Exit[_, _]]] =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitInterrupted.span($span)"
 
+      case AST.Method(lhs, lhsTpe, _, "success", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[scala.util.Try[_]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asTrySuccess.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "failure", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[scala.util.Try[_]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asTryFailure.span($span)"
+
       case AST.Method(lhs, lhsTpe, _, "die", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Cause[_]]] =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asCauseDie.span($span)"
 
