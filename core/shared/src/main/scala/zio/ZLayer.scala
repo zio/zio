@@ -98,6 +98,12 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   )(implicit tag: EnvironmentTag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     self.++[E1, RIn2, ROut1, ROut2](that)
 
+  @deprecated("For macros only. Use ++ or and")
+  final def andEager[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
+    that: ZLayer[RIn2, E1, ROut2]
+  ): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+    self.zipWithPar(that)(_.unionAll[ROut2](_))
+
   /**
    * A named alias for `>+>`.
    */
@@ -348,6 +354,12 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def to[E1 >: E, ROut2](that: => ZLayer[ROut, E1, ROut2])(implicit
     trace: Trace
+  ): ZLayer[RIn, E1, ROut2] =
+    self >>> that
+
+  @deprecated("For macros only. Use to")
+  final def toEager[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2])(implicit
+    trace: Trace = Trace.empty
   ): ZLayer[RIn, E1, ROut2] =
     self >>> that
 
