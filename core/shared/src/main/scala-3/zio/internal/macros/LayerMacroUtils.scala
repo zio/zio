@@ -61,7 +61,7 @@ private [zio] object LayerMacroUtils {
         case '{$lhs: ZLayer[i, e, o]} =>
           rhs match {
             case '{$rhs: ZLayer[i2, e2, o2]} =>
-              '{$lhs.++($rhs)}
+              '{$lhs.andEager($rhs)}
           }
       }
 
@@ -70,7 +70,7 @@ private [zio] object LayerMacroUtils {
         case '{$lhs: ZLayer[i, E, o]} =>
           rhs match {
             case '{$rhs: ZLayer[`o`, E, o2]} =>
-              '{$lhs to $rhs}
+              '{$lhs toEager $rhs}
           }
       }
 
@@ -79,12 +79,17 @@ private [zio] object LayerMacroUtils {
     ValDef.let(Symbol.spliceOwner, layerExprs.map(_.asTerm)) { idents =>
       val exprMap = layerExprs.zip(idents).toMap
 
-      tree.fold[LayerExpr[E]](
+      val layerExpr = tree.fold[LayerExpr[E]](
         empty,
         exprMap(_).asExpr.asInstanceOf[LayerExpr[E]],
         composeH,
         composeV
-      ).asTerm
+      )
+
+      (layerExpr match {
+        case '{ $layer: ZLayer[in, E, out] } =>
+         '{$layer.map(_.prune)}
+        }).asTerm
 
     }.asExpr.asInstanceOf[LayerExpr[E]]
 
