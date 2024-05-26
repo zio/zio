@@ -697,12 +697,12 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           queue.take
             .flatMap(_.join)
             // we just need to observe the error and get the full cause from the ref, or just terminate the channel, depending.
-            .foldZIO(
+            .fold(
               {
-                case None       => failure.get.map(ZChannel.failCause(_))
-                case Some(done) => ZIO.succeed(ZChannel.succeedNow(done))
+                case None       => ZChannel.unwrap(failure.get.map(ZChannel.failCause(_)))
+                case Some(done) => ZChannel.succeedNow(done)
               },
-              out2 => ZIO.succeed(ZChannel.write(out2) *> readerCh)
+              out2 => ZChannel.write(out2) *> readerCh
             )
         }
 
