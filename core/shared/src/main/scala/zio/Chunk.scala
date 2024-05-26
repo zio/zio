@@ -1048,17 +1048,20 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    * Returns a chunk with the elements mapped by the specified function.
    */
   protected def mapChunk[B](f: A => B): Chunk[B] = {
-    val iterator = self.chunkIterator
-    var index    = 0
-    val builder  = ChunkBuilder.make[B]()
-    builder.sizeHint(length)
-    while (iterator.hasNextAt(index)) {
-      val a = iterator.nextAt(index)
-      index += 1
-      val b = f(a)
-      builder += b
+    val len = self.length
+    if (len == 0) Chunk.Empty
+    else {
+      val iter   = self.chunkIterator
+      val head   = f(iter.nextAt(0))
+      val newArr = Array.ofDim[B](len)(Chunk.Tags.fromValue(head))
+      var i      = 1
+      newArr(0) = head
+      while (iter.hasNextAt(i)) {
+        newArr(i) = f(iter.nextAt(i))
+        i += 1
+      }
+      Chunk.fromArray(newArr)
     }
-    builder.result()
   }
 
   /**
