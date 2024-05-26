@@ -643,6 +643,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       queue         <- Queue.bounded[(OutElem, zio.Promise[OutErr1, OutElem2])](n)
       downstreamQueue <- Queue.bounded[Any](bufferSize)
       failureSignal <- Promise.make[OutErr1, Nothing]
+      pending       <- Ref.make(collection.immutable.Queue.empty[(OutElem, zio.Promise[OutErr1, OutElem2])])
     } yield {
 
       def drainQueue(c : Cause[OutErr1]): ZIO[Any, Nothing, Unit] =
@@ -663,6 +664,17 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               prom.failCause(c).debug(s"[$trace] [$lbl] ensureQueueHeadIsSignalled($elem)").unit
             case _ =>
               ZIO.unit.debug(s"[$trace] [$lbl] queue is empty, nothing to signal")
+          }
+
+      def failPending(c : Cause[OutErr1], lbl : String): ZIO[Any, Nothing, Unit] =
+        pending
+          .get
+          .flatMap{ ps =>
+            ZIO.foreachDiscard(ps){
+              case (inp, prom) =>
+                prom.failCause(c).debug(s"[$trace] [$lbl] failPending($inp)")
+            }
+
           }
 
       def processSingle: ZIO[Env1, Nothing, Unit] =
@@ -689,7 +701,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           .forever  //consider replacing with *> due to the yield
           .raceWith(failureSignal.await)(  //ensure interruption in case another fiber fails
             (leftEx, rightFib) => rightFib.interrupt.unit,
-            (rightEx, leftFib) => ensureQueueHeadIsSignalled(rightEx.causeOrNull, "worker") *> leftFib.interrupt.unit
+            (rightEx, leftFib) => failPending(rightEx.causeOrNull, "worker") *> leftFib.interrupt.unit
           )
           .fork
           .provideEnvironment(env1)
@@ -700,9 +712,19 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             ZChannel.unwrap {
               for {
                 prom <- zio.Promise.make[OutErr1, OutElem2]
+                tup = (in, prom)
                 _ <- ZIO.debug(s"[$trace] in($in)")  //.when(in.isInstanceOf[String])
                 _ <- workerFiber.unless(numForked == n)
-                _ <- queue.offer((in, prom))
+                pendingSize  <- pending.update { prev =>
+                  val next0 = if(prev.size == 2 * n + 2)
+                    prev.dequeue._2
+                  else
+                    prev
+
+                  val next1 = next0.enqueue(tup)
+                  next1
+                }
+                _ <- queue.offer(tup)
                 _ <- downstreamQueue.offer(prom)
               } yield {
                 upstreamReader(if (numForked == n) n else numForked + 1)
@@ -712,7 +734,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           err => ZChannel.fromZIO {
             for {
               _ <- failureSignal.failCause(err).debug(s"[$trace] upstream err1")
-              _ <- ensureQueueHeadIsSignalled(err, s"[$trace] upstream failure")
+              _ <- failPending(err, s"[$trace] upstream failure")
               _ <- downstreamQueue.offer(failureSignal).debug(s"[$trace] upstream err2")
             } yield ()
           },
