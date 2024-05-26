@@ -643,7 +643,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       queue         <- Queue.bounded[(OutElem, zio.Promise[OutErr1, OutElem2])](n)
       downstreamQueue <- Queue.bounded[Any](bufferSize)
       failureSignal <- Promise.make[OutErr1, Nothing]
-      pending       <- Ref.make(collection.immutable.Queue.empty[(OutElem, zio.Promise[OutErr1, OutElem2])])
+      pending       <- Ref.make(collection.immutable.Queue.empty[zio.Promise[OutErr1, OutElem2]])
     } yield {
 
       //the pending queue holds the last 2n+1 enqueued work items, this covers a potentially full queue + n in progress queue.take operations,
@@ -654,11 +654,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         pending
           .get
           .flatMap{ ps =>
-            ZIO.foreachDiscard(ps){
-              case (inp, prom) =>
+            ZIO.foreachDiscard(ps){ prom =>
                 prom.failCause(c)
             }
-
           }
 
       def processSingle: ZIO[Env1, Nothing, Unit] =
@@ -704,7 +702,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                   else
                     prev
 
-                  val next1 = next0.enqueue(tup)
+                  val next1 = next0.enqueue(prom)
                   next1
                 }
                 _ <- queue.offer(tup)
