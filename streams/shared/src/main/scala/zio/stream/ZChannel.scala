@@ -637,44 +637,53 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] = {
     val z: ZIO[Any, Nothing, ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone]] = for {
-      input         <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
-      queueReader    = ZChannel.fromInput(input)
-      queue         <- Queue.bounded[Fiber[Option[OutErr1], OutElem2]](bufferSize)
-      permits       <- zio.Semaphore.make(n)
-      failureSignal <- Promise.make[Option[OutErr1], Nothing]
-      outDoneSignal <- Promise.make[Nothing, OutDone]
+      input      <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
+      queueReader = ZChannel.fromInput(input)
+      // we use the error channel to signal upstream failed or terminated
+      queue   <- Queue.bounded[Fiber[Option[OutDone], OutElem2]](bufferSize)
+      permits <- zio.Semaphore.make(n)
+      // we carry the errors in a ref so we can accumulate them
+      failure <- Ref.make[Cause[OutErr1]](Cause.empty)
+      // we signal failure so that fibers get immediately interrupted
+      failureSignal <- Promise.make[Nothing, Unit]
     } yield {
-      def forkF(a: OutElem): ZIO[Env1, Nothing, Fiber.Runtime[Option[OutErr1], OutElem2]] = ZIO.uninterruptibleMask {
-        restore =>
+      def forkF(a: OutElem): ZIO[Env1, Nothing, Fiber.Runtime[Option[OutDone], OutElem2]] =
+        ZIO.uninterruptibleMask { restore =>
           for {
             localScope <- zio.Scope.make
             _          <- restore(permits.withPermitScoped.provideEnvironment(ZEnvironment(localScope)))
-            fib <- restore {
-                     f(a).catchAllCause { c =>
-                       failureSignal.failCause(c.map(Some(_))) *> ZIO.refailCause(c.map(Some(_)))
-                     }
-                       .raceWith[Env1, Option[OutErr1], Option[OutErr1], Nothing, OutElem2](failureSignal.await)(
+            fib <- restore(
+                     f(a)
+                       .raceWith(failureSignal.await *> ZIO.fail(None))(
                          { case (leftEx, rightFib) =>
-                           rightFib.interrupt *> leftEx
+                           // if failing, we accumulate the error, signal failure and with for the right fiber to carry the error signal, otherwise we interrupt the right fiber and carry the successful result
+                           leftEx.foldCauseZIO(
+                             c => failure.update(_ && c) *> failureSignal.succeed(()) *> rightFib.join,
+                             b => rightFib.interrupt.as(b)
+                           )
                          },
                          { case (rightEx, leftFib) =>
+                           // the right fiber can only fail, meaning the left fiber must be interrupted immediately
                            leftFib.interrupt *> rightEx
                          }
                        )
-                   }
-                     .onExit(localScope.close(_))
-                     .fork
+                       .onExit(localScope.close(_))
+                       .fork
+                   )
           } yield fib
-      }
+        }
 
       lazy val enqueueCh: ZChannel[Env1, OutErr, OutElem, OutDone, Nothing, Nothing, Any] = ZChannel
         .readWithCause(
           in => ZChannel.fromZIO(forkF(in).flatMap(queue.offer(_))) *> enqueueCh,
           err =>
+            // upstream errors are accumulated, then we signal failure to interrupt any running fiber but we must also signal the error downstream in case there is no running fiber. The only way to do that is to enqueue a failure signal
             ZChannel.fromZIO(
-              failureSignal.failCause(err.map(Some(_))) *> queue.offer(Fiber.failCause(err.map(Some(_))))
+              failure.update(_ && err) *> failureSignal.succeed(()) *> queue.offer(Fiber.fail(None))
             ),
-          done => ZChannel.fromZIO(outDoneSignal.succeed(done) *> queue.offer(Fiber.fail(None)))
+          done =>
+            // upstream is done, we carry that information as a failing fiber
+            ZChannel.fromZIO(queue.offer(Fiber.fail(Some(done))))
         )
 
       val enqueuer: ZIO[Env1 with Scope, Nothing, Fiber.Runtime[Nothing, Any]] = queueReader
@@ -685,17 +694,16 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
       lazy val readerCh: ZChannel[Any, Any, Any, Any, OutErr1, OutElem2, OutDone] =
         ZChannel.unwrap {
-          val z0: URIO[Any, ZChannel[Any, Any, Any, Any, OutErr1, OutElem2, OutDone]] = queue.take
+          queue.take
             .flatMap(_.join)
-            .foldCause(
-              c =>
-                Cause
-                  .flipCauseOption(c)
-                  .map(ZChannel.refailCause(_))
-                  .getOrElse(ZChannel.fromZIO(outDoneSignal.await)),
-              out2 => ZChannel.write(out2) *> readerCh
+            // we just need to observe the error and get the full cause from the ref, or just terminate the channel, depending.
+            .foldZIO(
+              {
+                case None       => failure.get.map(ZChannel.failCause(_))
+                case Some(done) => ZIO.succeed(ZChannel.succeedNow(done))
+              },
+              out2 => ZIO.succeed(ZChannel.write(out2) *> readerCh)
             )
-          z0
         }
 
       val resCh: ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] = ZChannel

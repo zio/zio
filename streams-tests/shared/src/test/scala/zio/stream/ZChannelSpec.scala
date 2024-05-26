@@ -183,6 +183,20 @@ object ZChannelSpec extends ZIOBaseSpec {
             }
         }
       ),
+      suite("ZChannel#mapOutZIOPar")(
+        test("accumulates errors") {
+          for {
+            exit <- ZChannel
+                      .writeAll(1, 2, 3)
+                      .mapOutZIOPar(3) {
+                        case 1 => ZIO.succeed(()).delay(5.second)
+                        case n => ZIO.fail(n)
+                      }
+                      .runDrain
+                      .exit
+          } yield assert(exit)(failsCause(containsCause(Cause.fail(2))) && failsCause(containsCause(Cause.fail(3))))
+        }
+      ),
       suite("ZChannel.concatMap")(
         test("plain") {
           ZChannel.writeAll(1, 2, 3).concatMap(i => ZChannel.writeAll(i, i)).runCollect.map { case (chunk, _) =>
