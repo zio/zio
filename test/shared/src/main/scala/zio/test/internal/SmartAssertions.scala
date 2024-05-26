@@ -6,7 +6,7 @@ import zio.internal.ansi.AnsiStringOps
 import zio.test.diff.{Diff, DiffResult}
 
 import scala.reflect.ClassTag
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 import zio.test.{ErrorMessage => M, SmartAssertionOps => _, _}
 
 object SmartAssertions {
@@ -40,6 +40,20 @@ object SmartAssertions {
       .make[Option[A], A] {
         case Some(value) => TestTrace.succeed(value)
         case None        => TestTrace.fail("Option was None")
+      }
+
+  def asTrySuccess[A]: TestArrow[Try[A], A] =
+    TestArrow
+      .make[Try[A], A] {
+        case Failure(_)     => TestTrace.fail("Try was Failure")
+        case Success(value) => TestTrace.succeed(value)
+      }
+
+  def asTryFailure[A]: TestArrow[Try[A], Throwable] =
+    TestArrow
+      .make[Try[A], Throwable] {
+        case Failure(exception) => TestTrace.succeed(exception)
+        case Success(_)         => TestTrace.fail("Try was Success")
       }
 
   def asRight[A]: TestArrow[Either[_, A], A] =

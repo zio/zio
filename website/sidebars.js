@@ -549,7 +549,6 @@ module.exports = {
         "ecosystem/community/fhir-indexer",
         "ecosystem/community/logstage",
         "ecosystem/community/munit-zio",
-        "ecosystem/community/quill",
         "ecosystem/community/rezilience",
         "ecosystem/community/scala-k8s",
         "ecosystem/community/tamer",
