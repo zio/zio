@@ -646,51 +646,35 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       pending       <- Ref.make(collection.immutable.Queue.empty[(OutElem, zio.Promise[OutErr1, OutElem2])])
     } yield {
 
-      def drainQueue(c : Cause[OutErr1]): ZIO[Any, Nothing, Unit] =
-        queue
-          .poll
-          .flatMap{
-            case Some((elem, prom)) =>
-              prom.failCause(c).debug(s"[$trace] drain($elem)") *> drainQueue(c)
-            case _ =>
-              ZIO.unit
-          }
-
-      def ensureQueueHeadIsSignalled(c : Cause[OutErr1], lbl : String): ZIO[Any, Nothing, Unit] =
-        queue
-          .poll
-          .flatMap{
-            case Some((elem, prom)) =>
-              prom.failCause(c).debug(s"[$trace] [$lbl] ensureQueueHeadIsSignalled($elem)").unit
-            case _ =>
-              ZIO.unit.debug(s"[$trace] [$lbl] queue is empty, nothing to signal")
-          }
-
-      def failPending(c : Cause[OutErr1], lbl : String): ZIO[Any, Nothing, Unit] =
+      //the pending queue holds the last 2n+1 enqueued work items, this covers a potentially full queue + n in progress queue.take operations,
+      // these take operations can be interrupted in which case the work item might be lost (please don't ask how I found out about this...)
+      // so when we know we have to interrupt at least the top of the queue (in a perfect world that's enough since the downstream reader maintains order and wont move forward after a failure)
+      // since it's quite hard (and potentially expansive) to guarantee who's the first of the queue at any given moment we go for the first 2n+1
+      def failPending(c : Cause[OutErr1]): ZIO[Any, Nothing, Unit] =
         pending
           .get
           .flatMap{ ps =>
             ZIO.foreachDiscard(ps){
               case (inp, prom) =>
-                prom.failCause(c).debug(s"[$trace] [$lbl] failPending($inp)")
+                prom.failCause(c)
             }
 
           }
 
       def processSingle: ZIO[Env1, Nothing, Unit] =
         ZIO.uninterruptibleMask { restore =>
-          restore(queue.take).onInterrupt(ZIO.debug(s"[$trace] q.take interrupted"))
+          restore(queue.take)
             .flatMap {
               case (inp, prom) =>
-                val z00 = restore(f(inp)).onInterrupt(ZIO.debug(s"[$trace] f($inp) interrupted"))
+                val z00 = restore(f(inp))
                 val z01 = z00
                   .foldCauseZIO(
                     c => {
-                      ZIO.debug(s"[$trace] interrupted($inp, $c)").when(c.isInterrupted) *>
+                      //this might be the first error hence we have to try and set the failure signal
                       failureSignal.failCause(c)  *>
-                        failureSignal.await.intoPromise(prom).debug(s"[$trace] prom.fail $inp")
+                      failureSignal.await.intoPromise(prom)
                     },
-                    v => prom.succeed(v).debug(s"[$trace] prom.succeed $inp")
+                    v => prom.succeed(v)
                   )
                 z01.unit
             }
@@ -701,7 +685,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           .forever  //consider replacing with *> due to the yield
           .raceWith(failureSignal.await)(  //ensure interruption in case another fiber fails
             (leftEx, rightFib) => rightFib.interrupt.unit,
-            (rightEx, leftFib) => failPending(rightEx.causeOrNull, "worker") *> leftFib.interrupt.unit
+            (rightEx, leftFib) => failPending(rightEx.causeOrNull) *> leftFib.interrupt.unit
           )
           .fork
           .provideEnvironment(env1)
@@ -713,9 +697,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               for {
                 prom <- zio.Promise.make[OutErr1, OutElem2]
                 tup = (in, prom)
-                _ <- ZIO.debug(s"[$trace] in($in)")  //.when(in.isInstanceOf[String])
                 _ <- workerFiber.unless(numForked == n)
-                pendingSize  <- pending.update { prev =>
+                _  <- pending.update { prev =>
                   val next0 = if(prev.size == 2 * n + 2)
                     prev.dequeue._2
                   else
@@ -733,9 +716,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           },
           err => ZChannel.fromZIO {
             for {
-              _ <- failureSignal.failCause(err).debug(s"[$trace] upstream err1")
-              _ <- failPending(err, s"[$trace] upstream failure")
-              _ <- downstreamQueue.offer(failureSignal).debug(s"[$trace] upstream err2")
+              _ <- failureSignal.failCause(err)
+              //todo: read the failureSignal and use its cause? workers may have already seen errors
+              _ <- failPending(err)
+              _ <- downstreamQueue.offer(failureSignal)
             } yield ()
           },
           done => ZChannel.fromZIO {
@@ -756,7 +740,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           val z0: URIO[Any, ZChannel[Any, Any, Any, Any, OutErr1, OutElem2, OutDone]] = downstreamQueue.take
             .flatMap{
               case prom : Promise[OutErr1, OutElem2] @unchecked =>
-                prom.await.debug(s"[$trace] prom.await").foldCause(
+                prom.await.foldCause(
                   c => {
                     ZChannel.refailCause(c)
                   },
