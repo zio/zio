@@ -657,29 +657,31 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           }
         }
 
-      def processSingle: ZIO[Env1, Nothing, Unit] =
-        ZIO.uninterruptibleMask { restore =>
-          restore(queue.take).flatMap { case (inp, prom) =>
-            val z00 = restore(f(inp))
-            val z01 = z00
-              .foldCauseZIO(
-                c => {
-                  //this might be the first error hence we have to try and set the failure signal
-                  failureSignal.failCause(c) *>
-                    failureSignal.await.intoPromise(prom)
-                },
-                v => prom.succeed(v)
-              )
-            z01.unit
+      def processSingle: ZIO[Env1, OutErr1, Any] =
+        queue
+          .take
+          .flatMap{
+            case (inp, cond) =>
+              f(inp)
+                .flatMap(cond.succeed(_))
           }
-        }
 
-      val workerFiber: IO[Nothing, Fiber.Runtime[Nothing, Unit]] =
-        processSingle.forever             //consider replacing with *> due to the yield
-          .raceWith(failureSignal.await)( //ensure interruption in case another fiber fails
-            (leftEx, rightFib) => rightFib.interrupt.unit,
-            (rightEx, leftFib) => failPending(rightEx.causeOrNull) *> leftFib.interrupt.unit
-          )
+      def workerFiber: IO[Nothing, Fiber.Runtime[OutErr1, Nothing]] =
+        processSingle
+        .forever
+          .onExit{ ex =>
+            ex.foldExit(
+              err => {
+                failureSignal
+                  .failCause(err)
+                  .flatMap{b =>
+                    failPending(err).when(b)
+                  }
+              },
+              x =>
+                ZIO.debug(s"strange! workerFiber completed with $x")
+            )
+          }
           .fork
           .provideEnvironment(env1)
 
@@ -711,9 +713,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           err =>
             ZChannel.fromZIO {
               for {
-                _ <- failureSignal.failCause(err)
+                b <- failureSignal.failCause(err)
                 //todo: read the failureSignal and use its cause? workers may have already seen errors
-                _ <- failPending(err)
+                _ <- failPending(err).when(b)
                 _ <- downstreamQueue.offer(failureSignal)
               } yield ()
             },
