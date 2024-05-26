@@ -1756,8 +1756,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       builder.result()
     }
 
-    override protected def mapChunk[B](f: A => B): Chunk[B] =
-      Chunk.fromArray(self.array.map(f)(ClassTag.AnyRef.asInstanceOf[ClassTag[B]]))
+    override protected def mapChunk[B](f: A => B): Chunk[B] = {
+      implicit val ct: ClassTag[B] = ClassTag.AnyRef.asInstanceOf[ClassTag[B]]
+      Chunk.fromArray(self.array.map(f))
+    }
   }
 
   private final case class Concat[A](override protected val left: Chunk[A], override protected val right: Chunk[A])
