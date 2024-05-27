@@ -218,10 +218,18 @@ final class ZEnvironment[+R] private (
         new ZEnvironment(map.updated(tag, a), cache = newCache, scope = scope)
       }
 
-      def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A =
-        getOrElse(tag, throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}"))
+      def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A = {
+        val a = getOrNull(tag)
+        if (a != null) a
+        else throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}")
+      }
 
       private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A = {
+        val a = getOrNull(tag)
+        if (a != null) a else default
+      }
+
+      private[this] def getOrNull[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A = {
         val fromCache = self.cache.getOrElse(tag, null)
         if (fromCache != null)
           fromCache.asInstanceOf[A]
@@ -239,7 +247,7 @@ final class ZEnvironment[+R] private (
             }
           }
           if (service == null) {
-            default
+            null.asInstanceOf[A]
           } else {
             cache = self.cache.updated(tag, service)
             service
