@@ -656,10 +656,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
       def registerCallback(callback : Cause[OutErr1] => UIO[Any]) =
         failureCoord.modify{
+          case _ : (Cause[OutErr1] => UIO[Any]) @unchecked =>
+            (ZIO.unit, callback)
           case c0 : Cause[OutErr1 @ unchecked] =>
             (callback(c0), c0)
-          case _ =>
-            (ZIO.unit, callback)
         }
         .flatten
 
@@ -724,7 +724,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         ZChannel.unwrap {
           val z0: URIO[Any, ZChannel[Any, Any, Any, Any, OutErr1, OutElem2, OutDone]] = downstreamQueue.take.flatMap {
             case prom: Promise[OutErr1, OutElem2] @unchecked =>
-              registerCallback(prom.failCause(_))
               prom.poll.flatMap {
                 case Some(ex) =>
                   //fast path, the promise is already completed
