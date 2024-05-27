@@ -1972,7 +1972,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       .concatMap(ZChannel.writeChunk(_))
       .mapOutZIOParUnordered[R1, E1, Chunk[A2]](n, bufferSize)(a => f(a).map(Chunk.single(_)))
       .toStream
-    /*val channels: ZChannel[R, Any, Any, Any, E, ZChannel[R1, Any, Any, Any, E1, Chunk[A2], Unit], Any] = self
+  /*val channels: ZChannel[R, Any, Any, Any, E, ZChannel[R1, Any, Any, Any, E1, Chunk[A2], Unit], Any] = self
       .toChannel
       .concatMap { chunk =>
         ZChannel.writeChunk{

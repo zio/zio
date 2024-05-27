@@ -644,43 +644,35 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       downstreamQueue <- Queue.bounded[Any](bufferSize)
       failureSignal   <- Promise.make[OutErr1, Nothing]
       currDownstream  <- Ref.make[zio.Promise[OutErr1, Nothing]](failureSignal)
-        //Ref.make(collection.immutable.Queue.empty[zio.Promise[OutErr1, OutElem2]])
+      //Ref.make(collection.immutable.Queue.empty[zio.Promise[OutErr1, OutElem2]])
     } yield {
 
       //the pending queue holds the last 2n+1 enqueued work items, this covers a potentially full queue + n in progress queue.take operations,
       // these take operations can be interrupted in which case the work item might be lost (please don't ask how I found out about this...)
       // so when we know we have to interrupt at least the top of the queue (in a perfect world that's enough since the downstream reader maintains order and wont move forward after a failure)
       // since it's quite hard (and potentially expansive) to guarantee who's the first of the queue at any given moment we go for the first 2n+1
-      def failPending(c: Cause[OutErr1]): ZIO[Any, Nothing, Any] = {
+      def failPending(c: Cause[OutErr1]): ZIO[Any, Nothing, Any] =
         currDownstream.get.flatMap(_.failCause(c))
-      }
 
       def processSingle: ZIO[Env1, OutErr1, Any] =
-        queue
-          .take
-          .flatMap{
-            case (inp, cond) =>
-              f(inp)
-                .flatMap(cond.succeed(_))
-          }
+        queue.take.flatMap { case (inp, cond) =>
+          f(inp)
+            .flatMap(cond.succeed(_))
+        }
 
       def workerFiber: IO[Nothing, Fiber.Runtime[OutErr1, Nothing]] =
-        processSingle
-        .forever
-          .onExit{ ex =>
-            ex.foldExit(
-              err => {
-                failureSignal
-                  .failCause(err)
-                  .flatMap{b =>
-                    failPending(err).when(b)
-                  }
-              },
-              x =>
-                ZIO.debug(s"strange! workerFiber completed with $x")
-            )
-          }
-          .fork
+        processSingle.forever.onExit { ex =>
+          ex.foldExit(
+            err => {
+              failureSignal
+                .failCause(err)
+                .flatMap { b =>
+                  failPending(err).when(b)
+                }
+            },
+            x => ZIO.debug(s"strange! workerFiber completed with $x")
+          )
+        }.fork
           .provideEnvironment(env1)
 
       def upstreamReader(numForked: Int): ZChannel[Env, OutErr, OutElem, OutDone, Nothing, Nothing, Unit] =
@@ -691,8 +683,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 prom <- zio.Promise.make[OutErr1, OutElem2]
                 tup   = (in, prom)
                 _    <- workerFiber.unless(numForked == n)
-                _ <- queue.offer(tup)
-                _ <- downstreamQueue.offer(prom)
+                _    <- queue.offer(tup)
+                _    <- downstreamQueue.offer(prom)
               } yield {
                 upstreamReader(if (numForked == n) n else numForked + 1)
               }
@@ -735,20 +727,20 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                   //we must publish the current promise so it'd be visible to failPending in case it'd have to fail us
                   //notice we 'publish' before polling the error signal, this ensures us that we can't miss an error signal, see comments below
                   currDownstream.set(prom.asInstanceOf[zio.Promise[OutErr1, Nothing]]) *>
-                  failureSignal.poll.flatMap {
-                    case Some(ex) =>
-                      //we already have an active failure signal, so simply fail
-                      zio.Exit.succeed(ZChannel.fromZIO(ex))
-                    case None =>
-                      //failure signal has not been set yet, this guarantees that failPending hasn't been invoked yet
-                      //and definitely haven't poked the ref yet, hence we're guaranteed it'd see this promise in case it is invoked (before the next round of course)
-                      prom.await.foldCause(
-                        c => {
-                          ZChannel.refailCause(c)
-                        },
-                        ZChannel.write(_) *> readerCh
-                      )
-                  }
+                    failureSignal.poll.flatMap {
+                      case Some(ex) =>
+                        //we already have an active failure signal, so simply fail
+                        zio.Exit.succeed(ZChannel.fromZIO(ex))
+                      case None =>
+                        //failure signal has not been set yet, this guarantees that failPending hasn't been invoked yet
+                        //and definitely haven't poked the ref yet, hence we're guaranteed it'd see this promise in case it is invoked (before the next round of course)
+                        prom.await.foldCause(
+                          c => {
+                            ZChannel.refailCause(c)
+                          },
+                          ZChannel.write(_) *> readerCh
+                        )
+                    }
               }
             case QRes(done: OutDone @unchecked) =>
               zio.Exit.succeed(ZChannel.succeedNow(done))
