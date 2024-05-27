@@ -643,7 +643,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       queue           <- Queue.bounded[(OutElem, zio.Promise[OutErr1, OutElem2])](n)
       downstreamQueue <- Queue.bounded[Any](bufferSize)
       failureSignal   <- Promise.make[OutErr1, Nothing]
-      pending         <- Queue.sliding[zio.Promise[OutErr1, OutElem2]](2 * n + 1)
+      currDownstream  <- Ref.make[zio.Promise[OutErr1, Nothing]](failureSignal)
         //Ref.make(collection.immutable.Queue.empty[zio.Promise[OutErr1, OutElem2]])
     } yield {
 
@@ -651,12 +651,18 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       // these take operations can be interrupted in which case the work item might be lost (please don't ask how I found out about this...)
       // so when we know we have to interrupt at least the top of the queue (in a perfect world that's enough since the downstream reader maintains order and wont move forward after a failure)
       // since it's quite hard (and potentially expansive) to guarantee who's the first of the queue at any given moment we go for the first 2n+1
-      def failPending(c: Cause[OutErr1]): ZIO[Any, Nothing, Unit] =
-        pending.takeAll.flatMap { ps =>
-          ZIO.foreachDiscard(ps) { prom =>
-            prom.failCause(c)
+      def failPending(c: Cause[OutErr1]): ZIO[Any, Nothing, Any] = {
+        downstreamQueue.takeAll.flatMap { ps =>
+          ZIO.foreachDiscard(ps) {
+            case prom : Promise[OutErr1 @unchecked, Nothing] =>
+              prom.failCause(c)
+            case _  =>
+              ZIO.unit
           }
-        }
+        } *>
+        downstreamQueue.offer(failureSignal)  *>
+        currDownstream.get.flatMap(_.failCause(c))
+      }
 
       def processSingle: ZIO[Env1, OutErr1, Any] =
         queue
@@ -695,7 +701,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 tup   = (in, prom)
                 _    <- workerFiber.unless(numForked == n)
                 _ <- queue.offer(tup)
-                _ <- pending.offer(prom)
                 _ <- downstreamQueue.offer(prom)
               } yield {
                 upstreamReader(if (numForked == n) n else numForked + 1)
@@ -729,12 +734,23 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         ZChannel.unwrap {
           val z0: URIO[Any, ZChannel[Any, Any, Any, Any, OutErr1, OutElem2, OutDone]] = downstreamQueue.take.flatMap {
             case prom: Promise[OutErr1, OutElem2] @unchecked =>
-              prom.await.foldCause(
-                c => {
-                  ZChannel.refailCause(c)
-                },
-                ZChannel.write(_) *> readerCh
-              )
+              //we must publish the current promise so it'd be visible to failPending in case it'd have to fail us
+              //notice we 'publish' before polling the error signal, this ensures us that we can't miss an error signal, see comments below
+              currDownstream.set(prom.asInstanceOf[zio.Promise[OutErr1, Nothing]])  *>
+              failureSignal.poll.flatMap {
+                case Some(ex) =>
+                  //we already have an active failure signal, so simply fail
+                  zio.Exit.succeed(ZChannel.fromZIO(ex))
+                case None =>
+                  //failure signal has not been set yet, this guarantees that failPending hasn't been invoked yet
+                  //and definitely haven't poked the ref yet, hence we're guaranteed it'd see this promise in case it is invoked (before the next round of course)
+                  prom.await.foldCause(
+                    c => {
+                      ZChannel.refailCause(c)
+                    },
+                    ZChannel.write(_) *> readerCh
+                  )
+              }
             case QRes(done: OutDone @unchecked) =>
               zio.Exit.succeed(ZChannel.succeedNow(done))
           }
