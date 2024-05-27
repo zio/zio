@@ -647,10 +647,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       //Ref.make(collection.immutable.Queue.empty[zio.Promise[OutErr1, OutElem2]])
     } yield {
 
-      //the pending queue holds the last 2n+1 enqueued work items, this covers a potentially full queue + n in progress queue.take operations,
-      // these take operations can be interrupted in which case the work item might be lost (please don't ask how I found out about this...)
-      // so when we know we have to interrupt at least the top of the queue (in a perfect world that's enough since the downstream reader maintains order and wont move forward after a failure)
-      // since it's quite hard (and potentially expansive) to guarantee who's the first of the queue at any given moment we go for the first 2n+1
+      //this coordinates with the downstream reader in order to propagate failure through the (potentially) current 'active' promise.
+      //this mechanism replaces the use of ZIO.rest from the previous implementation, the idea is to 'race' for the completion of the current promise, only in case of an active failure.
+      //in normal operation, the promise is completed by the worker fiber executing it, but when one of the workers encounters an error it has to fail in-progress computations.
+      //this is done in the following way:
+      //1. cause the channel to fail, this will interrupt the upstream fiber which is the parent of all worker fibers.
+      //2. make sure to fail the downstream channel, either by with an explicit message (i.e. when upstream fails) or by attempting to fail the 'current' promise downstream is blocking on.
+      //    this is exactly what this method does
       def failPending(c: Cause[OutErr1]): ZIO[Any, Nothing, Any] =
         currDownstream.get.flatMap(_.failCause(c))
 
@@ -694,8 +697,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             ZChannel.fromZIO {
               for {
                 b <- failureSignal.failCause(err)
-                //todo: read the failureSignal and use its cause? workers may have already seen errors
+                //notice this attempts to interrupt the 'current' promise handled by the downstream channel
                 _ <- failPending(err).when(b)
+                //this makes sure downstream sees an error, consider the case of an upstream failing before emitting any messages, or failing after a series of successful messages.
                 _ <- downstreamQueue.offer(failureSignal)
               } yield ()
             },
