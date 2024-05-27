@@ -84,4 +84,17 @@ class MailboxBenchmark {
   @Group("p03")
   @GroupThreads(2)
   def enqueue_03() = enqueue()
+
+  @Benchmark
+  @Group("dequeue")
+  @GroupThreads(1)
+  def empty() = {
+    var i = 0
+    val n = opi
+    while (i < n) {
+      q.poll()
+      i += 1
+    }
+    i
+  }
 }
