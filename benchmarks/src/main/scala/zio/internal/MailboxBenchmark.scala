@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 class MailboxBenchmark {
 
+  // CLI usage:
+  // -opi 1024 -jvmArgsAppend -Dopi=1024
   val opi = Option(Integer.getInteger("opi")).fold(1)(_.intValue())
 
   @Param(
