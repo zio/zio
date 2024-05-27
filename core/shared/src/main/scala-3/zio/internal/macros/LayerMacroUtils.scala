@@ -48,7 +48,6 @@ private [zio] object LayerMacroUtils {
 
     '{
       given trace: Trace = Tracer.newTrace
-      val empty = ZLayer.succeed(())
       val compose = [R1, O1, O2] => (lhs: ZLayer[R1, E, O1], rhs: ZLayer[O1, E, O2]) => lhs.to(rhs)
 
       ${
@@ -75,7 +74,7 @@ private [zio] object LayerMacroUtils {
           val layerExprs = tree.toList
           ValDef.let(Symbol.spliceOwner, layerExprs.map(_.asTerm)) { idents =>
             val exprMap = layerExprs.zip(idents.map(_.asExprOf[ZLayer[_, E, _]])).toMap
-            tree.fold('empty, exprMap, composeH, composeV).asTerm
+            tree.fold('{ZLayer.unit}, exprMap, composeH, composeV).asTerm
           }.asExprOf[ZLayer[_, E, _]]
         }
 
