@@ -21,6 +21,7 @@ import zio.internal.UpdateOrderLinkedMap
 import scala.annotation.tailrec
 import scala.collection.immutable.HashMap
 import scala.collection.mutable
+import scala.util.control.ControlThrowable
 import scala.util.hashing.MurmurHash3
 
 final class ZEnvironment[+R] private (
@@ -219,9 +220,20 @@ final class ZEnvironment[+R] private (
       }
 
       def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A =
-        getOrElse(tag, throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}"))
+        try {
+          getUnsafe(tag)
+        } catch {
+          case MissingService => throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}")
+        }
 
-      private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A = {
+      private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A =
+        try {
+          getUnsafe(tag)
+        } catch {
+          case MissingService => default
+        }
+
+      private[this] def getUnsafe[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A = {
         val fromCache = self.cache.getOrElse(tag, null)
         if (fromCache != null)
           fromCache.asInstanceOf[A]
@@ -239,7 +251,7 @@ final class ZEnvironment[+R] private (
             }
           }
           if (service == null) {
-            default
+            throw MissingService
           } else {
             cache = self.cache.updated(tag, service)
             service
@@ -251,6 +263,8 @@ final class ZEnvironment[+R] private (
         unsafe: Unsafe
       ): ZEnvironment[R] =
         add[A](tag, f(get(tag)))
+
+      private case object MissingService extends ControlThrowable
     }
 }
 
