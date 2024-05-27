@@ -734,22 +734,30 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         ZChannel.unwrap {
           val z0: URIO[Any, ZChannel[Any, Any, Any, Any, OutErr1, OutElem2, OutDone]] = downstreamQueue.take.flatMap {
             case prom: Promise[OutErr1, OutElem2] @unchecked =>
-              //we must publish the current promise so it'd be visible to failPending in case it'd have to fail us
-              //notice we 'publish' before polling the error signal, this ensures us that we can't miss an error signal, see comments below
-              currDownstream.set(prom.asInstanceOf[zio.Promise[OutErr1, Nothing]])  *>
-              failureSignal.poll.flatMap {
+              prom.poll.flatMap {
                 case Some(ex) =>
-                  //we already have an active failure signal, so simply fail
-                  zio.Exit.succeed(ZChannel.fromZIO(ex))
-                case None =>
-                  //failure signal has not been set yet, this guarantees that failPending hasn't been invoked yet
-                  //and definitely haven't poked the ref yet, hence we're guaranteed it'd see this promise in case it is invoked (before the next round of course)
-                  prom.await.foldCause(
-                    c => {
-                      ZChannel.refailCause(c)
-                    },
+                  ex.foldCause(
+                    ZChannel.refailCause(_),
                     ZChannel.write(_) *> readerCh
                   )
+                case None =>
+                  //we must publish the current promise so it'd be visible to failPending in case it'd have to fail us
+                  //notice we 'publish' before polling the error signal, this ensures us that we can't miss an error signal, see comments below
+                  currDownstream.set(prom.asInstanceOf[zio.Promise[OutErr1, Nothing]]) *>
+                    failureSignal.poll.flatMap {
+                      case Some(ex) =>
+                        //we already have an active failure signal, so simply fail
+                        zio.Exit.succeed(ZChannel.fromZIO(ex))
+                      case None =>
+                        //failure signal has not been set yet, this guarantees that failPending hasn't been invoked yet
+                        //and definitely haven't poked the ref yet, hence we're guaranteed it'd see this promise in case it is invoked (before the next round of course)
+                        prom.await.foldCause(
+                          c => {
+                            ZChannel.refailCause(c)
+                          },
+                          ZChannel.write(_) *> readerCh
+                        )
+                    }
               }
             case QRes(done: OutDone @unchecked) =>
               zio.Exit.succeed(ZChannel.succeedNow(done))
