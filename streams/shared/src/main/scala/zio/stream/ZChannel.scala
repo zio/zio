@@ -642,26 +642,25 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       queueReader      = ZChannel.fromInput(input)
       queue           <- Queue.bounded[(OutElem, zio.Promise[OutErr1, OutElem2])](n)
       downstreamQueue <- Queue.bounded[Any](bufferSize)
-      failureCoord  <- Ref.make[Any](zio.Promise.unsafe.make[OutErr1, OutElem2](FiberId.None)(Unsafe.unsafe))
+      failureCoord    <- Ref.make[Any](zio.Promise.unsafe.make[OutErr1, OutElem2](FiberId.None)(Unsafe.unsafe))
     } yield {
-
+      //callback mechanism taking after scala's promise implementation, roughly speaking this is an atomic two-state
+      //either a registered callback (a function to be failed) or a Cause, signal and register atomically update the state
       def signalFailure(c: Cause[OutErr1]): ZIO[Any, Nothing, Any] =
-        failureCoord.modify{
-          case c0 : Cause[_] =>
+        failureCoord.modify {
+          case c0: Cause[_] =>
             (ZIO.unit, c0)
-          case toComplete : zio.Promise[OutErr1, OutElem2] @unchecked =>
+          case toComplete: zio.Promise[OutErr1, OutElem2] @unchecked =>
             (toComplete.failCause(c), c)
-        }
-        .flatten
+        }.flatten
 
-      def registerCallback(toComplete : zio.Promise[OutErr1, OutElem2]) =
-        failureCoord.modify{
-          case _ : zio.Promise[OutErr1, OutElem2] @unchecked =>
+      def registerCallback(toComplete: zio.Promise[OutErr1, OutElem2]) =
+        failureCoord.modify {
+          case _: zio.Promise[OutErr1, OutElem2] @unchecked =>
             (ZIO.unit, toComplete)
-          case c0 : Cause[OutErr1 @ unchecked] =>
+          case c0: Cause[OutErr1 @unchecked] =>
             (toComplete.failCause(c0), c0)
-        }
-        .flatten
+        }.flatten
 
       def processSingle: ZIO[Env1, OutErr1, Any] =
         queue.take.flatMap { case (inp, cond) =>
@@ -678,7 +677,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             x => ZIO.debug(s"strange! workerFiber completed with $x")
           )
         }.fork
-        .provideEnvironment(env1)
+          .provideEnvironment(env1)
 
       def upstreamReader(numForked: Int): ZChannel[Env, OutErr, OutElem, OutDone, Nothing, Nothing, Unit] =
         ZChannel.readWithCause(
@@ -698,12 +697,12 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           err =>
             ZChannel.fromZIO {
               for {
-                //notice this publishes the failure signal and potentially invokes a registered callback
+                //notice this publishes the failure signal and potentially invokes an already registered callback
                 _ <- signalFailure(err)
                 //this makes sure downstream sees an error, consider the case of an upstream failing before emitting any messages, or failing after a series of successful messages.
                 prom <- Promise.make[OutErr1, Nothing]
-                _ <- prom.failCause(err)
-                _ <- downstreamQueue.offer(prom)
+                _    <- prom.failCause(err)
+                _    <- downstreamQueue.offer(prom)
               } yield ()
             },
           done =>
@@ -733,15 +732,15 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                   )
                 case None =>
                   //slow path, must subscribe on the failure coordinator
-                  //in case the failure is already published the promise will attempted to fail (may still success/fail according to the computation it represents)
+                  //in case the failure is already published the promise will be attempted to fail (may still success/fail according to the computation it represents)
                   //otherwise the callback is registered and we enter the wait knowing any failure will fail the promise
                   registerCallback(prom) *>
-                  prom.await.foldCause(
-                    c => {
-                      ZChannel.refailCause(c)
-                    },
-                    ZChannel.write(_) *> readerCh
-                  )
+                    prom.await.foldCause(
+                      c => {
+                        ZChannel.refailCause(c)
+                      },
+                      ZChannel.write(_) *> readerCh
+                    )
               }
             case QRes(done: OutDone @unchecked) =>
               zio.Exit.succeed(ZChannel.succeedNow(done))
