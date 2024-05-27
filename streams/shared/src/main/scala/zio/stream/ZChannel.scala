@@ -652,15 +652,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       // so when we know we have to interrupt at least the top of the queue (in a perfect world that's enough since the downstream reader maintains order and wont move forward after a failure)
       // since it's quite hard (and potentially expansive) to guarantee who's the first of the queue at any given moment we go for the first 2n+1
       def failPending(c: Cause[OutErr1]): ZIO[Any, Nothing, Any] = {
-        downstreamQueue.takeAll.flatMap { ps =>
-          ZIO.foreachDiscard(ps) {
-            case prom : Promise[OutErr1 @unchecked, Nothing] =>
-              prom.failCause(c)
-            case _  =>
-              ZIO.unit
-          }
-        } *>
-        downstreamQueue.offer(failureSignal)  *>
         currDownstream.get.flatMap(_.failCause(c))
       }
 
@@ -796,7 +787,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         )
         .provideEnvironment(env1)
 
-      /*def enqueue(a: OutElem): ZIO[Env1, Nothing, Unit] = ZIO.uninterruptibleMask { restore =>
+      /*def enqueue(a: OutElem): ZIO[Env1, Nothing, Unit] = ZIO.uninterruptibleMas   k { restore =>
         for {
           localScope <- zio.Scope.make
           _          <- restore(permits.withPermitScoped.provideEnvironment(ZEnvironment(localScope)))
