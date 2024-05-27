@@ -642,24 +642,24 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       queueReader      = ZChannel.fromInput(input)
       queue           <- Queue.bounded[(OutElem, zio.Promise[OutErr1, OutElem2])](n)
       downstreamQueue <- Queue.bounded[Any](bufferSize)
-      failureCoord  <- Ref.make[Any]((_ : Any) => ZIO.unit)
+      failureCoord  <- Ref.make[Any](zio.Promise.unsafe.make[OutErr1, OutElem2](FiberId.None)(Unsafe.unsafe))
     } yield {
 
       def signalFailure(c: Cause[OutErr1]): ZIO[Any, Nothing, Any] =
         failureCoord.modify{
           case c0 : Cause[_] =>
             (ZIO.unit, c0)
-          case callback : (Cause[OutErr1] => UIO[Any]) @unchecked =>
-            (callback(c), c)
+          case toComplete : zio.Promise[OutErr1, OutElem2] @unchecked =>
+            (toComplete.failCause(c), c)
         }
         .flatten
 
-      def registerCallback(callback : Cause[OutErr1] => UIO[Any]) =
+      def registerCallback(toComplete : zio.Promise[OutErr1, OutElem2]) =
         failureCoord.modify{
-          case _ : (Cause[OutErr1] => UIO[Any]) @unchecked =>
-            (ZIO.unit, callback)
+          case _ : zio.Promise[OutErr1, OutElem2] @unchecked =>
+            (ZIO.unit, toComplete)
           case c0 : Cause[OutErr1 @ unchecked] =>
-            (callback(c0), c0)
+            (toComplete.failCause(c0), c0)
         }
         .flatten
 
@@ -735,7 +735,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                   //slow path, must subscribe on the failure coordinator
                   //in case the failure is already published the promise will attempted to fail (may still success/fail according to the computation it represents)
                   //otherwise the callback is registered and we enter the wait knowing any failure will fail the promise
-                  registerCallback(prom.failCause(_)) *>
+                  registerCallback(prom) *>
                   prom.await.foldCause(
                     c => {
                       ZChannel.refailCause(c)
