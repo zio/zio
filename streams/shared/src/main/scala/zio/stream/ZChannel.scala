@@ -643,7 +643,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       queue           <- Queue.bounded[(OutElem, zio.Promise[OutErr1, OutElem2])](n)
       downstreamQueue <- Queue.bounded[Any](bufferSize)
       failureSignal   <- Promise.make[OutErr1, Nothing]
-      pending         <- Ref.make(collection.immutable.Queue.empty[zio.Promise[OutErr1, OutElem2]])
+      pending         <- Queue.sliding[zio.Promise[OutErr1, OutElem2]](2 * n + 1)
+        //Ref.make(collection.immutable.Queue.empty[zio.Promise[OutErr1, OutElem2]])
     } yield {
 
       //the pending queue holds the last 2n+1 enqueued work items, this covers a potentially full queue + n in progress queue.take operations,
@@ -651,7 +652,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       // so when we know we have to interrupt at least the top of the queue (in a perfect world that's enough since the downstream reader maintains order and wont move forward after a failure)
       // since it's quite hard (and potentially expansive) to guarantee who's the first of the queue at any given moment we go for the first 2n+1
       def failPending(c: Cause[OutErr1]): ZIO[Any, Nothing, Unit] =
-        pending.get.flatMap { ps =>
+        pending.takeAll.flatMap { ps =>
           ZIO.foreachDiscard(ps) { prom =>
             prom.failCause(c)
           }
@@ -693,17 +694,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 prom <- zio.Promise.make[OutErr1, OutElem2]
                 tup   = (in, prom)
                 _    <- workerFiber.unless(numForked == n)
-                _ <- pending.update { prev =>
-                       val next0 =
-                         if (prev.size == 2 * n + 2)
-                           prev.dequeue._2
-                         else
-                           prev
-
-                       val next1 = next0.enqueue(prom)
-                       next1
-                     }
                 _ <- queue.offer(tup)
+                _ <- pending.offer(prom)
                 _ <- downstreamQueue.offer(prom)
               } yield {
                 upstreamReader(if (numForked == n) n else numForked + 1)
