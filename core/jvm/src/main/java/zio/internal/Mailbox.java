@@ -32,9 +32,6 @@ final public class Mailbox<A> implements Serializable {
 	 * Adds the specified element to the queue.
 	 */
 	public void add(A data) {
-		if (data == null)
-			throw new NullPointerException();
-
 		Node next = new Node(data);
 		Node prev = WRITE.getAndSet(this, next);
 		NEXT.lazySet(prev, next);

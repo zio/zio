@@ -6,9 +6,6 @@ final class Mailbox[A] extends Serializable {
   @transient private var write = read
 
   def add(data: A): Unit = {
-    if (null == data)
-      throw new NullPointerException()
-
     val next = new Mailbox.Node(data)
     write.next = next
   }
