@@ -178,4 +178,57 @@ class StreamParBenchmark {
       .fold(0L)((c, _) => c + 1L)
       .unsafeRunSync()
 
+  @Benchmark
+  def akkaMerge : Long = {
+    val src = AkkaSource
+      .fromIterator(() => akkaChunks.iterator.flatten)
+    val program = src
+      .merge(src)
+      .toMat(AkkaSink.fold(0L)((c, ignored) => c + 1L))(Keep.right)
+    Await.result(program.run(), ScalaDuration.Inf)
+  }
+
+  @Benchmark
+  def akkaMergeChunks : Long = {
+    val src = AkkaSource
+      .fromIterator(() => akkaChunks.iterator)
+    val program = src
+      .merge(src)
+      .toMat(AkkaSink.fold(0L)((c, arr) => c + arr.length))(Keep.right)
+    Await.result(program.run(), ScalaDuration.Inf)
+  }
+
+  @Benchmark
+  def zioMerge : Long = {
+    val strm = ZStream
+      .fromIterable(zioChunks)
+
+    val result = strm
+      .merge(strm)
+      .runCount
+
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def zioMerge2 : Long = {
+    val strm = ZStream
+      .fromIterable(zioChunks)
+
+    val result = ZStream(strm, strm)
+      .flatMapPar(2)(identity)
+      .runCount
+
+    unsafeRun(result)
+  }
+
+  /*@Benchmark
+  def fs2Merge: Long = {
+    val strm = FS2Stream(fs2Chunks: _*)
+    strm
+      .merge(strm)
+      .fold(0L)((c, _) => c + 1L)
+      .covary[CatsIO]
+      .unsafeRunSync()
+  }*/
 }
