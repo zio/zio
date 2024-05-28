@@ -46,6 +46,9 @@ private[zio] class ConcurrentMetricRegistry {
     } else hook0.asInstanceOf[Result]
   }
 
+  def remove[Type <: MetricKeyType](key: MetricKey[Type])(implicit unsafe: Unsafe): Boolean =
+    map.remove(key) != null
+
   @tailrec
   final def addListener(listener: MetricListener)(implicit unsafe: Unsafe): Unit = {
     val oldListeners = listenersRef.get()
