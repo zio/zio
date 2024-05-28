@@ -1,12 +1,14 @@
 package zio.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 final class Mailbox[A] extends Serializable {
 
-  @transient private var read  = new Mailbox.Node[A](null.asInstanceOf[A])
-  @transient private var write = read
+  private[this] var read  = new Node(null)
+  private[this] var write = read
 
   def add(data: A): Unit = {
-    val next = new Mailbox.Node(data)
+    val next = new Node(data.asInstanceOf[AnyRef])
     write.next = next
   }
 
@@ -23,15 +25,12 @@ final class Mailbox[A] extends Serializable {
       return null.asInstanceOf[A]
 
     val data = next.data
-    next.data = null.asInstanceOf[A]
+    next.data = null
     read = next
     data.asInstanceOf[A]
   }
 }
 
-object Mailbox {
-
-  private[Mailbox] class Node[A](var data: A) {
-    var next: Node[A] = _
-  }
+private class Node(var data: AnyRef) {
+  var next: Node = _
 }
