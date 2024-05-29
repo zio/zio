@@ -1994,8 +1994,24 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def merge[R1 <: R, E1 >: E, A1 >: A](
     that: => ZStream[R1, E1, A1],
     strategy: => HaltStrategy = HaltStrategy.Both
-  )(implicit trace: Trace): ZStream[R1, E1, A1] =
-    self.mergeWith[R1, E1, A1, A1](that, strategy)(identity, identity) // TODO: Dotty doesn't infer this properly
+  )(implicit trace: Trace): ZStream[R1, E1, A1] = {
+    import HaltStrategy.{Either, Left, Right}
+
+    def handler(terminate: Boolean)(exit: Exit[E1, Any]): ZChannel.MergeDecision[R1, E1, Any, E1, Any] =
+      if (terminate || !exit.isSuccess) ZChannel.MergeDecision.done(ZIO.done(exit))
+      else ZChannel.MergeDecision.await(ZIO.done(_))
+
+    new ZStream(
+      ZChannel.succeed(strategy).flatMap { strategy =>
+        self
+          .channel
+          .mergeWith(that.channel)(
+            handler(strategy == Either || strategy == Left),
+            handler(strategy == Either || strategy == Right)
+          )
+      }
+    )
+  }
 
   /**
    * Merges this stream and the specified stream together. New produced stream
@@ -2201,23 +2217,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     that: => ZStream[R1, E1, A2],
     strategy: => HaltStrategy = HaltStrategy.Both
   )(l: A => A3, r: A2 => A3)(implicit trace: Trace): ZStream[R1, E1, A3] = {
-    import HaltStrategy.{Either, Left, Right}
-
-    def handler(terminate: Boolean)(exit: Exit[E1, Any]): ZChannel.MergeDecision[R1, E1, Any, E1, Any] =
-      if (terminate || !exit.isSuccess) ZChannel.MergeDecision.done(ZIO.done(exit))
-      else ZChannel.MergeDecision.await(ZIO.done(_))
-
-    new ZStream(
-      ZChannel.succeed(strategy).flatMap { strategy =>
-        self
-          .map(l)
-          .channel
-          .mergeWith(that.map(r).channel)(
-            handler(strategy == Either || strategy == Left),
-            handler(strategy == Either || strategy == Right)
-          )
-      }
-    )
+    self
+      .map(l)
+      .merge(that.map(r), strategy)
   }
 
   /**
