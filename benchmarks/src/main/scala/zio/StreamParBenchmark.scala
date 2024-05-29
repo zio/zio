@@ -222,6 +222,20 @@ class StreamParBenchmark {
     unsafeRun(result)
   }
 
+  @Benchmark
+  def zioMergeWithIdentity : Long = {
+    val strm = ZStream
+      .fromIterable(zioChunks)
+
+    val result = strm
+      .mergeWith(strm)(
+        identity, identity
+      )
+      .runCount
+
+    unsafeRun(result)
+  }
+
   /*@Benchmark
   def fs2Merge: Long = {
     val strm = FS2Stream(fs2Chunks: _*)
