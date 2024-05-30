@@ -47,19 +47,19 @@ private [zio] object LayerMacroUtils {
     }
 
     '{
-      given trace: Trace = Tracer.newTrace
+      implicit val trace: Trace = Tracer.newTrace
       val compose = [R1, O1, O2] => (lhs: ZLayer[R1, E, O1], rhs: ZLayer[O1, E, O2]) => lhs.to(rhs)
 
       ${
         def typeToNode(tpe: TypeRepr): Node[TypeRepr, LayerExpr[E]] =
-          Node(Nil, List(tpe), tpe.asType match { case '[t] => '{ZLayer.environment[t]} })
+          Node(Nil, List(tpe), tpe.asType match { case '[t] => '{ZLayer.environment[t](trace)} })
 
         def composeH(lhs: LayerExpr[E], rhs: LayerExpr[E]): LayerExpr[E] =
           lhs match { case '{$lhs: ZLayer[i, E, o]} =>
             rhs match { case '{$rhs: ZLayer[i2, E, o2]} =>
               val tag = Expr.summon[EnvironmentTag[o2]]
                 .getOrElse(report.errorAndAbort(s"Cannot find EnvironmentTag[${TypeRepr.of[o2].show}] in implicit scope"))
-              '{$lhs.++($rhs)(using $tag)}
+              '{$lhs.++($rhs)($tag)}
             }
           }
 
