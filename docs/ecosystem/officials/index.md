@@ -26,6 +26,8 @@ Here is the list of some of the highlighted projects that can be used in everyda
 4. [ZIO JSON](https://zio.dev/zio-json): A JSON library to work with JSON data in ZIO applications.
 5. [ZIO Schema](https://zio.dev/zio-schema): A library for generating/defining type-safe schemas for custom data types in ZIO applications.
 6. [ZIO Quill](https://zio.dev/zio-quill): A library to interact with databases using type-safe queries.
+7. [ZIO Kafka](https://zio.dev/zio-kafka): A Kafka client for ZIO and ZIO Streams
+8. [ZIO Prelude](https://zio.dev/zio-prelude): A lightweight, distinctly Scala take on functional abstractions, with tight ZIO integration
 
 ## Official Libraries
 
