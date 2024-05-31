@@ -84,17 +84,19 @@ private[zio] trait LayerMacroUtils {
   }
 
   private def buildFinalTree(tree: LayerTree[LayerExpr]): LayerExpr = {
-    val memoMap: Map[LayerExpr, LayerExpr] =
+    val memoList: List[(LayerExpr, LayerExpr)] =
       tree.toList.map { node =>
         val freshName = c.freshName("layer")
         val termName  = TermName(freshName)
         node -> c.Expr(q"$termName")
-      }.toMap
+      }
 
     val definitions =
-      memoMap.map { case (expr, memoizedNode) =>
+      memoList.map { case (expr, memoizedNode) =>
         q"val ${TermName(memoizedNode.tree.toString())} = $expr"
       }
+
+    val memoMap: Map[LayerExpr, LayerExpr] = memoList.toMap
 
     val layerExpr = tree.fold[LayerExpr](
       z = reify(ZLayer.succeed(())),
