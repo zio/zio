@@ -59,6 +59,7 @@ object ReentrantLockSpec extends ZIOSpecDefault {
               lock.withLock.flatMap(_ => ref.update(_ + 10) <* wlatch2.succeed(()))
             )).fork
           _        <- latch1.await
+          _        <- Live.live(ZIO.sleep(10.milli))
           waiters1 <- lock.queueLength
           _        <- f1.interrupt
           _        <- wlatch.succeed(()) *> wlatch2.await
