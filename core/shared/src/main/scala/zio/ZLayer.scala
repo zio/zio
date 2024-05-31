@@ -651,9 +651,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
          */
         def mapZIO[R1 <: R, E1 >: E, B: Tag](
           k: A => ZIO[R1, E1, B]
-        )(implicit tag: Tag[A], trace: Trace): Default.WithContext[R1, E1, B] =
+        )(implicit tag: Tag[A], trace: Trace): Default.WithContext[R1, E1, B] = {
           // used explicit type parameters to prevent a random compile error
-          fromLayer[R1, E1, B](self.layer.flatMap[R1, E1, B](a => ZLayer[R1, E1, B](k(a.get[A])))) //
+          val layer0: ZLayer[R1, E1, A] = self.layer
+          fromLayer[R1, E1, B](layer0.flatMap[R1, E1, B](a => ZLayer[R1, E1, B](k(a.get[A]))))
+        }
       }
 
       implicit def deriveDefaultConfig[A: Tag](implicit
