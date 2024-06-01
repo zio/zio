@@ -21,7 +21,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.annotation.tailrec
 import scala.util.control.ControlThrowable
 import java.util.{Set => JavaSet}
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
 import zio._
