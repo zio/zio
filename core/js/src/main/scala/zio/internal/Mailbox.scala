@@ -10,6 +10,7 @@ final class Mailbox[A] extends Serializable {
   def add(data: A): Unit = {
     val next = new Node(data.asInstanceOf[AnyRef])
     write.next = next
+    write = next
   }
 
   def isEmpty(): Boolean =
