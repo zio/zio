@@ -521,6 +521,8 @@ object Fiber extends FiberPlatformSpecific {
       def getFiberRefs()(implicit unsafe: Unsafe): FiberRefs
 
       def removeObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit
+
+      def poll(implicit unsafe: Unsafe): Option[Exit[E, A]]
     }
 
     /**
