@@ -983,11 +983,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       } yield {
         def handleSide[Err, Done, Err2, Done2](
           exit: Exit[Err, Either[Done, OutElem1]],
-          fiber: Fiber[Err2, Either[Done2, OutElem1]],
+          fiber: Fiber.Runtime[Err2, Either[Done2, OutElem1]],
           pull: ZIO[Env1, Err, Either[Done, OutElem1]]
         )(
           done: Exit[Err, Done] => ZChannel.MergeDecision[Env1, Err2, Done2, OutErr3, OutDone3],
-          both: (Fiber[Err, Either[Done, OutElem1]], Fiber[Err2, Either[Done2, OutElem1]]) => MergeState,
+          both: (
+            Fiber.Runtime[Err, Either[Done, OutElem1]],
+            Fiber.Runtime[Err2, Either[Done2, OutElem1]]
+          ) => MergeState,
           single: (Exit[Err2, Done2] => ZIO[Env1, OutErr3, OutDone3]) => MergeState
         ): ZIO[Env1, Nothing, ZChannel[Env1, Any, Any, Any, OutErr3, OutElem1, OutDone3]] = {
           def onDecision(
@@ -1025,27 +1028,42 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
         def go(state: MergeState): ZChannel[Env1, Any, Any, Any, OutErr3, OutElem1, OutDone3] =
           state match {
-            case BothRunning(leftFiber, rightFiber) =>
+            case BothRunning(leftFiber, rightFiber, preferLeft) =>
               val lj: ZIO[Env1, OutErr, Either[OutDone, OutElem1]]   = leftFiber.join.interruptible
               val rj: ZIO[Env1, OutErr2, Either[OutDone2, OutElem1]] = rightFiber.join.interruptible
 
               ZChannel.unwrap {
-                lj.raceWith(rj)(
-                  (leftEx, rf) =>
-                    rf.interrupt *>
-                      handleSide(leftEx, rightFiber, pullL)(
-                        leftDone,
-                        BothRunning(_, _),
-                        LeftDone(_)
-                      ),
-                  (rightEx, lf) =>
-                    lf.interrupt *>
-                      handleSide(rightEx, leftFiber, pullR)(
-                        rightDone,
-                        (l, r) => BothRunning(r, l),
-                        RightDone(_)
-                      )
-                )
+                (leftFiber.unsafe.poll(Unsafe.unsafe), rightFiber.unsafe.poll(Unsafe.unsafe)) match {
+                  case (Some(leftEx), opt) if preferLeft || opt.isEmpty =>
+                    handleSide(leftEx, rightFiber, pullL)(
+                      leftDone,
+                      BothRunning(_, _, false),
+                      LeftDone(_)
+                    )
+                  case (_, Some(rightEx)) =>
+                    handleSide(rightEx, leftFiber, pullR)(
+                      rightDone,
+                      (l, r) => BothRunning(r, l, true),
+                      RightDone(_)
+                    )
+                  case _ =>
+                    lj.raceWith(rj)(
+                      (leftEx, rf) =>
+                        rf.interrupt *>
+                          handleSide(leftEx, rightFiber, pullL)(
+                            leftDone,
+                            BothRunning(_, _, false),
+                            LeftDone(_)
+                          ),
+                      (rightEx, lf) =>
+                        lf.interrupt *>
+                          handleSide(rightEx, leftFiber, pullR)(
+                            rightDone,
+                            (l, r) => BothRunning(r, l, true),
+                            RightDone(_)
+                          )
+                    )
+                }
               }
 
             case LeftDone(f) =>
@@ -1072,7 +1090,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           }
 
         ZChannel
-          .fromZIO(pullL.forkIn(scope).zipWith(pullR.forkIn(scope))(BothRunning(_, _): MergeState))
+          .fromZIO(pullL.forkIn(scope).zipWith(pullR.forkIn(scope))(BothRunning(_, _, true): MergeState))
           .flatMap(go)
           .embedInput(input)
       }
@@ -2558,8 +2576,9 @@ object ZChannel {
   private[zio] sealed trait MergeState[Env, Err, Err1, Err2, Elem, Done, Done1, Done2]
   private[zio] object MergeState {
     case class BothRunning[Env, Err, Err1, Err2, Elem, Done, Done1, Done2](
-      left: Fiber[Err, Either[Done, Elem]],
-      right: Fiber[Err1, Either[Done1, Elem]]
+      left: Fiber.Runtime[Err, Either[Done, Elem]],
+      right: Fiber.Runtime[Err1, Either[Done1, Elem]],
+      preferLeft: Boolean //to maintain fairness when polling fibers
     ) extends MergeState[Env, Err, Err1, Err2, Elem, Done, Done1, Done2]
     case class LeftDone[Env, Err, Err1, Err2, Elem, Done, Done1, Done2](
       f: Exit[Err1, Done1] => ZIO[Env, Err2, Done2]
