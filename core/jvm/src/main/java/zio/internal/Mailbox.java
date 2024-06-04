@@ -4,19 +4,15 @@ import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
- * An unbounded MPSC (multi-producers single consumer) queue. This queue orders
+ * An unbounded MPSC (multi-producers single consumer) queue that orders
  * elements FIFO (first-in-first-out).
  * 
- * <p>
- * The queue is thread-safe provided {@code poll} is called by the single
- * consumer (thread).
- * </p>
+ * @apiNote The queue is thread-safe provided {@code poll} is invoked by the
+ *          single consumer (thread).
  * 
- * <p>
- * This implementation employs a wait free algorithm described in <a href=
- * "https://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue">
- * Non-intrusive MPSC node-based queue</a> by D. Vyukov.
- * </p>
+ * @implNote The implementation employs an algorithm described in <a href=
+ *           "https://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue">
+ *           Non-intrusive MPSC node-based queue</a> by D. Vyukov.
  */
 final public class Mailbox<A> implements Serializable {
 
@@ -56,6 +52,8 @@ final public class Mailbox<A> implements Serializable {
 	/**
 	 * Removes and returns the oldest element in the queue if the queue has
 	 * elements. Otherwise, returns {@code null}.
+	 * 
+	 * @apiNote This method must be invoked by the single consumer (thread).
 	 */
 	public A poll() {
 		Node next = read.next;

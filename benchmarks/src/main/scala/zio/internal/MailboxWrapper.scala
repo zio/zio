@@ -1,28 +1,28 @@
 package zio.internal
 
-sealed trait MailboxQueue[A] {
+sealed trait MailboxWrapper[A] {
   def add(data: A): Unit
   def poll(): A
 }
 
-object MailboxQueue {
+object MailboxWrapper {
 
-  def apply[A](name: String): MailboxQueue[A] =
+  def apply[A](name: String): MailboxWrapper[A] =
     name match {
       case "ConcurrentLinkedQueue" =>
-        new MailboxQueue[A] {
+        new MailboxWrapper[A] {
           private val q          = new java.util.concurrent.ConcurrentLinkedQueue[A]()
           def add(data: A): Unit = q.add(data)
           def poll(): A          = q.poll()
         }
       case "Mailbox" =>
-        new MailboxQueue[A] {
+        new MailboxWrapper[A] {
           private val q          = new Mailbox[A]()
           def add(data: A): Unit = q.add(data)
           def poll(): A          = q.poll()
         }
       case "MpscLinkedQueue" =>
-        new MailboxQueue[A] {
+        new MailboxWrapper[A] {
           private val q          = new org.jctools.queues.MpscLinkedQueue[A]()
           def add(data: A): Unit = q.add(data)
           def poll(): A          = q.poll()

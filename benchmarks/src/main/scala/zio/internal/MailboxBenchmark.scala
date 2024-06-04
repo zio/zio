@@ -33,11 +33,11 @@ class MailboxBenchmark {
   )
   var queue: String = _
 
-  var q: MailboxQueue[AnyRef] = _
+  var q: MailboxWrapper[AnyRef] = _
 
   @Setup(Level.Iteration)
   def setup(): Unit =
-    q = MailboxQueue(queue)
+    q = MailboxWrapper(queue)
 
   def add() = {
     val a = new Object()

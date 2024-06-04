@@ -28,11 +28,11 @@ class MailboxPollBenchmark {
   )
   var queue: String = _
 
-  var q: MailboxQueue[AnyRef] = _
+  var q: MailboxWrapper[AnyRef] = _
 
   @Setup(Level.Iteration)
   def setup() = {
-    q = MailboxQueue(queue)
+    q = MailboxWrapper(queue)
     val element = new Object()
     for (_ <- 0 to fill) q.add(element)
   }

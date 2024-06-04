@@ -20,7 +20,7 @@ final class Mailbox[A] extends Serializable {
     null != read.next
 
   def poll(): A = {
-    val next = read.next;
+    val next = read.next
 
     if (null == next)
       return null.asInstanceOf[A]
