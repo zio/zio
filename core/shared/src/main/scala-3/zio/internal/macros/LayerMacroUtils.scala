@@ -61,7 +61,9 @@ private [zio] object LayerMacroUtils {
         case '{$lhs: ZLayer[i, e, o]} =>
           rhs match {
             case '{$rhs: ZLayer[i2, e2, o2]} =>
-              '{$lhs.++($rhs)}
+              val tag = Expr.summon[EnvironmentTag[o2]]
+                .getOrElse(report.errorAndAbort(s"Cannot find EnvironmentTag[${TypeRepr.of[o2].show}] in implicit scope"))
+              '{$lhs.++($rhs)(using $tag)}
           }
       }
 
