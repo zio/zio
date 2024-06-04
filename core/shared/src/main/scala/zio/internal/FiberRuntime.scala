@@ -1468,7 +1468,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       def removeObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit =
         self.removeObserver(observer)
 
-      def poll(implicit unsafe : Unsafe) : Option[Exit[E, A]] =
+      def poll(implicit unsafe: Unsafe): Option[Exit[E, A]] =
         Option(self.exitValue())
     }
 

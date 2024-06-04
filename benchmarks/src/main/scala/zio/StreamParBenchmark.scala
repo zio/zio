@@ -179,7 +179,7 @@ class StreamParBenchmark {
       .unsafeRunSync()
 
   @Benchmark
-  def akkaMerge : Long = {
+  def akkaMerge: Long = {
     val src = AkkaSource
       .fromIterator(() => akkaChunks.iterator.flatten)
     val program = src
@@ -189,7 +189,7 @@ class StreamParBenchmark {
   }
 
   @Benchmark
-  def akkaMergeChunks : Long = {
+  def akkaMergeChunks: Long = {
     val src = AkkaSource
       .fromIterator(() => akkaChunks.iterator)
     val program = src
@@ -199,7 +199,7 @@ class StreamParBenchmark {
   }
 
   @Benchmark
-  def zioMerge : Long = {
+  def zioMerge: Long = {
     val strm = ZStream
       .fromIterable(zioChunks)
 
@@ -211,7 +211,7 @@ class StreamParBenchmark {
   }
 
   @Benchmark
-  def zioMerge2 : Long = {
+  def zioMerge2: Long = {
     val strm = ZStream
       .fromIterable(zioChunks)
 
@@ -223,13 +223,14 @@ class StreamParBenchmark {
   }
 
   @Benchmark
-  def zioMergeWithIdentity : Long = {
+  def zioMergeWithIdentity: Long = {
     val strm = ZStream
       .fromIterable(zioChunks)
 
     val result = strm
       .mergeWith(strm)(
-        identity, identity
+        identity,
+        identity
       )
       .runCount
 
