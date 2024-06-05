@@ -465,7 +465,8 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertZIO(STM.succeed(None).someOrElseSTM(STM.succeed(42)).commit)(equalTo(42))
         },
         test("works when the output of the default is an instance of a covariant type constructor applied to Nothing") {
-          assertZIO(STM.succeed(Option.empty[List[String]]).someOrElseSTM(STM.succeed(List.empty)).commit)(equalTo(List.empty))
+          val stm = STM.succeed(Option.empty[List[String]]).someOrElseSTM(STM.succeed(List.empty))
+          assertZIO(stm.commit)(equalTo(List.empty))
         },
         test("does not change failed state") {
           assertZIO(STM.fail(ExampleError).someOrElseSTM(STM.succeed(42)).commit.exit)(fails(equalTo(ExampleError)))

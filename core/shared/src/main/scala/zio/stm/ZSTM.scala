@@ -567,7 +567,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * `someOrElse` with better type inference. This method was left for binary
    * compatibility.
    */
-  private[stm] def someOrElse[B](default: => B)(implicit ev: A <:< Option[B]): ZSTM[R, E, B] =
+  protected def someOrElse[B](default: => B)(implicit ev: A <:< Option[B]): ZSTM[R, E, B] =
     map(_.getOrElse(default))
 
   /**
@@ -581,7 +581,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * by `someOrElseSTM` with better type inference. This method was left for
    * binary compatibility.
    */
-  private[stm] def someOrElseSTM[B, R1 <: R, E1 >: E](
+  protected def someOrElseSTM[B, R1 <: R, E1 >: E](
     default: ZSTM[R1, E1, B]
   )(implicit ev: A <:< Option[B]): ZSTM[R1, E1, B] =
     self.flatMap(ev(_) match {

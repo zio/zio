@@ -836,7 +836,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * `someOrElse` with better type inference. This method was left for binary
    * compatibility.
    */
-  private[managed] final def someOrElse[B](
+  protected final def someOrElse[B](
     default: => B
   )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZManaged[R, E, B] =
     map(a => ev(a).getOrElse(default))
@@ -854,7 +854,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * by `someOrElseManaged` with better type inference. This method was left for
    * binary compatibility.
    */
-  private[managed] final def someOrElseManaged[B, R1 <: R, E1 >: E](
+  protected final def someOrElseManaged[B, R1 <: R, E1 >: E](
     default: => ZManaged[R1, E1, B]
   )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZManaged[R1, E1, B] =
     self.flatMap(ev(_) match {

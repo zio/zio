@@ -1887,7 +1887,7 @@ sealed trait ZIO[-R, +E, +A]
    * `someOrElse` with better type inference. This method was left for binary
    * compatibility.
    */
-  private[ZIO] final def someOrElse[B](
+  protected final def someOrElse[B](
     default: => B
   )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R, E, B] =
     map(a => ev(a).getOrElse(default))
@@ -1905,7 +1905,7 @@ sealed trait ZIO[-R, +E, +A]
    * by someOrElseZIO with better type inference. This method was left for
    * binary compatibility.
    */
-  private[ZIO] final def someOrElseZIO[B, R1 <: R, E1 >: E](
+  protected final def someOrElseZIO[B, R1 <: R, E1 >: E](
     default: => ZIO[R1, E1, B]
   )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R1, E1, B] =
     self.flatMap(ev(_) match {
