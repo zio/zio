@@ -336,13 +336,14 @@ $TestResult($ast.withCode($codeString).meta(location = $location))
     // `true` for conversion from `lhs` to `rhs`.
     def implicitConversionDirection(lhs: Type, rhs: Type): Option[Boolean] =
       if (tpesPriority(lhs) == -1 || tpesPriority(rhs) == -1) {
-        scala.util.Try(c.inferImplicitValue((tq"$lhs => $rhs").tpe)).getOrElse(EmptyTree) match {
-          case EmptyTree => {
-            scala.util.Try(c.inferImplicitValue((tq"$rhs => $lhs").tpe)).getOrElse(EmptyTree) match {
+        // tq"lhs => rhs" does not work. It seems to generate untyped tree that cannot be typechecked
+        val function1 = weakTypeOf[_ => _]
+        c.inferImplicitValue(appliedType(function1, lhs, rhs)) match {
+          case EmptyTree =>
+            c.inferImplicitValue(appliedType(function1, rhs, lhs)) match {
               case EmptyTree => None
               case _         => Some(false)
             }
-          }
           case _ => Some(true)
         }
       } else if (tpesPriority(rhs) - tpesPriority(lhs) > 0) Some(true)
