@@ -1883,9 +1883,9 @@ sealed trait ZIO[-R, +E, +A]
     f(self.some).unsome
 
   /**
-   * Extracts the optional value, or returns the given 'default'.
-   * Superseded by `someOrElse` with better type inference.
-   * This method was left for binary compatibility.
+   * Extracts the optional value, or returns the given 'default'. Superseded by
+   * `someOrElse` with better type inference. This method was left for binary
+   * compatibility.
    */
   private final def someOrElse[B](
     default: => B
@@ -1896,14 +1896,14 @@ sealed trait ZIO[-R, +E, +A]
    * Extracts the optional value, or returns the given 'default'.
    */
   final def someOrElse[B, C](
-                                   default: => C
-                                 )(implicit ev0: A IsSubtypeOfOutput Option[B], ev1: C <:< B, trace: Trace): ZIO[R, E, B] =
+    default: => C
+  )(implicit ev0: A IsSubtypeOfOutput Option[B], ev1: C <:< B, trace: Trace): ZIO[R, E, B] =
     map(a => ev0(a).getOrElse(default))
 
   /**
-   * Extracts the optional value, or executes the effect 'default'.
-   * Superseded by someOrElseZIO with better type inference.
-   * This method was left for binary compatibility.
+   * Extracts the optional value, or executes the effect 'default'. Superseded
+   * by someOrElseZIO with better type inference. This method was left for
+   * binary compatibility.
    */
   private final def someOrElseZIO[B, R1 <: R, E1 >: E](
     default: => ZIO[R1, E1, B]
@@ -1917,8 +1917,8 @@ sealed trait ZIO[-R, +E, +A]
    * Extracts the optional value, or executes the effect 'default'.
    */
   final def someOrElseZIO[B, R1 <: R, E1 >: E, C](
-                                                        default: => ZIO[R1, E1, C]
-                                                      )(implicit ev0: A IsSubtypeOfOutput Option[B], ev1: C <:< B, trace: Trace): ZIO[R1, E1, B] =
+    default: => ZIO[R1, E1, C]
+  )(implicit ev0: A IsSubtypeOfOutput Option[B], ev1: C <:< B, trace: Trace): ZIO[R1, E1, B] =
     self.flatMap(ev0(_) match {
       case Some(value) => ZIO.succeed(value)
       case None        => default.map(ev1)

@@ -832,9 +832,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     )
 
   /**
-   * Extracts the optional value, or returns the given 'default'.
-   * Superseded by `someOrElse` with better type inference.
-   * This method was left for binary compatibility.
+   * Extracts the optional value, or returns the given 'default'. Superseded by
+   * `someOrElse` with better type inference. This method was left for binary
+   * compatibility.
    */
   private final def someOrElse[B](
     default: => B
@@ -845,14 +845,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Extracts the optional value, or returns the given 'default'.
    */
   final def someOrElse[B, C](
-                           default: => C
-                         )(implicit ev0: A IsSubtypeOfOutput Option[B], ev1: C <:< B, trace: Trace): ZManaged[R, E, B] =
+    default: => C
+  )(implicit ev0: A IsSubtypeOfOutput Option[B], ev1: C <:< B, trace: Trace): ZManaged[R, E, B] =
     map(a => ev0(a).getOrElse(default))
 
   /**
-   * Extracts the optional value, or executes the effect 'default'.
-   * Superseded by `someOrElseManaged` with better type inference.
-   * This method was left for binary compatibility.
+   * Extracts the optional value, or executes the effect 'default'. Superseded
+   * by `someOrElseManaged` with better type inference. This method was left for
+   * binary compatibility.
    */
   private final def someOrElseManaged[B, R1 <: R, E1 >: E](
     default: => ZManaged[R1, E1, B]
@@ -866,8 +866,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Extracts the optional value, or executes the effect 'default'.
    */
   final def someOrElseManaged[B, R1 <: R, E1 >: E, C](
-                                                    default: => ZManaged[R1, E1, C]
-                                                  )(implicit ev0: A IsSubtypeOfOutput Option[B], ev1: C <:< B, trace: Trace): ZManaged[R1, E1, B] =
+    default: => ZManaged[R1, E1, C]
+  )(implicit ev0: A IsSubtypeOfOutput Option[B], ev1: C <:< B, trace: Trace): ZManaged[R1, E1, B] =
     self.flatMap(ev0(_) match {
       case Some(value) => ZManaged.succeed(value)
       case None        => default.map(ev1)

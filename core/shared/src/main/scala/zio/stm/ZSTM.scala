@@ -563,9 +563,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     )
 
   /**
-   * Extracts the optional value, or returns the given 'default'.
-   * Superseded by `someOrElse` with better type inference.
-   * This method was left for binary compatibility.
+   * Extracts the optional value, or returns the given 'default'. Superseded by
+   * `someOrElse` with better type inference. This method was left for binary
+   * compatibility.
    */
   private def someOrElse[B](default: => B)(implicit ev: A <:< Option[B]): ZSTM[R, E, B] =
     map(_.getOrElse(default))
@@ -577,11 +577,13 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     map(_.getOrElse(default))
 
   /**
-   * Extracts the optional value, or executes the effect 'default'.
-   * Superseded by `someOrElseSTM` with better type inference.
-   * This method was left for binary compatibility.
+   * Extracts the optional value, or executes the effect 'default'. Superseded
+   * by `someOrElseSTM` with better type inference. This method was left for
+   * binary compatibility.
    */
-  private def someOrElseSTM[B, R1 <: R, E1 >: E](default: ZSTM[R1, E1, B])(implicit ev: A <:< Option[B]): ZSTM[R1, E1, B] =
+  private def someOrElseSTM[B, R1 <: R, E1 >: E](
+    default: ZSTM[R1, E1, B]
+  )(implicit ev: A <:< Option[B]): ZSTM[R1, E1, B] =
     self.flatMap(ev(_) match {
       case Some(value) => ZSTM.succeedNow(value)
       case None        => default
@@ -590,7 +592,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Extracts the optional value, or executes the effect 'default'.
    */
-  def someOrElseSTM[B, R1 <: R, E1 >: E, C](default: ZSTM[R1, E1, C])(implicit ev0: A <:< Option[B], ev1: C <:< B): ZSTM[R1, E1, B] =
+  def someOrElseSTM[B, R1 <: R, E1 >: E, C](
+    default: ZSTM[R1, E1, C]
+  )(implicit ev0: A <:< Option[B], ev1: C <:< B): ZSTM[R1, E1, B] =
     self.flatMap(ev0(_) match {
       case Some(value) => ZSTM.succeedNow(value)
       case None        => default.map(ev1)

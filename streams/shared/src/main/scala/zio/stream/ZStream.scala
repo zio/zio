@@ -3041,9 +3041,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     self.mapError(Some(_)).someOrFail(None)
 
   /**
-   * Extracts the optional value, or returns the given 'default'.
-   * Superseded by `someOrElse` with better type inference.
-   * This method was left for binary compatibility.
+   * Extracts the optional value, or returns the given 'default'. Superseded by
+   * `someOrElse` with better type inference. This method was left for binary
+   * compatibility.
    */
   private def someOrElse[A2](default: => A2)(implicit ev: A <:< Option[A2], trace: Trace): ZStream[R, E, A2] =
     map(_.getOrElse(default))
