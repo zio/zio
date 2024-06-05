@@ -450,6 +450,9 @@ object ZSTMSpec extends ZIOBaseSpec {
         test("falls back to the default value if None") {
           assertZIO(STM.succeed(None).someOrElse(42).commit)(equalTo(42))
         },
+        test("works when the default is an instance of a covariant type constructor applied to Nothing") {
+          assertZIO(STM.succeed(Option.empty[List[String]]).someOrElse(List.empty).commit)(equalTo(List.empty))
+        },
         test("does not change failed state") {
           assertZIO(STM.fail(ExampleError).someOrElse(42).commit.exit)(fails(equalTo(ExampleError)))
         } @@ zioTag(errors)
@@ -460,6 +463,9 @@ object ZSTMSpec extends ZIOBaseSpec {
         },
         test("falls back to the default value if None") {
           assertZIO(STM.succeed(None).someOrElseSTM(STM.succeed(42)).commit)(equalTo(42))
+        },
+        test("works when the output of the default is an instance of a covariant type constructor applied to Nothing") {
+          assertZIO(STM.succeed(Option.empty[List[String]]).someOrElseSTM(STM.succeed(List.empty)).commit)(equalTo(List.empty))
         },
         test("does not change failed state") {
           assertZIO(STM.fail(ExampleError).someOrElseSTM(STM.succeed(42)).commit.exit)(fails(equalTo(ExampleError)))

@@ -3395,10 +3395,17 @@ object ZStreamSpec extends ZIOBaseSpec {
           val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
           s1.some.runCollect.either.map(assert(_)(isLeft(isNone)))
         },
-        test("someOrElse") {
-          val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
-          s1.someOrElse(-1).runCollect.map(assert(_)(equalTo(Chunk(1, -1))))
-        },
+        suite("someOrElse")(
+          test("falls back to the default value if None") {
+            val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
+            s1.someOrElse(-1).runCollect.map(assert(_)(equalTo(Chunk(1, -1))))
+          },
+          test("works when the default is an instance of a covariant type constructor applied to Nothing") {
+            val stream =
+              ZStream.succeed(Some(List("s"))) ++ ZStream.succeed(Option.empty[List[String]])
+            stream.someOrElse(List.empty).runCollect.map(assert(_)(equalTo(Chunk(List("s"), List.empty))))
+          }
+        ),
         test("someOrFail") {
           val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
           s1.someOrFail(-1).runCollect.either.map(assert(_)(isLeft(equalTo(-1))))

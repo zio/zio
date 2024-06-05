@@ -3042,8 +3042,16 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
 
   /**
    * Extracts the optional value, or returns the given 'default'.
+   * Superseded by `someOrElse` with better type inference.
+   * This method was left for binary compatibility.
    */
-  def someOrElse[A2](default: => A2)(implicit ev: A <:< Option[A2], trace: Trace): ZStream[R, E, A2] =
+  private def someOrElse[A2](default: => A2)(implicit ev: A <:< Option[A2], trace: Trace): ZStream[R, E, A2] =
+    map(_.getOrElse(default))
+
+  /**
+   * Extracts the optional value, or returns the given 'default'.
+   */
+  def someOrElse[A2, C](default: => C)(implicit ev0: A <:< Option[A2], ev1: C <:< A2, trace: Trace): ZStream[R, E, A2] =
     map(_.getOrElse(default))
 
   /**
