@@ -3648,6 +3648,9 @@ object ZIOSpec extends ZIOBaseSpec {
       test("falls back to the default value if None") {
         assertZIO(ZIO.succeed(None).someOrElse(42))(equalTo(42))
       },
+      test("works when the default is an instance of a covariant type constructor applied to Nothing") {
+        assertZIO(ZIO.succeed(Option.empty[List[String]]).someOrElse(List.empty))(equalTo(List.empty))
+      },
       test("does not change failed state") {
         assertZIO(ZIO.fail(ExampleError).someOrElse(42).exit)(fails(equalTo(ExampleError)))
       } @@ zioTag(errors)
@@ -3658,6 +3661,9 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       test("falls back to the default effect if None") {
         assertZIO(ZIO.succeed(None).someOrElseZIO(ZIO.succeed(42)))(equalTo(42))
+      },
+      test("works when the output of the default is an instance of a covariant type constructor applied to Nothing") {
+        assertZIO(ZIO.succeed(Option.empty[List[String]]).someOrElseZIO(ZIO.succeed(List.empty)))(equalTo(List.empty))
       },
       test("does not change failed state") {
         assertZIO(ZIO.fail(ExampleError).someOrElseZIO(ZIO.succeed(42)).exit)(fails(equalTo(ExampleError)))

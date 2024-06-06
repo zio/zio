@@ -858,6 +858,11 @@ object ZManagedSpec extends ZIOBaseSpec {
         val managed: TaskManaged[Int] = ZManaged.succeed(None).someOrElse(42)
         assertZIO(managed.useNow)(equalTo(42))
       },
+      test("works when the output of the default is an instance of a covariant type constructor applied to Nothing") {
+        val managed: TaskManaged[List[String]] =
+          ZManaged.succeed(Option.empty[List[String]]).someOrElseManaged(ZManaged.succeed(List.empty))
+        assertZIO(managed.useNow)(equalTo(List.empty))
+      },
       test("does not change failed state") {
         val managed: TaskManaged[Int] = ZManaged.fail(ExampleError).someOrElse(42)
         managed.exit.use(res => ZIO.succeed(assert(res)(fails(equalTo(ExampleError)))))
@@ -871,6 +876,10 @@ object ZManagedSpec extends ZIOBaseSpec {
       test("falls back to the default value if None") {
         val managed: TaskManaged[Int] = ZManaged.succeed(None).someOrElseManaged(ZManaged.succeed(42))
         assertZIO(managed.useNow)(equalTo(42))
+      },
+      test("works when the default contains an instance of a covariant type constructor applied to Nothing") {
+        val managed: TaskManaged[List[String]] = ZManaged.succeed(Option.empty[List[String]]).someOrElse(List.empty)
+        assertZIO(managed.useNow)(equalTo(List.empty))
       },
       test("does not change failed state") {
         val managed: TaskManaged[Int] = ZManaged.fail(ExampleError).someOrElseManaged(ZManaged.succeed(42))
