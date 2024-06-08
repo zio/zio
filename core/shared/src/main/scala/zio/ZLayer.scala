@@ -493,6 +493,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[RIn, E, ROut] =
     ZLayer.fromZIO(zio)
 
+  /**
+   * A layer that succeeds with a unit value.
+   */
+  val unit: ULayer[Unit] = {
+    implicit val trace: Trace = Trace.empty
+    ZLayer.succeed(())
+  }
+
   object Derive {
 
     /**
