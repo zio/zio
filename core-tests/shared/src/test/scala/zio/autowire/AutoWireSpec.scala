@@ -182,7 +182,24 @@ object AutoWireSpec extends ZIOBaseSpec {
                     )
               """
             })(isLeft(anything))
-          } @@ TestAspect.exceptScala3
+          } @@ TestAspect.exceptScala3,
+          test("uses service statically known to be available") {
+            trait Foo
+            class Bar
+            class Foo1 extends Foo
+            class Foo2 extends Foo
+
+            val barLayer: ULayer[Bar] = ZLayer.make[Bar & Foo](ZLayer.succeed(new Foo2), ZLayer.succeed(new Bar))
+            val fooLayer: ULayer[Foo] = ZLayer.succeed(new Foo1)
+
+            val l1 = ZLayer.make[Foo & Bar](barLayer, fooLayer)
+            val l2 = ZLayer.make[Foo & Bar](fooLayer, barLayer)
+
+            for {
+              a1 <- ZIO.service[Foo].provideLayer(l1)
+              a2 <- ZIO.service[Foo].provideLayer(l2)
+            } yield assertTrue(a1.isInstanceOf[Foo1], a2.isInstanceOf[Foo1])
+          }
         ),
         suite("`ZLayer.makeSome`")(
           test("automatically constructs a layer, leaving off some remainder") {
