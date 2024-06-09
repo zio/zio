@@ -2498,7 +2498,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * last chunk might contain less than `n` elements
    */
   def rechunk(n: => Int)(implicit trace: Trace): ZStream[R, E, A] =
-    self >>> ZPipeline.rechunk2(n)
+    self >>> ZPipeline.rechunk(n)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest
@@ -5718,34 +5718,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   private[zio] class Rechunker[A](n: Int) {
-    private var builder: ChunkBuilder[A] = ChunkBuilder.make(n)
-    private var pos: Int                 = 0
-
-    def write(elem: A): Chunk[A] = {
-      builder += elem
-      pos += 1
-      if (pos == n) {
-        val result = builder.result()
-        builder = ChunkBuilder.make(n)
-        pos = 0
-        result
-      } else {
-        null
-      }
-    }
-
-    def isEmpty: Boolean =
-      pos == 0
-
-    def emitIfNotEmpty()(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Unit] =
-      if (pos != 0) {
-        ZChannel.write(builder.result())
-      } else {
-        ZChannel.unit
-      }
-  }
-
-  private[zio] class Rechunker2[A](n: Int) {
     private var buffer: ChunkBuilder[A] = if (n > 1) ChunkBuilder.make(n) else null
     private var pos: Int                = 0
 
