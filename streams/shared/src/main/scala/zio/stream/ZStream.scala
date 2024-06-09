@@ -2498,7 +2498,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * last chunk might contain less than `n` elements
    */
   def rechunk(n: => Int)(implicit trace: Trace): ZStream[R, E, A] =
-    self >>> ZPipeline.rechunk(n)
+    self >>> ZPipeline.rechunk2(n)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest
@@ -5743,6 +5743,66 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       } else {
         ZChannel.unit
       }
+  }
+
+  private[zio] class Rechunker2[A](n: Int) {
+    private var buffer: ChunkBuilder[A] = if (n > 1) ChunkBuilder.make(n) else null
+    private var pos: Int                = 0
+
+    def isEmpty: Boolean = pos == 0
+
+    final def rechunk(
+      chunk: Chunk[A]
+    )(implicit trace: Trace): ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = {
+      val len = chunk.size
+      if (len == 0) {
+        null
+      } else if (isEmpty && len == n) {
+        ZChannel.write(chunk)
+      } else if (n == 1) {
+        rechunk1(chunk, len)
+      } else {
+        var i = 0
+
+        var channel: ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = null
+
+        while (i < len) {
+          buffer += chunk(i)
+          i += 1
+          pos += 1
+          if (pos == n) {
+            val bufferResult = ZChannel.write(buffer.result())
+            channel =
+              if (channel eq null) bufferResult
+              else channel *> bufferResult
+            pos = 0
+            buffer = ChunkBuilder.make(n)
+          }
+        }
+
+        channel
+      }
+    }
+
+    private def rechunk1(chunk: Chunk[A], len: Int)(implicit
+      trace: Trace
+    ): ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = {
+      var channel: ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = ZChannel.write(Chunk.single(chunk.head))
+
+      var i = 1
+      while (i < len) {
+        val c = Chunk.single(chunk(i))
+        channel = channel *> ZChannel.write(c)
+        i += 1
+      }
+
+      channel
+    }
+
+    def done()(implicit trace: Trace): ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] =
+      if (isEmpty) ZChannel.unit
+      else ZChannel.write(buffer.result())
+
   }
 
   private[zio] sealed trait SinkEndReason
