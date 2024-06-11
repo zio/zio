@@ -14,7 +14,7 @@ We need to add the following dependencies to our project:
 
 ```scala
 libraryDependencies ++= Seq(
-  "zio.dev"  %% "zio-http" % "3.0.0-RC6"
+  "dev.zio"  %% "zio-http" % "3.0.0-RC6"
 )
 ```
 
