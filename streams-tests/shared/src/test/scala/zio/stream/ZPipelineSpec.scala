@@ -283,8 +283,45 @@ object ZPipelineSpec extends ZIOBaseSpec {
           .runCollect
           .map(assert(_)(equalTo(Chunk.range(1, 21))))
       }
-    )
+    ),
+    suite("mapZIOPar")(
+      test("respects parallelism") {
+        val stream = ZStream.iterate(0)(_ + 1)
 
+        def processElement(i: Int): ZIO[Any, Nothing, Unit] =
+          ZIO.debug(s"tick $i").delay(1.second)
+
+        val pipeline = new ZPipeline[Any, Nothing, Int, Unit] {}
+
+        for {
+          _ <- ZIO.debug("start")
+          _ <- pipeline.mapZIOPar(stream, 2) { i =>
+                processElement(i)
+              }.runDrain.zipParLeft(
+                ZIO.debug("----").delay(2.seconds).forever
+              )
+        } yield assertCompletes
+      }
+    ),
+    suite("mapZIOParUnordered")(
+      test("respects parallelism") {
+        val stream = ZStream.iterate(0)(_ + 1)
+
+        def processElement(i: Int): ZIO[Any, Nothing, Unit] =
+          ZIO.debug(s"tick $i").delay(1.second)
+
+        val pipeline = new ZPipeline[Any, Nothing, Int, Unit] {}
+
+        for {
+          _ <- ZIO.debug("start")
+          _ <- pipeline.mapZIOParUnordered(stream, 2) { i =>
+                processElement(i)
+              }.runDrain.zipParLeft(
+                ZIO.debug("----").delay(2.seconds).forever
+              )
+        } yield assertCompletes
+      }
+    )
   val weirdStringGenForSplitLines: Gen[Any, Chunk[String]] = Gen
     .chunkOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
     .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
