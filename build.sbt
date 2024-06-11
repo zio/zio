@@ -680,6 +680,15 @@ lazy val benchmarks = project.module
     )
   )
   .settings(scalacOptions += "-Wconf:msg=[@nowarn annotation does not suppress any warnings]:silent")
+  .settings(
+    assembly / assemblyJarName := "benchmarks.jar",
+    assembly / assemblyMergeStrategy := {
+      case PathList("module-info.class") => MergeStrategy.discard
+      case path                          => MergeStrategy.defaultMergeStrategy(path)
+    },
+    assembly / fullClasspath := (Jmh / fullClasspath).value,
+    assembly / mainClass     := Some("org.openjdk.jmh.Main")
+  )
 
 lazy val jsdocs = project
   .settings(libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "2.8.0").cross(CrossVersion.for3Use2_13))
