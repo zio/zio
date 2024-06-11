@@ -491,29 +491,34 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
    *   This combinator destroys the chunking structure. It's recommended to use
    *   rechunk afterwards.
    */
-  def mapZIOPar[Env2 <: Env, Err2 >: Err, Out2](n: => Int)(f: Out => ZIO[Env2, Err2, Out2])(implicit
+  def mapZIOPar[Env2 <: Env, Err2 >: Err, Out2](
+    n: => Int
+  )(f: Out => ZIO[Env2, Err2, Out2])(implicit
     trace: Trace
   ): ZPipeline[Env2, Err2, In, Out2] =
-    new ZPipeline[Env2, Err2, In, Out2] {
-      override def apply(stream: ZStream[Env2, Err2, In]): ZStream[Env2, Err2, Out2] =
-        ZStream.fromEffect(Semaphore.make(n.toLong)).flatMap { semaphore =>
-          self.apply(stream).mapZIO { a =>
+    stream => {
+      ZStream
+        .fromEffect(Semaphore.make(n.toLong))
+        .flatMap { semaphore =>
+          stream.mapZIO { a =>
             semaphore.withPermit(f(a))
           }
         }
     }
 
-  def mapZIOPar[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int)(f: Out => ZIO[Env2, Err2, Out2])(implicit
+  def mapZIOPar[Env2 <: Env, Err2 >: Err, Out2](
+    n: => Int,
+    bufferSize: => Int
+  )(f: Out => ZIO[Env2, Err2, Out2])(implicit
     trace: Trace
   ): ZPipeline[Env2, Err2, In, Out2] =
-    new ZPipeline[Env2, Err2, In, Out2] {
-      override def apply(stream: ZStream[Env2, Err2, In]): ZStream[Env2, Err2, Out2] =
-        ZStream.fromEffect(Semaphore.make(n.toLong)).flatMap { semaphore =>
-          self
-            .apply(stream)
-            .mapZIO { a =>
-              semaphore.withPermit(f(a))
-            }
+    stream => {
+      ZStream
+        .fromEffect(Semaphore.make(n.toLong))
+        .flatMap { semaphore =>
+          stream.mapZIO { a =>
+            semaphore.withPermit(f(a))
+          }
             .buffer(bufferSize)
         }
     }
@@ -523,28 +528,34 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
    * executing up to `n` invocations of `f` concurrently. The element order is
    * not enforced by this combinator, and elements may be reordered.
    */
-  def mapZIOParUnordered[Env2 <: Env, Err2 >: Err, Out2](n: => Int)(f: Out => ZIO[Env2, Err2, Out2])(implicit
+  def mapZIOParUnordered[Env2 <: Env, Err2 >: Err, Out2](
+    n: => Int
+  )(f: Out => ZIO[Env2, Err2, Out2])(implicit
     trace: Trace
   ): ZPipeline[Env2, Err2, In, Out2] =
-    new ZPipeline[Env2, Err2, In, Out2] {
-      override def apply(stream: ZStream[Env2, Err2, In]): ZStream[Env2, Err2, Out2] =
-        ZStream.fromEffect(Semaphore.make(n.toLong)).flatMap { semaphore =>
-          self.apply(stream).mapZIOParUnordered(n) { a =>
+    stream => {
+      ZStream
+        .fromEffect(Semaphore.make(n.toLong))
+        .flatMap { semaphore =>
+          stream.mapZIOParUnordered(n) { a =>
             semaphore.withPermit(f(a))
           }
         }
     }
 
-  def mapZIOParUnordered[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int)(
+  def mapZIOParUnordered[Env2 <: Env, Err2 >: Err, Out2](
+    n: => Int,
+    bufferSize: => Int
+  )(
     f: Out => ZIO[Env2, Err2, Out2]
   )(implicit
     trace: Trace
   ): ZPipeline[Env2, Err2, In, Out2] =
-    new ZPipeline[Env2, Err2, In, Out2] {
-      override def apply(stream: ZStream[Env2, Err2, In]): ZStream[Env2, Err2, Out2] =
-        ZStream.fromEffect(Semaphore.make(n.toLong)).flatMap { semaphore =>
-          self
-            .apply(stream)
+    stream => {
+      ZStream
+        .fromEffect(Semaphore.make(n.toLong))
+        .flatMap { semaphore =>
+          stream
             .mapZIOParUnordered(n) { a =>
               semaphore.withPermit(f(a))
             }
