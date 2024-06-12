@@ -495,9 +495,9 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     n: => Int
   )(f: Out => ZIO[Env2, Err2, Out2])(implicit
     trace: Trace
-  ): ZPipeline[Env2, Err2, In, Out2] = { stream =>
+  ): ZPipeline[Env2, Err2, In, Out2] = { stream: ZStream[Env2, Err2, In] =>
     ZStream.fromZIO(Semaphore.make(n.toLong)).flatMap { semaphore =>
-      stream.mapZIO { a =>
+      stream.mapZIO { (a: Out) =>
         semaphore.withPermit(f(a))
       }
     }
@@ -508,9 +508,9 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     bufferSize: => Int
   )(f: Out => ZIO[Env2, Err2, Out2])(implicit
     trace: Trace
-  ): ZPipeline[Env2, Err2, In, Out2] = { stream =>
+  ): ZPipeline[Env2, Err2, In, Out2] = { stream: ZStream[Env2, Err2, In] =>
     ZStream.fromZIO(Semaphore.make(n.toLong)).flatMap { semaphore =>
-      stream.mapZIO { a =>
+      stream.mapZIO { (a: Out) =>
         semaphore.withPermit(f(a))
       }
         .buffer(bufferSize)
@@ -526,9 +526,9 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     n: => Int
   )(f: Out => ZIO[Env2, Err2, Out2])(implicit
     trace: Trace
-  ): ZPipeline[Env2, Err2, In, Out2] = { stream =>
+  ): ZPipeline[Env2, Err2, In, Out2] = { stream: ZStream[Env2, Err2, In] =>
     ZStream.fromZIO(Semaphore.make(n.toLong)).flatMap { semaphore =>
-      stream.mapZIOParUnordered(n) { a =>
+      stream.mapZIOParUnordered(n) { (a: Out) =>
         semaphore.withPermit(f(a))
       }
     }
@@ -539,10 +539,10 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     bufferSize: => Int
   )(f: Out => ZIO[Env2, Err2, Out2])(implicit
     trace: Trace
-  ): ZPipeline[Env2, Err2, In, Out2] = { stream =>
+  ): ZPipeline[Env2, Err2, In, Out2] = { stream: ZStream[Env2, Err2, In] =>
     ZStream.fromZIO(Semaphore.make(n.toLong)).flatMap { semaphore =>
       stream
-        .mapZIOParUnordered(n) { a =>
+        .mapZIOParUnordered(n) { (a: Out) =>
           semaphore.withPermit(f(a))
         }
         .buffer(bufferSize)
