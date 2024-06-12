@@ -106,7 +106,7 @@ private[zio] trait LayerMacroUtils {
     )
 
     c.Expr(q"""
-    implicit val $trace: ${typeOf[Trace]} = ${reify(Tracer)}.newTrace
+    implicit val $trace: Trace = ${reify(Tracer)}.newTrace
     def $compose[R1, E, O1, O2](lhs: $layerSym[R1, E, O1], rhs: $layerSym[O1, E, O2]) = lhs.to(rhs)
     ..$definitions
     ${layerExpr.tree}
