@@ -53,7 +53,7 @@ object ZEnvironmentSpec extends ZIOBaseSpec {
       trait Bar
       final class FooBar extends Foo with Bar
 
-      val env = ZEnvironment(new FooBar)
+      val env    = ZEnvironment(new FooBar)
       val pruned = env.prune[Foo & Bar]
 
       assertTrue(env == pruned)
