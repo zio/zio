@@ -49,12 +49,10 @@ object ZPipelineSpec extends ZIOBaseSpec {
           def processElement(i: Int): ZIO[Any, Nothing, Unit] =
             ZIO.debug(s"tick $i").delay(1.second)
 
-          val pipeline = new ZPipeline[Any, Nothing, Int, Unit] {}
-
           for {
             _ <- ZIO.debug("start")
-            _ <- pipeline
-                   .mapZIOPar(stream, 2) { i =>
+            _ <- Zpipeline
+                   .mapZIOPar(2)(ZStream.iterate(0)(_ + 1)) { i =>
                      processElement(i)
                    }
                    .runDrain
@@ -69,17 +67,14 @@ object ZPipelineSpec extends ZIOBaseSpec {
       ),
       suite("mapZIOParUnordered")(
         test("respects parallelism") {
-          val stream = ZStream.iterate(0)(_ + 1)
 
           def processElement(i: Int): ZIO[Any, Nothing, Unit] =
             ZIO.debug(s"tick $i").delay(1.second)
 
-          val pipeline = new ZPipeline[Any, Nothing, Int, Unit] {}
-
           for {
             _ <- ZIO.debug("start")
-            _ <- pipeline
-                   .mapZIOParUnordered(stream, 2) { i =>
+            _ <- Zpipeline
+                   .mapZIOParUnordered(2)(ZStream.iterate(0)(_ + 1)) { i =>
                      processElement(i)
                    }
                    .runDrain
