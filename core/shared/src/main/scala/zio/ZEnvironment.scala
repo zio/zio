@@ -124,7 +124,9 @@ final class ZEnvironment[+R] private (
 
         // We need to check whether one of the services we added is a subtype of the missing service
         val newTags = newMap.keySet
-        missing.filterInPlace(tag => !newTags.exists(taggedIsSubtype(_, tag)))
+        missing.foreach { tag =>
+          if (newTags.exists(taggedIsSubtype(_, tag))) missing.remove(tag)
+        }
 
         if (missing.nonEmpty)
           throw new Error(
