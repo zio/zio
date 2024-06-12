@@ -47,6 +47,16 @@ object ZEnvironmentSpec extends ZIOBaseSpec {
         f6 eq foo1,
         f7 eq foo2
       )
+    },
+    test("pruning a union on a subtype that implements multiple services") {
+      trait Foo
+      trait Bar
+      final class FooBar extends Foo with Bar
+
+      val env    = ZEnvironment(new FooBar)
+      val pruned = env.prune[Foo & Bar]
+
+      assertTrue(env == pruned)
     }
   )
 }
