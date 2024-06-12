@@ -6,7 +6,7 @@ import zio.test.Assertion.{equalTo, fails}
 import zio.test._
 import scala.io.Source
 
-object ZPipelineSpec extends ZIOBaseSpec {  
+object ZPipelineSpec extends ZIOBaseSpec {
   def spec =
     suite("ZPipelineSpec")(
       suite("groupAdjacentBy")(
@@ -53,11 +53,14 @@ object ZPipelineSpec extends ZIOBaseSpec {
 
           for {
             _ <- ZIO.debug("start")
-            _ <- pipeline.mapZIOPar(stream, 2) { i =>
-                  processElement(i)
-                }.runDrain.zipParLeft(
-                  ZIO.debug("----").delay(2.seconds).forever
-                )
+            _ <- pipeline
+                   .mapZIOPar(stream, 2) { i =>
+                     processElement(i)
+                   }
+                   .runDrain
+                   .zipParLeft(
+                     ZIO.debug("----").delay(2.seconds).forever
+                   )
           } yield assertCompletes
         }
       ),
@@ -72,11 +75,14 @@ object ZPipelineSpec extends ZIOBaseSpec {
 
           for {
             _ <- ZIO.debug("start")
-            _ <- pipeline.mapZIOParUnordered(stream, 2) { i =>
-                  processElement(i)
-                }.runDrain.zipParLeft(
-                  ZIO.debug("----").delay(2.seconds).forever
-                )
+            _ <- pipeline
+                   .mapZIOParUnordered(stream, 2) { i =>
+                     processElement(i)
+                   }
+                   .runDrain
+                   .zipParLeft(
+                     ZIO.debug("----").delay(2.seconds).forever
+                   )
           } yield assertCompletes
         }
       ),

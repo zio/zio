@@ -495,33 +495,27 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     n: => Int
   )(f: Out => ZIO[Env2, Err2, Out2])(implicit
     trace: Trace
-  ): ZPipeline[Env2, Err2, In, Out2] =
-    stream => {
-      ZStream
-        .fromEffect(Semaphore.make(n.toLong))
-        .flatMap { semaphore =>
-          stream.mapZIO { a =>
-            semaphore.withPermit(f(a))
-          }
-        }
+  ): ZPipeline[Env2, Err2, In, Out2] = { stream =>
+    ZStream.fromZIO(Semaphore.make(n.toLong)).flatMap { semaphore =>
+      stream.mapZIO { a =>
+        semaphore.withPermit(f(a))
+      }
     }
+  }
 
   def mapZIOPar[Env2 <: Env, Err2 >: Err, Out2](
     n: => Int,
     bufferSize: => Int
   )(f: Out => ZIO[Env2, Err2, Out2])(implicit
     trace: Trace
-  ): ZPipeline[Env2, Err2, In, Out2] =
-    stream => {
-      ZStream
-        .fromEffect(Semaphore.make(n.toLong))
-        .flatMap { semaphore =>
-          stream.mapZIO { a =>
-            semaphore.withPermit(f(a))
-          }
-            .buffer(bufferSize)
-        }
+  ): ZPipeline[Env2, Err2, In, Out2] = { stream =>
+    ZStream.fromZIO(Semaphore.make(n.toLong)).flatMap { semaphore =>
+      stream.mapZIO { a =>
+        semaphore.withPermit(f(a))
+      }
+        .buffer(bufferSize)
     }
+  }
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -532,36 +526,28 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     n: => Int
   )(f: Out => ZIO[Env2, Err2, Out2])(implicit
     trace: Trace
-  ): ZPipeline[Env2, Err2, In, Out2] =
-    stream => {
-      ZStream
-        .fromEffect(Semaphore.make(n.toLong))
-        .flatMap { semaphore =>
-          stream.mapZIOParUnordered(n) { a =>
-            semaphore.withPermit(f(a))
-          }
-        }
+  ): ZPipeline[Env2, Err2, In, Out2] = { stream =>
+    ZStream.fromZIO(Semaphore.make(n.toLong)).flatMap { semaphore =>
+      stream.mapZIOParUnordered(n) { a =>
+        semaphore.withPermit(f(a))
+      }
     }
+  }
 
   def mapZIOParUnordered[Env2 <: Env, Err2 >: Err, Out2](
     n: => Int,
     bufferSize: => Int
-  )(
-    f: Out => ZIO[Env2, Err2, Out2]
-  )(implicit
+  )(f: Out => ZIO[Env2, Err2, Out2])(implicit
     trace: Trace
-  ): ZPipeline[Env2, Err2, In, Out2] =
-    stream => {
-      ZStream
-        .fromEffect(Semaphore.make(n.toLong))
-        .flatMap { semaphore =>
-          stream
-            .mapZIOParUnordered(n) { a =>
-              semaphore.withPermit(f(a))
-            }
-            .buffer(bufferSize)
+  ): ZPipeline[Env2, Err2, In, Out2] = { stream =>
+    ZStream.fromZIO(Semaphore.make(n.toLong)).flatMap { semaphore =>
+      stream
+        .mapZIOParUnordered(n) { a =>
+          semaphore.withPermit(f(a))
         }
+        .buffer(bufferSize)
     }
+  }
 
   /**
    * Transforms the errors emitted by this pipeline using `f`.
