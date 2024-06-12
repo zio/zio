@@ -31,6 +31,8 @@ private[zio] final class UpdateOrderLinkedMap[K, +V](
 
   def isEmpty: Boolean = size == 0
 
+  def keySet: Set[K] = underlying.keySet
+
   def updated[V1 >: V](key: K, value: V1): UpdateOrderLinkedMap[K, V1] = {
     val existing = underlying.getOrElse(key, null)
     if (existing eq null) {
