@@ -117,16 +117,23 @@ final class ZEnvironment[+R] private (
       }
       val scopeTags = set.filter(isScopeTag)
       scopeTags.foreach(found.add)
+      val newMap = builder.result()
 
       if (set.size > found.size) {
         val missing = set -- found
-        throw new Error(
-          s"Defect in zio.ZEnvironment: ${missing} statically known to be contained within the environment are missing"
-        )
+
+        // We need to check whether one of the services we added is a subtype of the missing service
+        val newTags = newMap.keySet
+        missing.filterInPlace(tag => !newTags.exists(taggedIsSubtype(_, tag)))
+
+        if (missing.nonEmpty)
+          throw new Error(
+            s"Defect in zio.ZEnvironment: ${missing} statically known to be contained within the environment are missing"
+          )
       }
 
       new ZEnvironment(
-        builder.result(),
+        newMap,
         cache = HashMap.empty,
         scope = if (scopeTags.isEmpty) null else scope
       )
