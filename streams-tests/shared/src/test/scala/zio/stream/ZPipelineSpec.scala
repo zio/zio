@@ -61,6 +61,9 @@ object ZPipelineSpec extends ZIOBaseSpec {
                    .zipParLeft(
                      ZIO.debug("----").delay(2.seconds).forever
                    )
+            _ <- ZIO.foreach_(1 to 4) { i =>
+                   ZIO.debug(s"tick ${100 + i}").delay(1.second)
+                 }
           } yield assertCompletes
         }
       ),
@@ -83,6 +86,9 @@ object ZPipelineSpec extends ZIOBaseSpec {
                    .zipParLeft(
                      ZIO.debug("----").delay(2.seconds).forever
                    )
+            _ <- ZIO.foreach_(1 to 4) { i =>
+                   ZIO.debug(s"tick ${100 + i}").delay(1.second)
+                 }
           } yield assertCompletes
         }
       ),
