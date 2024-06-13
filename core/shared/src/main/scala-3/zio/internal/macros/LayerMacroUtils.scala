@@ -10,6 +10,9 @@ import zio.internal.stacktracer.Tracer
 private [zio] object LayerMacroUtils {
   type LayerExpr[E] = Expr[ZLayer[_, E, _]]
 
+  def composeLayer[R1, E, O1, O2](lhs: ZLayer[R1, E, O1], rhs: ZLayer[O1, E, O2])(using Trace): ZLayer[R1, E, O2] =
+    lhs.to(rhs)
+
   def constructLayer[R0: Type, R: Type, E: Type](using Quotes)(
     layers: Seq[LayerExpr[E]],
     provideMethod: ProvideMethod
@@ -47,8 +50,7 @@ private [zio] object LayerMacroUtils {
     }
 
     '{
-      implicit val trace: Trace = Tracer.newTrace
-      val compose = [R1, O1, O2] => (lhs: ZLayer[R1, E, O1], rhs: ZLayer[O1, E, O2]) => lhs.to(rhs)
+      val trace: Trace = Tracer.newTrace
 
       ${
         def typeToNode(tpe: TypeRepr): Node[TypeRepr, LayerExpr[E]] =
@@ -66,7 +68,7 @@ private [zio] object LayerMacroUtils {
         def composeV(lhs: LayerExpr[E], rhs: LayerExpr[E]): LayerExpr[E] =
           lhs match { case '{$lhs: ZLayer[i, E, o]} =>
             rhs match { case '{$rhs: ZLayer[`o`, E, o2]} =>
-              '{compose($lhs, $rhs)}
+              '{composeLayer($lhs, $rhs)(using trace)}
             }
           }
 

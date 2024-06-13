@@ -102,12 +102,12 @@ private[zio] trait LayerMacroUtils {
       z = reify(ZLayer.unit),
       value = memoMap,
       composeH = (lhs, rhs) => c.Expr(q"$lhs ++ $rhs"),
-      composeV = (lhs, rhs) => c.Expr(q"$compose($lhs, $rhs)")
+      composeV = (lhs, rhs) => c.Expr(q"$compose($lhs, $rhs)($trace)")
     )
 
     c.Expr(q"""
-    implicit val $trace: ${typeOf[Trace]} = ${reify(Tracer)}.newTrace
-    def $compose[R1, E, O1, O2](lhs: $layerSym[R1, E, O1], rhs: $layerSym[O1, E, O2]) = lhs.to(rhs)
+    val $trace: ${typeOf[Trace]} = ${reify(Tracer)}.newTrace
+    def $compose[R1, E, O1, O2](lhs: $layerSym[R1, E, O1], rhs: $layerSym[O1, E, O2])(implicit trace: ${typeOf[Trace]}) = lhs.to(rhs)
     ..$definitions
     ${layerExpr.tree}
     """)
