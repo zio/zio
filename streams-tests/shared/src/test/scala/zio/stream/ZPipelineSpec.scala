@@ -49,7 +49,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
 
           for {
             _ <- ZIO.debug("start")
-            _ <- ZPipeline
+            fiber <- ZPipeline
                    .mapZIOPar(2) { (i:Int) =>
                      processElement(i)
                    }
@@ -57,7 +57,9 @@ object ZPipelineSpec extends ZIOBaseSpec {
                    .runDrain
                    .zipParLeft(
                      ZIO.debug("----").delay(1.second).repeatN(2)
-                   )
+                   ).fork
+            _ <- TestClock.adjust(5.seconds)
+            _ <- fiber.join
           } yield assertCompletes
         }
       ),
@@ -68,7 +70,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
 
           for {
             _ <- ZIO.debug("start")
-            _ <- ZPipeline
+            fiber <- ZPipeline
                    .mapZIOParUnordered(2) { (i:Int) =>
                      processElement(i)
                    }
@@ -76,7 +78,9 @@ object ZPipelineSpec extends ZIOBaseSpec {
                    .runDrain
                    .zipParLeft(
                      ZIO.debug("----").delay(1.second).repeatN(2)
-                   )
+                   ).fork
+            _ <- TestClock.adjust(5.seconds)
+            _ <- fiber.join
           } yield assertCompletes
         }
       ),
