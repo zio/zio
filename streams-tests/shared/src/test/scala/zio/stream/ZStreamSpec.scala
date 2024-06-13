@@ -3297,6 +3297,96 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk("A", "A", "B")))
           )
         ),
+        suite("rechunk")(
+          test("to smaller chunks") {
+            val chunks = Chunk(
+              Chunk(1, 2, 3, 4, 5),
+              Chunk(6, 7, 8, 9, 10)
+            )
+
+            val stream = ZStream.fromChunks(chunks: _*)
+            assertZIO(stream.rechunk(2).chunks.runCollect)(
+              equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6), Chunk(7, 8), Chunk(9, 10)))
+            )
+          },
+          test("to larger chunks") {
+            val chunks = Chunk(
+              Chunk(1, 2),
+              Chunk(3, 4),
+              Chunk(5, 6),
+              Chunk(7, 8),
+              Chunk(9, 10)
+            )
+
+            val stream = ZStream.fromChunks(chunks: _*)
+            assertZIO(stream.rechunk(5).chunks.runCollect)(
+              equalTo(Chunk(Chunk(1, 2, 3, 4, 5), Chunk(6, 7, 8, 9, 10)))
+            )
+          },
+          test("to the same size chunks") {
+            val chunks = Chunk(
+              Chunk(1, 2),
+              Chunk(3, 4),
+              Chunk(5, 6),
+              Chunk(7, 8),
+              Chunk(9, 10)
+            )
+
+            val stream = ZStream.fromChunks(chunks: _*)
+            assertZIO(stream.rechunk(2).chunks.runCollect)(
+              equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6), Chunk(7, 8), Chunk(9, 10)))
+            )
+          },
+          test("remainder is emitted on completion") {
+            val chunks = Chunk(
+              Chunk(1, 2),
+              Chunk(3, 4),
+              Chunk(5, 6),
+              Chunk(7, 8),
+              Chunk(9, 10)
+            )
+
+            val stream = ZStream.fromChunks(chunks: _*)
+            assertZIO(stream.rechunk(3).chunks.runCollect)(
+              equalTo(Chunk(Chunk(1, 2, 3), Chunk(4, 5, 6), Chunk(7, 8, 9), Chunk(10)))
+            )
+          },
+          test("buffer is emitted on error") {
+            val chunks = Chunk(
+              Chunk(Right(1), Right(2)),
+              Chunk(Left("Boom!"), Right(3))
+            )
+
+            val stream = ZStream.fromChunks(chunks: _*).absolve
+            assertZIO(stream.rechunk(3).either.chunks.runCollect)(
+              equalTo(Chunk(Chunk(Right(1), Right(2)), Chunk(Left("Boom!"))))
+            )
+          },
+          test("to chunk size 1") {
+            val chunks = Chunk(
+              Chunk(1, 2, 3, 4, 5),
+              Chunk(6, 7, 8, 9, 10)
+            )
+
+            val stream = ZStream.fromChunks(chunks: _*)
+            assertZIO(stream.rechunk(1).chunks.runCollect)(
+              equalTo(
+                Chunk(
+                  Chunk(1),
+                  Chunk(2),
+                  Chunk(3),
+                  Chunk(4),
+                  Chunk(5),
+                  Chunk(6),
+                  Chunk(7),
+                  Chunk(8),
+                  Chunk(9),
+                  Chunk(10)
+                )
+              )
+            )
+          }
+        ),
         suite("retry")(
           test("retry a failing stream") {
             assertZIO(

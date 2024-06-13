@@ -1852,42 +1852,21 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * A pipeline that rechunks the stream into chunks of the specified size.
    */
-  def rechunk[In](n: => Int)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] = {
+  def rechunk[In](n: => Int)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
+    new ZPipeline(ZChannel.succeed(new ZStream.Rechunker[In](scala.math.max(n, 1))).flatMap { rechunker =>
+      lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, ZNothing, Chunk[In], Any] =
+        ZChannel.readWithCause(
+          (in: Chunk[In]) => {
+            val out = rechunker.rechunk(in)
+            if (out ne null) out *> loop
+            else loop
+          },
+          (cause: Cause[ZNothing]) => rechunker.done() *> ZChannel.refailCause(cause),
+          (_: Any) => rechunker.done()
+        )
 
-    def process(
-      rechunker: ZStream.Rechunker[In],
-      target: Int
-    ): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
-      ZChannel.readWithCause(
-        (chunk: Chunk[In]) =>
-          if (chunk.size == target && rechunker.isEmpty) {
-            ZChannel.write(chunk) *> process(rechunker, target)
-          } else if (chunk.size > 0) {
-            var chunks: List[Chunk[In]] = Nil
-            var result: Chunk[In]       = null
-            var i                       = 0
-
-            while (i < chunk.size) {
-              while (i < chunk.size && (result eq null)) {
-                result = rechunker.write(chunk(i))
-                i += 1
-              }
-
-              if (result ne null) {
-                chunks = result :: chunks
-                result = null
-              }
-            }
-
-            ZChannel.writeAll(chunks.reverse: _*) *> process(rechunker, target)
-          } else process(rechunker, target),
-        (cause: Cause[ZNothing]) => rechunker.emitIfNotEmpty() *> ZChannel.refailCause(cause),
-        (_: Any) => rechunker.emitIfNotEmpty()
-      )
-
-    val target = scala.math.max(n, 1)
-    new ZPipeline(ZChannel.suspend(process(new ZStream.Rechunker(target), target)))
-  }
+      loop
+    })
 
   /**
    * Creates a pipeline that randomly samples elements according to the
