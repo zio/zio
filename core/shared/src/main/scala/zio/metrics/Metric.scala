@@ -391,7 +391,10 @@ object Metric {
     val fiberSuccesses = Metric.counter("zio_fiber_successes")
     val fiberFailures  = Metric.counter("zio_fiber_failures")
     val fiberLifetimes =
-      Metric.histogram("zio_fiber_lifetimes", MetricKeyType.Histogram.Boundaries.exponential(0.001, 2.0, 100))
+      Metric.histogram(
+        "zio_fiber_lifetimes",
+        MetricKeyType.Histogram.Boundaries.exponential(0.001, 2.0, 20)
+      ) // ~18 minutes
   }
 
   /**
