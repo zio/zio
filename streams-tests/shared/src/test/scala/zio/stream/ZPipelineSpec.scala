@@ -50,13 +50,13 @@ object ZPipelineSpec extends ZIOBaseSpec {
           for {
             _ <- ZIO.debug("start")
             _ <- ZPipeline
-                   .mapZIOPar(2) { (i:Int) =>
+                   .mapZIOPar(2) { i:Int =>
                      processElement(i)
                    }
                    .apply(ZStream.iterate[Int](0)(_ + 1))
                    .runDrain
                    .zipParLeft(
-                     ZIO.debug("----").delay(2.seconds).forever
+                     ZIO.debug("----").delay(2.seconds).repeatN(5)
                    )
           } yield assertCompletes
         }
@@ -69,13 +69,13 @@ object ZPipelineSpec extends ZIOBaseSpec {
           for {
             _ <- ZIO.debug("start")
             _ <- ZPipeline
-                   .mapZIOParUnordered(2) { (i:Int) =>
+                   .mapZIOParUnordered(2) { i:Int =>
                      processElement(i)
                    }
                    .apply(ZStream.iterate[Int](0)(_ + 1))
                    .runDrain
                    .zipParLeft(
-                     ZIO.debug("----").delay(2.seconds).forever
+                     ZIO.debug("----").delay(2.seconds).repeatN(5)
                    )
           } yield assertCompletes
         }
