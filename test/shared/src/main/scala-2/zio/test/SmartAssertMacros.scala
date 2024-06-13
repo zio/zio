@@ -346,15 +346,15 @@ $TestResult($ast.withCode($codeString).meta(location = $location))
   object Matcher {
 
     def tpesPriority(tpe: Type): Int =
-      tpe.toString match {
-        case "Byte" | "java.lang.Byte"      => 0
-        case "Short" | "java.lang.Short"    => 1
-        case "Char" | "java.lang.Character" => 2
-        case "Int" | "java.lang.Integer"    => 3
-        case "Long" | "java.lang.Long"      => 4
-        case "Float" | "java.lang.Float"    => 5
-        case "Double" | "java.lang.Double"  => 6
-        case _                              => -1
+      tpe.typeSymbol.fullName match {
+        case "scala.Byte" | "java.lang.Byte"      => 0
+        case "scala.Short" | "java.lang.Short"    => 1
+        case "scala.Char" | "java.lang.Character" => 2
+        case "scala.Int" | "java.lang.Integer"    => 3
+        case "scala.Long" | "java.lang.Long"      => 4
+        case "scala.Float" | "java.lang.Float"    => 5
+        case "scala.Double" | "java.lang.Double"  => 6
+        case _                                    => -1
       }
 
     // `true` for conversion from `lhs` to `rhs`.
@@ -374,7 +374,7 @@ $TestResult($ast.withCode($codeString).meta(location = $location))
       else Some(false)
 
     def needsImplicits(lhs: Type, rhs: Type) =
-      lhs.toString.contains("java.lang") || rhs.toString.contains("java.lang")
+      lhs.typeSymbol.fullName.contains("java.lang") || rhs.typeSymbol.fullName.contains("java.lang")
 
     def comparisonConverter(lhsTpe: Type, args: List[c.Tree], methodName: String): AssertAST = {
       val rhsTpe = args.head.tpe.widen
