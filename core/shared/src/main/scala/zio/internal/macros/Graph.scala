@@ -104,7 +104,9 @@ final case class Graph[Key, A](
     keys.find(k => keyEquals(key, k)).getOrElse(key)
 
   private def addEnv(key: Key): Unit = {
-    val keyFromEnv = envKeys.find(env => keyEquals(key, env) || keyEquals(env, key)).getOrElse(throw new Throwable("This shouldn't happen"))
+    val keyFromEnv = envKeys
+      .find(env => keyEquals(key, env) || keyEquals(env, key))
+      .getOrElse(throw new Throwable("This shouldn't happen"))
     usedEnvKeys = usedEnvKeys + keyFromEnv
     neededKeys.get(key) match {
       case Some(_) => ()
