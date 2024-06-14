@@ -931,7 +931,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     var stackIndex = startStackIndex
 
     if (currentDepth >= FiberRuntime.MaxDepthBeforeTrampoline) {
-      inbox.add(FiberMessage.Resume(effect))
+      inbox.prepend(FiberMessage.Resume(effect))
 
       throw AsyncJump
     }
@@ -947,9 +947,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       if (ops > FiberRuntime.MaxOperationsBeforeYield && RuntimeFlags.cooperativeYielding(_runtimeFlags)) {
         updateLastTrace(cur.trace)
-        inbox.add(FiberMessage.YieldNow)
-        inbox.add(FiberMessage.Resume(cur))
-
+        inbox.prepend2(FiberMessage.YieldNow, FiberMessage.Resume(cur))
         throw AsyncJump
       } else {
         try {
@@ -1202,8 +1200,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             case yieldNow: ZIO.YieldNow =>
               updateLastTrace(yieldNow.trace)
               if (yieldNow.forceAsync || !stealWork(currentDepth)) {
-                inbox.add(FiberMessage.YieldNow)
-                inbox.add(FiberMessage.resumeUnit)
+                inbox.prepend2(FiberMessage.YieldNow, FiberMessage.resumeUnit)
 
                 throw AsyncJump
               } else {
