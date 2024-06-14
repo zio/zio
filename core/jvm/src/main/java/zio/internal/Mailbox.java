@@ -35,8 +35,8 @@ final class Mailbox<A> extends AtomicReference<Mailbox.Node<A>> {
 	public void add(A data) throws NullPointerException {
 		if (null == data)
 			throw new NullPointerException();
-		Node next = new Node(data);
-		Node prev = getAndSet(next);
+		Node<A> next = new Node<A>(data);
+		Node<A> prev = getAndSet(next);
 		prev.lazySet(next);
 	}
 
@@ -80,7 +80,7 @@ final class Mailbox<A> extends AtomicReference<Mailbox.Node<A>> {
 		if (null == data)
 			throw new NullPointerException();
 		// optimization: avoid atomic operation by retaining (phantom) read node
-		read = new Node<A>(null, new Node(data, read));
+		read = new Node<A>(null, new Node<A>(data, read));
 	}
 
 	/**
@@ -101,7 +101,7 @@ final class Mailbox<A> extends AtomicReference<Mailbox.Node<A>> {
 		if (null == data1 || null == data2)
 			throw new NullPointerException();
 		// optimization: avoid atomic operation by retaining (phantom) read node
-		read = new Node<A>(null, new Node(data1, new Node(data2, read)));
+		read = new Node<A>(null, new Node<A>(data1, new Node<A>(data2, read)));
 	}
 
 	/**
