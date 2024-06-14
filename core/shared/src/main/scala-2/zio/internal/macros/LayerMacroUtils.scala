@@ -4,14 +4,15 @@ import zio._
 import zio.internal.TerminalRendering
 
 import scala.reflect.macros.blackbox
+import zio.internal.stacktracer.Tracer
 
 private[zio] trait LayerMacroUtils {
   val c: blackbox.Context
   import c.universe._
 
-  type LayerExpr = c.Expr[ZLayer[_, _, _]]
+  type LayerExpr = Expr[ZLayer[_, _, _]]
 
-  private def verifyLayers(layers: Seq[c.Expr[ZLayer[_, _, _]]]): Unit =
+  private def verifyLayers(layers: Seq[LayerExpr]): Unit =
     for (layer <- layers) {
       layer.tree match {
         case Apply(tree, _) =>
@@ -34,76 +35,79 @@ private[zio] trait LayerMacroUtils {
       }
     }
 
-  private def isByName(tpe: c.Type): Boolean =
-    tpe.typeSymbol.isClass && tpe.typeSymbol.asClass == c.universe.definitions.ByNameParamClass
+  private def isByName(tpe: Type): Boolean =
+    tpe.typeSymbol.isClass && tpe.typeSymbol.asClass == definitions.ByNameParamClass
 
-  def constructLayer[R0: c.WeakTypeTag, R: c.WeakTypeTag, E](
-    layers: Seq[c.Expr[ZLayer[_, E, _]]],
+  def constructLayer[R0: WeakTypeTag, R: WeakTypeTag, E](
+    layers: Seq[LayerExpr],
     provideMethod: ProvideMethod
-  ): c.Expr[ZLayer[R0, E, R]] = {
-
+  ): Expr[ZLayer[R0, E, R]] = {
     verifyLayers(layers)
     val remainderTypes = getRequirements[R0]
     val targetTypes    = getRequirements[R]
 
-    val debugMap: PartialFunction[LayerExpr, ZLayer.Debug] =
-      scala.Function.unlift((_: LayerExpr).tree match {
-        case q"zio.ZLayer.Debug.tree"    => Some(ZLayer.Debug.Tree)
-        case q"zio.ZLayer.Debug.mermaid" => Some(ZLayer.Debug.Mermaid)
-        case _                           => None
-      })
+    val debugMap: PartialFunction[LayerExpr, ZLayer.Debug] = {
+      case q"zio.ZLayer.Debug.tree"    => ZLayer.Debug.Tree
+      case q"zio.ZLayer.Debug.mermaid" => ZLayer.Debug.Mermaid
+    }
 
-    val builder = LayerBuilder[c.Type, LayerExpr](
+    def typeToNode(tpe: Type): Node[Type, LayerExpr] =
+      Node(Nil, List(tpe), c.Expr[ZLayer[_, E, _]](q"${reify(ZLayer)}.environment[$tpe]"))
+
+    val builder = LayerBuilder[Type, LayerExpr](
       target0 = targetTypes,
       remainder = remainderTypes,
       providedLayers0 = layers.toList,
       layerToDebug = debugMap,
-      sideEffectType = c.weakTypeOf[Unit].dealias,
-      anyType = c.weakTypeOf[Any].dealias,
+      sideEffectType = definitions.UnitTpe,
+      anyType = definitions.AnyTpe,
       typeEquals = _ <:< _,
       foldTree = buildFinalTree,
       method = provideMethod,
       exprToNode = getNode,
-      typeToNode = tpe => Node(Nil, List(tpe), c.Expr[ZLayer[_, E, _]](q"_root_.zio.ZLayer.environment[$tpe]")),
+      typeToNode = typeToNode,
       showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
       showType = _.toString,
       reportWarn = c.warning(c.enclosingPosition, _),
       reportError = c.abort(c.enclosingPosition, _)
     )
 
-    builder.build.asInstanceOf[c.Expr[ZLayer[R0, E, R]]]
+    c.Expr[ZLayer[R0, E, R]](builder.build.tree)
   }
 
-  def provideBaseImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
-    layers: Seq[c.Expr[ZLayer[_, E, _]]],
+  def provideBaseImpl[F[_, _, _], R0: WeakTypeTag, R: WeakTypeTag, E, A](
+    layers: Seq[Expr[ZLayer[_, E, _]]],
     method: String,
     provideMethod: ProvideMethod
-  ): c.Expr[F[R0, E, A]] = {
+  ): Expr[F[R0, E, A]] = {
     val expr = constructLayer[R0, R, E](layers, provideMethod)
-    c.Expr[F[R0, E, A]](q"${c.prefix}.${TermName(method)}(${expr.tree})")
+    c.Expr[F[R0, E, A]](q"${c.prefix}.${TermName(method)}($expr)")
   }
 
   private def buildFinalTree(tree: LayerTree[LayerExpr]): LayerExpr = {
-    val memoMap: Map[LayerExpr, LayerExpr] =
-      tree.toList.map { node =>
-        val freshName = c.freshName("layer")
-        val termName  = TermName(freshName)
-        node -> c.Expr(q"$termName")
-      }.toMap
+    val memoList: List[(LayerExpr, LayerExpr)] = tree.toList.map { node =>
+      val termName = TermName(c.freshName("layer"))
+      node -> c.Expr(q"$termName")
+    }
 
-    val definitions =
-      memoMap.map { case (expr, memoizedNode) =>
-        q"val ${TermName(memoizedNode.tree.toString())} = $expr"
-      }
+    val definitions = memoList.map { case (expr, memoizedNode) =>
+      q"val ${TermName(memoizedNode.tree.toString)} = $expr"
+    }
 
+    val memoMap  = memoList.toMap
+    val trace    = TermName(c.freshName("trace"))
+    val compose  = TermName(c.freshName("compose"))
+    val layerSym = typeOf[ZLayer[_, _, _]].typeSymbol
     val layerExpr = tree.fold[LayerExpr](
-      z = reify(ZLayer.succeed(())),
-      value = memoMap(_),
-      composeH = (lhs, rhs) => c.Expr(q"""$lhs ++ $rhs"""),
-      composeV = (lhs, rhs) => c.Expr(q"""$lhs >>> $rhs""")
+      z = reify(ZLayer.unit),
+      value = memoMap,
+      composeH = (lhs, rhs) => c.Expr(q"$lhs ++ $rhs"),
+      composeV = (lhs, rhs) => c.Expr(q"$compose($lhs, $rhs)($trace)")
     )
 
     c.Expr(q"""
+    val $trace: ${typeOf[Trace]} = ${reify(Tracer)}.newTrace
+    def $compose[R1, E, O1, O2](lhs: $layerSym[R1, E, O1], rhs: $layerSym[O1, E, O2])(implicit trace: ${typeOf[Trace]}) = lhs.to(rhs)
     ..$definitions
     ${layerExpr.tree}
     """)
@@ -113,7 +117,7 @@ private[zio] trait LayerMacroUtils {
    * Converts a LayerExpr to a Node annotated by the Layer's input and output
    * types.
    */
-  def getNode(layer: LayerExpr): Node[c.Type, LayerExpr] = {
+  def getNode(layer: LayerExpr): Node[Type, LayerExpr] = {
     val typeArgs = layer.actualType.dealias.typeArgs
     // ZIO[in, _, out]
     val in  = typeArgs.head
@@ -121,10 +125,10 @@ private[zio] trait LayerMacroUtils {
     Node(getRequirements(in), getRequirements(out), layer)
   }
 
-  def getRequirements[T: c.WeakTypeTag]: List[c.Type] =
+  def getRequirements[T: WeakTypeTag]: List[Type] =
     getRequirements(weakTypeOf[T])
 
-  def getRequirements(tpe: Type): List[c.Type] = {
+  def getRequirements(tpe: Type): List[Type] = {
     val intersectionTypes = tpe.dealias.map(_.dealias).intersectionTypes
 
     intersectionTypes
@@ -133,7 +137,7 @@ private[zio] trait LayerMacroUtils {
       .distinct
   }
 
-  def assertProperVarArgs(layer: Seq[c.Expr[_]]): Unit = {
+  def assertProperVarArgs(layer: Seq[Expr[_]]): Unit = {
     val _ = layer.map(_.tree) collect { case Typed(_, Ident(typeNames.WILDCARD_STAR)) =>
       c.abort(
         c.enclosingPosition,

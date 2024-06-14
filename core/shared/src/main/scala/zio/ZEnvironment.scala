@@ -21,6 +21,7 @@ import zio.internal.UpdateOrderLinkedMap
 import scala.annotation.tailrec
 import scala.collection.immutable.HashMap
 import scala.collection.mutable
+import scala.util.control.ControlThrowable
 import scala.util.hashing.MurmurHash3
 
 final class ZEnvironment[+R] private (
@@ -116,16 +117,25 @@ final class ZEnvironment[+R] private (
       }
       val scopeTags = set.filter(isScopeTag)
       scopeTags.foreach(found.add)
+      val newMap = builder.result()
 
       if (set.size > found.size) {
         val missing = set -- found
-        throw new Error(
-          s"Defect in zio.ZEnvironment: ${missing} statically known to be contained within the environment are missing"
-        )
+
+        // We need to check whether one of the services we added is a subtype of the missing service
+        val newTags = newMap.keySet
+        missing.foreach { tag =>
+          if (newTags.exists(taggedIsSubtype(_, tag))) missing.remove(tag)
+        }
+
+        if (missing.nonEmpty)
+          throw new Error(
+            s"Defect in zio.ZEnvironment: ${missing} statically known to be contained within the environment are missing"
+          )
       }
 
       new ZEnvironment(
-        builder.result(),
+        newMap,
         cache = HashMap.empty,
         scope = if (scopeTags.isEmpty) null else scope
       )
@@ -219,9 +229,20 @@ final class ZEnvironment[+R] private (
       }
 
       def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A =
-        getOrElse(tag, throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}"))
+        try {
+          getUnsafe(tag)
+        } catch {
+          case MissingService => throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}")
+        }
 
-      private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A = {
+      private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A =
+        try {
+          getUnsafe(tag)
+        } catch {
+          case MissingService => default
+        }
+
+      private[this] def getUnsafe[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A = {
         val fromCache = self.cache.getOrElse(tag, null)
         if (fromCache != null)
           fromCache.asInstanceOf[A]
@@ -239,7 +260,7 @@ final class ZEnvironment[+R] private (
             }
           }
           if (service == null) {
-            default
+            throw MissingService
           } else {
             cache = self.cache.updated(tag, service)
             service
@@ -251,6 +272,8 @@ final class ZEnvironment[+R] private (
         unsafe: Unsafe
       ): ZEnvironment[R] =
         add[A](tag, f(get(tag)))
+
+      private case object MissingService extends ControlThrowable
     }
 }
 
