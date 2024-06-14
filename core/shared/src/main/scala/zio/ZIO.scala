@@ -1883,22 +1883,45 @@ sealed trait ZIO[-R, +E, +A]
     f(self.some).unsome
 
   /**
-   * Extracts the optional value, or returns the given 'default'.
+   * Extracts the optional value, or returns the given 'default'. Superseded by
+   * `someOrElse` with better type inference. This method was left for binary
+   * compatibility.
    */
-  final def someOrElse[B](
+  protected final def someOrElse[B](
     default: => B
   )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R, E, B] =
     map(a => ev(a).getOrElse(default))
 
   /**
-   * Extracts the optional value, or executes the effect 'default'.
+   * Extracts the optional value, or returns the given 'default'.
    */
-  final def someOrElseZIO[B, R1 <: R, E1 >: E](
+  final def someOrElse[B, C](
+    default: => C
+  )(implicit ev0: A IsSubtypeOfOutput Option[B], ev1: C <:< B, trace: Trace): ZIO[R, E, B] =
+    map(a => ev0(a).getOrElse(default))
+
+  /**
+   * Extracts the optional value, or executes the effect 'default'. Superseded
+   * by someOrElseZIO with better type inference. This method was left for
+   * binary compatibility.
+   */
+  protected final def someOrElseZIO[B, R1 <: R, E1 >: E](
     default: => ZIO[R1, E1, B]
   )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R1, E1, B] =
     self.flatMap(ev(_) match {
       case Some(value) => ZIO.succeed(value)
       case None        => default
+    })
+
+  /**
+   * Extracts the optional value, or executes the effect 'default'.
+   */
+  final def someOrElseZIO[B, R1 <: R, E1 >: E, C](
+    default: => ZIO[R1, E1, C]
+  )(implicit ev0: A IsSubtypeOfOutput Option[B], ev1: C <:< B, trace: Trace): ZIO[R1, E1, B] =
+    self.flatMap(ev0(_) match {
+      case Some(value) => ZIO.succeed(value)
+      case None        => default.map(ev1)
     })
 
   /**
@@ -2201,7 +2224,7 @@ sealed trait ZIO[-R, +E, +A]
    * unit.
    */
   def unit(implicit trace: Trace): ZIO[R, E, Unit] =
-    as(())
+    self.flatMap(ZIO.unitZIOFn)
 
   /**
    * Converts a `ZIO[R, Either[E, B], A]` into a `ZIO[R, E, Either[A, B]]`. The
@@ -3040,6 +3063,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.configProviderWith(_.load(config))
 
   /**
+   * Uses the current config provider to load the config of type `A`, or fail
+   * with an error of type Config.Error.
+   */
+  def config[A](implicit trace: Trace, config: Config[A]): ZIO[Any, Config.Error, A] =
+    ZIO.configProviderWith(_.load[A])
+
+  /**
    * Retrieves the current config provider, and passes it to the specified
    * function, which may return an effect that uses the provider to perform some
    * work or compute some value.
@@ -3084,7 +3114,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           status,
           fiberState.getFiberRef(FiberRef.interruptedCause).interruptors,
           fiberState.getCurrentExecutor(),
-          fiberState.getFiberRef(FiberRef.overrideExecutor).isDefined
+          isLocked = RuntimeFlags.eagerShiftBack(status.runtimeFlags) ||
+            fiberState.getFiberRef(FiberRef.overrideExecutor).isDefined
         )
 
       f(descriptor)
@@ -4641,10 +4672,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * conceptually equivalent to `flatten(effect(io))`.
    */
   def suspend[R, A](rio: => RIO[R, A])(implicit trace: Trace): RIO[R, A] =
-    ZIO.isFatalWith { isFatal =>
+    ZIO.suspendSucceed {
       try rio
       catch {
-        case t: Throwable if !isFatal(t) => Exit.Failure(Cause.fail(t))
+        case t: Throwable =>
+          ZIO.isFatalWith { isFatal =>
+            if (!isFatal(t)) Exit.Failure(Cause.fail(t))
+            else throw t
+          }
       }
     }
 
@@ -5171,7 +5206,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       )
     }
 
-  private[zio] val unitFn: Any => Unit = (_: Any) => ()
+  private[zio] val unitFn: Any => Unit    = (_: Any) => ()
+  private val unitZIOFn: Any => UIO[Unit] = (_: Any) => ZIO.unit
 
   implicit final class ZIOAutoCloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
@@ -6010,7 +6046,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         for {
           queue <- Queue.bounded[A](size)
           _     <- queue.offerAll(as)
-          _     <- ZIO.collectAllParUnboundedDiscard(ZIO.replicate(n)(worker(queue)))
+          _     <- ZIO.collectAllParUnboundedDiscard(ZIO.replicate(n.min(size))(worker(queue)))
         } yield ()
       }
     }

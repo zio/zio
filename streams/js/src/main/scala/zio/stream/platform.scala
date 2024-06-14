@@ -19,7 +19,9 @@ package zio.stream
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+import scala.scalajs.js.typedarray._
 import scala.concurrent.Future
+import scala.scalajs.js
 
 private[stream] trait ZStreamPlatformSpecificConstructors {
   self: ZStream.type =>
@@ -167,6 +169,33 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     asyncInterrupt(k => register(k).toRight(ZIO.unit), outputBuffer)
 
   trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1
+
+  def fromFile(file: => String, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
+    trace: Trace
+  ): ZStream[Any, Throwable, Byte] = {
+    import scalajs.js.Dynamic.{global => g}
+    val fs = g.require("fs")
+    val reader = fs.createReadStream(
+      file,
+      new js.Object {
+        val highWaterMark = chunkSize
+      }
+    )
+    ZStream.async[Any, Throwable, Byte] { cb =>
+      reader
+        .on(
+          "data",
+          (data: js.typedarray.ArrayBuffer) =>
+            cb(
+              ZIO.succeed(
+                Chunk.fromArray(new Int8Array(data).toArray)
+              )
+            )
+        )
+        .on("end", () => cb(ZIO.fail(None)))
+        .on("error", (err: js.Dynamic) => cb(ZIO.fail(Some(new Throwable(err.toString)))))
+    }
+  }
 }
 
 private[stream] trait ZSinkPlatformSpecificConstructors
