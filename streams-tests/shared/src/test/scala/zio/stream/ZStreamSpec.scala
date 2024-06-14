@@ -2667,16 +2667,14 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               counter     <- Ref.make[Int](0)
               lastSeenMax <- Ref.make[Int](0)
-              observer <- counter.get.flatMap { current =>
-                            lastSeenMax.updateSome { case currentSeenMax if currentSeenMax < current => current }
-                          }.forever.fork
               _ <- ZStream
                      .range(0, iterations)
                      .mapZIOPar(parallelism) { _ =>
-                       counter.update(_ + 1) *> ZIO.yieldNow *> counter.update(_ - 1)
+                       counter.updateAndGet(_ + 1).tap { current =>
+                         lastSeenMax.updateSome { case currentSeenMax if currentSeenMax < current => current }
+                       } *> ZIO.yieldNow *> counter.update(_ - 1)
                      }
                      .runDrain
-              _      <- observer.interrupt
               result <- lastSeenMax.get
             } yield assertTrue(result <= parallelism)
           }
@@ -2754,16 +2752,14 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               counter     <- Ref.make[Int](0)
               lastSeenMax <- Ref.make[Int](0)
-              observer <- counter.get.flatMap { current =>
-                            lastSeenMax.updateSome { case currentSeenMax if currentSeenMax < current => current }
-                          }.forever.fork
               _ <- ZStream
                      .range(0, iterations)
                      .mapZIOParUnordered(parallelism) { _ =>
-                       counter.update(_ + 1) *> ZIO.yieldNow *> counter.update(_ - 1)
+                       counter.updateAndGet(_ + 1).tap { current =>
+                         lastSeenMax.updateSome { case currentSeenMax if currentSeenMax < current => current }
+                       } *> ZIO.yieldNow *> counter.update(_ - 1)
                      }
                      .runDrain
-              _      <- observer.interrupt
               result <- lastSeenMax.get
             } yield assertTrue(result <= parallelism)
           }
