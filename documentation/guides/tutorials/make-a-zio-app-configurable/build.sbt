@@ -29,4 +29,4 @@ enablePlugins(MdocPlugin)
 
 resolvers ++= Resolver.sonatypeOssRepos("snapshots")
 import sbt._
-dependsOn(LocalProject("docs"))
+// dependsOn(LocalProject("docs"))
