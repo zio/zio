@@ -2660,6 +2660,25 @@ object ZStreamSpec extends ZIOBaseSpec {
               _    <- TestClock.adjust(5.seconds)
               exit <- fiber.await
             } yield assert(exit)(fails(hasMessage(equalTo("Boom"))))
+          },
+          test("respect parallelism") {
+            val parallelism = 4
+            val iterations  = 1000
+            for {
+              counter     <- Ref.make[Int](0)
+              lastSeenMax <- Ref.make[Int](0)
+              observer <- counter.get.flatMap { current =>
+                            lastSeenMax.updateSome { case currentSeenMax if currentSeenMax < current => current }
+                          }.forever.fork
+              _ <- ZStream
+                     .range(0, iterations)
+                     .mapZIOPar(parallelism) { _ =>
+                       counter.update(_ + 1) *> ZIO.yieldNow *> counter.update(_ - 1)
+                     }
+                     .runDrain
+              _      <- observer.interrupt
+              result <- lastSeenMax.get
+            } yield assertTrue(result <= parallelism)
           }
         ),
         suite("mapZIOParUnordered")(
@@ -2728,6 +2747,25 @@ object ZStreamSpec extends ZIOBaseSpec {
               _    <- TestClock.adjust(5.seconds)
               exit <- fiber.await
             } yield assert(exit)(fails(hasMessage(equalTo("Boom"))))
+          },
+          test("respect parallelism") {
+            val parallelism = 4
+            val iterations  = 1000
+            for {
+              counter     <- Ref.make[Int](0)
+              lastSeenMax <- Ref.make[Int](0)
+              observer <- counter.get.flatMap { current =>
+                            lastSeenMax.updateSome { case currentSeenMax if currentSeenMax < current => current }
+                          }.forever.fork
+              _ <- ZStream
+                     .range(0, iterations)
+                     .mapZIOParUnordered(parallelism) { _ =>
+                       counter.update(_ + 1) *> ZIO.yieldNow *> counter.update(_ - 1)
+                     }
+                     .runDrain
+              _      <- observer.interrupt
+              result <- lastSeenMax.get
+            } yield assertTrue(result <= parallelism)
           }
         ),
         suite("mergeLeft/Right")(
