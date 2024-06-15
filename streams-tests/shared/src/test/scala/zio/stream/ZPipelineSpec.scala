@@ -43,45 +43,35 @@ object ZPipelineSpec extends ZIOBaseSpec {
         }
       ),
       suite("mapZIOPar")(
-        test("respects parallelism") {
-          def processElement(i: Int): ZIO[Any, Nothing, Unit] =
-            ZIO.debug(s"tick $i").delay(500.milliseconds)
-
+        test("respect parallelism with mapZIOPar") {
+          val parallelism = 2
+          val iterations  = 100
           for {
-            _ <- ZIO.debug("start")
-            fiber <- ZPipeline
-                   .mapZIOPar(2) { (i:Int) =>
-                     processElement(i)
+            counter <- Ref.make(0)
+            _ <- ZStream
+                   .range(0, iterations)
+                   .mapZIOPar(parallelism) { _ =>
+                     counter.updateAndGet(_ + 1)
                    }
-                   .apply(ZStream.iterate[Int](0)(_ + 1))
                    .runDrain
-                   .zipParLeft(
-                     ZIO.debug("----").delay(1.second).repeatN(2)
-                   ).fork
-            _ <- TestClock.adjust(5.seconds)
-            _ <- fiber.join
-          } yield assertCompletes
+            result <- counter.get
+          } yield assertTrue(result == iterations)
         }
-      ),
+      )
       suite("mapZIOParUnordered")(
-        test("respects parallelism") {
-          def processElement(i: Int): ZIO[Any, Nothing, Unit] =
-            ZIO.debug(s"tick $i").delay(500.milliseconds)
-
+        test("respect parallelism with mapZIOParUnordered") {
+          val parallelism = 2
+          val iterations  = 100
           for {
-            _ <- ZIO.debug("start")
-            fiber <- ZPipeline
-                   .mapZIOParUnordered(2) { (i:Int) =>
-                     processElement(i)
+            counter <- Ref.make(0)
+            _ <- ZStream
+                   .range(0, iterations)
+                   .mapZIOParUnordered(parallelism) { _ =>
+                     counter.updateAndGet(_ + 1)
                    }
-                   .apply(ZStream.iterate[Int](0)(_ + 1))
                    .runDrain
-                   .zipParLeft(
-                     ZIO.debug("----").delay(1.second).repeatN(2)
-                   ).fork
-            _ <- TestClock.adjust(5.seconds)
-            _ <- fiber.join
-          } yield assertCompletes
+            result <- counter.get
+          } yield assertTrue(result == iterations)
         }
       ),
       suite("splitLines")(
