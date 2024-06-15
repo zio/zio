@@ -105,23 +105,22 @@ final class Mailbox<A> extends AtomicReference<Mailbox.Node<A>> {
 	 * @apiNote This method MUST be invoked by the single consumer (thread).
 	 */
 	public A poll() {
-		Node<A> next;
-		A data;
-		while (true) {
-			next = read.getPlain();
+		Node<A> next = read.getPlain();
 
-			if (next == null)
-				return null; // queue is empty
+		if (next == null)
+			// queue is empty
+			return null;
 
-			data = next.data;
-			this.read = next;
+		A data = next.data;
+		this.read = next;
 
-			if (null == data)
-				continue; // skip phantom node retained by prepend
-
+		if (null != data) {
 			next.data = null;
 			return data;
 		}
+
+		// skip phantom node retained by prepend
+		return poll();
 	}
 
 	static class Node<A> extends AtomicReference<Node<A>> {
