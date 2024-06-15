@@ -30,11 +30,9 @@ final class Mailbox<A> extends AtomicReference<Mailbox.Node<A>> {
 	/**
 	 * Adds the specified element to the queue.
 	 * 
-	 * @throws NullPointerException if element is {@code null}
+	 * @apiNote The element MUST not be {@code null}.
 	 */
-	public void add(A data) throws NullPointerException {
-		if (null == data)
-			throw new NullPointerException();
+	public void add(A data) {
 		Node<A> next = new Node<A>(data);
 		Node<A> prev = getAndSet(next);
 		prev.lazySet(next);
@@ -74,11 +72,9 @@ final class Mailbox<A> extends AtomicReference<Mailbox.Node<A>> {
 	 *
 	 * @apiNote This method MUST be invoked by the single consumer (thread).
 	 * 
-	 * @throws NullPointerException if element is {@code null}
+	 * @apiNote The element MUST not be {@code null}.
 	 */
-	public void prepend(A data) throws NullPointerException {
-		if (null == data)
-			throw new NullPointerException();
+	public void prepend(A data) {
 		// optimization: avoid atomic operation by retaining (phantom) read node
 		read = new Node<A>(null, new Node<A>(data, read));
 	}
@@ -95,11 +91,9 @@ final class Mailbox<A> extends AtomicReference<Mailbox.Node<A>> {
 	 *
 	 * @apiNote This method MUST be invoked by the single consumer (thread).
 	 * 
-	 * @throws NullPointerException if either element is {@code null}
+	 * @apiNote The elements MUST not be {@code null}.
 	 */
-	public void prepend2(A data1, A data2) throws NullPointerException {
-		if (null == data1 || null == data2)
-			throw new NullPointerException();
+	public void prepend2(A data1, A data2) {
 		// optimization: avoid atomic operation by retaining (phantom) read node
 		read = new Node<A>(null, new Node<A>(data1, new Node<A>(data2, read)));
 	}
