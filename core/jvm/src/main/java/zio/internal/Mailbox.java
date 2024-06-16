@@ -1,6 +1,8 @@
 package zio.internal;
 
 import java.io.Serializable;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -10,21 +12,18 @@ import java.util.concurrent.atomic.AtomicReference;
  * @apiNote The queue is thread-safe provided {@code poll} is invoked by the
  *          single consumer (thread).
  * 
- * @apiNote The class extends {@code AtomicReference} to improve performance;
- *          calling methods in the super class that mutate the internal state is
- *          not permitted.
- * 
  * @implNote The implementation employs an algorithm described in <a href=
  *           "https://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue">
  *           Non-intrusive MPSC node-based queue</a> by D. Vyukov.
  */
-final class Mailbox<A> extends AtomicReference<Mailbox.Node<A>> {
+final class Mailbox<A> implements Serializable {
 
 	private transient Node<A> read;
+	@SuppressWarnings("unused")
+	private transient volatile Node<A> write;
 
 	Mailbox() {
-		super(new Node<A>(null));
-		read = getPlain();
+		read = write = new Node<A>(null);
 	}
 
 	/**
@@ -34,8 +33,7 @@ final class Mailbox<A> extends AtomicReference<Mailbox.Node<A>> {
 	 */
 	public void add(A data) {
 		Node<A> next = new Node<A>(data);
-		Node<A> prev = getAndSet(next);
-		prev.lazySet(next);
+		NEXT.setRelease(WRITE.getAndSet(this, next), next);
 	}
 
 	/**
@@ -49,7 +47,7 @@ final class Mailbox<A> extends AtomicReference<Mailbox.Node<A>> {
 	 *          such cases.
 	 */
 	public boolean isEmpty() {
-		return null == read.get();
+		return null == NEXT.getAcquire(read);
 	}
 
 	/**
@@ -63,7 +61,7 @@ final class Mailbox<A> extends AtomicReference<Mailbox.Node<A>> {
 	 *          such cases.
 	 */
 	public boolean nonEmpty() {
-		return null != read.get();
+		return null != NEXT.getAcquire(read);
 	}
 
 	/**
@@ -73,7 +71,7 @@ final class Mailbox<A> extends AtomicReference<Mailbox.Node<A>> {
 	 * @apiNote This method MUST be invoked by the single consumer (thread).
 	 */
 	public A poll() {
-		Node<A> next = read.getPlain();
+		final Node<A> next = (Node<A>) (NEXT.get(read));
 
 		if (next == null)
 			// queue is empty
@@ -123,17 +121,31 @@ final class Mailbox<A> extends AtomicReference<Mailbox.Node<A>> {
 		read = new Node<A>(null, new Node<A>(data1, new Node<A>(data2, read)));
 	}
 
-	static class Node<A> extends AtomicReference<Node<A>> {
+	static final class Node<A> implements Serializable {
 		A data;
+		transient volatile Node<A> next;
 
 		Node(A data) {
 			this.data = data;
 		}
 
 		Node(A data, Node<A> next) {
-			super(next);
 			this.data = data;
+			this.next = next;
 		}
 	}
 
+	private static final VarHandle NEXT;
+	private static final VarHandle WRITE;
+
+	static {
+		try {
+			MethodHandles.Lookup lookup = MethodHandles.lookup();
+			NEXT = MethodHandles.privateLookupIn(Node.class, lookup).findVarHandle(Node.class, "next", Node.class);
+			WRITE = MethodHandles.privateLookupIn(Mailbox.class, lookup).findVarHandle(Mailbox.class, "write",
+					Node.class);
+		} catch (ReflectiveOperationException e) {
+			throw new ExceptionInInitializerError(e);
+		}
+	}
 }
