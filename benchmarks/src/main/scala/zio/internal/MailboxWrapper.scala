@@ -2,6 +2,7 @@ package zio.internal
 
 sealed trait MailboxWrapper[A] {
   def add(data: A): Unit
+  def isEmpty(): Boolean
   def poll(): A
 }
 
@@ -13,18 +14,21 @@ object MailboxWrapper {
         new MailboxWrapper[A] {
           private val q          = new java.util.concurrent.ConcurrentLinkedQueue[A]()
           def add(data: A): Unit = q.add(data)
+          def isEmpty(): Boolean = q.isEmpty()
           def poll(): A          = q.poll()
         }
       case "Mailbox" =>
         new MailboxWrapper[A] {
           private val q          = new Mailbox[A]()
           def add(data: A): Unit = q.add(data)
+          def isEmpty(): Boolean = q.isEmpty()
           def poll(): A          = q.poll()
         }
       case "MpscLinkedQueue" =>
         new MailboxWrapper[A] {
           private val q          = new org.jctools.queues.MpscLinkedQueue[A]()
           def add(data: A): Unit = q.add(data)
+          def isEmpty(): Boolean = q.isEmpty()
           def poll(): A          = q.poll()
         }
       case _ =>
