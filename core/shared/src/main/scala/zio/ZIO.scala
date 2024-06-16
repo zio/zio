@@ -2245,6 +2245,9 @@ sealed trait ZIO[-R, +E, +A]
   final def unless(p: => Boolean)(implicit trace: Trace): ZIO[R, E, Option[A]] =
     ZIO.unless(p)(self)
 
+  final def unless0(p: => Boolean)(implicit trace: Trace): ZIO[R, E, Unit] =
+    ZIO.unless(p)(self)
+
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
@@ -2360,9 +2363,19 @@ sealed trait ZIO[-R, +E, +A]
 
   /**
    * The moral equivalent of `if (p) exp`
+   *
+   * @see
+   *   [[when]] for a variant that discards the result of the computation
    */
   final def when(p: => Boolean)(implicit trace: Trace): ZIO[R, E, Option[A]] =
     ZIO.when(p)(self)
+
+  /**
+   * Variant of [[when]] that discards the result. Useful for running effects
+   * where we only care about the side-effects, e.g., logging
+   */
+  final def when0(p: => Boolean)(implicit trace: Trace): ZIO[R, E, Unit] =
+    ZIO.when0(p)(self)
 
   /**
    * Executes this workflow when value of the specified `FiberRef` satisfies the
@@ -4794,9 +4807,19 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   /**
    * The moral equivalent of `if (!p) exp`
+   *
+   * @see
+   *   [[unless0]] for a variant that discards the result of the computation
    */
   def unless[R, E, A](p: => Boolean)(zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
     suspendSucceed(if (p) none else zio.asSome)
+
+  /**
+   * Variant of [[unless]] that discards the result of the computation. Useful
+   * for cases where we only care about the side-effects, e.g., logging
+   */
+  def unless0[R, E, A](p: => Boolean)(zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Unit] =
+    suspendSucceed(if (p) unit else zio.unit)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
@@ -4978,9 +5001,19 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   /**
    * The moral equivalent of `if (p) exp`
+   *
+   * @see
+   *   [[when0]] for a variant that discards the result of the computation
    */
   def when[R, E, A](p: => Boolean)(zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
     suspendSucceed(if (p) zio.asSome else none)
+
+  /**
+   * Variant of [[when]] that discards the result. Useful for running effects
+   * where we only care about the side-effects, e.g., logging
+   */
+  def when0[R, E, A](p: => Boolean)(zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Unit] =
+    suspendSucceed(if (p) zio.unit else unit)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given
