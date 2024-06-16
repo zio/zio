@@ -67,6 +67,31 @@ final class Mailbox<A> extends AtomicReference<Mailbox.Node<A>> {
 	}
 
 	/**
+	 * Removes and returns the oldest element in the queue if the queue has
+	 * elements. Otherwise, returns {@code null}.
+	 * 
+	 * @apiNote This method MUST be invoked by the single consumer (thread).
+	 */
+	public A poll() {
+		Node<A> next = read.getPlain();
+
+		if (next == null)
+			// queue is empty
+			return null;
+
+		A data = next.data;
+		this.read = next;
+
+		if (null != data) {
+			next.data = null;
+			return data;
+		}
+
+		// skip phantom node retained by prepend
+		return poll();
+	}
+
+	/**
 	 * Adds the specified element to the beginning of the queue; the element will be
 	 * read before any other element in the queue.
 	 *
@@ -96,31 +121,6 @@ final class Mailbox<A> extends AtomicReference<Mailbox.Node<A>> {
 	public void prepend2(A data1, A data2) {
 		// optimization: avoid atomic operation by retaining (phantom) read node
 		read = new Node<A>(null, new Node<A>(data1, new Node<A>(data2, read)));
-	}
-
-	/**
-	 * Removes and returns the oldest element in the queue if the queue has
-	 * elements. Otherwise, returns {@code null}.
-	 * 
-	 * @apiNote This method MUST be invoked by the single consumer (thread).
-	 */
-	public A poll() {
-		Node<A> next = read.getPlain();
-
-		if (next == null)
-			// queue is empty
-			return null;
-
-		A data = next.data;
-		this.read = next;
-
-		if (null != data) {
-			next.data = null;
-			return data;
-		}
-
-		// skip phantom node retained by prepend
-		return poll();
 	}
 
 	static class Node<A> extends AtomicReference<Node<A>> {
