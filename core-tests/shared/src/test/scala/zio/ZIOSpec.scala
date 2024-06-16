@@ -3841,6 +3841,24 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("unlessDiscard")(
+      test("executes correct branch only") {
+        for {
+          effectRef <- Ref.make(0)
+          _         <- effectRef.set(1).unlessDiscard(true)
+          val1      <- effectRef.get
+          _         <- effectRef.set(2).unlessDiscard(false)
+          val2      <- effectRef.get
+          failure    = new Exception("expected")
+          _         <- ZIO.fail(failure).unlessDiscard(true)
+          failed    <- ZIO.fail(failure).unless(false).either
+        } yield {
+          assert(val1)(equalTo(0)) &&
+          assert(val2)(equalTo(2)) &&
+          assert(failed)(isLeft(equalTo(failure)))
+        }
+      }
+    ),
     suite("unlessZIO")(
       test("executes condition effect and correct branch") {
         for {
@@ -3874,6 +3892,42 @@ object ZIOSpec extends ZIOBaseSpec {
         val b: ZIO[R, E, Boolean] = ZIO.succeed(true)
         val zio: ZIO[R1, E1, A]   = ZIO.succeed(new A {})
         val _                     = ZIO.unlessZIO(b)(zio)
+        ZIO.succeed(assertCompletes)
+      }
+    ),
+    suite("unlessZIODiscard")(
+      test("executes condition effect and correct branch") {
+        for {
+          effectRef     <- Ref.make(0)
+          conditionRef  <- Ref.make(0)
+          conditionTrue  = conditionRef.update(_ + 1).as(true)
+          conditionFalse = conditionRef.update(_ + 1).as(false)
+          _             <- effectRef.set(1).unlessZIODiscard(conditionTrue)
+          val1          <- effectRef.get
+          conditionVal1 <- conditionRef.get
+          _             <- effectRef.set(2).unlessZIODiscard(conditionFalse)
+          val2          <- effectRef.get
+          conditionVal2 <- conditionRef.get
+          failure        = new Exception("expected")
+          _             <- ZIO.fail(failure).unlessZIODiscard(conditionTrue)
+          failed        <- ZIO.fail(failure).unlessZIO(conditionFalse).either
+        } yield {
+          assert(val1)(equalTo(0)) &&
+          assert(conditionVal1)(equalTo(1)) &&
+          assert(val2)(equalTo(2)) &&
+          assert(conditionVal2)(equalTo(2)) &&
+          assert(failed)(isLeft(equalTo(failure)))
+        }
+      },
+      test("infers correctly") {
+        trait R
+        trait R1 extends R
+        trait E1
+        trait E extends E1
+        trait A
+        val b: ZIO[R, E, Boolean] = ZIO.succeed(true)
+        val zio: ZIO[R1, E1, A]   = ZIO.succeed(new A {})
+        val _                     = ZIO.unlessZIODiscard(b)(zio)
         ZIO.succeed(assertCompletes)
       }
     ),
@@ -4084,6 +4138,24 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("whenDiscard")(
+      test("executes correct branch only") {
+        for {
+          effectRef <- Ref.make(0)
+          _         <- effectRef.set(1).whenDiscard(false)
+          val1      <- effectRef.get
+          _         <- effectRef.set(2).whenDiscard(true)
+          val2      <- effectRef.get
+          failure    = new Exception("expected")
+          _         <- ZIO.fail(failure).whenDiscard(false)
+          failed    <- ZIO.fail(failure).when(true).either
+        } yield {
+          assert(val1)(equalTo(0)) &&
+          assert(val2)(equalTo(2)) &&
+          assert(failed)(isLeft(equalTo(failure)))
+        }
+      }
+    ),
     suite("whenCase")(
       test("executes correct branch only") {
         val v1: Option[Int] = None
@@ -4143,6 +4215,42 @@ object ZIOSpec extends ZIOBaseSpec {
         val b: ZIO[R, E, Boolean] = ZIO.succeed(true)
         val zio: ZIO[R1, E1, A]   = ZIO.succeed(new A {})
         val _                     = ZIO.whenZIO(b)(zio)
+        ZIO.succeed(assertCompletes)
+      }
+    ),
+    suite("whenZIODiscard")(
+      test("executes condition effect and correct branch") {
+        for {
+          effectRef     <- Ref.make(0)
+          conditionRef  <- Ref.make(0)
+          conditionTrue  = conditionRef.update(_ + 1).as(true)
+          conditionFalse = conditionRef.update(_ + 1).as(false)
+          _             <- effectRef.set(1).whenZIODiscard(conditionFalse)
+          val1          <- effectRef.get
+          conditionVal1 <- conditionRef.get
+          _             <- effectRef.set(2).whenZIODiscard(conditionTrue)
+          val2          <- effectRef.get
+          conditionVal2 <- conditionRef.get
+          failure        = new Exception("expected")
+          _             <- ZIO.fail(failure).whenZIODiscard(conditionFalse)
+          failed        <- ZIO.fail(failure).whenZIO(conditionTrue).either
+        } yield {
+          assert(val1)(equalTo(0)) &&
+          assert(conditionVal1)(equalTo(1)) &&
+          assert(val2)(equalTo(2)) &&
+          assert(conditionVal2)(equalTo(2)) &&
+          assert(failed)(isLeft(equalTo(failure)))
+        }
+      },
+      test("infers correctly") {
+        trait R
+        trait R1 extends R
+        trait E1
+        trait E extends E1
+        trait A
+        val b: ZIO[R, E, Boolean] = ZIO.succeed(true)
+        val zio: ZIO[R1, E1, A]   = ZIO.succeed(new A {})
+        val _                     = ZIO.whenZIODiscard(b)(zio)
         ZIO.succeed(assertCompletes)
       }
     ),
