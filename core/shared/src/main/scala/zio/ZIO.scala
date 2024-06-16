@@ -2241,10 +2241,18 @@ sealed trait ZIO[-R, +E, +A]
 
   /**
    * The moral equivalent of `if (!p) exp`
+   *
+   * @see
+   *   [[unless0]] for a variant that discards the result of the computation
    */
   final def unless(p: => Boolean)(implicit trace: Trace): ZIO[R, E, Option[A]] =
     ZIO.unless(p)(self)
 
+  /**
+   * Variant of [[unless]] that discards the result of the computation. Useful
+   * for cases where we only care about the side-effects, e.g., logging or
+   * raising errors
+   */
   final def unless0(p: => Boolean)(implicit trace: Trace): ZIO[R, E, Unit] =
     ZIO.unless(p)(self)
 
@@ -2372,7 +2380,7 @@ sealed trait ZIO[-R, +E, +A]
 
   /**
    * Variant of [[when]] that discards the result. Useful for running effects
-   * where we only care about the side-effects, e.g., logging
+   * where we only care about the side-effects, e.g., logging or raising errors
    */
   final def when0(p: => Boolean)(implicit trace: Trace): ZIO[R, E, Unit] =
     ZIO.when0(p)(self)
@@ -4816,7 +4824,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   /**
    * Variant of [[unless]] that discards the result of the computation. Useful
-   * for cases where we only care about the side-effects, e.g., logging
+   * for cases where we only care about the side-effects, e.g., logging or
+   * raising errors
    */
   def unless0[R, E, A](p: => Boolean)(zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Unit] =
     suspendSucceed(if (p) unit else zio.unit)
@@ -5010,7 +5019,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   /**
    * Variant of [[when]] that discards the result. Useful for running effects
-   * where we only care about the side-effects, e.g., logging
+   * where we only care about the side-effects, e.g., logging or raising errors
    */
   def when0[R, E, A](p: => Boolean)(zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Unit] =
     suspendSucceed(if (p) zio.unit else unit)
