@@ -2240,7 +2240,7 @@ sealed trait ZIO[-R, +E, +A]
     )
 
   /**
-   * The moral equivalent of `if (!p) exp`
+   * The moral equivalent of `if (!p) Some(exp) else None`
    */
   final def unless(p: => Boolean)(implicit trace: Trace): ZIO[R, E, Option[A]] =
     ZIO.unless(p)(self)
@@ -2252,7 +2252,7 @@ sealed trait ZIO[-R, +E, +A]
     ZIO.unlessDiscard(p)(self)
 
   /**
-   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   * The moral equivalent of `if (!p) Some(exp) else None` when `p` has side-effects
    */
   final def unlessZIO[R1 <: R, E1 >: E](p: => ZIO[R1, E1, Boolean])(implicit
     trace: Trace
@@ -2260,7 +2260,7 @@ sealed trait ZIO[-R, +E, +A]
     ZIO.unlessZIO(p)(self)
 
   /**
-   * The moral equivalent of `if (!p) exp: Unit` when `p` has side-effects
+   * The moral equivalent of `if (!p) { expr; () }` when `p` has side-effects
    */
   final def unlessZIODiscard[R1 <: R, E1 >: E](p: => ZIO[R1, E1, Boolean])(implicit
     trace: Trace
@@ -2404,7 +2404,7 @@ sealed trait ZIO[-R, +E, +A]
     }
 
   /**
-   * The moral equivalent of `if (p) exp` when `p` has side-effects
+   * The moral equivalent of `if (p) Some(exp) else None` when `p` has side-effects
    */
   final def whenZIO[R1 <: R, E1 >: E](
     p: => ZIO[R1, E1, Boolean]
@@ -2412,7 +2412,7 @@ sealed trait ZIO[-R, +E, +A]
     ZIO.whenZIO(p)(self)
 
   /**
-   * The moral equivalent of `if (p) exp: Unit` when `p` has side-effects
+   * The moral equivalent of `if (p) { expr; () }` when `p` has side-effects
    */
   final def whenZIODiscard[R1 <: R, E1 >: E](
     p: => ZIO[R1, E1, Boolean]
