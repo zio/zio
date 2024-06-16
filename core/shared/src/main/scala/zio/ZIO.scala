@@ -3147,7 +3147,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Accesses the whole environment of the effect.
    */
   def environment[R](implicit trace: Trace): URIO[R, ZEnvironment[R]] =
-    ZIO.suspendSucceed(FiberRef.currentEnvironment.get.asInstanceOf[URIO[R, ZEnvironment[R]]])
+    FiberRef.currentEnvironment.get.asInstanceOf[URIO[R, ZEnvironment[R]]]
 
   /**
    * Accesses the environment of the effect.
