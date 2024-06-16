@@ -194,7 +194,7 @@ final class Promise[E, A] private (
     }
   }
 
-  trait UnsafeAPI {
+  private[zio] trait UnsafeAPI {
     def completeWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean
     def die(e: Throwable)(implicit trace: Trace, unsafe: Unsafe): Boolean
     def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit
@@ -207,7 +207,7 @@ final class Promise[E, A] private (
     def succeed(a: A)(implicit trace: Trace, unsafe: Unsafe): Boolean
   }
 
-  @transient val unsafe: UnsafeAPI =
+  @transient private[zio] val unsafe: UnsafeAPI =
     new UnsafeAPI {
       def completeWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean = {
         var action: () => Boolean = null.asInstanceOf[() => Boolean]
