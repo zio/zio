@@ -710,46 +710,43 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     import DebounceState._
     import HandoffSignal._
 
-    ZStream.unwrap(
-      ZIO.transplant { grafter =>
-        for {
-          d       <- ZIO.succeed(d)
-          handoff <- ZStream.Handoff.make[HandoffSignal[E, A]]
-        } yield {
-          def enqueue(last: Chunk[A]) =
-            for {
-              f <- grafter(Clock.sleep(d).as(last).fork)
-            } yield consumer(Previous(f))
+    ZStream.unwrapScopedWith { scope =>
+      for {
+        d       <- ZIO.succeed(d)
+        handoff <- ZStream.Handoff.make[HandoffSignal[E, A]]
+      } yield {
+        def enqueue(last: Chunk[A]) =
+          for {
+            f <- Clock.sleep(d).as(last).forkIn(scope)
+          } yield consumer(Previous(f))
 
-          lazy val producer: ZChannel[R, E, Chunk[A], Any, E, Nothing, Any] =
-            ZChannel.readWithCause(
-              (in: Chunk[A]) =>
-                in.lastOption.fold(producer) { last =>
-                  ZChannel.fromZIO(handoff.offer(Emit(Chunk.single(last)))) *> producer
-                },
-              (cause: Cause[E]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
-              (_: Any) => ZChannel.fromZIO(handoff.offer(End(ZStream.SinkEndReason.UpstreamEnd)))
-            )
+        lazy val producer: ZChannel[R, E, Chunk[A], Any, E, Nothing, Any] =
+          ZChannel.readWithCause(
+            (in: Chunk[A]) =>
+              in.lastOption.fold(producer) { last =>
+                ZChannel.fromZIO(handoff.offer(Emit(Chunk.single(last)))) *> producer
+              },
+            (cause: Cause[E]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
+            (_: Any) => ZChannel.fromZIO(handoff.offer(End(ZStream.SinkEndReason.UpstreamEnd)))
+          )
 
-          def consumer(state: DebounceState[E, A]): ZChannel[R, Any, Any, Any, E, Chunk[A], Any] =
-            ZChannel.unwrap(
-              state match {
-                case NotStarted =>
-                  handoff.take.map {
-                    case Emit(last) =>
-                      ZChannel.unwrap(enqueue(last))
-                    case HandoffSignal.Halt(error) =>
-                      ZChannel.refailCause(error)
-                    case HandoffSignal.End(_) =>
-                      ZChannel.unit
-                  }
-                case Current(fiber) =>
-                  fiber.join.map {
-                    case HandoffSignal.Emit(last)  => ZChannel.unwrap(enqueue(last))
-                    case HandoffSignal.Halt(error) => ZChannel.refailCause(error)
-                    case HandoffSignal.End(_)      => ZChannel.unit
-                  }
-                case Previous(fiber) =>
+        def consumer(state: DebounceState[E, A]): ZChannel[R, Any, Any, Any, E, Chunk[A], Any] =
+          ZChannel.unwrap(
+            state match {
+              case NotStarted =>
+                handoff.take.map {
+                  case HandoffSignal.Emit(last)  => ZChannel.unwrap(enqueue(last))
+                  case HandoffSignal.Halt(error) => ZChannel.refailCause(error)
+                  case HandoffSignal.End(_)      => ZChannel.unit
+                }
+              case Current(fiber) =>
+                fiber.join.map {
+                  case HandoffSignal.Emit(last)  => ZChannel.unwrap(enqueue(last))
+                  case HandoffSignal.Halt(error) => ZChannel.refailCause(error)
+                  case HandoffSignal.End(_)      => ZChannel.unit
+                }
+              case Previous(fiber) =>
+                handoff.take.forkIn(scope).flatMap { handoffFib =>
                   fiber.join
                     .raceWith[R, E, E, HandoffSignal[E, A], ZChannel[
                       R,
@@ -760,11 +757,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                       Chunk[A],
                       Any
                     ]](
-                      handoff.take
+                      handoffFib.join
                     )(
                       {
                         case (Exit.Success(a), current) =>
-                          ZIO.succeed(ZChannel.write(a) *> consumer(Current(current)))
+                          current.interrupt *> ZIO.succeed(ZChannel.write(a) *> consumer(Current(handoffFib)))
                         case (Exit.Failure(cause), current) =>
                           current.interrupt as ZChannel.refailCause(cause)
                       },
@@ -779,14 +776,14 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                           previous.interrupt as ZChannel.refailCause(cause)
                       }
                     )
-              }
-            )
+                }
+            }
+          )
 
-          ZStream.scopedWith(scope => (self.channel >>> producer).runIn(scope).forkIn(scope)) *>
-            new ZStream(consumer(NotStarted))
-        }
+        ZStream.scopedWith(scope => (self.channel >>> producer).runIn(scope).forkIn(scope)) *>
+          new ZStream(consumer(NotStarted))
       }
-    )
+    }
   }
 
   /**
