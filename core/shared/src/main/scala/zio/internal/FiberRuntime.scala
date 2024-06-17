@@ -55,10 +55,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   private var _forksSinceYield = 0
 
-  private[zio] def shouldYieldBeforeFork(): Boolean = {
-    _forksSinceYield += 1
-    _forksSinceYield >= FiberRuntime.MaxForksBeforeYield
-  }
+  private[zio] def shouldYieldBeforeFork(): Boolean =
+    if (RuntimeFlags.cooperativeYielding(_runtimeFlags)) {
+      _forksSinceYield += 1
+      _forksSinceYield >= FiberRuntime.MaxForksBeforeYield
+    } else false
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
     val tags = getFiberRef(FiberRef.currentTags)
@@ -945,7 +946,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       ops += 1
 
-      if (ops > FiberRuntime.MaxOperationsBeforeYield) {
+      if (ops > FiberRuntime.MaxOperationsBeforeYield && RuntimeFlags.cooperativeYielding(_runtimeFlags)) {
         updateLastTrace(cur.trace)
         inbox.add(FiberMessage.YieldNow)
         inbox.add(FiberMessage.Resume(cur))
@@ -1466,6 +1467,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       def removeObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit =
         self.removeObserver(observer)
+
+      def poll(implicit unsafe: Unsafe): Option[Exit[E, A]] =
+        Option(self.exitValue())
     }
 
   override def hashCode(): Int = fiberId.hashCode()

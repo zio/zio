@@ -563,18 +563,41 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     )
 
   /**
+   * Extracts the optional value, or returns the given 'default'. Superseded by
+   * `someOrElse` with better type inference. This method was left for binary
+   * compatibility.
+   */
+  protected def someOrElse[B](default: => B)(implicit ev: A <:< Option[B]): ZSTM[R, E, B] =
+    map(_.getOrElse(default))
+
+  /**
    * Extracts the optional value, or returns the given 'default'.
    */
-  def someOrElse[B](default: => B)(implicit ev: A <:< Option[B]): ZSTM[R, E, B] =
+  def someOrElse[B, C](default: => C)(implicit ev0: A <:< Option[B], ev1: C <:< B): ZSTM[R, E, B] =
     map(_.getOrElse(default))
+
+  /**
+   * Extracts the optional value, or executes the effect 'default'. Superseded
+   * by `someOrElseSTM` with better type inference. This method was left for
+   * binary compatibility.
+   */
+  protected def someOrElseSTM[B, R1 <: R, E1 >: E](
+    default: ZSTM[R1, E1, B]
+  )(implicit ev: A <:< Option[B]): ZSTM[R1, E1, B] =
+    self.flatMap(ev(_) match {
+      case Some(value) => ZSTM.succeedNow(value)
+      case None        => default
+    })
 
   /**
    * Extracts the optional value, or executes the effect 'default'.
    */
-  def someOrElseSTM[B, R1 <: R, E1 >: E](default: ZSTM[R1, E1, B])(implicit ev: A <:< Option[B]): ZSTM[R1, E1, B] =
-    self.flatMap(ev(_) match {
+  def someOrElseSTM[B, R1 <: R, E1 >: E, C](
+    default: ZSTM[R1, E1, C]
+  )(implicit ev0: A <:< Option[B], ev1: C <:< B): ZSTM[R1, E1, B] =
+    self.flatMap(ev0(_) match {
       case Some(value) => ZSTM.succeedNow(value)
-      case None        => default
+      case None        => default.map(ev1)
     })
 
   /**
@@ -1621,15 +1644,30 @@ object ZSTM {
      * Creates a function that can reset the journal.
      */
     def prepareResetJournal(journal: Journal): () => Any = {
-      val saved = new MutableMap[TRef[_], Entry](journal.size)
-
-      val it = journal.entrySet.iterator
-      while (it.hasNext) {
-        val entry = it.next
-        saved.put(entry.getKey, entry.getValue.copy())
+      val currentNewValues = new MutableMap[TRef[_], Any]
+      val itCapture        = journal.entrySet.iterator
+      while (itCapture.hasNext) {
+        val entry = itCapture.next()
+        currentNewValues.put(entry.getKey, entry.getValue.unsafeGet[Any])
       }
 
-      () => { journal.clear(); journal.putAll(saved); () }
+      () => {
+        val saved = new MutableMap[TRef[_], Entry](journal.size)
+        val it    = journal.entrySet.iterator
+        while (it.hasNext) {
+          val entry = it.next()
+          val key   = entry.getKey
+          val resetValue = if (currentNewValues.containsKey(key)) {
+            currentNewValues.get(key)
+          } else {
+            entry.getValue.expected.value
+          }
+          saved.put(entry.getKey, entry.getValue.copy().reset(resetValue))
+        }
+        journal.clear()
+        journal.putAll(saved)
+        ()
+      }
     }
 
     /**
@@ -2049,6 +2087,18 @@ object ZSTM {
         val isNew    = self.isNew
         var newValue = self.newValue
         _isChanged = self.isChanged
+      }
+
+      /**
+       * Resets the Entry with a given value.
+       */
+      private[stm] def reset(resetValue: Any): Entry = new Entry {
+        type S = self.S
+        val tref     = self.tref
+        val expected = self.expected
+        val isNew    = self.isNew
+        var newValue = resetValue.asInstanceOf[S]
+        _isChanged = false
       }
 
       /**

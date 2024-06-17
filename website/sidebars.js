@@ -412,18 +412,9 @@ module.exports = {
           label: "Assertions",
           link: { type: "doc", id: "reference/test/assertions/index" },
           items: [
+            "reference/test/assertions/classic-assertions",
             "reference/test/assertions/smart-assertions",
-            {
-              type: "category",
-              label: "Classic Assertions",
-              link: { type: "doc", id: "reference/test/assertions/classic-assertions" },
-              items: [
-                "reference/test/assertions/operations",
-                "reference/test/assertions/built-in-assertions",
-                "reference/test/assertions/examples",
-                "reference/test/assertions/how-it-works"
-              ]
-            },
+            "reference/test/assertions/built-in-assertions",
           ]
         },
         "reference/test/test-hierarchies-and-organization",
@@ -558,7 +549,6 @@ module.exports = {
         "ecosystem/community/fhir-indexer",
         "ecosystem/community/logstage",
         "ecosystem/community/munit-zio",
-        "ecosystem/community/quill",
         "ecosystem/community/rezilience",
         "ecosystem/community/scala-k8s",
         "ecosystem/community/tamer",

@@ -94,6 +94,12 @@ class SmartAssertMacros(val c: blackbox.Context) {
       case AST.Method(lhs, lhsTpe, _, "interrupted", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Exit[_, _]]] =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitInterrupted.span($span)"
 
+      case AST.Method(lhs, lhsTpe, _, "success", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[scala.util.Try[_]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asTrySuccess.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "failure", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[scala.util.Try[_]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asTryFailure.span($span)"
+
       case AST.Method(lhs, lhsTpe, _, "die", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Cause[_]]] =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asCauseDie.span($span)"
 
@@ -102,6 +108,9 @@ class SmartAssertMacros(val c: blackbox.Context) {
 
       case AST.Method(lhs, lhsTpe, _, "interrupted", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Cause[_]]] =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asCauseInterrupted.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "cause", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Exit[_, _]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitCause.span($span)"
 
       case _ =>
         start
@@ -327,13 +336,14 @@ $TestResult($ast.withCode($codeString).meta(location = $location))
     // `true` for conversion from `lhs` to `rhs`.
     def implicitConversionDirection(lhs: Type, rhs: Type): Option[Boolean] =
       if (tpesPriority(lhs) == -1 || tpesPriority(rhs) == -1) {
-        scala.util.Try(c.inferImplicitValue((tq"$lhs => $rhs").tpe)).getOrElse(EmptyTree) match {
-          case EmptyTree => {
-            scala.util.Try(c.inferImplicitValue((tq"$rhs => $lhs").tpe)).getOrElse(EmptyTree) match {
+        // tq"lhs => rhs" does not work. It seems to generate untyped tree that cannot be typechecked
+        val function1 = weakTypeOf[_ => _]
+        c.inferImplicitValue(appliedType(function1, lhs, rhs)) match {
+          case EmptyTree =>
+            c.inferImplicitValue(appliedType(function1, rhs, lhs)) match {
               case EmptyTree => None
               case _         => Some(false)
             }
-          }
           case _ => Some(true)
         }
       } else if (tpesPriority(rhs) - tpesPriority(lhs) > 0) Some(true)

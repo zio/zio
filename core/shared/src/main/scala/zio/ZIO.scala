@@ -1883,22 +1883,45 @@ sealed trait ZIO[-R, +E, +A]
     f(self.some).unsome
 
   /**
-   * Extracts the optional value, or returns the given 'default'.
+   * Extracts the optional value, or returns the given 'default'. Superseded by
+   * `someOrElse` with better type inference. This method was left for binary
+   * compatibility.
    */
-  final def someOrElse[B](
+  protected final def someOrElse[B](
     default: => B
   )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R, E, B] =
     map(a => ev(a).getOrElse(default))
 
   /**
-   * Extracts the optional value, or executes the effect 'default'.
+   * Extracts the optional value, or returns the given 'default'.
    */
-  final def someOrElseZIO[B, R1 <: R, E1 >: E](
+  final def someOrElse[B, C](
+    default: => C
+  )(implicit ev0: A IsSubtypeOfOutput Option[B], ev1: C <:< B, trace: Trace): ZIO[R, E, B] =
+    map(a => ev0(a).getOrElse(default))
+
+  /**
+   * Extracts the optional value, or executes the effect 'default'. Superseded
+   * by someOrElseZIO with better type inference. This method was left for
+   * binary compatibility.
+   */
+  protected final def someOrElseZIO[B, R1 <: R, E1 >: E](
     default: => ZIO[R1, E1, B]
   )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R1, E1, B] =
     self.flatMap(ev(_) match {
       case Some(value) => ZIO.succeed(value)
       case None        => default
+    })
+
+  /**
+   * Extracts the optional value, or executes the effect 'default'.
+   */
+  final def someOrElseZIO[B, R1 <: R, E1 >: E, C](
+    default: => ZIO[R1, E1, C]
+  )(implicit ev0: A IsSubtypeOfOutput Option[B], ev1: C <:< B, trace: Trace): ZIO[R1, E1, B] =
+    self.flatMap(ev0(_) match {
+      case Some(value) => ZIO.succeed(value)
+      case None        => default.map(ev1)
     })
 
   /**
@@ -2201,7 +2224,7 @@ sealed trait ZIO[-R, +E, +A]
    * unit.
    */
   def unit(implicit trace: Trace): ZIO[R, E, Unit] =
-    as(())
+    self.flatMap(ZIO.unitZIOFn)
 
   /**
    * Converts a `ZIO[R, Either[E, B], A]` into a `ZIO[R, E, Either[A, B]]`. The
@@ -2217,18 +2240,33 @@ sealed trait ZIO[-R, +E, +A]
     )
 
   /**
-   * The moral equivalent of `if (!p) exp`
+   * The moral equivalent of `if (!p) Some(exp) else None`
    */
   final def unless(p: => Boolean)(implicit trace: Trace): ZIO[R, E, Option[A]] =
     ZIO.unless(p)(self)
 
   /**
-   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   * The moral equivalent of `if (!p) { expr; () }`
+   */
+  final def unlessDiscard(p: => Boolean)(implicit trace: Trace): ZIO[R, E, Unit] =
+    ZIO.unlessDiscard(p)(self)
+
+  /**
+   * The moral equivalent of `if (!p) Some(exp) else None` when `p` has
+   * side-effects
    */
   final def unlessZIO[R1 <: R, E1 >: E](p: => ZIO[R1, E1, Boolean])(implicit
     trace: Trace
   ): ZIO[R1, E1, Option[A]] =
     ZIO.unlessZIO(p)(self)
+
+  /**
+   * The moral equivalent of `if (!p) { expr; () }` when `p` has side-effects
+   */
+  final def unlessZIODiscard[R1 <: R, E1 >: E](p: => ZIO[R1, E1, Boolean])(implicit
+    trace: Trace
+  ): ZIO[R1, E1, Unit] =
+    ZIO.unlessZIODiscard(p)(self)
 
   /**
    * Takes some fiber failures and converts them into errors.
@@ -2336,10 +2374,16 @@ sealed trait ZIO[-R, +E, +A]
     self.exit.zipWithPar(that.exit)(_.zipWith(_)(f, _ && _)).flatMap(ZIO.done(_))
 
   /**
-   * The moral equivalent of `if (p) exp`
+   * The moral equivalent of `if (p) Some(exp) else None`
    */
   final def when(p: => Boolean)(implicit trace: Trace): ZIO[R, E, Option[A]] =
     ZIO.when(p)(self)
+
+  /**
+   * The moral equivalent of `if (p) { expr; () }`
+   */
+  final def whenDiscard(p: => Boolean)(implicit trace: Trace): ZIO[R, E, Unit] =
+    ZIO.whenDiscard(p)(self)
 
   /**
    * Executes this workflow when value of the specified `FiberRef` satisfies the
@@ -2361,12 +2405,21 @@ sealed trait ZIO[-R, +E, +A]
     }
 
   /**
-   * The moral equivalent of `if (p) exp` when `p` has side-effects
+   * The moral equivalent of `if (p) Some(exp) else None` when `p` has
+   * side-effects
    */
   final def whenZIO[R1 <: R, E1 >: E](
     p: => ZIO[R1, E1, Boolean]
   )(implicit trace: Trace): ZIO[R1, E1, Option[A]] =
     ZIO.whenZIO(p)(self)
+
+  /**
+   * The moral equivalent of `if (p) { expr; () }` when `p` has side-effects
+   */
+  final def whenZIODiscard[R1 <: R, E1 >: E](
+    p: => ZIO[R1, E1, Boolean]
+  )(implicit trace: Trace): ZIO[R1, E1, Unit] =
+    ZIO.whenZIODiscard(p)(self)
 
   /**
    * Executes this workflow with the specified implementation of the clock
@@ -3091,7 +3144,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           status,
           fiberState.getFiberRef(FiberRef.interruptedCause).interruptors,
           fiberState.getCurrentExecutor(),
-          fiberState.getFiberRef(FiberRef.overrideExecutor).isDefined
+          isLocked = RuntimeFlags.eagerShiftBack(status.runtimeFlags) ||
+            fiberState.getFiberRef(FiberRef.overrideExecutor).isDefined
         )
 
       f(descriptor)
@@ -3123,7 +3177,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Accesses the whole environment of the effect.
    */
   def environment[R](implicit trace: Trace): URIO[R, ZEnvironment[R]] =
-    ZIO.suspendSucceed(FiberRef.currentEnvironment.get.asInstanceOf[URIO[R, ZEnvironment[R]]])
+    FiberRef.currentEnvironment.get.asInstanceOf[URIO[R, ZEnvironment[R]]]
 
   /**
    * Accesses the environment of the effect.
@@ -4648,10 +4702,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * conceptually equivalent to `flatten(effect(io))`.
    */
   def suspend[R, A](rio: => RIO[R, A])(implicit trace: Trace): RIO[R, A] =
-    ZIO.isFatalWith { isFatal =>
+    ZIO.suspendSucceed {
       try rio
       catch {
-        case t: Throwable if !isFatal(t) => Exit.Failure(Cause.fail(t))
+        case t: Throwable =>
+          ZIO.isFatalWith { isFatal =>
+            if (!isFatal(t)) Exit.Failure(Cause.fail(t))
+            else throw t
+          }
       }
     }
 
@@ -4765,16 +4823,29 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     )
 
   /**
-   * The moral equivalent of `if (!p) exp`
+   * The moral equivalent of `if (!p) Some(exp) else None`
    */
   def unless[R, E, A](p: => Boolean)(zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
     suspendSucceed(if (p) none else zio.asSome)
 
   /**
-   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   * The moral equivalent of `if (!p) { expr; () }`
+   */
+  def unlessDiscard[R, E](p: => Boolean)(zio: => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
+    suspendSucceed(if (p) unit else zio.unit)
+
+  /**
+   * The moral equivalent of `if (!p) Some(expr) else None` when `p` has
+   * side-effects
    */
   def unlessZIO[R, E](p: => ZIO[R, E, Boolean]): ZIO.UnlessZIO[R, E] =
     new ZIO.UnlessZIO(() => p)
+
+  /**
+   * The moral equivalent of `if (!p) { expr; () }` when `p` has side-effects
+   */
+  def unlessZIODiscard[R, E](p: => ZIO[R, E, Boolean]): ZIO.UnlessZIODiscard[R, E] =
+    new ZIO.UnlessZIODiscard(() => p)
 
   /**
    * The inverse operation `IO.sandboxed`
@@ -4949,10 +5020,16 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.foreachPar(in)(f(_).flip).flip
 
   /**
-   * The moral equivalent of `if (p) exp`
+   * The moral equivalent of `if (p) Some(exp) else None`
    */
   def when[R, E, A](p: => Boolean)(zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
     suspendSucceed(if (p) zio.asSome else none)
+
+  /**
+   * The moral equivalent of `if (p) { expr; () }`
+   */
+  def whenDiscard[R, E](p: => Boolean)(zio: => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
+    suspendSucceed(if (p) zio.unit else unit)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given
@@ -4977,6 +5054,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def whenZIO[R, E](p: => ZIO[R, E, Boolean]): ZIO.WhenZIO[R, E] =
     new ZIO.WhenZIO(() => p)
+
+  /**
+   * The moral equivalent of `if (p) exp: Unit` when `p` has side-effects
+   */
+  def whenZIODiscard[R, E](p: => ZIO[R, E, Boolean]): ZIO.WhenZIODiscard[R, E] =
+    new ZIO.WhenZIODiscard(() => p)
 
   /**
    * Locally installs a supervisor and an effect that succeeds with all the
@@ -5178,7 +5261,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       )
     }
 
-  private[zio] val unitFn: Any => Unit = (_: Any) => ()
+  private[zio] val unitFn: Any => Unit    = (_: Any) => ()
+  private val unitZIOFn: Any => UIO[Unit] = (_: Any) => ZIO.unit
 
   implicit final class ZIOAutoCloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
@@ -5286,12 +5370,22 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   final class UnlessZIO[R, E](private val b: () => ZIO[R, E, Boolean]) extends AnyVal {
     def apply[R1 <: R, E1 >: E, A](zio: => ZIO[R1, E1, A])(implicit trace: Trace): ZIO[R1, E1, Option[A]] =
-      ZIO.suspendSucceed(b().flatMap(b => if (b) none else zio.asSome))
+      ZIO.suspendSucceed(b()).flatMap(b => if (b) none else zio.asSome)
+  }
+
+  final class UnlessZIODiscard[R, E](private val b: () => ZIO[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E](zio: => ZIO[R1, E1, Any])(implicit trace: Trace): ZIO[R1, E1, Unit] =
+      ZIO.suspendSucceed(b()).flatMap(b => if (b) unit else zio.unit)
   }
 
   final class WhenZIO[R, E](private val b: () => ZIO[R, E, Boolean]) extends AnyVal {
     def apply[R1 <: R, E1 >: E, A](zio: => ZIO[R1, E1, A])(implicit trace: Trace): ZIO[R1, E1, Option[A]] =
       ZIO.suspendSucceed(b()).flatMap(b => if (b) zio.asSome else none)
+  }
+
+  final class WhenZIODiscard[R, E](private val b: () => ZIO[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E](zio: => ZIO[R1, E1, Any])(implicit trace: Trace): ZIO[R1, E1, Unit] =
+      ZIO.suspendSucceed(b()).flatMap(b => if (b) zio.unit else unit)
   }
 
   final class TimeoutTo[-R, +E, +A, +B](self: ZIO[R, E, A], b: () => B) {
