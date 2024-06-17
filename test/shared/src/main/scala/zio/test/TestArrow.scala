@@ -130,13 +130,13 @@ sealed trait TestArrow[-A, +B] { self =>
     case self: Meta[A, B] =>
       new Meta(
         self.arrow,
-        self.span.orElse(span),
-        self.parentSpan.orElse(parentSpan),
+        span.orElse(self.span),
+        parentSpan.orElse(self.parentSpan),
         code.orElse(self.code),
-        self.location.orElse(location),
-        self.completeCode.orElse(completeCode),
-        self.customLabel.orElse(customLabel),
-        self.genFailureDetails.orElse(genFailureDetails)
+        location.orElse(self.location),
+        completeCode.orElse(self.completeCode),
+        customLabel.orElse(self.customLabel),
+        genFailureDetails.orElse(self.genFailureDetails)
       ) {
         override def codeArguments: Chunk[Arguments] = self.codeArguments
       }
