@@ -5,7 +5,7 @@ import zio.stm.TQueue
 import zio.stream.ZStream.HaltStrategy
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, withLiveClock}
+import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, withLiveClock, jvm}
 import zio.test._
 
 import java.io.{ByteArrayInputStream, IOException}
@@ -2764,7 +2764,25 @@ object ZStreamSpec extends ZIOBaseSpec {
                 result <- lastSeenMax.get
               } yield assertTrue(result <= parallelism, result > 1)
             }
-          }
+          },
+          test("parallelism should not depends on buffer size") {
+            val iterations  = 2000
+            val bufferSize  = 4
+            val parallelism = 16
+            for {
+              counter     <- Ref.make[Int](0)
+              lastSeenMax <- Ref.make[Int](0)
+              _ <- ZStream
+                     .range(0, iterations)
+                     .mapZIOParUnordered(16, bufferSize = bufferSize) { _ =>
+                       counter.updateAndGet(_ + 1).tap { current =>
+                         lastSeenMax.updateSome { case currentSeenMax if currentSeenMax < current => current }
+                       } *> ZIO.yieldNow *> counter.update(_ - 1)
+                     }
+                     .runDrain
+              result <- lastSeenMax.get
+            } yield assertTrue(result > bufferSize, result <= parallelism)
+          } @@ jvm(nonFlaky(20))
         ),
         suite("mergeLeft/Right")(
           test("mergeLeft with HaltStrategy.Right terminates as soon as the right stream terminates") {
