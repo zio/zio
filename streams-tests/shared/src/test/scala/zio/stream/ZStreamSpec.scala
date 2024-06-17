@@ -2662,21 +2662,22 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(exit)(fails(hasMessage(equalTo("Boom"))))
           },
           test("respect parallelism") {
-            val parallelism = 4
-            val iterations  = 1000
-            for {
-              counter     <- Ref.make[Int](0)
-              lastSeenMax <- Ref.make[Int](0)
-              _ <- ZStream
-                     .range(0, iterations)
-                     .mapZIOPar(parallelism) { _ =>
-                       counter.updateAndGet(_ + 1).tap { current =>
-                         lastSeenMax.updateSome { case currentSeenMax if currentSeenMax < current => current }
-                       } *> ZIO.yieldNow *> counter.update(_ - 1)
-                     }
-                     .runDrain
-              result <- lastSeenMax.get
-            } yield assertTrue(result <= parallelism)
+            val iterations = 1000
+            checkAll(Gen.fromIterable(Chunk(2, 4, 16, 32))) { parallelism =>
+              for {
+                counter     <- Ref.make[Int](0)
+                lastSeenMax <- Ref.make[Int](0)
+                _ <- ZStream
+                       .range(0, iterations)
+                       .mapZIOPar(parallelism) { _ =>
+                         counter.updateAndGet(_ + 1).tap { current =>
+                           lastSeenMax.updateSome { case currentSeenMax if currentSeenMax < current => current }
+                         } *> ZIO.yieldNow *> counter.update(_ - 1)
+                       }
+                       .runDrain
+                result <- lastSeenMax.get
+              } yield assertTrue(result <= parallelism, result > 1)
+            }
           }
         ),
         suite("mapZIOParUnordered")(
@@ -2747,21 +2748,22 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(exit)(fails(hasMessage(equalTo("Boom"))))
           },
           test("respect parallelism") {
-            val parallelism = 4
-            val iterations  = 1000
-            for {
-              counter     <- Ref.make[Int](0)
-              lastSeenMax <- Ref.make[Int](0)
-              _ <- ZStream
-                     .range(0, iterations)
-                     .mapZIOParUnordered(parallelism) { _ =>
-                       counter.updateAndGet(_ + 1).tap { current =>
-                         lastSeenMax.updateSome { case currentSeenMax if currentSeenMax < current => current }
-                       } *> ZIO.yieldNow *> counter.update(_ - 1)
-                     }
-                     .runDrain
-              result <- lastSeenMax.get
-            } yield assertTrue(result <= parallelism)
+            val iterations = 1000
+            checkAll(Gen.fromIterable(Chunk(2, 4, 16, 32))) { parallelism =>
+              for {
+                counter     <- Ref.make[Int](0)
+                lastSeenMax <- Ref.make[Int](0)
+                _ <- ZStream
+                       .range(0, iterations)
+                       .mapZIOParUnordered(parallelism) { _ =>
+                         counter.updateAndGet(_ + 1).tap { current =>
+                           lastSeenMax.updateSome { case currentSeenMax if currentSeenMax < current => current }
+                         } *> ZIO.yieldNow *> counter.update(_ - 1)
+                       }
+                       .runDrain
+                result <- lastSeenMax.get
+              } yield assertTrue(result <= parallelism, result > 1)
+            }
           }
         ),
         suite("mergeLeft/Right")(
