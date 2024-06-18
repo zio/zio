@@ -3879,9 +3879,9 @@ object ZStreamSpec extends ZIOBaseSpec {
               ref    <- Ref.make(0)
               stream  = ZStream(1, 2, 3, 4, 5).rechunk(1).forever
               sink    = ZSink.foreach((n: Int) => ref.update(_ + n))
-              fib     <- stream.tapSink(sink).take(1).mapZIO(_ => ZIO.sleep(1.second)).runDrain.fork
-              _       <- TestClock.adjust(1.seconds)
-              _       <- fib.interrupt
+              fib    <- stream.tapSink(sink).take(1).mapZIO(_ => ZIO.sleep(1.second)).runDrain.fork
+              _      <- TestClock.adjust(1.seconds)
+              _      <- fib.interrupt
               result <- ref.get
             } yield {
               assertTrue(result == 1)
