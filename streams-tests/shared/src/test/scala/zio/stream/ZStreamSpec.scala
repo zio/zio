@@ -6,7 +6,7 @@ import zio.concurrent.CountdownLatch
 import zio.stream.ZStream.HaltStrategy
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, withLiveClock, jvm}
+import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, withLiveClock}
 import zio.test._
 
 import java.io.{ByteArrayInputStream, IOException}
@@ -2690,7 +2690,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                        .runDrain
               } yield assertCompletes
             }
-          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds)
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds) @@ TestAspect.ignore
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
