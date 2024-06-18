@@ -4152,6 +4152,18 @@ object ZStreamSpec extends ZIOBaseSpec {
               _     <- fiber.interrupt
               value <- ref.get
             } yield assert(value)(equalTo(true))
+          },
+          test("should not interrupt children of a pending stream") {
+            val stream1 = (ZStream.succeed(0) ++ ZStream.fromZIO(ZIO.sleep(200.millis)).as(1))
+              .debounce(100.millis)
+
+            val stream2 = ZStream.succeed(42)
+
+            for {
+              fiber  <- (stream1 merge stream2).runCollect.fork
+              _      <- TestClock.adjust(10.millis).repeatN(30)
+              result <- fiber.join
+            } yield assertTrue(result == Chunk(42, 0, 1))
           }
         ) @@ TestAspect.timeout(40.seconds),
         suite("timeout")(
