@@ -2,6 +2,7 @@ package zio.stream
 
 import zio._
 import zio.stm.TQueue
+import zio.concurrent.CountdownLatch
 import zio.stream.ZStream.HaltStrategy
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
@@ -2661,24 +2662,35 @@ object ZStreamSpec extends ZIOBaseSpec {
               exit <- fiber.await
             } yield assert(exit)(fails(hasMessage(equalTo("Boom"))))
           },
-          test("respect parallelism") {
+          test("parallelism is not exceeded") {
             val iterations = 1000
-            checkAll(Gen.fromIterable(Chunk(2, 4, 16, 32))) { parallelism =>
+            checkAll(Gen.fromIterable(Chunk(4, 16, 32, 64))) { parallelism =>
               for {
-                counter     <- Ref.make[Int](0)
-                lastSeenMax <- Ref.make[Int](0)
+                latch <- CountdownLatch.make(parallelism + 1)
+                f <- ZStream
+                       .range(0, iterations)
+                       .mapZIOPar(parallelism)(_ => latch.countDown *> latch.await)
+                       .runDrain
+                       .fork
+                _     <- Live.live(latch.count.delay(100.micros)).repeatUntil(_ == 1)
+                _     <- latch.countDown
+                count <- latch.count
+                _     <- f.join
+              } yield assertTrue(count == 0)
+            }
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds),
+          test("parallelism must be reached irrespective of buffer size") {
+            val iterations = 1000
+            checkAll(Gen.fromIterable(Chunk(4, 16, 32, 64))) { parallelism =>
+              for {
+                latch <- CountdownLatch.make(parallelism)
                 _ <- ZStream
                        .range(0, iterations)
-                       .mapZIOPar(parallelism) { _ =>
-                         counter.updateAndGet(_ + 1).tap { current =>
-                           lastSeenMax.updateSome { case currentSeenMax if currentSeenMax < current => current }
-                         } *> ZIO.yieldNow *> counter.update(_ - 1)
-                       }
+                       .mapZIOPar(parallelism, bufferSize = 2)(_ => latch.countDown *> latch.await)
                        .runDrain
-                result <- lastSeenMax.get
-              } yield assertTrue(result <= parallelism, result > 1)
+              } yield assertCompletes
             }
-          }
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds)
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
@@ -2747,42 +2759,35 @@ object ZStreamSpec extends ZIOBaseSpec {
               exit <- fiber.await
             } yield assert(exit)(fails(hasMessage(equalTo("Boom"))))
           },
-          test("respect parallelism") {
+          test("parallelism is not exceeded") {
             val iterations = 1000
-            checkAll(Gen.fromIterable(Chunk(2, 4, 16, 32))) { parallelism =>
+            checkAll(Gen.fromIterable(Chunk(4, 16, 32, 64))) { parallelism =>
               for {
-                counter     <- Ref.make[Int](0)
-                lastSeenMax <- Ref.make[Int](0)
+                latch <- CountdownLatch.make(parallelism + 1)
+                f <- ZStream
+                       .range(0, iterations)
+                       .mapZIOParUnordered(parallelism)(_ => latch.countDown *> latch.await)
+                       .runDrain
+                       .fork
+                _     <- Live.live(latch.count.delay(100.micros)).repeatUntil(_ == 1)
+                _     <- latch.countDown
+                count <- latch.count
+                _     <- f.join
+              } yield assertTrue(count == 0)
+            }
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds),
+          test("parallelism must be reached irrespective of buffer size") {
+            val iterations = 1000
+            checkAll(Gen.fromIterable(Chunk(4, 16, 32, 64))) { parallelism =>
+              for {
+                latch <- CountdownLatch.make(parallelism)
                 _ <- ZStream
                        .range(0, iterations)
-                       .mapZIOParUnordered(parallelism) { _ =>
-                         counter.updateAndGet(_ + 1).tap { current =>
-                           lastSeenMax.updateSome { case currentSeenMax if currentSeenMax < current => current }
-                         } *> ZIO.yieldNow *> counter.update(_ - 1)
-                       }
+                       .mapZIOParUnordered(parallelism, bufferSize = 2)(_ => latch.countDown *> latch.await)
                        .runDrain
-                result <- lastSeenMax.get
-              } yield assertTrue(result <= parallelism, result > 1)
+              } yield assertCompletes
             }
-          },
-          test("parallelism should not depends on buffer size") {
-            val iterations  = 2000
-            val bufferSize  = 4
-            val parallelism = 16
-            for {
-              counter     <- Ref.make[Int](0)
-              lastSeenMax <- Ref.make[Int](0)
-              _ <- ZStream
-                     .range(0, iterations)
-                     .mapZIOParUnordered(16, bufferSize = bufferSize) { _ =>
-                       counter.updateAndGet(_ + 1).tap { current =>
-                         lastSeenMax.updateSome { case currentSeenMax if currentSeenMax < current => current }
-                       } *> ZIO.yieldNow *> counter.update(_ - 1)
-                     }
-                     .runDrain
-              result <- lastSeenMax.get
-            } yield assertTrue(result > bufferSize, result <= parallelism)
-          } @@ jvm(nonFlaky(20))
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds)
         ),
         suite("mergeLeft/Right")(
           test("mergeLeft with HaltStrategy.Right terminates as soon as the right stream terminates") {
