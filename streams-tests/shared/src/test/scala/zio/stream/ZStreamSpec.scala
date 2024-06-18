@@ -3870,7 +3870,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               ref    <- Ref.make(0)
               stream  = ZStream(1, 2, 3, 4, 5).rechunk(1).forever
               sink    = ZSink.foreach((n: Int) => ref.update(_ + n))
-              _      <- stream.tapSink(sink).take(3).mapZIO(n => ZIO.succeed(n) <* ZIO.sleep(10.milliseconds)).runDrain
+              _      <- stream.tapSink(sink).take(3).runDrain
               result <- ref.get
             } yield assertTrue(result == 6)
           },
