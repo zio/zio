@@ -2696,10 +2696,10 @@ object ZStreamSpec extends ZIOBaseSpec {
               .range(1, 100, 10)
               .mapZIOPar(Int.MaxValue)(ZIO.succeed(_))
               .runCollect
-              .map{ collected =>
-                assert(collected)(equalTo(Chunk.range(1,100)))
+              .map { collected =>
+                assert(collected)(equalTo(Chunk.range(1, 100)))
               }
-          }  @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds)
+          } @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds)
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
@@ -2802,10 +2802,11 @@ object ZStreamSpec extends ZIOBaseSpec {
               .range(1, 100, 10)
               .mapZIOParUnordered(Int.MaxValue)(ZIO.succeed(_))
               .runCollect
-              .map{ collected =>
-                assert(collected.sorted)(equalTo(Chunk.range(1,100)))
+              .map { collected =>
+                assert(collected.sorted)(equalTo(Chunk.range(1, 100)))
               }
-          }  @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds)        ),
+          } @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds)
+        ),
         suite("mergeLeft/Right")(
           test("mergeLeft with HaltStrategy.Right terminates as soon as the right stream terminates") {
             for {
