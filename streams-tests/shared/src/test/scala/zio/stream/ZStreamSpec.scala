@@ -2690,7 +2690,16 @@ object ZStreamSpec extends ZIOBaseSpec {
                        .runDrain
               } yield assertCompletes
             }
-          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds)
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds),
+          test("supports unbound parallelism") {
+            ZStream
+              .range(1, 100, 10)
+              .mapZIOPar(Int.MaxValue)(ZIO.succeed(_))
+              .runCollect
+              .map{ collected =>
+                assert(collected)(equalTo(Chunk.range(1,100)))
+              }
+          }  @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds)
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
