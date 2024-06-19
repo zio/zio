@@ -394,7 +394,7 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroExpansionSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.2")
+      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.3")
         .cross(CrossVersion.for3Use2_13)
     )
   )
