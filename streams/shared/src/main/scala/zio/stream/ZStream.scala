@@ -1935,7 +1935,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   ): ZStream[R1, E1, A2] =
     self.toChannel
       .concatMap(ZChannel.writeChunk(_))
-      .mapOutZIOPar[R1, E1, Chunk[A2]](n, bufferSize)(a => f(a).map(Chunk.single(_)))
+      .mapOutZIOPar[R1, E1, Chunk[A2]](n, bufferSize max n)(a => f(a).map(Chunk.single(_)))
       .toStream
 
   /**

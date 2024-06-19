@@ -637,12 +637,20 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] = {
     val z: ZIO[Env1, Nothing, ZChannel[Env, InErr, InElem, InDone, OutErr1, OutElem2, OutDone]] = for {
-      env1            <- ZIO.environment[Env1]
-      input           <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
-      queueReader      = ZChannel.fromInput(input)
-      queue           <- Queue.bounded[(OutElem, zio.Promise[OutErr1, OutElem2])](n)
-      downstreamQueue <- Queue.bounded[Any](bufferSize)
-      failureCoord    <- Ref.make[Any](zio.Promise.unsafe.make[OutErr1, OutElem2](FiberId.None)(Unsafe.unsafe))
+      env1       <- ZIO.environment[Env1]
+      input      <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
+      queueReader = ZChannel.fromInput(input)
+      bounded     = n < Int.MaxValue
+      queue <- if (bounded)
+                 Queue.bounded[(OutElem, zio.Promise[OutErr1, OutElem2])](n)
+               else
+                 Queue.unbounded[(OutElem, zio.Promise[OutErr1, OutElem2])]
+      boundedBuffer = bufferSize < Int.MaxValue
+      downstreamQueue <- if (boundedBuffer)
+                           Queue.bounded[Any](bufferSize)
+                         else
+                           Queue.unbounded[Any]
+      failureCoord <- Ref.make[Any](zio.Promise.unsafe.make[OutErr1, OutElem2](FiberId.None)(Unsafe.unsafe))
     } yield {
       //callback mechanism taking after scala's promise implementation, roughly speaking this is an atomic two-state
       //either a registered callback (a function to be failed) or a Cause, signal and register atomically update the state
@@ -686,11 +694,26 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               for {
                 prom <- zio.Promise.make[OutErr1, OutElem2]
                 tup   = (in, prom)
-                _    <- workerFiber.unless(numForked == n)
-                _    <- queue.offer(tup)
-                _    <- downstreamQueue.offer(prom)
+                nextNumForked <- {
+                  val offer = queue.offer(tup)
+                  if (numForked == n)
+                    offer.as(n)
+                  else if (bounded)
+                    offer *> workerFiber.as(numForked + 1)
+                  else {
+                    //when unbounded, we run the risk of spawning a fiber per message,
+                    //even worse, each such fiber may end up processing one or less messages...
+                    //in any case these fibers are kept as long as this channel is running which may incur waste of resources.
+                    //this attempts to mitigate this by detecting scenarios where an idle worker was able to immediately pick the enqueued message, as a result we get a 'best effort' behavior of limiting the number of fibers.
+                    offer *> workerFiber.unlessZIO(queue.isEmpty).map {
+                      case Some(_) => numForked + 1
+                      case _       => numForked
+                    }
+                  }
+                }
+                _ <- downstreamQueue.offer(prom)
               } yield {
-                upstreamReader(if (numForked == n) n else numForked + 1)
+                upstreamReader(nextNumForked)
               }
             }
           },
@@ -768,8 +791,16 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       env1       <- ZIO.environment[Env1]
       input      <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
       queueReader = ZChannel.fromInput(input)
-      q0         <- zio.Queue.bounded[OutElem](n)
-      q1         <- zio.Queue.bounded[Any](bufferSize)
+      bounded     = n < Int.MaxValue
+      q0 <- if (bounded)
+              zio.Queue.bounded[OutElem](n)
+            else
+              zio.Queue.unbounded[OutElem]
+      boundedBuffer = bufferSize < Int.MaxValue
+      q1 <- if (boundedBuffer)
+              zio.Queue.bounded[Any](bufferSize)
+            else
+              zio.Queue.unbounded[Any]
     } yield {
       lazy val q0Reader: IO[Nothing, Boolean] = q0.take
         .flatMap(f)
@@ -779,26 +810,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         )
         .provideEnvironment(env1)
 
-      /*def enqueue(a: OutElem): ZIO[Env1, Nothing, Unit] = ZIO.uninterruptibleMas   k { restore =>
-        for {
-          localScope <- zio.Scope.make
-          _          <- restore(permits.withPermitScoped.provideEnvironment(ZEnvironment(localScope)))
-          fib <- {
-            restore {
-              val z1 = f(a)
-              z1
-                .foldCauseZIO(
-                  c => q1.offer(QRes.failCause(c)),
-                  a2 => q1.offer(a2)
-                )
-            }
-              .onExit(localScope.close(_))
-              .unit
-              .fork
-          }
-        } yield ()
-      }
-       */
       def q0EnquerCh(
         nFibers: Int,
         nMessages: Int
@@ -808,8 +819,19 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             in => {
               if (nFibers < n)
                 ZChannel.fromZIO(q0Reader.fork *> q0.offer(in)) *> q0EnquerCh(nFibers + 1, nMessages + 1)
-              else
+              else if (bounded)
                 ZChannel.fromZIO(q0.offer(in)) *> q0EnquerCh(nFibers, nMessages + 1)
+              else
+                ZChannel.unwrap {
+                  for {
+                    _       <- q0.offer(in)
+                    q0Empty <- q0.isEmpty
+                    _       <- q0Reader.fork.when(q0Empty)
+                  } yield {
+                    val nextNFiber = if (q0Empty) nFibers + 1 else nFibers
+                    q0EnquerCh(nextNFiber, nMessages + 1)
+                  }
+                }
             },
             ZChannel.refailCause(_),
             done => ZChannel.succeedNow(done -> nMessages)
