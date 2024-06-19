@@ -791,8 +791,16 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       env1       <- ZIO.environment[Env1]
       input      <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
       queueReader = ZChannel.fromInput(input)
-      q0         <- zio.Queue.bounded[OutElem](n)
-      q1         <- zio.Queue.bounded[Any](bufferSize)
+      bounded     = n < Int.MaxValue
+      q0         <- if(bounded)
+                      zio.Queue.bounded[OutElem](n)
+                    else
+                      zio.Queue.unbounded[OutElem]
+      boundedBuffer = bufferSize < Int.MaxValue
+      q1         <- if(boundedBuffer)
+                      zio.Queue.bounded[Any](bufferSize)
+                    else
+                      zio.Queue.unbounded[Any]
     } yield {
       lazy val q0Reader: IO[Nothing, Boolean] = q0.take
         .flatMap(f)
@@ -802,26 +810,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         )
         .provideEnvironment(env1)
 
-      /*def enqueue(a: OutElem): ZIO[Env1, Nothing, Unit] = ZIO.uninterruptibleMas   k { restore =>
-        for {
-          localScope <- zio.Scope.make
-          _          <- restore(permits.withPermitScoped.provideEnvironment(ZEnvironment(localScope)))
-          fib <- {
-            restore {
-              val z1 = f(a)
-              z1
-                .foldCauseZIO(
-                  c => q1.offer(QRes.failCause(c)),
-                  a2 => q1.offer(a2)
-                )
-            }
-              .onExit(localScope.close(_))
-              .unit
-              .fork
-          }
-        } yield ()
-      }
-       */
       def q0EnquerCh(
         nFibers: Int,
         nMessages: Int
@@ -831,8 +819,19 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             in => {
               if (nFibers < n)
                 ZChannel.fromZIO(q0Reader.fork *> q0.offer(in)) *> q0EnquerCh(nFibers + 1, nMessages + 1)
-              else
+              else if(bounded)
                 ZChannel.fromZIO(q0.offer(in)) *> q0EnquerCh(nFibers, nMessages + 1)
+              else
+                ZChannel.unwrap {
+                  for{
+                    _ <- q0.offer(in)
+                    q0Empty <- q0.isEmpty
+                    _ <- q0Reader.fork.when(q0Empty)
+                  } yield {
+                    val nextNFiber = if(q0Empty) nFibers + 1 else nFibers
+                    q0EnquerCh(nextNFiber, nMessages + 1)
+                  }
+                }
             },
             ZChannel.refailCause(_),
             done => ZChannel.succeedNow(done -> nMessages)
