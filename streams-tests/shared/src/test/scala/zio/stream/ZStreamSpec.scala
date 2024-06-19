@@ -2690,7 +2690,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                        .runDrain
               } yield assertCompletes
             }
-          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds) @@ TestAspect.ignore
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds)
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
