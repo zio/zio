@@ -4,6 +4,7 @@ import zio._
 import zio.internal.macros.StringUtils.StringOps
 import zio.test.Assertion.{anything, equalTo, isLeft}
 import zio.test._
+import scala.annotation.nowarn
 
 object AutoWireSpec extends ZIOBaseSpec {
 
@@ -199,6 +200,18 @@ object AutoWireSpec extends ZIOBaseSpec {
               a1 <- ZIO.service[Foo].provideLayer(l1)
               a2 <- ZIO.service[Foo].provideLayer(l2)
             } yield assertTrue(a1.isInstanceOf[Foo1], a2.isInstanceOf[Foo1])
+          },
+          test("ZLayer.Debug") {
+            val hello = ZLayer(ZIO.serviceWith[Int](i => s"Hello $i!"))
+            @nowarn("msg=.*ZLayer Wiring Graph.*")
+            val tree = ZLayer.make[String](hello, ZLayer.succeed(1), ZLayer.Debug.tree)
+            @nowarn("msg=.*Mermaid Live Editor Link.*")
+            val mermaid = ZLayer.make[String](hello, ZLayer.succeed(2), ZLayer.Debug.mermaid)
+
+            for {
+              s1 <- ZIO.service[String].provideLayer(tree)
+              s2 <- ZIO.service[String].provideLayer(mermaid)
+            } yield assertTrue(s1 == "Hello 1!", s2 == "Hello 2!")
           }
         ),
         suite("`ZLayer.makeSome`")(
