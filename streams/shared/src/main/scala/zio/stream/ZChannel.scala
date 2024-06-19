@@ -640,7 +640,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       env1            <- ZIO.environment[Env1]
       input           <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
       queueReader      = ZChannel.fromInput(input)
-      queue           <- Queue.bounded[(OutElem, zio.Promise[OutErr1, OutElem2])](n)
+      bounded          = n < Int.MaxValue
+      queue           <- if (bounded)
+                          Queue.bounded[(OutElem, zio.Promise[OutErr1, OutElem2])](n)
+                        else
+                          Queue.unbounded[(OutElem, zio.Promise[OutErr1, OutElem2])]
       downstreamQueue <- Queue.bounded[Any](bufferSize)
       failureCoord    <- Ref.make[Any](zio.Promise.unsafe.make[OutErr1, OutElem2](FiberId.None)(Unsafe.unsafe))
     } yield {
@@ -686,11 +690,26 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               for {
                 prom <- zio.Promise.make[OutErr1, OutElem2]
                 tup   = (in, prom)
-                _    <- workerFiber.unless(numForked == n)
-                _    <- queue.offer(tup)
+                nextNumForked <- {
+                  val offer = queue.offer(tup)
+                  if (numForked == n)
+                    offer.as(n)
+                  else if (bounded)
+                    offer *> workerFiber.as(numForked + 1)
+                  else {
+                    //when unbounded, we run the risk of spawning a fiber per message,
+                    //even worse, each such fiber may end up processing one or less messages...
+                    //in any case these fibers are kept as long as this channel is running which may incur waste of resources.
+                    //this attempts to mitigate this by detecting scenarios where an idle worker was able to immediately pick the enqueued message, as a result we get a 'best effort' behavior of limiting the number of fibers.
+                    offer *> workerFiber.unlessZIO(queue.isEmpty).map {
+                      case Some(_) => numForked + 1
+                      case _       => numForked
+                    }
+                  }
+                }
                 _    <- downstreamQueue.offer(prom)
               } yield {
-                upstreamReader(if (numForked == n) n else numForked + 1)
+                upstreamReader(nextNumForked)
               }
             }
           },
