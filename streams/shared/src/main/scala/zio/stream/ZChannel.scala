@@ -645,7 +645,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                           Queue.bounded[(OutElem, zio.Promise[OutErr1, OutElem2])](n)
                         else
                           Queue.unbounded[(OutElem, zio.Promise[OutErr1, OutElem2])]
-      downstreamQueue <- Queue.bounded[Any](bufferSize)
+      boundedBuffer = bufferSize < Int.MaxValue
+      downstreamQueue <-  if(boundedBuffer)
+                            Queue.bounded[Any](bufferSize)
+                          else
+                              Queue.unbounded[Any]
       failureCoord    <- Ref.make[Any](zio.Promise.unsafe.make[OutErr1, OutElem2](FiberId.None)(Unsafe.unsafe))
     } yield {
       //callback mechanism taking after scala's promise implementation, roughly speaking this is an atomic two-state
