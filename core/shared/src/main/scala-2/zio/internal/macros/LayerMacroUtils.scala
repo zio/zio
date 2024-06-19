@@ -45,10 +45,11 @@ private[zio] trait LayerMacroUtils {
     verifyLayers(layers)
     val remainderTypes = getRequirements[R0]
     val targetTypes    = getRequirements[R]
+    val debug          = typeOf[ZLayer.Debug.type].termSymbol
 
     val debugMap: PartialFunction[LayerExpr, ZLayer.Debug] = {
-      case q"zio.ZLayer.Debug.tree"    => ZLayer.Debug.Tree
-      case q"zio.ZLayer.Debug.mermaid" => ZLayer.Debug.Mermaid
+      case Expr(q"$prefix.tree") if prefix.symbol == debug    => ZLayer.Debug.Tree
+      case Expr(q"$prefix.mermaid") if prefix.symbol == debug => ZLayer.Debug.Mermaid
     }
 
     def typeToNode(tpe: Type): Node[Type, LayerExpr] =
