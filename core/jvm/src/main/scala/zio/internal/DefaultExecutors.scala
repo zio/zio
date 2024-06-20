@@ -64,13 +64,4 @@ private[zio] abstract class DefaultExecutors {
           case _: RejectedExecutionException => false
         }
     }
-
-  /**
-   * Signals to the scheduler that the current thread is about to block. This
-   * method is a no-op except when the current thread is a ZScheduler.Worker. In
-   * that case, the worker is marked as "blocking" and a new worker is spawned
-   * to replace it.
-   */
-  final def signalBlocking(): Unit =
-    ZScheduler.markCurrentWorkerAsBlocking()
 }

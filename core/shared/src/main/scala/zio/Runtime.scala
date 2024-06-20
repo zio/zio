@@ -137,7 +137,7 @@ trait Runtime[+R] { self =>
           fiber.tell(
             FiberMessage.Stateful(fiber => fiber.addObserver(exit => result.set(exit.asInstanceOf[Exit[E, A]])))
           )
-          Executor.signalBlocking()
+          internal.Blocking.signalBlocking()
           result.get()
         case Right(exit) => exit
       }

@@ -16,6 +16,6 @@
 
 package zio.internal
 
-import zio.stacktracer.TracingImplicits.disableAutoTrace
-
-private[zio] abstract class DefaultExecutors
+object Blocking {
+  private[zio] final def signalBlocking(): Unit = ()
+}
