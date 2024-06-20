@@ -16,11 +16,10 @@
 
 package zio
 
-import zio.internal.{FiberRuntime, FiberScope, IsFatal, Platform, StackTraceBuilder, ZScheduler}
+import zio.internal.{FiberRuntime, FiberScope, IsFatal, Platform}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
-import java.lang.ref.WeakReference
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.

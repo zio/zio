@@ -266,7 +266,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
                   }
                 }
                 previousOpCounts(workerId) = -1L
-                currentWorker.markAsBlocking(workerId)
+                currentWorker.markAsBlocking(workerId, ignoreIfAutoBlocking = false)
               } else {
                 previousOpCounts(workerId) = currentOpCount
               }
@@ -417,34 +417,35 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
         }
       }
 
-      def markAsBlocking(workerIdx: Int): Unit = {
-        blocking = true
-        val workerId =
-          if (workerIdx >= 0) workerIdx
-          else {
-            val i = workers.indexOf(self)
-            if (i >= 0) i else throw new Error("Catastrophic error: worker not found in workers array")
+      def markAsBlocking(workerIdx: Int, ignoreIfAutoBlocking: Boolean): Unit =
+        if (ignoreIfAutoBlocking && autoBlocking) ()
+        else {
+          blocking = true
+          val workerId =
+            if (workerIdx >= 0) workerIdx
+            else {
+              val i = workers.indexOf(self)
+              if (i >= 0) i else throw new Error("Catastrophic error: worker not found in workers array")
+            }
+
+          val runnables = self.localQueue.pollUpTo(256)
+          globalQueue.offerAll(runnables)
+          val worker = cache.poll()
+          if (worker eq null) {
+            val worker = makeWorker()
+            worker.setName(workerId)
+            worker.setDaemon(true)
+            workers(workerId) = worker
+            worker.start()
+          } else {
+            state.getAndIncrement()
+            worker.setName(workerId)
+            workers(workerId) = worker
+            worker.blocking = false
+            worker.active = true
+            LockSupport.unpark(worker)
           }
-
-        val runnables = self.localQueue.pollUpTo(256)
-        globalQueue.offerAll(runnables)
-        val worker = cache.poll()
-        if (worker eq null) {
-          val worker = makeWorker()
-          worker.setName(workerId)
-          worker.setDaemon(true)
-          workers(workerId) = worker
-          worker.start()
-        } else {
-          state.getAndIncrement()
-          worker.setName(workerId)
-          workers(workerId) = worker
-          worker.blocking = false
-          worker.active = true
-          LockSupport.unpark(worker)
         }
-      }
-
     }
 
   private def maybeUnparkWorker(currentState: Int): Unit = {
@@ -469,7 +470,9 @@ private object ZScheduler {
   def markCurrentWorkerAsBlocking(): Unit = {
     val worker = workerOrNull()
     if (worker ne null) {
-      worker.markAsBlocking(-1)
+      worker.markAsBlocking(-1, ignoreIfAutoBlocking = true)
+    } else {
+      ()
     }
   }
 
@@ -579,7 +582,7 @@ private object ZScheduler {
     var opCount: Long =
       0L
 
-    def markAsBlocking(workerIdx: Int): Unit
+    def markAsBlocking(workerIdx: Int, ignoreIfAutoBlocking: Boolean): Unit
 
     final def setName(i: Int): Unit =
       setName(s"ZScheduler-Worker-$i")
