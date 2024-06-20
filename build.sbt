@@ -498,7 +498,7 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(crossProjectSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.scalacheck" %%% "scalacheck" % "1.17.1")
+      ("org.scalacheck" %%% "scalacheck" % "1.18.0")
     )
   )
   .jsSettings(jsSettings)
@@ -705,7 +705,7 @@ lazy val scalafixRules = project.module
   .settings(
     scalafixSettings,
     semanticdbEnabled                      := true, // enable SemanticDB
-    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.10.4"
+    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.12.1"
   )
 
 val zio1Version = "1.0.18"
@@ -733,7 +733,7 @@ lazy val scalafixTests = project
   .settings(
     scalafixSettings,
     publish / skip                        := true,
-    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.12.0" % Test cross CrossVersion.full,
+    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.12.1" % Test cross CrossVersion.full,
     Compile / compile :=
       (Compile / compile).dependsOn(scalafixInput / Compile / compile).value,
     scalafixTestkitOutputSourceDirectories :=
