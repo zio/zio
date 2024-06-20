@@ -567,7 +567,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
     def unapply(tree: Tree)(implicit sdoc: SemanticDocument): Option[Patch] = {
       val partial: PartialFunction[Tree, Patch] = {
-        case t @ Type.Apply(tpe: Type, args: List[Type]) if hasNormalized.matches(tpe.symbol) =>
+        case t @ Type.Apply.After_4_6_0(tpe: Type, argClause) if hasNormalized.matches(tpe.symbol) =>
+          val args = argClause.values
           val builtInServices: Seq[SymbolMatcher] =
             List(
               randomMigrator,
