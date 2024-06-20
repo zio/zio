@@ -521,6 +521,8 @@ object Fiber extends FiberPlatformSpecific {
       def getFiberRefs()(implicit unsafe: Unsafe): FiberRefs
 
       def removeObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit
+
+      def poll(implicit unsafe: Unsafe): Option[Exit[E, A]]
     }
 
     /**
@@ -530,6 +532,7 @@ object Fiber extends FiberPlatformSpecific {
      * '''NOTE''': This method must be invoked by the fiber itself.
      */
     private[zio] def addChild(child: Fiber.Runtime[_, _]): Unit
+    private[zio] def addChildren(children: Iterable[Fiber.Runtime[_, _]]): Unit
 
     /**
      * Deletes the specified fiber ref.
@@ -619,6 +622,7 @@ object Fiber extends FiberPlatformSpecific {
      * Adds a message to add a child to this fiber.
      */
     private[zio] def tellAddChild(child: Fiber.Runtime[_, _]): Unit
+    private[zio] def tellAddChildren(children: Iterable[Fiber.Runtime[_, _]]): Unit
 
     /**
      * Adds a message to interrupt this fiber.

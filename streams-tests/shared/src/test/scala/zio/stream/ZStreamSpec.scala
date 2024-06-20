@@ -2,6 +2,7 @@ package zio.stream
 
 import zio._
 import zio.stm.TQueue
+import zio.concurrent.CountdownLatch
 import zio.stream.ZStream.HaltStrategy
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
@@ -2660,7 +2661,45 @@ object ZStreamSpec extends ZIOBaseSpec {
               _    <- TestClock.adjust(5.seconds)
               exit <- fiber.await
             } yield assert(exit)(fails(hasMessage(equalTo("Boom"))))
-          }
+          },
+          test("parallelism is not exceeded") {
+            val iterations = 1000
+            checkAll(Gen.fromIterable(Chunk(4, 16, 32, 64))) { parallelism =>
+              for {
+                latch <- CountdownLatch.make(parallelism + 1)
+                f <- ZStream
+                       .range(0, iterations)
+                       .mapZIOPar(parallelism)(_ => latch.countDown *> latch.await)
+                       .runDrain
+                       .fork
+                _     <- Live.live(latch.count.delay(100.micros)).repeatUntil(_ == 1)
+                _     <- latch.countDown
+                count <- latch.count
+                _     <- f.join
+              } yield assertTrue(count == 0)
+            }
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds),
+          test("parallelism must be reached irrespective of buffer size") {
+            val iterations = 1000
+            checkAll(Gen.fromIterable(Chunk(4, 16, 32, 64))) { parallelism =>
+              for {
+                latch <- CountdownLatch.make(parallelism)
+                _ <- ZStream
+                       .range(0, iterations)
+                       .mapZIOPar(parallelism, bufferSize = 2)(_ => latch.countDown *> latch.await)
+                       .runDrain
+              } yield assertCompletes
+            }
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds),
+          test("supports unbound parallelism") {
+            ZStream
+              .range(1, 100, 10)
+              .mapZIOPar(Int.MaxValue)(ZIO.succeed(_))
+              .runCollect
+              .map { collected =>
+                assert(collected)(equalTo(Chunk.range(1, 100)))
+              }
+          } @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds)
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
@@ -2677,7 +2716,96 @@ object ZStreamSpec extends ZIOBaseSpec {
             val stream =
               ZStream.fromIterable(0 to 3).mapZIOParUnordered(10)(_ => ZIO.fail("fail"))
             assertZIO(stream.runDrain.exit)(fails(equalTo("fail")))
-          } @@ nonFlaky @@ TestAspect.diagnose(10.seconds)
+          } @@ nonFlaky @@ TestAspect.diagnose(10.seconds),
+          test("interruption propagation") {
+            for {
+              interrupted <- Ref.make(false)
+              latch       <- Promise.make[Nothing, Unit]
+              fib <-
+                ZStream(())
+                  .mapZIOParUnordered(1)(_ => (latch.succeed(()) *> ZIO.infinity).onInterrupt(interrupted.set(true)))
+                  .runDrain
+                  .fork
+              _      <- latch.await
+              _      <- fib.interrupt
+              result <- interrupted.get
+            } yield assert(result)(isTrue)
+          },
+          test("interrupts pending tasks when one of the tasks fails U") {
+            for {
+              interrupted <- Ref.make(0)
+              latch1      <- Promise.make[Nothing, Unit]
+              latch2      <- Promise.make[Nothing, Unit]
+              result <- ZStream(1, 2, 3)
+                          .mapZIOParUnordered(3) {
+                            case 1 => (latch1.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
+                            case 2 => (latch2.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
+                            case 3 => latch1.await *> latch2.await *> ZIO.fail("Boom")
+                          }
+                          .runDrain
+                          .exit
+              count <- interrupted.get
+            } yield assert(count)(equalTo(2)) && assert(result)(fails(equalTo("Boom")))
+          } @@ nonFlaky,
+          test("awaits children fibers properly") {
+            assertZIO(
+              ZStream
+                .fromIterable((0 to 100))
+                .interruptWhen(ZIO.never)
+                .mapZIOParUnordered(8)(_ => ZIO.succeed(1).repeatN(2000))
+                .runDrain
+                .exit
+                .map(_.isInterrupted)
+            )(equalTo(false))
+          },
+          test("propagates error of original stream") {
+            for {
+              fiber <- (ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) ++ ZStream.fail(new Throwable("Boom")))
+                         .mapZIOParUnordered(2)(_ => ZIO.sleep(1.second))
+                         .runDrain
+                         .fork
+              _    <- TestClock.adjust(5.seconds)
+              exit <- fiber.await
+            } yield assert(exit)(fails(hasMessage(equalTo("Boom"))))
+          },
+          test("parallelism is not exceeded") {
+            val iterations = 1000
+            checkAll(Gen.fromIterable(Chunk(4, 16, 32, 64))) { parallelism =>
+              for {
+                latch <- CountdownLatch.make(parallelism + 1)
+                f <- ZStream
+                       .range(0, iterations)
+                       .mapZIOParUnordered(parallelism)(_ => latch.countDown *> latch.await)
+                       .runDrain
+                       .fork
+                _     <- Live.live(latch.count.delay(100.micros)).repeatUntil(_ == 1)
+                _     <- latch.countDown
+                count <- latch.count
+                _     <- f.join
+              } yield assertTrue(count == 0)
+            }
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds),
+          test("parallelism must be reached irrespective of buffer size") {
+            val iterations = 1000
+            checkAll(Gen.fromIterable(Chunk(4, 16, 32, 64))) { parallelism =>
+              for {
+                latch <- CountdownLatch.make(parallelism)
+                _ <- ZStream
+                       .range(0, iterations)
+                       .mapZIOParUnordered(parallelism, bufferSize = 2)(_ => latch.countDown *> latch.await)
+                       .runDrain
+              } yield assertCompletes
+            }
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds),
+          test("supports unbound parallelism") {
+            ZStream
+              .range(1, 100, 10)
+              .mapZIOParUnordered(Int.MaxValue)(ZIO.succeed(_))
+              .runCollect
+              .map { collected =>
+                assert(collected.sorted)(equalTo(Chunk.range(1, 100)))
+              }
+          } @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds)
         ),
         suite("mergeLeft/Right")(
           test("mergeLeft with HaltStrategy.Right terminates as soon as the right stream terminates") {
@@ -3246,6 +3374,96 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk("A", "A", "B")))
           )
         ),
+        suite("rechunk")(
+          test("to smaller chunks") {
+            val chunks = Chunk(
+              Chunk(1, 2, 3, 4, 5),
+              Chunk(6, 7, 8, 9, 10)
+            )
+
+            val stream = ZStream.fromChunks(chunks: _*)
+            assertZIO(stream.rechunk(2).chunks.runCollect)(
+              equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6), Chunk(7, 8), Chunk(9, 10)))
+            )
+          },
+          test("to larger chunks") {
+            val chunks = Chunk(
+              Chunk(1, 2),
+              Chunk(3, 4),
+              Chunk(5, 6),
+              Chunk(7, 8),
+              Chunk(9, 10)
+            )
+
+            val stream = ZStream.fromChunks(chunks: _*)
+            assertZIO(stream.rechunk(5).chunks.runCollect)(
+              equalTo(Chunk(Chunk(1, 2, 3, 4, 5), Chunk(6, 7, 8, 9, 10)))
+            )
+          },
+          test("to the same size chunks") {
+            val chunks = Chunk(
+              Chunk(1, 2),
+              Chunk(3, 4),
+              Chunk(5, 6),
+              Chunk(7, 8),
+              Chunk(9, 10)
+            )
+
+            val stream = ZStream.fromChunks(chunks: _*)
+            assertZIO(stream.rechunk(2).chunks.runCollect)(
+              equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6), Chunk(7, 8), Chunk(9, 10)))
+            )
+          },
+          test("remainder is emitted on completion") {
+            val chunks = Chunk(
+              Chunk(1, 2),
+              Chunk(3, 4),
+              Chunk(5, 6),
+              Chunk(7, 8),
+              Chunk(9, 10)
+            )
+
+            val stream = ZStream.fromChunks(chunks: _*)
+            assertZIO(stream.rechunk(3).chunks.runCollect)(
+              equalTo(Chunk(Chunk(1, 2, 3), Chunk(4, 5, 6), Chunk(7, 8, 9), Chunk(10)))
+            )
+          },
+          test("buffer is emitted on error") {
+            val chunks = Chunk(
+              Chunk(Right(1), Right(2)),
+              Chunk(Left("Boom!"), Right(3))
+            )
+
+            val stream = ZStream.fromChunks(chunks: _*).absolve
+            assertZIO(stream.rechunk(3).either.chunks.runCollect)(
+              equalTo(Chunk(Chunk(Right(1), Right(2)), Chunk(Left("Boom!"))))
+            )
+          },
+          test("to chunk size 1") {
+            val chunks = Chunk(
+              Chunk(1, 2, 3, 4, 5),
+              Chunk(6, 7, 8, 9, 10)
+            )
+
+            val stream = ZStream.fromChunks(chunks: _*)
+            assertZIO(stream.rechunk(1).chunks.runCollect)(
+              equalTo(
+                Chunk(
+                  Chunk(1),
+                  Chunk(2),
+                  Chunk(3),
+                  Chunk(4),
+                  Chunk(5),
+                  Chunk(6),
+                  Chunk(7),
+                  Chunk(8),
+                  Chunk(9),
+                  Chunk(10)
+                )
+              )
+            )
+          }
+        ),
         suite("retry")(
           test("retry a failing stream") {
             assertZIO(
@@ -3344,10 +3562,17 @@ object ZStreamSpec extends ZIOBaseSpec {
           val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
           s1.some.runCollect.either.map(assert(_)(isLeft(isNone)))
         },
-        test("someOrElse") {
-          val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
-          s1.someOrElse(-1).runCollect.map(assert(_)(equalTo(Chunk(1, -1))))
-        },
+        suite("someOrElse")(
+          test("falls back to the default value if None") {
+            val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
+            s1.someOrElse(-1).runCollect.map(assert(_)(equalTo(Chunk(1, -1))))
+          },
+          test("works when the default is an instance of a covariant type constructor applied to Nothing") {
+            val stream =
+              ZStream.succeed(Some(List("s"))) ++ ZStream.succeed(Option.empty[List[String]])
+            stream.someOrElse(List.empty).runCollect.map(assert(_)(equalTo(Chunk(List("s"), List.empty))))
+          }
+        ),
         test("someOrFail") {
           val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
           s1.someOrFail(-1).runCollect.either.map(assert(_)(isLeft(equalTo(-1))))
@@ -3945,16 +4170,29 @@ object ZStreamSpec extends ZIOBaseSpec {
               _     <- fiber.interrupt
               value <- ref.get
             } yield assert(value)(equalTo(true))
+          },
+          test("should not interrupt children of a pending stream") {
+            val stream1 = (ZStream.succeed(0) ++ ZStream.fromZIO(ZIO.sleep(200.millis)).as(1))
+              .debounce(100.millis)
+
+            val stream2 = ZStream.succeed(42)
+
+            for {
+              fiber  <- (stream1 merge stream2).runCollect.fork
+              _      <- TestClock.adjust(10.millis).repeatN(30)
+              result <- fiber.join
+            } yield assertTrue(result == Chunk(42, 0, 1))
           }
         ) @@ TestAspect.timeout(40.seconds),
         suite("timeout")(
           test("succeed") {
-            assertZIO(
-              ZStream
-                .succeed(1)
-                .timeout(Duration.Infinity)
-                .runCollect
-            )(equalTo(Chunk(1)))
+            for {
+              streamOut <- ZStream
+                             .succeed(1)
+                             .timeout(Duration.Infinity)
+                             .runCollect
+              logs <- ZTestLogger.logOutput
+            } yield assert(streamOut)(equalTo(Chunk(1))) && assert(logs)(isEmpty)
           },
           test("should end stream") {
             assertZIO(
@@ -3968,6 +4206,15 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         suite("timeoutFail")(
           test("succeed") {
+            for {
+              streamOut <- ZStream
+                             .succeed(1)
+                             .timeoutFail("Boom!")(Duration.Infinity)
+                             .runCollect
+              logs <- ZTestLogger.logOutput
+            } yield assert(streamOut)(equalTo(Chunk(1))) && assert(logs)(isEmpty)
+          },
+          test("timeout failure") {
             assertZIO(
               ZStream
                 .range(0, 5)
@@ -3979,7 +4226,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .map(_.merge)
             )(isFalse)
           },
-          test("fail") {
+          test("stream failure") {
             for {
               error <- ZStream
                          .fail("OriginalError")

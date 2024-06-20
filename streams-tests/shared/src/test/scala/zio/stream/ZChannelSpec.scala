@@ -517,6 +517,16 @@ object ZChannelSpec extends ZIOBaseSpec {
               assertZIO(sums.get)(equalTo(Chunk(3, 7)))
           }
         },
+        test("pipeline with failure") {
+          val sut = ZChannel.fail("Boom") pipeToOrFail ZChannel
+            .readWithCause[Any, Nothing, Any, Any, String, Nothing, Unit](
+              _ => ZChannel.unit,
+              cause => ZChannel.refailCause(Cause.fail("kaboom") && cause),
+              _ => ZChannel.unit
+            )
+
+          assertZIO(sut.run.exit)(failsCause(containsCause(Cause.fail("Boom"))))
+        },
         test("resources") {
           Ref.make(Chunk[String]()).flatMap { events =>
             val left = ZChannel

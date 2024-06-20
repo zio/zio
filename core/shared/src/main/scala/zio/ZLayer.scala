@@ -211,8 +211,10 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def foldCauseLayer[E1, RIn1 <: RIn, ROut2](
     failure: Cause[E] => ZLayer[RIn1, E1, ROut2],
     success: ZEnvironment[ROut] => ZLayer[RIn1, E1, ROut2]
-  )(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut2] =
-    ZLayer.Fold(self, failure, success)
+  )(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut2] = {
+    val foldLayer = ZLayer.Fold(self, failure, success)
+    if (isFresh) ZLayer.Fresh(foldLayer) else foldLayer
+  }
 
   /**
    * Creates a fresh version of this layer that will not be shared.
@@ -491,6 +493,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[RIn, E, ROut] =
     ZLayer.fromZIO(zio)
 
+  /**
+   * A layer that succeeds with a unit value.
+   */
+  val unit: ULayer[Unit] = {
+    implicit val trace: Trace = Trace.empty
+    ZLayer.succeed(())
+  }
+
   object Derive {
 
     /**
@@ -649,9 +659,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
          */
         def mapZIO[R1 <: R, E1 >: E, B: Tag](
           k: A => ZIO[R1, E1, B]
-        )(implicit tag: Tag[A], trace: Trace): Default.WithContext[R1, E1, B] =
+        )(implicit tag: Tag[A], trace: Trace): Default.WithContext[R1, E1, B] = {
           // used explicit type parameters to prevent a random compile error
-          fromLayer[R1, E1, B](self.layer.flatMap[R1, E1, B](a => ZLayer[R1, E1, B](k(a.get[A])))) //
+          val layer0: ZLayer[R1, E1, A] = self.layer
+          fromLayer[R1, E1, B](layer0.flatMap[R1, E1, B](a => ZLayer[R1, E1, B](k(a.get[A]))))
+        }
       }
 
       implicit def deriveDefaultConfig[A: Tag](implicit

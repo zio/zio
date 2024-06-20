@@ -39,6 +39,9 @@ object RuntimeFlags {
   def disableAll(self: RuntimeFlags)(that: RuntimeFlags): RuntimeFlags =
     self & ~that
 
+  def eagerShiftBack(flags: RuntimeFlags): Boolean =
+    isEnabled(flags, RuntimeFlag.EagerShiftBack.mask)
+
   def enable(flags: RuntimeFlags)(flag: RuntimeFlag): RuntimeFlags =
     flags | flag.mask
 

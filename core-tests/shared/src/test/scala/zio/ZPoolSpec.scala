@@ -74,6 +74,20 @@ object ZPoolSpec extends ZIOBaseSpec {
             value  <- count.get
           } yield assertTrue(result == 2 && value == 10)
         } +
+        test("reallocate invalidated item on concurrent demand and maxed out pool size") {
+          ZIO.scoped {
+            for {
+              allocated      <- Ref.make(0)
+              finalized      <- Ref.make(0)
+              get             = ZIO.acquireRelease(allocated.updateAndGet(_ + 1))(_ => finalized.update(_ + 1))
+              pool           <- ZPool.make(get, 0 to 1, Duration.fromSeconds(100))
+              getZIO          = ZIO.scoped(pool.get.flatMap(pool.invalidate))
+              _              <- Live.live(ZIO.foreachPar(0 to 9)(_ => getZIO).disconnect.timeout(1.second))
+              allocatedCount <- allocated.get
+              finalizedCount <- finalized.get
+            } yield assertTrue(allocatedCount == 10 && finalizedCount == 10)
+          }
+        } +
         test("invalidate all items in pool and check that pool.get doesn't hang forever") {
           for {
             allocated      <- Ref.make(0)

@@ -3,9 +3,11 @@ package zio.test
 import zio._
 import zio.internal.stacktracer.SourceLocation
 import zio.test.SmartTestTypes._
+import zio.test.TestAspect.scala2Only
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
+import scala.util.Try
 
 object SmartAssertionSpec extends ZIOBaseSpec {
 
@@ -199,12 +201,33 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       val list: List[Int] = List(1, 2, 3, 4)
       assertTrue(list.filter(_ => false) == List.empty[Int])
     },
-    test("equalTo compiles when comparing different types") {
+    test("equalTo compiles when comparing different primitive types") {
       val a = 1
       val b = 1L
       assertTrue(a == b) && assertTrue(b == a)
     },
-    test("comparison compiles when comparing different types") {
+    test("equalTo compiles when comparing parent to child class") {
+      class A {
+        override def equals(o: Any): Boolean = true
+      }
+      class B extends A
+      val a = new A()
+      val b = new B()
+      assertTrue(a == b) && assertTrue(b == a)
+    },
+    test("equalTo does not compile when comparing unrelated types in Scala 2") {
+      val resultZIO = typeCheck("""
+      class A
+      class B
+      val a = new A()
+      val b = new B()
+      assertTrue(a == b) && assertTrue(b == a)
+      """)
+      for {
+        result <- resultZIO
+      } yield assertTrue(result.is(_.left).contains("type mismatch"))
+    } @@ scala2Only,
+    test("comparison compiles when comparing different primitive types") {
       val a  = 1
       val b  = 2
       val aL = 1L
@@ -446,6 +469,10 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         test("success") {
           val exit: Exit[Int, String] = Exit.succeed("Yes")
           assertTrue(exit.is(_.success) == "No")
+        },
+        test("cause") {
+          val exit: Exit[String, String] = Exit.succeed("Success!")
+          assertTrue(exit.is(_.cause) == Cause.fail("Fail!"))
         }
       ),
       suite("subtype")(
@@ -455,6 +482,16 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         }
       )
     ) @@ failing,
+    suite("Try")(
+      test("success") {
+        val tr: Try[Int] = Try(42)
+        assertTrue(tr.is(_.success) == 42)
+      },
+      test("failure") {
+        val tr: Try[Int] = Try(throw new Exception("FAIL!"))
+        assertTrue(tr.is(_.failure).getMessage == "FAIL!")
+      }
+    ),
     suite("is anything")(
       test("success") {
         val opt: Option[Int] = Option(1)

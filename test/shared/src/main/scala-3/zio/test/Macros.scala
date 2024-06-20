@@ -103,6 +103,14 @@ object SmartAssertMacros {
        val arrow = transformAs[Start, Cause[a]](lhs.asInstanceOf[Expr[TestLens[Cause[a]]]])(start)
        '{ $arrow >>> SmartAssertions.asCauseInterrupted }
 
+     case '{ type a; TestLensTryOps($lhs: TestLens[scala.util.Try[`a`]]).success } =>
+       val arrow = transformAs[Start, scala.util.Try[a]](lhs.asInstanceOf[Expr[TestLens[scala.util.Try[a]]]])(start)
+       '{ $arrow >>> SmartAssertions.asTrySuccess }
+
+     case '{ type a; TestLensTryOps($lhs: TestLens[scala.util.Try[`a`]]).failure } =>
+       val arrow = transformAs[Start, scala.util.Try[a]](lhs.asInstanceOf[Expr[TestLens[scala.util.Try[a]]]])(start)
+       '{ $arrow >>> SmartAssertions.asTryFailure }  
+
      case '{ type a; TestLensExitOps($lhs: TestLens[Exit[End, `a`]]).failure } =>
        val arrow = transformAs[Start, Exit[End, a]](lhs.asInstanceOf[Expr[TestLens[Exit[End, a]]]])(start)
        '{ $arrow >>> SmartAssertions.asExitFailure }
@@ -118,6 +126,10 @@ object SmartAssertMacros {
      case '{ type e; type a; TestLensExitOps($lhs: TestLens[Exit[`e`, `a`]]).interrupted } =>
        val arrow = transformAs[Start, Exit[e, a]](lhs.asInstanceOf[Expr[TestLens[Exit[e, a]]]])(start)
        '{ $arrow >>> SmartAssertions.asExitInterrupted }
+
+      case '{ type e; type a; TestLensExitOps($lhs: TestLens[Exit[`e`, `a`]]).cause } =>
+       val arrow = transformAs[Start, Exit[e, a]](lhs.asInstanceOf[Expr[TestLens[Exit[e, a]]]])(start)
+       '{ $arrow >>> SmartAssertions.asExitCause }
 
      case other =>
        start
