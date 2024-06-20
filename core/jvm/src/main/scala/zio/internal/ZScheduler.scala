@@ -418,7 +418,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
       }
 
       def markAsBlocking(workerIdx: Int, ignoreIfAutoBlocking: Boolean): Unit =
-        if (ignoreIfAutoBlocking && autoBlocking) ()
+        if (blocking || (ignoreIfAutoBlocking && autoBlocking)) ()
         else {
           blocking = true
           val workerId =
