@@ -621,7 +621,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   }
 
-  override def fix(implicit doc: SemanticDocument): Patch = {
+  override def fix(implicit doc: SemanticDocument): Patch =
     Zio2ZIOSpec.fix +
       doc.tree.collect {
         case BuiltInServiceFixer.ImporteeRenamer(patch) => patch
@@ -701,7 +701,6 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         case t @ ImporteeNameOrRename(FiberId_Old(_)) => Patch.removeImportee(t)
 
       }.asPatch + replaceSymbols
-  }
 
   /*
      Since this is now just a simple rename, I'm keeping this around a bit longer
@@ -714,14 +713,15 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
    */
   def fixProvides(implicit doc: SemanticDocument): Patch =
     doc.tree.collect {
-      case Term.Apply(
+      case Term.Apply.After_4_6_0(
             Term.Select(
               // TODO Keep an eye out for more Term types that `a` might be
-              a @ (Term.ApplyType(_, _) | Term.Select(_, _) | Term.Apply(_, _)),
+              a @ (Term.ApplyType.After_4_6_0(_, _) | Term.Select(_, _) | Term.Apply.After_4_6_0(_, _)),
               p @ Term.Name("provide")
             ),
-            List(args)
-          ) if a.symbol.owner.value.startsWith("zio") =>
+            argClause
+          ) if a.symbol.owner.value.startsWith("zio") && argClause.values.size == 1 =>
+        val List(args) = argClause.values
         Patch.addGlobalImport(Symbol("zio/ZEnvironment#")) +
           Patch.replaceTree(p, "provideEnvironment") +
           Patch.replaceTree(args, s"ZEnvironment($args)")
