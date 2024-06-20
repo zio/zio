@@ -16,10 +16,10 @@ object RuntimeSpecJVM extends ZIOBaseSpec {
         assertTrue(isFatal(fatal))
       },
       test("Runtime.unsafe.run doesn't deadlock when run within a fiber") {
-        val rtm = Runtime.default.unsafe
+        val rtm                     = Runtime.default.unsafe
         implicit val unsafe: Unsafe = Unsafe.unsafe
-        val promise = Promise.unsafe.make[Nothing, Unit](FiberId.None)
-        val effects = List.fill(50)(ZIO.succeed(rtm.run(ZIO.yieldNow *> promise.await)))
+        val promise                 = Promise.unsafe.make[Nothing, Unit](FiberId.None)
+        val effects                 = List.fill(50)(ZIO.succeed(rtm.run(ZIO.yieldNow *> promise.await)))
 
         for {
           f <- ZIO.collectAllPar(effects).forkDaemon
