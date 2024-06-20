@@ -721,7 +721,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
             ),
             argClause
           ) if a.symbol.owner.value.startsWith("zio") && argClause.values.size == 1 =>
-        val List(args) = argClause.values
+        val args = (argClause.values: @unchecked) match { case List(args) => args }
         Patch.addGlobalImport(Symbol("zio/ZEnvironment#")) +
           Patch.replaceTree(p, "provideEnvironment") +
           Patch.replaceTree(args, s"ZEnvironment($args)")
