@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{FiberRuntime, FiberScope, IsFatal, Platform, StackTraceBuilder}
+import zio.internal.{FiberRuntime, FiberScope, IsFatal, Platform, StackTraceBuilder, ZScheduler}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
@@ -138,6 +138,7 @@ trait Runtime[+R] { self =>
           fiber.tell(
             FiberMessage.Stateful(fiber => fiber.addObserver(exit => result.set(exit.asInstanceOf[Exit[E, A]])))
           )
+          Executor.signalBlocking()
           result.get()
         case Right(exit) => exit
       }

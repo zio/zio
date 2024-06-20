@@ -30,6 +30,7 @@ import scala.collection.mutable
  * Lerche. [[https://tokio.rs/blog/2019-10-scheduler]]
  */
 private final class ZScheduler(autoBlocking: Boolean) extends Executor {
+  import ZScheduler.workerOrNull
 
   private[this] val poolSize        = java.lang.Runtime.getRuntime.availableProcessors
   private[this] val globalQueue     = new PartitionedLinkedQueue[Runnable](poolSize * 4)
@@ -44,7 +45,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
 
   (0 until poolSize).foreach { workerId =>
     val worker = makeWorker()
-    worker.setName(s"ZScheduler-Worker-$workerId")
+    worker.setName(workerId)
     worker.setDaemon(true)
     workers(workerId) = worker
   }
@@ -137,16 +138,6 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
       false
     }
   }
-
-  /**
-   * If the current thread is a [[ZScheduler.Worker]] then it is returned,
-   * otherwise returns null
-   */
-  private def workerOrNull(): ZScheduler.Worker =
-    Thread.currentThread() match {
-      case w: ZScheduler.Worker => w
-      case _                    => null
-    }
 
   def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
     val worker = workerOrNull()
@@ -275,24 +266,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
                   }
                 }
                 previousOpCounts(workerId) = -1L
-                currentWorker.blocking = true
-                val runnables = currentWorker.localQueue.pollUpTo(256)
-                globalQueue.offerAll(runnables)
-                val worker = cache.poll()
-                if (worker eq null) {
-                  val worker = makeWorker()
-                  worker.setName(s"ZScheduler-Worker-$workerId")
-                  worker.setDaemon(true)
-                  workers(workerId) = worker
-                  worker.start()
-                } else {
-                  state.getAndIncrement()
-                  worker.setName(s"ZScheduler-Worker-$workerId")
-                  workers(workerId) = worker
-                  worker.blocking = false
-                  worker.active = true
-                  LockSupport.unpark(worker)
-                }
+                currentWorker.markAsBlocking(workerId)
               } else {
                 previousOpCounts(workerId) = currentOpCount
               }
@@ -442,6 +416,35 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
           }
         }
       }
+
+      def markAsBlocking(workerIdx: Int): Unit = {
+        blocking = true
+        val workerId =
+          if (workerIdx >= 0) workerIdx
+          else {
+            val i = workers.indexOf(self)
+            if (i >= 0) i else throw new Error("Catastrophic error: worker not found in workers array")
+          }
+
+        val runnables = self.localQueue.pollUpTo(256)
+        globalQueue.offerAll(runnables)
+        val worker = cache.poll()
+        if (worker eq null) {
+          val worker = makeWorker()
+          worker.setName(workerId)
+          worker.setDaemon(true)
+          workers(workerId) = worker
+          worker.start()
+        } else {
+          state.getAndIncrement()
+          worker.setName(workerId)
+          workers(workerId) = worker
+          worker.blocking = false
+          worker.active = true
+          LockSupport.unpark(worker)
+        }
+      }
+
     }
 
   private def maybeUnparkWorker(currentState: Int): Unit = {
@@ -462,6 +465,23 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
 }
 
 private object ZScheduler {
+
+  def markCurrentWorkerAsBlocking(): Unit = {
+    val worker = workerOrNull()
+    if (worker ne null) {
+      worker.markAsBlocking(-1)
+    }
+  }
+
+  /**
+   * If the current thread is a [[ZScheduler.Worker]] then it is returned,
+   * otherwise returns null
+   */
+  private def workerOrNull(): ZScheduler.Worker =
+    Thread.currentThread() match {
+      case w: ZScheduler.Worker => w
+      case _                    => null
+    }
 
   /**
    * `Locations` tracks the number of observations of a fiber forked from a
@@ -559,5 +579,9 @@ private object ZScheduler {
     var opCount: Long =
       0L
 
+    def markAsBlocking(workerIdx: Int): Unit
+
+    final def setName(i: Int): Unit =
+      setName(s"ZScheduler-Worker-$i")
   }
 }
