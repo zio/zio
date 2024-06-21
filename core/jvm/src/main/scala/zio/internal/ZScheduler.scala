@@ -153,22 +153,11 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
-      if (worker ne null) {
-        if (worker.blocking) {
-          globalQueue.offer(runnable)
-        } else if (worker.localQueue.offer(runnable)) {
-          if (worker.blocking) {
-            val runnable = worker.localQueue.poll(null)
-            if (runnable ne null) {
-              globalQueue.offer(runnable)
-            }
-          }
-        } else {
-          handleFullWorkerQueue(worker, runnable)
-        }
-      } else {
+      if ((worker eq null) || worker.blocking) {
         globalQueue.offer(runnable)
-      }
+      } else if (!worker.localQueue.offer(runnable)) {
+        handleFullWorkerQueue(worker, runnable)
+      } else ()
       val currentState = state.get
       maybeUnparkWorker(currentState)
       true
@@ -181,26 +170,15 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
       submitBlocking(runnable)
     } else {
       var notify = false
-      if (worker ne null) {
-        if (worker.blocking) {
-          globalQueue.offer(runnable)
-          notify = true
-        } else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
-          worker.nextRunnable = runnable
-        } else if (worker.localQueue.offer(runnable)) {
-          if (worker.blocking) {
-            val runnable = worker.localQueue.poll(null)
-            if (runnable ne null) {
-              globalQueue.offer(runnable)
-            }
-          }
-          notify = true
-        } else {
-          handleFullWorkerQueue(worker, runnable)
-          notify = true
-        }
-      } else {
+      if ((worker eq null) || worker.blocking) {
         globalQueue.offer(runnable)
+        notify = true
+      } else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
+        worker.nextRunnable = runnable
+      } else if (worker.localQueue.offer(runnable)) {
+        notify = true
+      } else {
+        handleFullWorkerQueue(worker, runnable)
         notify = true
       }
       if (notify) {
