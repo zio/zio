@@ -30,6 +30,7 @@ import scala.collection.mutable
  * Lerche. [[https://tokio.rs/blog/2019-10-scheduler]]
  */
 private final class ZScheduler(autoBlocking: Boolean) extends Executor {
+  import ZScheduler.workerOrNull
 
   private[this] val poolSize        = java.lang.Runtime.getRuntime.availableProcessors
   private[this] val globalQueue     = new PartitionedLinkedQueue[Runnable](poolSize * 4)
@@ -44,7 +45,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
 
   (0 until poolSize).foreach { workerId =>
     val worker = makeWorker()
-    worker.setName(s"ZScheduler-Worker-$workerId")
+    worker.setName(workerId)
     worker.setDaemon(true)
     workers(workerId) = worker
   }
@@ -137,16 +138,6 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
       false
     }
   }
-
-  /**
-   * If the current thread is a [[ZScheduler.Worker]] then it is returned,
-   * otherwise returns null
-   */
-  private def workerOrNull(): ZScheduler.Worker =
-    Thread.currentThread() match {
-      case w: ZScheduler.Worker => w
-      case _                    => null
-    }
 
   def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
     val worker = workerOrNull()
@@ -253,24 +244,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
                   }
                 }
                 previousOpCounts(workerId) = -1L
-                currentWorker.blocking = true
-                val runnables = currentWorker.localQueue.pollUpTo(256)
-                globalQueue.offerAll(runnables)
-                val worker = cache.poll()
-                if (worker eq null) {
-                  val worker = makeWorker()
-                  worker.setName(s"ZScheduler-Worker-$workerId")
-                  worker.setDaemon(true)
-                  workers(workerId) = worker
-                  worker.start()
-                } else {
-                  state.getAndIncrement()
-                  worker.setName(s"ZScheduler-Worker-$workerId")
-                  workers(workerId) = worker
-                  worker.blocking = false
-                  worker.active = true
-                  LockSupport.unpark(worker)
-                }
+                currentWorker.markAsBlocking()
               } else {
                 previousOpCounts(workerId) = currentOpCount
               }
@@ -290,7 +264,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
     }
 
   private[this] def makeWorker(): ZScheduler.Worker =
-    new ZScheduler.Worker { self =>
+    new ZScheduler.Worker {
+      self =>
       override val submittedLocations = makeLocations()
 
       override def run(): Unit = {
@@ -420,6 +395,35 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
           }
         }
       }
+
+      // NOTE: Synchronized block in case the supervisor attempts to mark the worker as blocking at the same time
+      // as an external call
+      def markAsBlocking(): Unit = synchronized {
+        if (blocking) ()
+        else {
+          blocking = true
+          val idx = workers.indexOf(self)
+          if (idx >= 0) {
+            val runnables = self.localQueue.pollUpTo(256)
+            globalQueue.offerAll(runnables)
+            val worker = cache.poll()
+            if (worker eq null) {
+              val worker = makeWorker()
+              worker.setName(idx)
+              worker.setDaemon(true)
+              workers(idx) = worker
+              worker.start()
+            } else {
+              state.getAndIncrement()
+              worker.setName(idx)
+              workers(idx) = worker
+              worker.blocking = false
+              worker.active = true
+              LockSupport.unpark(worker)
+            }
+          }
+        }
+      }
     }
 
   private def maybeUnparkWorker(currentState: Int): Unit = {
@@ -440,6 +444,25 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
 }
 
 private object ZScheduler {
+
+  def markCurrentWorkerAsBlocking(): Unit = {
+    val worker = workerOrNull()
+    if (worker ne null) {
+      worker.markAsBlocking()
+    } else {
+      ()
+    }
+  }
+
+  /**
+   * If the current thread is a [[ZScheduler.Worker]] then it is returned,
+   * otherwise returns null
+   */
+  private def workerOrNull(): ZScheduler.Worker =
+    Thread.currentThread() match {
+      case w: ZScheduler.Worker => w
+      case _                    => null
+    }
 
   /**
    * `Locations` tracks the number of observations of a fiber forked from a
@@ -537,5 +560,9 @@ private object ZScheduler {
     var opCount: Long =
       0L
 
+    def markAsBlocking(): Unit
+
+    final def setName(i: Int): Unit =
+      setName(s"ZScheduler-Worker-$i")
   }
 }
