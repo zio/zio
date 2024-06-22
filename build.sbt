@@ -219,6 +219,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     mimaBinaryIssueFilters ++= Seq(
       ProblemFilters.exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala$extension"),
       ProblemFilters.exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala")
+    )
   )
   .jsSettings(
     jsSettings,
