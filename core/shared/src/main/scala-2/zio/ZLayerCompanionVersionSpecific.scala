@@ -53,7 +53,7 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * val carLayer: URLayer[Wheels & Engine, Car] = ZLayer.derive[Car]
    * }}}
    */
-  def derive[A]: ZLayer[Nothing, Any, A] = macro zio.internal.macros.ZLayerDerivationMacros.deriveImpl[A]
+  def derive[A]: ZLayer[Any, Nothing, A] = macro zio.internal.macros.ZLayerDerivationMacros.deriveImpl[A]
 }
 
 final class MakePartiallyApplied[R](val dummy: Boolean = true) extends AnyVal {

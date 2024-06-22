@@ -41,13 +41,13 @@ trait ZLayerCompanionVersionSpecific {
 
   /**
    * Automatically derives a simple layer for the provided type.
-   * 
+   *
    * {{{
    * class Car(wheels: Wheels, engine: Engine) { /* ... */ }
-   * 
+   *
    * val carLayer: URLayer[Wheels & Engine, Car] = ZLayer.derive[Car]
    * }}}
    */
-  transparent inline def derive[A]: ZLayer[Nothing, Any, A] =
+  transparent inline def derive[A]: ZLayer[Any, Nothing, A] =
     ZLayerDerivationMacros.deriveLayer[A]
 }

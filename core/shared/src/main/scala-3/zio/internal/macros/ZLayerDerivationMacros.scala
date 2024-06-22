@@ -7,7 +7,7 @@ import zio.internal.ansi.AnsiStringOps
 
 object ZLayerDerivationMacros {
 
-  transparent inline def deriveLayer[A]: ZLayer[Nothing, Any, A] = ${ deriveLayerImpl[A] }
+  transparent inline def deriveLayer[A]: ZLayer[Any, Nothing, A] = ${ deriveLayerImpl[A] }
 
   def deriveLayerImpl[A: Type](using Quotes) = {
     import quotes.reflect._
@@ -159,9 +159,9 @@ object ZLayerDerivationMacros {
                 |The type information `R`, `E` in `ZLayer.Derive.Default[A]` for the parameter
                 |`${pName}` is missing. The resolved default instance is:
                 |
-                |  ${d.show}: ${d.asTerm.tpe.widen.show} 
+                |  ${d.show}: ${d.asTerm.tpe.widen.show}
                 |
-                |A frequent reason for this issue is using an incomplete type annotation like 
+                |A frequent reason for this issue is using an incomplete type annotation like
                 |`given ZLayer.Derive.Default[A] = ???`. This can lead to the loss of specific
                 |type details.
                 |
