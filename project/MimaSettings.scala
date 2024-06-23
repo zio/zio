@@ -29,7 +29,10 @@ object MimaSettings {
         exclude[ReversedMissingMethodProblem]("zio.Fiber#Runtime#UnsafeAPI.poll"),
         exclude[IncompatibleResultTypeProblem]("zio.stream.ZChannel#MergeState#BothRunning.*"),
         exclude[DirectMissingMethodProblem]("zio.stream.ZChannel#MergeState#BothRunning.copy"),
-        exclude[DirectMissingMethodProblem]("zio.stream.ZChannel#MergeState#BothRunning.*")
+        exclude[DirectMissingMethodProblem]("zio.stream.ZChannel#MergeState#BothRunning.*"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala$extension"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala$extension")
       ),
       mimaFailOnProblem := failOnProblem
     )
