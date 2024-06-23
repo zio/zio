@@ -642,7 +642,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         input    <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
         incoming  = ZChannel.fromInput(input)
         boundedIn = n < Int.MaxValue
-        ongoing <- if (boundedIn)
+        processing <- if (boundedIn)
                      Queue.bounded[(OutElem, Promise[Unit, OutElem2])](n)
                    else
                      Queue.unbounded[(OutElem, Promise[Unit, OutElem2])]
@@ -669,8 +669,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               (toComplete.fail(()), c0)
           }.flatten
 
-        def workerFiber: IO[Nothing, Fiber.Runtime[Nothing, Any]] =
-          ongoing.take.flatMap { case (inp, prom) => f(inp).flatMap(prom.succeed(_)) }.forever
+        val worker: IO[Nothing, Fiber.Runtime[Nothing, Any]] =
+          processing.take.flatMap { case (inp, prom) => f(inp).flatMap(prom.succeed(_)) }.forever
             .catchAllCause(signalFailure(_))
             .fork
             .provideEnvironment(env1)
@@ -680,25 +680,25 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             in => {
               ZChannel.unwrap {
                 for {
-                  prom <- Promise.make[Unit, OutElem2]
+                  result <- Promise.make[Unit, OutElem2]
                   workers <- {
-                    val offer = ongoing.offer((in, prom))
+                    val offer = processing.offer((in, result))
                     if (workers == n)
                       offer.as(n)
                     else if (boundedIn)
-                      offer *> workerFiber.as(workers + 1)
+                      offer *> worker.as(workers + 1)
                     else {
                       //when unbounded, we run the risk of spawning a fiber per message,
                       //even worse, each such fiber may end up processing one or less messages...
                       //in any case these fibers are kept as long as this channel is running which may incur waste of resources.
                       //this attempts to mitigate this by detecting scenarios where an idle worker was able to immediately pick the enqueued message, as a result we get a 'best effort' behavior of limiting the number of fibers.
-                      workerFiber.unlessZIO(ongoing.isEmpty).map {
+                      worker.unlessZIO(processing.isEmpty).map {
                         case Some(_) => workers + 1
                         case _       => workers
                       } <* offer
                     }
                   }
-                  _ <- outgoing.offer(prom)
+                  _ <- outgoing.offer(result)
                 } yield {
                   reader(workers)
                 }
@@ -710,9 +710,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                   //notice this publishes the failure signal and potentially invokes an already registered callback
                   _ <- signalFailure(err)
                   //this makes sure downstream sees an error, consider the case of an upstream failing before emitting any messages, or failing after a series of successful messages.
-                  prom <- Promise.make[Unit, Nothing]
-                  _    <- prom.fail(())
-                  _    <- outgoing.offer(prom)
+                  result <- Promise.make[Unit, Nothing]
+                  _    <- result.fail(())
+                  _    <- outgoing.offer(result)
                 } yield ()
               },
             done =>
@@ -733,8 +733,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         lazy val writer: ZChannel[Any, Any, Any, Any, OutErr1, OutElem2, OutDone] =
           ZChannel.unwrap {
             outgoing.take.flatMap {
-              case prom: Promise[Unit, OutElem2] @unchecked =>
-                prom.poll.flatMap {
+              case result: Promise[Unit, OutElem2] @unchecked =>
+                result.poll.flatMap {
                   case Some(exit) =>
                     //fast path, the promise is already completed
                     exit.foldCauseZIO(
@@ -745,8 +745,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                     //slow path, must subscribe on the failure coordinator
                     //in case the failure is already published the promise will be attempted to fail (may still success/fail according to the computation it represents)
                     //otherwise the callback is registered and we enter the wait knowing any failure will fail the promise
-                    registerCallback(prom) *>
-                      prom.await.foldCauseZIO(
+                    registerCallback(result) *>
+                      result.await.foldCauseZIO(
                         _ => cause.get.map(ZChannel.refailCause(_)),
                         out => ZIO.succeed(ZChannel.write(out) *> writer)
                       )
@@ -772,13 +772,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         input     <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
         incoming   = ZChannel.fromInput(input)
         boundedIn  = n < Int.MaxValue
-        ongoing   <- if (boundedIn) Queue.bounded[OutElem](n) else Queue.unbounded[OutElem]
+        processing   <- if (boundedIn) Queue.bounded[OutElem](n) else Queue.unbounded[OutElem]
         boundedOut = bufferSize < Int.MaxValue
         outgoing  <- if (boundedOut) Queue.bounded[Any](bufferSize) else Queue.unbounded[Any]
         cause     <- Ref.make[Cause[OutErr1]](Cause.empty)
       } yield {
         lazy val worker: IO[Nothing, Fiber.Runtime[Nothing, Boolean]] =
-          ongoing.take
+          processing.take
             .flatMap(f)
             .flatMap(outgoing.offer(_))
             .forever
@@ -793,14 +793,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           ZChannel.readWithCause(
             in =>
               if (workers < n)
-                ZChannel.fromZIO(worker.fork *> ongoing.offer(in)) *> reader(workers + 1, seenMessages + 1)
+                ZChannel.fromZIO(worker *> processing.offer(in)) *> reader(workers + 1, seenMessages + 1)
               else if (boundedIn)
-                ZChannel.fromZIO(ongoing.offer(in)) *> reader(workers, seenMessages + 1)
+                ZChannel.fromZIO(processing.offer(in)) *> reader(workers, seenMessages + 1)
               else
                 ZChannel.unwrap {
                   for {
-                    _ <- ongoing.offer(in)
-                    workers <- worker.whenZIO(ongoing.isEmpty).map {
+                    _ <- processing.offer(in)
+                    workers <- worker.whenZIO(processing.isEmpty).map {
                                  case Some(_) => workers + 1
                                  case None    => workers
                                }
