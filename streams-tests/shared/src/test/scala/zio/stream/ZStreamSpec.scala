@@ -4420,42 +4420,41 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("respects env") {
             val src: ZStream[Resource, Nothing, (Int, Resource)] = ZStream
               .range(0, 100, 10)
-              .mapZIO{a =>
-                ZIO.serviceWith[Resource]{resource =>
+              .mapZIO { a =>
+                ZIO.serviceWith[Resource] { resource =>
                   (a, resource)
                 }
               }
 
-            val pl0: ZPipeline[Any, Nothing, (Int, Resource), (Int, Resource, Scope)] = ZPipeline.fromFunction { strm: ZStream[Any, Nothing, (Int, Resource)] =>
-              ZStream
-                .unwrapScoped[Any] {
-                  ZIO.scopeWith { scope =>
-                    ZIO.succeed {
-                      ZStream
-                        .serviceWithStream[Scope] { scope2 =>
-                          strm.map{
-                            case (i, res) =>
+            val pl0: ZPipeline[Any, Nothing, (Int, Resource), (Int, Resource, Scope)] =
+              ZPipeline.fromFunction { strm: ZStream[Any, Nothing, (Int, Resource)] =>
+                ZStream
+                  .unwrapScoped[Any] {
+                    ZIO.scopeWith { scope =>
+                      ZIO.succeed {
+                        ZStream
+                          .serviceWithStream[Scope] { scope2 =>
+                            strm.map { case (i, res) =>
                               (i, res, scope2)
+                            }
                           }
-                        }
-                        .provideEnvironment(ZEnvironment(scope))
+                          .provideEnvironment(ZEnvironment(scope))
+                      }
                     }
                   }
-                }
-            }
+              }
 
             val strm: ZStream[Resource, Nothing, (Int, Resource, Scope)] = src >>> pl0
-            val z00: ZIO[Any, Nothing, Chunk[(Int, Resource, Scope)]] = strm.runCollect.provideLayer(ZLayer.succeed(Resource(12)))
-            z00.map{ chunk =>
-              zio.test.assertTrue{
+            val z00: ZIO[Any, Nothing, Chunk[(Int, Resource, Scope)]] =
+              strm.runCollect.provideLayer(ZLayer.succeed(Resource(12)))
+            z00.map { chunk =>
+              zio.test.assertTrue {
                 chunk.map(_._3).toSet.size == 1
               } &&
-              zio.test.assertTrue{
-                chunk
-                  .map{
-                    case (i, res, _) =>
-                      (i, res)
-                  } ==
+              zio.test.assertTrue {
+                chunk.map { case (i, res, _) =>
+                  (i, res)
+                } ==
                   Chunk.tabulate(100)((_, Resource(12)))
               }
             }
@@ -4463,31 +4462,30 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("respects env multiple levels") {
             val src = ZStream.range(0, 100, 10)
 
-            val pl1: ZPipeline[Any, Nothing, Int, (Int, Resource)] = ZPipeline.fromFunction{ strm : ZStream[Any, Nothing, Int] =>
-              strm
-                .mapZIO{i =>
-                  ZIO.serviceWith[Resource]{r =>
+            val pl1: ZPipeline[Any, Nothing, Int, (Int, Resource)] =
+              ZPipeline.fromFunction { strm: ZStream[Any, Nothing, Int] =>
+                strm.mapZIO { i =>
+                  ZIO.serviceWith[Resource] { r =>
                     (i, r)
                   }
                 }
-                .provideEnvironment(ZEnvironment(Resource(11)))
-            }
+                  .provideEnvironment(ZEnvironment(Resource(11)))
+              }
 
-            val pl2: ZPipeline[Any, Nothing, (Int, Resource), (Int, Resource, Resource)] = ZPipeline.fromFunction{ strm : ZStream[Any, Nothing, (Int, Resource)] =>
-              strm
-                .mapZIO{
-                  case (i, r0) =>
-                    ZIO.serviceWith[Resource]{r1 =>
-                      (i, r0, r1)
-                    }
+            val pl2: ZPipeline[Any, Nothing, (Int, Resource), (Int, Resource, Resource)] =
+              ZPipeline.fromFunction { strm: ZStream[Any, Nothing, (Int, Resource)] =>
+                strm.mapZIO { case (i, r0) =>
+                  ZIO.serviceWith[Resource] { r1 =>
+                    (i, r0, r1)
+                  }
                 }
-                .provideEnvironment(ZEnvironment(Resource(12)))
-            }
+                  .provideEnvironment(ZEnvironment(Resource(12)))
+              }
 
             val strm: ZStream[Any, Nothing, (Int, Resource, Resource)] = src >>> pl1 >>> pl2
             val z: ZIO[Any, Nothing, Chunk[(Int, Resource, Resource)]] = strm.runCollect
 
-            assertZIO(z){
+            assertZIO(z) {
               zio.test.Assertion.equalTo(zio.Chunk.tabulate(100)((_, Resource(11), Resource(12))))
             }
           }
@@ -5713,5 +5711,5 @@ object ZStreamSpec extends ZIOBaseSpec {
   val cat1: Cat   = Cat("cat1")
   val cat2: Cat   = Cat("cat2")
 
-  case class Resource(idx : Int)
+  case class Resource(idx: Int)
 }

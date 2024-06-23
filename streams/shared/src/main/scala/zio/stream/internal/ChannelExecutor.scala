@@ -250,12 +250,12 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
               //when input's provided env is null, we have to explicitly provide it with the 'outer' env
               //otherwise any env provided by downstream will override the 'correct' env when the input channel executes effects.
               val nextChannel = {
-                if(null != input.providedEnv)
+                if (null != input.providedEnv)
                   mkChannel(inpAsChannel.asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]])
                 else
                   ZChannel
                     .environment[Env]
-                    .flatMap{env =>
+                    .flatMap { env =>
                       mkChannel(inpAsChannel.provideEnvironment(env))
                     }
               }
