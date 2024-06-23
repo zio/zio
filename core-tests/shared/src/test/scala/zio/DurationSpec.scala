@@ -153,9 +153,6 @@ object DurationSpec extends ZIOBaseSpec {
       test("Infinity is not zero") {
         assert(Duration.Infinity.isZero)(equalTo(false))
       },
-      test("It converts into the infinite s.c.d.Duration") {
-        assert(Duration.Infinity.asScala)(equalTo(ScalaDuration.Inf: ScalaDuration))
-      },
       test("It converts into a Long.MaxValue second-long JDK Duration") {
         assert(Duration.Infinity)(equalTo(JavaDuration.ofNanos(Long.MaxValue)))
       },
