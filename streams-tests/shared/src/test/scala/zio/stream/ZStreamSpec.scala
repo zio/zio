@@ -4427,7 +4427,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               }
 
             val pl0: ZPipeline[Any, Nothing, (Int, Resource), (Int, Resource, Scope)] =
-              ZPipeline.fromFunction { strm: ZStream[Any, Nothing, (Int, Resource)] =>
+              ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, (Int, Resource)]) =>
                 ZStream
                   .unwrapScoped[Any] {
                     ZIO.scopeWith { scope =>
@@ -4463,7 +4463,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val src = ZStream.range(0, 100, 10)
 
             val pl1: ZPipeline[Any, Nothing, Int, (Int, Resource)] =
-              ZPipeline.fromFunction { strm: ZStream[Any, Nothing, Int] =>
+              ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, Int]) =>
                 strm.mapZIO { i =>
                   ZIO.serviceWith[Resource] { r =>
                     (i, r)
@@ -4473,7 +4473,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               }
 
             val pl2: ZPipeline[Any, Nothing, (Int, Resource), (Int, Resource, Resource)] =
-              ZPipeline.fromFunction { strm: ZStream[Any, Nothing, (Int, Resource)] =>
+              ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, (Int, Resource)]) =>
                 strm.mapZIO { case (i, r0) =>
                   ZIO.serviceWith[Resource] { r1 =>
                     (i, r0, r1)
