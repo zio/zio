@@ -16,11 +16,10 @@
 
 package zio
 
-import zio.internal.{FiberRuntime, FiberScope, IsFatal, Platform, StackTraceBuilder}
+import zio.internal.{FiberRuntime, FiberScope, IsFatal, Platform}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
-import java.lang.ref.WeakReference
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -138,6 +137,7 @@ trait Runtime[+R] { self =>
           fiber.tell(
             FiberMessage.Stateful(fiber => fiber.addObserver(exit => result.set(exit.asInstanceOf[Exit[E, A]])))
           )
+          internal.Blocking.signalBlocking()
           result.get()
         case Right(exit) => exit
       }

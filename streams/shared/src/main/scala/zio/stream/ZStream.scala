@@ -710,46 +710,43 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     import DebounceState._
     import HandoffSignal._
 
-    ZStream.unwrap(
-      ZIO.transplant { grafter =>
-        for {
-          d       <- ZIO.succeed(d)
-          handoff <- ZStream.Handoff.make[HandoffSignal[E, A]]
-        } yield {
-          def enqueue(last: Chunk[A]) =
-            for {
-              f <- grafter(Clock.sleep(d).as(last).fork)
-            } yield consumer(Previous(f))
+    ZStream.unwrapScopedWith { scope =>
+      for {
+        d       <- ZIO.succeed(d)
+        handoff <- ZStream.Handoff.make[HandoffSignal[E, A]]
+      } yield {
+        def enqueue(last: Chunk[A]) =
+          for {
+            f <- Clock.sleep(d).as(last).forkIn(scope)
+          } yield consumer(Previous(f))
 
-          lazy val producer: ZChannel[R, E, Chunk[A], Any, E, Nothing, Any] =
-            ZChannel.readWithCause(
-              (in: Chunk[A]) =>
-                in.lastOption.fold(producer) { last =>
-                  ZChannel.fromZIO(handoff.offer(Emit(Chunk.single(last)))) *> producer
-                },
-              (cause: Cause[E]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
-              (_: Any) => ZChannel.fromZIO(handoff.offer(End(ZStream.SinkEndReason.UpstreamEnd)))
-            )
+        lazy val producer: ZChannel[R, E, Chunk[A], Any, E, Nothing, Any] =
+          ZChannel.readWithCause(
+            (in: Chunk[A]) =>
+              in.lastOption.fold(producer) { last =>
+                ZChannel.fromZIO(handoff.offer(Emit(Chunk.single(last)))) *> producer
+              },
+            (cause: Cause[E]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
+            (_: Any) => ZChannel.fromZIO(handoff.offer(End(ZStream.SinkEndReason.UpstreamEnd)))
+          )
 
-          def consumer(state: DebounceState[E, A]): ZChannel[R, Any, Any, Any, E, Chunk[A], Any] =
-            ZChannel.unwrap(
-              state match {
-                case NotStarted =>
-                  handoff.take.map {
-                    case Emit(last) =>
-                      ZChannel.unwrap(enqueue(last))
-                    case HandoffSignal.Halt(error) =>
-                      ZChannel.refailCause(error)
-                    case HandoffSignal.End(_) =>
-                      ZChannel.unit
-                  }
-                case Current(fiber) =>
-                  fiber.join.map {
-                    case HandoffSignal.Emit(last)  => ZChannel.unwrap(enqueue(last))
-                    case HandoffSignal.Halt(error) => ZChannel.refailCause(error)
-                    case HandoffSignal.End(_)      => ZChannel.unit
-                  }
-                case Previous(fiber) =>
+        def consumer(state: DebounceState[E, A]): ZChannel[R, Any, Any, Any, E, Chunk[A], Any] =
+          ZChannel.unwrap(
+            state match {
+              case NotStarted =>
+                handoff.take.map {
+                  case HandoffSignal.Emit(last)  => ZChannel.unwrap(enqueue(last))
+                  case HandoffSignal.Halt(error) => ZChannel.refailCause(error)
+                  case HandoffSignal.End(_)      => ZChannel.unit
+                }
+              case Current(fiber) =>
+                fiber.join.map {
+                  case HandoffSignal.Emit(last)  => ZChannel.unwrap(enqueue(last))
+                  case HandoffSignal.Halt(error) => ZChannel.refailCause(error)
+                  case HandoffSignal.End(_)      => ZChannel.unit
+                }
+              case Previous(fiber) =>
+                handoff.take.forkIn(scope).flatMap { handoffFib =>
                   fiber.join
                     .raceWith[R, E, E, HandoffSignal[E, A], ZChannel[
                       R,
@@ -760,11 +757,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                       Chunk[A],
                       Any
                     ]](
-                      handoff.take
+                      handoffFib.join
                     )(
                       {
                         case (Exit.Success(a), current) =>
-                          ZIO.succeed(ZChannel.write(a) *> consumer(Current(current)))
+                          current.interrupt *> ZIO.succeed(ZChannel.write(a) *> consumer(Current(handoffFib)))
                         case (Exit.Failure(cause), current) =>
                           current.interrupt as ZChannel.refailCause(cause)
                       },
@@ -779,14 +776,14 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                           previous.interrupt as ZChannel.refailCause(cause)
                       }
                     )
-              }
-            )
+                }
+            }
+          )
 
-          ZStream.scopedWith(scope => (self.channel >>> producer).runIn(scope).forkIn(scope)) *>
-            new ZStream(consumer(NotStarted))
-        }
+        ZStream.scopedWith(scope => (self.channel >>> producer).runIn(scope).forkIn(scope)) *>
+          new ZStream(consumer(NotStarted))
       }
-    )
+    }
   }
 
   /**
@@ -1938,7 +1935,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   ): ZStream[R1, E1, A2] =
     self.toChannel
       .concatMap(ZChannel.writeChunk(_))
-      .mapOutZIOPar[R1, E1, Chunk[A2]](n, bufferSize)(a => f(a).map(Chunk.single(_)))
+      .mapOutZIOPar[R1, E1, Chunk[A2]](n, bufferSize max n)(a => f(a).map(Chunk.single(_)))
       .toStream
 
   /**
@@ -5718,31 +5715,63 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   private[zio] class Rechunker[A](n: Int) {
-    private var builder: ChunkBuilder[A] = ChunkBuilder.make(n)
-    private var pos: Int                 = 0
+    private var buffer: ChunkBuilder[A] = if (n > 1) ChunkBuilder.make(n) else null
+    private var pos: Int                = 0
 
-    def write(elem: A): Chunk[A] = {
-      builder += elem
-      pos += 1
-      if (pos == n) {
-        val result = builder.result()
-        builder = ChunkBuilder.make(n)
-        pos = 0
-        result
-      } else {
+    def isEmpty: Boolean = pos == 0
+
+    final def rechunk(
+      chunk: Chunk[A]
+    )(implicit trace: Trace): ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = {
+      val len = chunk.size
+      if (len == 0) {
         null
+      } else if (isEmpty && len == n) {
+        ZChannel.write(chunk)
+      } else if (n == 1) {
+        rechunk1(chunk, len)
+      } else {
+        var i = 0
+
+        var channel: ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = null
+
+        while (i < len) {
+          buffer += chunk(i)
+          i += 1
+          pos += 1
+          if (pos == n) {
+            val bufferResult = ZChannel.write(buffer.result())
+            channel =
+              if (channel eq null) bufferResult
+              else channel *> bufferResult
+            pos = 0
+            buffer = ChunkBuilder.make(n)
+          }
+        }
+
+        channel
       }
     }
 
-    def isEmpty: Boolean =
-      pos == 0
+    private def rechunk1(chunk: Chunk[A], len: Int)(implicit
+      trace: Trace
+    ): ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = {
+      var channel: ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = ZChannel.write(Chunk.single(chunk.head))
 
-    def emitIfNotEmpty()(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Unit] =
-      if (pos != 0) {
-        ZChannel.write(builder.result())
-      } else {
-        ZChannel.unit
+      var i = 1
+      while (i < len) {
+        val c = Chunk.single(chunk(i))
+        channel = channel *> ZChannel.write(c)
+        i += 1
       }
+
+      channel
+    }
+
+    def done()(implicit trace: Trace): ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] =
+      if (isEmpty) ZChannel.unit
+      else ZChannel.write(buffer.result())
+
   }
 
   private[zio] sealed trait SinkEndReason
