@@ -24,3 +24,6 @@ println("""```scala""")
 println("""testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")""")
 println("""```""")
 ```
+
+
+**NOTE**: In order to use the live version of a service in our tests, we can use some new helpful test aspects e.g `withLiveClock`, `withLiveConsole`, `withLiveRandom`, `withLiveSystem`, etc.
