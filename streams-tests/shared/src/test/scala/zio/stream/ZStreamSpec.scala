@@ -3873,7 +3873,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- stream.tapSink(sink).take(3).runDrain
               result <- ref.get
             } yield assertTrue(result <= 6)
-          },
+          } @@ nonFlaky,
           test("early termination with a slow sink") {
             for {
               ref    <- Ref.make(0)
