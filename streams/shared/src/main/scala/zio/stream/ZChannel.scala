@@ -643,9 +643,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         incoming  = ZChannel.fromInput(input)
         boundedIn = n < Int.MaxValue
         processing <- if (boundedIn)
-                     Queue.bounded[(OutElem, Promise[Unit, OutElem2])](n)
-                   else
-                     Queue.unbounded[(OutElem, Promise[Unit, OutElem2])]
+                        Queue.bounded[(OutElem, Promise[Unit, OutElem2])](n)
+                      else
+                        Queue.unbounded[(OutElem, Promise[Unit, OutElem2])]
         boundedOut    = bufferSize < Int.MaxValue
         outgoing     <- if (boundedOut) Queue.bounded[Any](bufferSize) else Queue.unbounded[Any]
         failureCoord <- Ref.make[Any](Promise.unsafe.make[Unit, OutElem2](FiberId.None)(Unsafe.unsafe))
@@ -711,8 +711,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                   _ <- signalFailure(err)
                   //this makes sure downstream sees an error, consider the case of an upstream failing before emitting any messages, or failing after a series of successful messages.
                   result <- Promise.make[Unit, Nothing]
-                  _    <- result.fail(())
-                  _    <- outgoing.offer(result)
+                  _      <- result.fail(())
+                  _      <- outgoing.offer(result)
                 } yield ()
               },
             done =>
@@ -739,7 +739,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                     //fast path, the promise is already completed
                     exit.foldCauseZIO(
                       _ => cause.get.map(ZChannel.refailCause(_)),
-                      out => ZIO.succeed(ZChannel.write(out) *> writer)
+                      out => Exit.succeed(ZChannel.write(out) *> writer)
                     )
                   case None =>
                     //slow path, must subscribe on the failure coordinator
@@ -748,7 +748,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                     registerCallback(result) *>
                       result.await.foldCauseZIO(
                         _ => cause.get.map(ZChannel.refailCause(_)),
-                        out => ZIO.succeed(ZChannel.write(out) *> writer)
+                        out => Exit.succeed(ZChannel.write(out) *> writer)
                       )
                 }
               case QRes(done: OutDone @unchecked) =>
@@ -768,14 +768,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
     ZChannel.unwrap {
       for {
-        env1      <- ZIO.environment[Env1]
-        input     <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
-        incoming   = ZChannel.fromInput(input)
-        boundedIn  = n < Int.MaxValue
-        processing   <- if (boundedIn) Queue.bounded[OutElem](n) else Queue.unbounded[OutElem]
-        boundedOut = bufferSize < Int.MaxValue
-        outgoing  <- if (boundedOut) Queue.bounded[Any](bufferSize) else Queue.unbounded[Any]
-        cause     <- Ref.make[Cause[OutErr1]](Cause.empty)
+        env1       <- ZIO.environment[Env1]
+        input      <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
+        incoming    = ZChannel.fromInput(input)
+        boundedIn   = n < Int.MaxValue
+        processing <- if (boundedIn) Queue.bounded[OutElem](n) else Queue.unbounded[OutElem]
+        boundedOut  = bufferSize < Int.MaxValue
+        outgoing   <- if (boundedOut) Queue.bounded[Any](bufferSize) else Queue.unbounded[Any]
+        cause      <- Ref.make[Cause[OutErr1]](Cause.empty)
       } yield {
         lazy val worker: IO[Nothing, Fiber.Runtime[Nothing, Boolean]] =
           processing.take
