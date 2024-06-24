@@ -3,6 +3,7 @@ import Dependencies._
 import MimaSettings.mimaSettings
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 import sbt.Keys
+import com.typesafe.tools.mima.core._
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
@@ -214,7 +215,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
   .jvmSettings(
     replSettings,
-    mimaSettings(failOnProblem = true)
+    mimaSettings(failOnProblem = true),
+    mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala$extension"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala")
+    )
   )
   .jsSettings(
     jsSettings,
@@ -363,6 +368,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams-tests"))
   .dependsOn(streams)
   .dependsOn(coreTests % "test->test;compile->compile")
+  .dependsOn(concurrent)
   .settings(stdSettings("streams-tests"))
   .settings(crossProjectSettings)
   .dependsOn(testRunner)
