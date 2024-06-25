@@ -173,7 +173,9 @@ final class DurationOps(private val duration: Duration) extends AnyVal {
     }
   }
 
-  def asScala: ScalaFiniteDuration = duration match {
+  def asScala: ScalaDuration = asFiniteDuration
+
+  def asFiniteDuration: ScalaFiniteDuration = duration match {
     case Duration.Zero => ScalaDuration.Zero
     case _             => ScalaFiniteDuration(duration.toNanos, TimeUnit.NANOSECONDS)
   }
