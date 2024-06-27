@@ -19,21 +19,28 @@ package zio
 import zio.internal.UpdateOrderLinkedMap
 
 import scala.annotation.tailrec
-import scala.collection.immutable.HashMap
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.util.control.ControlThrowable
 import scala.util.hashing.MurmurHash3
 
 final class ZEnvironment[+R] private (
   private val map: UpdateOrderLinkedMap[LightTypeTag, Any],
-  private var cache: HashMap[LightTypeTag, Any],
+  private val cache: mutable.HashMap[LightTypeTag, Any],
   private val scope: Scope
 ) extends Serializable { self =>
   import ZEnvironment.{ScopeTag, TaggedAny}
 
   @deprecated("Kept for binary compatibility only. Do not use", "2.1.2")
   private[ZEnvironment] def this(map: Map[LightTypeTag, Any], index: Int, cache: Map[LightTypeTag, Any] = Map.empty) =
-    this(UpdateOrderLinkedMap.fromMap(map), cache = HashMap.empty[LightTypeTag, Any] ++ cache, null)
+    this(UpdateOrderLinkedMap.fromMap(map), cache = mutable.HashMap.empty[LightTypeTag, Any] ++= cache, null)
+
+  @deprecated("Kept for binary compatibility only. Do not use", "2.1.5")
+  private[ZEnvironment] def this(
+    map: UpdateOrderLinkedMap[LightTypeTag, Any],
+    cache: immutable.HashMap[LightTypeTag, Any],
+    scope: Scope
+  ) =
+    this(map, cache = mutable.HashMap.empty[LightTypeTag, Any] ++= cache, scope)
 
   def ++[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.union[R1](that)
@@ -136,7 +143,7 @@ final class ZEnvironment[+R] private (
 
       new ZEnvironment(
         newMap,
-        cache = HashMap.empty,
+        cache = mutable.HashMap.empty[LightTypeTag, Any],
         scope = if (scopeTags.isEmpty) null else scope
       )
     }
@@ -177,7 +184,7 @@ final class ZEnvironment[+R] private (
       }
       val newScope = if (that.scope eq null) self.scope else that.scope
       // Reuse the cache of the right hand-side
-      new ZEnvironment(newMap, cache = that.cache, scope = newScope)
+      new ZEnvironment(newMap, cache = mutable.HashMap.empty ++= that.cache, scope = newScope)
     }
 
   /**
@@ -224,7 +231,8 @@ final class ZEnvironment[+R] private (
       private[ZEnvironment] def addService[A](tag: LightTypeTag, a: A)(implicit
         unsafe: Unsafe
       ): ZEnvironment[R with A] = {
-        val newCache = HashMap(tag -> a)
+        val newCache = mutable.HashMap.empty[LightTypeTag, Any]
+        newCache.update(tag, a)
         new ZEnvironment(map.updated(tag, a), cache = newCache, scope = scope)
       }
 
@@ -262,7 +270,7 @@ final class ZEnvironment[+R] private (
           if (service == null) {
             throw MissingService
           } else {
-            cache = self.cache.updated(tag, service)
+            self.cache.update(tag, service)
             service
           }
         }
@@ -340,7 +348,11 @@ object ZEnvironment {
    * The empty environment containing no services.
    */
   val empty: ZEnvironment[Any] =
-    new ZEnvironment[Any](UpdateOrderLinkedMap.empty, cache = HashMap.empty, scope = null)
+    new ZEnvironment[Any](
+      UpdateOrderLinkedMap.empty[LightTypeTag, Any],
+      cache = mutable.HashMap.empty[LightTypeTag, Any],
+      scope = null
+    )
 
   /**
    * A `Patch[In, Out]` describes an update that transforms a `ZEnvironment[In]`
