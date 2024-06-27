@@ -197,9 +197,9 @@ test("test clock") {
   val s1 = stream.take(30)
   val sink = ZSink.collectAll[Int]
   for {
-    _ <- TestClock.adjust(1.second)
-    .repeat(Schedule.recurs(30)).fork
-    runner <- s1.run(sink)
+    fiber <- s1.run(sink).fork
+    _ <- TestClock.adjust(1.second).repeat(Schedule.recurs(30))
+    runner <- fiber.join
   } yield assert(runner.size)(equalTo(30))
 }
 ```
@@ -221,11 +221,11 @@ test("live clock") {
   val s1 = stream.take(30)
   val sink = ZSink.collectAll[Int]
   for {
-    _ <- TestClock.adjust(1.second)
-    .repeat(Schedule.spaced(10.milliseconds)).fork
+    fiber <- TestClock.adjust(1.second).repeat(Schedule.spaced(10.milliseconds)).fork
+    _ <- fiber.join
     runner <- s1.run(sink)
   } yield assert(runner.size)(equalTo(30))
-} @@ withLiveClock
+} @@ TestAspect.withLiveClock
 ```
 
 Using this technique, we can simulate the advancement of 1 second in the test clock for every 10 milliseconds in real time using the live clock.
