@@ -47,6 +47,7 @@ object BuildHelper {
 
   def buildInfoSettings(packageName: String) =
     Seq(
+      // BuildInfoOption.ConstantValue required to disable assertions in FiberRuntime!
       buildInfoOptions += BuildInfoOption.ConstantValue,
       buildInfoKeys    := Seq[BuildInfoKey](organization, moduleName, name, version, scalaVersion, sbtVersion, isSnapshot),
       buildInfoPackage := packageName
