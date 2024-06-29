@@ -1488,8 +1488,8 @@ object FiberRuntime {
   private final val IgnoreContinuation: Any => Unit = _ => ()
 
   /**
-   * For Scala 3, `-X-elide-below` is ignored, and therefore we need to use an '''inlinable'''
-   * build-time constant to disable assertions
+   * For Scala 3, `-X-elide-below` is ignored, and therefore we need to use an
+   * '''inlinable''' build-time constant to disable assertions
    */
   private final val DisableAssertions = !BuildInfo.isSnapshot
 
