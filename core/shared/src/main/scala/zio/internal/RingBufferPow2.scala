@@ -26,7 +26,8 @@ private[zio] final class RingBufferPow2[A](val requestedCapacity: Int)
 
 private[zio] object RingBufferPow2 {
   def apply[A](requestedCapacity: Int): RingBufferPow2[A] = {
-    assert(requestedCapacity > 0)
+    // NOTE: Do not use `assert` as the compiler removes it in releases
+    require(requestedCapacity > 0)
 
     new RingBufferPow2(requestedCapacity)
   }
