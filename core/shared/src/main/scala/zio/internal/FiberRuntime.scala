@@ -37,7 +37,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   type Erased = ZIO.Erased
 
   import ZIO._
-  import FiberRuntime.{AsyncJump, EvaluationSignal}
+  import FiberRuntime.{AsyncJump, EvaluationSignal, DisableAssertions}
 
   private var _lastTrace      = fiberId.location
   private var _fiberRefs      = fiberRefs0
@@ -234,7 +234,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   @tailrec
   private def drainQueueOnCurrentThread(depth: Int): Unit = {
-    assert(running.get)
+    assert(DisableAssertions || running.get)
 
     var evaluationSignal: EvaluationSignal = EvaluationSignal.Continue
     try {
@@ -271,7 +271,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private def drainQueueLaterOnExecutor(): Unit = {
-    assert(running.get)
+    assert(DisableAssertions || running.get)
 
     runningExecutor = self.getCurrentExecutor()
     runningExecutor.submitOrThrow(self)(Unsafe.unsafe)
@@ -336,7 +336,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           processStatefulMessage(onFiber)
 
         case FiberMessage.Resume(nextEffect0) =>
-          assert(resumption eq null)
+          assert(DisableAssertions || (resumption eq null))
 
           resumption = nextEffect0.asInstanceOf[ZIO.Erased]
 
@@ -375,7 +375,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     initialDepth: Int,
     effect0: ZIO.Erased
   ): Exit[E, A] = {
-    assert(running.get)
+    assert(DisableAssertions || running.get)
 
     self._asyncContWith = null
     self._blockingOn = FiberRuntime.notBlockingOn
@@ -458,7 +458,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private def evaluateMessageWhileSuspended(depth: Int, fiberMessage: FiberMessage): EvaluationSignal = {
-    assert(running.get)
+    assert(DisableAssertions || running.get)
 
     fiberMessage match {
       case FiberMessage.InterruptSignal(cause) =>
@@ -923,7 +923,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     startStackIndex: Int,
     currentDepth: Int
   ): Exit[Any, Any] = {
-    assert(running.get)
+    assert(DisableAssertions || running.get)
 
     // Note that assigning `cur` as the result of `try` or `if` can cause Scalac to box local variables.
     var cur        = effect
@@ -1486,6 +1486,12 @@ object FiberRuntime {
   private final val StackIdxGcThreshold = 128
 
   private final val IgnoreContinuation: Any => Unit = _ => ()
+
+  /**
+   * For Scala 3, `-X-elide-below` is ignored, and therefore we need to use an
+   * '''inlinable''' build-time constant to disable assertions
+   */
+  private final val DisableAssertions = !BuildInfo.isSnapshot
 
   private type EvaluationSignal = Int
   private object EvaluationSignal {
