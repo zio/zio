@@ -569,6 +569,22 @@ object Fiber extends FiberPlatformSpecific {
     private[zio] def getFiberRefs(): FiberRefs
 
     /**
+     * Retrieves all fiber refs of the fiber. The flag is used to determine
+     * whether the FiberRefs should be updated to ensure that the RuntimeFlags
+     * within them are synchronized with the Fiber's state
+     *
+     * Use this method only if you are not interested in the runtime flags and
+     * want to maximize performance
+     *
+     * @param syncRuntimeFlags
+     *   whether the runtime flags contained within the FiberRefs will be
+     *   updated to the current value in the fiber's state
+     * @see
+     *   overloaded method for more info
+     */
+    private[zio] def getFiberRefs(syncRuntimeFlags: Boolean): FiberRefs
+
+    /**
      * Retrieves the executor that this effect is currently executing on.
      *
      * '''NOTE''': This method must be invoked by the fiber itself.

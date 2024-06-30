@@ -571,6 +571,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     _fiberRefs
   }
 
+  private[zio] def getFiberRefs(syncRuntimeFlags: Boolean): FiberRefs =
+    if (syncRuntimeFlags) getFiberRefs() else _fiberRefs
+
   /**
    * Retrieves the interrupted cause of the fiber, which will be `Cause.empty`
    * if the fiber has not been interrupted.
