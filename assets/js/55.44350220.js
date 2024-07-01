@@ -1913,7 +1913,7 @@ module.exports = register;
 /***/ (function(module) {
 
 /**
- * Copyright (c) 2016-2023, The Cytoscape Consortium.
+ * Copyright (c) 2016-2024, The Cytoscape Consortium.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the “Software”), to deal in
@@ -2028,6 +2028,57 @@ module.exports = register;
   }
   function _nonIterableRest() {
     throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+  }
+  function _createForOfIteratorHelper(o, allowArrayLike) {
+    var it = typeof Symbol !== "undefined" && o[Symbol.iterator] || o["@@iterator"];
+    if (!it) {
+      if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") {
+        if (it) o = it;
+        var i = 0;
+        var F = function () {};
+        return {
+          s: F,
+          n: function () {
+            if (i >= o.length) return {
+              done: true
+            };
+            return {
+              done: false,
+              value: o[i++]
+            };
+          },
+          e: function (e) {
+            throw e;
+          },
+          f: F
+        };
+      }
+      throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+    }
+    var normalCompletion = true,
+      didErr = false,
+      err;
+    return {
+      s: function () {
+        it = it.call(o);
+      },
+      n: function () {
+        var step = it.next();
+        normalCompletion = step.done;
+        return step;
+      },
+      e: function (e) {
+        didErr = true;
+        err = e;
+      },
+      f: function () {
+        try {
+          if (!normalCompletion && it.return != null) it.return();
+        } finally {
+          if (didErr) throw err;
+        }
+      }
+    };
   }
 
   var _window = typeof window === 'undefined' ? null : window; // eslint-disable-line no-undef
@@ -5230,15 +5281,19 @@ module.exports = register;
     return inBoundingBox(bb1, bb2.x1, bb2.y1) && inBoundingBox(bb1, bb2.x2, bb2.y2);
   };
   var roundRectangleIntersectLine = function roundRectangleIntersectLine(x, y, nodeX, nodeY, width, height, padding) {
-    var cornerRadius = getRoundRectangleRadius(width, height);
+    var radius = arguments.length > 7 && arguments[7] !== undefined ? arguments[7] : 'auto';
+    var cornerRadius = radius === 'auto' ? getRoundRectangleRadius(width, height) : radius;
     var halfWidth = width / 2;
     var halfHeight = height / 2;
+    cornerRadius = Math.min(cornerRadius, halfWidth, halfHeight);
+    var doWidth = cornerRadius !== halfWidth,
+      doHeight = cornerRadius !== halfHeight;
 
     // Check intersections with straight line segments
     var straightLineIntersections;
 
     // Top segment, left to right
-    {
+    if (doWidth) {
       var topStartX = nodeX - halfWidth + cornerRadius - padding;
       var topStartY = nodeY - halfHeight - padding;
       var topEndX = nodeX + halfWidth - cornerRadius + padding;
@@ -5250,7 +5305,7 @@ module.exports = register;
     }
 
     // Right segment, top to bottom
-    {
+    if (doHeight) {
       var rightStartX = nodeX + halfWidth + padding;
       var rightStartY = nodeY - halfHeight + cornerRadius - padding;
       var rightEndX = rightStartX;
@@ -5262,7 +5317,7 @@ module.exports = register;
     }
 
     // Bottom segment, left to right
-    {
+    if (doWidth) {
       var bottomStartX = nodeX - halfWidth + cornerRadius - padding;
       var bottomStartY = nodeY + halfHeight + padding;
       var bottomEndX = nodeX + halfWidth - cornerRadius + padding;
@@ -5274,7 +5329,7 @@ module.exports = register;
     }
 
     // Left segment, top to bottom
-    {
+    if (doHeight) {
       var leftStartX = nodeX - halfWidth - padding;
       var leftStartY = nodeY - halfHeight + cornerRadius - padding;
       var leftEndX = leftStartX;
@@ -5557,44 +5612,16 @@ module.exports = register;
     }
     return pointInsidePolygonPoints(x, y, points);
   };
-  var pointInsideRoundPolygon = function pointInsideRoundPolygon(x, y, basePoints, centerX, centerY, width, height) {
-    var cutPolygonPoints = new Array(basePoints.length);
-    var halfW = width / 2;
-    var halfH = height / 2;
-    var cornerRadius = getRoundPolygonRadius(width, height);
-    var squaredCornerRadius = cornerRadius * cornerRadius;
-    for (var i = 0; i < basePoints.length / 4; i++) {
-      var sourceUv = void 0,
-        destUv = void 0;
-      if (i === 0) {
-        sourceUv = basePoints.length - 2;
-      } else {
-        sourceUv = i * 4 - 2;
-      }
-      destUv = i * 4 + 2;
-      var px = centerX + halfW * basePoints[i * 4];
-      var py = centerY + halfH * basePoints[i * 4 + 1];
-      var cosTheta = -basePoints[sourceUv] * basePoints[destUv] - basePoints[sourceUv + 1] * basePoints[destUv + 1];
-      var offset = cornerRadius / Math.tan(Math.acos(cosTheta) / 2);
-      var cp0x = px - offset * basePoints[sourceUv];
-      var cp0y = py - offset * basePoints[sourceUv + 1];
-      var cp1x = px + offset * basePoints[destUv];
-      var cp1y = py + offset * basePoints[destUv + 1];
-      cutPolygonPoints[i * 4] = cp0x;
-      cutPolygonPoints[i * 4 + 1] = cp0y;
-      cutPolygonPoints[i * 4 + 2] = cp1x;
-      cutPolygonPoints[i * 4 + 3] = cp1y;
-      var orthx = basePoints[sourceUv + 1];
-      var orthy = -basePoints[sourceUv];
-      var cosAlpha = orthx * basePoints[destUv] + orthy * basePoints[destUv + 1];
-      if (cosAlpha < 0) {
-        orthx *= -1;
-        orthy *= -1;
-      }
-      var cx = cp0x + orthx * cornerRadius;
-      var cy = cp0y + orthy * cornerRadius;
-      var squaredDistance = Math.pow(cx - x, 2) + Math.pow(cy - y, 2);
-      if (squaredDistance <= squaredCornerRadius) {
+  var pointInsideRoundPolygon = function pointInsideRoundPolygon(x, y, basePoints, centerX, centerY, width, height, corners) {
+    var cutPolygonPoints = new Array(basePoints.length * 2);
+    for (var i = 0; i < corners.length; i++) {
+      var corner = corners[i];
+      cutPolygonPoints[i * 4 + 0] = corner.startX;
+      cutPolygonPoints[i * 4 + 1] = corner.startY;
+      cutPolygonPoints[i * 4 + 2] = corner.stopX;
+      cutPolygonPoints[i * 4 + 3] = corner.stopY;
+      var squaredDistance = Math.pow(corner.cx - x, 2) + Math.pow(corner.cy - y, 2);
+      if (squaredDistance <= Math.pow(corner.radius, 2)) {
         return true;
       }
     }
@@ -5827,55 +5854,27 @@ module.exports = register;
     }
     return intersections;
   };
-  var roundPolygonIntersectLine = function roundPolygonIntersectLine(x, y, basePoints, centerX, centerY, width, height, padding) {
+  var roundPolygonIntersectLine = function roundPolygonIntersectLine(x, y, basePoints, centerX, centerY, width, height, padding, corners) {
     var intersections = [];
     var intersection;
-    var lines = new Array(basePoints.length);
-    var halfW = width / 2;
-    var halfH = height / 2;
-    var cornerRadius = getRoundPolygonRadius(width, height);
-    for (var i = 0; i < basePoints.length / 4; i++) {
-      var sourceUv = void 0,
-        destUv = void 0;
+    var lines = new Array(basePoints.length * 2);
+    corners.forEach(function (corner, i) {
       if (i === 0) {
-        sourceUv = basePoints.length - 2;
+        lines[lines.length - 2] = corner.startX;
+        lines[lines.length - 1] = corner.startY;
       } else {
-        sourceUv = i * 4 - 2;
+        lines[i * 4 - 2] = corner.startX;
+        lines[i * 4 - 1] = corner.startY;
       }
-      destUv = i * 4 + 2;
-      var px = centerX + halfW * basePoints[i * 4];
-      var py = centerY + halfH * basePoints[i * 4 + 1];
-      var cosTheta = -basePoints[sourceUv] * basePoints[destUv] - basePoints[sourceUv + 1] * basePoints[destUv + 1];
-      var offset = cornerRadius / Math.tan(Math.acos(cosTheta) / 2);
-      var cp0x = px - offset * basePoints[sourceUv];
-      var cp0y = py - offset * basePoints[sourceUv + 1];
-      var cp1x = px + offset * basePoints[destUv];
-      var cp1y = py + offset * basePoints[destUv + 1];
-      if (i === 0) {
-        lines[basePoints.length - 2] = cp0x;
-        lines[basePoints.length - 1] = cp0y;
-      } else {
-        lines[i * 4 - 2] = cp0x;
-        lines[i * 4 - 1] = cp0y;
-      }
-      lines[i * 4] = cp1x;
-      lines[i * 4 + 1] = cp1y;
-      var orthx = basePoints[sourceUv + 1];
-      var orthy = -basePoints[sourceUv];
-      var cosAlpha = orthx * basePoints[destUv] + orthy * basePoints[destUv + 1];
-      if (cosAlpha < 0) {
-        orthx *= -1;
-        orthy *= -1;
-      }
-      var cx = cp0x + orthx * cornerRadius;
-      var cy = cp0y + orthy * cornerRadius;
-      intersection = intersectLineCircle(x, y, centerX, centerY, cx, cy, cornerRadius);
+      lines[i * 4] = corner.stopX;
+      lines[i * 4 + 1] = corner.stopY;
+      intersection = intersectLineCircle(x, y, centerX, centerY, corner.cx, corner.cy, corner.radius);
       if (intersection.length !== 0) {
         intersections.push(intersection[0], intersection[1]);
       }
-    }
-    for (var _i3 = 0; _i3 < lines.length / 4; _i3++) {
-      intersection = finiteLinesIntersect(x, y, centerX, centerY, lines[_i3 * 4], lines[_i3 * 4 + 1], lines[_i3 * 4 + 2], lines[_i3 * 4 + 3], false);
+    });
+    for (var i = 0; i < lines.length / 4; i++) {
+      intersection = finiteLinesIntersect(x, y, centerX, centerY, lines[i * 4], lines[i * 4 + 1], lines[i * 4 + 2], lines[i * 4 + 3], false);
       if (intersection.length !== 0) {
         intersections.push(intersection[0], intersection[1]);
       }
@@ -5883,11 +5882,11 @@ module.exports = register;
     if (intersections.length > 2) {
       var lowestIntersection = [intersections[0], intersections[1]];
       var lowestSquaredDistance = Math.pow(lowestIntersection[0] - x, 2) + Math.pow(lowestIntersection[1] - y, 2);
-      for (var _i4 = 1; _i4 < intersections.length / 2; _i4++) {
-        var squaredDistance = Math.pow(intersections[_i4 * 2] - x, 2) + Math.pow(intersections[_i4 * 2 + 1] - y, 2);
+      for (var _i3 = 1; _i3 < intersections.length / 2; _i3++) {
+        var squaredDistance = Math.pow(intersections[_i3 * 2] - x, 2) + Math.pow(intersections[_i3 * 2 + 1] - y, 2);
         if (squaredDistance <= lowestSquaredDistance) {
-          lowestIntersection[0] = intersections[_i4 * 2];
-          lowestIntersection[1] = intersections[_i4 * 2 + 1];
+          lowestIntersection[0] = intersections[_i3 * 2];
+          lowestIntersection[1] = intersections[_i3 * 2 + 1];
           lowestSquaredDistance = squaredDistance;
         }
       }
@@ -5928,17 +5927,17 @@ module.exports = register;
     // stretch factors
     var sx = 2 / (maxX - minX);
     var sy = 2 / (maxY - minY);
-    for (var _i5 = 0; _i5 < sides; _i5++) {
-      x = points[2 * _i5] = points[2 * _i5] * sx;
-      y = points[2 * _i5 + 1] = points[2 * _i5 + 1] * sy;
+    for (var _i4 = 0; _i4 < sides; _i4++) {
+      x = points[2 * _i4] = points[2 * _i4] * sx;
+      y = points[2 * _i4 + 1] = points[2 * _i4 + 1] * sy;
       minX = Math.min(minX, x);
       maxX = Math.max(maxX, x);
       minY = Math.min(minY, y);
       maxY = Math.max(maxY, y);
     }
     if (minY < -1) {
-      for (var _i6 = 0; _i6 < sides; _i6++) {
-        y = points[2 * _i6 + 1] = points[2 * _i6 + 1] + (-1 - minY);
+      for (var _i5 = 0; _i5 < sides; _i5++) {
+        y = points[2 * _i5 + 1] = points[2 * _i5 + 1] + (-1 - minY);
       }
     }
     return points;
@@ -12634,7 +12633,7 @@ module.exports = register;
               }
               updateBounds(bounds, ex1 - wHalf, ey1 - wHalf, ex2 + wHalf, ey2 + wHalf);
             }
-          } else if (curveStyle === 'bezier' || curveStyle === 'unbundled-bezier' || curveStyle === 'segments' || curveStyle === 'taxi') {
+          } else if (curveStyle === 'bezier' || curveStyle === 'unbundled-bezier' || curveStyle.endsWith('segments') || curveStyle.endsWith('taxi')) {
             var pts;
             switch (curveStyle) {
               case 'bezier':
@@ -12643,6 +12642,8 @@ module.exports = register;
                 break;
               case 'segments':
               case 'taxi':
+              case 'round-segments':
+              case 'round-taxi':
                 pts = rstyle.linePts;
                 break;
             }
@@ -18328,11 +18329,21 @@ module.exports = register;
       lineCap: {
         enums: ['butt', 'round', 'square']
       },
+      linePosition: {
+        enums: ['center', 'inside', 'outside']
+      },
+      lineJoin: {
+        enums: ['round', 'bevel', 'miter']
+      },
       borderStyle: {
         enums: ['solid', 'dotted', 'dashed', 'double']
       },
       curveStyle: {
-        enums: ['bezier', 'unbundled-bezier', 'haystack', 'segments', 'straight', 'straight-triangle', 'taxi']
+        enums: ['bezier', 'unbundled-bezier', 'haystack', 'segments', 'straight', 'straight-triangle', 'taxi', 'round-segments', 'round-taxi']
+      },
+      radiusType: {
+        enums: ['arc-radius', 'influence-radius'],
+        multiple: true
       },
       fontFamily: {
         regex: '^([\\w- \\"]+(?:\\s*,\\s*[\\w- \\"]+)*)$'
@@ -18363,6 +18374,13 @@ module.exports = register;
       },
       overlayShape: {
         enums: ['roundrectangle', 'round-rectangle', 'ellipse']
+      },
+      cornerRadius: {
+        number: true,
+        min: 0,
+        units: 'px|em',
+        implicitUnits: 'px',
+        enums: ['auto']
       },
       compoundIncludeLabels: {
         enums: ['include', 'exclude']
@@ -18740,6 +18758,9 @@ module.exports = register;
       name: 'overlay-shape',
       type: t.overlayShape,
       triggersBounds: diff.any
+    }, {
+      name: 'overlay-corner-radius',
+      type: t.cornerRadius
     }];
     var underlay = [{
       name: 'underlay-padding',
@@ -18756,6 +18777,9 @@ module.exports = register;
       name: 'underlay-shape',
       type: t.overlayShape,
       triggersBounds: diff.any
+    }, {
+      name: 'underlay-corner-radius',
+      type: t.cornerRadius
     }];
     var transition = [{
       name: 'transition-property',
@@ -18795,6 +18819,9 @@ module.exports = register;
       name: 'shape-polygon-points',
       type: t.polygonPointList,
       triggersBounds: diff.any
+    }, {
+      name: 'corner-radius',
+      type: t.cornerRadius
     }, {
       name: 'background-color',
       type: t.color
@@ -18842,6 +18869,21 @@ module.exports = register;
     }, {
       name: 'border-style',
       type: t.borderStyle
+    }, {
+      name: 'border-cap',
+      type: t.lineCap
+    }, {
+      name: 'border-join',
+      type: t.lineJoin
+    }, {
+      name: 'border-dash-pattern',
+      type: t.numbers
+    }, {
+      name: 'border-dash-offset',
+      type: t.number
+    }, {
+      name: 'border-position',
+      type: t.linePosition
     }];
     var nodeOutline = [{
       name: 'outline-color',
@@ -19008,6 +19050,14 @@ module.exports = register;
       type: t.numbers,
       triggersBounds: diff.any
     }, {
+      name: 'segment-radii',
+      type: t.numbers,
+      triggersBounds: diff.any
+    }, {
+      name: 'radius-type',
+      type: t.radiusType,
+      triggersBounds: diff.any
+    }, {
       name: 'taxi-turn',
       type: t.bidirectionalSizeMaybePercent,
       triggersBounds: diff.any
@@ -19018,6 +19068,10 @@ module.exports = register;
     }, {
       name: 'taxi-direction',
       type: t.axisDirection,
+      triggersBounds: diff.any
+    }, {
+      name: 'taxi-radius',
+      type: t.number,
       triggersBounds: diff.any
     }, {
       name: 'edge-distances',
@@ -19188,6 +19242,15 @@ module.exports = register;
       name: 'control-point-weight',
       pointsTo: 'control-point-weights'
     }, {
+      name: 'segment-distance',
+      pointsTo: 'segment-distances'
+    }, {
+      name: 'segment-weight',
+      pointsTo: 'segment-weights'
+    }, {
+      name: 'segment-radius',
+      pointsTo: 'segment-radii'
+    }, {
       name: 'edge-text-rotation',
       pointsTo: 'text-rotation'
     }, {
@@ -19304,10 +19367,12 @@ module.exports = register;
       'overlay-color': '#000',
       'overlay-padding': 10,
       'overlay-shape': 'round-rectangle',
+      'overlay-corner-radius': 'auto',
       'underlay-opacity': 0,
       'underlay-color': '#000',
       'underlay-padding': 10,
       'underlay-shape': 'round-rectangle',
+      'underlay-corner-radius': 'auto',
       'transition-property': 'none',
       'transition-duration': 0,
       'transition-delay': 0,
@@ -19337,6 +19402,11 @@ module.exports = register;
       'border-opacity': 1,
       'border-width': 0,
       'border-style': 'solid',
+      'border-dash-pattern': [4, 2],
+      'border-dash-offset': 0,
+      'border-cap': 'butt',
+      'border-join': 'miter',
+      'border-position': 'center',
       'outline-color': '#999',
       'outline-opacity': 1,
       'outline-width': 0,
@@ -19346,6 +19416,7 @@ module.exports = register;
       'width': 30,
       'shape': 'ellipse',
       'shape-polygon-points': '-1, -1,   1, -1,   1, 1,   -1, 1',
+      'corner-radius': 'auto',
       'bounds-expansion': 0,
       // node gradient
       'background-gradient-direction': 'to-bottom',
@@ -19399,7 +19470,10 @@ module.exports = register;
       'control-point-weights': 0.5,
       'segment-weights': 0.5,
       'segment-distances': 20,
+      'segment-radii': 15,
+      'radius-type': 'arc-radius',
       'taxi-turn': '50%',
+      'taxi-radius': 15,
       'taxi-turn-min-distance': 10,
       'taxi-direction': 'auto',
       'edge-distances': 'intersection',
@@ -23679,11 +23753,13 @@ var printLayoutInfo;
       var hw = width / 2;
       var hh = height / 2;
       var pos = node.position();
+      var cornerRadius = node.pstyle('corner-radius').value === 'auto' ? 'auto' : node.pstyle('corner-radius').pfValue;
+      var rs = node._private.rscratch;
       if (pos.x - hw <= x && x <= pos.x + hw // bb check x
       && pos.y - hh <= y && y <= pos.y + hh // bb check y
       ) {
         var shape = r.nodeShapes[self.getNodeShape(node)];
-        if (shape.checkPoint(x, y, 0, width, height, pos.x, pos.y)) {
+        if (shape.checkPoint(x, y, 0, width, height, pos.x, pos.y, cornerRadius, rs)) {
           addEle(node, 0);
           return true;
         }
@@ -23960,10 +24036,12 @@ var printLayoutInfo;
         var i1 = i2 - 2;
         dispX = pts[i2] - pts[i1];
         dispY = pts[i2 + 1] - pts[i1 + 1];
+      } else if (rs.isRound) {
+        dispX = rs.midVector[1];
+        dispY = -rs.midVector[0];
       } else {
         var i2 = pts.length / 2 - 1;
         var i1 = i2 - 2;
-        var i3 = i2 + 2;
         dispX = pts[i2] - pts[i1];
         dispY = pts[i2 + 1] - pts[i1 + 1];
       }
@@ -24004,7 +24082,7 @@ var printLayoutInfo;
     dispY *= -1;
     if (isSegments) {
       var pts = rs.allpts;
-      if (pts.length / 2 % 2 === 0) ; else {
+      if (pts.length / 2 % 2 === 0) ; else if (!rs.isRound) {
         var i2 = pts.length / 2 - 1;
         var i3 = i2 + 2;
         dispX = -(pts[i3] - pts[i2]);
@@ -24042,6 +24120,176 @@ var printLayoutInfo;
     cache[edgeWidth + ', ' + scale] = cachedVal;
     return cachedVal;
   };
+
+  /**
+   * Explained by Blindman67 at https://stackoverflow.com/a/44856925/11028828
+   */
+
+  // Declare reused variable to avoid reallocating variables every time the function is called
+  var x,
+    y,
+    v1 = {},
+    v2 = {},
+    sinA,
+    sinA90,
+    radDirection,
+    drawDirection,
+    angle,
+    halfAngle,
+    cRadius,
+    lenOut,
+    radius,
+    limit;
+  var startX, startY, stopX, stopY;
+  var lastPoint;
+
+  // convert 2 points into vector form, polar form, and normalised
+  var asVec = function asVec(p, pp, v) {
+    v.x = pp.x - p.x;
+    v.y = pp.y - p.y;
+    v.len = Math.sqrt(v.x * v.x + v.y * v.y);
+    v.nx = v.x / v.len;
+    v.ny = v.y / v.len;
+    v.ang = Math.atan2(v.ny, v.nx);
+  };
+  var invertVec = function invertVec(originalV, invertedV) {
+    invertedV.x = originalV.x * -1;
+    invertedV.y = originalV.y * -1;
+    invertedV.nx = originalV.nx * -1;
+    invertedV.ny = originalV.ny * -1;
+    invertedV.ang = originalV.ang > 0 ? -(Math.PI - originalV.ang) : Math.PI + originalV.ang;
+  };
+  var calcCornerArc = function calcCornerArc(previousPoint, currentPoint, nextPoint, radiusMax, isArcRadius) {
+    //-----------------------------------------
+    // Part 1
+    previousPoint !== lastPoint ? asVec(currentPoint, previousPoint, v1) : invertVec(v2, v1); // Avoid recalculating vec if it is the invert of the last one calculated
+    asVec(currentPoint, nextPoint, v2);
+    sinA = v1.nx * v2.ny - v1.ny * v2.nx;
+    sinA90 = v1.nx * v2.nx - v1.ny * -v2.ny;
+    angle = Math.asin(Math.max(-1, Math.min(1, sinA)));
+    if (Math.abs(angle) < 1e-6) {
+      x = currentPoint.x;
+      y = currentPoint.y;
+      cRadius = radius = 0;
+      return;
+    }
+    //-----------------------------------------
+    radDirection = 1;
+    drawDirection = false;
+    if (sinA90 < 0) {
+      if (angle < 0) {
+        angle = Math.PI + angle;
+      } else {
+        angle = Math.PI - angle;
+        radDirection = -1;
+        drawDirection = true;
+      }
+    } else {
+      if (angle > 0) {
+        radDirection = -1;
+        drawDirection = true;
+      }
+    }
+    if (currentPoint.radius !== undefined) {
+      radius = currentPoint.radius;
+    } else {
+      radius = radiusMax;
+    }
+    //-----------------------------------------
+    // Part 2
+    halfAngle = angle / 2;
+    //-----------------------------------------
+
+    limit = Math.min(v1.len / 2, v2.len / 2);
+    if (isArcRadius) {
+      //-----------------------------------------
+      // Part 3
+      lenOut = Math.abs(Math.cos(halfAngle) * radius / Math.sin(halfAngle));
+
+      //-----------------------------------------
+      // Special part A
+      if (lenOut > limit) {
+        lenOut = limit;
+        cRadius = Math.abs(lenOut * Math.sin(halfAngle) / Math.cos(halfAngle));
+      } else {
+        cRadius = radius;
+      }
+    } else {
+      lenOut = Math.min(limit, radius);
+      cRadius = Math.abs(lenOut * Math.sin(halfAngle) / Math.cos(halfAngle));
+    }
+    //-----------------------------------------
+
+    //-----------------------------------------
+    // Part 4
+    stopX = currentPoint.x + v2.nx * lenOut;
+    stopY = currentPoint.y + v2.ny * lenOut;
+    //-----------------------------------------
+    // Part 5
+    x = stopX - v2.ny * cRadius * radDirection;
+    y = stopY + v2.nx * cRadius * radDirection;
+    //-----------------------------------------
+    // Additional Part : calculate start point E
+    startX = currentPoint.x + v1.nx * lenOut;
+    startY = currentPoint.y + v1.ny * lenOut;
+
+    // Save last point to avoid recalculating vector when not needed
+    lastPoint = currentPoint;
+  };
+
+  /**
+   * Draw corner provided by {@link getRoundCorner}
+   *
+   * @param ctx :CanvasRenderingContext2D
+   * @param roundCorner {{cx:number, cy:number, radius:number, endAngle: number, startAngle: number, counterClockwise: boolean}}
+   */
+  function drawPreparedRoundCorner(ctx, roundCorner) {
+    if (roundCorner.radius === 0) ctx.lineTo(roundCorner.cx, roundCorner.cy);else ctx.arc(roundCorner.cx, roundCorner.cy, roundCorner.radius, roundCorner.startAngle, roundCorner.endAngle, roundCorner.counterClockwise);
+  }
+
+  /**
+   * Get round corner from a point and its previous and next neighbours in a path
+   *
+   * @param previousPoint {{x: number, y:number, radius: number?}}
+   * @param currentPoint {{x: number, y:number, radius: number?}}
+   * @param nextPoint {{x: number, y:number, radius: number?}}
+   * @param radiusMax :number
+   * @param isArcRadius :boolean
+   * @return {{
+   * cx:number, cy:number, radius:number,
+   * startX:number, startY:number,
+   * stopX:number, stopY: number,
+   * endAngle: number, startAngle: number, counterClockwise: boolean
+   * }}
+   */
+  function getRoundCorner(previousPoint, currentPoint, nextPoint, radiusMax) {
+    var isArcRadius = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : true;
+    if (radiusMax === 0 || currentPoint.radius === 0) return {
+      cx: currentPoint.x,
+      cy: currentPoint.y,
+      radius: 0,
+      startX: currentPoint.x,
+      startY: currentPoint.y,
+      stopX: currentPoint.x,
+      stopY: currentPoint.y,
+      startAngle: undefined,
+      endAngle: undefined,
+      counterClockwise: undefined
+    };
+    calcCornerArc(previousPoint, currentPoint, nextPoint, radiusMax, isArcRadius);
+    return {
+      cx: x,
+      cy: y,
+      radius: cRadius,
+      startX: startX,
+      startY: startY,
+      stopX: stopX,
+      stopY: stopY,
+      startAngle: v1.ang + Math.PI / 2 * radDirection,
+      endAngle: v2.ang - Math.PI / 2 * radDirection,
+      counterClockwise: drawDirection
+    };
+  }
 
   var BRp$c = {};
   BRp$c.findMidptPtsEtc = function (edge, pairInfo) {
@@ -24150,9 +24398,15 @@ var printLayoutInfo;
     var rs = edge._private.rscratch;
     var segmentWs = edge.pstyle('segment-weights');
     var segmentDs = edge.pstyle('segment-distances');
+    var segmentRs = edge.pstyle('segment-radii');
+    var segmentTs = edge.pstyle('radius-type');
     var segmentsN = Math.min(segmentWs.pfValue.length, segmentDs.pfValue.length);
+    var lastRadius = segmentRs.pfValue[segmentRs.pfValue.length - 1];
+    var lastRadiusType = segmentTs.pfValue[segmentTs.pfValue.length - 1];
     rs.edgeType = 'segments';
     rs.segpts = [];
+    rs.radii = [];
+    rs.isArcRadius = [];
     for (var s = 0; s < segmentsN; s++) {
       var w = segmentWs.pfValue[s];
       var d = segmentDs.pfValue[s];
@@ -24166,6 +24420,8 @@ var printLayoutInfo;
         y: midptPts.y1 * w1 + midptPts.y2 * w2
       };
       rs.segpts.push(adjustedMidpt.x + vectorNormInverse.x * d, adjustedMidpt.y + vectorNormInverse.y * d);
+      rs.radii.push(segmentRs.pfValue[s] !== undefined ? segmentRs.pfValue[s] : lastRadius);
+      rs.isArcRadius.push((segmentTs.pfValue[s] !== undefined ? segmentTs.pfValue[s] : lastRadiusType) === 'arc-radius');
     }
   };
   BRp$c.findLoopPoints = function (edge, pairInfo, i, edgeIsUnbundled) {
@@ -24415,6 +24671,12 @@ var printLayoutInfo;
         rs.segpts = [_x6, _y5, _x6, _y6];
       }
     }
+    if (rs.isRound) {
+      var radius = edge.pstyle('taxi-radius').value;
+      var isArcRadius = edge.pstyle('radius-type').value[0] === 'arc-radius';
+      rs.radii = new Array(rs.segpts.length / 2).fill(radius);
+      rs.isArcRadius = new Array(rs.segpts.length / 2).fill(isArcRadius);
+    }
   };
   BRp$c.tryToCorrectInvalidPoints = function (edge, pairInfo) {
     var rs = edge._private.rscratch;
@@ -24428,7 +24690,11 @@ var printLayoutInfo;
         tgtW = pairInfo.tgtW,
         tgtH = pairInfo.tgtH,
         srcShape = pairInfo.srcShape,
-        tgtShape = pairInfo.tgtShape;
+        tgtShape = pairInfo.tgtShape,
+        srcCornerRadius = pairInfo.srcCornerRadius,
+        tgtCornerRadius = pairInfo.tgtCornerRadius,
+        srcRs = pairInfo.srcRs,
+        tgtRs = pairInfo.tgtRs;
       var badStart = !number$1(rs.startX) || !number$1(rs.startY);
       var badAStart = !number$1(rs.arrowStartX) || !number$1(rs.arrowStartY);
       var badEnd = !number$1(rs.endX) || !number$1(rs.endY);
@@ -24475,7 +24741,7 @@ var printLayoutInfo;
           x: rs.ctrlpts[0] + cpM.x * 2 * radius,
           y: rs.ctrlpts[1] + cpM.y * 2 * radius
         };
-        var srcCtrlPtIntn = srcShape.intersectLine(srcPos.x, srcPos.y, srcW, srcH, cpProj.x, cpProj.y, 0);
+        var srcCtrlPtIntn = srcShape.intersectLine(srcPos.x, srcPos.y, srcW, srcH, cpProj.x, cpProj.y, 0, srcCornerRadius, srcRs);
         if (closeStartACp) {
           rs.ctrlpts[0] = rs.ctrlpts[0] + cpM.x * (minCpADist - startACpDist);
           rs.ctrlpts[1] = rs.ctrlpts[1] + cpM.y * (minCpADist - startACpDist);
@@ -24506,7 +24772,7 @@ var printLayoutInfo;
           x: rs.ctrlpts[0] + _cpM.x * 2 * _radius,
           y: rs.ctrlpts[1] + _cpM.y * 2 * _radius
         };
-        var tgtCtrlPtIntn = tgtShape.intersectLine(tgtPos.x, tgtPos.y, tgtW, tgtH, _cpProj.x, _cpProj.y, 0);
+        var tgtCtrlPtIntn = tgtShape.intersectLine(tgtPos.x, tgtPos.y, tgtW, tgtH, _cpProj.x, _cpProj.y, 0, tgtCornerRadius, tgtRs);
         if (closeEndACp) {
           rs.ctrlpts[0] = rs.ctrlpts[0] + _cpM.x * (minCpADist - endACpDist);
           rs.ctrlpts[1] = rs.ctrlpts[1] + _cpM.y * (minCpADist - endACpDist);
@@ -24559,6 +24825,24 @@ var printLayoutInfo;
       rs.allpts.push(rs.startX, rs.startY);
       rs.allpts.push.apply(rs.allpts, rs.segpts);
       rs.allpts.push(rs.endX, rs.endY);
+      if (rs.isRound) {
+        rs.roundCorners = [];
+        for (var i = 2; i + 3 < rs.allpts.length; i += 2) {
+          var radius = rs.radii[i / 2 - 1];
+          var isArcRadius = rs.isArcRadius[i / 2 - 1];
+          rs.roundCorners.push(getRoundCorner({
+            x: rs.allpts[i - 2],
+            y: rs.allpts[i - 1]
+          }, {
+            x: rs.allpts[i],
+            y: rs.allpts[i + 1],
+            radius: radius
+          }, {
+            x: rs.allpts[i + 2],
+            y: rs.allpts[i + 3]
+          }, radius, isArcRadius));
+        }
+      }
       if (rs.segpts.length % 4 === 0) {
         var i2 = rs.segpts.length / 2;
         var i1 = i2 - 2;
@@ -24566,8 +24850,24 @@ var printLayoutInfo;
         rs.midY = (rs.segpts[i1 + 1] + rs.segpts[i2 + 1]) / 2;
       } else {
         var _i = rs.segpts.length / 2 - 1;
-        rs.midX = rs.segpts[_i];
-        rs.midY = rs.segpts[_i + 1];
+        if (!rs.isRound) {
+          rs.midX = rs.segpts[_i];
+          rs.midY = rs.segpts[_i + 1];
+        } else {
+          var point = {
+            x: rs.segpts[_i],
+            y: rs.segpts[_i + 1]
+          };
+          var corner = rs.roundCorners[_i / 2];
+          var v = [point.x - corner.cx, point.y - corner.cy];
+          var factor = corner.radius / Math.sqrt(Math.pow(v[0], 2) + Math.pow(v[1], 2));
+          v = v.map(function (c) {
+            return c * factor;
+          });
+          rs.midX = corner.cx + v[0];
+          rs.midY = corner.cy + v[1];
+          rs.midVector = v;
+        }
       }
     }
   };
@@ -24627,7 +24927,7 @@ var printLayoutInfo;
         haystackEdges.push(edge);
         continue;
       }
-      var edgeIsUnbundled = curveStyle === 'unbundled-bezier' || curveStyle === 'segments' || curveStyle === 'straight' || curveStyle === 'straight-triangle' || curveStyle === 'taxi';
+      var edgeIsUnbundled = curveStyle === 'unbundled-bezier' || curveStyle.endsWith('segments') || curveStyle === 'straight' || curveStyle === 'straight-triangle' || curveStyle.endsWith('taxi');
       var edgeIsBezier = curveStyle === 'unbundled-bezier' || curveStyle === 'bezier';
       var src = _p.source;
       var tgt = _p.target;
@@ -24689,6 +24989,10 @@ var printLayoutInfo;
       var tgtH = pairInfo.tgtH = tgt.outerHeight();
       var srcShape = pairInfo.srcShape = r.nodeShapes[_this.getNodeShape(src)];
       var tgtShape = pairInfo.tgtShape = r.nodeShapes[_this.getNodeShape(tgt)];
+      var srcCornerRadius = pairInfo.srcCornerRadius = src.pstyle('corner-radius').value === 'auto' ? 'auto' : src.pstyle('corner-radius').pfValue;
+      var tgtCornerRadius = pairInfo.tgtCornerRadius = tgt.pstyle('corner-radius').value === 'auto' ? 'auto' : tgt.pstyle('corner-radius').pfValue;
+      var tgtRs = pairInfo.tgtRs = tgt._private.rscratch;
+      var srcRs = pairInfo.srcRs = src._private.rscratch;
       pairInfo.dirCounts = {
         'north': 0,
         'west': 0,
@@ -24703,7 +25007,7 @@ var printLayoutInfo;
         var _edge = pairInfo.eles[_i2];
         var rs = _edge[0]._private.rscratch;
         var _curveStyle = _edge.pstyle('curve-style').value;
-        var _edgeIsUnbundled = _curveStyle === 'unbundled-bezier' || _curveStyle === 'segments' || _curveStyle === 'taxi';
+        var _edgeIsUnbundled = _curveStyle === 'unbundled-bezier' || _curveStyle.endsWith('segments') || _curveStyle.endsWith('taxi');
 
         // whether the normalised pair order is the reverse of the edge's src-tgt order
         var edgeIsSwapped = !src.same(_edge.source());
@@ -24711,11 +25015,11 @@ var printLayoutInfo;
           pairInfo.calculatedIntersection = true;
 
           // pt outside src shape to calc distance/displacement from src to tgt
-          var srcOutside = srcShape.intersectLine(srcPos.x, srcPos.y, srcW, srcH, tgtPos.x, tgtPos.y, 0);
+          var srcOutside = srcShape.intersectLine(srcPos.x, srcPos.y, srcW, srcH, tgtPos.x, tgtPos.y, 0, srcCornerRadius, srcRs);
           var srcIntn = pairInfo.srcIntn = srcOutside;
 
           // pt outside tgt shape to calc distance/displacement from src to tgt
-          var tgtOutside = tgtShape.intersectLine(tgtPos.x, tgtPos.y, tgtW, tgtH, srcPos.x, srcPos.y, 0);
+          var tgtOutside = tgtShape.intersectLine(tgtPos.x, tgtPos.y, tgtW, tgtH, srcPos.x, srcPos.y, 0, tgtCornerRadius, tgtRs);
           var tgtIntn = pairInfo.tgtIntn = tgtOutside;
           var intersectionPts = pairInfo.intersectionPts = {
             x1: srcOutside[0],
@@ -24746,7 +25050,7 @@ var printLayoutInfo;
           };
 
           // if node shapes overlap, then no ctrl pts to draw
-          pairInfo.nodesOverlap = !number$1(l) || tgtShape.checkPoint(srcOutside[0], srcOutside[1], 0, tgtW, tgtH, tgtPos.x, tgtPos.y) || srcShape.checkPoint(tgtOutside[0], tgtOutside[1], 0, srcW, srcH, srcPos.x, srcPos.y);
+          pairInfo.nodesOverlap = !number$1(l) || tgtShape.checkPoint(srcOutside[0], srcOutside[1], 0, tgtW, tgtH, tgtPos.x, tgtPos.y, tgtCornerRadius, tgtRs) || srcShape.checkPoint(tgtOutside[0], tgtOutside[1], 0, srcW, srcH, srcPos.x, srcPos.y, srcCornerRadius, srcRs);
           pairInfo.vectorNormInverse = vectorNormInverse;
           swappedpairInfo = {
             nodesOverlap: pairInfo.nodesOverlap,
@@ -24795,13 +25099,14 @@ var printLayoutInfo;
         rs.nodesOverlap = passedPairInfo.nodesOverlap;
         rs.srcIntn = passedPairInfo.srcIntn;
         rs.tgtIntn = passedPairInfo.tgtIntn;
+        rs.isRound = _curveStyle.startsWith('round');
         if (hasCompounds && (src.isParent() || src.isChild() || tgt.isParent() || tgt.isChild()) && (src.parents().anySame(tgt) || tgt.parents().anySame(src) || src.same(tgt) && src.isParent())) {
           _this.findCompoundLoopPoints(_edge, passedPairInfo, _i2, _edgeIsUnbundled);
         } else if (src === tgt) {
           _this.findLoopPoints(_edge, passedPairInfo, _i2, _edgeIsUnbundled);
-        } else if (_curveStyle === 'segments') {
+        } else if (_curveStyle.endsWith('segments')) {
           _this.findSegmentsPoints(_edge, passedPairInfo);
-        } else if (_curveStyle === 'taxi') {
+        } else if (_curveStyle.endsWith('taxi')) {
           _this.findTaxiPoints(_edge, passedPairInfo);
         } else if (_curveStyle === 'straight' || !_edgeIsUnbundled && pairInfo.eles.length % 2 === 1 && _i2 === Math.floor(pairInfo.eles.length / 2)) {
           _this.findStraightEdgePoints(_edge);
@@ -24871,6 +25176,7 @@ var printLayoutInfo;
     var npos = node.position();
     var w = node.outerWidth();
     var h = node.outerHeight();
+    var rs = node._private.rscratch;
     if (prop.value.length === 2) {
       var p = [prop.pfValue[0], prop.pfValue[1]];
       if (prop.units[0] === '%') {
@@ -24888,7 +25194,7 @@ var printLayoutInfo;
 
       var l = 2 * Math.max(w, h);
       var _p = [npos.x + Math.cos(angle) * l, npos.y + Math.sin(angle) * l];
-      return r.nodeShapes[this.getNodeShape(node)].intersectLine(npos.x, npos.y, w, h, _p[0], _p[1], 0);
+      return r.nodeShapes[this.getNodeShape(node)].intersectLine(npos.x, npos.y, w, h, _p[0], _p[1], 0, node.pstyle('corner-radius').value === 'auto' ? 'auto' : node.pstyle('corner-radius').pfValue, rs);
     }
   };
   BRp$b.findEndpoints = function (edge) {
@@ -24902,6 +25208,8 @@ var printLayoutInfo;
     var srcArShape = edge.pstyle('source-arrow-shape').value;
     var tgtDist = edge.pstyle('target-distance-from-node').pfValue;
     var srcDist = edge.pstyle('source-distance-from-node').pfValue;
+    var srcRs = source._private.rscratch;
+    var tgtRs = target._private.rscratch;
     var curveStyle = edge.pstyle('curve-style').value;
     var rs = edge._private.rscratch;
     var et = rs.edgeType;
@@ -24915,8 +25223,10 @@ var printLayoutInfo;
     var overrideEndpts = self || taxi;
     var srcManEndpt = edge.pstyle('source-endpoint');
     var srcManEndptVal = overrideEndpts ? 'outside-to-node' : srcManEndpt.value;
+    var srcCornerRadius = source.pstyle('corner-radius').value === 'auto' ? 'auto' : source.pstyle('corner-radius').pfValue;
     var tgtManEndpt = edge.pstyle('target-endpoint');
     var tgtManEndptVal = overrideEndpts ? 'outside-to-node' : tgtManEndpt.value;
+    var tgtCornerRadius = target.pstyle('corner-radius').value === 'auto' ? 'auto' : target.pstyle('corner-radius').pfValue;
     rs.srcManEndpt = srcManEndpt;
     rs.tgtManEndpt = tgtManEndpt;
     var p1; // last known point of edge on target side
@@ -24948,7 +25258,7 @@ var printLayoutInfo;
       } else if (tgtManEndptVal === 'outside-to-line' || tgtManEndptVal === 'outside-to-line-or-label') {
         p1_i = [srcPos.x, srcPos.y];
       }
-      intersect = r.nodeShapes[this.getNodeShape(target)].intersectLine(tgtPos.x, tgtPos.y, target.outerWidth(), target.outerHeight(), p1_i[0], p1_i[1], 0);
+      intersect = r.nodeShapes[this.getNodeShape(target)].intersectLine(tgtPos.x, tgtPos.y, target.outerWidth(), target.outerHeight(), p1_i[0], p1_i[1], 0, tgtCornerRadius, tgtRs);
       if (tgtManEndptVal === 'outside-to-node-or-label' || tgtManEndptVal === 'outside-to-line-or-label') {
         var trs = target._private.rscratch;
         var lw = trs.labelWidth;
@@ -25009,7 +25319,7 @@ var printLayoutInfo;
       } else if (srcManEndptVal === 'outside-to-line' || srcManEndptVal === 'outside-to-line-or-label') {
         p2_i = [tgtPos.x, tgtPos.y];
       }
-      intersect = r.nodeShapes[this.getNodeShape(source)].intersectLine(srcPos.x, srcPos.y, source.outerWidth(), source.outerHeight(), p2_i[0], p2_i[1], 0);
+      intersect = r.nodeShapes[this.getNodeShape(source)].intersectLine(srcPos.x, srcPos.y, source.outerWidth(), source.outerHeight(), p2_i[0], p2_i[1], 0, srcCornerRadius, srcRs);
       if (srcManEndptVal === 'outside-to-node-or-label' || srcManEndptVal === 'outside-to-line-or-label') {
         var srs = source._private.rscratch;
         var _lw = srs.labelWidth;
@@ -27828,13 +28138,13 @@ var printLayoutInfo;
       renderer: this,
       name: name,
       points: points,
-      draw: function draw(context, centerX, centerY, width, height) {
+      draw: function draw(context, centerX, centerY, width, height, cornerRadius) {
         this.renderer.nodeShapeImpl('polygon', context, centerX, centerY, width, height, this.points);
       },
-      intersectLine: function intersectLine(nodeX, nodeY, width, height, x, y, padding) {
+      intersectLine: function intersectLine(nodeX, nodeY, width, height, x, y, padding, cornerRadius) {
         return polygonIntersectLine(x, y, this.points, nodeX, nodeY, width / 2, height / 2, padding);
       },
-      checkPoint: function checkPoint(x, y, padding, width, height, centerX, centerY) {
+      checkPoint: function checkPoint(x, y, padding, width, height, centerX, centerY, cornerRadius) {
         return pointInsidePolygon(x, y, this.points, centerX, centerY, width, height, [0, -1], padding);
       }
     };
@@ -27843,52 +28153,63 @@ var printLayoutInfo;
     return this.nodeShapes['ellipse'] = {
       renderer: this,
       name: 'ellipse',
-      draw: function draw(context, centerX, centerY, width, height) {
+      draw: function draw(context, centerX, centerY, width, height, cornerRadius) {
         this.renderer.nodeShapeImpl(this.name, context, centerX, centerY, width, height);
       },
-      intersectLine: function intersectLine(nodeX, nodeY, width, height, x, y, padding) {
+      intersectLine: function intersectLine(nodeX, nodeY, width, height, x, y, padding, cornerRadius) {
         return intersectLineEllipse(x, y, nodeX, nodeY, width / 2 + padding, height / 2 + padding);
       },
-      checkPoint: function checkPoint(x, y, padding, width, height, centerX, centerY) {
+      checkPoint: function checkPoint(x, y, padding, width, height, centerX, centerY, cornerRadius) {
         return checkInEllipse(x, y, width, height, centerX, centerY, padding);
       }
     };
   };
   BRp$2.generateRoundPolygon = function (name, points) {
-    // Pre-compute control points
-    // Since these points depend on the radius length (which in turns depend on the width/height of the node) we will only pre-compute
-    // the unit vectors.
-    // For simplicity the layout will be:
-    // [ p0, UnitVectorP0P1, p1, UniVectorP1P2, ..., pn, UnitVectorPnP0 ]
-    var allPoints = new Array(points.length * 2);
-    for (var i = 0; i < points.length / 2; i++) {
-      var sourceIndex = i * 2;
-      var destIndex = void 0;
-      if (i < points.length / 2 - 1) {
-        destIndex = (i + 1) * 2;
-      } else {
-        destIndex = 0;
-      }
-      allPoints[i * 4] = points[sourceIndex];
-      allPoints[i * 4 + 1] = points[sourceIndex + 1];
-      var xDest = points[destIndex] - points[sourceIndex];
-      var yDest = points[destIndex + 1] - points[sourceIndex + 1];
-      var norm = Math.sqrt(xDest * xDest + yDest * yDest);
-      allPoints[i * 4 + 2] = xDest / norm;
-      allPoints[i * 4 + 3] = yDest / norm;
-    }
     return this.nodeShapes[name] = {
       renderer: this,
       name: name,
-      points: allPoints,
-      draw: function draw(context, centerX, centerY, width, height) {
-        this.renderer.nodeShapeImpl('round-polygon', context, centerX, centerY, width, height, this.points);
+      points: points,
+      getOrCreateCorners: function getOrCreateCorners(centerX, centerY, width, height, cornerRadius, rs, field) {
+        if (rs[field] !== undefined && rs[field + '-cx'] === centerX && rs[field + '-cy'] === centerY) {
+          return rs[field];
+        }
+        rs[field] = new Array(points.length / 2);
+        rs[field + '-cx'] = centerX;
+        rs[field + '-cy'] = centerY;
+        var halfW = width / 2;
+        var halfH = height / 2;
+        cornerRadius = cornerRadius === 'auto' ? getRoundPolygonRadius(width, height) : cornerRadius;
+        var p = new Array(points.length / 2);
+        for (var _i = 0; _i < points.length / 2; _i++) {
+          p[_i] = {
+            x: centerX + halfW * points[_i * 2],
+            y: centerY + halfH * points[_i * 2 + 1]
+          };
+        }
+        var i,
+          p1,
+          p2,
+          p3,
+          len = p.length;
+        p1 = p[len - 1];
+        // for each point
+        for (i = 0; i < len; i++) {
+          p2 = p[i % len];
+          p3 = p[(i + 1) % len];
+          rs[field][i] = getRoundCorner(p1, p2, p3, cornerRadius);
+          p1 = p2;
+          p2 = p3;
+        }
+        return rs[field];
       },
-      intersectLine: function intersectLine(nodeX, nodeY, width, height, x, y, padding) {
-        return roundPolygonIntersectLine(x, y, this.points, nodeX, nodeY, width, height);
+      draw: function draw(context, centerX, centerY, width, height, cornerRadius, rs) {
+        this.renderer.nodeShapeImpl('round-polygon', context, centerX, centerY, width, height, this.points, this.getOrCreateCorners(centerX, centerY, width, height, cornerRadius, rs, 'drawCorners'));
       },
-      checkPoint: function checkPoint(x, y, padding, width, height, centerX, centerY) {
-        return pointInsideRoundPolygon(x, y, this.points, centerX, centerY, width, height);
+      intersectLine: function intersectLine(nodeX, nodeY, width, height, x, y, padding, cornerRadius, rs) {
+        return roundPolygonIntersectLine(x, y, this.points, nodeX, nodeY, width, height, padding, this.getOrCreateCorners(nodeX, nodeY, width, height, cornerRadius, rs, 'corners'));
+      },
+      checkPoint: function checkPoint(x, y, padding, width, height, centerX, centerY, cornerRadius, rs) {
+        return pointInsideRoundPolygon(x, y, this.points, centerX, centerY, width, height, this.getOrCreateCorners(centerX, centerY, width, height, cornerRadius, rs, 'corners'));
       }
     };
   };
@@ -27897,14 +28218,17 @@ var printLayoutInfo;
       renderer: this,
       name: 'round-rectangle',
       points: generateUnitNgonPointsFitToSquare(4, 0),
-      draw: function draw(context, centerX, centerY, width, height) {
-        this.renderer.nodeShapeImpl(this.name, context, centerX, centerY, width, height);
+      draw: function draw(context, centerX, centerY, width, height, cornerRadius) {
+        this.renderer.nodeShapeImpl(this.name, context, centerX, centerY, width, height, this.points, cornerRadius);
       },
-      intersectLine: function intersectLine(nodeX, nodeY, width, height, x, y, padding) {
-        return roundRectangleIntersectLine(x, y, nodeX, nodeY, width, height, padding);
+      intersectLine: function intersectLine(nodeX, nodeY, width, height, x, y, padding, cornerRadius) {
+        return roundRectangleIntersectLine(x, y, nodeX, nodeY, width, height, padding, cornerRadius);
       },
-      checkPoint: function checkPoint(x, y, padding, width, height, centerX, centerY) {
-        var cornerRadius = getRoundRectangleRadius(width, height);
+      checkPoint: function checkPoint(x, y, padding, width, height, centerX, centerY, cornerRadius) {
+        var halfWidth = width / 2;
+        var halfHeight = height / 2;
+        cornerRadius = cornerRadius === 'auto' ? getRoundRectangleRadius(width, height) : cornerRadius;
+        cornerRadius = Math.min(halfWidth, halfHeight, cornerRadius);
         var diam = cornerRadius * 2;
 
         // Check hBox
@@ -27918,22 +28242,22 @@ var printLayoutInfo;
         }
 
         // Check top left quarter circle
-        if (checkInEllipse(x, y, diam, diam, centerX - width / 2 + cornerRadius, centerY - height / 2 + cornerRadius, padding)) {
+        if (checkInEllipse(x, y, diam, diam, centerX - halfWidth + cornerRadius, centerY - halfHeight + cornerRadius, padding)) {
           return true;
         }
 
         // Check top right quarter circle
-        if (checkInEllipse(x, y, diam, diam, centerX + width / 2 - cornerRadius, centerY - height / 2 + cornerRadius, padding)) {
+        if (checkInEllipse(x, y, diam, diam, centerX + halfWidth - cornerRadius, centerY - halfHeight + cornerRadius, padding)) {
           return true;
         }
 
         // Check bottom right quarter circle
-        if (checkInEllipse(x, y, diam, diam, centerX + width / 2 - cornerRadius, centerY + height / 2 - cornerRadius, padding)) {
+        if (checkInEllipse(x, y, diam, diam, centerX + halfWidth - cornerRadius, centerY + halfHeight - cornerRadius, padding)) {
           return true;
         }
 
         // Check bottom left quarter circle
-        if (checkInEllipse(x, y, diam, diam, centerX - width / 2 + cornerRadius, centerY + height / 2 - cornerRadius, padding)) {
+        if (checkInEllipse(x, y, diam, diam, centerX - halfWidth + cornerRadius, centerY + halfHeight - cornerRadius, padding)) {
           return true;
         }
         return false;
@@ -27946,11 +28270,11 @@ var printLayoutInfo;
       name: 'cut-rectangle',
       cornerLength: getCutRectangleCornerLength(),
       points: generateUnitNgonPointsFitToSquare(4, 0),
-      draw: function draw(context, centerX, centerY, width, height) {
-        this.renderer.nodeShapeImpl(this.name, context, centerX, centerY, width, height);
+      draw: function draw(context, centerX, centerY, width, height, cornerRadius) {
+        this.renderer.nodeShapeImpl(this.name, context, centerX, centerY, width, height, null, cornerRadius);
       },
-      generateCutTrianglePts: function generateCutTrianglePts(width, height, centerX, centerY) {
-        var cl = this.cornerLength;
+      generateCutTrianglePts: function generateCutTrianglePts(width, height, centerX, centerY, cornerRadius) {
+        var cl = cornerRadius === 'auto' ? this.cornerLength : cornerRadius;
         var hh = height / 2;
         var hw = width / 2;
         var xBegin = centerX - hw;
@@ -27966,19 +28290,20 @@ var printLayoutInfo;
           bottomLeft: [xBegin + cl, yEnd, xBegin, yEnd - cl, xBegin + cl, yEnd - cl]
         };
       },
-      intersectLine: function intersectLine(nodeX, nodeY, width, height, x, y, padding) {
-        var cPts = this.generateCutTrianglePts(width + 2 * padding, height + 2 * padding, nodeX, nodeY);
+      intersectLine: function intersectLine(nodeX, nodeY, width, height, x, y, padding, cornerRadius) {
+        var cPts = this.generateCutTrianglePts(width + 2 * padding, height + 2 * padding, nodeX, nodeY, cornerRadius);
         var pts = [].concat.apply([], [cPts.topLeft.splice(0, 4), cPts.topRight.splice(0, 4), cPts.bottomRight.splice(0, 4), cPts.bottomLeft.splice(0, 4)]);
         return polygonIntersectLine(x, y, pts, nodeX, nodeY);
       },
-      checkPoint: function checkPoint(x, y, padding, width, height, centerX, centerY) {
+      checkPoint: function checkPoint(x, y, padding, width, height, centerX, centerY, cornerRadius) {
+        var cl = cornerRadius === 'auto' ? this.cornerLength : cornerRadius;
         // Check hBox
-        if (pointInsidePolygon(x, y, this.points, centerX, centerY, width, height - 2 * this.cornerLength, [0, -1], padding)) {
+        if (pointInsidePolygon(x, y, this.points, centerX, centerY, width, height - 2 * cl, [0, -1], padding)) {
           return true;
         }
 
         // Check vBox
-        if (pointInsidePolygon(x, y, this.points, centerX, centerY, width - 2 * this.cornerLength, height, [0, -1], padding)) {
+        if (pointInsidePolygon(x, y, this.points, centerX, centerY, width - 2 * cl, height, [0, -1], padding)) {
           return true;
         }
         var cutTrianglePts = this.generateCutTrianglePts(width, height, centerX, centerY);
@@ -27991,10 +28316,10 @@ var printLayoutInfo;
       renderer: this,
       name: 'barrel',
       points: generateUnitNgonPointsFitToSquare(4, 0),
-      draw: function draw(context, centerX, centerY, width, height) {
+      draw: function draw(context, centerX, centerY, width, height, cornerRadius) {
         this.renderer.nodeShapeImpl(this.name, context, centerX, centerY, width, height);
       },
-      intersectLine: function intersectLine(nodeX, nodeY, width, height, x, y, padding) {
+      intersectLine: function intersectLine(nodeX, nodeY, width, height, x, y, padding, cornerRadius) {
         // use two fixed t values for the bezier curve approximation
 
         var t0 = 0.15;
@@ -28063,7 +28388,7 @@ var printLayoutInfo;
         pts.bottomRight.isBottom = true;
         return pts;
       },
-      checkPoint: function checkPoint(x, y, padding, width, height, centerX, centerY) {
+      checkPoint: function checkPoint(x, y, padding, width, height, centerX, centerY, cornerRadius) {
         var curveConstants = getBarrelCurveConstants(width, height);
         var hOffset = curveConstants.heightOffset;
         var wOffset = curveConstants.widthOffset;
@@ -28129,10 +28454,10 @@ var printLayoutInfo;
       renderer: this,
       name: 'bottom-round-rectangle',
       points: generateUnitNgonPointsFitToSquare(4, 0),
-      draw: function draw(context, centerX, centerY, width, height) {
-        this.renderer.nodeShapeImpl(this.name, context, centerX, centerY, width, height);
+      draw: function draw(context, centerX, centerY, width, height, cornerRadius) {
+        this.renderer.nodeShapeImpl(this.name, context, centerX, centerY, width, height, this.points, cornerRadius);
       },
-      intersectLine: function intersectLine(nodeX, nodeY, width, height, x, y, padding) {
+      intersectLine: function intersectLine(nodeX, nodeY, width, height, x, y, padding, cornerRadius) {
         var topStartX = nodeX - (width / 2 + padding);
         var topStartY = nodeY - (height / 2 + padding);
         var topEndY = topStartY;
@@ -28141,10 +28466,10 @@ var printLayoutInfo;
         if (topIntersections.length > 0) {
           return topIntersections;
         }
-        return roundRectangleIntersectLine(x, y, nodeX, nodeY, width, height, padding);
+        return roundRectangleIntersectLine(x, y, nodeX, nodeY, width, height, padding, cornerRadius);
       },
-      checkPoint: function checkPoint(x, y, padding, width, height, centerX, centerY) {
-        var cornerRadius = getRoundRectangleRadius(width, height);
+      checkPoint: function checkPoint(x, y, padding, width, height, centerX, centerY, cornerRadius) {
+        cornerRadius = cornerRadius === 'auto' ? getRoundRectangleRadius(width, height) : cornerRadius;
         var diam = 2 * cornerRadius;
 
         // Check hBox
@@ -30020,7 +30345,6 @@ var printLayoutInfo;
     }
   };
 
-  /* global Path2D */
   var CRp$8 = {};
   CRp$8.drawEdge = function (context, edge, shiftToOriginWithBb) {
     var drawLabel = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : true;
@@ -30185,10 +30509,30 @@ var printLayoutInfo;
           }
           break;
         case 'straight':
-        case 'segments':
         case 'haystack':
           for (var _i = 2; _i + 1 < pts.length; _i += 2) {
             context.lineTo(pts[_i], pts[_i + 1]);
+          }
+          break;
+        case 'segments':
+          if (rs.isRound) {
+            var _iterator = _createForOfIteratorHelper(rs.roundCorners),
+              _step;
+            try {
+              for (_iterator.s(); !(_step = _iterator.n()).done;) {
+                var corner = _step.value;
+                drawPreparedRoundCorner(context, corner);
+              }
+            } catch (err) {
+              _iterator.e(err);
+            } finally {
+              _iterator.f();
+            }
+            context.lineTo(pts[pts.length - 2], pts[pts.length - 1]);
+          } else {
+            for (var _i2 = 2; _i2 + 1 < pts.length; _i2 += 2) {
+              context.lineTo(pts[_i2], pts[_i2 + 1]);
+            }
           }
           break;
       }
@@ -30373,6 +30717,8 @@ var printLayoutInfo;
     var shouldClip = clip === 'node';
     var imgOpacity = getIndexedStyle(node, 'background-image-opacity', 'value', index) * nodeOpacity;
     var smooth = getIndexedStyle(node, 'background-image-smoothing', 'value', index);
+    var cornerRadius = node.pstyle('corner-radius').value;
+    if (cornerRadius !== 'auto') cornerRadius = node.pstyle('corner-radius').pfValue;
     var imgW = img.width || img.cachedW;
     var imgH = img.height || img.cachedH;
 
@@ -30467,7 +30813,7 @@ var printLayoutInfo;
         if (rs.pathCache) {
           context.clip(rs.pathCache);
         } else {
-          r.nodeShapes[r.getNodeShape(node)].draw(context, nodeX, nodeY, nodeTW, nodeTH);
+          r.nodeShapes[r.getNodeShape(node)].draw(context, nodeX, nodeY, nodeTW, nodeTH, cornerRadius, rs);
           context.clip();
         }
       }
@@ -30478,7 +30824,7 @@ var printLayoutInfo;
     } else {
       var pattern = context.createPattern(img, repeat);
       context.fillStyle = pattern;
-      r.nodeShapes[r.getNodeShape(node)].draw(context, nodeX, nodeY, nodeTW, nodeTH);
+      r.nodeShapes[r.getNodeShape(node)].draw(context, nodeX, nodeY, nodeTW, nodeTH, cornerRadius, rs);
       context.translate(x, y);
       context.fill();
       context.translate(-x, -y);
@@ -30885,14 +31231,19 @@ var printLayoutInfo;
     var bgOpacity = node.pstyle('background-opacity').value * eleOpacity;
     var borderColor = node.pstyle('border-color').value;
     var borderStyle = node.pstyle('border-style').value;
+    var borderJoin = node.pstyle('border-join').value;
+    var borderCap = node.pstyle('border-cap').value;
+    var borderPosition = node.pstyle('border-position').value;
+    var borderPattern = node.pstyle('border-dash-pattern').pfValue;
+    var borderOffset = node.pstyle('border-dash-offset').pfValue;
     var borderOpacity = node.pstyle('border-opacity').value * eleOpacity;
     var outlineWidth = node.pstyle('outline-width').pfValue;
     var outlineColor = node.pstyle('outline-color').value;
     var outlineStyle = node.pstyle('outline-style').value;
     var outlineOpacity = node.pstyle('outline-opacity').value * eleOpacity;
     var outlineOffset = node.pstyle('outline-offset').value;
-    context.lineJoin = 'miter'; // so borders are square with the node shape
-
+    var cornerRadius = node.pstyle('corner-radius').value;
+    if (cornerRadius !== 'auto') cornerRadius = node.pstyle('corner-radius').pfValue;
     var setupShapeColor = function setupShapeColor() {
       var bgOpy = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : bgOpacity;
       r.eleFillStyle(context, node, bgOpy);
@@ -30911,7 +31262,7 @@ var printLayoutInfo;
 
     var getPath = function getPath(width, height, shape, points) {
       var pathCache = r.nodePathCache = r.nodePathCache || [];
-      var key = hashStrings(shape === 'polygon' ? shape + ',' + points.join(',') : shape, '' + height, '' + width);
+      var key = hashStrings(shape === 'polygon' ? shape + ',' + points.join(',') : shape, '' + height, '' + width, '' + cornerRadius);
       var cachedPath = pathCache[key];
       var path;
       var cacheHit = false;
@@ -30945,7 +31296,7 @@ var printLayoutInfo;
             y: 0
           };
         }
-        r.nodeShapes[r.getNodeShape(node)].draw(path || context, npos.x, npos.y, nodeWidth, nodeHeight);
+        r.nodeShapes[r.getNodeShape(node)].draw(path || context, npos.x, npos.y, nodeWidth, nodeHeight, cornerRadius, rs);
       }
       if (usePaths) {
         context.fill(path);
@@ -30984,7 +31335,7 @@ var printLayoutInfo;
         // redraw/restore path if steps after pie need it
         if (redrawShape) {
           if (!usePaths) {
-            r.nodeShapes[r.getNodeShape(node)].draw(context, pos.x, pos.y, nodeWidth, nodeHeight);
+            r.nodeShapes[r.getNodeShape(node)].draw(context, pos.x, pos.y, nodeWidth, nodeHeight, cornerRadius, rs);
           }
         }
       }
@@ -31005,7 +31356,8 @@ var printLayoutInfo;
     var drawBorder = function drawBorder() {
       if (borderWidth > 0) {
         context.lineWidth = borderWidth;
-        context.lineCap = 'butt';
+        context.lineCap = borderCap;
+        context.lineJoin = borderJoin;
         if (context.setLineDash) {
           // for very outofdate browsers
           switch (borderStyle) {
@@ -31013,7 +31365,8 @@ var printLayoutInfo;
               context.setLineDash([1, 1]);
               break;
             case 'dashed':
-              context.setLineDash([4, 2]);
+              context.setLineDash(borderPattern);
+              context.lineDashOffset = borderOffset;
               break;
             case 'solid':
             case 'double':
@@ -31021,10 +31374,21 @@ var printLayoutInfo;
               break;
           }
         }
-        if (usePaths) {
-          context.stroke(path);
+        if (borderPosition !== 'center') {
+          context.save();
+          context.lineWidth *= 2;
+          if (borderPosition === 'inside') {
+            usePaths ? context.clip(path) : context.clip();
+          } else {
+            var region = new Path2D();
+            region.rect(-nodeWidth / 2 - borderWidth, -nodeHeight / 2 - borderWidth, nodeWidth + 2 * borderWidth, nodeHeight + 2 * borderWidth);
+            region.addPath(path);
+            context.clip(region, 'evenodd');
+          }
+          usePaths ? context.stroke(path) : context.stroke();
+          context.restore();
         } else {
-          context.stroke();
+          usePaths ? context.stroke(path) : context.stroke();
         }
         if (borderStyle === 'double') {
           context.lineWidth = borderWidth / 3;
@@ -31072,8 +31436,11 @@ var printLayoutInfo;
           };
         }
         var shape = r.getNodeShape(node);
-        var scaleX = (nodeWidth + borderWidth + (outlineWidth + outlineOffset)) / nodeWidth;
-        var scaleY = (nodeHeight + borderWidth + (outlineWidth + outlineOffset)) / nodeHeight;
+        var bWidth = borderWidth;
+        if (borderPosition === 'inside') bWidth = 0;
+        if (borderPosition === 'outside') bWidth *= 2;
+        var scaleX = (nodeWidth + bWidth + (outlineWidth + outlineOffset)) / nodeWidth;
+        var scaleY = (nodeHeight + bWidth + (outlineWidth + outlineOffset)) / nodeHeight;
         var sWidth = nodeWidth * scaleX;
         var sHeight = nodeHeight * scaleY;
         var points = r.nodeShapes[shape].points;
@@ -31092,41 +31459,74 @@ var printLayoutInfo;
           var offsetX = 0;
           var offsetY = 0;
           if (shape === 'round-diamond') {
-            sMult = (borderWidth + outlineOffset + outlineWidth) * 1.4;
+            sMult = (bWidth + outlineOffset + outlineWidth) * 1.4;
           } else if (shape === 'round-heptagon') {
-            sMult = (borderWidth + outlineOffset + outlineWidth) * 1.075;
-            offsetY = -(borderWidth / 2 + outlineOffset + outlineWidth) / 35;
+            sMult = (bWidth + outlineOffset + outlineWidth) * 1.075;
+            offsetY = -(bWidth / 2 + outlineOffset + outlineWidth) / 35;
           } else if (shape === 'round-hexagon') {
-            sMult = (borderWidth + outlineOffset + outlineWidth) * 1.12;
+            sMult = (bWidth + outlineOffset + outlineWidth) * 1.12;
           } else if (shape === 'round-pentagon') {
-            sMult = (borderWidth + outlineOffset + outlineWidth) * 1.13;
-            offsetY = -(borderWidth / 2 + outlineOffset + outlineWidth) / 15;
+            sMult = (bWidth + outlineOffset + outlineWidth) * 1.13;
+            offsetY = -(bWidth / 2 + outlineOffset + outlineWidth) / 15;
           } else if (shape === 'round-tag') {
-            sMult = (borderWidth + outlineOffset + outlineWidth) * 1.12;
-            offsetX = (borderWidth / 2 + outlineWidth + outlineOffset) * .07;
+            sMult = (bWidth + outlineOffset + outlineWidth) * 1.12;
+            offsetX = (bWidth / 2 + outlineWidth + outlineOffset) * .07;
           } else if (shape === 'round-triangle') {
-            sMult = (borderWidth + outlineOffset + outlineWidth) * (Math.PI / 2);
-            offsetY = -(borderWidth + outlineOffset / 2 + outlineWidth) / Math.PI;
+            sMult = (bWidth + outlineOffset + outlineWidth) * (Math.PI / 2);
+            offsetY = -(bWidth + outlineOffset / 2 + outlineWidth) / Math.PI;
           }
           if (sMult !== 0) {
             scaleX = (nodeWidth + sMult) / nodeWidth;
-            scaleY = (nodeHeight + sMult) / nodeHeight;
+            sWidth = nodeWidth * scaleX;
+            if (!['round-hexagon', 'round-tag'].includes(shape)) {
+              scaleY = (nodeHeight + sMult) / nodeHeight;
+              sHeight = nodeHeight * scaleY;
+            }
           }
-          r.drawRoundPolygonPath(_path || context, npos.x + offsetX, npos.y + offsetY, nodeWidth * scaleX, nodeHeight * scaleY, points);
+          cornerRadius = cornerRadius === 'auto' ? getRoundPolygonRadius(sWidth, sHeight) : cornerRadius;
+          var halfW = sWidth / 2;
+          var halfH = sHeight / 2;
+          var radius = cornerRadius + (bWidth + outlineWidth + outlineOffset) / 2;
+          var p = new Array(points.length / 2);
+          var corners = new Array(points.length / 2);
+          for (var _i3 = 0; _i3 < points.length / 2; _i3++) {
+            p[_i3] = {
+              x: npos.x + offsetX + halfW * points[_i3 * 2],
+              y: npos.y + offsetY + halfH * points[_i3 * 2 + 1]
+            };
+          }
+          var _i2,
+            p1,
+            p2,
+            p3,
+            len = p.length;
+          p1 = p[len - 1];
+          // for each point
+          for (_i2 = 0; _i2 < len; _i2++) {
+            p2 = p[_i2 % len];
+            p3 = p[(_i2 + 1) % len];
+            corners[_i2] = getRoundCorner(p1, p2, p3, radius);
+            p1 = p2;
+            p2 = p3;
+          }
+          r.drawRoundPolygonPath(_path || context, npos.x + offsetX, npos.y + offsetY, nodeWidth * scaleX, nodeHeight * scaleY, points, corners);
         } else if (['roundrectangle', 'round-rectangle'].includes(shape)) {
-          r.drawRoundRectanglePath(_path || context, npos.x, npos.y, sWidth, sHeight);
+          cornerRadius = cornerRadius === 'auto' ? getRoundRectangleRadius(sWidth, sHeight) : cornerRadius;
+          r.drawRoundRectanglePath(_path || context, npos.x, npos.y, sWidth, sHeight, cornerRadius + (bWidth + outlineWidth + outlineOffset) / 2);
         } else if (['cutrectangle', 'cut-rectangle'].includes(shape)) {
-          r.drawCutRectanglePath(_path || context, npos.x, npos.y, sWidth, sHeight);
+          cornerRadius = cornerRadius === 'auto' ? getCutRectangleCornerLength() : cornerRadius;
+          r.drawCutRectanglePath(_path || context, npos.x, npos.y, sWidth, sHeight, null, cornerRadius + (bWidth + outlineWidth + outlineOffset) / 4);
         } else if (['bottomroundrectangle', 'bottom-round-rectangle'].includes(shape)) {
-          r.drawBottomRoundRectanglePath(_path || context, npos.x, npos.y, sWidth, sHeight);
+          cornerRadius = cornerRadius === 'auto' ? getRoundRectangleRadius(sWidth, sHeight) : cornerRadius;
+          r.drawBottomRoundRectanglePath(_path || context, npos.x, npos.y, sWidth, sHeight, cornerRadius + (bWidth + outlineWidth + outlineOffset) / 2);
         } else if (shape === "barrel") {
           r.drawBarrelPath(_path || context, npos.x, npos.y, sWidth, sHeight);
         } else if (shape.startsWith("polygon") || ['rhomboid', 'right-rhomboid', 'round-tag', 'tag', 'vee'].includes(shape)) {
-          var pad = (borderWidth + outlineWidth + outlineOffset) / nodeWidth;
+          var pad = (bWidth + outlineWidth + outlineOffset) / nodeWidth;
           points = joinLines(expandPolygon(points, pad));
           r.drawPolygonPath(_path || context, npos.x, npos.y, nodeWidth, nodeHeight, points);
         } else {
-          var _pad = (borderWidth + outlineWidth + outlineOffset) / nodeWidth;
+          var _pad = (bWidth + outlineWidth + outlineOffset) / nodeWidth;
           points = joinLines(expandPolygon(points, -_pad));
           r.drawPolygonPath(_path || context, npos.x, npos.y, nodeWidth, nodeHeight, points);
         }
@@ -31136,7 +31536,7 @@ var printLayoutInfo;
           context.stroke();
         }
         if (outlineStyle === 'double') {
-          context.lineWidth = borderWidth / 3;
+          context.lineWidth = bWidth / 3;
           var gco = context.globalCompositeOperation;
           context.globalCompositeOperation = 'destination-out';
           if (usePaths) {
@@ -31229,6 +31629,7 @@ var printLayoutInfo;
       var opacity = node.pstyle("".concat(overlayOrUnderlay, "-opacity")).value;
       var color = node.pstyle("".concat(overlayOrUnderlay, "-color")).value;
       var shape = node.pstyle("".concat(overlayOrUnderlay, "-shape")).value;
+      var radius = node.pstyle("".concat(overlayOrUnderlay, "-corner-radius")).value;
       if (opacity > 0) {
         pos = pos || node.position();
         if (nodeWidth == null || nodeHeight == null) {
@@ -31237,7 +31638,7 @@ var printLayoutInfo;
           nodeHeight = node.height() + 2 * _padding;
         }
         r.colorFillStyle(context, color[0], color[1], color[2], opacity);
-        r.nodeShapes[shape].draw(context, pos.x, pos.y, nodeWidth + padding * 2, nodeHeight + padding * 2);
+        r.nodeShapes[shape].draw(context, pos.x, pos.y, nodeWidth + padding * 2, nodeHeight + padding * 2, radius);
         context.fill();
       }
     };
@@ -31867,45 +32268,18 @@ var printLayoutInfo;
     }
     context.closePath();
   };
-  CRp$3.drawRoundPolygonPath = function (context, x, y, width, height, points) {
-    var halfW = width / 2;
-    var halfH = height / 2;
-    var cornerRadius = getRoundPolygonRadius(width, height);
-    if (context.beginPath) {
-      context.beginPath();
-    }
-    for (var _i = 0; _i < points.length / 4; _i++) {
-      var sourceUv = void 0,
-        destUv = void 0;
-      if (_i === 0) {
-        sourceUv = points.length - 2;
-      } else {
-        sourceUv = _i * 4 - 2;
-      }
-      destUv = _i * 4 + 2;
-      var px = x + halfW * points[_i * 4];
-      var py = y + halfH * points[_i * 4 + 1];
-      var cosTheta = -points[sourceUv] * points[destUv] - points[sourceUv + 1] * points[destUv + 1];
-      var offset = cornerRadius / Math.tan(Math.acos(cosTheta) / 2);
-      var cp0x = px - offset * points[sourceUv];
-      var cp0y = py - offset * points[sourceUv + 1];
-      var cp1x = px + offset * points[destUv];
-      var cp1y = py + offset * points[destUv + 1];
-      if (_i === 0) {
-        context.moveTo(cp0x, cp0y);
-      } else {
-        context.lineTo(cp0x, cp0y);
-      }
-      context.arcTo(px, py, cp1x, cp1y, cornerRadius);
-    }
+  CRp$3.drawRoundPolygonPath = function (context, x, y, width, height, points, corners) {
+    corners.forEach(function (corner) {
+      return drawPreparedRoundCorner(context, corner);
+    });
     context.closePath();
   };
 
   // Round rectangle drawing
-  CRp$3.drawRoundRectanglePath = function (context, x, y, width, height) {
+  CRp$3.drawRoundRectanglePath = function (context, x, y, width, height, radius) {
     var halfWidth = width / 2;
     var halfHeight = height / 2;
-    var cornerRadius = getRoundRectangleRadius(width, height);
+    var cornerRadius = radius === 'auto' ? getRoundRectangleRadius(width, height) : Math.min(radius, halfHeight, halfWidth);
     if (context.beginPath) {
       context.beginPath();
     }
@@ -31924,10 +32298,10 @@ var printLayoutInfo;
     context.lineTo(x, y - halfHeight);
     context.closePath();
   };
-  CRp$3.drawBottomRoundRectanglePath = function (context, x, y, width, height) {
+  CRp$3.drawBottomRoundRectanglePath = function (context, x, y, width, height, radius) {
     var halfWidth = width / 2;
     var halfHeight = height / 2;
-    var cornerRadius = getRoundRectangleRadius(width, height);
+    var cornerRadius = radius === 'auto' ? getRoundRectangleRadius(width, height) : radius;
     if (context.beginPath) {
       context.beginPath();
     }
@@ -31942,10 +32316,10 @@ var printLayoutInfo;
     context.lineTo(x, y - halfHeight);
     context.closePath();
   };
-  CRp$3.drawCutRectanglePath = function (context, x, y, width, height) {
+  CRp$3.drawCutRectanglePath = function (context, x, y, width, height, points, corners) {
     var halfWidth = width / 2;
     var halfHeight = height / 2;
-    var cornerLength = getCutRectangleCornerLength();
+    var cornerLength = corners === 'auto' ? getCutRectangleCornerLength() : corners;
     if (context.beginPath) {
       context.beginPath();
     }
@@ -32152,23 +32526,23 @@ var printLayoutInfo;
   };
 
   var CRp$1 = {};
-  CRp$1.nodeShapeImpl = function (name, context, centerX, centerY, width, height, points) {
+  CRp$1.nodeShapeImpl = function (name, context, centerX, centerY, width, height, points, corners) {
     switch (name) {
       case 'ellipse':
         return this.drawEllipsePath(context, centerX, centerY, width, height);
       case 'polygon':
         return this.drawPolygonPath(context, centerX, centerY, width, height, points);
       case 'round-polygon':
-        return this.drawRoundPolygonPath(context, centerX, centerY, width, height, points);
+        return this.drawRoundPolygonPath(context, centerX, centerY, width, height, points, corners);
       case 'roundrectangle':
       case 'round-rectangle':
-        return this.drawRoundRectanglePath(context, centerX, centerY, width, height);
+        return this.drawRoundRectanglePath(context, centerX, centerY, width, height, corners);
       case 'cutrectangle':
       case 'cut-rectangle':
-        return this.drawCutRectanglePath(context, centerX, centerY, width, height);
+        return this.drawCutRectanglePath(context, centerX, centerY, width, height, points, corners);
       case 'bottomroundrectangle':
       case 'bottom-round-rectangle':
-        return this.drawBottomRoundRectanglePath(context, centerX, centerY, width, height);
+        return this.drawBottomRoundRectanglePath(context, centerX, centerY, width, height, corners);
       case 'barrel':
         return this.drawBarrelPath(context, centerX, centerY, width, height);
     }
@@ -32809,7 +33183,7 @@ var printLayoutInfo;
     return style;
   };
 
-  var version = "3.28.1";
+  var version = "3.29.1";
 
   var cytoscape = function cytoscape(options) {
     // if no options specified, use default
