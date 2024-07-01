@@ -80,7 +80,7 @@ object SerializableSpec extends ZIOBaseSpec {
         returnedEnv <- serializeAndBack(env)
         computeV     = returnedEnv.get[Int]
       } yield assert(computeV)(equalTo(10))
-    },
+    } @@ exceptScala212,
     test("FiberStatus is serializable") {
       val list = List("1", "2", "3")
       val io   = ZIO.succeed(list)
