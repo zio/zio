@@ -218,7 +218,7 @@ final class ZEnvironment[+R] private (
     taggedIsSubtype(tag, ScopeTag)
 
   val unsafe: UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 =
-    new UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 {
+    new UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 with Serializable {
       private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A] =
         if (a.isInstanceOf[Scope] && isScopeTag(tag))
           addScope(a.asInstanceOf[Scope]).asInstanceOf[ZEnvironment[R with A]]

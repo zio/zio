@@ -2390,7 +2390,7 @@ sealed trait ZIO[-R, +E, +A]
    * predicate.
    */
   final def whenFiberRef[S](ref: => FiberRef[S])(f: S => Boolean)(implicit trace: Trace): ZIO[R, E, (S, Option[A])] =
-    ref.get.flatMap { s =>
+    ref.getWith { s =>
       if (f(s)) self.map(a => (s, Some(a)))
       else Exit.succeed((s, None))
     }
@@ -2859,7 +2859,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * on the blocking thread pool.
    */
   def blocking[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.blockingExecutor.flatMap(zio.onExecutor(_))
+    FiberRef.currentBlockingExecutor.getWith(zio.onExecutor(_))
 
   /**
    * Retrieves the executor for all blocking tasks.
@@ -4145,7 +4145,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def logSpan(label: => String): LogSpan = new LogSpan(() => label)
 
   def logSpanScoped(label: => String)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-    FiberRef.currentLogSpan.get.flatMap { stack =>
+    FiberRef.currentLogSpan.getWith { stack =>
       val instant = java.lang.System.currentTimeMillis()
       val logSpan = zio.LogSpan(label, instant)
 
@@ -5459,12 +5459,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: ZEnvironment[R] => A)(implicit trace: Trace): URIO[R, A] =
-      ZIO.environment.map(f)
+      ZIO.environmentWithZIO(env => ZIO.succeed(f(env)))
   }
 
   final class EnvironmentWithZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit trace: Trace): ZIO[R with R1, E, A] =
-      ZIO.environment.flatMap(f)
+      FiberRef.currentEnvironment.getWith(env => f(env.asInstanceOf[ZEnvironment[R]]))
   }
 
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
@@ -5500,10 +5500,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       tagged: Tag[Service],
       trace: Trace
     ): ZIO[R with Service, E, A] = {
-      implicit val tag = tagged.tag
-      ZIO.suspendSucceed {
-        FiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafe.get(tag)(Unsafe.unsafe)))
-      }
+      val tag = tagged.tag
+      FiberRef.currentEnvironment.getWith(environment => f(environment.unsafe.get(tag)(Unsafe.unsafe)))
     }
   }
 
@@ -5534,7 +5532,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     import zio.{LogSpan => ZioLogSpan}
 
     def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-      FiberRef.currentLogSpan.get.flatMap { stack =>
+      FiberRef.currentLogSpan.getWith { stack =>
         val instant = java.lang.System.currentTimeMillis()
         val logSpan = ZioLogSpan(label(), instant)
 

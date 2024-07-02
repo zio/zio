@@ -24,7 +24,7 @@ import scala.util.hashing.MurmurHash3
 private[zio] final class UpdateOrderLinkedMap[K, +V](
   fields: Vector[Any],
   underlying: HashMap[K, (Int, V)]
-) { self =>
+) extends Serializable { self =>
   import UpdateOrderLinkedMap._
 
   def size: Int = underlying.size
@@ -89,6 +89,7 @@ private[zio] final class UpdateOrderLinkedMap[K, +V](
 
   def iterator: Iterator[(K, V)] = iteratorLz.iterator
 
+  @transient
   private[this] lazy val iteratorLz: LzList[(K, V)] = {
     val it = iterator0
     def loop(): LzList[(K, V)] =
@@ -121,6 +122,7 @@ private[zio] final class UpdateOrderLinkedMap[K, +V](
 
   def reverseIterator: Iterator[(K, V)] = reverseIteratorLz.iterator
 
+  @transient
   private[this] lazy val reverseIteratorLz: LzList[(K, V)] = {
     val it = reverseIterator0
     def loop(): LzList[(K, V)] =

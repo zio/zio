@@ -50,7 +50,7 @@ object SerializableSpec extends ZIOBaseSpec {
         v2                      <- returnQueue.take
       } yield assert(v1)(equalTo(10)) &&
         assert(v2)(equalTo(20))
-    } @@ exceptScala3,
+    },
     test("Ref is serializable") {
       val current = "This is some value"
       for {
@@ -68,10 +68,17 @@ object SerializableSpec extends ZIOBaseSpec {
       } yield assert(result)(equalTo(list))
     },
     test("ZIO is serializable") {
-      val v = ZIO.service[Int].map(_ + 1)
+      val v = ZIO.service[Int].map(_ + 1).provideEnvironment(ZEnvironment(9))
       for {
         returnZIO <- serializeAndBack(v)
-        computeV  <- returnZIO.provideEnvironment(ZEnvironment(9))
+        computeV  <- returnZIO
+      } yield assert(computeV)(equalTo(10))
+    } @@ exceptScala212,
+    test("ZEnvironment is serializable") {
+      val env = ZEnvironment(10)
+      for {
+        returnedEnv <- serializeAndBack(env)
+        computeV     = returnedEnv.get[Int]
       } yield assert(computeV)(equalTo(10))
     } @@ exceptScala212,
     test("FiberStatus is serializable") {
@@ -94,19 +101,19 @@ object SerializableSpec extends ZIOBaseSpec {
     testSync("Cause.die is serializable") {
       val cause = Cause.die(TestException("test"))
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    } @@ exceptScala3,
+    },
     testSync("Cause.fail is serializable") {
       val cause = Cause.fail("test")
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    } @@ exceptScala3,
+    },
     testSync("Cause.&& is serializable") {
       val cause = Cause.fail("test") && Cause.fail("Another test")
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    } @@ exceptScala3,
+    },
     testSync("Cause.++ is serializable") {
       val cause = Cause.fail("test") ++ Cause.fail("Another test")
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    } @@ exceptScala3,
+    },
     testSync("Exit.succeed is serializable") {
       val exit = Exit.succeed("test")
       assert(serializeAndDeserialize(exit))(equalTo(exit))
@@ -114,15 +121,15 @@ object SerializableSpec extends ZIOBaseSpec {
     testSync("Exit.fail is serializable") {
       val exit = Exit.fail("test")
       assert(serializeAndDeserialize(exit))(equalTo(exit))
-    } @@ exceptScala3,
+    },
     testSync("Exit.die is serializable") {
       val exit = Exit.die(TestException("test"))
       assert(serializeAndDeserialize(exit))(equalTo(exit))
-    } @@ exceptScala3,
+    },
     testSync("FiberFailure is serializable") {
       val failure = FiberFailure(Cause.fail("Uh oh"))
       assert(serializeAndDeserialize(failure))(equalTo(failure))
-    } @@ exceptScala3,
+    },
     testSync("InterruptStatus.interruptible is serializable") {
       val interruptStatus = InterruptStatus.interruptible
       assert(serializeAndDeserialize(interruptStatus))(equalTo(interruptStatus))
@@ -146,7 +153,7 @@ object SerializableSpec extends ZIOBaseSpec {
         out1 <- ZIO.unit.repeat(schedule)
         out2 <- ZIO.unit.repeat(serializeAndDeserialize(schedule))
       } yield assert(out2)(equalTo(out1))
-    } @@ scala2Only,
+    },
     test("Chunk.single is serializable") {
       val chunk = Chunk.single(1)
       for {
@@ -176,7 +183,7 @@ object SerializableSpec extends ZIOBaseSpec {
       for {
         deserialized <- serializeAndBack(chunk)
       } yield assert(deserialized)(equalTo(chunk))
-    } @@ scala2Only,
+    },
     test("Chunk.fromIterable is serializable") {
       val chunk = Chunk.fromIterable(Vector(1, 2, 3))
       for {
