@@ -25,6 +25,7 @@ import zio.stream.ZStream.{DebounceState, HandoffSignal, failCause, zipChunks}
 import zio.stream.internal.{ZInputStream, ZReader}
 
 import java.io.{IOException, InputStream}
+import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
@@ -5714,7 +5715,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       self.collect { case o if tag.runtimeClass.isInstance(o) => o.asInstanceOf[O1] }
   }
 
-  private[zio] class Rechunker[A](n: Int) {
+  private[zio] class RechunkerOld[A](n: Int) {
     private var buffer: ChunkBuilder[A] = if (n > 1) ChunkBuilder.make(n) else null
     private var pos: Int                = 0
 
@@ -5771,6 +5772,108 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def done()(implicit trace: Trace): ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] =
       if (isEmpty) ZChannel.unit
       else ZChannel.write(buffer.result())
+
+  }
+
+  private[zio] class Rechunker[A](n: Int) {
+    private var buffer: Chunk[A] = if (n > 1) Chunk.empty[A] else null
+    private var chunkBuilder: ChunkBuilder[A] = null
+    private var pos: Int                = 0
+
+    def isEmpty: Boolean = pos == 0
+
+    final def rechunk(
+      chunk: Chunk[A]
+    )(implicit trace: Trace): ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = {
+      val chunkSize = chunk.size
+      if (chunkSize == 0) {
+        null
+      } else if (isEmpty && chunkSize == n) {
+        ZChannel.write(chunk)
+      } else if (n == 1) {
+        rechunk1(chunk, chunkSize)
+      } else if (chunkSize < 22) {
+        // Optimized for small chunks. The limit 22 comes from testing with benchmarks
+        var i = 0
+
+        var channel: ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = null
+        if (chunkBuilder == null) chunkBuilder = ChunkBuilder.make(chunkSize - pos)
+
+        while (i < chunkSize) {
+          chunkBuilder += chunk(i)
+          i += 1
+          pos += 1
+          if (pos == n) {
+            buffer ++= chunkBuilder.result()
+            chunkBuilder = ChunkBuilder.make(chunkSize - pos)
+
+            // Flush buffer
+            val result = ZChannel.write(buffer)
+            pos = 0
+            buffer = Chunk.empty[A]
+            if (channel == null) channel = result
+            else channel = channel *> result
+          }
+        }
+
+        channel
+      } else {
+        // Optimized for large chunks
+        var channel: ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = null
+        var chunkOffset = 0
+
+        if (chunkBuilder != null) {
+          // Last chunk was small and written to chunkBuilder => add to buffer before continuing with large chunk
+          buffer ++= chunkBuilder.result()
+          chunkBuilder = null
+        }
+
+        while (chunkOffset < chunkSize) {
+          val needed = n - pos
+          val available = chunkSize - chunkOffset
+          val size = math.min(needed, available)
+          buffer ++= chunk.slice(chunkOffset, chunkOffset + size)
+          pos += size
+          chunkOffset += size
+
+          if (size == needed) {
+            // Flush buffer
+            val result = ZChannel.write(buffer)
+            pos = 0
+            buffer = Chunk.empty[A]
+            if (channel == null) channel = result
+            else channel = channel *> result
+          }
+        }
+
+        channel
+      }
+    }
+
+    private def rechunk1(chunk: Chunk[A], len: Int)(implicit
+      trace: Trace
+    ): ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = {
+      var channel: ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = ZChannel.write(Chunk.single(chunk.head))
+
+      var i = 1
+      while (i < len) {
+        val c = Chunk.single(chunk(i))
+        channel = channel *> ZChannel.write(c)
+        i += 1
+      }
+
+      channel
+    }
+
+    def done()(implicit trace: Trace): ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = {
+      if (chunkBuilder != null) {
+        // Last chunk was small and written to chunkBuilder => add to buffer before before last flush
+        buffer ++= chunkBuilder.result()
+      }
+
+      if (isEmpty) ZChannel.unit
+      else ZChannel.write(buffer)
+    }
 
   }
 
