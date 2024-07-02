@@ -25,14 +25,14 @@ object RechunkSpec extends ZIOBaseSpec {
           result <- ZStream(unsafeWrapArray(array): _*).rechunk(2).chunks.runCollect
         } yield {
           assertTrue(result.size == 26) &&
-            assertTrue(result.dropRight(1).forall(_.size == 2)) &&
-            assertTrue(result.flatten sameElements array)
+          assertTrue(result.dropRight(1).forall(_.size == 2)) &&
+          assertTrue(result.flatten sameElements array)
         }
       },
       test("rechunk mixed large/small sizes")(
         check(Gen.chunkOfN(10)(Gen.chunkOfBounded(0, 50)(Gen.int(1, 100))), Gen.int(10, 60)) { (c, n) =>
           for {
-            result <- ZStream.fromChunks(unsafeWrapArray(c.toArray): _*).rechunk(n).chunks.runCollect
+            result  <- ZStream.fromChunks(unsafeWrapArray(c.toArray): _*).rechunk(n).chunks.runCollect
             expected = c.flatten.grouped(n).toList
           } yield assertTrue(result.toList == expected)
         }

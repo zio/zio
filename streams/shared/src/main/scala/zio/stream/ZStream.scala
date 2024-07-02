@@ -5716,9 +5716,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   private[zio] class Rechunker[A](n: Int) {
-    private var buffer: Chunk[A] = if (n > 1) Chunk.empty[A] else null
+    private var buffer: Chunk[A]              = if (n > 1) Chunk.empty[A] else null
     private var chunkBuilder: ChunkBuilder[A] = null
-    private var pos: Int                = 0
+    private var pos: Int                      = 0
 
     def isEmpty: Boolean = pos == 0
 
@@ -5760,7 +5760,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       } else {
         // Optimized for large chunks
         var channel: ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = null
-        var chunkOffset = 0
+        var chunkOffset                                                         = 0
 
         if (chunkBuilder != null) {
           // Last chunk was small and written to chunkBuilder => add to buffer before continuing with large chunk
@@ -5769,9 +5769,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         }
 
         while (chunkOffset < chunkSize) {
-          val needed = n - pos
+          val needed    = n - pos
           val available = chunkSize - chunkOffset
-          val size = math.min(needed, available)
+          val size      = math.min(needed, available)
           buffer ++= chunk.slice(chunkOffset, chunkOffset + size)
           pos += size
           chunkOffset += size
