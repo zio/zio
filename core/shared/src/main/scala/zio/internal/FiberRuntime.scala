@@ -541,6 +541,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def getFiberRef[A](fiberRef: FiberRef[A]): A =
     _fiberRefs.getOrDefault(fiberRef)
 
+  private[zio] def getFiberRefOrNull[A](fiberRef: FiberRef[A]): A =
+    _fiberRefs.getOrNull(fiberRef)
+
   /**
    * Retrieves the state of the fiber ref, or else the specified value.
    */
@@ -1313,6 +1316,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   private[zio] def setFiberRef[@specialized(SpecializeInt) A](fiberRef: FiberRef[A], value: A): Unit =
     _fiberRefs = _fiberRefs.updatedAs(fiberId)(fiberRef, value)
+
+  private[zio] def resetFiberRef(fiberRef: FiberRef[?]): Unit =
+    _fiberRefs = _fiberRefs.delete(fiberRef)
 
   private[zio] def setFiberRefs(fiberRefs0: FiberRefs): Unit =
     this._fiberRefs = fiberRefs0
