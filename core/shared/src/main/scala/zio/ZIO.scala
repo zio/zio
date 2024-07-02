@@ -23,7 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.io.IOException
 import java.util.function.IntFunction
 import scala.annotation.implicitNotFound
-import scala.collection.mutable.Builder
+import scala.collection.mutable.{Builder, ListBuffer}
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.control.NoStackTrace
@@ -558,6 +558,15 @@ sealed trait ZIO[-R, +E, +A]
     self.foldCause(Exit.failCause(_), Exit.succeed(_))
 
   /**
+   * Extracts this effect as an [[zio.Exit]] and then applies the provided
+   * function to produce a new effect
+   */
+  final def exitWith[R1 <: R, E1, B](f: Exit[E, A] => ZIO[R1, E1, B])(implicit
+    trace: Trace
+  ): ZIO[R1, E1, B] =
+    self.foldCauseZIO(c => f(Exit.failCause(c)), a => f(Exit.succeed(a)))
+
+  /**
    * Maps this effect to the default exit codes.
    */
   final def exitCode(implicit trace: Trace): URIO[R, ExitCode] =
@@ -899,7 +908,7 @@ sealed trait ZIO[-R, +E, +A]
    * the specified promise will be interrupted, too.
    */
   final def intoPromise[E1 >: E, A1 >: A](p: => Promise[E1, A1])(implicit trace: Trace): URIO[R, Boolean] =
-    ZIO.uninterruptibleMask(restore => restore(self).exit.flatMap(p.done(_)))
+    ZIO.uninterruptibleMask(restore => restore(self).exitWith(p.done(_)))
 
   /**
    * Returns whether this effect is a failure.
@@ -2704,7 +2713,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * operation of `IO.either`.
    */
   def absolve[R, E, A](v: => ZIO[R, E, Either[E, A]])(implicit trace: Trace): ZIO[R, E, A] =
-    suspendSucceed(v).flatMap(fromEither(_))
+    suspendSucceed(v).absolve
 
   /**
    * Constructs a scoped resource from an `acquire` and `release` effect. If
@@ -2810,11 +2819,11 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def addFinalizerExit[R](
     finalizer: Exit[Any, Any] => URIO[R, Any]
   )(implicit trace: Trace): ZIO[R with Scope, Nothing, Any] =
-    for {
-      environment <- ZIO.environment[R]
-      scope       <- ZIO.scope
-      _           <- scope.addFinalizerExit(exit => finalizer(exit).provideEnvironment(environment))
-    } yield ()
+    ZIO.environmentWithZIO[R] { environment =>
+      ZIO.scopeWith { scope =>
+        scope.addFinalizerExit(exit => finalizer(exit).provideEnvironment(environment))
+      }
+    }
 
   /**
    * Makes an explicit check to see if the fiber has been interrupted, and if
@@ -5441,19 +5450,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       trace: Trace
     ): ZIO[R1, E2, B1] =
       ZIO.uninterruptibleMask[R1, E2, B1](restore =>
-        acquire().flatMap({ a =>
-          ZIO
-            .suspendSucceed(restore(use(a)))
-            .exit
-            .flatMap({ e =>
-              ZIO
-                .suspendSucceed(release(a, e))
-                .foldCauseZIO(
-                  cause2 => ZIO.refailCause(e.foldExit(_ ++ cause2, _ => cause2)),
-                  _ => ZIO.done(e)
-                )
-            })
-        })
+        acquire().flatMap { a =>
+          attemptZIO(restore(use(a))).exitWith { e =>
+            attemptZIO(release(a, e)).foldCauseZIO(
+              cause2 => ZIO.refailCause(e.foldExit(_ ++ cause2, _ => cause2)),
+              _ => e
+            )
+          }
+        }
       )
   }
 
@@ -6198,19 +6202,19 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
    * Parallelly zips the this result with the specified result discarding the
    * first element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, b) => b, _ && _)
+  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipRightWith(that)(_ && _)
 
   /**
    * Sequentially zips the this result with the specified result discarding the
    * first element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, b) => b, _ ++ _)
+  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipRightWith(that)(_ ++ _)
 
   /**
    * Parallelly zips the this result with the specified result discarding the
    * second element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((a, _) => a, _ && _)
+  final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipLeftWith(that)(_ && _)
 
   /**
    * Parallelly zips the this result with the specified result or else returns
@@ -6223,7 +6227,7 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
    * Sequentially zips the this result with the specified result discarding the
    * second element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((a, _) => a, _ ++ _)
+  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipLeftWith(that)(_ ++ _)
 
   /**
    * Sequentially zips the this result with the specified result or else returns
@@ -6333,8 +6337,8 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     trace: Trace
   ): ZIO[R, E1, B] =
     self match {
-      case Failure(cause) => failed(cause)
       case Success(v)     => completed(v)
+      case Failure(cause) => failed(cause)
     }
 
   /**
@@ -6542,6 +6546,27 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
       case (e @ Failure(_), _)      => e
       case (_, e @ Failure(_))      => e
     }
+
+  private def zipLeftWith[E1 >: E](that: Exit[E1, Any])(
+    g: (Cause[E], Cause[E1]) => Cause[E1]
+  ): Exit[E1, A] =
+    (self, that) match {
+      case (l @ Success(_), Success(_)) => l
+      case (Failure(l), Failure(r))     => Exit.failCause(g(l, r))
+      case (e @ Failure(_), _)          => e
+      case (_, e @ Failure(_))          => e
+    }
+
+  private def zipRightWith[E1 >: E, B](that: Exit[E1, B])(
+    g: (Cause[E], Cause[E1]) => Cause[E1]
+  ): Exit[E1, B] =
+    (self, that) match {
+      case (Success(_), r @ Success(_)) => r
+      case (Failure(l), Failure(r))     => Exit.failCause(g(l, r))
+      case (e @ Failure(_), _)          => e
+      case (_, e @ Failure(_))          => e
+    }
+
 }
 
 object Exit extends Serializable {
@@ -6553,19 +6578,31 @@ object Exit extends Serializable {
     failCause(Cause.interrupt(id))
 
   def collectAll[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
-    exits.headOption.map { head =>
-      exits
-        .drop(1)
-        .foldLeft(head.mapExit((a: A) => List(a)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ ++ _))
-        .mapExit(_.reverse)
-    }
+    collectAllWith(exits)(_ ++ _)
 
   def collectAllPar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
-    exits.headOption.map { head =>
-      exits
-        .drop(1)
-        .foldLeft(head.mapExit((a: A) => List(a)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ && _))
-        .mapExit(_.reverse)
+    collectAllWith(exits)(_ && _)
+
+  private def collectAllWith[E, A](
+    exits: Iterable[Exit[E, A]]
+  )(combineError: (Cause[E], Cause[E]) => Cause[E]): Option[Exit[E, List[A]]] =
+    if (exits.isEmpty) None
+    else {
+      val builder = new ListBuffer[A]
+      var cause   = null.asInstanceOf[Cause[E]]
+      val it      = exits.iterator
+      while (it.hasNext) {
+        val head = it.next()
+        head match {
+          case Success(v) =>
+            if (cause eq null) builder.append(v)
+          case Failure(e) =>
+            if (cause eq null) cause = e
+            else cause = combineError(cause, e)
+        }
+      }
+      if (cause eq null) Some(Success(builder.result()))
+      else Some(Failure(cause))
     }
 
   def die(t: Throwable): Exit[Nothing, Nothing] =
