@@ -560,7 +560,8 @@ object Fiber extends FiberPlatformSpecific {
     private[zio] def getFiberRef[A](fiberRef: FiberRef[A]): A
 
     /**
-     * Retrieves the state of the fiber ref, or `null` if it hasn't been modified.
+     * Retrieves the state of the fiber ref, or `null` if it hasn't been
+     * modified.
      *
      * '''NOTE''': This method is safe to invoke on any fiber, but if not
      * invoked on this fiber, then values derived from the fiber's state
