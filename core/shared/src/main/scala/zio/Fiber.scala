@@ -560,6 +560,16 @@ object Fiber extends FiberPlatformSpecific {
     private[zio] def getFiberRef[A](fiberRef: FiberRef[A]): A
 
     /**
+     * Retrieves the state of the fiber ref, or `null` if it hasn't been
+     * modified.
+     *
+     * '''NOTE''': This method is safe to invoke on any fiber, but if not
+     * invoked on this fiber, then values derived from the fiber's state
+     * (including the log annotations and log level) may not be up-to-date.
+     */
+    private[zio] def getFiberRefOrNull[A](fiberRef: FiberRef[A]): A
+
+    /**
      * Retrieves all fiber refs of the fiber.
      *
      * '''NOTE''': This method is safe to invoke on any fiber, but if not
@@ -610,6 +620,13 @@ object Fiber extends FiberPlatformSpecific {
      * '''NOTE''': This method must be invoked by the fiber itself.
      */
     private[zio] def setFiberRef[A](fiberRef: FiberRef[A], value: A): Unit
+
+    /**
+     * Resets the fiber ref to its initial value.
+     *
+     * '''NOTE''': This method must be invoked by the fiber itself.
+     */
+    private[zio] def resetFiberRef(fiberRef: FiberRef[?]): Unit
 
     /**
      * Wholesale replaces all fiber refs of this fiber.
