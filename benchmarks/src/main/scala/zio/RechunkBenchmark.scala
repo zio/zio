@@ -31,7 +31,7 @@ class RechunkBenchmark {
 
   var smallChunks: IndexedSeq[Chunk[Int]] = _
   var largeChunks: IndexedSeq[Chunk[Int]] = _
-  var hugeChunks: IndexedSeq[Chunk[Int]] = _
+  var hugeChunks: IndexedSeq[Chunk[Int]]  = _
 
   @Setup
   def setup(): Unit = {
@@ -75,7 +75,6 @@ class RechunkBenchmark {
     val result = ZStream.fromChunks(largeChunks: _*).via(ZPipeline.rechunk(hugeChunkSize)).runCount
     unsafeRun(result)
   }
-
 
   // ******************************
 

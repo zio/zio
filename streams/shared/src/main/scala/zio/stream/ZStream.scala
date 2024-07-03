@@ -5716,7 +5716,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   private[zio] class RechunkerOld[A](n: Int) {
-    private var buffer: ChunkBuilder[A] = if (n > 1) ChunkBuilder.make(n) else null
+    private val buffer: ChunkBuilder[A] = if (n > 1) ChunkBuilder.make(n) else null
     private var pos: Int                = 0
 
     def isEmpty: Boolean = pos == 0
@@ -5737,7 +5737,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         var channel: ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = null
 
         while (i < len) {
-          buffer += chunk(i)
+          buffer.addOne(chunk(i))
           i += 1
           pos += 1
           if (pos == n) {
@@ -5746,7 +5746,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
               if (channel eq null) bufferResult
               else channel *> bufferResult
             pos = 0
-            buffer = ChunkBuilder.make(n)
+            buffer.clear()
           }
         }
 
@@ -5776,8 +5776,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   private[zio] class Rechunker[A](n: Int) {
-    private var buffer: Chunk[A]              = if (n > 1) Chunk.empty[A] else null
-    private var chunkBuilder: ChunkBuilder[A] = null
+    private var buffer: Chunk[A]              = Chunk.empty[A]
+    private val chunkBuilder: ChunkBuilder[A] = ChunkBuilder.make(n)
     private var pos: Int                      = 0
 
     def isEmpty: Boolean = pos == 0
@@ -5792,20 +5792,19 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         ZChannel.write(chunk)
       } else if (n == 1) {
         rechunk1(chunk, chunkSize)
-      } else if (chunkSize < 22) {
-        // Optimized for small chunks. The limit 22 comes from testing with benchmarks
+      } else if (chunkSize < 23) {
+        // Optimized for small chunks. The limit 23 comes from testing with benchmarks
         var i = 0
 
         var channel: ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = null
-        if (chunkBuilder == null) chunkBuilder = ChunkBuilder.make(chunkSize - pos)
 
         while (i < chunkSize) {
-          chunkBuilder += chunk(i)
+          chunkBuilder.addOne(chunk(i))
           i += 1
           pos += 1
           if (pos == n) {
             buffer ++= chunkBuilder.result()
-            chunkBuilder = ChunkBuilder.make(chunkSize - pos)
+            chunkBuilder.clear()
 
             // Flush buffer
             val result = ZChannel.write(buffer)
@@ -5822,10 +5821,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         var channel: ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = null
         var chunkOffset                                                         = 0
 
-        if (chunkBuilder != null) {
+        if (chunkBuilder.knownSize > 0) {
           // Last chunk was small and written to chunkBuilder => add to buffer before continuing with large chunk
           buffer ++= chunkBuilder.result()
-          chunkBuilder = null
+          chunkBuilder.clear()
         }
 
         while (chunkOffset < chunkSize) {
@@ -5866,9 +5865,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
     def done()(implicit trace: Trace): ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = {
-      if (chunkBuilder != null) {
+      if (chunkBuilder.knownSize > 0) {
         // Last chunk was small and written to chunkBuilder => add to buffer before before last flush
         buffer ++= chunkBuilder.result()
+        chunkBuilder.clear()
       }
 
       if (isEmpty) ZChannel.unit
