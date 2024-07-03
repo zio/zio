@@ -157,7 +157,7 @@ trait ZIOCompanionVersionSpecific {
    * `ZIO.suspend`.
    */
   @inline
-  final protected def attemptZIO[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+  final protected def attemptOrDieZIO[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     try effect
     catch {
       case t: Throwable =>

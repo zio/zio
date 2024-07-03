@@ -157,7 +157,7 @@ trait ZIOCompanionVersionSpecific {
    * we don't want to incur the performance penalty from the additional flatMap
    * in `ZIO.suspend`.
    */
-  inline protected def attemptZIO[R, E, A](inline effect: ZIO[R, E, A])(using Trace): ZIO[R, E, A] =
+  inline protected def attemptOrDieZIO[R, E, A](inline effect: ZIO[R, E, A])(using Trace): ZIO[R, E, A] =
     try effect
     catch {
       case t: Throwable =>

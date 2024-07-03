@@ -5451,8 +5451,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ): ZIO[R1, E2, B1] =
       ZIO.uninterruptibleMask[R1, E2, B1](restore =>
         acquire().flatMap { a =>
-          attemptZIO(restore(use(a))).exitWith { e =>
-            attemptZIO(release(a, e)).foldCauseZIO(
+          attemptOrDieZIO(restore(use(a))).exitWith { e =>
+            attemptOrDieZIO(release(a, e)).foldCauseZIO(
               cause2 => ZIO.refailCause(e.foldExit(_ ++ cause2, _ => cause2)),
               _ => e
             )
@@ -6202,19 +6202,19 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
    * Parallelly zips the this result with the specified result discarding the
    * first element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipRightWith(that)(_ && _)
+  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipRightWith(self, that)(_ && _)
 
   /**
    * Sequentially zips the this result with the specified result discarding the
    * first element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipRightWith(that)(_ ++ _)
+  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipRightWith(self, that)(_ ++ _)
 
   /**
    * Parallelly zips the this result with the specified result discarding the
    * second element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipLeftWith(that)(_ && _)
+  final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipRightWith(that, self)((l, r) => r && l)
 
   /**
    * Parallelly zips the this result with the specified result or else returns
@@ -6227,7 +6227,7 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
    * Sequentially zips the this result with the specified result discarding the
    * second element of the tuple or else returns the failed `Cause[E1]`
    */
-  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipLeftWith(that)(_ ++ _)
+  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipRightWith(that, self)((l, r) => r ++ l)
 
   /**
    * Sequentially zips the this result with the specified result or else returns
@@ -6553,37 +6553,6 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
         }
     }
 
-  private def zipLeftWith[E1 >: E](that: Exit[E1, Any])(
-    g: (Cause[E], Cause[E1]) => Cause[E1]
-  ): Exit[E1, A] =
-    self match {
-      case l: Success[A] =>
-        that match {
-          case _: Success[?]  => l
-          case f: Failure[E1] => f
-        }
-      case e @ Failure(c1) =>
-        that match {
-          case Failure(c2) => Exit.failCause(g(c1, c2))
-          case _           => e
-        }
-    }
-
-  private def zipRightWith[E1 >: E, B](that: Exit[E1, B])(
-    g: (Cause[E], Cause[E1]) => Cause[E1]
-  ): Exit[E1, B] =
-    self match {
-      case _: Success[A] =>
-        that match {
-          case r: Success[?]  => r
-          case f: Failure[E1] => f
-        }
-      case e @ Failure(c1) =>
-        that match {
-          case Failure(c2) => Exit.failCause(g(c1, c2))
-          case _           => e
-        }
-    }
 }
 
 object Exit extends Serializable {
@@ -6649,6 +6618,22 @@ object Exit extends Serializable {
   def succeed[A](a: A): Exit[Nothing, A] = Success(a)
 
   val unit: Exit[Nothing, Unit] = succeed(())
+
+  private def zipRightWith[E, E1 >: E, A](left: Exit[E, Any], right: Exit[E1, A])(
+    g: (Cause[E], Cause[E1]) => Cause[E1]
+  ): Exit[E1, A] =
+    left match {
+      case _: Success[?] =>
+        right match {
+          case r: Success[A]  => r
+          case f: Failure[E1] => f
+        }
+      case e @ Failure(c1) =>
+        right match {
+          case Failure(c2) => Exit.failCause(g(c1, c2))
+          case _           => e
+        }
+    }
 
   private[zio] val `true`: Exit[Nothing, Boolean]           = Success(true)
   private[zio] val `false`: Exit[Nothing, Boolean]          = Success(false)
