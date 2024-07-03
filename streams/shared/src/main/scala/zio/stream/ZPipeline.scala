@@ -1869,6 +1869,25 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     })
 
   /**
+   * A pipeline that rechunks the stream into chunks of the specified size.
+   */
+  def rechunkOld[In](n: => Int)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
+    new ZPipeline(ZChannel.succeed(new ZStream.RechunkerOld[In](scala.math.max(n, 1))).flatMap { rechunker =>
+      lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, ZNothing, Chunk[In], Any] =
+        ZChannel.readWithCause(
+          (in: Chunk[In]) => {
+            val out = rechunker.rechunk(in)
+            if (out ne null) out *> loop
+            else loop
+          },
+          (cause: Cause[ZNothing]) => rechunker.done() *> ZChannel.refailCause(cause),
+          (_: Any) => rechunker.done()
+        )
+
+      loop
+    })
+
+  /**
    * Creates a pipeline that randomly samples elements according to the
    * specified percentage.
    */

@@ -5715,6 +5715,66 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       self.collect { case o if tag.runtimeClass.isInstance(o) => o.asInstanceOf[O1] }
   }
 
+  private[zio] class RechunkerOld[A](n: Int) {
+    private val buffer: ChunkBuilder[A] = if (n > 1) ChunkBuilder.make(n) else null
+    private var pos: Int                = 0
+
+    def isEmpty: Boolean = pos == 0
+
+    final def rechunk(
+      chunk: Chunk[A]
+    )(implicit trace: Trace): ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = {
+      val len = chunk.size
+      if (len == 0) {
+        null
+      } else if (isEmpty && len == n) {
+        ZChannel.write(chunk)
+      } else if (n == 1) {
+        rechunk1(chunk, len)
+      } else {
+        var i = 0
+
+        var channel: ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = null
+
+        while (i < len) {
+          buffer.addOne(chunk(i))
+          i += 1
+          pos += 1
+          if (pos == n) {
+            val bufferResult = ZChannel.write(buffer.result())
+            channel =
+              if (channel eq null) bufferResult
+              else channel *> bufferResult
+            pos = 0
+            buffer.clear()
+          }
+        }
+
+        channel
+      }
+    }
+
+    private def rechunk1(chunk: Chunk[A], len: Int)(implicit
+      trace: Trace
+    ): ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = {
+      var channel: ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = ZChannel.write(Chunk.single(chunk.head))
+
+      var i = 1
+      while (i < len) {
+        val c = Chunk.single(chunk(i))
+        channel = channel *> ZChannel.write(c)
+        i += 1
+      }
+
+      channel
+    }
+
+    def done()(implicit trace: Trace): ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] =
+      if (isEmpty) ZChannel.unit
+      else ZChannel.write(buffer.result())
+
+  }
+
   private[zio] class Rechunker[A](n: Int) {
     private var buffer: Chunk[A]              = Chunk.empty[A]
     private val chunkBuilder: ChunkBuilder[A] = ChunkBuilder.make(n)

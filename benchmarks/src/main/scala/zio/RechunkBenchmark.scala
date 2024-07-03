@@ -75,4 +75,42 @@ class RechunkBenchmark {
     val result = ZStream.fromChunks(largeChunks: _*).via(ZPipeline.rechunk(hugeChunkSize)).runCount
     unsafeRun(result)
   }
+
+  // ******************************
+
+  @Benchmark
+  def rechunkSmallToLargeOld: Long = {
+    val result = ZStream.fromChunks(smallChunks: _*).via(ZPipeline.rechunkOld(largeChunkSize)).runCount
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def rechunkLargeToSmallOld: Long = {
+    val result = ZStream.fromChunks(largeChunks: _*).via(ZPipeline.rechunkOld(smallChunkSize)).runCount
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def rechunkSmallToSmallOld: Long = {
+    val result = ZStream.fromChunks(smallChunks: _*).via(ZPipeline.rechunkOld(smallChunkSize)).runCount
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def rechunkSmallTo1Old: Long = {
+    val result = ZStream.fromChunks(smallChunks: _*).via(ZPipeline.rechunkOld(1)).runCount
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def rechunkHugeToLargeOld: Long = {
+    val result = ZStream.fromChunks(hugeChunks: _*).via(ZPipeline.rechunkOld(largeChunkSize)).runCount
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def rechunkLargeToHugeOld: Long = {
+    val result = ZStream.fromChunks(largeChunks: _*).via(ZPipeline.rechunkOld(hugeChunkSize)).runCount
+    unsafeRun(result)
+  }
 }
