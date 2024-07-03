@@ -5777,7 +5777,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   private[zio] class Rechunker[A](n: Int) {
     private var buffer: Chunk[A]              = Chunk.empty[A]
-    private val chunkBuilder: ChunkBuilder[A] = ChunkBuilder.make(n)
+    private var chunkBuilder: ChunkBuilder[A] = null
     private var pos: Int                      = 0
 
     def isEmpty: Boolean = pos == 0
@@ -5792,11 +5792,15 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         ZChannel.write(chunk)
       } else if (n == 1) {
         rechunk1(chunk, chunkSize)
-      } else if (chunkSize < 23) {
-        // Optimized for small chunks. The limit 23 comes from testing with benchmarks
+      } else if (chunkSize < 25) {
+        // Optimized for small chunks. The limit 25 comes from testing with benchmarks
         var i = 0
 
         var channel: ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = null
+
+        if (chunkBuilder == null) {
+          chunkBuilder = ChunkBuilder.make(n)
+        }
 
         while (i < chunkSize) {
           chunkBuilder.addOne(chunk(i))
@@ -5821,8 +5825,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         var channel: ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = null
         var chunkOffset                                                         = 0
 
-        if (chunkBuilder.knownSize > 0) {
-          // Last chunk was small and written to chunkBuilder => add to buffer before continuing with large chunk
+        if (chunkBuilder != null) {
+          // Last chunk might have been small and written to chunkBuilder,
+          // so add to buffer before continuing with large chunk
           buffer ++= chunkBuilder.result()
           chunkBuilder.clear()
         }
@@ -5865,8 +5870,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
     def done()(implicit trace: Trace): ZChannel[Any, ZNothing, Any, Any, ZNothing, Chunk[A], Any] = {
-      if (chunkBuilder.knownSize > 0) {
-        // Last chunk was small and written to chunkBuilder => add to buffer before before last flush
+      // Last chunk might have been small and written to chunkBuilder,
+      // so add to buffer before last flush
+      if (chunkBuilder != null) {
         buffer ++= chunkBuilder.result()
         chunkBuilder.clear()
       }
