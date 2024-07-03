@@ -6540,33 +6540,50 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     f: (A, B) => C,
     g: (Cause[E], Cause[E1]) => Cause[E1]
   ): Exit[E1, C] =
-    (self, that) match {
-      case (Success(a), Success(b)) => Exit.succeed(f(a, b))
-      case (Failure(l), Failure(r)) => Exit.failCause(g(l, r))
-      case (e @ Failure(_), _)      => e
-      case (_, e @ Failure(_))      => e
+    self match {
+      case Success(l) =>
+        that match {
+          case Success(r)     => Exit.succeed(f(l, r))
+          case f: Failure[E1] => f
+        }
+      case e @ Failure(c1) =>
+        that match {
+          case Failure(c2) => Exit.failCause(g(c1, c2))
+          case _           => e
+        }
     }
 
   private def zipLeftWith[E1 >: E](that: Exit[E1, Any])(
     g: (Cause[E], Cause[E1]) => Cause[E1]
   ): Exit[E1, A] =
-    (self, that) match {
-      case (l @ Success(_), Success(_)) => l
-      case (Failure(l), Failure(r))     => Exit.failCause(g(l, r))
-      case (e @ Failure(_), _)          => e
-      case (_, e @ Failure(_))          => e
+    self match {
+      case l: Success[A] =>
+        that match {
+          case _: Success[?]  => l
+          case f: Failure[E1] => f
+        }
+      case e @ Failure(c1) =>
+        that match {
+          case Failure(c2) => Exit.failCause(g(c1, c2))
+          case _           => e
+        }
     }
 
   private def zipRightWith[E1 >: E, B](that: Exit[E1, B])(
     g: (Cause[E], Cause[E1]) => Cause[E1]
   ): Exit[E1, B] =
-    (self, that) match {
-      case (Success(_), r @ Success(_)) => r
-      case (Failure(l), Failure(r))     => Exit.failCause(g(l, r))
-      case (e @ Failure(_), _)          => e
-      case (_, e @ Failure(_))          => e
+    self match {
+      case _: Success[A] =>
+        that match {
+          case r: Success[?]  => r
+          case f: Failure[E1] => f
+        }
+      case e @ Failure(c1) =>
+        that match {
+          case Failure(c2) => Exit.failCause(g(c1, c2))
+          case _           => e
+        }
     }
-
 }
 
 object Exit extends Serializable {
