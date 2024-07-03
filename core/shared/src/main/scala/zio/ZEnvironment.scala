@@ -21,7 +21,6 @@ import zio.internal.UpdateOrderLinkedMap
 import java.util.concurrent.ConcurrentHashMap
 import scala.annotation.tailrec
 import scala.collection.{immutable, mutable}
-import scala.jdk.CollectionConverters._
 import scala.util.control.ControlThrowable
 import scala.util.hashing.MurmurHash3
 
@@ -34,21 +33,21 @@ final class ZEnvironment[+R] private (
 
   @deprecated("Kept for binary compatibility only. Do not use", "2.1.2")
   private[ZEnvironment] def this(map: Map[LightTypeTag, Any], index: Int, cache: Map[LightTypeTag, Any] = Map.empty) =
-    this(UpdateOrderLinkedMap.fromMap(map), new ConcurrentHashMap(cache.asJava), null)
+    this(UpdateOrderLinkedMap.fromMap(map), ZEnvironment.scalaToJucMap(cache), null)
 
   @deprecated("Kept for binary compatibility only. Do not use", "2.1.5")
   private[ZEnvironment] def this(
     map: UpdateOrderLinkedMap[LightTypeTag, Any],
     cache: immutable.HashMap[LightTypeTag, Any],
     scope: Scope
-  ) = this(map, cache = new ConcurrentHashMap(cache.asJava), scope)
+  ) = this(map, ZEnvironment.scalaToJucMap(cache), scope)
 
   @deprecated("Kept for binary compatibility only. Do not use", "2.1.6")
   private[ZEnvironment] def this(
     map: UpdateOrderLinkedMap[LightTypeTag, Any],
     cache: mutable.HashMap[LightTypeTag, Any],
     scope: Scope
-  ) = this(map, cache = new ConcurrentHashMap(cache.asJava), scope)
+  ) = this(map, ZEnvironment.scalaToJucMap(cache), scope)
 
   def ++[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.union[R1](that)
@@ -191,7 +190,7 @@ final class ZEnvironment[+R] private (
       }
       val newScope = if (that.scope eq null) self.scope else that.scope
       // Reuse the cache of the right hand-side
-      new ZEnvironment(newMap, cache = new ConcurrentHashMap(that.cache), scope = newScope)
+      new ZEnvironment(newMap, cache = new ConcurrentHashMap[LightTypeTag, Any](that.cache), scope = newScope)
     }
 
   /**
@@ -360,6 +359,14 @@ object ZEnvironment {
     )
 
   private case object MissingService extends ControlThrowable
+
+  // Can't use scala -> java collection conversions because they don't cross compile to Scala 2.12.
+  @deprecated("Marked as deprecated to avoid usage in non-deprecated methods", "2.1.16")
+  private def scalaToJucMap[K, V](map: collection.Map[K, V]): ConcurrentHashMap[K, V] = {
+    val jucMap = new ConcurrentHashMap[K, V]
+    map.foreach { case (k, v) => jucMap.put(k, v) }
+    jucMap
+  }
 
   /**
    * A `Patch[In, Out]` describes an update that transforms a `ZEnvironment[In]`
