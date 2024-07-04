@@ -95,6 +95,8 @@ private[zio] trait LayerMacroUtils {
       q"val ${TermName(memoizedNode.tree.toString)} = $expr"
     }
 
+    var hasValueComposition = false
+
     val memoMap  = memoList.toMap
     val trace    = TermName(c.freshName("trace"))
     val compose  = TermName(c.freshName("compose"))
@@ -103,15 +105,24 @@ private[zio] trait LayerMacroUtils {
       z = reify(ZLayer.unit),
       value = memoMap,
       composeH = (lhs, rhs) => c.Expr(q"$lhs ++ $rhs"),
-      composeV = (lhs, rhs) => c.Expr(q"$compose($lhs, $rhs)($trace)")
+      composeV = (lhs, rhs) => {
+        hasValueComposition = true
+        c.Expr(q"$compose($lhs, $rhs)($trace)")
+      }
     )
 
-    c.Expr(q"""
-    val $trace: ${typeOf[Trace]} = ${reify(Tracer)}.newTrace
-    def $compose[R1, E, O1, O2](lhs: $layerSym[R1, E, O1], rhs: $layerSym[O1, E, O2])(implicit trace: ${typeOf[Trace]}) = lhs.to(rhs)
-    ..$definitions
-    ${layerExpr.tree}
-    """)
+    if (hasValueComposition)
+      c.Expr(q"""
+      val $trace: ${typeOf[Trace]} = ${reify(Tracer)}.newTrace
+      def $compose[R1, E, O1, O2](lhs: $layerSym[R1, E, O1], rhs: $layerSym[O1, E, O2])(implicit trace: ${typeOf[Trace]}) = lhs.to(rhs)
+      ..$definitions
+      ${layerExpr.tree}
+      """)
+    else
+      c.Expr(q"""
+      ..$definitions
+      ${layerExpr.tree}
+      """)
   }
 
   /**
