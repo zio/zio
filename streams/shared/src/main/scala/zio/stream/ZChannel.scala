@@ -802,13 +802,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             else
               zio.Queue.unbounded[Any]
     } yield {
-      lazy val q0Reader: IO[Nothing, Boolean] = q0.take
-        .flatMap(f)
-        .foldCauseZIO(
-          c => q1.offer(QRes(c)),
-          outElem2 => q1.offer(outElem2) *> q0Reader
-        )
-        .provideEnvironment(env1)
+      lazy val q0Reader: IO[Nothing, Boolean] =
+        q0.take
+          .flatMap(f)
+          .flatMap(q1.offer)
+          .forever
+          .catchAllCause(c => q1.offer(QRes.failCause(c)))
+          .provideEnvironment(env1)
 
       def q0EnquerCh(
         nFibers: Int,
