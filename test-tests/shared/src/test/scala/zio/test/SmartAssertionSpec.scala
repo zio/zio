@@ -21,6 +21,23 @@ object SmartAssertionSpec extends ZIOBaseSpec {
   private val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
   def spec = suite("SmartAssertionSpec")(
+    suite("assertTrue: UIO")(
+      test("reports readable error") {
+        for {
+          result <- typeCheck("""ZIO.succeed(42).flatMap(i => assertTrue(i + 1 == 43))""")
+        } yield assertTrue(result.is(_.left).contains("not supported"))
+      },
+      test("reports readable error for multiple assertions") {
+        for {
+          result <- typeCheck("""ZIO.succeed(42).flatMap(i => assertTrue(i + 1 == 43, i + 2 == 44))""")
+        } yield assertTrue(result.is(_.left).contains("not supported"))
+      },
+      test("doesn't break test constructor") {
+        for {
+          result <- typeCheck("""test("")(ZIO.succeed(42).flatMap(i => assertTrue(i + 1 == 43)))""")
+        } yield assertTrue(result.is(_.left).contains("not supported"))
+      }
+    ),
     suite("Array")(
       suite("==")(
         test("success") {

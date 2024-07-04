@@ -44,6 +44,9 @@ trait CompileVariants {
   inline def assertTrue(inline exprs: => Boolean*): TestResult =
     ${SmartAssertMacros.smartAssert('exprs)}
 
+  inline def assertTrue(inline expr: Any, inline exprs: => Any*): UIO[Nothing] =
+    scala.compiletime.error(".flatMap(... => assertTrue(...)) not supported.\nUse `.map` instead.")
+
   inline def assert[A](inline value: => A)(inline assertion: Assertion[A])(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =
     ${Macros.assert_impl('value)('assertion, 'trace, 'sourceLocation)}
 

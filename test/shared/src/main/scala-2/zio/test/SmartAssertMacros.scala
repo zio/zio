@@ -12,6 +12,9 @@ class SmartAssertMacros(val c: blackbox.Context) {
   private val Arrow      = q"_root_.zio.test.TestArrow"
   private val TestResult = q"_root_.zio.test.TestResult"
 
+  def assertFlatMapError_impl(exprs: Expr[Any]*): c.Tree =
+    c.abort(c.enclosingPosition, ".flatMap(... => assertTrue(...)) not supported.\nUse `.map` instead.")
+
   def assert_impl(expr: c.Expr[Boolean], exprs: c.Expr[Boolean]*): c.Tree =
     exprs.map(assertOne_impl).foldLeft(assertOne_impl(expr)) { (acc, assert) =>
       q"$acc && $assert"

@@ -125,7 +125,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
             semaphore <- TSemaphore.make(2L)
             actual    <- semaphore.acquireBetween(3L, 5L)
           } yield actual
-        transaction.commitEither *> assertTrue(false)
+        transaction.commitEither.as(assertTrue(false))
       } @@ timeout(1.second) @@ failing,
       test("acquireUpTo") {
         for {

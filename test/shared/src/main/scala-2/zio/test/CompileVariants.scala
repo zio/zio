@@ -36,6 +36,7 @@ trait CompileVariants {
    */
   def assertTrue(expr: Boolean, exprs: Boolean*): TestResult = macro SmartAssertMacros.assert_impl
   def assertTrue(expr: Boolean): TestResult = macro SmartAssertMacros.assertOne_impl
+  def assertTrue(exprs: Any*): UIO[Nothing] = macro SmartAssertMacros.assertFlatMapError_impl
 
   /**
    * Checks the assertion holds for the given value.
