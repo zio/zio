@@ -38,7 +38,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testNative",
-  ";rootNative/Test/compile;rootNative/Test/nativeLink;coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test"
+  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test"
 )
 addCommandAlias(
   "testJVM",
@@ -58,7 +58,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJS",
-  ";rootJS/Test/compile;rootJS/Test/fastLinkJS;coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;macrosTestsJS/test;concurrentJS/test"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;macrosTestsJS/test;concurrentJS/test"
 )
 addCommandAlias(
   "mimaChecks",
