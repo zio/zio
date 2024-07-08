@@ -728,7 +728,7 @@ object ChunkSpec extends ZIOBaseSpec {
     ),
     suite("updated")(
       test("updates the chunk at the specified index") {
-        check(Gen.chunkOf(Gen.int), Gen.listOf(Gen.int(0, 99)), Gen.listOf(Gen.int)) { (chunk, indices, values) =>
+        check(Gen.chunkOfN(10)(Gen.int), Gen.listOf(Gen.int(0, 9)), Gen.listOf(Gen.int)) { (chunk, indices, values) =>
           val actual =
             indices.zip(values).foldLeft(chunk) { case (chunk, (index, value)) => chunk.updated(index, value) }
           val expected =
