@@ -2585,50 +2585,56 @@ sealed trait ZIO[-R, +E, +A]
     that: => ZIO[R1, E1, B]
   )(f: (A, B) => C)(implicit trace: Trace): ZIO[R1, E1, C] =
     ZIO.uninterruptibleMask { restore =>
-      ZIO.withFiberRuntime[R1, E1, C] { (fiber, _) =>
-        val promise     = Promise.unsafe.make[Unit, Boolean](FiberId.None)(Unsafe.unsafe)
-        val ref         = new java.util.concurrent.atomic.AtomicBoolean(false)
-        val parentScope = fiber.scope
+      val that0 = that
+      if (self.isInstanceOf[Exit.Success[?]]) {
+        self.zipWith(restore(that0))(f)
+      } else if (that0.isInstanceOf[Exit.Success[?]]) {
+        restore(self).zipWith(that0)(f)
+      } else
+        ZIO.withFiberRuntime[R1, E1, C] { (fiber, _) =>
+          val promise     = Promise.unsafe.make[Unit, Boolean](FiberId.None)(Unsafe.unsafe)
+          val ref         = new java.util.concurrent.atomic.AtomicBoolean(false)
+          val parentScope = fiber.scope
 
-        def fork[R, E, A](zio: => ZIO[R, E, A], side: Boolean): ZIO[R, Nothing, Fiber[E, A]] =
-          restore(zio)
-            .foldCauseZIO(
-              cause =>
-                ZIO.withFiberRuntime[Any, E, A] { (childFiber, _) =>
-                  ZIO.suspendSucceed {
-                    childFiber.transferChildren(parentScope)
-                    promise.fail(()) *> ZIO.refailCause(cause)
-                  }
-                },
-              a =>
-                ZIO.withFiberRuntime[Any, Nothing, A] { (childFiber, _) =>
-                  ZIO.succeed {
-                    childFiber.transferChildren(parentScope)
-                    if (ref.getAndSet(true)) {
-                      promise.unsafe.done(Exit.succeed(side))(Unsafe.unsafe)
+          def fork[R, E, A](zio: => ZIO[R, E, A], side: Boolean): ZIO[R, Nothing, Fiber[E, A]] =
+            restore(zio)
+              .foldCauseZIO(
+                cause =>
+                  ZIO.withFiberRuntime[Any, E, A] { (childFiber, _) =>
+                    ZIO.suspendSucceed {
+                      childFiber.transferChildren(parentScope)
+                      promise.fail(()) *> ZIO.refailCause(cause)
                     }
-                    a
+                  },
+                a =>
+                  ZIO.withFiberRuntime[Any, Nothing, A] { (childFiber, _) =>
+                    ZIO.succeed {
+                      childFiber.transferChildren(parentScope)
+                      if (ref.getAndSet(true)) {
+                        promise.unsafe.done(Exit.succeed(side))(Unsafe.unsafe)
+                      }
+                      a
+                    }
                   }
-                }
-            )
-            .forkDaemon
+              )
+              .forkDaemon
 
-        fork(self, false).zip(fork(that, true)).flatMap { case (left, right) =>
-          restore(promise.await).foldCauseZIO(
-            cause =>
-              left.interruptFork *> right.interruptFork *>
-                left.await.zip(right.await).flatMap { case (left, right) =>
-                  left.zipWith(right)(f, _ && _) match {
-                    case Exit.Failure(causes) => ZIO.refailCause(cause.stripFailures && causes)
-                    case _                    => ZIO.refailCause(cause.stripFailures)
-                  }
-                },
-            leftWins =>
-              if (leftWins) left.join.zipWith(right.join)((a, b) => f(a, b))
-              else right.join.zipWith(left.join)((b, a) => f(a, b))
-          )
+          fork(self, false).zip(fork(that0, true)).flatMap { case (left, right) =>
+            restore(promise.await).foldCauseZIO(
+              cause =>
+                left.interruptFork *> right.interruptFork *>
+                  left.await.zip(right.await).flatMap { case (left, right) =>
+                    left.zipWith(right)(f, _ && _) match {
+                      case Exit.Failure(causes) => ZIO.refailCause(cause.stripFailures && causes)
+                      case _                    => ZIO.refailCause(cause.stripFailures)
+                    }
+                  },
+              leftWins =>
+                if (leftWins) left.join.zipWith(right.join)((a, b) => f(a, b))
+                else right.join.zipWith(left.join)((b, a) => f(a, b))
+            )
+          }
         }
-      }
     }
 
   private[this] final def tryOrElse[R1 <: R, E2, B](
