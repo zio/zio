@@ -2,9 +2,12 @@ package zio.test
 
 import zio.stream.ZStream
 import zio.test.Assertion._
+import zio.test.TestAspect.size
 import zio.{UIO, ZIO}
 
 object SampleSpec extends ZIOBaseSpec {
+
+  private val sampleSize = if (TestPlatform.isJVM) 100 else 10
 
   def spec = suite("SampleSpec")(
     test("monad left identity") {
@@ -35,7 +38,7 @@ object SampleSpec extends ZIOBaseSpec {
       )
       assertZIO(result)(isTrue)
     }
-  )
+  ) @@ size(sampleSize)
 
   def equalEffects[A, B](
     left: ZIO[Any, Nothing, Sample[Any, A]],

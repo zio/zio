@@ -1,9 +1,8 @@
 package zio
 
 import zio.test.Assertion._
+import zio.test.TestAspect.jvmOnly
 import zio.test._
-
-import scala.collection.immutable.Vector
 
 object ChunkSpec extends ZIOBaseSpec {
 
@@ -74,10 +73,18 @@ object ChunkSpec extends ZIOBaseSpec {
           assert(actual)(equalTo(expected))
         }
       },
-      test("buffer used") {
+      test("buffer used - parallel") {
         check(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { (as, bs) =>
           val effect   = ZIO.succeed(bs.foldLeft(as)(_ :+ _))
           val actual   = ZIO.collectAllPar(ZIO.replicate(100)(effect))
+          val expected = as ++ bs
+          assertZIO(actual)(forall(equalTo(expected)))
+        }
+      } @@ jvmOnly,
+      test("buffer used - sequential") {
+        check(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { (as, bs) =>
+          val effect   = ZIO.succeed(bs.foldLeft(as)(_ :+ _))
+          val actual   = ZIO.collectAll(ZIO.replicate(100)(effect))
           val expected = as ++ bs
           assertZIO(actual)(forall(equalTo(expected)))
         }
@@ -130,10 +137,18 @@ object ChunkSpec extends ZIOBaseSpec {
           assert(actual)(equalTo(expected))
         }
       },
-      test("buffer used") {
+      test("buffer used - parallel") {
         check(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { (as, bs) =>
           val effect   = ZIO.succeed(as.foldRight(bs)(_ +: _))
           val actual   = ZIO.collectAllPar(ZIO.replicate(100)(effect))
+          val expected = as ++ bs
+          assertZIO(actual)(forall(equalTo(expected)))
+        }
+      } @@ jvmOnly,
+      test("buffer used - sequential") {
+        check(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { (as, bs) =>
+          val effect   = ZIO.succeed(as.foldRight(bs)(_ +: _))
+          val actual   = ZIO.collectAll(ZIO.replicate(100)(effect))
           val expected = as ++ bs
           assertZIO(actual)(forall(equalTo(expected)))
         }
