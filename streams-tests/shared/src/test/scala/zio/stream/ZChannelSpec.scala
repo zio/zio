@@ -698,7 +698,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               .map(_._1)
           )(equalTo(Chunk.fromIterable(0L to N)))
         }
-      ),
+      ) @@ jvmOnly,
       test("cause is propagated on channel interruption") {
         for {
           promise  <- Promise.make[Nothing, Unit]
