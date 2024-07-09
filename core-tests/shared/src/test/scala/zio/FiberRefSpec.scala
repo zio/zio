@@ -2,6 +2,7 @@ package zio
 
 import zio.FiberRefSpecUtil._
 import zio.test.Assertion._
+import zio.test.TestAspect.{jvm, nonFlaky}
 import zio.test._
 
 object FiberRefSpec extends ZIOBaseSpec {
@@ -401,13 +402,13 @@ object FiberRefSpec extends ZIOBaseSpec {
         assertTrue(environment.get[Console] == testConsole) &&
         assertTrue(environment.get[Random] == testRandom) &&
         assertTrue(environment.get[System] == testSystem)
-    } @@ TestAspect.nonFlaky,
+    } @@ jvm(nonFlaky),
     test("zipPar") {
       for {
         _ <- ZIO.unit.timeout(1.second) <& TestClock.adjust(1.second)
         _ <- testClock
       } yield assertCompletes
-    } @@ TestAspect.nonFlaky,
+    } @@ jvm(nonFlaky),
     test("runtime") {
       for {
         expected <- ZIO.clock

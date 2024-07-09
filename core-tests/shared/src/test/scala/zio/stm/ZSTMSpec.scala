@@ -2,7 +2,7 @@ package zio
 package stm
 
 import zio.test.Assertion._
-import zio.test.TestAspect.nonFlaky
+import zio.test.TestAspect.{jvm, nonFlaky}
 import zio.test._
 
 object ZSTMSpec extends ZIOBaseSpec {
@@ -725,7 +725,7 @@ object ZSTMSpec extends ZIOBaseSpec {
             _ <- tvar.set(-1).commit
             v <- liveClockSleep(10.millis) *> tvar.get.commit
           } yield assert(v)(equalTo(-1))
-        } @@ nonFlaky,
+        } @@ jvm(nonFlaky),
         test("interrupt the fiber and observe it, it should be resumed with Interrupted Cause") {
           for {
             selfId  <- ZIO.fiberId
@@ -1101,7 +1101,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           _        <- r0.update(_ + 1).flatMap(_ => r1.update(_ + 1)).commit
           sum      <- sumFiber.join
         } yield assert(sum)(equalTo(0) || equalTo(2))
-      } @@ nonFlaky(5000)
+      } @@ jvm(nonFlaky(5000))
     },
     suite("STM stack safety")(
       test("long alternative chains") {

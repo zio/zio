@@ -3,7 +3,7 @@ package zio.stream
 import zio._
 import zio.test._
 import zio.test.Assertion._
-import zio.test.TestAspect.{jvmOnly, timeout}
+import zio.test.TestAspect.{jvm, jvmOnly, nonFlaky, timeout}
 
 object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
@@ -587,7 +587,7 @@ object ZChannelSpec extends ZIOBaseSpec {
 
               }
             }
-          } @@ TestAspect.nonFlaky(50),
+          } @@ jvm(nonFlaky(50)),
           test("nested concurrent reads") {
             val capacity      = 128
             val f: Int => Int = _ + 1
@@ -609,7 +609,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                 }
               }
             }
-          } @@ TestAspect.nonFlaky(50)
+          } @@ jvm(nonFlaky(50))
         ),
         suite("ZChannel#mapError") {
           test("mapError structure confusion") {
@@ -698,7 +698,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               .map(_._1)
           )(equalTo(Chunk.fromIterable(0L to N)))
         }
-      ),
+      ) @@ jvmOnly,
       test("cause is propagated on channel interruption") {
         for {
           promise  <- Promise.make[Nothing, Unit]

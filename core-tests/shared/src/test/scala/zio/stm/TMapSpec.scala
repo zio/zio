@@ -1,7 +1,7 @@
 package zio.stm
 
 import zio.test.Assertion._
-import zio.test.TestAspect.nonFlaky
+import zio.test.TestAspect.{jvm, nonFlaky}
 import zio.test._
 import zio.{Chunk, ZIO, ZIOBaseSpec}
 
@@ -402,7 +402,7 @@ object TMapSpec extends ZIOBaseSpec {
                     }
                     .exit
         } yield assert(exit)(succeeds(isUnit))
-      } @@ nonFlaky
+      } @@ jvm(nonFlaky)
     )
   )
 

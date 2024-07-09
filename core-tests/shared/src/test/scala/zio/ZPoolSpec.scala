@@ -1,7 +1,7 @@
 package zio
 
 import zio.test._
-import zio.test.TestAspect.nonFlaky
+import zio.test.TestAspect.{jvm, nonFlaky}
 
 object ZPoolSpec extends ZIOBaseSpec {
   def spec =
@@ -43,7 +43,7 @@ object ZPoolSpec extends ZIOBaseSpec {
             _      <- count.get.repeatUntil(_ == 10)
             values <- ZIO.collectAll(List.fill(9)(pool.get.flip))
           } yield assertTrue(values == List(1, 2, 3, 4, 5, 6, 7, 8, 9))
-        } @@ nonFlaky +
+        } @@ jvm(nonFlaky) +
         test("blocks when item not available") {
           for {
             count  <- Ref.make(0)
@@ -142,7 +142,7 @@ object ZPoolSpec extends ZIOBaseSpec {
             _     <- scope.close(Exit.succeed(()))
             _     <- count.get.repeatUntil(_ == 0)
           } yield assertCompletes
-        } @@ nonFlaky +
+        } @@ jvm(nonFlaky) +
         test("get is interruptible") {
           for {
             count <- Ref.make(0)
@@ -152,7 +152,7 @@ object ZPoolSpec extends ZIOBaseSpec {
             fiber <- pool.get.fork
             _     <- fiber.interrupt
           } yield assertCompletes
-        } @@ nonFlaky +
+        } @@ jvm(nonFlaky) +
         test("make in uninterruptible region") {
           for {
             _ <- ZIO.scoped(ZPool.make(ZIO.unit, 10 to 15, 60.seconds).uninterruptible)

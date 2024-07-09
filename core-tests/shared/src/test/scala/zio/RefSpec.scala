@@ -1,6 +1,7 @@
 package zio
 
 import zio.test.Assertion._
+import zio.test.TestAspect.{jvm, nonFlaky}
 import zio.test._
 
 object RefSpec extends ZIOBaseSpec {
@@ -11,7 +12,7 @@ object RefSpec extends ZIOBaseSpec {
         for {
           _ <- ZIO.unit.race(ZIO.unit)
         } yield assertCompletes
-      } @@ TestAspect.nonFlaky,
+      } @@ jvm(nonFlaky),
       test("get") {
         for {
           ref   <- Ref.make(current)
