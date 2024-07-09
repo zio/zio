@@ -1,7 +1,7 @@
 package zio
 
 import zio.test.Assertion._
-import zio.test.TestAspect.{nonFlaky, withLiveClock}
+import zio.test.TestAspect.{jvm, nonFlaky, withLiveClock}
 import zio.test._
 
 object ZLayerSpec extends ZIOBaseSpec {
@@ -91,13 +91,13 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- ZIO.scoped(env)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("sharing itself with ++") {
         val m1     = new Service1 {}
         val layer1 = ZLayer.succeed(m1)
         val env    = layer1 ++ (layer1 ++ layer1)
         env.build.flatMap(m => ZIO.attempt(assert(m.get)(equalTo(m1))))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("sharing with >>>") {
         val expected = Vector(acquire1, release1)
         for {
@@ -107,7 +107,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- ZIO.scoped(env)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("sharing with multiple layers") {
         for {
           ref    <- makeRef
@@ -121,7 +121,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
           assert(actual.slice(3, 5))(hasSameElements(Vector(release2, release3))) &&
           assert(actual(5))(equalTo(release1))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("finalizers with ++") {
         for {
           ref    <- makeRef
@@ -132,7 +132,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           actual <- ref.get
         } yield assert(actual.slice(0, 2))(hasSameElements(Vector(acquire1, acquire2))) &&
           assert(actual.slice(2, 4))(hasSameElements(Vector(release1, release2)))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("finalizers with >>>") {
         val expected = Vector(acquire1, acquire2, release2, release1)
         for {
@@ -143,7 +143,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- ZIO.scoped(env)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("finalizers with multiple layers") {
         val expected =
           Vector(acquire1, acquire2, acquire3, release3, release2, release1)
@@ -156,7 +156,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- ZIO.scoped(env)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("map does not interfere with sharing") {
         for {
           ref    <- makeRef
@@ -170,7 +170,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
           assert(actual.slice(3, 5))(hasSameElements(Vector(release2, release3))) &&
           assert(actual(5))(equalTo(release1))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("mapError does not interfere with sharing") {
         implicit val canFail = CanFail
         for {
@@ -186,7 +186,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
           assert(actual.slice(3, 5))(hasSameElements(Vector(release2, release3))) &&
           assert(actual(5))(equalTo(release1))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("orDie does not interfere with sharing") {
         implicit val canFail = CanFail
         for {
@@ -201,7 +201,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
           assert(actual.slice(3, 5))(hasSameElements(Vector(release2, release3))) &&
           assert(actual(5))(equalTo(release1))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("interruption with ++") {
         for {
           ref    <- makeRef
@@ -213,7 +213,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
-      } @@ zioTag(interruption) @@ nonFlaky,
+      } @@ zioTag(interruption) @@ jvm(nonFlaky),
       test("interruption with >>>") {
         for {
           ref    <- makeRef
@@ -225,7 +225,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
-      } @@ zioTag(interruption) @@ nonFlaky,
+      } @@ zioTag(interruption) @@ jvm(nonFlaky),
       test("interruption with multiple layers") {
         for {
           ref    <- makeRef
@@ -239,7 +239,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2))) &&
           (assert(actual)(contains(acquire3)) ==> assert(actual)(contains(release3)))
-      } @@ zioTag(interruption) @@ nonFlaky,
+      } @@ zioTag(interruption) @@ jvm(nonFlaky),
       test("layers can be acquired in parallel") {
         for {
           promise <- Promise.make[Nothing, Unit]
@@ -274,7 +274,7 @@ object ZLayerSpec extends ZIOBaseSpec {
                }
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("orElse") {
         for {
           ref    <- makeRef
@@ -286,7 +286,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("passthrough") {
         val layer: ZLayer[Int, Nothing, String] =
           ZLayer.fromFunction((n: Int) => n.toString)
@@ -307,7 +307,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- ZIO.scoped(env)
           result <- ref.get
         } yield assert(result)(equalTo(expected))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("fresh with >>>") {
         val expected = Vector(acquire1, acquire1, release1, release1)
         for {
@@ -317,7 +317,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- ZIO.scoped(env)
           result <- ref.get
         } yield assert(result)(equalTo(expected))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("fresh with multiple layers") {
         val expected = Vector(acquire1, acquire1, release1, release1)
         for {
@@ -327,7 +327,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- ZIO.scoped(env)
           result <- ref.get
         } yield assert(result)(equalTo(expected))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("fresh with identical fresh layers") {
         for {
           ref    <- makeRef
@@ -338,7 +338,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           _      <- ZIO.scoped(env)
           result <- ref.get
         } yield assert(result)(hasSize(equalTo(8)))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("fresh with combination of other operators maintains freshness") {
         def makeLayer1(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Service1] = ZLayer {
           ref.update(_ :+ "1").as(new Service1 {})
@@ -355,7 +355,7 @@ object ZLayerSpec extends ZIOBaseSpec {
                  .provide(layer1.fresh.map(identity).update(a => a), layer2)
           result <- ref.get
         } yield assert(result)(hasSameElements(Vector("1", "1", "2")))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("preserves identity of acquired resources") {
         for {
           testRef <- Ref.make(Vector[String]())
@@ -545,7 +545,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         for {
           exit <- ZIO.scoped(combined.build).exit
         } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("fiberRef changes are memoized") {
         for {
           fiberRef    <- FiberRef.make(false)
@@ -555,13 +555,13 @@ object ZLayerSpec extends ZIOBaseSpec {
           environment <- layer3.build
           value        = environment.get[Boolean]
         } yield assertTrue(value)
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("runtimeFlags") {
         for {
           runtimeFlags <- ZIO.runtimeFlags.provideLayer(Runtime.enableCurrentFiber ++ Runtime.enableOpLog)
         } yield assertTrue(RuntimeFlags.isEnabled(runtimeFlags)(RuntimeFlag.CurrentFiber)) &&
           assertTrue(RuntimeFlags.isEnabled(runtimeFlags)(RuntimeFlag.OpLog))
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("suspend lazily constructs a layer") {
         var n = 0
         val layer = ZLayer.suspend {
