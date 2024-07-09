@@ -691,6 +691,25 @@ lazy val benchmarks = project.module
     assembly / mainClass     := Some("org.openjdk.jmh.Main")
   )
 
+
+lazy val memoryLeakTests = project.module
+  .in(file("memory-leak-tests"))
+  .dependsOn(core.jvm, streams.jvm, coreTests.jvm % "test->test;compile->compile")
+  .dependsOn(testRunner.jvm)
+  .settings(
+    crossScalaVersions --= List(Scala212, Scala3),
+    publish / skip := true,
+    Test / parallelExecution := false,
+    Test / fork    := true,
+    Test / javacOptions := List("-XX:+ExitOnOutOfMemoryError", "-Xmx500M", "-Xms500M"),
+    Compile / console / scalacOptions := Seq(
+      "-language:higherKinds",
+      "-language:existentials",
+      "-Xsource:2.13",
+    )
+  )
+  .settings(scalacOptions += "-Wconf:msg=[@nowarn annotation does not suppress any warnings]:silent")
+
 lazy val jsdocs = project
   .settings(libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "2.8.0").cross(CrossVersion.for3Use2_13))
   .enablePlugins(ScalaJSPlugin)
