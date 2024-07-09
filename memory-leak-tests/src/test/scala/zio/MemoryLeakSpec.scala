@@ -1,25 +1,23 @@
 package zio
 
-import zio.test.{TestAspect, TestAspectPoly, assertTrue}
-
 import java.lang.management.ManagementFactory
 import BytesFormatter.BytesFmt
 
-trait MemoryLeakSpec extends ZIOBaseSpec {
+import zio.TestUtils._
+
+abstract class MemoryLeakSpec extends munit.FunSuite {
+
+  override val munitTimeout = 60.seconds.asFiniteDuration
 
   case class MemoryHolder(ar: Array[Byte])
   object MemoryHolder {
     def apply(bytes: Int = 1024): MemoryHolder = MemoryHolder(Array.ofDim[Byte](bytes))
   }
 
-  override def aspects: Chunk[TestAspectPoly] =
-    Chunk(TestAspect.timeout(15.seconds), TestAspect.timed, TestAspect.sequential, TestAspect.withLiveClock)
-
   private def heapUsed: UIO[Long] =
     ZIO.succeed {
       val runtime = java.lang.Runtime.getRuntime
       runtime.gc()
-      java.lang.System.gc()
       runtime.totalMemory() - runtime.freeMemory()
     }
 
@@ -28,85 +26,105 @@ trait MemoryLeakSpec extends ZIOBaseSpec {
     gcMxBeans.map(_.getName)
   }
 
-  case class LeakDetected(heapUsed: Long, zScore: Double)
+  sealed trait LeakResult
 
-  private def mean(xs: Chunk[Long]): Double = xs.sum / xs.size.toDouble
+  case class LeakDetected(heapUsed: Long, increasePercent: Double) extends LeakResult
+  case object NoLeakDetected                                       extends LeakResult
 
-  private def variance(xs: Chunk[Long]): Double = {
-    val avg = mean(xs)
-    xs.map(x => math.pow(x - avg, 2)).sum / xs.size
+  private def percDiff(first: Long, last: Long): Double =
+    100 * (last - first) / first
+
+  case class MemoryState(history: Chunk[Long] = Chunk.empty, mins: Chunk[Long] = Chunk.empty) {
+    def append(used: Long): MemoryState =
+      this.copy(history = history :+ used)
+
+    def compact: MemoryState = this.copy(
+      mins = mins :+ history.min,
+      history = Chunk.empty
+    )
   }
-
-  private def standardDeviation(xs: Chunk[Long]): Double = math.sqrt(variance(xs))
-
-  private def zScore(xs: Chunk[Long]): Double = {
-    val avg    = mean(xs)
-    val stdDev = standardDeviation(xs)
-    val x      = xs.last
-    (x - avg) / stdDev
-  }
-
-  private def percDiff(a: Long, b: Long): Double =
-    100 * math.abs(a - b) / ((a + b) / 2)
 
   private def monitorHeap(
     samplePeriod: Duration,
-    warmupIterations: Int,
-    heapUsedInitial: Long,
-    zScoreThreshold: Double
-  ): Task[LeakDetected] = {
-    println(s"heapUsedInitial = ${heapUsedInitial.fmtBytes}")
-    def go(initialBytes: Long, usedHistory: Chunk[Long] = Chunk.empty): Task[LeakDetected] =
-      ZIO.sleep(samplePeriod) *> heapUsed.flatMap { bytesUsed =>
-        val currentDiff = bytesUsed - initialBytes
-
-        val updated = usedHistory :+ bytesUsed
-
-        val zs = zScore(updated)
-        println(
-          f"Heap: ${bytesUsed.fmtBytes}%12.12s total, ${currentDiff.fmtDelta}%12.12s since start, zScore=${zs}"
-        )
-
-        if (zs > zScoreThreshold) {
-          println(s"LEAK: zscore=${zs} hist=${updated.map(_.fmtBytes)}")
-          Exit.succeed(LeakDetected(bytesUsed, zs))
-        } else go(initialBytes, updated)
-
+    warmupPeriods: Int,
+    increaseThreshold: Double
+  ): ZIO[Scope, Throwable, LeakDetected] = {
+    def collectUsed(state: Ref[MemoryState]): UIO[Unit] =
+      heapUsed.flatMap { bytesUsed =>
+        state.update { current =>
+          current.append(bytesUsed)
+        }
       }
 
-    heapUsed.flatMap { usedBytes =>
-      ZIO.logDebug(s"usedBytes per warmup = ${usedBytes.fmtBytes}") *> ZIO.sleep(samplePeriod)
-    }.repeatN(warmupIterations) *> heapUsed.flatMap { initialBytes =>
-      println(s"heap used after warmup = ${initialBytes.fmtBytes}")
-      if (percDiff(heapUsedInitial, initialBytes) > 100.0) {
-        // heap increased twice after warmup, definitely leak
-        Exit.Success(LeakDetected(initialBytes, 2.0))
-      } else go(initialBytes)
+    def monitor(p: Promise[Nothing, LeakDetected], state: Ref[MemoryState]): IO[LeakDetected, Unit] =
+      state.updateAndGet { current =>
+        current.compact
+      }.flatMap { state =>
+        val bytesUsed = state.mins.last
+
+        // minimum samples is 4
+        if (state.mins.size > 3) {
+          val incBy = percDiff(state.mins.take(2).min, bytesUsed)
+          println(f"Heap: ${bytesUsed.fmtBytes}%12.12s total diff percent = $incBy")
+          ZIO
+            .when(incBy > increaseThreshold) {
+              p.succeed(LeakDetected(bytesUsed, incBy))
+            }
+            .unit
+        } else {
+          println(f"Heap: ${bytesUsed.fmtBytes}%12.12s total")
+          ZIO.unit
+        }
+      }
+
+    ZIO.scopeWith { scope =>
+      heapUsed.flatMap { usedBytes =>
+        ZIO.logDebug(s"usedBytes per warmup = ${usedBytes.fmtBytes}") *> ZIO.sleep(samplePeriod)
+      }.repeatN(warmupPeriods) *> heapUsed.flatMap { initialBytes =>
+        println(s"heap used after warmup = ${initialBytes.fmtBytes}")
+        for {
+          p      <- Promise.make[Nothing, LeakDetected]
+          state  <- Ref.make[MemoryState](MemoryState())
+          f1     <- collectUsed(state).delay(250.millis).forever.forkIn(scope)
+          f2     <- monitor(p, state).delay(samplePeriod).forever.forkIn(scope)
+          result <- p.await
+          _      <- f1.interruptFork
+          _      <- f2.interruptFork
+        } yield result
+      }
     }
   }
 
   private lazy val gc = currentGC
 
+  def pid: Long = ProcessHandle.current.pid
+
   protected def leakTest(
     name: String,
-    zScoreThreshold: Double = 2
-  )(effect: => Task[Unit]) =
+    warmupPeriods: Int = 3,
+    increaseThreshold: Double = 20
+  )(effect: => Task[Unit]): Unit =
     test(name) {
-      println(s"start test $name, using GC = $gc")
-      heapUsed.flatMap { initialBytes =>
-        effect.disconnect
-          .timeout(10.seconds)
-          .raceEither(
-            monitorHeap(
-              samplePeriod = 1.seconds,
-              warmupIterations = 3,
-              heapUsedInitial = initialBytes,
-              zScoreThreshold = zScoreThreshold
-            )
-          )
-          .map { result =>
-            assertTrue(result.isLeft)
+      println(s"start test $name, pid=$pid using GC = $gc")
+      val result = unsafeRunNewRuntime(
+        heapUsed.flatMap { initialBytes =>
+          println(s"Initial used heap = ${initialBytes.fmtBytes}")
+          ZIO.scoped {
+            effect.disconnect
+              .timeout(14.seconds)
+              .raceEither(
+                monitorHeap(
+                  samplePeriod = 1.seconds,
+                  warmupPeriods = warmupPeriods,
+                  increaseThreshold = increaseThreshold
+                )
+              )
           }
-      }
+        }
+      )
+
+      val leakResult = result.getOrElse(NoLeakDetected)
+      assertEquals(leakResult, NoLeakDetected)
     }
+
 }

@@ -693,14 +693,17 @@ lazy val benchmarks = project.module
 
 lazy val memoryLeakTests = project.module
   .in(file("memory-leak-tests"))
-  .dependsOn(core.jvm, streams.jvm, coreTests.jvm % "test->test;compile->compile")
-  .dependsOn(testRunner.jvm)
+  .dependsOn(core.jvm, streams.jvm)
   .settings(
     crossScalaVersions --= List(Scala212, Scala3),
     publish / skip           := true,
     Test / parallelExecution := false,
     Test / fork              := true,
-    Test / javacOptions      := List("-XX:+ExitOnOutOfMemoryError", "-Xmx500M", "-Xms500M"),
+    Test / javaOptions       := List("-XX:+ExitOnOutOfMemoryError", "-Xmx1G", "-Xms200M"),
+    libraryDependencies ++= Seq(
+      "org.scalameta" %% "munit" % "1.0.0" % Test
+    ),
+    testFrameworks := Seq(TestFramework("munit.Framework")),
     Compile / console / scalacOptions := Seq(
       "-language:higherKinds",
       "-language:existentials",
