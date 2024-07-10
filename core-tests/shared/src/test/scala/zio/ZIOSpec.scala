@@ -4472,8 +4472,8 @@ object ZIOSpec extends ZIOBaseSpec {
           _      <- ZIO.scoped(ZIO.fromAutoCloseable(closeable))
           result <- effects.get
         } yield assert(result)(equalTo(List("Closed")))
-      },
-    ),
+      }
+    )
   )
 
   def functionIOGen: Gen[Any, String => ZIO[Any, Throwable, Int]] =
