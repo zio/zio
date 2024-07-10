@@ -41,7 +41,9 @@ object BuildHelper {
         "-opt:l:method",
         "-opt:l:inline",
         "-opt-inline-from:zio.internal.**",
-        "-Xelide-below:2001" // To remove calls to `assert` in releases. Assertions are level 2000
+        // To remove calls to `assert` in releases. Assertions are level 2000
+        "-Xelide-below",
+        "2001"
       )
     else Nil
 
