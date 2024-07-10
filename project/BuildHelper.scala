@@ -224,7 +224,7 @@ object BuildHelper {
   )
 
   def nativeSettings = Seq(
-    nativeConfig ~= {_.withMultithreading(false)},
+    nativeConfig ~= { _.withMultithreading(false) },
     Test / fork := crossProjectPlatform.value == JVMPlatform // set fork to `true` on JVM to improve log readability, JS and Native need `false`
   )
 
