@@ -65,14 +65,15 @@ final class FiberRefs private (
   def forkAs(childId: FiberId.Runtime): FiberRefs =
     if (needsTransformWhenForked) {
       val childMap = fiberRefLocals.transform { (fiberRef, entry) =>
-        if (fiberRef.fork == ZIO.identityFn[Any]) {
+        val fork = fiberRef.fork
+        if (fork.asInstanceOf[AnyRef] eq ZIO.identityFn[Any]) {
           entry
         } else {
           import entry.{depth, stack}
 
           type T = fiberRef.Value with AnyRef
           val oldValue = stack.head.value.asInstanceOf[T]
-          val newValue = fiberRef.patch(fiberRef.fork)(oldValue).asInstanceOf[T]
+          val newValue = fiberRef.patch(fork)(oldValue).asInstanceOf[T]
           if (oldValue eq newValue) entry
           else Value(::(StackEntry(childId, newValue, 0), stack), depth + 1)
         }
