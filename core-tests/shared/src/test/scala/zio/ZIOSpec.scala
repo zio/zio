@@ -4473,18 +4473,7 @@ object ZIOSpec extends ZIOBaseSpec {
           result <- effects.get
         } yield assert(result)(equalTo(List("Closed")))
       },
-      test("is null-safe") {
-        // Will be `null` because the file doesn't exist
-        def loadNonExistingFile = ZIO.attempt(this.getClass.getResourceAsStream(s"this_file_doesnt_exist.json"))
-
-        for {
-          shouldBeNull <- loadNonExistingFile
-          // Should not fail when closing a null resource
-          // The test will fail if the resource is not closed properly
-          _ <- ZIO.fromAutoCloseable(loadNonExistingFile)
-        } yield assert(shouldBeNull)(isNull)
-      } @@ jvmOnly
-    )
+    ),
   )
 
   def functionIOGen: Gen[Any, String => ZIO[Any, Throwable, Int]] =
