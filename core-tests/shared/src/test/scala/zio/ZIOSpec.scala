@@ -4469,7 +4469,7 @@ object ZIOSpec extends ZIOBaseSpec {
                           runtime.unsafe.run(effects.update("Closed" :: _)).getOrThrowFiberFailure()
                         }
                       })
-          _      <- ZIO.fromAutoCloseable(closeable)
+          _      <- ZIO.scoped(ZIO.fromAutoCloseable(closeable))
           result <- effects.get
         } yield assert(result)(equalTo(List("Closed")))
       },
