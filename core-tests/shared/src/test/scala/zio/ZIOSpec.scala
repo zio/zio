@@ -4458,6 +4458,32 @@ object ZIOSpec extends ZIOBaseSpec {
           _ <- workflow
         } yield assertTrue(evaluated)
       }
+    ),
+    suite("fromAutoCloseable")(
+      test("Runs finalizers properly") {
+        for {
+          runtime <- ZIO.runtime[Any]
+          effects <- Ref.make(List[String]())
+          closeable = ZIO.succeed(new AutoCloseable {
+                        def close(): Unit = Unsafe.unsafe { implicit unsafe =>
+                          runtime.unsafe.run(effects.update("Closed" :: _)).getOrThrowFiberFailure()
+                        }
+                      })
+          _      <- ZIO.fromAutoCloseable(closeable)
+          result <- effects.get
+        } yield assert(result)(equalTo(List("Closed")))
+      },
+      test("is null-safe") {
+        // Will be `null` because the file doesn't exist
+        def loadNonExistingFile = this.getClass.getResourceAsStream(s"this_file_doesnt_exist.json")
+
+        for {
+          shouldBeNull <- ZIO.attempt(loadNonExistingFile)
+          // Should not fail when closing a null resource
+          // The test will fail if the resource is not closed properly
+          _ <- ZIO.fromAutoCloseable(ZIO.attempt(loadNonExistingFile))
+        } yield assert(shouldBeNull)(isNull)
+      }
     )
   )
 
