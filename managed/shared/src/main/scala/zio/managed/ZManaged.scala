@@ -2070,7 +2070,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def fromAutoCloseable[R, E, A <: AutoCloseable](fa: => ZIO[R, E, A])(implicit
     trace: Trace
   ): ZManaged[R, E, A] =
-    acquireReleaseWith(fa)(a => ZIO.succeed(a.close()))
+    acquireReleaseWith(fa)(a => if (a eq null) ZIO.unit else ZIO.succeed(a.close()))
 
   /**
    * Lifts an `Either` into a `ZManaged` value.
