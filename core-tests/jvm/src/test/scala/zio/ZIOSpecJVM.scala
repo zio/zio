@@ -1,6 +1,7 @@
 package zio
 
 import zio.test._
+import zio.test.Assertion.isNull
 
 object ZIOSpecJVM extends ZIOBaseSpec {
 
@@ -32,6 +33,19 @@ object ZIOSpecJVM extends ZIOBaseSpec {
           v3     <- ref3.get
         } yield assertTrue(v1 > 0 && v2 > 0 && v3 > 0)
       }
-    }
+    },
+    suite("fromAutoCloseable")(
+      test("is null-safe") {
+        // Will be `null` because the file doesn't exist
+        def loadNonExistingFile = ZIO.attempt(this.getClass.getResourceAsStream(s"this_file_doesnt_exist.json"))
+
+        for {
+          shouldBeNull <- loadNonExistingFile
+          // Should not fail when closing a null resource
+          // The test will fail if the resource is not closed properly
+          _ <- ZIO.fromAutoCloseable(loadNonExistingFile)
+        } yield assert(shouldBeNull)(isNull)
+      }
+    )
   )
 }
