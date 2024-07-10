@@ -1,6 +1,7 @@
 package zio
 
-import zio.ZIO.{Async, asyncInterrupt, blocking}
+import zio.ZIO.Async
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 
@@ -148,6 +149,23 @@ trait ZIOCompanionVersionSpecific {
    */
   def attemptBlockingIO[A](effect: => A)(implicit trace: Trace): IO[IOException, A] =
     attemptBlocking(effect).refineToOrDie[IOException]
+
+  /**
+   * Wraps the provided effect in a catch-try block. Useful for handling cases
+   * where the user-provided effect might throw outside the ZIO effect, but we
+   * don't want to incur the performance penalty from the additional flatMap in
+   * `ZIO.suspend`.
+   */
+  @inline
+  final protected def attemptOrDieZIO[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    try effect
+    catch {
+      case t: Throwable =>
+        ZIO.isFatalWith { isFatal =>
+          if (!isFatal(t)) Exit.die(t)
+          else throw t
+        }
+    }
 
   /**
    * Returns an effect that, when executed, will cautiously run the provided
