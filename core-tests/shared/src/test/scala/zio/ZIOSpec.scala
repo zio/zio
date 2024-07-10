@@ -347,7 +347,7 @@ object ZIOSpec extends ZIOBaseSpec {
             exit     <- ZIO.collectAllPar(List(left, ZIO.collectAllPar(List(right1, right2)))).exit
           } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
         }
-      } @@ nonFlaky(500)
+      } @@ jvm(nonFlaky(500))
     ),
     suite("collectAllParN")(
       test("returns results in the same order") {
@@ -1039,7 +1039,7 @@ object ZIOSpec extends ZIOBaseSpec {
             (assert(result2.dieOption)(isSome(equalTo(boom))) && assert(result2.isInterrupted)(isTrue))
           }
         }
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("infers correctly") {
         for {
           ref    <- Ref.make(0)
@@ -1793,7 +1793,7 @@ object ZIOSpec extends ZIOBaseSpec {
             equalTo(List("error1")) ||
             equalTo(List("error2"))
         )
-      } @@ nonFlaky
+      } @@ jvm(nonFlaky)
     ) @@ zioTag(errors),
     suite("partition")(
       test("collects only successes") {
@@ -2830,7 +2830,7 @@ object ZIOSpec extends ZIOBaseSpec {
             _      <- started.await *> fiber.interruptFork *> latch.succeed(()) *> fiber.await
             result <- finalized.get
           } yield assertTrue(result == false)
-        } @@ nonFlaky +
+        } @@ jvm(nonFlaky) +
         test("interruption can be caught at the beginning of uninterruptible regions") {
           for {
             started   <- Promise.make[Nothing, Unit]
@@ -2875,7 +2875,7 @@ object ZIOSpec extends ZIOBaseSpec {
                      }
             cause <- ensuring.await *> fiber.interrupt.flatMap(ZIO.done(_))
           } yield assertTrue(cause.defects.length == 1)
-        } @@ nonFlaky
+        } @@ jvm(nonFlaky)
 
     } @@ zioTag(interruption),
     suite("RTS concurrency correctness")(
@@ -3329,7 +3329,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- done1.await *> done2.await
           count <- ref.get
         } yield assert(count)(equalTo(2))
-      }, // FIXME: @@ nonFlaky,
+      }, // FIXME: @@ jvm(nonFlaky),
       test("recovery of error in finalizer") {
         for {
           recovered <- Ref.make(false)
@@ -3533,7 +3533,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _       <- fiber.interrupt
           value   <- ref.get
         } yield assertTrue(value == true)
-      } @@ nonFlaky @@ TestAspect.fibers,
+      } @@ jvm(nonFlaky) @@ TestAspect.fibers,
       test("asyncInterrupt cancelation") {
         for {
           ref       <- ZIO.succeed(new java.util.concurrent.atomic.AtomicInteger(0))
@@ -3572,7 +3572,7 @@ object ZIOSpec extends ZIOBaseSpec {
             _       <- ref.get.repeatUntilEquals(true)
           } yield assertCompletes
         }
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("child can outlive parent in race") {
         for {
           promise <- Promise.make[Nothing, Unit]
@@ -3584,7 +3584,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- promise.succeed(())
           exit  <- fiber.await
         } yield assertTrue(exit.isSuccess)
-      } @@ nonFlaky
+      } @@ jvm(nonFlaky)
     ) @@ zioTag(interruption),
     suite("RTS environment")(
       test("provide is modular") {
@@ -4320,7 +4320,7 @@ object ZIOSpec extends ZIOBaseSpec {
             exit     <- left.zipPar(right1.zipPar(right2)).exit
           } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
         }
-      } @@ nonFlaky(500),
+      } @@ jvm(nonFlaky(500)),
       test("is interruptible") {
         for {
           promise1 <- Promise.make[Nothing, Unit]

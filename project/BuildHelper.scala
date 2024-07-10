@@ -38,13 +38,19 @@ object BuildHelper {
   private def optimizerOptions(optimize: Boolean) =
     if (optimize)
       Seq(
+        "-opt:l:method",
         "-opt:l:inline",
-        "-opt-inline-from:zio.internal.**"
+        "-opt-inline-from:zio.internal.**",
+        // To remove calls to `assert` in releases. Assertions are level 2000
+        "-Xelide-below",
+        "2001"
       )
     else Nil
 
   def buildInfoSettings(packageName: String) =
     Seq(
+      // BuildInfoOption.ConstantValue required to disable assertions in FiberRuntime!
+      buildInfoOptions += BuildInfoOption.ConstantValue,
       buildInfoKeys    := Seq[BuildInfoKey](organization, moduleName, name, version, scalaVersion, sbtVersion, isSnapshot),
       buildInfoPackage := packageName
     )

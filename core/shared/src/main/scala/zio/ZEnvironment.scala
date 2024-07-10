@@ -18,22 +18,36 @@ package zio
 
 import zio.internal.UpdateOrderLinkedMap
 
+import java.util.concurrent.ConcurrentHashMap
 import scala.annotation.tailrec
-import scala.collection.immutable.HashMap
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.util.control.ControlThrowable
 import scala.util.hashing.MurmurHash3
 
 final class ZEnvironment[+R] private (
   private val map: UpdateOrderLinkedMap[LightTypeTag, Any],
-  private var cache: HashMap[LightTypeTag, Any],
+  private val cache: ConcurrentHashMap[LightTypeTag, Any],
   private val scope: Scope
 ) extends Serializable { self =>
-  import ZEnvironment.{ScopeTag, TaggedAny}
+  import ZEnvironment.{MissingService, ScopeTag, TaggedAny}
 
   @deprecated("Kept for binary compatibility only. Do not use", "2.1.2")
   private[ZEnvironment] def this(map: Map[LightTypeTag, Any], index: Int, cache: Map[LightTypeTag, Any] = Map.empty) =
-    this(UpdateOrderLinkedMap.fromMap(map), cache = HashMap.empty[LightTypeTag, Any] ++ cache, null)
+    this(UpdateOrderLinkedMap.fromMap(map), ZEnvironment.scalaToJucMap(cache), null)
+
+  @deprecated("Kept for binary compatibility only. Do not use", "2.1.5")
+  private[ZEnvironment] def this(
+    map: UpdateOrderLinkedMap[LightTypeTag, Any],
+    cache: immutable.HashMap[LightTypeTag, Any],
+    scope: Scope
+  ) = this(map, ZEnvironment.scalaToJucMap(cache), scope)
+
+  @deprecated("Kept for binary compatibility only. Do not use", "2.1.6")
+  private[ZEnvironment] def this(
+    map: UpdateOrderLinkedMap[LightTypeTag, Any],
+    cache: mutable.HashMap[LightTypeTag, Any],
+    scope: Scope
+  ) = this(map, ZEnvironment.scalaToJucMap(cache), scope)
 
   def ++[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.union[R1](that)
@@ -72,9 +86,8 @@ final class ZEnvironment[+R] private (
   def getDynamic[A](implicit tag: Tag[A]): Option[A] =
     Option(unsafe.getOrElse(tag.tag, null.asInstanceOf[A])(Unsafe.unsafe))
 
-  override lazy val hashCode: Int = {
+  override lazy val hashCode: Int =
     MurmurHash3.productHash((map, scope))
-  }
 
   /**
    * Prunes the environment to the set of services statically known to be
@@ -136,7 +149,7 @@ final class ZEnvironment[+R] private (
 
       new ZEnvironment(
         newMap,
-        cache = HashMap.empty,
+        cache = new ConcurrentHashMap[LightTypeTag, Any],
         scope = if (scopeTags.isEmpty) null else scope
       )
     }
@@ -177,7 +190,7 @@ final class ZEnvironment[+R] private (
       }
       val newScope = if (that.scope eq null) self.scope else that.scope
       // Reuse the cache of the right hand-side
-      new ZEnvironment(newMap, cache = that.cache, scope = newScope)
+      new ZEnvironment(newMap, cache = new ConcurrentHashMap[LightTypeTag, Any](that.cache), scope = newScope)
     }
 
   /**
@@ -211,7 +224,7 @@ final class ZEnvironment[+R] private (
     taggedIsSubtype(tag, ScopeTag)
 
   val unsafe: UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 =
-    new UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 {
+    new UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 with Serializable {
       private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A] =
         if (a.isInstanceOf[Scope] && isScopeTag(tag))
           addScope(a.asInstanceOf[Scope]).asInstanceOf[ZEnvironment[R with A]]
@@ -224,7 +237,8 @@ final class ZEnvironment[+R] private (
       private[ZEnvironment] def addService[A](tag: LightTypeTag, a: A)(implicit
         unsafe: Unsafe
       ): ZEnvironment[R with A] = {
-        val newCache = HashMap(tag -> a)
+        val newCache = new ConcurrentHashMap[LightTypeTag, Any]
+        newCache.put(tag, a)
         new ZEnvironment(map.updated(tag, a), cache = newCache, scope = scope)
       }
 
@@ -243,7 +257,7 @@ final class ZEnvironment[+R] private (
         }
 
       private[this] def getUnsafe[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A = {
-        val fromCache = self.cache.getOrElse(tag, null)
+        val fromCache = self.cache.get(tag)
         if (fromCache != null)
           fromCache.asInstanceOf[A]
         else if ((scope ne null) && isScopeTag(tag))
@@ -262,7 +276,7 @@ final class ZEnvironment[+R] private (
           if (service == null) {
             throw MissingService
           } else {
-            cache = self.cache.updated(tag, service)
+            self.cache.put(tag, service)
             service
           }
         }
@@ -272,8 +286,6 @@ final class ZEnvironment[+R] private (
         unsafe: Unsafe
       ): ZEnvironment[R] =
         add[A](tag, f(get(tag)))
-
-      private case object MissingService extends ControlThrowable
     }
 }
 
@@ -340,7 +352,21 @@ object ZEnvironment {
    * The empty environment containing no services.
    */
   val empty: ZEnvironment[Any] =
-    new ZEnvironment[Any](UpdateOrderLinkedMap.empty, cache = HashMap.empty, scope = null)
+    new ZEnvironment[Any](
+      UpdateOrderLinkedMap.empty[LightTypeTag, Any],
+      cache = new ConcurrentHashMap[LightTypeTag, Any],
+      scope = null
+    )
+
+  private case object MissingService extends ControlThrowable
+
+  // Can't use scala -> java collection conversions because they don't cross compile to Scala 2.12.
+  @deprecated("Marked as deprecated to avoid usage in non-deprecated methods", "2.1.16")
+  private def scalaToJucMap[K, V](map: collection.Map[K, V]): ConcurrentHashMap[K, V] = {
+    val jucMap = new ConcurrentHashMap[K, V]
+    map.foreach { case (k, v) => jucMap.put(k, v) }
+    jucMap
+  }
 
   /**
    * A `Patch[In, Out]` describes an update that transforms a `ZEnvironment[In]`

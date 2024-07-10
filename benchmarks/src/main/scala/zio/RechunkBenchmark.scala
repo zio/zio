@@ -18,18 +18,26 @@ class RechunkBenchmark {
   var chunkCount: Int = _
 
   @Param(Array("10"))
+  var hugeChunkCount: Int = _
+
+  @Param(Array("10"))
   var smallChunkSize: Int = _
 
   @Param(Array("10000"))
   var largeChunkSize: Int = _
 
+  @Param(Array("10000000"))
+  var hugeChunkSize: Int = _
+
   var smallChunks: IndexedSeq[Chunk[Int]] = _
   var largeChunks: IndexedSeq[Chunk[Int]] = _
+  var hugeChunks: IndexedSeq[Chunk[Int]]  = _
 
   @Setup
   def setup(): Unit = {
     smallChunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(smallChunkSize)(i)))
     largeChunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(largeChunkSize)(i)))
+    hugeChunks = (1 to hugeChunkCount).map(i => Chunk.fromArray(Array.fill(hugeChunkSize)(i)))
   }
 
   @Benchmark
@@ -53,6 +61,18 @@ class RechunkBenchmark {
   @Benchmark
   def rechunkSmallTo1: Long = {
     val result = ZStream.fromChunks(smallChunks: _*).via(ZPipeline.rechunk(1)).runCount
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def rechunkHugeToLarge: Long = {
+    val result = ZStream.fromChunks(hugeChunks: _*).via(ZPipeline.rechunk(largeChunkSize)).runCount
+    unsafeRun(result)
+  }
+
+  @Benchmark
+  def rechunkLargeToHuge: Long = {
+    val result = ZStream.fromChunks(largeChunks: _*).via(ZPipeline.rechunk(hugeChunkSize)).runCount
     unsafeRun(result)
   }
 }
