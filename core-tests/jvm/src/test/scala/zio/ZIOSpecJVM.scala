@@ -1,6 +1,7 @@
 package zio
 
 import zio.test._
+import zio.test.Assertion.isNull
 
 object ZIOSpecJVM extends ZIOBaseSpec {
 
