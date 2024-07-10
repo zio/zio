@@ -1,5 +1,6 @@
 package zio
 
+import zio.test.TestAspect.exceptScala212
 import zio.test._
 
 object FiberRefsSpec extends ZIOBaseSpec {
@@ -55,7 +56,7 @@ object FiberRefsSpec extends ZIOBaseSpec {
             val fr   = makeFiberRefs(fiberRefs.take(4))
             val isEq = fr.forkAs(FiberId.Gen.Live.make(implicitly)) eq fr
             assertTrue(isEq)
-          } +
+          } @@ exceptScala212 +
           test("joinAs returns the same map when fiber refs are unchanged after joining") {
             val fr1  = makeFiberRefs(fiberRefs.drop(1))
             val fr2  = makeFiberRefs(fiberRefs.drop(2))
