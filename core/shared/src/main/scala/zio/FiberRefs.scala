@@ -64,18 +64,21 @@ final class FiberRefs private (
    */
   def forkAs(childId: FiberId.Runtime): FiberRefs =
     if (needsTransformWhenForked) {
-      var modified = false
-      val childMap = fiberRefLocals.transform { case (fiberRef, entry @ Value(stack, depth)) =>
-        val oldValue = stack.head.value.asInstanceOf[fiberRef.Value]
-        val newValue = fiberRef.patch(fiberRef.fork)(oldValue)
-        if (oldValue == newValue) entry
-        else {
-          modified = true
-          Value(::(StackEntry(childId, newValue, 0), stack), depth + 1)
+      val childMap = fiberRefLocals.transform { (fiberRef, entry) =>
+        if (fiberRef.fork == ZIO.identityFn[Any]) {
+          entry
+        } else {
+          import entry.{depth, stack}
+
+          type T = fiberRef.Value with AnyRef
+          val oldValue = stack.head.value.asInstanceOf[T]
+          val newValue = fiberRef.patch(fiberRef.fork)(oldValue).asInstanceOf[T]
+          if (oldValue eq newValue) entry
+          else Value(::(StackEntry(childId, newValue, 0), stack), depth + 1)
         }
       }
 
-      if (modified) FiberRefs(childMap)
+      if (childMap ne fiberRefLocals) FiberRefs(childMap)
       else {
         needsTransformWhenForked = false
         self
@@ -189,7 +192,7 @@ final class FiberRefs private (
             StackEntry(parentFiberId, parentValue, parentVersion) :: parentAncestors,
             StackEntry(childFiberId, childValue, childVersion) :: childAncestors
           ) =>
-        if (parentFiberId == childFiberId)
+        if (parentFiberId eq childFiberId)
           if (childVersion > parentVersion) parentValue else childValue
         else if (childDepth > parentDepth)
           findAncestor(ref, parentStack, parentDepth, childAncestors, childDepth - 1)
