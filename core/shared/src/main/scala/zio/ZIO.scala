@@ -3415,8 +3415,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       loop
     }
 
-  @inline
-  private def foreach_[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
+  /**
+   * Applies the function `f` to each element of the `Collection[A]` and returns
+   * the results in a new `Collection[B]`.
+   *
+   * For a parallel version of this method, see `foreachPar`. If you do not need
+   * the results, see `foreachDiscard` for a more efficient implementation.
+   */
+  def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] =
     if (in.isEmpty) ZIO.succeed(bf.fromSpecific(in)(Nil))
@@ -3429,18 +3435,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       }
 
   /**
-   * Applies the function `f` to each element of the `Collection[A]` and returns
-   * the results in a new `Collection[B]`.
-   *
-   * For a parallel version of this method, see `foreachPar`. If you do not need
-   * the results, see `foreachDiscard` for a more efficient implementation.
-   */
-  def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
-    f: A => ZIO[R, E, B]
-  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] =
-    foreach_(in)(f)
-
-  /**
    * Applies the function `f` to each element of the `Set[A]` and returns the
    * results in a new `Set[B]`.
    *
@@ -3448,7 +3442,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * the results, see `foreachDiscard` for a more efficient implementation.
    */
   final def foreach[R, E, A, B](in: Set[A])(f: A => ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, Set[B]] =
-    foreach_(in)(f)
+    if (in.isEmpty) ZIO.succeed(Set.empty)
+    else
+      ZIO.suspendSucceed {
+        val iterator = in.iterator
+        val builder  = Set.newBuilder[B]
+
+        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
+      }
 
   /**
    * Applies the function `f` to each element of the `Array[A]` and returns the
@@ -3460,7 +3461,15 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   final def foreach[R, E, A, B: ClassTag](in: Array[A])(f: A => ZIO[R, E, B])(implicit
     trace: Trace
   ): ZIO[R, E, Array[B]] =
-    foreach_(in)(f)
+    if (in.isEmpty) ZIO.succeed(Array.empty[B])
+    else
+      ZIO.suspendSucceed {
+        val iterator = in.iterator
+        val builder  = Array.newBuilder[B]
+        builder.sizeHint(in.length)
+
+        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
+      }
 
   /**
    * Applies the function `f` to each element of the `Map[Key, Value]` and
@@ -3472,7 +3481,15 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def foreach[R, E, Key, Key2, Value, Value2](
     map: Map[Key, Value]
   )(f: (Key, Value) => ZIO[R, E, (Key2, Value2)])(implicit trace: Trace): ZIO[R, E, Map[Key2, Value2]] =
-    foreach_(map)(f.tupled)
+    if (map.isEmpty) ZIO.succeed(Map.empty)
+    else
+      ZIO.suspendSucceed {
+        val iterator = map.iterator
+        val builder  = Map.newBuilder[Key2, Value2]
+
+        val ft = f.tupled
+        ZIO.whileLoop(iterator.hasNext)(ft(iterator.next()))(builder += _).as(builder.result())
+      }
 
   /**
    * Applies the function `f` if the argument is non-empty and returns the
@@ -3536,8 +3553,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         }
       }
 
-  @inline
-  private def foreachPar_[R, E, A, B, Collection[+Element] <: Iterable[Element]](
+  /**
+   * Applies the function `f` to each element of the `Collection[A]` in
+   * parallel, and returns the results in a new `Collection[B]`.
+   *
+   * For a sequential version of this method, see `foreach`.
+   */
+  def foreachPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(
     f: A => ZIO[R, E, B]
@@ -3550,19 +3572,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       }
 
   /**
-   * Applies the function `f` to each element of the `Collection[A]` in
-   * parallel, and returns the results in a new `Collection[B]`.
-   *
-   * For a sequential version of this method, see `foreach`.
-   */
-  def foreachPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](
-    as: Collection[A]
-  )(
-    f: A => ZIO[R, E, B]
-  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] =
-    foreachPar_(as)(f)
-
-  /**
    * Applies the function `f` to each element of the `Set[A]` in parallel, and
    * returns the results in a new `Set[B]`.
    *
@@ -3571,7 +3580,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   final def foreachPar[R, E, A, B](as: Set[A])(fn: A => ZIO[R, E, B])(implicit
     trace: Trace
   ): ZIO[R, E, Set[B]] =
-    foreachPar_(as)(fn)
+    foreachPar[R, E, A, B, Iterable](as)(fn).map(_.toSet)
 
   /**
    * Applies the function `f` to each element of the `Array[A]` in parallel, and
@@ -3582,7 +3591,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   final def foreachPar[R, E, A, B: ClassTag](as: Array[A])(f: A => ZIO[R, E, B])(implicit
     trace: Trace
   ): ZIO[R, E, Array[B]] =
-    foreachPar_(as)(f)
+    foreachPar[R, E, A, B, Iterable](as)(f).map(_.toArray)
 
   /**
    * Applies the function `f` to each element of the `Map[Key, Value]` in
@@ -3593,7 +3602,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def foreachPar[R, E, Key, Key2, Value, Value2](
     map: Map[Key, Value]
   )(f: (Key, Value) => ZIO[R, E, (Key2, Value2)])(implicit trace: Trace): ZIO[R, E, Map[Key2, Value2]] =
-    foreachPar_(map)(f.tupled)
+    foreachPar[R, E, (Key, Value), (Key2, Value2), Iterable](map)(f.tupled).map(_.toMap)
 
   /**
    * Applies the function `f` to each element of the `NonEmptyChunk[A]` in
@@ -5974,13 +5983,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   private[zio] object UpdateRuntimeFlagsWithin extends UpdateRuntimeFlagsWithinPlatformSpecific {
     final case class Interruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
         extends UpdateRuntimeFlagsWithin[R, E, A] {
-      def update: RuntimeFlags.Patch = RuntimeFlags.enable(RuntimeFlag.Interruption)
+      def update: RuntimeFlags.Patch = RuntimeFlags.enableInterruption
 
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
     }
     final case class Uninterruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
         extends UpdateRuntimeFlagsWithin[R, E, A] {
-      def update: RuntimeFlags.Patch = RuntimeFlags.disable(RuntimeFlag.Interruption)
+      def update: RuntimeFlags.Patch = RuntimeFlags.disableInterruption
 
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
     }
