@@ -3642,7 +3642,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def fromAutoCloseable[R, E, A <: AutoCloseable](fa: => ZIO[R, E, A])(implicit
     trace: Trace
   ): ZIO[R with Scope, E, A] =
-    acquireRelease(fa)(a => ZIO.succeed(a.close()))
+    acquireRelease(fa)(a => if (a eq null) ZIO.unit else ZIO.succeed(a.close()))
 
   /**
    * Lifts an `Either` into a `ZIO` value.
