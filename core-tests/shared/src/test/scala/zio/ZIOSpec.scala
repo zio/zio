@@ -4475,13 +4475,13 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       test("is null-safe") {
         // Will be `null` because the file doesn't exist
-        def loadNonExistingFile = this.getClass.getResourceAsStream(s"this_file_doesnt_exist.json")
+        def loadNonExistingFile = ZIO.attempt(this.getClass.getResourceAsStream(s"this_file_doesnt_exist.json"))
 
         for {
-          shouldBeNull <- ZIO.attempt(loadNonExistingFile)
+          shouldBeNull <- loadNonExistingFile
           // Should not fail when closing a null resource
           // The test will fail if the resource is not closed properly
-          _ <- ZIO.fromAutoCloseable(ZIO.attempt(loadNonExistingFile))
+          _ <- ZIO.fromAutoCloseable(loadNonExistingFile)
         } yield assert(shouldBeNull)(isNull)
       }
     )
