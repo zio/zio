@@ -4483,7 +4483,7 @@ object ZIOSpec extends ZIOBaseSpec {
           // The test will fail if the resource is not closed properly
           _ <- ZIO.fromAutoCloseable(loadNonExistingFile)
         } yield assert(shouldBeNull)(isNull)
-      }
+      } @@ jvmOnly
     )
   )
 
