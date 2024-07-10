@@ -4465,10 +4465,10 @@ object ZIOSpec extends ZIOBaseSpec {
           runtime <- ZIO.runtime[Any]
           effects <- Ref.make(List[String]())
           closeable = ZIO.succeed(new AutoCloseable {
-            def close(): Unit = Unsafe.unsafe { implicit unsafe =>
-              runtime.unsafe.run(effects.update("Closed" :: _)).getOrThrowFiberFailure()
-            }
-          })
+                        def close(): Unit = Unsafe.unsafe { implicit unsafe =>
+                          runtime.unsafe.run(effects.update("Closed" :: _)).getOrThrowFiberFailure()
+                        }
+                      })
           _      <- ZIO.scoped(ZIO.fromAutoCloseable(closeable))
           result <- effects.get
         } yield assert(result)(equalTo(List("Closed")))
