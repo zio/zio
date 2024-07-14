@@ -2264,7 +2264,10 @@ object ZChannel {
               ZChannel.readWithCause(
                 in => ZChannel.fromZIO(worker(in.provideEnvironment(env), workerId)) *> reader(workerId + 1),
                 err => ZChannel.fromZIO(cause.update(_ && err) *> outgoing.offer(QRes(None))),
-                done => ZChannel.fromZIO(cancellers.get.flatMap(ws => Fiber.awaitAll(ws.values)) *> outgoing.offer(QRes(Some(done))))
+                done =>
+                  ZChannel.fromZIO(
+                    cancellers.get.flatMap(ws => Fiber.awaitAll(ws.values)) *> outgoing.offer(QRes(Some(done)))
+                  )
               )
 
             val readerFiber: ZIO[Scope, Nothing, Fiber.Runtime[Nothing, Any]] =
