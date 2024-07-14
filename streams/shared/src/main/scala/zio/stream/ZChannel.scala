@@ -5,6 +5,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.internal.{AsyncInputConsumer, AsyncInputProducer, ChannelExecutor, SingleProducerAsyncInput}
 import ChannelExecutor.ChannelState
 import zio.stream.ZChannel.QRes
+import scala.collection.immutable.SortedMap
 
 /**
  * A `ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]` is a nexus
@@ -789,7 +790,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         def reader(
           workers: Int,
           seenMessages: Long
-        ): ZChannel[Any, OutErr, OutElem, OutDone, OutErr1, Nothing, (OutDone, Long)] =
+        ): ZChannel[Any, OutErr, OutElem, OutDone, Nothing, Nothing, Boolean] =
           ZChannel.readWithCause(
             in =>
               if (workers < n)
@@ -799,15 +800,16 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               else
                 ZChannel.unwrap {
                   for {
-                    _ <- processing.offer(in)
                     workers <- worker.whenZIO(processing.isEmpty).map {
                                  case Some(_) => workers + 1
                                  case None    => workers
                                }
+                    _ <- processing.offer(in)
                   } yield reader(workers, seenMessages + 1)
                 },
-            ZChannel.refailCause(_),
-            done => ZChannel.succeedNow(done -> seenMessages)
+            //this message terminates processing so it's ok for it to race with in-flight computations
+            err => ZChannel.fromZIO(cause.update(_ && err) *> outgoing.offer(QRes(None))),
+            done => ZChannel.fromZIO(outgoing.offer(QRes(Some(done -> seenMessages))))
           )
 
         val readerFiber: ZIO[Env with Scope, Nothing, Fiber.Runtime[Nothing, Boolean]] =
@@ -815,11 +817,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             .pipeTo(self)
             .pipeTo(reader(0, 0))
             .runScoped
-            .foldCauseZIO(
-              //this message terminates processing so it's ok for it to race with in-flight computations
-              err => cause.update(_ && err) *> outgoing.offer(QRes(None)),
-              done => outgoing.offer(QRes(Some(done)))
-            )
             .forkScoped
 
         def writer(
@@ -848,7 +845,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
         ZChannel
           .scoped[Env1](readerFiber)
-          .concatMapWith(_ => writer(-1, null.asInstanceOf[OutDone], 0))((_, o) => o, (o, _) => o)
+          .concatMapWith(_ => writer(0, null.asInstanceOf[OutDone], 0))((_, o) => o, (o, _) => o)
           .embedInput(input)
       }
     }
@@ -2077,337 +2074,224 @@ object ZChannel {
   )(
     f: (OutDone, OutDone) => OutDone
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] = {
-    val z: ZIO[Env, Nothing, ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone]] = for {
-      env           <- ZIO.environment[Env]
-      input         <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
-      queueReader    = ZChannel.fromInput(input)
-      n             <- ZIO.succeed(n)
-      bufferSize    <- ZIO.succeed(bufferSize)
-      mergeStrategy <- ZIO.succeed(mergeStrategy)
-      queue         <- Queue.bounded[Any](bufferSize)
-      //todo: this can simply be a mutable list as it's only accessed by the enqueue fiber
-      cancelers <- Queue.unbounded[UIO[Any]]
-      permits   <- Semaphore.make(n.toLong)
-      //reduce contention by striping the outDone updaters
-      doneUpdaters <- Ref.make(Option.empty[OutDone]).replicateZIO(n min bufferSize).map(Chunk.fromIterable(_))
-    } yield {
-      lazy val sinkCh: ZChannel[Any, OutErr, OutElem, OutDone, OutErr, Nothing, OutDone] = ZChannel
-        .readWithCause(
-          in => ZChannel.fromZIO(queue.offer(in)) *> sinkCh,
-          err => ZChannel.fromZIO(queue.offer(QRes(err))) *> ZChannel.refailCause(err),
-          done => ZChannel.succeedNow(done)
-        )
-
-      def backPressureF(
-        ch: ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone],
-        i: Int
-      ): ZIO[Any, Nothing, Fiber.Runtime[OutErr, Any]] = {
-        val boundCh: ZChannel[Any, Any, Any, Any, OutErr, OutElem, OutDone] = queueReader.pipeTo(ch)
-        ZIO.uninterruptibleMask { restore =>
-          for {
-            localScope <- zio.Scope.make
-            _          <- restore(permits.withPermitScoped.provideEnvironment(ZEnvironment(localScope)))
-            fib <- restore {
-                     boundCh
-                       .pipeTo(sinkCh)
-                       .run
-                     /*.flatMap { done =>
-                         val updater = doneUpdaters(i % n)
-                         updater.update {
-                           case None       => Some(done)
-                           case Some(prev) => Some(f(prev, done))
-                         }
-                       }*/
-                   }
-                     .onExit(localScope.close(_))
-                     .fork
-          } yield fib
-        }
-      }
-
-      def slidingF(
-        ch: ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone],
-        i: Int
-      ): ZIO[Any, Nothing, Fiber.Runtime[OutErr, Any]] =
-        for { //notice we don't need an uninterruptible region here, if we get interrupted it means the entire operator is interrupted
-          numCancellers <- cancelers.size
-          _             <- cancelers.take.flatten.when(numCancellers == n)
-          fib           <- backPressureF(ch, i)
-          _             <- cancelers.offer(fib.interrupt)
-        } yield {
-          fib
-        }
-
-      def processF(
-        ch: ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone],
-        i: Int
-      ): ZIO[Any, Nothing, Fiber.Runtime[OutErr, Any]] = mergeStrategy match {
-        case MergeStrategy.BackPressure =>
-          backPressureF(ch, i)
-        case MergeStrategy.BufferSliding =>
-          slidingF(ch, i)
-      }
-
-      val enqueueCh: ZChannel[Any, OutErr, ZChannel[
-        Env,
-        InErr,
-        InElem,
-        InDone,
-        OutErr,
-        OutElem,
-        OutDone
-      ], OutDone, Nothing, Nothing, Any] = ZChannel.suspend {
-        var i = -1
-        lazy val ch: ZChannel[Any, OutErr, ZChannel[
-          Env,
-          InErr,
-          InElem,
-          InDone,
-          OutErr,
-          OutElem,
-          OutDone
-        ], OutDone, Nothing, Nothing, Any] = ZChannel.readWithCause(
-          in => {
-            i += 1
-            val providedIn: ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone] = in.provideEnvironment(env)
-            val c0                                                                         = ZChannel.fromZIO(processF(providedIn, i))
-            val c1: ZChannel[
-              Any,
-              OutErr,
-              ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
-              OutDone,
-              Nothing,
-              Nothing,
-              Any
-            ] = c0 *> ch
-            c1
-          },
-          c => ZChannel.fromZIO(queue.offer(QRes(c))),
-          done => {
-            ZChannel.fromZIO {
-              permits.withPermits(n) {
-                /*ZIO
-                  .foldLeft(doneUpdaters)(done) { case (acc, updater) =>
-                    updater.get.map {
-                      case None    => acc
-                      case Some(d) => f(acc, d)
-                    }
-                  }
-                  .flatMap(finalDone => queue.offer(QRes(finalDone)))*/
-                queue.offer(QRes(done))
-              }
-            }
-          }
-        )
-
-        ch
-      }
-
-      val enqueuerFib: ZIO[Scope, Nothing, Fiber.Runtime[Nothing, Any]] = {
-        val providiedChannels: ZChannel[Any, InErr, InElem, InDone, OutErr, ZChannel[
-          Env,
-          InErr,
-          InElem,
-          InDone,
-          OutErr,
-          OutElem,
-          OutDone
-        ], OutDone] = channels.provideEnvironment(env)
-        queueReader.pipeTo(providiedChannels).pipeTo(enqueueCh).runScoped.forkScoped
-      }
-
-      lazy val readerCh: ZChannel[Any, Any, Any, Any, OutErr, OutElem, OutDone] =
-        ZChannel
-          .fromZIO(queue.take)
-          .foldCauseChannel(
-            ZChannel.refailCause(_),
-            {
-              case QRes(x) =>
-                x match {
-                  case c: Cause[OutErr @unchecked] =>
-                    ZChannel.refailCause(c)
-                  case done: OutDone @unchecked =>
-                    ZChannel.succeedNow(done)
-                }
-              case elem: OutElem @unchecked =>
-                ZChannel.write(elem) *> readerCh
-            }
-          )
-
-      val resSch: ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone] = ZChannel
-        .scoped[Any](enqueuerFib)
-        .concatMapWith { fib =>
-          readerCh
-        }(
-          (_, x) => x,
-          (x, _) => x
-        )
-        .embedInput(input)
-      resSch
-    }
-
     mergeStrategy match {
       case MergeStrategy.BackPressure =>
-        mergeAllWith(channels, n, bufferSize, MergeStrategy.BackPressure)(f)
-      case _ =>
-        ZChannel.unwrap(z)
-    }
-  }
+        ZChannel.unwrap {
+          for {
+            env     <- ZIO.environment[Env]
+            input   <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
+            incoming = ZChannel.fromInput(input)
+            bounded  = n < Int.MaxValue
+            processing <- if (bounded)
+                            Queue.bounded[ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]](n)
+                          else
+                            Queue.unbounded[ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
+            outgoing <- Queue.bounded[Any](bufferSize)
+            cause    <- Ref.make[Cause[OutErr]](Cause.empty)
+          } yield {
 
-  def mergeAllWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
-    channels: ZChannel[
-      Env,
-      InErr,
-      InElem,
-      InDone,
-      OutErr,
-      ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
-      OutDone
-    ],
-    n: => Int,
-    bufferSize: => Int /* = 16*/,
-    mergeStrategy: MergeStrategy.BackPressure.type
-  )(
-    f: (OutDone, OutDone) => OutDone
-  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] = {
-    val z: ZIO[Env, Nothing, ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone]] = for {
-      env        <- ZIO.environment[Env]
-      input      <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
-      queueReader = ZChannel.fromInput(input)
-      bounded     = n < Int.MaxValue
-      q0 <- if (bounded)
-              zio.Queue.bounded[ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]](n)
-            else
-              zio.Queue.unbounded[ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
-      q1 <- zio.Queue.bounded[Any](bufferSize)
-    } yield {
+            lazy val toOutgoing: ZChannel[Any, OutErr, OutElem, OutDone, Nothing, Nothing, Any] =
+              ZChannel
+                .readWithCause(
+                  in => ZChannel.fromZIO(outgoing.offer(in)) *> toOutgoing,
+                  err => ZChannel.fromZIO(cause.update(_ && err) *> outgoing.offer(QRes(err))),
+                  done => ZChannel.fromZIO(outgoing.offer(QRes(done)))
+                )
 
-      lazy val enqueuerCh: ZChannel[Any, OutErr, OutElem, OutDone, OutErr, Nothing, OutDone] =
-        ZChannel
-          .readWithCause(
-            in => ZChannel.fromZIO(q1.offer(in)) *> enqueuerCh,
-            err => ZChannel.fromZIO(q1.offer(QRes(err))) *> ZChannel.refailCause(err),
-            done => ZChannel.succeedNow(done)
-          )
+            lazy val fromProcessing: ZChannel[Any, Any, Any, Any, Nothing, ZChannel[
+              Any,
+              InErr,
+              InElem,
+              InDone,
+              OutErr,
+              OutElem,
+              OutDone
+            ], Any] =
+              ZChannel
+                .fromZIO(processing.take)
+                .flatMap(in => ZChannel.write(in.provideEnvironment(env)) *> fromProcessing)
 
-      lazy val q0Reader
-        : ZChannel[Any, Any, Any, Any, Nothing, ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone], Any] =
-        ZChannel
-          .fromZIO(q0.take)
-          .flatMap { in =>
-            ZChannel.write(in.provideEnvironment(env)) *> q0Reader
-          }
+            lazy val worker: ZIO[Any, Nothing, Fiber.Runtime[Nothing, Any]] =
+              fromProcessing
+                .concatMap(ch => incoming.pipeTo(ch).pipeTo(toOutgoing))
+                .run
+                .fork
 
-      lazy val nestedStreamsProcessor: ZIO[Any, OutErr, Any] = {
-        val procCh: ZChannel[Any, Any, Any, Any, OutErr, Nothing, Any] = q0Reader.concatMap { ch =>
-          val singleProcCh: ZChannel[Any, Any, Any, Any, OutErr, Nothing, Boolean] = queueReader
-            .pipeTo(ch)
-            .pipeTo(enqueuerCh)
-            .mapZIO { done =>
-              //must be done here, placing this in enqueuerCh breaks a test that validates finalizers order
-              q1.offer(QRes(done))
-            }
-          singleProcCh
-        }
-        procCh.run
-      }
+            def reader(runningFibers: Int, seenStreams: Int): ZChannel[Any, OutErr, ZChannel[
+              Env,
+              InErr,
+              InElem,
+              InDone,
+              OutErr,
+              OutElem,
+              OutDone
+            ], OutDone, Nothing, Nothing, Any] =
+              ZChannel.readWithCause(
+                in =>
+                  ZChannel.fromZIO {
+                    val offer = processing.offer(in)
+                    if (runningFibers == n)
+                      offer.as(n)
+                    else if (bounded)
+                      offer *> worker.as(runningFibers + 1)
+                    else {
+                      //when unbounded, we run the risk of spawning a fiber per channel,
+                      //even worse, each such fiber may end up processing one or less channels...
+                      //in any case these fibers are kept as long as this channel is running which may incur waste of resources.
+                      //this attempts to mitigate this by detecting scenarios where an idle worker was able to immediately pick the enqueued message, as a result we get a 'best effort' behavior of limiting the number of fibers.
+                      //the unbounded scenario is used by ZStream.groupBy and indeed it requires a fiber per sub-stream,
+                      //furthermore in most cases all sub streams 'survive' till processing ends so we're actually required to keep a fiber per stream in this case.
+                      worker.unlessZIO(processing.isEmpty).map {
+                        case Some(_) => runningFibers + 1
+                        case _       => runningFibers
+                      } <* offer
+                    }
+                  }.flatMap(reader(_, seenStreams + 1)),
+                err => ZChannel.fromZIO(cause.update(_ && err) *> outgoing.offer(QRes(err))),
+                done => ZChannel.fromZIO(outgoing.offer(QRes(QRes(done -> seenStreams))))
+              )
 
-      def upstreamCh(runningFibers: Int, seenStreams: Int): ZChannel[Any, OutErr, ZChannel[
-        Env,
-        InErr,
-        InElem,
-        InDone,
-        OutErr,
-        OutElem,
-        OutDone
-      ], OutDone, Nothing, Nothing, Any] =
-        ZChannel.readWithCause(
-          in =>
-            ZChannel.fromZIO {
-              val offer = q0.offer(in)
-              if (runningFibers == n)
-                offer.as(n)
-              else if (bounded)
-                offer *> nestedStreamsProcessor.fork.as(runningFibers + 1)
-              else {
-                //when unbounded, we run the risk of spawning a fiber per channel,
-                //even worse, each such fiber may end up processing one or less channels...
-                //in any case these fibers are kept as long as this channel is running which may incur waste of resources.
-                //this attempts to mitigate this by detecting scenarios where an idle worker was able to immediately pick the enqueued message, as a result we get a 'best effort' behavior of limiting the number of fibers.
-                //the unbounded scenario is used by ZStream.groupBy and indeed it requires a fiber per sub-stream,
-                //furthermore in most cases all sub streams 'survive' till processing ends so we're actually required to keep a fiber per stream in this case.
-                offer *> nestedStreamsProcessor.fork.unlessZIO(q0.isEmpty).map {
-                  case Some(_) => runningFibers + 1
-                  case _       => runningFibers
+            val readerFiber: ZIO[Any with Scope, Nothing, Fiber.Runtime[Nothing, Any]] =
+              incoming
+                .pipeTo(channels.provideEnvironment(env))
+                .pipeTo(reader(0, 0))
+                .runScoped
+                .forkScoped
+
+            def mergeOutDone(prev: OutDone, curr: OutDone): OutDone =
+              if (prev == null)
+                curr
+              else
+                f(prev, curr)
+
+            def writer(
+              totalStreams: Int,
+              completedStreams: Int,
+              accRes: OutDone
+            ): ZChannel[Any, Any, Any, Any, OutErr, OutElem, OutDone] =
+              ZChannel
+                .fromZIO(outgoing.take)
+                .flatMap {
+                  case QRes(x) =>
+                    x match {
+                      case c: Cause[OutErr @unchecked] =>
+                        ZChannel.unwrap(cause.get.map(ZChannel.refailCause(_)))
+                      case QRes((outDone: OutDone, total: Int)) =>
+                        //initial values for totalStreams and completedStreams are -1 and 0, hence their initial sum is -1, since both can only increase so does their sum
+                        //hence we can use that to identify the case where accRes is still uninitialized (we can test for null as well, but null may be a valid completion value which complicates things)
+                        val nextAccRes = mergeOutDone(accRes, outDone)
+                        if (total == completedStreams)
+                          ZChannel.succeedNow(nextAccRes)
+                        else
+                          writer(total, completedStreams, nextAccRes)
+                      case outDone: OutDone @unchecked =>
+                        val nextAccRes = mergeOutDone(accRes, outDone)
+                        if (completedStreams + 1 == totalStreams)
+                          ZChannel.succeedNow(nextAccRes)
+                        else
+                          writer(totalStreams, completedStreams + 1, nextAccRes)
+                    }
+                  case outElem: OutElem @unchecked =>
+                    ZChannel.write(outElem) *> writer(totalStreams, completedStreams, accRes)
                 }
-              }
-            }.flatMap(upstreamCh(_, seenStreams + 1)),
-          err => ZChannel.fromZIO(q1.offer(QRes(err))),
-          done => ZChannel.fromZIO(q1.offer(QRes(QRes(done -> seenStreams))))
-        )
 
-      val upstreamFiber: ZIO[Any with Scope, Nothing, Fiber.Runtime[Nothing, Any]] = queueReader
-        .pipeTo(channels.provideEnvironment(env))
-        .pipeTo(upstreamCh(0, 0))
-        .runScoped
-        .forkScoped
-
-      def mergeOutDone(prev: OutDone, curr: OutDone, isFirst: Boolean): OutDone =
-        if (isFirst)
-          curr
-        else
-          f(prev, curr)
-
-      def readerCh(
-        totalStreams: Int,
-        completedStreams: Int,
-        accRes: OutDone
-      ): ZChannel[Any, Any, Any, Any, OutErr, OutElem, OutDone] =
-        ZChannel
-          .fromZIO(q1.take)
-          .flatMap {
-            case QRes(x) =>
-              x match {
-                case c: Cause[OutErr @unchecked] =>
-                  ZChannel.refailCause(c)
-                case QRes((outDone: OutDone, total: Int)) =>
-                  //initial values for totalStreams and completedStreams are -1 and 0, hence their initial sum is -1, since both can only increase so does their sum
-                  //hence we can use that to identify the case where accRes is still uninitialized (we can test for null as well, but null may be a valid completion value which complicates things)
-                  val nextAccRes = mergeOutDone(accRes, outDone, (totalStreams + completedStreams) == -1)
-                  if (total == completedStreams)
-                    ZChannel.succeedNow(nextAccRes)
-                  else
-                    readerCh(total, completedStreams, nextAccRes)
-                case outDone: OutDone @unchecked =>
-                  val nextAccRes = mergeOutDone(accRes, outDone, (totalStreams + completedStreams) == -1)
-                  if (completedStreams + 1 == totalStreams)
-                    ZChannel.succeedNow(nextAccRes)
-                  else
-                    readerCh(totalStreams, completedStreams + 1, nextAccRes)
-              }
-            case outElem: OutElem @unchecked =>
-              ZChannel.write(outElem) *> readerCh(totalStreams, completedStreams, accRes)
+            ZChannel
+              .scoped[Any](readerFiber)
+              .concatMapWith(_ => writer(0, 0, null.asInstanceOf[OutDone]))((_, o) => o, (o, _) => o)
+              .embedInput(input)
           }
+        }
 
-      val resChannel: ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone] = ZChannel
-        .scoped[Any](upstreamFiber)
-        .concatMapWith { fib =>
-          val reader: ZChannel[Any, Any, Any, Any, OutErr, OutElem, OutDone] =
-            readerCh(-1, 0, null.asInstanceOf[OutDone])
-          reader
-        }(
-          f,
-          { case (outDone, _) => outDone }
-        )
-        .embedInput(input)
+      case MergeStrategy.BufferSliding =>
+        ZChannel.unwrap {
+          for {
+            env           <- ZIO.environment[Env]
+            input         <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
+            incoming       = ZChannel.fromInput(input)
+            n             <- ZIO.succeed(n)
+            bufferSize    <- ZIO.succeed(bufferSize)
+            mergeStrategy <- ZIO.succeed(mergeStrategy)
+            outgoing      <- Queue.bounded[Any](bufferSize)
+            cancellers    <- Ref.make(SortedMap.empty[Int, Fiber.Runtime[Nothing, Any]])
+            permits       <- Semaphore.make(n.toLong)
+            cause         <- Ref.make[Cause[OutErr]](Cause.empty)
+            done          <- Ref.make[Option[OutDone]](None)
+          } yield {
+            lazy val toOutgoing: ZChannel[Any, OutErr, OutElem, OutDone, Nothing, Nothing, Any] = ZChannel
+              .readWithCause(
+                in => ZChannel.fromZIO(outgoing.offer(in)) *> toOutgoing,
+                err => ZChannel.fromZIO(cause.update(_ && err) *> outgoing.offer(QRes(None))),
+                d => ZChannel.fromZIO(done.update(_.map(f(_, d)).orElse(Some(d))))
+              )
 
-      resChannel
+            def worker(
+              ch: ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone],
+              workerId: Int
+            ): ZIO[Any, Nothing, Fiber.Runtime[Nothing, Any]] =
+              for { //notice we don't need an uninterruptible region here, if we get interrupted it means the entire operator is interrupted
+                _ <- cancellers.modify { cancellers =>
+                       if (cancellers.size == n)
+                         (cancellers.head._2.interrupt, cancellers.tail)
+                       else
+                         (ZIO.unit, cancellers)
+                     }.flatten
+                worker <- ZIO.uninterruptibleMask { restore =>
+                            for {
+                              localScope <- Scope.make
+                              _          <- restore(permits.withPermitScoped.provideEnvironment(ZEnvironment(localScope)))
+                              worker <- restore {
+                                          incoming
+                                            .pipeTo(ch)
+                                            .pipeTo(toOutgoing)
+                                            .run
+                                        }
+                                          .onExit(exit => cancellers.update(_ - workerId) *> localScope.close(exit))
+                                          .fork
+                            } yield worker
+                          }
+                _ <- cancellers.update(_ + (workerId -> worker))
+              } yield worker
+
+            def reader(workerId: Int): ZChannel[Any, OutErr, ZChannel[
+              Env,
+              InErr,
+              InElem,
+              InDone,
+              OutErr,
+              OutElem,
+              OutDone
+            ], OutDone, Nothing, Nothing, Any] =
+              ZChannel.readWithCause(
+                in => ZChannel.fromZIO(worker(in.provideEnvironment(env), workerId)) *> reader(workerId + 1),
+                err => ZChannel.fromZIO(cause.update(_ && err) *> outgoing.offer(QRes(None))),
+                done => ZChannel.fromZIO(cancellers.get.flatMap(ws => Fiber.awaitAll(ws.values)) *> outgoing.offer(QRes(Some(done))))
+              )
+
+            val readerFiber: ZIO[Scope, Nothing, Fiber.Runtime[Nothing, Any]] =
+              incoming.pipeTo(channels.provideEnvironment(env)).pipeTo(reader(0)).runScoped.forkScoped
+
+            lazy val writer: ZChannel[Any, Any, Any, Any, OutErr, OutElem, OutDone] =
+              ZChannel
+                .fromZIO(outgoing.take)
+                .flatMap {
+                  case QRes(None) =>
+                    ZChannel.unwrap(cause.get.map(ZChannel.refailCause(_)))
+                  case QRes(Some(outDone: OutDone @unchecked)) =>
+                    ZChannel.fromZIO(done.get.map {
+                      case Some(inDone) => f(inDone, outDone)
+                      case None         => outDone
+                    })
+                  case elem: OutElem @unchecked =>
+                    ZChannel.write(elem) *> writer
+                }
+
+            ZChannel
+              .scoped[Any](readerFiber)
+              .concatMapWith(_ => writer)((_, x) => x, (x, _) => x)
+              .embedInput(input)
+          }
+        }
     }
-
-    val res: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] = ZChannel.unwrap(z)
-
-    res
-
   }
 
   /** Returns a channel that never completes */
