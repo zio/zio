@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2024 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,6 @@
 
 package zio.internal
 
-import zio.stacktracer.TracingImplicits.disableAutoTrace
-
-private[zio] final class RingBufferArb[A] private (capacity: Int) extends RingBuffer[A](capacity) {
-  protected def posToIdx(pos: Long, capacity: Int): Int = (pos % capacity.toLong).toInt
-}
-
-private[zio] object RingBufferArb {
-  final def apply[A](capacity: Int): RingBufferArb[A] = {
-    // NOTE: Do not use `assert` as the compiler removes it in releases
-    require(capacity >= 2)
-
-    new RingBufferArb(capacity)
-  }
+object Blocking {
+  private[zio] final def signalBlocking(): Unit = ()
 }
