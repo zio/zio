@@ -184,37 +184,37 @@ object ZChannelSpec extends ZIOBaseSpec {
         }
       ),
       suite("ZChannel#mapOutZIOPar")(
-              test("accumulates errors") {
-                for {
-                  f <- ZChannel
-                            .writeAll(1, 2, 3)
-                            .mapOutZIOPar(3) {
-                              case 1 => ZIO.succeed(()).delay(5.second)
-                              case n => ZIO.fail(n)
-                            }
-                            .runDrain
-                            .fork
-                  _ <- TestClock.adjust(5.second)
-                  exit <- f.await
-                } yield assert(exit)(failsCause(containsCause(Cause.fail(2))) && failsCause(containsCause(Cause.fail(3))))
-              }
-            ),
+        test("accumulates errors") {
+          for {
+            f <- ZChannel
+                   .writeAll(1, 2, 3)
+                   .mapOutZIOPar(3) {
+                     case 1 => ZIO.succeed(()).delay(5.second)
+                     case n => ZIO.fail(n)
+                   }
+                   .runDrain
+                   .fork
+            _    <- TestClock.adjust(5.second)
+            exit <- f.await
+          } yield assert(exit)(failsCause(containsCause(Cause.fail(2))) && failsCause(containsCause(Cause.fail(3))))
+        }
+      ),
       suite("ZChannel#mapOutZIOParUnordered")(
-              test("accumulates errors") {
-                for {
-                  f <- ZChannel
-                            .writeAll(1, 2, 3)
-                            .mapOutZIOParUnordered(3) {
-                              case 1 => ZIO.succeed(()).delay(5.second)
-                              case n => ZIO.fail(n)
-                            }
-                            .runDrain
-                            .fork
-                            _ <- TestClock.adjust(5.second)
-                            exit <- f.await
-                } yield assert(exit)(failsCause(containsCause(Cause.fail(2))) && failsCause(containsCause(Cause.fail(3))))
-              }
-            ),
+        test("accumulates errors") {
+          for {
+            f <- ZChannel
+                   .writeAll(1, 2, 3)
+                   .mapOutZIOParUnordered(3) {
+                     case 1 => ZIO.succeed(()).delay(5.second)
+                     case n => ZIO.fail(n)
+                   }
+                   .runDrain
+                   .fork
+            _    <- TestClock.adjust(5.second)
+            exit <- f.await
+          } yield assert(exit)(failsCause(containsCause(Cause.fail(2))) && failsCause(containsCause(Cause.fail(3))))
+        }
+      ),
       suite("ZChannel.concatMap")(
         test("plain") {
           ZChannel.writeAll(1, 2, 3).concatMap(i => ZChannel.writeAll(i, i)).runCollect.map { case (chunk, _) =>
