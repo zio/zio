@@ -1100,7 +1100,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               cur = initiateAsync(effect.registerCallback)
 
-              while (cur eq null) {
+              while (cont && (cur eq null)) {
                 cur = drainQueueAfterAsync()
 
                 if (cur eq null) {
