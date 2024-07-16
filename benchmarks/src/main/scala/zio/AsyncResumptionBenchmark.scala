@@ -44,7 +44,7 @@ class AsyncResumptionBenchmark {
 }
 
 object AsyncResumptionBenchmark {
-  def main(args : Array[String]): Unit = {
+  def main(args: Array[String]): Unit = {
     val that = new AsyncResumptionBenchmark
     while (true)
       that.zioAsyncResumptionBenchmark

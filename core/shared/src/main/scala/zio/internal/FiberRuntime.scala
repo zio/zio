@@ -402,7 +402,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           val exit =
             runLoop(effect, 0, _stackSize, initialDepth).asInstanceOf[Exit[E, A]]
 
-          if(null eq exit) {
+          if (null eq exit) {
             // Terminate this evaluation, async resumption will continue evaluation:
             effect = null
           } else {
@@ -1042,8 +1042,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               val result = runLoop(effect.first, stackIndex, stackIndex, currentDepth + 1)
 
-              if(null eq result)
-                cont = false else {
+              if (null eq result)
+                cont = false
+              else {
 
                 stackIndex -= 1
                 popStackFrame(stackIndex)
@@ -1072,8 +1073,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               stackIndex = pushStackFrame(effect, stackIndex)
 
               val result = runLoop(effect.first, stackIndex, stackIndex, currentDepth + 1)
-              if(null eq result)
-                cont = false else {
+              if (null eq result)
+                cont = false
+              else {
                 stackIndex -= 1
                 popStackFrame(stackIndex)
 
@@ -1146,8 +1148,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                     currentDepth + 1
                   )
 
-                  if(null eq exit)
-                    cont = false else {
+                  if (null eq exit)
+                    cont = false
+                  else {
 
                     stackIndex -= 1
                     popStackFrame(stackIndex)
@@ -1229,7 +1232,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 }
               }
 
-              if(cont) {
+              if (cont) {
                 stackIndex -= 1
                 popStackFrame(stackIndex)
 
