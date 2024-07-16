@@ -402,34 +402,40 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           val exit =
             runLoop(effect, 0, _stackSize, initialDepth).asInstanceOf[Exit[E, A]]
 
-          if (supervisor ne Supervisor.none) supervisor.onEnd(exit, self)(Unsafe.unsafe)
-
-          self._runtimeFlags = RuntimeFlags.enable(_runtimeFlags)(RuntimeFlag.WindDown)
-
-          val interruption = interruptAllChildren()
-
-          if (interruption == null) {
-            if (inbox.isEmpty) {
-              finalExit = exit
-
-              // No more messages to process, so we will allow the fiber to end life:
-              self.setExitValue(exit)
-            } else {
-              // There are messages, possibly added by the final op executed by
-              // the fiber. To be safe, we should execute those now before we
-              // allow the fiber to end life:
-              tell(FiberMessage.Resume(exit))
-            }
-
-            effect = null
-          } else {
-            effect = interruption.flatMap(_ => exit)(id.location)
-          }
-        } catch {
-          case AsyncJump =>
-            _forksSinceYield = 0
+          if(null eq exit) {
             // Terminate this evaluation, async resumption will continue evaluation:
             effect = null
+          } else {
+
+            if (supervisor ne Supervisor.none) supervisor.onEnd(exit, self)(Unsafe.unsafe)
+
+            self._runtimeFlags = RuntimeFlags.enable(_runtimeFlags)(RuntimeFlag.WindDown)
+
+            val interruption = interruptAllChildren()
+
+            if (interruption == null) {
+              if (inbox.isEmpty) {
+                finalExit = exit
+
+                // No more messages to process, so we will allow the fiber to end life:
+                self.setExitValue(exit)
+              } else {
+                // There are messages, possibly added by the final op executed by
+                // the fiber. To be safe, we should execute those now before we
+                // allow the fiber to end life:
+                tell(FiberMessage.Resume(exit))
+              }
+
+              effect = null
+            } else {
+              effect = interruption.flatMap(_ => exit)(id.location)
+            }
+          }
+        } catch {
+          /*case AsyncJump =>
+            _forksSinceYield = 0
+            // Terminate this evaluation, async resumption will continue evaluation:
+            effect = null*/
 
           case throwable: Throwable =>
             if (isFatal(throwable)) {
@@ -931,16 +937,18 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     // Note that assigning `cur` as the result of `try` or `if` can cause Scalac to box local variables.
     var cur        = effect
     var done       = null.asInstanceOf[Exit[Any, Any]]
+    var cont       = true
     var ops        = 0
     var stackIndex = startStackIndex
 
     if (currentDepth >= FiberRuntime.MaxDepthBeforeTrampoline) {
       inbox.add(FiberMessage.Resume(effect))
 
-      throw AsyncJump
+      //throw AsyncJump
+      cont = false
     }
 
-    while (done eq null) {
+    while (cont) {
       if (RuntimeFlags.opSupervision(_runtimeFlags)) {
         self.getSupervisor().onEffect(self, cur)(Unsafe.unsafe)
       }
@@ -954,7 +962,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         inbox.add(FiberMessage.YieldNow)
         inbox.add(FiberMessage.Resume(cur))
 
-        throw AsyncJump
+        //throw AsyncJump
+        cont = false
       } else {
         try {
           cur match {
@@ -987,7 +996,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 }
               }
 
-              if (cur eq null) done = Exit.succeed(value)
+              if (cur eq null) {
+                cont = false
+                done = Exit.succeed(value)
+              }
 
             case success: Exit.Success[_] =>
               val value = success.value
@@ -1017,7 +1029,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 }
               }
 
-              if (cur eq null) done = success
+              if (cur eq null) {
+                cont = false
+                done = success
+              }
 
             case flatMap0: FlatMap[_, _, _, _] =>
               updateLastTrace(flatMap0.trace)
@@ -1027,17 +1042,20 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               val result = runLoop(effect.first, stackIndex, stackIndex, currentDepth + 1)
 
-              stackIndex -= 1
-              popStackFrame(stackIndex)
+              if(null eq result)
+                cont = false else {
 
-              result match {
-                case Success(value) =>
-                  cur = effect.successK(value)
+                stackIndex -= 1
+                popStackFrame(stackIndex)
 
-                case failure =>
-                  cur = failure
+                result match {
+                  case Success(value) =>
+                    cur = effect.successK(value)
+
+                  case failure =>
+                    cur = failure
+                }
               }
-
             case stateful0: Stateful[_, _, _] =>
               updateLastTrace(stateful0.trace)
               val stateful = stateful0.asInstanceOf[Stateful[Any, Any, Any]]
@@ -1054,22 +1072,24 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               stackIndex = pushStackFrame(effect, stackIndex)
 
               val result = runLoop(effect.first, stackIndex, stackIndex, currentDepth + 1)
+              if(null eq result)
+                cont = false else {
+                stackIndex -= 1
+                popStackFrame(stackIndex)
 
-              stackIndex -= 1
-              popStackFrame(stackIndex)
+                result match {
+                  case Success(value) =>
+                    cur = effect.successK(value)
 
-              result match {
-                case Success(value) =>
-                  cur = effect.successK(value)
+                  case Failure(cause) =>
+                    if (shouldInterrupt()) {
+                      cur = Exit.Failure(cause.stripFailures)
+                    } else {
+                      val f = effect.failureK.asInstanceOf[Cause[Any] => ZIO.Erased]
 
-                case Failure(cause) =>
-                  if (shouldInterrupt()) {
-                    cur = Exit.Failure(cause.stripFailures)
-                  } else {
-                    val f = effect.failureK.asInstanceOf[Cause[Any] => ZIO.Erased]
-
-                    cur = f(cause)
-                  }
+                      cur = f(cause)
+                    }
+                }
               }
 
             case effect: Async[_, _, _] =>
@@ -1082,11 +1102,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 cur = drainQueueAfterAsync()
 
                 if (cur eq null) {
-                  if (!stealWork(currentDepth)) throw AsyncJump
+                  if (!stealWork(currentDepth)) {
+                    //throw AsyncJump
+                    cont = false
+                  }
                 }
               }
 
-              if (shouldInterrupt()) {
+              if (cont && shouldInterrupt()) {
                 cur = Exit.failCause(getInterruptedCause())
               }
 
@@ -1123,11 +1146,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                     currentDepth + 1
                   )
 
-                  stackIndex -= 1
-                  popStackFrame(stackIndex)
+                  if(null eq exit)
+                    cont = false else {
 
-                  // Go backward, on the stack:
-                  cur = patchRuntimeFlags(revertFlags, exit.causeOrNull, exit)
+                    stackIndex -= 1
+                    popStackFrame(stackIndex)
+
+                    // Go backward, on the stack:
+                    cur = patchRuntimeFlags(revertFlags, exit.causeOrNull, exit)
+                  }
                 }
               }
 
@@ -1164,7 +1191,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 }
               }
 
-              if (cur eq null) done = failure
+              if (cur eq null) {
+                cont = false
+                done = failure
+              }
 
             case updateRuntimeFlags: UpdateRuntimeFlags =>
               updateLastTrace(updateRuntimeFlags.trace)
@@ -1188,20 +1218,23 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               cur = null
 
-              while ((cur eq null) && check()) {
+              while (cont && (cur eq null) && check()) {
                 runLoop(iterate.body(), stackIndex, stackIndex, nextDepth) match {
                   case Success(value) =>
                     iterate.process(value)
 
                   case failure =>
+                    cont = failure ne null
                     cur = failure
                 }
               }
 
-              stackIndex -= 1
-              popStackFrame(stackIndex)
+              if(cont) {
+                stackIndex -= 1
+                popStackFrame(stackIndex)
 
-              if (cur eq null) cur = Exit.unit
+                if (cur eq null) cur = Exit.unit
+              }
 
             case yieldNow: ZIO.YieldNow =>
               updateLastTrace(yieldNow.trace)
@@ -1209,7 +1242,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 inbox.add(FiberMessage.YieldNow)
                 inbox.add(FiberMessage.resumeUnit)
 
-                throw AsyncJump
+                //throw AsyncJump
+                cont = false
               } else {
                 cur = Exit.unit
               }
