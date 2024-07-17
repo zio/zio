@@ -404,6 +404,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
           if (null eq exit) {
             // Terminate this evaluation, async resumption will continue evaluation:
+            _forksSinceYield = 0
             effect = null
           } else {
 
@@ -413,7 +414,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
             val interruption = interruptAllChildren()
 
-            if (interruption == null) {
+            if (interruption eq null) {
               if (inbox.isEmpty) {
                 finalExit = exit
 
@@ -432,11 +433,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             }
           }
         } catch {
-          /*case AsyncJump =>
-            _forksSinceYield = 0
-            // Terminate this evaluation, async resumption will continue evaluation:
-            effect = null*/
-
           case throwable: Throwable =>
             if (isFatal(throwable)) {
               effect = handleFatalError(throwable)
@@ -1227,6 +1223,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                     iterate.process(value)
 
                   case failure =>
+                    //notice that in case of an async jump we'd have a null here
+                    //it just happens to be we treat both the same, so we can save ourselves an extra case in the pattern matching
                     cont = failure ne null
                     cur = failure
                 }
@@ -1244,8 +1242,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               if (yieldNow.forceAsync || !stealWork(currentDepth)) {
                 inbox.add(FiberMessage.YieldNow)
                 inbox.add(FiberMessage.resumeUnit)
-
-                //throw AsyncJump
                 cont = false
               } else {
                 cur = Exit.unit
