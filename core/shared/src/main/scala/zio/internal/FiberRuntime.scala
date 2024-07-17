@@ -932,7 +932,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
     // Note that assigning `cur` as the result of `try` or `if` can cause Scalac to box local variables.
     var cur        = effect
-    var done       = null.asInstanceOf[Exit[Any, Any]]
     var ops        = 0
     var stackIndex = startStackIndex
 
@@ -942,7 +941,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       return null
     }
 
-    while (done eq null) {
+    while (true) {
       if (RuntimeFlags.opSupervision(_runtimeFlags)) {
         self.getSupervisor().onEffect(self, cur)(Unsafe.unsafe)
       }
@@ -990,7 +989,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
               if (cur eq null) {
-                done = Exit.succeed(value)
+                return Exit.succeed(value)
               }
 
             case success: Exit.Success[_] =>
@@ -1022,7 +1021,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
               if (cur eq null) {
-                done = success
+                return success
               }
 
             case flatMap0: FlatMap[_, _, _, _] =>
@@ -1184,7 +1183,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
               if (cur eq null) {
-                done = failure
+                return failure
               }
 
             case updateRuntimeFlags: UpdateRuntimeFlags =>
@@ -1244,7 +1243,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       }
     }
 
-    done
+    //unreachable
+    ???
   }
 
   private def sendInterruptSignalToAllChildren(
