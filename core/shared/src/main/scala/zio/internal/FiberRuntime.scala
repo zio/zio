@@ -933,18 +933,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     // Note that assigning `cur` as the result of `try` or `if` can cause Scalac to box local variables.
     var cur        = effect
     var done       = null.asInstanceOf[Exit[Any, Any]]
-    var cont       = true
     var ops        = 0
     var stackIndex = startStackIndex
 
     if (currentDepth >= FiberRuntime.MaxDepthBeforeTrampoline) {
       inbox.add(FiberMessage.Resume(effect))
 
-      //throw AsyncJump
-      cont = false
+      return null
     }
 
-    while (cont) {
+    while (done eq null) {
       if (RuntimeFlags.opSupervision(_runtimeFlags)) {
         self.getSupervisor().onEffect(self, cur)(Unsafe.unsafe)
       }
@@ -958,8 +956,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         inbox.add(FiberMessage.YieldNow)
         inbox.add(FiberMessage.Resume(cur))
 
-        //throw AsyncJump
-        cont = false
+        return null
       } else {
         try {
           cur match {
@@ -993,7 +990,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
               if (cur eq null) {
-                cont = false
                 done = Exit.succeed(value)
               }
 
@@ -1026,7 +1022,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
               if (cur eq null) {
-                cont = false
                 done = success
               }
 
@@ -1039,9 +1034,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               val result = runLoop(effect.first, stackIndex, stackIndex, currentDepth + 1)
 
               if (null eq result)
-                cont = false
+                return null
               else {
-
                 stackIndex -= 1
                 popStackFrame(stackIndex)
 
@@ -1070,7 +1064,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               val result = runLoop(effect.first, stackIndex, stackIndex, currentDepth + 1)
               if (null eq result)
-                cont = false
+                return null
               else {
                 stackIndex -= 1
                 popStackFrame(stackIndex)
@@ -1096,18 +1090,17 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               cur = initiateAsync(effect.registerCallback)
 
-              while (cont && (cur eq null)) {
+              while (cur eq null) {
                 cur = drainQueueAfterAsync()
 
                 if (cur eq null) {
                   if (!stealWork(currentDepth)) {
-                    //throw AsyncJump
-                    cont = false
+                    return null
                   }
                 }
               }
 
-              if (cont && shouldInterrupt()) {
+              if (shouldInterrupt()) {
                 cur = Exit.failCause(getInterruptedCause())
               }
 
@@ -1145,7 +1138,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   )
 
                   if (null eq exit)
-                    cont = false
+                    return null
                   else {
 
                     stackIndex -= 1
@@ -1191,7 +1184,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
               if (cur eq null) {
-                cont = false
                 done = failure
               }
 
@@ -1217,32 +1209,28 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               cur = null
 
-              while (cont && (cur eq null) && check()) {
+              while ((cur eq null) && check()) {
                 runLoop(iterate.body(), stackIndex, stackIndex, nextDepth) match {
                   case Success(value) =>
                     iterate.process(value)
-
+                  case null =>
+                    return null
                   case failure =>
-                    //notice that in case of an async jump we'd have a null here
-                    //it just happens to be we treat both the same, so we can save ourselves an extra case in the pattern matching
-                    cont = failure ne null
                     cur = failure
                 }
               }
 
-              if (cont) {
-                stackIndex -= 1
-                popStackFrame(stackIndex)
+              stackIndex -= 1
+              popStackFrame(stackIndex)
 
-                if (cur eq null) cur = Exit.unit
-              }
+              if (cur eq null) cur = Exit.unit
 
             case yieldNow: ZIO.YieldNow =>
               updateLastTrace(yieldNow.trace)
               if (yieldNow.forceAsync || !stealWork(currentDepth)) {
                 inbox.add(FiberMessage.YieldNow)
                 inbox.add(FiberMessage.resumeUnit)
-                cont = false
+                return null
               } else {
                 cur = Exit.unit
               }
