@@ -487,7 +487,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
           now   <- Clock.currentDateTime
           dec   <- self.step(now, in, state)
           v <- dec match {
-                 case (state, out, Done) => ref.set((Some(out), state)) *> ZIO.fail(None)
+                 case (state, out, Done) => ref.set((Some(out), state)) *> Exit.failNone
                  case (state, out, Continue(interval)) =>
                    ref.set((Some(out), state)) *> ZIO.sleep(Duration.fromInterval(now, interval.start)) as out
                }
@@ -495,7 +495,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
 
       val last = ref.get.flatMap {
         case (None, _)    => ZIO.fail(new NoSuchElementException("There is no value left"))
-        case (Some(b), _) => ZIO.succeed(b)
+        case (Some(b), _) => Exit.succeed(b)
       }
 
       val reset = ref.set((None, self.initial))
