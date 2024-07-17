@@ -19,10 +19,11 @@ package zio.internal
 import zio._
 
 import scala.collection.mutable.ArrayBuilder
+import scala.reflect.ClassTag
 
 private[zio] class StackTraceBuilder private () { self =>
-  private var last: Trace                        = null.asInstanceOf[Trace]
-  private val builder: ArrayBuilder.ofRef[Trace] = new ArrayBuilder.ofRef
+  private var last: Trace = null.asInstanceOf[Trace]
+  private val builder     = new ArrayBuilder.ofRef()(ClassTag.AnyRef.asInstanceOf[ClassTag[Trace]])
 
   def +=(trace: Trace): Unit =
     if ((trace ne null) && (trace ne Trace.empty) && (trace ne last)) {
