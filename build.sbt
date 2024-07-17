@@ -1,5 +1,5 @@
-import BuildHelper._
-import Dependencies._
+import BuildHelper.*
+import Dependencies.*
 import MimaSettings.mimaSettings
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 import sbt.Keys
@@ -701,7 +701,8 @@ val catsEffectV = "3.5.4"
 val zioActorsV  = "0.1.0"
 
 lazy val scalafixSettings = List(
-  scalaVersion := Scala213,
+  scalaVersion   := Scala213,
+  ideSkipProject := true,
   addCompilerPlugin(scalafixSemanticdb),
   crossScalaVersions --= List(Scala212, Scala3),
   scalacOptions ++= List(
@@ -896,3 +897,5 @@ lazy val docs = project.module
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
   .aggregate(docs_make_zio_app_configurable)
+
+Global / excludeLintKeys += ideSkipProject
