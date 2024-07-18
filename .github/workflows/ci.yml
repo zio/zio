@@ -168,7 +168,8 @@ jobs:
       uses: coursier/cache-action@v6
     - name: Mima Checks
       if: ${{ !startsWith(matrix.scala, '3.') }}
-      run: sbt -v ++${{ matrix.scala }} mimaChecks
+      # Enable optimizers as inlining might affect binary compatibility in rare cases
+      run: CI_RELEASE_MODE=1 sbt -v ++${{ matrix.scala }} mimaChecks
     - name: Test 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
       run: sbt -v ++${{ matrix.scala }} test${{ matrix.platform }}
