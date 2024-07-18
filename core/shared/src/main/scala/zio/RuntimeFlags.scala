@@ -211,6 +211,9 @@ object RuntimeFlags {
   def enable(flag: RuntimeFlag): RuntimeFlags.Patch =
     RuntimeFlags.Patch(flag.mask, flag.mask)
 
+  private[zio] val disableInterruption: RuntimeFlags.Patch = disable(RuntimeFlag.Interruption)
+  private[zio] val enableInterruption: RuntimeFlags.Patch  = enable(RuntimeFlag.Interruption)
+
   /**
    * No runtime flags.
    */

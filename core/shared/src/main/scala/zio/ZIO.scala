@@ -3425,12 +3425,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] =
-    ZIO.suspendSucceed {
-      val iterator = in.iterator
-      val builder  = bf.newBuilder(in)
+    if (in.isEmpty) ZIO.succeed(bf.fromSpecific(in)(Nil))
+    else
+      ZIO.suspendSucceed {
+        val iterator = in.iterator
+        val builder  = bf.newBuilder(in)
 
-      ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
-    }
+        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
+      }
 
   /**
    * Applies the function `f` to each element of the `Set[A]` and returns the
@@ -3440,7 +3442,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * the results, see `foreachDiscard` for a more efficient implementation.
    */
   final def foreach[R, E, A, B](in: Set[A])(f: A => ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, Set[B]] =
-    foreach[R, E, A, B, Iterable](in)(f).map(_.toSet)
+    if (in.isEmpty) ZIO.succeed(Set.empty)
+    else
+      ZIO.suspendSucceed {
+        val iterator = in.iterator
+        val builder  = Set.newBuilder[B]
+
+        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
+      }
 
   /**
    * Applies the function `f` to each element of the `Array[A]` and returns the
@@ -3452,7 +3461,15 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   final def foreach[R, E, A, B: ClassTag](in: Array[A])(f: A => ZIO[R, E, B])(implicit
     trace: Trace
   ): ZIO[R, E, Array[B]] =
-    foreach[R, E, A, B, Iterable](in)(f).map(_.toArray)
+    if (in.isEmpty) ZIO.succeed(Array.empty[B])
+    else
+      ZIO.suspendSucceed {
+        val iterator = in.iterator
+        val builder  = Array.newBuilder[B]
+        builder.sizeHint(in.length)
+
+        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
+      }
 
   /**
    * Applies the function `f` to each element of the `Map[Key, Value]` and
@@ -3464,7 +3481,15 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def foreach[R, E, Key, Key2, Value, Value2](
     map: Map[Key, Value]
   )(f: (Key, Value) => ZIO[R, E, (Key2, Value2)])(implicit trace: Trace): ZIO[R, E, Map[Key2, Value2]] =
-    foreach[R, E, (Key, Value), (Key2, Value2), Iterable](map)(f.tupled).map(_.toMap)
+    if (map.isEmpty) ZIO.succeed(Map.empty)
+    else
+      ZIO.suspendSucceed {
+        val iterator = map.iterator
+        val builder  = Map.newBuilder[Key2, Value2]
+
+        val ft = f.tupled
+        ZIO.whileLoop(iterator.hasNext)(ft(iterator.next()))(builder += _).as(builder.result())
+      }
 
   /**
    * Applies the function `f` if the argument is non-empty and returns the
@@ -3498,9 +3523,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     as: => Iterable[A]
   )(f: A => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
     ZIO.suspendSucceed {
-      val iterator = as.iterator
-
-      ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(_ => ())
+      val as0 = as
+      if (as0.isEmpty) Exit.unit
+      else {
+        val iterator = as0.iterator
+        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(_ => ())
+      }
     }
 
   /**
@@ -3512,16 +3540,18 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   )(
     f: A => ZIO[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] =
-    ZIO.suspendSucceed {
-      exec match {
-        case ExecutionStrategy.Parallel =>
-          ZIO.withParallelismUnboundedMask(restore => ZIO.foreachPar(as)(a => restore(f(a))))
-        case ExecutionStrategy.ParallelN(n) =>
-          ZIO.withParallelismMask(n)(restore => ZIO.foreachPar(as)(a => restore(f(a))))
-        case ExecutionStrategy.Sequential =>
-          ZIO.foreach(as)(f)
+    if (as.isEmpty) ZIO.succeed(bf.fromSpecific(as)(Nil))
+    else
+      ZIO.suspendSucceed {
+        exec match {
+          case ExecutionStrategy.Parallel =>
+            ZIO.withParallelismUnboundedMask(restore => ZIO.foreachPar(as)(a => restore(f(a))))
+          case ExecutionStrategy.ParallelN(n) =>
+            ZIO.withParallelismMask(n)(restore => ZIO.foreachPar(as)(a => restore(f(a))))
+          case ExecutionStrategy.Sequential =>
+            ZIO.foreach(as)(f)
+        }
       }
-    }
 
   /**
    * Applies the function `f` to each element of the `Collection[A]` in
@@ -3534,10 +3564,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   )(
     f: A => ZIO[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] =
-    ZIO.parallelismWith {
-      case Some(n) => foreachPar(n)(as)(f)
-      case None    => foreachParUnbounded(as)(f)
-    }
+    if (as.isEmpty) ZIO.succeed(bf.fromSpecific(as)(Nil))
+    else
+      ZIO.parallelismWith {
+        case Some(n) => foreachPar(n)(as)(f)
+        case None    => foreachParUnbounded(as)(f)
+      }
 
   /**
    * Applies the function `f` to each element of the `Set[A]` in parallel, and
@@ -5951,13 +5983,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   private[zio] object UpdateRuntimeFlagsWithin extends UpdateRuntimeFlagsWithinPlatformSpecific {
     final case class Interruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
         extends UpdateRuntimeFlagsWithin[R, E, A] {
-      def update: RuntimeFlags.Patch = RuntimeFlags.enable(RuntimeFlag.Interruption)
+      def update: RuntimeFlags.Patch = RuntimeFlags.enableInterruption
 
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
     }
     final case class Uninterruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
         extends UpdateRuntimeFlagsWithin[R, E, A] {
-      def update: RuntimeFlags.Patch = RuntimeFlags.disable(RuntimeFlag.Interruption)
+      def update: RuntimeFlags.Patch = RuntimeFlags.disableInterruption
 
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
     }
