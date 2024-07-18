@@ -1244,7 +1244,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
 
     //unreachable
-    ???
+    throw new IllegalStateException("runLoop must exit with a return statement from within the while loop.")
   }
 
   private def sendInterruptSignalToAllChildren(
