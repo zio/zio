@@ -76,6 +76,8 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
+    env:
+      CI_RELEASE_MODE: 1 # Needed to enable optimizers
     strategy:
       fail-fast: false
       matrix:
@@ -117,7 +119,7 @@ jobs:
           distribution: temurin
           java-version: 17
           check-latest: true
-          
+
       - name: Install NodeJS
         uses: actions/setup-node@v3
         with:
@@ -322,7 +324,7 @@ jobs:
         with:
           branch: gh-pages
           folder: ./website-artifact
-          
+
   update-docs:
     runs-on: ubuntu-latest
     if: ${{ ((github.event_name == 'repository_dispatch') && (github.event.action == 'update-docs')) }}
@@ -342,7 +344,7 @@ jobs:
           git add package.json
           commit_message="Update $package_name to $package_version"
           git commit -m "$commit_message" || echo "No changes to commit"
-          
+
       - name: Create Pull Request to Update Docs
         uses: peter-evans/create-pull-request@v4.2.4
         with:
