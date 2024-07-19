@@ -5873,7 +5873,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Terminates with an end of stream signal.
      */
     def end(implicit trace: Trace): B =
-      apply(Exit.fail(None))
+      apply(Exit.failNone)
 
     /**
      * Terminates with the specified error.

@@ -843,8 +843,8 @@ sealed trait ZIO[-R, +E, +A]
    * non-empty or fails with the error `None` if the list is empty.
    */
   final def head[B](implicit ev: A IsSubtypeOfOutput List[B], trace: Trace): ZIO[R, Option[E], B] =
-    self.foldCauseZIO(
-      e => ZIO.refailCause(e.map(Option(_))),
+    self.foldZIO(
+      e => Exit.fail(Some(e)),
       a => ev(a).headOption.fold[ZIO[R, Option[E], B]](Exit.failNone)(ZIO.successFn)
     )
 
