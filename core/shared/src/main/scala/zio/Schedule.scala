@@ -487,7 +487,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
           now   <- Clock.currentDateTime
           dec   <- self.step(now, in, state)
           v <- dec match {
-                 case (state, out, Done) => ref.set((Some(out), state)) *> Exit.fail(None)
+                 case (state, out, Done) =>
+                   ref.set((Some(out), state)) *> Exit.failNone.asInstanceOf[Exit[None.type, Out]]
                  case (state, out, Continue(interval)) =>
                    ref.set((Some(out), state)) *> ZIO.sleep(Duration.fromInterval(now, interval.start)) as out
                }

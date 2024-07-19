@@ -169,8 +169,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
           case Then(left, right)   => loop(left, right :: stack)
           case Both(left, right)   => loop(left, right :: stack)
           case Stackless(cause, _) => loop(cause, stack)
-          case _ if stack.isEmpty  => None
-          case _                   => loop(stack.head, stack.tail)
+          case _ if stack.nonEmpty => loop(stack.head, stack.tail)
+          case _                   => None
         }
       }
     }
@@ -274,11 +274,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
         case Then(left, right)   => loop(z, left, right :: stack)
         case Both(left, right)   => loop(z, left, right :: stack)
         case Stackless(cause, _) => loop(z, cause, stack)
-        case _ =>
-          stack match {
-            case hd :: tl => loop(z, hd, tl)
-            case _        => z
-          }
+        case _ if stack.nonEmpty => loop(z, stack.head, stack.tail)
+        case _                   => z
       }
     }
 
