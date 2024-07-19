@@ -906,7 +906,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         ZChannel.readWithCause[R1, Err, Elem, Any, Nothing, Nothing, Any](
           value => ZChannel.fromZIO(handoff.offer(Exit.succeed(value))) *> producer(handoff, latch),
           cause => ZChannel.fromZIO(handoff.offer(Exit.failCause(cause.map(Some(_))))),
-          _ => ZChannel.fromZIO(handoff.offer(Exit.fail(None))) *> producer(handoff, latch)
+          _ => ZChannel.fromZIO(handoff.offer(Exit.failNone)) *> producer(handoff, latch)
         )
 
     new ZStream(
@@ -1129,7 +1129,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                  .runForeachScoped(offer)
                  .foldCauseZIO(
                    cause => finalize(Exit.failCause(cause.map(Some(_)))),
-                   _ => finalize(Exit.fail(None))
+                   _ => finalize(Exit.failNone)
                  )
                  .forkScoped
         } yield queuesLock.withPermit(newQueue.get.flatten)
@@ -2647,7 +2647,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
             driver
               .next(e)
               .foldZIO(
-                _ => ZIO.fail(e),
+                _ => ZIO.refailCause(Cause.fail(e)),
                 _ => ZIO.succeed(loop.tap(_ => driver.reset))
               )
           )
@@ -4941,8 +4941,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   )(implicit trace: Trace): ZStream[R, E, A] =
     unfoldChunkZIO(fa)(fa =>
       fa.map(chunk => Some((chunk, fa))).catchAll {
-        case None    => ZIO.none
-        case Some(e) => ZIO.fail(e)
+        case None    => Exit.none
+        case Some(e) => Exit.fail(e)
       }
     )
 
@@ -4951,7 +4951,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * with None.
    */
   def repeatZIOOption[R, E, A](fa: => ZIO[R, Option[E], A])(implicit trace: Trace): ZStream[R, E, A] =
-    repeatZIOChunkOption(fa.map(Chunk.single(_)))
+    repeatZIOChunkOption(fa.map(Chunk.single))
 
   /**
    * Creates a stream from an effect producing a value of type `A`, which is
@@ -5568,7 +5568,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def failCause[E](c: Cause[E])(implicit trace: Trace): IO[Option[E], Nothing] =
       ZIO.refailCause(c).mapError(Some(_))
     def empty[A](implicit trace: Trace): IO[Nothing, Chunk[A]]   = ZIO.succeed(Chunk.empty)
-    def end(implicit trace: Trace): IO[Option[Nothing], Nothing] = ZIO.fail(None)
+    def end(implicit trace: Trace): IO[Option[Nothing], Nothing] = Exit.failNone
   }
 
   private[zio] case class BufferedPull[R, E, A](
@@ -5873,7 +5873,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Terminates with an end of stream signal.
      */
     def end(implicit trace: Trace): B =
-      apply(ZIO.fail(None))
+      apply(Exit.failNone)
 
     /**
      * Terminates with the specified error.

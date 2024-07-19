@@ -148,5 +148,5 @@ object Take {
    * End-of-stream marker
    */
   val end: Take[Nothing, Nothing] =
-    Take(Exit.fail(None))
+    Take(Exit.failNone)
 }
