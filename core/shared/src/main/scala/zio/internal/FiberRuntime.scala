@@ -1521,7 +1521,7 @@ object FiberRuntime {
    * For Scala 3, `-X-elide-below` is ignored, and therefore we need to use an
    * '''inlinable''' build-time constant to disable assertions
    */
-  private final val DisableAssertions = !BuildInfo.isSnapshot
+  private final val DisableAssertions = BuildInfo.optimizationsEnabled
 
   private type EvaluationSignal = Int
   private object EvaluationSignal {
