@@ -16,19 +16,17 @@
 
 package zio.internal
 
+import zio.Exit.{Failure, Success}
+import zio._
+import zio.internal.SpecializationHelpers.SpecializeInt
+import zio.metrics.{Metric, MetricLabel}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import scala.annotation.tailrec
-import scala.util.control.ControlThrowable
-import java.util.{Set => JavaSet}
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
-
-import zio._
-import zio.metrics.{Metric, MetricLabel}
-import zio.Exit.Failure
-import zio.Exit.Success
-import zio.internal.SpecializationHelpers.SpecializeInt
+import java.util.{Set => JavaSet}
+import scala.annotation.tailrec
+import scala.util.control.ControlThrowable
 
 final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtimeFlags0: RuntimeFlags)
     extends Fiber.Runtime.Internal[E, A]
@@ -36,8 +34,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   self =>
   type Erased = ZIO.Erased
 
+  import FiberRuntime.{AsyncJump, DisableAssertions, EvaluationSignal, stackTraceBuilderPool}
   import ZIO._
-  import FiberRuntime.{AsyncJump, EvaluationSignal, DisableAssertions}
 
   private var _lastTrace      = fiberId.location
   private var _fiberRefs      = fiberRefs0
@@ -129,7 +127,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   def interruptAsFork(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
     ZIO.succeed {
-      val cause = Cause.interrupt(fiberId).traced(StackTrace(self.fiberId, Chunk.single(trace)))
+      val cause = Cause.interrupt(fiberId, StackTrace(self.fiberId, Chunk.single(trace)))
 
       tell(FiberMessage.InterruptSignal(cause))
     }
@@ -500,25 +498,30 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private def generateStackTrace(): StackTrace = {
-    val builder = StackTraceBuilder.make()(Unsafe.unsafe)
+    val builder = stackTraceBuilderPool.get()
 
     val stack = _stack
     val size  = _stackSize // racy
 
-    if (stack ne null) {
-      var i = (if (stack.length < size) stack.length else size) - 1
-      while (i >= 0) {
-        val k = stack(i)
-        if (k ne null) { // racy
-          builder += k.trace
-          i -= 1
+    try {
+      if (stack ne null) {
+        var i = (if (stack.length < size) stack.length else size) - 1
+
+        while (i >= 0) {
+          val k = stack(i)
+          if (k ne null) { // racy
+            builder += k.trace
+            i -= 1
+          }
         }
       }
+
+      builder += id.location // TODO: Allow parent traces?
+
+      StackTrace(self.fiberId, builder.result())
+    } finally {
+      builder.clear()
     }
-
-    builder += id.location // TODO: Allow parent traces?
-
-    StackTrace(self.fiberId, builder.result())
   }
 
   /**
@@ -802,7 +805,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     cause: Cause[E],
     continueEffect: ZIO[R, E, A]
   ): ZIO[R, E, A] = {
-    import RuntimeFlags.Patch.{isEnabled, isDisabled}
+    import RuntimeFlags.Patch.{isDisabled, isEnabled}
 
     val oldFlags = _runtimeFlags
     val newFlags = RuntimeFlags.patch(patch)(oldFlags)
@@ -1565,4 +1568,14 @@ object FiberRuntime {
 
   private val notBlockingOn: () => FiberId = () => FiberId.None
 
+  /**
+   * ThreadLocal-based pool of StackTraceBuilders to avoid creating a new one
+   * whenever we call ZIO.fail.
+   *
+   * '''NOTE''': Ensure that the `clear()` method on the builder is called after
+   * use.
+   */
+  private val stackTraceBuilderPool: ThreadLocal[StackTraceBuilder] = new ThreadLocal[StackTraceBuilder] {
+    override def initialValue(): StackTraceBuilder = StackTraceBuilder.make()(Unsafe.unsafe)
+  }
 }

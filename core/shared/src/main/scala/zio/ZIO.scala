@@ -411,7 +411,7 @@ sealed trait ZIO[-R, +E, +A]
   final def catchSomeDefect[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[Throwable, ZIO[R1, E1, A1]]
   )(implicit trace: Trace): ZIO[R1, E1, A1] =
-    unrefineWith(pf)(ZIO.fail(_)).catchAll(identity)
+    unrefineWith(pf)(ZIO.failFn).catchAll(identity)
 
   /**
    * Returns an effect that succeeds with the cause of failure of this effect,
@@ -670,7 +670,7 @@ sealed trait ZIO[-R, +E, +A]
    * use all methods on the error channel, possibly before flipping back.
    */
   final def flip(implicit trace: Trace): ZIO[R, A, E] =
-    self.foldZIO(ZIO.successFn, ZIO.fail(_))
+    self.foldZIO(ZIO.successFn, ZIO.failFn)
 
   /**
    * Swaps the error/value parameters, applies the function `f` and flips the
@@ -844,8 +844,8 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def head[B](implicit ev: A IsSubtypeOfOutput List[B], trace: Trace): ZIO[R, Option[E], B] =
     self.foldZIO(
-      e => ZIO.fail(Some(e)),
-      a => ev(a).headOption.fold[ZIO[R, Option[E], B]](ZIO.fail(None))(ZIO.successFn)
+      e => Exit.fail(Some(e)),
+      a => ev(a).headOption.fold[ZIO[R, Option[E], B]](Exit.failNone)(ZIO.successFn)
     )
 
   /**
@@ -928,7 +928,7 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def left[B, C](implicit ev: A IsSubtypeOfOutput Either[B, C], trace: Trace): ZIO[R, Either[E, C], B] =
     self.foldZIO(
-      e => ZIO.fail(Left(e)),
+      e => Exit.fail(Left(e)),
       a => ev(a).fold(ZIO.successFn, c => ZIO.fail(Right(c)))
     )
 
@@ -977,14 +977,14 @@ sealed trait ZIO[-R, +E, +A]
    * `f` function, translating any thrown exceptions into typed failed effects.
    */
   final def mapAttempt[B](f: A => B)(implicit ev: E IsSubtypeOfError Throwable, trace: Trace): RIO[R, B] =
-    foldZIO(e => ZIO.fail(ev(e)), a => ZIO.attempt(f(a)))
+    foldZIO(e => Exit.fail(ev(e)), a => ZIO.attempt(f(a)))
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
   def mapBoth[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E], trace: Trace): ZIO[R, E2, B] =
-    foldZIO(e => ZIO.fail(f(e)), a => ZIO.succeed(g(a)))
+    foldZIO(e => Exit.fail(f(e)), a => ZIO.succeed(g(a)))
 
   /**
    * Returns an effect with its error channel mapped using the specified
@@ -1033,8 +1033,8 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def none[B](implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R, Option[E], Unit] =
     self.foldZIO(
-      e => ZIO.fail(Some(e)),
-      a => ev(a).fold[ZIO[R, Option[E], Unit]](Exit.unit)(_ => ZIO.fail(None))
+      e => Exit.fail(Some(e)),
+      a => ev(a).fold[ZIO[R, Option[E], Unit]](Exit.unit)(_ => Exit.failNone)
     )
 
   /**
@@ -1215,7 +1215,7 @@ sealed trait ZIO[-R, +E, +A]
   final def orElseOptional[R1 <: R, E1, A1 >: A](
     that: => ZIO[R1, Option[E1], A1]
   )(implicit ev: E IsSubtypeOfError Option[E1], trace: Trace): ZIO[R1, Option[E1], A1] =
-    catchAll(ev(_).fold(that)(e => ZIO.fail(Some(e))))
+    catchAll(ev(_).fold(that)(e => Exit.fail(Some(e))))
 
   /**
    * Executes this effect and returns its value, if it succeeds, but otherwise
@@ -1232,7 +1232,7 @@ sealed trait ZIO[-R, +E, +A]
       cause =>
         cause.failures match {
           case Nil            => ZIO.refailCause(cause.asInstanceOf[Cause[Nothing]])
-          case ::(head, tail) => ZIO.refailCause(Cause.fail(::[E1](head, tail)).traced(cause.trace))
+          case ::(head, tail) => ZIO.refailCause(Cause.fail(::[E1](head, tail), cause.trace))
         },
       ZIO.successFn
     )
@@ -1432,9 +1432,8 @@ sealed trait ZIO[-R, +E, +A]
 
       val raceIndicator = new AtomicBoolean(true)
 
-      val leftFiber = ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, leftScope)
-      val rightFiber =
-        ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, rightScope)
+      val leftFiber  = ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, leftScope)
+      val rightFiber = ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, rightScope)
 
       val startLeftFiber  = leftFiber.startSuspended()
       val startRightFiber = rightFiber.startSuspended()
@@ -1530,7 +1529,7 @@ sealed trait ZIO[-R, +E, +A]
   final def repeat[R1 <: R, B](schedule: => Schedule[R1, A, B])(implicit
     trace: Trace
   ): ZIO[R1, E, B] =
-    repeatOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
+    repeatOrElse[R1, E, B](schedule, (e, _) => Exit.fail(e))
 
   /**
    * Returns a new effect that repeats this effect the specified number of times
@@ -1756,7 +1755,7 @@ sealed trait ZIO[-R, +E, +A]
   final def retryUntilZIO[R1 <: R](
     f: E => URIO[R1, Boolean]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E, A] =
-    self.catchAll(e => f(e).flatMap(b => if (b) ZIO.fail(e) else ZIO.yieldNow *> retryUntilZIO(f)))
+    self.catchAll(e => f(e).flatMap(b => if (b) Exit.fail(e) else ZIO.yieldNow *> retryUntilZIO(f)))
 
   /**
    * Retries this effect while its error satisfies the specified predicate.
@@ -1786,7 +1785,7 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def right[B, C](implicit ev: A IsSubtypeOfOutput Either[B, C], trace: Trace): ZIO[R, Either[B, E], C] =
     self.foldZIO(
-      e => ZIO.fail(Right(e)),
+      e => Exit.fail(Right(e)),
       a => ev(a).fold(b => ZIO.fail(Left(b)), ZIO.successFn)
     )
 
@@ -1878,7 +1877,7 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def some[B](implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R, Option[E], B] =
     self.foldZIO(
-      e => ZIO.fail(Some(e)),
+      e => Exit.fail(Some(e)),
       a => ev(a).fold[ZIO[R, Option[E], B]](ZIO.fail(Option.empty[E]))(ZIO.successFn)
     )
 
@@ -1953,8 +1952,8 @@ sealed trait ZIO[-R, +E, +A]
     ev2: NoSuchElementException <:< E1,
     trace: Trace
   ): ZIO[R, E1, B] =
-    self.foldZIO(
-      e => ZIO.fail(e),
+    self.foldCauseZIO(
+      e => ZIO.refailCause(e),
       ev(_) match {
         case Some(value) => Exit.succeed(value)
         case None        => ZIO.fail(ev2(new NoSuchElementException("None.get")))
@@ -2299,7 +2298,7 @@ sealed trait ZIO[-R, +E, +A]
     catchAllCause { cause =>
       cause.find {
         case Cause.Die(t, _) if pf.isDefinedAt(t) => pf(t)
-      }.fold(ZIO.refailCause(cause.map(f)))(ZIO.fail(_))
+      }.fold(ZIO.refailCause(cause.map(f)))(ZIO.failFn)
     }
 
   /**
@@ -2311,7 +2310,7 @@ sealed trait ZIO[-R, +E, +A]
     trace: Trace
   ): ZIO[R, E1, Either[B, A]] =
     self.foldZIO(
-      e => ev(e).fold(b => Exit.succeed(Left(b)), e1 => ZIO.fail(e1)),
+      e => ev(e).fold(b => Exit.succeed(Left(b)), e1 => Exit.fail(e1)),
       a => Exit.succeed(Right(a))
     )
 
@@ -2320,7 +2319,7 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def unsome[E1](implicit ev: E IsSubtypeOfError Option[E1], trace: Trace): ZIO[R, E1, Option[A]] =
     self.foldZIO(
-      e => ev(e).fold[ZIO[R, E1, Option[A]]](Exit.none)(ZIO.fail(_)),
+      e => ev(e).fold[ZIO[R, E1, Option[A]]](Exit.none)(ZIO.failFn),
       a => Exit.succeed(Some(a))
     )
 
@@ -3244,9 +3243,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def failCause[E](cause: => Cause[E])(implicit trace0: Trace): IO[E, Nothing] =
     ZIO.stackTrace(trace0).flatMap { trace =>
-      ZIO.logSpans.flatMap { spans =>
-        ZIO.logAnnotations.flatMap { annotations =>
-          ZIO.refailCause(cause.traced(trace).spanned(spans).annotated(annotations))
+      FiberRef.currentLogSpan.getWith { spans =>
+        FiberRef.currentLogAnnotations.getWith { annotations =>
+          ZIO.refailCause(cause.applyAll(trace, spans, annotations))
         }
       }
     }
