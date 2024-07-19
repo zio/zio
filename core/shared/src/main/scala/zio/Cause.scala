@@ -40,21 +40,19 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   /**
    * Adds the specified annotations.
    */
-  final def annotated(annotations: Map[String, String]): Cause[E] =
-    if (annotations.isEmpty) self else mapAnnotations(_ ++ annotations)
+  final def annotated(anns: Map[String, String]): Cause[E] =
+    if (anns.isEmpty) self else mapAnnotations(_ ++ anns)
 
   /**
    * Grabs the annotations from the cause.
    */
   def annotations: Map[String, String] =
-    if (self eq Empty) Map.empty
-    else
-      self.foldLeft(Map.empty[String, String]) {
-        case (z, die @ Die(_, _))             => z ++ die.annotations
-        case (z, fail @ Fail(_, _))           => z ++ fail.annotations
-        case (z, interrupt @ Interrupt(_, _)) => z ++ interrupt.annotations
-        case (z, _)                           => z
-      }
+    self.foldLeft(Map.empty[String, String]) {
+      case (z, die @ Die(_, _))             => z ++ die.annotations
+      case (z, fail @ Fail(_, _))           => z ++ fail.annotations
+      case (z, interrupt @ Interrupt(_, _)) => z ++ interrupt.annotations
+      case (z, _)                           => z
+    }
 
   private[zio] final def applyAll(
     trace: StackTrace,
@@ -92,11 +90,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Extracts a list of non-recoverable errors from the `Cause`.
    */
   final def defects: List[Throwable] =
-    if (self eq Empty) Nil
-    else
-      self
-        .foldLeft(List.empty[Throwable]) { case (z, Die(v, _)) => v :: z }
-        .reverse
+    self
+      .foldLeft(List.empty[Throwable]) { case (z, Die(v, _)) => v :: z }
+      .reverse
 
   /**
    * Returns the `Throwable` associated with the first `Die` in this `Cause` if
@@ -263,7 +259,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
               stacklessCase(context, cause, stackless) :: causes
           }
       }
-    loop(List(self), List.empty).head
+    if (self eq Empty) empty(context)
+    else loop(List(self), List.empty).head
   }
 
   /**
@@ -271,18 +268,22 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    */
   final def foldLeft[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z = {
     @tailrec
-    def loop(z: Z, cause: Cause[E], stack: List[Cause[E]]): Z =
-      (f.applyOrElse[(Z, Cause[E]), Z](z -> cause, _ => z), cause) match {
-        case (z, Then(left, right))   => loop(z, left, right :: stack)
-        case (z, Both(left, right))   => loop(z, left, right :: stack)
-        case (z, Stackless(cause, _)) => loop(z, cause, stack)
-        case (z, _) =>
+    def loop(z0: Z, cause: Cause[E], stack: List[Cause[E]]): Z = {
+      val z = f.applyOrElse[(Z, Cause[E]), Z](z0 -> cause, _._1)
+      cause match {
+        case Then(left, right)   => loop(z, left, right :: stack)
+        case Both(left, right)   => loop(z, left, right :: stack)
+        case Stackless(cause, _) => loop(z, cause, stack)
+        case _ =>
           stack match {
             case hd :: tl => loop(z, hd, tl)
-            case Nil      => z
+            case _        => z
           }
       }
-    loop(z, self, Nil)
+    }
+
+    if (self eq Empty) z
+    else loop(z, self, Nil)
   }
 
   final def foldLog[Z](
@@ -737,7 +738,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       }
     }
 
-    loop(self :: Nil, FiberId.None, false, Nil).reverse
+    if (self eq Empty) Nil
+    else loop(self :: Nil, FiberId.None, false, Nil).reverse
   }
 
   /**
