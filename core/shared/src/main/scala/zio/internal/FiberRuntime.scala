@@ -257,7 +257,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     // giving up the drain. If so, we need to restart the draining, but only
     // if we beat everyone else to the restart:
     if (!inbox.isEmpty && running.compareAndSet(false, true)) {
-      if (evaluationSignal == EvaluationSignal.YieldNow) drainQueueLaterOnExecutor()
+      if (evaluationSignal == EvaluationSignal.YieldNow) drainQueueLaterOnExecutor(true)
       else drainQueueOnCurrentThread(depth)
     }
   }
@@ -268,13 +268,21 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * operation is completed, but potentially before such messages have been
    * executed.
    *
+   * @param attemptResumptionOnSameThread
+   *   Setting this to true will attempt to resume execution on the same thread
+   *   to minimize parking/unparking of worker threads
+   *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def drainQueueLaterOnExecutor(): Unit = {
+  private def drainQueueLaterOnExecutor(attemptResumptionOnSameThread: Boolean): Unit = {
     assert(DisableAssertions || running.get)
 
     runningExecutor = self.getCurrentExecutor()
-    runningExecutor.submitOrThrow(self)(Unsafe.unsafe)
+
+    if (attemptResumptionOnSameThread)
+      runningExecutor.submitAndYieldOrThrow(self)(Unsafe.unsafe)
+    else
+      runningExecutor.submitOrThrow(self)(Unsafe.unsafe)
   }
 
   /**
@@ -293,6 +301,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
     while (message ne null) {
       message match {
+        case FiberMessage.Stateful(onFiber) =>
+          processStatefulMessage(onFiber)
+
         case FiberMessage.InterruptSignal(cause) =>
           processNewInterruptSignal(cause)
 
@@ -300,15 +311,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             cur = Exit.Failure(cause)
           }
 
-        case FiberMessage.Stateful(onFiber) =>
-          processStatefulMessage(onFiber)
-
         case FiberMessage.Resume(_) =>
           throw new IllegalStateException("It is illegal to have multiple concurrent run loops in a single fiber")
 
         case FiberMessage.YieldNow =>
-        // Ignore yield message
+          assert(DisableAssertions)
       }
+
       message = inbox.poll()
     }
 
@@ -341,6 +350,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           resumption = nextEffect0.asInstanceOf[ZIO.Erased]
 
         case FiberMessage.YieldNow =>
+          assert(DisableAssertions)
 
       }
 
@@ -476,12 +486,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       case FiberMessage.Resume(nextEffect0) =>
         val nextEffect = nextEffect0.asInstanceOf[ZIO.Erased]
 
-        evaluateEffect(depth, nextEffect)
-
-        EvaluationSignal.Continue
+        val exit = evaluateEffect(depth, nextEffect)
+        if (exit eq null) EvaluationSignal.YieldNow
+        else EvaluationSignal.Continue
 
       case FiberMessage.YieldNow =>
-        // Break from the loop because we're required to yield now:
+        // Will raise an error during tests, but assertion disappears when we publish
+        // Kept just in case someone in the ecosystem as adding YieldNow messages manually
+        assert(DisableAssertions)
         EvaluationSignal.YieldNow
     }
   }
@@ -952,7 +964,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       if (ops > FiberRuntime.MaxOperationsBeforeYield && RuntimeFlags.cooperativeYielding(_runtimeFlags)) {
         updateLastTrace(cur.trace)
-        inbox.add(FiberMessage.YieldNow)
         inbox.add(FiberMessage.Resume(cur))
 
         return null
@@ -1089,14 +1100,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               cur = initiateAsync(effect.registerCallback)
 
-              while (cur eq null) {
+              if (cur eq null) {
                 cur = drainQueueAfterAsync()
+              }
 
-                if (cur eq null) {
-                  if (!stealWork(currentDepth)) {
-                    return null
-                  }
-                }
+              if ((cur eq null) && !stealWork(currentDepth)) {
+                return null
               }
 
               if (shouldInterrupt()) {
@@ -1227,7 +1236,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             case yieldNow: ZIO.YieldNow =>
               updateLastTrace(yieldNow.trace)
               if (yieldNow.forceAsync || !stealWork(currentDepth)) {
-                inbox.add(FiberMessage.YieldNow)
                 inbox.add(FiberMessage.resumeUnit)
                 return null
               } else {
@@ -1358,7 +1366,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * This is not the normal way of starting a fiber, but it is useful when the
    * express goal of executing the fiber is to synchronously produce its exit.
    */
-  private[zio] def start[R](effect: ZIO[R, E, A]): Exit[E, A] =
+  private[zio] def start[R](effect: ZIO[R, E, A]): Exit[E, A] = {
+    var result = null.asInstanceOf[Exit[E, A]]
     if (running.compareAndSet(false, true)) {
       var previousFiber = null.asInstanceOf[Fiber.Runtime[_, _]]
       try {
@@ -1367,7 +1376,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           Fiber._currentFiber.set(self)
         }
 
-        evaluateEffect(0, effect.asInstanceOf[ZIO.Erased])
+        result = evaluateEffect(0, effect.asInstanceOf[ZIO.Erased])
       } finally {
         if ((previousFiber ne null) || RuntimeFlags.currentFiber(_runtimeFlags)) Fiber._currentFiber.set(previousFiber)
 
@@ -1377,13 +1386,17 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         // for spinning up the fiber if there were new messages added to
         // the inbox between the completion of the effect and the transition
         // to the not running state.
-        if (!inbox.isEmpty && running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
+        if (!inbox.isEmpty && running.compareAndSet(false, true)) {
+          // If there are messages and the result is null, this is either a yield, or we need to resume the fiber
+          // In either way, we can optimize by using attemptResumptionOnSameThread = true
+          drainQueueLaterOnExecutor(result eq null)
+        }
       }
     } else {
       tell(FiberMessage.Resume(effect))
-
-      null
     }
+    result
+  }
 
   /**
    * Begins execution of the effect associated with this fiber on in the
@@ -1439,7 +1452,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     inbox.add(message)
 
     // Attempt to spin up fiber, if it's not already running:
-    if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
+    if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor(false)
   }
 
   private[zio] def tellAddChild(child: Fiber.Runtime[_, _]): Unit =
