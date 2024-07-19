@@ -41,18 +41,19 @@ object BuildHelper {
     "-Ywarn-value-discard"
   )
 
-  private def optimizerOptions(optimize: Boolean) =
-    if (optimize)
-      Seq(
+  private def optimizerOptions(optimize: Boolean, isScala213: Boolean) =
+    if (optimize) {
+      // We get some weird errors when trying to inline Scala 2.12 std lib
+      val inlineScala = if (isScala213) Seq("-opt-inline-from:scala.**") else Nil
+      inlineScala ++ Seq(
         "-opt:l:method",
         "-opt:l:inline",
         "-opt-inline-from:zio.**",
-        "-opt-inline-from:scala.**",
         // To remove calls to `assert` in releases. Assertions are level 2000
         "-Xelide-below",
         "2001"
       )
-    else Nil
+    } else Nil
 
   def buildInfoSettings(packageName: String) =
     Seq(
@@ -124,7 +125,7 @@ object BuildHelper {
         Seq(
           "-Ywarn-unused:params,-implicits",
           "-Ybackend-parallelism:4"
-        ) ++ std2xOptions ++ optimizerOptions(optimize)
+        ) ++ std2xOptions ++ optimizerOptions(optimize, isScala213 = true)
       case Some((2, 12)) =>
         Seq(
           "-opt-warnings",
@@ -141,7 +142,7 @@ object BuildHelper {
           "-Xsource:2.13",
           "-Xmax-classfile-name",
           "242"
-        ) ++ std2xOptions ++ optimizerOptions(optimize)
+        ) ++ std2xOptions ++ optimizerOptions(optimize, isScala213 = false)
       case _ => Seq.empty
     }
 
