@@ -438,7 +438,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
 }
 
 private object ZScheduler {
-  private val poolSize   = java.lang.Runtime.getRuntime.availableProcessors
+  private val poolSize = java.lang.Runtime.getRuntime.availableProcessors
 
   def markCurrentWorkerAsBlocking(): Unit = {
     val worker = workerOrNull()
