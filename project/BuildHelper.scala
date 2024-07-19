@@ -11,6 +11,12 @@ object BuildHelper {
   val Scala213: String = "2.13.13"
   val Scala3: String   = "3.3.3"
 
+  lazy val isRelease = {
+    val value = sys.env.get("CI_RELEASE_MODE").isDefined
+    if (value) println("Detected CI_RELEASE_MODE envvar, enabling optimizations")
+    value
+  }
+
   private val stdOptions = Seq(
     "-deprecation",
     "-encoding",
@@ -40,7 +46,8 @@ object BuildHelper {
       Seq(
         "-opt:l:method",
         "-opt:l:inline",
-        "-opt-inline-from:zio.internal.**",
+        "-opt-inline-from:zio.**",
+        "-opt-inline-from:scala.**",
         // To remove calls to `assert` in releases. Assertions are level 2000
         "-Xelide-below",
         "2001"
@@ -51,7 +58,16 @@ object BuildHelper {
     Seq(
       // BuildInfoOption.ConstantValue required to disable assertions in FiberRuntime!
       buildInfoOptions += BuildInfoOption.ConstantValue,
-      buildInfoKeys    := Seq[BuildInfoKey](organization, moduleName, name, version, scalaVersion, sbtVersion, isSnapshot),
+      buildInfoKeys := Seq[BuildInfoKey](
+        organization,
+        moduleName,
+        name,
+        version,
+        scalaVersion,
+        sbtVersion,
+        isSnapshot,
+        BuildInfoKey("optimizationsEnabled" -> isRelease)
+      ),
       buildInfoPackage := packageName
     )
 
@@ -106,7 +122,8 @@ object BuildHelper {
         )
       case Some((2, 13)) =>
         Seq(
-          "-Ywarn-unused:params,-implicits"
+          "-Ywarn-unused:params,-implicits",
+          "-Ybackend-parallelism:4"
         ) ++ std2xOptions ++ optimizerOptions(optimize)
       case Some((2, 12)) =>
         Seq(
@@ -172,7 +189,7 @@ object BuildHelper {
     name                     := s"$prjName",
     crossScalaVersions       := Seq(Scala212, Scala213, Scala3),
     ThisBuild / scalaVersion := Scala213,
-    scalacOptions ++= stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
+    scalacOptions ++= stdOptions ++ extraOptions(scalaVersion.value, optimize = isRelease || !isSnapshot.value),
     scalacOptions --= {
       if (scalaVersion.value == Scala3)
         List("-Xfatal-warnings")
