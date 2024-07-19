@@ -1232,7 +1232,7 @@ sealed trait ZIO[-R, +E, +A]
       cause =>
         cause.failures match {
           case Nil            => ZIO.refailCause(cause.asInstanceOf[Cause[Nothing]])
-          case ::(head, tail) => ZIO.refailCause(Cause.fail(::[E1](head, tail)).traced(cause.trace))
+          case ::(head, tail) => ZIO.refailCause(Cause.fail(::[E1](head, tail), cause.trace))
         },
       ZIO.successFn
     )
@@ -3243,9 +3243,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def failCause[E](cause: => Cause[E])(implicit trace0: Trace): IO[E, Nothing] =
     ZIO.stackTrace(trace0).flatMap { trace =>
-      ZIO.logSpans.flatMap { spans =>
-        ZIO.logAnnotations.flatMap { annotations =>
-          ZIO.refailCause(cause.traced(trace).spanned(spans).annotated(annotations))
+      FiberRef.currentLogSpan.getWith { spans =>
+        FiberRef.currentLogAnnotations.getWith { annotations =>
+          ZIO.refailCause(cause.applyAll(trace, spans, annotations))
         }
       }
     }

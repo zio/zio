@@ -41,18 +41,38 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Adds the specified annotations.
    */
   final def annotated(annotations: Map[String, String]): Cause[E] =
-    mapAnnotations(_ ++ annotations)
+    if (annotations.isEmpty) self else mapAnnotations(_ ++ annotations)
 
   /**
    * Grabs the annotations from the cause.
    */
   def annotations: Map[String, String] =
-    self.foldLeft(Map.empty[String, String]) {
-      case (z, die @ Die(_, _))             => z ++ die.annotations
-      case (z, fail @ Fail(_, _))           => z ++ fail.annotations
-      case (z, interrupt @ Interrupt(_, _)) => z ++ interrupt.annotations
-      case (z, _)                           => z
-    }
+    if (self eq Empty) Map.empty
+    else
+      self.foldLeft(Map.empty[String, String]) {
+        case (z, die @ Die(_, _))             => z ++ die.annotations
+        case (z, fail @ Fail(_, _))           => z ++ fail.annotations
+        case (z, interrupt @ Interrupt(_, _)) => z ++ interrupt.annotations
+        case (z, _)                           => z
+      }
+
+  private[zio] final def applyAll(
+    trace: StackTrace,
+    spans: List[LogSpan],
+    annotations: Map[String, String]
+  ): Cause[E] = {
+    val isEmptyTrace = trace.isEmpty
+    val isEmptySpans = spans.isEmpty
+    val isEmptyAnns  = annotations.isEmpty
+
+    if (isEmptyTrace && isEmptySpans && isEmptyAnns) self
+    else
+      mapAll(
+        if (isEmptyTrace) ZIO.identityFn else _ ++ trace,
+        if (isEmptySpans) ZIO.identityFn else _ ::: spans,
+        if (isEmptyAnns) ZIO.identityFn else _ ++ annotations
+      )
+  }
 
   /**
    * Maps the error value of this cause to the specified constant value.
@@ -72,11 +92,11 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Extracts a list of non-recoverable errors from the `Cause`.
    */
   final def defects: List[Throwable] =
-    self
-      .foldLeft(List.empty[Throwable]) { case (z, Die(v, _)) =>
-        v :: z
-      }
-      .reverse
+    if (self eq Empty) Nil
+    else
+      self
+        .foldLeft(List.empty[Throwable]) { case (z, Die(v, _)) => v :: z }
+        .reverse
 
   /**
    * Returns the `Throwable` associated with the first `Die` in this `Cause` if
@@ -145,21 +165,19 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    */
   final def find[Z](f: PartialFunction[Cause[E], Z]): Option[Z] = {
     @tailrec
-    def loop(cause: Cause[E], stack: List[Cause[E]]): Option[Z] =
-      f.lift(cause) match {
-        case Some(z) => Some(z)
-        case None =>
-          cause match {
-            case Then(left, right)   => loop(left, right :: stack)
-            case Both(left, right)   => loop(left, right :: stack)
-            case Stackless(cause, _) => loop(cause, stack)
-            case _ =>
-              stack match {
-                case hd :: tl => loop(hd, tl)
-                case Nil      => None
-              }
-          }
+    def loop(cause: Cause[E], stack: List[Cause[E]]): Option[Z] = {
+      val out = f.lift(cause)
+      if (out.isDefined) out
+      else {
+        cause match {
+          case Then(left, right)   => loop(left, right :: stack)
+          case Both(left, right)   => loop(left, right :: stack)
+          case Stackless(cause, _) => loop(cause, stack)
+          case _ if stack.isEmpty  => None
+          case _                   => loop(stack.head, stack.tail)
+        }
       }
+    }
     loop(self, Nil)
   }
 
@@ -170,7 +188,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   final def flatMap[E2](f: E => Cause[E2]): Cause[E2] =
     foldLog[Cause[E2]](
       Empty,
-      (e, trace, spans, annotations) => f(e).traced(trace).spanned(spans).annotated(annotations),
+      (e, trace, spans, annotations) => f(e).applyAll(trace, spans, annotations),
       (t, trace, spans, annotations) => Die(t, trace, spans, annotations),
       (fiberId, trace, spans, annotations) => Interrupt(fiberId, trace, spans, annotations)
     )(
@@ -329,12 +347,12 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     @tailrec
     def loop(cause: Cause[E], stack: List[Cause[E]]): Boolean =
       cause match {
-        case Fail(value, trace)        => false
-        case Die(value, trace)         => false
-        case Interrupt(fiberId, trace) => false
-        case Then(left, right)         => loop(left, right :: stack)
-        case Both(left, right)         => loop(left, right :: stack)
-        case Stackless(cause, _)       => loop(cause, stack)
+        case _: Fail[?]          => false
+        case _: Die              => false
+        case _: Interrupt        => false
+        case Then(left, right)   => loop(left, right :: stack)
+        case Both(left, right)   => loop(left, right :: stack)
+        case Stackless(cause, _) => loop(cause, stack)
         case _ =>
           stack match {
             case hd :: tl => loop(hd, tl)
@@ -364,9 +382,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    */
   final def isTraced: Boolean =
     find {
-      case Die(_, trace) if trace != StackTrace.none       => ()
-      case Fail(_, trace) if trace != StackTrace.none      => ()
-      case Interrupt(_, trace) if trace != StackTrace.none => ()
+      case Die(_, trace) if !trace.isEmpty       => ()
+      case Fail(_, trace) if !trace.isEmpty      => ()
+      case Interrupt(_, trace) if !trace.isEmpty => ()
     }.isDefined
 
   /**
@@ -414,8 +432,24 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   /**
    * Transforms the error type of this cause with the specified function.
    */
-  final def map[E1](f: E => E1): Cause[E1] =
+  def map[E1](f: E => E1): Cause[E1] =
     flatMap(e => Fail(f(e), StackTrace.none))
+
+  protected def mapAll(
+    ft: StackTrace => StackTrace,
+    fs: List[LogSpan] => List[LogSpan],
+    fa: Map[String, String] => Map[String, String]
+  ): Cause[E] =
+    foldLog[Cause[E]](
+      Empty,
+      (e, trace, spans, annotations) => Fail(e, ft(trace), fs(spans), fa(annotations)),
+      (t, trace, spans, annotations) => Die(t, ft(trace), fs(spans), fa(annotations)),
+      (fiberId, trace, spans, annotations) => Interrupt(fiberId, ft(trace), fs(spans), fa(annotations))
+    )(
+      (left, right) => Then(left, right),
+      (left, right) => Both(left, right),
+      (cause, stackless) => Stackless(cause, stackless)
+    )
 
   /**
    * Transforms the annotations in this cause with the specified function.
@@ -517,7 +551,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Adds the specified spans.
    */
   def spanned(spans: List[LogSpan]): Cause[E] =
-    mapSpans(_ ::: spans)
+    if (spans.isEmpty) self else mapSpans(_ ::: spans)
 
   /**
    * Grabs a complete, linearized list of log spans for the cause. Note: This
@@ -638,7 +672,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Adds the specified execution trace to traces.
    */
   final def traced(trace: StackTrace): Cause[E] =
-    mapTrace(_ ++ trace)
+    if (trace.isEmpty) self else mapTrace(_ ++ trace)
 
   /**
    * Returns a homogenized list of failures for the cause. This homogenization
@@ -848,11 +882,27 @@ object Cause extends Serializable {
       (causeOption, stackless) => causeOption.map(Stackless(_, stackless))
     )
 
-  case object Empty extends Cause[Nothing]
+  case object Empty extends Cause[Nothing] { self =>
+    override def map[E1](f: Nothing => E1): Cause[E1] = self
+    override protected def mapAll(
+      ft: StackTrace => StackTrace,
+      fs: List[LogSpan] => List[LogSpan],
+      fa: Map[String, String] => Map[String, String]
+    ): Cause[Nothing] = self
+  }
 
   sealed case class Fail[+E](value: E, override val trace: StackTrace) extends Cause[E] { self =>
     override def annotations: Map[String, String] = Map.empty
     override def spans: List[LogSpan]             = List.empty
+
+    final override def map[E1](f: E => E1): Cause[E1] =
+      Fail(f(value), trace, spans, annotations)
+
+    final override protected def mapAll(
+      ft: StackTrace => StackTrace,
+      fs: List[LogSpan] => List[LogSpan],
+      fa: Map[String, String] => Map[String, String]
+    ): Cause[E] = Fail(value, ft(trace), fs(spans), fa(annotations))
   }
 
   object Fail {
@@ -866,6 +916,14 @@ object Cause extends Serializable {
   sealed case class Die(value: Throwable, override val trace: StackTrace) extends Cause[Nothing] { self =>
     override def annotations: Map[String, String] = Map.empty
     override def spans: List[LogSpan]             = List.empty
+
+    final override def map[E1](f: Nothing => E1): Cause[E1] = self
+
+    final override protected def mapAll(
+      ft: StackTrace => StackTrace,
+      fs: List[LogSpan] => List[LogSpan],
+      fa: Map[String, String] => Map[String, String]
+    ): Cause[Nothing] = Die(value, ft(trace), fs(spans), fa(annotations))
   }
 
   object Die extends AbstractFunction2[Throwable, StackTrace, Die] {
@@ -879,6 +937,14 @@ object Cause extends Serializable {
   sealed case class Interrupt(fiberId: FiberId, override val trace: StackTrace) extends Cause[Nothing] { self =>
     override def annotations: Map[String, String] = Map.empty
     override def spans: List[LogSpan]             = List.empty
+
+    final override def map[E1](f: Nothing => E1): Cause[E1] = self
+
+    final override protected def mapAll(
+      ft: StackTrace => StackTrace,
+      fs: List[LogSpan] => List[LogSpan],
+      fa: Map[String, String] => Map[String, String]
+    ): Cause[Nothing] = Interrupt(fiberId, ft(trace), fs(spans), fa(annotations))
   }
 
   object Interrupt extends AbstractFunction2[FiberId, StackTrace, Interrupt] {
@@ -919,7 +985,7 @@ object Cause extends Serializable {
       else loop(leftSequential, rightSequential)
     }
 
-    loop(List(left), List(right))
+    (left eq right) || loop(List(left), List(right))
   }
 
   /**
@@ -941,7 +1007,8 @@ object Cause extends Serializable {
       else loop(sequential, updated)
     }
 
-    loop(List(c), List.empty)
+    if (c eq Empty) Nil
+    else loop(List(c), List.empty)
   }
 
   /**
@@ -984,7 +1051,8 @@ object Cause extends Serializable {
         else loop(stack.head, stack.tail, parallel, sequential)
     }
 
-    loop(c, List.empty, Set.empty, List.empty)
+    if (c eq Empty) (Set.empty, Nil)
+    else loop(c, List.empty, Set.empty, List.empty)
   }
 
   private case class FiberTrace(trace: String) extends Throwable(null, null, true, false) {

@@ -127,7 +127,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   def interruptAsFork(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
     ZIO.succeed {
-      val cause = Cause.interrupt(fiberId).traced(StackTrace(self.fiberId, Chunk.single(trace)))
+      val cause = Cause.interrupt(fiberId, StackTrace(self.fiberId, Chunk.single(trace)))
 
       tell(FiberMessage.InterruptSignal(cause))
     }

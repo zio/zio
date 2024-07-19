@@ -26,7 +26,11 @@ final case class StackTrace(
 ) { self =>
 
   def ++(that: StackTrace): StackTrace =
-    StackTrace(self.fiberId combine that.fiberId, self.stackTrace ++ that.stackTrace)
+    if ((self eq that) || self.isEmpty) that
+    else if (that.isEmpty) self
+    else StackTrace(self.fiberId combine that.fiberId, self.stackTrace ++ that.stackTrace)
+
+  def isEmpty: Boolean = self == StackTrace.none
 
   def size: Int = stackTrace.length
 
