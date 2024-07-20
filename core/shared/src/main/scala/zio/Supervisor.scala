@@ -135,6 +135,20 @@ object Supervisor {
     override def onEnd[E, B](value: Exit[E, B], fiber: Fiber.Runtime[E, B])(implicit unsafe: Unsafe): Unit = ()
   }
 
+  private[zio] final case class LogAllErrorsSupervisor(runtime: Runtime[Any]) extends Supervisor[Unit] {
+    override def value(implicit trace: Trace): UIO[Unit] = ZIO.unit
+
+    override def onStart[R, E, B](
+      environment: ZEnvironment[R],
+      effect: ZIO[R, E, B],
+      parent: Option[Fiber.Runtime[Any, Any]],
+      fiber: Fiber.Runtime[E, B]
+    )(implicit unsafe: Unsafe): Unit = ()
+
+    override def onEnd[E, B](value: Exit[E, B], fiber: Fiber.Runtime[E, B])(implicit unsafe: Unsafe): Unit =
+      runtime.unsafe.run(value.logError("toto")(Trace.empty))(Trace.empty, unsafe)
+  }
+
   private[zio] object unsafe {
     def track(weak: Boolean)(implicit unsafe: Unsafe): Supervisor[Chunk[Fiber.Runtime[Any, Any]]] = {
       val set: java.util.Set[Fiber.Runtime[Any, Any]] =
