@@ -382,7 +382,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
     val supervisor = getSupervisor()
 
-    if (supervisor ne Supervisor.none) supervisor.onResume(self)(Unsafe.unsafe)
+    if (supervisor ne Supervisor.none) {
+      println(s"========== supervisor.onResume: $supervisor")
+      supervisor.onResume(self)(Unsafe.unsafe)
+    }
     if (_stack eq null) _stack = new Array[Continuation](FiberRuntime.InitialStackSize)
 
     try {

@@ -12,8 +12,16 @@ object SupervisorSpec extends ZIOBaseSpec {
     val logger = ZLogger.simple[String, Any] { message => logs += message; () }
     val withLogger: TestAspectPoly =
       TestAspect.fromLayer(Runtime.removeDefaultLoggers >>> Runtime.addLogger(logger))
+
+    // inspired by [[Runtime.addSupervisor]]
     val withSupervisor: TestAspectPoly =
-      TestAspect.fromLayer(ZLayer(ZIO.runtime[Any].map(new Supervisor.LogAllErrorsSupervisor(_))))
+      TestAspect.fromLayer(
+        ZLayer.scoped {
+          for {
+            supervisor <- ZIO.runtime[Any].map(new Supervisor.LogAllErrorsSupervisor(_))
+          } yield FiberRef.currentSupervisor.locallyScopedWith(_ ++ supervisor)
+        }
+      )
 
     suite("LogAllErrorsSupervisor")(
       test("toto") {
