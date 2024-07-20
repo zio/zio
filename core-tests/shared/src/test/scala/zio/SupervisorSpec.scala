@@ -38,16 +38,16 @@ object SupervisorSpec extends ZIOBaseSpec {
     Gen.fromZIO {
       ZIO.succeed {
         new Supervisor[Any] {
-          def value(implicit trace: zio.Trace): UIO[Any] =
+          override def value(implicit trace: zio.Trace): UIO[Any] =
             ZIO.unit
-          def onStart[R, E, A](
+          override def onStart[R, E, A](
             environment: ZEnvironment[R],
             effect: ZIO[R, E, A],
             parent: Option[Fiber.Runtime[Any, Any]],
             fiber: Fiber.Runtime[E, A]
           )(implicit unsafe: Unsafe): Unit =
             ()
-          def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
+          override def onEnd[E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
             ()
         }
       }
@@ -56,16 +56,16 @@ object SupervisorSpec extends ZIOBaseSpec {
   def makeSupervisor(ref: Ref.Atomic[Int]): UIO[Supervisor[Any]] =
     ZIO.succeed {
       new Supervisor[Any] {
-        def value(implicit trace: zio.Trace): UIO[Any] =
+        override def value(implicit trace: zio.Trace): UIO[Any] =
           ZIO.unit
-        def onStart[R, E, A](
+        override def onStart[R, E, A](
           environment: ZEnvironment[R],
           effect: ZIO[R, E, A],
           parent: Option[Fiber.Runtime[Any, Any]],
           fiber: Fiber.Runtime[E, A]
         )(implicit unsafe: Unsafe): Unit =
           ref.unsafe.update(_ + 1)
-        def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
+        override def onEnd[E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
           ()
       }
     }
@@ -73,16 +73,16 @@ object SupervisorSpec extends ZIOBaseSpec {
   def makeOnEndSupervisor(ref: Ref.Atomic[Int]): UIO[Supervisor[Any]] =
     ZIO.succeed {
       new Supervisor[Any] {
-        def value(implicit trace: zio.Trace): UIO[Any] =
+        override def value(implicit trace: zio.Trace): UIO[Any] =
           ZIO.unit
-        def onStart[R, E, A](
+        override def onStart[R, E, A](
           environment: ZEnvironment[R],
           effect: ZIO[R, E, A],
           parent: Option[Fiber.Runtime[Any, Any]],
           fiber: Fiber.Runtime[E, A]
         )(implicit unsafe: Unsafe): Unit = ()
 
-        def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
+        override def onEnd[E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
           ref.unsafe.update(_ + 1)
       }
     }
@@ -90,16 +90,16 @@ object SupervisorSpec extends ZIOBaseSpec {
   def makeOnResumeSupervisor(ref: Ref.Atomic[Int]): UIO[Supervisor[Int]] =
     Promise.make[Nothing, Int].map { promise =>
       new Supervisor[Int] {
-        def value(implicit trace: zio.Trace): UIO[Int] =
+        override def value(implicit trace: zio.Trace): UIO[Int] =
           promise.await
-        def onStart[R, E, A](
+        override def onStart[R, E, A](
           environment: ZEnvironment[R],
           effect: ZIO[R, E, A],
           parent: Option[Fiber.Runtime[Any, Any]],
           fiber: Fiber.Runtime[E, A]
         )(implicit unsafe: Unsafe): Unit = ()
 
-        def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
+        override def onEnd[E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
 
         override def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
           promise.unsafe.done(ZIO.succeed(ref.unsafe.get))

@@ -39,14 +39,13 @@ object ThreadLocalBridge {
     supervisorLayer ++ bridgeLayer
   }
 
-  private class FiberRefTrackingSupervisor extends Supervisor[Unit] {
+  private final class FiberRefTrackingSupervisor extends Supervisor[Unit] {
 
     private val trackedRefs: Ref.Atomic[Set[(FiberRef[_], Any => Unit)]] = Ref.Atomic(new AtomicReference(Set.empty))
 
     override def value(implicit trace: Trace): UIO[Unit] = ZIO.unit
 
-    override def onEnd[R, E, A1](value: Exit[E, A1], fiber: Fiber.Runtime[E, A1])(implicit unsafe: Unsafe): Unit =
-      ()
+    override def onEnd[E, A1](value: Exit[E, A1], fiber: Fiber.Runtime[E, A1])(implicit unsafe: Unsafe): Unit = ()
 
     override def onStart[R, E, A1](
       environment: ZEnvironment[R],
@@ -95,8 +94,7 @@ object ThreadLocalBridge {
         _    <- linkM(newA)
       } yield b
 
-    private def linkM(a: A) =
-      ZIO.succeed(link(a))
+    private def linkM(a: A): UIO[Unit] = ZIO.succeed(link(a))
   }
 
 }
