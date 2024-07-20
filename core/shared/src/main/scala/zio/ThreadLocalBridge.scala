@@ -39,7 +39,7 @@ object ThreadLocalBridge {
     supervisorLayer ++ bridgeLayer
   }
 
-  private final class FiberRefTrackingSupervisor extends Supervisor[Unit] {
+  private class FiberRefTrackingSupervisor extends Supervisor[Unit] {
 
     private val trackedRefs: Ref.Atomic[Set[(FiberRef[_], Any => Unit)]] = Ref.Atomic(new AtomicReference(Set.empty))
 
