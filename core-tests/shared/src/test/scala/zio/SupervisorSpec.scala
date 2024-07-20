@@ -7,20 +7,30 @@ import scala.collection.mutable
 
 object SupervisorSpec extends ZIOBaseSpec {
 
-  private val LogAllErrorsSupervisorSpec =
+  private val LogAllErrorsSupervisorSpec = {
+    val logs   = mutable.ListBuffer.empty[String]
+    val logger = ZLogger.simple[String, Any] { message => logs += message; () }
+    val withLogger: TestAspectPoly =
+      TestAspect.fromLayer(Runtime.removeDefaultLoggers >>> Runtime.addLogger(logger))
+
     suite("LogAllErrorsSupervisor")(
       test("toto") {
-        val logs = mutable.ListBuffer.empty[String]
-        val logger = ZLogger.simple[String, Unit](message => {logs += message; ()})
-        (
-          for {
-            runtime <- ZIO.runtime[Any]
-            supervisor = new Supervisor.LogAllErrorsSupervisor(runtime)
-            _ <- ZIO.fail("toto").supervised(supervisor).ignore
-          } yield assertTrue(logs.nonEmpty)
-        ).provideEnvironment(ZEnvironment(logger))
-      }
+        for {
+          _         <- ZIO.log("first log")
+          runtime   <- ZIO.runtime[Any]
+          supervisor = new Supervisor.LogAllErrorsSupervisor(runtime)
+          _          = println("============= TOTOTOOTOTOT")
+          app        = (ZIO.succeed("succeed") *> ZIO.fail("failure")).supervised(supervisor)
+          _         <- app.ignore
+        } yield assertTrue(
+          logs.nonEmpty,
+          logs.size == 2,
+          logs(0) == "first log",
+          logs(1) == "failure"
+        )
+      } @@ withLogger
     )
+  }
 
   def spec = suite("SupervisorSpec")(
     test("++") {

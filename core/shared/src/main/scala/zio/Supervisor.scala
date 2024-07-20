@@ -136,17 +136,37 @@ object Supervisor {
   }
 
   private[zio] final case class LogAllErrorsSupervisor(runtime: Runtime[Any]) extends Supervisor[Unit] {
-    override def value(implicit trace: Trace): UIO[Unit] = ZIO.unit
+    override def value(implicit trace: Trace): UIO[Unit] = {
+        println(s"============= LogAllErrorsSupervisor value: $trace")
+        ZIO.unit
+    }
 
     override def onStart[R, E, B](
       environment: ZEnvironment[R],
       effect: ZIO[R, E, B],
       parent: Option[Fiber.Runtime[Any, Any]],
       fiber: Fiber.Runtime[E, B]
-    )(implicit unsafe: Unsafe): Unit = ()
+    )(implicit unsafe: Unsafe): Unit = {
+      println("============= Fiber started: " + fiber)
+    }
 
-    override def onEnd[E, B](value: Exit[E, B], fiber: Fiber.Runtime[E, B])(implicit unsafe: Unsafe): Unit =
+    override def onEnd[E, B](value: Exit[E, B], fiber: Fiber.Runtime[E, B])(implicit unsafe: Unsafe): Unit = {
+      println("============= Fiber terminated with exit: " + value)
+
       runtime.unsafe.run(value.logError("toto")(Trace.empty))(Trace.empty, unsafe)
+    }
+
+    override def onEffect[E, B](fiber: Fiber.Runtime[E, B], effect: ZIO[_, _, _])(implicit unsafe: Unsafe): Unit = {
+      println("============= Effect: " + effect)
+    }
+
+    override def onResume[E, B](fiber: Fiber.Runtime[E, B])(implicit unsafe: Unsafe): Unit = {
+      println("============= Fiber resumed: " + fiber)
+    }
+
+    override def onSuspend[E, B](fiber: Fiber.Runtime[E, B])(implicit unsafe: Unsafe): Unit = {
+      println("============= Fiber suspended: " + fiber)
+    }
   }
 
   private[zio] object unsafe {
