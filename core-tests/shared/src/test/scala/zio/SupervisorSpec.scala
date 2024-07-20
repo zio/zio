@@ -12,15 +12,15 @@ object SupervisorSpec extends ZIOBaseSpec {
     val logger = ZLogger.simple[String, Any] { message => logs += message; () }
     val withLogger: TestAspectPoly =
       TestAspect.fromLayer(Runtime.removeDefaultLoggers >>> Runtime.addLogger(logger))
+    val withSupervisor: TestAspectPoly =
+      TestAspect.fromLayer(ZLayer(ZIO.runtime[Any].map(new Supervisor.LogAllErrorsSupervisor(_))))
 
     suite("LogAllErrorsSupervisor")(
       test("toto") {
         for {
           _         <- ZIO.log("first log")
-          runtime   <- ZIO.runtime[Any]
-          supervisor = new Supervisor.LogAllErrorsSupervisor(runtime)
           _          = println("============= TOTOTOOTOTOT")
-          app        = (ZIO.succeed("succeed") *> ZIO.fail("failure")).supervised(supervisor)
+          app        = ZIO.succeed("succeed") *> ZIO.fail("failure")
           _         <- app.ignore
         } yield assertTrue(
           logs.nonEmpty,
@@ -28,7 +28,7 @@ object SupervisorSpec extends ZIOBaseSpec {
           logs(0) == "first log",
           logs(1) == "failure"
         )
-      } @@ withLogger
+      } @@ withLogger @@ withSupervisor
     )
   }
 
