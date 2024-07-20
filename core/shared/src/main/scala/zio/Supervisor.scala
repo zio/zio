@@ -122,7 +122,7 @@ object Supervisor {
    */
   val none: Supervisor[Unit] = new ConstSupervisor(_ => ZIO.unit)
 
-  private final class ConstSupervisor[A](value0: Trace => UIO[A]) extends Supervisor[A] {
+  private class ConstSupervisor[A](value0: Trace => UIO[A]) extends Supervisor[A] {
     override def value(implicit trace: Trace): UIO[A] = value0(trace)
 
     override def onStart[R, E, B](
