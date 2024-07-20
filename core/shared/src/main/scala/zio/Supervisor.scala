@@ -165,7 +165,7 @@ object Supervisor {
     }
   }
 
-  private final case class ProxySupervisor[A](value0: Trace => UIO[A], underlying: Supervisor[Any])
+  private case class ProxySupervisor[A](value0: Trace => UIO[A], underlying: Supervisor[Any])
       extends Supervisor[A] {
     override def value(implicit trace: Trace): UIO[A] = value0(trace)
 
