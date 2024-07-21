@@ -1243,7 +1243,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             // Should be unreachable, but we keep it to be backwards compatible
             case update0: UpdateRuntimeFlagsWithin[_, _, _] =>
               assert(DisableAssertions) // Will raise an error in tests but not in released artifact
-              cur = UpdateRuntimeFlagsWithin.DynamicNoBox(update0.trace, update0.update, _ => update0.scope(_runtimeFlags))
+              cur =
+                UpdateRuntimeFlagsWithin.DynamicNoBox(update0.trace, update0.update, _ => update0.scope(_runtimeFlags))
 
           }
         } catch {
