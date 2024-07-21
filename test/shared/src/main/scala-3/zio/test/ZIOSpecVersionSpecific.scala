@@ -5,10 +5,9 @@ import scala.quoted.*
 trait ZIOSpecVersionSpecific[R] { self: ZIOSpec[R] =>
 
   transparent inline def suiteAll(inline name: String)(inline spec: Any): Any =
-     ${ ZIOSpecVersionSpecificMacros.suiteAllImpl('name, 'spec) }
+    ${ ZIOSpecVersionSpecificMacros.suiteAllImpl('name, 'spec) }
 
 }
-
 
 object ZIOSpecVersionSpecificMacros {
 
@@ -17,7 +16,7 @@ object ZIOSpecVersionSpecificMacros {
 
     enum TestOrStatement {
       case SpecCase(term: Term)
-      case StatementCase(statement: Statement) 
+      case StatementCase(statement: Statement)
     }
 
     def collectTests(tree: Tree): List[TestOrStatement] =
@@ -26,10 +25,10 @@ object ZIOSpecVersionSpecificMacros {
         case Block(stats, expr) =>
           stats.flatMap(collectTests) ++ collectTests(expr)
 
-        case vd @ ValDef(_, _, _) => 
+        case vd @ ValDef(_, _, _) =>
           List(TestOrStatement.StatementCase(vd))
-        
-        case spec: Term if spec.tpe <:< TypeRepr.of[Spec[_,_]] =>
+
+        case spec: Term if spec.tpe <:< TypeRepr.of[Spec[_, _]] =>
           List(TestOrStatement.SpecCase(spec))
 
         case other =>
@@ -47,24 +46,24 @@ object ZIOSpecVersionSpecificMacros {
           idx += 1
           val symbol = Symbol.newVal(Symbol.spliceOwner, name, spec.tpe, Flags.EmptyFlags, Symbol.noSymbol)
           val valDef = ValDef(symbol, Some(spec.changeOwner(symbol)))
-          val ref = Ref(symbol)
+          val ref    = Ref(symbol)
           loop(rest, valDef :: acc, ref :: refs)
         case Nil =>
-          val mySuite =  {
-              val reversedRefs = refs.reverse
-              val combinedTypes = reversedRefs.map(_.tpe).reduce(OrType(_, _)).widen
-              val names = 
-                combinedTypes.asType match {
-                  case '[specType] =>
-                    Varargs(reversedRefs.map{ a => 
-                      a.asExprOf[specType]
-                    }).asExprOf[Seq[specType]]
-                }
-              
-              names match {
-                case '{ $specNames: Seq[Spec[a, b]] } =>
-                  '{ suite($name)($specNames) }
+          val mySuite = {
+            val reversedRefs  = refs.reverse
+            val combinedTypes = reversedRefs.map(_.tpe).reduce(OrType(_, _)).widen
+            val names =
+              combinedTypes.asType match {
+                case '[specType] =>
+                  Varargs(reversedRefs.map { a =>
+                    a.asExprOf[specType]
+                  }).asExprOf[Seq[specType]]
               }
+
+            names match {
+              case '{ $specNames: Seq[Spec[a, b]] } =>
+                '{ suite($name)($specNames) }
+            }
           }
 
           Block(
@@ -75,7 +74,7 @@ object ZIOSpecVersionSpecificMacros {
 
     spec.asTerm match {
       case Inlined(a, b, expr) =>
-        val results = collectTests(expr)
+        val results  = collectTests(expr)
         val combined = Inlined(a, b, loop(results, Nil, Nil))
         // println("--")
         // println(combined.tpe.dealias.widen.simplified)
