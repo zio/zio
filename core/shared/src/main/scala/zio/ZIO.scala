@@ -888,7 +888,7 @@ sealed trait ZIO[-R, +E, +A]
    * [[ZIO.uninterruptibleMask]].
    */
   final def interruptible(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.UpdateRuntimeFlagsWithin.Interruptible(trace, self)
+    withRuntimeFlags(RuntimeFlags.enableInterruption)
 
   /**
    * Switches the interrupt status for this effect. If `true` is used, then the
@@ -2225,7 +2225,7 @@ sealed trait ZIO[-R, +E, +A]
    * interruption of an inner effect that has been made interruptible).
    */
   final def uninterruptible(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.UpdateRuntimeFlagsWithin.Uninterruptible(trace, self)
+    withRuntimeFlags(RuntimeFlags.disableInterruption)
 
   /**
    * Returns the effect resulting from mapping the success of this effect to
@@ -2515,7 +2515,7 @@ sealed trait ZIO[-R, +E, +A]
    * the specified patch within the scope of this ZIO effect.
    */
   final def withRuntimeFlags(patch: RuntimeFlags.Patch)(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.UpdateRuntimeFlagsWithin.DynamicNoBox(trace, patch, _ => self)
+    ZIO.UpdateRuntimeFlagsWithin(trace, patch, _ => self)
 
   /**
    * Executes this workflow with the specified implementation of the system
@@ -3888,7 +3888,19 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def interruptibleMask[R, E, A](
     k: ZIO.InterruptibilityRestorer => ZIO[R, E, A]
   )(implicit trace: Trace): ZIO[R, E, A] =
-    checkInterruptible(flag => k(ZIO.InterruptibilityRestorer(flag)).interruptible)
+    interruptionMasked(enable = true, k)
+
+  private def interruptionMasked[R, E, A](
+    enable: Boolean,
+    f: InterruptibilityRestorer => ZIO[R, E, A]
+  )(implicit trace: Trace) =
+    ZIO.UpdateRuntimeFlagsWithin(
+      trace,
+      if (enable) RuntimeFlags.enableInterruption else RuntimeFlags.disableInterruption,
+      oldFlags =>
+        if (RuntimeFlags.interruption(oldFlags)) f(InterruptibilityRestorer.MakeInterruptible)
+        else f(InterruptibilityRestorer.MakeUninterruptible)
+    )
 
   /**
    * Retrieves the definition of a fatal error.
@@ -4860,13 +4872,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def uninterruptibleMask[R, E, A](
     f: ZIO.InterruptibilityRestorer => ZIO[R, E, A]
   )(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.UpdateRuntimeFlagsWithin.DynamicNoBox(
-      trace,
-      RuntimeFlags.disable(RuntimeFlag.Interruption),
-      oldFlags =>
-        if (RuntimeFlags.interruption(oldFlags)) f(InterruptibilityRestorer.MakeInterruptible)
-        else f(InterruptibilityRestorer.MakeUninterruptible)
-    )
+    interruptionMasked(enable = false, f)
 
   /**
    * The moral equivalent of `if (!p) Some(exp) else None`
@@ -5973,34 +5979,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   private[zio] final case class UpdateRuntimeFlags(trace: Trace, update: RuntimeFlags.Patch)
       extends Continuation
       with ZIO[Any, Nothing, Unit]
-  private[zio] sealed trait UpdateRuntimeFlagsWithin[R, E, A] extends ZIO[R, E, A] {
 
-    def update: RuntimeFlags.Patch
+  private[zio] final case class UpdateRuntimeFlagsWithin[R, E, A](
+    trace: Trace,
+    update: RuntimeFlags.Patch,
+    f: IntFunction[ZIO[R, E, A]]
+  ) extends ZIO[R, E, A]
 
-    def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A]
-  }
-  private[zio] object UpdateRuntimeFlagsWithin extends UpdateRuntimeFlagsWithinPlatformSpecific {
-    final case class Interruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
-        extends UpdateRuntimeFlagsWithin[R, E, A] {
-      def update: RuntimeFlags.Patch = RuntimeFlags.enableInterruption
-
-      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
-    }
-    final case class Uninterruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
-        extends UpdateRuntimeFlagsWithin[R, E, A] {
-      def update: RuntimeFlags.Patch = RuntimeFlags.disableInterruption
-
-      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
-    }
-    final case class Dynamic[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: RuntimeFlags => ZIO[R, E, A])
-        extends UpdateRuntimeFlagsWithin[R, E, A] {
-      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = f(oldRuntimeFlags)
-    }
-    final case class DynamicNoBox[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: RuntimeFlagsFunc[ZIO[R, E, A]])
-        extends UpdateRuntimeFlagsWithin[R, E, A] {
-      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = f(oldRuntimeFlags)
-    }
-  }
   private[zio] final case class GenerateStackTrace(trace: Trace) extends ZIO[Any, Nothing, StackTrace]
   private[zio] final case class Stateful[R, E, A](
     trace: Trace,
@@ -6033,13 +6018,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
     case object MakeInterruptible extends InterruptibilityRestorer {
       def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-        ZIO.UpdateRuntimeFlagsWithin.Interruptible(trace, effect)
+        ZIO.UpdateRuntimeFlagsWithin(trace, RuntimeFlags.enableInterruption, _ => effect)
 
       def isParentRegionInterruptible: Boolean = true
     }
     case object MakeUninterruptible extends InterruptibilityRestorer {
       def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-        ZIO.UpdateRuntimeFlagsWithin.Uninterruptible(trace, effect)
+        ZIO.UpdateRuntimeFlagsWithin(trace, RuntimeFlags.disableInterruption, _ => effect)
 
       def isParentRegionInterruptible: Boolean = false
     }
