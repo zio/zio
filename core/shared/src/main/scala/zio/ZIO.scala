@@ -5980,12 +5980,38 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       extends Continuation
       with ZIO[Any, Nothing, Unit]
 
-  private[zio] final case class UpdateRuntimeFlagsWithin[R, E, A](
-    trace: Trace,
-    update: RuntimeFlags.Patch,
-    f: IntFunction[ZIO[R, E, A]]
-  ) extends ZIO[R, E, A]
+  private[zio] sealed trait UpdateRuntimeFlagsWithin[R, E, A] extends ZIO[R, E, A] {
+    def update: RuntimeFlags.Patch
+    def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A]
+  }
+  private[zio] object UpdateRuntimeFlagsWithin extends UpdateRuntimeFlagsWithinPlatformSpecific {
+    def apply[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: IntFunction[ZIO[R, E, A]]): DynamicNoBox[R, E, A] =
+      DynamicNoBox(trace, update, f)
 
+    @deprecated("Kept for bin-compat only", "2.1.7")
+    final case class Interruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
+        extends UpdateRuntimeFlagsWithin[R, E, A] {
+      def update: RuntimeFlags.Patch = RuntimeFlags.enableInterruption
+
+      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
+    }
+    @deprecated("Kept for bin-compat only", "2.1.7")
+    final case class Uninterruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
+        extends UpdateRuntimeFlagsWithin[R, E, A] {
+      def update: RuntimeFlags.Patch = RuntimeFlags.disableInterruption
+
+      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
+    }
+    @deprecated("Kept for bin-compat only", "2.1.7")
+    final case class Dynamic[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: RuntimeFlags => ZIO[R, E, A])
+        extends UpdateRuntimeFlagsWithin[R, E, A] {
+      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = f(oldRuntimeFlags)
+    }
+    final case class DynamicNoBox[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: IntFunction[ZIO[R, E, A]])
+        extends UpdateRuntimeFlagsWithin[R, E, A] {
+      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = f(oldRuntimeFlags)
+    }
+  }
   private[zio] final case class GenerateStackTrace(trace: Trace) extends ZIO[Any, Nothing, StackTrace]
   private[zio] final case class Stateful[R, E, A](
     trace: Trace,

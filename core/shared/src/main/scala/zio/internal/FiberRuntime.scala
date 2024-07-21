@@ -1117,7 +1117,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 cur = Exit.failCause(getInterruptedCause())
               }
 
-            case update0: UpdateRuntimeFlagsWithin[_, _, _] =>
+            case update0: UpdateRuntimeFlagsWithin.DynamicNoBox[_, _, _] =>
               updateLastTrace(update0.trace)
               val updateFlags     = update0.update
               val oldRuntimeFlags = _runtimeFlags
@@ -1239,6 +1239,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             case updateRuntimeFlags: UpdateRuntimeFlags =>
               updateLastTrace(updateRuntimeFlags.trace)
               cur = patchRuntimeFlags(updateRuntimeFlags.update, null, Exit.unit)
+
+            // Should be unreachable, but we keep it to be backwards compatible
+            case update0: UpdateRuntimeFlagsWithin[_, _, _] =>
+              assert(DisableAssertions) // Will raise an error in tests but not in released artifact
+              cur = UpdateRuntimeFlagsWithin.DynamicNoBox(update0.trace, update0.update, _ => update0.scope(_runtimeFlags))
 
           }
         } catch {
