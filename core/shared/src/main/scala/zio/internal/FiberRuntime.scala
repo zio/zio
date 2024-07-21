@@ -24,6 +24,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.function.IntFunction
 import java.util.{Set => JavaSet}
 import scala.annotation.tailrec
 import scala.util.control.ControlThrowable
@@ -1243,8 +1244,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             // Should be unreachable, but we keep it to be backwards compatible
             case update0: UpdateRuntimeFlagsWithin[_, _, _] =>
               assert(DisableAssertions) // Will raise an error in tests but not in released artifact
-              cur =
-                UpdateRuntimeFlagsWithin.DynamicNoBox(update0.trace, update0.update, _ => update0.scope(_runtimeFlags))
+              val k = (update0.scope _).asInstanceOf[IntFunction[ZIO.Erased]]
+              cur = UpdateRuntimeFlagsWithin.DynamicNoBox(update0.trace, update0.update, k)
 
           }
         } catch {
