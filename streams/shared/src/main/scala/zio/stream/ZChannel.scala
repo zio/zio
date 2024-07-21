@@ -652,8 +652,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                            Queue.unbounded[Any]
       failureCoord <- Ref.make[Any](zio.Promise.unsafe.make[OutErr1, OutElem2](FiberId.None)(Unsafe.unsafe))
     } yield {
-      //callback mechanism taking after scala's promise implementation, roughly speaking this is an atomic two-state
-      //either a registered callback (a function to be failed) or a Cause, signal and register atomically update the state
+      // callback mechanism taking after scala's promise implementation, roughly speaking this is an atomic two-state
+      // either a registered callback (a function to be failed) or a Cause, signal and register atomically update the state
       def signalFailure(c: Cause[OutErr1]): ZIO[Any, Nothing, Any] =
         failureCoord.modify {
           case c0: Cause[_] =>
@@ -701,10 +701,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                   else if (bounded)
                     offer *> workerFiber.as(numForked + 1)
                   else {
-                    //when unbounded, we run the risk of spawning a fiber per message,
-                    //even worse, each such fiber may end up processing one or less messages...
-                    //in any case these fibers are kept as long as this channel is running which may incur waste of resources.
-                    //this attempts to mitigate this by detecting scenarios where an idle worker was able to immediately pick the enqueued message, as a result we get a 'best effort' behavior of limiting the number of fibers.
+                    // when unbounded, we run the risk of spawning a fiber per message,
+                    // even worse, each such fiber may end up processing one or less messages...
+                    // in any case these fibers are kept as long as this channel is running which may incur waste of resources.
+                    // this attempts to mitigate this by detecting scenarios where an idle worker was able to immediately pick the enqueued message, as a result we get a 'best effort' behavior of limiting the number of fibers.
                     offer *> workerFiber.unlessZIO(queue.isEmpty).map {
                       case Some(_) => numForked + 1
                       case _       => numForked
@@ -720,9 +720,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           err =>
             ZChannel.fromZIO {
               for {
-                //notice this publishes the failure signal and potentially invokes an already registered callback
+                // notice this publishes the failure signal and potentially invokes an already registered callback
                 _ <- signalFailure(err)
-                //this makes sure downstream sees an error, consider the case of an upstream failing before emitting any messages, or failing after a series of successful messages.
+                // this makes sure downstream sees an error, consider the case of an upstream failing before emitting any messages, or failing after a series of successful messages.
                 prom <- Promise.make[OutErr1, Nothing]
                 _    <- prom.failCause(err)
                 _    <- downstreamQueue.offer(prom)
@@ -748,15 +748,15 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             case prom: Promise[OutErr1, OutElem2] @unchecked =>
               prom.poll.flatMap {
                 case Some(ex) =>
-                  //fast path, the promise is already completed
+                  // fast path, the promise is already completed
                   ex.foldCause(
                     ZChannel.refailCause(_),
                     ZChannel.write(_) *> readerCh
                   )
                 case None =>
-                  //slow path, must subscribe on the failure coordinator
-                  //in case the failure is already published the promise will be attempted to fail (may still success/fail according to the computation it represents)
-                  //otherwise the callback is registered and we enter the wait knowing any failure will fail the promise
+                  // slow path, must subscribe on the failure coordinator
+                  // in case the failure is already published the promise will be attempted to fail (may still success/fail according to the computation it represents)
+                  // otherwise the callback is registered and we enter the wait knowing any failure will fail the promise
                   registerCallback(prom) *>
                     prom.await.foldCause(
                       c => {
@@ -842,7 +842,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         .pipeTo(q0EnquerCh(0, 0))
         .runScoped
         .foldCauseZIO(
-          //this message terminates processing so it's ok for it to race with in-flight computations
+          // this message terminates processing so it's ok for it to race with in-flight computations
           c => {
             q1.offer(QRes.failCause(c))
           },
@@ -2129,10 +2129,10 @@ object ZChannel {
       bufferSize    <- ZIO.succeed(bufferSize)
       mergeStrategy <- ZIO.succeed(mergeStrategy)
       queue         <- Queue.bounded[Any](bufferSize)
-      //todo: this can simply be a mutable list as it's only accessed by the enqueue fiber
+      // todo: this can simply be a mutable list as it's only accessed by the enqueue fiber
       cancelers <- Queue.unbounded[UIO[Any]]
       permits   <- Semaphore.make(n.toLong)
-      //reduce contention by striping the outDone updaters
+      // reduce contention by striping the outDone updaters
       doneUpdaters <- Ref.make(Option.empty[OutDone]).replicateZIO(n min bufferSize).map(Chunk.fromIterable(_))
     } yield {
       lazy val sinkCh: ZChannel[Any, OutErr, OutElem, OutDone, OutErr, Nothing, OutDone] = ZChannel
@@ -2173,7 +2173,7 @@ object ZChannel {
         ch: ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone],
         i: Int
       ): ZIO[Any, Nothing, Fiber.Runtime[OutErr, Any]] =
-        for { //notice we don't need an uninterruptible region here, if we get interrupted it means the entire operator is interrupted
+        for { // notice we don't need an uninterruptible region here, if we get interrupted it means the entire operator is interrupted
           numCancellers <- cancelers.size
           _             <- cancelers.take.flatten.when(numCancellers == n)
           fib           <- backPressureF(ch, i)
@@ -2348,7 +2348,7 @@ object ZChannel {
             .pipeTo(ch)
             .pipeTo(enqueuerCh)
             .mapZIO { done =>
-              //must be done here, placing this in enqueuerCh breaks a test that validates finalizers order
+              // must be done here, placing this in enqueuerCh breaks a test that validates finalizers order
               q1.offer(QRes(done))
             }
           singleProcCh
@@ -2374,12 +2374,12 @@ object ZChannel {
               else if (bounded)
                 offer *> nestedStreamsProcessor.fork.as(runningFibers + 1)
               else {
-                //when unbounded, we run the risk of spawning a fiber per channel,
-                //even worse, each such fiber may end up processing one or less channels...
-                //in any case these fibers are kept as long as this channel is running which may incur waste of resources.
-                //this attempts to mitigate this by detecting scenarios where an idle worker was able to immediately pick the enqueued message, as a result we get a 'best effort' behavior of limiting the number of fibers.
-                //the unbounded scenario is used by ZStream.groupBy and indeed it requires a fiber per sub-stream,
-                //furthermore in most cases all sub streams 'survive' till processing ends so we're actually required to keep a fiber per stream in this case.
+                // when unbounded, we run the risk of spawning a fiber per channel,
+                // even worse, each such fiber may end up processing one or less channels...
+                // in any case these fibers are kept as long as this channel is running which may incur waste of resources.
+                // this attempts to mitigate this by detecting scenarios where an idle worker was able to immediately pick the enqueued message, as a result we get a 'best effort' behavior of limiting the number of fibers.
+                // the unbounded scenario is used by ZStream.groupBy and indeed it requires a fiber per sub-stream,
+                // furthermore in most cases all sub streams 'survive' till processing ends so we're actually required to keep a fiber per stream in this case.
                 offer *> nestedStreamsProcessor.fork.unlessZIO(q0.isEmpty).map {
                   case Some(_) => runningFibers + 1
                   case _       => runningFibers
@@ -2415,8 +2415,8 @@ object ZChannel {
                 case c: Cause[OutErr @unchecked] =>
                   ZChannel.refailCause(c)
                 case QRes((outDone: OutDone, total: Int)) =>
-                  //initial values for totalStreams and completedStreams are -1 and 0, hence their initial sum is -1, since both can only increase so does their sum
-                  //hence we can use that to identify the case where accRes is still uninitialized (we can test for null as well, but null may be a valid completion value which complicates things)
+                  // initial values for totalStreams and completedStreams are -1 and 0, hence their initial sum is -1, since both can only increase so does their sum
+                  // hence we can use that to identify the case where accRes is still uninitialized (we can test for null as well, but null may be a valid completion value which complicates things)
                   val nextAccRes = mergeOutDone(accRes, outDone, (totalStreams + completedStreams) == -1)
                   if (total == completedStreams)
                     ZChannel.succeedNow(nextAccRes)
@@ -2600,7 +2600,7 @@ object ZChannel {
     case class BothRunning[Env, Err, Err1, Err2, Elem, Done, Done1, Done2](
       left: Fiber.Runtime[Err, Either[Done, Elem]],
       right: Fiber.Runtime[Err1, Either[Done1, Elem]],
-      preferLeft: Boolean //to maintain fairness when polling fibers
+      preferLeft: Boolean // to maintain fairness when polling fibers
     ) extends MergeState[Env, Err, Err1, Err2, Elem, Done, Done1, Done2]
     case class LeftDone[Env, Err, Err1, Err2, Elem, Done, Done1, Done2](
       f: Exit[Err1, Done1] => ZIO[Env, Err2, Done2]

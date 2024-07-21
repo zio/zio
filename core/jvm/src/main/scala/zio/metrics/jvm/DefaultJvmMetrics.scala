@@ -25,7 +25,13 @@ trait DefaultJvmMetrics {
     Throwable,
     Reloadable[
       BufferPools
-    ] with ClassLoading with GarbageCollector with MemoryAllocation with MemoryPools with Standard with Thread with VersionInfo
+    ] with ClassLoading
+      with GarbageCollector
+      with MemoryAllocation
+      with MemoryPools
+      with Standard
+      with Thread
+      with VersionInfo
   ] =
     jvmMetricsSchedule >>>
       (BufferPools.live ++

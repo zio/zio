@@ -42,14 +42,12 @@ class ZIOAppVersionSpecificMacros(val ctx: Quotes) {
     zio.asInstanceOf[Expr[ZIO[Provided, E, A]]]
   }
 
-
-  def flattenAnd(typeRepr: TypeRepr): List[TypeRepr] = {
+  def flattenAnd(typeRepr: TypeRepr): List[TypeRepr] =
     typeRepr.dealias match {
       case AndType(left, right) =>
         flattenAnd(left) ++ flattenAnd(right)
       case _ =>
         List(typeRepr)
     }
-  }
 
 }

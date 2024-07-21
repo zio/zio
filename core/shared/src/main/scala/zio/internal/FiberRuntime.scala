@@ -87,7 +87,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
 
   private def childrenChunk = {
-    //may be executed by a foreign fiber (under Sync), hence we're risking a race over the _children variable being set back to null by a concurrent transferChildren call
+    // may be executed by a foreign fiber (under Sync), hence we're risking a race over the _children variable being set back to null by a concurrent transferChildren call
     val childs = _children
     if (childs eq null) Chunk.empty
     else {
@@ -530,7 +530,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private def getChildren(): JavaSet[Fiber.Runtime[_, _]] = {
-    //executed by the fiber itself, no risk of racing with transferChildren
+    // executed by the fiber itself, no risk of racing with transferChildren
     if (_children eq null) {
       _children = Platform.newConcurrentWeakSet[Fiber.Runtime[_, _]]()(Unsafe.unsafe)
     }
@@ -706,7 +706,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       var curr: Fiber.Runtime[_, _] = null
 
-      //this finds the next operable child fiber and stores it in the `curr` variable
+      // this finds the next operable child fiber and stores it in the `curr` variable
       def skip() = {
         var next: Fiber.Runtime[_, _] = null
         while (iterator.hasNext && (next eq null)) {
@@ -717,8 +717,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         curr = next
       }
 
-      //find the first operable child fiber
-      //if there isn't any we can simply return null and save ourselves an effect evaluation
+      // find the first operable child fiber
+      // if there isn't any we can simply return null and save ourselves an effect evaluation
       skip()
 
       if (null ne curr) {
@@ -1246,7 +1246,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       }
     }
 
-    //unreachable
+    // unreachable
     throw new IllegalStateException("runLoop must exit with a return statement from within the while loop.")
   }
 
@@ -1464,9 +1464,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def transferChildren(scope: FiberScope): Unit =
     if ((_children ne null) && !_children.isEmpty) {
       val childs = childrenChunk
-      //we're effectively clearing this set, seems cheaper to 'drop' it and allocate a new one if we spawn more fibers
-      //a concurrent children call might get the stale set, but this method (and its primary usage for dumping fibers)
-      //is racy by definition
+      // we're effectively clearing this set, seems cheaper to 'drop' it and allocate a new one if we spawn more fibers
+      // a concurrent children call might get the stale set, but this method (and its primary usage for dumping fibers)
+      // is racy by definition
       _children = null
       val flags = _runtimeFlags
       scope.addAll(self, flags, childs)(location, Unsafe.unsafe)

@@ -2681,7 +2681,7 @@ object ZIOSpec extends ZIOBaseSpec {
                         }
                       }
                       ()
-                    //never complete
+                      // never complete
                     })
                     .ensuring(unexpectedPlace.update(2 :: _))
                     .forkDaemon

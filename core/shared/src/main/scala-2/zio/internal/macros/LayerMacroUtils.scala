@@ -111,14 +111,16 @@ private[zio] trait LayerMacroUtils {
       }
     )
 
-    if (hasValueComposition)
+    if (hasValueComposition) {
+      // format: off
       c.Expr(q"""
       val $trace: ${typeOf[Trace]} = ${reify(Tracer)}.newTrace
       def $compose[R1, E, O1, O2](lhs: $layerSym[R1, E, O1], rhs: $layerSym[O1, E, O2])(implicit trace: ${typeOf[Trace]}) = lhs.to(rhs)
       ..$definitions
       ${layerExpr.tree}
       """)
-    else
+      // format: on
+    } else
       c.Expr(q"""
       ..$definitions
       ${layerExpr.tree}
