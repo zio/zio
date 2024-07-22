@@ -411,7 +411,7 @@ sealed trait ZIO[-R, +E, +A]
   final def catchSomeDefect[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[Throwable, ZIO[R1, E1, A1]]
   )(implicit trace: Trace): ZIO[R1, E1, A1] =
-    unrefineWith(pf)(ZIO.fail(_)).catchAll(identity)
+    unrefineWith(pf)(ZIO.failFn).catchAll(identity)
 
   /**
    * Returns an effect that succeeds with the cause of failure of this effect,
@@ -670,7 +670,7 @@ sealed trait ZIO[-R, +E, +A]
    * use all methods on the error channel, possibly before flipping back.
    */
   final def flip(implicit trace: Trace): ZIO[R, A, E] =
-    self.foldZIO(ZIO.successFn, ZIO.fail(_))
+    self.foldZIO(ZIO.successFn, ZIO.failFn)
 
   /**
    * Swaps the error/value parameters, applies the function `f` and flips the
@@ -844,8 +844,8 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def head[B](implicit ev: A IsSubtypeOfOutput List[B], trace: Trace): ZIO[R, Option[E], B] =
     self.foldZIO(
-      e => ZIO.fail(Some(e)),
-      a => ev(a).headOption.fold[ZIO[R, Option[E], B]](ZIO.fail(None))(ZIO.successFn)
+      e => Exit.fail(Some(e)),
+      a => ev(a).headOption.fold[ZIO[R, Option[E], B]](Exit.failNone)(ZIO.successFn)
     )
 
   /**
@@ -928,7 +928,7 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def left[B, C](implicit ev: A IsSubtypeOfOutput Either[B, C], trace: Trace): ZIO[R, Either[E, C], B] =
     self.foldZIO(
-      e => ZIO.fail(Left(e)),
+      e => Exit.fail(Left(e)),
       a => ev(a).fold(ZIO.successFn, c => ZIO.fail(Right(c)))
     )
 
@@ -977,14 +977,14 @@ sealed trait ZIO[-R, +E, +A]
    * `f` function, translating any thrown exceptions into typed failed effects.
    */
   final def mapAttempt[B](f: A => B)(implicit ev: E IsSubtypeOfError Throwable, trace: Trace): RIO[R, B] =
-    foldZIO(e => ZIO.fail(ev(e)), a => ZIO.attempt(f(a)))
+    foldZIO(e => Exit.fail(ev(e)), a => ZIO.attempt(f(a)))
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
   def mapBoth[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E], trace: Trace): ZIO[R, E2, B] =
-    foldZIO(e => ZIO.fail(f(e)), a => ZIO.succeed(g(a)))
+    foldZIO(e => Exit.fail(f(e)), a => ZIO.succeed(g(a)))
 
   /**
    * Returns an effect with its error channel mapped using the specified
@@ -1033,8 +1033,8 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def none[B](implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R, Option[E], Unit] =
     self.foldZIO(
-      e => ZIO.fail(Some(e)),
-      a => ev(a).fold[ZIO[R, Option[E], Unit]](Exit.unit)(_ => ZIO.fail(None))
+      e => Exit.fail(Some(e)),
+      a => ev(a).fold[ZIO[R, Option[E], Unit]](Exit.unit)(_ => Exit.failNone)
     )
 
   /**
@@ -1215,7 +1215,7 @@ sealed trait ZIO[-R, +E, +A]
   final def orElseOptional[R1 <: R, E1, A1 >: A](
     that: => ZIO[R1, Option[E1], A1]
   )(implicit ev: E IsSubtypeOfError Option[E1], trace: Trace): ZIO[R1, Option[E1], A1] =
-    catchAll(ev(_).fold(that)(e => ZIO.fail(Some(e))))
+    catchAll(ev(_).fold(that)(e => Exit.fail(Some(e))))
 
   /**
    * Executes this effect and returns its value, if it succeeds, but otherwise
@@ -1232,7 +1232,7 @@ sealed trait ZIO[-R, +E, +A]
       cause =>
         cause.failures match {
           case Nil            => ZIO.refailCause(cause.asInstanceOf[Cause[Nothing]])
-          case ::(head, tail) => ZIO.refailCause(Cause.fail(::[E1](head, tail)).traced(cause.trace))
+          case ::(head, tail) => ZIO.refailCause(Cause.fail(::[E1](head, tail), cause.trace))
         },
       ZIO.successFn
     )
@@ -1432,9 +1432,8 @@ sealed trait ZIO[-R, +E, +A]
 
       val raceIndicator = new AtomicBoolean(true)
 
-      val leftFiber = ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, leftScope)
-      val rightFiber =
-        ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, rightScope)
+      val leftFiber  = ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, leftScope)
+      val rightFiber = ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, rightScope)
 
       val startLeftFiber  = leftFiber.startSuspended()
       val startRightFiber = rightFiber.startSuspended()
@@ -1530,7 +1529,7 @@ sealed trait ZIO[-R, +E, +A]
   final def repeat[R1 <: R, B](schedule: => Schedule[R1, A, B])(implicit
     trace: Trace
   ): ZIO[R1, E, B] =
-    repeatOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
+    repeatOrElse[R1, E, B](schedule, (e, _) => Exit.fail(e))
 
   /**
    * Returns a new effect that repeats this effect the specified number of times
@@ -1756,7 +1755,7 @@ sealed trait ZIO[-R, +E, +A]
   final def retryUntilZIO[R1 <: R](
     f: E => URIO[R1, Boolean]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E, A] =
-    self.catchAll(e => f(e).flatMap(b => if (b) ZIO.fail(e) else ZIO.yieldNow *> retryUntilZIO(f)))
+    self.catchAll(e => f(e).flatMap(b => if (b) Exit.fail(e) else ZIO.yieldNow *> retryUntilZIO(f)))
 
   /**
    * Retries this effect while its error satisfies the specified predicate.
@@ -1786,7 +1785,7 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def right[B, C](implicit ev: A IsSubtypeOfOutput Either[B, C], trace: Trace): ZIO[R, Either[B, E], C] =
     self.foldZIO(
-      e => ZIO.fail(Right(e)),
+      e => Exit.fail(Right(e)),
       a => ev(a).fold(b => ZIO.fail(Left(b)), ZIO.successFn)
     )
 
@@ -1878,7 +1877,7 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def some[B](implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R, Option[E], B] =
     self.foldZIO(
-      e => ZIO.fail(Some(e)),
+      e => Exit.fail(Some(e)),
       a => ev(a).fold[ZIO[R, Option[E], B]](ZIO.fail(Option.empty[E]))(ZIO.successFn)
     )
 
@@ -1953,8 +1952,8 @@ sealed trait ZIO[-R, +E, +A]
     ev2: NoSuchElementException <:< E1,
     trace: Trace
   ): ZIO[R, E1, B] =
-    self.foldZIO(
-      e => ZIO.fail(e),
+    self.foldCauseZIO(
+      e => ZIO.refailCause(e),
       ev(_) match {
         case Some(value) => Exit.succeed(value)
         case None        => ZIO.fail(ev2(new NoSuchElementException("None.get")))
@@ -2299,7 +2298,7 @@ sealed trait ZIO[-R, +E, +A]
     catchAllCause { cause =>
       cause.find {
         case Cause.Die(t, _) if pf.isDefinedAt(t) => pf(t)
-      }.fold(ZIO.refailCause(cause.map(f)))(ZIO.fail(_))
+      }.fold(ZIO.refailCause(cause.map(f)))(ZIO.failFn)
     }
 
   /**
@@ -2311,7 +2310,7 @@ sealed trait ZIO[-R, +E, +A]
     trace: Trace
   ): ZIO[R, E1, Either[B, A]] =
     self.foldZIO(
-      e => ev(e).fold(b => Exit.succeed(Left(b)), e1 => ZIO.fail(e1)),
+      e => ev(e).fold(b => Exit.succeed(Left(b)), e1 => Exit.fail(e1)),
       a => Exit.succeed(Right(a))
     )
 
@@ -2320,7 +2319,7 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def unsome[E1](implicit ev: E IsSubtypeOfError Option[E1], trace: Trace): ZIO[R, E1, Option[A]] =
     self.foldZIO(
-      e => ev(e).fold[ZIO[R, E1, Option[A]]](Exit.none)(ZIO.fail(_)),
+      e => ev(e).fold[ZIO[R, E1, Option[A]]](Exit.none)(ZIO.failFn),
       a => Exit.succeed(Some(a))
     )
 
@@ -3244,9 +3243,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def failCause[E](cause: => Cause[E])(implicit trace0: Trace): IO[E, Nothing] =
     ZIO.stackTrace(trace0).flatMap { trace =>
-      ZIO.logSpans.flatMap { spans =>
-        ZIO.logAnnotations.flatMap { annotations =>
-          ZIO.refailCause(cause.traced(trace).spanned(spans).annotated(annotations))
+      FiberRef.currentLogSpan.getWith { spans =>
+        FiberRef.currentLogAnnotations.getWith { annotations =>
+          ZIO.refailCause(cause.applyAll(trace, spans, annotations))
         }
       }
     }
@@ -3425,12 +3424,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] =
-    ZIO.suspendSucceed {
-      val iterator = in.iterator
-      val builder  = bf.newBuilder(in)
+    if (in.isEmpty) ZIO.succeed(bf.fromSpecific(in)(Nil))
+    else
+      ZIO.suspendSucceed {
+        val iterator = in.iterator
+        val builder  = bf.newBuilder(in)
 
-      ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
-    }
+        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
+      }
 
   /**
    * Applies the function `f` to each element of the `Set[A]` and returns the
@@ -3440,7 +3441,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * the results, see `foreachDiscard` for a more efficient implementation.
    */
   final def foreach[R, E, A, B](in: Set[A])(f: A => ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, Set[B]] =
-    foreach[R, E, A, B, Iterable](in)(f).map(_.toSet)
+    if (in.isEmpty) ZIO.succeed(Set.empty)
+    else
+      ZIO.suspendSucceed {
+        val iterator = in.iterator
+        val builder  = Set.newBuilder[B]
+
+        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
+      }
 
   /**
    * Applies the function `f` to each element of the `Array[A]` and returns the
@@ -3452,7 +3460,15 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   final def foreach[R, E, A, B: ClassTag](in: Array[A])(f: A => ZIO[R, E, B])(implicit
     trace: Trace
   ): ZIO[R, E, Array[B]] =
-    foreach[R, E, A, B, Iterable](in)(f).map(_.toArray)
+    if (in.isEmpty) ZIO.succeed(Array.empty[B])
+    else
+      ZIO.suspendSucceed {
+        val iterator = in.iterator
+        val builder  = Array.newBuilder[B]
+        builder.sizeHint(in.length)
+
+        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
+      }
 
   /**
    * Applies the function `f` to each element of the `Map[Key, Value]` and
@@ -3464,7 +3480,15 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def foreach[R, E, Key, Key2, Value, Value2](
     map: Map[Key, Value]
   )(f: (Key, Value) => ZIO[R, E, (Key2, Value2)])(implicit trace: Trace): ZIO[R, E, Map[Key2, Value2]] =
-    foreach[R, E, (Key, Value), (Key2, Value2), Iterable](map)(f.tupled).map(_.toMap)
+    if (map.isEmpty) ZIO.succeed(Map.empty)
+    else
+      ZIO.suspendSucceed {
+        val iterator = map.iterator
+        val builder  = Map.newBuilder[Key2, Value2]
+
+        val ft = f.tupled
+        ZIO.whileLoop(iterator.hasNext)(ft(iterator.next()))(builder += _).as(builder.result())
+      }
 
   /**
    * Applies the function `f` if the argument is non-empty and returns the
@@ -3498,9 +3522,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     as: => Iterable[A]
   )(f: A => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
     ZIO.suspendSucceed {
-      val iterator = as.iterator
-
-      ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(_ => ())
+      val as0 = as
+      if (as0.isEmpty) Exit.unit
+      else {
+        val iterator = as0.iterator
+        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(_ => ())
+      }
     }
 
   /**
@@ -3512,16 +3539,18 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   )(
     f: A => ZIO[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] =
-    ZIO.suspendSucceed {
-      exec match {
-        case ExecutionStrategy.Parallel =>
-          ZIO.withParallelismUnboundedMask(restore => ZIO.foreachPar(as)(a => restore(f(a))))
-        case ExecutionStrategy.ParallelN(n) =>
-          ZIO.withParallelismMask(n)(restore => ZIO.foreachPar(as)(a => restore(f(a))))
-        case ExecutionStrategy.Sequential =>
-          ZIO.foreach(as)(f)
+    if (as.isEmpty) ZIO.succeed(bf.fromSpecific(as)(Nil))
+    else
+      ZIO.suspendSucceed {
+        exec match {
+          case ExecutionStrategy.Parallel =>
+            ZIO.withParallelismUnboundedMask(restore => ZIO.foreachPar(as)(a => restore(f(a))))
+          case ExecutionStrategy.ParallelN(n) =>
+            ZIO.withParallelismMask(n)(restore => ZIO.foreachPar(as)(a => restore(f(a))))
+          case ExecutionStrategy.Sequential =>
+            ZIO.foreach(as)(f)
+        }
       }
-    }
 
   /**
    * Applies the function `f` to each element of the `Collection[A]` in
@@ -3534,10 +3563,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   )(
     f: A => ZIO[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] =
-    ZIO.parallelismWith {
-      case Some(n) => foreachPar(n)(as)(f)
-      case None    => foreachParUnbounded(as)(f)
-    }
+    if (as.isEmpty) ZIO.succeed(bf.fromSpecific(as)(Nil))
+    else
+      ZIO.parallelismWith {
+        case Some(n) => foreachPar(n)(as)(f)
+        case None    => foreachParUnbounded(as)(f)
+      }
 
   /**
    * Applies the function `f` to each element of the `Set[A]` in parallel, and
@@ -3642,7 +3673,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def fromAutoCloseable[R, E, A <: AutoCloseable](fa: => ZIO[R, E, A])(implicit
     trace: Trace
   ): ZIO[R with Scope, E, A] =
-    acquireRelease(fa)(a => ZIO.succeed(a.close()))
+    acquireRelease(fa)(a => if (a eq null) ZIO.unit else ZIO.succeed(a.close()))
 
   /**
    * Lifts an `Either` into a `ZIO` value.
@@ -5951,13 +5982,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   private[zio] object UpdateRuntimeFlagsWithin extends UpdateRuntimeFlagsWithinPlatformSpecific {
     final case class Interruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
         extends UpdateRuntimeFlagsWithin[R, E, A] {
-      def update: RuntimeFlags.Patch = RuntimeFlags.enable(RuntimeFlag.Interruption)
+      def update: RuntimeFlags.Patch = RuntimeFlags.enableInterruption
 
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
     }
     final case class Uninterruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
         extends UpdateRuntimeFlagsWithin[R, E, A] {
-      def update: RuntimeFlags.Patch = RuntimeFlags.disable(RuntimeFlag.Interruption)
+      def update: RuntimeFlags.Patch = RuntimeFlags.disableInterruption
 
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
     }

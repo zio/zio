@@ -1,5 +1,5 @@
-import BuildHelper._
-import Dependencies._
+import BuildHelper.*
+import Dependencies.*
 import MimaSettings.mimaSettings
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 import sbt.Keys
@@ -34,7 +34,7 @@ addCommandAlias(
 
 addCommandAlias(
   "compileJVM",
-  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRefinedJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosTestsJVM/test:compile;concurrentJVM/test:compile;managedTestsJVM/test:compile"
+  ";coreTestsJVM/Test/compile;stacktracerJVM/Test/compile;streamsTestsJVM/Test/compile;testTestsJVM/Test/compile;testMagnoliaTestsJVM/Test/compile;testRefinedJVM/Test/compile;testRunnerJVM/Test/compile;examplesJVM/Test/compile;macrosTestsJVM/Test/compile;concurrentJVM/Test/compile;managedTestsJVM/Test/compile"
 )
 addCommandAlias(
   "testNative",
@@ -42,23 +42,23 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosTestsJVM/test;testJunitRunnerTestsJVM/test;concurrentJVM/test;managedTestsJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test;testRunnerJVM/Test/run;examplesJVM/Test/compile;benchmarks/Test/compile;macrosTestsJVM/test;testJunitRunnerTestsJVM/test;concurrentJVM/test;managedTestsJVM/test"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test:compile;testRunnerJVM/test:run;examplesJVM/test:compile;concurrentJVM/test;managedTestsJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/Test/compile;testRunnerJVM/Test/run;examplesJVM/Test/compile;concurrentJVM/test;managedTestsJVM/test"
 )
 addCommandAlias(
   "testJVM3",
-  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;concurrentJVM/test;managedTestsJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/Test/compile;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/Test/run;examplesJVM/Test/compile;concurrentJVM/test;managedTestsJVM/test"
 )
 addCommandAlias(
   "testJS3",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;concurrentJS/test"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/Test/compile;concurrentJS/test"
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;macrosTestsJS/test;concurrentJS/test"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/Test/compile;macrosTestsJS/test;concurrentJS/test"
 )
 addCommandAlias(
   "mimaChecks",
@@ -701,7 +701,8 @@ val catsEffectV = "3.5.4"
 val zioActorsV  = "0.1.0"
 
 lazy val scalafixSettings = List(
-  scalaVersion := Scala213,
+  scalaVersion   := Scala213,
+  ideSkipProject := true,
   addCompilerPlugin(scalafixSemanticdb),
   crossScalaVersions --= List(Scala212, Scala3),
   scalacOptions ++= List(
@@ -896,3 +897,5 @@ lazy val docs = project.module
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
   .aggregate(docs_make_zio_app_configurable)
+
+Global / excludeLintKeys += ideSkipProject

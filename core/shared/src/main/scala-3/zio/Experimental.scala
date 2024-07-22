@@ -22,7 +22,7 @@ import scala.language.experimental.saferExceptions
 @experimental
 object Experimental {
 
-  extension(zio: ZIO.type) {
+  extension (zio: ZIO.type) {
 
     /**
      * Converts a value whose computation may throw exceptions into a `ZIO`
