@@ -35,7 +35,7 @@ jobs:
     - name: Install libuv
       run: sudo apt-get update && sudo apt-get install -y libuv1-dev
     - name: Lint code
-      run: sbt check
+      run: sbt "++2.13; check; ++3.3; check"
 
   compile:
     runs-on: ubuntu-20.04
