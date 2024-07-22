@@ -214,7 +214,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
   .jvmSettings(
     replSettings,
-    mimaSettings(failOnProblem = true)
+    mimaSettings(failOnProblem = true),
+    libraryDependencies ++= List(
+      "org.jctools" % "jctools-core" % "4.0.5"
+    )
   )
   .jsSettings(
     jsSettings,
@@ -654,7 +657,7 @@ lazy val benchmarks = project.module
         "io.github.timwspence"      %% "cats-stm"        % "0.13.4",
         "io.projectreactor"          % "reactor-core"    % "3.6.5",
         "io.reactivex.rxjava2"       % "rxjava"          % "2.2.21",
-        "org.jctools"                % "jctools-core"    % "4.0.3",
+        "org.jctools"                % "jctools-core"    % "4.0.5",
         "org.ow2.asm"                % "asm"             % "9.7",
         "org.scala-lang"             % "scala-compiler"  % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"   % scalaVersion.value,

@@ -22,9 +22,9 @@ import zio.internal.SpecializationHelpers.SpecializeInt
 import zio.metrics.{Metric, MetricLabel}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{Set => JavaSet}
+import org.jctools.queues.atomic.unpadded.MpscLinkedAtomicUnpaddedQueue
 import scala.annotation.tailrec
 import scala.util.control.ControlThrowable
 
@@ -43,7 +43,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _blockingOn     = FiberRuntime.notBlockingOn
   private var _asyncContWith  = null.asInstanceOf[ZIO.Erased => Any]
   private val running         = new AtomicBoolean(false)
-  private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
+  private val inbox           = new MpscLinkedAtomicUnpaddedQueue[FiberMessage]()
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
@@ -242,7 +242,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       while (evaluationSignal == EvaluationSignal.Continue) {
         evaluationSignal = {
-          val message = inbox.poll()
+          val message = inbox.relaxedPoll()
           if (message eq null) EvaluationSignal.Done
           else evaluateMessageWhileSuspended(depth, message)
         }
@@ -284,7 +284,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private def drainQueueWhileRunning(cur0: ZIO.Erased): ZIO.Erased = {
     var cur     = cur0
-    var message = inbox.poll()
+    var message = inbox.relaxedPoll()
 
     // Unfortunately we can't avoid the virtual call to `trace` here
     if (message ne null) updateLastTrace(cur.trace)
@@ -307,7 +307,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         case FiberMessage.YieldNow =>
         // Ignore yield message
       }
-      message = inbox.poll()
+      message = inbox.relaxedPoll()
     }
 
     cur
@@ -323,7 +323,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private def drainQueueAfterAsync(): ZIO.Erased = {
     var resumption: ZIO.Erased = null
 
-    var message = inbox.poll()
+    var message = inbox.relaxedPoll()
 
     while (message ne null) {
       message match {
@@ -342,7 +342,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       }
 
-      message = inbox.poll()
+      message = inbox.relaxedPoll()
     }
 
     resumption
