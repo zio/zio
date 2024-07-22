@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package zio 
+package zio
 
 private[zio] trait UnsafeVersionSpecific { self =>
 
@@ -23,7 +23,7 @@ private[zio] trait UnsafeVersionSpecific { self =>
   implicit def implicitFunctionIsFunction[A](f: Unsafe ?=> A): Unsafe => A =
     unsafe => {
       given Unsafe = unsafe
-      
+
       f
     }
 }

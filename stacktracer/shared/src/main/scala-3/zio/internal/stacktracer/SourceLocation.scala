@@ -20,5 +20,5 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 final case class SourceLocation(path: String, line: Int)
 object SourceLocation {
-  inline given SourceLocation = ${Macros.sourceLocation}
+  inline given SourceLocation = ${ Macros.sourceLocation }
 }

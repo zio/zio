@@ -14,7 +14,7 @@ object Macros {
     val pos  = Position.ofMacroExpansion
     val path = pos.sourceFile.path
     val line = pos.startLine + 1
-    '{SourceLocation(${Expr(path)}, ${Expr(line)})}
+    '{ SourceLocation(${ Expr(path) }, ${ Expr(line) }) }
   }
 
   def traceInfo(using ctx: Quotes): String = {
@@ -31,9 +31,9 @@ object Macros {
       loop(Symbol.spliceOwner).mkString(".")
     }
 
-    val pos    = Position.ofMacroExpansion
-    val file   = pos.sourceFile.name
-    val line   = pos.startLine + 1
+    val pos  = Position.ofMacroExpansion
+    val file = pos.sourceFile.name
+    val line = pos.startLine + 1
     createTrace(location, file, line)
   }
 

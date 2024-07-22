@@ -108,7 +108,10 @@ object ZLayerDerivationMacros {
                 case ('[r], '[e]) =>
                   '{
                     val instance = ${ newInstance }
-                    instance.asInstanceOf[ZLayer.Derive.Scoped[r, e]].scoped(using Trace.empty).as(instance)(using Trace.empty)
+                    instance
+                      .asInstanceOf[ZLayer.Derive.Scoped[r, e]]
+                      .scoped(using Trace.empty)
+                      .as(instance)(using Trace.empty)
                   }.asTerm
               }
           }

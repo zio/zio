@@ -22,9 +22,8 @@ object DeriveDiff extends AutoDerivation[Diff] with LowPri {
       case _                              => DiffResult.Different(x, y)
     }
 
-  implicit inline def gen[A: deriving.Mirror.Of]: Diff[A] = {
+  implicit inline def gen[A: deriving.Mirror.Of]: Diff[A] =
     autoDerived[A]
-  }
 }
 
 trait LowPri {
