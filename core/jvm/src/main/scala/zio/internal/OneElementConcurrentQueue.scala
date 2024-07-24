@@ -54,7 +54,7 @@ private[zio] final class OneElementConcurrentQueue[A] extends MutableConcurrentQ
   override def enqueuedCount(): Long =
     if (isEmpty()) dequeuedCount() else dequeuedCount() + 1
 
-  override def isEmpty(): Boolean = ref.get() == null
+  override def isEmpty(): Boolean = ref.get() eq null
   override def isFull(): Boolean  = !isEmpty()
 
   override def offer(a: A): Boolean = {
@@ -65,7 +65,7 @@ private[zio] final class OneElementConcurrentQueue[A] extends MutableConcurrentQ
     var looping = true
 
     while (looping) {
-      if (aRef.get() != null) looping = false
+      if (aRef.get() ne null) looping = false
       else {
         if (aRef.compareAndSet(null, a.asInstanceOf[AnyRef])) {
           ret = true
@@ -85,7 +85,7 @@ private[zio] final class OneElementConcurrentQueue[A] extends MutableConcurrentQ
 
     while (looping) {
       el = aRef.get()
-      if (el == null) looping = false
+      if (el eq null) looping = false
       else {
         if (aRef.compareAndSet(el, null)) {
           ret = el.asInstanceOf[A]

@@ -158,7 +158,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
 
       for (idx <- 0 until maxSize) {
         val item = values.get(idx)
-        if (item != null) {
+        if (item ne null) {
           val (v, t) = item
           val age    = Duration.fromInterval(t, now)
           if (!age.isNegative && age.compareTo(maxAge) <= 0) {

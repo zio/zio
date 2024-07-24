@@ -161,7 +161,7 @@ trait Runtime[+R] { self =>
 
       val exit = fiber.start[R](zio)
 
-      if (exit != null) Right(exit)
+      if (exit ne null) Right(exit)
       else {
         FiberScope.global.add(null, runtimeFlags, fiber)
         Left(fiber)

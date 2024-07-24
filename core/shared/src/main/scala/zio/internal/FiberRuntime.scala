@@ -1253,7 +1253,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private def sendInterruptSignalToAllChildren(
     children: JavaSet[Fiber.Runtime[_, _]]
   ): Boolean =
-    if (children == null || children.isEmpty) false
+    if ((children eq null) || children.isEmpty) false
     else {
       // Initiate asynchronous interruption of all children:
       val iterator = children.iterator()
