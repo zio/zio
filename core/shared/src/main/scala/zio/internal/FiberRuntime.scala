@@ -217,8 +217,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private[zio] def addObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit =
-    if (_exitValue ne null) observer(_exitValue)
-    else observers = observer :: observers
+    // _exitValue and observers must be accessed within a single mutex to maintain order.
+    observers.synchronized {
+      if (_exitValue ne null) observer(_exitValue)
+      else observers = observer :: observers
+    }
 
   private[zio] def deleteFiberRef(ref: FiberRef[_]): Unit =
     _fiberRefs = _fiberRefs.delete(ref)
@@ -917,7 +920,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private[zio] def removeObserver(observer: Exit[E, A] => Unit): Unit =
-    observers = observers.filter(_ ne observer)
+    observers.synchronized {
+      observers = observers.filter(_ ne observer)
+    }
 
   /**
    * The main run-loop for evaluating effects. This method is recursive,
@@ -1314,28 +1319,31 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         }
     }
 
-    _exitValue = e
+    // _exitValue and observers must be accessed within a single mutex to maintain order.
+    observers.synchronized {
+      _exitValue = e
 
-    if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-      val startTimeMillis = fiberId.startTimeMillis
-      val endTimeMillis   = java.lang.System.currentTimeMillis()
-      val lifetime        = (endTimeMillis - startTimeMillis) / 1000.0
+      if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
+        val startTimeMillis = fiberId.startTimeMillis
+        val endTimeMillis   = java.lang.System.currentTimeMillis()
+        val lifetime        = (endTimeMillis - startTimeMillis) / 1000.0
 
-      val tags = getFiberRef(FiberRef.currentTags)
-      Metric.runtime.fiberLifetimes.unsafe.update(lifetime, tags)(Unsafe.unsafe)
+        val tags = getFiberRef(FiberRef.currentTags)
+        Metric.runtime.fiberLifetimes.unsafe.update(lifetime, tags)(Unsafe.unsafe)
+      }
+
+      reportExitValue(e)
+
+      // ensure we notify observers in the same order they subscribed to us
+      val iterator = observers.reverseIterator
+
+      while (iterator.hasNext) {
+        val observer = iterator.next()
+
+        observer(e)
+      }
+      observers = Nil
     }
-
-    reportExitValue(e)
-
-    // ensure we notify observers in the same order they subscribed to us
-    val iterator = observers.reverseIterator
-
-    while (iterator.hasNext) {
-      val observer = iterator.next()
-
-      observer(e)
-    }
-    observers = Nil
   }
 
   private[zio] def setFiberRef[@specialized(SpecializeInt) A](fiberRef: FiberRef[A], value: A): Unit =
