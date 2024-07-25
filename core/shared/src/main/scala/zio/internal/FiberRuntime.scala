@@ -37,16 +37,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   import FiberRuntime.{AsyncJump, DisableAssertions, EvaluationSignal, stackTraceBuilderPool}
   import ZIO._
 
-  private var _lastTrace     = fiberId.location
-  private var _fiberRefs     = fiberRefs0
-  private var _runtimeFlags  = runtimeFlags0
-  private var _blockingOn    = FiberRuntime.notBlockingOn
-  private var _asyncContWith = null.asInstanceOf[ZIO.Erased => Any]
-  private val running        = new AtomicBoolean(false)
-  private val inbox          = new ConcurrentLinkedQueue[FiberMessage]()
-  private var _children      = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
-  @volatile
-  private var observers       = Nil: List[Exit[E, A] => Unit]
+  private var _lastTrace      = fiberId.location
+  private var _fiberRefs      = fiberRefs0
+  private var _runtimeFlags   = runtimeFlags0
+  private var _blockingOn     = FiberRuntime.notBlockingOn
+  private var _asyncContWith  = null.asInstanceOf[ZIO.Erased => Any]
+  private val running         = new AtomicBoolean(false)
+  private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
+  private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var runningExecutor = null.asInstanceOf[Executor]
   private var _stack          = null.asInstanceOf[Array[Continuation]]
   private var _stackSize      = 0
@@ -66,6 +64,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     Metric.runtime.fiberForkLocations.unsafe.update(fiberId.location.toString, tags)(Unsafe.unsafe)
   }
 
+  @volatile private var observers  = Nil: List[Exit[E, A] => Unit]
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
 
   def await(implicit trace: Trace): UIO[Exit[E, A]] =
