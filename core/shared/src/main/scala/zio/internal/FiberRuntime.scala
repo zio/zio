@@ -1491,7 +1491,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         self.tell(FiberMessage.Stateful(_.asInstanceOf[FiberRuntime[E, A]].addObserver(observer)))
 
       def deleteFiberRef(ref: FiberRef[_])(implicit unsafe: Unsafe): Unit =
-        self.deleteFiberRef(ref)
+        self.tell(FiberMessage.Stateful(_.deleteFiberRef(ref)))
 
       def getFiberRefs()(implicit unsafe: Unsafe): FiberRefs =
         self.getFiberRefs()
