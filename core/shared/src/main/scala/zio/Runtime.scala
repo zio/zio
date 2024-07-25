@@ -134,7 +134,7 @@ trait Runtime[+R] { self =>
         case Left(fiber) =>
           import internal.{FiberMessage, OneShot}
           val result = OneShot.make[Exit[E, A]]
-          fiber.unsafe.addObserver(exit => result.set(exit))
+          fiber.unsafe.addObserver(result.set)
           internal.Blocking.signalBlocking()
           result.get()
         case Right(exit) => exit
