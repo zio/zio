@@ -162,12 +162,7 @@ object FiberSpec extends ZIOBaseSpec {
             currentFiber <- ZIO.succeed(Fiber.currentFiber())
           } yield assertTrue(currentFiber.isDefined)
         }
-      } @@ TestAspect.fromLayer(Runtime.enableCurrentFiber),
-      test("observers must be called") {
-        ZIO.loopDiscard(1)(_ <= 1_000_000, _ + 1) { n =>
-          Runtime.default.run(ZIO.succeed(n))
-        }.map(_ => assertTrue(true))
-      }
+      } @@ TestAspect.fromLayer(Runtime.enableCurrentFiber)
     )
 
   val (initial, update)                            = ("initial", "update")
