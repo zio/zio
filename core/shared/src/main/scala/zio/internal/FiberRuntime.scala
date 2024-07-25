@@ -45,6 +45,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private val running         = new AtomicBoolean(false)
   private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
+  @volatile
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
   private var _stack          = null.asInstanceOf[Array[Continuation]]
@@ -1487,7 +1488,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   def unsafe: UnsafeAPI =
     new UnsafeAPI {
       def addObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit =
-        self.addObserver(observer)
+        self.tell(FiberMessage.Stateful(_.asInstanceOf[FiberRuntime[E, A]].addObserver(observer)))
 
       def deleteFiberRef(ref: FiberRef[_])(implicit unsafe: Unsafe): Unit =
         self.deleteFiberRef(ref)
@@ -1496,7 +1497,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         self.getFiberRefs()
 
       def removeObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit =
-        self.removeObserver(observer)
+        self.tell(FiberMessage.Stateful(_.asInstanceOf[FiberRuntime[E, A]].removeObserver(observer)))
 
       def poll(implicit unsafe: Unsafe): Option[Exit[E, A]] =
         Option(self.exitValue())
