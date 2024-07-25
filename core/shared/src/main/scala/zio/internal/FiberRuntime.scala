@@ -45,6 +45,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private val running         = new AtomicBoolean(false)
   private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
+  private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
   private var _stack          = null.asInstanceOf[Array[Continuation]]
   private var _stackSize      = 0
@@ -64,7 +65,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     Metric.runtime.fiberForkLocations.unsafe.update(fiberId.location.toString, tags)(Unsafe.unsafe)
   }
 
-  @volatile private var observers  = Nil: List[Exit[E, A] => Unit]
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
 
   def await(implicit trace: Trace): UIO[Exit[E, A]] =
