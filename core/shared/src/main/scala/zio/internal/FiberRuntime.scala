@@ -74,13 +74,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         ZIO.asyncInterrupt[Any, Nothing, Exit[E, A]](
           { k =>
             val cb = (exit: Exit[_, _]) => k(Exit.Success(exit.asInstanceOf[Exit[E, A]]))
-            tell(FiberMessage.Stateful { fiber =>
-              if (fiber._exitValue ne null) cb(fiber._exitValue)
-              else fiber.addObserver(cb)(Unsafe.unsafe)
-            })
-            Left(ZIO.succeed(tell(FiberMessage.Stateful { fiber =>
-              fiber.removeObserver(cb)
-            })))
+            unsafe.addObserver(cb)(Unsafe.unsafe)
+            Left(ZIO.succeed(unsafe.removeObserver(cb)(Unsafe.unsafe)))
           },
           id
         )
@@ -214,7 +209,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   /**
    * Adds an observer to the list of observers.
    *
-   * '''NOTE''': This method must be invoked by the fiber itself.
+   * '''NOTE''': This method must be invoked by the fiber itself or before it
+   * has started. Use
+   * [[zio.Fiber.Runtime.UnsafeAPI#addObserver(scala.Function1, zio.Unsafe)]] if
+   * the fiber has started and the caller is not within the fiber execution.
    */
   private[zio] def addObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit =
     if (_exitValue ne null) observer(_exitValue)
@@ -914,7 +912,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * Removes the specified observer from the list of observers that will be
    * notified when the fiber exits.
    *
-   * '''NOTE''': This method must be invoked by the fiber itself.
+   * '''NOTE''': This method must be invoked by the fiber itself or before it
+   * has started. Use
+   * [[zio.Fiber.Runtime.UnsafeAPI#removeObserver(scala.Function1, zio.Unsafe)]]
+   * if the fiber has started and the caller is not within the fiber execution.
    */
   private[zio] def removeObserver(observer: Exit[E, A] => Unit): Unit =
     observers = observers.filter(_ ne observer)
@@ -1487,7 +1488,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   def unsafe: UnsafeAPI =
     new UnsafeAPI {
       def addObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit =
-        self.tell(FiberMessage.Stateful(_.asInstanceOf[FiberRuntime[E, A]].addObserver(observer)))
+        // This observer might be notified out of order with respect to the existing observers.
+        if (self._exitValue ne null) observer(self._exitValue)
+        else self.tell(FiberMessage.Stateful(_.asInstanceOf[FiberRuntime[E, A]].addObserver(observer)))
 
       def deleteFiberRef(ref: FiberRef[_])(implicit unsafe: Unsafe): Unit =
         self.tell(FiberMessage.Stateful(_.deleteFiberRef(ref)))
