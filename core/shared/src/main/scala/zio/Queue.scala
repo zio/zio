@@ -19,7 +19,6 @@ package zio
 import zio.internal.MutableConcurrentQueue
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec
 
@@ -42,7 +41,7 @@ abstract class Queue[A] extends Dequeue[A] with Enqueue[A] {
     size.map(_ >= capacity)
 }
 
-object Queue {
+object Queue extends QueuePlatformSpecific {
 
   /**
    * Makes a new bounded queue. When the capacity of the queue is reached, any
@@ -138,7 +137,7 @@ object Queue {
     val p = Promise.unsafe.make[Nothing, Unit](fiberId)
     unsafeCreate(
       queue,
-      new ConcurrentLinkedDeque[Promise[Nothing, A]],
+      new ConcurrentDeque[Promise[Nothing, A]],
       p,
       new AtomicBoolean(false),
       strategy
@@ -147,7 +146,7 @@ object Queue {
 
   private def unsafeCreate[A](
     queue: MutableConcurrentQueue[A],
-    takers: ConcurrentLinkedDeque[Promise[Nothing, A]],
+    takers: ConcurrentDeque[Promise[Nothing, A]],
     shutdownHook: Promise[Nothing, Unit],
     shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
@@ -292,13 +291,13 @@ object Queue {
     def handleSurplus(
       as: Iterable[A],
       queue: MutableConcurrentQueue[A],
-      takers: ConcurrentLinkedDeque[Promise[Nothing, A]],
+      takers: ConcurrentDeque[Promise[Nothing, A]],
       isShutdown: AtomicBoolean
     )(implicit trace: Trace): UIO[Boolean]
 
     def unsafeOnQueueEmptySpace(
       queue: MutableConcurrentQueue[A],
-      takers: ConcurrentLinkedDeque[Promise[Nothing, A]]
+      takers: ConcurrentDeque[Promise[Nothing, A]]
     ): Unit
 
     def surplusSize: Int
@@ -308,7 +307,7 @@ object Queue {
     @tailrec
     final def unsafeCompleteTakers(
       queue: MutableConcurrentQueue[A],
-      takers: ConcurrentLinkedDeque[Promise[Nothing, A]]
+      takers: ConcurrentDeque[Promise[Nothing, A]]
     ): Unit =
       if (!takers.isEmpty && draining.compareAndSet(false, true)) {
         try {
@@ -349,7 +348,7 @@ object Queue {
       // A is an item to add
       // Promise[Nothing, Boolean] is the promise completing the whole offerAll
       // Boolean indicates if it's the last item to offer (promise should be completed once this item is added)
-      private val putters = new ConcurrentLinkedDeque[(A, Promise[Nothing, Unit], Boolean)]
+      private val putters = new ConcurrentDeque[(A, Promise[Nothing, Unit], Boolean)]
 
       private def unsafeRemove(p: Promise[Nothing, Unit]): Unit =
         putters.removeIf(_._2 eq p)
@@ -357,7 +356,7 @@ object Queue {
       def handleSurplus(
         as: Iterable[A],
         queue: MutableConcurrentQueue[A],
-        takers: ConcurrentLinkedDeque[Promise[Nothing, A]],
+        takers: ConcurrentDeque[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] =
         ZIO.fiberIdWith { fiberId =>
@@ -386,7 +385,7 @@ object Queue {
       @tailrec
       def unsafeOnQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
-        takers: ConcurrentLinkedDeque[Promise[Nothing, A]]
+        takers: ConcurrentDeque[Promise[Nothing, A]]
       ): Unit = {
         val putters0 = putters
         if (!putters0.isEmpty && notifying.compareAndSet(false, true)) {
@@ -436,13 +435,13 @@ object Queue {
       def handleSurplus(
         as: Iterable[A],
         queue: MutableConcurrentQueue[A],
-        takers: ConcurrentLinkedDeque[Promise[Nothing, A]],
+        takers: ConcurrentDeque[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] = ZIO.succeed(false)
 
       def unsafeOnQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
-        takers: ConcurrentLinkedDeque[Promise[Nothing, A]]
+        takers: ConcurrentDeque[Promise[Nothing, A]]
       ): Unit = ()
 
       def surplusSize: Int = 0
@@ -454,7 +453,7 @@ object Queue {
       def handleSurplus(
         as: Iterable[A],
         queue: MutableConcurrentQueue[A],
-        takers: ConcurrentLinkedDeque[Promise[Nothing, A]],
+        takers: ConcurrentDeque[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] = {
         def unsafeSlidingOffer(as: Iterable[A]): Unit =
@@ -483,7 +482,7 @@ object Queue {
 
       def unsafeOnQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
-        takers: ConcurrentLinkedDeque[Promise[Nothing, A]]
+        takers: ConcurrentDeque[Promise[Nothing, A]]
       ): Unit = ()
 
       def surplusSize: Int = 0
@@ -507,7 +506,7 @@ object Queue {
   private def unsafePollAll[A](q: MutableConcurrentQueue[A]): Chunk[A] =
     q.pollUpTo(Int.MaxValue)
 
-  private def unsafePollAll[A <: AnyRef](q: ConcurrentLinkedDeque[A]): Chunk[A] = {
+  private def unsafePollAll[A <: AnyRef](q: ConcurrentDeque[A]): Chunk[A] = {
     val cb   = ChunkBuilder.make[A](q.size)
     var loop = true
     while (loop) {
@@ -527,7 +526,7 @@ object Queue {
   /**
    * Poll n items from the queue
    */
-  private def unsafePollN[A <: AnyRef](q: ConcurrentLinkedDeque[A], max: Int): Chunk[A] = {
+  private def unsafePollN[A <: AnyRef](q: ConcurrentDeque[A], max: Int): Chunk[A] = {
     val cb = ChunkBuilder.make[A]()
     var i  = 0
     while (i < max) {
