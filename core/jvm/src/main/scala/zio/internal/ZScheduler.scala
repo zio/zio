@@ -30,16 +30,16 @@ import scala.collection.mutable
  * Lerche. [[https://tokio.rs/blog/2019-10-scheduler]]
  */
 private final class ZScheduler(autoBlocking: Boolean) extends Executor {
-  import ZScheduler.workerOrNull
 
-  private[this] val poolSize        = java.lang.Runtime.getRuntime.availableProcessors
+  import Trace.{empty => emptyTrace}
+  import ZScheduler.{poolSize, workerOrNull}
+
   private[this] val globalQueue     = new PartitionedLinkedQueue[Runnable](poolSize * 4)
   private[this] val cache           = new ConcurrentLinkedQueue[ZScheduler.Worker]()
   private[this] val idle            = new ConcurrentLinkedQueue[ZScheduler.Worker]()
   private[this] val globalLocations = makeLocations()
   private[this] val state           = new AtomicInteger(poolSize << 16)
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
-  private[this] val emptyTrace      = Trace.empty
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
@@ -276,31 +276,21 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
         var searching       = false
         while (!isInterrupted) {
           currentBlocking = blocking
-          if (currentBlocking) {
-            if (nextRunnable ne null) {
-              runnable = nextRunnable
-              nextRunnable = null
-            }
+          val currentNextRunnable = nextRunnable
+          if (currentBlocking) ()
+          else if (currentNextRunnable ne null) {
+            runnable = currentNextRunnable
+            nextRunnable = null
           } else {
             if ((currentOpCount & 63) == 0) {
               runnable = globalQueue.poll(random)
               if (runnable eq null) {
-                if (nextRunnable ne null) {
-                  runnable = nextRunnable
-                  nextRunnable = null
-                } else {
-                  runnable = localQueue.poll(null)
-                }
+                runnable = localQueue.poll(null)
               }
             } else {
-              if (nextRunnable ne null) {
-                runnable = nextRunnable
-                nextRunnable = null
-              } else {
-                runnable = localQueue.poll(null)
-                if (runnable eq null) {
-                  runnable = globalQueue.poll(random)
-                }
+              runnable = localQueue.poll(null)
+              if (runnable eq null) {
+                runnable = globalQueue.poll(random)
               }
             }
             if (runnable eq null) {
@@ -405,6 +395,10 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
           val idx = workers.indexOf(self)
           if (idx >= 0) {
             val runnables = self.localQueue.pollUpTo(256)
+            if (nextRunnable ne null) {
+              globalQueue.offer(nextRunnable)
+              nextRunnable = null
+            }
             globalQueue.offerAll(runnables)
             val worker = cache.poll()
             if (worker eq null) {
@@ -444,6 +438,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
 }
 
 private object ZScheduler {
+  private val poolSize = java.lang.Runtime.getRuntime.availableProcessors
 
   def markCurrentWorkerAsBlocking(): Unit = {
     val worker = workerOrNull()
