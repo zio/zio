@@ -348,9 +348,9 @@ object Queue extends QueuePlatformSpecific {
       // A is an item to add
       // Promise[Nothing, Boolean] is the promise completing the whole offerAll
       // Boolean indicates if it's the last item to offer (promise should be completed once this item is added)
-      private val putters = new ConcurrentDeque[(A, Promise[Nothing, Unit], Boolean)]
+      private val putters = new ConcurrentDeque[(A, Promise[Nothing, Boolean], Boolean)]
 
-      private def unsafeRemove(p: Promise[Nothing, Unit]): Unit =
+      private def unsafeRemove(p: Promise[Nothing, Boolean]): Unit =
         putters.removeIf(_._2 eq p)
 
       def handleSurplus(
@@ -360,27 +360,25 @@ object Queue extends QueuePlatformSpecific {
         isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] =
         ZIO.fiberIdWith { fiberId =>
-          val p = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe.unsafe)
+          val p = Promise.unsafe.make[Nothing, Boolean](fiberId)(Unsafe.unsafe)
 
           ZIO.suspendSucceed {
             unsafeOffer(as, p)
             unsafeOnQueueEmptySpace(queue, takers)
             unsafeCompleteTakers(queue, takers)
-            if (isShutdown.get) ZIO.interrupt else p.await *> Exit.`true`
+            if (isShutdown.get) ZIO.interrupt else p.await
           }.onInterrupt(ZIO.succeed(unsafeRemove(p)))
         }
 
-      private def unsafeOffer(as: Iterable[A], p: Promise[Nothing, Unit]): Unit =
-        if (as.nonEmpty) {
-          val iterator = as.iterator
-          var a        = iterator.next()
-          while (iterator.hasNext) {
-            putters.offer((a, p, false))
-            a = iterator.next()
-          }
-          putters.offer((a, p, true))
-          ()
+      private def unsafeOffer(as: Iterable[A], p: Promise[Nothing, Boolean]): Unit = {
+        val iterator = as.iterator
+        var hasNext  = iterator.hasNext
+        while (hasNext) {
+          val a = iterator.next()
+          hasNext = iterator.hasNext
+          putters.offer((a, p, !hasNext))
         }
+      }
 
       @tailrec
       def unsafeOnQueueEmptySpace(
@@ -400,7 +398,7 @@ object Queue extends QueuePlatformSpecific {
               } else {
                 val offered = queue.offer(putter._1)
                 if (offered && putter._3)
-                  putter._2.unsafe.done(Exit.unit)(Unsafe.unsafe)
+                  putter._2.unsafe.done(Exit.`true`)(Unsafe.unsafe)
                 else if (!offered) {
                   putters0.addFirst(putter)
                 }
