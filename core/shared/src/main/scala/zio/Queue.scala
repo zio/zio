@@ -177,11 +177,11 @@ object Queue {
           else {
             // not enough takers, offer to the queue
             val succeeded = queue.offer(a)
-            strategy.unsafeCompleteTakers(queue, takers)
 
-            if (succeeded)
+            if (succeeded) {
+              strategy.unsafeCompleteTakers(queue, takers)
               ZIO.succeed(true)
-            else
+            } else
               strategy.handleSurplus(Chunk.single(a), queue, takers, shutdownFlag)
           }
         }
@@ -201,11 +201,11 @@ object Queue {
           else {
             // not enough takers, offer to the queue
             val surplus = unsafeOfferAll(queue, remaining)
-            strategy.unsafeCompleteTakers(queue, takers)
 
-            if (surplus.isEmpty)
+            if (surplus.isEmpty) {
+              strategy.unsafeCompleteTakers(queue, takers)
               ZIO.succeed(Chunk.empty)
-            else
+            } else
               strategy.handleSurplus(surplus, queue, takers, shutdownFlag).map { offered =>
                 if (offered) Chunk.empty else surplus
               }
@@ -287,7 +287,7 @@ object Queue {
   }
 
   private sealed abstract class Strategy[A] {
-    protected val draining = new AtomicBoolean(false)
+    private[this] val draining = new AtomicBoolean(false)
 
     def handleSurplus(
       as: Iterable[A],
@@ -309,34 +309,35 @@ object Queue {
     final def unsafeCompleteTakers(
       queue: MutableConcurrentQueue[A],
       takers: ConcurrentLinkedDeque[Promise[Nothing, A]]
-    ): Unit = if (draining.compareAndSet(false, true)) {
-      // check if there is both a taker and an item in the queue, starting by the taker
-      var keepPolling = true
-      val empty       = null.asInstanceOf[A]
-
-      try {
-        while (keepPolling && !queue.isEmpty()) {
-          val taker = takers.poll()
-          if (taker eq null) keepPolling = false
-          else {
-            queue.poll(empty) match {
-              case null =>
-                takers.addFirst(taker)
-              case a =>
-                unsafeCompletePromise(taker, a)
-                unsafeOnQueueEmptySpace(queue, takers)
+    ): Unit =
+      if (!takers.isEmpty && draining.compareAndSet(false, true)) {
+        try {
+          var keepPolling      = true
+          val empty            = null.asInstanceOf[A]
+          var notifyEmptySpace = false
+          while (keepPolling) {
+            val taker = takers.poll()
+            if (taker eq null) keepPolling = false
+            else {
+              queue.poll(empty) match {
+                case null =>
+                  takers.addFirst(taker)
+                  keepPolling = false
+                case a =>
+                  unsafeCompletePromise(taker, a)
+                  notifyEmptySpace = true
+              }
             }
-            keepPolling = true
           }
+          if (notifyEmptySpace) unsafeOnQueueEmptySpace(queue, takers)
+        } finally {
+          draining.set(false)
         }
-      } finally {
-        draining.set(false)
-      }
 
-      // We need to check in case someone added a putter or pulled from the queue since our last check
-      // while we were still holding the lock
-      if (!queue.isEmpty() && !takers.isEmpty) unsafeCompleteTakers(queue, takers)
-    }
+        // We need to check in case someone added a putter or pulled from the queue since our last check
+        // while we were still holding the lock
+        if (!queue.isEmpty()) unsafeCompleteTakers(queue, takers)
+      }
 
   }
 
@@ -348,9 +349,9 @@ object Queue {
       // A is an item to add
       // Promise[Nothing, Boolean] is the promise completing the whole offerAll
       // Boolean indicates if it's the last item to offer (promise should be completed once this item is added)
-      private val putters = new ConcurrentLinkedDeque[(A, Promise[Nothing, Boolean], Boolean)]
+      private val putters = new ConcurrentLinkedDeque[(A, Promise[Nothing, Unit], Boolean)]
 
-      private def unsafeRemove(p: Promise[Nothing, Boolean]): Unit =
+      private def unsafeRemove(p: Promise[Nothing, Unit]): Unit =
         putters.removeIf(_._2 eq p)
 
       def handleSurplus(
@@ -360,17 +361,17 @@ object Queue {
         isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] =
         ZIO.fiberIdWith { fiberId =>
-          val p = Promise.unsafe.make[Nothing, Boolean](fiberId)(Unsafe.unsafe)
+          val p = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe.unsafe)
 
           ZIO.suspendSucceed {
             unsafeOffer(as, p)
             unsafeOnQueueEmptySpace(queue, takers)
             unsafeCompleteTakers(queue, takers)
-            if (isShutdown.get) ZIO.interrupt else p.await
+            if (isShutdown.get) ZIO.interrupt else p.await *> Exit.`true`
           }.onInterrupt(ZIO.succeed(unsafeRemove(p)))
         }
 
-      private def unsafeOffer(as: Iterable[A], p: Promise[Nothing, Boolean]): Unit =
+      private def unsafeOffer(as: Iterable[A], p: Promise[Nothing, Unit]): Unit =
         if (as.nonEmpty) {
           val iterator = as.iterator
           var a        = iterator.next()
@@ -386,30 +387,44 @@ object Queue {
       def unsafeOnQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
         takers: ConcurrentLinkedDeque[Promise[Nothing, A]]
-      ): Unit = if (notifying.compareAndSet(false, true)) {
-        var keepPolling = true
-        val putters0    = putters
+      ): Unit = {
+        val putters0 = putters
+        if (!putters0.isEmpty && notifying.compareAndSet(false, true)) {
+          var keepPolling = true
+          var isFull      = queue.isFull()
 
-        try {
-          while (keepPolling && !queue.isFull()) {
-            val putter = putters0.poll()
-            if (putter eq null) keepPolling = false
-            else {
-              val offered = queue.offer(putter._1)
-              if (offered && putter._3)
-                unsafeCompletePromise(putter._2, true)
-              else if (!offered) {
-                putters0.addFirst(putter)
+          try {
+            while (keepPolling && !isFull) {
+              val putter = putters0.poll()
+              if (putter eq null) keepPolling = false
+              else {
+                val offered = queue.offer(putter._1)
+                if (offered && putter._3)
+                  putter._2.unsafe.done(Exit.unit)(Unsafe.unsafe)
+                else if (!offered) {
+                  putters0.addFirst(putter)
+                }
+                if (!offered || queue.isFull()) {
+                  unsafeCompleteTakers(queue, takers)
+                  isFull = queue.isFull()
+                } else {
+                  isFull = false
+                }
               }
-              unsafeCompleteTakers(queue, takers)
             }
+          } finally {
+            notifying.set(false)
           }
-        } finally {
-          notifying.set(false)
+
+          var qs = queue.size()
+          if (qs != 0) {
+            unsafeCompleteTakers(queue, takers)
+            qs = queue.size()
+          }
+          // We need to check in case someone added a putter or pulled from the queue since our last check
+          // while we were still holding the lock
+          if (qs < queue.capacity && !putters0.isEmpty) unsafeOnQueueEmptySpace(queue, takers)
         }
-        // We need to check in case someone added a putter or pulled from the queue since our last check
-        // while we were still holding the lock
-        if (!queue.isFull() && !putters0.isEmpty) unsafeOnQueueEmptySpace(queue, takers)
       }
 
       def surplusSize: Int = putters.size()
