@@ -30,9 +30,11 @@ object MimaSettings {
         exclude[IncompatibleResultTypeProblem]("zio.stream.ZChannel#MergeState#BothRunning.*"),
         exclude[DirectMissingMethodProblem]("zio.stream.ZChannel#MergeState#BothRunning.copy"),
         exclude[DirectMissingMethodProblem]("zio.stream.ZChannel#MergeState#BothRunning.*"),
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala$extension"),
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala"),
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala$extension")
+        exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala$extension"),
+        exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala"),
+        exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala$extension"),
+        exclude[IncompatibleMethTypeProblem]("zio.Queue#Strategy*"),
+        exclude[ReversedMissingMethodProblem]("zio.Queue#Strategy*")
       ),
       mimaFailOnProblem := failOnProblem
     )

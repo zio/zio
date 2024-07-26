@@ -173,14 +173,14 @@ object Queue {
               }
             } else false
 
-          if (noRemaining) ZIO.succeed(true)
+          if (noRemaining) Exit.`true`
           else {
             // not enough takers, offer to the queue
             val succeeded = queue.offer(a)
 
             if (succeeded) {
               strategy.unsafeCompleteTakers(queue, takers)
-              ZIO.succeed(true)
+              Exit.`true`
             } else
               strategy.handleSurplus(Chunk.single(a), queue, takers, shutdownFlag)
           }
