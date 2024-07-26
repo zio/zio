@@ -391,13 +391,14 @@ object Queue {
         val putters0 = putters
         if (!putters0.isEmpty && notifying.compareAndSet(false, true)) {
           var keepPolling = true
-          var isFull      = queue.isFull()
 
           try {
-            while (keepPolling && !isFull) {
+            while (keepPolling) {
               val putter = putters0.poll()
-              if (putter eq null) keepPolling = false
-              else {
+              if (putter eq null) {
+                keepPolling = false
+                unsafeCompleteTakers(queue, takers)
+              } else {
                 val offered = queue.offer(putter._1)
                 if (offered && putter._3)
                   putter._2.unsafe.done(Exit.unit)(Unsafe.unsafe)
@@ -406,9 +407,7 @@ object Queue {
                 }
                 if (!offered || queue.isFull()) {
                   unsafeCompleteTakers(queue, takers)
-                  isFull = queue.isFull()
-                } else {
-                  isFull = false
+                  keepPolling = !queue.isFull()
                 }
               }
             }
@@ -416,14 +415,9 @@ object Queue {
             notifying.set(false)
           }
 
-          var qs = queue.size()
-          if (qs != 0) {
-            unsafeCompleteTakers(queue, takers)
-            qs = queue.size()
-          }
           // We need to check in case someone added a putter or pulled from the queue since our last check
           // while we were still holding the lock
-          if (qs < queue.capacity && !putters0.isEmpty) unsafeOnQueueEmptySpace(queue, takers)
+          if (!queue.isFull() && !putters0.isEmpty) unsafeOnQueueEmptySpace(queue, takers)
         }
       }
 
