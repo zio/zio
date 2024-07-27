@@ -3708,26 +3708,66 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A])(implicit trace: Trace): Task[A] =
     ZIO.executorWith { executor =>
-      import scala.util.{Failure, Success}
-      val ec = executor.asExecutionContext
-      ZIO.attempt(make(ec)).flatMap { f =>
-        val canceler: UIO[Unit] = f match {
-          case cancelable: CancelableFuture[A] =>
-            ZIO.suspendSucceed(if (f.isCompleted) ZIO.unit else ZIO.fromFuture(_ => cancelable.cancel()).ignore)
-          case _ => ZIO.unit
-        }
+      ZIO.suspend {
+        import scala.util.{Success, Failure}
 
-        f.value
-          .fold(
+        val ec = executor.asExecutionContext
+        val f  = make(ec)
+        f.value match {
+          case None =>
             ZIO.asyncInterrupt { (k: Task[A] => Unit) =>
               f.onComplete {
                 case Success(a) => k(Exit.succeed(a))
                 case Failure(t) => k(ZIO.fail(t))
               }(ec)
 
-              Left(canceler)
+              Left {
+                f match {
+                  case cf: CancelableFuture[A] =>
+                    ZIO.suspendSucceed(if (cf.isCompleted) Exit.unit else ZIO.fromFuture(cf.cancel()).ignore)
+                  case _ =>
+                    Exit.unit
+                }
+              }
             }
-          )(ZIO.fromTry(_))
+          case Some(Success(value)) => Exit.succeed(value)
+          case Some(Failure(t))     => ZIO.fail(t)
+        }
+      }
+    }
+
+  /**
+   * Returns an effect that, when executed, will both create and launch a
+   * [[scala.concurrent.Future]] and run it on ZIO's own executor.
+   *
+   * @see
+   *   Overloaded method that allows using the ZIO executor-backed execution
+   *   context
+   */
+  def fromFuture[A](future: => scala.concurrent.Future[A])(implicit trace: Trace): Task[A] =
+    ZIO.suspend {
+      import scala.util.{Success, Failure}
+      val f = future
+      f.value match {
+        case None =>
+          ZIO.executorWith { executor =>
+            val ec = executor.asExecutionContext
+            ZIO.asyncInterrupt { (k: Task[A] => Unit) =>
+              f.onComplete {
+                case Success(a) => k(Exit.succeed(a))
+                case Failure(t) => k(ZIO.fail(t))
+              }(ec)
+              Left {
+                f match {
+                  case cf: CancelableFuture[A] =>
+                    ZIO.suspendSucceed(if (cf.isCompleted) Exit.unit else ZIO.fromFuture(cf.cancel()).ignore)
+                  case _ => Exit.unit
+                }
+              }
+            }
+          }
+        case Some(Success(value)) => Exit.succeed(value)
+        case Some(Failure(t))     => ZIO.fail(t)
       }
     }
 
@@ -3736,7 +3776,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * and we pass to [fromFuture] to transform into Task[A]
    */
   def fromPromiseScala[A](promise: => scala.concurrent.Promise[A])(implicit trace: Trace): Task[A] =
-    ZIO.fromFuture(_ => promise.future)
+    ZIO.fromFuture(promise.future)
 
   /**
    * Imports a function that creates a [[scala.concurrent.Future]] from an
@@ -3752,30 +3792,31 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   )(implicit trace: Trace): Task[A] =
     ZIO.executorWith { executor =>
       import scala.util.{Failure, Success}
-      val ec          = executor.asExecutionContext
       val interrupted = new java.util.concurrent.atomic.AtomicBoolean(false)
       val latch       = scala.concurrent.Promise[Unit]()
-      val interruptibleEC = new scala.concurrent.ExecutionContext {
-        def execute(runnable: Runnable): Unit =
-          if (!interrupted.get) ec.execute(runnable)
-          else {
-            val _ = latch.success(())
-          }
-        def reportFailure(cause: Throwable): Unit =
-          ec.reportFailure(cause)
-      }
-      attempt(make(interruptibleEC)).flatMap { f =>
-        f.value
-          .fold(
+      ZIO.suspend {
+        val ec = executor.asExecutionContext
+        val interruptibleEC = new scala.concurrent.ExecutionContext {
+          def execute(runnable: Runnable): Unit =
+            if (!interrupted.get) ec.execute(runnable)
+            else latch.success(())
+          def reportFailure(cause: Throwable): Unit =
+            ec.reportFailure(cause)
+        }
+        val f = make(interruptibleEC)
+        f.value match {
+          case None =>
             ZIO.async { (cb: Task[A] => Any) =>
               f.onComplete {
                 case Success(a) => latch.success(()); cb(Exit.succeed(a))
                 case Failure(t) => latch.success(()); cb(ZIO.fail(t))
               }(interruptibleEC)
             }
-          )(ZIO.fromTry(_))
+          case Some(Success(value)) => Exit.succeed(value)
+          case Some(Failure(t))     => ZIO.fail(t)
+        }
       }.onInterrupt(
-        ZIO.succeed(interrupted.set(true)) *> ZIO.fromFuture(_ => latch.future).orDie
+        ZIO.succeed(interrupted.set(true)) *> ZIO.fromFuture(latch.future).orDie
       )
     }
 
@@ -5759,7 +5800,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         type OutError       = Throwable
         type OutSuccess     = A
         def make(input: => FutureLike[A])(implicit trace: Trace): ZIO[Any, Throwable, A] =
-          ZIO.fromFuture(_ => input)
+          ZIO.fromFuture(input)
       }
 
     /**

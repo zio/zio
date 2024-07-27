@@ -255,7 +255,7 @@ abstract class Fiber[+E, +A] { self =>
       final def interruptAsFork(id: FiberId)(implicit trace: Trace): UIO[Unit] =
         self.interruptAsFork(id)
       final def poll(implicit trace: Trace): UIO[Option[Exit[E1, B]]] =
-        self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](ZIO.succeed(None))(_.foreach(f).map(Some(_))))
+        self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](Exit.none)(_.foreach(f).map(Some(_))))
     }
 
   /**
@@ -356,11 +356,11 @@ abstract class Fiber[+E, +A] { self =>
     ZIO.suspendSucceed {
       val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
-      def failure(cause: Cause[E]): UIO[p.type] = ZIO.succeed(p.failure(cause.squashTraceWith(f)))
-      def success(value: A): UIO[p.type]        = ZIO.succeed(p.success(value))
+      def failure(cause: Cause[E]): UIO[p.type] = Exit.succeed(p.failure(cause.squashTraceWith(f)))
+      def success(value: A): UIO[p.type]        = Exit.succeed(p.success(value))
 
       val completeFuture =
-        self.await.flatMap(_.foldExitZIO[Any, Nothing, p.type](failure(_), success(_)))
+        self.await.flatMap(_.foldExitZIO[Any, Nothing, p.type](failure, success))
 
       for {
         runtime <- ZIO.runtime[Any]
@@ -906,7 +906,7 @@ object Fiber extends FiberPlatformSpecific {
     new Fiber.Synthetic[Throwable, A] {
       lazy val ftr: Future[A] = thunk
 
-      final def await(implicit trace: Trace): UIO[Exit[Throwable, A]] = ZIO.fromFuture(_ => ftr).exit
+      final def await(implicit trace: Trace): UIO[Exit[Throwable, A]] = ZIO.fromFuture(ftr).exit
 
       final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = ZIO.succeed(Chunk.empty)
 
