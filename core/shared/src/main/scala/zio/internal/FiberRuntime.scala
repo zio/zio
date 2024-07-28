@@ -26,7 +26,6 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{Set => JavaSet}
 import scala.annotation.tailrec
-import scala.util.control.ControlThrowable
 
 final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtimeFlags0: RuntimeFlags)
     extends Fiber.Runtime.Internal[E, A]
@@ -34,7 +33,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   self =>
   type Erased = ZIO.Erased
 
-  import FiberRuntime.{AsyncJump, DisableAssertions, EvaluationSignal, stackTraceBuilderPool}
+  import FiberRuntime.{DisableAssertions, EvaluationSignal, stackTraceBuilderPool}
   import ZIO._
 
   private var _lastTrace      = fiberId.location
@@ -1545,8 +1544,6 @@ object FiberRuntime {
     final val YieldNow = 2
     final val Done     = 3
   }
-
-  private object AsyncJump extends ControlThrowable
 
   import java.util.concurrent.atomic.AtomicBoolean
 
