@@ -195,21 +195,11 @@ trait ZIOCompanionVersionSpecific {
       }
     }
 
-  @targetName("succeed")
-  @deprecated("use succeed", "2.1.7")
-  def succeedCompat[A](a: Unsafe ?=> A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
-    succeed(a)
-
   /**
    * Returns an effect that models success with the specified value.
    */
   inline def succeed[A](inline a: Unsafe ?=> A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
     ZIO.Sync(trace, () => Unsafe.unsafely(a))
-
-  @targetName("succeedBlocking")
-  @deprecated("use succeedBlocking", "2.1.7")
-  def succeedBlockingCompat[A](a: Unsafe ?=> A)(implicit trace: Trace): UIO[A] =
-    ZIO.blocking(ZIO.succeed(a))
 
   /**
    * Returns a synchronous effect that does blocking and succeeds with the
@@ -217,4 +207,15 @@ trait ZIOCompanionVersionSpecific {
    */
   inline def succeedBlocking[A](inline a: Unsafe ?=> A)(implicit trace: Trace): UIO[A] =
     ZIO.blocking(ZIO.succeed(a))
+
+  @targetName("succeed")
+  @deprecated("use succeed", "2.1.7")
+  def succeedCompat[A](a: Unsafe ?=> A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
+    succeed(a)
+
+  @targetName("succeedBlocking")
+  @deprecated("use succeedBlocking", "2.1.7")
+  def succeedBlockingCompat[A](a: Unsafe ?=> A)(implicit trace: Trace): UIO[A] =
+    ZIO.blocking(ZIO.succeed(a))
+
 }
