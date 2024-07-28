@@ -6,7 +6,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.io.IOException
 import scala.annotation.targetName
 
-trait ZIOCompanionVersionSpecific {
+transparent trait ZIOCompanionVersionSpecific {
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -198,7 +198,7 @@ trait ZIOCompanionVersionSpecific {
   /**
    * Returns an effect that models success with the specified value.
    */
-  inline def succeed[A](inline a: Unsafe ?=> A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
+  inline def succeed[A](inline a: Unsafe ?=> A)(implicit inline trace: Trace): ZIO[Any, Nothing, A] =
     ZIO.Sync(trace, () => a(using Unsafe))
 
   /**
