@@ -26,7 +26,7 @@ trait ZIOCompanionVersionSpecific {
     Async(
       trace,
       { k =>
-        register(using Unsafe.unsafe)(k); null.asInstanceOf[ZIO[R, E, A]]
+        register(using Unsafe)(k); null.asInstanceOf[ZIO[R, E, A]]
       },
       () => blockingOn
     )
@@ -57,7 +57,7 @@ trait ZIOCompanionVersionSpecific {
         .Async[R, E, A](
           trace,
           { k =>
-            val result = register(using Unsafe.unsafe)(k(_))
+            val result = register(using Unsafe)(k(_))
 
             result match {
               case Left(canceler) => cancelerRef.set(canceler); null.asInstanceOf[ZIO[R, E, A]]
@@ -88,7 +88,7 @@ trait ZIOCompanionVersionSpecific {
     register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    Async(trace, k => register(using Unsafe.unsafe)(k).orNull, () => blockingOn)
+    Async(trace, k => register(using Unsafe)(k).orNull, () => blockingOn)
 
   /**
    * Returns an effect that, when executed, will cautiously run the provided
@@ -105,7 +105,7 @@ trait ZIOCompanionVersionSpecific {
   def attempt[A](code: Unsafe ?=> A)(implicit trace: Trace): Task[A] =
     ZIO.suspendSucceed {
       try {
-        Exit.succeed(code(using Unsafe.unsafe))
+        Exit.succeed(code(using Unsafe))
       } catch {
         case t: Throwable =>
           ZIO.isFatalWith { isFatal =>
@@ -181,7 +181,7 @@ trait ZIOCompanionVersionSpecific {
   def ignore(code: Unsafe ?=> Any)(implicit trace: Trace): UIO[Unit] =
     ZIO.suspendSucceed {
       try {
-        code(Unsafe.unsafe)
+        code(using Unsafe)
 
         Exit.unit
       } catch {
@@ -199,7 +199,7 @@ trait ZIOCompanionVersionSpecific {
    * Returns an effect that models success with the specified value.
    */
   inline def succeed[A](inline a: Unsafe ?=> A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
-    ZIO.Sync(trace, () => a(using Unsafe.unsafe))
+    ZIO.Sync(trace, () => a(using Unsafe))
 
   /**
    * Returns a synchronous effect that does blocking and succeeds with the

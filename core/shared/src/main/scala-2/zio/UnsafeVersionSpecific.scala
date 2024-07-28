@@ -15,4 +15,4 @@
  */
 package zio
 
-private[zio] trait UnsafeVersionSpecific extends AnnotationsVersionSpecific
+private[zio] trait UnsafeVersionSpecific
