@@ -15,9 +15,10 @@
  */
 package zio
 
-import scala.annotation.targetName
-
 private[zio] trait UnsafeVersionSpecific extends AnnotationsVersionSpecific {
   def unsafely[A](f: Unsafe ?=> A): A =
     f(using Unsafe.unsafe)
+
+  implicit def implicitFunctionIsFunction[A](f: Unsafe ?=> A): Unsafe => A =
+    f(using _)
 }
