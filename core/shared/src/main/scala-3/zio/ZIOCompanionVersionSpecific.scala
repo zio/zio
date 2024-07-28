@@ -4,6 +4,7 @@ import zio.ZIO.Async
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
+import scala.annotation.targetName
 
 trait ZIOCompanionVersionSpecific {
 
@@ -25,7 +26,7 @@ trait ZIOCompanionVersionSpecific {
     Async(
       trace,
       { k =>
-        Unsafe.unsafe(register)(k); null.asInstanceOf[ZIO[R, E, A]]
+        Unsafe.unsafely(register)(k); null.asInstanceOf[ZIO[R, E, A]]
       },
       () => blockingOn
     )
@@ -56,7 +57,7 @@ trait ZIOCompanionVersionSpecific {
         .Async[R, E, A](
           trace,
           { k =>
-            val result = register(using Unsafe.unsafe)(k(_))
+            val result = Unsafe.unsafely(register)(k(_))
 
             result match {
               case Left(canceler) => cancelerRef.set(canceler); null.asInstanceOf[ZIO[R, E, A]]
@@ -87,7 +88,7 @@ trait ZIOCompanionVersionSpecific {
     register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    Async(trace, k => Unsafe.unsafe(register)(k).orNull, () => blockingOn)
+    Async(trace, k => Unsafe.unsafely(register)(k).orNull, () => blockingOn)
 
   /**
    * Returns an effect that, when executed, will cautiously run the provided
@@ -104,7 +105,7 @@ trait ZIOCompanionVersionSpecific {
   def attempt[A](code: Unsafe ?=> A)(implicit trace: Trace): Task[A] =
     ZIO.suspendSucceed {
       try {
-        Exit.succeed(code(using Unsafe.unsafe))
+        Exit.succeed(Unsafe.unsafely(code))
       } catch {
         case t: Throwable =>
           ZIO.isFatalWith { isFatal =>
@@ -180,7 +181,7 @@ trait ZIOCompanionVersionSpecific {
   def ignore(code: Unsafe ?=> Any)(implicit trace: Trace): UIO[Unit] =
     ZIO.suspendSucceed {
       try {
-        code(using Unsafe.unsafe)
+        Unsafe.unsafely(code)
 
         Exit.unit
       } catch {
@@ -194,16 +195,26 @@ trait ZIOCompanionVersionSpecific {
       }
     }
 
+  @targetName("succeed")
+  @deprecated("use succeed", "2.1.7")
+  def succeedCompat[A](a: Unsafe ?=> A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
+    succeed(a)
+
   /**
    * Returns an effect that models success with the specified value.
    */
-  def succeed[A](a: Unsafe ?=> A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
-    ZIO.Sync(trace, () => Unsafe.unsafe(a))
+  inline def succeed[A](inline a: Unsafe ?=> A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
+    ZIO.Sync(trace, () => Unsafe.unsafely(a))
+
+  @targetName("succeedBlocking")
+  @deprecated("use succeedBlocking", "2.1.7")
+  def succeedBlockingCompat[A](a: Unsafe ?=> A)(implicit trace: Trace): UIO[A] =
+    ZIO.blocking(ZIO.succeed(a))
 
   /**
    * Returns a synchronous effect that does blocking and succeeds with the
    * specified value.
    */
-  def succeedBlocking[A](a: Unsafe ?=> A)(implicit trace: Trace): UIO[A] =
+  inline def succeedBlocking[A](inline a: Unsafe ?=> A)(implicit trace: Trace): UIO[A] =
     ZIO.blocking(ZIO.succeed(a))
 }

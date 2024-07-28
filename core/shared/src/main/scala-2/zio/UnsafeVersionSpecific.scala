@@ -15,4 +15,7 @@
  */
 package zio
 
-private[zio] trait UnsafeVersionSpecific
+private[zio] trait UnsafeVersionSpecific {
+  @inline def unsafe[A](f: Unsafe => A): A =
+    f(Unsafe.unsafe)
+}

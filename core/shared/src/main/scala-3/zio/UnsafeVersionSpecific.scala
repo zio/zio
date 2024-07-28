@@ -15,15 +15,27 @@
  */
 package zio
 
-private[zio] trait UnsafeVersionSpecific { self =>
+import scala.annotation.targetName
 
-  def unsafely[A](f: Unsafe ?=> A): A =
+private[zio] trait UnsafeVersionSpecific {
+
+  transparent inline def unsafe[A](inline f: Unsafe => A): A =
+    f(Unsafe.unsafe)
+
+  transparent inline def unsafely[A](inline f: Unsafe ?=> A): A =
     f(using Unsafe.unsafe)
 
   implicit def implicitFunctionIsFunction[A](f: Unsafe ?=> A): Unsafe => A =
-    unsafe => {
-      given Unsafe = unsafe
+    f(using _)
 
-      f
-    }
+  @targetName("unsafe")
+  @deprecated("use unsafe", "2.1.7")
+  def unsafeCompat0[A](f: Unsafe => A): A =
+    unsafe(f)
+
+  @targetName("unsafely")
+  @deprecated("use unsafely", "2.1.7")
+  def unsafelyCompat[A](f: Unsafe ?=> A): A =
+    unsafely(f)
+
 }
