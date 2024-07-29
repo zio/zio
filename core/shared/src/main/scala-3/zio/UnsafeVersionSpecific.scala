@@ -15,7 +15,7 @@
  */
 package zio
 
-private[zio] trait UnsafeVersionSpecific {
+private[zio] transparent trait UnsafeVersionSpecific {
 
   def unsafely[A](f: Unsafe ?=> A): A =
     f(using Unsafe)

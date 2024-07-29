@@ -2,7 +2,7 @@ package zio
 
 import zio.internal.macros.LayerMacros
 
-private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
+private[zio] transparent trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
   /**
    * Splits the environment into two parts, assembling one part using the
