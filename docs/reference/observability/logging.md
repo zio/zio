@@ -117,7 +117,7 @@ We can define a typed log annotation for the `User` case class like this:
 
 ```scala mdoc:compile-only
 import zio.json.{DeriveJsonEncoder, EncoderOps}
-import zio.logging.{LogAnnotation, LogFormat, consoleJson}
+import zio.logging.{ConsoleLoggerConfig, LogAnnotation, LogFormat, consoleJsonLogger}
 import zio._
 
 object TypedLogAnnotationExample extends ZIOAppDefault {
@@ -129,12 +129,13 @@ object TypedLogAnnotationExample extends ZIOAppDefault {
   }
 
   private val userLogAnnotation = LogAnnotation[User]("user", (_, u) => u, _.toJson)
+  
+  private val logConfig = ConsoleLoggerConfig.default.copy(
+    format = LogFormat.default + LogFormat.annotation(LogAnnotation.TraceId) + LogFormat.annotation(userLogAnnotation)
+  )
 
   override val bootstrap: ZLayer[ZIOAppArgs, Any, Any] =
-    Runtime.removeDefaultLoggers >>> consoleJson(
-      LogFormat.default + LogFormat.annotation(LogAnnotation.TraceId) +
-        LogFormat.annotation(userLogAnnotation)
-    )
+    Runtime.removeDefaultLoggers >>> consoleJsonLogger(logConfig)
 
   def run =
     for {

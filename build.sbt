@@ -540,18 +540,15 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     libraryDependencies ++= Seq("org.scala-native" %%% "test-interface" % nativeVersion)
   )
 
-lazy val testJunitRunner = crossProject(JVMPlatform) // TODO: make plain project, nothing cross about this
+lazy val testJunitRunner = project.module
   .in(file("test-junit"))
   .settings(stdSettings("zio-test-junit"))
-  .settings(crossProjectSettings)
   .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.13.2"))
-  .dependsOn(tests)
-  .jvm
+  .dependsOn(tests.jvm)
 
-lazy val testJunitRunnerTests = crossProject(JVMPlatform) // TODO: make plain project, nothing cross about this
+lazy val testJunitRunnerTests = project.module
   .in(file("test-junit-tests"))
   .settings(stdSettings("test-junit-tests"))
-  .settings(crossProjectSettings)
   .settings(Test / fork := true)
   .settings(Test / javaOptions ++= {
     Seq(
@@ -578,8 +575,8 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform) // TODO: make plain pr
     )
   )
   .dependsOn(
-    tests,
-    testRunner
+    tests.jvm,
+    testRunner.jvm
   )
   // publish locally so embedded maven runs against locally compiled zio
   .settings(
@@ -593,7 +590,6 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform) // TODO: make plain pr
         .dependsOn(stacktracer.jvm / publishM2)
         .value
   )
-  .jvm
 
 lazy val concurrent = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("concurrent"))
@@ -695,10 +691,11 @@ lazy val jsdocs = project
   .settings(libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "2.8.0").cross(CrossVersion.for3Use2_13))
   .enablePlugins(ScalaJSPlugin)
 
-val http4sV     = "0.23.23"
-val doobieV     = "1.0.0-RC2"
+val http4sV     = "0.23.27"
+val doobieV     = "1.0.0-RC5"
 val catsEffectV = "3.5.4"
 val zioActorsV  = "0.1.0"
+val shardcakeV  = "2.3.2"
 
 lazy val scalafixSettings = List(
   scalaVersion   := Scala213,
@@ -744,7 +741,7 @@ lazy val scalafixTests = project
   .settings(
     scalafixSettings,
     publish / skip                        := true,
-    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.12.0" % Test cross CrossVersion.full,
+    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.12.1" % Test cross CrossVersion.full,
     Compile / compile :=
       (Compile / compile).dependsOn(scalafixInput / Compile / compile).value,
     scalafixTestkitOutputSourceDirectories :=
@@ -827,28 +824,27 @@ lazy val docs = project.module
       `zio-zmx`,
       `zio-query`,
       `zio-mock`,
-      "commons-io"             % "commons-io"                % "2.13.0" % "provided",
-      "org.jsoup"              % "jsoup"                     % "1.16.1" % "provided",
+      "commons-io"             % "commons-io"                % "2.16.1" % "provided",
+      "org.jsoup"              % "jsoup"                     % "1.18.1" % "provided",
       "org.reactivestreams"    % "reactive-streams-examples" % "1.0.4"  % "provided",
       "org.typelevel"         %% "cats-effect"               % catsEffectV,
       "dev.zio"               %% "zio-actors"                % zioActorsV,
-      "io.laserdisc"          %% "tamer-db"                  % "0.19.0",
+      "io.laserdisc"          %% "tamer-db"                  % "0.21.2",
       "io.jaegertracing"       % "jaeger-core"               % "1.8.1",
       "io.jaegertracing"       % "jaeger-client"             % "1.8.1",
       "io.jaegertracing"       % "jaeger-zipkin"             % "1.8.1",
-      "io.zipkin.reporter2"    % "zipkin-reporter"           % "2.16.4",
-      "io.zipkin.reporter2"    % "zipkin-sender-okhttp3"     % "2.16.4",
+      "io.zipkin.reporter2"    % "zipkin-reporter"           % "3.4.0",
+      "io.zipkin.reporter2"    % "zipkin-sender-okhttp3"     % "3.4.0",
       "org.polynote"          %% "uzhttp"                    % "0.3.0-RC1",
       "org.tpolecat"          %% "doobie-core"               % doobieV,
       "org.tpolecat"          %% "doobie-h2"                 % doobieV,
       "org.tpolecat"          %% "doobie-hikari"             % doobieV,
-      "org.http4s"            %% "http4s-blaze-server"       % "0.23.15",
-      "org.http4s"            %% "http4s-blaze-client"       % "0.23.15",
+      "org.http4s"            %% "http4s-blaze-server"       % "0.23.16",
+      "org.http4s"            %% "http4s-blaze-client"       % "0.23.16",
       "org.http4s"            %% "http4s-dsl"                % http4sV,
-      "com.github.ghostdogpr" %% "caliban"                   % "2.0.0",
-      "com.github.ghostdogpr" %% "caliban-zio-http"          % "2.0.0",
-      "org.scalameta"         %% "munit"                     % "1.0.0-M10",
-      "com.github.poslegm"    %% "munit-zio"                 % "0.1.1",
+      "com.github.ghostdogpr" %% "caliban-quick"             % "2.6.0",
+      "org.scalameta"         %% "munit"                     % "1.0.0",
+      "com.github.poslegm"    %% "munit-zio"                 % "0.2.0",
       "nl.vroste"             %% "rezilience"                % "0.9.4",
       "io.github.gaelrenoux"  %% "tranzactio"                % "4.2.0",
       "io.github.neurodyne"   %% "zio-arrow"                 % "0.2.1",
@@ -858,24 +854,24 @@ lazy val docs = project.module
 //      "dev.zio"                       %% "zio-aws-elasticbeanstalk"      % "5.17.102.7",
 //      "dev.zio"                       %% "zio-aws-netty"                 % "5.17.102.7",
       "io.github.neurodyne"           %% "zio-aws-s3"                    % "0.4.13",
-      "com.coralogix"                 %% "zio-k8s-client"                % "2.1.0",
-      "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.9.0",
-      "nl.vroste"                     %% "zio-kinesis"                   % "0.32.0",
+      "com.coralogix"                 %% "zio-k8s-client"                % "3.0.0",
+      "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.9.7",
+      "nl.vroste"                     %% "zio-kinesis"                   % "0.33.0",
       "com.vladkopanev"               %% "zio-saga-core"                 % "0.6.0",
       "io.scalac"                     %% "zio-slick-interop"             % "0.6.0",
-      "com.typesafe.slick"            %% "slick-hikaricp"                % "3.4.1",
+      "com.typesafe.slick"            %% "slick-hikaricp"                % "3.5.1",
       "info.senia"                    %% "zio-test-akka-http"            % "2.0.14",
-      "io.getquill"                   %% "quill-jdbc-zio"                % "4.6.1",
+      "io.getquill"                   %% "quill-jdbc-zio"                % "4.8.3",
       "com.typesafe.akka"             %% "akka-http"                     % "10.5.2",
       "com.typesafe.akka"             %% "akka-cluster-typed"            % "2.8.4",
       "com.typesafe.akka"             %% "akka-cluster-sharding-typed"   % "2.8.4",
-      "com.devsisters"                %% "shardcake-core"                % "2.0.0",
-      "com.devsisters"                %% "shardcake-storage-redis"       % "2.0.0",
-      "com.devsisters"                %% "shardcake-protocol-grpc"       % "2.0.0",
-      "com.devsisters"                %% "shardcake-entities"            % "2.0.0",
-      "com.devsisters"                %% "shardcake-manager"             % "2.0.0",
-      "com.devsisters"                %% "shardcake-serialization-kryo"  % "2.0.0",
-      "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core"                 % "0.6.0-test4"
+      "com.devsisters"                %% "shardcake-core"                % shardcakeV,
+      "com.devsisters"                %% "shardcake-storage-redis"       % shardcakeV,
+      "com.devsisters"                %% "shardcake-protocol-grpc"       % shardcakeV,
+      "com.devsisters"                %% "shardcake-entities"            % shardcakeV,
+      "com.devsisters"                %% "shardcake-manager"             % shardcakeV,
+      "com.devsisters"                %% "shardcake-serialization-kryo"  % shardcakeV,
+      "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core"                 % "0.6.2"
     ),
     resolvers += "Confluent" at "https://packages.confluent.io/maven",
     fork           := true,
