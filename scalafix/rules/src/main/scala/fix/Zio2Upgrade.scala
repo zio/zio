@@ -567,7 +567,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
     def unapply(tree: Tree)(implicit sdoc: SemanticDocument): Option[Patch] = {
       val partial: PartialFunction[Tree, Patch] = {
-        case t @ Type.Apply(tpe: Type, args: List[Type]) if hasNormalized.matches(tpe.symbol) =>
+        case t @ Type.Apply.After_4_6_0(tpe: Type, argClause) if hasNormalized.matches(tpe.symbol) =>
+          val args = argClause.values
           val builtInServices: Seq[SymbolMatcher] =
             List(
               randomMigrator,
@@ -621,7 +622,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   }
 
-  override def fix(implicit doc: SemanticDocument): Patch = {
+  override def fix(implicit doc: SemanticDocument): Patch =
     Zio2ZIOSpec.fix +
       doc.tree.collect {
         case BuiltInServiceFixer.ImporteeRenamer(patch) => patch
@@ -701,7 +702,6 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         case t @ ImporteeNameOrRename(FiberId_Old(_)) => Patch.removeImportee(t)
 
       }.asPatch + replaceSymbols
-  }
 
   /*
      Since this is now just a simple rename, I'm keeping this around a bit longer
@@ -714,14 +714,15 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
    */
   def fixProvides(implicit doc: SemanticDocument): Patch =
     doc.tree.collect {
-      case Term.Apply(
+      case Term.Apply.After_4_6_0(
             Term.Select(
               // TODO Keep an eye out for more Term types that `a` might be
-              a @ (Term.ApplyType(_, _) | Term.Select(_, _) | Term.Apply(_, _)),
+              a @ (Term.ApplyType.After_4_6_0(_, _) | Term.Select(_, _) | Term.Apply.After_4_6_0(_, _)),
               p @ Term.Name("provide")
             ),
-            List(args)
-          ) if a.symbol.owner.value.startsWith("zio") =>
+            argClause
+          ) if a.symbol.owner.value.startsWith("zio") && argClause.values.size == 1 =>
+        val args = (argClause.values: @unchecked) match { case List(args) => args }
         Patch.addGlobalImport(Symbol("zio/ZEnvironment#")) +
           Patch.replaceTree(p, "provideEnvironment") +
           Patch.replaceTree(args, s"ZEnvironment($args)")
