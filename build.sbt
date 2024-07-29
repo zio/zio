@@ -871,7 +871,8 @@ lazy val docs = project.module
       "com.devsisters"                %% "shardcake-entities"            % shardcakeV,
       "com.devsisters"                %% "shardcake-manager"             % shardcakeV,
       "com.devsisters"                %% "shardcake-serialization-kryo"  % shardcakeV,
-      "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core"                 % "0.6.2"
+      "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core"                 % "0.6.2",
+      "dev.hnaderi"                   %% "scala-k8s-zio"                 % "0.18.0"
     ),
     resolvers += "Confluent" at "https://packages.confluent.io/maven",
     fork           := true,
