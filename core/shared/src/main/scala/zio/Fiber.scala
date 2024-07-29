@@ -906,7 +906,8 @@ object Fiber extends FiberPlatformSpecific {
     new Fiber.Synthetic[Throwable, A] {
       lazy val ftr: Future[A] = thunk
 
-      final def await(implicit trace: Trace): UIO[Exit[Throwable, A]] = ZIO.fromFuture(ftr).exit
+      final def await(implicit trace: Trace): UIO[Exit[Throwable, A]] =
+        ZIO.suspend(ZIO.fromFutureNow(ftr)(trace, Unsafe.unsafe)).exit
 
       final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = ZIO.succeed(Chunk.empty)
 
