@@ -13,6 +13,12 @@ object BuildHelper {
   val Scala213: String = "2.13.14"
   val Scala3: String   = "3.3.3"
 
+  lazy val isRelease = {
+    val value = sys.env.get("CI_RELEASE_MODE").isDefined
+    if (value) println("Detected CI_RELEASE_MODE envvar, enabling optimizations")
+    value
+  }
+
   private val stdOptions = Seq(
     "-deprecation",
     "-encoding",
@@ -37,23 +43,34 @@ object BuildHelper {
     "-Ywarn-value-discard"
   )
 
-  private def optimizerOptions(optimize: Boolean) =
-    if (optimize)
-      Seq(
+  private def optimizerOptions(optimize: Boolean, isScala213: Boolean) =
+    if (optimize) {
+      // We get some weird errors when trying to inline Scala 2.12 std lib
+      val inlineScala = if (isScala213) Seq("-opt-inline-from:scala.**") else Nil
+      inlineScala ++ Seq(
         "-opt:l:method",
         "-opt:l:inline",
-        "-opt-inline-from:zio.internal.**",
+        "-opt-inline-from:zio.**",
         // To remove calls to `assert` in releases. Assertions are level 2000
         "-Xelide-below",
         "2001"
       )
-    else Nil
+    } else Nil
 
   def buildInfoSettings(packageName: String) =
     Seq(
       // BuildInfoOption.ConstantValue required to disable assertions in FiberRuntime!
       buildInfoOptions += BuildInfoOption.ConstantValue,
-      buildInfoKeys    := Seq[BuildInfoKey](organization, moduleName, name, version, scalaVersion, sbtVersion, isSnapshot),
+      buildInfoKeys := Seq[BuildInfoKey](
+        organization,
+        moduleName,
+        name,
+        version,
+        scalaVersion,
+        sbtVersion,
+        isSnapshot,
+        BuildInfoKey("optimizationsEnabled" -> isRelease)
+      ),
       buildInfoPackage := packageName
     )
 
@@ -108,8 +125,9 @@ object BuildHelper {
         )
       case Some((2, 13)) =>
         Seq(
-          "-Ywarn-unused:params,-implicits"
-        ) ++ std2xOptions ++ optimizerOptions(optimize)
+          "-Ywarn-unused:params,-implicits",
+          "-Ybackend-parallelism:4"
+        ) ++ std2xOptions ++ optimizerOptions(optimize, isScala213 = true)
       case Some((2, 12)) =>
         Seq(
           "-opt-warnings",
@@ -126,7 +144,7 @@ object BuildHelper {
           "-Xsource:2.13",
           "-Xmax-classfile-name",
           "242"
-        ) ++ std2xOptions ++ optimizerOptions(optimize)
+        ) ++ std2xOptions ++ optimizerOptions(optimize, isScala213 = false)
       case _ => Seq.empty
     }
 
@@ -174,7 +192,7 @@ object BuildHelper {
     name                     := s"$prjName",
     crossScalaVersions       := Seq(Scala212, Scala213, Scala3),
     ThisBuild / scalaVersion := Scala213,
-    scalacOptions ++= stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
+    scalacOptions ++= stdOptions ++ extraOptions(scalaVersion.value, optimize = isRelease || !isSnapshot.value),
     scalacOptions --= {
       if (scalaVersion.value == Scala3)
         List("-Xfatal-warnings")

@@ -22,7 +22,13 @@ trait ZIOCompanionVersionSpecific {
     register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Unit,
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    Async(trace, { k => Unsafe.unsafe(register)(k); null.asInstanceOf[ZIO[R, E, A]] }, () => blockingOn)
+    Async(
+      trace,
+      { k =>
+        Unsafe.unsafe(register)(k); null.asInstanceOf[ZIO[R, E, A]]
+      },
+      () => blockingOn
+    )
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -153,9 +159,9 @@ trait ZIOCompanionVersionSpecific {
 
   /**
    * Wraps the provided effect in a catch-try block. Useful for handling cases
-   * where the user-provided effect might throw outside the ZIO effect, but
-   * we don't want to incur the performance penalty from the additional flatMap
-   * in `ZIO.suspend`.
+   * where the user-provided effect might throw outside the ZIO effect, but we
+   * don't want to incur the performance penalty from the additional flatMap in
+   * `ZIO.suspend`.
    */
   inline protected def attemptOrDieZIO[R, E, A](inline effect: ZIO[R, E, A])(using Trace): ZIO[R, E, A] =
     try effect

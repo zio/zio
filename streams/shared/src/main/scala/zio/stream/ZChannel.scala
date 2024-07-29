@@ -2030,7 +2030,7 @@ object ZChannel {
           _ <- pull
                  .foldCauseZIO(
                    cause =>
-                     queue.offer(ZIO.failCause(cause)) *>
+                     queue.offer(ZIO.refailCause(cause)) *>
                        ZIO.succeed(false),
                    {
                      case Left(outDone) =>

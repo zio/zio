@@ -41,7 +41,7 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
     this.lock()
 
     try {
-      if (value != null) throw new Error("Defect: OneShot variable being set twice")
+      if (value ne null) throw new Error("Defect: OneShot variable being set twice")
 
       value = v.asInstanceOf[A with AnyRef]
 
@@ -54,7 +54,7 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
   /**
    * Determines if the variable has been set.
    */
-  def isSet: Boolean = value != null
+  def isSet: Boolean = value ne null
 
   /**
    * Retrieves the value of the variable, blocking if necessary.
@@ -70,12 +70,12 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
       this.lock()
 
       try {
-        if (value == null) this.isSetCondition.await(timeout, java.util.concurrent.TimeUnit.MILLISECONDS)
+        if (value eq null) this.isSetCondition.await(timeout, java.util.concurrent.TimeUnit.MILLISECONDS)
       } finally {
         this.unlock()
       }
 
-      if (value == null) throw new Error("Timed out waiting for variable to be set")
+      if (value eq null) throw new Error("Timed out waiting for variable to be set")
 
       value
     }
@@ -91,7 +91,7 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
       this.lock()
 
       try {
-        while (value == null) this.isSetCondition.await()
+        while (value eq null) this.isSetCondition.await()
       } finally {
         this.unlock()
       }

@@ -138,7 +138,7 @@ object ZLogger {
       .append(message0())
       .append("\"")
 
-    if (cause != null && cause != Cause.empty) {
+    if ((cause ne null) && cause != Cause.empty) {
       sb.append(" cause=\"")
         .append(cause.prettyPrint)
         .append("\"")
