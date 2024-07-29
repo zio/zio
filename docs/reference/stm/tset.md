@@ -208,7 +208,7 @@ val foldSTMTSet: UIO[Int] = (for {
 } yield sum).commit
 ```
 
-## Perform side-effect for TSet elements
+## Perform effects for TSet elements
 
 `foreach` is used for performing an STM effect for each element in set:
 

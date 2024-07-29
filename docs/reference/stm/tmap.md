@@ -216,7 +216,7 @@ val foldSTMTMap: UIO[Int] = (for {
 } yield sum).commit
 ```
 
-## Perform side-effect for TMap key-value pairs
+## Perform effects for TMap key-value pairs
 
 `foreach` is used for performing an STM effect for each key-value pair in the map:
 

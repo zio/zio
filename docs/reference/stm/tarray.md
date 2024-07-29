@@ -128,7 +128,7 @@ val foldSTMTArray: UIO[Int] = (for {
 } yield sum).commit
 ```
 
-## Perform side-effect for TArray elements
+## Perform effects for TArray elements
 
 `foreach` is used for performing an STM effect for each element in the array:
 
