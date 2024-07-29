@@ -219,7 +219,7 @@ import zio.stm._
 val foreachTSet = (for {
   tSet   <- TSet.make(1, 2, 3, 4)
   tQueue <- TQueue.unbounded[Int]
-  _      <- tSet.foreach(a => tQueue.offer(a))
+  _      <- tSet.foreach(a => tQueue.offer(a).unit)
 } yield tSet).commit
 ```
 

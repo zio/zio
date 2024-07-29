@@ -139,6 +139,6 @@ import zio.stm._
 val foreachTArray = (for {
   tArray <- TArray.make(1, 2, 3, 4)
   tQueue <- TQueue.unbounded[Int]
-  _      <- tArray.foreach(a => tQueue.offer(a))
+  _      <- tArray.foreach(a => tQueue.offer(a).unit)
 } yield tArray).commit
 ```

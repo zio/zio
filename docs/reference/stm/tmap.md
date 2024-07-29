@@ -227,7 +227,7 @@ import zio.stm._
 val foreachTMap = (for {
   tMap   <- TMap.make(("a", 1), ("b", 2), ("c", 3))
   tQueue <- TQueue.unbounded[String]
-  _      <- tMap.foreach((k, v) => tQueue.offer(s"$k -> $v"))
+  _      <- tMap.foreach((k, v) => tQueue.offer(s"$k -> $v").unit)
 } yield tMap).commit
 ```
 
