@@ -42,7 +42,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test;testRunnerJVM/Test/run;examplesJVM/Test/compile;benchmarks/Test/compile;macrosTestsJVM/test;testJunitRunnerTestsJVM/test;concurrentJVM/test;managedTestsJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test;testRunnerJVM/Test/run;examplesJVM/Test/compile;benchmarks/Test/compile;macrosTestsJVM/test;testJunitRunnerTests/test;concurrentJVM/test;managedTestsJVM/test"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
@@ -90,7 +90,7 @@ lazy val rootJVM212 = project.in(file("target/rootJVM212")).settings(publish / s
 lazy val rootJVM213 = project
   .in(file("target/rootJVM213"))
   .settings(publish / skip := true)
-  .aggregate(projectsCommon.map(p => p.jvm: ProjectReference): _*)
+  .aggregate(projectsCommon.map(p => p.jvm: ProjectReference) *)
   .aggregate(
     List[ProjectReference](
       benchmarks,
@@ -101,13 +101,13 @@ lazy val rootJVM213 = project
       testMagnoliaTests.jvm,
       testRefined.jvm,
       testScalaCheck.jvm
-    ): _*
+    ) *
   )
 
 lazy val rootJVM3 = project
   .in(file("target/rootJVM3"))
   .settings(publish / skip := true)
-  .aggregate(projectsCommon.map(p => p.jvm: ProjectReference): _*)
+  .aggregate(projectsCommon.map(p => p.jvm: ProjectReference) *)
   .aggregate(
     List[ProjectReference](
       testJunitRunner,
@@ -116,30 +116,30 @@ lazy val rootJVM3 = project
       testMagnoliaTests.jvm,
       testRefined.jvm,
       testScalaCheck.jvm
-    ): _*
+    ) *
   )
 
 lazy val rootJS = project
   .in(file("target/rootJS"))
   .settings(publish / skip := true)
-  .aggregate(projectsCommon.map(p => p.js: ProjectReference): _*)
+  .aggregate(projectsCommon.map(p => p.js: ProjectReference) *)
   .aggregate(
     List[ProjectReference](
       testMagnolia.js,
       testMagnoliaTests.js,
       testRefined.js,
       testScalaCheck.js
-    ): _*
+    ) *
   )
 
 lazy val rootNative = project
   .in(file("target/rootNative"))
   .settings(publish / skip := true)
-  .aggregate(projectsCommon.map(_.native: ProjectReference): _*)
+  .aggregate(projectsCommon.map(_.native: ProjectReference) *)
   .aggregate(
     List[ProjectReference](
       testScalaCheck.native
-    ): _*
+    ) *
   )
 
 lazy val root212 = project.in(file("target/root212")).settings(publish / skip := true).aggregate(root213)
@@ -162,7 +162,7 @@ lazy val root213 = project
         scalafixTests,
         testJunitRunner,
         testJunitRunnerTests
-      )): _*
+      )) *
   )
 
 lazy val root3 = project
@@ -181,7 +181,7 @@ lazy val root3 = project
       List[ProjectReference](
         testJunitRunner,
         testJunitRunnerTests
-      )): _*
+      )) *
   )
 
 val catsEffectVersion = "3.5.4"
