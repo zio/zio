@@ -3730,8 +3730,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                 }
               }
             }
-          case Some(Success(value)) => Exit.succeed(value)
-          case Some(Failure(t))     => ZIO.fail(t)
+          case Some(outcome) => outcome.fold(ZIO.fail(_), ZIO.successFn)
         }
       }
     }
@@ -3766,8 +3765,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
               }
             }
           }
-        case Some(Success(value)) => Exit.succeed(value)
-        case Some(Failure(t))     => ZIO.fail(t)
+        case Some(outcome) => outcome.fold(ZIO.fail(_), ZIO.successFn)
       }
     }
 
@@ -3812,8 +3810,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                 case Failure(t) => latch.success(()); cb(ZIO.fail(t))
               }(interruptibleEC)
             }
-          case Some(Success(value)) => Exit.succeed(value)
-          case Some(Failure(t))     => ZIO.fail(t)
+          case Some(outcome) => outcome.fold(ZIO.fail(_), ZIO.successFn)
         }
       }.onInterrupt(
         ZIO.succeed(interrupted.set(true)) *> ZIO.fromFuture(latch.future).orDie
