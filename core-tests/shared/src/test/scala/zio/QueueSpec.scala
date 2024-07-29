@@ -5,8 +5,6 @@ import zio.test.Assertion._
 import zio.test.TestAspect.{jvm, nonFlaky}
 import zio.test._
 
-import scala.collection.immutable.Range
-
 object QueueSpec extends ZIOBaseSpec {
   import ZIOTag._
 
@@ -767,7 +765,7 @@ object QueueSpec extends ZIOBaseSpec {
           _        <- ZIO.foreach(takers)(_.join)
         } yield assertCompletes
       }
-    },
+    } @@ jvm(nonFlaky(100)),
     test("isEmpty") {
       for {
         queue <- Queue.bounded[Int](2)
@@ -783,7 +781,15 @@ object QueueSpec extends ZIOBaseSpec {
         _     <- waitForSize(queue, 3)
         full  <- queue.isFull
       } yield assertTrue(full)
-    }
+    },
+    test("bounded queue preserves ordering") {
+      for {
+        queue   <- Queue.bounded[Int](16)
+        expected = Chunk.fromIterable(0 until 100)
+        _       <- queue.offerAll(expected).fork
+        actual  <- queue.take.replicateZIO(100).map(Chunk.fromIterable)
+      } yield assertTrue(actual == expected)
+    } @@ jvm(nonFlaky(1000))
   )
 }
 

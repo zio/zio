@@ -19,7 +19,8 @@ import java.util.concurrent.TimeUnit
  * small queue to enforce back pressure mechanism is used.
  */
 class QueueBackPressureBenchmark {
-  val queueSize   = 2
+  @Param(Array("2", "8", "16"))
+  var queueSize   = 2
   val totalSize   = 1000
   val parallelism = 5
 
