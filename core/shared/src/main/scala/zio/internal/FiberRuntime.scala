@@ -34,7 +34,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   self =>
   type Erased = ZIO.Erased
 
-  import FiberRuntime.{DisableAssertions, EvaluationSignal, stackTraceBuilderPool}
+  import FiberRuntime.{DisableAssertions, EvaluationSignal, emptyTrace, stackTraceBuilderPool}
   import ZIO._
 
   private var _lastTrace      = fiberId.location
@@ -50,7 +50,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _stack          = null.asInstanceOf[Array[Continuation]]
   private var _stackSize      = 0
   private var _isInterrupted  = false
-  private val emptyTrace      = Trace.empty
 
   private var _forksSinceYield = 0
 
@@ -1532,6 +1531,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 }
 
 object FiberRuntime {
+  private val emptyTrace = Trace.empty
+
   private final val MaxForksBeforeYield      = 128
   private final val MaxOperationsBeforeYield = 1024 * 10
   private final val MaxDepthBeforeTrampoline = 300
