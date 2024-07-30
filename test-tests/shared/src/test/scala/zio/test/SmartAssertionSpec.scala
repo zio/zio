@@ -237,6 +237,17 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       assertTrue(b > aL) && assertTrue(bL > a) &&
       assertTrue(b >= aL) && assertTrue(bL >= a)
     },
+    test("comparison compiles when comparing different primitive types without direct implicit conversion") {
+      val a: Int = 1
+      val b: Int = 2
+
+      val aL: java.lang.Long = 1
+      val bL: java.lang.Long = 2
+      assertTrue(a < bL) && assertTrue(aL < b) &&
+      assertTrue(a <= bL) && assertTrue(aL <= b) &&
+      assertTrue(b > aL) && assertTrue(bL > a) &&
+      assertTrue(b >= aL) && assertTrue(bL >= a)
+    },
     test("exists must succeed when at least one element of iterable satisfy specified assertion") {
       assertTrue(Seq(1, 42, 5).exists(_ == 42))
     },
