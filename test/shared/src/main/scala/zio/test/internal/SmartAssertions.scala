@@ -596,4 +596,29 @@ object SmartAssertions {
 
   private def className[A](a: Option[A]) =
     M.value(a.toString.takeWhile(_ != '('))
+
+  object Implicits {
+    case class Converter[-A, +B](f: A => B)
+    case class Converter2[-A, +B](f: A => B)
+
+    implicit val byte: Converter[Byte, java.lang.Byte]         = Converter(x => x)
+    implicit val short: Converter[Short, java.lang.Short]      = Converter(x => x)
+    implicit val int: Converter[Int, java.lang.Integer]        = Converter(x => x)
+    implicit val long: Converter[Long, java.lang.Long]         = Converter(x => x)
+    implicit val float: Converter[Float, java.lang.Float]      = Converter(x => x)
+    implicit val double: Converter[Double, java.lang.Double]   = Converter(x => x)
+    implicit val byte2: Converter2[java.lang.Byte, Byte]       = Converter2(x => x)
+    implicit val short2: Converter2[java.lang.Short, Short]    = Converter2(x => x)
+    implicit val int2: Converter2[java.lang.Integer, Int]      = Converter2(x => x)
+    implicit val long2: Converter2[java.lang.Long, Long]       = Converter2(x => x)
+    implicit val float2: Converter2[java.lang.Float, Float]    = Converter2(x => x)
+    implicit val double2: Converter2[java.lang.Double, Double] = Converter2(x => x)
+
+    implicit def converter[A, B, C](implicit g: Converter[B, C], f: A => B): A => C =
+      g.f.compose(f)
+
+    implicit def converter2[A, B, C](implicit f: Converter2[A, B], g: B => C): A => C =
+      g.compose(f.f)
+  }
+
 }
