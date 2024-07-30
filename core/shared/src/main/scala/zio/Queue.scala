@@ -414,7 +414,7 @@ object Queue extends QueuePlatformSpecific {
 
           // We need to check in case someone added a putter or pulled from the queue since our last check
           // while we were still holding the lock
-          if (!queue.isFull() && !putters0.isEmpty) unsafeOnQueueEmptySpace(queue, takers)
+          if (!queue.isFull()) unsafeOnQueueEmptySpace(queue, takers)
         }
       }
 

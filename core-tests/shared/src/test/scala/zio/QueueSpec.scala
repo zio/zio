@@ -2,7 +2,7 @@ package zio
 
 import zio.QueueSpecUtil._
 import zio.test.Assertion._
-import zio.test.TestAspect.{jvm, nonFlaky}
+import zio.test.TestAspect.{jvm, nonFlaky, samples, sequential}
 import zio.test._
 
 object QueueSpec extends ZIOBaseSpec {
@@ -755,17 +755,77 @@ object QueueSpec extends ZIOBaseSpec {
         _ <- f.await
       } yield assertCompletes
     } @@ jvm(nonFlaky),
-    test("many to many") {
-      check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
-        for {
-          queue    <- Queue.bounded[Int](n)
-          offerors <- ZIO.foreach(as)(a => queue.offer(a).fork)
-          takers   <- ZIO.foreach(as)(_ => queue.take.fork)
-          _        <- ZIO.foreach(offerors)(_.join)
-          _        <- ZIO.foreach(takers)(_.join)
-        } yield assertCompletes
-      }
-    } @@ jvm(nonFlaky(100)),
+    suite("back-pressured bounded queue stress testing") {
+      val genChunk = Gen.chunkOfBounded(1, 200)(smallInt)
+      List(
+        test("many to many unbounded parallelism") {
+          check(smallInt, genChunk) { (n, as) =>
+            for {
+              queue    <- Queue.bounded[Int](n)
+              offerors <- ZIO.foreach(as)(a => queue.offer(a).fork)
+              takers   <- ZIO.foreach(as)(_ => queue.take.fork)
+              _        <- ZIO.foreach(offerors)(_.join)
+              taken    <- ZIO.foreach(takers)(_.join)
+            } yield assertTrue(as.sorted == taken.sorted)
+          }
+        },
+        test("many to many bounded parallelism") {
+          check(smallInt, genChunk) { (n, as) =>
+            for {
+              queue    <- Queue.bounded[Int](n)
+              takers   <- ZIO.foreachPar(as)(_ => queue.take).withParallelism(10).fork
+              offerors <- ZIO.foreachPar(as)(a => queue.offer(a)).withParallelism(10).fork
+              _        <- offerors.join
+              taken    <- takers.join
+            } yield assertTrue(as.sorted == taken.sorted)
+          }
+        },
+        test("single to many") {
+          check(smallInt, genChunk) { (n, as) =>
+            for {
+              queue    <- Queue.bounded[Int](n)
+              takers   <- ZIO.foreachPar(as)(_ => queue.take).withParallelism(10).fork
+              offerors <- ZIO.foreach(as)(a => queue.offer(a)).fork
+              _        <- offerors.join
+              taken    <- takers.join
+            } yield assertTrue(as.sorted == taken.sorted)
+          }
+        },
+        test("many to single") {
+          check(smallInt, genChunk) { (n, as) =>
+            for {
+              queue    <- Queue.bounded[Int](n)
+              taker    <- ZIO.foreach(as)(_ => queue.take).fork
+              offerors <- ZIO.foreachPar(as)(a => queue.offer(a)).withParallelism(10).fork
+              _        <- offerors.join
+              taken    <- taker.join
+            } yield assertTrue(as.sorted == taken.sorted)
+          }
+        },
+        test("fewer to more") {
+          check(smallInt, genChunk) { (n, as) =>
+            for {
+              queue    <- Queue.bounded[Int](n)
+              takers   <- ZIO.foreachPar(as)(_ => queue.take).withParallelism(10).fork
+              offerors <- ZIO.foreachPar(as)(a => queue.offer(a)).withParallelism(3).fork
+              _        <- offerors.join
+              taken    <- takers.join
+            } yield assertTrue(as.sorted == taken.sorted)
+          }
+        },
+        test("more to fewer") {
+          check(smallInt, genChunk) { (n, as) =>
+            for {
+              queue    <- Queue.bounded[Int](n)
+              takers   <- ZIO.foreachPar(as)(_ => queue.take).withParallelism(3).fork
+              offerers <- ZIO.foreachPar(as)(a => queue.offer(a)).withParallelism(10).fork
+              _        <- offerers.join
+              taken    <- takers.join
+            } yield assertTrue(as.sorted == taken.sorted)
+          }
+        }
+      )
+    } @@ jvm(samples(1000) @@ sequential),
     test("isEmpty") {
       for {
         queue <- Queue.bounded[Int](2)
