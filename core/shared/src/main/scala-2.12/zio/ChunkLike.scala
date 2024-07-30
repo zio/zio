@@ -174,14 +174,14 @@ private[zio] trait ChunkLike[+A]
       val bs    = f(a)
       val chunk = ChunkLike.fromGenTraversableOnce(bs)
       if (chunk.length > 0) {
-        if (B0 == null) {
+        if (B0 eq null) {
           B0 = Chunk.classTagOf(chunk)
         }
         chunks ::= chunk
         total += chunk.length
       }
     }
-    if (B0 == null) Chunk.empty
+    if (B0 eq null) Chunk.empty
     else {
       implicit val B: ClassTag[B] = B0
       val dest: Array[B]          = Array.ofDim(total)

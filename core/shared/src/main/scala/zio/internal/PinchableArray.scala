@@ -90,7 +90,7 @@ private[zio] final class PinchableArray[A: ClassTag](hint: Int) extends Iterable
   }
 
   private[zio] def asChunk(): Chunk[A] =
-    if (array == null) Chunk.empty
+    if (array eq null) Chunk.empty
     else Chunk.fromArray(array).take(_size)
 
   private def ensurePinchCapacity(newSize: Int): Unit =

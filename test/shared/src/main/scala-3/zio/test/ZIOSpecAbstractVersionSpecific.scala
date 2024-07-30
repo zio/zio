@@ -42,14 +42,12 @@ class ZIOSpecAbstractSpecificMacros(val ctx: Quotes) {
     spec.asInstanceOf[Expr[Spec[Provided, E]]]
   }
 
-
-  def flattenAnd(typeRepr: TypeRepr): List[TypeRepr] = {
+  def flattenAnd(typeRepr: TypeRepr): List[TypeRepr] =
     typeRepr.dealias match {
       case AndType(left, right) =>
         flattenAnd(left) ++ flattenAnd(right)
       case _ =>
         List(typeRepr)
     }
-  }
 
 }
