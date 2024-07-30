@@ -142,12 +142,7 @@ final class TRef[A] private (
     updateAndGet(f orElse { case a => a })
 
   private[stm] def getOrMakeEntry(journal: Journal): Entry =
-    if (journal.containsKey(self)) journal.get(self)
-    else {
-      val entry = Entry(self, false)
-      journal.put(self, entry)
-      entry
-    }
+    journal.computeIfAbsent(self, TRef.makeEntry)
 
   private[stm] def unsafeGet(journal: Journal): A =
     getOrMakeEntry(journal).unsafeGet
@@ -157,6 +152,8 @@ final class TRef[A] private (
 }
 
 object TRef {
+
+  private val makeEntry: java.util.function.Function[TRef[_], Entry] = (tref: TRef[_]) => Entry(tref)
 
   /**
    * Makes a new `TRef` that is initialized to the specified value.
@@ -177,8 +174,7 @@ object TRef {
   }
 
   private[stm] def unsafeMake[A](a: A): TRef[A] = {
-    val value     = a
-    val versioned = new Versioned(value)
+    val versioned = new Versioned(a)
     val todo      = new AtomicReference[Map[TxnId, Todo]](Map())
     new TRef(versioned, todo)
   }
