@@ -885,9 +885,15 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   override def toArray[A1 >: A: ClassTag]: Array[A1] = {
     val dest = Array.ofDim[A1](self.length)
 
-    self.toArray(0, dest)
-
-    dest
+    try {
+      self.toArray(0, dest)
+      dest
+    } catch {
+      case _: ClassCastException =>
+        val dest = Array.ofDim[AnyRef](self.length).asInstanceOf[Array[A1]]
+        self.toArray(0, dest)
+        dest
+    }
   }
 
   /**
@@ -1104,7 +1110,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   private final def toArrayOption[A1 >: A]: Option[Array[A1]] =
     self match {
       case Chunk.Empty => None
-      case chunk       => Some(chunk.toArray(Chunk.classTagOf(self)))
+      case chunk =>
+        try {
+          Some(chunk.toArray(Chunk.classTagOf(self)))
+        }
     }
 }
 
@@ -1769,11 +1778,15 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def chunkIterator: ChunkIterator[A] =
       left.chunkIterator ++ right.chunkIterator
 
-    implicit val classTag: ClassTag[A] =
-      left match {
-        case Empty => classTagOf(right)
-        case _     => classTagOf(left)
-      }
+    implicit val classTag: ClassTag[A] = {
+      val lct = classTagOf(left)
+      val rct = classTagOf(right)
+
+      if (left eq Empty) lct
+      else if (right eq Empty) rct
+      else if (lct == rct) lct
+      else ClassTag.AnyRef.asInstanceOf[ClassTag[A]]
+    }
 
     override val concatDepth: Int =
       1 + math.max(left.concatDepth, right.concatDepth)
