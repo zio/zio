@@ -37,7 +37,6 @@ object MimaSettings {
         exclude[MissingClassProblem]("zio.stream.ZChannel$QRes"),
         exclude[DirectMissingMethodProblem]("zio.stream.ZChannel.mergeAllWith0$default$4"),
         exclude[DirectMissingMethodProblem]("zio.stream.ZChannel.mergeAllWith0$default$3"),
-        exclude[DirectMissingMethodProblem]("zio.stream.ZChannel.mergeAllWith"),
         exclude[DirectMissingMethodProblem]("zio.stream.ZChannel.mergeAllWith0"),
         exclude[DirectMissingMethodProblem]("zio.stream.ZChannel.mapOutZIOParUnordered1$default$2"),
         exclude[DirectMissingMethodProblem]("zio.stream.ZChannel.mapOutZIOParUnordered1"),

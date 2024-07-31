@@ -496,7 +496,7 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
   ): ZPipeline[Env2, Err2, In, Out2] =
     self >>> ZPipeline.mapZIOPar(n)(f)
 
-  @deprecated("Use mapZIOPar(n)(f)", "3.0.0")
+  @deprecated("Use mapZIOPar(n)(f)", "2.1.7")
   def mapZIOPar[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int)(f: Out => ZIO[Env2, Err2, Out2])(implicit
     trace: Trace
   ): ZPipeline[Env2, Err2, In, Out2] =
@@ -512,7 +512,7 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
   ): ZPipeline[Env2, Err2, In, Out2] =
     self >>> ZPipeline.mapZIOParUnordered(n)(f)
 
-  @deprecated("use mapZIOParUnordered(n)(f)", "3.0.0")
+  @deprecated("use mapZIOParUnordered(n)(f)", "2.1.7")
   def mapZIOParUnordered[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int)(
     f: Out => ZIO[Env2, Err2, Out2]
   )(implicit trace: Trace): ZPipeline[Env2, Err2, In, Out2] =
@@ -1819,7 +1819,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         .mapOut(Chunk.single)
     )
 
-  @deprecated("use mapZIOPar(n)(f)", "3.0.0")
+  @deprecated("use mapZIOPar(n)(f)", "2.1.7")
   def mapZIOPar[Env, Err, In, Out](n: => Int, bufferSize: => Int)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
   ): ZPipeline[Env, Err, In, Out] =
@@ -1840,7 +1840,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         .mergeMap(n, 16)(in => ZStream.fromZIO(f(in)).channel)
     )
 
-  @deprecated("use mapZIOParUnordered(n)(f)", "3.0.0")
+  @deprecated("use mapZIOParUnordered(n)(f)", "2.1.7")
   def mapZIOParUnordered[Env, Err, In, Out](n: => Int, bufferSize: => Int)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
   ): ZPipeline[Env, Err, In, Out] =

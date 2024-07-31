@@ -1897,6 +1897,25 @@ object ZChannel {
       }
     }
 
+  @deprecated("use mergeAllWith with `MergeStrategy`", "2.1.7")
+  def mergeAllWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+    channels: ZChannel[
+      Env,
+      InErr,
+      InElem,
+      InDone,
+      OutErr,
+      ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
+      OutDone
+    ],
+    n: => Int,
+    bufferSize: => Int /* = 16*/,
+    mergeStrategy: MergeStrategy.BackPressure.type
+  )(
+    f: (OutDone, OutDone) => OutDone
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+    mergeAllWith(channels, n, bufferSize, mergeStrategy: MergeStrategy)(f)
+
   /** Returns a channel that never completes */
   final def never(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
     ZChannel.fromZIO(ZIO.never)
