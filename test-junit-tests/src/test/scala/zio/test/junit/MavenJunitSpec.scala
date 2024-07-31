@@ -69,7 +69,7 @@ object MavenJunitSpec extends ZIOSpecDefault {
   } yield new MavenDriver(projectDir, projectVer, scalaVersion, scalaCompatVersion)
 
   class MavenDriver(projectDir: String, projectVersion: String, scalaVersion: String, scalaCompatVersion: String) {
-    val mvnRoot: String = new File(s"$projectDir/../maven").getCanonicalPath
+    val mvnRoot: String = new File(s"$projectDir/maven").getCanonicalPath
     private val cli     = new MavenCli
     java.lang.System.setProperty("maven.multiModuleProjectDirectory", mvnRoot)
 

@@ -160,6 +160,8 @@ jobs:
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v4.1.1
+      with:
+        fetch-depth: 0
     - name: Setup Java
       uses: actions/setup-java@v4.2.1
       with:

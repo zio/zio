@@ -6,13 +6,15 @@ import sbtbuildinfo.*
 import sbtbuildinfo.BuildInfoKeys.*
 import sbtcrossproject.CrossPlugin.autoImport.*
 
+import scala.scalanative.sbtplugin.ScalaNativePlugin.autoImport.*
+
 object BuildHelper {
   val Scala212: String = "2.12.19"
-  val Scala213: String = "2.13.13"
+  val Scala213: String = "2.13.14"
   val Scala3: String   = "3.3.3"
 
   lazy val isRelease = {
-    val value = sys.env.get("CI_RELEASE_MODE").isDefined
+    val value = sys.env.contains("CI_RELEASE_MODE")
     if (value) println("Detected CI_RELEASE_MODE envvar, enabling optimizations")
     value
   }
@@ -240,6 +242,7 @@ object BuildHelper {
   )
 
   def nativeSettings = Seq(
+    nativeConfig ~= { _.withMultithreading(false) },
     Test / fork := crossProjectPlatform.value == JVMPlatform // set fork to `true` on JVM to improve log readability, JS and Native need `false`
   )
 
