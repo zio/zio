@@ -16,15 +16,12 @@
 
 package zio.stm
 
-import zio._
-import zio.internal.Sync
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.{FiberId, _}
 
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 import java.util.concurrent.locks.ReentrantLock
-import scala.collection.mutable.{HashMap => MutableMap}
-import scala.annotation.{switch, tailrec}
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ListBuffer, HashMap => MutableMap}
 import scala.util.control.ControlThrowable
 import scala.util.{Failure, Success, Try}
 
@@ -73,8 +70,8 @@ import scala.util.{Failure, Success, Try}
  * [[https://www.microsoft.com/en-us/research/publication/lock-free-data-structures-using-stms-in-haskell/]]
  */
 sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
-  import ZSTM.internal.{prepareResetJournal, Journal, TExit}
   import ZSTM._
+  import ZSTM.internal.{Journal, TExit, prepareResetJournal}
 
   /**
    * A symbolic alias for `orDie`.
@@ -905,34 +902,40 @@ object ZSTM {
     stm: ZSTM[R, E, A]
   )(onDone: Exit[E, A] => Any, onInterrupt: () => Any)(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.withFiberRuntime[R, E, A] { (fiberState, _) =>
-      implicit val u = Unsafe.unsafe
+      val r       = fiberState.getFiberRef(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
+      val fiberId = fiberState.id
 
-      val r        = fiberState.getFiberRef(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
-      val fiberId  = fiberState.id
-      val executor = fiberState.getCurrentExecutor()
-
-      tryCommitSync(executor, fiberId, stm, r) match {
+      tryCommitSync(fiberId, stm, r) match {
         case TryCommit.Done(exit, onCommit) =>
           onDone(exit)
           val it = onCommit.reverseIterator
           ZIO.whileLoop(it.hasNext)(it.next())(_ => ()) *> exit
-        case TryCommit.Suspend(journal) =>
-          val txnId = makeTxnId()
-          val state = new AtomicReference[State[E, A]](State.Running)
-          val async = ZIO.async(tryCommitAsync(journal, executor, fiberId, stm, txnId, state, r))
+        case TryCommit.Suspend =>
+          implicit val unsafe: Unsafe = Unsafe.unsafe
+          val executor = fiberState.getCurrentExecutor()
+          val state    = new AtomicReference[State[E, A]](State.Running)
+          val async    = ZIO.async(tryCommitAsync(executor, fiberId, stm, state, r))
 
           ZIO.uninterruptibleMask { restore =>
-            restore(async).catchAllCause { cause =>
-              state.compareAndSet(State.Running, State.Interrupted)
-              state.get match {
-                case State.Done(exit, onCommit) =>
-                  onDone(exit)
-                  ZIO.collectAll(onCommit.reverse) *> ZIO.done(exit)
-                case _ =>
-                  onInterrupt()
-                  ZIO.refailCause(cause)
+            restore(async).foldCauseZIO(
+              cause => {
+                state.compareAndSet(State.Running, State.Interrupted)
+                state.get match {
+                  case State.Done(exit, onCommit) =>
+                    onDone(exit)
+                    val it = onCommit.reverseIterator
+                    ZIO.whileLoop(it.hasNext)(it.next())(_ => ()) *> exit
+                  case _ =>
+                    onInterrupt()
+                    ZIO.refailCause(cause)
+                }
+              },
+              s => {
+                val exit = Exit.succeed(s)
+                onDone(exit)
+                exit
               }
-            }
+            )
           }
       }
     }
@@ -951,7 +954,7 @@ object ZSTM {
 
   /**
    * Evaluate each effect in the structure from left to right, collecting the
-   * the successful values and discarding the empty cases.
+   * successful values and discarding the empty cases.
    */
   def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
@@ -1660,17 +1663,35 @@ object ZSTM {
     type Journal = MutableMap[TRef[_], Entry]
 
     private object LockSupport {
-      @inline def lock[A](refs: Iterable[TRef[?]])(f: => A): A = {
+
+      @inline def lock[A](refs: List[TRef[?]])(f: => A): A =
+        if (refs.isEmpty) f
+        else if (refs.tail.isEmpty) lock1(refs.head)(f)
+        else lockN(refs)(f)
+
+      @inline private def lock1[A](ref: TRef[?])(f: => A): A = {
+        ref.lock.lock()
+        try f
+        finally ref.lock.unlock()
+      }
+
+      @inline private def lockN[A](refs: List[TRef[?]])(f: => A): A = {
         refs.foreach(_.lock.lock())
         try f
         finally refs.foreach(_.lock.unlock())
       }
 
-      @inline def tryLock[A](refs: Iterable[TRef[?]])(f: => A): Boolean =
-        if (refs.size == 1) tryLock1(refs.head)(f)
-        else tryLockN(refs)(f)
+      @inline def tryLock[A](refs: List[TRef[?]])(f: => A): Boolean =
+        if (refs.isEmpty) {
+          val _ = f
+          true
+        } else if (refs.tail.isEmpty) {
+          tryLock1(refs.head)(f)
+        } else {
+          tryLockN(refs)(f)
+        }
 
-      @inline def tryLock1[A](ref: TRef[?])(f: => A): Boolean = {
+      @inline private def tryLock1[A](ref: TRef[?])(f: => A): Boolean = {
         val lock = ref.lock
         if (lock.tryLock()) {
           try {
@@ -1680,7 +1701,7 @@ object ZSTM {
         } else false
       }
 
-      @inline def tryLockN[A](refs: Iterable[TRef[?]])(f: => A): Boolean = {
+      @inline private def tryLockN[A](refs: Iterable[TRef[?]])(f: => A): Boolean = {
         val locks    = refs.map(_.lock)
         val locked   = ListBuffer.empty[ReentrantLock]
         val it       = refs.iterator
@@ -1771,25 +1792,16 @@ object ZSTM {
      */
     def analyzeJournal(journal: Journal, attemptCommit: Boolean): JournalAnalysis =
       if (journal.size == 1) analyzeJournal1(journal.head._2, attemptCommit)
-      else analyzeJournalN(journal, attemptCommit)
+      else analyzeJournalN(journal)
 
-    private def analyzeJournalN(journal: Journal, attemptCommit: Boolean): JournalAnalysis = {
-      var attemptCommit0 = attemptCommit
-      var changed        = false
+    private def analyzeJournalN(journal: Journal): JournalAnalysis = {
+      var changed = false
 
       val it = journal.valuesIterator
       while (it.hasNext) {
         val value = it.next()
         if (value.isInvalid) return JournalAnalysis.Invalid
-        else if (value.isChanged) {
-          if (attemptCommit0 && !it.hasNext) {
-            value.commit()
-            return JournalAnalysis.Committed
-          } else {
-            changed = true
-          }
-        }
-        attemptCommit0 = false
+        else if (value.isChanged) changed = true
       }
       if (changed) JournalAnalysis.ReadWrite else JournalAnalysis.ReadOnly
     }
@@ -1821,116 +1833,6 @@ object ZSTM {
     def isInvalid(journal: Journal): Boolean = !isValid(journal)
 
     /**
-     * Atomically collects and clears all the todos from any `TRef` that
-     * participated in the transaction.
-     */
-    def collectTodos(journal: Journal): MutableMap[TxnId, Todo] =
-      if (journal.size == 1) collectTodos1(journal.head._2.tref.todo)
-      else collectTodosN(journal)
-
-    private def collectTodosN(journal: Journal): MutableMap[TxnId, Todo] = {
-      var allTodos  = null.asInstanceOf[MutableMap[TxnId, Todo]]
-      val emptyTodo = Map.empty[TxnId, Todo]
-
-      val it = journal.valuesIterator
-      while (it.hasNext) {
-        val tref = it.next.tref
-        val todo = tref.todo
-
-        var loop = true
-        while (loop) {
-          val oldTodo = todo.get
-          val isEmpty = oldTodo.isEmpty
-
-          if (isEmpty || todo.compareAndSet(oldTodo, emptyTodo)) {
-            loop = false
-            if (!isEmpty) {
-              if (allTodos eq null) allTodos = newMutableMap[TxnId, Todo](oldTodo.size)
-              allTodos.addAll(oldTodo)
-            }
-          }
-        }
-      }
-
-      allTodos
-    }
-
-    private def collectTodos1(todo: AtomicReference[Map[TxnId, Todo]]): MutableMap[TxnId, Todo] = {
-      var allTodos  = null.asInstanceOf[MutableMap[TxnId, Todo]]
-      val emptyTodo = Map.empty[TxnId, Todo]
-
-      var loop = true
-      while (loop) {
-        val oldTodo = todo.get
-        val isEmpty = oldTodo.isEmpty
-
-        if (isEmpty || todo.compareAndSet(oldTodo, emptyTodo)) {
-          loop = false
-          if (!isEmpty) {
-            if (allTodos eq null) allTodos = newMutableMap[TxnId, Todo](oldTodo.size)
-            allTodos.addAll(oldTodo)
-          }
-        }
-      }
-
-      allTodos
-    }
-
-    /**
-     * Executes the todos in the current thread, sequentially.
-     */
-    def execTodos(todos: MutableMap[TxnId, Todo]): Unit = {
-      val it = todos.valuesIterator
-      while (it.hasNext) it.next().apply()
-    }
-
-    /**
-     * For the given transaction id, adds the specified todo effect to all
-     * `TRef` values.
-     */
-    def addTodo(txnId: TxnId, journal: Journal, todoEffect: Todo): Boolean = {
-      var added = false
-
-      val it = journal.valuesIterator
-      while (it.hasNext) {
-        val tref = it.next().tref
-
-        var loop = true
-        while (loop) {
-          val oldTodo = tref.todo.get
-
-          if (!oldTodo.contains(txnId)) {
-            val newTodo = oldTodo.updated(txnId, todoEffect)
-
-            loop = !tref.todo.compareAndSet(oldTodo, newTodo)
-
-            if (!loop) added = true
-          } else loop = false
-        }
-      }
-
-      added
-    }
-
-    /**
-     * Runs all the todos.
-     */
-    def completeTodos[E, A](
-      exit: Exit[E, A],
-      journal: Journal,
-      executor: Executor,
-      onCommit: List[ZIO[Any, Nothing, Any]]
-    )(implicit
-      unsafe: Unsafe
-    ): TryCommit[E, A] = {
-      val todos = collectTodos(journal)
-
-      if (todos ne null) executor.submitOrThrow(() => execTodos(todos))
-
-      TryCommit.Done(exit, onCommit)
-    }
-
-    /**
      * Finds all the new todo targets that are not already tracked in the
      * `oldJournal`.
      */
@@ -1951,11 +1853,10 @@ object ZSTM {
     }
 
     def tryCommitSync[R, E, A](
-      executor: Executor,
       fiberId: FiberId,
       stm: ZSTM[R, E, A],
       r: ZEnvironment[R]
-    )(implicit unsafe: Unsafe): TryCommit[E, A] = {
+    ): TryCommit[E, A] = {
       var journal              = null.asInstanceOf[MutableMap[TRef[_], Entry]]
       var value                = null.asInstanceOf[TExit[E, A]]
       var trefs: List[TRef[?]] = Nil
@@ -1998,20 +1899,18 @@ object ZSTM {
       }
 
       value match {
-        case TExit.Succeed(a, onCommit)         => completeTodos(Exit.succeed(a), journal, executor, onCommit)
-        case TExit.Fail(e, onCommit)            => completeTodos(Exit.fail(e), journal, executor, onCommit)
-        case TExit.Die(t, onCommit)             => completeTodos(Exit.die(t), journal, executor, onCommit)
-        case TExit.Interrupt(fiberId, onCommit) => completeTodos(Exit.interrupt(fiberId), journal, executor, onCommit)
-        case TExit.Retry                        => TryCommit.Suspend(journal)
+        case TExit.Succeed(a, onCommit)         => TryCommit.Done(Exit.succeed(a), onCommit)
+        case TExit.Fail(e, onCommit)            => TryCommit.Done(Exit.fail(e), onCommit)
+        case TExit.Die(t, onCommit)             => TryCommit.Done(Exit.die(t), onCommit)
+        case TExit.Interrupt(fiberId, onCommit) => TryCommit.Done(Exit.interrupt(fiberId), onCommit)
+        case TExit.Retry                        => TryCommit.Suspend
       }
     }
 
     def tryCommitAsync[R, E, A](
-      journal: Journal,
       executor: Executor,
       fiberId: FiberId,
       stm: ZSTM[R, E, A],
-      txnId: TxnId,
       state: AtomicReference[State[E, A]],
       r: ZEnvironment[R]
     )(
@@ -2019,42 +1918,27 @@ object ZSTM {
     )(implicit trace: Trace, unsafe: Unsafe): Unit = {
       def complete(exit: Exit[E, A]): Unit = { k(ZIO.done(exit)); () }
 
-      @tailrec
-      def suspend(accum: Journal, journal: Journal): Unit = {
-        addTodo(txnId, journal, () => tryCommitAsync(null, executor, fiberId, stm, txnId, state, r)(k))
-
-        if (isInvalid(journal)) tryCommit(executor, fiberId, stm, state, r) match {
-          case TryCommit.Done(exit, _) => complete(exit)
-          case TryCommit.Suspend(journal2) =>
-            val untracked = untrackedTodoTargets(accum, journal2)
-
-            if (untracked.nonEmpty) {
-              accum.addAll(untracked)
-
-              suspend(accum, untracked)
-            }
-        }
-      }
-
-      Sync(state) {
-        if (state.get.isRunning) {
-          if (journal ne null) suspend(journal, journal)
-          else
-            tryCommit(executor, fiberId, stm, state, r) match {
-              case TryCommit.Done(io, _)      => complete(io)
-              case TryCommit.Suspend(journal) => suspend(journal, journal)
-            }
-        }
+      state.get match {
+        case State.Done(exit, _) =>
+          complete(exit)
+        case State.Running =>
+          tryCommit(fiberId, stm, state, r) match {
+            case TryCommit.Done(io, _) =>
+              complete(io)
+            case TryCommit.Suspend =>
+              executor.submitOrThrow(() => tryCommitAsync(executor, fiberId, stm, state, r)(k))
+          }
+        case State.Interrupted =>
+          complete(Exit.interrupt(FiberId.None))
       }
     }
 
     def tryCommit[R, E, A](
-      executor: Executor,
       fiberId: FiberId,
       stm: ZSTM[R, E, A],
       state: AtomicReference[State[E, A]],
       r: ZEnvironment[R]
-    )(implicit unsafe: Unsafe): TryCommit[E, A] = {
+    ): TryCommit[E, A] = {
       var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
 
@@ -2090,13 +1974,13 @@ object ZSTM {
           val isSuccess = value.isInstanceOf[TExit.Succeed[_]]
 
           val acquired = LockSupport.tryLock(trefs) {
-            val isRunning = isSuccess && state.compareAndSet(State.Running, State.done(value))
-            val analysis  = analyzeJournal(journal, isRunning)
-            (analysis: @switch) match {
-              case JournalAnalysis.Invalid                => loop = true
-              case JournalAnalysis.ReadWrite if isRunning => commitJournal(journal)
-              case _                                      => ()
-            }
+            val analysis = analyzeJournal(journal, attemptCommit = false)
+            if (analysis == JournalAnalysis.Invalid) loop = true
+            else if (
+              analysis == JournalAnalysis.ReadWrite &&
+              isSuccess &&
+              state.compareAndSet(State.Running, State.done(value))
+            ) commitJournal(journal)
           }
           if (!acquired) loop = true
         }
@@ -2105,11 +1989,11 @@ object ZSTM {
       }
 
       value match {
-        case TExit.Succeed(a, onCommit)         => completeTodos(Exit.succeed(a), journal, executor, onCommit)
-        case TExit.Fail(e, onCommit)            => completeTodos(Exit.fail(e), journal, executor, onCommit)
-        case TExit.Die(t, onCommit)             => completeTodos(Exit.die(t), journal, executor, onCommit)
-        case TExit.Interrupt(fiberId, onCommit) => completeTodos(Exit.interrupt(fiberId), journal, executor, onCommit)
-        case TExit.Retry                        => TryCommit.Suspend(journal)
+        case TExit.Succeed(a, onCommit)         => TryCommit.Done(Exit.succeed(a), onCommit)
+        case TExit.Fail(e, onCommit)            => TryCommit.Done(Exit.fail(e), onCommit)
+        case TExit.Die(t, onCommit)             => TryCommit.Done(Exit.die(t), onCommit)
+        case TExit.Interrupt(fiberId, onCommit) => TryCommit.Done(Exit.interrupt(fiberId), onCommit)
+        case TExit.Retry                        => TryCommit.Suspend
       }
     }
 
@@ -2221,8 +2105,7 @@ object ZSTM {
     sealed abstract class TryCommit[+E, +A]
     object TryCommit {
       final case class Done[+E, +A](exit: Exit[E, A], onCommit: List[ZIO[Any, Nothing, Any]]) extends TryCommit[E, A]
-      final case class Suspend(journal: Journal)                                              extends TryCommit[Nothing, Nothing]
-      case object Block                                                                       extends TryCommit[Nothing, Nothing]
+      case object Suspend                                                                     extends TryCommit[Nothing, Nothing]
     }
 
     sealed abstract class State[+E, +A] { self =>

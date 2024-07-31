@@ -3,7 +3,7 @@ package zio.stm
 import zio.test.Assertion._
 import zio.test.TestAspect.{jvm, nonFlaky}
 import zio.test._
-import zio.{Chunk, ZIO, ZIOBaseSpec}
+import zio.{Chunk, ZIO, ZIOBaseSpec, durationInt}
 
 object TMapSpec extends ZIOBaseSpec {
 
@@ -402,9 +402,9 @@ object TMapSpec extends ZIOBaseSpec {
                     }
                     .exit
         } yield assert(exit)(succeeds(isUnit))
-      } @@ jvm(nonFlaky)
+      }
     )
-  )
+  ) @@ jvm(nonFlaky(100))
 
   private final case class HashContainer(val i: Int) {
     override def hashCode(): Int = i
