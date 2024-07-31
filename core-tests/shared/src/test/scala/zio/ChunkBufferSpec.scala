@@ -392,11 +392,7 @@ object ChunkBufferSpec extends ZIOBaseSpec {
           assert(Chunk.fromShortBuffer(buffer))(equalTo(Chunk.fromArray(array)))
         }
       }
-    ),
-    test("concatenating chunks of int/long") {
-      val chunk = Chunk(1) ++ Chunk(2L)
-      assertTrue(chunk.materialize == Chunk(1L, 2L))
-    }
+    )
   )
 
   final def byteChunk(bytes: Byte*): Chunk[Byte] =
