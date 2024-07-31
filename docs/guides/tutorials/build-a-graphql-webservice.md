@@ -18,10 +18,8 @@ In this tutorial, we will build a GraphQL API using _Caliban_, and in order to s
 
 ```sbt
 libraryDependencies ++= Seq(
-  "dev.zio"               %% "zio"              % "2.0.0",
-  "com.github.ghostdogpr" %% "caliban"          % "2.0.0",
-  "com.github.ghostdogpr" %% "caliban-zio-http" % "2.0.0",
-  "io.d11"                %% "zhttp"            % "2.0.0-RC10"
+  "dev.zio"               %% "zio"              % "2.1.7",
+  "com.github.ghostdogpr" %% "caliban-quick"    % "2.8.1"
 )
 ```
 
@@ -95,15 +93,12 @@ After defining all the queries, in order to serve the GraphQL API, we need to pe
 3. Serve the resulting `HttpApp` instance using the `Server.start` method of the _ZIO HTTP_ module.
 
 ```scala
-import caliban.GraphQL.graphQL
-import caliban.{RootResolver, ZHttpAdapter}
-import zhttp.http._
-import zhttp.service.Server
-import zio.ZIOAppDefault
+import caliban._
+import caliban.quick._
 
-import scala.language.postfixOps
-
-object MainApp extends ZIOAppDefault {
+object MainApp extends zio.ZIOAppDefault {
+  import caliban.schema.ArgBuilder.auto._
+  import caliban.schema.Schema.auto._
 
   private val employees = List(
     Employee("Alex", Role.DevOps),
@@ -122,14 +117,10 @@ object MainApp extends ZIOAppDefault {
           args => employees.find(e => e.name == args.name)
         )
       )
-    ).interpreter.flatMap(interpreter =>
-      Server
-        .start(
-          port = 8088,
-          http = Http.collectHttp { case _ -> !! / "api" / "graphql" =>
-            ZHttpAdapter.makeHttpService(interpreter)
-          }
-        )
+    ).runServer(
+      port = 8088,
+      apiPath = "/api/graphql",
+      graphiqlPath = Some("/api/graphiql"),
     )
 
 }
