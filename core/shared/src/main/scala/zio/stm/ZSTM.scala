@@ -17,12 +17,14 @@
 package zio.stm
 
 import zio._
+import zio.internal.Sync
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 import java.util.concurrent.locks.ReentrantLock
-import java.util.{HashMap => MutableMap}
+import scala.collection.mutable.{HashMap => MutableMap}
 import scala.annotation.{switch, tailrec}
+import scala.collection.mutable.ListBuffer
 import scala.util.control.ControlThrowable
 import scala.util.{Failure, Success, Try}
 
@@ -899,8 +901,6 @@ object ZSTM {
   def atomically[R, E, A](stm: ZSTM[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     unsafeAtomically(stm)(_ => (), () => ())
 
-  private val lockRef = FiberRef.unsafe.make[ReentrantLock](new ReentrantLock, join = (l, _) => l)(Unsafe.unsafe)
-
   private def unsafeAtomically[R, E, A](
     stm: ZSTM[R, E, A]
   )(onDone: Exit[E, A] => Any, onInterrupt: () => Any)(implicit trace: Trace): ZIO[R, E, A] =
@@ -910,15 +910,6 @@ object ZSTM {
       val r        = fiberState.getFiberRef(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
       val fiberId  = fiberState.id
       val executor = fiberState.getCurrentExecutor()
-
-      implicit val lock: ReentrantLock = {
-        val l = fiberState.getFiberRefOrNull(lockRef)
-        if (l eq null) {
-          val newLock = new ReentrantLock()
-          fiberState.setFiberRef(lockRef, newLock)
-          newLock
-        } else l
-      }
 
       tryCommitSync(executor, fiberId, stm, r) match {
         case TryCommit.Done(exit, onCommit) =>
@@ -1645,7 +1636,7 @@ object ZSTM {
   private[zio] def succeedNow[A](a: A): USTM[A] = SucceedNow(a)
 
   private[stm] object internal {
-    final val DefaultJournalSize = 12
+    final val DefaultJournalSize = 4
     final val MaxRetries         = 10
     final val YieldOpCount       = 2048
 
@@ -1661,42 +1652,85 @@ object ZSTM {
       final val OnCommit   = 7
     }
 
+    @deprecated
     class Versioned[A](val value: A) extends Serializable
 
     type TxnId = Long
 
     type Journal = MutableMap[TRef[_], Entry]
 
+    private object LockSupport {
+      @inline def lock[A](refs: Iterable[TRef[?]])(f: => A): A = {
+        refs.foreach(_.lock.lock())
+        try f
+        finally refs.foreach(_.lock.unlock())
+      }
+
+      @inline def tryLock[A](refs: Iterable[TRef[?]])(f: => A): Boolean =
+        if (refs.size == 1) tryLock1(refs.head)(f)
+        else tryLockN(refs)(f)
+
+      @inline def tryLock1[A](ref: TRef[?])(f: => A): Boolean = {
+        val lock = ref.lock
+        if (lock.tryLock()) {
+          try {
+            f
+            true
+          } finally lock.unlock()
+        } else false
+      }
+
+      @inline def tryLockN[A](refs: Iterable[TRef[?]])(f: => A): Boolean = {
+        val locks    = refs.map(_.lock)
+        val locked   = ListBuffer.empty[ReentrantLock]
+        val it       = refs.iterator
+        var continue = true
+        while (continue && it.hasNext) {
+          val lock = it.next().lock
+          if (lock.tryLock()) locked += lock
+          else continue = false
+        }
+        if (continue) {
+          try f
+          finally locks.foreach(_.unlock())
+          true
+        } else {
+          locked.foreach(_.unlock())
+          false
+        }
+      }
+
+    }
+
     type Todo = () => Any
 
     private def newMutableMap[K, V](initialCapacity: Int): MutableMap[K, V] =
-      new MutableMap[K, V](Math.ceil(math.max(initialCapacity, 4) / 0.75d).toInt)
+      new MutableMap[K, V](Math.ceil(math.max(initialCapacity, 4) / 0.75d).toInt, 0.75d)
 
     /**
      * Creates a function that can reset the journal.
      */
     def prepareResetJournal(journal: Journal): () => Any = {
-      val currentNewValues = newMutableMap[TRef[_], Any](journal.size())
-      val itCapture        = journal.entrySet.iterator
+      val currentNewValues = newMutableMap[TRef[_], Any](journal.size)
+      val itCapture        = journal.iterator
       while (itCapture.hasNext) {
         val entry = itCapture.next()
-        currentNewValues.put(entry.getKey, entry.getValue.unsafeGet[Any])
+        currentNewValues.update(entry._1, entry._2.unsafeGet[Any])
       }
 
       () => {
-        val saved = new MutableMap[TRef[_], Entry](journal.size)
-        val it    = journal.entrySet.iterator
+        val saved = newMutableMap[TRef[_], Entry](journal.size)
+        val it    = journal.iterator
         while (it.hasNext) {
-          val entry = it.next()
-          val key   = entry.getKey
-          val resetValue = currentNewValues.get(key) match {
-            case null  => entry.getValue.expected.value
+          val (key, value) = it.next()
+          val resetValue = currentNewValues.getOrElse(key, null) match {
+            case null  => value.expected
             case value => value
           }
-          saved.put(entry.getKey, entry.getValue.copy().reset(resetValue))
+          saved.put(key, value.copy().reset(resetValue))
         }
         journal.clear()
-        journal.putAll(saved)
+        journal.addAll(saved)
         ()
       }
     }
@@ -1705,7 +1739,7 @@ object ZSTM {
      * Commits the journal.
      */
     def commitJournal(journal: Journal): Unit = {
-      val it = journal.values().iterator
+      val it = journal.valuesIterator
       while (it.hasNext) it.next.commit()
     }
 
@@ -1724,7 +1758,7 @@ object ZSTM {
      * Determines if the journal is valid.
      */
     def isValid(journal: Journal): Boolean = {
-      val it = journal.values().iterator()
+      val it = journal.valuesIterator
       while (it.hasNext) if (!it.next().isValid) return false
       true
     }
@@ -1735,10 +1769,15 @@ object ZSTM {
      * is read only will only be accurate if the journal is valid, due to
      * short-circuiting that occurs on an invalid journal.
      */
-    def analyzeJournal(journal: Journal, attemptCommit: Boolean): JournalAnalysis = {
+    def analyzeJournal(journal: Journal, attemptCommit: Boolean): JournalAnalysis =
+      if (journal.size == 1) analyzeJournal1(journal.head._2, attemptCommit)
+      else analyzeJournalN(journal, attemptCommit)
+
+    private def analyzeJournalN(journal: Journal, attemptCommit: Boolean): JournalAnalysis = {
       var attemptCommit0 = attemptCommit
       var changed        = false
-      val it             = journal.values().iterator
+
+      val it = journal.valuesIterator
       while (it.hasNext) {
         val value = it.next()
         if (value.isInvalid) return JournalAnalysis.Invalid
@@ -1754,6 +1793,19 @@ object ZSTM {
       }
       if (changed) JournalAnalysis.ReadWrite else JournalAnalysis.ReadOnly
     }
+
+    private def analyzeJournal1(value: Entry, attemptCommit: Boolean): JournalAnalysis =
+      if (value.isInvalid) JournalAnalysis.Invalid
+      else if (value.isChanged) {
+        if (attemptCommit) {
+          value.commit()
+          JournalAnalysis.Committed
+        } else {
+          JournalAnalysis.ReadWrite
+        }
+      } else {
+        JournalAnalysis.ReadOnly
+      }
 
     type JournalAnalysis = Int
     object JournalAnalysis {
@@ -1772,16 +1824,15 @@ object ZSTM {
      * Atomically collects and clears all the todos from any `TRef` that
      * participated in the transaction.
      */
-    def collectTodos(journal: Journal): MutableMap[TxnId, Todo] = {
-      import collection.JavaConverters._
+    def collectTodos(journal: Journal): MutableMap[TxnId, Todo] =
+      if (journal.size == 1) collectTodos1(journal.head._2.tref.todo)
+      else collectTodosN(journal)
 
-      val todos = Array.ofDim[Map[TxnId, Todo]](journal.size())
-      var size  = 0
-
+    private def collectTodosN(journal: Journal): MutableMap[TxnId, Todo] = {
+      var allTodos  = null.asInstanceOf[MutableMap[TxnId, Todo]]
       val emptyTodo = Map.empty[TxnId, Todo]
 
-      val it = journal.values().iterator
-      var i  = 0
+      val it = journal.valuesIterator
       while (it.hasNext) {
         val tref = it.next.tref
         val todo = tref.todo
@@ -1794,22 +1845,34 @@ object ZSTM {
           if (isEmpty || todo.compareAndSet(oldTodo, emptyTodo)) {
             loop = false
             if (!isEmpty) {
-              todos(i) = oldTodo
-              size += oldTodo.size
-              i += 1
+              if (allTodos eq null) allTodos = newMutableMap[TxnId, Todo](oldTodo.size)
+              allTodos.addAll(oldTodo)
             }
           }
         }
       }
 
-      val allTodos = newMutableMap[TxnId, Todo](size)
-      i = 0
-      while (i < todos.length) {
-        val map = todos(i)
-        if (map eq null) return allTodos
-        allTodos.putAll(map.asJava)
-        i += 1
+      allTodos
+    }
+
+    private def collectTodos1(todo: AtomicReference[Map[TxnId, Todo]]): MutableMap[TxnId, Todo] = {
+      var allTodos  = null.asInstanceOf[MutableMap[TxnId, Todo]]
+      val emptyTodo = Map.empty[TxnId, Todo]
+
+      var loop = true
+      while (loop) {
+        val oldTodo = todo.get
+        val isEmpty = oldTodo.isEmpty
+
+        if (isEmpty || todo.compareAndSet(oldTodo, emptyTodo)) {
+          loop = false
+          if (!isEmpty) {
+            if (allTodos eq null) allTodos = newMutableMap[TxnId, Todo](oldTodo.size)
+            allTodos.addAll(oldTodo)
+          }
+        }
       }
+
       allTodos
     }
 
@@ -1817,7 +1880,7 @@ object ZSTM {
      * Executes the todos in the current thread, sequentially.
      */
     def execTodos(todos: MutableMap[TxnId, Todo]): Unit = {
-      val it = todos.values().iterator()
+      val it = todos.valuesIterator
       while (it.hasNext) it.next().apply()
     }
 
@@ -1828,7 +1891,7 @@ object ZSTM {
     def addTodo(txnId: TxnId, journal: Journal, todoEffect: Todo): Boolean = {
       var added = false
 
-      val it = journal.values().iterator
+      val it = journal.valuesIterator
       while (it.hasNext) {
         val tref = it.next().tref
 
@@ -1862,7 +1925,7 @@ object ZSTM {
     ): TryCommit[E, A] = {
       val todos = collectTodos(journal)
 
-      if (todos.size > 0) executor.submitOrThrow(() => execTodos(todos))
+      if (todos ne null) executor.submitOrThrow(() => execTodos(todos))
 
       TryCommit.Done(exit, onCommit)
     }
@@ -1873,14 +1936,12 @@ object ZSTM {
      */
     def untrackedTodoTargets(oldJournal: Journal, newJournal: Journal): Journal = {
       // TODO: Optimize
-      val untracked = new MutableMap[TRef[_], Entry](newJournal)
+      val untracked = MutableMap.from(newJournal)
 
-      val it = newJournal.entrySet.iterator
+      val it = newJournal.keysIterator
       while (it.hasNext) {
-        val entry = it.next
-        val key   = entry.getKey
-        val value = entry.getValue
-        if (oldJournal.containsKey(key)) {
+        val key = it.next
+        if (oldJournal.contains(key)) {
           // We already tracked this one, remove it:
           untracked.remove(key)
         }
@@ -1894,9 +1955,10 @@ object ZSTM {
       fiberId: FiberId,
       stm: ZSTM[R, E, A],
       r: ZEnvironment[R]
-    )(implicit unsafe: Unsafe, lock: ReentrantLock): TryCommit[E, A] = {
-      var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
-      var value   = null.asInstanceOf[TExit[E, A]]
+    )(implicit unsafe: Unsafe): TryCommit[E, A] = {
+      var journal              = null.asInstanceOf[MutableMap[TRef[_], Entry]]
+      var value                = null.asInstanceOf[TExit[E, A]]
+      var trefs: List[TRef[?]] = Nil
 
       var loop    = true
       var retries = 0
@@ -1905,9 +1967,9 @@ object ZSTM {
         journal = allocJournal(journal)
 
         if (retries > MaxRetries) {
-          lock.lock()
-          try {
+          LockSupport.lock(trefs) {
             value = stm.run(journal, fiberId, r)
+            trefs = journal.keys.toList
 
             value match {
               case _: TExit.Succeed[_] =>
@@ -1917,22 +1979,19 @@ object ZSTM {
               case _ =>
                 retries = 0
             }
-          } finally {
-            lock.unlock()
           }
         } else {
           value = stm.run(journal, fiberId, r)
+          trefs = journal.keys.toList
+
           loop = false
           val isSuccess = value.isInstanceOf[TExit.Succeed[_]]
-          if (lock.tryLock()) {
-            try {
-              val analysis = analyzeJournal(journal, isSuccess)
-              if (analysis == JournalAnalysis.Invalid) loop = true
-              else if (analysis == JournalAnalysis.ReadWrite && isSuccess) commitJournal(journal)
-            } finally lock.unlock()
-          } else {
-            loop = true
+          val acquired = LockSupport.tryLock(trefs) {
+            val analysis = analyzeJournal(journal, isSuccess)
+            if (analysis == JournalAnalysis.Invalid) loop = true
+            else if (analysis == JournalAnalysis.ReadWrite && isSuccess) commitJournal(journal)
           }
+          if (!acquired) loop = true
         }
 
         retries += 1
@@ -1957,7 +2016,7 @@ object ZSTM {
       r: ZEnvironment[R]
     )(
       k: ZIO[R, E, A] => Any
-    )(implicit trace: Trace, unsafe: Unsafe, lock: ReentrantLock): Unit = {
+    )(implicit trace: Trace, unsafe: Unsafe): Unit = {
       def complete(exit: Exit[E, A]): Unit = { k(ZIO.done(exit)); () }
 
       @tailrec
@@ -1969,16 +2028,15 @@ object ZSTM {
           case TryCommit.Suspend(journal2) =>
             val untracked = untrackedTodoTargets(accum, journal2)
 
-            if (untracked.size > 0) {
-              accum.putAll(untracked)
+            if (untracked.nonEmpty) {
+              accum.addAll(untracked)
 
               suspend(accum, untracked)
             }
         }
       }
 
-      lock.lock()
-      try {
+      Sync(state) {
         if (state.get.isRunning) {
           if (journal ne null) suspend(journal, journal)
           else
@@ -1987,8 +2045,6 @@ object ZSTM {
               case TryCommit.Suspend(journal) => suspend(journal, journal)
             }
         }
-      } finally {
-        lock.unlock()
       }
     }
 
@@ -1998,9 +2054,11 @@ object ZSTM {
       stm: ZSTM[R, E, A],
       state: AtomicReference[State[E, A]],
       r: ZEnvironment[R]
-    )(implicit unsafe: Unsafe, lock: ReentrantLock): TryCommit[E, A] = {
+    )(implicit unsafe: Unsafe): TryCommit[E, A] = {
       var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
+
+      var trefs = List.empty[TRef[?]]
 
       var loop    = true
       var retries = 0
@@ -2009,9 +2067,9 @@ object ZSTM {
         journal = allocJournal(journal)
 
         if (retries > MaxRetries) {
-          lock.lock()
-          try {
+          LockSupport.lock(trefs) {
             value = stm.run(journal, fiberId, r)
+            trefs = journal.keys.toList
 
             value match {
               case _: TExit.Succeed[_] =>
@@ -2024,27 +2082,23 @@ object ZSTM {
               case _ =>
                 retries = 0
             }
-          } finally {
-            lock.unlock()
           }
         } else {
           value = stm.run(journal, fiberId, r)
+          trefs = journal.keys.toList
           loop = false
-
           val isSuccess = value.isInstanceOf[TExit.Succeed[_]]
-          val isRunning = isSuccess && state.compareAndSet(State.Running, State.done(value))
-          if (lock.tryLock()) {
-            try {
-              val analysis = analyzeJournal(journal, isRunning)
-              (analysis: @switch) match {
-                case JournalAnalysis.Invalid                => loop = true
-                case JournalAnalysis.ReadWrite if isRunning => commitJournal(journal)
-                case _                                      => ()
-              }
-            } finally lock.unlock()
-          } else {
-            loop = true
+
+          val acquired = LockSupport.tryLock(trefs) {
+            val isRunning = isSuccess && state.compareAndSet(State.Running, State.done(value))
+            val analysis  = analyzeJournal(journal, isRunning)
+            (analysis: @switch) match {
+              case JournalAnalysis.Invalid                => loop = true
+              case JournalAnalysis.ReadWrite if isRunning => commitJournal(journal)
+              case _                                      => ()
+            }
           }
+          if (!acquired) loop = true
         }
 
         retries += 1
@@ -2078,19 +2132,24 @@ object ZSTM {
     }
 
     abstract class Entry { self =>
-      type S
+      type S <: AnyRef
 
       val tref: TRef[S]
 
-      private[stm] val expected: Versioned[S]
+      private[stm] val expected: S
 
       protected[this] var newValue: S
 
-      private[this] var _isChanged = false
+      protected[this] var _isChanged: Boolean
 
       def unsafeSet(value: Any): Unit = {
-        _isChanged = true
+        if (!_isChanged) _isChanged = true
         newValue = value.asInstanceOf[S]
+      }
+
+      def unsafeUpdate(f: Any => Any): Unit = {
+        if (!_isChanged) _isChanged = true
+        newValue = f(newValue).asInstanceOf[S]
       }
 
       def unsafeGet[B]: B = newValue.asInstanceOf[B]
@@ -2098,17 +2157,17 @@ object ZSTM {
       /**
        * Commits the new value to the `TRef`.
        */
-      def commit(): Unit = tref.versioned = new Versioned(newValue)
+      def commit(): Unit = tref.versioned = newValue
 
       /**
        * Creates a copy of the Entry.
        */
       def copy(): Entry = new Entry {
         type S = self.S
-        val tref     = self.tref
-        val expected = self.expected
-        var newValue = self.newValue
-        _isChanged = self.isChanged
+        val tref       = self.tref
+        val expected   = self.expected
+        var newValue   = self.newValue
+        var _isChanged = self.isChanged
       }
 
       /**
@@ -2116,10 +2175,10 @@ object ZSTM {
        */
       private[stm] def reset(resetValue: Any): Entry = new Entry {
         type S = self.S
-        val tref     = self.tref
-        val expected = self.expected
-        var newValue = resetValue.asInstanceOf[S]
-        _isChanged = false
+        val tref       = self.tref
+        val expected   = self.expected
+        var newValue   = resetValue.asInstanceOf[S]
+        var _isChanged = false
       }
 
       /**
@@ -2132,7 +2191,7 @@ object ZSTM {
        * Determines if the entry is valid. That is, if the version of the `TRef`
        * is equal to the expected version.
        */
-      def isValid: Boolean = tref.versioned eq expected
+      def isValid: Boolean = tref.versioned.asInstanceOf[AnyRef] eq expected
 
       /**
        * Determines if the variable has been set in a transaction.
@@ -2140,7 +2199,7 @@ object ZSTM {
       def isChanged: Boolean = _isChanged
 
       override def toString: String =
-        s"Entry(expected.value = ${expected.value}, newValue = $newValue, tref = $tref, isChanged = $isChanged)"
+        s"Entry(expected.value = ${expected}, newValue = $newValue, tref = $tref, isChanged = $isChanged)"
     }
 
     object Entry {
@@ -2149,16 +2208,14 @@ object ZSTM {
        * Creates an entry for the journal, given the `TRef` being untracked, the
        * new value of the `TRef`, and the expected version of the `TRef`.
        */
-      private[stm] def apply[A0](tref0: TRef[A0]): Entry = {
-        val versioned = tref0.versioned
-
+      private[stm] def apply[A0 <: AnyRef](tref0: TRef[A0]): Entry =
         new Entry {
           type S = A0
-          val tref     = tref0
-          val expected = versioned
-          var newValue = versioned.value
+          val tref       = tref0
+          val expected   = tref.versioned
+          var newValue   = expected
+          var _isChanged = false
         }
-      }
     }
 
     sealed abstract class TryCommit[+E, +A]

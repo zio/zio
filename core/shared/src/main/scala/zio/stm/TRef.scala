@@ -16,11 +16,12 @@
 
 package zio.stm
 
-import zio.{Trace, UIO, Unsafe}
+import zio.{&, Trace, UIO, Unsafe}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM.internal._
 
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.ReentrantLock
 
 /**
  * A `TRef` is a purely functional description of a mutable reference that can
@@ -35,9 +36,15 @@ import java.util.concurrent.atomic.AtomicReference
  * do not support concurrent access.
  */
 final class TRef[A] private (
-  @volatile private[stm] var versioned: Versioned[A],
+  @volatile private[stm] var versioned: A,
   private[stm] val todo: AtomicReference[Map[TxnId, Todo]]
 ) extends Serializable { self =>
+
+  @deprecated("kept for binary compatibility only", "2.1.8")
+  def this(versioned: Versioned[A], todo: AtomicReference[Map[TxnId, Todo]]) =
+    this(versioned.value, todo)
+
+  private[stm] val lock: ReentrantLock = new ReentrantLock()
 
   /**
    * Retrieves the value of the `TRef`.
@@ -104,16 +111,15 @@ final class TRef[A] private (
     }
 
   override def toString: String =
-    s"TRef(id = ${self.hashCode()}, versioned.value = ${versioned.value}, todo = ${todo.get})"
+    s"TRef(id = ${self.hashCode()}, versioned.value = ${versioned}, todo = ${todo.get})"
 
   /**
    * Updates the value of the variable.
    */
   def update(f: A => A): USTM[Unit] =
     ZSTM.Effect { (journal, _, _) =>
-      val entry    = getOrMakeEntry(journal)
-      val newValue = f(entry.unsafeGet[A])
-      entry.unsafeSet(newValue)
+      val entry = journal.getOrElseUpdate(self, newEntry)
+      entry.unsafeUpdate(f.asInstanceOf[Any => Any])
       ()
     }
 
@@ -141,8 +147,10 @@ final class TRef[A] private (
   def updateSomeAndGet(f: PartialFunction[A, A]): USTM[A] =
     updateAndGet(f orElse { case a => a })
 
+  private[this] def newEntry: Entry = Entry(self.asInstanceOf[TRef[A & AnyRef]])
+
   private[stm] def getOrMakeEntry(journal: Journal): Entry =
-    journal.computeIfAbsent(self, TRef.makeEntry)
+    journal.getOrElseUpdate(self, newEntry)
 
   private[stm] def unsafeGet(journal: Journal): A =
     getOrMakeEntry(journal).unsafeGet
@@ -152,8 +160,6 @@ final class TRef[A] private (
 }
 
 object TRef {
-
-  private val makeEntry: java.util.function.Function[TRef[_], Entry] = (tref: TRef[_]) => Entry(tref)
 
   /**
    * Makes a new `TRef` that is initialized to the specified value.
@@ -173,9 +179,6 @@ object TRef {
       TRef.unsafeMake(a)
   }
 
-  private[stm] def unsafeMake[A](a: A): TRef[A] = {
-    val versioned = new Versioned(a)
-    val todo      = new AtomicReference[Map[TxnId, Todo]](Map())
-    new TRef(versioned, todo)
-  }
+  private[stm] def unsafeMake[A](a: A): TRef[A] =
+    new TRef(a, new AtomicReference[Map[TxnId, Todo]](Map()))
 }
