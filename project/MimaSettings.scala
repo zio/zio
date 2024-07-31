@@ -3,13 +3,12 @@ import com.typesafe.tools.mima.core.ProblemFilters.*
 import com.typesafe.tools.mima.plugin.MimaKeys.*
 import sbt.*
 import sbt.Keys.{name, organization}
+import sbtdynver.DynVerPlugin.autoImport.*
 
 object MimaSettings {
-  lazy val bincompatVersionToCompare = "2.1.0"
-
   def mimaSettings(failOnProblem: Boolean) =
     Seq(
-      mimaPreviousArtifacts := Set(organization.value %% name.value % bincompatVersionToCompare),
+      mimaPreviousArtifacts ++= previousStableVersion.value.map(organization.value %% name.value % _).toSet,
       mimaBinaryIssueFilters ++= Seq(
         exclude[Problem]("zio.internal.*"),
         exclude[FinalMethodProblem]("zio.ZIO#EvaluationStep#*"),
@@ -30,9 +29,11 @@ object MimaSettings {
         exclude[IncompatibleResultTypeProblem]("zio.stream.ZChannel#MergeState#BothRunning.*"),
         exclude[DirectMissingMethodProblem]("zio.stream.ZChannel#MergeState#BothRunning.copy"),
         exclude[DirectMissingMethodProblem]("zio.stream.ZChannel#MergeState#BothRunning.*"),
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala$extension"),
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala"),
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala$extension")
+        exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala$extension"),
+        exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala"),
+        exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala$extension"),
+        exclude[IncompatibleMethTypeProblem]("zio.Queue#Strategy*"),
+        exclude[ReversedMissingMethodProblem]("zio.Queue#Strategy*")
       ),
       mimaFailOnProblem := failOnProblem
     )

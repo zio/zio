@@ -24,9 +24,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.function.IntFunction
 import java.util.{Set => JavaSet}
 import scala.annotation.tailrec
-import scala.util.control.ControlThrowable
 
 final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtimeFlags0: RuntimeFlags)
     extends Fiber.Runtime.Internal[E, A]
@@ -34,7 +34,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   self =>
   type Erased = ZIO.Erased
 
-  import FiberRuntime.{AsyncJump, DisableAssertions, EvaluationSignal, stackTraceBuilderPool}
+  import FiberRuntime.{DisableAssertions, EvaluationSignal, emptyTrace, stackTraceBuilderPool}
   import ZIO._
 
   private var _lastTrace      = fiberId.location
@@ -49,7 +49,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var runningExecutor = null.asInstanceOf[Executor]
   private var _stack          = null.asInstanceOf[Array[Continuation]]
   private var _stackSize      = 0
-  private val emptyTrace      = Trace.empty
+  private var _isInterrupted  = false
 
   private var _forksSinceYield = 0
 
@@ -203,6 +203,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private def addInterruptedCause(cause: Cause[Nothing]): Unit = {
     val oldSC = getFiberRef(FiberRef.interruptedCause)
 
+    _isInterrupted = true
     setFiberRef(FiberRef.interruptedCause, oldSC ++ cause)
   }
 
@@ -750,17 +751,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * on this fiber, then values derived from the fiber's state (including the
    * log annotations and log level) may not be up-to-date.
    */
-  private[zio] def isInterrupted(): Boolean = {
-    val interruptedCause = getFiberRef(FiberRef.interruptedCause)
-
-    interruptedCause.nonEmpty || {
+  private[zio] def isInterrupted(): Boolean =
+    _isInterrupted || {
       if (Thread.interrupted()) {
         addInterruptedCause(Cause.interrupt(FiberId.None))
 
         true
       } else false
     }
-  }
 
   private[zio] def isInterruptible(): Boolean =
     RuntimeFlags.interruptible(_runtimeFlags)
@@ -815,23 +813,35 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     cause: Cause[E],
     continueEffect: ZIO[R, E, A]
   ): ZIO[R, E, A] = {
-    import RuntimeFlags.Patch.{isDisabled, isEnabled}
+    val changed          = patchRuntimeFlagsOnly(patch)
+    val interruptEnabled = RuntimeFlags.Patch.isEnabled(patch, RuntimeFlag.Interruption.mask)
 
-    val oldFlags = _runtimeFlags
-    val newFlags = RuntimeFlags.patch(patch)(oldFlags)
-    if (oldFlags == newFlags) return continueEffect
-
-    if (isEnabled(patch, RuntimeFlag.CurrentFiber.mask)) {
-      Fiber._currentFiber.set(self)
-    } else if (isDisabled(patch, RuntimeFlag.CurrentFiber.mask)) Fiber._currentFiber.set(null)
-
-    _runtimeFlags = newFlags
-
-    if (shouldInterrupt()) { // TODO: Be smarter; don't do the whole check since we can deduce the condition.
+    if (changed && interruptEnabled && shouldInterrupt()) {
       if (cause ne null) Exit.Failure(cause ++ getInterruptedCause())
       else Exit.Failure(getInterruptedCause())
     } else if (cause ne null) Exit.Failure(cause)
     else continueEffect
+  }
+
+  /**
+   * Same as [[patchRuntimeFlags]] but without the check for interruption.
+   */
+  private def patchRuntimeFlagsOnly(patch: RuntimeFlags.Patch): Boolean = {
+    import RuntimeFlags.Patch.{isDisabled, isEnabled}
+
+    val oldFlags = _runtimeFlags
+    val newFlags = RuntimeFlags.patch(patch)(oldFlags)
+    val changed  = oldFlags != newFlags
+    if (changed) {
+      if (isEnabled(patch, RuntimeFlag.CurrentFiber.mask)) {
+        Fiber._currentFiber.set(self)
+      } else if (isDisabled(patch, RuntimeFlag.CurrentFiber.mask)) {
+        Fiber._currentFiber.set(null)
+      }
+
+      _runtimeFlags = newFlags
+    }
+    changed
   }
 
   /**
@@ -1116,92 +1126,43 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 cur = Exit.failCause(getInterruptedCause())
               }
 
-            case effect: UpdateRuntimeFlagsWithin[_, _, _] =>
-              updateLastTrace(effect.trace)
-              val updateFlags     = effect.update
+            case update0: UpdateRuntimeFlagsWithin.DynamicNoBox[_, _, _] =>
+              updateLastTrace(update0.trace)
+              val updateFlags     = update0.update
               val oldRuntimeFlags = _runtimeFlags
               val newRuntimeFlags = RuntimeFlags.patch(updateFlags)(oldRuntimeFlags)
 
-              if (newRuntimeFlags == oldRuntimeFlags) {
+              if (oldRuntimeFlags == newRuntimeFlags) {
                 // No change, short circuit:
-                cur = effect.scope(oldRuntimeFlags).asInstanceOf[ZIO.Erased]
-              } else {
+                cur = update0.f(oldRuntimeFlags)
+              } else if (RuntimeFlags.interruptible(newRuntimeFlags) && isInterrupted()) {
                 // One more chance to short circuit: if we're immediately going to interrupt.
                 // Interruption will cause immediate reversion of the flag, so as long as we
                 // "peek ahead", there's no need to set them to begin with.
-                if (RuntimeFlags.interruptible(newRuntimeFlags) && isInterrupted()) {
-                  cur = Exit.Failure(getInterruptedCause())
-                } else {
-                  // Impossible to short circuit, so record the changes:
-                  val _ = patchRuntimeFlags(updateFlags, null, null)
+                cur = Exit.Failure(getInterruptedCause())
+              } else {
+                // Impossible to short circuit, so record the changes:
+                val _           = patchRuntimeFlagsOnly(updateFlags)
+                val revertFlags = RuntimeFlags.diff(newRuntimeFlags, oldRuntimeFlags)
 
-                  // Since we updated the flags, we need to revert them:
-                  val revertFlags = RuntimeFlags.diff(newRuntimeFlags, oldRuntimeFlags)
+                // Since we updated the flags, we need to revert them:
+                val k = ZIO.UpdateRuntimeFlags(update0.trace, revertFlags)
 
-                  val k = ZIO.UpdateRuntimeFlags(effect.trace, revertFlags)
+                stackIndex = pushStackFrame(k, stackIndex)
 
-                  stackIndex = pushStackFrame(k, stackIndex)
+                val exit = runLoop(update0.f(oldRuntimeFlags), stackIndex, stackIndex, currentDepth + 1)
 
-                  val exit = runLoop(
-                    effect.scope(oldRuntimeFlags).asInstanceOf[ZIO.Erased],
-                    stackIndex,
-                    stackIndex,
-                    currentDepth + 1
-                  )
+                if (null eq exit)
+                  return null
+                else {
 
-                  if (null eq exit)
-                    return null
-                  else {
+                  stackIndex -= 1
+                  popStackFrame(stackIndex)
 
-                    stackIndex -= 1
-                    popStackFrame(stackIndex)
-
-                    // Go backward, on the stack:
-                    cur = patchRuntimeFlags(revertFlags, exit.causeOrNull, exit)
-                  }
+                  // Go backward, on the stack:
+                  cur = patchRuntimeFlags(revertFlags, exit.causeOrNull, exit)
                 }
               }
-
-            case gen0: GenerateStackTrace =>
-              updateLastTrace(gen0.trace)
-              cur = Exit.succeed(generateStackTrace())
-
-            case failure: Exit.Failure[_] =>
-              var cause = failure.cause.asInstanceOf[Cause[Any]]
-
-              cur = null
-
-              while ((cur eq null) && stackSegmentIsNonEmpty(stackIndex, minStackIndex)) {
-                stackIndex -= 1
-
-                val continuation = _stack(stackIndex)
-
-                popStackFrame(stackIndex)
-
-                continuation match {
-                  case flatMap: ZIO.FlatMap[_, _, _, _] =>
-
-                  case foldZIO: ZIO.FoldZIO[_, _, _, _, _] =>
-                    if (shouldInterrupt()) {
-                      cause = cause.stripFailures
-                    } else {
-                      val f = foldZIO.failureK.asInstanceOf[Cause[Any] => ZIO.Erased]
-
-                      cur = f(cause)
-                    }
-
-                  case updateFlags: ZIO.UpdateRuntimeFlags =>
-                    cur = patchRuntimeFlags(updateFlags.update, cause, null)
-                }
-              }
-
-              if (cur eq null) {
-                return failure
-              }
-
-            case updateRuntimeFlags: UpdateRuntimeFlags =>
-              updateLastTrace(updateRuntimeFlags.trace)
-              cur = patchRuntimeFlags(updateRuntimeFlags.update, null, Exit.unit)
 
             case iterate0: WhileLoop[_, _, _] =>
               updateLastTrace(iterate0.trace)
@@ -1245,6 +1206,54 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               } else {
                 cur = Exit.unit
               }
+
+            case failure: Exit.Failure[_] =>
+              var cause = failure.cause.asInstanceOf[Cause[Any]]
+
+              cur = null
+
+              while ((cur eq null) && stackSegmentIsNonEmpty(stackIndex, minStackIndex)) {
+                stackIndex -= 1
+
+                val continuation = _stack(stackIndex)
+
+                popStackFrame(stackIndex)
+
+                continuation match {
+                  case flatMap: ZIO.FlatMap[_, _, _, _] =>
+
+                  case foldZIO: ZIO.FoldZIO[_, _, _, _, _] =>
+                    if (shouldInterrupt()) {
+                      cause = cause.stripFailures
+                    } else {
+                      val f = foldZIO.failureK.asInstanceOf[Cause[Any] => ZIO.Erased]
+
+                      cur = f(cause)
+                    }
+
+                  case updateFlags: ZIO.UpdateRuntimeFlags =>
+                    cur = patchRuntimeFlags(updateFlags.update, cause, null)
+                }
+              }
+
+              if (cur eq null) {
+                return failure
+              }
+
+            case gen0: GenerateStackTrace =>
+              updateLastTrace(gen0.trace)
+              cur = Exit.succeed(generateStackTrace())
+
+            case updateRuntimeFlags: UpdateRuntimeFlags =>
+              updateLastTrace(updateRuntimeFlags.trace)
+              cur = patchRuntimeFlags(updateRuntimeFlags.update, null, Exit.unit)
+
+            // Should be unreachable, but we keep it to be backwards compatible
+            case update0: UpdateRuntimeFlagsWithin[_, _, _] =>
+              assert(DisableAssertions) // Will raise an error in tests but not in released artifact
+              val k = (update0.scope _).asInstanceOf[IntFunction[ZIO.Erased]]
+              cur = UpdateRuntimeFlagsWithin.DynamicNoBox(update0.trace, update0.update, k)
+
           }
         } catch {
           // TODO: ClosedByInterruptException (but Scala.js??)
@@ -1522,6 +1531,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 }
 
 object FiberRuntime {
+  private val emptyTrace = Trace.empty
+
   private final val MaxForksBeforeYield      = 128
   private final val MaxOperationsBeforeYield = 1024 * 10
   private final val MaxDepthBeforeTrampoline = 300
@@ -1545,8 +1556,6 @@ object FiberRuntime {
     final val YieldNow = 2
     final val Done     = 3
   }
-
-  private object AsyncJump extends ControlThrowable
 
   import java.util.concurrent.atomic.AtomicBoolean
 
