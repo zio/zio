@@ -1110,10 +1110,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   private final def toArrayOption[A1 >: A]: Option[Array[A1]] =
     self match {
       case Chunk.Empty => None
-      case chunk =>
-        try {
-          Some(chunk.toArray(Chunk.classTagOf(self)))
-        }
+      case chunk       => Some(chunk.toArray(Chunk.classTagOf(self)))
     }
 }
 
