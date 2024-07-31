@@ -208,7 +208,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.3.8")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.3.9")
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
   .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
@@ -216,7 +216,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     replSettings,
     mimaSettings(failOnProblem = true),
     libraryDependencies += "org.jctools" % "jctools-core" % "4.0.5",
-    assemblyShadeRules += ShadeRule.rename("org.jctools.core.**" -> "zio.shade.@0").inAll // Shaded as zio.shade.org.jctools.core.foo
+    assemblyShadeRules += ShadeRule
+      .rename("org.jctools.core.**" -> "zio.shade.@0")
+      .inAll // Shaded as zio.shade.org.jctools.core.foo
   )
   .jsSettings(
     jsSettings,
@@ -237,7 +239,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .nativeSettings(
     nativeSettings,
     libraryDependencies ++= Seq(
-      "com.github.lolgab" %%% "native-loop-core" % "0.2.1"
+      "com.github.lolgab" %%% "native-loop-core" % "0.3.0"
     )
   )
 
@@ -397,7 +399,7 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroExpansionSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.2")
+      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.3")
         .cross(CrossVersion.for3Use2_13)
     )
   )
@@ -407,16 +409,16 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .jsSettings(
     jsSettings,
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.5.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.5.0"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.6.0",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.6.0"
     )
   )
   .nativeSettings(
     nativeSettings,
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.5.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.5.0",
-      "com.github.lolgab" %%% "scala-native-crypto"  % "0.0.4"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.6.0",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.6.0",
+      "com.github.lolgab" %%% "scala-native-crypto"  % "0.1.0"
     )
   )
 
@@ -501,7 +503,7 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(crossProjectSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.scalacheck" %%% "scalacheck" % "1.17.1")
+      ("org.scalacheck" %%% "scalacheck" % "1.18.0")
     )
   )
   .jsSettings(jsSettings)
@@ -718,7 +720,7 @@ lazy val scalafixRules = project.module
   .settings(
     scalafixSettings,
     semanticdbEnabled                      := true, // enable SemanticDB
-    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.10.4"
+    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.12.1"
   )
 
 val zio1Version = "1.0.18"
@@ -746,7 +748,7 @@ lazy val scalafixTests = project
   .settings(
     scalafixSettings,
     publish / skip                        := true,
-    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.12.0" % Test cross CrossVersion.full,
+    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.12.1" % Test cross CrossVersion.full,
     Compile / compile :=
       (Compile / compile).dependsOn(scalafixInput / Compile / compile).value,
     scalafixTestkitOutputSourceDirectories :=

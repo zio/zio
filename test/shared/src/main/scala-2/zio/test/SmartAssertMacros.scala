@@ -47,18 +47,49 @@ class SmartAssertMacros(val c: blackbox.Context) {
     case class Raw(ast: c.Tree, span: (Int, Int))                              extends AST
   }
 
-  case class AssertAST(name: String, tpes: List[Type] = List.empty, args: List[c.Tree] = List.empty)
+  case class AssertAST(
+    name: String,
+    tpes: List[Type] = List.empty,
+    args: List[c.Tree] = List.empty,
+    implicits: Boolean = false
+  ) {
+    def this(name: String, tpes: List[Type], args: List[c.Tree]) =
+      this(name, tpes, args, false)
+    def copy(name: String = name, tpes: List[Type] = tpes, args: List[c.Tree] = args): AssertAST =
+      AssertAST(name, tpes, args, implicits)
+  }
 
   object AssertAST {
-    def toTree(assertAST: AssertAST): c.Tree = assertAST match {
-      case AssertAST(name, List(), List()) =>
-        q"$SA.${TermName(name)}"
-      case AssertAST(name, List(), args) =>
-        q"$SA.${TermName(name)}(..$args)"
-      case AssertAST(name, tpes, List()) =>
-        q"$SA.${TermName(name)}[..$tpes]"
-      case AssertAST(name, tpes, args) =>
-        q"$SA.${TermName(name)}[..$tpes](..$args)"
+    def apply(name: String, tpes: List[Type], args: List[c.Tree]): AssertAST = AssertAST(name, tpes, args, false)
+
+    def toTree(assertAST: AssertAST): c.Tree = {
+      val implicits = q"import zio.test.internal.SmartAssertions.Implicits._"
+      if (assertAST.implicits)
+        assertAST match {
+          case AssertAST(name, List(), List(), _) =>
+            q"""{$implicits
+            $SA.${TermName(name)}}"""
+          case AssertAST(name, List(), args, _) =>
+            q"""{$implicits
+            $SA.${TermName(name)}(..$args)}"""
+          case AssertAST(name, tpes, List(), _) =>
+            q"""{$implicits
+            $SA.${TermName(name)}[..$tpes]}"""
+          case AssertAST(name, tpes, args, _) =>
+            q"""{$implicits
+            $SA.${TermName(name)}[..$tpes](..$args)}"""
+        }
+      else
+        assertAST match {
+          case AssertAST(name, List(), List(), _) =>
+            q"$SA.${TermName(name)}"
+          case AssertAST(name, List(), args, _) =>
+            q"$SA.${TermName(name)}(..$args)"
+          case AssertAST(name, tpes, List(), _) =>
+            q"$SA.${TermName(name)}[..$tpes]"
+          case AssertAST(name, tpes, args, _) =>
+            q"$SA.${TermName(name)}[..$tpes](..$args)"
+        }
     }
   }
 
@@ -322,15 +353,15 @@ $TestResult($ast.withCode($codeString).meta(location = $location))
   object Matcher {
 
     def tpesPriority(tpe: Type): Int =
-      tpe.toString match {
-        case "Byte"   => 0
-        case "Short"  => 1
-        case "Char"   => 2
-        case "Int"    => 3
-        case "Long"   => 4
-        case "Float"  => 5
-        case "Double" => 6
-        case _        => -1
+      tpe.typeSymbol.fullName match {
+        case "scala.Byte" | "java.lang.Byte"      => 0
+        case "scala.Short" | "java.lang.Short"    => 1
+        case "scala.Char" | "java.lang.Character" => 2
+        case "scala.Int" | "java.lang.Integer"    => 3
+        case "scala.Long" | "java.lang.Long"      => 4
+        case "scala.Float" | "java.lang.Float"    => 5
+        case "scala.Double" | "java.lang.Double"  => 6
+        case _                                    => -1
       }
 
     // `true` for conversion from `lhs` to `rhs`.
@@ -349,15 +380,18 @@ $TestResult($ast.withCode($codeString).meta(location = $location))
       } else if (tpesPriority(rhs) - tpesPriority(lhs) > 0) Some(true)
       else Some(false)
 
+    def needsImplicits(lhs: Type, rhs: Type) =
+      lhs.typeSymbol.fullName.contains("java.lang") || rhs.typeSymbol.fullName.contains("java.lang")
+
     def comparisonConverter(lhsTpe: Type, args: List[c.Tree], methodName: String): AssertAST = {
       val rhsTpe = args.head.tpe.widen
       if (lhsTpe =:= rhsTpe)
         AssertAST(methodName, List(lhsTpe), args)
       else
         implicitConversionDirection(lhsTpe, rhsTpe) match {
-          case Some(true)  => AssertAST(methodName ++ "L", List(lhsTpe, rhsTpe), args)
-          case Some(false) => AssertAST(methodName ++ "R", List(lhsTpe, rhsTpe), args)
-          case None        => AssertAST(methodName, List(lhsTpe), args)
+          case Some(true)  => AssertAST(methodName ++ "L", List(lhsTpe, rhsTpe), args, needsImplicits(lhsTpe, rhsTpe))
+          case Some(false) => AssertAST(methodName ++ "R", List(lhsTpe, rhsTpe), args, needsImplicits(lhsTpe, rhsTpe))
+          case None        => AssertAST(methodName, List(lhsTpe), args, needsImplicits(lhsTpe, rhsTpe))
         }
     }
 

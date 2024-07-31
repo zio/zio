@@ -600,7 +600,15 @@ object ZStreamSpec extends ZIOBaseSpec {
               _  <- latch.await
               l2 <- ref.get
             } yield assert(l1.toList)(equalTo((1 to 2).toList)) && assert(l2.reverse)(equalTo((1 to 4).toList))
-          } @@ jvm(nonFlaky)
+          } @@ jvm(nonFlaky),
+          test("preservers order of elements") {
+            val expected = Chunk.fromIterable(0 until 100)
+            ZStream
+              .fromChunk(expected)
+              .buffer(16)
+              .runCollect
+              .map(v => assertTrue(v == expected))
+          } @@ jvm(nonFlaky(1000))
         ),
         suite("bufferChunksDropping")(
           test("buffer the Stream with Error") {
