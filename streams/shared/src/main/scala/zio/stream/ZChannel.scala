@@ -682,6 +682,35 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     }
 
   /**
+   * Creates a channel that is like this channel but the given ZIO function gets
+   * applied to each emitted output element, taking `n` elements at once and
+   * mapping them in parallel
+   * @param n
+   *   The maximum number of elements to map in parallel
+   * @param bufferSize
+   *   Number of elements that can be buffered downstream
+   */
+  final def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
+    f: OutElem => ZIO[Env1, OutErr1, OutElem2]
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
+    mapOutZIOPar[Env1, OutErr1, OutElem2](n)(f)
+
+  /**
+   * Creates a channel that is like this channel but the given ZIO function gets
+   * applied to each emitted output element, taking `n` elements at once and
+   * mapping them in parallel. Order of elements downstream is not guaranteed to
+   * be preserved.
+   * @param n
+   *   The maximum number of elements to map in parallel
+   * @param bufferSize
+   *   Number of elements that can be buffered downstream
+   */
+  final def mapOutZIOParUnordered[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
+    f: OutElem => ZIO[Env1, OutErr1, OutElem2]
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
+    mapOutZIOPar[Env1, OutErr1, OutElem2](n, bufferSize)(f)
+
+  /**
    * Returns a new channel which creates a new channel for each emitted element
    * and merges some of them together. Different merge strategies control what
    * happens if there are more than the given maximum number of channels gets

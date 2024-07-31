@@ -1931,6 +1931,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   ): ZStream[R1, E1, A2] =
     self >>> ZPipeline.mapZIOPar(n)(f)
 
+  @deprecated("use stream.mapZIOPar(n)(f).buffer(bufferSize)", "3.0.0")
+  def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: Int)(f: A => ZIO[R1, E1, A2])(implicit
+    trace: Trace
+  ): ZStream[R1, E1, A2] =
+    mapZIOPar[R1, E1, A2](n)(f).buffer(bufferSize)
+
   /**
    * Maps over elements of the stream with the specified effectful function,
    * partitioned by `p` executing invocations of `f` concurrently. The number of
@@ -1954,6 +1960,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     trace: Trace
   ): ZStream[R1, E1, A2] =
     self >>> ZPipeline.mapZIOParUnordered(n)(f)
+
+  @deprecated("use stream.mapZIOParUnordered(n)(f).buffer(bufferSize)", "3.0.0")
+  def mapZIOParUnordered[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: => Int)(f: A => ZIO[R1, E1, A2])(implicit
+    trace: Trace
+  ): ZStream[R1, E1, A2] =
+    mapZIOParUnordered[R1, E1, A2](n)(f).buffer(bufferSize)
 
   /**
    * Merges this stream and the specified stream together.

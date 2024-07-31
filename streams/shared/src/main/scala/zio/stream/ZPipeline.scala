@@ -496,6 +496,12 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
   ): ZPipeline[Env2, Err2, In, Out2] =
     self >>> ZPipeline.mapZIOPar(n)(f)
 
+  @deprecated("Use mapZIOPar(n)(f)", "3.0.0")
+  def mapZIOPar[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int)(f: Out => ZIO[Env2, Err2, Out2])(implicit
+    trace: Trace
+  ): ZPipeline[Env2, Err2, In, Out2] =
+    mapZIOPar[Env2, Err2, Out2](n)(f)
+
   /**
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. The element order is
@@ -505,6 +511,12 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     trace: Trace
   ): ZPipeline[Env2, Err2, In, Out2] =
     self >>> ZPipeline.mapZIOParUnordered(n)(f)
+
+  @deprecated("use mapZIOParUnordered(n)(f)", "3.0.0")
+  def mapZIOParUnordered[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int)(
+    f: Out => ZIO[Env2, Err2, Out2]
+  )(implicit trace: Trace): ZPipeline[Env2, Err2, In, Out2] =
+    mapZIOParUnordered[Env2, Err2, Out2](n)(f)
 
   /**
    * Transforms the errors emitted by this pipeline using `f`.
@@ -1807,6 +1819,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         .mapOut(Chunk.single)
     )
 
+  @deprecated("use mapZIOPar(n)(f)", "3.0.0")
+  def mapZIOPar[Env, Err, In, Out](n: => Int, bufferSize: => Int)(f: In => ZIO[Env, Err, Out])(implicit
+    trace: Trace
+  ): ZPipeline[Env, Err, In, Out] =
+    mapZIOPar(n)(f)
+
   /**
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. The element order is
@@ -1821,6 +1839,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         .concatMap(ZChannel.writeChunk(_))
         .mergeMap(n, 16)(in => ZStream.fromZIO(f(in)).channel)
     )
+
+  @deprecated("use mapZIOParUnordered(n)(f)", "3.0.0")
+  def mapZIOParUnordered[Env, Err, In, Out](n: => Int, bufferSize: => Int)(f: In => ZIO[Env, Err, Out])(implicit
+    trace: Trace
+  ): ZPipeline[Env, Err, In, Out] =
+    mapZIOParUnordered(n)(f)
 
   /**
    * Emits the provided chunk before emitting any other value.
