@@ -136,7 +136,7 @@ We demonstrate this for the "POST /users" endpoint. This process is the same for
 ```scala mdoc:invisible
 import java.util.UUID
 import zio.json._
-import zhttp.http._
+import zio.http._
 
 case class User(name: String, age: Int)
 
@@ -191,7 +191,7 @@ def logAnnotateCorrelationId(
 
     def correlationId(req: Request): UIO[String] =
       ZIO
-        .succeed(req.header("X-Correlation-ID").map(_._2.toString))
+        .succeed(req.headers.get("X-Correlation-ID"))
         .flatMap(x => Random.nextUUID.map(uuid => x.getOrElse(uuid.toString)))
   }
 ```
@@ -199,19 +199,19 @@ def logAnnotateCorrelationId(
 ```scala mdoc:compile-only
 import zio._
 import zio.json._
-import zhttp.http._
+import zio.http._
 
-Http.collectZIO[Request] {
+Routes(
   // POST /users -d '{"name": "John", "age": 35}'
-  case req@(Method.POST -> !! / "users") => {
-    for {
-      body <- req.bodyAsString
+  Method.POST / "users" -> handler { (req: Request) =>
+    (for {
+      body <- req.body.asString
       _ <- ZIO.logInfo(s"POST /users -d $body")
       u = body.fromJson[User]
       r <- u match {
         case Left(e) =>
           ZIO.logErrorCause(s"Failed to parse the input", Cause.fail(e))
-            .as(Response.text(e).setStatus(Status.BadRequest))
+            .as(Response.text(e).status(Status.BadRequest))
         case Right(u) =>
           UserRepo.register(u)
             .foldCauseZIO(
@@ -223,9 +223,9 @@ Http.collectZIO[Request] {
                   .as(Response.text(success))
             )
       }
-    } yield r
-  } @@ logSpan("register-user") @@ logAnnotateCorrelationId(req)
-}
+    } yield r) @@ logSpan("register-user") @@ logAnnotateCorrelationId(req)
+  }
+)
 ```
 
 ## Logging Spans
@@ -296,15 +296,15 @@ To measure the time taken to process the request at different points of the code
 
 ```scala mdoc:compile-only
 import zio._
-import zhttp.http._
+import zio.http._
 
-Http.collectZIO[Request] {
+Routes(
   // POST /users -d '{"name": "John", "age": 35}'
-  case req@(Method.POST -> !! / "users") =>
-    ZIO.logSpan("register-user") {
+  Method.POST / "users" ->
+    handler(ZIO.logSpan("register-user") {
       ??? // registration workflow
-    }
-}
+    })
+)
 ```
 
 As we need the same for all other endpoints, we introduced a new ZIO Aspect called `LogAspect.logSpan` which can be applied to any ZIO workflow. Let's see how it is implemented and how it works:
@@ -421,7 +421,7 @@ As this is a common pattern along with all other endpoints, we created a new ZIO
 
 ```scala mdoc:silent
 import zio._
-import zhttp.http.Request
+import zio.http.Request
 
 object LogAspect {
   def logAnnotateCorrelationId(
@@ -435,7 +435,7 @@ object LogAspect {
 
       def correlationId(req: Request): UIO[String] =
         ZIO
-          .succeed(req.header("X-Correlation-ID").map(_._2.toString))
+          .succeed(req.headers.get("X-Correlation-ID"))
           .flatMap(id => Random.nextUUID.map(uuid => id.getOrElse(uuid.toString)))
     }
 }
@@ -444,7 +444,7 @@ object LogAspect {
 Now, we can apply this aspect to any ZIO workflow:
 
 ```scala mdoc:invisible
-import zhttp.http._
+import zio.http._
 
 val workflow = ZIO.unit
 val req = Request(headers = Headers("X-Correlation-ID" -> "123"))

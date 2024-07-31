@@ -112,7 +112,7 @@ import zio.logging.LogFormat
 import zio.logging.backend.SLF4J
 
 object MainApp extends ZIOAppDefault {
-  override val bootstrap = SLF4J.slf4j(LogLevel.Info, LogFormat.colored)
+  override val bootstrap = SLF4J.slf4j(LogFormat.colored)
 
   def run = ZIO.log("Application started!")
 }
