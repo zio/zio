@@ -168,7 +168,7 @@ final class FiberRefs private (
             else {
               val childDepth = value0.depth
               val ancestor   = findAncestor(ref, parentStack, parentDepth, childStack, childDepth).asInstanceOf[ref.Value]
-              val patch = ref.diff(ancestor, childValue)
+              val patch      = ref.diff(ancestor, childValue)
               ref.patch(patch)(oldValue)
             }
           }
