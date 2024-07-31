@@ -215,9 +215,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .jvmSettings(
     replSettings,
     mimaSettings(failOnProblem = true),
-    libraryDependencies ++= List(
-      "org.jctools" % "jctools-core" % "4.0.5"
-    )
+    libraryDependencies += "org.jctools" % "jctools-core" % "4.0.5",
+    assemblyShadeRules += ShadeRule.rename("org.jctools.core.**" -> "zio.shade.@0").inAll // Shaded as zio.shade.org.jctools.core.foo
   )
   .jsSettings(
     jsSettings,
