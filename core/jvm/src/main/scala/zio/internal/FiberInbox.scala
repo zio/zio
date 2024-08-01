@@ -5,7 +5,7 @@ import org.jctools.queues.atomic.unpadded.MpscLinkedAtomicUnpaddedQueue
 private[zio] final class FiberInbox extends Serializable {
   private val inbox = new MpscLinkedAtomicUnpaddedQueue[FiberMessage]()
 
-  def poll(): FiberMessage = inbox.poll()
+  def poll(): FiberMessage = inbox.relaxedPoll()
 
   def offer(message: FiberMessage): Unit = inbox.offer(message)
 
