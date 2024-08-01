@@ -1929,15 +1929,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    self.mapZIOPar[R1, E1, A2](n, n)(f)
+    self >>> ZPipeline.mapZIOPar(n)(f)
 
+  @deprecated("use stream.mapZIOPar(n)(f).buffer(bufferSize)", "2.1.7")
   def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    self.toChannel
-      .concatMap(ZChannel.writeChunk(_))
-      .mapOutZIOPar[R1, E1, Chunk[A2]](n, bufferSize max n)(a => f(a).map(Chunk.single(_)))
-      .toStream
+    mapZIOPar[R1, E1, A2](n)(f).buffer(bufferSize)
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -1961,15 +1959,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIOParUnordered[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    mapZIOParUnordered[R1, E1, A2](n, 16)(f)
+    self >>> ZPipeline.mapZIOParUnordered(n)(f)
 
+  @deprecated("use stream.mapZIOParUnordered(n)(f).buffer(bufferSize)", "2.1.7")
   def mapZIOParUnordered[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    self.toChannel
-      .concatMap(ZChannel.writeChunk(_))
-      .mapOutZIOParUnordered[R1, E1, Chunk[A2]](n, bufferSize)(a => f(a).map(Chunk.single(_)))
-      .toStream
+    mapZIOParUnordered[R1, E1, A2](n)(f).buffer(bufferSize)
 
   /**
    * Merges this stream and the specified stream together.

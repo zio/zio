@@ -14,7 +14,7 @@ object BuildHelper {
   val Scala3: String   = "3.3.3"
 
   lazy val isRelease = {
-    val value = sys.env.get("CI_RELEASE_MODE").isDefined
+    val value = sys.env.contains("CI_RELEASE_MODE")
     if (value) println("Detected CI_RELEASE_MODE envvar, enabling optimizations")
     value
   }

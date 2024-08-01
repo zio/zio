@@ -32,7 +32,17 @@ object MimaSettings {
         exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala"),
         exclude[IncompatibleResultTypeProblem]("zio.DurationOps.asScala$extension"),
         exclude[IncompatibleMethTypeProblem]("zio.Queue#Strategy*"),
-        exclude[ReversedMissingMethodProblem]("zio.Queue#Strategy*")
+        exclude[ReversedMissingMethodProblem]("zio.Queue#Strategy*"),
+        exclude[MissingClassProblem]("zio.stream.ZChannel$QRes$"),
+        exclude[MissingClassProblem]("zio.stream.ZChannel$QRes"),
+        exclude[DirectMissingMethodProblem]("zio.stream.ZChannel.mergeAllWith0$default$4"),
+        exclude[DirectMissingMethodProblem]("zio.stream.ZChannel.mergeAllWith0$default$3"),
+        exclude[DirectMissingMethodProblem]("zio.stream.ZChannel.mergeAllWith0"),
+        exclude[DirectMissingMethodProblem]("zio.stream.ZChannel.mapOutZIOParUnordered1$default$2"),
+        exclude[DirectMissingMethodProblem]("zio.stream.ZChannel.mapOutZIOParUnordered1"),
+        exclude[DirectMissingMethodProblem]("zio.stream.ZChannel.mergeAllWith0"),
+        exclude[DirectMissingMethodProblem]("zio.stream.ZChannel.mergeAllWith0$default$3"),
+        exclude[DirectMissingMethodProblem]("zio.stream.ZChannel.mergeAllWith0$default$4")
       ),
       mimaFailOnProblem := failOnProblem
     )
