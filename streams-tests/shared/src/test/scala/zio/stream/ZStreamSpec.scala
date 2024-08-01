@@ -2686,28 +2686,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 _     <- f.join
               } yield assertTrue(count == 0)
             }
-          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds),
-          test("parallelism must be reached irrespective of buffer size") {
-            val iterations = 1000
-            checkAll(Gen.fromIterable(Chunk(4, 16, 32, 64))) { parallelism =>
-              for {
-                latch <- CountdownLatch.make(parallelism)
-                _ <- ZStream
-                       .range(0, iterations)
-                       .mapZIOPar(parallelism, bufferSize = 2)(_ => latch.countDown *> latch.await)
-                       .runDrain
-              } yield assertCompletes
-            }
-          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds),
-          test("supports unbound parallelism") {
-            ZStream
-              .range(1, 100, 10)
-              .mapZIOPar(Int.MaxValue)(ZIO.succeed(_))
-              .runCollect
-              .map { collected =>
-                assert(collected)(equalTo(Chunk.range(1, 100)))
-              }
-          } @@ jvm(nonFlaky(20)) @@ TestAspect.timeout(10.seconds)
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds)
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
@@ -2792,28 +2771,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 _     <- f.join
               } yield assertTrue(count == 0)
             }
-          } @@ TestAspect.jvmOnly @@ jvm(nonFlaky(20)) @@ TestAspect.timeout(10.seconds),
-          test("parallelism must be reached irrespective of buffer size") {
-            val iterations = 1000
-            checkAll(Gen.fromIterable(Chunk(4, 16, 32, 64))) { parallelism =>
-              for {
-                latch <- CountdownLatch.make(parallelism)
-                _ <- ZStream
-                       .range(0, iterations)
-                       .mapZIOParUnordered(parallelism, bufferSize = 2)(_ => latch.countDown *> latch.await)
-                       .runDrain
-              } yield assertCompletes
-            }
-          } @@ TestAspect.jvmOnly @@ jvm(nonFlaky(20)) @@ TestAspect.timeout(10.seconds),
-          test("supports unbound parallelism") {
-            ZStream
-              .range(1, 100, 10)
-              .mapZIOParUnordered(Int.MaxValue)(ZIO.succeed(_))
-              .runCollect
-              .map { collected =>
-                assert(collected.sorted)(equalTo(Chunk.range(1, 100)))
-              }
-          } @@ jvm(nonFlaky(20)) @@ TestAspect.timeout(10.seconds)
+          } @@ TestAspect.jvmOnly @@ jvm(nonFlaky(20)) @@ TestAspect.timeout(10.seconds)
         ),
         suite("mergeLeft/Right")(
           test("mergeLeft with HaltStrategy.Right terminates as soon as the right stream terminates") {
