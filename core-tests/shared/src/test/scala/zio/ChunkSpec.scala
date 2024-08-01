@@ -860,6 +860,26 @@ object ChunkSpec extends ZIOBaseSpec {
         val sorted = chunk.sorted
         assertTrue(sorted.toVector == chunk.toVector.sorted)
       }
-    }
+    },
+    suite("combinators on chunks with different underlying primitives")(
+      test("concat on small chunks") {
+        val chunk = Chunk(1) ++ Chunk(2L)
+        assertTrue(chunk.materialize == Chunk(1L, 2L))
+      },
+      test("concat on large chunks") {
+        val arr1   = Array.fill(1000)(1)
+        val arr2   = Array.fill(1000)(1L)
+        val chunk1 = Chunk.fromArray(arr1) ++ Chunk.fromArray(arr2)
+        val chunk2 = Chunk.fromArray(arr1 ++ arr2)
+        assertTrue(chunk1 == chunk2)
+      },
+      test("flatmap") {
+        val arr1   = Array.fill(100)(1)
+        val arr2   = Array.fill(100)(1L)
+        val chunk1 = Chunk.fromArray(arr1).flatMap(_ => Chunk.fromArray(arr2))
+        val chunk2 = Chunk.fill(10000)(1L)
+        assertTrue(chunk1 == chunk2)
+      }
+    )
   )
 }
