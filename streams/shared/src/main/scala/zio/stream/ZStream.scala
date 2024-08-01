@@ -1940,7 +1940,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   This combinator destroys the chunking structure. It's recommended to use
    *   rechunk afterwards.
    */
-  def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: => Int = 16)(f: A => ZIO[R1, E1, A2])(implicit
+  def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: Int = 16)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
     self >>> ZPipeline.mapZIOPar(n, bufferSize)(f)
