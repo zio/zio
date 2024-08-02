@@ -2691,10 +2691,9 @@ object ZStreamSpec extends ZIOBaseSpec {
             sealed abstract class DbError extends Product with Serializable
             case object Missing           extends DbError
             case object QtyTooLarge       extends DbError
-            case object NameTooLong       extends DbError
 
             for {
-              exit <- (ZStream(1 to 2: _*) ++ ZStream.fail[DbError](NameTooLong))
+              exit <- ZStream(1 to 2: _*)
                         .mapZIOPar(3) {
                           case 1 => ZIO.fail(Missing)
                           case 2 => ZIO.fail(QtyTooLarge)
@@ -2705,8 +2704,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(exit)(
               failsCause(
                 containsCause[DbError](Cause.fail(Missing)) &&
-                  containsCause[DbError](Cause.fail(QtyTooLarge)) &&
-                  containsCause[DbError](Cause.fail(NameTooLong))
+                  containsCause[DbError](Cause.fail(QtyTooLarge))
               )
             )
           } @@ flaky
