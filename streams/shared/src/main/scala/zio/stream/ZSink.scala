@@ -747,6 +747,27 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     }
 
   /**
+   * A sink that collects all of its inputs into a map. The keys are extracted
+   * from inputs using the keying function `key`; The values are extracted using
+   * the value function `value`
+   * if multiple inputs use the same key, they are merged using the `f` function.
+   */
+  def collectAllToMapValue[In, K, V](
+    key: In => K
+  )(value: In => V)(f: (V, V) => V)(implicit trace: Trace): ZSink[Any, Nothing, In, Nothing, Map[K, V]] =
+    foldLeftChunks(Map[K, V]()) { (acc, as) =>
+      as.foldLeft(acc) { (acc, a) =>
+        val k = key(a)
+        acc.updated(
+          k,
+          // Avoiding `get/getOrElse` here to avoid an Option allocation
+          if (acc.contains(k)) f(acc(k), value(a))
+          else value(a)
+        )
+      }
+    }
+
+  /**
    * A sink that collects all of its inputs into a set.
    */
   def collectAllToSet[In](implicit trace: Trace): ZSink[Any, Nothing, In, Nothing, Set[In]] =

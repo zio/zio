@@ -74,6 +74,24 @@ object ZSinkSpec extends ZIOBaseSpec {
               .run(ZSink.collectAllToMap((_: Int) % 3)(_ + _))
           )(equalTo(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15)))
         ),
+        suite("collectAllToMapValue") (
+          test("creates map"){
+            case class X(a: Int, b: String)
+            assertZIO(
+              ZStream
+                .fromChunk(Chunk(X(1, "One"), X(2, "Two"), X(3, "Three")))
+                .run(ZSink.collectAllToMapValue[X, Int, String](_.a)(_.b){ (_, r) => r})
+            )(equalTo(Map[Int, String](1 -> "One", 2 -> "Two", 3 -> "Three")))
+          },
+          test("combiens value"){
+            case class X(a: Int, b: String)
+            assertZIO(
+              ZStream
+                .fromChunk(Chunk(X(1, "One"), X(2, "Two"), X(3, "Three"), X(3, "Three2"), X(1, "One2")))
+                .run(ZSink.collectAllToMapValue[X, Int, String](_.a)(_.b){ _ + _})
+            )(equalTo(Map[Int, String](1 -> "OneOne2", 2 -> "Two", 3 -> "ThreeThree2")))
+          },
+        ),
         suite("collectAllToMapN")(
           test("respects the given limit") {
             ZStream
