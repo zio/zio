@@ -362,7 +362,6 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 lazy val streamsTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams-tests"))
   .dependsOn(streams)
-  .dependsOn(coreTests % "test->test;compile->compile")
   .dependsOn(concurrent)
   .settings(stdSettings("streams-tests"))
   .settings(crossProjectSettings)
@@ -373,7 +372,6 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.AllLibraryJars
   )
   .enablePlugins(BuildInfoPlugin)
-  .jvmConfigure(_.dependsOn(coreTests.jvm % "test->compile"))
   .jsSettings(
     jsSettings,
     scalacOptions ++= {
