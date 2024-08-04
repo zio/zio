@@ -76,7 +76,7 @@
     "@zio.dev/zio-webhooks": "0.2.1",
     "@zio.dev/zio2-interop-cats2": "2023.1.23-571dabdd91f9",
     "@zio.dev/zio2-interop-cats3": "2023.2.21-692e7bbebb7f",
-    "autoprefixer": "10.4.16",
+    "autoprefixer": "10.4.20",
     "babel": "^6.23.0",
     "blended-include-code-plugin": "0.1.2",
     "clsx": "2.0.0",
