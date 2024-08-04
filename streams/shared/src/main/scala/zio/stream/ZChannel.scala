@@ -630,11 +630,25 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
+    mapOutZIOPar[Env1, OutErr1, OutElem2](n, 16)(f)
+
+  /**
+   * Creates a channel that is like this channel but the given ZIO function gets
+   * applied to each emitted output element, taking `n` elements at once and
+   * mapping them in parallel
+   * @param n
+   *   The maximum number of elements to map in parallel
+   * @param bufferSize
+   *   Number of elements that can be buffered downstream
+   */
+  final def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
+    f: OutElem => ZIO[Env1, OutErr1, OutElem2]
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
     ZChannel.unwrapScopedWith { scope =>
       for {
         input       <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
         queueReader  = ZChannel.fromInput(input)
-        queue       <- Queue.bounded[ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]](n)
+        queue       <- Queue.bounded[ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]](bufferSize)
         _           <- scope.addFinalizer(queue.shutdown)
         errorSignal <- Promise.make[OutErr1, Nothing]
         permits     <- Semaphore.make(n.toLong)
@@ -680,20 +694,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         consumer.embedInput(input)
       }
     }
-
-  /**
-   * Creates a channel that is like this channel but the given ZIO function gets
-   * applied to each emitted output element, taking `n` elements at once and
-   * mapping them in parallel
-   * @param n
-   *   The maximum number of elements to map in parallel
-   * @param bufferSize
-   *   Number of elements that can be buffered downstream
-   */
-  final def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
-    f: OutElem => ZIO[Env1, OutErr1, OutElem2]
-  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
-    mapOutZIOPar[Env1, OutErr1, OutElem2](n)(f)
 
   /**
    * Creates a channel that is like this channel but the given ZIO function gets

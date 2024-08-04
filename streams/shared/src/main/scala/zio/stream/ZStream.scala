@@ -1929,13 +1929,21 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    self >>> ZPipeline.mapZIOPar(n)(f)
+    mapZIOPar[R1, E1, A2](n, 16)(f)
 
-  @deprecated("use stream.mapZIOPar(n)(f).buffer(bufferSize)", "2.1.7")
-  def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: Int)(f: A => ZIO[R1, E1, A2])(implicit
+  /**
+   * Maps over elements of the stream with the specified effectful function,
+   * executing up to `n` invocations of `f` concurrently. Transformed elements
+   * will be emitted in the original order.
+   *
+   * @note
+   *   This combinator destroys the chunking structure. It's recommended to use
+   *   rechunk afterwards.
+   */
+  def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: Int = 16)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    mapZIOPar[R1, E1, A2](n)(f).buffer(bufferSize)
+    self >>> ZPipeline.mapZIOPar(n, bufferSize)(f)
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -1959,13 +1967,17 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIOParUnordered[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    self >>> ZPipeline.mapZIOParUnordered(n)(f)
+    mapZIOParUnordered[R1, E1, A2](n, 16)(f)
 
-  @deprecated("use stream.mapZIOParUnordered(n)(f).buffer(bufferSize)", "2.1.7")
-  def mapZIOParUnordered[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: => Int)(f: A => ZIO[R1, E1, A2])(implicit
+  /**
+   * Maps over elements of the stream with the specified effectful function,
+   * executing up to `n` invocations of `f` concurrently. The element order is
+   * not enforced by this combinator, and elements may be reordered.
+   */
+  def mapZIOParUnordered[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: => Int = 16)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    mapZIOParUnordered[R1, E1, A2](n)(f).buffer(bufferSize)
+    self >>> ZPipeline.mapZIOParUnordered(n, bufferSize)(f)
 
   /**
    * Merges this stream and the specified stream together.
