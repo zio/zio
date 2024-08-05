@@ -18,4 +18,4 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-private[zio] trait IntersectionTypeCompat
+transparent private[zio] trait IntersectionTypeCompat
