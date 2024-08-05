@@ -2686,7 +2686,30 @@ object ZStreamSpec extends ZIOBaseSpec {
                 _     <- f.join
               } yield assertTrue(count == 0)
             }
-          } @@ TestAspect.jvmOnly @@ nonFlaky(20)
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20),
+          test("accumulates parallel errors") {
+            sealed abstract class DbError extends Product with Serializable
+            case object Missing           extends DbError
+            case object QtyTooLarge       extends DbError
+            case object NameTooLong       extends DbError
+
+            for {
+              exit <- (ZStream(1 to 2: _*) ++ ZStream.fail[DbError](NameTooLong))
+                        .mapZIOPar(3) {
+                          case 1 => ZIO.fail(Missing)
+                          case 2 => ZIO.fail(QtyTooLarge)
+                          case _ => ZIO.succeed(true)
+                        }
+                        .runDrain
+                        .exit
+            } yield assert(exit)(
+              failsCause(
+                containsCause[DbError](Cause.fail(Missing)) &&
+                  containsCause[DbError](Cause.fail(QtyTooLarge)) &&
+                  containsCause[DbError](Cause.fail(NameTooLong))
+              )
+            )
+          } @@ flaky
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
