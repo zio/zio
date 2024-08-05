@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.{&, Trace, UIO, Unsafe}
+import zio.{Trace, UIO, Unsafe}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM.internal._
 
@@ -36,15 +36,18 @@ import java.util.concurrent.locks.ReentrantLock
  * do not support concurrent access.
  */
 final class TRef[A] private (
-  @volatile private[stm] var versioned: A,
-  private[stm] val todo: AtomicReference[Map[TxnId, Todo]]
+  private[stm] val versioned: AtomicReference[A]
 ) extends Serializable { self =>
 
   @deprecated("kept for binary compatibility only", "2.1.8")
   def this(versioned: Versioned[A], todo: AtomicReference[Map[TxnId, Todo]]) =
-    this(versioned.value, todo)
+    this(new AtomicReference(versioned.value))
 
   private[stm] val lock: ReentrantLock = new ReentrantLock()
+
+  private[this] val hc = super.hashCode()
+
+  override def hashCode(): Int = hc
 
   /**
    * Retrieves the value of the `TRef`.
@@ -111,14 +114,14 @@ final class TRef[A] private (
     }
 
   override def toString: String =
-    s"TRef(id = ${self.hashCode()}, versioned.value = ${versioned}, todo = ${todo.get})"
+    s"TRef(id = ${self.hashCode()}, versioned.value = ${versioned})"
 
   /**
    * Updates the value of the variable.
    */
   def update(f: A => A): USTM[Unit] =
     ZSTM.Effect { (journal, _, _) =>
-      val entry = journal.getOrElseUpdate(self, newEntry)
+      val entry = journal.get(self)
       entry.unsafeUpdate(f.asInstanceOf[Any => Any])
       ()
     }
@@ -147,10 +150,8 @@ final class TRef[A] private (
   def updateSomeAndGet(f: PartialFunction[A, A]): USTM[A] =
     updateAndGet(f orElse { case a => a })
 
-  private[this] def newEntry: Entry = Entry(self.asInstanceOf[TRef[A & AnyRef]])
-
   private[stm] def getOrMakeEntry(journal: Journal): Entry =
-    journal.getOrElseUpdate(self, newEntry)
+    journal.get(self)
 
   private[stm] def unsafeGet(journal: Journal): A =
     getOrMakeEntry(journal).unsafeGet
@@ -180,5 +181,5 @@ object TRef {
   }
 
   private[stm] def unsafeMake[A](a: A): TRef[A] =
-    new TRef(a, new AtomicReference[Map[TxnId, Todo]](Map()))
+    new TRef(new AtomicReference[A](a))
 }
