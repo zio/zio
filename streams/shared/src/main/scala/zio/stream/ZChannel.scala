@@ -648,7 +648,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       for {
         input       <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
         queueReader  = ZChannel.fromInput(input)
-        outgoing       <- Queue.bounded[ZIO[Env1, Unit, Either[OutDone, OutElem2]]](bufferSize)
+        outgoing    <- Queue.bounded[ZIO[Env1, Unit, Either[OutDone, OutElem2]]](bufferSize)
         _           <- scope.addFinalizer(outgoing.shutdown)
         errorSignal <- Promise.make[Unit, Nothing]
         permits     <- Semaphore.make(n.toLong)
@@ -656,7 +656,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         pull        <- (queueReader >>> self).toPullIn(scope)
         _ <- pull
                .foldCauseZIO(
-                 cause => failure.update(_ && cause) *> outgoing.offer(Exit.failCause(Cause.unit)) *> Exit.failCause(Cause.unit),
+                 cause =>
+                   failure.update(_ && cause) *> outgoing.offer(Exit.failCause(Cause.unit)) *> Exit.failCause(
+                     Cause.unit
+                   ),
                  {
                    case Left(outDone) =>
                      permits.withPermits(n.toLong)(ZIO.unit).interruptible *> outgoing.offer(ZIO.succeed(Left(outDone)))
@@ -668,11 +671,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                        _ <- permits.withPermit {
                               latch.succeed(()) *>
                                 ZIO.uninterruptibleMask { restore =>
-                                  restore(errorSignal.await).raceFirstAwait( restore(f(outElem))
-                                    .catchAllCause(cause => failure.update(_ && cause) *> Exit.failCause(Cause.unit)))
+                                  restore(errorSignal.await).raceFirstAwait(
+                                    restore(f(outElem))
+                                      .catchAllCause(cause => failure.update(_ && cause) *> Exit.failCause(Cause.unit))
+                                  )
                                 }.foldCauseZIO(
                                   _ => p.refailCause(Cause.unit) *> errorSignal.refailCause(Cause.unit),
-                                  p.succeed)
+                                  p.succeed
+                                )
                             }.forkIn(scope)
                        _ <- latch.await
                      } yield ()
