@@ -24,6 +24,7 @@ object MimaSettings {
         exclude[MissingClassProblem]("zio.ZIO$OnFailure*"),
         exclude[MissingClassProblem]("zio.ZIO$OnSuccess*"),
         exclude[DirectMissingMethodProblem]("zio.ZEnvironment.zio$ZEnvironment$$<init>$default$3"),
+        exclude[DirectMissingMethodProblem]("zio.ZEnvironment.zio$ZEnvironment$$$<init>$default$3"), // Scala 3
         exclude[ReversedMissingMethodProblem]("zio.Fiber#Runtime#UnsafeAPI.poll"),
         exclude[IncompatibleResultTypeProblem]("zio.stream.ZChannel#MergeState#BothRunning.*"),
         exclude[DirectMissingMethodProblem]("zio.stream.ZChannel#MergeState#BothRunning.copy"),
