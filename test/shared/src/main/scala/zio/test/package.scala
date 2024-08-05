@@ -1065,16 +1065,17 @@ package object test extends CompileVariants {
   private def checkStream[R, R1 <: R, E, A](stream: ZStream[R, Nothing, Sample[R, A]])(
     test: A => ZIO[R1, E, TestResult]
   )(implicit trace: Trace): ZIO[R1, E, TestResult] =
-    TestConfig.shrinks.flatMap {
-      shrinkStream {
+    TestConfig.shrinks.flatMap { s =>
+      val flag = Ref.unsafe.make(false)(Unsafe.unsafe)
+      warningEmptyGen(flag) *> shrinkStream {
         stream.zipWithIndex.mapZIO { case (initial, index) =>
-          initial.foreach(input =>
+          flag.set(true) *> initial.foreach(input =>
             test(input)
               .map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index)))
               .either
           )
         }
-      }
+      }(s)
     }
 
   private def shrinkStream[R, R1 <: R, E, A](
@@ -1113,6 +1114,18 @@ package object test extends CompileVariants {
           .catchAll(ZStream.succeed(_))
       }
     }
+
+  private def warningEmptyGen(flag: Ref[Boolean])(implicit trace: Trace): UIO[Unit] =
+    Live
+      .live(ZIO.logWarning(warning).unlessZIODiscard(flag.get).delay(5.seconds))
+      .interruptible
+      .fork
+      .onExecutor(Runtime.defaultExecutor)
+      .unit
+
+  private val warning =
+    "Warning: A check / checkAll / checkN generator did not produce any test cases, " +
+      "which may result in the test hanging. Ensure that the provided generator is producing values."
 
   implicit final class TestLensOptionOps[A](private val self: TestLens[Option[A]]) extends AnyVal {
 
