@@ -1679,8 +1679,7 @@ object ZSTM {
       private[this] var map: Map[TRef[?], Entry] = Map.empty
 
       // Map methods
-      def clear(): Unit                   = if (map.nonEmpty) map = Map.empty
-      def contains(key: TRef[?]): Boolean = map.contains(key)
+      def clear(): Unit = if (map.nonEmpty) map = Map.empty
       def get(key: TRef[?]): Entry = {
         val entry = map.getOrElse(key, null)
         if (entry eq null) {
@@ -1691,13 +1690,7 @@ object ZSTM {
           entry
         }
       }
-      def head: (TRef[?], Entry)                       = map.head
-      def iterator: Iterator[(TRef[?], Entry)]         = map.iterator
-      def keys: Set[TRef[?]]                           = map.keySet
-      def keysIterator: Iterator[TRef[?]]              = map.keysIterator
-      def putAll(it: Iterable[(TRef[?], Entry)]): Unit = map = it.foldLeft(map) { case (m, (k, v)) => m.updated(k, v) }
-      def size: Int                                    = map.size
-      def valuesIterator: Iterator[Entry]              = map.valuesIterator
+      def keys: List[TRef[?]] = map.keysIterator.toList
 
       // Transactional API
       /**
@@ -1712,7 +1705,7 @@ object ZSTM {
 
       private[this] def analyzeJournal1(value: Entry, attemptCommit: Boolean): JournalAnalysis =
         if (attemptCommit) {
-          if (value.maybeCommit()) JournalAnalysis.Committed
+          if (value.attemptCommit()) JournalAnalysis.Committed
           else JournalAnalysis.Invalid
         } else if (value.isInvalid) JournalAnalysis.Invalid
         else if (value.isChanged) JournalAnalysis.ReadWrite
@@ -1774,11 +1767,11 @@ object ZSTM {
 
     private object LockSupport {
 
-      @inline def lock[A](refs: Set[TRef[?]])(f: => A): Unit =
-        refs.size match {
-          case 0 => f
-          case 1 => lock1(refs.head)(f)
-          case _ => lockN(refs)(f)
+      @inline def lock[A](refs: List[TRef[?]])(f: => A): Unit =
+        refs.lengthCompare(1) match {
+          case -1 => f
+          case 0  => lock1(refs.head)(f)
+          case _  => lockN(refs)(f)
         }
 
       @inline private def lock1[A](ref: TRef[?])(f: => A): Unit = {
@@ -1787,7 +1780,7 @@ object ZSTM {
         finally ref.lock.unlock()
       }
 
-      @inline private def lockN[A](refs: Set[TRef[?]])(f: => A): Unit = {
+      @inline private def lockN[A](refs: List[TRef[?]])(f: => A): Unit = {
         val it       = refs.iterator
         var acquired = List.empty[ReentrantLock]
         var locked   = true
@@ -1801,11 +1794,11 @@ object ZSTM {
         } finally acquired.foreach(_.unlock())
       }
 
-      @inline def tryLock[A](refs: Set[TRef[?]])(f: => A): Unit =
-        refs.size match {
-          case 0 => f
-          case 1 => tryLock1(refs.head)(f)
-          case _ => tryLockN(refs)(f)
+      @inline def tryLock[A](refs: List[TRef[?]])(f: => A): Unit =
+        refs.lengthCompare(1) match {
+          case -1 => f
+          case 0  => tryLock1(refs.head)(f)
+          case _  => tryLockN(refs)(f)
         }
 
       @inline private def tryLock1[A](ref: TRef[?])(f: => A): Unit = {
@@ -1816,7 +1809,7 @@ object ZSTM {
         }
       }
 
-      @inline private def tryLockN[A](refs: Set[TRef[?]])(f: => A): Unit = {
+      @inline private def tryLockN[A](refs: List[TRef[?]])(f: => A): Unit = {
         var acquired = List.empty[ReentrantLock]
         var locked   = true
         val it       = refs.iterator
@@ -1877,10 +1870,10 @@ object ZSTM {
       state: AtomicReference[State[E, A]],
       r: ZEnvironment[R]
     ): TryCommit[E, A] = {
-      val journal = new Journal
-      var value   = null.asInstanceOf[TExit[E, A]]
-
-      var tRefs = Set.empty[TRef[?]]
+      val journal     = new Journal
+      var value       = null.asInstanceOf[TExit[E, A]]
+      val stateIsNull = state eq null
+      var tRefs       = List.empty[TRef[?]]
 
       var loop    = true
       var retries = 0
@@ -1895,7 +1888,7 @@ object ZSTM {
 
             if (newTRefs == tRefs) {
               if (value.isInstanceOf[TExit.Succeed[?]]) {
-                val isRunning = state.eq(null) || state.compareAndSet(State.Running, State.done(value))
+                val isRunning = stateIsNull || state.compareAndSet(State.Running, State.done(value))
                 if (isRunning) journal.commit()
                 loop = false
               } else if (journal.isValid) {
@@ -1910,13 +1903,13 @@ object ZSTM {
           tRefs = journal.keys
           LockSupport.tryLock(tRefs) {
             val isSuccess = value.isInstanceOf[TExit.Succeed[_]]
-            val analysis  = journal.analyze(attemptCommit = false)
+            val analysis  = journal.analyze(attemptCommit = stateIsNull)
             if (analysis != JournalAnalysis.Invalid) {
               loop = false
               if (
                 analysis == JournalAnalysis.ReadWrite &&
                 isSuccess &&
-                (state.eq(null) || state.compareAndSet(State.Running, State.done(value)))
+                (stateIsNull || state.compareAndSet(State.Running, State.done(value)))
               ) journal.commit()
             }
           }
@@ -1964,14 +1957,14 @@ object ZSTM {
       protected[this] var _isChanged: Boolean
 
       def unsafeSet(value: Any): Unit = {
-        if (!_isChanged) _isChanged = true
-        newValue = value.asInstanceOf[S]
+        val value0 = value.asInstanceOf[S]
+        if (value0 ne newValue) {
+          if (!_isChanged) _isChanged = true
+          newValue = value0
+        }
       }
 
-      def unsafeUpdate(f: Any => Any): Unit = {
-        if (!_isChanged) _isChanged = true
-        newValue = f(newValue).asInstanceOf[S]
-      }
+      def unsafeUpdate(f: Any => Any): Unit = unsafeSet(f(newValue))
 
       def unsafeGet[B]: B = newValue.asInstanceOf[B]
 
@@ -1980,7 +1973,7 @@ object ZSTM {
        */
       def commit(): Unit = tref.versioned.set(newValue)
 
-      def maybeCommit(): Boolean = tref.versioned.compareAndSet(expected, newValue)
+      def attemptCommit(): Boolean = tref.versioned.compareAndSet(expected, newValue)
 
       /**
        * Creates a copy of the Entry.
