@@ -159,8 +159,8 @@ final case class Graph[Key, A](
   def map[B](f: A => B): Graph[Key, B] =
     Graph(nodes.map(_.map(f)), keyEquals, key => environment(key).map(f), envKeys)
 
-    private val nodeWithOutputCache = new java.util.HashMap[Key, Option[Node[Key, A]]]
-  
+  private val nodeWithOutputCache = new java.util.HashMap[Key, Option[Node[Key, A]]]
+
   private def getNodeWithOutput[E](output: Key, error: Option[E] = None): Either[::[E], Node[Key, A]] =
     nodeWithOutputCache
       .computeIfAbsent(output, findNodeWithOutput)
@@ -168,7 +168,6 @@ final case class Graph[Key, A](
 
   private def findNodeWithOutput(output: Key): Option[Node[Key, A]] =
     nodes.find(_.outputs.exists(keyEquals(_, output)))
-      
 
   private def isEnv(key: Key): Boolean =
     envKeys.exists(env => keyEquals(key, env) || keyEquals(env, key))
