@@ -2677,7 +2677,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 latch <- CountdownLatch.make(parallelism + 1)
                 f <- ZStream
                        .range(0, iterations)
-                       .mapZIOPar(parallelism)(_ => latch.countDown *> latch.await)
+                       .mapZIOPar(parallelism, parallelism)(_ => latch.countDown *> latch.await)
                        .runDrain
                        .fork
                 _     <- Live.live(latch.count.delay(100.micros)).repeatUntil(_ == 1)
