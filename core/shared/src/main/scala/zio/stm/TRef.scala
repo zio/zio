@@ -36,12 +36,13 @@ import java.util.concurrent.locks.ReentrantLock
  * do not support concurrent access.
  */
 final class TRef[A] private (
-  private[stm] val versioned: AtomicReference[A]
+  private[stm] val versioned: AtomicReference[A],
+  @volatile private[stm] var todo: Map[TxnId, Todo] = Map()
 ) extends Serializable { self =>
 
   @deprecated("kept for binary compatibility only", "2.1.8")
   def this(versioned: Versioned[A], todo: AtomicReference[Map[TxnId, Todo]]) =
-    this(new AtomicReference(versioned.value))
+    this(new AtomicReference(versioned.value), todo.get())
 
   private[stm] val lock: ReentrantLock = new ReentrantLock()
 
