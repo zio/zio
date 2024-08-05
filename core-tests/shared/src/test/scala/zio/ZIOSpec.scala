@@ -247,6 +247,24 @@ object ZIOSpec extends ZIOBaseSpec {
           _          <- callFiber3.interrupt
         } yield assert(v1)(equalTo(2)) &&
           assert(v2)(equalTo(2))
+      },
+      test("issue 9015") {
+        for {
+          startWaiting <- Promise.make[Nothing, Unit]
+          ref          <- Ref.make(true)
+          tuple <- ZIO
+                     .ifZIO(ref.get)(
+                       onTrue = ref.set(false) *> ref.get,
+                       onFalse = startWaiting.succeed(()) *> ZIO.never *> ref.get
+                     )
+                     .cachedInvalidate(Duration.Infinity)
+          (call, invalidate) = tuple
+          first             <- call
+          _                 <- invalidate
+          callFiber         <- call.fork
+          _                 <- startWaiting.await
+          _                 <- callFiber.interrupt
+        } yield assert(first)(equalTo(false))
       }
     ),
     suite("catchNonFatalOrDie")(
