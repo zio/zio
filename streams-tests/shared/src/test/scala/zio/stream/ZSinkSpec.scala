@@ -97,6 +97,52 @@ object ZSinkSpec extends ZIOBaseSpec {
               .map(assert(_)(equalTo(Chunk(Map.empty[Int, Int]))))
           }
         ),
+        suite("collectAllToMapValue")(
+          test("creates map") {
+            case class X(a: Int, b: String)
+            assertZIO(
+              ZStream
+                .fromChunk(Chunk(X(1, "One"), X(2, "Two"), X(3, "Three")))
+                .run(ZSink.collectAllToMapValue[X, Int, String](_.a)(_.b)((_, r) => r))
+            )(equalTo(Map[Int, String](1 -> "One", 2 -> "Two", 3 -> "Three")))
+          },
+          test("combiens value") {
+            case class X(a: Int, b: String)
+            assertZIO(
+              ZStream
+                .fromChunk(Chunk(X(1, "One"), X(2, "Two"), X(3, "Three"), X(3, "Three2"), X(1, "One2")))
+                .run(ZSink.collectAllToMapValue[X, Int, String](_.a)(_.b)(_ + _))
+            )(equalTo(Map[Int, String](1 -> "OneOne2", 2 -> "Two", 3 -> "ThreeThree2")))
+          }
+        ),
+        suite("collectAllToMapValueN")(
+          test("respects the given limit") {
+            case class X(a: Int, b: String)
+            assertZIO(
+              ZStream
+                .fromChunk(Chunk(X(1, "One"), X(2, "Two"), X(3, "Three")))
+                .run(ZSink.collectAllToMapValueN[Nothing, X, Int, String](2)(_.a)(_.b)((_, r) => r))
+            )(equalTo(Map[Int, String](1 -> "One", 2 -> "Two")))
+          },
+          test("collects as long as map size doesn't exceed the limit") {
+            case class X(a: Int, b: String)
+            ZStream
+              .fromChunks(
+                Chunk(0, 1, 2).map(X(_, "a")),
+                Chunk(3, 4, 5).map(X(_, "b")),
+                Chunk(6, 7, 8, 9).map(X(_, "c"))
+              )
+              .run(ZSink.collectAllToMapValueN[Nothing, X, Int, String](3)(_.a % 3)(_.b)(_ + _))
+              .map(assert(_)(equalTo(Map(0 -> "abcc", 1 -> "abc", 2 -> "abc"))))
+          },
+          test("handles empty input") {
+            case class X(a: Int, b: String)
+            ZStream
+              .fromChunk(Chunk.empty: Chunk[X])
+              .run(ZSink.collectAllToMapValueN[Nothing, X, Int, String](2)(_.a)(_.b)((_, r) => r))
+              .map(assert(_)(equalTo(Map.empty[Int, String])))
+          }
+        ),
         test("dropUntil")(
           assertZIO(
             ZStream(1, 2, 3, 4, 5, 1, 2, 3, 4, 5)
