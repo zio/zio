@@ -920,7 +920,6 @@ object ZSTM {
             case many =>
               val it = many.reverseIterator
               ZIO.whileLoop(it.hasNext)(it.next())(_ => ()) *> exit
-
           }
         case TryCommit.Suspend(journal) =>
           val txId  = TxnId.make()
@@ -932,13 +931,15 @@ object ZSTM {
               cause => {
                 state.compareAndSet(State.Running, State.Interrupted)
                 state.get match {
-                  case State.Done(exit, onCommit :: Nil) =>
-                    onDone(exit)
-                    onCommit *> exit
                   case State.Done(exit, onCommit) =>
                     onDone(exit)
-                    val it = onCommit.reverseIterator
-                    ZIO.whileLoop(it.hasNext)(it.next())(_ => ()) *> exit
+                    onCommit match {
+                      case Nil        => exit
+                      case one :: Nil => one *> exit
+                      case many =>
+                        val it = many.reverseIterator
+                        ZIO.whileLoop(it.hasNext)(it.next())(_ => ()) *> exit
+                    }
                   case _ =>
                     onInterrupt()
                     ZIO.refailCause(cause)
@@ -1714,6 +1715,13 @@ object ZSTM {
        * read only in a single pass. Note that information on whether the
        * journal is read only will only be accurate if the journal is valid, due
        * to short-circuiting that occurs on an invalid journal.
+       *
+       * In the case that there is only a single entry in the journal, we can
+       * further shortcut and attempt to commit the transaction in a single pass
+       * if the `attemptCommit` parameter is set to `true`
+       *
+       * '''NOTE''': This method MUST be invoked while we hold the lock on the
+       * journal
        */
       private[internal] def analyze(attemptCommit: Boolean): JournalAnalysis =
         if (map.size == 1) analyzeJournal1(map.head._2, attemptCommit)
@@ -1739,6 +1747,12 @@ object ZSTM {
         if (changed) JournalAnalysis.ReadWrite else JournalAnalysis.ReadOnly
       }
 
+      /**
+       * Commit all changes in the journal.
+       *
+       * '''NOTE''': This method MUST be invoked while we hold the lock on the
+       * journal
+       */
       private[internal] def commit(): Unit = {
         val it = map.valuesIterator
         while (it.hasNext) it.next.commit()
@@ -1746,14 +1760,29 @@ object ZSTM {
 
       /**
        * Collects all todos and submits them to the executor.
+       *
+       * '''NOTE''': This method MUST be invoked while we hold the lock on the
+       * journal
        */
       private[internal] def completeTodos(executor: Executor)(implicit unsafe: Unsafe): Unit = {
         val todos = collectTodos()
         if (todos.nonEmpty) executor.submitOrThrow(() => execTodos(todos))
       }
 
+      /**
+       * Flag indicating whether the journal is invalid
+       *
+       * '''NOTE''': This method MUST be invoked while we hold the lock on the
+       * journal
+       */
       private[ZSTM] def isInvalid: Boolean = !isValid
 
+      /**
+       * Flag indicating whether the journal is valid
+       *
+       * '''NOTE''': This method MUST be invoked while we hold the lock on the
+       * journal
+       */
       private[ZSTM] def isValid: Boolean = {
         val it = map.valuesIterator
         while (it.hasNext) if (!it.next().isValid) return false
@@ -1788,8 +1817,10 @@ object ZSTM {
       }
 
       /**
-       * Atomically collects and clears all the todos from any `TRef` that
-       * participated in the transaction.
+       * Collect and clear all todos in the journal
+       *
+       * '''NOTE''': This method MUST be invoked while we hold the lock on the
+       * journal
        */
       private[this] def collectTodos(): Map[TxnId, Todo] = {
         var allTodos = Map.empty[TxnId, Todo]
