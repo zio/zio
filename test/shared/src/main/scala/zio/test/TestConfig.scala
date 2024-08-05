@@ -19,6 +19,7 @@ package zio.test
 import zio.{Tag, URIO, ZIO, ZLayer}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.Trace
+import zio.ZIOAspect
 
 /**
  * The `TestConfig` service provides access to default configuration settings
@@ -48,6 +49,14 @@ trait TestConfig extends Serializable {
    * The maximum number of shrinkings to minimize large failures
    */
   def shrinks: Int
+
+  /**
+   * Aspect that should be applied to each check sample.
+   *
+   * NOTE: default implementation for backward compatibility. Remove in next
+   * major version.
+   */
+  def checkSampleAspect: TestAspect.CheckSampleAspect = ZIOAspect.identity
 }
 
 object TestConfig {
@@ -55,6 +64,15 @@ object TestConfig {
   val tag: Tag[TestConfig] = Tag[TestConfig]
 
   final case class Test(repeats: Int, retries: Int, samples: Int, shrinks: Int) extends TestConfig
+
+  // NOTE: Additonal class for backward compatibility. Rename to `Test` and remove the old one in next major version.
+  final case class Test1(
+    repeats: Int,
+    retries: Int,
+    samples: Int,
+    shrinks: Int,
+    override val checkSampleAspect: TestAspect.CheckSampleAspect
+  ) extends TestConfig
 
   /**
    * Constructs a new `TestConfig` with the default settings.
@@ -65,11 +83,36 @@ object TestConfig {
   /**
    * Constructs a new `TestConfig` service with the specified settings.
    */
-  def live(repeats: Int, retries: Int, samples: Int, shrinks: Int)(implicit
+  def live(
+    repeats: Int,
+    retries: Int,
+    samples: Int,
+    shrinks: Int
+  )(implicit
     trace: Trace
   ): ZLayer[Any, Nothing, TestConfig] =
     ZLayer.scoped {
       val testConfig = Test(repeats, retries, samples, shrinks)
+      withTestConfigScoped(testConfig).as(testConfig)
+    }
+
+  /**
+   * Constructs a new `TestConfig` service with the specified settings.
+   *
+   * Note: manual overload instead of default argument for binary compatibility.
+   * Remove in next major version.
+   */
+  def live(
+    repeats: Int,
+    retries: Int,
+    samples: Int,
+    shrinks: Int,
+    checkSampleAspect: TestAspect.CheckSampleAspect
+  )(implicit
+    trace: Trace
+  ): ZLayer[Any, Nothing, TestConfig] =
+    ZLayer.scoped {
+      val testConfig = Test1(repeats, retries, samples, shrinks, checkSampleAspect)
       withTestConfigScoped(testConfig).as(testConfig)
     }
 
@@ -96,4 +139,10 @@ object TestConfig {
    */
   def shrinks(implicit trace: Trace): URIO[Any, Int] =
     testConfigWith(testConfig => ZIO.succeed(testConfig.shrinks))
+
+  /**
+   * Action that should be performed on each check sample.
+   */
+  def checkSampleAspect(implicit trace: Trace): URIO[Any, TestAspect.CheckSampleAspect] =
+    testConfigWith(testConfig => ZIO.succeed(testConfig.checkSampleAspect))
 }
