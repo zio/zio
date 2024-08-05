@@ -3,7 +3,7 @@ package zio
 import scala.quoted._
 import zio.internal.TerminalRendering
 
-trait ZIOAppVersionSpecific {
+transparent trait ZIOAppVersionSpecific {
 
   /**
    * This implicit conversion macro will ensure that the provided ZIO effect
