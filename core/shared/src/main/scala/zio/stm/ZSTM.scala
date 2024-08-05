@@ -1690,7 +1690,7 @@ object ZSTM {
           entry
         }
       }
-      def keys: List[TRef[?]] = map.keysIterator.toList
+      def keys: Set[TRef[?]] = map.keySet
 
       // Transactional API
       /**
@@ -1767,11 +1767,11 @@ object ZSTM {
 
     private object LockSupport {
 
-      @inline def lock[A](refs: List[TRef[?]])(f: => A): Unit =
-        refs.lengthCompare(1) match {
-          case -1 => f
-          case 0  => lock1(refs.head)(f)
-          case _  => lockN(refs)(f)
+      @inline def lock[A](refs: Set[TRef[?]])(f: => A): Unit =
+        refs.size match {
+          case 0 => f
+          case 1 => lock1(refs.head)(f)
+          case _ => lockN(refs)(f)
         }
 
       @inline private def lock1[A](ref: TRef[?])(f: => A): Unit = {
@@ -1780,7 +1780,7 @@ object ZSTM {
         finally ref.lock.unlock()
       }
 
-      @inline private def lockN[A](refs: List[TRef[?]])(f: => A): Unit = {
+      @inline private def lockN[A](refs: Set[TRef[?]])(f: => A): Unit = {
         val it       = refs.iterator
         var acquired = List.empty[ReentrantLock]
         var locked   = true
@@ -1794,11 +1794,11 @@ object ZSTM {
         } finally acquired.foreach(_.unlock())
       }
 
-      @inline def tryLock[A](refs: List[TRef[?]])(f: => A): Unit =
-        refs.lengthCompare(1) match {
-          case -1 => f
-          case 0  => tryLock1(refs.head)(f)
-          case _  => tryLockN(refs)(f)
+      @inline def tryLock[A](refs: Set[TRef[?]])(f: => A): Unit =
+        refs.size match {
+          case 0 => f
+          case 1 => tryLock1(refs.head)(f)
+          case _ => tryLockN(refs)(f)
         }
 
       @inline private def tryLock1[A](ref: TRef[?])(f: => A): Unit = {
@@ -1809,7 +1809,7 @@ object ZSTM {
         }
       }
 
-      @inline private def tryLockN[A](refs: List[TRef[?]])(f: => A): Unit = {
+      @inline private def tryLockN[A](refs: Set[TRef[?]])(f: => A): Unit = {
         var acquired = List.empty[ReentrantLock]
         var locked   = true
         val it       = refs.iterator
@@ -1873,7 +1873,7 @@ object ZSTM {
       val journal     = new Journal
       var value       = null.asInstanceOf[TExit[E, A]]
       val stateIsNull = state eq null
-      var tRefs       = List.empty[TRef[?]]
+      var tRefs       = Set.empty[TRef[?]]
 
       var loop    = true
       var retries = 0
@@ -1903,7 +1903,7 @@ object ZSTM {
           tRefs = journal.keys
           LockSupport.tryLock(tRefs) {
             val isSuccess = value.isInstanceOf[TExit.Succeed[_]]
-            val analysis  = journal.analyze(attemptCommit = stateIsNull)
+            val analysis  = journal.analyze(attemptCommit = isSuccess && stateIsNull)
             if (analysis != JournalAnalysis.Invalid) {
               loop = false
               if (
