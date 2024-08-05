@@ -21,7 +21,6 @@ import zio.internal.UpdateOrderLinkedMap
 import java.util.concurrent.ConcurrentHashMap
 import scala.annotation.tailrec
 import scala.collection.{immutable, mutable}
-import scala.util.control.ControlThrowable
 import scala.util.hashing.MurmurHash3
 
 final class ZEnvironment[+R] private (
@@ -29,7 +28,7 @@ final class ZEnvironment[+R] private (
   private val cache: ConcurrentHashMap[LightTypeTag, Any],
   private val scope: Scope
 ) extends Serializable { self =>
-  import ZEnvironment.{MissingService, ScopeTag, TaggedAny}
+  import ZEnvironment.{ScopeTag, TaggedAny, UnitAny}
 
   @deprecated("Kept for binary compatibility only. Do not use", "2.1.2")
   private[ZEnvironment] def this(map: Map[LightTypeTag, Any], index: Int, cache: Map[LightTypeTag, Any] = Map.empty) =
@@ -242,19 +241,17 @@ final class ZEnvironment[+R] private (
         new ZEnvironment(map.updated(tag, a), cache = newCache, scope = scope)
       }
 
-      def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A =
-        try {
-          getUnsafe(tag)
-        } catch {
-          case MissingService => throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}")
-        }
+      def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A = {
+        val value = getUnsafe[A](tag)
+        if (value == null) throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}")
+        else value
+      }
 
-      private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A =
-        try {
-          getUnsafe(tag)
-        } catch {
-          case MissingService => default
-        }
+      private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A = {
+        val value = getUnsafe[A](tag)
+        if (value == null) default
+        else value
+      }
 
       private[this] def getUnsafe[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A = {
         val fromCache = self.cache.get(tag)
@@ -263,7 +260,7 @@ final class ZEnvironment[+R] private (
         else if ((scope ne null) && isScopeTag(tag))
           scope.asInstanceOf[A]
         else if (self.isEmpty && tag == TaggedAny)
-          ().asInstanceOf[A]
+          UnitAny.asInstanceOf[A]
         else {
           val it      = self.map.reverseIterator
           var service = null.asInstanceOf[A]
@@ -274,7 +271,7 @@ final class ZEnvironment[+R] private (
             }
           }
           if (service == null) {
-            throw MissingService
+            null.asInstanceOf[A]
           } else {
             self.cache.put(tag, service)
             service
@@ -357,8 +354,6 @@ object ZEnvironment {
       cache = new ConcurrentHashMap[LightTypeTag, Any],
       scope = null
     )
-
-  private case object MissingService extends ControlThrowable
 
   // Can't use scala -> java collection conversions because they don't cross compile to Scala 2.12.
   @deprecated("Marked as deprecated to avoid usage in non-deprecated methods", "2.1.16")
@@ -493,4 +488,7 @@ object ZEnvironment {
 
   private val TaggedAny: LightTypeTag =
     taggedTagType(EnvironmentTag[Any])
+
+  // For some reason we get a SIGFAULT in Scala Native if we don't do this
+  private val UnitAny: Any = ()
 }
