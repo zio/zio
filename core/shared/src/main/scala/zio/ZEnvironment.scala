@@ -270,12 +270,10 @@ final class ZEnvironment[+R] private (
               service = entry.asInstanceOf[A]
             }
           }
-          if (service == null) {
-            null.asInstanceOf[A]
-          } else {
+          if (service != null) {
             self.cache.put(tag, service)
-            service
           }
+          service
         }
       }
 
