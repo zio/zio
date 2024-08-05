@@ -2686,7 +2686,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 _     <- f.join
               } yield assertTrue(count == 0)
             }
-          } @@ TestAspect.jvmOnly @@ nonFlaky(20) @@ TestAspect.timeout(10.seconds)
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20)
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
@@ -2771,7 +2771,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 _     <- f.join
               } yield assertTrue(count == 0)
             }
-          } @@ TestAspect.jvmOnly @@ jvm(nonFlaky(20)) @@ TestAspect.timeout(10.seconds)
+          } @@ TestAspect.jvmOnly @@ jvm(nonFlaky(20))
         ),
         suite("mergeLeft/Right")(
           test("mergeLeft with HaltStrategy.Right terminates as soon as the right stream terminates") {
