@@ -43,16 +43,72 @@ private[zio] trait LayerMacroUtils {
     provideMethod: ProvideMethod
   ): Expr[ZLayer[R0, E, R]] = {
     verifyLayers(layers)
-    val remainderTypes = getRequirements[R0]
-    val targetTypes    = getRequirements[R]
+    val remainderTypes  = getRequirements[R0]
+    val targetTypes     = getRequirements[R]
+    val debug           = typeOf[ZLayer.Debug.type].termSymbol
+    var usesEnvironment = false
+    val trace           = c.freshName(TermName("trace"))
+    val compose         = c.freshName(TermName("compose"))
 
     val debugMap: PartialFunction[LayerExpr, ZLayer.Debug] = {
-      case q"zio.ZLayer.Debug.tree"    => ZLayer.Debug.Tree
-      case q"zio.ZLayer.Debug.mermaid" => ZLayer.Debug.Mermaid
+      case Expr(q"$prefix.tree") if prefix.symbol == debug    => ZLayer.Debug.Tree
+      case Expr(q"$prefix.mermaid") if prefix.symbol == debug => ZLayer.Debug.Mermaid
     }
 
-    def typeToNode(tpe: Type): Node[Type, LayerExpr] =
-      Node(Nil, List(tpe), c.Expr[ZLayer[_, E, _]](q"${reify(ZLayer)}.environment[$tpe]"))
+    def typeToNode(tpe: Type): Node[Type, LayerExpr] = {
+      usesEnvironment = true
+      Node(Nil, List(tpe), c.Expr[ZLayer[_, _, _]](q"${reify(ZLayer)}.environment[$tpe]($trace)"))
+    }
+
+    def buildFinalTree(tree: LayerTree[LayerExpr]): LayerExpr = {
+      val memoList: List[(LayerExpr, LayerExpr)] = tree.toList.map { node =>
+        val termName = c.freshName(TermName("layer"))
+        node -> c.Expr[ZLayer[_, _, _]](q"$termName")
+      }
+
+      val definitions = memoList.map { case (expr, memoizedNode) =>
+        q"val ${TermName(memoizedNode.tree.toString)} = $expr"
+      }
+
+      var usesCompose = false
+      val memoMap     = memoList.toMap
+      val layerSym    = typeOf[ZLayer[_, _, _]].typeSymbol
+      val layerExpr = tree.fold[LayerExpr](
+        z = reify(ZLayer.unit),
+        value = memoMap,
+        composeH = (lhs, rhs) => c.Expr(q"$lhs ++ $rhs"),
+        composeV = (lhs, rhs) => {
+          usesCompose = true
+          c.Expr(q"$compose($lhs, $rhs)")
+        }
+      )
+
+      val traceVal = if (usesEnvironment || usesCompose) {
+        List(q"val $trace: ${typeOf[Trace]} = ${reify(Tracer)}.newTrace")
+      } else {
+        Nil
+      }
+
+      val composeDef = if (usesCompose) {
+        val R  = c.freshName(TypeName("R"))
+        val E  = c.freshName(TypeName("E"))
+        val O1 = c.freshName(TypeName("O1"))
+        val O2 = c.freshName(TypeName("O2"))
+        List(q"""
+          def $compose[$R, $E, $O1, $O2](lhs: $layerSym[$R, $E, $O1], rhs: $layerSym[$O1, $E, $O2]) =
+            lhs.to(rhs)($trace)
+        """)
+      } else {
+        Nil
+      }
+
+      c.Expr(q"""
+        ..$traceVal
+        ..$composeDef
+        ..$definitions
+        $layerExpr
+      """)
+    }
 
     val builder = LayerBuilder[Type, LayerExpr](
       target0 = targetTypes,
@@ -76,41 +132,12 @@ private[zio] trait LayerMacroUtils {
   }
 
   def provideBaseImpl[F[_, _, _], R0: WeakTypeTag, R: WeakTypeTag, E, A](
-    layers: Seq[Expr[ZLayer[_, E, _]]],
+    layers: Seq[LayerExpr],
     method: String,
     provideMethod: ProvideMethod
   ): Expr[F[R0, E, A]] = {
     val expr = constructLayer[R0, R, E](layers, provideMethod)
     c.Expr[F[R0, E, A]](q"${c.prefix}.${TermName(method)}($expr)")
-  }
-
-  private def buildFinalTree(tree: LayerTree[LayerExpr]): LayerExpr = {
-    val memoList: List[(LayerExpr, LayerExpr)] = tree.toList.map { node =>
-      val termName = TermName(c.freshName("layer"))
-      node -> c.Expr(q"$termName")
-    }
-
-    val definitions = memoList.map { case (expr, memoizedNode) =>
-      q"val ${TermName(memoizedNode.tree.toString)} = $expr"
-    }
-
-    val memoMap  = memoList.toMap
-    val trace    = TermName(c.freshName("trace"))
-    val compose  = TermName(c.freshName("compose"))
-    val layerSym = typeOf[ZLayer[_, _, _]].typeSymbol
-    val layerExpr = tree.fold[LayerExpr](
-      z = reify(ZLayer.unit),
-      value = memoMap,
-      composeH = (lhs, rhs) => c.Expr(q"$lhs ++ $rhs"),
-      composeV = (lhs, rhs) => c.Expr(q"$compose($lhs, $rhs)($trace)")
-    )
-
-    c.Expr(q"""
-    val $trace: ${typeOf[Trace]} = ${reify(Tracer)}.newTrace
-    def $compose[R1, E, O1, O2](lhs: $layerSym[R1, E, O1], rhs: $layerSym[O1, E, O2])(implicit trace: ${typeOf[Trace]}) = lhs.to(rhs)
-    ..$definitions
-    ${layerExpr.tree}
-    """)
   }
 
   /**

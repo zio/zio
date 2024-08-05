@@ -2,10 +2,11 @@ package zio.stream
 
 import zio._
 import zio.stm.TQueue
+import zio.concurrent.CountdownLatch
 import zio.stream.ZStream.HaltStrategy
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, withLiveClock}
+import zio.test.TestAspect.{exceptJS, flaky, jvm, nonFlaky, scala2Only, withLiveClock}
 import zio.test._
 
 import java.io.{ByteArrayInputStream, IOException}
@@ -123,7 +124,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .aggregateAsync(ZSink.collectAllN[Int](2))
                 .runCollect
             )(equalTo(Chunk(Chunk(1, 2), Chunk(3))))
-          } @@ nonFlaky,
+          } @@ jvm(nonFlaky),
           test("zio-kafka issue") {
             assertZIO(
               for {
@@ -599,7 +600,15 @@ object ZStreamSpec extends ZIOBaseSpec {
               _  <- latch.await
               l2 <- ref.get
             } yield assert(l1.toList)(equalTo((1 to 2).toList)) && assert(l2.reverse)(equalTo((1 to 4).toList))
-          } @@ TestAspect.nonFlaky
+          } @@ jvm(nonFlaky),
+          test("preservers order of elements") {
+            val expected = Chunk.fromIterable(0 until 100)
+            ZStream
+              .fromChunk(expected)
+              .buffer(16)
+              .runCollect
+              .map(v => assertTrue(v == expected))
+          } @@ jvm(nonFlaky(1000))
         ),
         suite("bufferChunksDropping")(
           test("buffer the Stream with Error") {
@@ -827,7 +836,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               assert(snapshots._3)(
                 equalTo(List(25, 24, 23, 22, 21, 20, 19, 18, 16, 15, 14, 13, 12, 11, 10, 9))
               )
-          } @@ nonFlaky,
+          } @@ jvm(nonFlaky),
           test("propagates defects") {
             for {
               exit <- ZStream
@@ -1541,7 +1550,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                         ).flatMapPar(2)(identity).runDrain.either
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-          } @@ nonFlaky,
+          } @@ jvm(nonFlaky),
           test("outer errors interrupt all fibers") {
             for {
               substreamCancelled <- Ref.make[Boolean](false)
@@ -1556,7 +1565,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .either
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-          } @@ nonFlaky,
+          } @@ jvm(nonFlaky),
           test("inner defects interrupt all fibers") {
             val ex = new RuntimeException("Ouch")
 
@@ -1588,7 +1597,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .exit
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
-          } @@ nonFlaky,
+          } @@ jvm(nonFlaky),
           test("finalizer ordering") {
             for {
               execution <- Ref.make[List[String]](Nil)
@@ -1606,7 +1615,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(results)(
               equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire"))
             )
-          } @@ nonFlaky,
+          } @@ jvm(nonFlaky),
           test("preserves the scope") {
             for {
               ref   <- Ref.make[Chunk[String]](Chunk.empty)
@@ -1712,7 +1721,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                         ).flatMapParSwitch(2)(identity).runDrain.either
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-          } @@ nonFlaky,
+          } @@ jvm(nonFlaky),
           test("outer errors interrupt all fibers") {
             for {
               substreamCancelled <- Ref.make[Boolean](false)
@@ -1727,7 +1736,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .either
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-          } @@ nonFlaky,
+          } @@ jvm(nonFlaky),
           test("inner defects interrupt all fibers") {
             val ex = new RuntimeException("Ouch")
 
@@ -1759,7 +1768,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .exit
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
-          } @@ nonFlaky,
+          } @@ jvm(nonFlaky),
           test("finalizer ordering") {
             for {
               execution <- Ref.make(List.empty[String])
@@ -2300,7 +2309,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                             .runDrain
                             .either
               } yield assert(result)(isLeft(equalTo("Fail")))
-            } @@ zioTag(errors) @@ nonFlaky
+            } @@ zioTag(errors) @@ jvm(nonFlaky)
           ) @@ zioTag(interruption),
           test("preserves scope of inner fibers") {
             for {
@@ -2316,7 +2325,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               s3       = s1.zipLatest(s2).interruptWhen(promise.await).take(3)
               _       <- s3.runDrain
             } yield assertCompletes
-          } @@ nonFlaky,
+          } @@ jvm(nonFlaky),
           suite("interruptWhen(IO)")(
             test("interrupts the current element") {
               for {
@@ -2361,7 +2370,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               s3      = s1.zipLatest(s2).interruptWhen(ZIO.never).take(3)
               _      <- s3.runDrain
             } yield assertCompletes
-          } @@ nonFlaky
+          } @@ jvm(nonFlaky)
         ),
         suite("interruptAfter")(
           test("interrupts after given duration") {
@@ -2640,7 +2649,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .exit
               count <- interrupted.get
             } yield assert(count)(equalTo(2)) && assert(result)(fails(equalTo("Boom")))
-          } @@ nonFlaky,
+          } @@ jvm(nonFlaky),
           test("propagates correct error with subsequent mapZIOPar call (#4514)") {
             assertZIO(
               ZStream
@@ -2650,7 +2659,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .runCollect
                 .either
             )(isLeft(equalTo("Boom")))
-          } @@ nonFlaky,
+          } @@ jvm(nonFlaky),
           test("propagates error of original stream") {
             for {
               fiber <- (ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) ++ ZStream.fail(new Throwable("Boom")))
@@ -2660,7 +2669,24 @@ object ZStreamSpec extends ZIOBaseSpec {
               _    <- TestClock.adjust(5.seconds)
               exit <- fiber.await
             } yield assert(exit)(fails(hasMessage(equalTo("Boom"))))
-          }
+          },
+          test("parallelism is not exceeded") {
+            val iterations = 1000
+            checkAll(Gen.fromIterable(Chunk(4, 16, 32, 64))) { parallelism =>
+              for {
+                latch <- CountdownLatch.make(parallelism + 1)
+                f <- ZStream
+                       .range(0, iterations)
+                       .mapZIOPar(parallelism, parallelism)(_ => latch.countDown *> latch.await)
+                       .runDrain
+                       .fork
+                _     <- Live.live(latch.count.delay(100.micros)).repeatUntil(_ == 1)
+                _     <- latch.countDown
+                count <- latch.count
+                _     <- f.join
+              } yield assertTrue(count == 0)
+            }
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20)
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
@@ -2677,7 +2703,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val stream =
               ZStream.fromIterable(0 to 3).mapZIOParUnordered(10)(_ => ZIO.fail("fail"))
             assertZIO(stream.runDrain.exit)(fails(equalTo("fail")))
-          } @@ nonFlaky @@ TestAspect.diagnose(10.seconds),
+          } @@ jvm(nonFlaky) @@ TestAspect.diagnose(10.seconds),
           test("interruption propagation") {
             for {
               interrupted <- Ref.make(false)
@@ -2707,7 +2733,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .exit
               count <- interrupted.get
             } yield assert(count)(equalTo(2)) && assert(result)(fails(equalTo("Boom")))
-          } @@ nonFlaky,
+          } @@ jvm(nonFlaky),
           test("awaits children fibers properly") {
             assertZIO(
               ZStream
@@ -2728,7 +2754,24 @@ object ZStreamSpec extends ZIOBaseSpec {
               _    <- TestClock.adjust(5.seconds)
               exit <- fiber.await
             } yield assert(exit)(fails(hasMessage(equalTo("Boom"))))
-          }
+          },
+          test("parallelism is not exceeded") {
+            val iterations = 1000
+            checkAll(Gen.fromIterable(Chunk(4, 16, 32, 64))) { parallelism =>
+              for {
+                latch <- CountdownLatch.make(parallelism + 1)
+                f <- ZStream
+                       .range(0, iterations)
+                       .mapZIOParUnordered(parallelism)(_ => latch.countDown *> latch.await)
+                       .runDrain
+                       .fork
+                _     <- Live.live(latch.count.delay(100.micros)).repeatUntil(_ == 1)
+                _     <- latch.countDown
+                count <- latch.count
+                _     <- f.join
+              } yield assertTrue(count == 0)
+            }
+          } @@ TestAspect.jvmOnly @@ jvm(nonFlaky(20))
         ),
         suite("mergeLeft/Right")(
           test("mergeLeft with HaltStrategy.Right terminates as soon as the right stream terminates") {
@@ -2843,7 +2886,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertZIO(ZStream(1, 2, 3).merge(ZStream.fail(())).runCollect.exit.map(_.isSuccess))(
               equalTo(false)
             )
-          } @@ nonFlaky(20),
+          } @@ jvm(nonFlaky(20)),
           test("prioritizes failure") {
             val s1 = ZStream.never
             val s2 = ZStream.fail("Ouch")
@@ -4093,6 +4136,18 @@ object ZStreamSpec extends ZIOBaseSpec {
               _     <- fiber.interrupt
               value <- ref.get
             } yield assert(value)(equalTo(true))
+          },
+          test("should not interrupt children of a pending stream") {
+            val stream1 = (ZStream.succeed(0) ++ ZStream.fromZIO(ZIO.sleep(200.millis)).as(1))
+              .debounce(100.millis)
+
+            val stream2 = ZStream.succeed(42)
+
+            for {
+              fiber  <- (stream1 merge stream2).runCollect.fork
+              _      <- TestClock.adjust(10.millis).repeatN(30)
+              result <- fiber.join
+            } yield assertTrue(result == Chunk(42, 0, 1))
           }
         ) @@ TestAspect.timeout(40.seconds),
         suite("timeout")(
@@ -4327,7 +4382,79 @@ object ZStreamSpec extends ZIOBaseSpec {
               }
             }
             assertZIO(stream.via(pipeline).runCollect.exit)(fails(hasMessage(containsString("fail"))))
-          } @@ TestAspect.jvmOnly
+          } @@ TestAspect.jvmOnly,
+          test("respects env") {
+            val src: ZStream[Resource, Nothing, (Int, Resource)] = ZStream
+              .range(0, 100, 10)
+              .mapZIO { a =>
+                ZIO.serviceWith[Resource] { resource =>
+                  (a, resource)
+                }
+              }
+
+            val pl0: ZPipeline[Any, Nothing, (Int, Resource), (Int, Resource, Scope)] =
+              ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, (Int, Resource)]) =>
+                ZStream
+                  .unwrapScoped[Any] {
+                    ZIO.scopeWith { scope =>
+                      ZIO.succeed {
+                        ZStream
+                          .serviceWithStream[Scope] { scope2 =>
+                            strm.map { case (i, res) =>
+                              (i, res, scope2)
+                            }
+                          }
+                          .provideEnvironment(ZEnvironment(scope))
+                      }
+                    }
+                  }
+              }
+
+            val strm: ZStream[Resource, Nothing, (Int, Resource, Scope)] = src >>> pl0
+            val z00: ZIO[Any, Nothing, Chunk[(Int, Resource, Scope)]] =
+              strm.runCollect.provideLayer(ZLayer.succeed(Resource(12)))
+            z00.map { chunk =>
+              zio.test.assertTrue {
+                chunk.map(_._3).toSet.size == 1
+              } &&
+              zio.test.assertTrue {
+                chunk.map { case (i, res, _) =>
+                  (i, res)
+                } ==
+                  Chunk.tabulate(100)((_, Resource(12)))
+              }
+            }
+          },
+          test("respects env multiple levels") {
+            val src = ZStream.range(0, 100, 10)
+
+            val pl1: ZPipeline[Any, Nothing, Int, (Int, Resource)] =
+              ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, Int]) =>
+                strm.mapZIO { i =>
+                  ZIO.serviceWith[Resource] { r =>
+                    (i, r)
+                  }
+                }
+                  .provideEnvironment(ZEnvironment(Resource(11)))
+              }
+
+            val pl2: ZPipeline[Any, Nothing, (Int, Resource), (Int, Resource, Resource)] =
+              ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, (Int, Resource)]) =>
+                strm.mapZIO { case (i, r0) =>
+                  ZIO.serviceWith[Resource] { r1 =>
+                    (i, r0, r1)
+                  }
+                }
+                  .provideEnvironment(ZEnvironment(Resource(12)))
+              }
+
+            val strm: ZStream[Any, Nothing, (Int, Resource, Resource)] = src >>> pl1 >>> pl2
+            val z: ZIO[Any, Nothing, Chunk[(Int, Resource, Resource)]] = strm.runCollect
+
+            assertZIO(z) {
+              zio.test.Assertion.equalTo(zio.Chunk.tabulate(100)((_, Resource(11), Resource(12))))
+            }
+          }
         ),
         test("toIterator") {
           ZIO.scoped {
@@ -4627,7 +4754,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- left.offerAll(List(Chunk(1), Chunk(2)))
               chunk2 <- ZIO.replicateZIO(2)(out.take.flatMap(_.done)).map(_.flatten)
             } yield assert(chunk1)(equalTo(List((0, 0), (0, 1)))) && assert(chunk2)(equalTo(List((1, 1), (2, 1))))
-          } @@ nonFlaky,
+          } @@ jvm(nonFlaky),
           test("handle empty pulls properly") {
             val stream0 = ZStream.fromChunks(Chunk(), Chunk(), Chunk(2))
             val stream1 = ZStream.fromChunks(Chunk(1), Chunk(1))
@@ -4646,7 +4773,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 result <- fiber.join
               } yield result
             )(equalTo(Chunk(1, 1, 1)))
-          } @@ nonFlaky,
+          } @@ jvm(nonFlaky),
           test("handle empty pulls properly (JVM Only)") {
             assertZIO(
               ZStream
@@ -5549,4 +5676,6 @@ object ZStreamSpec extends ZIOBaseSpec {
   val dog: Animal = Dog("dog1")
   val cat1: Cat   = Cat("cat1")
   val cat2: Cat   = Cat("cat2")
+
+  case class Resource(idx: Int)
 }

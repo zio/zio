@@ -347,7 +347,7 @@ object ZIOSpec extends ZIOBaseSpec {
             exit     <- ZIO.collectAllPar(List(left, ZIO.collectAllPar(List(right1, right2)))).exit
           } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
         }
-      } @@ nonFlaky(500)
+      } @@ jvm(nonFlaky(500))
     ),
     suite("collectAllParN")(
       test("returns results in the same order") {
@@ -1039,7 +1039,7 @@ object ZIOSpec extends ZIOBaseSpec {
             (assert(result2.dieOption)(isSome(equalTo(boom))) && assert(result2.isInterrupted)(isTrue))
           }
         }
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("infers correctly") {
         for {
           ref    <- Ref.make(0)
@@ -1793,7 +1793,7 @@ object ZIOSpec extends ZIOBaseSpec {
             equalTo(List("error1")) ||
             equalTo(List("error2"))
         )
-      } @@ nonFlaky
+      } @@ jvm(nonFlaky)
     ) @@ zioTag(errors),
     suite("partition")(
       test("collects only successes") {
@@ -2830,7 +2830,7 @@ object ZIOSpec extends ZIOBaseSpec {
             _      <- started.await *> fiber.interruptFork *> latch.succeed(()) *> fiber.await
             result <- finalized.get
           } yield assertTrue(result == false)
-        } @@ nonFlaky +
+        } @@ jvm(nonFlaky) +
         test("interruption can be caught at the beginning of uninterruptible regions") {
           for {
             started   <- Promise.make[Nothing, Unit]
@@ -2875,7 +2875,7 @@ object ZIOSpec extends ZIOBaseSpec {
                      }
             cause <- ensuring.await *> fiber.interrupt.flatMap(ZIO.done(_))
           } yield assertTrue(cause.defects.length == 1)
-        } @@ nonFlaky
+        } @@ jvm(nonFlaky)
 
     } @@ zioTag(interruption),
     suite("RTS concurrency correctness")(
@@ -3329,7 +3329,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- done1.await *> done2.await
           count <- ref.get
         } yield assert(count)(equalTo(2))
-      }, // FIXME: @@ nonFlaky,
+      }, // FIXME: @@ jvm(nonFlaky),
       test("recovery of error in finalizer") {
         for {
           recovered <- Ref.make(false)
@@ -3533,7 +3533,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _       <- fiber.interrupt
           value   <- ref.get
         } yield assertTrue(value == true)
-      } @@ nonFlaky @@ TestAspect.fibers,
+      } @@ jvm(nonFlaky) @@ TestAspect.fibers,
       test("asyncInterrupt cancelation") {
         for {
           ref       <- ZIO.succeed(new java.util.concurrent.atomic.AtomicInteger(0))
@@ -3572,7 +3572,7 @@ object ZIOSpec extends ZIOBaseSpec {
             _       <- ref.get.repeatUntilEquals(true)
           } yield assertCompletes
         }
-      } @@ nonFlaky,
+      } @@ jvm(nonFlaky),
       test("child can outlive parent in race") {
         for {
           promise <- Promise.make[Nothing, Unit]
@@ -3584,7 +3584,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- promise.succeed(())
           exit  <- fiber.await
         } yield assertTrue(exit.isSuccess)
-      } @@ nonFlaky
+      } @@ jvm(nonFlaky)
     ) @@ zioTag(interruption),
     suite("RTS environment")(
       test("provide is modular") {
@@ -3841,6 +3841,24 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("unlessDiscard")(
+      test("executes correct branch only") {
+        for {
+          effectRef <- Ref.make(0)
+          _         <- effectRef.set(1).unlessDiscard(true)
+          val1      <- effectRef.get
+          _         <- effectRef.set(2).unlessDiscard(false)
+          val2      <- effectRef.get
+          failure    = new Exception("expected")
+          _         <- ZIO.fail(failure).unlessDiscard(true)
+          failed    <- ZIO.fail(failure).unless(false).either
+        } yield {
+          assert(val1)(equalTo(0)) &&
+          assert(val2)(equalTo(2)) &&
+          assert(failed)(isLeft(equalTo(failure)))
+        }
+      }
+    ),
     suite("unlessZIO")(
       test("executes condition effect and correct branch") {
         for {
@@ -3874,6 +3892,42 @@ object ZIOSpec extends ZIOBaseSpec {
         val b: ZIO[R, E, Boolean] = ZIO.succeed(true)
         val zio: ZIO[R1, E1, A]   = ZIO.succeed(new A {})
         val _                     = ZIO.unlessZIO(b)(zio)
+        ZIO.succeed(assertCompletes)
+      }
+    ),
+    suite("unlessZIODiscard")(
+      test("executes condition effect and correct branch") {
+        for {
+          effectRef     <- Ref.make(0)
+          conditionRef  <- Ref.make(0)
+          conditionTrue  = conditionRef.update(_ + 1).as(true)
+          conditionFalse = conditionRef.update(_ + 1).as(false)
+          _             <- effectRef.set(1).unlessZIODiscard(conditionTrue)
+          val1          <- effectRef.get
+          conditionVal1 <- conditionRef.get
+          _             <- effectRef.set(2).unlessZIODiscard(conditionFalse)
+          val2          <- effectRef.get
+          conditionVal2 <- conditionRef.get
+          failure        = new Exception("expected")
+          _             <- ZIO.fail(failure).unlessZIODiscard(conditionTrue)
+          failed        <- ZIO.fail(failure).unlessZIO(conditionFalse).either
+        } yield {
+          assert(val1)(equalTo(0)) &&
+          assert(conditionVal1)(equalTo(1)) &&
+          assert(val2)(equalTo(2)) &&
+          assert(conditionVal2)(equalTo(2)) &&
+          assert(failed)(isLeft(equalTo(failure)))
+        }
+      },
+      test("infers correctly") {
+        trait R
+        trait R1 extends R
+        trait E1
+        trait E extends E1
+        trait A
+        val b: ZIO[R, E, Boolean] = ZIO.succeed(true)
+        val zio: ZIO[R1, E1, A]   = ZIO.succeed(new A {})
+        val _                     = ZIO.unlessZIODiscard(b)(zio)
         ZIO.succeed(assertCompletes)
       }
     ),
@@ -4084,6 +4138,24 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("whenDiscard")(
+      test("executes correct branch only") {
+        for {
+          effectRef <- Ref.make(0)
+          _         <- effectRef.set(1).whenDiscard(false)
+          val1      <- effectRef.get
+          _         <- effectRef.set(2).whenDiscard(true)
+          val2      <- effectRef.get
+          failure    = new Exception("expected")
+          _         <- ZIO.fail(failure).whenDiscard(false)
+          failed    <- ZIO.fail(failure).when(true).either
+        } yield {
+          assert(val1)(equalTo(0)) &&
+          assert(val2)(equalTo(2)) &&
+          assert(failed)(isLeft(equalTo(failure)))
+        }
+      }
+    ),
     suite("whenCase")(
       test("executes correct branch only") {
         val v1: Option[Int] = None
@@ -4143,6 +4215,42 @@ object ZIOSpec extends ZIOBaseSpec {
         val b: ZIO[R, E, Boolean] = ZIO.succeed(true)
         val zio: ZIO[R1, E1, A]   = ZIO.succeed(new A {})
         val _                     = ZIO.whenZIO(b)(zio)
+        ZIO.succeed(assertCompletes)
+      }
+    ),
+    suite("whenZIODiscard")(
+      test("executes condition effect and correct branch") {
+        for {
+          effectRef     <- Ref.make(0)
+          conditionRef  <- Ref.make(0)
+          conditionTrue  = conditionRef.update(_ + 1).as(true)
+          conditionFalse = conditionRef.update(_ + 1).as(false)
+          _             <- effectRef.set(1).whenZIODiscard(conditionFalse)
+          val1          <- effectRef.get
+          conditionVal1 <- conditionRef.get
+          _             <- effectRef.set(2).whenZIODiscard(conditionTrue)
+          val2          <- effectRef.get
+          conditionVal2 <- conditionRef.get
+          failure        = new Exception("expected")
+          _             <- ZIO.fail(failure).whenZIODiscard(conditionFalse)
+          failed        <- ZIO.fail(failure).whenZIO(conditionTrue).either
+        } yield {
+          assert(val1)(equalTo(0)) &&
+          assert(conditionVal1)(equalTo(1)) &&
+          assert(val2)(equalTo(2)) &&
+          assert(conditionVal2)(equalTo(2)) &&
+          assert(failed)(isLeft(equalTo(failure)))
+        }
+      },
+      test("infers correctly") {
+        trait R
+        trait R1 extends R
+        trait E1
+        trait E extends E1
+        trait A
+        val b: ZIO[R, E, Boolean] = ZIO.succeed(true)
+        val zio: ZIO[R1, E1, A]   = ZIO.succeed(new A {})
+        val _                     = ZIO.whenZIODiscard(b)(zio)
         ZIO.succeed(assertCompletes)
       }
     ),
@@ -4212,7 +4320,7 @@ object ZIOSpec extends ZIOBaseSpec {
             exit     <- left.zipPar(right1.zipPar(right2)).exit
           } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
         }
-      } @@ nonFlaky(500),
+      } @@ jvm(nonFlaky(500)),
       test("is interruptible") {
         for {
           promise1 <- Promise.make[Nothing, Unit]
@@ -4349,6 +4457,21 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           _ <- workflow
         } yield assertTrue(evaluated)
+      }
+    ),
+    suite("fromAutoCloseable")(
+      test("Runs finalizers properly") {
+        for {
+          runtime <- ZIO.runtime[Any]
+          effects <- Ref.make(List[String]())
+          closeable = ZIO.succeed(new AutoCloseable {
+                        def close(): Unit = Unsafe.unsafe { implicit unsafe =>
+                          runtime.unsafe.run(effects.update("Closed" :: _)).getOrThrowFiberFailure()
+                        }
+                      })
+          _      <- ZIO.scoped(ZIO.fromAutoCloseable(closeable))
+          result <- effects.get
+        } yield assert(result)(equalTo(List("Closed")))
       }
     )
   )

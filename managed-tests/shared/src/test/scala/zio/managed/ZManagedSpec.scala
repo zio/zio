@@ -3,7 +3,7 @@ package zio.managed
 import zio._
 import zio.managed.ZManaged.ReleaseMap
 import zio.test.Assertion._
-import zio.test.TestAspect.{nonFlaky, scala2Only}
+import zio.test.TestAspect.{jvm, nonFlaky, scala2Only}
 import zio.test._
 
 import scala.concurrent.ExecutionContext
@@ -145,7 +145,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           assert(l)(equalTo(List(1, 2, 3))) &&
             assert(r)(equalTo(List(1, 2, 3)))
         }
-      } @@ TestAspect.nonFlaky
+      } @@ jvm(nonFlaky)
     ),
     suite("fromZIO")(
       test("Performed interruptibly") {
@@ -460,6 +460,17 @@ object ZManagedSpec extends ZIOBaseSpec {
           _      <- ZManaged.fromAutoCloseable(closeable).useDiscard(ZIO.unit)
           result <- effects.get
         } yield assert(result)(equalTo(List("Closed")))
+      },
+      test("is null-safe") {
+        // Will be `null` because the file doesn't exist
+        def loadNonExistingFile = ZIO.attempt(this.getClass.getResourceAsStream(s"this_file_doesnt_exist.json"))
+
+        for {
+          shouldBeNull <- loadNonExistingFile
+          // Should not fail when closing a null resource
+          // The test will fail if the resource is not closed properly
+          _ <- ZManaged.fromAutoCloseable(loadNonExistingFile).useDiscard(ZIO.unit)
+        } yield assert(shouldBeNull)(isNull)
       }
     ),
     suite("ifManaged")(
@@ -1086,7 +1097,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           _      <- fiber.interrupt
           result <- ref.get
         } yield assert(result)(equalTo(0))
-      } @@ zioTag(interruption) @@ nonFlaky,
+      } @@ zioTag(interruption) @@ jvm(nonFlaky),
       test("runs finalizer when close is called") {
         ZManaged.scope.use { scope =>
           for {
@@ -1401,7 +1412,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           result1 <- ref1.get
           result2 <- ref2.get
         } yield assert(result1)(equalTo(0)) && assert(result2)(equalTo(0))
-      } @@ zioTag(interruption) @@ nonFlaky
+      } @@ zioTag(interruption) @@ jvm(nonFlaky)
     ),
     suite("flatten")(
       test("Returns the same as ZManaged.flatten") {

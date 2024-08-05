@@ -86,7 +86,12 @@ object ChunkBuilder {
         } else {
           arrayBuilder.sizeHint(n)
         }
-      override def knownSize: SInt = arrayBuilder.knownSize
+      override def knownSize: SInt =
+        if (arrayBuilder eq null) {
+          -1
+        } else {
+          arrayBuilder.knownSize
+        }
     }
 
   /**

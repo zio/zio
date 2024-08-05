@@ -151,7 +151,7 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
         if (it.hasNext) {
           val next = it.next().get()
 
-          if (next == null) {
+          if (next eq null) {
             it.remove() // Remove dead reference since we're iterating over the set
             prefetch()
           } else next
@@ -159,10 +159,10 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
           null.asInstanceOf[A]
         }
 
-      def hasNext() = _next != null
+      def hasNext() = _next ne null
 
       def next(): A =
-        if (_next == null)
+        if (_next eq null)
           throw new NoSuchElementException("There is no more element in the weak concurrent bag iterator")
         else {
           val result = _next

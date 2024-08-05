@@ -13,17 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package zio 
+package zio
 
-private[zio] trait UnsafeVersionSpecific { self =>
+private[zio] transparent trait UnsafeVersionSpecific {
 
   def unsafely[A](f: Unsafe ?=> A): A =
-    f(using Unsafe.unsafe)
+    f(using Unsafe)
 
   implicit def implicitFunctionIsFunction[A](f: Unsafe ?=> A): Unsafe => A =
-    unsafe => {
-      given Unsafe = unsafe
-      
-      f
-    }
+    _ => f(using Unsafe)
 }

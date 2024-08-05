@@ -476,11 +476,14 @@ object FiberRef {
 
         override def locally[R, E, A](newValue: Value)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
           ZIO.withFiberRuntime[R, E, A] { (fiberState, _) =>
-            val oldValue = fiberState.getFiberRef(self)
+            val oldValue = fiberState.getFiberRefOrNull(self)
 
             fiberState.setFiberRef(self, newValue)
 
-            zio.ensuring(ZIO.succeed(fiberState.setFiberRef(self, oldValue)))
+            zio.ensuring(ZIO.succeed {
+              if (oldValue == null) fiberState.resetFiberRef(self)
+              else fiberState.setFiberRef(self, oldValue)
+            })
           }
 
         override def set(value: Value)(implicit trace: Trace): UIO[Unit] =

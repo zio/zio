@@ -35,7 +35,7 @@ jobs:
     - name: Install libuv
       run: sudo apt-get update && sudo apt-get install -y libuv1-dev
     - name: Lint code
-      run: sbt check
+      run: sbt "++2.13; check; ++3.3; check"
 
   compile:
     runs-on: ubuntu-20.04
@@ -76,6 +76,8 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
+    env:
+      CI_RELEASE_MODE: 1 # Needed to enable optimizers
     strategy:
       fail-fast: false
       matrix:
@@ -117,7 +119,7 @@ jobs:
           distribution: temurin
           java-version: 17
           check-latest: true
-          
+
       - name: Install NodeJS
         uses: actions/setup-node@v3
         with:
@@ -158,6 +160,8 @@ jobs:
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v4.1.1
+      with:
+        fetch-depth: 0
     - name: Setup Java
       uses: actions/setup-java@v4.2.1
       with:
@@ -167,8 +171,8 @@ jobs:
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
     - name: Mima Checks
-      if: ${{ !startsWith(matrix.scala, '3.') }}
-      run: sbt -v ++${{ matrix.scala }} mimaChecks
+      # Enable optimizers as inlining might affect binary compatibility in rare cases
+      run: CI_RELEASE_MODE=1 sbt -v ++${{ matrix.scala }} mimaChecks
     - name: Test 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
       run: sbt -v ++${{ matrix.scala }} test${{ matrix.platform }}
@@ -300,7 +304,8 @@ jobs:
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          
+          CI_RELEASE_MODE: 1 # Needed to enable optimizers
+
   publish-website:
     needs: [ci]
     if: github.event_name != 'pull_request'
@@ -320,7 +325,7 @@ jobs:
         with:
           branch: gh-pages
           folder: ./website-artifact
-          
+
   update-docs:
     runs-on: ubuntu-latest
     if: ${{ ((github.event_name == 'repository_dispatch') && (github.event.action == 'update-docs')) }}
@@ -340,7 +345,7 @@ jobs:
           git add package.json
           commit_message="Update $package_name to $package_version"
           git commit -m "$commit_message" || echo "No changes to commit"
-          
+
       - name: Create Pull Request to Update Docs
         uses: peter-evans/create-pull-request@v4.2.4
         with:
