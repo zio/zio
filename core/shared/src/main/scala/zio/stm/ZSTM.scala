@@ -72,7 +72,7 @@ import scala.util.{Failure, Success, Try}
  */
 sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   import ZSTM._
-  import ZSTM.internal.{Journal, TExit, prepareResetJournal}
+  import ZSTM.internal.{Journal, TExit}
 
   /**
    * A symbolic alias for `orDie`.
@@ -436,7 +436,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Named alias for `<>`.
    */
   def orElse[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
-    Effect[Any, Nothing, () => Any]((journal, _, _) => prepareResetJournal(journal)).flatMap { reset =>
+    Effect[Any, Nothing, () => Unit]((journal, _, _) => journal.resetFn()).flatMap { reset =>
       self.orTry(ZSTM.succeed(reset()) *> that).catchAll(_ => ZSTM.succeed(reset()) *> that)
     }
 
@@ -1700,16 +1700,76 @@ object ZSTM {
       def valuesIterator: Iterator[Entry]              = map.valuesIterator
 
       // Transactional API
+      /**
+       * Analyzes the journal, determining whether it is valid and whether it is
+       * read only in a single pass. Note that information on whether the
+       * journal is read only will only be accurate if the journal is valid, due
+       * to short-circuiting that occurs on an invalid journal.
+       */
+      private[ZSTM] def analyze(attemptCommit: Boolean): JournalAnalysis =
+        if (map.size == 1) analyzeJournal1(map.head._2, attemptCommit)
+        else analyzeJournalN()
+
+      private[this] def analyzeJournal1(value: Entry, attemptCommit: Boolean): JournalAnalysis =
+        if (attemptCommit) {
+          if (value.maybeCommit()) JournalAnalysis.Committed
+          else JournalAnalysis.Invalid
+        } else if (value.isInvalid) JournalAnalysis.Invalid
+        else if (value.isChanged) JournalAnalysis.ReadWrite
+        else JournalAnalysis.ReadOnly
+
+      private[this] def analyzeJournalN(): JournalAnalysis = {
+        var changed = false
+
+        val it = map.valuesIterator
+        while (it.hasNext) {
+          val value = it.next()
+          if (value.isInvalid) return JournalAnalysis.Invalid
+          else if (value.isChanged) changed = true
+        }
+        if (changed) JournalAnalysis.ReadWrite else JournalAnalysis.ReadOnly
+      }
+
       private[ZSTM] def commit(): Unit = {
         val it = map.valuesIterator
         while (it.hasNext) it.next.commit()
       }
+
       private[ZSTM] def isInvalid: Boolean = !isValid
+
       private[ZSTM] def isValid: Boolean = {
         val it = map.valuesIterator
         while (it.hasNext) if (!it.next().isValid) return false
         true
       }
+
+      /**
+       * Creates a function that can reset the journal.
+       */
+      private[ZSTM] def resetFn(): () => Unit = {
+        val currentNewValues = newMutableMap[TRef[_], Any](map.size)
+        val itCapture        = map.iterator
+        while (itCapture.hasNext) {
+          val (key, value) = itCapture.next()
+          currentNewValues.update(key, value.unsafeGet[Any])
+        }
+
+        () => {
+          val saved = Map.newBuilder[TRef[_], Entry]
+          val it    = map.iterator
+          while (it.hasNext) {
+            val (key, value) = it.next()
+            val resetValue = currentNewValues.getOrElse(key, null) match {
+              case null  => value.expected
+              case value => value
+            }
+            saved += ((key, value.copy().reset(resetValue)))
+          }
+          map = saved.result()
+          ()
+        }
+      }
+
     }
 
     private object LockSupport {
@@ -1776,64 +1836,6 @@ object ZSTM {
 
     private def newMutableMap[K, V](initialCapacity: Int): MutableMap[K, V] =
       new MutableMap[K, V](Math.ceil(math.max(initialCapacity, 4) / 0.75d).toInt, 0.75d)
-
-    /**
-     * Creates a function that can reset the journal.
-     */
-    def prepareResetJournal(journal: Journal): () => Any = {
-      val currentNewValues = newMutableMap[TRef[_], Any](journal.size)
-      val itCapture        = journal.iterator
-      while (itCapture.hasNext) {
-        val entry = itCapture.next()
-        currentNewValues.update(entry._1, entry._2.unsafeGet[Any])
-      }
-
-      () => {
-        val saved = newMutableMap[TRef[_], Entry](journal.size)
-        val it    = journal.iterator
-        while (it.hasNext) {
-          val (key, value) = it.next()
-          val resetValue = currentNewValues.getOrElse(key, null) match {
-            case null  => value.expected
-            case value => value
-          }
-          saved.put(key, value.copy().reset(resetValue))
-        }
-        journal.clear()
-        journal.putAll(saved)
-        ()
-      }
-    }
-
-    /**
-     * Analyzes the journal, determining whether it is valid and whether it is
-     * read only in a single pass. Note that information on whether the journal
-     * is read only will only be accurate if the journal is valid, due to
-     * short-circuiting that occurs on an invalid journal.
-     */
-    def analyzeJournal(journal: Journal, attemptCommit: Boolean): JournalAnalysis =
-      if (journal.size == 1) analyzeJournal1(journal.head._2, attemptCommit)
-      else analyzeJournalN(journal)
-
-    private def analyzeJournalN(journal: Journal): JournalAnalysis = {
-      var changed = false
-
-      val it = journal.valuesIterator
-      while (it.hasNext) {
-        val value = it.next()
-        if (value.isInvalid) return JournalAnalysis.Invalid
-        else if (value.isChanged) changed = true
-      }
-      if (changed) JournalAnalysis.ReadWrite else JournalAnalysis.ReadOnly
-    }
-
-    private def analyzeJournal1(value: Entry, attemptCommit: Boolean): JournalAnalysis =
-      if (attemptCommit) {
-        if (value.maybeCommit()) JournalAnalysis.Committed
-        else JournalAnalysis.Invalid
-      } else if (value.isInvalid) JournalAnalysis.Invalid
-      else if (value.isChanged) JournalAnalysis.ReadWrite
-      else JournalAnalysis.ReadOnly
 
     type JournalAnalysis = Int
     object JournalAnalysis {
@@ -1908,7 +1910,7 @@ object ZSTM {
           tRefs = journal.keys
           LockSupport.tryLock(tRefs) {
             val isSuccess = value.isInstanceOf[TExit.Succeed[_]]
-            val analysis  = analyzeJournal(journal, attemptCommit = false)
+            val analysis  = journal.analyze(attemptCommit = false)
             if (analysis != JournalAnalysis.Invalid) {
               loop = false
               if (
