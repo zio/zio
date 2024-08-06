@@ -1,6 +1,7 @@
 package zio.test
 
 import zio._
+import zio.test.TestAspect.nonFlaky
 import zio.test.Assertion._
 
 import java.util.concurrent.TimeUnit
