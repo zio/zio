@@ -107,6 +107,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                                 runtime.unsafe.run {
                                   (promise.succeed(()) *> clock.sleep(2.seconds) *>
                                     clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _)))
+                                    .catchAll(_ => ZIO.unit)
                                 }.getOrThrowFiberFailure()
                               }
                           },
@@ -115,8 +116,9 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                           TimeUnit.SECONDS
                         )
                       }
+            _      <- TestClock.adjust(3.seconds)
             _      <- promise.await
-            _      <- TestClock.adjust(7.seconds)
+            _      <- TestClock.adjust(4.seconds)
             _      <- ZIO.succeed(future.cancel(false))
             _      <- TestClock.adjust(11.seconds)
             values <- ref.get
