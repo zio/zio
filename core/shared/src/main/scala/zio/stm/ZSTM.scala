@@ -902,7 +902,7 @@ object ZSTM extends ZSTMVersionSpecific {
   def atomically[R, E, A](stm: ZSTM[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     unsafeAtomically(stm)(_ => (), () => ())
 
-  private def commitEffects(onCommit: List[UIO[Any]]): UIO[Any] =
+  private def commitEffects(onCommit: List[UIO[Any]])(implicit trace: Trace): UIO[Any] =
     onCommit match {
       case Nil        => Exit.unit
       case one :: Nil => one
@@ -915,11 +915,13 @@ object ZSTM extends ZSTMVersionSpecific {
     stm: ZSTM[R, E, A]
   )(onDone: Exit[E, A] => Any, onInterrupt: () => Any)(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.withFiberRuntime[R, E, A] { (fiberState, _) =>
+      implicit val unsafe: Unsafe = Unsafe
+
       val executor = fiberState.getCurrentExecutor()
       val r        = fiberState.getFiberRef(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
       val fiberId  = fiberState.id
 
-      tryCommitSync(fiberId, stm, null, r, executor)(Unsafe.unsafe) match {
+      tryCommitSync(fiberId, stm, null, r, executor) match {
         case TryCommit.Done(exit, onCommit) =>
           onDone(exit)
           commitEffects(onCommit) *> exit
