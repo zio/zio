@@ -1239,7 +1239,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         _     <- transaction(ref).commit
         value <- ref.get
       } yield assertTrue(value == 9)
-    } @@ jvm(nonFlaky(10000)),
+    } @@ jvm(nonFlaky(10000))
   )
 
   val ExampleError = new Throwable("fail")
