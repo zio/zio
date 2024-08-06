@@ -21,6 +21,7 @@ import zio.internal.UpdateOrderLinkedMap
 import java.util.concurrent.ConcurrentHashMap
 import scala.annotation.tailrec
 import scala.collection.{immutable, mutable}
+import scala.util.control.ControlThrowable
 import scala.util.hashing.MurmurHash3
 
 final class ZEnvironment[+R] private (
@@ -352,6 +353,9 @@ object ZEnvironment {
       cache = new ConcurrentHashMap[LightTypeTag, Any],
       scope = null
     )
+
+  @deprecated("kept for bin-compat only")
+  private case object MissingService extends ControlThrowable
 
   // Can't use scala -> java collection conversions because they don't cross compile to Scala 2.12.
   @deprecated("Marked as deprecated to avoid usage in non-deprecated methods", "2.1.16")
