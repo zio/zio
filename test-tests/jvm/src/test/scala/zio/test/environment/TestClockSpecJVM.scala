@@ -1,7 +1,6 @@
 package zio.test
 
 import zio._
-import zio.test.TestAspect._
 import zio.test.Assertion._
 
 import java.util.concurrent.TimeUnit
@@ -124,7 +123,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
             values <- ref.get
             _      <- ZIO.logInfo(s"Values after interruption: $values")
           } yield assert(values.reverse)(equalTo(List(5L)))
-        } @@ jvm(nonFlaky)
+        }
       )
     ) @@ TestAspect.nonFlaky(10)
 }
