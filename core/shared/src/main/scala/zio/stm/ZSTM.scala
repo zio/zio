@@ -877,7 +877,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
 }
 
-object ZSTM {
+object ZSTM extends ZSTMVersionSpecific {
   import internal._
 
   /**
@@ -902,25 +902,27 @@ object ZSTM {
   def atomically[R, E, A](stm: ZSTM[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     unsafeAtomically(stm)(_ => (), () => ())
 
+  private def commitEffects(onCommit: List[UIO[Any]]): UIO[Any] =
+    onCommit match {
+      case Nil        => Exit.unit
+      case one :: Nil => one
+      case many =>
+        val it = many.reverseIterator
+        ZIO.whileLoop(it.hasNext)(it.next())(_ => ())
+    }
+
   private def unsafeAtomically[R, E, A](
     stm: ZSTM[R, E, A]
   )(onDone: Exit[E, A] => Any, onInterrupt: () => Any)(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.withFiberRuntime[R, E, A] { (fiberState, _) =>
-      implicit val unsafe: Unsafe = Unsafe.unsafe
-      val executor                = fiberState.getCurrentExecutor()
-      val r                       = fiberState.getFiberRef(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
-      val fiberId                 = fiberState.id
+      val executor = fiberState.getCurrentExecutor()
+      val r        = fiberState.getFiberRef(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
+      val fiberId  = fiberState.id
 
-      tryCommitSync(fiberId, stm, null, r, executor) match {
+      tryCommitSync(fiberId, stm, null, r, executor)(Unsafe.unsafe) match {
         case TryCommit.Done(exit, onCommit) =>
           onDone(exit)
-          onCommit match {
-            case Nil        => exit
-            case one :: Nil => one *> exit
-            case many =>
-              val it = many.reverseIterator
-              ZIO.whileLoop(it.hasNext)(it.next())(_ => ()) *> exit
-          }
+          commitEffects(onCommit) *> exit
         case TryCommit.Suspend(journal) =>
           val txId  = TxnId.make()
           val state = new AtomicReference[State[E, A]](State.Running)
@@ -933,13 +935,7 @@ object ZSTM {
                 state.get match {
                   case State.Done(exit, onCommit) =>
                     onDone(exit)
-                    onCommit match {
-                      case Nil        => exit
-                      case one :: Nil => one *> exit
-                      case many =>
-                        val it = many.reverseIterator
-                        ZIO.whileLoop(it.hasNext)(it.next())(_ => ()) *> exit
-                    }
+                    commitEffects(onCommit) *> exit
                   case _ =>
                     onInterrupt()
                     ZIO.refailCause(cause)
@@ -1804,10 +1800,10 @@ object ZSTM {
               case null  => value.expected
               case value => value
             }
-            saved += ((key, value.copy().reset(resetValue)))
+            saved.update(key, value.copy().reset(resetValue))
           }
           map.clear()
-          map.addAll(saved)
+          map ++= saved
           ()
         }
       }
@@ -1856,9 +1852,6 @@ object ZSTM {
     }
 
     type Todo = () => Any
-
-    private def newMutableMap[K, V](initialCapacity: Int): MutableMap[K, V] =
-      new MutableMap[K, V](Math.ceil(math.max(initialCapacity, 4) / 0.75d).toInt, 0.75d)
 
     type JournalAnalysis = Int
     object JournalAnalysis {
