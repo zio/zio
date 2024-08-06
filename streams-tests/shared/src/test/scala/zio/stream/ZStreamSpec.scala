@@ -2820,8 +2820,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               val l = data.length
 
               for {
-                f <- s.mapZIOParUnordered(8)({case (x, i) => ZIO.succeed(x).delay((l-i).seconds)}).runCollect.fork
-                _ <- ZIO.iterate(0)(_ <= l)(i => TestClock.adjust(1.second).as(i+1))
+                f   <- s.mapZIOParUnordered(8) { case (x, i) => ZIO.succeed(x).delay((l - i).seconds) }.runCollect.fork
+                _   <- ZIO.iterate(0)(_ <= l)(i => TestClock.adjust(1.second).as(i + 1))
                 res <- f.join
               } yield assert(res)(equalTo(data.reverse))
             }
