@@ -1070,7 +1070,7 @@ package object test extends CompileVariants {
       warningEmptyGen(flag) *> shrinkStream {
         stream.zipWithIndex.mapZIO { case (initial, index) =>
           flag.set(true) *> initial.foreach(input =>
-            (test(input) @@ testConfig.checkSampleAspect)
+            (test(input) @@ testConfig.checkAspect)
               .map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index)))
               .either
           )
@@ -1104,7 +1104,7 @@ package object test extends CompileVariants {
         stream.zipWithIndex
           .mapZIOPar(parallelism) { case (initial, index) =>
             initial.foreach { input =>
-              (test(input) @@ testConfig.checkSampleAspect)
+              (test(input) @@ testConfig.checkAspect)
                 .map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index)))
                 .either
             // convert test failures to failures to terminate parallel tests on first failure

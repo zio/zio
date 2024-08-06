@@ -85,7 +85,7 @@ abstract class TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
 }
 object TestAspect extends TimeoutVariants {
 
-  type CheckSampleAspect = ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any]
+  type CheckAspect = ZIOAspect[Nothing, Any, Nothing, Any, TestResult, TestResult]
 
   /**
    * An aspect that returns the tests unchanged
@@ -308,7 +308,7 @@ object TestAspect extends TimeoutVariants {
    * }
    * }}}
    */
-  def checks(aspect: CheckSampleAspect): TestAspectPoly = checksZIO(
+  def checks(aspect: CheckAspect): TestAspectPoly = checksZIO(
     ZIO.succeed(aspect)(Trace.empty)
   )
 
@@ -318,7 +318,7 @@ object TestAspect extends TimeoutVariants {
    * each test is run.
    */
   def checksZIO[R, E](
-    makeAspect: ZIO[R, E, CheckSampleAspect]
+    makeAspect: ZIO[R, E, CheckAspect]
   ): TestAspect[Nothing, R, E, Any] =
     new TestAspect[Nothing, R, E, Any] {
       def some[R1 <: R, E1 >: E](spec: Spec[R1, E1])(implicit trace: Trace): Spec[R1, E1] =
@@ -327,11 +327,11 @@ object TestAspect extends TimeoutVariants {
             val newTest = makeAspect.mapError(TestFailure.fail).flatMap { aspect =>
               testConfigWith { oldConfig =>
                 val newConfig = new TestConfig {
-                  val repeats                    = oldConfig.repeats
-                  val retries                    = oldConfig.retries
-                  val samples                    = oldConfig.samples
-                  val shrinks                    = oldConfig.shrinks
-                  override val checkSampleAspect = oldConfig.checkSampleAspect >>> aspect
+                  val repeats              = oldConfig.repeats
+                  val retries              = oldConfig.retries
+                  val samples              = oldConfig.samples
+                  val shrinks              = oldConfig.shrinks
+                  override val checkAspect = oldConfig.checkAspect >>> aspect
                 }
                 withTestConfig(newConfig)(oldTest)
               }
@@ -799,11 +799,11 @@ object TestAspect extends TimeoutVariants {
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
         testConfigWith { old =>
           val testConfig = new TestConfig {
-            val repeats                    = n
-            val retries                    = old.retries
-            val samples                    = old.samples
-            val shrinks                    = old.shrinks
-            override val checkSampleAspect = old.checkSampleAspect
+            val repeats              = n
+            val retries              = old.retries
+            val samples              = old.samples
+            val shrinks              = old.shrinks
+            override val checkAspect = old.checkAspect
           }
           withTestConfig(testConfig)(test)
         }
@@ -870,11 +870,11 @@ object TestAspect extends TimeoutVariants {
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
         testConfigWith { old =>
           val testConfig = new TestConfig {
-            val repeats                    = old.repeats
-            val retries                    = n
-            val samples                    = old.samples
-            val shrinks                    = old.shrinks
-            override val checkSampleAspect = old.checkSampleAspect
+            val repeats              = old.repeats
+            val retries              = n
+            val samples              = old.samples
+            val shrinks              = old.shrinks
+            override val checkAspect = old.checkAspect
           }
           withTestConfig(testConfig)(test)
         }
@@ -909,11 +909,11 @@ object TestAspect extends TimeoutVariants {
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
         testConfigWith { old =>
           val testConfig = new TestConfig {
-            val repeats                    = old.repeats
-            val retries                    = old.retries
-            val samples                    = n
-            val shrinks                    = old.shrinks
-            override val checkSampleAspect = old.checkSampleAspect
+            val repeats              = old.repeats
+            val retries              = old.retries
+            val samples              = n
+            val shrinks              = old.shrinks
+            override val checkAspect = old.checkAspect
           }
           withTestConfig(testConfig)(test)
         }
@@ -999,11 +999,11 @@ object TestAspect extends TimeoutVariants {
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
         testConfigWith { old =>
           val testConfig = new TestConfig {
-            val repeats                    = old.repeats
-            val retries                    = old.retries
-            val samples                    = old.samples
-            val shrinks                    = n
-            override val checkSampleAspect = old.checkSampleAspect
+            val repeats              = old.repeats
+            val retries              = old.retries
+            val samples              = old.samples
+            val shrinks              = n
+            override val checkAspect = old.checkAspect
           }
           withTestConfig(testConfig)(test)
         }

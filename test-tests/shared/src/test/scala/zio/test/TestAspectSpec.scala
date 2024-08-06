@@ -457,7 +457,7 @@ object TestAspectSpec extends ZIOBaseSpec {
   }
 
   val resetCounterServiceAspect = ZIO.serviceWith[CounterService] { cs =>
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+    new TestAspect.CheckAspect {
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace) =
         zio <* cs.reset
     }

@@ -56,7 +56,7 @@ trait TestConfig extends Serializable {
    * NOTE: default implementation for backward compatibility. Remove in next
    * major version.
    */
-  def checkSampleAspect: TestAspect.CheckSampleAspect = ZIOAspect.identity
+  def checkAspect: TestAspect.CheckAspect = ZIOAspect.identity
 }
 
 object TestConfig {
@@ -71,14 +71,14 @@ object TestConfig {
     retries: Int,
     samples: Int,
     shrinks: Int,
-    override val checkSampleAspect: TestAspect.CheckSampleAspect
+    override val checkAspect: TestAspect.CheckAspect
   ) extends TestConfig
 
   /**
    * Constructs a new `TestConfig` with the default settings.
    */
   val default: ZLayer[Any, Nothing, TestConfig] =
-    live(100, 100, 200, 1000)(Trace.empty)
+    live(100, 100, 200, 1000, ZIOAspect.identity)(Trace.empty)
 
   /**
    * Constructs a new `TestConfig` service with the specified settings.
@@ -107,12 +107,12 @@ object TestConfig {
     retries: Int,
     samples: Int,
     shrinks: Int,
-    checkSampleAspect: TestAspect.CheckSampleAspect
+    checkAspect: TestAspect.CheckAspect
   )(implicit
     trace: Trace
   ): ZLayer[Any, Nothing, TestConfig] =
     ZLayer.scoped {
-      val testConfig = Test1(repeats, retries, samples, shrinks, checkSampleAspect)
+      val testConfig = Test1(repeats, retries, samples, shrinks, checkAspect)
       withTestConfigScoped(testConfig).as(testConfig)
     }
 
@@ -143,6 +143,6 @@ object TestConfig {
   /**
    * Action that should be performed on each check sample.
    */
-  def checkSampleAspect(implicit trace: Trace): URIO[Any, TestAspect.CheckSampleAspect] =
-    testConfigWith(testConfig => ZIO.succeed(testConfig.checkSampleAspect))
+  def checkAspect(implicit trace: Trace): URIO[Any, TestAspect.CheckAspect] =
+    testConfigWith(testConfig => ZIO.succeed(testConfig.checkAspect))
 }
