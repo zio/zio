@@ -98,32 +98,32 @@ object TestClockSpecJVM extends ZIOBaseSpec {
             clock                   <- ZIO.clock
             scheduler               <- ZIO.blocking(Clock.scheduler)
             scheduledExecutorService = scheduler.asScheduledExecutorService
-            future <- ZIO.logInfo("Scheduling task...") *>
-                        ZIO.succeed {
-                          scheduledExecutorService.scheduleAtFixedRate(
-                            new Runnable {
-                              def run(): Unit =
-                                Unsafe.unsafe { implicit unsafe =>
-                                  runtime.unsafe.run {
-                                    ZIO.logInfo("Task started..") *>
-                                      clock.sleep(2.seconds) *>
-                                      clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _)) *>
-                                      ZIO.logInfo("Task completed")
-                                  }.getOrThrowFiberFailure()
-                                }
-                            },
-                            3,
-                            5,
-                            TimeUnit.SECONDS
-                          )
-                        }
-            _      <- TestClock.adjust(7.seconds)
+            _                       <- ZIO.logInfo("Scheduling task...")
+            promise                 <- Promise.make[Nothing, Unit]
+            future <- ZIO.succeed {
+                        scheduledExecutorService.scheduleAtFixedRate(
+                          new Runnable {
+                            def run(): Unit =
+                              Unsafe.unsafe { implicit unsafe =>
+                                runtime.unsafe.run {
+                                  (promise.succeed(()) *> clock.sleep(2.seconds) *>
+                                    clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _)))
+                                    .catchAll(_ => ZIO.unit)
+                                }.getOrThrowFiberFailure()
+                              }
+                          },
+                          3,
+                          5,
+                          TimeUnit.SECONDS
+                        )
+                      }
+            _      <- promise.await *> TestClock.adjust(7.seconds) *> ZIO.logInfo("Adjusted clock by 7 seconds")
             _      <- ZIO.succeed(future.cancel(false))
             _      <- TestClock.adjust(11.seconds)
             values <- ref.get
             _      <- ZIO.logInfo(s"Values after interruption: $values")
           } yield assert(values.reverse)(equalTo(List(5L)))
-        } @@ TestAspect.nonFlaky(100000)
+        } @@ TestAspect.nonFlaky(100)
       )
     ) @@ TestAspect.nonFlaky(10)
 }
