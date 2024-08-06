@@ -760,14 +760,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       } yield {
         lazy val writer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
           ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
-            outgoing.take.flatMap {
-              case Exit.Failure(cause) =>
-                cause.failureOrCause match {
-                  case Left(Left(()))       => failure.get.map(ZChannel.refailCause(_))
-                  case Left(Right(outDone)) => Exit.succeed(ZChannel.succeedNow(outDone))
-                  case Right(cause)         => Exit.succeed(ZChannel.refailCause(cause))
+            outgoing.take.map {
+              case f: Exit.Failure[Either[Unit, OutDone]] =>
+                f.cause.failureOrCause match {
+                  case Left(Left(()))       => ZChannel.unwrap(failure.get.map(ZChannel.refailCause(_)))
+                  case Left(Right(outDone)) => ZChannel.succeedNow(outDone)
+                  case Right(cause)         => ZChannel.refailCause(cause)
                 }
-              case Exit.Success(outElem) => Exit.succeed(ZChannel.write(outElem) *> writer)
+              case s: Exit.Success[OutElem2] => ZChannel.write(s.value) *> writer
             }
           }
 
