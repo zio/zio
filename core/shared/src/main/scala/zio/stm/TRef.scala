@@ -16,12 +16,12 @@
 
 package zio.stm
 
-import zio.{&, Trace, UIO, Unsafe}
+import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM.internal._
 
 import java.util.concurrent.atomic.AtomicReference
-import java.util.concurrent.locks.ReentrantLock
+import scala.annotation.meta.getter
 
 /**
  * A `TRef` is a purely functional description of a mutable reference that can
@@ -37,7 +37,7 @@ import java.util.concurrent.locks.ReentrantLock
  */
 final class TRef[A] private (
   private[stm] val versioned: AtomicReference[A],
-  @volatile private[stm] var todo: Map[TxnId, Todo] = Map()
+  @volatile private[stm] var todo: Map[TxnId, Todo] = Map.empty
 ) extends Serializable { self =>
 
   @deprecated("kept for binary compatibility only", "2.1.8")

@@ -30,6 +30,9 @@ final class TMap[K, V] private (
   private val tSize: TRef[Int]
 ) {
 
+  /**
+   * Lock used to avoid contention when resizing the array.
+   */
   private[this] val resizeLock: ZSTMLockSupport.Lock = ZSTMLockSupport.Lock()
 
   /**

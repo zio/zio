@@ -19,10 +19,9 @@ package zio.stm
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{FiberId, _}
 
-import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
+import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
-import java.util.concurrent.locks.ReentrantLock
-import scala.collection.mutable.{ListBuffer, HashMap => MutableMap}
+import scala.collection.mutable.{HashMap => MutableMap}
 import scala.util.control.ControlThrowable
 import scala.util.{Failure, Success, Try}
 
@@ -871,13 +870,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
     exit.asInstanceOf[TExit[E, A]]
   }
-
-  private[this] val txnCounter: AtomicLong = new AtomicLong()
-  def makeTxnId(): Long                    = txnCounter.incrementAndGet()
-
 }
 
-object ZSTM extends ZSTMVersionSpecific {
+object ZSTM {
   import internal._
 
   /**
@@ -1676,13 +1671,13 @@ object ZSTM extends ZSTMVersionSpecific {
     type TxnId = Long
 
     object TxnId {
-      private[this] val txnCounter: AtomicLong = new AtomicLong()
+      private[this] val txnCounter = new AtomicLong()
 
-      def make(): Long = txnCounter.incrementAndGet()
+      def make(): TxnId = txnCounter.incrementAndGet()
     }
 
     final class Journal(
-      private val map: MutableMap[TRef[?], Entry] = MutableMap.empty
+      private val map: MutableMap[TRef[?], Entry] = ZSTMUtils.newMutableMap(DefaultJournalSize)
     ) {
 
       // -- Map API --
@@ -1786,7 +1781,7 @@ object ZSTM extends ZSTMVersionSpecific {
        * Creates a function that can reset the journal.
        */
       private[ZSTM] def resetFn(): () => Unit = {
-        val currentNewValues = newMutableMap[TRef[_], Any](map.size)
+        val currentNewValues = ZSTMUtils.newMutableMap[TRef[_], Any](map.size)
         val itCapture        = map.iterator
         while (itCapture.hasNext) {
           val (key, value) = itCapture.next()
@@ -1794,7 +1789,7 @@ object ZSTM extends ZSTMVersionSpecific {
         }
 
         () => {
-          val saved = newMutableMap[TRef[_], Entry](map.size)
+          val saved = ZSTMUtils.newMutableMap[TRef[_], Entry](map.size)
           val it    = map.iterator
           while (it.hasNext) {
             val (key, value) = it.next()
@@ -1821,10 +1816,8 @@ object ZSTM extends ZSTMVersionSpecific {
 
         val it = map.valuesIterator
         while (it.hasNext) {
-          val tref = it.next.tref
-          val todo = tref.todo
-
-          val oldTodo = todo
+          val tref    = it.next.tref
+          val oldTodo = tref.todo
 
           if (oldTodo.nonEmpty) {
             tref.todo = Map.empty
@@ -1838,6 +1831,9 @@ object ZSTM extends ZSTMVersionSpecific {
       /**
        * For the given transaction id, adds the specified todo effect to all
        * `TRef` values.
+       *
+       * '''NOTE''': This method MUST be invoked while we hold the lock on the
+       * journal
        */
       private[internal] def addTodo(txnId: TxnId, todo: Todo): Unit = {
         val it = map.keysIterator
@@ -1944,7 +1940,7 @@ object ZSTM extends ZSTMVersionSpecific {
       k: ZIO[R, E, A] => Any
     )(implicit trace: Trace, unsafe: Unsafe): Unit = {
       def exec(journal: Journal) = {
-        val rnd: ThreadLocalRandom = ThreadLocalRandom.current()
+        implicit val rnd: ThreadLocalRandom = ThreadLocalRandom.current()
 
         val keys = journal.keys
         while (
@@ -1953,7 +1949,7 @@ object ZSTM extends ZSTMVersionSpecific {
               executor.submitOrThrow(() => tryCommitAsync(null, executor, fiberId, stm, txnId, state, r)(k))
             else
               journal.addTodo(txnId, () => tryCommitAsync(null, executor, fiberId, stm, txnId, state, r)(k))
-          }(rnd)
+          }
         ) ()
       }
 

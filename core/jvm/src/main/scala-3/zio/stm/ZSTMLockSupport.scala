@@ -9,7 +9,7 @@ private object ZSTMLockSupport {
 
   type Lock = ReentrantLock
   object Lock {
-    def apply(): Lock = new ReentrantLock(true)
+    def apply(fair: Boolean = false): Lock = new ReentrantLock(fair)
   }
 
   inline def lock[A](refs: collection.Set[TRef[?]])(inline f: A)(implicit rnd: ThreadLocalRandom): Boolean =
