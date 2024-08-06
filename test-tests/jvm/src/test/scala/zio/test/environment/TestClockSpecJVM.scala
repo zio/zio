@@ -108,7 +108,6 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                                 runtime.unsafe.run {
                                   (promise.succeed(()) *> clock.sleep(2.seconds) *>
                                     clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _)))
-                                    .catchAll(_ => ZIO.unit)
                                 }.getOrThrowFiberFailure()
                               }
                           },
