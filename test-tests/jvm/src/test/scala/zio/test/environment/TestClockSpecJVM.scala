@@ -125,5 +125,5 @@ object TestClockSpecJVM extends ZIOBaseSpec {
           } yield assert(values.reverse)(equalTo(List(5L)))
         }
       )
-    ) @@ TestAspect.nonFlaky(20)
+    ) @@ TestAspect.nonFlaky(100)
 }
