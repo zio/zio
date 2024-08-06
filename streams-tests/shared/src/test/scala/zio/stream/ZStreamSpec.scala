@@ -2792,7 +2792,28 @@ object ZStreamSpec extends ZIOBaseSpec {
                 _     <- f.join
               } yield assertTrue(count == 0)
             }
-          } @@ TestAspect.jvmOnly @@ jvm(nonFlaky(20))
+          } @@ TestAspect.jvmOnly @@ jvm(nonFlaky(20)),
+          test("accumulates parallel errors") {
+            sealed abstract class DbError extends Product with Serializable
+            case object Missing           extends DbError
+            case object QtyTooLarge       extends DbError
+
+            for {
+              exit <- ZStream(1 to 2: _*)
+                        .mapZIOParUnordered(3) {
+                          case 1 => ZIO.fail(Missing)
+                          case 2 => ZIO.fail(QtyTooLarge)
+                          case _ => ZIO.succeed(true)
+                        }
+                        .runDrain
+                        .exit
+            } yield assert(exit)(
+              failsCause(
+                containsCause[DbError](Cause.fail(Missing)) &&
+                  containsCause[DbError](Cause.fail(QtyTooLarge))
+              )
+            )
+          } @@ flaky
         ),
         suite("mergeLeft/Right")(
           test("mergeLeft with HaltStrategy.Right terminates as soon as the right stream terminates") {
