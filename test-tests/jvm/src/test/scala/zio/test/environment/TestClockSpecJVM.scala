@@ -98,7 +98,6 @@ object TestClockSpecJVM extends ZIOBaseSpec {
             clock                   <- ZIO.clock
             scheduler               <- ZIO.blocking(Clock.scheduler)
             scheduledExecutorService = scheduler.asScheduledExecutorService
-            _                       <- ZIO.logInfo("Scheduling task...")
             promise                 <- Promise.make[Nothing, Unit]
             future <- ZIO.succeed {
                         scheduledExecutorService.scheduleAtFixedRate(
@@ -108,6 +107,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                                 runtime.unsafe.run {
                                   (promise.succeed(()) *> clock.sleep(2.seconds) *>
                                     clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _)))
+                                    .catchAll(_ => ZIO.unit)
                                 }.getOrThrowFiberFailure()
                               }
                           },
@@ -116,7 +116,8 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                           TimeUnit.SECONDS
                         )
                       }
-            _      <- promise.await *> TestClock.adjust(7.seconds) *> ZIO.logInfo("Adjusted clock by 7 seconds")
+            _      <- promise.await
+            _      <- TestClock.adjust(7.seconds)
             _      <- ZIO.succeed(future.cancel(false))
             _      <- TestClock.adjust(11.seconds)
             values <- ref.get
