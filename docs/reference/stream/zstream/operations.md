@@ -363,7 +363,7 @@ val indexedStream: ZStream[Any, Nothing, (String, Long)] =
 
 ## Cross Product
 
-ZIO stream has `ZStram#cross` and its variants to compute _Cartesian Product_ of two streams:
+ZIO stream has `ZStream#cross` and its variants to compute _Cartesian Product_ of two streams:
 
 ```scala mdoc:silent:nest
 val first = ZStream(1, 2, 3)
