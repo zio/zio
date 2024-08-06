@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.{Trace, UIO, Unsafe}
+import zio.{&, Trace, UIO, Unsafe}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM.internal._
 
@@ -44,7 +44,7 @@ final class TRef[A] private (
   def this(versioned: Versioned[A], todo: AtomicReference[Map[TxnId, Todo]]) =
     this(new AtomicReference(versioned.value), todo.get())
 
-  private[stm] val lock: ReentrantLock = new ReentrantLock()
+  private[stm] val lock: ZSTMLockSupport.Lock = ZSTMLockSupport.Lock(true)
 
   private[this] val hc = super.hashCode()
 
@@ -122,7 +122,7 @@ final class TRef[A] private (
    */
   def update(f: A => A): USTM[Unit] =
     ZSTM.Effect { (journal, _, _) =>
-      val entry = journal.get(self)
+      val entry = journal.getOrElseUpdate(self, newEntry())
       entry.unsafeUpdate(f.asInstanceOf[Any => Any])
       ()
     }
@@ -152,13 +152,15 @@ final class TRef[A] private (
     updateAndGet(f orElse { case a => a })
 
   private[stm] def getOrMakeEntry(journal: Journal): Entry =
-    journal.get(self)
+    journal.getOrElseUpdate(self, newEntry())
 
   private[stm] def unsafeGet(journal: Journal): A =
     getOrMakeEntry(journal).unsafeGet
 
   private[stm] def unsafeSet(journal: Journal, a: A): Unit =
     getOrMakeEntry(journal).unsafeSet(a)
+
+  private[this] val newEntry = () => Entry(self.asInstanceOf[TRef[A & AnyRef]])
 }
 
 object TRef {

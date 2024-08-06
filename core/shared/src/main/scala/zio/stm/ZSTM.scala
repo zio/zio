@@ -19,7 +19,7 @@ package zio.stm
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{FiberId, _}
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 import java.util.concurrent.locks.ReentrantLock
 import scala.collection.mutable.{ListBuffer, HashMap => MutableMap}
@@ -911,7 +911,7 @@ object ZSTM {
       val r                       = fiberState.getFiberRef(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
       val fiberId                 = fiberState.id
 
-      tryCommit(fiberId, stm, null, r, executor) match {
+      tryCommitSync(fiberId, stm, null, r, executor) match {
         case TryCommit.Done(exit, onCommit) =>
           onDone(exit)
           onCommit match {
@@ -1654,9 +1654,11 @@ object ZSTM {
   private[zio] def succeedNow[A](a: A): USTM[A] = SucceedNow(a)
 
   private[stm] object internal {
-    final val DefaultJournalSize = 3
-    final val MaxRetries         = 10
-    final val YieldOpCount       = 2048
+    final val DefaultJournalSize   = 3
+    final val MaxRetries           = 10
+    final val YieldOpCount         = 2048
+    final val LockTimeoutMinMicros = 1L
+    final val LockTimeoutMaxMicros = 10L
 
     @deprecated("Do not use, scheduled to be removed", "2.1.8")
     object Tags {
@@ -1681,32 +1683,17 @@ object ZSTM {
       def make(): Long = txnCounter.incrementAndGet()
     }
 
-    /**
-     * NOTE: Since Journals are expected to hold very few entries for most
-     * use-cases, we use an immutable Map so that we can utilize the Map(1-4)
-     * implementations which don't rely on hash codes and are more performant
-     * than mutable.HashMap.
-     */
-
     final class Journal(
-      private var map: Map[TRef[?], Entry] = Map.empty
+      private val map: MutableMap[TRef[?], Entry] = MutableMap.empty
     ) {
 
       // -- Map API --
-      def clear(): Unit = if (map.nonEmpty) map = Map.empty
+      def clear(): Unit = if (map.nonEmpty) map.clear()
 
-      def get(key: TRef[?]): Entry = {
-        val entry = map.getOrElse(key, null)
-        if (entry eq null) {
-          val entry0 = Entry(key.asInstanceOf[TRef[? & AnyRef]])
-          map = map.updated(key, entry0)
-          entry0
-        } else {
-          entry
-        }
-      }
+      def getOrElseUpdate(key: TRef[?], entry: => Entry): Entry =
+        map.getOrElseUpdate(key, entry)
 
-      def keys: Set[TRef[?]] = map.keySet
+      def keys: collection.Set[TRef[?]] = map.keySet
 
       // -- Transactional API --
 
@@ -1770,6 +1757,14 @@ object ZSTM {
       }
 
       /**
+       * Executes the todos in the current thread, sequentially.
+       */
+      private[this] def execTodos(todos: Map[TxnId, Todo]): Unit = {
+        val it = todos.valuesIterator
+        while (it.hasNext) it.next.apply()
+      }
+
+      /**
        * Flag indicating whether the journal is invalid
        *
        * '''NOTE''': This method MUST be invoked while we hold the lock on the
@@ -1801,7 +1796,7 @@ object ZSTM {
         }
 
         () => {
-          val saved = Map.newBuilder[TRef[_], Entry]
+          val saved = newMutableMap[TRef[_], Entry](map.size)
           val it    = map.iterator
           while (it.hasNext) {
             val (key, value) = it.next()
@@ -1811,7 +1806,8 @@ object ZSTM {
             }
             saved += ((key, value.copy().reset(resetValue)))
           }
-          map = saved.result()
+          map.clear()
+          map.addAll(saved)
           ()
         }
       }
@@ -1859,67 +1855,6 @@ object ZSTM {
       }
     }
 
-    private object LockSupport {
-
-      @inline def lock[A](refs: Set[TRef[?]])(f: => A): Boolean =
-        refs.size match {
-          case 0 => f; true
-          case 1 => lock1(refs.head)(f)
-          case _ => lockN(refs)(f)
-        }
-
-      @inline private def lock1[A](ref: TRef[?])(f: => A): Boolean = {
-        ref.lock.lock()
-        try { f; true }
-        finally ref.lock.unlock()
-      }
-
-      @inline private def lockN[A](refs: Set[TRef[?]])(f: => A): Boolean = {
-        val it       = refs.iterator
-        var acquired = List.empty[ReentrantLock]
-        var locked   = true
-        while (it.hasNext && locked) {
-          val lock = it.next().lock
-          if (lock.tryLock(1, TimeUnit.MICROSECONDS)) acquired ::= lock
-          else locked = false
-        }
-        try {
-          if (locked) f
-          locked
-        } finally acquired.foreach(_.unlock())
-      }
-
-      @inline def tryLock[A](refs: Set[TRef[?]])(f: => A): Unit =
-        refs.size match {
-          case 0 => f
-          case 1 => tryLock1(refs.head)(f)
-          case _ => tryLockN(refs)(f)
-        }
-
-      @inline private def tryLock1[A](ref: TRef[?])(f: => A): Unit = {
-        val lock = ref.lock
-        if (lock.tryLock()) {
-          try f
-          finally lock.unlock()
-        }
-      }
-
-      @inline private def tryLockN[A](refs: Set[TRef[?]])(f: => A): Unit = {
-        var acquired = List.empty[ReentrantLock]
-        var locked   = true
-        val it       = refs.iterator
-        while (locked && it.hasNext) {
-          val lock = it.next().lock
-          if (lock.tryLock()) acquired ::= lock
-          else locked = false
-        }
-        try {
-          if (locked) f
-        } finally acquired.foreach(_.unlock())
-      }
-
-    }
-
     type Todo = () => Any
 
     private def newMutableMap[K, V](initialCapacity: Int): MutableMap[K, V] =
@@ -1933,12 +1868,73 @@ object ZSTM {
       final val Committed = 3
     }
 
-    /**
-     * Executes the todos in the current thread, sequentially.
-     */
-    def execTodos(todos: Map[TxnId, Todo]): Unit = {
-      val it = todos.valuesIterator
-      while (it.hasNext) it.next.apply()
+    def tryCommitSync[R, E, A](
+      fiberId: FiberId,
+      stm: ZSTM[R, E, A],
+      state: AtomicReference[State[E, A]],
+      r: ZEnvironment[R],
+      executor: Executor
+    )(implicit unsafe: Unsafe): TryCommit[E, A] = {
+      implicit val rnd: ThreadLocalRandom = ThreadLocalRandom.current()
+
+      val journal     = new Journal
+      var value       = null.asInstanceOf[TExit[E, A]]
+      val stateIsNull = state eq null
+      var tRefs       = Set.empty[TRef[?]]
+
+      var loop    = true
+      var retries = 0
+
+      while (loop) {
+        journal.clear()
+
+        if (retries > MaxRetries) {
+          ZSTMLockSupport.lock(tRefs) {
+            value = stm.run(journal, fiberId, r)
+            val newTRefs = journal.keys
+
+            if (newTRefs == tRefs) {
+              if (value.isInstanceOf[TExit.Succeed[?]]) {
+                val isRunning = stateIsNull || state.compareAndSet(State.Running, State.done(value))
+                if (isRunning) journal.commit()
+                loop = false
+              } else if (journal.isValid) {
+                loop = false
+              }
+            } else {
+              tRefs = newTRefs.toSet
+            }
+            if (!loop && (value ne TExit.Retry)) journal.completeTodos(executor)
+          }
+        } else {
+          value = stm.run(journal, fiberId, r)
+          val newTRefs = journal.keys
+          ZSTMLockSupport.tryLock(newTRefs) {
+            val isSuccess = value.isInstanceOf[TExit.Succeed[_]]
+            val analysis  = journal.analyze(attemptCommit = isSuccess && stateIsNull)
+            if (analysis != JournalAnalysis.Invalid) {
+              loop = false
+              if (
+                analysis == JournalAnalysis.ReadWrite &&
+                isSuccess &&
+                (stateIsNull || state.compareAndSet(State.Running, State.done(value)))
+              ) journal.commit()
+              if (value ne TExit.Retry) journal.completeTodos(executor)
+            }
+          }
+          if (loop && retries > MaxRetries) tRefs = newTRefs.toSet
+        }
+
+        retries += 1
+      }
+
+      value match {
+        case TExit.Succeed(a, onCommit)         => TryCommit.Done(Exit.succeed(a), onCommit)
+        case TExit.Fail(e, onCommit)            => TryCommit.Done(Exit.fail(e), onCommit)
+        case TExit.Die(t, onCommit)             => TryCommit.Done(Exit.die(t), onCommit)
+        case TExit.Interrupt(fiberId, onCommit) => TryCommit.Done(Exit.interrupt(fiberId), onCommit)
+        case TExit.Retry                        => TryCommit.Suspend(journal)
+      }
     }
 
     def tryCommitAsync[R, E, A](
@@ -1953,14 +1949,16 @@ object ZSTM {
       k: ZIO[R, E, A] => Any
     )(implicit trace: Trace, unsafe: Unsafe): Unit = {
       def exec(journal: Journal) = {
+        val rnd: ThreadLocalRandom = ThreadLocalRandom.current()
+
         val keys = journal.keys
         while (
-          !LockSupport.lock(keys) {
+          !ZSTMLockSupport.lock(keys) {
             if (journal.isInvalid)
               executor.submitOrThrow(() => tryCommitAsync(null, executor, fiberId, stm, txnId, state, r)(k))
             else
               journal.addTodo(txnId, () => tryCommitAsync(null, executor, fiberId, stm, txnId, state, r)(k))
-          }
+          }(rnd)
         ) ()
       }
 
@@ -1969,76 +1967,10 @@ object ZSTM {
         case State.Interrupted                => k(Exit.interrupt(FiberId.None))
         case State.Running if journal ne null => exec(journal)
         case State.Running =>
-          tryCommit(fiberId, stm, state, r, executor) match {
+          tryCommitSync(fiberId, stm, state, r, executor) match {
             case TryCommit.Done(io, _)         => k(io)
             case TryCommit.Suspend(newJournal) => exec(newJournal)
           }
-      }
-    }
-
-    def tryCommit[R, E, A](
-      fiberId: FiberId,
-      stm: ZSTM[R, E, A],
-      state: AtomicReference[State[E, A]],
-      r: ZEnvironment[R],
-      executor: Executor
-    )(implicit unsafe: Unsafe): TryCommit[E, A] = {
-      val journal     = new Journal
-      var value       = null.asInstanceOf[TExit[E, A]]
-      val stateIsNull = state eq null
-      var tRefs       = Set.empty[TRef[?]]
-
-      var loop    = true
-      var retries = 0
-
-      while (loop) {
-        journal.clear()
-
-        if (retries > MaxRetries) {
-          LockSupport.lock(tRefs) {
-            value = stm.run(journal, fiberId, r)
-            val newTRefs = journal.keys
-
-            if (newTRefs == tRefs) {
-              if (value.isInstanceOf[TExit.Succeed[?]]) {
-                val isRunning = stateIsNull || state.compareAndSet(State.Running, State.done(value))
-                if (isRunning) journal.commit()
-                loop = false
-              } else if (journal.isValid) {
-                loop = false
-              }
-            } else {
-              tRefs = newTRefs
-            }
-            if (!loop && (value ne TExit.Retry)) journal.completeTodos(executor)
-          }
-        } else {
-          value = stm.run(journal, fiberId, r)
-          tRefs = journal.keys
-          LockSupport.tryLock(tRefs) {
-            val isSuccess = value.isInstanceOf[TExit.Succeed[_]]
-            val analysis  = journal.analyze(attemptCommit = isSuccess && stateIsNull)
-            if (analysis != JournalAnalysis.Invalid) {
-              loop = false
-              if (
-                analysis == JournalAnalysis.ReadWrite &&
-                isSuccess &&
-                (stateIsNull || state.compareAndSet(State.Running, State.done(value)))
-              ) journal.commit()
-              if (value ne TExit.Retry) journal.completeTodos(executor)
-            }
-          }
-        }
-
-        retries += 1
-      }
-
-      value match {
-        case TExit.Succeed(a, onCommit)         => TryCommit.Done(Exit.succeed(a), onCommit)
-        case TExit.Fail(e, onCommit)            => TryCommit.Done(Exit.fail(e), onCommit)
-        case TExit.Die(t, onCommit)             => TryCommit.Done(Exit.die(t), onCommit)
-        case TExit.Interrupt(fiberId, onCommit) => TryCommit.Done(Exit.interrupt(fiberId), onCommit)
-        case TExit.Retry                        => TryCommit.Suspend(journal)
       }
     }
 
