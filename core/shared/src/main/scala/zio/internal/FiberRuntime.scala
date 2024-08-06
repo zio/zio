@@ -113,7 +113,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       parentFiber.setFiberRefs(updatedFiberRefs)
 
-      val updatedRuntimeFlags = updatedFiberRefs.getOrDefault(FiberRef.currentRuntimeFlags)
+      val updatedRuntimeFlags = updatedFiberRefs.getRuntimeFlags(Unsafe.unsafe)
 
       // Do not inherit WindDown or Interruption!
       val patch = FiberRuntime.patchExcludeNonInheritable(RuntimeFlags.diff(parentRuntimeFlags, updatedRuntimeFlags))
@@ -584,10 +584,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     // NOTE: Only include flags that can be inherited by the parent fiber in the FiberRefs
     // Including them won't cause a bug, but it degrades performance as
     // it makes the joining of the FiberRefs more complex in `inheritAll`
-    val flags0 = FiberRuntime.excludeNonInheritable(_runtimeFlags)
-    setFiberRef(FiberRef.currentRuntimeFlags, flags0)
-
-    _fiberRefs
+    val flags0  = FiberRuntime.excludeNonInheritable(_runtimeFlags)
+    val newRefs = _fiberRefs.updateRuntimeFlags(fiberId)(flags0)
+    _fiberRefs = newRefs
+    newRefs
   }
 
   /**
