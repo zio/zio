@@ -1858,7 +1858,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       ZChannel
         .identity[Nothing, Chunk[In], Any]
         .concatMap(ZChannel.writeChunk(_))
-        .mergeMap(n, bufferSize)(in => ZStream.fromZIO(f(in)).channel)
+        .mapOutZIOParUnordered(n, bufferSize)(f)
+        .mapOut(Chunk.single)
     )
 
   /**
