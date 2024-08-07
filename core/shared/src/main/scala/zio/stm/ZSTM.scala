@@ -1647,6 +1647,7 @@ object ZSTM {
   private[zio] def succeedNow[A](a: A): USTM[A] = SucceedNow(a)
 
   private[stm] object internal {
+    // Using 3 because that will size the underlying map to 4 (due to loadFactor = 0.75d)
     final val DefaultJournalSize   = 3
     final val MaxRetries           = 10
     final val YieldOpCount         = 2048
@@ -1682,6 +1683,8 @@ object ZSTM {
 
       // -- Map API --
       def clear(): Unit = if (map.nonEmpty) map.clear()
+
+      def contains(key: TRef[?]): Boolean = map.contains(key)
 
       def getOrElseUpdate(key: TRef[?], entry: => Entry): Entry =
         map.getOrElseUpdate(key, entry)
@@ -1794,8 +1797,8 @@ object ZSTM {
           while (it.hasNext) {
             val (key, value) = it.next()
             val resetValue = currentNewValues.getOrElse(key, null) match {
-              case null  => value.expected
-              case value => value
+              case null => value.expected
+              case v    => v
             }
             saved.update(key, value.copy().reset(resetValue))
           }
@@ -1871,7 +1874,11 @@ object ZSTM {
       val journal     = new Journal
       var value       = null.asInstanceOf[TExit[E, A]]
       val stateIsNull = state eq null
-      var tRefs       = Set.empty[TRef[?]]
+
+      // Used to store the previous snapshot of TRefs
+      var tRefs = Set.empty[TRef[?]]
+      // Mutable, changes when journal keys are modified! Use .toSet to extract current snapshot
+      val tRefsUnsafe = journal.keys
 
       var loop    = true
       var retries = 0
@@ -1882,9 +1889,9 @@ object ZSTM {
         if (retries > MaxRetries) {
           ZSTMLockSupport.lock(tRefs) {
             value = stm.run(journal, fiberId, r)
-            val newTRefs = journal.keys
 
-            if (newTRefs == tRefs) {
+            // Ensure we have the lock on all the tRefs in the current Journal (they might have changed!)
+            if (tRefsUnsafe.forall(tRefs.contains)) {
               if (value.isInstanceOf[TExit.Succeed[?]]) {
                 val isRunning = stateIsNull || state.compareAndSet(State.Running, State.done(value))
                 if (isRunning) journal.commit()
@@ -1893,14 +1900,13 @@ object ZSTM {
                 loop = false
               }
             } else {
-              tRefs = newTRefs.toSet
+              tRefs = tRefsUnsafe.toSet
             }
             if (!loop && (value ne TExit.Retry)) journal.completeTodos(executor)
           }
         } else {
           value = stm.run(journal, fiberId, r)
-          val newTRefs = journal.keys
-          ZSTMLockSupport.tryLock(newTRefs) {
+          ZSTMLockSupport.tryLock(tRefsUnsafe) {
             val isSuccess = value.isInstanceOf[TExit.Succeed[_]]
             val analysis  = journal.analyze(attemptCommit = isSuccess && stateIsNull)
             if (analysis != JournalAnalysis.Invalid) {
@@ -1913,7 +1919,7 @@ object ZSTM {
               if (value ne TExit.Retry) journal.completeTodos(executor)
             }
           }
-          if (loop && retries > MaxRetries) tRefs = newTRefs.toSet
+          if (loop && retries > MaxRetries) tRefs = tRefsUnsafe.toSet
         }
 
         retries += 1

@@ -12,22 +12,22 @@ private object ZSTMLockSupport {
     def apply(fair: Boolean = false): Lock = new ReentrantLock(fair)
   }
 
-  inline def lock[A](refs: collection.Set[TRef[?]])(inline f: A)(implicit rnd: ThreadLocalRandom): Boolean =
+  inline def lock[A](refs: collection.Set[TRef[?]])(inline f: A)(using ThreadLocalRandom): Boolean =
     refs.size match {
       case 0 => f; true
-      case 1 => lock1(refs.head)(f)
+      case 1 => lock1(refs.head.lock)(f)
       case n => lockN(refs, n)(f)
     }
 
-  inline private def lock1[A](ref: TRef[?])(inline f: A): Boolean = {
-    ref.lock.lock()
+  inline private def lock1[A](lock: ReentrantLock)(inline f: A): Boolean = {
+    lock.lock()
     try { f; true }
-    finally ref.lock.unlock()
+    finally lock.unlock()
   }
 
   inline private def lockN[A](refs: collection.Set[TRef[?]], size: Int)(
     inline f: A
-  )(implicit rnd: ThreadLocalRandom): Boolean = {
+  )(using rnd: ThreadLocalRandom): Boolean = {
     val acquired = Array.ofDim[ReentrantLock](size)
     var locked   = true
     val it       = refs.iterator
@@ -48,9 +48,9 @@ private object ZSTMLockSupport {
     }
   }
 
-  inline def tryLock[A](refs: collection.Set[TRef[?]])(inline f: A): Unit =
+  inline def tryLock[A](refs: collection.Set[TRef[?]])(inline f: A): Boolean =
     refs.size match {
-      case 0 => f
+      case 0 => f; true
       case 1 => tryLock(refs.head.lock)(f)
       case n => tryLockN(refs, n)(f)
     }
@@ -61,7 +61,7 @@ private object ZSTMLockSupport {
       finally lock.unlock()
     } else false
 
-  inline private def tryLockN[A](refs: collection.Set[TRef[?]], size: Int)(inline f: A): Unit = {
+  inline private def tryLockN[A](refs: collection.Set[TRef[?]], size: Int)(inline f: A): Boolean = {
     val acquired = Array.ofDim[ReentrantLock](size)
     var locked   = true
     val it       = refs.iterator
@@ -75,6 +75,7 @@ private object ZSTMLockSupport {
     }
     try {
       if (locked) f
+      locked
     } finally unlock(acquired, i)
   }
 

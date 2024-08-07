@@ -1539,14 +1539,10 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def repeatN(n: => Int)(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.suspendSucceed {
-      var n0 = n
+      def loop(n: Int): ZIO[R, E, A] =
+        self.flatMap(a => if (n <= 0) Exit.succeed(a) else ZIO.yieldNow *> loop(n - 1))
 
-      if (n0 <= 0) self
-      if (n0 == 1) {
-        self *> self
-      } else {
-        ZIO.whileLoop(n0 != 0)(self)(_ => n0 -= 1) *> self
-      }
+      loop(n)
     }
 
   /**
