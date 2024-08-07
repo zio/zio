@@ -19,9 +19,9 @@ package zio.stm
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{FiberId, _}
 
-import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
-import scala.collection.mutable.{HashMap => MutableMap}
+import scala.collection.{SortedSet, immutable}
+import scala.collection.mutable.TreeMap
 import scala.util.control.ControlThrowable
 import scala.util.{Failure, Success, Try}
 
@@ -1678,7 +1678,7 @@ object ZSTM {
     }
 
     final class Journal(
-      private val map: MutableMap[TRef[?], Entry] = ZSTMUtils.newMutableMap(DefaultJournalSize)
+      private val map: TreeMap[TRef[?], Entry] = new TreeMap
     ) {
 
       // -- Map API --
@@ -1689,7 +1689,7 @@ object ZSTM {
       def getOrElseUpdate(key: TRef[?], entry: => Entry): Entry =
         map.getOrElseUpdate(key, entry)
 
-      def keys: collection.Set[TRef[?]] = map.keySet
+      def keys: SortedSet[TRef[?]] = map.keySet
 
       // -- Transactional API --
 
@@ -1869,15 +1869,14 @@ object ZSTM {
       r: ZEnvironment[R],
       executor: Executor
     )(implicit unsafe: Unsafe): TryCommit[E, A] = {
-      implicit val rnd: ThreadLocalRandom = ThreadLocalRandom.current()
-
       val journal     = new Journal
       var value       = null.asInstanceOf[TExit[E, A]]
       val stateIsNull = state eq null
 
       // Used to store the previous snapshot of TRefs
-      var tRefs = Set.empty[TRef[?]]
-      // Mutable, changes when journal keys are modified! Use .toSet to extract current snapshot
+      var tRefs = immutable.TreeSet.empty[TRef[?]]
+      // Mutable, changes when journal keys are modified!
+      // Use `ZSTMUtils.newImmutableTreeSet` to extract the current snapshot
       val tRefsUnsafe = journal.keys
 
       var loop    = true
@@ -1900,7 +1899,7 @@ object ZSTM {
                 loop = false
               }
             } else {
-              tRefs = tRefsUnsafe.toSet
+              tRefs = ZSTMUtils.newImmutableTreeSet(tRefsUnsafe)
             }
             if (!loop && (value ne TExit.Retry)) journal.completeTodos(executor)
           }
@@ -1919,7 +1918,7 @@ object ZSTM {
               if (value ne TExit.Retry) journal.completeTodos(executor)
             }
           }
-          if (loop && retries > MaxRetries) tRefs = tRefsUnsafe.toSet
+          if (loop && retries >= MaxRetries) tRefs = ZSTMUtils.newImmutableTreeSet(tRefsUnsafe)
         }
 
         retries += 1
@@ -1946,17 +1945,13 @@ object ZSTM {
       k: ZIO[R, E, A] => Any
     )(implicit trace: Trace, unsafe: Unsafe): Unit = {
       def exec(journal: Journal) = {
-        implicit val rnd: ThreadLocalRandom = ThreadLocalRandom.current()
-
         val keys = journal.keys
-        while (
-          !ZSTMLockSupport.lock(keys) {
-            if (journal.isInvalid)
-              executor.submitOrThrow(() => tryCommitAsync(null, executor, fiberId, stm, txnId, state, r)(k))
-            else
-              journal.addTodo(txnId, () => tryCommitAsync(null, executor, fiberId, stm, txnId, state, r)(k))
-          }
-        ) ()
+        ZSTMLockSupport.lock(keys) {
+          if (journal.isInvalid)
+            executor.submitOrThrow(() => tryCommitAsync(null, executor, fiberId, stm, txnId, state, r)(k))
+          else
+            journal.addTodo(txnId, () => tryCommitAsync(null, executor, fiberId, stm, txnId, state, r)(k))
+        }
       }
 
       state.get match {

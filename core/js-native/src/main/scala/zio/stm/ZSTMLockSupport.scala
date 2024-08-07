@@ -1,7 +1,5 @@
 package zio.stm
 
-import java.util.concurrent.ThreadLocalRandom
-
 private object ZSTMLockSupport {
 
   final class Lock
@@ -9,14 +7,14 @@ private object ZSTMLockSupport {
     def apply(fair: Boolean = false): Lock = new Lock
   }
 
-  @inline def lock[A](refs: collection.Set[TRef[?]])(f: => A)(implicit rnd: ThreadLocalRandom): Boolean = {
+  @inline def lock[A](refs: collection.SortedSet[TRef[?]])(f: => A): Boolean = {
     val _ = f
     true
   }
 
-  @inline def tryLock[A](refs: collection.Set[TRef[?]])(f: => A): Unit = {
+  @inline def tryLock[A](refs: collection.SortedSet[TRef[?]])(f: => A): Boolean = {
     val _ = f
-    ()
+    true
   }
 
   @inline def tryLock[A](lock: Lock)(f: => A): Boolean = {

@@ -1,6 +1,6 @@
 package zio.stm
 
-import scala.collection.mutable
+import scala.collection.{mutable, SortedSet, immutable}
 
 private object ZSTMUtils {
 
@@ -9,5 +9,8 @@ private object ZSTMUtils {
     if (expectedNumElements > 0) map.sizeHint(expectedNumElements)
     map
   }
+
+  def newImmutableTreeSet[A](set: SortedSet[A])(implicit ord: Ordering[A]): immutable.TreeSet[A] =
+    immutable.TreeSet.empty[A] ++ set
 
 }

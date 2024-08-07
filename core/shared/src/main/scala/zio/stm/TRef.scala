@@ -20,8 +20,7 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM.internal._
 
-import java.util.concurrent.atomic.AtomicReference
-import scala.annotation.meta.getter
+import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 
 /**
  * A `TRef` is a purely functional description of a mutable reference that can
@@ -45,6 +44,8 @@ final class TRef[A] private (
     this(new AtomicReference(versioned.value), todo.get())
 
   private[stm] val lock: ZSTMLockSupport.Lock = ZSTMLockSupport.Lock(true)
+
+  private val id = TRef.idCounter.incrementAndGet()
 
   private[this] val hc = super.hashCode()
 
@@ -164,6 +165,11 @@ final class TRef[A] private (
 }
 
 object TRef {
+  private val idCounter: AtomicLong = new AtomicLong(0L)
+
+  implicit val ordering: Ordering[TRef[?]] = new Ordering[TRef[?]] {
+    def compare(x: TRef[?], y: TRef[?]): Int = java.lang.Long.compare(x.id, y.id)
+  }
 
   /**
    * Makes a new `TRef` that is initialized to the specified value.
