@@ -63,10 +63,10 @@ object TestConfig {
 
   val tag: Tag[TestConfig] = Tag[TestConfig]
 
+  @deprecated("use TestV2", "2.1.8")
   final case class Test(repeats: Int, retries: Int, samples: Int, shrinks: Int) extends TestConfig
 
-  // NOTE: Additonal class for backward compatibility. Rename to `Test` and remove the old one in next major version.
-  final case class Test1(
+  final case class TestV2(
     repeats: Int,
     retries: Int,
     samples: Int,
@@ -92,7 +92,7 @@ object TestConfig {
     trace: Trace
   ): ZLayer[Any, Nothing, TestConfig] =
     ZLayer.scoped {
-      val testConfig = Test(repeats, retries, samples, shrinks)
+      val testConfig = TestV2(repeats, retries, samples, shrinks, ZIOAspect.identity)
       withTestConfigScoped(testConfig).as(testConfig)
     }
 
@@ -112,7 +112,7 @@ object TestConfig {
     trace: Trace
   ): ZLayer[Any, Nothing, TestConfig] =
     ZLayer.scoped {
-      val testConfig = Test1(repeats, retries, samples, shrinks, checkAspect)
+      val testConfig = TestV2(repeats, retries, samples, shrinks, checkAspect)
       withTestConfigScoped(testConfig).as(testConfig)
     }
 

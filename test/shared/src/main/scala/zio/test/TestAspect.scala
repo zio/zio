@@ -326,13 +326,13 @@ object TestAspect extends TimeoutVariants {
           case Spec.TestCase(oldTest, annotations) =>
             val newTest = makeAspect.mapError(TestFailure.fail).flatMap { aspect =>
               testConfigWith { oldConfig =>
-                val newConfig = new TestConfig {
-                  val repeats              = oldConfig.repeats
-                  val retries              = oldConfig.retries
-                  val samples              = oldConfig.samples
-                  val shrinks              = oldConfig.shrinks
-                  override val checkAspect = oldConfig.checkAspect >>> aspect
-                }
+                val newConfig = TestConfig.TestV2(
+                  repeats = oldConfig.repeats,
+                  retries = oldConfig.retries,
+                  samples = oldConfig.samples,
+                  shrinks = oldConfig.shrinks,
+                  checkAspect = oldConfig.checkAspect >>> aspect
+                )
                 withTestConfig(newConfig)(oldTest)
               }
             }
@@ -798,13 +798,13 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
         testConfigWith { old =>
-          val testConfig = new TestConfig {
-            val repeats              = n
-            val retries              = old.retries
-            val samples              = old.samples
-            val shrinks              = old.shrinks
-            override val checkAspect = old.checkAspect
-          }
+          val testConfig = TestConfig.TestV2(
+            repeats = n,
+            retries = old.retries,
+            samples = old.samples,
+            shrinks = old.shrinks,
+            checkAspect = old.checkAspect
+          )
           withTestConfig(testConfig)(test)
         }
     }
@@ -869,13 +869,13 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
         testConfigWith { old =>
-          val testConfig = new TestConfig {
-            val repeats              = old.repeats
-            val retries              = n
-            val samples              = old.samples
-            val shrinks              = old.shrinks
-            override val checkAspect = old.checkAspect
-          }
+          val testConfig = TestConfig.TestV2(
+            repeats = old.repeats,
+            retries = n,
+            samples = old.samples,
+            shrinks = old.shrinks,
+            checkAspect = old.checkAspect
+          )
           withTestConfig(testConfig)(test)
         }
     }
@@ -908,13 +908,13 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
         testConfigWith { old =>
-          val testConfig = new TestConfig {
-            val repeats              = old.repeats
-            val retries              = old.retries
-            val samples              = n
-            val shrinks              = old.shrinks
-            override val checkAspect = old.checkAspect
-          }
+          val testConfig = TestConfig.TestV2(
+            repeats = old.repeats,
+            retries = old.retries,
+            samples = n,
+            shrinks = old.shrinks,
+            checkAspect = old.checkAspect
+          )
           withTestConfig(testConfig)(test)
         }
     }
@@ -998,13 +998,13 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
         testConfigWith { old =>
-          val testConfig = new TestConfig {
-            val repeats              = old.repeats
-            val retries              = old.retries
-            val samples              = old.samples
-            val shrinks              = n
-            override val checkAspect = old.checkAspect
-          }
+          val testConfig = TestConfig.TestV2(
+            repeats = old.repeats,
+            retries = old.retries,
+            samples = old.samples,
+            shrinks = n,
+            checkAspect = old.checkAspect
+          )
           withTestConfig(testConfig)(test)
         }
     }
