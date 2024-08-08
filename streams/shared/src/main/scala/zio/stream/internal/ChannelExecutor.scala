@@ -72,38 +72,37 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
   private[this] final def clearInProgressFinalizer(): Unit =
     inProgressFinalizer = null
 
-  def close(ex: Exit[Any, Any])(implicit trace: Trace): ZIO[Env, Nothing, Any] = {
-    val builder = ChunkBuilder.make[URIO[Env, Exit[Nothing, Any]]](4)
+  def close(ex: Exit[Any, Any])(implicit trace: Trace): ZIO[Env, Nothing, Any] = ZIO.suspendSucceed {
+    val fs = Array.ofDim[URIO[Env, Exit[Nothing, Any]]](4)
 
-    {
+    // NOTE: Each finalizer might have altered the state of the vars, so we need to suspend them all
+    fs(0) = ZIO.suspendSucceed {
+      val close0 = closeLastSubstream
+      closeLastSubstream = null
+      if (close0 eq null) Exit.unit
+      else close0
+    }.exit
+
+    fs(1) = ZIO.suspendSucceed {
       val finalizer = inProgressFinalizer
 
-      if (finalizer ne null)
-        builder += finalizer.ensuring(ZIO.succeed(clearInProgressFinalizer())).exit
-      else ()
-    }
+      if (finalizer eq null) Exit.unit
+      else finalizer.ensuring(ZIO.succeed(clearInProgressFinalizer()))
+    }.exit
 
-    if (activeSubexecutor ne null) builder += activeSubexecutor.close(ex).exit
+    fs(2) = ZIO.suspendSucceed {
+      if (activeSubexecutor eq null) Exit.unit
+      else activeSubexecutor.close(ex)
+    }.exit
 
-    {
+    fs(3) = ZIO.suspendSucceed {
       val selfFinalizers = popAllFinalizers(ex)
 
-      if (selfFinalizers ne null)
-        builder += selfFinalizers.ensuring(ZIO.succeed(clearInProgressFinalizer())).exit
-    }
+      if (selfFinalizers eq null) Exit.unit
+      else selfFinalizers.ensuring(ZIO.succeed(clearInProgressFinalizer()))
+    }.exit
 
-    {
-      val close0 = closeLastSubstream
-      if (close0 ne null)
-        builder += ZIO.suspendSucceed {
-          closeLastSubstream = null
-          close0
-        }.exit
-    }
-
-    val effects = builder.result()
-    if (effects.isEmpty) null
-    else ZIO.collectAll(effects).flatMap(Exit.collectAllPar(_).get).uninterruptible
+    ZIO.collectAll(fs).flatMap(Exit.collectAllPar(_).get)
   }
 
   def getDone: Exit[OutErr, OutDone] = done.asInstanceOf[Exit[OutErr, OutDone]]
@@ -354,6 +353,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
 
   private[this] var cancelled: Exit[OutErr, OutDone] = _
 
+  @volatile
   private[this] var closeLastSubstream: URIO[Env, Any] = _
 
   private[this] def doneSucceed(z: Any)(implicit trace: Trace): ChannelState[Env, Any] =
@@ -607,7 +607,17 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
               parentSubexecutor.combineChildResults(parentSubexecutor.lastDone, doneValue)
             else doneValue
         )
-      closeLastSubstream = childExecutor.close(Exit.succeed(doneValue))
+
+      val thisClose = childExecutor.close(Exit.succeed(doneValue))
+      if (thisClose ne null) {
+        val lastClose = closeLastSubstream
+        if (lastClose ne null) {
+          closeLastSubstream = lastClose *> thisClose
+        } else {
+          closeLastSubstream = thisClose
+        }
+      }
+
       replaceSubexecutor(modifiedParent)
     }
 
