@@ -4903,7 +4903,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Prefix form of `ZIO#uninterruptible`.
    */
   def uninterruptible[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed(zio.uninterruptible)
+    ZIO.suspendSucceed(zio).uninterruptible
 
   /**
    * Makes the effect uninterruptible, but passes it a restore function that can
