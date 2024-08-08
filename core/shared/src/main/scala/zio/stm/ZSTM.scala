@@ -17,7 +17,7 @@
 package zio.stm
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.{FiberId, _}
+import zio._
 
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 import scala.collection.{SortedSet, immutable}
