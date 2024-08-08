@@ -648,29 +648,37 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       for {
         input       <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
         queueReader  = ZChannel.fromInput(input)
-        queue       <- Queue.bounded[ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]](bufferSize)
-        _           <- scope.addFinalizer(queue.shutdown)
-        errorSignal <- Promise.make[OutErr1, Nothing]
+        outgoing    <- Queue.bounded[ZIO[Env1, Unit, Either[OutDone, OutElem2]]](bufferSize)
+        _           <- scope.addFinalizer(outgoing.shutdown)
+        errorSignal <- Promise.make[Unit, Nothing]
         permits     <- Semaphore.make(n.toLong)
+        failure     <- Ref.make[Cause[OutErr1]](Cause.empty)
         pull        <- (queueReader >>> self).toPullIn(scope)
         _ <- pull
                .foldCauseZIO(
-                 cause => queue.offer(ZIO.refailCause(cause)),
+                 cause =>
+                   failure.update(_ && cause) *> outgoing.offer(Exit.failCause(Cause.unit)) *> Exit.failCause(
+                     Cause.unit
+                   ),
                  {
                    case Left(outDone) =>
-                     permits.withPermits(n.toLong)(ZIO.unit).interruptible *> queue.offer(ZIO.succeed(Left(outDone)))
+                     permits.withPermits(n.toLong)(ZIO.unit).interruptible *> outgoing.offer(ZIO.succeed(Left(outDone)))
                    case Right(outElem) =>
                      for {
-                       p     <- Promise.make[OutErr1, OutElem2]
+                       p     <- Promise.make[Unit, OutElem2]
                        latch <- Promise.make[Nothing, Unit]
-                       _     <- queue.offer(p.await.map(Right(_)))
+                       _     <- outgoing.offer(p.await.map(Right(_)))
                        _ <- permits.withPermit {
                               latch.succeed(()) *>
                                 ZIO.uninterruptibleMask { restore =>
-                                  restore(errorSignal.await) raceFirstAwait restore(f(outElem))
-                                }
-                                  .tapErrorCause(errorSignal.failCause)
-                                  .intoPromise(p)
+                                  restore(errorSignal.await).raceFirstAwait(
+                                    restore(f(outElem))
+                                      .catchAllCause(cause => failure.update(_ && cause) *> Exit.failCause(Cause.unit))
+                                  )
+                                }.foldCauseZIO(
+                                  _ => p.refailCause(Cause.unit) *> errorSignal.refailCause(Cause.unit),
+                                  p.succeed
+                                )
                             }.forkIn(scope)
                        _ <- latch.await
                      } yield ()
@@ -680,18 +688,18 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                .interruptible
                .forkIn(scope)
       } yield {
-        lazy val consumer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
+        lazy val writer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
           ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
-            queue.take.flatten.foldCause(
-              ZChannel.refailCause,
+            outgoing.take.flatten.foldCause(
+              _ => ZChannel.unwrap(failure.get.map(ZChannel.refailCause(_))),
               {
                 case Left(outDone)  => ZChannel.succeedNow(outDone)
-                case Right(outElem) => ZChannel.write(outElem) *> consumer
+                case Right(outElem) => ZChannel.write(outElem) *> writer
               }
             )
           }
 
-        consumer.embedInput(input)
+        writer.embedInput(input)
       }
     }
 
@@ -708,7 +716,64 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def mapOutZIOParUnordered[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
-    mapOutZIOPar[Env1, OutErr1, OutElem2](n, bufferSize)(f)
+    ZChannel.unwrapScopedWith { scope =>
+      for {
+        input       <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
+        queueReader  = ZChannel.fromInput(input)
+        outgoing    <- Queue.bounded[Exit[Either[Unit, OutDone], OutElem2]](bufferSize)
+        _           <- scope.addFinalizer(outgoing.shutdown)
+        errorSignal <- Promise.make[Unit, Nothing]
+        permits     <- Semaphore.make(n.toLong)
+        failure     <- Ref.make[Cause[OutErr1]](Cause.empty)
+        pull        <- (queueReader >>> self).toPullIn(scope)
+        _ <- pull
+               .foldCauseZIO(
+                 cause =>
+                   failure.update(_ && cause) *>
+                     outgoing.offer(Exit.fail(Left(()))) *>
+                     Exit.failCause(Cause.unit),
+                 {
+                   case Left(outDone) =>
+                     permits.withPermits(n.toLong)(ZIO.unit).interruptible *> outgoing.offer(Exit.fail(Right(outDone)))
+                   case Right(outElem) =>
+                     for {
+                       latch <- Promise.make[Nothing, Unit]
+                       _ <- permits.withPermit {
+                              latch.succeed(()) *>
+                                ZIO.uninterruptibleMask { restore =>
+                                  restore(errorSignal.await).raceFirstAwait(
+                                    restore(f(outElem))
+                                      .catchAllCause(cause => failure.update(_ && cause) *> Exit.failCause(Cause.unit))
+                                  )
+                                }.foldCauseZIO(
+                                  _ => outgoing.offer(Exit.fail(Left(()))) *> errorSignal.refailCause(Cause.unit),
+                                  elem => outgoing.offer(Exit.succeed(elem))
+                                )
+                            }.forkIn(scope)
+                       _ <- latch.await
+                     } yield ()
+                 }
+               )
+               .forever
+               .interruptible
+               .forkIn(scope)
+      } yield {
+        lazy val writer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
+          ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
+            outgoing.take.map {
+              case f: Exit.Failure[Either[Unit, OutDone]] =>
+                f.cause.failureOrCause match {
+                  case Left(Left(()))       => ZChannel.unwrap(failure.get.map(ZChannel.refailCause(_)))
+                  case Left(Right(outDone)) => ZChannel.succeedNow(outDone)
+                  case Right(cause)         => ZChannel.refailCause(cause)
+                }
+              case s: Exit.Success[OutElem2] => ZChannel.write(s.value) *> writer
+            }
+          }
+
+        writer.embedInput(input)
+      }
+    }
 
   /**
    * Returns a new channel which creates a new channel for each emitted element

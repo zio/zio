@@ -57,6 +57,10 @@ object ZEnvironmentSpec extends ZIOBaseSpec {
       val pruned = env.prune[Foo & Bar]
 
       assertTrue(env == pruned)
+    },
+    test("get[Any] on an empty ZEnvironment returns Unit") {
+      val value = ZEnvironment.empty.get[Any]
+      assertTrue(value.isInstanceOf[Unit])
     }
   )
 }
