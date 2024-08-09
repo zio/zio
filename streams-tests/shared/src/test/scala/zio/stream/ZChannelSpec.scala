@@ -141,7 +141,7 @@ object ZChannelSpec extends ZIOBaseSpec {
         test("finalizer ordering 2") {
           for {
             effects <- Ref.make(List[String]())
-            push     = (i: String) => ZIO.debug(i) *> effects.update(i :: _)
+            push     = (i: String) => effects.update(i :: _)
             _ <- ZChannel
                    .writeAll(1, 2)
                    .mapOutZIO(n => push(s"pulled $n").as(n))

@@ -11,6 +11,7 @@ import zio.test._
 
 import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.ExecutionContext
 
 object ZStreamSpec extends ZIOBaseSpec {
@@ -5167,7 +5168,30 @@ object ZStreamSpec extends ZIOBaseSpec {
               _   <- ZIO.scoped(ZStream.finalizer(ref.set(true)).toPull)
               fin <- ref.get
             } yield assert(fin)(isFalse)
+          },
+          test("i9052 - ZStream.scoped runs the finalizers") {
+            val n = if (TestPlatform.isJVM) 100 else 1
+            ZIO
+              .foreachPar((1 to n).toList) { _ =>
+                val c = new AtomicInteger(0)
+                val resource =
+                  ZIO.acquireRelease(ZIO.succeed(c.incrementAndGet()))(_ => ZIO.succeed(c.decrementAndGet()))
+
+                val stream = ZStream
+                  .succeed(1)
+                  .repeat(Schedule.spaced(25.millis))
+                  .flatMap(_ => ZStream.scoped(resource))
+                  .schedule(Schedule.spaced(25.millis))
+
+                for {
+                  s <- stream.runDrain.fork
+                  _ <- s.interrupt.delay(50.millis)
+                } yield assertTrue(c.get() == 0)
+              }
+              .map(_.foldLeft(assertCompletes)(_ && _))
           }
+            @@ withLiveClock // Can't emulate the bug with the TestClock unfortunately
+            @@ jvm(nonFlaky(20))
         ),
         suite("from")(
           test("Chunk") {
