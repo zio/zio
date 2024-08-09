@@ -72,7 +72,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
   private[this] final def clearInProgressFinalizer(): Unit =
     inProgressFinalizer = null
 
-  def close(ex: Exit[Any, Any])(implicit trace: Trace): ZIO[Env, Nothing, Any] = ZIO.suspendSucceed {
+  def close(ex: Exit[Any, Any])(implicit trace: Trace): ZIO[Env, Nothing, Any] = ZIO.uninterruptible {
     val fs = Array.ofDim[URIO[Env, Any]](4)
 
     // NOTE: Each finalizer might have altered the state of the vars, so we need to suspend them all
@@ -102,7 +102,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
       else selfFinalizers.ensuring(ZIO.succeed(clearInProgressFinalizer()))
     }
 
-    ZIO.foreach(fs)(_.exit).flatMap(Exit.collectAllDiscard(_)).uninterruptible
+    ZIO.foreach(fs)(_.exit).flatMap(Exit.collectAllDiscard(_))
   }
 
   def getDone: Exit[OutErr, OutDone] = done.asInstanceOf[Exit[OutErr, OutDone]]
