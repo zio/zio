@@ -73,7 +73,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
     inProgressFinalizer = null
 
   def close(ex: Exit[Any, Any])(implicit trace: Trace): ZIO[Env, Nothing, Any] = ZIO.suspendSucceed {
-    val fs = Array.ofDim[URIO[Env, Exit[Nothing, Any]]](4)
+    val fs = Array.ofDim[URIO[Env, Any]](4)
 
     // NOTE: Each finalizer might have altered the state of the vars, so we need to suspend them all
     fs(0) = ZIO.suspendSucceed {
@@ -81,28 +81,28 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
       closeLastSubstream = null
       if (close0 eq null) Exit.unit
       else close0
-    }.exit
+    }
 
     fs(1) = ZIO.suspendSucceed {
       val finalizer = inProgressFinalizer
 
       if (finalizer eq null) Exit.unit
       else finalizer.ensuring(ZIO.succeed(clearInProgressFinalizer()))
-    }.exit
+    }
 
     fs(2) = ZIO.suspendSucceed {
       if (activeSubexecutor eq null) Exit.unit
       else activeSubexecutor.close(ex)
-    }.exit
+    }
 
     fs(3) = ZIO.suspendSucceed {
       val selfFinalizers = popAllFinalizers(ex)
 
       if (selfFinalizers eq null) Exit.unit
       else selfFinalizers.ensuring(ZIO.succeed(clearInProgressFinalizer()))
-    }.exit
+    }
 
-    ZIO.collectAll(fs).flatMap(Exit.collectAllPar(_).get)
+    ZIO.foreach(fs)(_.exit).flatMap(Exit.collectAllDiscard(_)).uninterruptible
   }
 
   def getDone: Exit[OutErr, OutDone] = done.asInstanceOf[Exit[OutErr, OutDone]]
@@ -536,10 +536,10 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
     ChannelState.Read(
       self.upstreamExecutor,
       onEffect = (effect: ZIO[Env, Nothing, Unit]) => {
-        val closeLast = ZIO.suspendSucceed {
+        val closeLast = ZIO.uninterruptible {
           val close = this.closeLastSubstream
           closeLastSubstream = null
-          if (close ne null) close else ZIO.unit
+          if (close ne null) close else Exit.unit
         }
         executeCloseLastSubstream(closeLast) *> effect
       },
@@ -548,7 +548,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
           val closeLast = ZIO.uninterruptible {
             val close = this.closeLastSubstream
             closeLastSubstream = null
-            if (close ne null) close else ZIO.unit
+            if (close ne null) close else Exit.unit
           }
 
           executeCloseLastSubstream(closeLast).map { _ =>

@@ -6652,15 +6652,49 @@ object Exit extends Serializable {
   def interrupt(id: FiberId): Exit[Nothing, Nothing] =
     failCause(Cause.interrupt(id))
 
+  /**
+   * Collects all Exits, and returns a List of the values if all Exits
+   * succeeded, or combines the causes sequentially in case of failures. Returns
+   * `None` in case the input iterable is empty
+   *
+   * @see
+   *   [[collectAllParDiscard]] For a more performant variant that discard the
+   *   successful values
+   */
   def collectAll[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     collectAllWith(exits)(_ ++ _)
 
+  /**
+   * Collects all Exits, and succeeds with Unit if all Exits succeeded, or
+   * combines the causes sequentially in case of failures.
+   */
+  def collectAllDiscard[E, A](exits: Iterable[Exit[E, A]]): Exit[E, Unit] =
+    collectAllDiscardWith(exits)(_ ++ _)
+
+  /**
+   * Collects all Exits, and returns a List of the values if all Exits
+   * succeeded, or combines the causes in parallel in case of failures. Returns
+   * `None` in case the input iterable is empty
+   *
+   * @see
+   *   [[collectAllParDiscard]] For a more performant variant that discard the
+   *   successful values
+   */
   def collectAllPar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     collectAllWith(exits)(_ && _)
 
+  /**
+   * Collects all Exits, and succeeds with Unit if all Exits succeeded, or
+   * combines the causes in parallel in case of failures.
+   */
+  def collectAllParDiscard[E, A](exits: Iterable[Exit[E, A]]): Exit[E, Unit] =
+    collectAllDiscardWith(exits)(_ && _)
+
   private def collectAllWith[E, A](
     exits: Iterable[Exit[E, A]]
-  )(combineError: (Cause[E], Cause[E]) => Cause[E]): Option[Exit[E, List[A]]] =
+  )(
+    combineError: (Cause[E], Cause[E]) => Cause[E]
+  ): Option[Exit[E, List[A]]] =
     if (exits.isEmpty) None
     else {
       val builder = new ListBuffer[A]
@@ -6679,6 +6713,26 @@ object Exit extends Serializable {
       if (cause eq null) Some(Success(builder.result()))
       else Some(Failure(cause))
     }
+
+  private def collectAllDiscardWith[E, A](
+    exits: Iterable[Exit[E, A]]
+  )(
+    combineError: (Cause[E], Cause[E]) => Cause[E]
+  ): Exit[E, Unit] = {
+    var cause = null.asInstanceOf[Cause[E]]
+    val it    = exits.iterator
+    while (it.hasNext) {
+      val head = it.next()
+      head match {
+        case _: Success[?] => ()
+        case Failure(e) =>
+          if (cause eq null) cause = e
+          else cause = combineError(cause, e)
+      }
+    }
+    if (cause eq null) Exit.unit
+    else Failure(cause)
+  }
 
   def die(t: Throwable): Exit[Nothing, Nothing] =
     failCause(Cause.die(t))
