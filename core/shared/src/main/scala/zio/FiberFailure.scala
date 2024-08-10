@@ -26,8 +26,15 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * This class is used to wrap ZIO failures into something that can be thrown, to
  * better integrate with Scala exception handling.
  */
-final case class FiberFailure(cause: Cause[Any], javaStackTrace: Array[StackTraceElement])
-    extends Throwable(null, null, true, false) {
+final case class FiberFailure(cause: Cause[Any]) extends Throwable(null, null, true, false) {
+
+  private var javaStackTrace: Array[StackTraceElement] = Thread.currentThread().getStackTrace
+
+  def this(cause: Cause[Any], javaStackTrace: Array[StackTraceElement]) = {
+    this(cause)
+    this.javaStackTrace = javaStackTrace
+  }
+
   override def getMessage: String = cause.unified.headOption.fold("<unknown>")(_.message)
 
   override def getStackTrace(): Array[StackTraceElement] = {
@@ -47,11 +54,12 @@ final case class FiberFailure(cause: Cause[Any], javaStackTrace: Array[StackTrac
 
   override def toString =
     cause.prettyPrint
+
 }
 
 object FiberFailure {
-  def apply(cause: Cause[Any]): FiberFailure = {
-    val javaStackTrace = Thread.currentThread().getStackTrace
+  def apply(cause: Cause[Any]): FiberFailure = new FiberFailure(cause)
+
+  def apply(cause: Cause[Any], javaStackTrace: Array[StackTraceElement]): FiberFailure =
     new FiberFailure(cause, javaStackTrace)
-  }
 }
