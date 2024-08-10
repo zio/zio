@@ -9,29 +9,6 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, 
 
 object SerializableSpec extends ZIOBaseSpec {
 
-  def serializeAndDeserialize[A](value: A): A = {
-    import java.io._
-
-    val byteOut = new ByteArrayOutputStream()
-    val out     = new ObjectOutputStream(byteOut)
-    out.writeObject(value)
-    out.close()
-
-    val byteIn = new ByteArrayInputStream(byteOut.toByteArray)
-    val in     = new ObjectInputStream(byteIn)
-    val result = in.readObject().asInstanceOf[A]
-    in.close()
-
-    result
-  }
-
-  def equalToIgnoringStackTrace(expected: FiberFailure): Assertion[FiberFailure] =
-    Assertion.assertion("equalToIgnoringStackTrace") { actual =>
-      (actual.cause == expected.cause) && (actual.javaStackTrace.map(_.toString).toList == expected.javaStackTrace
-        .map(_.toString)
-        .toList)
-    }
-
   def spec = suite("SerializableSpec")(
     test("Semaphore is serializable") {
       val n = 20L
@@ -151,8 +128,8 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     testSync("FiberFailure is serializable") {
       val failure = FiberFailure(Cause.fail("Uh oh"))
-      assert(serializeAndDeserialize(failure))(equalToIgnoringStackTrace(failure))
-    } @@ exceptScala3,
+      assert(serializeAndDeserialize(failure))(equalTo(failure))
+    },
     testSync("InterruptStatus.interruptible is serializable") {
       val interruptStatus = InterruptStatus.interruptible
       assert(serializeAndDeserialize(interruptStatus))(equalTo(interruptStatus))
