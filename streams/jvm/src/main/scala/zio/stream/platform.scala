@@ -70,7 +70,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
                               .run(stream.Take.fromPull(k).flatMap(output.offer))(trace, Unsafe.unsafe)
                               .getOrThrowFiberFailure()(Unsafe.unsafe)
                           } catch {
-                            case FiberFailure(c, _) if c.isInterrupted =>
+                            case FiberFailure(c) if c.isInterrupted =>
                           }
                         }
                       }
@@ -115,7 +115,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
                    .run(stream.Take.fromPull(k).flatMap(output.offer))(trace, Unsafe.unsafe)
                    .getOrThrowFiberFailure()(Unsafe.unsafe)
                } catch {
-                 case FiberFailure(c, _) if c.isInterrupted =>
+                 case FiberFailure(c) if c.isInterrupted =>
                }
              }
         done <- Ref.make(false)
@@ -147,7 +147,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
                  .run(stream.Take.fromPull(k).flatMap(output.offer))(trace, Unsafe.unsafe)
                  .getOrThrowFiberFailure()(Unsafe.unsafe)
              } catch {
-               case FiberFailure(c, _) if c.isInterrupted =>
+               case FiberFailure(c) if c.isInterrupted =>
              }
            }
     } yield {
