@@ -543,7 +543,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val layer3   = liveEnvironment >>> TestEnvironment.live
         val combined = layer1 ++ layer2 ++ layer3
         for {
-          exit <- ZIO.scoped(combined.build).exit
+          exit <- ZIO.scoped(combined.build).uninterruptible.exit
         } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
       } @@ jvm(nonFlaky),
       test("fiberRef changes are memoized") {
