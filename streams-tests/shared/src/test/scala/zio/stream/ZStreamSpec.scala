@@ -11,6 +11,7 @@ import zio.test._
 
 import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.ExecutionContext
 
 object ZStreamSpec extends ZIOBaseSpec {
@@ -2686,7 +2687,28 @@ object ZStreamSpec extends ZIOBaseSpec {
                 _     <- f.join
               } yield assertTrue(count == 0)
             }
-          } @@ TestAspect.jvmOnly @@ nonFlaky(20)
+          } @@ TestAspect.jvmOnly @@ nonFlaky(20),
+          test("accumulates parallel errors") {
+            sealed abstract class DbError extends Product with Serializable
+            case object Missing           extends DbError
+            case object QtyTooLarge       extends DbError
+
+            for {
+              exit <- ZStream(1 to 2: _*)
+                        .mapZIOPar(3) {
+                          case 1 => ZIO.fail(Missing)
+                          case 2 => ZIO.fail(QtyTooLarge)
+                          case _ => ZIO.succeed(true)
+                        }
+                        .runDrain
+                        .exit
+            } yield assert(exit)(
+              failsCause(
+                containsCause[DbError](Cause.fail(Missing)) &&
+                  containsCause[DbError](Cause.fail(QtyTooLarge))
+              )
+            )
+          } @@ flaky
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
@@ -2771,7 +2793,40 @@ object ZStreamSpec extends ZIOBaseSpec {
                 _     <- f.join
               } yield assertTrue(count == 0)
             }
-          } @@ TestAspect.jvmOnly @@ jvm(nonFlaky(20))
+          } @@ TestAspect.jvmOnly @@ jvm(nonFlaky(20)),
+          test("accumulates parallel errors") {
+            sealed abstract class DbError extends Product with Serializable
+            case object Missing           extends DbError
+            case object QtyTooLarge       extends DbError
+
+            for {
+              exit <- ZStream(1 to 2: _*)
+                        .mapZIOParUnordered(3) {
+                          case 1 => ZIO.fail(Missing)
+                          case 2 => ZIO.fail(QtyTooLarge)
+                          case _ => ZIO.succeed(true)
+                        }
+                        .runDrain
+                        .exit
+            } yield assert(exit)(
+              failsCause(
+                containsCause[DbError](Cause.fail(Missing)) &&
+                  containsCause[DbError](Cause.fail(QtyTooLarge))
+              )
+            )
+          } @@ flaky,
+          test("first finished first out") {
+            checkN(2)(Gen.small(Gen.chunkOfN(_)(Gen.byte))) { data =>
+              val s = ZStream.fromChunk(data).zipWithIndex
+              val l = data.length
+
+              for {
+                f   <- s.mapZIOParUnordered(8) { case (x, i) => ZIO.succeed(x).delay((l - i).seconds) }.runCollect.fork
+                _   <- ZIO.iterate(0)(_ <= l)(i => TestClock.adjust(1.second).as(i + 1))
+                res <- f.join
+              } yield assert(res)(equalTo(data.reverse))
+            }
+          }
         ),
         suite("mergeLeft/Right")(
           test("mergeLeft with HaltStrategy.Right terminates as soon as the right stream terminates") {
@@ -5113,7 +5168,30 @@ object ZStreamSpec extends ZIOBaseSpec {
               _   <- ZIO.scoped(ZStream.finalizer(ref.set(true)).toPull)
               fin <- ref.get
             } yield assert(fin)(isFalse)
+          },
+          test("i9052 - ZStream.scoped runs the finalizers") {
+            val n = if (TestPlatform.isJVM) 100 else 1
+            ZIO
+              .foreachPar((1 to n).toList) { _ =>
+                val c = new AtomicInteger(0)
+                val resource =
+                  ZIO.acquireRelease(ZIO.succeed(c.incrementAndGet()))(_ => ZIO.succeed(c.decrementAndGet()))
+
+                val stream = ZStream
+                  .succeed(1)
+                  .repeat(Schedule.spaced(25.millis))
+                  .flatMap(_ => ZStream.scoped(resource))
+                  .schedule(Schedule.spaced(25.millis))
+
+                for {
+                  s <- stream.runDrain.fork
+                  _ <- s.interrupt.delay(50.millis)
+                } yield assertTrue(c.get() == 0)
+              }
+              .map(_.foldLeft(assertCompletes)(_ && _))
           }
+            @@ withLiveClock // Can't emulate the bug with the TestClock unfortunately
+            @@ jvm(nonFlaky(20))
         ),
         suite("from")(
           test("Chunk") {
