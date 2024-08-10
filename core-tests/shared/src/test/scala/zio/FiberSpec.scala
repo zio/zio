@@ -180,7 +180,7 @@ object FiberSpec extends ZIOBaseSpec {
                 ZIO.succeed(s"Unexpected failure: ${other.getMessage}")
             }
             .asInstanceOf[ZIO[Any, Nothing, String]]
-          
+
           fiberFailureTest.flatMap { stackTrace =>
             ZIO.succeed {
               assertTrue(
