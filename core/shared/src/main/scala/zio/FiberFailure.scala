@@ -29,16 +29,11 @@ import java.lang.System.arraycopy
  */
 final case class FiberFailure(cause: Cause[Any]) extends Throwable(null, null, true, true) {
 
-  private val javaStackTrace: Array[StackTraceElement] = {
-    val fullStackTrace     = Thread.currentThread().getStackTrace
-    val userCodeStartIndex = fullStackTrace.indexWhere(!_.getClassName.startsWith("zio."))
-    if (userCodeStartIndex > 0) fullStackTrace.drop(userCodeStartIndex) else fullStackTrace
-  }
-
   override def getMessage: String = cause.unified.headOption.fold("<unknown>")(_.message)
 
   override def getStackTrace(): Array[StackTraceElement] = {
-    val zioStackTrace = cause.unified.headOption.fold[Chunk[StackTraceElement]](Chunk.empty)(_.trace).toArray
+    val zioStackTrace  = cause.unified.headOption.fold[Chunk[StackTraceElement]](Chunk.empty)(_.trace).toArray
+    val javaStackTrace = super.getStackTrace()
 
     // Combine both stack traces into a single array with minimal allocations
     val combinedStackTrace = new Array[StackTraceElement](zioStackTrace.length + javaStackTrace.length)
