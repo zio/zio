@@ -1539,7 +1539,6 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def repeatN(n: => Int)(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.suspendSucceed {
-
       def loop(n: Int): ZIO[R, E, A] =
         self.flatMap(a => if (n <= 0) Exit.succeed(a) else ZIO.yieldNow *> loop(n - 1))
 

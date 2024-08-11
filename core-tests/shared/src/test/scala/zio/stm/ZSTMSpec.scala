@@ -567,7 +567,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           value                <- tvar3.get.commit
         } yield assert(value)(equalTo(10000))
       }
-    ),
+    ) @@ jvm(nonFlaky),
     suite("Using `STM.atomically` perform concurrent computations that")(
       suite("have a simple condition lock should suspend the whole transaction and")(
         test("resume directly when the condition is already satisfied") {
@@ -770,7 +770,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         v1    <- tvar1.get.commit
         v2    <- tvar2.get.commit
       } yield assert(v1)(equalTo(oldV1)) && assert(v2)(equalTo(oldV2))
-    },
+    } @@ jvm(nonFlaky),
     suite("collectAll")(
       test("collects a list of transactional effects to a single transaction that produces a list of values") {
         for {
@@ -1239,7 +1239,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         _     <- transaction(ref).commit
         value <- ref.get
       } yield assertTrue(value == 9)
-    }
+    } @@ jvm(nonFlaky(10000))
   )
 
   val ExampleError = new Throwable("fail")
