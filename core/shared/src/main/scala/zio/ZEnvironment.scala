@@ -394,7 +394,8 @@ object ZEnvironment {
       if (isEmpty) env0
       else {
         val out = loop(environment, self.asInstanceOf[Patch[Any, Any]] :: Nil).asInstanceOf[ZEnvironment[Out]]
-        // Unfortunately we can't rely on eq here, but this is still better than destroying the FiberRefs optimizations
+        // Unfortunately we can't rely on eq here. However, the ZEnvironment equals method uses a cached hashCode
+        // so it's pretty fast
         if (env0 == out) env0 else out
       }
     }
