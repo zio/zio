@@ -1,8 +1,8 @@
 name: CI
 
 env:
-  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xms6G -Xmx6G -Xss4M -XX:+UseG1GC -XX:ReservedCodeCacheSize=512M -XX:NonProfiledCodeHeapSize=256M # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
-  SBT_OPTS: -XX:+PrintCommandLineFlags -Xms6G -Xmx6G -Xss4M -XX:+UseG1GC -XX:ReservedCodeCacheSize=512M -XX:NonProfiledCodeHeapSize=256M # Needed for sbt
+  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xms6G -Xmx8G -Xss4M -XX:+UseG1GC -XX:ReservedCodeCacheSize=512M -XX:NonProfiledCodeHeapSize=256M # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
+  SBT_OPTS: -XX:+PrintCommandLineFlags -Xms6G -Xmx8G -Xss4M -XX:+UseG1GC -XX:ReservedCodeCacheSize=512M -XX:NonProfiledCodeHeapSize=256M # Needed for sbt
   NODE_OPTIONS: --max_old_space_size=6144
 
 on:
