@@ -59,17 +59,19 @@ jobs:
           check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
-      - name: Mima Checks
-        run: sbt --client -v "++${{ matrix.scala }}; mimaChecks"
       - name: publishLocal 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
-        run: sbt --client -v "root212/Test/compile; root212/publishLocal"
+        run: sbt --client -v "++${{ matrix.scala }}; root212/Test/compile; root212/publishLocal"
       - name: publishLocal 2.13
         if: ${{ startsWith(matrix.scala, '2.13.') }}
-        run: sbt --client -v "root213/Test/compile; root213/publishLocal"
+        run: sbt --client -v "++${{ matrix.scala }}; root213/Test/compile; root213/publishLocal"
       - name: publishLocal 3
         if: ${{ startsWith(matrix.scala, '3.') }}
-        run: sbt --client -v "root3/Test/compile; root3/publishLocal"
+        run: sbt --client -v "++${{ matrix.scala }}; root3/Test/compile; root3/publishLocal"
+      - name: Mima Checks
+        run: sbt --client mimaChecks
+      - name: Shutdown SBT server
+        run: sbt --client shutdown
 
   build-website:
     runs-on: ubuntu-20.04
@@ -78,7 +80,8 @@ jobs:
       - name: Checkout Current Branch
         uses: actions/checkout@v4.1.1
         with:
-          fetch-depth: '0'
+          fetch-depth: 1000
+          fetch-tags: true
       - name: Setup Scala and Java
         uses: actions/setup-java@v4.2.1
         with:
@@ -248,7 +251,8 @@ jobs:
       - name: Checkout current branch
         uses: actions/checkout@v4.1.1
         with:
-          fetch-depth: 0
+          fetch-depth: 1000
+          fetch-tags: true
       - name: Setup Java
         uses: actions/setup-java@v4.2.1
         with:
@@ -274,7 +278,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4.1.1
         with:
-          fetch-depth: 0
+          fetch-depth: 1000
+          fetch-tags: true
       - uses: actions/download-artifact@v3
         with:
           name: website-artifact
