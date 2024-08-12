@@ -390,8 +390,13 @@ object ZEnvironment {
             case _: UpdateService[?, ?]   => loop(env, patches.tail)
           }
 
-      if (self eq empty0) environment.asInstanceOf[ZEnvironment[Out]]
-      else loop(environment, self.asInstanceOf[Patch[Any, Any]] :: Nil).asInstanceOf[ZEnvironment[Out]]
+      val env0 = environment.asInstanceOf[ZEnvironment[Out]]
+      if (self eq empty0) env0
+      else {
+        val out = loop(environment, self.asInstanceOf[Patch[Any, Any]] :: Nil).asInstanceOf[ZEnvironment[Out]]
+        // Unfortunately we can't rely on eq here, but this is still better than destroying the FiberRefs optimizations
+        if (env0 == out) env0 else out
+      }
     }
 
     /**
@@ -400,6 +405,8 @@ object ZEnvironment {
      */
     def combine[Out2](that: Patch[Out, Out2]): Patch[In, Out2] =
       AndThen(self, that)
+
+    def isEmpty: Boolean = false
   }
 
   object Patch {
@@ -467,7 +474,9 @@ object ZEnvironment {
       }
 
     private val empty0 = Empty()
-    private final case class Empty[Env]() extends Patch[Env, Env]
+    private final case class Empty[Env]() extends Patch[Env, Env] {
+      override def isEmpty: Boolean = true
+    }
 
     private final case class AddScope[Env, Service](scope: Scope) extends Patch[Env, Env with Scope]
     private final case class AddService[Env, Service](service: Service, tag: LightTypeTag)

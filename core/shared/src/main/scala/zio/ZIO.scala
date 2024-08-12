@@ -4973,7 +4973,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * higher-performance variant, see `ZIO#withRuntimeFlags`.
    */
   def updateRuntimeFlags(patch: RuntimeFlags.Patch)(implicit trace: Trace): ZIO[Any, Nothing, Unit] =
-    if (patch == RuntimeFlags.Patch.empty) ZIO.unit
+    if (patch == RuntimeFlags.Patch.empty) Exit.unit
     else ZIO.UpdateRuntimeFlags(trace, patch)
 
   /**
