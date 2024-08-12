@@ -2,19 +2,25 @@ package zio
 
 import zio.test._
 import zio.test.Assertion._
+import zio.test.TestAspect._
 import java.io.{ByteArrayOutputStream, PrintStream}
 
 object FiberFailureSpec extends ZIOBaseSpec {
+
+  val expectedStackTrace = Seq(
+    "zio.FiberFailure.<init>",
+    "zio.FiberFailure$.apply",
+    "zio.Exit.getOrThrowFiberFailure",
+    "zio.internal.FiberRuntime.runLoop"
+  )
+
   def spec = suite("FiberFailureSpec")(
     test("FiberFailure getStackTrace includes relevant ZIO stack traces") {
       val exception    = new Exception("Test Exception")
       val fiberFailure = FiberFailure(Cause.fail(exception))
-      val stackTrace   = fiberFailure.getStackTrace
+      val stackTrace   = fiberFailure.getStackTrace.map(_.toString).mkString("\n")
 
-      assertTrue(
-        stackTrace.exists(_.getClassName.contains("FiberFailureSpec")), // User code presence
-        stackTrace.exists(_.getClassName.startsWith("zio."))            // ZIO internals presence
-      )
+      assertTrue(stackTrace.contains(expectedStackTrace))
     },
     test("FiberFailure toString should match cause.prettyPrint") {
       val cause        = Cause.fail(new Exception("Test Exception"))
@@ -62,7 +68,7 @@ object FiberFailureSpec extends ZIOBaseSpec {
           assertTrue(
             stackTrace.contains("call1") &&
               stackTrace.contains("subcall") &&
-              stackTrace.contains("FiberFailureSpec")
+              stackTrace.contains(expectedStackTrace)
           )
         }
       }
@@ -91,7 +97,7 @@ object FiberFailureSpec extends ZIOBaseSpec {
           assertTrue(
             stackTrace.contains("call1") &&
               stackTrace.contains("subcall") &&
-              stackTrace.contains("FiberFailureSpec")
+              stackTrace.contains(expectedStackTrace)
           )
         }
       }
@@ -120,7 +126,7 @@ object FiberFailureSpec extends ZIOBaseSpec {
           assertTrue(
             stackTrace.contains("call1") &&
               stackTrace.contains("subcall") &&
-              stackTrace.contains("FiberFailureSpec")
+              stackTrace.contains(expectedStackTrace)
           )
         }
       }
