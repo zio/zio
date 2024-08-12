@@ -83,10 +83,10 @@ object ZEnvironmentSpec extends ZIOBaseSpec {
       assertTrue(env1.hashCode != env2.hashCode)
     },
     test("diff on two equal environments should return an empty patch") {
-      val env1 = ZEnvironment("foo", 42)
-      val env2 = ZEnvironment("foo", 42)
+      val env1  = ZEnvironment("foo", 42)
+      val env2  = ZEnvironment("foo", 42)
       val patch = ZEnvironment.Patch.diff(env1, env2)
       assertTrue(patch.isEmpty)
-    },
+    }
   )
 }
