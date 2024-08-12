@@ -410,7 +410,7 @@ object ZEnvironment {
     /**
      * Boolean flag indicating whether the patch is empty.
      */
-    def isEmpty: Boolean = self.isInstanceOf[Empty]
+    def isEmpty: Boolean = self.isInstanceOf[Empty[?]]
   }
 
   object Patch {
