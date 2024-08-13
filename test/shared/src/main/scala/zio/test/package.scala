@@ -1065,17 +1065,17 @@ package object test extends CompileVariants {
   private def checkStream[R, R1 <: R, E, A](stream: ZStream[R, Nothing, Sample[R, A]])(
     test: A => ZIO[R1, E, TestResult]
   )(implicit trace: Trace): ZIO[R1, E, TestResult] =
-    TestConfig.shrinks.flatMap { s =>
+    testConfigWith { testConfig =>
       val flag = Ref.unsafe.make(false)(Unsafe.unsafe)
       warningEmptyGen(flag) *> shrinkStream {
         stream.zipWithIndex.mapZIO { case (initial, index) =>
           flag.set(true) *> initial.foreach(input =>
-            test(input)
+            (test(input) @@ testConfig.checkAspect)
               .map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index)))
               .either
           )
         }
-      }(s)
+      }(testConfig.shrinks)
     }
 
   private def shrinkStream[R, R1 <: R, E, A](
@@ -1099,12 +1099,12 @@ package object test extends CompileVariants {
   private def checkStreamPar[R, R1 <: R, E, A](stream: ZStream[R, Nothing, Sample[R, A]], parallelism: Int)(
     test: A => ZIO[R1, E, TestResult]
   )(implicit trace: Trace): ZIO[R1, E, TestResult] =
-    TestConfig.shrinks.flatMap {
+    testConfigWith { testConfig =>
       shrinkStream {
         stream.zipWithIndex
           .mapZIOPar(parallelism) { case (initial, index) =>
             initial.foreach { input =>
-              test(input)
+              (test(input) @@ testConfig.checkAspect)
                 .map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index)))
                 .either
             // convert test failures to failures to terminate parallel tests on first failure
@@ -1112,7 +1112,7 @@ package object test extends CompileVariants {
           // move failures back into success channel for shrinking logic
           }
           .catchAll(ZStream.succeed(_))
-      }
+      }(testConfig.shrinks)
     }
 
   private def warningEmptyGen(flag: Ref[Boolean])(implicit trace: Trace): UIO[Unit] =
