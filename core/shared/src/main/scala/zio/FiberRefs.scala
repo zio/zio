@@ -31,7 +31,7 @@ final class FiberRefs private (
   private[zio] val fiberRefLocals: Map[FiberRef[_], FiberRefs.Value]
 ) { self =>
   import FiberRef.currentRuntimeFlags
-  import zio.FiberRefs.{StackEntry, Value, improvedEq}
+  import zio.FiberRefs.{StackEntry, Value, eqWithBoxedNumericEquality}
 
   /**
    * Returns a new fiber refs with the specified ref deleted from it.
@@ -83,8 +83,20 @@ final class FiberRefs private (
           type T = fiberRef.Value & AnyRef
           val oldValue = stack.head.value.asInstanceOf[T]
           val newValue = fiberRef.patch(fork)(oldValue).asInstanceOf[T]
-          if (improvedEq(oldValue, newValue)) entry
-          else Value(::(StackEntry(childId, newValue, 0), stack), depth + 1)
+          if (eqWithBoxedNumericEquality(oldValue, newValue)) entry
+          else {
+
+            /**
+             * The assertion disappears when compiling with `CI_RELEASE_MODE=1`.
+             * If this shows up in benchmarks, make sure to compile the code
+             * with the envvar set.
+             */
+            assert(
+              BuildInfo.optimizationsEnabled || newValue != oldValue,
+              s"FiberRef.improvedEq reference equality returned false but equals returned true for value of class ${(oldValue: AnyRef).getClass.getName}"
+            )
+            Value(::(StackEntry(childId, newValue, 0), stack), depth + 1)
+          }
         }
       }
 
@@ -165,7 +177,7 @@ final class FiberRefs private (
           val initial  = ref.initial
           val newValue = ref.join(initial, childValue)
           // Attempt to shortcut in case that the value after the join is the same as the initial one
-          if (!improvedEq(newValue, initial)) {
+          if (!eqWithBoxedNumericEquality(newValue, initial)) {
             val v = Value(::(StackEntry(fiberId, newValue, 0), List.empty), 1)
             fiberRefLocals0 = fiberRefLocals0.updated(ref, v)
           }
@@ -190,7 +202,7 @@ final class FiberRefs private (
           }
 
           val newValue = ref.join(oldValue, newValue0)
-          if (!improvedEq(oldValue, newValue)) {
+          if (!eqWithBoxedNumericEquality(oldValue, newValue)) {
             val parentFiberId = parentHead.id
             val parentVersion = parentHead.version
             val newEntry = {
@@ -262,7 +274,7 @@ final class FiberRefs private (
         val oldStack = oldEntry.stack.asInstanceOf[::[StackEntry[A]]]
         val oldDepth = oldEntry.depth
         val head     = oldStack.head
-        if (head.value eq value)
+        if (eqWithBoxedNumericEquality(head.value, value))
           oldEntry
         else if (head.id eq fiberId) {
           Value(
@@ -336,23 +348,12 @@ object FiberRefs {
    *   Normally we need to be performing a 2nd type check whether the type is a
    *   `java.lang.Character`, but since ZIO doesn't define any `FiberRef[Char]`
    *   we can skip it and let the runtime assertion fail in case we ever add it.
-   *
-   * @note
-   *   The assertion disappears when compiling with `CI_RELEASE_MODE=1`. If this
-   *   method shows up in benchmarks, make sure to compile the code with the
-   *   envvar set.
    */
-  private def improvedEq[A <: AnyRef](x: A, y: A): Boolean = {
-    val isEq = x match {
+  private def eqWithBoxedNumericEquality[A <: AnyRef](x: A, y: A): Boolean =
+    x match {
       case x0: java.lang.Number => BoxesRunTime.equalsNumObject(x0, y)
       case _                    => x eq y
     }
-    assert(
-      BuildInfo.optimizationsEnabled || isEq || x != y,
-      s"FiberRef.improvedEq reference equality returned false but equals returned true for value of class ${x.getClass.getName}"
-    )
-    isEq
-  }
 
   /**
    * A `Patch` captures the changes in `FiberRef` values made by a single fiber

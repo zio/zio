@@ -60,7 +60,8 @@ final class ZEnvironment[+R] private (
 
   override def equals(that: Any): Boolean = that match {
     case that: ZEnvironment[_] =>
-      if (self.scope ne that.scope) false
+      if (self eq that) true
+      else if (self.scope ne that.scope) false
       else if (self.map eq that.map) true
       else if (self.map.size != that.map.size) false
       else self.hashCode == that.hashCode

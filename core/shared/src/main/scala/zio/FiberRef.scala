@@ -440,7 +440,7 @@ object FiberRef {
       initialValue0: Value0,
       differ: Differ[Value0, Patch0],
       fork0: Patch0,
-      join0: (Value0, Value0) => Value0 = (_: Value0, newValue: Value0) => newValue
+      join0: (Value0, Value0) => Value0 = ZIO.secondFn[Value0]
     )(implicit unsafe: Unsafe): FiberRef.WithPatch[Value0, Patch0] =
       new FiberRef[Value0] {
         self =>
@@ -560,7 +560,7 @@ object FiberRef {
     FiberRef.unsafe.makeSupervisor(Runtime.defaultSupervisor)(Unsafe.unsafe)
 
   private[zio] val unhandledErrorLogLevel: FiberRef[Option[LogLevel]] =
-    FiberRef.unsafe.make[Option[LogLevel]](Some(LogLevel.Debug), identity(_), (_, child) => child)(Unsafe.unsafe)
+    FiberRef.unsafe.make[Option[LogLevel]](Some(LogLevel.Debug))(Unsafe.unsafe)
 
   private def makeWith[Value, Patch](
     ref: => FiberRef.WithPatch[Value, Patch]
