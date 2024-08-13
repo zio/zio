@@ -58,7 +58,7 @@
     "@zio.dev/zio-metrics-connectors": "2.3.1",
     "@zio.dev/zio-mock": "1.0.0-RC12",
     "@zio.dev/zio-nio": "2.0.0",
-    "@zio.dev/zio-optics": "0.2.1",
+    "@zio.dev/zio-optics": "0.2.2",
     "@zio.dev/zio-parser": "0.1.9",
     "@zio.dev/zio-prelude": "1.0.0-RC28",
     "@zio.dev/zio-process": "0.7.2",
