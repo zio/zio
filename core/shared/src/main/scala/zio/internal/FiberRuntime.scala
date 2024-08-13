@@ -107,17 +107,20 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       val parentFiberId      = parentFiber.id
       val parentFiberRefs    = parentFiber.getFiberRefs()
       val parentRuntimeFlags = parentStatus.runtimeFlags
+      val childFiberRefs     = self.getFiberRefs() // Inconsistent snapshot
 
-      val childFiberRefs   = self.getFiberRefs() // Inconsistent snapshot
       val updatedFiberRefs = parentFiberRefs.joinAs(parentFiberId)(childFiberRefs)
+      if (updatedFiberRefs ne parentFiberRefs) {
+        parentFiber.setFiberRefs(updatedFiberRefs)
 
-      parentFiber.setFiberRefs(updatedFiberRefs)
+        val updatedRuntimeFlags = updatedFiberRefs.getRuntimeFlags(Unsafe.unsafe)
 
-      val updatedRuntimeFlags = updatedFiberRefs.getRuntimeFlags(Unsafe.unsafe)
-
-      // Do not inherit WindDown or Interruption!
-      val patch = FiberRuntime.patchExcludeNonInheritable(RuntimeFlags.diff(parentRuntimeFlags, updatedRuntimeFlags))
-      ZIO.updateRuntimeFlags(patch)
+        // Do not inherit WindDown or Interruption!
+        val patch = FiberRuntime.patchExcludeNonInheritable(RuntimeFlags.diff(parentRuntimeFlags, updatedRuntimeFlags))
+        ZIO.updateRuntimeFlags(patch)
+      } else {
+        Exit.unit
+      }
     }
 
   def interruptAsFork(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =

@@ -60,7 +60,8 @@ final class ZEnvironment[+R] private (
 
   override def equals(that: Any): Boolean = that match {
     case that: ZEnvironment[_] =>
-      if (self.scope ne that.scope) false
+      if (self eq that) true
+      else if (self.scope ne that.scope) false
       else if (self.map eq that.map) true
       else if (self.map.size != that.map.size) false
       else self.hashCode == that.hashCode
@@ -390,8 +391,14 @@ object ZEnvironment {
             case _: UpdateService[?, ?]   => loop(env, patches.tail)
           }
 
-      if (self eq empty0) environment.asInstanceOf[ZEnvironment[Out]]
-      else loop(environment, self.asInstanceOf[Patch[Any, Any]] :: Nil).asInstanceOf[ZEnvironment[Out]]
+      val env0 = environment.asInstanceOf[ZEnvironment[Out]]
+      if (isEmpty) env0
+      else {
+        val out = loop(environment, self.asInstanceOf[Patch[Any, Any]] :: Nil).asInstanceOf[ZEnvironment[Out]]
+        // Unfortunately we can't rely on eq here. However, the ZEnvironment equals method uses a cached hashCode
+        // so it's pretty fast
+        if (env0 == out) env0 else out
+      }
     }
 
     /**
@@ -400,6 +407,11 @@ object ZEnvironment {
      */
     def combine[Out2](that: Patch[Out, Out2]): Patch[In, Out2] =
       AndThen(self, that)
+
+    /**
+     * Boolean flag indicating whether the patch is empty.
+     */
+    def isEmpty: Boolean = self.isInstanceOf[Empty[?]]
   }
 
   object Patch {
