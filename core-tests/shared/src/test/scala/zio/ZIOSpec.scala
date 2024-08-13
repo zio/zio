@@ -199,7 +199,7 @@ object ZIOSpec extends ZIOBaseSpec {
           ref                 <- Ref.make(0)
           tuple               <- incrementAndGet(ref).cachedInvalidate(60.minutes)
           (cached, invalidate) = tuple
-          a                   <- cached
+          a                   <- ZIO.collectAllPar((1 to 10).toSet.map((_: Int) => cached))
           _                   <- TestClock.adjust(59.minutes)
           b                   <- cached
           _                   <- invalidate
@@ -208,10 +208,63 @@ object ZIOSpec extends ZIOBaseSpec {
           d                   <- cached
           _                   <- TestClock.adjust(59.minutes)
           e                   <- cached
-        } yield assert(a)(equalTo(b)) &&
-          assert(b)(not(equalTo(c))) &&
-          assert(c)(equalTo(d)) &&
-          assert(d)(not(equalTo(e)))
+        } yield assert(a)(equalTo(Set(1))) &&
+          assert(b)(equalTo(1)) &&
+          assert(c)(equalTo(2)) &&
+          assert(d)(equalTo(2)) &&
+          assert(e)(equalTo(3))
+      },
+      test("get is interruptible") {
+        for {
+          ref           <- Ref.make(0)
+          startWaiting1 <- Promise.make[Nothing, Unit]
+          startWaiting3 <- Promise.make[Nothing, Unit]
+          tuple <- ref
+                     .updateAndGet(_ + 1)
+                     .flatMap { i =>
+                       (i match {
+                         case 1 => startWaiting1.succeed(()) *> ZIO.never
+                         case 3 => startWaiting3.succeed(()) *> ZIO.never
+                         case _ => ZIO.unit
+                       }).as(i)
+                     }
+                     .cachedInvalidate(Duration.Infinity)
+          (cached, invalidate) = tuple
+
+          callFiber1 <- cached.fork
+          _          <- startWaiting1.await
+          _          <- callFiber1.interrupt
+
+          _ <- invalidate
+
+          v1 <- cached
+          v2 <- cached
+
+          _ <- invalidate
+
+          callFiber3 <- cached.fork
+          _          <- startWaiting3.await
+          _          <- callFiber3.interrupt
+        } yield assert(v1)(equalTo(2)) &&
+          assert(v2)(equalTo(2))
+      },
+      test("issue 9015") {
+        for {
+          startWaiting <- Promise.make[Nothing, Unit]
+          ref          <- Ref.make(true)
+          tuple <- ZIO
+                     .ifZIO(ref.get)(
+                       onTrue = ref.set(false) *> ref.get,
+                       onFalse = startWaiting.succeed(()) *> ZIO.never *> ref.get
+                     )
+                     .cachedInvalidate(Duration.Infinity)
+          (call, invalidate) = tuple
+          first             <- call
+          _                 <- invalidate
+          callFiber         <- call.fork
+          _                 <- startWaiting.await
+          _                 <- callFiber.interrupt
+        } yield assert(first)(equalTo(false))
       }
     ),
     suite("catchNonFatalOrDie")(
