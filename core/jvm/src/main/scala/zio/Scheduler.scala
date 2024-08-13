@@ -39,17 +39,13 @@ object Scheduler {
       def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): CancelToken =
         (duration: @unchecked) match {
           case Duration.Infinity => ConstFalse
-          case Duration.Zero =>
+          case d if d.isZero || d.isNegative =>
             task.run()
-
             ConstFalse
-          case Duration.Finite(_) =>
+          case d =>
             val future = service.schedule(
-              new Runnable {
-                def run: Unit =
-                  task.run()
-              },
-              duration.toNanos,
+              task,
+              d.toNanos,
               TimeUnit.NANOSECONDS
             )
 

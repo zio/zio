@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.Scheduler
 import zio.internal.NamedThreadFactory
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -31,7 +30,7 @@ private[zio] trait ClockPlatformSpecific {
 
     private[this] val ConstFalse = () => false
 
-    private val maxMillis = Long.MaxValue / 1000000L
+    private final val MaxMillis = Long.MaxValue / 1000000L
 
     def asScheduledExecutorService: ScheduledExecutorService =
       service
@@ -39,33 +38,26 @@ private[zio] trait ClockPlatformSpecific {
     def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): CancelToken =
       (duration: @unchecked) match {
         case Duration.Infinity => ConstFalse
-        case _ =>
-          val millis = duration.toMillis
+        case d if d.isZero || d.isNegative =>
+          task.run()
+          ConstFalse
+        case d =>
+          val millis = d.toMillis
           val future =
-            if (millis < maxMillis)
+            if (millis < MaxMillis)
               service.schedule(
-                new Runnable {
-                  def run: Unit =
-                    task.run()
-                },
-                duration.toNanos,
+                task,
+                d.toNanos,
                 TimeUnit.NANOSECONDS
               )
             else
               service.schedule(
-                new Runnable {
-                  def run: Unit =
-                    task.run()
-                },
+                task,
                 millis,
                 TimeUnit.MILLISECONDS
               )
 
-          () => {
-            val canceled = future.cancel(true)
-
-            canceled
-          }
+          () => future.cancel(true)
       }
   }
 
