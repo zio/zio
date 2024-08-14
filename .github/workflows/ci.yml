@@ -236,11 +236,13 @@ jobs:
         run: free --si -tmws 10 & sbt -v test${{ matrix.platform }}
 
   ci:
+    if: always()
     runs-on: ubuntu-20.04
     needs: [lint, publishLocal, build-website, test, testJvms, testPlatforms]
     steps:
-      - name: Aggregate of lint, mdoc and all tests
-        run: echo "ci passed"
+      - uses: re-actors/alls-green@release/v1
+        with:
+          jobs: ${{ toJSON(needs) }}
 
   publish:
     runs-on: ubuntu-20.04
