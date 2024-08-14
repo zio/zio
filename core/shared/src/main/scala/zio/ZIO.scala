@@ -1065,7 +1065,7 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def onError[R1 <: R](cleanup: Cause[E] => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
     onExit {
-      case _: Exit.Success[_]  => Exit.unit
+      case _: Exit.Success[?]  => Exit.unit
       case Exit.Failure(cause) => cleanup(cause)
     }
 
@@ -1120,7 +1120,7 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def onInterrupt[R1 <: R](cleanup: => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
     onExit {
-      case _: Exit.Success[_]  => Exit.unit
+      case _: Exit.Success[?]  => Exit.unit
       case Exit.Failure(cause) => if (cause.isInterruptedOnly) cleanup else Exit.unit
     }
 
@@ -1131,7 +1131,7 @@ sealed trait ZIO[-R, +E, +A]
   final def onInterrupt[R1 <: R](cleanup: Set[FiberId] => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
     // TODO: isInterrupted or isInterruptedOnly?
     onExit {
-      case _: Exit.Success[_]  => Exit.unit
+      case _: Exit.Success[?]  => Exit.unit
       case Exit.Failure(cause) => if (cause.isInterruptedOnly) cleanup(cause.interruptors) else Exit.unit
     }
 
@@ -1143,7 +1143,7 @@ sealed trait ZIO[-R, +E, +A]
     cleanup: Cause[Nothing] => URIO[R1, Any]
   )(implicit trace: Trace): ZIO[R1, E, A] =
     onExit {
-      case _: Exit.Success[_] => Exit.unit
+      case _: Exit.Success[?] => Exit.unit
       case Exit.Failure(cause) =>
         if (cause.isFailure) Exit.unit
         else cleanup(cause.asInstanceOf[Cause[Nothing]])
@@ -1467,7 +1467,7 @@ sealed trait ZIO[-R, +E, +A]
     self.raceFibersWith(that)(
       (winner, loser) =>
         winner.await.flatMap {
-          case exit: Exit.Success[_] =>
+          case exit: Exit.Success[?] =>
             winner.inheritAll.flatMap(_ => leftDone(exit, loser))
           case exit: Exit.Failure[_] =>
             leftDone(exit, loser)
