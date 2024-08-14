@@ -935,7 +935,7 @@ object ZSTM {
                     commitEffects(onCommit) *> exit
                   case _ =>
                     onInterrupt()
-                    ZIO.refailCause(cause)
+                    Exit.failCause(cause)
                 }
               },
               s => {
@@ -1516,18 +1516,18 @@ object ZSTM {
               state match {
                 case State.Done(Exit.Success(a), _) =>
                   release(a).foldCauseZIO(
-                    cause2 => ZIO.refailCause(cause ++ cause2),
-                    _ => ZIO.refailCause(cause)
+                    cause2 => Exit.failCause(cause ++ cause2),
+                    _ => Exit.failCause(cause)
                   )
-                case _ => ZIO.refailCause(cause)
+                case _ => Exit.failCause(cause)
               }
             },
             a =>
               restore(use(a)).foldCauseZIO(
                 cause =>
                   release(a).foldCauseZIO(
-                    cause2 => ZIO.refailCause(cause ++ cause2),
-                    _ => ZIO.refailCause(cause)
+                    cause2 => Exit.failCause(cause ++ cause2),
+                    _ => Exit.failCause(cause)
                   ),
                 b => release(a) *> ZIO.succeed(b)
               )

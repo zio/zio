@@ -341,7 +341,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def tapErrorCause[RIn1 <: RIn, E1 >: E](f: Cause[E] => ZIO[RIn1, E1, Any])(implicit
     trace: Trace
   ): ZLayer[RIn1, E1, ROut] =
-    catchAllCause(e => ZLayer.fromZIO[RIn1, E1, Nothing](f(e) *> ZIO.refailCause(e)))
+    catchAllCause(e => ZLayer.fromZIO[RIn1, E1, Nothing](f(e) *> Exit.failCause(e)))
 
   /**
    * A named alias for `>>>`.
@@ -868,7 +868,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that refails with the specified cause.
    */
   def refailCause[E](cause: Cause[E])(implicit trace: Trace): Layer[E, Nothing] =
-    ZLayer(ZIO.refailCause(cause))
+    ZLayer(Exit.failCause(cause))
 
   /**
    * Constructs a layer from the specified scoped effect.

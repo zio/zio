@@ -642,7 +642,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
                           c =>
                             releaseMap
                               .releaseAll(Exit.fail(c), ExecutionStrategy.Sequential) *>
-                              ZIO.refailCause(c),
+                              Exit.failCause(c),
                           { case (release, a) =>
                             ZIO.succeed(
                               ZManaged {
