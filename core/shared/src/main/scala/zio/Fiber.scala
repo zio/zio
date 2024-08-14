@@ -576,7 +576,19 @@ object Fiber extends FiberPlatformSpecific {
      * invoked on this fiber, then values derived from the fiber's state
      * (including the log annotations and log level) may not be up-to-date.
      */
-    private[zio] def getFiberRefs(): FiberRefs
+    private[zio] def getFiberRefs(): FiberRefs = getFiberRefs(true)
+
+    /**
+     * Retrieves all fiber refs of the fiber. If `updateRuntimeFlagsWithin` is
+     * set to `false`, the FiberRefs will ''not'' be updated with the Fiber's
+     * current runtime flags. This can help performance for cases that we don't
+     * need to extract the runtime flags from the FiberRefs.
+     *
+     * '''NOTE''': This method is safe to invoke on any fiber, but if not
+     * invoked on this fiber, then values derived from the fiber's state
+     * (including the log annotations and log level) may not be up-to-date.
+     */
+    private[zio] def getFiberRefs(updateRuntimeFlagsWithin: Boolean): FiberRefs
 
     /**
      * Retrieves the executor that this effect is currently executing on.

@@ -9,9 +9,10 @@ import java.util.concurrent.TimeUnit
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
-@Fork(1)
+@Fork(2)
 @Threads(1)
 class FiberRefsBenchmark {
+  import BenchmarkUtil._
   implicit val us: Unsafe = Unsafe.unsafe
 
   def commonList = List.fill(10)("foo") :+ scala.util.Random.alphanumeric.take(10).mkString
@@ -62,6 +63,16 @@ class FiberRefsBenchmark {
     val f03 = frs2.joinAs(id2)(f04)
     val f02 = frs1.joinAs(id1)(f03)
     frs1.joinAs(id1)(f02)
+  }
+
+  private val ref0          = FiberRef.unsafe.make("foo")
+  private val updateLocally = List.fill(10000)(ref0.locally("bar")(ZIO.unit))
+
+  @Benchmark
+  @OperationsPerInvocation(10000)
+  def locally() = unsafeRun {
+    ZIO.setFiberRefs(frs5) *>
+      ZIO.collectAllDiscard(updateLocally)
   }
 
 }
