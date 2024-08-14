@@ -180,7 +180,7 @@ sealed trait ZIO[-R, +E, +A]
   final def absorbWith(f: E => Throwable)(implicit trace: Trace): RIO[R, A] =
     self.sandbox
       .foldZIO(
-        cause => ZIO.refailCause(Cause.fail(cause.squashWith(f))),
+        cause => Exit.failCause(Cause.fail(cause.squashWith(f))),
         ZIO.successFn
       )
 
@@ -358,7 +358,7 @@ sealed trait ZIO[-R, +E, +A]
     pf: PartialFunction[E, ZIO[R1, E1, A1]]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A1] = {
     def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
-      c.failureOrCause.fold(t => pf.applyOrElse(t, (_: E) => ZIO.refailCause(c)), ZIO.refailCause(_))
+      c.failureOrCause.fold(t => pf.applyOrElse(t, (_: E) => Exit.failCause(c)), Exit.failCause)
 
     self.foldCauseZIO[R1, E1, A1](tryRescue, ZIO.successFn)
   }
@@ -370,7 +370,7 @@ sealed trait ZIO[-R, +E, +A]
     pf: PartialFunction[(E, StackTrace), ZIO[R1, E1, A1]]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A1] = {
     def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
-      c.failureTraceOrCause.fold(t => pf.applyOrElse(t, (_: (E, StackTrace)) => ZIO.refailCause(c)), ZIO.refailCause(_))
+      c.failureTraceOrCause.fold(t => pf.applyOrElse(t, (_: (E, StackTrace)) => Exit.failCause(c)), Exit.failCause)
 
     self.foldCauseZIO[R1, E1, A1](tryRescue, ZIO.successFn)
   }
@@ -388,7 +388,7 @@ sealed trait ZIO[-R, +E, +A]
     pf: PartialFunction[Cause[E], ZIO[R1, E1, A1]]
   )(implicit trace: Trace): ZIO[R1, E1, A1] = {
     def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
-      pf.applyOrElse(c, (_: Cause[E]) => ZIO.refailCause(c))
+      pf.applyOrElse(c, (_: Cause[E]) => Exit.failCause(c))
 
     self.foldCauseZIO[R1, E1, A1](tryRescue, ZIO.successFn)
   }
@@ -554,7 +554,7 @@ sealed trait ZIO[-R, +E, +A]
    * an [[zio.Exit]] for the completion value of the fiber.
    */
   final def exit(implicit trace: Trace): URIO[R, Exit[E, A]] =
-    self.foldCause(Exit.failCause(_), Exit.succeed(_))
+    self.foldCause(Exit.failCause, Exit.succeed(_))
 
   /**
    * Extracts this effect as an [[zio.Exit]] and then applies the provided
@@ -713,7 +713,7 @@ sealed trait ZIO[-R, +E, +A]
     ev: CanFail[E],
     trace: Trace
   ): ZIO[R1, E2, B] =
-    foldCauseZIO(c => c.failureTraceOrCause.fold(failure, ZIO.refailCause(_)), success)
+    foldCauseZIO(c => c.failureTraceOrCause.fold(failure, Exit.failCause), success)
 
   /**
    * Recovers from errors by accepting one effect to execute for the case of an
@@ -730,7 +730,7 @@ sealed trait ZIO[-R, +E, +A]
     ev: CanFail[E],
     trace: Trace
   ): ZIO[R1, E2, B] =
-    foldCauseZIO(c => c.failureOrCause.fold(failure, ZIO.refailCause(_)), success)
+    foldCauseZIO(c => c.failureOrCause.fold(failure, Exit.failCause), success)
 
   /**
    * Returns a new effect that will pass the success value of this effect to the
@@ -816,7 +816,7 @@ sealed trait ZIO[-R, +E, +A]
   final def forkWithErrorHandler[R1 <: R](handler: E => URIO[R1, Any])(implicit
     trace: Trace
   ): URIO[R1, Fiber.Runtime[E, A]] =
-    onError(c => c.failureOrCause.fold(handler, ZIO.refailCause(_))).fork
+    onError(c => c.failureOrCause.fold(handler, Exit.failCause)).fork
 
   private[zio] final def forkWithScopeOverride(
     scopeOverride: FiberScope
@@ -1002,7 +1002,7 @@ sealed trait ZIO[-R, +E, +A]
    *   with defects
    */
   def mapErrorCause[E2](h: Cause[E] => Cause[E2])(implicit trace: Trace): ZIO[R, E2, A] =
-    self.foldCauseZIO(c => ZIO.refailCause(h(c)), ZIO.successFn)
+    self.foldCauseZIO(c => Exit.failCause(h(c)), ZIO.successFn)
 
   /**
    * Returns an effect that, if evaluated, will return the lazily computed
@@ -1230,8 +1230,8 @@ sealed trait ZIO[-R, +E, +A]
     self.foldCauseZIO(
       cause =>
         cause.failures match {
-          case Nil            => ZIO.refailCause(cause.asInstanceOf[Cause[Nothing]])
-          case ::(head, tail) => ZIO.refailCause(Cause.fail(::[E1](head, tail), cause.trace))
+          case Nil            => Exit.failCause(cause.asInstanceOf[Cause[Nothing]])
+          case ::(head, tail) => Exit.failCause(Cause.fail(::[E1](head, tail), cause.trace))
         },
       ZIO.successFn
     )
@@ -1668,10 +1668,10 @@ sealed trait ZIO[-R, +E, +A]
               driver
                 .next(e)
                 .foldZIO(
-                  _ => driver.last.orDie.flatMap(_ => ZIO.refailCause(cause)),
+                  _ => driver.last.orDie.flatMap(_ => Exit.failCause(cause)),
                   _ => loop(driver)
                 ),
-            cause => ZIO.refailCause(cause)
+            cause => Exit.failCause(cause)
           )
         }
 
@@ -1687,8 +1687,8 @@ sealed trait ZIO[-R, +E, +A]
       def loop(n: Int): ZIO[R, E, A] =
         self.catchAllCause { cause =>
           cause.failureOrCause.fold(
-            _ => if (n <= 0) ZIO.refailCause(cause) else ZIO.yieldNow *> loop(n - 1),
-            cause => ZIO.refailCause(cause)
+            _ => if (n <= 0) Exit.failCause(cause) else ZIO.yieldNow *> loop(n - 1),
+            cause => Exit.failCause(cause)
           )
         }
 
@@ -1951,7 +1951,7 @@ sealed trait ZIO[-R, +E, +A]
     trace: Trace
   ): ZIO[R, E1, B] =
     self.foldCauseZIO(
-      e => ZIO.refailCause(e),
+      e => Exit.failCause(e),
       ev(_) match {
         case Some(value) => Exit.succeed(value)
         case None        => ZIO.fail(ev2(new NoSuchElementException("None.get")))
@@ -2032,7 +2032,7 @@ sealed trait ZIO[-R, +E, +A]
     ev: CanFail[E],
     trace: Trace
   ): ZIO[R1, E1, A] =
-    self.foldCauseZIO(c => c.failureOrCause.fold(f(_) *> ZIO.refailCause(c), _ => ZIO.refailCause(c)), a => g(a).as(a))
+    self.foldCauseZIO(c => c.failureOrCause.fold(f(_) *> Exit.failCause(c), _ => Exit.failCause(c)), a => g(a).as(a))
 
   /**
    * Returns an effect that effectually "peeks" at the defect of this effect.
@@ -2041,7 +2041,7 @@ sealed trait ZIO[-R, +E, +A]
     trace: Trace
   ): ZIO[R1, E1, A] =
     self.catchAllCause { cause =>
-      cause.keepDefects.fold[ZIO[R1, E1, A]](ZIO.refailCause(cause))(f(_) *> ZIO.refailCause(cause))
+      cause.keepDefects.fold[ZIO[R1, E1, A]](Exit.failCause(cause))(f(_) *> Exit.failCause(cause))
     }
 
   /**
@@ -2055,7 +2055,7 @@ sealed trait ZIO[-R, +E, +A]
     trace: Trace
   ): ZIO[R1, E1, A] =
     self.foldCauseZIO(
-      c => c.failureOrCause.fold(e => f(Left(e)) *> ZIO.refailCause(c), _ => ZIO.refailCause(c)),
+      c => c.failureOrCause.fold(e => f(Left(e)) *> Exit.failCause(c), _ => Exit.failCause(c)),
       a => f(Right(a)).as(a)
     )
 
@@ -2068,7 +2068,7 @@ sealed trait ZIO[-R, +E, +A]
   final def tapError[R1 <: R, E1 >: E](
     f: E => ZIO[R1, E1, Any]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A] =
-    self.foldCauseZIO(c => c.failureOrCause.fold(f(_) *> ZIO.refailCause(c), _ => ZIO.refailCause(c)), ZIO.successFn)
+    self.foldCauseZIO(c => c.failureOrCause.fold(f(_) *> Exit.failCause(c), _ => Exit.failCause(c)), ZIO.successFn)
 
   /**
    * Returns an effect that effectually "peeks" at the cause of the failure of
@@ -2080,7 +2080,7 @@ sealed trait ZIO[-R, +E, +A]
   final def tapErrorCause[R1 <: R, E1 >: E](f: Cause[E] => ZIO[R1, E1, Any])(implicit
     trace: Trace
   ): ZIO[R1, E1, A] =
-    self.foldCauseZIO(c => f(c) *> ZIO.refailCause(c), ZIO.successFn)
+    self.foldCauseZIO(c => f(c) *> Exit.failCause(c), ZIO.successFn)
 
   /**
    * A version of `tapError` that gives you the trace of the error.
@@ -2089,7 +2089,7 @@ sealed trait ZIO[-R, +E, +A]
     f: ((E, StackTrace)) => ZIO[R1, E1, Any]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A] =
     self.foldCauseZIO(
-      c => c.failureTraceOrCause.fold(f(_) *> ZIO.refailCause(c), _ => ZIO.refailCause(c)),
+      c => c.failureTraceOrCause.fold(f(_) *> Exit.failCause(c), _ => Exit.failCause(c)),
       ZIO.successFn
     )
 
@@ -2169,7 +2169,7 @@ sealed trait ZIO[-R, +E, +A]
   final def timeoutFailCause[E1 >: E](cause: => Cause[E1])(d: => Duration)(implicit
     trace: Trace
   ): ZIO[R, E1, A] =
-    ZIO.flatten(timeoutTo(ZIO.refailCause(cause))(ZIO.successFn)(d))
+    ZIO.flatten(timeoutTo(Exit.failCause(cause))(ZIO.successFn)(d))
 
   /**
    * Returns an effect that will timeout this effect, returning either the
@@ -2211,7 +2211,7 @@ sealed trait ZIO[-R, +E, +A]
       val cause = ev(a)
 
       if (cause.isEmpty) Exit.unit
-      else ZIO.refailCause(cause)
+      else Exit.failCause(cause)
     }
 
   /**
@@ -2296,7 +2296,7 @@ sealed trait ZIO[-R, +E, +A]
     catchAllCause { cause =>
       cause.find {
         case Cause.Die(t, _) if pf.isDefinedAt(t) => pf(t)
-      }.fold(ZIO.refailCause(cause.map(f)))(ZIO.failFn)
+      }.fold(Exit.failCause(cause.map(f)))(ZIO.failFn)
     }
 
   /**
@@ -2600,7 +2600,7 @@ sealed trait ZIO[-R, +E, +A]
                   ZIO.withFiberRuntime[Any, E, A] { (childFiber, _) =>
                     ZIO.suspendSucceed {
                       childFiber.transferChildren(parentScope)
-                      promise.fail(()) *> ZIO.refailCause(cause)
+                      promise.fail(()) *> Exit.failCause(cause)
                     }
                   },
                 a =>
@@ -2622,8 +2622,8 @@ sealed trait ZIO[-R, +E, +A]
                 left.interruptFork *> right.interruptFork *>
                   left.await.zip(right.await).flatMap { case (left, right) =>
                     left.zipWith(right)(f, _ && _) match {
-                      case Exit.Failure(causes) => ZIO.refailCause(cause.stripFailures && causes)
-                      case _                    => ZIO.refailCause(cause.stripFailures)
+                      case Exit.Failure(causes) => Exit.failCause(cause.stripFailures && causes)
+                      case _                    => Exit.failCause(cause.stripFailures)
                     }
                   },
               leftWins =>
@@ -2642,7 +2642,7 @@ sealed trait ZIO[-R, +E, +A]
       cause =>
         cause.keepDefects match {
           case None    => that
-          case Some(c) => ZIO.refailCause(c)
+          case Some(c) => Exit.failCause(c)
         },
       success
     )
@@ -3243,7 +3243,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.stackTrace(trace0).flatMap { trace =>
       FiberRef.currentLogSpan.getWith { spans =>
         FiberRef.currentLogAnnotations.getWith { annotations =>
-          ZIO.refailCause(cause.applyAll(trace, spans, annotations))
+          Exit.failCause(cause.applyAll(trace, spans, annotations))
         }
       }
     }
@@ -3359,8 +3359,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       def loop(zio: ZIO[R1, E, A]): ZIO[R1, E, A] =
         zio.catchAllCause { cause =>
           cause.failureOrCause.fold(
-            _ => if (iterator.hasNext) loop(iterator.next()) else ZIO.refailCause(cause),
-            cause => ZIO.refailCause(cause)
+            _ => if (iterator.hasNext) loop(iterator.next()) else Exit.failCause(cause),
+            cause => Exit.failCause(cause)
           )
         }
 
@@ -3683,7 +3683,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Lifts an `Either` into a `ZIO` value.
    */
   def fromEitherCause[E, A](v: => Either[Cause[E], A])(implicit trace: Trace): IO[E, A] =
-    succeed(v).flatMap(_.fold(ZIO.refailCause, ZIO.successFn))
+    succeed(v).flatMap(_.fold(Exit.failCause, ZIO.successFn))
 
   /**
    * Creates a `ZIO` value that represents the exit value of the specified
@@ -4566,6 +4566,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       mergeAllPar(all)(Option.empty[A])((acc, elem) => Some(acc.fold(elem)(f(_, elem)))).map(_.get)
     }
 
+  // NOTE: Prefer using `Exit.failCause` which doesn't require the unused implicit `trace`
   def refailCause[E](cause: Cause[E])(implicit trace: Trace): ZIO[Any, E, Nothing] = Exit.Failure(cause)
 
   /**
@@ -5495,14 +5496,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
               case Exit.Success(a) =>
                 winner.inheritAll *> loser.interruptAs(parentFiberId).as(f(a))
               case Exit.Failure(cause) =>
-                winner.inheritAll *> loser.interruptAs(parentFiberId) *> ZIO.refailCause(cause)
+                winner.inheritAll *> loser.interruptAs(parentFiberId) *> Exit.failCause(cause)
             },
           (winner, loser) =>
             winner.await.flatMap {
               case _: Exit.Success[?] =>
                 loser.inheritAll *> loser.interruptAs(parentFiberId).as(b())
               case Exit.Failure(cause) =>
-                loser.inheritAll *> loser.interruptAs(parentFiberId) *> ZIO.refailCause(cause)
+                loser.inheritAll *> loser.interruptAs(parentFiberId) *> Exit.failCause(cause)
             },
           null,
           FiberScope.global
@@ -5536,7 +5537,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         acquire().flatMap { a =>
           attemptOrDieZIO(restore(use(a))).exitWith { e =>
             attemptOrDieZIO(release(a, e)).foldCauseZIO(
-              cause2 => ZIO.refailCause(e.foldExit(_ ++ cause2, _ => cause2)),
+              cause2 => Exit.failCause(e.foldExit(_ ++ cause2, _ => cause2)),
               _ => e
             )
           }
@@ -6245,7 +6246,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                       ZIO.withFiberRuntime[Any, E, Unit] { (childFiber, _) =>
                         ZIO.suspendSucceed {
                           childFiber.transferChildren(fiber.scope)
-                          promise.fail(()) *> ZIO.refailCause(cause)
+                          promise.fail(()) *> Exit.failCause(cause)
                         }
                       },
                     _ => {
@@ -6268,8 +6269,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                   ZIO
                     .foreachParUnbounded(fibers)(_.interrupt)
                     .flatMap(Exit.collectAllPar(_) match {
-                      case Some(Exit.Failure(causes)) => ZIO.refailCause(cause.stripFailures && causes)
-                      case _                          => ZIO.refailCause(cause.stripFailures)
+                      case Some(Exit.Failure(causes)) => Exit.failCause(cause.stripFailures && causes)
+                      case _                          => Exit.failCause(cause.stripFailures)
                     }),
                 _ => ZIO.foreachDiscard(fibers)(_.inheritAll)
               )

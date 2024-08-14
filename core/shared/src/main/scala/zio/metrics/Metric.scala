@@ -204,7 +204,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         zio.foldCauseZIO(
-          cause => update(in) *> ZIO.refailCause(cause),
+          cause => update(in) *> Exit.failCause(cause),
           a => update(in) *> ZIO.succeed(a)
         )
     }
