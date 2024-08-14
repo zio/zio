@@ -7,7 +7,7 @@ import Features from '@site/src/components/sections/Features';
 import Sponsors from '@site/src/components/sections/Sponsors';
 
 // Construct the home page from all components
-function Home() {
+export default function WelcomePage() {
   const context = useDocusaurusContext();
   const { siteConfig = {} } = context;
   return (
@@ -25,5 +25,3 @@ function Home() {
     </Layout>
   );
 }
-
-export default Home;
