@@ -476,14 +476,27 @@ object FiberRef {
 
         override def locally[R, E, A](newValue: Value)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
           ZIO.withFiberRuntime[R, E, A] { (fiberState, _) =>
-            val oldValue = fiberState.getFiberRefOrNull(self)
+            val oldRefs = fiberState.getFiberRefs(false)
+            val newRefs = oldRefs.updatedAs(fiberState.id)(self, newValue)
 
-            fiberState.setFiberRef(self, newValue)
+            if (newRefs eq oldRefs) zio
+            else {
+              fiberState.setFiberRefs(newRefs)
+              zio.onExit { _ =>
+                val currentRefs = fiberState.getFiberRefs(false)
+                if (newRefs eq currentRefs) {
+                  // FiberRefs were not modified, we can just restore the old state
+                  fiberState.setFiberRefs(oldRefs)
+                } else {
+                  // They were modified, we need to update only the current FiberRef
+                  val oldValue = oldRefs.getOrNull(self)
+                  if (oldValue == null) fiberState.resetFiberRef(self)
+                  else fiberState.setFiberRef(self, oldValue)
+                }
+                Exit.unit
+              }
+            }
 
-            zio.ensuring(ZIO.succeed {
-              if (oldValue == null) fiberState.resetFiberRef(self)
-              else fiberState.setFiberRef(self, oldValue)
-            })
           }
 
         override def set(value: Value)(implicit trace: Trace): UIO[Unit] =
