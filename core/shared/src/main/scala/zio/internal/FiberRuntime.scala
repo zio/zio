@@ -884,19 +884,17 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *   This method MUST be invoked by the fiber itself while it's still running.
    */
   private[this] def gcStack(): Unit = {
-    val from = _stackSize
-    if (from == 0) {
+    val fromIndex = _stackSize
+    if (fromIndex == 0) {
       // There aren't meant to be any entries in the array, just dereference the whole thing
       _stack = null
     } else {
-      val stack       = _stack
-      val stackLength = stack.length
-      val nNulls      = stackLength - from
+      val stack   = _stack.asInstanceOf[Array[Object]]
+      val toIndex = math.min(FiberRuntime.StackIdxGcThreshold, stack.length)
 
       // If the next entry is null, it means we don't need to GC
-      if ((nNulls > 0) && (stack(from) ne null)) {
-        val nullArray = new Array[Continuation](nNulls)
-        java.lang.System.arraycopy(nullArray, 0, stack, from, nNulls)
+      if (fromIndex < toIndex && (stack(fromIndex) ne null)) {
+        java.util.Arrays.fill(stack, fromIndex, toIndex, null)
       }
     }
   }
