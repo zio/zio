@@ -63,7 +63,7 @@ private object ClockPlatformSpecific {
   }
 
   object Timer {
-    
+
     def delay(duration: FiniteDuration)(implicit trace: Trace): UIO[Unit] =
       for {
         promise <- Promise.make[Nothing, Unit]
