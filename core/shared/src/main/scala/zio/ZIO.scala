@@ -6251,12 +6251,11 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                       },
                     _ => {
                       ZIO.withFiberRuntime[Any, Nothing, Unit] { (childFiber, _) =>
-                        ZIO.succeed {
-                          childFiber.transferChildren(fiber.scope)
-                          if (ref.decrementAndGet() == 0) {
-                            promise.unsafe.done(Exit.unit)(Unsafe)
-                          }
+                        childFiber.transferChildren(fiber.scope)
+                        if (ref.decrementAndGet() == 0) {
+                          promise.unsafe.done(Exit.unit)(Unsafe)
                         }
+                        Exit.unit
                       }
                     }
                   )
