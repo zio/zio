@@ -24,7 +24,8 @@ object SemaphoreSpec extends ZIOBaseSpec {
         effect     = semaphore.withPermit(ZIO.unit)
         fiber     <- effect.fork
         _         <- fiber.interrupt
-      } yield assertCompletes
+        permits   <- semaphore.available
+      } yield assertTrue(permits == 0L)
     } @@ jvm(nonFlaky),
     test("withPermitsScoped releases same number of permits") {
       for {
@@ -32,6 +33,18 @@ object SemaphoreSpec extends ZIOBaseSpec {
         _         <- ZIO.scoped(semaphore.withPermitsScoped(2))
         permits   <- semaphore.available
       } yield assertTrue(permits == 2L)
+    },
+    test("withPermits can trigger multiple effects on release") {
+      for {
+        semaphore <- Semaphore.make(2)
+        prom1     <- Promise.make[Nothing, Unit]
+        prom2     <- Promise.make[Nothing, Unit]
+        fiber     <- semaphore.withPermits(2)(ZIO.never).fork
+        _         <- semaphore.withPermit(prom1.succeed(()) *> ZIO.never).fork
+        _         <- semaphore.withPermit(prom2.succeed(()) *> ZIO.never).fork
+        _         <- fiber.interrupt
+        _         <- prom1.await &> prom2.await
+      } yield assertCompletes
     }
   )
 }

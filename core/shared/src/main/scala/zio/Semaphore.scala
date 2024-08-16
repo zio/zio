@@ -118,15 +118,19 @@ object Semaphore {
             }
 
         def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
-          ref.modify {
-            case Left(queue) =>
-              queue
-                .find(_._1 == promise)
-                .fold(releaseN(n) -> Left(queue)) { case (_, permits) =>
-                  releaseN(n - permits) -> Left(queue.filter(_._1 != promise))
-                }
-            case Right(permits) => ZIO.unit -> Right(permits + n)
-          }.flatten
+          promise.isDone.flatMap { done =>
+            if (done) {
+              // If the promise is done, then the permits were acquired, and we need to release them
+              releaseN(n)
+            } else {
+              // If the promise isn't done then we never acquired the permits.
+              // so remove it from the queue
+              ref.update {
+                case Left(queue)  => Left(queue.filter(_._1 != promise))
+                case p @ Right(_) => p
+              }
+            }
+          }
 
         def releaseN(n: Long)(implicit trace: Trace): UIO[Any] = {
 
