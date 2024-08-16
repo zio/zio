@@ -17,12 +17,15 @@
 package zio.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import java.util.concurrent.{Executors, TimeUnit}
 
 /**
  * A variable that can be set a single time. The synchronous, effectful
  * equivalent of `Promise`.
  */
 private[zio] final class OneShot[A] private (var value: A) {
+
+  private val executor = Executors.newSingleThreadExecutor()
 
   /**
    * Sets the variable to the value. The behavior of this function is undefined
@@ -32,6 +35,7 @@ private[zio] final class OneShot[A] private (var value: A) {
     if (v == null) throw new Error("Defect: OneShot variable cannot be set to null value")
     if (value != null) throw new Error("Defect: OneShot variable being set twice")
     value = v
+    executor.shutdown()
   }
 
   /**
@@ -43,7 +47,7 @@ private[zio] final class OneShot[A] private (var value: A) {
    * Retrieves the value of the variable, blocking if necessary.
    */
   def get(): A = {
-    if (value == null) scala.scalanative.loop.EventLoop.run()
+    if (value == null) executor.awaitTermination(Long.MaxValue, TimeUnit.NANOSECONDS)
     if (value == null) throw new Error("Cannot block for result to be set in Scala Native")
     value
   }
