@@ -65,6 +65,11 @@ sealed trait Semaphore extends Serializable {
    * permits and releasing them when the scope is closed.
    */
   def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
+
+  /**
+   * Returns the number of fibers awaiting for permits.
+   */
+  def awaiting(implicit trace: Trace): UIO[Long]
 }
 
 object Semaphore {
@@ -152,6 +157,10 @@ object Semaphore {
             }
 
           ref.modify(loop(n, _, ZIO.unit)).flatten
+        }
+        def awaiting(implicit trace: Trace): UIO[Long] = ref.get.map {
+          case Left(queue) => queue.size
+          case Right(_)    => 0L
         }
       }
   }
