@@ -72,7 +72,7 @@ private object ClockPlatformSpecific {
         _       <- promise.await
       } yield ()
 
-    private def timeout(duration: FiniteDuration)(callback: () => Unit)(implicit trace: Trace): Timer = {
+    def timeout(duration: FiniteDuration)(callback: () => Unit)(implicit trace: Trace): Timer = {
       val scheduledFuture = scheduler.schedule(
         new Runnable {
           override def run(): Unit = callback()
