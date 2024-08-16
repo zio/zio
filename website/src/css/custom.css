@@ -1,8 +1,18 @@
 /* Stick any global custom CSS in this file */
 
+:root {
+  --ifm-font-family-base: 'Inter', system-ui, sans-serif;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    font-family: var(--ifm-font-family-base);
+  }
+}
 
 .header-github-link:hover {
   opacity: 0.6;

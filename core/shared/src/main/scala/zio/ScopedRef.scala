@@ -88,7 +88,7 @@ object ScopedRef {
             exit     <- newScope.extend[R](acquire).exit
             result <- exit match {
                         case Exit.Failure(cause) =>
-                          newScope.close(Exit.unit).as(ZIO.refailCause(cause) -> (oldScope -> a))
+                          newScope.close(Exit.unit).as(Exit.failCause(cause) -> (oldScope -> a))
                         case Exit.Success(a) => ZIO.succeed(ZIO.unit -> (newScope -> a))
                       }
           } yield result

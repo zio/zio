@@ -1162,7 +1162,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         )
       ) { (exec, exit: Exit[OutErr, OutDone]) =>
         val finalize = exec.close(exit)
-        if (finalize ne null) finalize.tapErrorCause(cause => scope.addFinalizer(ZIO.refailCause(cause)))
+        if (finalize ne null) finalize.tapErrorCause(cause => scope.addFinalizer(Exit.failCause(cause)))
         else ZIO.unit
       } { exec =>
         ZIO.suspendSucceed {
@@ -1179,7 +1179,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 ChannelExecutor.readUpstream[Env, OutErr, OutErr, OutDone](
                   r.asInstanceOf[ChannelState.Read[Env, OutErr]],
                   () => interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]]),
-                  ZIO.refailCause
+                  Exit.failCause
                 )
             }
 
@@ -1276,7 +1276,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           case ChannelState.Done =>
             exec.getDone match {
               case Exit.Success(done)  => ZIO.succeed(Left(done))
-              case Exit.Failure(cause) => ZIO.refailCause(cause)
+              case Exit.Failure(cause) => Exit.failCause(cause)
             }
           case ChannelState.Emit =>
             ZIO.succeed(Right(exec.getEmit))
@@ -1286,7 +1286,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             ChannelExecutor.readUpstream[Env, OutErr, OutErr, Either[OutDone, OutElem]](
               r.asInstanceOf[ChannelState.Read[Env, OutErr]],
               () => interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]]),
-              ZIO.refailCause
+              Exit.failCause
             )
         }
 
@@ -1882,12 +1882,12 @@ object ZChannel {
                                case None => ZIO.unit
                              }
                              .catchAllCause { cause =>
-                               queue.offer(ZIO.refailCause(cause)) *> errorSignal.succeed(()).unit
+                               queue.offer(Exit.failCause(cause)) *> errorSignal.succeed(()).unit
                              }
           _ <- pull
                  .foldCauseZIO(
                    cause =>
-                     queue.offer(ZIO.refailCause(cause)) *>
+                     queue.offer(Exit.failCause(cause)) *>
                        ZIO.succeed(false),
                    {
                      case Left(outDone) =>
