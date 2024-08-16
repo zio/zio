@@ -71,14 +71,13 @@ private object ClockPlatformSpecific {
         _       <- promise.await
       } yield ()
 
-    // New method added with Trace parameter for new functionality
     private def timeoutWithTrace(duration: FiniteDuration)(callback: () => Unit)(implicit trace: Trace): Timer = {
       val scheduledFuture = scheduler.schedule(
         new Runnable {
           override def run(): Unit = callback()
         },
-        duration.toMillis,
-        TimeUnit.MILLISECONDS
+        duration.toMicros,
+        TimeUnit.MICROSECONDS
       )
       new Timer(scheduledFuture)
     }
@@ -92,9 +91,9 @@ private object ClockPlatformSpecific {
         new Runnable {
           override def run(): Unit = callback()
         },
-        duration.toMillis,
-        duration.toMillis,
-        TimeUnit.MILLISECONDS
+        duration.toMicros,
+        duration.toMicros,
+        TimeUnit.MICROSECONDS
       )
       new Timer(scheduledFuture)
     }
