@@ -19,6 +19,7 @@ package zio
 import java.util.concurrent.{ScheduledExecutorService, Executors, TimeUnit}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{DurationSyntax => _}
+import java.lang.Runtime
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -55,7 +56,7 @@ private[zio] trait ClockPlatformSpecific {
 
 private object ClockPlatformSpecific {
   // Multi-threaded scheduler using ScheduledExecutorService
-  val scheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(4)
+  val scheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors())
 
   final class Timer private (private val scheduledFuture: java.util.concurrent.ScheduledFuture[_]) extends AnyVal {
     def clear(): Unit =
