@@ -256,7 +256,7 @@ object ConcurrentMapSpec extends ZIOSpecDefault {
             bRes <- map.get(2)
             cRes <- map.get(3)
           } yield assertTrue(
-            aRes.get == "A",
+            aRes.get == "B",
             bRes.isEmpty,
             cRes.isEmpty
           )
