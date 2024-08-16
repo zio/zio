@@ -18,6 +18,7 @@ package zio
 
 import java.lang.Runtime
 import java.util.concurrent.{ScheduledExecutorService, Executors, TimeUnit}
+
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{DurationSyntax => _}
 
