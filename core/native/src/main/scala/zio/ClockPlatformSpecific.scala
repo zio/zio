@@ -84,7 +84,6 @@ private object ClockPlatformSpecific {
       new Timer(scheduledFuture)
     }
 
-    // Original method retained for backward compatibility
     def timeout(duration: FiniteDuration)(callback: () => Unit)(implicit unsafe: Unsafe): Timer =
       timeoutWithTrace(duration)(callback)(Trace.empty)
 
