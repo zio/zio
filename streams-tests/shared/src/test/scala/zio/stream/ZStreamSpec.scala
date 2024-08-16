@@ -3070,6 +3070,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("preserves the scope") {
             for {
               ref     <- Ref.make[Chunk[String]](Chunk.empty)
+              latch   <- Promise.make[Nothing, Unit]
               resource = (i: Int) => ZIO.acquireRelease(ZIO.succeed(i))(i => ref.update(_ :+ s"closing $i"))
               fiber <- ZStream.unwrapScoped {
                          ZStream
@@ -3079,10 +3080,11 @@ object ZStreamSpec extends ZIOBaseSpec {
                            .peel(ZSink.head[Int])
                            .map { case (head, tail) =>
                              (ZStream.fromIterable(head) ++ tail)
-                               .mapZIO(i => ref.update(_ :+ s"processing $i").as(i))
+                               .mapZIO(i => latch.succeed(()) *> ref.update(_ :+ s"processing $i").as(i))
                                .schedule(Schedule.spaced(1.second))
                            }
                        }.runDrain.fork
+              _     <- latch.await
               _     <- TestClock.adjust(5.seconds)
               _     <- fiber.join
               value <- ref.get
