@@ -276,7 +276,7 @@ final class Promise[E, A] private (
         }
 
       def refailCause(e: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Boolean =
-        completeWith(ZIO.refailCause(e))
+        completeWith(Exit.failCause(e))
 
       def succeed(a: A)(implicit trace: Trace, unsafe: Unsafe): Boolean =
         completeWith(ZIO.succeed(a))
