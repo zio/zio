@@ -16,10 +16,10 @@
 
 package zio
 
+import java.lang.Runtime
 import java.util.concurrent.{ScheduledExecutorService, Executors, TimeUnit}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{DurationSyntax => _}
-import java.lang.Runtime
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -68,11 +68,11 @@ private object ClockPlatformSpecific {
     def delay(duration: FiniteDuration)(implicit trace: Trace): UIO[Unit] =
       for {
         promise <- Promise.make[Nothing, Unit]
-        _       <- ZIO.succeed(timeoutWithTrace(duration)(() => promise.succeed(()).unit))
+        _       <- ZIO.succeed(timeout(duration)(() => promise.succeed(()).unit))
         _       <- promise.await
       } yield ()
 
-    private def timeoutWithTrace(duration: FiniteDuration)(callback: () => Unit)(implicit trace: Trace): Timer = {
+    private def timeout(duration: FiniteDuration)(callback: () => Unit)(implicit trace: Trace): Timer = {
       val scheduledFuture = scheduler.schedule(
         new Runnable {
           override def run(): Unit = callback()
@@ -83,11 +83,7 @@ private object ClockPlatformSpecific {
       new Timer(scheduledFuture)
     }
 
-    // Original method retained for backward compatibility
-    def timeout(duration: FiniteDuration)(callback: () => Unit)(implicit unsafe: Unsafe): Timer =
-      timeoutWithTrace(duration)(callback)(Trace.empty)
-
-    def repeatWithTrace(duration: FiniteDuration)(callback: () => Unit)(implicit trace: Trace): Timer = {
+    def repeat(duration: FiniteDuration)(callback: () => Unit)(implicit trace: Trace): Timer = {
       val scheduledFuture = scheduler.scheduleAtFixedRate(
         new Runnable {
           override def run(): Unit = callback()
@@ -98,8 +94,5 @@ private object ClockPlatformSpecific {
       )
       new Timer(scheduledFuture)
     }
-
-    def repeat(duration: FiniteDuration)(callback: () => Unit)(implicit unsafe: Unsafe): Timer =
-      repeatWithTrace(duration)(callback)(Trace.empty)
   }
 }
