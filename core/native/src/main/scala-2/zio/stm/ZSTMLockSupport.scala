@@ -1,9 +1,6 @@
 package zio.stm
 
-import zio.stm.ZSTM.internal.{LockTimeoutMaxMicros, LockTimeoutMinMicros}
-
 import java.util.concurrent.locks.ReentrantLock
-import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 import scala.collection.SortedSet
 
 private object ZSTMLockSupport {
@@ -13,40 +10,43 @@ private object ZSTMLockSupport {
     def apply(fair: Boolean = false): Lock = new ReentrantLock(fair)
   }
 
-  inline def lock[A](refs: SortedSet[TRef[?]])(inline f: A): Unit =
+  @inline def lock[A](refs: SortedSet[TRef[?]])(f: => A): Unit =
     refs.size match {
       case 0 => f
-      case 1 => lock1(refs.head.lock)(f)
+      case 1 =>
+        val lock = refs.head.lock
+        lock1(lock)(f)
       case _ => lockN(refs)(f)
     }
 
-  inline private def lock1[A](lock: Lock)(inline f: A): Unit = {
+  @inline private def lock1[A](lock: Lock)(f: => A): Unit = {
     lock.lock()
     try f
     finally lock.unlock()
   }
 
-  inline private def lockN[A](refs: SortedSet[TRef[?]])(inline f: A): Unit = {
+  @inline private def lockN[A](refs: SortedSet[TRef[?]])(f: => A): Unit = {
     refs.foreach(_.lock.lock())
     try f
     finally refs.foreach(_.lock.unlock())
   }
 
-  inline def tryLock[A](refs: SortedSet[TRef[?]])(inline f: A): Boolean =
+  @inline def tryLock[A](refs: SortedSet[TRef[?]])(f: => A): Boolean =
     refs.size match {
       case 0 => f; true
-      case 1 => tryLock(refs.head.lock)(f)
+      case 1 =>
+        val lock = refs.head.lock
+        tryLock(lock)(f)
       case n => tryLockN(refs, n)(f)
     }
 
-  inline def tryLock[A](lock: Lock)(inline f: A): Boolean =
+  @inline def tryLock[A](lock: Lock)(f: => A): Boolean =
     if (lock.tryLock()) {
-      try f
+      try { f; true }
       finally lock.unlock()
-      true
     } else false
 
-  inline private def tryLockN[A](refs: SortedSet[TRef[?]], size: Int)(inline f: A): Boolean = {
+  @inline private def tryLockN[A](refs: SortedSet[TRef[?]], size: Int)(f: => A): Boolean = {
     val acquired = Array.ofDim[ReentrantLock](size)
     var locked   = true
     val it       = refs.iterator
