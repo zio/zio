@@ -128,7 +128,14 @@ object RuntimeFlags {
       RuntimeFlags.toSet(active(patch) & enabled(patch))
 
     def exclude(patch: Patch)(flag: RuntimeFlag): Patch =
-      Patch(active(patch) & flag.notMask, enabled(patch))
+      exclude(patch, flag.notMask)
+
+    /**
+     * Optimized variant of [[exclude]] that doesn't rely on the megamorphic
+     * call to `.notMask`
+     */
+    private[zio] def exclude(patch: Patch, notMask: Int): Patch =
+      Patch(active(patch) & notMask, enabled(patch))
 
     def includes(patch: Patch)(flag: RuntimeFlag): Boolean =
       ((active(patch) & flag.mask) != 0)
