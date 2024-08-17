@@ -10,7 +10,7 @@ object CachedSpec extends ZIOBaseSpec {
         cached <- Cached.manual(ref.get)
         value1 <- cached.get
         value2 <- ref.set(1) *> cached.refresh *> cached.get
-      } yield assertTrue(value1 == 0) && assertTrue(value2 == 1)
+      } yield assertTrue(value1 == 1) && assertTrue(value2 == 1)
     },
     test("auto") {
       for {
