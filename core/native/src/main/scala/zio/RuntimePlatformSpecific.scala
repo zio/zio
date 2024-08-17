@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{Blocking, IsFatal}
+import zio.internal.IsFatal
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.ExecutionContext
@@ -27,7 +27,7 @@ private[zio] trait RuntimePlatformSpecific {
     Executor.fromExecutionContext(ExecutionContext.global)
 
   final val defaultBlockingExecutor: Executor =
-    Blocking.blockingExecutor
+    defaultExecutor
 
   final val defaultFatal: IsFatal =
     IsFatal.empty
