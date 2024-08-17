@@ -318,8 +318,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
                         val iter = runnables.iterator
                         runnable = iter.next()
                         if (nRunnables > 1) {
-                          val iterable = iter.toIterable
-                          localQueue.offerAll(iterable)
+                          val _ = iter.toIterable
+                          localQueue.offerAll(iter)
                         }
                         currentBlocking = blocking
                         if (currentBlocking) {

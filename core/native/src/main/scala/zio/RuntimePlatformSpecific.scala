@@ -20,7 +20,6 @@ import zio.internal.{Blocking, IsFatal}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.ExecutionContext
-import java.lang.Runtime
 
 private[zio] trait RuntimePlatformSpecific {
 
@@ -39,10 +38,7 @@ private[zio] trait RuntimePlatformSpecific {
   final val defaultReportFatal: Throwable => Nothing =
     (t: Throwable) => {
       t.printStackTrace()
-      try {
-        java.lang.System.exit(-1)
-        throw t
-      } catch { case _: Throwable => throw t }
+      throw t
     }
 
   final val defaultSupervisor: Supervisor[Any] =
