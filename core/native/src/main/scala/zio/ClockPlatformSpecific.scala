@@ -16,10 +16,10 @@
 
 package zio
 
+import java.util.concurrent.{ScheduledExecutorService, Executors, TimeUnit}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{DurationSyntax => _}
 
-import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
 private[zio] trait ClockPlatformSpecific {
@@ -35,7 +35,8 @@ private[zio] trait ClockPlatformSpecific {
         case zio.Duration.Zero =>
           task.run()
           ConstTrue
-        case zio.Duration.Infinity => ConstFalse
+        case zio.Duration.Infinity =>
+          ConstFalse
         case zio.Duration.Finite(nanos) =>
           var completed = false
 
@@ -52,102 +53,52 @@ private[zio] trait ClockPlatformSpecific {
   }
 }
 
-/**
- * Copy-pasted from scala.scalanative.loop
- *
- * This is temporary until we figure out why using it directly raises errors
- */
 private object ClockPlatformSpecific {
-  import scala.collection.mutable
-  import scala.concurrent.Future
-  import scala.scalanative.annotation.alwaysinline
-  import scala.scalanative.libc.stdlib
-  import scala.scalanative.loop.EventLoop
-  import scala.scalanative.loop.LibUV._
-  import scala.scalanative.loop.LibUVConstants._
-  import scala.scalanative.runtime.Intrinsics._
-  import scala.scalanative.runtime._
-  import scala.scalanative.unsafe.Ptr
+  // Multi-threaded scheduler using ScheduledExecutorService
+  val scheduler: ScheduledExecutorService =
+    Executors.newScheduledThreadPool(java.lang.Runtime.getRuntime().availableProcessors())
 
-  private object HandleUtils {
-    private val references = mutable.Map.empty[Object, Int]
-
-    @alwaysinline def getData[T <: Object](handle: Ptr[Byte]): T = {
-      // data is the first member of uv_loop_t
-      val ptrOfPtr = handle.asInstanceOf[Ptr[Ptr[Byte]]]
-      val dataPtr  = !ptrOfPtr
-      if (dataPtr == null) null.asInstanceOf[T]
-      else {
-        val rawptr = toRawPtr(dataPtr)
-        castRawPtrToObject(rawptr).asInstanceOf[T]
-      }
-    }
-    @alwaysinline def setData(handle: Ptr[Byte], obj: Object): Unit = {
-      // data is the first member of uv_loop_t
-      val ptrOfPtr = handle.asInstanceOf[Ptr[Ptr[Byte]]]
-      if (obj != null) {
-        if (references.contains(obj)) references(obj) += 1
-        else references(obj) = 1
-        val rawptr = castObjectToRawPtr(obj)
-        !ptrOfPtr = fromRawPtr[Byte](rawptr)
-      } else {
-        !ptrOfPtr = null
-      }
-    }
-    private val onCloseCB: CloseCB = (handle: UVHandle) => {
-      stdlib.free(handle)
-    }
-
-    @alwaysinline def close(handle: Ptr[Byte]): Unit =
-      if (getData(handle) != null) {
-        uv_close(handle, onCloseCB)
-        val data    = getData[Object](handle)
-        val current = references(data)
-        if (current > 1) references(data) -= 1
-        else references.remove(data)
-        setData(handle, null)
-      }
-  }
-
-  @alwaysinline final class Timer private (private val ptr: Ptr[Byte]) extends AnyVal {
-    def clear(): Unit = {
-      uv_timer_stop(ptr)
-      HandleUtils.close(ptr)
-    }
+  final class Timer private (private val scheduledFuture: java.util.concurrent.ScheduledFuture[_]) extends AnyVal {
+    def clear(): Unit =
+      scheduledFuture.cancel(false)
   }
 
   object Timer {
-    import scala.scalanative.loop.LibUV._
-    private val timeoutCB: TimerCB = (handle: TimerHandle) => {
-      val callback = HandleUtils.getData[() => Unit](handle)
-      callback.apply()
+
+    def delay(duration: FiniteDuration)(implicit trace: Trace): UIO[Unit] =
+      for {
+        promise <- Promise.make[Nothing, Unit]
+        _       <- ZIO.succeed(timeoutWithTrace(duration)(() => promise.succeed(()).unit))
+        _       <- promise.await
+      } yield ()
+
+    private def timeoutWithTrace(duration: FiniteDuration)(callback: () => Unit)(implicit trace: Trace): Timer = {
+      val scheduledFuture = scheduler.schedule(
+        new Runnable {
+          override def run(): Unit = callback()
+        },
+        duration.toMillis,
+        TimeUnit.MILLISECONDS
+      )
+      new Timer(scheduledFuture)
     }
 
-    @alwaysinline private def startTimer(
-      timeout: Long,
-      repeat: Long,
-      callback: () => Unit
-    ): Timer = {
-      val timerHandle = stdlib.malloc(uv_handle_size(UV_TIMER_T))
-      uv_timer_init(EventLoop.loop, timerHandle)
-      HandleUtils.setData(timerHandle, callback)
-      val timer = new Timer(timerHandle)
-      uv_timer_start(timerHandle, timeoutCB, timeout, repeat)
-      timer
+    def timeout(duration: FiniteDuration)(callback: () => Unit)(implicit unsafe: Unsafe): Timer =
+      timeoutWithTrace(duration)(callback)(Trace.empty)
+
+    def repeatWithTrace(duration: FiniteDuration)(callback: () => Unit)(implicit trace: Trace): Timer = {
+      val scheduledFuture = scheduler.scheduleAtFixedRate(
+        new Runnable {
+          override def run(): Unit = callback()
+        },
+        duration.toMillis,
+        duration.toMillis,
+        TimeUnit.MILLISECONDS
+      )
+      new Timer(scheduledFuture)
     }
 
-    def delay(duration: FiniteDuration): Future[Unit] = {
-      val promise = scala.concurrent.Promise[Unit]()
-      timeout(duration)(() => promise.success(()))
-      promise.future
-    }
-
-    def timeout(duration: FiniteDuration)(callback: () => Unit): Timer =
-      startTimer(duration.toMillis, 0L, callback)
-
-    def repeat(duration: FiniteDuration)(callback: () => Unit): Timer = {
-      val millis = duration.toMillis
-      startTimer(millis, millis, callback)
-    }
+    def repeat(duration: FiniteDuration)(callback: () => Unit)(implicit unsafe: Unsafe): Timer =
+      repeatWithTrace(duration)(callback)(Trace.empty)
   }
 }

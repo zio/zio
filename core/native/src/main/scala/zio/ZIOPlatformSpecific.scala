@@ -37,7 +37,73 @@ private[zio] trait ZIOCompanionPlatformSpecific {
    * `attemptBlockingCancelable`.
    */
   def attemptBlockingInterrupt[A](effect: => A)(implicit trace: Trace): Task[A] =
-    ZIO.attemptBlocking(effect)
+    ZIO.suspendSucceed {
+      import java.util.concurrent.atomic.AtomicReference
+      import java.util.concurrent.locks.ReentrantLock
+
+      import zio.internal.OneShot
+
+      val lock   = new ReentrantLock()
+      val thread = new AtomicReference[Option[Thread]](None)
+      val begin  = OneShot.make[Unit]
+      val end    = OneShot.make[Unit]
+
+      def withMutex[B](b: => B): B =
+        try {
+          lock.lock(); b
+        } finally lock.unlock()
+
+      val interruptThread: UIO[Unit] =
+        ZIO.succeed {
+          begin.get()
+
+          var looping = true
+          var n       = 0L
+          val base    = 2L
+          while (looping) {
+            withMutex(thread.get match {
+              case None         => looping = false; ()
+              case Some(thread) => thread.interrupt()
+            })
+
+            if (looping) {
+              n += 1
+              Thread.sleep(math.min(50, base * n))
+            }
+          }
+
+          end.get()
+        }
+
+      ZIO.blocking(
+        ZIO.uninterruptibleMask(restore =>
+          for {
+            fiber <- ZIO.suspend {
+                       val current = Some(Thread.currentThread)
+
+                       withMutex(thread.set(current))
+
+                       begin.set(())
+
+                       try {
+                         val a = effect
+
+                         ZIO.succeed(a)
+                       } catch {
+                         case _: InterruptedException =>
+                           Thread.interrupted // Clear interrupt status
+                           ZIO.interrupt
+                         case t: Throwable =>
+                           ZIO.fail(t)
+                       } finally {
+                         withMutex { thread.set(None); end.set(()) }
+                       }
+                     }.forkDaemon
+            a <- restore(fiber.join).ensuring(interruptThread)
+          } yield a
+        )
+      )
+    }
 
   def readFile(path: => Path)(implicit trace: Trace, d: DummyImplicit): ZIO[Any, IOException, String] =
     readFile(path.toString)
