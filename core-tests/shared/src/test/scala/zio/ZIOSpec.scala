@@ -4,7 +4,7 @@ import zio.Cause._
 import zio.LatchOps._
 import zio.internal.Platform
 import zio.test.Assertion._
-import zio.test.TestAspect.{flaky, forked, jvm, jvmOnly, nonFlaky, scala2Only}
+import zio.test.TestAspect.{flaky, forked, jvm, jvmOnly, nonFlaky, native, scala2Only}
 import zio.test._
 
 import scala.annotation.tailrec
@@ -1020,15 +1020,15 @@ object ZIOSpec extends ZIOBaseSpec {
         val seq = List.range(0, 100000)
         val res = ZIO.foreachPar(seq)(ZIO.succeed(_)).withParallelism(n)
         assertZIO(res)(equalTo(seq))
-      },
-      test("runs effects in parallel") {
-        val io = for {
-          p <- Promise.make[Nothing, Unit]
-          _ <- ZIO.foreachPar(List(ZIO.never, p.succeed(())))(identity).withParallelism(2).fork
-          _ <- p.await
-        } yield true
-        assertZIO(io)(isTrue)
-      },
+      } @@ native(nonFlaky(100))
+        test ("runs effects in parallel") {
+          val io = for {
+            p <- Promise.make[Nothing, Unit]
+            _ <- ZIO.foreachPar(List(ZIO.never, p.succeed(())))(identity).withParallelism(2).fork
+            _ <- p.await
+          } yield true
+          assertZIO(io)(isTrue)
+        },
       test("propagates error") {
         val ints = List(1, 2, 3, 4, 5, 6)
         val odds = ZIO.foreachPar(ints)(n => if (n % 2 != 0) ZIO.succeed(n) else ZIO.fail("not odd")).withParallelism(4)
