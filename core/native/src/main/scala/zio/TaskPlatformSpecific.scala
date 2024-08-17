@@ -16,8 +16,8 @@
 
 package zio
 
-import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.nio.channels.CompletionHandler
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] trait TaskPlatformSpecific {
 
