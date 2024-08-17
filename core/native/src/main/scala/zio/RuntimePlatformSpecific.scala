@@ -16,10 +16,11 @@
 
 package zio
 
-import zio.internal.IsFatal
+import zio.internal.{Blocking, IsFatal}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.ExecutionContext
+import java.lang.Runtime
 
 private[zio] trait RuntimePlatformSpecific {
 
@@ -27,7 +28,7 @@ private[zio] trait RuntimePlatformSpecific {
     Executor.fromExecutionContext(ExecutionContext.global)
 
   final val defaultBlockingExecutor: Executor =
-    defaultExecutor
+    Blocking.blockingExecutor
 
   final val defaultFatal: IsFatal =
     IsFatal.empty
@@ -38,7 +39,10 @@ private[zio] trait RuntimePlatformSpecific {
   final val defaultReportFatal: Throwable => Nothing =
     (t: Throwable) => {
       t.printStackTrace()
-      throw t
+      try {
+        java.lang.System.exit(-1)
+        throw t
+      } catch { case _: Throwable => throw t }
     }
 
   final val defaultSupervisor: Supervisor[Any] =
