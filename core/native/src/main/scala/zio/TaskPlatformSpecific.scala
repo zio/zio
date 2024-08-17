@@ -21,7 +21,6 @@ import java.nio.channels.CompletionHandler
 
 private[zio] trait TaskPlatformSpecific {
 
-
   def asyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any)(implicit trace: Trace): Task[T] =
     ZIO.isFatalWith[Any, Throwable, T] { isFatal =>
       ZIO.async { k =>
