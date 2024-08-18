@@ -1,6 +1,6 @@
 package zio
 
-import zio.test.TestAspect.{jvm, nonFlaky}
+import zio.test.TestAspect.{exceptJS, nonFlaky}
 import zio.test._
 
 object SupervisorSpec extends ZIOBaseSpec {
@@ -26,7 +26,7 @@ object SupervisorSpec extends ZIOBaseSpec {
         _           <- (f.await).supervised(onResumeSup)
         value       <- onResumeSup.value
       } yield assertTrue(value > 0)
-    } @@ jvm(nonFlaky) @@ TestAspect.withLiveClock,
+    } @@ exceptJS(nonFlaky) @@ TestAspect.withLiveClock,
     suite("laws") {
       DifferSpec.diffLaws(Differ.supervisor)(genSupervisor)((left, right) =>
         Supervisor.toSet(left) == Supervisor.toSet(right)

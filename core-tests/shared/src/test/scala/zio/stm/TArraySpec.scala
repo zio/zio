@@ -1,7 +1,7 @@
 package zio.stm
 
 import zio.test.Assertion._
-import zio.test.TestAspect.{jvm, nonFlaky}
+import zio.test.TestAspect.{exceptJS, nonFlaky}
 import zio.test._
 import zio.{Chunk, ZIO, ZIOBaseSpec}
 
@@ -888,7 +888,7 @@ object TArraySpec extends ZIOBaseSpec {
         }
       }
     }
-  ) @@ jvm(nonFlaky(20))
+  ) @@ exceptJS(nonFlaky(20))
 
   val N    = 1000
   val n    = 10
