@@ -1,3 +1,4 @@
+
 /*
  * Copyright 2019-2024 John A. De Goes and the ZIO Contributors
  *
@@ -17,17 +18,19 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{FilteredSpec, Summary, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
-import zio.{Exit, Layer, Runtime, Scope, Trace, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.test.{FilteredSpec, Summary, TestArgs, ZIOSpecAbstract}
+import zio.{Exit, Runtime, Scope, Trace, Unsafe, ZIO, ZLayer}
 
 import scala.collection.mutable
 
 sealed abstract class ZTestRunnerNative(
   val args: Array[String],
-  remoteArgs: Array[String],
+  remoteArgs0: Array[String],
   testClassLoader: ClassLoader,
   runnerType: String
 ) extends Runner {
+
+  def remoteArgs(): Array[String] = remoteArgs0
 
   def sendSummary: SendSummary
 
@@ -98,7 +101,7 @@ sealed class ZTestTask(
       zio.Console.ConsoleLive
     ) {
 
-  def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit = {
+  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[sbt.testing.Task] = {
     val fiber = Runtime.default.unsafe.fork {
       val logic =
         ZIO.consoleWith { console =>
@@ -135,7 +138,6 @@ sealed class ZTestTask(
         case Exit.Failure(cause) => Console.err.println(s"$runnerType failed. $cause")
         case _                   =>
       }
-      continuation(Array())
     }(Unsafe.unsafe)
     Array()
   }
