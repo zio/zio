@@ -138,7 +138,6 @@ sealed class ZTestTask(
         case _                   =>
       }
     }(Unsafe.unsafe)
-    scala.scalanative.loop.EventLoop.run()
     Array()
   }
 }
