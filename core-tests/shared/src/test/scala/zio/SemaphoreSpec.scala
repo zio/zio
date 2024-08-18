@@ -45,6 +45,33 @@ object SemaphoreSpec extends ZIOBaseSpec {
         _         <- fiber.interrupt
         _         <- prom1.await &> prom2.await
       } yield assertCompletes
+    },
+    test("withPermit acquire resets properly on interrupt") {
+      for {
+        semaphore    <- Semaphore.make(1L)
+        delayPromise <- Promise.make[Nothing, Unit]
+        ready        <- Promise.make[Nothing, Unit]
+        fiber        <- semaphore.withPermit(ready.succeed(()) *> delayPromise.await).fork
+        _            <- ready.await
+        waiters      <- ZIO.replicateZIO(10)(semaphore.withPermit(ZIO.never).fork)
+        _            <- waiters.head.interrupt
+        available1   <- semaphore.available
+        _            <- delayPromise.succeed(())
+        _            <- ZIO.foreachDiscard(waiters.tail)(_.interrupt) &> fiber.join
+        available2   <- semaphore.available
+      } yield assertTrue(available1 == 0, available2 == 1L)
+    } @@ jvm(nonFlaky),
+    test("interrupted withPermit with partial permits releases correct number") {
+      for {
+        semaphore  <- Semaphore.make(3L)
+        promise    <- Promise.make[Nothing, Unit]
+        fiber1     <- semaphore.withPermits(2)(promise.await).fork
+        fiber2     <- semaphore.withPermits(4)(ZIO.never).fork
+        _          <- promise.succeed(()) *> fiber1.join
+        available1 <- semaphore.available
+        _          <- fiber2.interrupt
+        available2 <- semaphore.available
+      } yield assertTrue(available1 == 0, available2 == 3)
     }
   )
 }
