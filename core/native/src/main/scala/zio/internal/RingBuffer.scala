@@ -16,6 +16,7 @@
 
 package zio.internal
 
+import java.util.concurrent.atomic.AtomicLong
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] object RingBuffer {
@@ -43,39 +44,45 @@ private[zio] object RingBuffer {
 private[zio] abstract class RingBuffer[A](override final val capacity: Int) extends MutableConcurrentQueue[A] {
   private[this] val buf: Array[AnyRef] = new Array[AnyRef](capacity)
 
-  private[this] var head: Long = 0L
-  private[this] var tail: Long = 0L
+  private[this] val head: AtomicLong = new AtomicLong(0L)
+  private[this] val tail: AtomicLong = new AtomicLong(0L)
 
   protected def posToIdx(pos: Long, capacity: Int): Int
 
-  override final def size(): Int = (tail - head).toInt
+  override final def size(): Int = (tail.get() - head.get()).toInt
 
-  override final def enqueuedCount(): Long = tail
+  override final def enqueuedCount(): Long = tail.get()
 
-  override final def dequeuedCount(): Long = head
+  override final def dequeuedCount(): Long = head.get()
 
-  override final def offer(a: A): Boolean =
-    if (tail < head + capacity) {
-      val curIdx = posToIdx(tail, capacity)
+  override final def offer(a: A): Boolean = {
+    val curTail = tail.get()
+    val curHead = head.get()
+    if (curTail < curHead + capacity) {
+      val curIdx = posToIdx(curTail, capacity)
       buf(curIdx) = a.asInstanceOf[AnyRef]
-      tail += 1
+      tail.set(curTail + 1)
       true
     } else {
       false
     }
+  }
 
-  override final def poll(default: A): A =
-    if (head < tail) {
-      val curIdx     = posToIdx(head, capacity)
+  override final def poll(default: A): A = {
+    val curHead = head.get()
+    val curTail = tail.get()
+    if (curHead < curTail) {
+      val curIdx     = posToIdx(curHead, capacity)
       val deqElement = buf(curIdx)
       buf(curIdx) = null
-      head += 1
+      head.set(curHead + 1)
       deqElement.asInstanceOf[A]
     } else {
       default
     }
+  }
 
-  override final def isEmpty(): Boolean = tail == head
+  override final def isEmpty(): Boolean = tail.get() == head.get()
 
-  override final def isFull(): Boolean = tail == head + capacity
+  override final def isFull(): Boolean = tail.get() == head.get() + capacity
 }
