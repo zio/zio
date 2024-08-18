@@ -5,10 +5,10 @@ import zio.test._
 import scala.annotation.tailrec
 
 trait ZIOBaseSpec extends ZIOSpecDefault {
-  override def aspects: Chunk[TestAspectPoly] =
+  override def aspects: Chunk[TestAspectAtLeastR[TestEnvironment]] =
     if (TestPlatform.isJVM) Chunk(TestAspect.timeout(120.seconds), TestAspect.timed)
-    else
-      Chunk(TestAspect.timeout(120.seconds), TestAspect.sequential, TestAspect.timed, TestAspect.size(10))
+    else if (TestPlatform.isNative) Chunk(TestAspect.timeout(120.seconds), TestAspect.timed, TestAspect.size(10))
+    else Chunk(TestAspect.timeout(120.seconds), TestAspect.sequential, TestAspect.timed, TestAspect.size(10))
 
   sealed trait ZIOTag {
     val value: String

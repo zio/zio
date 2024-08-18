@@ -6,6 +6,7 @@ import sbtbuildinfo.*
 import sbtbuildinfo.BuildInfoKeys.*
 import sbtcrossproject.CrossPlugin.autoImport.*
 
+import scala.scalanative.build.Mode
 import scala.scalanative.sbtplugin.ScalaNativePlugin.autoImport.*
 
 object BuildHelper {
@@ -242,7 +243,13 @@ object BuildHelper {
   )
 
   def nativeSettings = Seq(
-    nativeConfig ~= { _.withMultithreading(false) },
+    nativeConfig ~= { cfg =>
+      val os = System.getProperty("os.name").toLowerCase
+      // For some unknown reason, we can't run the test suites in debug mode on MacOS
+      if (os.contains("mac")) cfg.withMode(Mode.releaseFast)
+      else cfg
+    },
+    scalacOptions += "-P:scalanative:genStaticForwardersForNonTopLevelObjects",
     Test / fork := crossProjectPlatform.value == JVMPlatform // set fork to `true` on JVM to improve log readability, JS and Native need `false`
   )
 
