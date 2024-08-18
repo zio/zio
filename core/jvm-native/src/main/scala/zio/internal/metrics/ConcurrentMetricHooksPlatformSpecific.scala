@@ -116,7 +116,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
 
     MetricHook(
       update,
-      () => MetricState.Histogram(getBuckets(), count.longValue(), min.get(), max.get(), sum.doubleValue()),
+      () => MetricState.Histogram(getBuckets(), count.longValue(), min.get(), max.get(), sum.sum()),
       update
     )
   }
@@ -143,7 +143,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
       max.get()
 
     def getSum(): Double =
-      sum.doubleValue
+      sum.sum()
 
     // Just before the Snapshot we filter out all values older than maxAge
     def snapshot(now: java.time.Instant): Chunk[(Double, Option[Double])] = {

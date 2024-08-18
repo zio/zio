@@ -15,7 +15,7 @@ import java.util.concurrent.{RejectedExecutionException, TimeUnit}
 
 object ClockSpec extends ZIOBaseSpec {
   override def aspects: Chunk[TestAspectAtLeastR[TestEnvironment]] =
-    if (TestPlatform.isJVM) Chunk(TestAspect.timeout(180.seconds))
+    if (TestPlatform.isJVM || TestPlatform.isNative) Chunk(TestAspect.timeout(180.seconds))
     else Chunk(TestAspect.sequential, TestAspect.timeout(180.seconds))
 
   def spec =
