@@ -41,4 +41,9 @@ private[zio] trait RuntimePlatformSpecific {
 
   final val defaultSupervisor: Supervisor[Any] =
     Supervisor.none
+
+  def enableAutoBlockingExecutor(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.suspend {
+      Runtime.setExecutor(Executor.makeDefault(autoBlocking = true))
+    }
 }
