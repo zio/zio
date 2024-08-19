@@ -154,11 +154,15 @@ object Config {
   final class Secret private (private val raw: Array[Char]) { self =>
     override def equals(that: Any): Boolean =
       that match {
-        case that: Secret =>
-          self.raw.length == that.raw.length &&
-            (0 until raw.length).foldLeft(true) { (b, i) =>
-              self.raw(i) == that.raw(i) && b
-            }
+        case that: Secret => {
+          val selfLength = self.raw.length
+          val thatLength = that.raw.length
+          val isEqual    = if (selfLength == thatLength) 0 else 1
+          (0 until selfLength).foldLeft(isEqual) { (b, i) =>
+            val char = if (i >= thatLength) "a".head else that.raw(i)
+            b | (self.raw(i) ^ char)
+          } == 0
+        }
         case _ => false
       }
 
