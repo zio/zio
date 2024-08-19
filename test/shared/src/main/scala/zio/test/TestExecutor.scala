@@ -30,6 +30,11 @@ abstract class TestExecutor[+R, E] {
 }
 object TestExecutor {
 
+  // Used to override the default shutdown for a suite so we don't have to wait 60 seconds in some tests.
+  // Might be useful to make public at some point
+  private[zio] val overrideShutdownTimeout: FiberRef[Option[Duration]] =
+    FiberRef.unsafe.make[Option[Duration]](None)(Unsafe)
+
   def default[R, E](
     sharedSpecLayer: ZLayer[Any, E, R],
     freshLayerPerSpec: ZLayer[Any, Nothing, TestEnvironment with Scope],
@@ -66,14 +71,20 @@ object TestExecutor {
                     scope
                       .extend(managed.flatMap(loop(labels, _, exec, ancestors, sectionId)))
                       .onExit { exit =>
-                        val warning =
-                          "Warning: ZIO Test is attempting to close the scope of suite " +
-                            s"${labels.reverse.mkString(" - ")} in $fullyQualifiedName, " +
-                            "but closing the scope has taken more than 60 seconds to " +
-                            "complete. This may indicate a resource leak."
                         for {
+                          timeout <- overrideShutdownTimeout.get.map(_.getOrElse(60.seconds))
                           warning <-
-                            ZIO.logWarning(warning).delay(60.seconds).withClock(ClockLive).interruptible.forkDaemon
+                            ZIO
+                              .logWarning({
+                                "Warning: ZIO Test is attempting to close the scope of suite " +
+                                  s"${labels.reverse.mkString(" - ")} in $fullyQualifiedName, " +
+                                  s"but closing the scope has taken more than ${timeout.toSeconds} seconds to " +
+                                  "complete. This may indicate a resource leak."
+                              })
+                              .delay(timeout)
+                              .withClock(ClockLive)
+                              .interruptible
+                              .forkDaemon
                           finalizer <- scope.close(exit).ensuring(warning.interrupt).forkDaemon
                           exit      <- warning.await
                           _         <- finalizer.join.when(exit.isInterrupted)
