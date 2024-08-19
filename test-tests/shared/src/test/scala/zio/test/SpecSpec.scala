@@ -218,6 +218,14 @@ object SpecSpec extends ZIOBaseSpec {
       test("some other test") {
         assertCompletes
       }
-    ).provideLayerShared(neverFinalizerLayer)
+    ).provideLayerShared(neverFinalizerLayer) @@ shutdownTimeout(2.seconds)
   )
+
+  private def shutdownTimeout(d: Duration): TestAspectPoly =
+    new PerTest.Poly {
+      def perTest[R, E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
+        TestExecutor.overrideShutdownTimeout.set(Some(d)) *> test
+    }
 }
