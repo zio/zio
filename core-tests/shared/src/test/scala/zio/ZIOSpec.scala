@@ -4222,6 +4222,40 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res1)(isFalse) && assert(res2)(isTrue)
       }
     ),
+    suite("whenCaseDiscard")(
+      test("executes correct branch only") {
+        val v1: Option[Int] = None
+        val v2: Option[Int] = Some(0)
+        for {
+          ref <- Ref.make(1)
+          _ <- ZIO.whenCaseDiscard(v1) {
+                 case Some(1) => ref.update(_ + 1)
+                 case Some(3) => ref.update(_ + 100)
+               }
+          res1 <- ref.get
+          _ <- ZIO.whenCaseDiscard(v2) { case Some(_) =>
+                 ref.set(5)
+               }
+          res2 <- ref.get
+        } yield assertTrue(
+          res1 == 1,
+          res2 == 5
+        )
+      }
+    ),
+    suite("whenCaseZIODiscard")(
+      test("executes condition effect and correct branch") {
+        val v1: Option[Int] = None
+        val v2: Option[Int] = Some(0)
+        for {
+          ref  <- Ref.make(false)
+          _    <- ZIO.whenCaseZIODiscard(ZIO.succeed(v1)) { case Some(_) => ref.set(true) }
+          res1 <- ref.get
+          _    <- ZIO.whenCaseZIODiscard(ZIO.succeed(v2)) { case Some(_) => ref.set(true) }
+          res2 <- ref.get
+        } yield assert(res1)(isFalse) && assert(res2)(isTrue)
+      }
+    ),
     suite("whenCaseZIO")(
       test("executes condition effect and correct branch") {
         val v1: Option[Int] = None

@@ -5135,12 +5135,30 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given
+   * value, and discards the result, otherwise does nothing.
+   */
+  def whenCaseDiscard[R, E, A](a: => A)(pf: PartialFunction[A, ZIO[R, E, Any]])(implicit
+    trace: Trace
+  ): ZIO[R, E, Unit] =
+    suspendSucceed(pf.andThen(_.unit).applyOrElse(a, (_: A) => unit))
+
+  /**
+   * Runs an effect when the supplied `PartialFunction` matches for the given
    * effectful value, otherwise does nothing.
    */
   def whenCaseZIO[R, E, A, B](a: => ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, B]])(implicit
     trace: Trace
   ): ZIO[R, E, Option[B]] =
     ZIO.suspendSucceed(a.flatMap(whenCase(_)(pf)))
+
+  /**
+   * Runs an effect when the supplied `PartialFunction` matches for the given
+   * effectful value, and discards the value, otherwise does nothing.
+   */
+  def whenCaseZIODiscard[R, E, A](a: => ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, Any]])(implicit
+    trace: Trace
+  ): ZIO[R, E, Unit] =
+    suspendSucceed(a.flatMap(whenCaseDiscard(_)(pf)))
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
