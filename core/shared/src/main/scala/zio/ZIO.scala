@@ -5140,7 +5140,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def whenCaseDiscard[R, E, A](a: => A)(pf: PartialFunction[A, ZIO[R, E, Any]])(implicit
     trace: Trace
   ): ZIO[R, E, Unit] =
-    suspendSucceed(pf.andThen(_.unit).applyOrElse(a, (_: A) => unit))
+    suspendSucceed(pf.andThen(_.unit).applyOrElse(a, (_: A) => Exit.unit))
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given
