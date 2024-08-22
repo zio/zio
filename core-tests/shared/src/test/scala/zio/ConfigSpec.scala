@@ -90,7 +90,7 @@ object ConfigSpec extends ZIOBaseSpec {
             val secret          = zio.Config.Secret("some-secret" * 1000)
             val differentLength = zio.Config.Secret("some-secre" * 1000)
             val sameLength      = zio.Config.Secret("some-secrez" * 1000)
-            assertZIO(boxTest(ZIO.attempt(secret equals sameLength), ZIO.attempt(secret equals differentLength)), 0.9)(
+            assertZIO(boxTest(ZIO.attempt(secret equals sameLength), ZIO.attempt(secret equals differentLength), 0.9))(
               equalTo(true)
             )
           },
@@ -105,7 +105,7 @@ object ConfigSpec extends ZIOBaseSpec {
           test("doesn't leak char") {
             val secret     = zio.Config.Secret("some-secret" * 1000)
             val sameLength = zio.Config.Secret("some-secrez" * 1000)
-            assertZIO(boxTest(ZIO.attempt(secret equals secret), ZIO.attempt(secret equals sameLength)), 0.9)(
+            assertZIO(boxTest(ZIO.attempt(secret equals secret), ZIO.attempt(secret equals sameLength), 0.9))(
               equalTo(true)
             )
           }
