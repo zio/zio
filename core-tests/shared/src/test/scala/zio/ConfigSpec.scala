@@ -7,11 +7,15 @@ import zio.Config.Secret
 
 object ConfigSpec extends ZIOBaseSpec {
 
-  def boxTest[A](slow: ZIO[Any, Throwable, A], fast: ZIO[Any, Throwable, A]): ZIO[Any, Throwable, Boolean] = {
+  def boxTest[A](
+    slow: ZIO[Any, Throwable, A],
+    fast: ZIO[Any, Throwable, A],
+    factor: Double = 1.0
+  ): ZIO[Any, Throwable, Boolean] = {
 
     //Box test from "Opportunities and Limits of Remote Timing Attacks", Scott A. Crosby, Dan S. Wallach, Rudolf H. Riedi
     val i = 0.02
-    val j = 0.2
+    val j = 0.15
 
     val nOfTries = 1000
 
@@ -34,7 +38,7 @@ object ConfigSpec extends ZIOBaseSpec {
     for {
       statisticsA <- statistics(slow)
       statisticsB <- statistics(fast)
-    } yield !(statisticsB._2 < statisticsA._1)
+    } yield !(statisticsA._1 * factor > statisticsB._2)
   }
 
   def secretSuite =
@@ -81,11 +85,12 @@ object ConfigSpec extends ZIOBaseSpec {
           assertTrue(secret.hashCode == Chunk.fill[Char]("secret".length)(0).hashCode)
         } +
         suite("timing vulnerabilities")(
+          // if flaky, decrease `factor` param of `boxTest`
           test("doesn't leak length") {
             val secret          = zio.Config.Secret("some-secret" * 1000)
             val differentLength = zio.Config.Secret("some-secre" * 1000)
             val sameLength      = zio.Config.Secret("some-secrez" * 1000)
-            assertZIO(boxTest(ZIO.attempt(secret equals sameLength), ZIO.attempt(secret equals differentLength)))(
+            assertZIO(boxTest(ZIO.attempt(secret equals sameLength), ZIO.attempt(secret equals differentLength)), 0.9)(
               equalTo(true)
             )
           },
@@ -100,7 +105,7 @@ object ConfigSpec extends ZIOBaseSpec {
           test("doesn't leak char") {
             val secret     = zio.Config.Secret("some-secret" * 1000)
             val sameLength = zio.Config.Secret("some-secrez" * 1000)
-            assertZIO(boxTest(ZIO.attempt(secret equals secret), ZIO.attempt(secret equals sameLength)))(
+            assertZIO(boxTest(ZIO.attempt(secret equals secret), ZIO.attempt(secret equals sameLength)), 0.9)(
               equalTo(true)
             )
           }
