@@ -650,45 +650,45 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         queueReader  = ZChannel.fromInput(input)
         outgoing    <- Queue.bounded[Fiber[Either[Unit, OutDone], OutElem2]](bufferSize)
         _           <- scope.addFinalizer(outgoing.shutdown)
-        errorSignal <- Promise.make[Unit, Nothing]
+        errorSignal <- Promise.make[Nothing, Unit]
         permits     <- Semaphore.make(n.toLong)
         failure     <- Ref.make[Cause[OutErr1]](Cause.empty)
         pull        <- (queueReader >>> self).toPullInAlt(scope)
-        _ <- pull
-               .flatMap(outElem =>
-                 for {
-                   latch <- Promise.make[Nothing, Unit]
-                   f <- permits.withPermit {
-                          latch.succeed(()) *>
-                            ZIO.uninterruptibleMask { restore =>
-                              restore(errorSignal.await).raceFirstAwait(
-                                restore(f(outElem))
-                                  .catchAllCause(cause => failure.update(_ && cause) *> Exit.failUnit)
-                              )
-                            }.tapErrorCause(_ => errorSignal.refailCause(Cause.unit))
-                              .mapError(Left(_))
-                        }.forkIn(scope)
-                   _ <- outgoing.offer(f)
-                   _ <- latch.await
-                 } yield ()
-               )
-               .forever
-               .catchAllCause(cause =>
-                 cause.failureOrCause match {
-                   case Left(x: Left[OutErr, OutDone]) =>
-                     failure.update(_ && Cause.fail(x.value)) *>
-                       outgoing.offer(Fiber.fail(Left(()))) *>
-                       Exit.failUnit
-                   case Left(x: Right[OutErr, OutDone]) =>
-                     permits.withPermits(n.toLong)(ZIO.unit).interruptible *>
-                       outgoing.offer(Fiber.fail(x.asInstanceOf[Either[Unit, OutDone]]))
-                   case Right(cause) =>
-                     failure.update(_ && cause) *>
-                       outgoing.offer(Fiber.fail(Left(()))) *>
-                       Exit.failUnit
-                 }
-               )
-               .forkIn(scope)
+        _ <-
+          pull
+            .flatMap(outElem =>
+              for {
+                latch <- Promise.make[Nothing, Unit]
+                f <- permits
+                       .withPermit(latch.succeed(()) *> f(outElem))
+                       .catchAllCause(cause =>
+                         failure.update(_ && cause).unless(cause.isInterrupted) *> errorSignal.succeed(()) *> Exit.fail(
+                           Left(())
+                         )
+                       )
+                       .fork
+                _ <- latch.await
+                _ <- outgoing.offer(f)
+              } yield ()
+            )
+            .forever
+            .catchAllCause(cause =>
+              cause.failureOrCause match {
+                case Left(x: Left[OutErr, OutDone]) =>
+                  failure.update(_ && Cause.fail(x.value)) *>
+                    outgoing.offer(Fiber.fail(Left(()))) *>
+                    Exit.failUnit
+                case Left(x: Right[OutErr, OutDone]) =>
+                  permits.withPermits(n.toLong)(ZIO.unit) *>
+                    outgoing.offer(Fiber.fail(x.asInstanceOf[Either[Unit, OutDone]]))
+                case Right(cause) =>
+                  failure.update(_ && cause).unless(cause.isInterrupted) *>
+                    outgoing.offer(Fiber.fail(Left(()))) *>
+                    Exit.failUnit
+              }
+            )
+            .race(errorSignal.await)
+            .forkIn(scope)
       } yield {
         lazy val writer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
           ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
@@ -696,9 +696,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               case s: Exit.Success[OutElem2] => ZChannel.write(s.value) *> writer
               case f: Exit.Failure[Either[Unit, OutDone]] =>
                 f.cause.failureOrCause match {
-                  case Left(_: Left[Unit, OutDone])  => ZChannel.unwrap(failure.get.map(ZChannel.refailCause(_)))
-                  case Left(x: Right[Unit, OutDone]) => ZChannel.succeedNow(x.value)
-                  case Right(cause)                  => ZChannel.refailCause(cause)
+                  case Left(_: Left[Unit, OutDone])        => ZChannel.unwrap(failure.get.map(ZChannel.refailCause(_)))
+                  case Left(x: Right[Unit, OutDone])       => ZChannel.succeedNow(x.value)
+                  case Right(cause) if cause.isInterrupted => ZChannel.unwrap(failure.get.map(ZChannel.refailCause(_)))
+                  case Right(cause)                        => ZChannel.refailCause(cause)
                 }
             }
           }
@@ -726,7 +727,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         queueReader  = ZChannel.fromInput(input)
         outgoing    <- Queue.bounded[Exit[Either[Unit, OutDone], OutElem2]](bufferSize)
         _           <- scope.addFinalizer(outgoing.shutdown)
-        errorSignal <- Promise.make[Unit, Nothing]
+        errorSignal <- Promise.make[Nothing, Unit]
         permits     <- Semaphore.make(n.toLong)
         failure     <- Ref.make[Cause[OutErr1]](Cause.empty)
         pull        <- (queueReader >>> self).toPullInAlt(scope)
@@ -734,18 +735,15 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                .flatMap(outElem =>
                  for {
                    latch <- Promise.make[Nothing, Unit]
-                   _ <- permits.withPermit {
-                          latch.succeed(()) *>
-                            ZIO.uninterruptibleMask { restore =>
-                              restore(errorSignal.await).raceFirstAwait(
-                                restore(f(outElem))
-                                  .catchAllCause(cause => failure.update(_ && cause) *> Exit.failCause(Cause.unit))
-                              )
-                            }.foldCauseZIO(
-                              _ => outgoing.offer(Exit.fail(Left(()))) *> errorSignal.refailCause(Cause.unit),
-                              elem => outgoing.offer(Exit.succeed(elem))
-                            )
-                        }.forkIn(scope)
+                   _ <- permits
+                          .withPermit(latch.succeed(()) *> f(outElem))
+                          .flatMap(elem => outgoing.offer(Exit.succeed(elem)))
+                          .catchAllCause(cause =>
+                            failure.update(_ && cause).unless(cause.isInterrupted) *> errorSignal.succeed(
+                              ()
+                            ) *> outgoing.offer(Exit.fail(Left(())))
+                          )
+                          .forkIn(scope)
                    _ <- latch.await
                  } yield ()
                )
@@ -757,15 +755,15 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                        outgoing.offer(Exit.fail(Left(()))) *>
                        Exit.failUnit
                    case Left(x: Right[OutErr, OutDone]) =>
-                     permits.withPermits(n.toLong)(ZIO.unit).interruptible *>
+                     permits.withPermits(n.toLong)(ZIO.unit) *>
                        outgoing.offer(Exit.fail(x.asInstanceOf[Either[Unit, OutDone]]))
                    case Right(cause) =>
-                     failure.update(_ && cause) *>
+                     failure.update(_ && cause).unless(cause.isInterrupted) *>
                        outgoing.offer(Exit.fail(Left(()))) *>
                        Exit.failUnit
                  }
                )
-               .forever
+               .race(errorSignal.await)
                .forkIn(scope)
       } yield {
         lazy val writer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
