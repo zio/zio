@@ -743,7 +743,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                               ()
                             ) *> outgoing.offer(Exit.fail(Left(())))
                           )
-                          .forkIn(scope)
+                          .fork
                    _ <- latch.await
                  } yield ()
                )
@@ -1943,7 +1943,7 @@ object ZChannel {
                                  }
                                _ <- permits
                                       .withPermit(latch.succeed(()) *> raceIOs)
-                                      .forkIn(scope)
+                                      .fork
                                _ <- latch.await
                              } yield ()
                            )
@@ -1963,7 +1963,7 @@ object ZChannel {
                                  }
                                childFiber <- permits
                                                .withPermit(latch.succeed(()) *> raceIOs)
-                                               .forkIn(scope)
+                                               .fork
                                _ <- latch.await
                              } yield ()
                            )
