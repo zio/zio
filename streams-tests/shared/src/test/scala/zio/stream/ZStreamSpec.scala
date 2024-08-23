@@ -2672,15 +2672,15 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(exit)(fails(hasMessage(equalTo("Boom"))))
           },
           test("parallelism is not exceeded") {
-            val iterations = 1000
+            val iterations  = 1000
             val parallelism = 64
             for {
               latch <- CountdownLatch.make(parallelism + 1)
               f <- ZStream
-                      .range(0, iterations)
-                      .mapZIOPar(parallelism, parallelism)(_ => latch.countDown *> latch.await)
-                      .runDrain
-                      .fork
+                     .range(0, iterations)
+                     .mapZIOPar(parallelism, parallelism)(_ => latch.countDown *> latch.await)
+                     .runDrain
+                     .fork
               _     <- Live.live(latch.count.delay(100.micros)).repeatUntil(_ == 1)
               _     <- latch.countDown
               count <- latch.count
