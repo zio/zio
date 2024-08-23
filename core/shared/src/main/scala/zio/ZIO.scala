@@ -6777,6 +6777,8 @@ object Exit extends Serializable {
 
   val unit: Exit[Nothing, Unit] = succeed(())
 
+  val failUnit: Exit[Unit, Nothing] = failCause(Cause.unit)
+
   private def zipRightWith[E, E1 >: E, A](left: Exit[E, Any], right: Exit[E1, A])(
     g: (Cause[E], Cause[E1]) => Cause[E1]
   ): Exit[E1, A] =
