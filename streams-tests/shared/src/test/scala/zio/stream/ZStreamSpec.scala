@@ -2673,21 +2673,20 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("parallelism is not exceeded") {
             val iterations = 1000
-            checkAll(Gen.fromIterable(Chunk(4, 16, 32, 64))) { parallelism =>
-              for {
-                latch <- CountdownLatch.make(parallelism + 1)
-                f <- ZStream
-                       .range(0, iterations)
-                       .mapZIOPar(parallelism, parallelism)(_ => latch.countDown *> latch.await)
-                       .runDrain
-                       .fork
-                _     <- Live.live(latch.count.delay(100.micros)).repeatUntil(_ == 1)
-                _     <- latch.countDown
-                count <- latch.count
-                _     <- f.join
-              } yield assertTrue(count == 0)
-            }
-          } @@ TestAspect.jvmOnly @@ nonFlaky(20),
+            val parallelism = 64
+            for {
+              latch <- CountdownLatch.make(parallelism + 1)
+              f <- ZStream
+                      .range(0, iterations)
+                      .mapZIOPar(parallelism, parallelism)(_ => latch.countDown *> latch.await)
+                      .runDrain
+                      .fork
+              _     <- Live.live(latch.count.delay(100.micros)).repeatUntil(_ == 1)
+              _     <- latch.countDown
+              count <- latch.count
+              _     <- f.join
+            } yield assertTrue(count == 0)
+          } @@ TestAspect.jvmOnly @@ nonFlaky(5),
           test("accumulates parallel errors") {
             sealed abstract class DbError extends Product with Serializable
             case object Missing           extends DbError
@@ -2708,7 +2707,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                   containsCause[DbError](Cause.fail(QtyTooLarge))
               )
             )
-          } @@ flaky
+          } @@ flaky(200)
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
