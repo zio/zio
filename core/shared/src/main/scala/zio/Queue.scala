@@ -311,7 +311,7 @@ object Queue extends QueuePlatformSpecific {
     ): Unit =
       if (!takers.isEmpty && draining.compareAndSet(false, true)) {
         try {
-          var keepPolling      = true
+          var keepPolling      = !queue.isEmpty()
           val empty            = null.asInstanceOf[A]
           var notifyEmptySpace = false
           while (keepPolling) {
@@ -387,7 +387,7 @@ object Queue extends QueuePlatformSpecific {
       ): Unit = {
         val putters0 = putters
         if (!putters0.isEmpty && notifying.compareAndSet(false, true)) {
-          var keepPolling = true
+          var keepPolling = !queue.isFull()
 
           try {
             while (keepPolling) {

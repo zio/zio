@@ -411,16 +411,40 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJS) ignore else identity
 
   /**
+   * An aspect that that applies an aspect on all platforms except ScalaJS.
+   */
+  def exceptJS[LowerR, UpperR, LowerE, UpperE](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    if (TestPlatform.isJS) identity else that
+
+  /**
    * An aspect that runs tests on all platforms except the JVM.
    */
   val exceptJVM: TestAspectPoly =
     if (TestPlatform.isJVM) ignore else identity
 
   /**
+   * An aspect that that applies an aspect on all platforms except the JVM.
+   */
+  def exceptJVM[LowerR, UpperR, LowerE, UpperE](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    if (TestPlatform.isJVM) identity else that
+
+  /**
    * An aspect that runs tests on all platforms except ScalaNative.
    */
   val exceptNative: TestAspectPoly =
     if (TestPlatform.isNative) ignore else identity
+
+  /**
+   * An aspect that that applies an aspect on all platforms except ScalaNative.
+   */
+  def exceptNative[LowerR, UpperR, LowerE, UpperE](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    if (TestPlatform.isNative) identity else that
 
   /**
    * An aspect that runs tests on all versions except Scala 2.

@@ -1,7 +1,7 @@
 package zio.stm
 
 import zio.test.Assertion._
-import zio.test.TestAspect.{jvm, nonFlaky}
+import zio.test.TestAspect.{exceptJS, nonFlaky}
 import zio.test._
 import zio.{Chunk, ZIO, ZIOBaseSpec}
 
@@ -422,7 +422,7 @@ object TMapSpec extends ZIOBaseSpec {
         } yield assertTrue(res.contains(n))
       }
     )
-  ) @@ jvm(nonFlaky)
+  ) @@ exceptJS(nonFlaky)
 
   private final case class HashContainer(val i: Int) {
     override def hashCode(): Int = i

@@ -226,8 +226,6 @@ jobs:
           check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
-      - name: Install libuv
-        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Set Swap Space
         uses: pierotofy/set-swap-space@master
         with:
@@ -261,8 +259,6 @@ jobs:
           distribution: temurin
           java-version: 11
           check-latest: true
-      - name: Install libuv
-        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Release
         run: sbt -v ci-release
         env:
