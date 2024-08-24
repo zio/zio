@@ -2,7 +2,7 @@ package zio.autowire
 
 import zio._
 import zio.internal.macros.StringUtils.StringOps
-import zio.test.Assertion.{anything, equalTo, isLeft}
+import zio.test.Assertion._
 import zio.test._
 import scala.annotation.nowarn
 
@@ -132,6 +132,25 @@ object AutoWireSpec extends ZIOBaseSpec {
             val provided = ZIO.service[Int].provideLayer(layer)
             assertZIO(provided)(equalTo(128))
           },
+          test("building fresh layer only once") {
+            var timesBuilt = 0
+
+            trait Service1
+            object Service1 {
+              val live: ZLayer[Any, Throwable, Service1] =
+                ZLayer.fromZIO(ZIO.attempt(timesBuilt += 1).as(new Service1 {}))
+            }
+
+            trait Service2
+            object Service2 {
+              val live: ZLayer[Service1, Nothing, Service2] =
+                ZLayer.fromZIO(ZIO.unit.as(new Service2 {}))
+            }
+
+            assertZIO(
+              ZLayer.make[Service1 & Service2](Service1.live.fresh, Service2.live).build *> ZIO.succeed(timesBuilt)
+            )(equalTo(1))
+          },
           test("correctly decomposes nested, aliased intersection types") {
             type StringAlias           = String
             type HasBooleanDoubleAlias = Boolean with Double
@@ -231,10 +250,98 @@ object AutoWireSpec extends ZIOBaseSpec {
                 ZLayer.succeed(true) ++ ZLayer.succeed(100.1) >>> layer
               )
             assertZIO(provided)(equalTo(128))
+          },
+          test("makeSome 1 layer") {
+            val test1 = typeCheck {
+              """def test1[A, B](a: ZLayer[A, Nothing, B]): ZLayer[A, Nothing, B] =
+              ZLayer.makeSome[A, B](a)"""
+            }
+
+            val test2 = typeCheck {
+              """def test2[A](a: ZLayer[A, Nothing, Int]): ZLayer[A, Nothing, A & Int] =
+              ZLayer.makeSome[A, A & Int](a)"""
+            }
+
+            assertZIO(test1)(isRight(anything)) &&
+            assertZIO(test2)(isRight(anything))
+          },
+          test("makeSome 2 simple layers") {
+
+            def test1[I1, O1, I2](
+              a: ZLayer[I1, Nothing, O1],
+              b: ZLayer[I2, Nothing, Int]
+            ): ZLayer[I1 & I2, Nothing, O1 & Int] =
+              ZLayer.makeSome[I1 & I2, O1 & Int](a, b)
+
+            def test2[I1, O1](a: ZLayer[I1, Nothing, O1], b: ZLayer[O1, Nothing, Int]): ZLayer[I1, Nothing, O1 & Int] =
+              ZLayer.makeSome[I1, O1 & Int](a, b)
+
+            def test3[I1, O1](a: ZLayer[I1, Nothing, O1], b: ZLayer[I1, Nothing, Int]): ZLayer[I1, Nothing, O1 & Int] =
+              ZLayer.makeSome[I1, O1 & Int](a, b)
+
+            val t1 = test1 _
+            val t2 = test2 _
+            val t3 = test3 _
+
+            assertTrue(dummy(t1, t2, t3))
+
+          },
+          test("makeSome 2 complex layers") {
+
+            def test1[R, R1](a: ZLayer[R1 & Int, Nothing, R], b: ZLayer[Int, Nothing, R1]): ZLayer[Int, Nothing, R] =
+              ZLayer.makeSome[Int, R](a, b)
+
+            def test2[I1, I3, O1, O2](
+              a: ZLayer[I1 & Double, Nothing, O1 & O2],
+              b: ZLayer[I3 & Float, Nothing, Int]
+            ): ZLayer[I1 & Double & I3 & Float, Nothing, O1 & O2 & Int] =
+              ZLayer.makeSome[I1 & Double & I3 & Float, O1 & O2 & Int](a, b)
+
+            def test3[I1, I4, O1, O2](
+              a: ZLayer[I1 & Double, Nothing, O1 & O2],
+              b: ZLayer[I1 & Float, Nothing, Int]
+            ): ZLayer[I1 & Double & Float, Nothing, O1 & O2 & Int] =
+              ZLayer.makeSome[I1 & Double & Float, O1 & O2 & Int](a, b)
+
+            def test4[I1, O1](
+              a: ZLayer[I1 & Double, Nothing, O1 & String],
+              b: ZLayer[O1 & Float, Nothing, Int]
+            ): ZLayer[I1 & Double & Float, Nothing, O1 & String & Int] =
+              ZLayer.makeSome[I1 & Double & Float, O1 & String & Int](a, b)
+
+            val t1 = test1 _
+            val t2 = test2 _
+            val t3 = test3 _
+            val t4 = test4 _
+
+            assertTrue(dummy(t1, t2, t3, t4))
+          },
+          test("makeSome complex layer and providing") {
+
+            def test1[R, R1](a: ZLayer[R1 & Int, Nothing, R], b: ZLayer[Int, Nothing, R1]): ZLayer[Int, Nothing, R] =
+              ZLayer.makeSome[Int, R](a, b)
+
+            val la = ZLayer {
+              (ZIO.service[String] <*> ZIO.service[Int]).map { case (str, int) =>
+                (str.length + int).toLong
+              }
+            }
+            val lb = ZLayer(ZIO.service[Int].map(n => n.toString))
+
+            val program =
+              ZIO.service[Long].provideLayer(ZLayer.succeed(8) >>> test1(la, lb))
+
+            assertZIO(program)(equalTo(9.toLong))
           }
         )
       )
     )
+
+  def dummy(f: Any*): Boolean = {
+    var l: List[Any] = f.toList
+    l = Nil
+    l.isEmpty
+  }
 
   object TestLayer {
     trait OldLady {
