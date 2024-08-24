@@ -1,7 +1,7 @@
 package zio.internal
 
 import zio.ZIOBaseSpec
-import zio.test.TestAspect.{jvm, nonFlaky}
+import zio.test.TestAspect.{exceptJS, nonFlaky}
 import zio.test._
 
 object PartitionedRingBufferSpec extends ZIOBaseSpec {
@@ -37,13 +37,13 @@ object PartitionedRingBufferSpec extends ZIOBaseSpec {
         q.offer("4"),
         !q.offer("5")
       )
-    } @@ jvm(nonFlaky),
+    } @@ exceptJS(nonFlaky),
     test("polling items") {
       val q = new PartitionedRingBuffer[String](2, 2, roundToPow2 = true)
 
       (1 to 4).foreach(i => q.offer(i.toString))
       assertTrue(q.pollUpTo(4).toSet == Set("1", "2", "3", "4"))
-    } @@ jvm(nonFlaky),
+    } @@ exceptJS(nonFlaky),
     test("iterating partitions") {
       val q = new PartitionedRingBuffer[String](2, 2, roundToPow2 = true)
 

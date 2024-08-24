@@ -2,7 +2,7 @@ package zio
 
 import zio.QueueSpecUtil._
 import zio.test.Assertion._
-import zio.test.TestAspect.{jvm, nonFlaky, samples, sequential}
+import zio.test.TestAspect.{jvm, exceptJS, nonFlaky, samples, sequential}
 import zio.test._
 
 object QueueSpec extends ZIOBaseSpec {
@@ -744,7 +744,7 @@ object QueueSpec extends ZIOBaseSpec {
         _ <- q.shutdown
         _ <- f.await
       } yield assertCompletes
-    } @@ jvm(nonFlaky),
+    } @@ exceptJS(nonFlaky),
     test("shutdown race condition with take") {
       for {
         q <- Queue.bounded[Int](2)
@@ -754,7 +754,7 @@ object QueueSpec extends ZIOBaseSpec {
         _ <- q.shutdown
         _ <- f.await
       } yield assertCompletes
-    } @@ jvm(nonFlaky),
+    } @@ exceptJS(nonFlaky),
     suite("back-pressured bounded queue stress testing") {
       val genChunk = Gen.chunkOfBounded(20, 100)(smallInt)
       List(
@@ -864,7 +864,7 @@ object QueueSpec extends ZIOBaseSpec {
         _       <- queue.offerAll(expected).fork
         actual  <- queue.take.replicateZIO(100).map(Chunk.fromIterable)
       } yield assertTrue(actual == expected)
-    } @@ jvm(nonFlaky(1000))
+    } @@ exceptJS(nonFlaky(1000))
   )
 }
 

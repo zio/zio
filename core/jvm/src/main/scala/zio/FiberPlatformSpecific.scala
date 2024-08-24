@@ -16,9 +16,10 @@
 
 package zio
 
-import _root_.java.util.concurrent.{CompletionStage, Future}
 import zio.interop.javaz
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+
+import _root_.java.util.concurrent.{CompletionStage, Future}
 
 private[zio] trait FiberPlatformSpecific {
 

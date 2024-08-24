@@ -1,3 +1,5 @@
+package zio.interop
+
 /*
  * Copyright 2017-2024 John A. De Goes and the ZIO Contributors
  *
@@ -14,14 +16,11 @@
  * limitations under the License.
  */
 
-package zio.interop
-
-import _root_.java.nio.channels.CompletionHandler
-import _root_.java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage, Future}
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.CancellationException
+import _root_.java.nio.channels.CompletionHandler
+import _root_.java.util.concurrent._
 import scala.concurrent.ExecutionException
 
 private[zio] object javaz {

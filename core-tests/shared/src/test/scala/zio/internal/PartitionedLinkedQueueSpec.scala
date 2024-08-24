@@ -1,7 +1,7 @@
 package zio.internal
 
 import zio.ZIOBaseSpec
-import zio.test.TestAspect.{jvm, nonFlaky}
+import zio.test.TestAspect.{exceptJS, nonFlaky}
 import zio.test._
 
 object PartitionedLinkedQueueSpec extends ZIOBaseSpec {
@@ -20,7 +20,7 @@ object PartitionedLinkedQueueSpec extends ZIOBaseSpec {
       val polled = (1 to 100).map(_ => q.poll()).toSet
 
       assertTrue(polled == oneToHundred.toSet)
-    } @@ jvm(nonFlaky),
+    } @@ exceptJS(nonFlaky),
     test("queue size") {
       val q = new PartitionedLinkedQueue[String](9)
 

@@ -1,9 +1,9 @@
 package zio.stream
 
 import zio._
-import zio.test._
 import zio.test.Assertion._
-import zio.test.TestAspect.{jvm, jvmOnly, nonFlaky, timeout}
+import zio.test.TestAspect.{exceptJS, jvmOnly, nonFlaky, timeout}
+import zio.test._
 
 object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
@@ -587,7 +587,7 @@ object ZChannelSpec extends ZIOBaseSpec {
 
               }
             }
-          } @@ jvm(nonFlaky(50)),
+          } @@ exceptJS(nonFlaky(50)),
           test("nested concurrent reads") {
             val capacity      = 128
             val f: Int => Int = _ + 1
@@ -609,7 +609,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                 }
               }
             }
-          } @@ jvm(nonFlaky(50))
+          } @@ exceptJS(nonFlaky(50))
         ),
         suite("ZChannel#mapError") {
           test("mapError structure confusion") {

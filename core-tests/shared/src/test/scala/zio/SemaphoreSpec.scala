@@ -17,7 +17,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
         _         <- fiber.interrupt
         permits   <- semaphore.available
       } yield assert(permits)(equalTo(1L))
-    } @@ jvm(nonFlaky),
+    } @@ exceptJS(nonFlaky),
     test("withPermit acquire is interruptible") {
       for {
         semaphore <- Semaphore.make(0L)
@@ -25,7 +25,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
         fiber     <- effect.fork
         _         <- fiber.interrupt
       } yield assertCompletes
-    } @@ jvm(nonFlaky),
+    } @@ exceptJS(nonFlaky),
     test("withPermitsScoped releases same number of permits") {
       for {
         semaphore <- Semaphore.make(2L)

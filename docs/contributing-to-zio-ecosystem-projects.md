@@ -291,8 +291,6 @@ release-docs:
     uses: actions/checkout@v4.1.1
     with:
       fetch-depth: '0'
-  - name: Install libuv
-    run: sudo apt-get update && sudo apt-get install -y libuv1-dev
   - name: Setup NodeJs
     uses: actions/setup-node@v4
     with:
@@ -367,8 +365,6 @@ Before releasing the documentation package, it is advisable to check if everythi
 +         registry-url: https://registry.npmjs.org
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
-      - name: Install libuv
-        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Check Building Packages
         run: ./sbt +publishLocal
 +     - name: Check Website Build Process
@@ -390,8 +386,6 @@ update-readme:
     uses: actions/checkout@v4.1.1
     with:
       fetch-depth: '0'
-  - name: Install libuv
-    run: sudo apt-get update && sudo apt-get install -y libuv1-dev
   - name: Setup Scala
     uses: actions/setup-java@v4.2.1
     with:
