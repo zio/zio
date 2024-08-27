@@ -25,7 +25,7 @@ private[macros] object RenderedGraph {
     override def >>>(that: RenderedGraph): RenderedGraph =
       that match {
         case Value(string, children) => Value(string, self +: children)
-        case Row(_)                  => throw new Error("NOT LIKE THIS")
+        case Row(values)             => Row(self +: values)
       }
 
     override def render(depth: Int): String = {
@@ -72,7 +72,7 @@ private[macros] object RenderedGraph {
     override def >>>(that: RenderedGraph): RenderedGraph =
       that match {
         case Value(string, children) => Value(string, self.values ++ children)
-        case Row(_)                  => throw new Error("NOT LIKE THIS")
+        case Row(values2)            => Row(values ++ values2)
       }
 
     override def render(depth: Int): String =
