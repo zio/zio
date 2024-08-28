@@ -182,14 +182,14 @@ Similarly, we need to implement the `BlobStorage` and `MetadataRepo` services:
 
 ```scala mdoc:silent
 object InmemoryBlobStorage {
-  val layer: ZLayer[Any, Nothing, BlobStorage] = 
+  val layer = 
     ZLayer {
       ???
     } 
 }
 
 object InmemoryMetadataRepo {
-  val layer: ZLayer[Any, Nothing, MetadataRepo] = 
+  val layer = 
     ZLayer {
       ???
     }

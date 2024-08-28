@@ -348,10 +348,11 @@ object ZLayerSpec extends ZIOBaseSpec {
         }
 
         for {
-          ref    <- makeRef
-          layer1  = makeLayer1(ref).fresh.map(identity)
-          layer2  = makeLayer2(ref)
-          _      <- (layer1 ++ (layer1 >>> layer2)).build
+          ref   <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          _ <- (ZIO.service[Service1] *> ZIO.service[Service2])
+                 .provide(layer1.fresh.map(identity).update(a => a), layer2)
           result <- ref.get
         } yield assert(result)(hasSameElements(Vector("1", "1", "2")))
       } @@ exceptJS(nonFlaky),
