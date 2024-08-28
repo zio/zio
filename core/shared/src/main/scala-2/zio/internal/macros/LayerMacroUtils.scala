@@ -160,7 +160,7 @@ private[zio] trait LayerMacroUtils {
 
     intersectionTypes
       .map(_.dealias)
-      .filterNot(t => typeOf[Any] <:< t)
+      .filterNot(_.isAny)
       .distinct
   }
 
