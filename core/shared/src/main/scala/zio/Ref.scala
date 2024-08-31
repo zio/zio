@@ -69,14 +69,14 @@ abstract class Ref[A] extends Serializable {
    * Atomically writes the specified value to the `Ref`, returning the value
    * immediately before modification.
    */
-  final def getAndSet(a: A)(implicit trace: Trace): UIO[A] =
+  def getAndSet(a: A)(implicit trace: Trace): UIO[A] =
     modify(v => (v, a))
 
   /**
    * Atomically modifies the `Ref` with the specified function, returning the
    * value immediately before modification.
    */
-  final def getAndUpdate(f: A => A)(implicit trace: Trace): UIO[A] =
+  def getAndUpdate(f: A => A)(implicit trace: Trace): UIO[A] =
     modify(v => (v, f(v)))
 
   /**
@@ -84,7 +84,7 @@ abstract class Ref[A] extends Serializable {
    * returning the value immediately before modification. If the function is
    * undefined on the current value it doesn't change it.
    */
-  final def getAndUpdateSome(pf: PartialFunction[A, A])(implicit trace: Trace): UIO[A] =
+  def getAndUpdateSome(pf: PartialFunction[A, A])(implicit trace: Trace): UIO[A] =
     modify { v =>
       val result = pf.applyOrElse[A, A](v, identity)
       (v, result)
@@ -96,20 +96,20 @@ abstract class Ref[A] extends Serializable {
    * the current value otherwise it returns a default value. This is a more
    * powerful version of `updateSome`.
    */
-  final def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit trace: Trace): UIO[B] =
+  def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit trace: Trace): UIO[B] =
     modify(v => pf.applyOrElse[A, (B, A)](v, _ => (default, v)))
 
   /**
    * Atomically modifies the `Ref` with the specified function.
    */
-  final def update(f: A => A)(implicit trace: Trace): UIO[Unit] =
+  def update(f: A => A)(implicit trace: Trace): UIO[Unit] =
     modify(v => ((), f(v)))
 
   /**
    * Atomically modifies the `Ref` with the specified function and returns the
    * updated value.
    */
-  final def updateAndGet(f: A => A)(implicit trace: Trace): UIO[A] =
+  def updateAndGet(f: A => A)(implicit trace: Trace): UIO[A] =
     modify { v =>
       val result = f(v)
       (result, result)
@@ -119,7 +119,7 @@ abstract class Ref[A] extends Serializable {
    * Atomically modifies the `Ref` with the specified partial function. If the
    * function is undefined on the current value it doesn't change it.
    */
-  final def updateSome(pf: PartialFunction[A, A])(implicit trace: Trace): UIO[Unit] =
+  def updateSome(pf: PartialFunction[A, A])(implicit trace: Trace): UIO[Unit] =
     modify { v =>
       val result = pf.applyOrElse[A, A](v, identity)
       ((), result)
@@ -130,7 +130,7 @@ abstract class Ref[A] extends Serializable {
    * function is undefined on the current value it returns the old value without
    * changing it.
    */
-  final def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: Trace): UIO[A] =
+  def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: Trace): UIO[A] =
     modify { v =>
       val result = pf.applyOrElse[A, A](v, identity)
       (result, result)
@@ -143,7 +143,7 @@ object Ref extends Serializable {
    * Creates a new `Ref` with the specified value.
    */
   def make[A](a: => A)(implicit trace: Trace): UIO[Ref[A]] =
-    ZIO.succeed(unsafe.make(a)(Unsafe.unsafe))
+    ZIO.succeed(unsafe.make(a)(Unsafe))
 
   object unsafe {
     def make[A](a: A)(implicit unsafe: Unsafe): Ref.Atomic[A] =
@@ -258,7 +258,7 @@ object Ref extends Serializable {
      * Creates a new `Ref.Synchronized` with the specified value.
      */
     def make[A](a: => A)(implicit trace: Trace): UIO[Synchronized[A]] =
-      ZIO.succeed(unsafe.make(a)(Unsafe.unsafe))
+      ZIO.succeed(unsafe.make(a)(Unsafe))
 
     object unsafe {
       def make[A](a: A)(implicit unsafe: Unsafe): Synchronized[A] = {
@@ -282,16 +282,40 @@ object Ref extends Serializable {
     self =>
 
     def get(implicit trace: Trace): UIO[A] =
-      ZIO.succeed(unsafe.get(Unsafe.unsafe))
+      ZIO.succeed(unsafe.get(Unsafe))
+
+    override def getAndSet(a: A)(implicit trace: Trace): UIO[A] =
+      ZIO.succeed(unsafe.getAndSet(a)(Unsafe))
+
+    override def getAndUpdate(f: A => A)(implicit trace: Trace): UIO[A] =
+      ZIO.succeed(unsafe.getAndUpdate(f)(Unsafe))
+
+    override def getAndUpdateSome(pf: PartialFunction[A, A])(implicit trace: Trace): UIO[A] =
+      ZIO.succeed(unsafe.getAndUpdateSome(pf)(Unsafe))
 
     def modify[B](f: A => (B, A))(implicit trace: Trace): UIO[B] =
-      ZIO.succeed(unsafe.modify(f)(Unsafe.unsafe))
+      ZIO.succeed(unsafe.modify(f)(Unsafe))
+
+    override def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit trace: Trace): UIO[B] =
+      ZIO.succeed(unsafe.modifySome(default)(pf)(Unsafe))
 
     def set(a: A)(implicit trace: Trace): UIO[Unit] =
-      ZIO.succeed(unsafe.set(a)(Unsafe.unsafe))
+      ZIO.succeed(unsafe.set(a)(Unsafe))
 
     def setAsync(a: A)(implicit trace: Trace): UIO[Unit] =
-      ZIO.succeed(unsafe.setAsync(a)(Unsafe.unsafe))
+      ZIO.succeed(unsafe.setAsync(a)(Unsafe))
+
+    override def update(f: A => A)(implicit trace: Trace): UIO[Unit] =
+      ZIO.succeed(unsafe.update(f)(Unsafe))
+
+    override def updateAndGet(f: A => A)(implicit trace: Trace): UIO[A] =
+      ZIO.succeed(unsafe.updateAndGet(f)(Unsafe))
+
+    override def updateSome(pf: PartialFunction[A, A])(implicit trace: Trace): UIO[Unit] =
+      ZIO.succeed(unsafe.updateSome(pf)(Unsafe))
+
+    override def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: Trace): UIO[A] =
+      ZIO.succeed(unsafe.updateSomeAndGet(pf)(Unsafe))
 
     override def toString: String =
       s"Ref(${value.get})"
