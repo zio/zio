@@ -662,9 +662,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 f <- permits
                        .withPermit(latch.succeed(()) *> f(outElem))
                        .catchAllCause(cause =>
-                         failure.update(_ && cause).unless(cause.isInterrupted) *> errorSignal.succeed(()) *> Exit.fail(
-                           Left(())
-                         )
+                         failure.update(_ && cause).unless(cause.isInterrupted) *>
+                           errorSignal.succeed(()) *>
+                           ZChannel.failLeftUnit
                        )
                        .fork
                 _ <- latch.await
@@ -676,14 +676,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               cause.failureOrCause match {
                 case Left(x: Left[OutErr, OutDone]) =>
                   failure.update(_ && Cause.fail(x.value)) *>
-                    outgoing.offer(Fiber.fail(Left(()))) *>
+                    outgoing.offer(Fiber.done(ZChannel.failLeftUnit)) *>
                     Exit.failUnit
                 case Left(x: Right[OutErr, OutDone]) =>
                   permits.withPermits(n.toLong)(ZIO.unit) *>
                     outgoing.offer(Fiber.fail(x.asInstanceOf[Either[Unit, OutDone]]))
                 case Right(cause) =>
                   failure.update(_ && cause).unless(cause.isInterrupted) *>
-                    outgoing.offer(Fiber.fail(Left(()))) *>
+                    outgoing.offer(Fiber.done(ZChannel.failLeftUnit)) *>
                     Exit.failUnit
               }
             )
@@ -739,9 +739,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                           .withPermit(latch.succeed(()) *> f(outElem))
                           .flatMap(elem => outgoing.offer(Exit.succeed(elem)))
                           .catchAllCause(cause =>
-                            failure.update(_ && cause).unless(cause.isInterrupted) *> errorSignal.succeed(
-                              ()
-                            ) *> outgoing.offer(Exit.fail(Left(())))
+                            failure.update(_ && cause).unless(cause.isInterrupted) *>
+                              errorSignal.succeed(()) *>
+                              outgoing.offer(ZChannel.failLeftUnit)
                           )
                           .fork
                    _ <- latch.await
@@ -752,14 +752,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                  cause.failureOrCause match {
                    case Left(x: Left[OutErr, OutDone]) =>
                      failure.update(_ && Cause.fail(x.value)) *>
-                       outgoing.offer(Exit.fail(Left(()))) *>
+                       outgoing.offer(ZChannel.failLeftUnit) *>
                        Exit.failUnit
                    case Left(x: Right[OutErr, OutDone]) =>
                      permits.withPermits(n.toLong)(ZIO.unit) *>
                        outgoing.offer(Exit.fail(x.asInstanceOf[Either[Unit, OutDone]]))
                    case Right(cause) =>
                      failure.update(_ && cause).unless(cause.isInterrupted) *>
-                       outgoing.offer(Exit.fail(Left(()))) *>
+                       outgoing.offer(ZChannel.failLeftUnit) *>
                        Exit.failUnit
                  }
                )
@@ -1308,7 +1308,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       val exec = new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
         () => self,
         null,
-        identity[URIO[Env, Any]]
+        ZIO.identityFn[URIO[Env, Any]]
       )
       for {
         environment <- ZIO.environment[Env]
@@ -1498,6 +1498,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 }
 
 object ZChannel {
+  private val failLeftUnit = Exit.fail(Left(()))
+
   private[zio] final case class PipeTo[
     Env,
     InErr,

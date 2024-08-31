@@ -2693,21 +2693,26 @@ object ZStreamSpec extends ZIOBaseSpec {
             case object QtyTooLarge       extends DbError
 
             for {
-              exit <- ZStream(1 to 2: _*)
-                        .mapZIOPar(3) {
-                          case 1 => ZIO.fail(Missing)
-                          case 2 => ZIO.fail(QtyTooLarge)
-                          case _ => ZIO.succeed(true)
-                        }
-                        .runDrain
-                        .exit
+              latch  <- Promise.make[Nothing, Unit]
+              start1 <- Promise.make[Nothing, Unit]
+              start2 <- Promise.make[Nothing, Unit]
+              f <- ZStream(1 to 2: _*)
+                     .mapZIOPar(3) {
+                       case 1 => start1.succeed(()) *> latch.await *> ZIO.fail(Missing)
+                       case 2 => start2.succeed(()) *> latch.await *> ZIO.fail(QtyTooLarge)
+                       case _ => ZIO.succeed(true)
+                     }
+                     .runDrain
+                     .fork
+              _    <- start1.await *> start2.await *> latch.succeed(())
+              exit <- f.await
             } yield assert(exit)(
               failsCause(
                 containsCause[DbError](Cause.fail(Missing)) &&
                   containsCause[DbError](Cause.fail(QtyTooLarge))
               )
             )
-          } @@ flaky(200)
+          }
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
