@@ -175,10 +175,15 @@ object ZPool {
                         case Exit.Success(item) =>
                           invalidated.get.flatMap { set =>
                             if (set.contains(item)) finalizeInvalid(attempted) *> acquire
-                            else ZIO.succeed(attempted)
+                            else Exit.succeed(attempted)
                           }
                         case _ =>
-                          ZIO.succeed(attempted)
+                          state.modify { case State(size, free) =>
+                            if (size <= range.start)
+                              attempted.finalizer *> allocate -> State(size, free + 1)
+                            else
+                              attempted.finalizer -> State(size - 1, free)
+                          }.flatten *> Exit.succeed(attempted)
                       }
                     },
                     State(size, free - 1)
@@ -201,14 +206,8 @@ object ZPool {
                     track(attempted.result) *>
                     getAndShutdown.whenZIO(isShuttingDown.get)
               }
-
-            case Exit.Failure(_) =>
-              state.modify { case State(size, free) =>
-                if (size <= range.start)
-                  allocate -> State(size, free + 1)
-                else
-                  ZIO.unit -> State(size - 1, free)
-              }.flatten
+            case _ =>
+              Exit.unit // Handled during acquire
           }
 
         def finalizeInvalid(attempted: Attempted[E, A]): UIO[Any] =
@@ -224,19 +223,14 @@ object ZPool {
         def allocate: UIO[Any] =
           for {
             scope     <- Scope.make
-            exit      <- restore(scope.extend(creator)).exit
-            attempted <- ZIO.succeed(Attempted(exit, scope.close(Exit.succeed(()))))
+            exit      <- scope.extend(restore(creator)).exit
+            attempted <- ZIO.succeed(Attempted(exit, scope.close(exit)))
             _         <- items.offer(attempted)
             _         <- track(attempted.result)
             _         <- getAndShutdown.whenZIO(isShuttingDown.get)
           } yield attempted
 
-        for {
-          releaseAndAttempted <- ZIO.acquireRelease(acquire)(release(_)).withEarlyRelease.disconnect
-          (release, attempted) = releaseAndAttempted
-          _                   <- release.when(attempted.isFailure)
-          item                <- attempted.toZIO
-        } yield item
+        ZIO.acquireRelease(acquire)(release).flatMap(_.result).disconnect
       }
 
     /**
@@ -250,8 +244,8 @@ object ZPool {
               (
                 for {
                   scope     <- Scope.make
-                  exit      <- restore(scope.extend(creator)).exit
-                  attempted <- ZIO.succeed(Attempted(exit, scope.close(Exit.succeed(()))))
+                  exit      <- scope.extend(restore(creator)).exit
+                  attempted <- ZIO.succeed(Attempted(exit, scope.close(exit)))
                   _         <- items.offer(attempted)
                   _         <- track(attempted.result)
                   _         <- getAndShutdown.whenZIO(isShuttingDown.get)
