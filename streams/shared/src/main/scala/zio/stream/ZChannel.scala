@@ -679,14 +679,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 case Left(x: Left[OutErr, OutDone]) =>
                   failure.update(_ && Cause.fail(x.value)) *>
                     outgoing.offer(Fiber.done(ZChannel.failLeftUnit)) *>
-                    Exit.failUnit
+                    ZChannel.failUnit
                 case Left(x: Right[OutErr, OutDone]) =>
                   permits.withPermits(n.toLong)(ZIO.unit) *>
                     outgoing.offer(Fiber.fail(x.asInstanceOf[Either[Unit, OutDone]]))
                 case Right(cause) =>
                   failure.update(_ && cause).unless(cause.isInterrupted) *>
                     outgoing.offer(Fiber.done(ZChannel.failLeftUnit)) *>
-                    Exit.failUnit
+                    ZChannel.failUnit
               }
             )
             .race(errorSignal.await)
@@ -758,14 +758,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                    case Left(x: Left[OutErr, OutDone]) =>
                      failure.update(_ && Cause.fail(x.value)) *>
                        outgoing.offer(ZChannel.failLeftUnit) *>
-                       Exit.failUnit
+                       ZChannel.failUnit
                    case Left(x: Right[OutErr, OutDone]) =>
                      permits.withPermits(n.toLong)(ZIO.unit) *>
                        outgoing.offer(Exit.fail(x.asInstanceOf[Either[Unit, OutDone]]))
                    case Right(cause) =>
                      failure.update(_ && cause).unless(cause.isInterrupted) *>
                        outgoing.offer(ZChannel.failLeftUnit) *>
-                       Exit.failUnit
+                       ZChannel.failUnit
                  }
                )
                .race(errorSignal.await)
@@ -1504,6 +1504,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
 object ZChannel {
   private val failLeftUnit = Exit.fail(Left(()))
+  private val failUnit     = Exit.failCause(Cause.unit)
 
   private[zio] final case class PipeTo[
     Env,
