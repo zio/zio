@@ -660,11 +660,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               for {
                 latch <- Promise.make[Nothing, Unit]
                 f <- permits
-                       .withPermit(latch.succeed(()) *> f(outElem))
-                       .catchAllCause(cause =>
-                         failure.update(_ && cause).unless(cause.isInterrupted) *>
-                           errorSignal.succeed(()) *>
-                           ZChannel.failLeftUnit
+                       .withPermit(
+                         latch.succeed(()) *> f(outElem)
+                           .catchAllCause(cause =>
+                             failure.update(_ && cause).unless(cause.isInterrupted) *>
+                               errorSignal.succeed(()) *>
+                               ZChannel.failLeftUnit
+                           )
                        )
                        .fork
                 _ <- latch.await
@@ -736,12 +738,15 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                  for {
                    latch <- Promise.make[Nothing, Unit]
                    _ <- permits
-                          .withPermit(latch.succeed(()) *> f(outElem))
-                          .flatMap(elem => outgoing.offer(Exit.succeed(elem)))
-                          .catchAllCause(cause =>
-                            failure.update(_ && cause).unless(cause.isInterrupted) *>
-                              errorSignal.succeed(()) *>
-                              outgoing.offer(ZChannel.failLeftUnit)
+                          .withPermit(
+                            latch.succeed(()) *> f(outElem)
+                              .foldCauseZIO(
+                                cause =>
+                                  failure.update(_ && cause).unless(cause.isInterrupted) *>
+                                    errorSignal.succeed(()) *>
+                                    outgoing.offer(ZChannel.failLeftUnit),
+                                elem => outgoing.offer(Exit.succeed(elem))
+                              )
                           )
                           .fork
                    _ <- latch.await
