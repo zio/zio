@@ -45,7 +45,6 @@ const config = {
       additionalLanguages: ['json', 'java', 'scala'],
     },
     navbar: {
-      style: 'dark',
       logo: {
         alt: 'ZIO',
         src: '/img/navbar_brand.png',
@@ -103,7 +102,6 @@ const config = {
       ],
     },
     footer: {
-      style: 'dark',
       links: [
         {
           title: 'Learn!',
