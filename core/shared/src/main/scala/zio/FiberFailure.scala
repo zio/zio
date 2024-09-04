@@ -17,6 +17,7 @@
 package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import java.io.{PrintStream, PrintWriter}
 import java.lang.System.arraycopy
 
 /**
@@ -28,14 +29,19 @@ import java.lang.System.arraycopy
  * better integrate with Scala exception handling.
  */
 final case class FiberFailure(cause: Cause[Any]) extends Throwable(null, null, true, true) {
-
   override def getMessage: String = cause.unified.headOption.fold("<unknown>")(_.message)
 
   override def getStackTrace(): Array[StackTraceElement] = {
-    val zioStackTrace  = cause.unified.headOption.fold[Chunk[StackTraceElement]](Chunk.empty)(_.trace).toArray
-    val javaStackTrace = super.getStackTrace()
+    implicit val trace: Trace = Trace.empty
+    val rawJavaStackTrace     = super.getStackTrace()
 
-    // Combine both stack traces into a single array with minimal allocations
+    val javaStackTrace =
+      StackTrace.fromJava(FiberId.None, rawJavaStackTrace).toJava.toArray
+
+    val zioStackTrace = cause.unified.headOption
+      .fold[Chunk[StackTraceElement]](Chunk.empty)(_.trace)
+      .toArray
+
     val combinedStackTrace = new Array[StackTraceElement](zioStackTrace.length + javaStackTrace.length)
     arraycopy(zioStackTrace, 0, combinedStackTrace, 0, zioStackTrace.length)
     arraycopy(javaStackTrace, 0, combinedStackTrace, zioStackTrace.length, javaStackTrace.length)
@@ -53,11 +59,17 @@ final case class FiberFailure(cause: Cause[Any]) extends Throwable(null, null, t
       cause.unified.iterator.drop(1).foreach(unified => addSuppressed(unified.toThrowable))
     }
 
-  override def toString =
-    cause.prettyPrint
+  override def toString: String = {
+    val stackTraceString = getStackTrace().mkString("\n\tat ", "\n\tat ", "")
+    s"${cause.prettyPrint}\n$stackTraceString"
+  }
 
-}
+  override def printStackTrace(s: PrintStream): Unit =
+    s.println(this.toString)
 
-object FiberFailure {
-  def apply(cause: Cause[Any]): FiberFailure = new FiberFailure(cause)
+  override def printStackTrace(s: PrintWriter): Unit =
+    s.println(this.toString)
+
+  override def printStackTrace(): Unit =
+    java.lang.System.err.println(this.toString)
 }
