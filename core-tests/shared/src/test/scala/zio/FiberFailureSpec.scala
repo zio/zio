@@ -220,20 +220,32 @@ object FiberFailureSpec extends ZIOBaseSpec {
     }
   ) @@ exceptJS
 
-  // Helper method for normalizing stack traces
+  /**
+   * Normalizes a stack trace string by cleaning up individual lines.
+   *   - Removes file names, line numbers, and thread information.
+   *   - Adds the "at " prefix where missing.
+   *   - Filters out empty and duplicate lines.
+   *
+   * @param stackTrace
+   *   The raw stack trace as a string.
+   * @return
+   *   A normalized stack trace string.
+   */
   private def normalizeStackTrace(stackTrace: String): String =
     stackTrace
-      .split("\n")
+      .split("\n") // Split the stack trace into individual lines
       .map { line =>
-        line.trim
-          .replaceAll("""\([^)]*\)""", "")
-          .replaceAll("""^\s*Exception in thread \".*\" """, "")
-          .replaceAll("""^(?!at\s)(.+)""", "at $1")
-          .replaceAll("""\s+""", " ")
+        val trimmedLine = line.trim
+          .replaceAll("""\([^)]*\)""", "")                       // Remove file names and line numbers
+          .replaceAll("""^\s*Exception in thread \".*\" """, "") // Remove thread info
+
+        // Only add "at " prefix if the line is not empty and doesn't already have it
+        if (trimmedLine.nonEmpty && !trimmedLine.startsWith("at ")) s"at $trimmedLine"
+        else trimmedLine
       }
-      .distinct
-      .filterNot(_.isEmpty)
-      .mkString("\n")
+      .filterNot(_.trim.isEmpty) // Filter out empty or incomplete lines
+      .distinct                  // Remove duplicate lines to avoid redundancy
+      .mkString("\n")            // Join the cleaned lines back into a single string
 
   // Helper method to filter out the cause and normalize the remaining stack trace
   private def normalizeStackTraceWithCauseFilter(trace: String): String = {
