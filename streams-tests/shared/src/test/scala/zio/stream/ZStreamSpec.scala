@@ -5412,7 +5412,9 @@ object ZStreamSpec extends ZIOBaseSpec {
                                  if (index >= data.length) -1
                                  else {
                                    // Simulate a small delay on each read using ZIO.sleep (as a blocking effect)
-                                   zio.Runtime.default.unsafeRun(ZIO.sleep(500.millis))
+                                   Unsafe.unsafe { implicit unsafe =>
+                                     Runtime.default.unsafe.run(ZIO.sleep(500.millis))
+                                   }
                                    val byte = data(index)
                                    index += 1
                                    byte & 0xff
