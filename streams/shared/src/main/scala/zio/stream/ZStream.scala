@@ -4343,6 +4343,57 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.scoped[R](is).flatMap(fromInputStream(_, chunkSize))
 
   /**
+   * Creates a stream from a `java.io.InputStream`, ensuring that the input
+   * stream is closed when the fiber is interrupted.
+   */
+  def fromInputStreamInterruptible(
+    is: => InputStream,
+    chunkSize: => Int = ZStream.DefaultChunkSize
+  )(implicit trace: Trace): ZStream[Any, IOException, Byte] =
+    ZStream.succeed((is, chunkSize)).flatMap { case (is, chunkSize) =>
+      ZStream.repeatZIOChunkOption {
+        for {
+          bufArray <- ZIO.succeed(Array.ofDim[Byte](chunkSize))
+          bytesRead <- ZIO
+                         .attemptBlockingCancelable(is.read(bufArray))(
+                           // Cancel action: close the InputStream to interrupt the read
+                           ZIO.succeed(is.close()).ignore
+                         )
+                         .refineToOrDie[IOException]
+                         .asSomeError
+          bytes <- if (bytesRead < 0)
+                     ZIO.fail(None)
+                   else if (bytesRead == 0)
+                     ZIO.succeed(Chunk.empty)
+                   else if (bytesRead < chunkSize)
+                     ZIO.succeed(Chunk.fromArray(bufArray).take(bytesRead))
+                   else
+                     ZIO.succeed(Chunk.fromArray(bufArray))
+        } yield bytes
+      }
+    }
+
+  /**
+   * Creates an interruptible stream from a `ZIO` effect producing an
+   * `InputStream`. Ensures that the input stream is closed after it is
+   * exhausted.
+   */
+  def fromInputStreamInterruptibleZIO[R](
+    is: => ZIO[R, IOException, InputStream],
+    chunkSize: => Int = ZStream.DefaultChunkSize
+  )(implicit trace: Trace): ZStream[R, IOException, Byte] =
+    fromInputStreamInterruptibleScoped[R](ZIO.acquireRelease(is)(is => ZIO.succeed(is.close())), chunkSize)
+
+  /**
+   * Creates an interruptible stream from a scoped `java.io.InputStream` value.
+   */
+  def fromInputStreamInterruptibleScoped[R](
+    is: => ZIO[Scope with R, IOException, InputStream],
+    chunkSize: => Int = ZStream.DefaultChunkSize
+  )(implicit trace: Trace): ZStream[R, IOException, Byte] =
+    ZStream.scoped[R](is).flatMap(fromInputStreamInterruptible(_, chunkSize))
+
+  /**
    * Creates a stream from an iterable collection of values
    */
   def fromIterable[O](as: => Iterable[O])(implicit trace: Trace): ZStream[Any, Nothing, O] =
