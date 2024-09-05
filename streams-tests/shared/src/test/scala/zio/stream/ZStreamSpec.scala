@@ -5404,9 +5404,20 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("should read from input stream and allow interruption") {
             val chunkSize = ZStream.DefaultChunkSize
             val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
-
             for {
-              inputStream <- ZIO.succeed(new InterruptibleInputStream(data))
+              inputStream <- ZIO.succeed(new InputStream {
+                               private var index = 0
+
+                               override def read(): Int =
+                                 if (index >= data.length) -1
+                                 else {
+                                   // Simulate a small delay on each read using ZIO.sleep (as a blocking effect)
+                                   zio.Runtime.default.unsafeRun(ZIO.sleep(500.millis))
+                                   val byte = data(index)
+                                   index += 1
+                                   byte & 0xff
+                                 }
+                             })
               fiber <- ZStream
                          .fromInputStreamInterruptible(inputStream)
                          .runCollect
