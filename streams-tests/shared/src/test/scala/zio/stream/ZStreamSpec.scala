@@ -5392,6 +5392,31 @@ object ZStreamSpec extends ZIOBaseSpec {
             }
           }
         ),
+        suite("fromInputStreamInterruptible")(
+          test("should read all data from InputStream correctly") {
+            val chunkSize = ZStream.DefaultChunkSize
+            val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+            def is        = new ByteArrayInputStream(data)
+            ZStream.fromInputStreamInterruptible(is, chunkSize).runCollect map { bytes =>
+              assert(bytes.toArray)(equalTo(data))
+            }
+          },
+          test("should read from input stream and allow interruption") {
+            val chunkSize = ZStream.DefaultChunkSize
+            val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+
+            for {
+              inputStream <- ZIO.succeed(new InterruptibleInputStream(data))
+              fiber <- ZStream
+                         .fromInputStreamInterruptible(inputStream)
+                         .runCollect
+                         .fork
+              _      <- TestClock.adjust(2.seconds)
+              _      <- fiber.interrupt
+              result <- fiber.join.either
+            } yield assert(result)(isLeft)
+          }
+        ),
         test("fromIterable")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
           def lazyL = l
           assertZIO(ZStream.fromIterable(lazyL).runCollect)(equalTo(l))
