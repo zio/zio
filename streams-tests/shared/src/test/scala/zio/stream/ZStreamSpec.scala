@@ -9,7 +9,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, withLiveClock}
 import zio.test._
 
-import java.io.{ByteArrayInputStream, IOException}
+import java.io.{ByteArrayInputStream, IOException, InputStream}
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.ExecutionContext
