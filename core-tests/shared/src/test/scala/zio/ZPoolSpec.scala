@@ -110,6 +110,7 @@ object ZPoolSpec extends ZIOBaseSpec {
         } @@ exceptJS(nonFlaky) +
         test("compositional retry") {
           def cond(i: Int) = if (i <= 10) ZIO.fail(i) else ZIO.succeed(i)
+
           for {
             count  <- Ref.make(0)
             get     = ZIO.acquireRelease(count.updateAndGet(_ + 1).flatMap(cond(_)))(_ => count.update(_ - 1))
@@ -186,6 +187,25 @@ object ZPoolSpec extends ZIOBaseSpec {
             _         <- ZIO.scoped(pool.get).ignore
             _         <- latch.await
           } yield assertCompletes
-        } @@ withLiveClock @@ exceptJS(nonFlaky(1000))
+        } @@ withLiveClock @@ exceptJS(nonFlaky(1000)) +
+        test("doesn't leak resources when initialization is interrupted") {
+          for {
+            latch     <- Promise.make[Nothing, Unit]
+            latch2    <- Promise.make[Nothing, Unit]
+            incCounter = ZIO.acquireRelease(ZIO.unit)(_ => latch2.succeed(()))
+            f         <- ZIO.scoped(ZPool.make(incCounter <* latch.succeed(()) <* ZIO.never, 10)).forkDaemon
+            _         <- latch.await
+            _         <- f.interrupt
+            _         <- latch2.await
+          } yield assertCompletes
+        } @@ exceptJS(nonFlaky(1000)) +
+        test("doesn't leak resources when initialization failed") {
+          for {
+            latch     <- Promise.make[Nothing, Unit]
+            incCounter = ZIO.acquireRelease(ZIO.unit)(_ => latch.succeed(()))
+            _         <- ZIO.scoped(ZPool.make(incCounter <* ZIO.fail("oh no"), 10))
+            _         <- latch.await
+          } yield assertCompletes
+        } @@ exceptJS(nonFlaky(1000))
     }.provideLayer(Scope.default) @@ timeout(30.seconds)
 }
