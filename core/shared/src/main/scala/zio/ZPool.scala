@@ -126,9 +126,9 @@ object ZPool {
                  inv,
                  strategy.track(initial)
                )
-        fiber  <- restore(pool.initialize).forkDaemon
+        _      <- restore(pool.initialize)
         shrink <- strategy.run(initial, pool.excess, pool.shrink).interruptible.forkDaemon
-        _      <- ZIO.addFinalizer(pool.shutdown *> fiber.interrupt *> shrink.interrupt)
+        _      <- ZIO.addFinalizer(pool.shutdown *> shrink.interrupt)
       } yield pool
     }
 
@@ -237,8 +237,8 @@ object ZPool {
      * Begins pre-allocating pool entries based on minimum pool size.
      */
     final def initialize(implicit trace: Trace): UIO[Unit] =
-      ZIO.replicateZIODiscard(range.start) {
-        ZIO.uninterruptibleMask { restore =>
+      ZIO.uninterruptibleMask { restore =>
+        ZIO.replicateZIODiscard(range.start) {
           state.modify { case State(size, free) =>
             if (size < range.start && size >= 0)
               (
