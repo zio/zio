@@ -5401,33 +5401,20 @@ object ZStreamSpec extends ZIOBaseSpec {
               assert(bytes.toArray)(equalTo(data))
             }
           },
-          test("should read from input stream and allow interruption") {
-            val chunkSize = ZStream.DefaultChunkSize
-            val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+          test("ZStream.fromInputStreamInterruptible should handle interruption") {
             for {
-              inputStream <- ZIO.succeed(new InputStream {
-                               private var index = 0
-
-                               override def read(): Int =
-                                 if (index >= data.length) -1
-                                 else {
-                                   // Simulate a small delay on each read using ZIO.sleep (as a blocking effect)
-                                   Unsafe.unsafe { implicit unsafe =>
-                                     Runtime.default.unsafe.run(ZIO.sleep(500.millis))
-                                   }
-                                   val byte = data(index)
-                                   index += 1
-                                   byte & 0xff
-                                 }
-                             })
+              latch      <- Promise.make[Nothing, Unit]
+              data       <- ZIO.succeed("Interruptible Stream!".getBytes("UTF-8"))
+              inputStream = new ByteArrayInputStream(data)
               fiber <- ZStream
                          .fromInputStreamInterruptible(inputStream)
+                         .tap(_ => latch.succeed(()))
                          .runCollect
                          .fork
-              _      <- TestClock.adjust(2.seconds)
+              _      <- latch.await
               _      <- fiber.interrupt
-              result <- fiber.join.either
-            } yield assert(result)(isLeft)
+              result <- fiber.await
+            } yield assert(result)(isInterrupted)
           }
         ),
         test("fromIterable")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
