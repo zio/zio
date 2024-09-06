@@ -2,7 +2,7 @@ package zio
 package stm
 
 import zio.test.Assertion._
-import zio.test.TestAspect.{jvm, nonFlaky}
+import zio.test.TestAspect.{exceptJS, nonFlaky}
 import zio.test._
 
 object ZSTMSpec extends ZIOBaseSpec {
@@ -567,7 +567,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           value                <- tvar3.get.commit
         } yield assert(value)(equalTo(10000))
       }
-    ),
+    ) @@ exceptJS(nonFlaky),
     suite("Using `STM.atomically` perform concurrent computations that")(
       suite("have a simple condition lock should suspend the whole transaction and")(
         test("resume directly when the condition is already satisfied") {
@@ -725,7 +725,7 @@ object ZSTMSpec extends ZIOBaseSpec {
             _ <- tvar.set(-1).commit
             v <- liveClockSleep(10.millis) *> tvar.get.commit
           } yield assert(v)(equalTo(-1))
-        } @@ jvm(nonFlaky),
+        } @@ exceptJS(nonFlaky),
         test("interrupt the fiber and observe it, it should be resumed with Interrupted Cause") {
           for {
             selfId  <- ZIO.fiberId
@@ -770,7 +770,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         v1    <- tvar1.get.commit
         v2    <- tvar2.get.commit
       } yield assert(v1)(equalTo(oldV1)) && assert(v2)(equalTo(oldV2))
-    },
+    } @@ exceptJS(nonFlaky),
     suite("collectAll")(
       test("collects a list of transactional effects to a single transaction that produces a list of values") {
         for {
@@ -1101,7 +1101,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           _        <- r0.update(_ + 1).flatMap(_ => r1.update(_ + 1)).commit
           sum      <- sumFiber.join
         } yield assert(sum)(equalTo(0) || equalTo(2))
-      } @@ jvm(nonFlaky(5000))
+      } @@ exceptJS(nonFlaky(5000))
     },
     suite("STM stack safety")(
       test("long alternative chains") {
@@ -1239,7 +1239,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         _     <- transaction(ref).commit
         value <- ref.get
       } yield assertTrue(value == 9)
-    }
+    } @@ exceptJS(nonFlaky(10000))
   )
 
   val ExampleError = new Throwable("fail")

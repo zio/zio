@@ -154,11 +154,18 @@ object Config {
   final class Secret private (private val raw: Array[Char]) { self =>
     override def equals(that: Any): Boolean =
       that match {
-        case that: Secret =>
-          self.raw.length == that.raw.length &&
-            (0 until raw.length).foldLeft(true) { (b, i) =>
-              self.raw(i) == that.raw(i) && b
-            }
+        case that: Secret => {
+          val selfLength = self.raw.length
+          val thatLength = that.raw.length
+          var isEqual    = if (selfLength == thatLength) 0 else 1
+          var i          = 0
+          while (i < selfLength) {
+            val char = if (i >= thatLength) 'a' else that.raw(i)
+            isEqual = isEqual | (self.raw(i) ^ char)
+            i += 1
+          }
+          isEqual == 0
+        }
         case _ => false
       }
 
@@ -176,9 +183,9 @@ object Config {
   object Secret extends (Chunk[Char] => Secret) {
     def apply(chunk: Chunk[Char]): Secret = new Secret(chunk.toArray)
 
-    def apply(cs: CharSequence): Secret = Secret(cs.toString())
+    def apply(cs: CharSequence): Secret = Secret(cs.toString)
 
-    def apply(s: String): Secret = Secret(Chunk.fromArray(s.toCharArray))
+    def apply(s: String): Secret = new Secret(s.toCharArray)
 
     def unapply(secret: Secret): Some[Chunk[Char]] = Some(secret.value)
   }

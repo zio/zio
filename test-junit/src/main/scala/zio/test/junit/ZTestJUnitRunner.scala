@@ -110,7 +110,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
     cause: Cause[E]
   ): UIO[Unit] = {
     val rendered = renderToString(ConsoleRenderer.renderCause(cause, 0))
-    notifier.fireTestFailure(label, path, rendered, cause.dieOption.orNull)
+    notifier.fireTestFailure(label, path, rendered, cause.dieOption.orNull) *> notifier.fireTestFinished(label, path)
   }
 
   private def reportAssertionFailure(
@@ -120,7 +120,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
     result: TestResult
   ): UIO[Unit] = {
     val rendered = renderFailureDetails(label, result)
-    notifier.fireTestFailure(label, path, renderToString(rendered))
+    notifier.fireTestFailure(label, path, renderToString(rendered)) *> notifier.fireTestFinished(label, path)
   }
 
   private def renderFailureDetails(label: String, result: TestResult): Message =

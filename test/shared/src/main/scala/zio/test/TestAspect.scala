@@ -21,6 +21,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.immutable.SortedSet
+import zio.test.TestAspectPoly
+import zio.System.env
+import zio.test.TestAspectAtLeastR
 
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of
@@ -80,6 +83,8 @@ abstract class TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
     self >>> that
 }
 object TestAspect extends TimeoutVariants {
+
+  type CheckAspect = ZIOAspect[Nothing, Any, Nothing, Any, TestResult, TestResult]
 
   /**
    * An aspect that returns the tests unchanged
@@ -280,6 +285,62 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * An aspect that applies the provided zio aspect to each sample of all checks
+   * in the test.
+   *
+   * i.e.
+   * {{{
+   * test("example") {
+   *   check(Gen.int) { i =>
+   *     ZIO.succeed(assert(i, Assertion.equalTo(1)))
+   *   }
+   * } @@ checks(ZIOAspect.debug)
+   * }}}
+   *
+   * is equivalent to
+   *
+   * {{{
+   * test("example") {
+   *   check(Gen.int) { i =>
+   *     ZIO.succeed(assert(i, Assertion.equalTo(1))) @@ ZIOAspect.debug
+   *   }
+   * }
+   * }}}
+   */
+  def checks(aspect: CheckAspect): TestAspectPoly = checksZIO(
+    ZIO.succeed(aspect)(Trace.empty)
+  )
+
+  /**
+   * An aspect that applies the provided zio aspect to each sample of all checks
+   * in the test. The aspect will be constructed from the provided effect before
+   * each test is run.
+   */
+  def checksZIO[R, E](
+    makeAspect: ZIO[R, E, CheckAspect]
+  ): TestAspect[Nothing, R, E, Any] =
+    new TestAspect[Nothing, R, E, Any] {
+      def some[R1 <: R, E1 >: E](spec: Spec[R1, E1])(implicit trace: Trace): Spec[R1, E1] =
+        spec.transform[R1, E1] {
+          case Spec.TestCase(oldTest, annotations) =>
+            val newTest = makeAspect.mapError(TestFailure.fail).flatMap { aspect =>
+              testConfigWith { oldConfig =>
+                val newConfig = TestConfig.TestV2(
+                  repeats = oldConfig.repeats,
+                  retries = oldConfig.retries,
+                  samples = oldConfig.samples,
+                  shrinks = oldConfig.shrinks,
+                  checkAspect = oldConfig.checkAspect >>> aspect
+                )
+                withTestConfig(newConfig)(oldTest)
+              }
+            }
+            Spec.TestCase(newTest, annotations)
+          case c => c
+        }
+    }
+
+  /**
    * An aspect that runs each test on a separate fiber and prints a fiber dump
    * if the test fails or has not terminated within the specified duration.
    */
@@ -350,16 +411,40 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJS) ignore else identity
 
   /**
+   * An aspect that that applies an aspect on all platforms except ScalaJS.
+   */
+  def exceptJS[LowerR, UpperR, LowerE, UpperE](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    if (TestPlatform.isJS) identity else that
+
+  /**
    * An aspect that runs tests on all platforms except the JVM.
    */
   val exceptJVM: TestAspectPoly =
     if (TestPlatform.isJVM) ignore else identity
 
   /**
+   * An aspect that that applies an aspect on all platforms except the JVM.
+   */
+  def exceptJVM[LowerR, UpperR, LowerE, UpperE](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    if (TestPlatform.isJVM) identity else that
+
+  /**
    * An aspect that runs tests on all platforms except ScalaNative.
    */
   val exceptNative: TestAspectPoly =
     if (TestPlatform.isNative) ignore else identity
+
+  /**
+   * An aspect that that applies an aspect on all platforms except ScalaNative.
+   */
+  def exceptNative[LowerR, UpperR, LowerE, UpperE](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    if (TestPlatform.isNative) identity else that
 
   /**
    * An aspect that runs tests on all versions except Scala 2.
@@ -736,12 +821,13 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
         testConfigWith { old =>
-          val testConfig = new TestConfig {
-            val repeats = n
-            val retries = old.retries
-            val samples = old.samples
-            val shrinks = old.shrinks
-          }
+          val testConfig = TestConfig.TestV2(
+            repeats = n,
+            retries = old.retries,
+            samples = old.samples,
+            shrinks = old.shrinks,
+            checkAspect = old.checkAspect
+          )
           withTestConfig(testConfig)(test)
         }
     }
@@ -806,12 +892,13 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
         testConfigWith { old =>
-          val testConfig = new TestConfig {
-            val repeats = old.repeats
-            val retries = n
-            val samples = old.samples
-            val shrinks = old.shrinks
-          }
+          val testConfig = TestConfig.TestV2(
+            repeats = old.repeats,
+            retries = n,
+            samples = old.samples,
+            shrinks = old.shrinks,
+            checkAspect = old.checkAspect
+          )
           withTestConfig(testConfig)(test)
         }
     }
@@ -844,12 +931,13 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
         testConfigWith { old =>
-          val testConfig = new TestConfig {
-            val repeats = old.repeats
-            val retries = old.retries
-            val samples = n
-            val shrinks = old.shrinks
-          }
+          val testConfig = TestConfig.TestV2(
+            repeats = old.repeats,
+            retries = old.retries,
+            samples = n,
+            shrinks = old.shrinks,
+            checkAspect = old.checkAspect
+          )
           withTestConfig(testConfig)(test)
         }
     }
@@ -933,12 +1021,13 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
         testConfigWith { old =>
-          val testConfig = new TestConfig {
-            val repeats = old.repeats
-            val retries = old.retries
-            val samples = old.samples
-            val shrinks = n
-          }
+          val testConfig = TestConfig.TestV2(
+            repeats = old.repeats,
+            retries = old.retries,
+            samples = old.samples,
+            shrinks = n,
+            checkAspect = old.checkAspect
+          )
           withTestConfig(testConfig)(test)
         }
     }
@@ -1170,5 +1259,4 @@ object TestAspect extends TimeoutVariants {
      */
     type Poly = TestAspect.PerTest[Nothing, Any, Nothing, Any]
   }
-
 }

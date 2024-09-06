@@ -16,11 +16,7 @@
 
 package zio
 
-import zio.Clock.ClockLive
-import zio.internal.stacktracer.Tracer
-import zio.Scheduler
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.Schedule.Decision._
 
 import java.lang.{System => JSystem}
 import java.time.temporal.ChronoUnit
@@ -84,6 +80,8 @@ object Clock extends ClockPlatformSpecific with Serializable {
 
   val tag: Tag[Clock] = Tag[Clock]
 
+  private[this] val rightExitUnit = Right(Exit.unit)
+
   /**
    * An implementation of the `Clock` service backed by a `java.time.Clock`.
    */
@@ -103,12 +101,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
     def nanoTime(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafe.nanoTime()(Unsafe.unsafe))
     def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
-      ZIO.asyncInterrupt { cb =>
-        val canceler = globalScheduler.schedule(() => cb(ZIO.unit), duration)(Unsafe.unsafe)
-        Left(ZIO.succeed(canceler()))
-      }
+      ClockLive.sleep(duration)
     def scheduler(implicit trace: Trace): UIO[Scheduler] =
-      ZIO.succeed(globalScheduler)
+      ClockLive.scheduler
 
     @transient override val unsafe: UnsafeAPI =
       new UnsafeAPI {
@@ -153,8 +148,14 @@ object Clock extends ClockPlatformSpecific with Serializable {
 
     def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
       ZIO.asyncInterrupt { cb =>
-        val canceler = globalScheduler.schedule(() => cb(ZIO.unit), duration)(Unsafe.unsafe)
-        Left(ZIO.succeed(canceler()))
+        val d = duration
+        if (d.isZero || d.isNegative) {
+          // No need to sleep, resume synchronously
+          rightExitUnit
+        } else {
+          val canceler = globalScheduler.schedule(() => cb(ZIO.unit), d)(Unsafe.unsafe)
+          Left(ZIO.succeed(canceler()))
+        }
       }
 
     def currentDateTime(implicit trace: Trace): UIO[OffsetDateTime] =

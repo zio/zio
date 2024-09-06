@@ -1,7 +1,7 @@
 package zio.stm
 
 import zio.test.Assertion._
-import zio.test.TestAspect.{jvm, nonFlaky}
+import zio.test.TestAspect.{exceptJS, nonFlaky}
 import zio.test._
 import zio.{Chunk, ZIO, ZIOBaseSpec}
 
@@ -402,9 +402,27 @@ object TMapSpec extends ZIOBaseSpec {
                     }
                     .exit
         } yield assert(exit)(succeeds(isUnit))
-      } @@ jvm(nonFlaky)
+      }
+    ),
+    suite("concurrency")(
+      test("modifying the same key is atomic") {
+        val n = 1000
+        for {
+          map <- TMap.empty[String, Int].commit
+          _ <- ZIO
+                 .foreachParDiscard(1 to n) { _ =>
+                   ZIO.yieldNow *>
+                     (for {
+                       i <- map.get("foo")
+                       _ <- map.put("foo", i.fold(1)(_ + 1))
+                     } yield ()).commit
+                 }
+                 .withParallelism(10)
+          res <- map.get("foo").commit
+        } yield assertTrue(res.contains(n))
+      }
     )
-  )
+  ) @@ exceptJS(nonFlaky)
 
   private final case class HashContainer(val i: Int) {
     override def hashCode(): Int = i

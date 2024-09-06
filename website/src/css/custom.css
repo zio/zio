@@ -1,8 +1,59 @@
 /* Stick any global custom CSS in this file */
 
+/* You can override the default Infima variables here. */
+:root {
+  --ifm-font-family-base: 'Inter', system-ui, sans-serif;
+
+  --ifm-navbar-background-color: #f4f4f4;
+
+  --ifm-footer-background-color: #0f0f0f;
+  --ifm-footer-color: #ffffff;
+  --ifm-footer-link-color: #ffffff;
+
+  --ifm-background-color: #f6f6f6 !important;
+
+  --ifm-color-primary: #dc2626;
+  --ifm-color-primary-dark: #c82020;
+  --ifm-color-primary-darker: #bd1e1e;
+  --ifm-color-primary-darkest: #9c1919;
+  --ifm-color-primary-light: #e03c3c;
+  --ifm-color-primary-lighter: #e14747;
+  --ifm-color-primary-lightest: #e76969;
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-navbar-background-color: #0f0f0f;
+
+  --ifm-footer-background-color: #0f0f0f;
+  --ifm-footer-color: #ffffff;
+  --ifm-footer-link-color: #ffffff;
+
+  --ifm-background-color: #121212 !important;
+  --ifm-background-surface-color: #181818 !important;
+
+  --ifm-color-primary: #dc2626;
+  --ifm-color-primary-dark: #c82020;
+  --ifm-color-primary-darker: #bd1e1e;
+  --ifm-color-primary-darkest: #9c1919;
+  --ifm-color-primary-light: #e03c3c;
+  --ifm-color-primary-lighter: #e14747;
+  --ifm-color-primary-lightest: #e76969;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    font-family: var(--ifm-font-family-base);
+  }
+}
+
+a {
+  font-weight: 500;
+}
 
 .header-github-link:hover {
   opacity: 0.6;

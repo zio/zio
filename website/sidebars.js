@@ -555,6 +555,7 @@ module.exports = {
         "ecosystem/community/tofu-zio2-logging",
         "ecosystem/community/tranzactio",
         "ecosystem/community/zio-amqp",
+        "ecosystem/community/zio-apache-parquet",
         "ecosystem/community/zio-arrow",
         "ecosystem/community/zio-aws-s3",
         "ecosystem/community/zio-grpc",
