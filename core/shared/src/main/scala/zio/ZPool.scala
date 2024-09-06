@@ -126,7 +126,10 @@ object ZPool {
                  inv,
                  strategy.track(initial)
                )
-        _      <- restore(pool.initialize)
+        _ <- restore(pool.initialize).foldCauseZIO(
+               pool.shutdown *> Exit.failCause(_),
+               _ => Exit.unit
+             )
         shrink <- strategy.run(initial, pool.excess, pool.shrink).interruptible.forkDaemon
         _      <- ZIO.addFinalizer(pool.shutdown *> shrink.interrupt)
       } yield pool
