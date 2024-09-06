@@ -52,7 +52,8 @@ packages=(
   "@zio.dev/zio-telemetry"
   "@zio.dev/zio-webhooks"
   "@zio.dev/zio2-interop-cats2"
-  "@zio.dev/zio2-interop-cats3"
+  # this seems to be deleted and no longer exists
+  # "@zio.dev/zio2-interop-cats3"
 )
 
 # Construct the package add command by joining the packages with a space
