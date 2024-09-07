@@ -968,8 +968,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               }
           }
 
-        ZChannel
-          .fromZIO(pullL.forkIn(scope).zipWith(pullR.forkIn(scope))(BothRunning(_, _, true): MergeState))
+        ZChannel.fromZIO {
+          ZIO.withFiberRuntime[Env1, Nothing, MergeState] { (parent, _) =>
+            val fL = pullL.ensuring(parent.transplantChildren).forkIn(scope)
+            val fR = pullR.ensuring(parent.transplantChildren).forkIn(scope)
+            fL.zipWith(fR)(BothRunning(_, _, true))
+          }
+        }
           .flatMap(go)
           .embedInput(input)
       }
