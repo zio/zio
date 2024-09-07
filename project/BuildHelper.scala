@@ -14,6 +14,8 @@ object BuildHelper {
   val Scala213: String = "2.13.14"
   val Scala3: String   = "3.3.3"
 
+  val JdkReleaseVersion: String = "11"
+
   lazy val isRelease = {
     val value = sys.env.contains("CI_RELEASE_MODE")
     if (value) println("Detected CI_RELEASE_MODE envvar, enabling optimizations")
@@ -25,7 +27,9 @@ object BuildHelper {
     "-encoding",
     "UTF-8",
     "-feature",
-    "-unchecked"
+    "-unchecked",
+    "-release",
+    JdkReleaseVersion
   ) ++ {
     if (true) {
       Seq("-Xfatal-warnings")
