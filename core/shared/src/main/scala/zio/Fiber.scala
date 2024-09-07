@@ -667,13 +667,6 @@ object Fiber extends FiberPlatformSpecific {
      */
     private[zio] def transferChildren(scope: FiberScope): Unit
 
-    /**
-     * Transfers all children of the fiber executing the effect to this fiber
-     *
-     * '''NOTE''': This method must be invoked at the end of the child fiber's
-     * execution
-     */
-    private[zio] def transplantChildren(implicit trace: Trace): UIO[Unit]
   }
 
   private[zio] object Runtime {

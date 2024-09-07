@@ -1477,12 +1477,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
   }
 
-  private[zio] def transplantChildren(implicit trace: Trace): UIO[Unit] =
-    ZIO.withFiberRuntime[Any, Nothing, Unit] { (currentFiber, _) =>
-      currentFiber.transferChildren(self.scope)
-      Exit.unit
-    }
-
   /**
    * Updates a fiber ref belonging to this fiber by using the provided update
    * function.
