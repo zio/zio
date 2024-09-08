@@ -287,18 +287,14 @@ object ZPipelineSpec extends ZIOBaseSpec {
         test("it intersperses elements") {
           assertZIO(
             ZStream('a', 'b', 'c').via(ZPipeline.intersperse(',')).runCollect
-          )(equalTo(Chunk('a', ',', 'b', ',', 'c'))
-          )
+          )(equalTo(Chunk('a', ',', 'b', ',', 'c')))
         },
         test("it intersperses elements with prefix and suffix") {
           assertZIO(
             ZStream('a', 'b', 'c').via(ZPipeline.intersperse('[', ',', ']')).runCollect
-          )(equalTo(Chunk('[', 'a', ',', 'b', ',', 'c', ']'))
-          )
-        },
+          )(equalTo(Chunk('[', 'a', ',', 'b', ',', 'c', ']')))
+        }
       )
-
-
     )
 
   val weirdStringGenForSplitLines: Gen[Any, Chunk[String]] = Gen

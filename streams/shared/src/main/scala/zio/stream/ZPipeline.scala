@@ -24,7 +24,15 @@ import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
 import zio.stream.internal.SingleProducerAsyncInput
 
 import java.nio.{Buffer, ByteBuffer, CharBuffer}
-import java.nio.charset.{CharacterCodingException, Charset, CharsetDecoder, CoderResult, MalformedInputException, StandardCharsets, UnmappableCharacterException}
+import java.nio.charset.{
+  CharacterCodingException,
+  Charset,
+  CharsetDecoder,
+  CoderResult,
+  MalformedInputException,
+  StandardCharsets,
+  UnmappableCharacterException
+}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 /**
