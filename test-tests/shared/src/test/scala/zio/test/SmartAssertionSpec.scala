@@ -35,7 +35,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         } @@ failing,
         test("i9153") {
           val map = Map(1 -> 2)
-          assertTrue(map.view.mapValues(_ + 1).toMap == Map(1 -> 3))
+          assertTrue(map.view.map { case (k, v) => k -> (v + 1) }.toMap == Map(1 -> 3))
         }
       )
     ),
