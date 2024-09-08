@@ -24,15 +24,7 @@ import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
 import zio.stream.internal.SingleProducerAsyncInput
 
 import java.nio.{Buffer, ByteBuffer, CharBuffer}
-import java.nio.charset.{
-  CharacterCodingException,
-  Charset,
-  CharsetDecoder,
-  CoderResult,
-  MalformedInputException,
-  StandardCharsets,
-  UnmappableCharacterException
-}
+import java.nio.charset.{CharacterCodingException, Charset, CharsetDecoder, CoderResult, MalformedInputException, StandardCharsets, UnmappableCharacterException}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 /**
@@ -1679,7 +1671,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     )
 
   def intersperse[In](start: => In, middle: => In, end: => In)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
-    ZPipeline.prepend(Chunk.single(start)) >>> ZPipeline.intersperse(middle) >>> ZPipeline.append(Chunk.single(end))
+    ZPipeline.intersperse(middle) >>> ZPipeline.prepend(Chunk.single(start)) >>> ZPipeline.append(Chunk.single(end))
 
   /**
    * Creates a pipeline that converts a stream of bytes into a stream of strings
