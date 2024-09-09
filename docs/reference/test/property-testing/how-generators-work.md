@@ -17,7 +17,7 @@ Before deep into the generators, let's see what is property-based testing and wh
 
 We can think of `Gen[R, A]` as a `ZStream[R, Nothing, A]`. For example the `Gen.int` is a stream of random integers `ZStream.fromZIO(Random.nextInt)`.
 
-To find out how a generator works, Let's take a look at the following snippet.  It shows how the `Gen` data type is implemented.
+To find out how a generator works, Let's take a look at the following snippet. It shows how the `Gen` data type is implemented.
 
 :::caution
 Although it doesn't provide the exact implementation, this condensed edition of the "Gen" data type is sufficient to grasp how generators operate.
@@ -40,21 +40,21 @@ case class Gen[R, A](sample: ZStream[R, Nothing, A]) {
 
 object Gen {
   // A constant generator of the specified value.
-  def const[A](a: => A): Gen[Any, A] = 
+  def const[A](a: => A): Gen[Any, A] =
     Gen(ZStream.succeed(a))
-  
+
   // A random generator of integers.
-  def int: Gen[Any, Int] = 
+  def int: Gen[Any, Int] =
     Gen(ZStream.fromZIO(Random.nextInt))
-  def int(min: Int, max: Int): Gen[Any, Int] = 
+  def int(min: Int, max: Int): Gen[Any, Int] =
     ???
-  
+
   // A random generator of specified values.
-  def elements[A](as: A*): Gen[Any, A] = 
+  def elements[A](as: A*): Gen[Any, A] =
     if (as.isEmpty) Gen(ZStream.empty) else int(0, as.length - 1).map(as)
-  
+
   // A constant generator of fixed values.
-  def fromIterable[A](xs: Iterable[A]): Gen[Any, A] = 
+  def fromIterable[A](xs: Iterable[A]): Gen[Any, A] =
     Gen(ZStream.fromIterable(xs))
 }
 
@@ -136,6 +136,26 @@ object ExampleSpec extends ZIOSpecDefault {
 }
 ```
 
+## Combining Generators in ZIO
+
+When working with generators in for comprehensions, it is essential to ensure the correct behavior of random generators. In some cases, combining deterministic and non-deterministic generators may produce the same values repeatedly due to shared random state.
+
+To solve this, ZIO provides the `forked` method, which runs generators in separate fibers, ensuring their random state and side effects are isolated from each other. This is particularly useful when combining random generators, like `Gen.uuid`, with deterministic ones such as `Gen.fromIterable`.
+
+```scala
+test("uuid before fromIterable generates distinct UUIDs") {
+  check(
+    for {
+      id <- Gen.uuid.forked
+      _  <- Gen.fromIterable(List(1, 2, 3)).forked
+    } yield id
+  ) { id =>
+    assertCompletes
+  }
+}
+```
+
+In the above example, the `Gen.uuid.forked` and ensures that the UUID generator runs independently of the `Gen.fromIterable` generator. This ensures distinct random outputs in tests where random and deterministic generators are combined. It is particularly useful for preventing shared state across generators, making the tests more robust and reproducible.
 
 ## How Samples Are Generated?
 

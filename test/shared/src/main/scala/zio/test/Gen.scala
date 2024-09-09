@@ -113,6 +113,19 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
   def flatten[R1 <: R, B](implicit ev: A <:< Gen[R1, B], trace: Trace): Gen[R1, B] =
     flatMap(ev)
 
+  /**
+   * Runs the generator in a separate fiber, ensuring its random state and side
+   * effects are isolated from other generators. Use this to prevent
+   * interference when combining randomness or side-effectful generators in for
+   * comprehensions.
+   */
+  def forked(implicit trace: Trace): Gen[R, A] =
+    Gen.fromZIO(
+      sample.runHead.someOrFailException.fork.flatMap { fiber =>
+        fiber.join.map(_.value).orDie
+      }
+    )
+
   def map[B](f: A => B)(implicit trace: Trace): Gen[R, B] =
     Gen(sample.map(_.map(f)))
 
