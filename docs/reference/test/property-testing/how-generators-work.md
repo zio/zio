@@ -138,7 +138,7 @@ object ExampleSpec extends ZIOSpecDefault {
 
 ## Combining Generators in ZIO
 
-When working with generators in for comprehensions, it is essential to ensure the correct behavior of random generators. In some cases, combining deterministic and non-deterministic generators may produce the same values repeatedly due to shared random state.
+When working with generators in for comprehensions, it is essential to ensure the correct order of random generators. In some cases, combining deterministic and non-deterministic generators produce the same values repeatedly due to shared random state.
 
 To solve this, ZIO provides the `forked` method, which runs generators in separate fibers, ensuring their random state and side effects are isolated from each other. This is particularly useful when combining random generators, like `Gen.uuid`, with deterministic ones such as `Gen.fromIterable`.
 
@@ -155,7 +155,7 @@ test("uuid before fromIterable generates distinct UUIDs") {
 }
 ```
 
-In the above example, the `Gen.uuid.forked` and ensures that the UUID generator runs independently of the `Gen.fromIterable` generator. This ensures distinct random outputs in tests where random and deterministic generators are combined. It is particularly useful for preventing shared state across generators, making the tests more robust and reproducible.
+In the above example, the `Gen.uuid.forked` and `Gen.fromIterable.forked` ensures that the UUID generator runs independently of the fromIterable generator. This ensures distinct random outputs in tests where random and deterministic generators are combined. It is particularly useful for preventing shared state across generators.
 
 ## How Samples Are Generated?
 
