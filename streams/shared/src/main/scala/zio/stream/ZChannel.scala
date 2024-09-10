@@ -579,6 +579,24 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   }
 
   /**
+   * Returns a new channel, which is the same as this one, except the failure
+   * value of the returned channel is created by applying the specified function
+   * to the failure value of this channel.
+   */
+  final def mapErrorZIO[Env1 <: Env, OutErr2](
+    f: OutErr => URIO[Env1, OutErr2]
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr2, OutElem, OutDone] = {
+    lazy val mapErrorZIO: ZChannel[Env1, OutErr, OutElem, OutDone, OutErr2, OutElem, OutDone] =
+      ZChannel.readWith(
+        chunk => ZChannel.write(chunk) *> mapErrorZIO,
+        error => ZChannel.fromZIO(f(error).flip),
+        done => ZChannel.succeedNow(done)
+      )
+
+    self >>> mapErrorZIO
+  }
+
+  /**
    * Returns a new channel, which is the same as this one, except the terminal
    * value of the returned channel is created by applying the specified
    * effectful function to the terminal value of this channel.
