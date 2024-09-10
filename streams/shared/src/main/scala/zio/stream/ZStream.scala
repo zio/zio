@@ -4357,18 +4357,18 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
           bytesRead <- ZIO
                          .attemptBlockingCancelable(is.read(bufArray))(
                            // Cancel action: close the InputStream to interrupt the read
-                           ZIO.succeed(is.close()).ignore
+                           ZIO.attempt(is.close()).ignore
                          )
                          .refineToOrDie[IOException]
                          .asSomeError
           bytes <- if (bytesRead < 0)
-                     ZIO.fail(None)
+                     Exit.fail(None)
                    else if (bytesRead == 0)
-                     ZIO.succeed(Chunk.empty)
+                     Exit.succeed(Chunk.empty)
                    else if (bytesRead < chunkSize)
-                     ZIO.succeed(Chunk.fromArray(bufArray).take(bytesRead))
+                     Exit.succeed(Chunk.fromArray(bufArray).take(bytesRead))
                    else
-                     ZIO.succeed(Chunk.fromArray(bufArray))
+                     Exit.succeed(Chunk.fromArray(bufArray))
         } yield bytes
       }
     }
@@ -4382,7 +4382,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     is: => ZIO[R, IOException, InputStream],
     chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: Trace): ZStream[R, IOException, Byte] =
-    fromInputStreamInterruptibleScoped[R](ZIO.acquireRelease(is)(is => ZIO.succeed(is.close())), chunkSize)
+    fromInputStreamInterruptibleScoped[R](ZIO.acquireRelease(is)(is => ZIO.attempt(is.close())), chunkSize)
 
   /**
    * Creates an interruptible stream from a scoped `java.io.InputStream` value.
