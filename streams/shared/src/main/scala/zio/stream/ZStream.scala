@@ -1895,6 +1895,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     new ZStream(self.channel.mapErrorCause(f))
 
   /**
+   * Transforms the errors emitted by this stream using `f`.
+   */
+  def mapErrorZIO[R1 <: R, E2](f: E => URIO[R1, E2])(implicit trace: Trace): ZStream[R1, E2, A] =
+    new ZStream(self.channel.mapErrorZIO(f))
+
+  /**
    * Maps over elements of the stream with the specified effectful function.
    */
   def mapZIO[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: Trace): ZStream[R1, E1, A1] = {
