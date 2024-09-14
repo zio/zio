@@ -539,6 +539,14 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     new ZPipeline(self.channel.mapErrorCause(f))
 
   /**
+   * Transforms the errors emitted by this pipeline using `f`.
+   */
+  def mapErrorZIO[Env1 <: Env, Err2](
+    f: Err => URIO[Env1, Err2]
+  )(implicit trace: Trace): ZPipeline[Env1, Err2, In, Out] =
+    new ZPipeline(self.channel.mapErrorZIO(f))
+
+  /**
    * Translates pipeline failure into death of the fiber, making all failures
    * unchecked and not a part of the type of the effect.
    */

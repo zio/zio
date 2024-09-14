@@ -2586,6 +2586,14 @@ object ZStreamSpec extends ZIOBaseSpec {
             .either
             .map(assert(_)(isLeft(equalTo(123))))
         },
+        test("mapErrorZIO") {
+          ZStream
+            .fail("123")
+            .mapErrorZIO(v => ZIO.succeed(v.toInt))
+            .runCollect
+            .either
+            .map(assert(_)(isLeft(equalTo(123))))
+        },
         suite("mapZIO")(
           test("ZIO#foreach equivalence") {
             check(Gen.small(Gen.listOfN(_)(Gen.byte)), Gen.function(Gen.successes(Gen.byte))) { (data, f) =>
