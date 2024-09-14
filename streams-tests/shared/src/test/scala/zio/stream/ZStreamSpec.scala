@@ -2371,7 +2371,26 @@ object ZStreamSpec extends ZIOBaseSpec {
               s3      = s1.zipLatest(s2).interruptWhen(ZIO.never).take(3)
               _      <- s3.runDrain
             } yield assertCompletes
-          } @@ exceptJS(nonFlaky)
+          } @@ exceptJS(nonFlaky),
+          test("i9091 - forked children are not interrupted early by interruptWhen") {
+            for {
+              requestQueue <- Queue.unbounded[String]
+              counter      <- Ref.make(0)
+              _ <- ZStream
+                     .unwrapScoped(
+                       ZStream
+                         .fromQueue(requestQueue)
+                         .runForeach(_ => counter.update(_ + 1))
+                         .fork
+                         .as(ZStream.succeed("") ++ ZStream.never)
+                     )
+                     .interruptWhen(ZIO.never)
+                     .runDrain
+                     .fork
+              _ <- requestQueue.offer("some message").forever.fork
+              _ <- counter.get.repeatUntil(_ >= 10)
+            } yield assertCompletes
+          } @@ exceptJS(nonFlaky) @@ TestAspect.timeout(10.seconds)
         ),
         suite("interruptAfter")(
           test("interrupts after given duration") {
