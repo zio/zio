@@ -89,7 +89,9 @@ final class ZEnvironment[+R] private (
       val r   = that.map.reverseIterator
       var res = true
       while (l.hasNext && res) {
-        if (l.next() ne r.next()) res = false
+        val (lk, lv) = l.next().asInstanceOf[(LightTypeTag, AnyRef)]
+        val (rk, rv) = r.next().asInstanceOf[(LightTypeTag, AnyRef)]
+        res = lk == rk && (lv eq rv)
       }
       res
     }
