@@ -60,6 +60,17 @@ class AwaitBenchmark {
     }
   }
 
+  @Benchmark
+  def zioTimeout1 = {
+    val _ = unsafeRun {
+      ZIO
+        .unit
+        .timeoutTo(ZIO.fail(new TimeoutException))
+        .apply1(ZIO.succeed(_))(100.minutes)
+        .flatten
+    }
+  }
+
 
 
 }

@@ -5527,6 +5527,63 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           FiberScope.global
         )
       }
+
+    def apply1[B1 >: B](f: A => B1)(duration: => Duration)(implicit
+                                                          trace: Trace
+    ): ZIO[R, E, B1] = {
+      ZIO.clockWith(_.scheduler).flatMap{scheduler =>
+        ZIO.withFiberRuntime[R, E, B1]{ (fibRt, r) =>
+            ZIO.asyncInterrupt[R, Nothing, Either[B, zio.Exit[E, A]]] { cb =>
+              //todo: optimize away when the timeout is <= 0 ?
+                val fib = ZIO.unsafe.makeChildFiber(
+                  trace,
+                  self,
+                  fibRt,
+                  r.runtimeFlags,
+                  null
+                )(zio.Unsafe.unsafe)
+              var scheduled = false
+              val cancellable = scheduler
+                .schedule(
+                  //todo: when interrupt 'misses' we can gracefully consider fib as winner
+                  () => {
+                    scheduled = true //best effort, though this is a store before volatile writes/reads so it has a good chance of actually being guaranteed to be valid
+                    cb(ZIO.left(b()).ensuring(fib.interrupt))
+                  },
+                  duration) (zio.Unsafe.unsafe)
+
+              if(scheduled) //no need to actually start the fiber (todo: remove it from the fibers scope?)
+                Right(ZIO.left(b()))
+              else {
+                fib.addObserver { ex =>
+                  cb {
+                    (fib.inheritAll *> ZIO.right(ex))
+                      .ensuring(ZIO.succeed(cancellable.apply()))
+                  }
+                }(zio.Unsafe.unsafe)
+                fib.start(self)
+
+                fib.unsafe.poll(zio.Unsafe.unsafe) match {
+                  case Some(ex) =>
+                    //a bit shady, required disabling the error log in fiberRuntime (can probably be controlled with a new runtimeFlag)
+                    cancellable.apply()
+                    Right(ZIO.right(ex))
+                  case _ =>
+                    Left(ZIO.succeed(cancellable.apply()))  //todo: interrupt fib? it'd be interrupted anyway as a child fiber
+                }
+
+                //Left(ZIO.succeed(cancellable.apply()))  //todo: interrupt fib? it'd be interrupted anyway as a child fiber
+              }
+            }
+            .flatMap{
+              case Left(b) =>
+                  zio.Exit.Success(b)
+              case Right(ex)  =>
+                ex.map(f)
+            }
+          }
+        }
+    }
   }
 
   final class Acquire[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
