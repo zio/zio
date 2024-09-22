@@ -40,15 +40,15 @@ object SemaphoreSpec extends ZIOBaseSpec {
         _         <- semaphore.withPermit(promise.await).fork
         _         <- ZIO.foreach(List.fill(10)(()))(_ => semaphore.withPermit(ZIO.unit).fork)
         waitingStart <- semaphore.awaiting
-          .flatMap(awaiting => if (awaiting < 10) ZIO.fail(awaiting) else ZIO.succeed(awaiting))
-          .retryUntil(_ == 10)
-          .catchAll(n => ZIO.succeed(n))
+                          .flatMap(awaiting => if (awaiting < 10) ZIO.fail(awaiting) else ZIO.succeed(awaiting))
+                          .retryUntil(_ == 10)
+                          .catchAll(n => ZIO.succeed(n))
         _ <- promise.succeed(())
 
         waitingEnd <- semaphore.awaiting
-          .flatMap(awaiting => if (awaiting > 0) ZIO.fail(awaiting) else ZIO.succeed(awaiting))
-          .retryUntil(_ == 0)
-          .catchAll(n => ZIO.succeed(n))
+                        .flatMap(awaiting => if (awaiting > 0) ZIO.fail(awaiting) else ZIO.succeed(awaiting))
+                        .retryUntil(_ == 0)
+                        .catchAll(n => ZIO.succeed(n))
       } yield assertTrue(waitingStart == 10) && assertTrue(waitingEnd == 0)
     }
   )

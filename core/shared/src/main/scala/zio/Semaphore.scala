@@ -40,8 +40,8 @@ sealed trait Semaphore extends Serializable {
   def available(implicit trace: Trace): UIO[Long]
 
   /**
-   * Returns the number of tasks currently waiting for permits.
-   * The default implementation returns 0.
+   * Returns the number of tasks currently waiting for permits. The default
+   * implementation returns 0.
    */
   def awaiting(implicit trace: Trace): UIO[Long] = ZIO.succeed(0L)
 
@@ -95,7 +95,7 @@ object Semaphore {
         override def awaiting(implicit trace: Trace): UIO[Long] =
           ref.get.map {
             case Left(queue) => queue.size.toLong
-            case Right(_) => 0L
+            case Right(_)    => 0L
           }
 
         def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
