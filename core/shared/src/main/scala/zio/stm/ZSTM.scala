@@ -1889,8 +1889,15 @@ object ZSTM {
           ZSTMLockSupport.lock(tRefs) {
             value = stm.run(journal, fiberId, r)
 
-            // Ensure we have the lock on all the tRefs in the current Journal (they might have changed!)
-            if (tRefsUnsafe.forall(tRefs.contains)) {
+            /*
+              Ensure we have the lock on all the tRefs in the current Journal. They might have changed for a few reasons:
+                1. The transaction created new ZSTMs
+                2. The transaction was retried, and a different path was taken
+
+               In case they changed, try acquiring the lock on them otherwise retry the entire transaction.
+             */
+            val missing = tRefsUnsafe.diff(tRefs)
+            val acquired = ZSTMLockSupport.tryLock(missing) {
               if (value.isInstanceOf[TExit.Succeed[?]]) {
                 val isRunning = stateIsNull || state.compareAndSet(State.Running, State.done(value))
                 if (isRunning) journal.commit()
@@ -1898,7 +1905,9 @@ object ZSTM {
               } else if (journal.isValid) {
                 loop = false
               }
-            } else {
+            }
+
+            if (!acquired) {
               tRefs = ZSTMUtils.newImmutableTreeSet(tRefsUnsafe)
             }
             if (!loop && (value ne TExit.Retry)) journal.completeTodos(executor)
