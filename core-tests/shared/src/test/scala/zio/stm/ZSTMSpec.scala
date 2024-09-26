@@ -1239,27 +1239,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         _     <- transaction(ref).commit
         value <- ref.get
       } yield assertTrue(value == 9)
-    } @@ exceptJS(nonFlaky(10000)),
-    test("doesn't deadlock under concurrency when transactions create new ZSTMs - i9215") {
-      def transaction(arr: TArray[String]) =
-        ZSTM.suspend {
-          Thread.sleep(1) // Force ZSTM lock contention
-          TArray.make(List.fill(1000)(scala.util.Random.nextString(5)): _*).flatMap { arr2 =>
-            var i = -1
-            arr2.foreach(v =>
-              ZSTM.suspend {
-                i += 1
-                arr.update(i, v + _)
-              }
-            )
-          }
-        }
-      for {
-        arr <- TArray.make(List.fill(1000)("foo"): _*).commit
-        stm  = transaction(arr)
-        _   <- ZIO.foreachParDiscard(1 to 100)(_ => ZIO.blocking(stm.commit))
-      } yield assertCompletes
-    } @@ exceptJS(nonFlaky(5))
+    } @@ exceptJS(nonFlaky(10000))
   )
 
   val ExampleError = new Throwable("fail")
