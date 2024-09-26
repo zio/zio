@@ -1313,7 +1313,7 @@ __webpack_require__.d(__webpack_exports__, {
 var utils = __webpack_require__(72453);
 // EXTERNAL MODULE: ./node_modules/khroma/dist/color/index.js + 4 modules
 var dist_color = __webpack_require__(74886);
-;// CONCATENATED MODULE: ./node_modules/khroma/dist/methods/luminance.js
+;// ./node_modules/khroma/dist/methods/luminance.js
 /* IMPORT */
 
 
@@ -1327,7 +1327,7 @@ const luminance = (color) => {
 /* EXPORT */
 /* harmony default export */ const methods_luminance = (luminance);
 
-;// CONCATENATED MODULE: ./node_modules/khroma/dist/methods/is_light.js
+;// ./node_modules/khroma/dist/methods/is_light.js
 /* IMPORT */
 
 /* MAIN */
@@ -1337,7 +1337,7 @@ const isLight = (color) => {
 /* EXPORT */
 /* harmony default export */ const is_light = (isLight);
 
-;// CONCATENATED MODULE: ./node_modules/khroma/dist/methods/is_dark.js
+;// ./node_modules/khroma/dist/methods/is_dark.js
 /* IMPORT */
 
 /* MAIN */
