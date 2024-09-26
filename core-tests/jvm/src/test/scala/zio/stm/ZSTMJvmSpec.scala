@@ -1,12 +1,12 @@
-package zio
-package stm
+package zio.stm
 
+import zio._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
 
-object ZSTMJvmNativeSpec extends ZIOBaseSpec {
+object ZSTMJvmSpec extends ZIOBaseSpec {
 
-  def spec = suite("ZSTMJvmNativeSpec")(
+  def spec = suite("ZSTMJvmSpec")(
     test("doesn't deadlock under concurrency when transactions create new ZSTMs - i9215") {
       def transaction(arr: TArray[String]) =
         ZSTM.suspend {
