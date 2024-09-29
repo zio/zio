@@ -1314,15 +1314,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         null,
         ZIO.identityFn[URIO[Env, Any]]
       )
-      for {
-        environment <- ZIO.environment[Env]
-        scope       <- ZIO.succeed(scope)
-        _ <- scope.addFinalizerExit { exit =>
-               val finalizer = exec.close(exit)
-               if (finalizer ne null) finalizer.provideEnvironment(environment)
-               else ZIO.unit
-             }
-      } yield exec
+      ZIO.environmentWithZIO[Env] { environment =>
+        scope.addFinalizerExit { exit =>
+          val finalizer = exec.close(exit)
+          if (finalizer ne null) finalizer.provideEnvironment(environment)
+          else ZIO.unit
+        }
+      } *> Exit.succeed(exec)
     }.map { exec =>
       def interpret(
         channelState: ChannelExecutor.ChannelState[Env, OutErr]
