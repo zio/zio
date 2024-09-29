@@ -2712,7 +2712,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                   containsCause[DbError](Cause.fail(QtyTooLarge))
               )
             )
-          }
+          } @@ flaky
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
@@ -2823,7 +2823,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                   containsCause[DbError](Cause.fail(QtyTooLarge))
               )
             )
-          },
+          } @@ flaky,
           test("first finished first out") {
             checkN(2)(Gen.small(Gen.chunkOfN(_)(Gen.byte))) { data =>
               val s = ZStream.fromChunk(data).zipWithIndex

@@ -654,43 +654,42 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         permits     <- Semaphore.make(n.toLong)
         failure     <- Ref.make[Cause[OutErr1]](Cause.empty)
         pull        <- (queueReader >>> self).toPullInAlt(scope)
-        _ <-
-          pull
-            .flatMap(outElem =>
-              for {
-                latch <- Promise.make[Nothing, Unit]
-                f <- permits
-                       .withPermit(
-                         latch.succeed(()) *> f(outElem)
-                           .catchAllCause(cause =>
-                             failure.update(_ && cause).unless(cause.isInterrupted) *>
-                               errorSignal.succeed(()) *>
-                               ZChannel.failLeftUnit
-                           )
-                       )
-                       .fork
-                _ <- latch.await
-                _ <- outgoing.offer(f)
-              } yield ()
-            )
-            .forever
-            .catchAllCause(cause =>
-              cause.failureOrCause match {
-                case Left(x: Left[OutErr, OutDone]) =>
-                  failure.update(_ && Cause.fail(x.value)) *>
-                    outgoing.offer(Fiber.done(ZChannel.failLeftUnit)) *>
-                    ZChannel.failUnit
-                case Left(x: Right[OutErr, OutDone]) =>
-                  permits.withPermits(n.toLong)(ZIO.unit) *>
-                    outgoing.offer(Fiber.fail(x.asInstanceOf[Either[Unit, OutDone]]))
-                case Right(cause) =>
-                  failure.update(_ && cause).unless(cause.isInterrupted) *>
-                    outgoing.offer(Fiber.done(ZChannel.failLeftUnit)) *>
-                    ZChannel.failUnit
-              }
-            )
-            .race(errorSignal.await)
-            .forkIn(scope)
+        _ <- ZIO.fiberIdWith { fiberId =>
+               pull.flatMap { outElem =>
+                 val latch = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe.unsafe)
+                 for {
+                   f <- permits
+                          .withPermit(
+                            latch.succeed(()) *> f(outElem)
+                              .catchAllCause(cause =>
+                                failure.update(_ && cause).unless(cause.isInterrupted) *>
+                                  errorSignal.succeed(()) *>
+                                  ZChannel.failLeftUnit
+                              )
+                          )
+                          .fork
+                   _ <- latch.await
+                   _ <- outgoing.offer(f)
+                 } yield ()
+               }.forever
+             }
+               .catchAllCause(cause =>
+                 cause.failureOrCause match {
+                   case Left(x: Left[OutErr, OutDone]) =>
+                     failure.update(_ && Cause.fail(x.value)) *>
+                       outgoing.offer(Fiber.done(ZChannel.failLeftUnit)) *>
+                       ZChannel.failUnit
+                   case Left(x: Right[OutErr, OutDone]) =>
+                     permits.withPermits(n.toLong)(ZIO.unit).interruptible *>
+                       outgoing.offer(Fiber.fail(x.asInstanceOf[Either[Unit, OutDone]]))
+                   case Right(cause) =>
+                     failure.update(_ && cause).unless(cause.isInterrupted) *>
+                       outgoing.offer(Fiber.done(ZChannel.failLeftUnit)) *>
+                       ZChannel.failUnit
+                 }
+               )
+               .race(errorSignal.await)
+               .forkIn(scope)
       } yield {
         lazy val writer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
           ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
@@ -733,10 +732,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         permits     <- Semaphore.make(n.toLong)
         failure     <- Ref.make[Cause[OutErr1]](Cause.empty)
         pull        <- (queueReader >>> self).toPullInAlt(scope)
-        _ <- pull
-               .flatMap(outElem =>
+        _ <- ZIO.fiberIdWith { fiberId =>
+               pull.flatMap { outElem =>
+                 val latch = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe.unsafe)
                  for {
-                   latch <- Promise.make[Nothing, Unit]
                    _ <- permits
                           .withPermit(
                             latch.succeed(()) *> f(outElem)
@@ -751,8 +750,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                           .fork
                    _ <- latch.await
                  } yield ()
-               )
-               .forever
+               }.forever
+             }
                .catchAllCause(cause =>
                  cause.failureOrCause match {
                    case Left(x: Left[OutErr, OutDone]) =>
@@ -760,7 +759,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                        outgoing.offer(ZChannel.failLeftUnit) *>
                        ZChannel.failUnit
                    case Left(x: Right[OutErr, OutDone]) =>
-                     permits.withPermits(n.toLong)(ZIO.unit) *>
+                     permits.withPermits(n.toLong)(ZIO.unit).interruptible *>
                        outgoing.offer(Exit.fail(x.asInstanceOf[Either[Unit, OutDone]]))
                    case Right(cause) =>
                      failure.update(_ && cause).unless(cause.isInterrupted) *>
@@ -1940,48 +1939,51 @@ object ZChannel {
                            )
         pullStrategy = mergeStrategy match {
                          case MergeStrategy.BackPressure =>
-                           pull.flatMap(channel =>
-                             for {
-                               latch <- Promise.make[Nothing, Unit]
-                               raceIOs =
+                           (fiberId: FiberId) =>
+                             pull.flatMap { channel =>
+                               val latch = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe.unsafe)
+                               val raceIOs =
                                  ZIO.scopedWith { scope =>
                                    (incoming >>> channel)
                                      .toPullInAlt(scope)
                                      .flatMap(evaluatePull)
                                  }
-                               _ <- permits
-                                      .withPermit(latch.succeed(()) *> raceIOs)
-                                      .fork
-                               _ <- latch.await
-                             } yield ()
-                           )
+                               for {
+                                 _ <- permits
+                                        .withPermit(latch.succeed(()) *> raceIOs)
+                                        .fork
+                                 _ <- latch.await
+                               } yield ()
+                             }
                          case MergeStrategy.BufferSliding =>
-                           pull.flatMap(channel =>
-                             for {
-                               canceler <- Promise.make[Nothing, Unit]
-                               latch    <- Promise.make[Nothing, Unit]
-                               size     <- cancelers.size
-                               _        <- ZIO.when(size >= n)(cancelers.take.flatMap(_.succeed(())))
-                               _        <- cancelers.offer(canceler)
-                               raceIOs =
-                                 ZIO.scopedWith { scope =>
-                                   (incoming >>> channel)
-                                     .toPullInAlt(scope)
-                                     .flatMap(evaluatePull(_).race(canceler.await))
-                                 }
-                               childFiber <- permits
-                                               .withPermit(latch.succeed(()) *> raceIOs)
-                                               .fork
-                               _ <- latch.await
-                             } yield ()
-                           )
+                           (fiberId: FiberId) =>
+                             pull.flatMap { channel =>
+                               val canceler = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe.unsafe)
+                               val latch    = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe.unsafe)
+                               for {
+                                 size <- cancelers.size
+                                 _    <- ZIO.when(size >= n)(cancelers.take.flatMap(_.succeed(())))
+                                 _    <- cancelers.offer(canceler)
+                                 raceIOs =
+                                   ZIO.scopedWith { scope =>
+                                     (incoming >>> channel)
+                                       .toPullInAlt(scope)
+                                       .flatMap(evaluatePull(_).race(canceler.await))
+                                   }
+                                 childFiber <- permits
+                                                 .withPermit(latch.succeed(()) *> raceIOs)
+                                                 .fork
+                                 _ <- latch.await
+                               } yield ()
+                             }
                        }
-        _ <- pullStrategy.forever
+        _ <- ZIO
+               .fiberIdWith(pullStrategy(_).forever)
                .catchAllCause(cause =>
                  cause.failureOrCause match {
                    case Left(_: Left[OutErr, OutDone]) => outgoing.offer(Exit.failCause(cause))
                    case Left(x: Right[OutErr, OutDone]) =>
-                     permits.withPermits(n.toLong)(ZIO.unit) *>
+                     permits.withPermits(n.toLong)(ZIO.unit).interruptible *>
                        lastDone.get.flatMap {
                          case Some(lastDone) => outgoing.offer(Exit.fail(Right(f(lastDone, x.value))))
                          case None           => outgoing.offer(Exit.fail(Right(x.value)))
