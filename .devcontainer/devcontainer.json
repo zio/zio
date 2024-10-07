@@ -24,6 +24,7 @@
       ]
     }
   },
+  "remoteUser": "root",
   "features": {
     "git": "latest"
   },
