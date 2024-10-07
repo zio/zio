@@ -29,7 +29,7 @@
     "git": "latest"
   },
   "containerEnv": {
-    "CI_RELEASE_MODE": "1",
+    "CI_RELEASE_MODE": "1"
   },
   "remoteEnv": {
     "CI_RELEASE_MODE": "1"
