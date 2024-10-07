@@ -26,5 +26,13 @@
   // "postCreateCommand": "java -version",
 
   // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-  "remoteUser": "root"
+  "remoteUser": "root",
+  
+  // Envvar to enable optimizations when building ZIO
+  "containerEnv": {
+    "CI_RELEASE_MODE": "1"
+  },
+  "remoteEnv": {
+    "CI_RELEASE_MODE": "1"
+  }
 }
