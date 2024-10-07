@@ -24,16 +24,18 @@
   // "forwardPorts": [],
 
   // Use 'postCreateCommand' to run commands after the container is created.
-   "postCreateCommand": "sbt update",
-
+  "postCreateCommand": "sbt update",
   // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
   "remoteUser": "root",
-  
-  // Envvar to enable optimizations when building ZIO
+  // Envvar to enable optimizations when building ZIO and set sensible JVM values
   "containerEnv": {
-    "CI_RELEASE_MODE": "1"
+    "CI_RELEASE_MODE": "1",
+    "JDK_JAVA_OPTIONS": "-Xms6G -Xmx6G -Xss4M -XX:+UseG1GC -XX:ReservedCodeCacheSize=512M -XX:NonProfiledCodeHeapSize=256M",
+    "SBT_OPTS": "-Xms6G -Xmx6G -Xss4M -XX:+UseG1GC -XX:ReservedCodeCacheSize=512M -XX:NonProfiledCodeHeapSize=256M"
   },
   "remoteEnv": {
-    "CI_RELEASE_MODE": "1"
+    "CI_RELEASE_MODE": "1",
+    "JDK_JAVA_OPTIONS": "-Xms6G -Xmx6G -Xss4M -XX:+UseG1GC -XX:ReservedCodeCacheSize=512M -XX:NonProfiledCodeHeapSize=256M",
+    "SBT_OPTS": "-Xms6G -Xmx6G -Xss4M -XX:+UseG1GC -XX:ReservedCodeCacheSize=512M -XX:NonProfiledCodeHeapSize=256M"
   }
 }
