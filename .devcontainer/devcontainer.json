@@ -1,37 +1,30 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
-// https://github.com/microsoft/vscode-dev-containers/tree/v0.238.1/containers/java
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/java
 {
   "name": "Scala",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "args": {
-      // Update the VARIANT arg to pick a Java version: 11, 17
-      // Append -bullseye or -buster to pin to an OS version.
-      // Use the -bullseye variants on local arm64/Apple Silicon.
-      "JAVA_VERSION": "17"
+  // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+  "image": "mcr.microsoft.com/devcontainers/java:17",
+  "features": {
+    "ghcr.io/ebaskoro/devcontainer-features/scala:1": {
+      "installSbt": true
     }
   },
   // Configure tool-specific properties.
   "customizations": {
     // Configure properties specific to VS Code.
     "vscode": {
-      // Set *default* container specific settings.json values on container create.
       "settings": {
       },
-      // Add the IDs of extensions you want installed when the container is created.
       "extensions": [
-        "vscjava.vscode-java-pack"
       ]
     }
   },
-  "remoteUser": "root",
-  "features": {
-    "git": "latest"
-  },
-  "containerEnv": {
-    "CI_RELEASE_MODE": "1"
-  },
-  "remoteEnv": {
-    "CI_RELEASE_MODE": "1"
-  }
+  // Use 'forwardPorts' to make a list of ports inside the container available locally.
+  // "forwardPorts": [],
+
+  // Use 'postCreateCommand' to run commands after the container is created.
+  // "postCreateCommand": "java -version",
+
+  // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+  "remoteUser": "root"
 }
