@@ -221,6 +221,9 @@ object Runtime extends RuntimePlatformSpecific {
   def addSupervisor(supervisor: Supervisor[Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentSupervisor.locallyScopedWith(_ ++ supervisor))
 
+  def addLogAnnotation(annotation: LogAnnotation)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped(FiberRef.currentLogAnnotations.locallyScopedWith(_ + (annotation.key -> annotation.value)))
+
   /**
    * Builds a new runtime given an environment `R` and a [[zio.FiberRefs]].
    */
