@@ -28,7 +28,7 @@ private[zio] trait ZIOPlatformSpecificJVM {
 
   /**
    * Lifts a value of `A`, converting it into an error as an option in the error
-   * channel when it's value is `null`, making it easier to interop with Java
+   * channel when its value is `null`, making it easier to interop with Java
    * code.
    */
   final def fromNullable[A](v: => A)(implicit trace: Trace): IO[Option[Nothing], A] =
