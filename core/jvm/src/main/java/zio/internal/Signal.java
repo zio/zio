@@ -6,6 +6,7 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
 
 
 /**
@@ -20,29 +21,32 @@ import java.util.function.Consumer;
  */
 final class Signal {
 
-    private Signal() {
-    }
-
-    private static final MethodHandle SIGNAL_CONSTRUCTOR_METHOD_HANDLE;
-    private static final MethodHandle HANDLE_STATIC_METHOD_HANDLE;
+    private static final Logger LOGGER = Logger.getLogger("zio.internal.Signal");
     private static final SignalHandler SIGNAL_HANDLER;
 
     static {
+        MethodHandle constructorHandle;
+        MethodHandle staticMethodHandle;
+
         final Class<?> signalClass = findClass("sun.misc.Signal");
         final Class<?> signalHandlerClass = findClass("sun.misc.SignalHandler");
 
         if ((signalClass != null) && (signalHandlerClass != null)) {
             final MethodHandles.Lookup lookup = MethodHandles.lookup();
-
-            SIGNAL_CONSTRUCTOR_METHOD_HANDLE = initSignalConstructorMethodHandle(lookup, signalClass);
-            HANDLE_STATIC_METHOD_HANDLE = initHandleStaticMethodHandle(lookup, signalClass, signalHandlerClass);
-            SIGNAL_HANDLER = new SignalHandler.SunMiscSignalHandler(signalHandlerClass);
+            constructorHandle = initSignalConstructorMethodHandle(lookup, signalClass);
+            staticMethodHandle = initHandleStaticMethodHandle(lookup, signalClass, signalHandlerClass);
         } else {
-            System.err.println("WARNING: sun.misc.Signal and sun.misc.SignalHandler are not available on this platform. " +
-                    "Custom signal handling and ZIO fiber dump functionality might not work as expected.");
-            SIGNAL_CONSTRUCTOR_METHOD_HANDLE = null;
-            HANDLE_STATIC_METHOD_HANDLE = null;
+            constructorHandle = null;
+            staticMethodHandle = null;
+        }
+
+        if (signalHandlerClass != null && constructorHandle != null && staticMethodHandle != null) {
+            SIGNAL_HANDLER = new SignalHandler.SunMiscSignalHandler(signalHandlerClass, constructorHandle, staticMethodHandle);
+        } else {
             SIGNAL_HANDLER = new SignalHandler.NoOpSignalHandler();
+            LOGGER.warning("sun.misc.Signal and sun.misc.SignalHandler are not available on this platform. " +
+                    "Defaulting to no-op signal handling implementation; " +
+                    "ZIO fiber dump functionality might not work as expected.");
         }
     }
 
@@ -59,7 +63,8 @@ final class Signal {
     }
 
     private static MethodHandle initSignalConstructorMethodHandle(
-            MethodHandles.Lookup lookup, Class<?> signalClass) {
+            MethodHandles.Lookup lookup,
+            Class<?> signalClass) {
         final MethodType signalConstructorMethodType = MethodType.methodType(void.class, String.class);
         try {
             return lookup.findConstructor(signalClass, signalConstructorMethodType);
@@ -72,10 +77,8 @@ final class Signal {
             MethodHandles.Lookup lookup,
             Class<?> signalClass,
             Class<?> signalHandlerClass) {
-        final MethodType handleStaticMethodType =
-                MethodType.methodType(
-                        signalHandlerClass, signalClass, signalHandlerClass);
         try {
+            final MethodType handleStaticMethodType = MethodType.methodType(signalHandlerClass, signalClass, signalHandlerClass);
             return lookup.findStatic(signalClass, "handle", handleStaticMethodType);
         } catch (Exception e) {
             return null;
@@ -87,34 +90,52 @@ final class Signal {
 
         private final static class SunMiscSignalHandler extends SignalHandler {
             Class<?> signalHandlerClass;
+            MethodHandle constuctorMethodHandle;
+            MethodHandle staticMethodHandle;
 
-            private SunMiscSignalHandler(Class<?> cls) {
-                if (cls == null) {
-                    throw new IllegalArgumentException("signalHandlerClass cannot be null");
+            private SunMiscSignalHandler(
+                    Class<?> signalHandlerClass,
+                    MethodHandle constuctorMethodHandle,
+                    MethodHandle staticMethodHandle
+            ) {
+                assertNotNull(signalHandlerClass, "signalHandlerClass");
+                assertNotNull(constuctorMethodHandle, "constuctorMethodHandle");
+                assertNotNull(staticMethodHandle, "staticMethodHandle");
+
+                this.signalHandlerClass = signalHandlerClass;
+                this.constuctorMethodHandle = constuctorMethodHandle;
+                this.staticMethodHandle = staticMethodHandle;
+            }
+
+            private static void assertNotNull(Object obj, String message) {
+                if (obj == null) {
+                    throw new IllegalArgumentException(message + " cannot be null");
                 }
-                signalHandlerClass = cls;
             }
 
             @Override
             void handle(String signal, Consumer<Object> handler) {
-                if (SIGNAL_CONSTRUCTOR_METHOD_HANDLE != null && HANDLE_STATIC_METHOD_HANDLE != null) {
-                    final InvocationHandler invocationHandler = (proxy, method, args) -> {
-                        if (args.length >= 1) {
-                            handler.accept(args[0]);
-                        }
-                        return null;
-                    };
-                    final Object proxy = Proxy.newProxyInstance(
-                            Signal.class.getClassLoader(),
-                            new Class<?>[]{signalHandlerClass},
-                            invocationHandler);
-                    try {
-                        final Object s = SIGNAL_CONSTRUCTOR_METHOD_HANDLE.invoke(signal);
-                        HANDLE_STATIC_METHOD_HANDLE.invoke(s, proxy);
-                    } catch (Throwable t) {
-                        // Gracefully degrade to a no-op.
-                    }
+                final InvocationHandler invocationHandler = initInvocationHandler(handler);
+                final Object proxy = Proxy.newProxyInstance(
+                        Signal.class.getClassLoader(),
+                        new Class<?>[]{signalHandlerClass},
+                        invocationHandler
+                );
+                try {
+                    final Object s = constuctorMethodHandle.invoke(signal);
+                    staticMethodHandle.invoke(s, proxy);
+                } catch (Throwable err) {
+                    // Gracefully degrade to a no-op logging the exception.
                 }
+            }
+
+            private static InvocationHandler initInvocationHandler(Consumer<Object> handler) {
+                return (proxy, method, args) -> {
+                    if (args.length >= 1) {
+                        handler.accept(args[0]);
+                    }
+                    return null;
+                };
             }
         }
 
