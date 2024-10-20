@@ -111,9 +111,7 @@ private object Signal {
 
       private def initInvocationHandler(handler: Consumer[AnyRef]): InvocationHandler =
         (proxy: Any, method: Method, args: Array[AnyRef]) => {
-          if (args.length >= 1) {
-            handler.accept(args(0))
-          }
+          if (args.nonEmpty) handler.accept(args(0))
           null
         }
 
