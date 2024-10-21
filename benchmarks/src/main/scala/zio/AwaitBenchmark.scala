@@ -4,7 +4,6 @@ import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations.{Scope => JScope, _}
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.TimeoutException
 
 @State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -43,34 +42,5 @@ class AwaitBenchmark {
         _     <- catsForeachDiscard(range)(_ => fiber.join)
       } yield ()).unsafeRunSync()
   }
-
-  @Benchmark
-  def zioBaseline = {
-    val _ = unsafeRun {
-      ZIO.unit
-    }
-  }
-
-  @Benchmark
-  def zioTimeout = {
-    val _ = unsafeRun {
-      ZIO
-        .unit
-        .timeoutFail(new TimeoutException)(100.minutes)
-    }
-  }
-
-  @Benchmark
-  def zioTimeout1 = {
-    val _ = unsafeRun {
-      ZIO
-        .unit
-        .timeoutTo(ZIO.fail(new TimeoutException))
-        .apply1(ZIO.succeed(_))(100.minutes)
-        .flatten
-    }
-  }
-
-
 
 }
