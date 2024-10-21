@@ -5567,17 +5567,15 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                   case Some(ex) =>
                     //a bit shady, required disabling the error log in fiberRuntime (can probably be controlled with a new runtimeFlag)
                     cancellable.apply()
-                    Right(ZIO.right(ex))
+                    Right(ZIO.right(ex).ensuring(fib.inheritAll))
                   case _ =>
                     Left(ZIO.succeed(cancellable.apply()))  //todo: interrupt fib? it'd be interrupted anyway as a child fiber
                 }
-
-                //Left(ZIO.succeed(cancellable.apply()))  //todo: interrupt fib? it'd be interrupted anyway as a child fiber
               }
             }
             .flatMap{
               case Left(b) =>
-                  zio.Exit.Success(b)
+                zio.Exit.Success(b)
               case Right(ex)  =>
                 ex.map(f)
             }
