@@ -40,7 +40,7 @@ class TimeoutBenchmark {
     val _ = unsafeRun {
       effect
         .timeoutTo(ZIO.fail(new TimeoutException))
-        .apply2(ZIO.succeed(_))(100.minutes)
+        .apply(ZIO.succeed(_))(100.minutes)
         .flatten
     }
   }
