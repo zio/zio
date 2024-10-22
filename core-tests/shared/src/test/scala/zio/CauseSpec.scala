@@ -174,6 +174,87 @@ object CauseSpec extends ZIOBaseSpec {
         val f1 = Cause.fail(())
         val f2 = f1.filter(_ => false)
         assertTrue(f2.isEmpty)
+      },
+      test("fail.filter(true)") {
+        val f1 = Cause.fail(())
+        val f2 = f1.filter(_ => true)
+        assert(f2)(Assertion.equalTo(f1))
+      },
+      test("interrupt.filter(false)") {
+        val f1 = Cause.interrupt(FiberId.apply(0, 42, implicitly))
+        val f2 = f1.filter(_ => false)
+        assertTrue(f2.isEmpty)
+      },
+      test("interrupt.filter(true)") {
+        val f1 = Cause.interrupt(FiberId.apply(0, 42, implicitly))
+        val f2 = f1.filter(_ => true)
+        assert(f2)(Assertion.equalTo(f1))
+      },
+      test("die.filter(false)") {
+        val f1 = Cause.die(new RuntimeException())
+        val f2 = f1.filter(_ => false)
+        assertTrue(f2.isEmpty)
+      },
+      test("die.filter(true)") {
+        val f1 = Cause.die(new RuntimeException())
+        val f2 = f1.filter(_ => true)
+        assert(f2)(Assertion.equalTo(f1))
+      },
+      test("stackless.filter(false)") {
+        val f1 = Cause.Stackless(Cause.fail(()), true)
+        val f2 = f1.filter(_ => false)
+        assertTrue(f2.isEmpty)
+      },
+      test("stackless.filter(true)") {
+        val f1 = Cause.Stackless(Cause.fail(()), true)
+        val f2 = f1.filter(_ => true)
+        assert(f2)(Assertion.equalTo(f1))
+      },
+      {
+        val f1 = Cause.fail(())
+        val f2 = Cause.interrupt(FiberId.apply(0, 42, implicitly))
+        val andThen = Cause.Then(f1, f2)
+        suite("andThen")(
+          test("filter(false)") {
+            val filt = andThen.filter(_ => false)
+            assertTrue(filt.isEmpty)
+          },
+          test("filter(true)") {
+            val filt = andThen.filter(_ => true)
+            assert(filt)(Assertion.equalTo(andThen))
+          },
+          test("filter(isInterruped)") {
+            val filt = andThen.filter(_.isInterrupted)
+            assert(filt)(Assertion.equalTo(f2))
+          },
+          test("filter(isFailure)") {
+            val filt = andThen.filter(_.isFailure)
+            assert(filt)(Assertion.equalTo(f1))
+          }
+        )
+      },
+      {
+        val f1 = Cause.fail(())
+        val f2 = Cause.interrupt(FiberId.apply(0, 42, implicitly))
+        val both = Cause.Both(f1, f2)
+        suite("both")(
+          test("filter(false)") {
+            val filt = both.filter(_ => false)
+            assertTrue(filt.isEmpty)
+          },
+          test("filter(true)") {
+            val filt = both.filter(_ => true)
+            assert(filt)(Assertion.equalTo(both))
+          },
+          test("filter(isInterruped)") {
+            val filt = both.filter(_.isInterrupted)
+            assert(filt)(Assertion.equalTo(f2))
+          },
+          test("filter(isFailure)") {
+            val filt = both.filter(_.isFailure)
+            assert(filt)(Assertion.equalTo(f1))
+          }
+        )
       }
     )
   ) @@ samples(10)
