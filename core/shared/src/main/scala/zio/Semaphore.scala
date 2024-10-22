@@ -91,7 +91,7 @@ object Semaphore {
             case Right(permits) => permits
           }
 
-        override def awaiting(implicit trace: Trace): UIO[Long] =
+        def awaiting(implicit trace: Trace): UIO[Long] =
           ref.get.map {
             case Left(queue) => queue.size.toLong
             case Right(_)    => 0L
