@@ -168,6 +168,13 @@ object CauseSpec extends ZIOBaseSpec {
         val stripped = cause.stripSomeDefects { case _: NumberFormatException => }
         assert(stripped)(isNone)
       }
+    ),
+    suite("filter")(
+      test("fail.filter(false)") {
+        val f1 = Cause.fail(())
+        val f2 = f1.filter(_ => false)
+        assertTrue(f2.isEmpty)
+      }
     )
   ) @@ samples(10)
 
