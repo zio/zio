@@ -29,6 +29,8 @@ import scala.reflect.ClassTag
 import scala.util.control.NoStackTrace
 import izumi.reflect.macrortti.LightTypeTag
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 /**
  * A `ZIO[R, E, A]` value is an immutable value (called an "effect") that
  * describes an async, concurrent workflow. In order to be executed, the
@@ -5542,32 +5544,40 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                   r.runtimeFlags,
                   null
                 )(zio.Unsafe.unsafe)
-              var scheduled = false
+              val scheduled = new AtomicBoolean(false)
               val cancellable = scheduler
                 .schedule(
                   //todo: when interrupt 'misses' we can gracefully consider fib as winner
                   () => {
-                    scheduled = true //best effort, though this is a store before volatile writes/reads so it has a good chance of actually being guaranteed to be valid
-                    cb(ZIO.left(b()).ensuring(fib.interrupt))
+                    if(scheduled.compareAndSet(false, true))
+                      cb(ZIO.left(b()).ensuring(fib.interrupt))
                   },
                   duration) (zio.Unsafe.unsafe)
 
-              if(scheduled) //no need to actually start the fiber (todo: remove it from the fibers scope?)
+              if(scheduled.get()) //no need to actually start the fiber (todo: remove it from the fibers scope?)
                 Right(ZIO.left(b()))
               else {
                 fib.addObserver { ex =>
-                  cb {
-                    (fib.inheritAll *> ZIO.right(ex))
-                      .ensuring(ZIO.succeed(cancellable.apply()))
+                  //race with both the scheduler and the parent fiber
+                  if(scheduled.compareAndSet(false, true)) {
+                    cancellable.apply()
+                    cb {
+                      (fib.inheritAll.as(Right(ex)))
+                    }
                   }
                 }(zio.Unsafe.unsafe)
                 fib.start(self)
 
                 fib.unsafe.poll(zio.Unsafe.unsafe) match {
                   case Some(ex) =>
-                    //a bit shady, required disabling the error log in fiberRuntime (can probably be controlled with a new runtimeFlag)
-                    cancellable.apply()
-                    Right(ZIO.right(ex).ensuring(fib.inheritAll))
+                    //race with both the scheduler and the observer
+                    if(scheduled.compareAndSet(false, true)) {
+                      cancellable.apply()
+                      Right(fib.inheritAll.as(Right(ex)))
+                    } else {
+                      //lost the race (can't invoke cb as it'd emit a nasty warning to log)
+                      Left(ZIO.succeed(cancellable.apply()))
+                    }
                   case _ =>
                     Left(ZIO.succeed(cancellable.apply()))  //todo: interrupt fib? it'd be interrupted anyway as a child fiber
                 }
