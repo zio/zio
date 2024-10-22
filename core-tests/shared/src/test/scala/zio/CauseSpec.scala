@@ -209,10 +209,9 @@ object CauseSpec extends ZIOBaseSpec {
         val f1 = Cause.Stackless(Cause.fail(()), true)
         val f2 = f1.filter(_ => true)
         assert(f2)(Assertion.equalTo(f1))
-      },
-      {
-        val f1 = Cause.fail(())
-        val f2 = Cause.interrupt(FiberId.apply(0, 42, implicitly))
+      }, {
+        val f1      = Cause.fail(())
+        val f2      = Cause.interrupt(FiberId.apply(0, 42, implicitly))
         val andThen = Cause.Then(f1, f2)
         suite("andThen")(
           test("filter(false)") {
@@ -232,10 +231,9 @@ object CauseSpec extends ZIOBaseSpec {
             assert(filt)(Assertion.equalTo(f1))
           }
         )
-      },
-      {
-        val f1 = Cause.fail(())
-        val f2 = Cause.interrupt(FiberId.apply(0, 42, implicitly))
+      }, {
+        val f1   = Cause.fail(())
+        val f2   = Cause.interrupt(FiberId.apply(0, 42, implicitly))
         val both = Cause.Both(f1, f2)
         suite("both")(
           test("filter(false)") {

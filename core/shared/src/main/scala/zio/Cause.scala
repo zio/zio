@@ -824,7 +824,7 @@ object Cause extends Serializable {
 
       def failCase(context: Any, error: E, stackTrace: StackTrace): Cause[E] = {
         val c = Cause.Fail(error, stackTrace)
-        if(p(c))
+        if (p(c))
           c
         else
           Cause.empty
@@ -832,7 +832,7 @@ object Cause extends Serializable {
 
       def dieCase(context: Any, t: Throwable, stackTrace: StackTrace): Cause[E] = {
         val c = Cause.Die(t, stackTrace)
-        if(p(c))
+        if (p(c))
           c
         else
           Cause.empty
@@ -840,7 +840,7 @@ object Cause extends Serializable {
 
       def interruptCase(context: Any, fiberId: FiberId, stackTrace: StackTrace): Cause[E] = {
         val c = Cause.Interrupt(fiberId, stackTrace)
-        if(p(c))
+        if (p(c))
           c
         else
           Cause.empty
