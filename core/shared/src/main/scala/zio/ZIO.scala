@@ -29,7 +29,7 @@ import scala.reflect.ClassTag
 import scala.util.control.NoStackTrace
 import izumi.reflect.macrortti.LightTypeTag
 
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 /**
  * A `ZIO[R, E, A]` value is an immutable value (called an "effect") that
@@ -5554,9 +5554,80 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                   },
                   duration) (zio.Unsafe.unsafe)
 
-              if(scheduled.get()) //no need to actually start the fiber (todo: remove it from the fibers scope?)
+              if(scheduled.getPlain()) //no need to actually start the fiber (todo: remove it from the fibers scope?)
                 Right(ZIO.left(b()))
-              else {
+              else if (true) {
+                import TimeoutTo._
+                val observerState = new AtomicReference[ObserverState[E, A]](ObserverOff)
+                fib.addObserver { ex =>
+                  var shouldFire = false
+                  observerState.updateAndGet{
+                    case ObserverOff =>
+                      ObserverOffDone(ex)
+                    case ObserverOn =>
+                      shouldFire = true
+                      ObserverFired
+                  }
+                  if(shouldFire && scheduled.compareAndSet(false, true)) {
+                    cancellable.apply()
+                    cb {
+                      (fib.inheritAll.as(Right(ex)))
+                    }
+                  }
+                } (zio.Unsafe.unsafe)
+                fib.start(self)
+                fib.unsafe.poll(zio.Unsafe.unsafe) match {
+                  case Some(ex) =>
+                    //observer is still off, race with both the scheduler
+                    if(scheduled.compareAndSet(false, true)) {
+                      cancellable.apply()
+                      Right(fib.inheritAll.as(Right(ex)))
+                    } else {
+                      //lost the race to the scheduler (can't invoke cb as it'd emit a nasty warning to log)
+                      Left(ZIO.succeed(cancellable.apply()))
+                    }
+                  case _ =>
+                    //turn on the observer
+                    observerState.updateAndGet{
+                      case ObserverOff =>
+                        ObserverOn
+                      case x @ ObserverOffDone(ex2) =>
+                        //second chance to short circuit
+                        x
+                    }
+                    match {
+                      case ObserverOffDone(ex2) =>
+                        cancellable.apply()
+                        Right(fib.inheritAll.as(Right(ex2)))
+                      case _ =>
+                        Left(ZIO.succeed(cancellable.apply()))  //todo: interrupt fib? it'd be interrupted anyway as a child fiber
+                    }
+                }
+              }
+              else if(true) {
+                fib.start(self)
+                fib.unsafe.poll(zio.Unsafe.unsafe) match {
+                  case Some(ex) =>
+                    //race with the scheduler
+                    if(scheduled.compareAndSet(false, true)) {
+                      cancellable.apply()
+                      Right(fib.inheritAll.as(Right(ex)))
+                    } else {
+                      //lost the race to the scheduler (can't invoke cb as it'd emit a nasty warning to log)
+                      Left(ZIO.succeed(cancellable.apply()))
+                    }
+                  case _ =>
+                    fib.unsafe.addObserver { ex =>
+                      if(scheduled.compareAndSet(false, true)) {
+                        cancellable.apply()
+                        cb {
+                          (fib.inheritAll.as(Right(ex)))
+                        }
+                      }
+                    } (zio.Unsafe.unsafe)
+                    Left(ZIO.succeed(cancellable.apply()))  //todo: interrupt fib? it'd be interrupted anyway as a child fiber
+                }
+              } else {
                 fib.addObserver { ex =>
                   //race with both the scheduler and the parent fiber
                   if(scheduled.compareAndSet(false, true)) {
@@ -5592,6 +5663,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           }
         }
     }
+  }
+  private object TimeoutTo {
+    sealed trait ObserverState[+E, +A]
+    case object ObserverOff extends ObserverState[Nothing, Nothing]
+    case object ObserverOn extends ObserverState[Nothing, Nothing]
+    case object ObserverFired extends ObserverState[Nothing, Nothing]
+    case class ObserverOffDone[+E, +A](ex : zio.Exit[E, A]) extends ObserverState[E, A]
   }
 
   final class Acquire[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
