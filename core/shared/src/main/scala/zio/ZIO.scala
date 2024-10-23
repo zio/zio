@@ -5568,25 +5568,23 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                 Right(ZIO.left(b()))
               else {
                 fib.addObserver { ex =>
-                  var shouldFire = false
-                  observerState.updateAndGet{
+                  observerState.get() match {
                     case ObserverOff =>
-                      shouldFire = false
-                      ObserverOffDone(ex)
-                    case ObserverOn =>
-                      shouldFire = true
-                      ObserverFired
-                    case ObserverFired =>
-                      //timeout already fired
-                      shouldFire = false
-                      ObserverFired
-                  }
-                  if(shouldFire) {
-                    cancellable.apply()
-                    cb {
-                      (fib.inheritAll.as(Right(ex)))
-                    }
-                  }
+                      if(!observerState.compareAndSet(ObserverOff, ObserverOffDone(ex))) {
+                        //lost the race, either to parent fiber or to the scheduler
+                        //parent won => we're on, otherwise fired, so we attempt transitioning from on to fired,
+                        //this can fail in two cases:
+                        //1. scheduler won, hence we're already fired
+                        //2. parent won the first race, but scheduler won the second one
+                        if(observerState.compareAndSet(ObserverOn, ObserverFired)) {
+                          cancellable.apply()
+                          cb {
+                            (fib.inheritAll.as(Right(ex)))
+                          }
+                        }
+                        //else: scheduler won, cb is already fired with b()
+                      }
+                  } //else: fiber won, parent now owns cb and bypass it
                 } (zio.Unsafe.unsafe)
                 fib.start(self)
 
