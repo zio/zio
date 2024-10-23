@@ -5589,40 +5589,32 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                   }
                 } (zio.Unsafe.unsafe)
                 fib.start(self)
-                fib.unsafe.poll(zio.Unsafe.unsafe) match {
-                  case Some(ex) =>
-                    //observer is either off or offDone, race with the scheduler
-                    val prev = observerState.getAndSet(ObserverFired)
-                    if(prev eq ObserverFired) {
-                      //scheduler won the race and already invoked the callback
-                      //already cancelled, so cb was invoked, we don't even have an interruption action
-                      Left(ZIO.unit)
-                    }
-                    else {
-                      //we won the race, we can now cancel the scheduler and return an immediate value
-                      cancellable.apply()
-                      Right(fib.inheritAll.as(Right(ex)))
-                    }
-                  case _ =>
-                    //turn on the observer
-                    if(observerState.compareAndSet(ObserverOff, ObserverOn))
+
+                observerState.get() match {
+                  case ObserverOffDone(ex) =>
+                    //early fiber exit
+                    cancellable.apply()
+                    Right(fib.inheritAll.as(Right(ex)))
+                  case ObserverFired =>
+                    //scheduler already won, so cb is already invoked and we don't even have a cancellation action to provide
+                    Left(ZIO.unit)
+                  case ObserverOff =>
+                    if(observerState.compareAndSet(ObserverOff, ObserverOn)) {
                       Left(ZIO.succeed(cancellable.apply()))  //todo: interrupt fib? it'd be interrupted anyway as a child fiber
-                    else
-                      observerState.get match {
-                        case x @ ObserverOffDone(ex2) =>
-                          //fiber completed, last chance to bypass the callback
-                          if(observerState.compareAndSet(x, ObserverFired)) {
-                            cancellable.apply()
-                            Right(fib.inheritAll.as(Right(ex2)))
-                          } else {
-                            //scheduler won, so cb was already invoked, nothing to interrupt
-                            Left(ZIO.unit)
-                          }
+                    } else {
+                      //lost the race to either the fiber or the scheduler,
+                      //now state can be either ObserverOffDone(_) or ObserverFired
+                      //furthermore, this is the final state (no loop required)
+                      observerState.get() match {
+                        case ObserverOffDone(ex) =>
+                          //early fiber exit
+                          cancellable.apply()
+                          Right(fib.inheritAll.as(Right(ex)))
                         case ObserverFired =>
-                          //already cancelled, so cb was invoked, we don't even have an interruption action
+                          //scheduler already won, so cb is already invoked and we don't even have a cancellation action to provide
                           Left(ZIO.unit)
-                        //no other valid state
                       }
+                    }
                 }
               }
             }
