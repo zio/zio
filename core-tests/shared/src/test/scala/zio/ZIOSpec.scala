@@ -2733,11 +2733,11 @@ object ZIOSpec extends ZIOBaseSpec {
                             runtime.unsafe.fork {
                               //this makes sure to interrupt this fiber once the external scope closes (which happens AFTER the entire spec executed)
                               scope.addFinalizer(ZIO.succeed(k(ZIO.interrupt))) *>
-                              step.succeed(())
+                                step.succeed(())
                             }
                           }
                           ()
-                          //never complete
+                        //never complete
                         }
                       }
                     }
@@ -2759,7 +2759,8 @@ object ZIOSpec extends ZIOBaseSpec {
                     }
                     .flatMap { _ =>
                       //ZIO.never
-                      zio.Promise.make[Nothing, Any]
+                      zio.Promise
+                        .make[Nothing, Any]
                         .withFinalizer(_.interrupt)
                         .flatMap(_.await)
                     }

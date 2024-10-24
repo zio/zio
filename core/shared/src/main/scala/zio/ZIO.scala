@@ -5565,9 +5565,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
               if (
                 bypassState.getPlain() eq BypassDenied
-              )                //no need to actually start the fiber (todo: remove it from the fibers scope?)
+              ) //no need to actually start the fiber (todo: remove it from the fibers scope?)
                 {
-                  fib.startSuspended() (zio.Unsafe.unsafe)
+                  fib.startSuspended()(zio.Unsafe.unsafe)
                   Left(ZIO.unit)
                 } //todo: can we bypass here? it'd require the scheduler to change state into BypassPendingResult and adding a state so the scheduler does the right thing for 'late' timeout
               else {
