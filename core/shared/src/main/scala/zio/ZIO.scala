@@ -5566,7 +5566,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
               if (
                 bypassState.getPlain() eq BypassDenied
               )                //no need to actually start the fiber (todo: remove it from the fibers scope?)
-                Left(ZIO.unit) //todo: can we bypass here? it'd require the scheduler to change state into BypassPendingResult and adding a state so the scheduler does the right thing for 'late' timeout
+                {
+                  fib.startSuspended() (zio.Unsafe.unsafe)
+                  Left(ZIO.unit)
+                } //todo: can we bypass here? it'd require the scheduler to change state into BypassPendingResult and adding a state so the scheduler does the right thing for 'late' timeout
               else {
                 fib.addObserver { ex =>
                   if (!bypassState.compareAndSet(BypassPossible, BypassPendingResult(ex))) {
@@ -5599,7 +5602,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                       //lost the race to either the fiber or the scheduler,
                       //now state can be either BypassPendingResult(_) or BypassDenied
                       //furthermore, this is the final state (no loop required)
-                      bypassState.getPlain() match { //the CAS already read the value, since we lost the case we also know state will no longer change (the nature of the STM)
+                      bypassState.getPlain() match { //the CAS already read the value, since we lost the CAS we also know state will no longer change (the nature of the STM)
                         case BypassPendingResult(ex) =>
                           //early fiber exit
                           cancellable.apply()
