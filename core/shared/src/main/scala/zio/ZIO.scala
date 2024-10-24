@@ -5545,68 +5545,56 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                   null
                 )(zio.Unsafe.unsafe)
               import TimeoutTo._
-              val observerState = new AtomicReference[ObserverState[E, A]](ObserverOff)
+              val bypassState = new AtomicReference[BypassState[E, A]](BypassPossible)
               val cancellable = scheduler
                 .schedule(
-                  //todo: when interrupt 'misses' we can gracefully consider fib as winner
                   () => {
-                    var shouldFire = false
-                    observerState.updateAndGet{
-                      case ObserverOff | ObserverOn =>
-                        shouldFire = true
-                        ObserverFired
-                      case other =>
-                        shouldFire = false
-                        other
-                    }
-                    if(shouldFire)
+                    //race with the fiber, fiber may change state from BypassPossible to either BypassDenied or BypassPendingResult
+                    //once the fiber wins the race, the scheduler simply gives up
+                    if(bypassState.compareAndSet(BypassPossible, BypassDenied))
                       cb(ZIO.left(b()).ensuring(fib.interrupt))
                   },
                   duration) (zio.Unsafe.unsafe)
 
-              if(observerState.getPlain() eq ObserverFired) //no need to actually start the fiber (todo: remove it from the fibers scope?)
-                Right(ZIO.left(b()))
+              if(bypassState.getPlain() eq BypassDenied) //no need to actually start the fiber (todo: remove it from the fibers scope?)
+                Left(ZIO.unit)  //todo: can we bypass here? it'd require the scheduler to change state into BypassPendingResult and adding a state so the scheduler does the right thing for 'late' timeout
               else {
                 fib.addObserver { ex =>
-                  if(!observerState.compareAndSet(ObserverOff, ObserverOffDone(ex))) {
+                  if(!bypassState.compareAndSet(BypassPossible, BypassPendingResult(ex))) {
                     //lost the race, either to parent fiber or to the scheduler
-                    //parent won => we're on, otherwise fired, so we attempt transitioning from on to fired,
-                    //this can fail in two cases:
-                    //1. scheduler won, hence we're already fired
-                    //2. parent won the first race, but scheduler won the second one
-                    if(observerState.compareAndSet(ObserverOn, ObserverFired)) {
-                      cancellable.apply()
-                      cb {
-                        (fib.inheritAll.as(Right(ex)))
-                      }
+                    //in either case the state is BypassDenied and we're in race with the scheduler, and we know for sure this entire effect will be completed via cb.
+                    //since cb CAN be invoked multiple times, we simply delegate the race to cb
+                    // * notice that changing the scheduler to use bypass as well will require modifying this logic as state may be BypassPendingResult, violating the assumption behind this logic.
+                    cancellable.apply()
+                    cb {
+                      (fib.inheritAll.as(Right(ex)))
                     }
-                    //else: scheduler won, cb is already fired with b()
-                  }//else: fiber won, parent now owns cb and bypass it
+                  } //else: fiber won, parent now owns cb and can bypass it
                 } (zio.Unsafe.unsafe)
                 fib.start(self)
 
-                observerState.get() match {
-                  case ObserverOffDone(ex) =>
+                bypassState.get() match {
+                  case BypassPendingResult(ex) =>
                     //early fiber exit
                     cancellable.apply()
                     Right(fib.inheritAll.as(Right(ex)))
-                  case ObserverFired =>
+                  case BypassDenied =>
                     //scheduler already won, so cb is already invoked and we don't even have a cancellation action to provide
                     Left(ZIO.unit)
-                  case ObserverOff =>
-                    if(observerState.compareAndSet(ObserverOff, ObserverOn)) {
+                  case BypassPossible =>
+                    if(bypassState.compareAndSet(BypassPossible, BypassDenied)) {
                       Left(ZIO.succeed(cancellable.apply()))  //todo: interrupt fib? it'd be interrupted anyway as a child fiber
                     } else {
                       //lost the race to either the fiber or the scheduler,
-                      //now state can be either ObserverOffDone(_) or ObserverFired
+                      //now state can be either BypassPendingResult(_) or BypassDenied
                       //furthermore, this is the final state (no loop required)
-                      observerState.get() match {
-                        case ObserverOffDone(ex) =>
+                      bypassState.getPlain() match {  //the CAS already read the value, since we lost the case we also know state will no longer change (the nature of the STM)
+                        case BypassPendingResult(ex) =>
                           //early fiber exit
                           cancellable.apply()
                           Right(fib.inheritAll.as(Right(ex)))
-                        case ObserverFired =>
-                          //scheduler already won, so cb is already invoked and we don't even have a cancellation action to provide
+                        case BypassDenied =>
+                          //scheduler already won (notice the fiber does not attempt to set the state to BypassDenied), so cb is already invoked and we don't even have a cancellation action to provide
                           Left(ZIO.unit)
                       }
                     }
@@ -5624,12 +5612,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     }
   }
   private object TimeoutTo {
-    sealed trait ObserverState[+E, +A]
-    case object ObserverOff extends ObserverState[Nothing, Nothing]
-    case object ObserverOn extends ObserverState[Nothing, Nothing]
-    case object ObserverFired extends ObserverState[Nothing, Nothing]
-    case class ObserverOffDone[+E, +A](ex : zio.Exit[E, A]) extends ObserverState[E, A]
-    //case object ObserverCancelled extends ObserverState[Nothing, Nothing]
+    sealed trait BypassState[+E, +A]
+    case object BypassPossible extends BypassState[Nothing, Nothing]
+    case object BypassDenied extends BypassState[Nothing, Nothing]
+    case class BypassPendingResult[+E, +A](ex : zio.Exit[E, A]) extends BypassState[E, A]
   }
 
   final class Acquire[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
