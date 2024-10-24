@@ -5546,6 +5546,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                 r.runtimeFlags,
                 null
               )(zio.Unsafe.unsafe)
+              fib.startSuspended()(zio.Unsafe.unsafe)
               import TimeoutTo._
               val bypassState = new AtomicReference[BypassState[E, A]](BypassPossible)
               val cancellable = scheduler
@@ -5567,7 +5568,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                 bypassState.getPlain() eq BypassDenied
               ) //no need to actually start the fiber (todo: remove it from the fibers scope?)
                 {
-                  fib.startSuspended()(zio.Unsafe.unsafe)
                   Left(ZIO.unit)
                 } //todo: can we bypass here? it'd require the scheduler to change state into BypassPendingResult and adding a state so the scheduler does the right thing for 'late' timeout
               else {
@@ -5583,6 +5583,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                     }
                   } //else: fiber won, parent now owns cb and can bypass it
                 }(zio.Unsafe.unsafe)
+                //this is a bit cheeky, fiber is already started in suspended mode,
+                // scheduler may have already attempted to interrupt it,
+                // and now we're starting the fiber, allowing it to make some progress on the current thread.
+                // this is fine due to interrupt relying on tell, which just like start first CASes the running boolean, effectively preventing a race
                 fib.start(self)
 
                 bypassState.get() match {
