@@ -822,25 +822,42 @@ object Cause extends Serializable {
     final case class Filter[E](p: Cause[E] => Boolean) extends Folder[Any, E, Cause[E]] {
       def empty(context: Any): Cause[E] = Cause.empty
 
-      def failCase(context: Any, error: E, stackTrace: StackTrace): Cause[E] = Cause.Fail(error, stackTrace)
+      def failCase(context: Any, error: E, stackTrace: StackTrace): Cause[E] = {
+        val c = Cause.Fail(error, stackTrace)
+        if (p(c))
+          c
+        else
+          Cause.empty
+      }
 
-      def dieCase(context: Any, t: Throwable, stackTrace: StackTrace): Cause[E] = Cause.Die(t, stackTrace)
+      def dieCase(context: Any, t: Throwable, stackTrace: StackTrace): Cause[E] = {
+        val c = Cause.Die(t, stackTrace)
+        if (p(c))
+          c
+        else
+          Cause.empty
+      }
 
-      def interruptCase(context: Any, fiberId: FiberId, stackTrace: StackTrace): Cause[E] =
-        Cause.Interrupt(fiberId, stackTrace)
+      def interruptCase(context: Any, fiberId: FiberId, stackTrace: StackTrace): Cause[E] = {
+        val c = Cause.Interrupt(fiberId, stackTrace)
+        if (p(c))
+          c
+        else
+          Cause.empty
+      }
 
       def bothCase(context: Any, left: Cause[E], right: Cause[E]): Cause[E] =
-        if (p(left)) {
-          if (p(right)) Cause.Both(left, right)
+        if (left.nonEmpty) {
+          if (right.nonEmpty) Cause.Both(left, right)
           else left
-        } else if (p(right)) right
+        } else if (right.nonEmpty) right
         else Cause.empty
 
       def thenCase(context: Any, left: Cause[E], right: Cause[E]): Cause[E] =
-        if (p(left)) {
-          if (p(right)) Cause.Then(left, right)
+        if (left.nonEmpty) {
+          if (right.nonEmpty) Cause.Then(left, right)
           else left
-        } else if (p(right)) right
+        } else if (right.nonEmpty) right
         else Cause.empty
 
       def stacklessCase(context: Any, value: Cause[E], stackless: Boolean): Cause[E] = Stackless(value, stackless)
