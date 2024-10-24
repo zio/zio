@@ -2752,7 +2752,10 @@ object ZIOSpec extends ZIOBaseSpec {
                       Some(ZIO.unit)
                     }
                     .flatMap { _ =>
-                      ZIO.never
+                      //ZIO.never
+                      zio.Promise.make[Nothing, Any]
+                        .withFinalizer(_.interrupt)
+                        .flatMap(_.await)
                     }
                     .ensuring(finalized.set(true))
                     .uninterruptible
