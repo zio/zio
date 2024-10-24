@@ -693,13 +693,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           self._blockingOn = FiberRuntime.notBlockingOn
           sync
         } else {
-          /*log(
+          log(
             () =>
               s"Async operation attempted synchronous resumption, but its callback was already invoked; synchronous value will be discarded",
             Cause.empty,
             ZIO.someError,
             id.location
-          )*/
+          )
 
           null.asInstanceOf[ZIO.Erased]
         }
