@@ -5546,7 +5546,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                 r.runtimeFlags,
                 null
               )(zio.Unsafe.unsafe)
-              fib.startSuspended()(zio.Unsafe.unsafe)
               import TimeoutTo._
               val bypassState = new AtomicReference[BypassState[E, A]](BypassPossible)
               val cancellable = scheduler
@@ -5565,9 +5564,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                 )(zio.Unsafe.unsafe)
 
               if (
-                bypassState.getPlain() eq BypassDenied
+                bypassState.get /*Plain*/ () eq BypassDenied
               ) //no need to actually start the fiber (todo: remove it from the fibers scope?)
                 {
+                  fib.startSuspended()(zio.Unsafe.unsafe)
                   Left(ZIO.unit)
                 } //todo: can we bypass here? it'd require the scheduler to change state into BypassPendingResult and adding a state so the scheduler does the right thing for 'late' timeout
               else {
@@ -5583,10 +5583,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                     }
                   } //else: fiber won, parent now owns cb and can bypass it
                 }(zio.Unsafe.unsafe)
-                //this is a bit cheeky, fiber is already started in suspended mode,
-                // scheduler may have already attempted to interrupt it,
-                // and now we're starting the fiber, allowing it to make some progress on the current thread.
-                // this is fine due to interrupt relying on tell, which just like start first CASes the running boolean, effectively preventing a race
                 fib.start(self)
 
                 bypassState.get() match {
@@ -5606,7 +5602,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                       //lost the race to either the fiber or the scheduler,
                       //now state can be either BypassPendingResult(_) or BypassDenied
                       //furthermore, this is the final state (no loop required)
-                      bypassState.getPlain() match { //the CAS already read the value, since we lost the CAS we also know state will no longer change (the nature of the STM)
+                      bypassState.get /*Plain*/ () match { //the CAS already read the value, since we lost the CAS we also know state will no longer change (the nature of the STM)
                         case BypassPendingResult(ex) =>
                           //early fiber exit
                           cancellable.apply()
