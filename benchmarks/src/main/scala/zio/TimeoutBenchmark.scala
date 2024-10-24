@@ -14,8 +14,8 @@ class TimeoutBenchmark {
   @Param(Array("0", "100", "10000"))
   var n: Int = _
 
-  val effect = ZIO.foldLeft(0 until n)(0){
-    case (prev, x) => ZIO.succeed(prev + x)
+  val effect = ZIO.foldLeft(0 until n)(0) { case (prev, x) =>
+    ZIO.succeed(prev + x)
   }
 
   @Benchmark
