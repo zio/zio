@@ -5506,7 +5506,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   }
 
   final class TimeoutTo[-R, +E, +A, +B](self: ZIO[R, E, A], b: () => B) {
-    def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
+    //todo: kept here for reference, drop this once the new impl is approved (makre sure to drop the referencing benchmarks in zio.TimeoutBenchmark)
+    def applyOrig[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
     ): ZIO[R, E, B1] =
       ZIO.fiberIdWith { parentFiberId =>
@@ -5530,7 +5531,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         )
       }
 
-    def apply1[B1 >: B](f: A => B1)(duration: => Duration)(implicit
+    def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
                                                           trace: Trace
     ): ZIO[R, E, B1] = {
       ZIO.clockWith(_.scheduler).flatMap{scheduler =>
@@ -5549,9 +5550,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
               val cancellable = scheduler
                 .schedule(
                   () => {
-                    //race with the fiber, fiber may change state from BypassPossible to either BypassDenied or BypassPendingResult
-                    //once the fiber wins the race, the scheduler simply gives up
-                    if(bypassState.compareAndSet(BypassPossible, BypassDenied))
+                    //race both with the fiber and the supervisor
+                    //fiber attempts to CAS state into BypassPendingResult while supervisor attempts to CAS into BypassDenied,
+                    //if we won the race or lost to the supervisor, we're now racing with the fiber.
+                    //otherwise, fiber existed early and the coordinator is still able to bypass cb
+                    if(bypassState.compareAndSet(BypassPossible, BypassDenied)) //won the race
+                      cb(ZIO.left(b()).ensuring(fib.interrupt))
+                    else if (bypassState.getPlain eq BypassDenied)  //supervisor won
                       cb(ZIO.left(b()).ensuring(fib.interrupt))
                   },
                   duration) (zio.Unsafe.unsafe)
