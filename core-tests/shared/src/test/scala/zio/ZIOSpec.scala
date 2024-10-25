@@ -2726,15 +2726,23 @@ object ZIOSpec extends ZIOBaseSpec {
                       }
                       ()
                     }
-                    .ensuring(ZIO.async[Any, Nothing, Unit] { _ =>
-                      Unsafe.unsafe { implicit unsafe =>
-                        runtime.unsafe.fork {
-                          step.succeed(())
-                        }
+                    .ensuring {
+                      ZIO.scopeWith { /*scope*/
+                        _ =>
+                          ZIO.async[Any, Nothing, Unit] { /*k*/
+                            _ =>
+                              Unsafe.unsafe { implicit unsafe =>
+                                runtime.unsafe.fork {
+                                  //this makes sure to interrupt this fiber once the external scope closes (which happens AFTER the entire spec executed)
+                                  //scope.addFinalizer(ZIO.succeed(k(ZIO.interrupt))) *>
+                                  step.succeed(())
+                                }
+                              }
+                              ()
+                            //never complete
+                          }
                       }
-                      ()
-                    //never complete
-                    })
+                    }
                     .ensuring(unexpectedPlace.update(2 :: _))
                     .forkDaemon
           result     <- Live.withLive(fork.interrupt)(_.timeout(5.seconds))
@@ -2752,7 +2760,11 @@ object ZIOSpec extends ZIOBaseSpec {
                       Some(ZIO.unit)
                     }
                     .flatMap { _ =>
-                      ZIO.never
+                      //ZIO.never
+                      zio.Promise
+                        .make[Nothing, Any]
+                        .withFinalizer(_.interrupt)
+                        .flatMap(_.await)
                     }
                     .ensuring(finalized.set(true))
                     .uninterruptible
