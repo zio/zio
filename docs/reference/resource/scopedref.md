@@ -73,3 +73,7 @@ releasing the first resource
 10
 releasing the second resource
 ```
+
+## Interruption
+
+The `set` operation runs in an uninterruptible block. This means that if you want to manage a `Fiber` using a `ScopedRef` by using `forkScoped`, this fiber must be explicitly made interruptible.
