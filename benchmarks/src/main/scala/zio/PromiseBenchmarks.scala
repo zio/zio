@@ -50,7 +50,7 @@ class PromiseBenchmarks {
   @Benchmark
   def zioPromiseMultiAwaitDone(): Unit = {
     def createWaiters(promise: Promise[Nothing, Unit]): ZIO[Any, Nothing, Seq[Fiber[Nothing, Unit]]] =
-      ZIO.foreach(Range(0, waiters))(_ => promise.await.forkDaemon)
+      ZIO.foreach(Vector.range(0, waiters))(_ => promise.await.forkDaemon)
 
     val io = Promise
       .make[Nothing, Unit]
