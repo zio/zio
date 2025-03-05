@@ -29,7 +29,7 @@ class PromiseBenchmarks {
       Promise
         .make[Nothing, Unit]
         .flatMap { promise =>
-          promise.succeed(()) *> promise.await
+          promise.done(Exit.unit) *> promise.await
         }
         .repeatN(n)
 
@@ -58,7 +58,7 @@ class PromiseBenchmarks {
         for {
           fibers <- createWaiters(promise)
           _      <- promise.done(Exit.unit)
-          _      <- ZIO.foreachDiscard(fibers)(_.join)
+          _      <- ZIO.foreachDiscard(fibers)(_.await)
         } yield ()
       }
       .repeatN(1023)

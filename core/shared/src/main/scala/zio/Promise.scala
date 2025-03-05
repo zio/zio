@@ -170,24 +170,6 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
   private[zio] def succeedUnit(implicit ev0: A =:= Unit, trace: Trace): UIO[Boolean] =
     ZIO.succeed(unsafe.succeedUnit(ev0, trace, Unsafe))
 
-  private def interruptJoiner(joiner: IO[E, A] => Any)(implicit trace: Trace): UIO[Any] = ZIO.succeed {
-    var retry = true
-
-    while (retry) {
-      val oldState = state.get
-
-      val newState = oldState match {
-        case Pending(joiners) =>
-          Pending(joiners.filter(j => !j.eq(joiner)))
-
-        case _ =>
-          oldState
-      }
-
-      retry = !state.compareAndSet(oldState, newState)
-    }
-  }
-
   private[zio] trait UnsafeAPI extends Serializable {
     def completeWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean
     def die(e: Throwable)(implicit trace: Trace, unsafe: Unsafe): Boolean
@@ -217,7 +199,7 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
             } else {
               loop()
             }
-          case _: Done[?, ?] => false
+          case _ => false
         }
       loop()
     }
@@ -241,8 +223,8 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
 
     def poll(implicit unsafe: Unsafe): Option[IO[E, A]] =
       state.get() match {
-        case _: Pending[?, ?] => None
-        case Done(value)      => Some(value)
+        case Done(value) => Some(value)
+        case _           => None
       }
 
     def refailCause(e: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Boolean =
@@ -251,8 +233,8 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     def succeed(a: A)(implicit trace: Trace, unsafe: Unsafe): Boolean =
       completeWith(Exit.succeed(a))
 
-      override def succeedUnit(implicit ev0: A =:= Unit, trace: Trace, unsafe: Unsafe): Boolean =
-        completeWith(Exit.unit.asInstanceOf[IO[E, A]])
+    override def succeedUnit(implicit ev0: A =:= Unit, trace: Trace, unsafe: Unsafe): Boolean =
+      completeWith(Exit.unit.asInstanceOf[IO[E, A]])
   }
 
 }
@@ -269,7 +251,7 @@ object Promise {
           case Chain(j, js) =>
             j(io)
             js.complete(io)
-          case _: Empty.type => ()
+          case _ => ()
         }
       def add(joiner: IO[E, A] => Any): Pending[E, A] = new Chain(joiner, self)
     }
