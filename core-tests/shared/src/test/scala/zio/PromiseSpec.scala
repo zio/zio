@@ -128,6 +128,6 @@ object PromiseSpec extends ZIOBaseSpec {
         _      <- p.complete(Exit.unit)
         _      <- ZIO.foreach(fibers)(_.await)
       } yield assertCompletes
-    },
+    }
   )
 }
