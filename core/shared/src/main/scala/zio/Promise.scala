@@ -184,7 +184,7 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     def succeedUnit(implicit ev0: A =:= Unit, trace: Trace, unsafe: Unsafe): Boolean
   }
 
-  @deprecated("Kept for binary compatibility only. Do not use", "2.1.15")
+  @deprecated("Kept for binary compatibility only. Do not use", "2.1.16")
   private[zio] def state: AtomicReference[Promise.internal.State[E, A]] =
     unsafe.asInstanceOf[AtomicReference[Promise.internal.State[E, A]]]
   private[zio] val unsafe: UnsafeAPI = new AtomicReference(Promise.internal.State.empty[E, A]) with UnsafeAPI { state =>
