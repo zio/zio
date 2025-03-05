@@ -120,6 +120,14 @@ object PromiseSpec extends ZIOBaseSpec {
         _ <- p.fail("failure")
         d <- p.isDone
       } yield assert(d)(isTrue)
-    } @@ zioTag(errors)
+    } @@ zioTag(errors),
+    test("waiter stack safety") {
+      for {
+        p      <- Promise.make[Nothing, Unit]
+        fibers <- ZIO.foreach(1 to 100_000)(_ => p.await.forkDaemon)
+        _      <- p.complete(Exit.unit)
+        _      <- ZIO.foreach(fibers)(_.await)
+      } yield assertCompletes
+    },
   )
 }

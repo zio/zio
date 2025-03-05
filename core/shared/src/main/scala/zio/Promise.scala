@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.Promise.internal._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.collection.immutable.LongMap
 
@@ -40,6 +39,7 @@ import java.util.concurrent.atomic.AtomicReference
  * }}}
  */
 final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
+  import Promise.internal._
 
   /**
    * Retrieves the value of the promise, suspending the fiber running the action
@@ -239,27 +239,15 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
 
 }
 object Promise {
-  private val ConstFalse: () => Boolean = () => false
-
-  private[zio] object internal {
-    sealed abstract class State[E, A]
+  private[Promise] object internal {
+    sealed abstract class State[E, A] extends Serializable
     final case class Done[E, A](val value: IO[E, A]) extends State[E, A]
-    sealed abstract class Pending[E, A] extends State[E, A] { self =>
-      @annotation.tailrec
-      final def complete(io: IO[E, A]): Unit =
-        self match {
-          case Chain(j, js) =>
-            j(io)
-            js.complete(io)
-          case _ => ()
-        }
-      def add(joiner: IO[E, A] => Any): Pending[E, A] = new Chain(joiner, self)
+    final class Pending[E, A](waiters: LongMap[IO[E, A] => Any], next: Long) extends State[E, A] { self =>
+      def complete(io: IO[E, A]): Unit = waiters.valuesIterator.foreach(_(io))
+      def add(joiner: IO[E, A] => Any): Pending[E, A] = new Pending[E, A](waiters.updated(next, joiner), next + 1)
     }
-
-    final case class Chain[E, A](j: IO[E, A] => Any, js: Pending[E, A]) extends Pending[E, A]
-    case object Empty                                                   extends Pending[Nothing, Nothing]
-
     object State {
+      private val Empty = new Pending[Nothing, Nothing](LongMap.empty, 1)
       def empty[E, A]: State[E, A] = Empty.asInstanceOf[State[E, A]]
     }
   }
