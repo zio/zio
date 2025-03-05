@@ -560,7 +560,7 @@ sealed trait ZIO[-R, +E, +A]
    * an [[zio.Exit]] for the completion value of the fiber.
    */
   final def exit(implicit trace: Trace): URIO[R, Exit[E, A]] =
-    self.foldCause(Exit.failCause, Exit.succeed(_))
+    self.foldCause(Exit.failCause, ZIO.successFn)
 
   /**
    * Extracts this effect as an [[zio.Exit]] and then applies the provided
@@ -656,7 +656,10 @@ sealed trait ZIO[-R, +E, +A]
   final def flatMapError[R1 <: R, E2](
     f: E => URIO[R1, E2]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E2, A] =
-    flipWith(_ flatMap f)
+    self.foldZIO(
+      success = ZIO.successFn,
+      failure = f(_).flip
+    )
 
   /**
    * Returns an effect that performs the outer effect first, followed by the
@@ -1284,7 +1287,8 @@ sealed trait ZIO[-R, +E, +A]
   final def provideSomeEnvironment[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit trace: Trace): ZIO[R0, E, A] =
-    ZIO.environmentWithZIO(r0 => self.provideEnvironment(f(r0)))
+    FiberRef.currentEnvironment
+      .locallyWith(f.asInstanceOf[ZEnvironment[Any] => ZEnvironment[Any]])(self.asInstanceOf[ZIO[Any, E, A]])
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -2698,8 +2702,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           Some(parentFiber),
           childFiber
         )
-
-        childFiber.addObserver(exit => supervisor.onEnd(exit, childFiber))
       }
 
       val parentScope =
@@ -3708,13 +3710,23 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Lifts an `Either` into a `ZIO` value.
    */
   def fromEither[E, A](v: => Either[E, A])(implicit trace: Trace): IO[E, A] =
-    succeed(v).flatMap(_.fold(ZIO.failFn, ZIO.successFn))
+    ZIO.suspendSucceed {
+      v match {
+        case Right(s) => Exit.succeed(s)
+        case Left(e)  => ZIO.fail(e)
+      }
+    }
 
   /**
    * Lifts an `Either` into a `ZIO` value.
    */
   def fromEitherCause[E, A](v: => Either[Cause[E], A])(implicit trace: Trace): IO[E, A] =
-    succeed(v).flatMap(_.fold(Exit.failCause, ZIO.successFn))
+    ZIO.suspendSucceed {
+      v match {
+        case Right(s) => Exit.succeed(s)
+        case Left(c)  => ZIO.failCause(c)
+      }
+    }
 
   /**
    * Creates a `ZIO` value that represents the exit value of the specified
