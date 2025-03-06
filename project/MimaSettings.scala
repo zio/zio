@@ -34,6 +34,7 @@ object MimaSettings {
         exclude[NewMixinForwarderProblem]("zio.Exit.mapErrorCause"),
         exclude[NewMixinForwarderProblem]("zio.Exit.unit"),
         exclude[Problem]("zio.Promise#internal*"),
+        exclude[Problem]("zio.Promise$internal*"),
       ),
       mimaFailOnProblem := failOnProblem
     )
