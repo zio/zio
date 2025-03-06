@@ -92,5 +92,11 @@ object PrimitiveType {
   final case class ZonedDateTime(
     validation: Validation[java.time.ZonedDateTime]
   ) extends Ref[java.time.ZonedDateTime]
+  final case class UUID(
+    validation: Validation[java.util.UUID]
+  ) extends Ref[java.util.UUID]
+  final case class Currency(
+    validation: Validation[java.util.Currency]
+  ) extends Ref[java.util.Currency]
 
 }

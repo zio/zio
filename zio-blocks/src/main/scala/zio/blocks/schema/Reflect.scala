@@ -499,6 +499,24 @@ object Reflect {
       Nil
     )
 
+  def currency[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.util.Currency] =
+    Primitive(
+      PrimitiveType.Currency(Validation.None),
+      F.fromBinding(Binding.Primitive.currency),
+      TypeName.currency,
+      Doc.Empty,
+      Nil
+    )
+
+  def uuid[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.util.UUID] =
+    Primitive(
+      PrimitiveType.UUID(Validation.None),
+      F.fromBinding(Binding.Primitive.uuid),
+      TypeName.uuid,
+      Doc.Empty,
+      Nil
+    )
+
   def set[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Sequence[F, A, Predef.Set] =
     Sequence(element, F.fromBinding(Binding.Seq.set), TypeName.set[A], Doc.Empty, Nil)
 

@@ -58,6 +58,10 @@ object TypeName {
 
   val zonedDateTime: TypeName[java.time.ZonedDateTime] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "ZonedDateTime")
 
+  val currency: TypeName[java.util.Currency] = TypeName(Namespace("java" :: "util" :: Nil, Nil), "Currency")
+
+  val uuid: TypeName[java.util.UUID] = TypeName(Namespace("java" :: "util" :: Nil, Nil), "UUID")
+
   def some[A]: TypeName[Some[A]] = _some.asInstanceOf[TypeName[Some[A]]]
 
   val none: TypeName[None.type] = TypeName(Namespace("scala" :: Nil, Nil), "None")

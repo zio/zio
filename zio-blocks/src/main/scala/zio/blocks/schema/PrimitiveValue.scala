@@ -152,4 +152,14 @@ object PrimitiveValue {
 
     def primitiveType: PrimitiveType[java.time.ZonedDateTime] = PrimitiveType.ZonedDateTime(Validation.None)
   }
+  final case class Currency(value: java.util.Currency) extends Ref {
+    final type Type = java.util.Currency
+
+    def primitiveType: PrimitiveType[java.util.Currency] = PrimitiveType.Currency(Validation.None)
+  }
+  final case class UUID(value: java.util.UUID) extends Ref {
+    final type Type = java.util.UUID
+
+    def primitiveType: PrimitiveType[java.util.UUID] = PrimitiveType.UUID(Validation.None)
+  }
 }

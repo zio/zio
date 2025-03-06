@@ -5,7 +5,7 @@ import zio.blocks.schema.binding._
 import RegisterOffset.RegisterOffset
 
 object Main {
-  final case class Person(name: String, age: Int, address: String, childrenAges: List[Int])
+  final case class Person(id: java.util.UUID, name: String, age: Int, address: String, childrenAges: List[Int])
 
   object Person {
     // Proposed macros:
@@ -24,30 +24,33 @@ object Main {
         def size: RegisterOffset = RegisterOffset(ints = 1, objects = 3)
 
         def construct(in: Registers, baseOffset: RegisterOffset): Person = {
-          val name    = in.getObject(baseOffset, 0).asInstanceOf[String]
+          val id      = in.getObject(baseOffset, 0).asInstanceOf[java.util.UUID]
+          val name    = in.getObject(baseOffset, 1).asInstanceOf[String]
           val age     = in.getInt(baseOffset, 0)
-          val address = in.getObject(baseOffset, 1).asInstanceOf[String]
-          val ages    = in.getObject(baseOffset, 2).asInstanceOf[List[Int]]
+          val address = in.getObject(baseOffset, 2).asInstanceOf[String]
+          val ages    = in.getObject(baseOffset, 3).asInstanceOf[List[Int]]
 
-          Person(name, age, address, ages)
+          Person(id, name, age, address, ages)
         }
       }
 
     val deconstructor: Deconstructor[Person] =
       new Deconstructor[Person] {
-        def size: RegisterOffset = RegisterOffset(ints = 1, objects = 3)
+        def size: RegisterOffset = RegisterOffset(ints = 1, objects = 4)
 
         def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Person): Unit = {
-          out.setObject(baseOffset, 0, in.name)
+          out.setObject(baseOffset, 0, in.id)
+          out.setObject(baseOffset, 1, in.name)
           out.setInt(baseOffset, 0, in.age)
-          out.setObject(baseOffset, 1, in.address)
-          out.setObject(baseOffset, 2, in.childrenAges)
+          out.setObject(baseOffset, 2, in.address)
+          out.setObject(baseOffset, 3, in.childrenAges)
         }
       }
 
     val personRecord: Reflect.Record[Binding, Person] =
       Reflect.Record(
         List[Term[Binding, Person, ?]](
+          Term("id", Reflect.uuid[Binding], Doc.Empty, List.empty),
           Term("name", Reflect.string[Binding], Doc.Empty, List.empty),
           Term("age", Reflect.int[Binding], Doc.Empty, List.empty),
           Term("address", Reflect.string[Binding], Doc.Empty, List.empty),
@@ -59,14 +62,16 @@ object Main {
         List.empty
       )
 
+    val id: Lens.Bound[Person, java.util.UUID] =
+      Lens.Root(personRecord, personRecord.fields(0).asInstanceOf[Term.Bound[Person, java.util.UUID]])
     val name: Lens.Bound[Person, String] =
-      Lens.Root(personRecord, personRecord.fields(0).asInstanceOf[Term.Bound[Person, String]])
+      Lens.Root(personRecord, personRecord.fields(1).asInstanceOf[Term.Bound[Person, String]])
     val age: Lens.Bound[Person, Int] =
-      Lens.Root(personRecord, personRecord.fields(1).asInstanceOf[Term.Bound[Person, Int]])
+      Lens.Root(personRecord, personRecord.fields(2).asInstanceOf[Term.Bound[Person, Int]])
     val address: Lens.Bound[Person, String] =
-      Lens.Root(personRecord, personRecord.fields(2).asInstanceOf[Term.Bound[Person, String]])
+      Lens.Root(personRecord, personRecord.fields(3).asInstanceOf[Term.Bound[Person, String]])
     val childrenAges: Traversal.Bound[Person, Int] =
-      (Lens.Root(personRecord, personRecord.fields(3).asInstanceOf[Term.Bound[Person, List[Int]]])).list
+      (Lens.Root(personRecord, personRecord.fields(4).asInstanceOf[Term.Bound[Person, List[Int]]])).list
   }
 
   import Person._
@@ -75,7 +80,7 @@ object Main {
     personRecord.registers.foreach(println)
     personRecord.fields.foreach(println)
 
-    val person = Person("John", 30, "123 Main St", List(5, 7, 9))
+    val person = Person(new java.util.UUID(1L, 1L), "John", 30, "123 Main St", List(5, 7, 9))
 
     println("name:    " + Person.name.get(person))
     println("age:     " + Person.age.get(person))

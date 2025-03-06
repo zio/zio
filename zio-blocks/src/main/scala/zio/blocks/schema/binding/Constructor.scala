@@ -258,6 +258,22 @@ object Constructor {
         in.getObject(baseOffset, 0).asInstanceOf[java.time.ZonedDateTime]
     }
 
+  val currency: Constructor[java.util.Currency] =
+    new Constructor[java.util.Currency] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.util.Currency =
+        in.getObject(baseOffset, 0).asInstanceOf[java.util.Currency]
+    }
+
+  val uuid: Constructor[java.util.UUID] =
+    new Constructor[java.util.UUID] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.util.UUID =
+        in.getObject(baseOffset, 0).asInstanceOf[java.util.UUID]
+    }
+
   def some[A](c: Constructor[A]): Constructor[Some[A]] = c.map(Some(_))
 
   val none: Constructor[None.type] = Constructor.unit.map(_ => None)

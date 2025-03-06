@@ -113,6 +113,10 @@ object Schema {
 
   implicit val zonedDateTime: Schema[java.time.ZonedDateTime] = Schema(Reflect.zonedDateTime[Binding])
 
+  implicit val currency: Schema[java.util.Currency] = Schema(Reflect.currency[Binding])
+
+  implicit val uuid: Schema[java.util.UUID] = Schema(Reflect.uuid[Binding])
+
   implicit def set[A](implicit element: Schema[A]): Schema[Set[A]] = Schema(Reflect.set(element.reflect))
 
   implicit def list[A](implicit element: Schema[A]): Schema[List[A]] = Schema(Reflect.list(element.reflect))

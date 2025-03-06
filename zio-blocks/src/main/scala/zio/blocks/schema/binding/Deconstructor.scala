@@ -237,6 +237,20 @@ object Deconstructor {
       def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.ZonedDateTime): Unit = out.setObject(baseOffset, 0, in)
     }
 
+  val currency: Deconstructor[java.util.Currency] =
+    new Deconstructor[java.util.Currency] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.util.Currency): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val uuid: Deconstructor[java.util.UUID] =
+    new Deconstructor[java.util.UUID] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.util.UUID): Unit = out.setObject(baseOffset, 0, in)
+    }
+
   val none: Deconstructor[None.type] =
     new Deconstructor[None.type] {
       def size = RegisterOffset.Zero

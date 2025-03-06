@@ -98,6 +98,10 @@ object Binding {
     val zoneOffset: Primitive[java.time.ZoneOffset] = Primitive[java.time.ZoneOffset]()
 
     val zonedDateTime: Primitive[java.time.ZonedDateTime] = Primitive[java.time.ZonedDateTime]()
+
+    val currency: Primitive[java.util.Currency] = Primitive[java.util.Currency]()
+
+    val uuid: Primitive[java.util.UUID] = Primitive[java.util.UUID]()
   }
 
   final case class Record[A](
