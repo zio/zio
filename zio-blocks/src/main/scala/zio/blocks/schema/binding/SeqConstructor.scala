@@ -2,6 +2,7 @@ package zio.blocks.schema.binding
 
 trait SeqConstructor[C[_]] {
   type ObjectBuilder[A]
+  type BooleanBuilder
   type ByteBuilder
   type ShortBuilder
   type IntBuilder
@@ -11,6 +12,8 @@ trait SeqConstructor[C[_]] {
   type CharBuilder
 
   def newObjectBuilder[A](sizeHint: Int = -1): ObjectBuilder[A]
+
+  def newBooleanBuilder(sizeHint: Int = -1): BooleanBuilder
 
   def newByteBuilder(sizeHint: Int = -1): ByteBuilder
 
@@ -28,6 +31,8 @@ trait SeqConstructor[C[_]] {
 
   def addObject[A](builder: ObjectBuilder[A], a: A): Unit
 
+  def addBoolean(builder: BooleanBuilder, a: Boolean): Unit
+
   def addByte(builder: ByteBuilder, a: Byte): Unit
 
   def addShort(builder: ShortBuilder, a: Short): Unit
@@ -43,6 +48,8 @@ trait SeqConstructor[C[_]] {
   def addChar(builder: CharBuilder, a: Char): Unit
 
   def resultObject[A](builder: ObjectBuilder[A]): C[A]
+
+  def resultBoolean(builder: BooleanBuilder): C[Boolean]
 
   def resultByte(builder: ByteBuilder): C[Byte]
 
@@ -60,13 +67,16 @@ trait SeqConstructor[C[_]] {
 }
 object SeqConstructor {
   abstract class Boxed[C[_]] extends SeqConstructor[C] {
-    override type ByteBuilder   = ObjectBuilder[Byte]
-    override type ShortBuilder  = ObjectBuilder[Short]
-    override type IntBuilder    = ObjectBuilder[Int]
-    override type LongBuilder   = ObjectBuilder[Long]
-    override type FloatBuilder  = ObjectBuilder[Float]
-    override type DoubleBuilder = ObjectBuilder[Double]
-    override type CharBuilder   = ObjectBuilder[Char]
+    override type BooleanBuilder   = ObjectBuilder[Boolean]
+    override type ByteBuilder      = ObjectBuilder[Byte]
+    override type ShortBuilder     = ObjectBuilder[Short]
+    override type IntBuilder       = ObjectBuilder[Int]
+    override type LongBuilder      = ObjectBuilder[Long]
+    override type FloatBuilder     = ObjectBuilder[Float]
+    override type DoubleBuilder    = ObjectBuilder[Double]
+    override type CharBuilder      = ObjectBuilder[Char]
+
+    def newBooleanBuilder(sizeHint: Int): BooleanBuilder = newObjectBuilder(sizeHint)
 
     def newByteBuilder(sizeHint: Int): ByteBuilder = newObjectBuilder(sizeHint)
 
@@ -82,6 +92,8 @@ object SeqConstructor {
 
     def newCharBuilder(sizeHint: Int): CharBuilder = newObjectBuilder(sizeHint)
 
+    def addBoolean(builder: BooleanBuilder, a: Boolean): Unit = addObject(builder, a)
+
     def addByte(builder: ByteBuilder, a: Byte): Unit = addObject(builder, a)
 
     def addShort(builder: ShortBuilder, a: Short): Unit = addObject(builder, a)
@@ -95,6 +107,8 @@ object SeqConstructor {
     def addDouble(builder: DoubleBuilder, a: Double): Unit = addObject(builder, a)
 
     def addChar(builder: CharBuilder, a: Char): Unit = addObject(builder, a)
+
+    def resultBoolean(builder: BooleanBuilder): C[Boolean] = resultObject(builder)
 
     def resultByte(builder: ByteBuilder): C[Byte] = resultObject(builder)
 
@@ -147,6 +161,7 @@ object SeqConstructor {
     case class Builder[A](var buffer: Array[A], var size: Int)
 
     type ObjectBuilder[A] = Builder[A]
+    type BooleanBuilder   = Builder[Boolean]
     type ByteBuilder      = Builder[Byte]
     type ShortBuilder     = Builder[Short]
     type IntBuilder       = Builder[Int]
@@ -157,6 +172,8 @@ object SeqConstructor {
 
     def newObjectBuilder[A](sizeHint: Int): Builder[A] =
       Builder(new Array[AnyRef](sizeHint.max(8)).asInstanceOf[Array[A]], 0)
+
+    def newBooleanBuilder(sizeHint: Int): BooleanBuilder = Builder(new Array[Boolean](sizeHint.max(8)), 0)
 
     def newByteBuilder(sizeHint: Int): ByteBuilder = Builder(new Array[Byte](sizeHint.max(8)), 0)
 
@@ -174,6 +191,12 @@ object SeqConstructor {
 
     def addObject[A](builder: ObjectBuilder[A], a: A): Unit = {
       ensureObjectSize(builder, builder.size + 1)
+      builder.buffer(builder.size) = a
+      builder.size += 1
+    }
+
+    def addBoolean(builder: BooleanBuilder, a: Boolean): Unit = {
+      ensureBooleanSize(builder, builder.size + 1)
       builder.buffer(builder.size) = a
       builder.size += 1
     }
@@ -222,6 +245,8 @@ object SeqConstructor {
 
     def resultObject[A](builder: ObjectBuilder[A]): Array[A] = builder.buffer.take(builder.size)
 
+    def resultBoolean(builder: BooleanBuilder): Array[Boolean] = builder.buffer.take(builder.size)
+
     def resultByte(builder: ByteBuilder): Array[Byte] = builder.buffer.take(builder.size)
 
     def resultShort(builder: ShortBuilder): Array[Short] = builder.buffer.take(builder.size)
@@ -239,6 +264,13 @@ object SeqConstructor {
     private def ensureObjectSize[A](builder: Builder[A], size: Int): Unit =
       if (builder.buffer.length < size) {
         val newBuffer = new Array[AnyRef](builder.buffer.length * 2).asInstanceOf[Array[A]]
+        System.arraycopy(builder.buffer, 0, newBuffer, 0, builder.size)
+        builder.buffer = newBuffer
+      }
+
+    private def ensureBooleanSize(builder: BooleanBuilder, size: Int): Unit =
+      if (builder.buffer.length < size) {
+        val newBuffer = new Array[Boolean](builder.buffer.length * 2)
         System.arraycopy(builder.buffer, 0, newBuffer, 0, builder.size)
         builder.buffer = newBuffer
       }

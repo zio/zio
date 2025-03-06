@@ -63,14 +63,14 @@ object Reflect {
           case ((list, registerOffset), Term(_, Reflect.Primitive(primType, _, _, _, _), _, _)) =>
             primType match {
               case PrimitiveType.Unit =>
-                (Register.None :: list, registerOffset)
+                (Register.Unit :: list, registerOffset)
 
-              case PrimitiveType.Boolean =>
+              case PrimitiveType.Boolean(_) =>
                 val index = RegisterOffset.getBooleans(registerOffset)
 
                 (Register.Boolean(index) :: list, RegisterOffset.incrementBooleans(registerOffset))
 
-              case PrimitiveType.Byte =>
+              case PrimitiveType.Byte(_) =>
                 val index = RegisterOffset.getBytes(registerOffset)
 
                 (Register.Byte(index) :: list, RegisterOffset.incrementBytes(registerOffset))
@@ -105,7 +105,7 @@ object Reflect {
 
                 (Register.Char(index) :: list, RegisterOffset.incrementChars(registerOffset))
 
-              case PrimitiveType.String(_) =>
+              case _ =>
                 val index = RegisterOffset.getObjects(registerOffset)
 
                 (Register.Object(index) :: list, RegisterOffset.incrementObjects(registerOffset))
@@ -263,10 +263,16 @@ object Reflect {
     Primitive(PrimitiveType.Unit, F.fromBinding(Binding.Primitive.unit), TypeName.unit, Doc.Empty, Nil)
 
   def boolean[F[_, _]](implicit F: FromBinding[F]): Reflect[F, Boolean] =
-    Primitive(PrimitiveType.Boolean, F.fromBinding(Binding.Primitive.boolean), TypeName.boolean, Doc.Empty, Nil)
+    Primitive(
+      PrimitiveType.Boolean(Validation.None),
+      F.fromBinding(Binding.Primitive.boolean),
+      TypeName.boolean,
+      Doc.Empty,
+      Nil
+    )
 
   def byte[F[_, _]](implicit F: FromBinding[F]): Reflect[F, Byte] =
-    Primitive(PrimitiveType.Byte, F.fromBinding(Binding.Primitive.byte), TypeName.byte, Doc.Empty, Nil)
+    Primitive(PrimitiveType.Byte(Validation.None), F.fromBinding(Binding.Primitive.byte), TypeName.byte, Doc.Empty, Nil)
 
   def short[F[_, _]](implicit F: FromBinding[F]): Reflect[F, Short] =
     Primitive(
@@ -331,17 +337,197 @@ object Reflect {
       Nil
     )
 
+  def bigInt[F[_, _]](implicit F: FromBinding[F]): Reflect[F, BigInt] =
+    Primitive(
+      PrimitiveType.BigInt(Validation.None),
+      F.fromBinding(Binding.Primitive.bigInt),
+      TypeName.bigInt,
+      Doc.Empty,
+      Nil
+    )
+
+  def bigDecimal[F[_, _]](implicit F: FromBinding[F]): Reflect[F, BigDecimal] =
+    Primitive(
+      PrimitiveType.BigDecimal(Validation.None),
+      F.fromBinding(Binding.Primitive.bigDecimal),
+      TypeName.bigDecimal,
+      Doc.Empty,
+      Nil
+    )
+
+  def dayOfWeek[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.DayOfWeek] =
+    Primitive(
+      PrimitiveType.DayOfWeek(Validation.None),
+      F.fromBinding(Binding.Primitive.dayOfWeek),
+      TypeName.dayOfWeek,
+      Doc.Empty,
+      Nil
+    )
+
+  def duration[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.Duration] =
+    Primitive(
+      PrimitiveType.Duration(Validation.None),
+      F.fromBinding(Binding.Primitive.duration),
+      TypeName.duration,
+      Doc.Empty,
+      Nil
+    )
+
+  def instant[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.Instant] =
+    Primitive(
+      PrimitiveType.Instant(Validation.None),
+      F.fromBinding(Binding.Primitive.instant),
+      TypeName.instant,
+      Doc.Empty,
+      Nil
+    )
+
+  def localDate[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.LocalDate] =
+    Primitive(
+      PrimitiveType.LocalDate(Validation.None),
+      F.fromBinding(Binding.Primitive.localDate),
+      TypeName.localDate,
+      Doc.Empty,
+      Nil
+    )
+
+  def localDateTime[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.LocalDateTime] =
+    Primitive(
+      PrimitiveType.LocalDateTime(Validation.None),
+      F.fromBinding(Binding.Primitive.localDateTime),
+      TypeName.localDateTime,
+      Doc.Empty,
+      Nil
+    )
+
+  def localTime[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.LocalTime] =
+    Primitive(
+      PrimitiveType.LocalTime(Validation.None),
+      F.fromBinding(Binding.Primitive.localTime),
+      TypeName.localTime,
+      Doc.Empty,
+      Nil
+    )
+
+  def month[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.Month] =
+    Primitive(
+      PrimitiveType.Month(Validation.None),
+      F.fromBinding(Binding.Primitive.month),
+      TypeName.month,
+      Doc.Empty,
+      Nil
+    )
+
+  def monthDay[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.MonthDay] =
+    Primitive(
+      PrimitiveType.MonthDay(Validation.None),
+      F.fromBinding(Binding.Primitive.monthDay),
+      TypeName.monthDay,
+      Doc.Empty,
+      Nil
+    )
+
+  def offsetDateTime[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.OffsetDateTime] =
+    Primitive(
+      PrimitiveType.OffsetDateTime(Validation.None),
+      F.fromBinding(Binding.Primitive.offsetDateTime),
+      TypeName.offsetDateTime,
+      Doc.Empty,
+      Nil
+    )
+
+  def offsetTime[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.OffsetTime] =
+    Primitive(
+      PrimitiveType.OffsetTime(Validation.None),
+      F.fromBinding(Binding.Primitive.offsetTime),
+      TypeName.offsetTime,
+      Doc.Empty,
+      Nil
+    )
+
+  def period[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.Period] =
+    Primitive(
+      PrimitiveType.Period(Validation.None),
+      F.fromBinding(Binding.Primitive.period),
+      TypeName.period,
+      Doc.Empty,
+      Nil
+    )
+
+  def year[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.Year] =
+    Primitive(
+      PrimitiveType.Year(Validation.None),
+      F.fromBinding(Binding.Primitive.year),
+      TypeName.year,
+      Doc.Empty,
+      Nil
+    )
+
+  def yearMonth[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.YearMonth] =
+    Primitive(
+      PrimitiveType.YearMonth(Validation.None),
+      F.fromBinding(Binding.Primitive.yearMonth),
+      TypeName.yearMonth,
+      Doc.Empty,
+      Nil
+    )
+
+  def zoneId[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.ZoneId] =
+    Primitive(
+      PrimitiveType.ZoneId(Validation.None),
+      F.fromBinding(Binding.Primitive.zoneId),
+      TypeName.zoneId,
+      Doc.Empty,
+      Nil
+    )
+
+  def zoneOffset[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.ZoneOffset] =
+    Primitive(
+      PrimitiveType.ZoneOffset(Validation.None),
+      F.fromBinding(Binding.Primitive.zoneOffset),
+      TypeName.zoneOffset,
+      Doc.Empty,
+      Nil
+    )
+
+  def zonedDateTime[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.ZonedDateTime] =
+    Primitive(
+      PrimitiveType.ZonedDateTime(Validation.None),
+      F.fromBinding(Binding.Primitive.zonedDateTime),
+      TypeName.zonedDateTime,
+      Doc.Empty,
+      Nil
+    )
+
+  def currency[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.util.Currency] =
+    Primitive(
+      PrimitiveType.Currency(Validation.None),
+      F.fromBinding(Binding.Primitive.currency),
+      TypeName.currency,
+      Doc.Empty,
+      Nil
+    )
+
+  def uuid[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.util.UUID] =
+    Primitive(
+      PrimitiveType.UUID(Validation.None),
+      F.fromBinding(Binding.Primitive.uuid),
+      TypeName.uuid,
+      Doc.Empty,
+      Nil
+    )
+
   def set[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Sequence[F, A, Predef.Set] =
-    (Sequence(element, F.fromBinding(Binding.Seq.set), TypeName.set[A], Doc.Empty, Nil))
+    Sequence(element, F.fromBinding(Binding.Seq.set), TypeName.set[A], Doc.Empty, Nil)
 
   def list[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Sequence[F, A, scala.List] =
-    (Sequence(element, F.fromBinding(Binding.Seq.list), TypeName.list[A], Doc.Empty, Nil))
+    Sequence(element, F.fromBinding(Binding.Seq.list), TypeName.list[A], Doc.Empty, Nil)
 
   def vector[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Sequence[F, A, scala.Vector] =
-    (Sequence(element, F.fromBinding(Binding.Seq.vector), TypeName.vector[A], Doc.Empty, Nil))
+    Sequence(element, F.fromBinding(Binding.Seq.vector), TypeName.vector[A], Doc.Empty, Nil)
 
   def array[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Sequence[F, A, scala.Array] =
-    (Sequence(element, F.fromBinding(Binding.Seq.array), TypeName.array[A], Doc.Empty, Nil))
+    Sequence(element, F.fromBinding(Binding.Seq.array), TypeName.array[A], Doc.Empty, Nil)
 
   def some[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Record[F, Some[A]] =
     Record(

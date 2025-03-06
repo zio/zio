@@ -16,7 +16,7 @@ trait Deriver[TC[_]] { self =>
 
   final def binding[F[_, _], T, A](fa: F[T, A])(implicit F: HasBinding[F]): Binding[T, A] = F.binding(fa)
 
-  final def derivation[F[_, _], A](fa: F[_, A])(implicit D: HasDerivation[F]): Instances[TC, A] = D.derivation(fa)
+  final def derivation[F[_, _], T, A](fa: F[T, A])(implicit D: HasDerivation[F]): Instances[TC, A] = D.derivation(fa)
 
   def derivePrimitive[F[_, _], A](prim: Reflect.Primitive[F, A]): TC[A]
 

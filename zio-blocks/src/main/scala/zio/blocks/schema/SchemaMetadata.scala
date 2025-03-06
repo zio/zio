@@ -6,9 +6,9 @@ import zio.blocks.schema.binding._
  * A schema metadata structure can store arbitrary metadata attached to the
  * structure of a type.
  */
-final case class SchemaMetadata[F[_, _], S, G[_]](private val map: Map[Optic[F, S, ?], Array[G[?]]]) {
+final case class SchemaMetadata[F[_, _], S, G[_]](private val map: Map[Optic[F, S, ?], Vector[_]]) {
   def add[A](optic: Optic[F, S, A], value: G[A]): SchemaMetadata[F, S, G] =
-    SchemaMetadata[F, S, G](map.updated(optic, map.getOrElse(optic, Array()) :+ value))
+    SchemaMetadata[F, S, G](map.updated(optic, map.getOrElse(optic, Vector.empty) :+ value))
 
   def fold[Z](z: Z)(fold: SchemaMetadata.Folder[F, S, G, Z]): Z =
     map.foldLeft(z) { case (z, (optic, values)) =>
@@ -19,7 +19,8 @@ final case class SchemaMetadata[F[_, _], S, G[_]](private val map: Map[Optic[F, 
 
   def get[A](optic: Optic[F, S, A]): Option[G[A]] = getAll(optic).headOption
 
-  def getAll[A](optic: Optic[F, S, A]): IndexedSeq[G[A]] = map.getOrElse(optic, Array()).asInstanceOf[Array[G[A]]]
+  def getAll[A](optic: Optic[F, S, A]): IndexedSeq[G[A]] =
+    map.getOrElse(optic, Vector.empty).asInstanceOf[IndexedSeq[G[A]]]
 
   def removeAll[A](optic: Optic[F, S, A]): SchemaMetadata[F, S, G] = SchemaMetadata[F, S, G](map - optic)
 

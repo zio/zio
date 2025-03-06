@@ -2,21 +2,20 @@ package zio.blocks.schema
 
 import zio.blocks.schema.binding.Binding
 
+import java.util.concurrent.ConcurrentHashMap
+
 /**
  * A {{Schema}} is a data type that contains reified information on the
  * structure of a Scala data type, together with the ability to tear down and
  * build up values of that type.
  */
 final case class Schema[A](reflect: Reflect.Bound[A]) {
-  private var cache: Map[codec.Format, Any] = Map.empty
+  private val cache: ConcurrentHashMap[codec.Format, _] = new ConcurrentHashMap
 
-  private def getInstance[F <: codec.Format](format: F): format.TypeClass[A] = {
-    val derived = cache
-      .asInstanceOf[Map[codec.Format, format.TypeClass[A]]]
-      .getOrElse(format, { val d = derive(format); cache = cache.updated(format, d); d })
-
-    derived
-  }
+  private def getInstance[F <: codec.Format](format: F): format.TypeClass[A] =
+    cache
+      .asInstanceOf[ConcurrentHashMap[codec.Format, format.TypeClass[A]]]
+      .computeIfAbsent(format, _ => derive(format))
 
   def defaultValue[B](optic: Optic.Bound[A, B], value: => B): Schema[A] = ??? // TODO
 
@@ -58,6 +57,10 @@ object Schema {
 
   def apply[A](implicit schema: Schema[A]): Schema[A] = schema
 
+  implicit val unit: Schema[Unit] = Schema(Reflect.unit[Binding])
+
+  implicit val boolean: Schema[Boolean] = Schema(Reflect.boolean[Binding])
+
   implicit val byte: Schema[Byte] = Schema(Reflect.byte[Binding])
 
   implicit val short: Schema[Short] = Schema(Reflect.short[Binding])
@@ -74,7 +77,45 @@ object Schema {
 
   implicit val string: Schema[String] = Schema(Reflect.string[Binding])
 
-  implicit val unit: Schema[Unit] = Schema(Reflect.unit[Binding])
+  implicit val bigInteger: Schema[BigInt] = Schema(Reflect.bigInt[Binding])
+
+  implicit val bigDecimal: Schema[BigDecimal] = Schema(Reflect.bigDecimal[Binding])
+
+  implicit val dayOfWeek: Schema[java.time.DayOfWeek] = Schema(Reflect.dayOfWeek[Binding])
+
+  implicit val duration: Schema[java.time.Duration] = Schema(Reflect.duration[Binding])
+
+  implicit val instant: Schema[java.time.Instant] = Schema(Reflect.instant[Binding])
+
+  implicit val localDate: Schema[java.time.LocalDate] = Schema(Reflect.localDate[Binding])
+
+  implicit val localDateTime: Schema[java.time.LocalDateTime] = Schema(Reflect.localDateTime[Binding])
+
+  implicit val localTime: Schema[java.time.LocalTime] = Schema(Reflect.localTime[Binding])
+
+  implicit val month: Schema[java.time.Month] = Schema(Reflect.month[Binding])
+
+  implicit val monthDay: Schema[java.time.MonthDay] = Schema(Reflect.monthDay[Binding])
+
+  implicit val offsetDateTime: Schema[java.time.OffsetDateTime] = Schema(Reflect.offsetDateTime[Binding])
+
+  implicit val offsetTime: Schema[java.time.OffsetTime] = Schema(Reflect.offsetTime[Binding])
+
+  implicit val period: Schema[java.time.Period] = Schema(Reflect.period[Binding])
+
+  implicit val year: Schema[java.time.Year] = Schema(Reflect.year[Binding])
+
+  implicit val yearMonth: Schema[java.time.YearMonth] = Schema(Reflect.yearMonth[Binding])
+
+  implicit val zoneId: Schema[java.time.ZoneId] = Schema(Reflect.zoneId[Binding])
+
+  implicit val zoneOffset: Schema[java.time.ZoneOffset] = Schema(Reflect.zoneOffset[Binding])
+
+  implicit val zonedDateTime: Schema[java.time.ZonedDateTime] = Schema(Reflect.zonedDateTime[Binding])
+
+  implicit val currency: Schema[java.util.Currency] = Schema(Reflect.currency[Binding])
+
+  implicit val uuid: Schema[java.util.UUID] = Schema(Reflect.uuid[Binding])
 
   implicit def set[A](implicit element: Schema[A]): Schema[Set[A]] = Schema(Reflect.set(element.reflect))
 
@@ -86,6 +127,10 @@ object Schema {
 
   implicit def some[A](implicit element: Schema[A]): Schema[Some[A]] = Schema(Reflect.some(element.reflect))
 
+  implicit val none: Schema[None.type] = Schema(Reflect.none[Binding])
+
+  implicit def option[A](implicit element: Schema[A]): Schema[Option[A]] = Schema(Reflect.option(element.reflect))
+
   implicit def left[A, B](implicit element: Schema[A]): Schema[Left[A, B]] = Schema(
     Reflect.left[Binding, A, B](element.reflect)
   )
@@ -93,10 +138,6 @@ object Schema {
   implicit def right[A, B](implicit element: Schema[B]): Schema[Right[A, B]] = Schema(
     Reflect.right[Binding, A, B](element.reflect)
   )
-
-  implicit val none: Schema[None.type] = Schema(Reflect.none[Binding])
-
-  implicit def option[A](implicit element: Schema[A]): Schema[Option[A]] = Schema(Reflect.option(element.reflect))
 
   implicit def either[L, R](implicit l: Schema[L], r: Schema[R]): Reflect.Bound[Either[L, R]] =
     Reflect.either(l.reflect, r.reflect)
