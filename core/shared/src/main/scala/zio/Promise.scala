@@ -21,6 +21,8 @@ import scala.collection.immutable.LongMap
 
 import java.util.concurrent.atomic.AtomicReference
 
+import scala.annotation.switch
+
 /**
  * A promise represents an asynchronous variable, of [[zio.ZIO]] type, that can
  * be set exactly once, with the ability for an arbitrary number of fibers to
@@ -243,7 +245,12 @@ object Promise {
     sealed abstract class State[E, A]                extends Serializable
     final case class Done[E, A](val value: IO[E, A]) extends State[E, A]
     final class Pending[E, A](waiters: LongMap[IO[E, A] => Any], next: Long) extends State[E, A] { self =>
-      def complete(io: IO[E, A]): Unit                = waiters.valuesIterator.foreach(_(io))
+      def complete(io: IO[E, A]): Unit                =
+        (next: @switch) match {
+          case 1 => ()
+          case 2 => waiters(2L)(io)
+          case _ => waiters.valuesIterator.foreach(_(io))
+        }
       def add(joiner: IO[E, A] => Any): Pending[E, A] = new Pending[E, A](waiters.updated(next, joiner), next + 1)
     }
     object State {
