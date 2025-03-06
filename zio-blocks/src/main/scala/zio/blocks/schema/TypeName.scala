@@ -26,6 +26,38 @@ object TypeName {
 
   val bigDecimal: TypeName[BigDecimal] = TypeName(Namespace("scala" :: Nil, Nil), "BigDecimal")
 
+  val dayOfWeek: TypeName[java.time.DayOfWeek] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "DayOfWeek")
+
+  val duration: TypeName[java.time.Duration] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "Duration")
+
+  val instant: TypeName[java.time.Instant] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "Instant")
+
+  val localDate: TypeName[java.time.LocalDate] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "LocalDate")
+
+  val localDateTime: TypeName[java.time.LocalDateTime] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "LocalDateTime")
+
+  val localTime: TypeName[java.time.LocalTime] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "LocalTime")
+
+  val month: TypeName[java.time.Month] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "Month")
+
+  val monthDay: TypeName[java.time.MonthDay] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "MonthDay")
+
+  val offsetDateTime: TypeName[java.time.OffsetDateTime] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "OffsetDateTime")
+
+  val offsetTime: TypeName[java.time.OffsetTime] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "OffsetTime")
+
+  val period: TypeName[java.time.Period] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "Period")
+
+  val year: TypeName[java.time.Year] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "Year")
+
+  val yearMonth: TypeName[java.time.YearMonth] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "YearMonth")
+
+  val zoneId: TypeName[java.time.ZoneId] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "ZoneId")
+
+  val zoneOffset: TypeName[java.time.ZoneOffset] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "ZoneOffset")
+
+  val zonedDateTime: TypeName[java.time.ZonedDateTime] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "ZonedDateTime")
+
   def some[A]: TypeName[Some[A]] = _some.asInstanceOf[TypeName[Some[A]]]
 
   val none: TypeName[None.type] = TypeName(Namespace("scala" :: Nil, Nil), "None")

@@ -66,6 +66,38 @@ object Binding {
     val bigInt: Primitive[BigInt] = Primitive[BigInt]()
 
     val bigDecimal: Primitive[BigDecimal] = Primitive[BigDecimal]()
+
+    val dayOfWeek: Primitive[java.time.DayOfWeek] = Primitive[java.time.DayOfWeek]()
+
+    val duration: Primitive[java.time.Duration] = Primitive[java.time.Duration]()
+
+    val instant: Primitive[java.time.Instant] = Primitive[java.time.Instant]()
+
+    val localDate: Primitive[java.time.LocalDate] = Primitive[java.time.LocalDate]()
+
+    val localDateTime: Primitive[java.time.LocalDateTime] = Primitive[java.time.LocalDateTime]()
+
+    val localTime: Primitive[java.time.LocalTime] = Primitive[java.time.LocalTime]()
+
+    val month: Primitive[java.time.Month] = Primitive[java.time.Month]()
+
+    val monthDay: Primitive[java.time.MonthDay] = Primitive[java.time.MonthDay]()
+
+    val offsetDateTime: Primitive[java.time.OffsetDateTime] = Primitive[java.time.OffsetDateTime]()
+
+    val offsetTime: Primitive[java.time.OffsetTime] = Primitive[java.time.OffsetTime]()
+
+    val period: Primitive[java.time.Period] = Primitive[java.time.Period]()
+
+    val year: Primitive[java.time.Year] = Primitive[java.time.Year]()
+
+    val yearMonth: Primitive[java.time.YearMonth] = Primitive[java.time.YearMonth]()
+
+    val zoneId: Primitive[java.time.ZoneId] = Primitive[java.time.ZoneId]()
+
+    val zoneOffset: Primitive[java.time.ZoneOffset] = Primitive[java.time.ZoneOffset]()
+
+    val zonedDateTime: Primitive[java.time.ZonedDateTime] = Primitive[java.time.ZonedDateTime]()
   }
 
   final case class Record[A](

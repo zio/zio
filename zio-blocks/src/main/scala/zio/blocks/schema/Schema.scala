@@ -81,6 +81,38 @@ object Schema {
 
   implicit val bigDecimal: Schema[BigDecimal] = Schema(Reflect.bigDecimal[Binding])
 
+  implicit val dayOfWeek: Schema[java.time.DayOfWeek] = Schema(Reflect.dayOfWeek[Binding])
+
+  implicit val duration: Schema[java.time.Duration] = Schema(Reflect.duration[Binding])
+
+  implicit val instant: Schema[java.time.Instant] = Schema(Reflect.instant[Binding])
+
+  implicit val localDate: Schema[java.time.LocalDate] = Schema(Reflect.localDate[Binding])
+
+  implicit val localDateTime: Schema[java.time.LocalDateTime] = Schema(Reflect.localDateTime[Binding])
+
+  implicit val localTime: Schema[java.time.LocalTime] = Schema(Reflect.localTime[Binding])
+
+  implicit val month: Schema[java.time.Month] = Schema(Reflect.month[Binding])
+
+  implicit val monthDay: Schema[java.time.MonthDay] = Schema(Reflect.monthDay[Binding])
+
+  implicit val offsetDateTime: Schema[java.time.OffsetDateTime] = Schema(Reflect.offsetDateTime[Binding])
+
+  implicit val offsetTime: Schema[java.time.OffsetTime] = Schema(Reflect.offsetTime[Binding])
+
+  implicit val period: Schema[java.time.Period] = Schema(Reflect.period[Binding])
+
+  implicit val year: Schema[java.time.Year] = Schema(Reflect.year[Binding])
+
+  implicit val yearMonth: Schema[java.time.YearMonth] = Schema(Reflect.yearMonth[Binding])
+
+  implicit val zoneId: Schema[java.time.ZoneId] = Schema(Reflect.zoneId[Binding])
+
+  implicit val zoneOffset: Schema[java.time.ZoneOffset] = Schema(Reflect.zoneOffset[Binding])
+
+  implicit val zonedDateTime: Schema[java.time.ZonedDateTime] = Schema(Reflect.zonedDateTime[Binding])
+
   implicit def set[A](implicit element: Schema[A]): Schema[Set[A]] = Schema(Reflect.set(element.reflect))
 
   implicit def list[A](implicit element: Schema[A]): Schema[List[A]] = Schema(Reflect.list(element.reflect))

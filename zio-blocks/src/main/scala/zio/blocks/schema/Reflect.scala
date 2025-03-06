@@ -355,6 +355,150 @@ object Reflect {
       Nil
     )
 
+  def dayOfWeek[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.DayOfWeek] =
+    Primitive(
+      PrimitiveType.DayOfWeek(Validation.None),
+      F.fromBinding(Binding.Primitive.dayOfWeek),
+      TypeName.dayOfWeek,
+      Doc.Empty,
+      Nil
+    )
+
+  def duration[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.Duration] =
+    Primitive(
+      PrimitiveType.Duration(Validation.None),
+      F.fromBinding(Binding.Primitive.duration),
+      TypeName.duration,
+      Doc.Empty,
+      Nil
+    )
+
+  def instant[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.Instant] =
+    Primitive(
+      PrimitiveType.Instant(Validation.None),
+      F.fromBinding(Binding.Primitive.instant),
+      TypeName.instant,
+      Doc.Empty,
+      Nil
+    )
+
+  def localDate[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.LocalDate] =
+    Primitive(
+      PrimitiveType.LocalDate(Validation.None),
+      F.fromBinding(Binding.Primitive.localDate),
+      TypeName.localDate,
+      Doc.Empty,
+      Nil
+    )
+
+  def localDateTime[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.LocalDateTime] =
+    Primitive(
+      PrimitiveType.LocalDateTime(Validation.None),
+      F.fromBinding(Binding.Primitive.localDateTime),
+      TypeName.localDateTime,
+      Doc.Empty,
+      Nil
+    )
+
+  def localTime[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.LocalTime] =
+    Primitive(
+      PrimitiveType.LocalTime(Validation.None),
+      F.fromBinding(Binding.Primitive.localTime),
+      TypeName.localTime,
+      Doc.Empty,
+      Nil
+    )
+
+  def month[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.Month] =
+    Primitive(
+      PrimitiveType.Month(Validation.None),
+      F.fromBinding(Binding.Primitive.month),
+      TypeName.month,
+      Doc.Empty,
+      Nil
+    )
+
+  def monthDay[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.MonthDay] =
+    Primitive(
+      PrimitiveType.MonthDay(Validation.None),
+      F.fromBinding(Binding.Primitive.monthDay),
+      TypeName.monthDay,
+      Doc.Empty,
+      Nil
+    )
+
+  def offsetDateTime[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.OffsetDateTime] =
+    Primitive(
+      PrimitiveType.OffsetDateTime(Validation.None),
+      F.fromBinding(Binding.Primitive.offsetDateTime),
+      TypeName.offsetDateTime,
+      Doc.Empty,
+      Nil
+    )
+
+  def offsetTime[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.OffsetTime] =
+    Primitive(
+      PrimitiveType.OffsetTime(Validation.None),
+      F.fromBinding(Binding.Primitive.offsetTime),
+      TypeName.offsetTime,
+      Doc.Empty,
+      Nil
+    )
+
+  def period[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.Period] =
+    Primitive(
+      PrimitiveType.Period(Validation.None),
+      F.fromBinding(Binding.Primitive.period),
+      TypeName.period,
+      Doc.Empty,
+      Nil
+    )
+
+  def year[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.Year] =
+    Primitive(
+      PrimitiveType.Year(Validation.None),
+      F.fromBinding(Binding.Primitive.year),
+      TypeName.year,
+      Doc.Empty,
+      Nil
+    )
+
+  def yearMonth[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.YearMonth] =
+    Primitive(
+      PrimitiveType.YearMonth(Validation.None),
+      F.fromBinding(Binding.Primitive.yearMonth),
+      TypeName.yearMonth,
+      Doc.Empty,
+      Nil
+    )
+
+  def zoneId[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.ZoneId] =
+    Primitive(
+      PrimitiveType.ZoneId(Validation.None),
+      F.fromBinding(Binding.Primitive.zoneId),
+      TypeName.zoneId,
+      Doc.Empty,
+      Nil
+    )
+
+  def zoneOffset[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.ZoneOffset] =
+    Primitive(
+      PrimitiveType.ZoneOffset(Validation.None),
+      F.fromBinding(Binding.Primitive.zoneOffset),
+      TypeName.zoneOffset,
+      Doc.Empty,
+      Nil
+    )
+
+  def zonedDateTime[F[_, _]](implicit F: FromBinding[F]): Reflect[F, java.time.ZonedDateTime] =
+    Primitive(
+      PrimitiveType.ZonedDateTime(Validation.None),
+      F.fromBinding(Binding.Primitive.zonedDateTime),
+      TypeName.zonedDateTime,
+      Doc.Empty,
+      Nil
+    )
+
   def set[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Sequence[F, A, Predef.Set] =
     Sequence(element, F.fromBinding(Binding.Seq.set), TypeName.set[A], Doc.Empty, Nil)
 
