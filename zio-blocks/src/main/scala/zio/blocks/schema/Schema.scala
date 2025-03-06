@@ -2,21 +2,20 @@ package zio.blocks.schema
 
 import zio.blocks.schema.binding.Binding
 
+import java.util.concurrent.ConcurrentHashMap
+
 /**
  * A {{Schema}} is a data type that contains reified information on the
  * structure of a Scala data type, together with the ability to tear down and
  * build up values of that type.
  */
 final case class Schema[A](reflect: Reflect.Bound[A]) {
-  private var cache: Map[codec.Format, Any] = Map.empty
+  private val cache: ConcurrentHashMap[codec.Format, _] = new ConcurrentHashMap
 
-  private def getInstance[F <: codec.Format](format: F): format.TypeClass[A] = {
-    val derived = cache
-      .asInstanceOf[Map[codec.Format, format.TypeClass[A]]]
-      .getOrElse(format, { val d = derive(format); cache = cache.updated(format, d); d })
-
-    derived
-  }
+  private def getInstance[F <: codec.Format](format: F): format.TypeClass[A] =
+    cache
+      .asInstanceOf[ConcurrentHashMap[codec.Format, format.TypeClass[A]]]
+      .computeIfAbsent(format, _ => derive(format))
 
   def defaultValue[B](optic: Optic.Bound[A, B], value: => B): Schema[A] = ??? // TODO
 
