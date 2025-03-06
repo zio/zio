@@ -607,7 +607,11 @@ lazy val zioBlocks = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .jvmSettings(mimaSettings(failOnProblem = false))
   .jsSettings(jsSettings)
   .nativeSettings(nativeSettings)
-  .settings(scalacOptions += "-Wconf:msg=[@nowarn annotation does not suppress any warnings]:silent")
+  .settings(
+    scalacOptions += "-Wconf:msg=[@nowarn annotation does not suppress any warnings]:silent",
+    scalacOptions ++= (if (scalaVersion.value == Scala3) Seq("-explain") else Nil),
+    crossScalaVersions -= Scala212
+  )
 
 lazy val concurrent = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .crossType(CrossType.Pure)
