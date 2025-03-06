@@ -66,23 +66,35 @@ object FiberRuntimeSpec extends ZIOBaseSpec {
     suite("async")(
       test("async callback after interruption is ignored") {
         ZIO.suspendSucceed {
-          val cb = Ref.unsafe.make[Option[ZIO[Any, Nothing, Unit] => Unit]](None)
-          val effect =
-            (ZIO.async[Any, Nothing, Unit] { (k: (ZIO[Any, Nothing, Unit] => Unit)) =>
-              cb.unsafe.set(Some(k))
-            } *> ZIO.never)
-
+          val executed = Ref.unsafe.make(0)
+          val cb       = Ref.unsafe.make[Option[ZIO[Any, Nothing, Unit] => Unit]](None)
+          val latch    = Promise.unsafe.make[Nothing, Unit](FiberId.None)
+          val async = ZIO.async[Any, Nothing, Unit] { k =>
+            cb.unsafe.set(Some(k))
+            latch.unsafe.done(Exit.unit)
+          }
+          val increment = executed.update(_ + 1)
           for {
-            fiber    <- effect.fork
-            _        <- fiber.interrupt
-            callback <- cb.get.some
-            _        <- ZIO.succeed(callback(ZIO.unit))
-            first    <- fiber.poll
-            _        <- ZIO.succeed(callback(ZIO.unit))
-            second   <- fiber.poll
-          } yield assertTrue(first == second) && assertTrue(first == None)
+            fiber          <- async.fork
+            _              <- latch.await
+            exit           <- fiber.interrupt
+            callback       <- cb.get.some
+            state1         <- fiber.poll
+            _              <- ZIO.succeed(callback(increment))
+            state2         <- fiber.poll
+            executedBefore <- executed.get
+            _              <- ZIO.succeed(callback(increment))
+            state3         <- fiber.poll
+            executedAfter  <- executed.get
+          } yield assertTrue(
+            state1 == state2,
+            state1 == state3,
+            executedBefore == 0,
+            executedAfter == 0,
+            state1.exists(_.isInterrupted)
+          )
         }
-      }
+      } @@ TestAspect.nonFlaky(10)
     )
   )
 

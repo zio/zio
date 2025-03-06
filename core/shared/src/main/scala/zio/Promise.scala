@@ -245,7 +245,7 @@ object Promise {
     sealed abstract class State[E, A]                extends Serializable
     final case class Done[E, A](val value: IO[E, A]) extends State[E, A]
     final class Pending[E, A](waiters: LongMap[IO[E, A] => Any], next: Long) extends State[E, A] { self =>
-      def complete(io: IO[E, A]): Unit                =
+      def complete(io: IO[E, A]): Unit =
         (next: @switch) match {
           case 1 => ()
           case 2 => waiters(2L)(io)
