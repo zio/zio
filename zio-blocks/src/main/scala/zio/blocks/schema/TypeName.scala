@@ -4,9 +4,9 @@ final case class TypeName[A](namespace: Namespace, name: String)
 object TypeName {
   val unit: TypeName[Unit] = TypeName(Namespace("scala" :: Nil, Nil), "Unit")
 
-  val byte: TypeName[Byte] = TypeName(Namespace("scala" :: Nil, Nil), "Byte")
-
   val boolean: TypeName[Boolean] = TypeName(Namespace("scala" :: Nil, Nil), "Boolean")
+
+  val byte: TypeName[Byte] = TypeName(Namespace("scala" :: Nil, Nil), "Byte")
 
   val short: TypeName[Short] = TypeName(Namespace("scala" :: Nil, Nil), "Short")
 
@@ -21,6 +21,10 @@ object TypeName {
   val char: TypeName[Char] = TypeName(Namespace("scala" :: Nil, Nil), "Char")
 
   val string: TypeName[String] = TypeName(Namespace("scala" :: Nil, Nil), "String")
+
+  val bigInt: TypeName[BigInt] = TypeName(Namespace("scala" :: Nil, Nil), "BigInt")
+
+  val bigDecimal: TypeName[BigDecimal] = TypeName(Namespace("scala" :: Nil, Nil), "BigDecimal")
 
   def some[A]: TypeName[Some[A]] = _some.asInstanceOf[TypeName[Some[A]]]
 

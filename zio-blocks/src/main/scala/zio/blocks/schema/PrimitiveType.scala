@@ -10,15 +10,13 @@ object PrimitiveType {
 
   case object Unit extends Val[scala.Unit] {
     def validation: Validation[scala.Unit] = Validation.None
-
-    private val thunk = Some(() => ())
   }
-  case object Byte extends Val[scala.Byte] {
-    def validation: Validation[scala.Byte] = Validation.None
-  }
-  case object Boolean extends Val[scala.Boolean] {
-    def validation: Validation[scala.Boolean] = Validation.None
-  }
+  final case class Boolean(
+    validation: Validation[scala.Boolean]
+  ) extends Val[scala.Boolean]
+  final case class Byte(
+    validation: Validation[scala.Byte]
+  ) extends Val[scala.Byte]
   final case class Short(
     validation: Validation[scala.Short]
   ) extends Val[scala.Short]
@@ -40,5 +38,11 @@ object PrimitiveType {
   final case class String(
     validation: Validation[Predef.String]
   ) extends Ref[Predef.String]
+  final case class BigInt(
+    validation: Validation[scala.BigInt]
+  ) extends Ref[scala.BigInt]
+  final case class BigDecimal(
+    validation: Validation[scala.BigDecimal]
+  ) extends Ref[scala.BigDecimal]
 
 }

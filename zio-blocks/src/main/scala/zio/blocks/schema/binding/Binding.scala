@@ -43,7 +43,13 @@ object Binding {
     def examples(value: A, values: A*): Primitive[A] = copy(examples = value :: values.toList)
   }
   object Primitive {
-    val string: Primitive[String] = Primitive[String]()
+    val unit: Primitive[Unit] = Primitive[Unit]()
+
+    val boolean: Primitive[Boolean] = Primitive[Boolean]()
+
+    val byte: Primitive[Byte] = Primitive[Byte]()
+
+    val short: Primitive[Short] = Primitive[Short]()
 
     val int: Primitive[Int] = Primitive[Int]()
 
@@ -53,15 +59,13 @@ object Binding {
 
     val double: Primitive[Double] = Primitive[Double]()
 
-    val boolean: Primitive[Boolean] = Primitive[Boolean]()
-
     val char: Primitive[Char] = Primitive[Char]()
 
-    val byte: Primitive[Byte] = Primitive[Byte]()
+    val string: Primitive[String] = Primitive[String]()
 
-    val short: Primitive[Short] = Primitive[Short]()
+    val bigInt: Primitive[BigInt] = Primitive[BigInt]()
 
-    val unit: Primitive[Unit] = Primitive[Unit]()
+    val bigDecimal: Primitive[BigDecimal] = Primitive[BigDecimal]()
   }
 
   final case class Record[A](

@@ -57,6 +57,10 @@ object Schema {
 
   def apply[A](implicit schema: Schema[A]): Schema[A] = schema
 
+  implicit val unit: Schema[Unit] = Schema(Reflect.unit[Binding])
+
+  implicit val boolean: Schema[Boolean] = Schema(Reflect.boolean[Binding])
+
   implicit val byte: Schema[Byte] = Schema(Reflect.byte[Binding])
 
   implicit val short: Schema[Short] = Schema(Reflect.short[Binding])
@@ -73,7 +77,9 @@ object Schema {
 
   implicit val string: Schema[String] = Schema(Reflect.string[Binding])
 
-  implicit val unit: Schema[Unit] = Schema(Reflect.unit[Binding])
+  implicit val bigInteger: Schema[BigInt] = Schema(Reflect.bigInt[Binding])
+
+  implicit val bigDecimal: Schema[BigDecimal] = Schema(Reflect.bigDecimal[Binding])
 
   implicit def set[A](implicit element: Schema[A]): Schema[Set[A]] = Schema(Reflect.set(element.reflect))
 
@@ -85,6 +91,10 @@ object Schema {
 
   implicit def some[A](implicit element: Schema[A]): Schema[Some[A]] = Schema(Reflect.some(element.reflect))
 
+  implicit val none: Schema[None.type] = Schema(Reflect.none[Binding])
+
+  implicit def option[A](implicit element: Schema[A]): Schema[Option[A]] = Schema(Reflect.option(element.reflect))
+
   implicit def left[A, B](implicit element: Schema[A]): Schema[Left[A, B]] = Schema(
     Reflect.left[Binding, A, B](element.reflect)
   )
@@ -92,10 +102,6 @@ object Schema {
   implicit def right[A, B](implicit element: Schema[B]): Schema[Right[A, B]] = Schema(
     Reflect.right[Binding, A, B](element.reflect)
   )
-
-  implicit val none: Schema[None.type] = Schema(Reflect.none[Binding])
-
-  implicit def option[A](implicit element: Schema[A]): Schema[Option[A]] = Schema(Reflect.option(element.reflect))
 
   implicit def either[L, R](implicit l: Schema[L], r: Schema[R]): Reflect.Bound[Either[L, R]] =
     Reflect.either(l.reflect, r.reflect)

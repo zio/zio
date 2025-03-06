@@ -65,12 +65,12 @@ object Reflect {
               case PrimitiveType.Unit =>
                 (Register.None :: list, registerOffset)
 
-              case PrimitiveType.Boolean =>
+              case PrimitiveType.Boolean(_) =>
                 val index = RegisterOffset.getBooleans(registerOffset)
 
                 (Register.Boolean(index) :: list, RegisterOffset.incrementBooleans(registerOffset))
 
-              case PrimitiveType.Byte =>
+              case PrimitiveType.Byte(_) =>
                 val index = RegisterOffset.getBytes(registerOffset)
 
                 (Register.Byte(index) :: list, RegisterOffset.incrementBytes(registerOffset))
@@ -105,7 +105,7 @@ object Reflect {
 
                 (Register.Char(index) :: list, RegisterOffset.incrementChars(registerOffset))
 
-              case PrimitiveType.String(_) =>
+              case _ =>
                 val index = RegisterOffset.getObjects(registerOffset)
 
                 (Register.Object(index) :: list, RegisterOffset.incrementObjects(registerOffset))
@@ -263,10 +263,16 @@ object Reflect {
     Primitive(PrimitiveType.Unit, F.fromBinding(Binding.Primitive.unit), TypeName.unit, Doc.Empty, Nil)
 
   def boolean[F[_, _]](implicit F: FromBinding[F]): Reflect[F, Boolean] =
-    Primitive(PrimitiveType.Boolean, F.fromBinding(Binding.Primitive.boolean), TypeName.boolean, Doc.Empty, Nil)
+    Primitive(
+      PrimitiveType.Boolean(Validation.None),
+      F.fromBinding(Binding.Primitive.boolean),
+      TypeName.boolean,
+      Doc.Empty,
+      Nil
+    )
 
   def byte[F[_, _]](implicit F: FromBinding[F]): Reflect[F, Byte] =
-    Primitive(PrimitiveType.Byte, F.fromBinding(Binding.Primitive.byte), TypeName.byte, Doc.Empty, Nil)
+    Primitive(PrimitiveType.Byte(Validation.None), F.fromBinding(Binding.Primitive.byte), TypeName.byte, Doc.Empty, Nil)
 
   def short[F[_, _]](implicit F: FromBinding[F]): Reflect[F, Short] =
     Primitive(
@@ -331,17 +337,35 @@ object Reflect {
       Nil
     )
 
+  def bigInt[F[_, _]](implicit F: FromBinding[F]): Reflect[F, BigInt] =
+    Primitive(
+      PrimitiveType.BigInt(Validation.None),
+      F.fromBinding(Binding.Primitive.bigInt),
+      TypeName.bigInt,
+      Doc.Empty,
+      Nil
+    )
+
+  def bigDecimal[F[_, _]](implicit F: FromBinding[F]): Reflect[F, BigDecimal] =
+    Primitive(
+      PrimitiveType.BigDecimal(Validation.None),
+      F.fromBinding(Binding.Primitive.bigDecimal),
+      TypeName.bigDecimal,
+      Doc.Empty,
+      Nil
+    )
+
   def set[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Sequence[F, A, Predef.Set] =
-    (Sequence(element, F.fromBinding(Binding.Seq.set), TypeName.set[A], Doc.Empty, Nil))
+    Sequence(element, F.fromBinding(Binding.Seq.set), TypeName.set[A], Doc.Empty, Nil)
 
   def list[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Sequence[F, A, scala.List] =
-    (Sequence(element, F.fromBinding(Binding.Seq.list), TypeName.list[A], Doc.Empty, Nil))
+    Sequence(element, F.fromBinding(Binding.Seq.list), TypeName.list[A], Doc.Empty, Nil)
 
   def vector[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Sequence[F, A, scala.Vector] =
-    (Sequence(element, F.fromBinding(Binding.Seq.vector), TypeName.vector[A], Doc.Empty, Nil))
+    Sequence(element, F.fromBinding(Binding.Seq.vector), TypeName.vector[A], Doc.Empty, Nil)
 
   def array[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Sequence[F, A, scala.Array] =
-    (Sequence(element, F.fromBinding(Binding.Seq.array), TypeName.array[A], Doc.Empty, Nil))
+    Sequence(element, F.fromBinding(Binding.Seq.array), TypeName.array[A], Doc.Empty, Nil)
 
   def some[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Record[F, Some[A]] =
     Record(
