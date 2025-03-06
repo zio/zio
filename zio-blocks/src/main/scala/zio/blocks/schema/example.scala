@@ -45,7 +45,7 @@ object Main {
         }
       }
 
-    val personRecord =
+    val personRecord: Reflect.Record[Binding, Person] =
       Reflect.Record(
         List[Term[Binding, Person, ?]](
           Term("name", Reflect.string[Binding], Doc.Empty, List.empty),

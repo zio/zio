@@ -63,7 +63,7 @@ object Reflect {
           case ((list, registerOffset), Term(_, Reflect.Primitive(primType, _, _, _, _), _, _)) =>
             primType match {
               case PrimitiveType.Unit =>
-                (Register.None :: list, registerOffset)
+                (Register.Unit :: list, registerOffset)
 
               case PrimitiveType.Boolean(_) =>
                 val index = RegisterOffset.getBooleans(registerOffset)

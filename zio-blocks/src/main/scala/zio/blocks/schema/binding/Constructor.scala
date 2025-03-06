@@ -50,12 +50,11 @@ object Constructor {
       def construct(in: Registers, baseOffset: RegisterOffset): Unit = ()
     }
 
-  val string: Constructor[String] =
-    new Constructor[String] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+  val boolean: Constructor[Boolean] =
+    new Constructor[Boolean] {
+      def size: RegisterOffset = RegisterOffset(booleans = 1)
 
-      def construct(in: Registers, baseOffset: RegisterOffset): String =
-        in.getObject(baseOffset, 0).asInstanceOf[String]
+      def construct(in: Registers, baseOffset: RegisterOffset): Boolean = in.getBoolean(baseOffset, 0)
     }
 
   val byte: Constructor[Byte] =
@@ -63,13 +62,6 @@ object Constructor {
       def size: RegisterOffset = RegisterOffset(bytes = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): Byte = in.getByte(baseOffset, 0)
-    }
-
-  val boolean: Constructor[Boolean] =
-    new Constructor[Boolean] {
-      def size: RegisterOffset = RegisterOffset(booleans = 1)
-
-      def construct(in: Registers, baseOffset: RegisterOffset): Boolean = in.getBoolean(baseOffset, 0)
     }
 
   val short: Constructor[Short] =
@@ -112,6 +104,158 @@ object Constructor {
       def size: RegisterOffset = RegisterOffset(chars = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): Char = in.getChar(baseOffset, 0)
+    }
+
+  val string: Constructor[String] =
+    new Constructor[String] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): String =
+        in.getObject(baseOffset, 0).asInstanceOf[String]
+    }
+
+  val bigInt: Constructor[BigInt] =
+    new Constructor[BigInt] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): BigInt =
+        in.getObject(baseOffset, 0).asInstanceOf[BigInt]
+    }
+
+  val bigDecimal: Constructor[BigDecimal] =
+    new Constructor[BigDecimal] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): BigDecimal =
+        in.getObject(baseOffset, 0).asInstanceOf[BigDecimal]
+    }
+
+  val dayOfWeek: Constructor[java.time.DayOfWeek] =
+    new Constructor[java.time.DayOfWeek] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.DayOfWeek =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.DayOfWeek]
+    }
+
+  val duration: Constructor[java.time.Duration] =
+    new Constructor[java.time.Duration] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.Duration =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.Duration]
+    }
+
+  val instant: Constructor[java.time.Instant] =
+    new Constructor[java.time.Instant] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.Instant =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.Instant]
+    }
+
+  val localDate: Constructor[java.time.LocalDate] =
+    new Constructor[java.time.LocalDate] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.LocalDate =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.LocalDate]
+    }
+
+  val localDateTime: Constructor[java.time.LocalDateTime] =
+    new Constructor[java.time.LocalDateTime] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.LocalDateTime =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.LocalDateTime]
+    }
+
+  val localTime: Constructor[java.time.LocalTime] =
+    new Constructor[java.time.LocalTime] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.LocalTime =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.LocalTime]
+    }
+
+  val month: Constructor[java.time.Month] =
+    new Constructor[java.time.Month] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.Month =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.Month]
+    }
+
+  val monthDay: Constructor[java.time.MonthDay] =
+    new Constructor[java.time.MonthDay] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.MonthDay =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.MonthDay]
+    }
+
+  val offsetDateTime: Constructor[java.time.OffsetDateTime] =
+    new Constructor[java.time.OffsetDateTime] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.OffsetDateTime =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.OffsetDateTime]
+    }
+
+  val offsetTime: Constructor[java.time.OffsetTime] =
+    new Constructor[java.time.OffsetTime] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.OffsetTime =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.OffsetTime]
+    }
+
+  val period: Constructor[java.time.Period] =
+    new Constructor[java.time.Period] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.Period =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.Period]
+    }
+
+  val year: Constructor[java.time.Year] =
+    new Constructor[java.time.Year] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.Year =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.Year]
+    }
+
+  val yearMonth: Constructor[java.time.YearMonth] =
+    new Constructor[java.time.YearMonth] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.YearMonth =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.YearMonth]
+    }
+
+  val zoneId: Constructor[java.time.ZoneId] =
+    new Constructor[java.time.ZoneId] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.ZoneId =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.ZoneId]
+    }
+
+  val zoneOffset: Constructor[java.time.ZoneOffset] =
+    new Constructor[java.time.ZoneOffset] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.ZoneOffset =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.ZoneOffset]
+    }
+
+  val zonedDateTime: Constructor[java.time.ZonedDateTime] =
+    new Constructor[java.time.ZonedDateTime] {
+      def size: RegisterOffset = RegisterOffset(objects = 1)
+
+      def construct(in: Registers, baseOffset: RegisterOffset): java.time.ZonedDateTime =
+        in.getObject(baseOffset, 0).asInstanceOf[java.time.ZonedDateTime]
     }
 
   def some[A](c: Constructor[A]): Constructor[Some[A]] = c.map(Some(_))

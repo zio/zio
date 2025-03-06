@@ -9,6 +9,8 @@ object SeqDeconstructor {
 
     def objectAt[A](c: C[A], index: Int): A
 
+    def booleanAt(c: C[Boolean], index: Int): Boolean
+
     def byteAt(c: C[Byte], index: Int): Byte
 
     def shortAt(c: C[Short], index: Int): Short
@@ -44,6 +46,8 @@ object SeqDeconstructor {
     def length[A](c: Array[A]): Int = c.length
 
     def objectAt[A](c: Array[A], index: Int): A = c(index)
+
+    def booleanAt(c: Array[Boolean], index: Int): Boolean = c(index)
 
     def byteAt(c: Array[Byte], index: Int): Byte = c(index)
 

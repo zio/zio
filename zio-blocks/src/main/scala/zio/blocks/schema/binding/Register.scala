@@ -14,7 +14,7 @@ sealed trait Register[A] {
   def size: RegisterOffset
 }
 object Register {
-  case object None extends Register[scala.Unit] {
+  case object Unit extends Register[scala.Unit] {
     def registerType: RegisterType[scala.Unit] = RegisterType.Unit
 
     def get(registers: Registers, base: RegisterOffset): scala.Unit              = ()

@@ -48,11 +48,11 @@ object Deconstructor {
       def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Unit): Unit = ()
     }
 
-  val string: Deconstructor[String] =
-    new Deconstructor[String] {
-      def size = RegisterOffset(objects = 1)
+  val boolean: Deconstructor[Boolean] =
+    new Deconstructor[Boolean] {
+      def size = RegisterOffset(booleans = 1)
 
-      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: String): Unit = out.setObject(baseOffset, 0, in)
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Boolean): Unit = out.setBoolean(baseOffset, 0, in)
     }
 
   val byte: Deconstructor[Byte] =
@@ -60,13 +60,6 @@ object Deconstructor {
       def size = RegisterOffset(bytes = 1)
 
       def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Byte): Unit = out.setByte(baseOffset, 0, in)
-    }
-
-  val boolean: Deconstructor[Boolean] =
-    new Deconstructor[Boolean] {
-      def size = RegisterOffset(booleans = 1)
-
-      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Boolean): Unit = out.setBoolean(baseOffset, 0, in)
     }
 
   val short: Deconstructor[Short] =
@@ -109,6 +102,139 @@ object Deconstructor {
       def size = RegisterOffset(chars = 1)
 
       def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Char): Unit = out.setChar(baseOffset, 0, in)
+    }
+
+  val string: Deconstructor[String] =
+    new Deconstructor[String] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: String): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val bigInt: Deconstructor[BigInt] =
+    new Deconstructor[BigInt] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: BigInt): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val bigDecimal: Deconstructor[BigDecimal] =
+    new Deconstructor[BigDecimal] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: BigDecimal): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val dayOfWeek: Deconstructor[java.time.DayOfWeek] =
+    new Deconstructor[java.time.DayOfWeek] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.DayOfWeek): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val duration: Deconstructor[java.time.Duration] =
+    new Deconstructor[java.time.Duration] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.Duration): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val instant: Deconstructor[java.time.Instant] =
+    new Deconstructor[java.time.Instant] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.Instant): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val localDate: Deconstructor[java.time.LocalDate] =
+    new Deconstructor[java.time.LocalDate] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.LocalDate): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val localDateTime: Deconstructor[java.time.LocalDateTime] =
+    new Deconstructor[java.time.LocalDateTime] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.LocalDateTime): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val localTime: Deconstructor[java.time.LocalTime] =
+    new Deconstructor[java.time.LocalTime] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.LocalTime): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val month: Deconstructor[java.time.Month] =
+    new Deconstructor[java.time.Month] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.Month): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val monthDay: Deconstructor[java.time.MonthDay] =
+    new Deconstructor[java.time.MonthDay] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.MonthDay): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val offsetDateTime: Deconstructor[java.time.OffsetDateTime] =
+    new Deconstructor[java.time.OffsetDateTime] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.OffsetDateTime): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val offsetTime: Deconstructor[java.time.OffsetTime] =
+    new Deconstructor[java.time.OffsetTime] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.OffsetTime): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val period: Deconstructor[java.time.Period] =
+    new Deconstructor[java.time.Period] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.Period): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val year: Deconstructor[java.time.Year] =
+    new Deconstructor[java.time.Year] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.Year): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val yearMonth: Deconstructor[java.time.YearMonth] =
+    new Deconstructor[java.time.YearMonth] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.YearMonth): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val zoneId: Deconstructor[java.time.ZoneId] =
+    new Deconstructor[java.time.ZoneId] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.ZoneId): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val zoneOffset: Deconstructor[java.time.ZoneOffset] =
+    new Deconstructor[java.time.ZoneOffset] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.ZoneOffset): Unit = out.setObject(baseOffset, 0, in)
+    }
+
+  val zonedDateTime: Deconstructor[java.time.ZonedDateTime] =
+    new Deconstructor[java.time.ZonedDateTime] {
+      def size = RegisterOffset(objects = 1)
+
+      def deconstruct(out: Registers, baseOffset: RegisterOffset, in: java.time.ZonedDateTime): Unit = out.setObject(baseOffset, 0, in)
     }
 
   val none: Deconstructor[None.type] =
