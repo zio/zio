@@ -67,14 +67,14 @@ trait SeqConstructor[C[_]] {
 }
 object SeqConstructor {
   abstract class Boxed[C[_]] extends SeqConstructor[C] {
-    override type BooleanBuilder   = ObjectBuilder[Boolean]
-    override type ByteBuilder      = ObjectBuilder[Byte]
-    override type ShortBuilder     = ObjectBuilder[Short]
-    override type IntBuilder       = ObjectBuilder[Int]
-    override type LongBuilder      = ObjectBuilder[Long]
-    override type FloatBuilder     = ObjectBuilder[Float]
-    override type DoubleBuilder    = ObjectBuilder[Double]
-    override type CharBuilder      = ObjectBuilder[Char]
+    override type BooleanBuilder = ObjectBuilder[Boolean]
+    override type ByteBuilder    = ObjectBuilder[Byte]
+    override type ShortBuilder   = ObjectBuilder[Short]
+    override type IntBuilder     = ObjectBuilder[Int]
+    override type LongBuilder    = ObjectBuilder[Long]
+    override type FloatBuilder   = ObjectBuilder[Float]
+    override type DoubleBuilder  = ObjectBuilder[Double]
+    override type CharBuilder    = ObjectBuilder[Char]
 
     def newBooleanBuilder(sizeHint: Int): BooleanBuilder = newObjectBuilder(sizeHint)
 
