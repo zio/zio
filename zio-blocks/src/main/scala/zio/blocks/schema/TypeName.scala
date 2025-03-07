@@ -34,7 +34,8 @@ object TypeName {
 
   val localDate: TypeName[java.time.LocalDate] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "LocalDate")
 
-  val localDateTime: TypeName[java.time.LocalDateTime] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "LocalDateTime")
+  val localDateTime: TypeName[java.time.LocalDateTime] =
+    TypeName(Namespace("java" :: "time" :: Nil, Nil), "LocalDateTime")
 
   val localTime: TypeName[java.time.LocalTime] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "LocalTime")
 
@@ -42,7 +43,8 @@ object TypeName {
 
   val monthDay: TypeName[java.time.MonthDay] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "MonthDay")
 
-  val offsetDateTime: TypeName[java.time.OffsetDateTime] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "OffsetDateTime")
+  val offsetDateTime: TypeName[java.time.OffsetDateTime] =
+    TypeName(Namespace("java" :: "time" :: Nil, Nil), "OffsetDateTime")
 
   val offsetTime: TypeName[java.time.OffsetTime] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "OffsetTime")
 
@@ -56,7 +58,8 @@ object TypeName {
 
   val zoneOffset: TypeName[java.time.ZoneOffset] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "ZoneOffset")
 
-  val zonedDateTime: TypeName[java.time.ZonedDateTime] = TypeName(Namespace("java" :: "time" :: Nil, Nil), "ZonedDateTime")
+  val zonedDateTime: TypeName[java.time.ZonedDateTime] =
+    TypeName(Namespace("java" :: "time" :: Nil, Nil), "ZonedDateTime")
 
   val currency: TypeName[java.util.Currency] = TypeName(Namespace("java" :: "util" :: Nil, Nil), "Currency")
 
@@ -95,8 +98,8 @@ object TypeName {
   private val _some   = TypeName(Namespace("scala" :: Nil, Nil), "Some")
   private val _option = TypeName(Namespace("scala" :: Nil, Nil), "Option")
   private val _list   = TypeName(Namespace("scala" :: Nil, Nil), "List")
-  private val _map    = TypeName(Namespace("scala" :: Nil, Nil), "Map")
-  private val _set    = TypeName(Namespace("scala" :: Nil, Nil), "Set")
+  private val _map    = TypeName(Namespace("scala" :: "collection" :: "immutable" :: Nil, Nil), "Map")
+  private val _set    = TypeName(Namespace("scala" :: "collection" :: "immutable" :: Nil, Nil), "Set")
   private val _vector = TypeName(Namespace("scala" :: Nil, Nil), "Vector")
   private val _array  = TypeName(Namespace("scala" :: Nil, Nil), "Array")
   private val _either = TypeName(Namespace("scala" :: Nil, Nil), "Either")
