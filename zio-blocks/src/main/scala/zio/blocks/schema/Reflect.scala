@@ -164,7 +164,7 @@ object Reflect {
     doc: Doc,
     modifiers: List[Modifier.Seq]
   ) extends Reflect[F, C[A]] {
-    protected def inner: Any = (element, typeName, doc)
+    protected def inner: Any = (element, typeName, doc, modifiers)
 
     final type NodeBinding = BindingType.Seq[C]
 
@@ -190,7 +190,7 @@ object Reflect {
     doc: Doc,
     modifiers: List[Modifier.Map]
   ) extends Reflect[F, M[Key, Value]] {
-    protected def inner: Any = (key, value, typeName, doc)
+    protected def inner: Any = (key, value, typeName, doc, modifiers)
 
     final type NodeBinding = BindingType.Map[M]
 
@@ -215,7 +215,7 @@ object Reflect {
     modifiers: scala.List[Modifier.Dynamic],
     doc: Doc
   ) extends Reflect[F, DynamicValue] {
-    protected def inner: Any = (modifiers, doc)
+    protected def inner: Any = (modifiers, doc, modifiers)
 
     final type NodeBinding = BindingType.Dynamic
 
@@ -231,7 +231,7 @@ object Reflect {
     doc: Doc,
     modifiers: scala.List[Modifier.Primitive]
   ) extends Reflect[F, A] { self =>
-    protected def inner: Any = (primitiveType, typeName, doc)
+    protected def inner: Any = (primitiveType, typeName, doc, modifiers)
 
     final type NodeBinding = BindingType.Primitive
 
@@ -528,6 +528,11 @@ object Reflect {
 
   def array[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Sequence[F, A, scala.Array] =
     Sequence(element, F.fromBinding(Binding.Seq.array), TypeName.array[A], Doc.Empty, Nil)
+
+  def map[F[_, _], A, B](key: Reflect[F, A], value: Reflect[F, B])(implicit
+    F: FromBinding[F]
+  ): Map[F, A, B, collection.immutable.Map] =
+    Map(key, value, F.fromBinding(Binding.Map.map), TypeName.map[A, B], Doc.Empty, Nil)
 
   def some[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Record[F, Some[A]] =
     Record(

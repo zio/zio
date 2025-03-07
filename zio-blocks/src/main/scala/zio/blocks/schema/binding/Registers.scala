@@ -8,7 +8,7 @@ package zio.blocks.schema.binding
 class Registers private {
   import RegisterOffset.RegisterOffset
 
-  private var booleans: Array[Boolean] = new Array[Boolean](128)
+  private var booleans: Array[Boolean] = new Array[Boolean](8)
   private var bytes: Array[Byte]       = new Array[Byte](8)
   private var shorts: Array[Short]     = new Array[Short](8)
   private var ints: Array[Int]         = new Array[Int](8)

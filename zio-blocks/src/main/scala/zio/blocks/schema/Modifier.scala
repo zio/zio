@@ -31,4 +31,5 @@ object Modifier {
       with Dynamic
       with Seq
       with Map
+      with Primitive
 }

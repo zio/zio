@@ -76,7 +76,10 @@ lazy val projectsCommon = List(
   testTests
 )
 
-lazy val rootJVM = project.in(file("target/rootJVM")).settings(publish / skip := true).aggregate(rootJVM213)
+lazy val rootJVM = project
+  .in(file("target/rootJVM"))
+  .settings(publish / skip := true)
+  .aggregate(rootJVM213)
 
 lazy val rootJVM212 = project.in(file("target/rootJVM212")).settings(publish / skip := true).aggregate(rootJVM213)
 
@@ -167,6 +170,11 @@ lazy val root213 = project
       testJunitEngineTests
     ) *
   )
+  .aggregate(
+    zioBlocks.jvm,
+    zioBlocks.js,
+    zioBlocks.native
+  )
 
 lazy val root3 = project
   .in(file("target/root3"))
@@ -191,6 +199,11 @@ lazy val root3 = project
       testJunitRunnerTests,
       testJunitEngineTests
     ) *
+  )
+  .aggregate(
+    zioBlocks.jvm,
+    zioBlocks.js,
+    zioBlocks.native
   )
 
 lazy val root = project

@@ -29,7 +29,7 @@ final case class Schema[A](reflect: Reflect.Bound[A]) {
   def decode[F <: codec.Format](format: F)(decodeInput: format.DecodeInput): Either[codec.CodecError, A] =
     getInstance(format).decode(decodeInput)
 
-  def doc: Doc = ??? // TODO
+  def doc: Doc = reflect.doc
 
   def doc(value: String): Schema[A] = ??? // TODO
 
@@ -124,6 +124,9 @@ object Schema {
   implicit def vector[A](implicit element: Schema[A]): Schema[Vector[A]] = Schema(Reflect.vector(element.reflect))
 
   implicit def array[A](implicit element: Schema[A]): Schema[Array[A]] = Schema(Reflect.array(element.reflect))
+
+  implicit def map[A, B](implicit key: Schema[A], value: Schema[B]): Schema[collection.immutable.Map[A, B]] =
+    Schema(Reflect.map(key.reflect, value.reflect))
 
   implicit def some[A](implicit element: Schema[A]): Schema[Some[A]] = Schema(Reflect.some(element.reflect))
 
