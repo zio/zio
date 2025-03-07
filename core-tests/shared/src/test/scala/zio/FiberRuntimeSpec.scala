@@ -87,11 +87,12 @@ object FiberRuntimeSpec extends ZIOBaseSpec {
             state3         <- fiber.poll
             executedAfter  <- executed.get
           } yield assertTrue(
-            state1 == state2,
-            state1 == state3,
+            state1 == Some(exit),
+            state2 == Some(exit),
+            state3 == Some(exit),
             executedBefore == 0,
             executedAfter == 0,
-            state1.exists(_.isInterrupted)
+            exit.isInterrupted
           )
         }
       } @@ TestAspect.nonFlaky(10)
