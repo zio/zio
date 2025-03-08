@@ -51,7 +51,7 @@
     "@zio.dev/zio-sbt": "0.4.0-alpha.31",
     "@zio.dev/zio-schema": "1.6.4",
     "@zio.dev/zio-sqs": "2022.11.23-5a814304824c",
-    "@zio.dev/zio-streams-compress": "1.0.0",
+    "@zio.dev/zio-streams-compress": "1.1.0",
     "@zio.dev/zio-telemetry": "3.1.2",
     "@zio.dev/zio2-interop-cats2": "2023.1.23-571dabdd91f9",
     "autoprefixer": "10.4.20",
