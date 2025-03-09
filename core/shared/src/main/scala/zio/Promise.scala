@@ -248,7 +248,7 @@ object Promise {
       def complete(io: IO[E, A]): Unit =
         (next: @switch) match {
           case 1 => ()
-          case 2 => waiters(2L)(io)
+          case 2 => waiters(1L)(io)
           case _ => waiters.valuesIterator.foreach(_(io))
         }
       def add(joiner: IO[E, A] => Any): Pending[E, A] = new Pending[E, A](waiters.updated(next, joiner), next + 1)
