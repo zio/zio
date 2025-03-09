@@ -54,7 +54,7 @@
     "@zio.dev/zio-streams-compress": "1.1.0",
     "@zio.dev/zio-telemetry": "3.1.2",
     "@zio.dev/zio2-interop-cats2": "2023.1.23-571dabdd91f9",
-    "autoprefixer": "10.4.20",
+    "autoprefixer": "10.4.21",
     "babel": "^6.23.0",
     "blended-include-code-plugin": "0.1.2",
     "clsx": "2.1.1",
