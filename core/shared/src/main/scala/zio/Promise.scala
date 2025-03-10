@@ -250,7 +250,7 @@ object Promise {
       override def complete(io: IO[Nothing, Nothing]): Unit = ()
       override def add(waiter: IO[Nothing, Nothing] => Any): Pending[Nothing, Nothing] =
         new Link[Nothing, Nothing](waiter, self, 1) {
-          override def complete(io: IO[Nothing, Nothing]): Unit = waiter(io)
+          override def complete(io: IO[Nothing, Nothing]): Unit = this.waiter(io)
         }
       def size = 0
     }
