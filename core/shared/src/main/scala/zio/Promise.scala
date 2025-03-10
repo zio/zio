@@ -71,14 +71,14 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
    * fibers waiting on the value of the promise.
    */
   def die(e: Throwable)(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.die(e)(trace, Unsafe.unsafe))
+    ZIO.succeed(unsafe.die(e)(trace, Unsafe))
 
   /**
    * Exits the promise with the specified exit, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
   def done(e: Exit[E, A])(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.completeWith(e)(Unsafe.unsafe))
+    ZIO.succeed(unsafe.completeWith(e)(Unsafe))
 
   /**
    * Completes the promise with the result of the specified effect. If the
@@ -102,21 +102,21 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
    * promise with the result of an effect see [[Promise.complete]].
    */
   def completeWith(io: IO[E, A])(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.completeWith(io)(Unsafe.unsafe))
+    ZIO.succeed(unsafe.completeWith(io)(Unsafe))
 
   /**
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
   def fail(e: E)(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.fail(e)(trace, Unsafe.unsafe))
+    ZIO.succeed(unsafe.fail(e)(trace, Unsafe))
 
   /**
    * Fails the promise with the specified cause, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
   def failCause(e: Cause[E])(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.failCause(e)(trace, Unsafe.unsafe))
+    ZIO.succeed(unsafe.failCause(e)(trace, Unsafe))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
@@ -130,21 +130,21 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
    * waiting on the value of the promise as by the specified fiber.
    */
   def interruptAs(fiberId: FiberId)(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.interruptAs(fiberId)(trace, Unsafe.unsafe))
+    ZIO.succeed(unsafe.interruptAs(fiberId)(trace, Unsafe))
 
   /**
    * Checks for completion of this Promise. Produces true if this promise has
    * already been completed with a value or an error and false otherwise.
    */
   def isDone(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.isDone(Unsafe.unsafe))
+    ZIO.succeed(unsafe.isDone(Unsafe))
 
   /**
    * Checks for completion of this Promise. Returns the result effect if this
    * promise has already been completed or a `None` otherwise.
    */
   def poll(implicit trace: Trace): UIO[Option[IO[E, A]]] =
-    ZIO.succeed(unsafe.poll(Unsafe.unsafe))
+    ZIO.succeed(unsafe.poll(Unsafe))
 
   /**
    * Fails the promise with the specified cause, which will be propagated to all
@@ -152,13 +152,13 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
    * to the cause.
    */
   def refailCause(e: Cause[E])(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.refailCause(e)(trace, Unsafe.unsafe))
+    ZIO.succeed(unsafe.refailCause(e)(trace, Unsafe))
 
   /**
    * Completes the promise with the specified value.
    */
   def succeed(a: A)(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.succeed(a)(trace, Unsafe.unsafe))
+    ZIO.succeed(unsafe.succeed(a)(trace, Unsafe))
 
   /**
    * Internally, you can use this method instead of calling
