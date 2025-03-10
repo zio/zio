@@ -1,8 +1,9 @@
 package zio.blocks.schema
 
 import zio.blocks.schema.binding._
-
 import RegisterOffset.RegisterOffset
+
+import scala.collection.immutable.ArraySeq
 
 sealed trait Reflect[F[_, _], A] extends Reflectable[A] { self =>
   protected def inner: Any
@@ -24,6 +25,7 @@ sealed trait Reflect[F[_, _], A] extends Reflectable[A] { self =>
     case _                   => false
   }
 }
+
 object Reflect {
   type Bound[A] = Reflect[Binding, A]
 
@@ -35,7 +37,7 @@ object Reflect {
     modifiers: scala.List[Modifier.Record]
   ) extends Reflect[F, A] { self =>
     protected def inner: Any = (fields, typeName, doc, modifiers)
-    final type NodeBinding = BindingType.Record
+    type NodeBinding = BindingType.Record
 
     def binding(implicit F: HasBinding[F]): Binding[BindingType.Record, A] = F.binding(recordBinding)
 
@@ -51,83 +53,71 @@ object Reflect {
 
     val length: Int = fields.length
 
-    def registerByName(name: String): scala.Option[Register[?]] =
-      Some(fields.indexWhere(_.name == name)).filter(_ >= 0).map(registers)
+    def registerByName(name: String): scala.Option[Register[?]] = {
+      val i = fields.indexWhere(_.name == name)
+      if (i >= 0) Some(registers(i))
+      else None
+    }
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Record[G, A] =
       Record(fields.map(_.refineBinding(f)), typeName, f(recordBinding), doc, modifiers)
 
-    val registers: IndexedSeq[Register[?]] =
-      fields
-        .foldLeft(scala.List.empty[Register[?]] -> RegisterOffset.Zero) {
-          case ((list, registerOffset), Term(_, Reflect.Primitive(primType, _, _, _, _), _, _)) =>
+    val registers: IndexedSeq[Register[?]] = {
+      val registers      = new Array[Register[?]](length)
+      var registerOffset = RegisterOffset.Zero
+      var i              = 0
+      fields.foreach { term =>
+        term.value match {
+          case Reflect.Primitive(primType, _, _, _, _) =>
             primType match {
               case PrimitiveType.Unit =>
-                (Register.Unit :: list, registerOffset)
-
-              case PrimitiveType.Boolean(_) =>
-                val index = RegisterOffset.getBooleans(registerOffset)
-
-                (Register.Boolean(index) :: list, RegisterOffset.incrementBooleans(registerOffset))
-
-              case PrimitiveType.Byte(_) =>
-                val index = RegisterOffset.getBytes(registerOffset)
-
-                (Register.Byte(index) :: list, RegisterOffset.incrementBytes(registerOffset))
-
-              case PrimitiveType.Short(_) =>
-                val index = RegisterOffset.getShorts(registerOffset)
-
-                (Register.Short(index) :: list, RegisterOffset.incrementShorts(registerOffset))
-
-              case PrimitiveType.Int(_) =>
-                val index = RegisterOffset.getInts(registerOffset)
-
-                (Register.Int(index) :: list, RegisterOffset.incrementInts(registerOffset))
-
-              case PrimitiveType.Long(_) =>
-                val index = RegisterOffset.getLongs(registerOffset)
-
-                (Register.Long(index) :: list, RegisterOffset.incrementLongs(registerOffset))
-
-              case PrimitiveType.Float(_) =>
-                val index = RegisterOffset.getFloats(registerOffset)
-
-                (Register.Float(index) :: list, RegisterOffset.incrementFloats(registerOffset))
-
-              case PrimitiveType.Double(_) =>
-                val index = RegisterOffset.getDoubles(registerOffset)
-
-                (Register.Double(index) :: list, RegisterOffset.incrementDoubles(registerOffset))
-
-              case PrimitiveType.Char(_) =>
-                val index = RegisterOffset.getChars(registerOffset)
-
-                (Register.Char(index) :: list, RegisterOffset.incrementChars(registerOffset))
-
+                registers(i) = Register.Unit
+              case _: PrimitiveType.Boolean =>
+                registers(i) = Register.Boolean(RegisterOffset.getBooleans(registerOffset))
+                registerOffset = RegisterOffset.incrementBooleans(registerOffset)
+              case _: PrimitiveType.Byte =>
+                registers(i) = Register.Byte(RegisterOffset.getBytes(registerOffset))
+                registerOffset = RegisterOffset.incrementBytes(registerOffset)
+              case _: PrimitiveType.Short =>
+                registers(i) = Register.Short(RegisterOffset.getShorts(registerOffset))
+                registerOffset = RegisterOffset.incrementShorts(registerOffset)
+              case _: PrimitiveType.Int =>
+                registers(i) = Register.Int(RegisterOffset.getInts(registerOffset))
+                registerOffset = RegisterOffset.incrementInts(registerOffset)
+              case _: PrimitiveType.Long =>
+                registers(i) = Register.Long(RegisterOffset.getLongs(registerOffset))
+                registerOffset = RegisterOffset.incrementLongs(registerOffset)
+              case _: PrimitiveType.Float =>
+                registers(i) = Register.Float(RegisterOffset.getFloats(registerOffset))
+                registerOffset = RegisterOffset.incrementFloats(registerOffset)
+              case _: PrimitiveType.Double =>
+                registers(i) = Register.Double(RegisterOffset.getDoubles(registerOffset))
+                registerOffset = RegisterOffset.incrementDoubles(registerOffset)
+              case _: PrimitiveType.Char =>
+                registers(i) = Register.Char(RegisterOffset.getChars(registerOffset))
+                registerOffset = RegisterOffset.incrementChars(registerOffset)
               case _ =>
-                val index = RegisterOffset.getObjects(registerOffset)
-
-                (Register.Object(index) :: list, RegisterOffset.incrementObjects(registerOffset))
+                registers(i) = Register.Object(RegisterOffset.getObjects(registerOffset))
+                registerOffset = RegisterOffset.incrementObjects(registerOffset)
             }
-
-          case ((list, registerOffset), _) =>
-            val index = RegisterOffset.getObjects(registerOffset)
-
-            (Register.Object(index) :: list, RegisterOffset.incrementObjects(registerOffset))
+          case _ =>
+            registers(i) = Register.Object(RegisterOffset.getObjects(registerOffset))
+            registerOffset = RegisterOffset.incrementObjects(registerOffset)
         }
-        ._1
-        .toArray
-        .reverse
-        .toIndexedSeq
+        i += 1
+      }
+      ArraySeq.unsafeWrapArray(registers)
+    }
 
-    val size: RegisterOffset = registers.foldLeft(RegisterOffset.Zero) { case (acc, register) =>
+    val size: RegisterOffset = registers.foldLeft(RegisterOffset.Zero) { (acc, register) =>
       RegisterOffset.add(acc, register.size)
     }
   }
+
   object Record {
     type Bound[A] = Record[Binding, A]
   }
+
   final case class Variant[F[_, _], A](
     cases: scala.List[Term[F, A, ? <: A]],
     typeName: TypeName[A],
@@ -137,7 +127,7 @@ object Reflect {
   ) extends Reflect[F, A] {
     protected def inner: Any = (cases, typeName, doc, modifiers)
 
-    final type NodeBinding = BindingType.Variant
+    type NodeBinding = BindingType.Variant
 
     def binding(implicit F: HasBinding[F]): Binding[BindingType.Variant, A] = F.binding(variantBinding)
 
@@ -154,9 +144,11 @@ object Reflect {
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Variant[G, A] =
       Variant(cases.map(_.refineBinding(f)), typeName, f(variantBinding), doc, modifiers)
   }
+
   object Variant {
     type Bound[A] = Variant[Binding, A]
   }
+
   final case class Sequence[F[_, _], A, C[_]](
     element: Reflect[F, A],
     seqBinding: F[BindingType.Seq[C], C[A]],
@@ -166,7 +158,7 @@ object Reflect {
   ) extends Reflect[F, C[A]] {
     protected def inner: Any = (element, typeName, doc, modifiers)
 
-    final type NodeBinding = BindingType.Seq[C]
+    type NodeBinding = BindingType.Seq[C]
 
     def binding(implicit F: HasBinding[F]): Binding[BindingType.Seq[C], C[A]] = F.binding(seqBinding)
 
@@ -179,9 +171,11 @@ object Reflect {
 
     def traversal: Traversal[F, C[A], A] = Traversal(this)
   }
+
   object Sequence {
     type Bound[A, C[_]] = Sequence[Binding, A, C]
   }
+
   final case class Map[F[_, _], Key, Value, M[_, _]](
     key: Reflect[F, Key],
     value: Reflect[F, Value],
@@ -192,7 +186,7 @@ object Reflect {
   ) extends Reflect[F, M[Key, Value]] {
     protected def inner: Any = (key, value, typeName, doc, modifiers)
 
-    final type NodeBinding = BindingType.Map[M]
+    type NodeBinding = BindingType.Map[M]
 
     def binding(implicit F: HasBinding[F]): Binding[BindingType.Map[M], M[Key, Value]] = F.binding(mapBinding)
 
@@ -207,23 +201,26 @@ object Reflect {
 
     def values: Traversal[F, M[Key, Value], Value] = Traversal.MapValues(this)
   }
+
   object Map {
     type Bound[K, V, M[_, _]] = Map[Binding, K, V, M]
   }
+
   final case class Dynamic[F[_, _]](
     dynamicBinding: F[BindingType.Dynamic, DynamicValue],
-    modifiers: scala.List[Modifier.Dynamic],
-    doc: Doc
+    doc: Doc,
+    modifiers: scala.List[Modifier.Dynamic]
   ) extends Reflect[F, DynamicValue] {
-    protected def inner: Any = (modifiers, doc, modifiers)
+    protected def inner: Any = (modifiers, modifiers, doc)
 
-    final type NodeBinding = BindingType.Dynamic
+    type NodeBinding = BindingType.Dynamic
 
     def binding(implicit F: HasBinding[F]): Binding[BindingType.Dynamic, DynamicValue] = F.binding(dynamicBinding)
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Reflect[G, DynamicValue] =
-      Dynamic(f(dynamicBinding), modifiers, doc)
+      Dynamic(f(dynamicBinding), doc, modifiers)
   }
+
   final case class Primitive[F[_, _], A](
     primitiveType: PrimitiveType[A],
     primitiveBinding: F[BindingType.Primitive, A],
@@ -233,7 +230,7 @@ object Reflect {
   ) extends Reflect[F, A] { self =>
     protected def inner: Any = (primitiveType, typeName, doc, modifiers)
 
-    final type NodeBinding = BindingType.Primitive
+    type NodeBinding = BindingType.Primitive
 
     def binding(implicit F: HasBinding[F]): Binding.Primitive[A] = F.primitive(primitiveBinding)
 
@@ -241,14 +238,16 @@ object Reflect {
 
     def examples(implicit F: HasBinding[F]): scala.List[A] = binding.examples
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Primitive[G, A] = copy(primitiveBinding = f(primitiveBinding))
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Primitive[G, A] =
+      Primitive(primitiveType, f(primitiveBinding), typeName, doc, modifiers)
   }
+
   final case class Deferred[F[_, _], A](_value: () => Reflect[F, A]) extends Reflect[F, A] {
     protected def inner: Any = value.inner
 
-    lazy val value = _value()
+    lazy val value: Reflect[F, A] = _value()
 
-    final type NodeBinding = value.NodeBinding
+    type NodeBinding = value.NodeBinding
 
     def binding(implicit F: HasBinding[F]): Binding[NodeBinding, A] = value.binding
 
@@ -554,9 +553,7 @@ object Reflect {
 
   def option[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Variant[F, scala.Option[A]] = {
     val noneTerm: Term[F, scala.Option[A], None.type] = Term("None", none, Doc.Empty, scala.List.empty)
-
-    val someTerm: Term[F, scala.Option[A], Some[A]] = Term("Some", some[F, A](element), Doc.Empty, scala.List.empty)
-
+    val someTerm: Term[F, scala.Option[A], Some[A]]   = Term("Some", some[F, A](element), Doc.Empty, scala.List.empty)
     Variant(
       scala.List(noneTerm, someTerm),
       TypeName.option[A],
@@ -587,10 +584,8 @@ object Reflect {
   def either[F[_, _], L, R](l: Reflect[F, L], r: Reflect[F, R])(implicit
     F: FromBinding[F]
   ): Variant[F, scala.Either[L, R]] = {
-    val leftTerm: Term[F, scala.Either[L, R], Left[L, R]] = Term("Left", left(l), Doc.Empty, scala.List.empty)
-
+    val leftTerm: Term[F, scala.Either[L, R], Left[L, R]]   = Term("Left", left(l), Doc.Empty, scala.List.empty)
     val rightTerm: Term[F, scala.Either[L, R], Right[L, R]] = Term("Right", right(r), Doc.Empty, scala.List.empty)
-
     Variant(
       scala.List(leftTerm, rightTerm),
       TypeName.either[L, R],
@@ -697,11 +692,10 @@ object Reflect {
       def unapply[F[_, _], A](reflect: Reflect[F, scala.Option[A]]): scala.Option[Reflect[F, A]] =
         reflect match {
           case Variant(noneTerm :: someTerm :: Nil, tn, _, _, _) if tn == TypeName.option =>
-            someTerm match {
-              case Term("Some", element, _, _) => Some(element.asInstanceOf[Reflect[F, A]])
-              case _                           => None
+            (noneTerm, someTerm) match {
+              case (Term("None", _, _, _), Term("Some", element, _, _)) => Some(element.asInstanceOf[Reflect[F, A]])
+              case _                                                    => None
             }
-
           case _ => None
         }
     }
@@ -716,7 +710,6 @@ object Reflect {
                 Some((left.asInstanceOf[Reflect[F, L]], right.asInstanceOf[Reflect[F, R]]))
               case _ => None
             }
-
           case _ => None
         }
     }
