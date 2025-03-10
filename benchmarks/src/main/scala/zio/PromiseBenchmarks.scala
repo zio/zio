@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
 class PromiseBenchmarks {
 
   val n            = 100000
-  val waiters: Int = 16
+  val waiters: Int = 8
 
   @Benchmark
   def zioPromiseAwaitDone(): Unit = {
