@@ -242,19 +242,38 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
 }
 object Promise {
   private[Promise] object internal {
-    sealed abstract class State[E, A]                extends Serializable
-    final case class Done[E, A](val value: IO[E, A]) extends State[E, A]
-    final class Pending[E, A](waiters: LongMap[IO[E, A] => Any], next: Long) extends State[E, A] { self =>
-      def complete(io: IO[E, A]): Unit =
-        (next: @switch) match {
-          case 1 => ()
-          case 2 => waiters(1L)(io)
-          case _ => waiters.valuesIterator.foreach(_(io))
-        }
-      def add(joiner: IO[E, A] => Any): Pending[E, A] = new Pending[E, A](waiters.updated(next, joiner), next + 1)
+    sealed abstract class State[E, A]            extends Serializable
+    final case class Done[E, A](value: IO[E, A]) extends State[E, A]
+    sealed abstract class Pending[E, A] extends State[E, A] { self =>
+      def complete(io: IO[E, A]): Unit = {
+        val size = self.size
+        val arr = new Array[IO[E, A] => Any](size)
+        @annotation.tailrec
+        def fill(pending: Pending[E, A], i: Int): Unit =
+          pending match {
+            case link: Link[?, ?] =>
+              arr(i) = link.waiter
+              fill(link.ws, i - 1)
+            case _ => () // Empty
+          }
+        fill(self, size - 1)
+        arr.foreach(_(io))
+      }
+      def add(waiter: IO[E, A] => Any): Pending[E, A]
+      def size: Int
     }
+    private case object Empty extends Pending[Nothing, Nothing] { self =>
+      override def complete(io: IO[Nothing, Nothing]): Unit = ()
+      override def add(waiter: IO[Nothing, Nothing] => Any): Pending[Nothing, Nothing] = new Link[Nothing, Nothing](waiter, self, 1) {
+        override def complete(io: IO[Nothing, Nothing]): Unit = waiter(io)
+      }
+      def size = 0
+    }
+    private sealed class Link[E, A](val waiter: IO[E, A] => Any, val ws: Pending[E, A], val size: Int) extends Pending[E, A] { self =>
+      def add(waiter: IO[E, A] => Any): Pending[E, A] = new Link(waiter, self, size + 1)
+    }
+
     object State {
-      private val Empty            = new Pending[Nothing, Nothing](LongMap.empty, 1)
       def empty[E, A]: State[E, A] = Empty.asInstanceOf[State[E, A]]
     }
   }
