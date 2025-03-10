@@ -11,11 +11,12 @@ object RegisterType {
   case object Float      extends RegisterType[Float]
   case object Double     extends RegisterType[Double]
   case object Boolean    extends RegisterType[Boolean]
-  sealed trait Object[A] extends RegisterType[A]
-  def Object[A](): RegisterType[A] = _object.asInstanceOf[RegisterType[A]]
+  sealed trait Object[A <: AnyRef] extends RegisterType[A]
 
-  private var _object: RegisterType[Any] =
-    new RegisterType[Any] {
+  def Object[A <: AnyRef](): RegisterType[A] = _object.asInstanceOf[RegisterType[A]]
+
+  private val _object: RegisterType[AnyRef] =
+    new RegisterType[AnyRef] {
       override def toString: String = "Object"
 
       override def equals(obj: Any): Boolean = obj match {
