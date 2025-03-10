@@ -53,22 +53,26 @@ object RegisterOffset {
     chars: Int = 0,
     objects: Int = 0
   ): RegisterOffset = {
-    val booleansShifted = (booleans.toLong << BooleansShift)
-    val bytesShifted    = (bytes.toLong << BytesShift)
-    val shortsShifted   = (shorts.toLong << ShortsShift)
-    val intsShifted     = (ints.toLong << IntsShift)
-    val longsShifted    = (longs.toLong << LongsShift)
-    val floatsShifted   = (floats.toLong << FloatsShift)
-    val doublesShifted  = (doubles.toLong << DoublesShift)
-    val charsShifted    = (chars.toLong << CharsShift)
-    val objectsShifted  = (objects.toLong << ObjectsShift)
-
+    if (((booleans | bytes | shorts | ints | longs | floats | doubles | chars | objects) >> 7) != 0) {
+      throw new IllegalArgumentException("arguments must be from 0x00 to 0x7f inclusive")
+    }
+    val booleansShifted = booleans.toLong << BooleansShift
+    val bytesShifted    = bytes.toLong << BytesShift
+    val shortsShifted   = shorts.toLong << ShortsShift
+    val intsShifted     = ints.toLong << IntsShift
+    val longsShifted    = longs.toLong << LongsShift
+    val floatsShifted   = floats.toLong << FloatsShift
+    val doublesShifted  = doubles.toLong << DoublesShift
+    val charsShifted    = chars.toLong << CharsShift
+    val objectsShifted  = objects.toLong << ObjectsShift
     booleansShifted | bytesShifted | shortsShifted | intsShifted | longsShifted | floatsShifted | doublesShifted | charsShifted | objectsShifted
   }
 
-  def add(left: RegisterOffset, right: RegisterOffset): RegisterOffset =
-    // TODO: Assert no overflow, which would happen if in any channel, the sum of the two values is greater than 127
-    left + right
+  def add(left: RegisterOffset, right: RegisterOffset): RegisterOffset = {
+    val res = left | right
+    if ((left ^ right) != res) throw new IllegalArgumentException("arguments cannot have overlapping bits")
+    else res
+  }
 
   def incrementBooleans(offset: RegisterOffset): RegisterOffset = offset + (1L << BooleansShift)
 
