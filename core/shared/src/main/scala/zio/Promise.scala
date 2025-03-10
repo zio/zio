@@ -17,11 +17,8 @@
 package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import scala.collection.immutable.LongMap
 
 import java.util.concurrent.atomic.AtomicReference
-
-import scala.annotation.switch
 
 /**
  * A promise represents an asynchronous variable, of [[zio.ZIO]] type, that can
