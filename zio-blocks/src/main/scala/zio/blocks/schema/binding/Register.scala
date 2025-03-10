@@ -94,7 +94,7 @@ object Register {
 
     def size: RegisterOffset = RegisterOffset.incrementChars(RegisterOffset.Zero)
   }
-  final case class Object[Boxed <: AnyRef](relativeIndex: scala.Int) extends Register[Boxed] {
+  final case class Object[A <: AnyRef](relativeIndex: scala.Int) extends Register[A] {
     def registerType: RegisterType[Boxed] = RegisterType.Object[Boxed]()
 
     def get(registers: Registers, base: RegisterOffset): Boxed =
