@@ -63,7 +63,7 @@ object Reflect {
       Record(fields.map(_.refineBinding(f)), typeName, f(recordBinding), doc, modifiers)
 
     val registers: IndexedSeq[Register[?]] = {
-      val registers = new Array[Register[?]](fields.length)
+      val registers = new Array[Register[?]](length)
       var registerOffset = RegisterOffset.Zero
       var i = 0
       fields.foreach { term =>
@@ -109,7 +109,7 @@ object Reflect {
       ArraySeq.unsafeWrapArray(registers)
     }
 
-    val size: RegisterOffset = registers.foldLeft(RegisterOffset.Zero) { case (acc, register) =>
+    val size: RegisterOffset = registers.foldLeft(RegisterOffset.Zero) { (acc, register) =>
       RegisterOffset.add(acc, register.size)
     }
   }
