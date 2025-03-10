@@ -1,8 +1,9 @@
 package zio.blocks.schema
 
 import zio.blocks.schema.binding._
-
 import RegisterOffset.RegisterOffset
+
+import scala.collection.immutable.ArraySeq
 
 sealed trait Reflect[F[_, _], A] extends Reflectable[A] { self =>
   protected def inner: Any
@@ -52,75 +53,61 @@ object Reflect {
 
     val length: Int = fields.length
 
-    def registerByName(name: String): scala.Option[Register[?]] =
-      Some(fields.indexWhere(_.name == name)).filter(_ >= 0).map(registers)
+    def registerByName(name: String): scala.Option[Register[?]] = {
+      val i = fields.indexWhere(_.name == name)
+      if (i >= 0) Some(registers(i))
+      else None
+    }
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Record[G, A] =
       Record(fields.map(_.refineBinding(f)), typeName, f(recordBinding), doc, modifiers)
 
-    val registers: IndexedSeq[Register[?]] =
-      fields
-        .foldLeft(scala.List.empty[Register[?]] -> RegisterOffset.Zero) {
-          case ((list, registerOffset), Term(_, Reflect.Primitive(primType, _, _, _, _), _, _)) =>
+    val registers: IndexedSeq[Register[?]] = {
+      val registers = new Array[Register[?]](fields.length)
+      var registerOffset = RegisterOffset.Zero
+      var i = 0
+      fields.foreach { term =>
+        term.value match {
+          case Reflect.Primitive(primType, _, _, _, _) =>
             primType match {
               case PrimitiveType.Unit =>
-                (Register.Unit :: list, registerOffset)
-
-              case PrimitiveType.Boolean(_) =>
-                val index = RegisterOffset.getBooleans(registerOffset)
-
-                (Register.Boolean(index) :: list, RegisterOffset.incrementBooleans(registerOffset))
-
-              case PrimitiveType.Byte(_) =>
-                val index = RegisterOffset.getBytes(registerOffset)
-
-                (Register.Byte(index) :: list, RegisterOffset.incrementBytes(registerOffset))
-
-              case PrimitiveType.Short(_) =>
-                val index = RegisterOffset.getShorts(registerOffset)
-
-                (Register.Short(index) :: list, RegisterOffset.incrementShorts(registerOffset))
-
-              case PrimitiveType.Int(_) =>
-                val index = RegisterOffset.getInts(registerOffset)
-
-                (Register.Int(index) :: list, RegisterOffset.incrementInts(registerOffset))
-
-              case PrimitiveType.Long(_) =>
-                val index = RegisterOffset.getLongs(registerOffset)
-
-                (Register.Long(index) :: list, RegisterOffset.incrementLongs(registerOffset))
-
-              case PrimitiveType.Float(_) =>
-                val index = RegisterOffset.getFloats(registerOffset)
-
-                (Register.Float(index) :: list, RegisterOffset.incrementFloats(registerOffset))
-
-              case PrimitiveType.Double(_) =>
-                val index = RegisterOffset.getDoubles(registerOffset)
-
-                (Register.Double(index) :: list, RegisterOffset.incrementDoubles(registerOffset))
-
-              case PrimitiveType.Char(_) =>
-                val index = RegisterOffset.getChars(registerOffset)
-
-                (Register.Char(index) :: list, RegisterOffset.incrementChars(registerOffset))
-
+                registers(i) = Register.Unit
+              case _: PrimitiveType.Boolean =>
+                registers(i) = Register.Boolean(RegisterOffset.getBooleans(registerOffset))
+                registerOffset = RegisterOffset.incrementBooleans(registerOffset)
+              case _: PrimitiveType.Byte =>
+                registers(i) = Register.Byte(RegisterOffset.getBytes(registerOffset))
+                registerOffset = RegisterOffset.incrementBytes(registerOffset)
+              case _: PrimitiveType.Short =>
+                registers(i) = Register.Short(RegisterOffset.getShorts(registerOffset))
+                registerOffset = RegisterOffset.incrementShorts(registerOffset)
+              case _: PrimitiveType.Int =>
+                registers(i) = Register.Int(RegisterOffset.getInts(registerOffset))
+                registerOffset = RegisterOffset.incrementInts(registerOffset)
+              case _: PrimitiveType.Long =>
+                registers(i) = Register.Long(RegisterOffset.getLongs(registerOffset))
+                registerOffset = RegisterOffset.incrementLongs(registerOffset)
+              case _: PrimitiveType.Float =>
+                registers(i) = Register.Float(RegisterOffset.getFloats(registerOffset))
+                registerOffset = RegisterOffset.incrementFloats(registerOffset)
+              case _: PrimitiveType.Double =>
+                registers(i) = Register.Double(RegisterOffset.getDoubles(registerOffset))
+                registerOffset = RegisterOffset.incrementDoubles(registerOffset)
+              case _: PrimitiveType.Char =>
+                registers(i) = Register.Char(RegisterOffset.getChars(registerOffset))
+                registerOffset = RegisterOffset.incrementChars(registerOffset)
               case _ =>
-                val index = RegisterOffset.getObjects(registerOffset)
-
-                (Register.Object(index) :: list, RegisterOffset.incrementObjects(registerOffset))
+                registers(i) = Register.Object(RegisterOffset.getObjects(registerOffset))
+                registerOffset = RegisterOffset.incrementObjects(registerOffset)
             }
-
-          case ((list, registerOffset), _) =>
-            val index = RegisterOffset.getObjects(registerOffset)
-
-            (Register.Object(index) :: list, RegisterOffset.incrementObjects(registerOffset))
+          case _ =>
+            registers(i) = Register.Object(RegisterOffset.getObjects(registerOffset))
+            registerOffset = RegisterOffset.incrementObjects(registerOffset)
         }
-        ._1
-        .toArray
-        .reverse
-        .toIndexedSeq
+        i += 1
+      }
+      ArraySeq.unsafeWrapArray(registers)
+    }
 
     val size: RegisterOffset = registers.foldLeft(RegisterOffset.Zero) { case (acc, register) =>
       RegisterOffset.add(acc, register.size)
