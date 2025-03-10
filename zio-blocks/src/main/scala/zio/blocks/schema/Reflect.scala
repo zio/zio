@@ -24,6 +24,7 @@ sealed trait Reflect[F[_, _], A] extends Reflectable[A] { self =>
     case _                   => false
   }
 }
+
 object Reflect {
   type Bound[A] = Reflect[Binding, A]
 
@@ -35,7 +36,7 @@ object Reflect {
     modifiers: scala.List[Modifier.Record]
   ) extends Reflect[F, A] { self =>
     protected def inner: Any = (fields, typeName, doc, modifiers)
-    final type NodeBinding = BindingType.Record
+    type NodeBinding = BindingType.Record
 
     def binding(implicit F: HasBinding[F]): Binding[BindingType.Record, A] = F.binding(recordBinding)
 
@@ -125,9 +126,11 @@ object Reflect {
       RegisterOffset.add(acc, register.size)
     }
   }
+
   object Record {
     type Bound[A] = Record[Binding, A]
   }
+
   final case class Variant[F[_, _], A](
     cases: scala.List[Term[F, A, ? <: A]],
     typeName: TypeName[A],
@@ -137,7 +140,7 @@ object Reflect {
   ) extends Reflect[F, A] {
     protected def inner: Any = (cases, typeName, doc, modifiers)
 
-    final type NodeBinding = BindingType.Variant
+    type NodeBinding = BindingType.Variant
 
     def binding(implicit F: HasBinding[F]): Binding[BindingType.Variant, A] = F.binding(variantBinding)
 
@@ -154,9 +157,11 @@ object Reflect {
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Variant[G, A] =
       Variant(cases.map(_.refineBinding(f)), typeName, f(variantBinding), doc, modifiers)
   }
+
   object Variant {
     type Bound[A] = Variant[Binding, A]
   }
+
   final case class Sequence[F[_, _], A, C[_]](
     element: Reflect[F, A],
     seqBinding: F[BindingType.Seq[C], C[A]],
@@ -166,7 +171,7 @@ object Reflect {
   ) extends Reflect[F, C[A]] {
     protected def inner: Any = (element, typeName, doc, modifiers)
 
-    final type NodeBinding = BindingType.Seq[C]
+    type NodeBinding = BindingType.Seq[C]
 
     def binding(implicit F: HasBinding[F]): Binding[BindingType.Seq[C], C[A]] = F.binding(seqBinding)
 
@@ -179,9 +184,11 @@ object Reflect {
 
     def traversal: Traversal[F, C[A], A] = Traversal(this)
   }
+
   object Sequence {
     type Bound[A, C[_]] = Sequence[Binding, A, C]
   }
+
   final case class Map[F[_, _], Key, Value, M[_, _]](
     key: Reflect[F, Key],
     value: Reflect[F, Value],
@@ -192,7 +199,7 @@ object Reflect {
   ) extends Reflect[F, M[Key, Value]] {
     protected def inner: Any = (key, value, typeName, doc, modifiers)
 
-    final type NodeBinding = BindingType.Map[M]
+    type NodeBinding = BindingType.Map[M]
 
     def binding(implicit F: HasBinding[F]): Binding[BindingType.Map[M], M[Key, Value]] = F.binding(mapBinding)
 
@@ -207,23 +214,26 @@ object Reflect {
 
     def values: Traversal[F, M[Key, Value], Value] = Traversal.MapValues(this)
   }
+
   object Map {
     type Bound[K, V, M[_, _]] = Map[Binding, K, V, M]
   }
+
   final case class Dynamic[F[_, _]](
     dynamicBinding: F[BindingType.Dynamic, DynamicValue],
-    modifiers: scala.List[Modifier.Dynamic],
-    doc: Doc
+    doc: Doc,
+    modifiers: scala.List[Modifier.Dynamic]
   ) extends Reflect[F, DynamicValue] {
-    protected def inner: Any = (modifiers, doc, modifiers)
+    protected def inner: Any = (modifiers, modifiers, doc)
 
-    final type NodeBinding = BindingType.Dynamic
+    type NodeBinding = BindingType.Dynamic
 
     def binding(implicit F: HasBinding[F]): Binding[BindingType.Dynamic, DynamicValue] = F.binding(dynamicBinding)
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Reflect[G, DynamicValue] =
-      Dynamic(f(dynamicBinding), modifiers, doc)
+      Dynamic(f(dynamicBinding), doc, modifiers)
   }
+
   final case class Primitive[F[_, _], A](
     primitiveType: PrimitiveType[A],
     primitiveBinding: F[BindingType.Primitive, A],
@@ -233,7 +243,7 @@ object Reflect {
   ) extends Reflect[F, A] { self =>
     protected def inner: Any = (primitiveType, typeName, doc, modifiers)
 
-    final type NodeBinding = BindingType.Primitive
+    type NodeBinding = BindingType.Primitive
 
     def binding(implicit F: HasBinding[F]): Binding.Primitive[A] = F.primitive(primitiveBinding)
 
@@ -241,14 +251,16 @@ object Reflect {
 
     def examples(implicit F: HasBinding[F]): scala.List[A] = binding.examples
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Primitive[G, A] = copy(primitiveBinding = f(primitiveBinding))
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Primitive[G, A] =
+      Primitive(primitiveType, f(primitiveBinding), typeName, doc, modifiers)
   }
+
   final case class Deferred[F[_, _], A](_value: () => Reflect[F, A]) extends Reflect[F, A] {
     protected def inner: Any = value.inner
 
-    lazy val value = _value()
+    lazy val value: Reflect[F, A] = _value()
 
-    final type NodeBinding = value.NodeBinding
+    type NodeBinding = value.NodeBinding
 
     def binding(implicit F: HasBinding[F]): Binding[NodeBinding, A] = value.binding
 
@@ -554,9 +566,7 @@ object Reflect {
 
   def option[F[_, _], A](element: Reflect[F, A])(implicit F: FromBinding[F]): Variant[F, scala.Option[A]] = {
     val noneTerm: Term[F, scala.Option[A], None.type] = Term("None", none, Doc.Empty, scala.List.empty)
-
-    val someTerm: Term[F, scala.Option[A], Some[A]] = Term("Some", some[F, A](element), Doc.Empty, scala.List.empty)
-
+    val someTerm: Term[F, scala.Option[A], Some[A]]   = Term("Some", some[F, A](element), Doc.Empty, scala.List.empty)
     Variant(
       scala.List(noneTerm, someTerm),
       TypeName.option[A],
@@ -587,10 +597,8 @@ object Reflect {
   def either[F[_, _], L, R](l: Reflect[F, L], r: Reflect[F, R])(implicit
     F: FromBinding[F]
   ): Variant[F, scala.Either[L, R]] = {
-    val leftTerm: Term[F, scala.Either[L, R], Left[L, R]] = Term("Left", left(l), Doc.Empty, scala.List.empty)
-
+    val leftTerm: Term[F, scala.Either[L, R], Left[L, R]]   = Term("Left", left(l), Doc.Empty, scala.List.empty)
     val rightTerm: Term[F, scala.Either[L, R], Right[L, R]] = Term("Right", right(r), Doc.Empty, scala.List.empty)
-
     Variant(
       scala.List(leftTerm, rightTerm),
       TypeName.either[L, R],
@@ -697,11 +705,10 @@ object Reflect {
       def unapply[F[_, _], A](reflect: Reflect[F, scala.Option[A]]): scala.Option[Reflect[F, A]] =
         reflect match {
           case Variant(noneTerm :: someTerm :: Nil, tn, _, _, _) if tn == TypeName.option =>
-            someTerm match {
-              case Term("Some", element, _, _) => Some(element.asInstanceOf[Reflect[F, A]])
-              case _                           => None
+            (noneTerm, someTerm) match {
+              case (Term("None", _, _, _), Term("Some", element, _, _)) => Some(element.asInstanceOf[Reflect[F, A]])
+              case _                                                    => None
             }
-
           case _ => None
         }
     }
@@ -716,7 +723,6 @@ object Reflect {
                 Some((left.asInstanceOf[Reflect[F, L]], right.asInstanceOf[Reflect[F, R]]))
               case _ => None
             }
-
           case _ => None
         }
     }
