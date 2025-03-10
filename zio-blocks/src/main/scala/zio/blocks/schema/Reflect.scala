@@ -63,9 +63,9 @@ object Reflect {
       Record(fields.map(_.refineBinding(f)), typeName, f(recordBinding), doc, modifiers)
 
     val registers: IndexedSeq[Register[?]] = {
-      val registers = new Array[Register[?]](length)
+      val registers      = new Array[Register[?]](length)
       var registerOffset = RegisterOffset.Zero
-      var i = 0
+      var i              = 0
       fields.foreach { term =>
         term.value match {
           case Reflect.Primitive(primType, _, _, _, _) =>
