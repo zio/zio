@@ -82,11 +82,14 @@ sealed trait Optic[F[_, _], S, A] { self =>
     case _                     => false
   }
 
-  private[schema] def linearized: ArraySeq[Optic[F, _, _]]
+  private[schema] def linearized: ArraySeq[Leaf[F, _, _]]
 }
+
 object Optic {
   type Bound[S, A] = Optic[Binding, S, A]
 }
+
+sealed trait Leaf[F[_, _], S, A] extends Optic[F, S, A]
 
 sealed trait Lens[F[_, _], S, A] extends Optic[F, S, A] {
   def get(s: S)(implicit F: HasBinding[F]): A
@@ -115,7 +118,7 @@ object Lens {
 
   def apply[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A]): Lens[F, S, A] = Root(parent, child)
 
-  final case class Root[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A]) extends Lens[F, S, A] {
+  final case class Root[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A]) extends Lens[F, S, A] with Leaf[F, S, A] {
     def structure: Reflect[F, S] = parent
 
     def focus: Reflect[F, A] = child.value
@@ -153,7 +156,7 @@ object Lens {
       case _                    => false
     }
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = ArraySeq(this)
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = ArraySeq(this)
   }
   final case class LensLens[F[_, _], S, T, A](first: Lens[F, S, T], second: Lens[F, T, A]) extends Lens[F, S, A] {
     def structure: Reflect[F, S] = first.structure
@@ -170,7 +173,7 @@ object Lens {
 
     override def noBinding: LensLens[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 }
 
@@ -202,7 +205,7 @@ object Prism {
     Root(parent, child)
 
   final case class Root[F[_, _], S, A <: S](parent: Reflect.Variant[F, S], child: Term[F, S, A])
-      extends Prism[F, S, A] {
+      extends Prism[F, S, A] with Leaf[F, S, A] {
     private var matcher: Matcher[A] = null
 
     private def init(F: HasBinding[F]): Unit =
@@ -236,7 +239,7 @@ object Prism {
       case _                    => false
     }
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = ArraySeq(this)
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = ArraySeq(this)
   }
   final case class PrismPrism[F[_, _], S, T, A](first: Prism[F, S, T], second: Prism[F, T, A]) extends Prism[F, S, A] {
     def structure: Reflect[F, S] = first.structure
@@ -252,7 +255,7 @@ object Prism {
 
     override def noBinding: PrismPrism[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 }
 
@@ -295,7 +298,7 @@ object Optional {
 
     override def noBinding: LensPrism[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
   final case class LensOptional[F[_, _], S, T, A](first: Lens[F, S, T], second: Optional[F, T, A])
       extends Optional[F, S, A] {
@@ -313,7 +316,7 @@ object Optional {
 
     override def noBinding: LensOptional[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
   final case class PrismLens[F[_, _], S, T, A](first: Prism[F, S, T], second: Lens[F, T, A]) extends Optional[F, S, A] {
     def structure: Reflect[F, S] = first.structure
@@ -331,7 +334,7 @@ object Optional {
 
     override def noBinding: PrismLens[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
   final case class PrismOptional[F[_, _], S, T, A](
     first: Prism[F, S, T],
@@ -352,7 +355,7 @@ object Optional {
 
     override def noBinding: PrismOptional[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
   final case class OptionalLens[F[_, _], S, T, A](first: Optional[F, S, T], second: Lens[F, T, A])
       extends Optional[F, S, A] {
@@ -371,7 +374,7 @@ object Optional {
 
     override def noBinding: OptionalLens[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
   final case class OptionalPrism[F[_, _], S, T, A](first: Optional[F, S, T], second: Prism[F, T, A])
       extends Optional[F, S, A] {
@@ -390,7 +393,7 @@ object Optional {
 
     override def noBinding: OptionalPrism[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
   final case class OptionalOptional[F[_, _], S, T, A](first: Optional[F, S, T], second: Optional[F, T, A])
       extends Optional[F, S, A] {
@@ -409,7 +412,7 @@ object Optional {
 
     override def noBinding: OptionalOptional[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 }
 
@@ -463,7 +466,7 @@ object Traversal {
     Reflect.array(reflect)
   )
 
-  final case class Seq[F[_, _], A, C[_]](seq: Reflect.Sequence[F, A, C]) extends Traversal[F, C[A], A] {
+  final case class Seq[F[_, _], A, C[_]](seq: Reflect.Sequence[F, A, C]) extends Traversal[F, C[A], A]  with Leaf[F, C[A], A] {
     def structure: Reflect[F, C[A]] = seq
 
     def focus: Reflect[F, A] = seq.element
@@ -545,11 +548,11 @@ object Traversal {
       case _                   => false
     }
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = ArraySeq(this)
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = ArraySeq(this)
   }
 
   final case class MapKeys[F[_, _], Key, Value, M[_, _]](map: Reflect.Map[F, Key, Value, M])
-      extends Traversal[F, M[Key, Value], Key] {
+      extends Traversal[F, M[Key, Value], Key] with Leaf[F, M[Key, Value], Key] {
     def structure: Reflect[F, M[Key, Value]] = map
 
     def focus: Reflect[F, Key] = map.key
@@ -602,11 +605,11 @@ object Traversal {
       case _                          => false
     }
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = ArraySeq(this)
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = ArraySeq(this)
   }
 
   final case class MapValues[F[_, _], Key, Value, M[_, _]](map: Reflect.Map[F, Key, Value, M])
-      extends Traversal[F, M[Key, Value], Value] {
+      extends Traversal[F, M[Key, Value], Value] with Leaf[F, M[Key, Value], Value] {
     def structure: Reflect[F, M[Key, Value]] = map
 
     def focus: Reflect[F, Value] = map.value
@@ -659,7 +662,7 @@ object Traversal {
       case _                            => false
     }
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = ArraySeq(this)
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = ArraySeq(this)
   }
 
   // All compositions that yield Traversal:
@@ -686,7 +689,7 @@ object Traversal {
 
     override def noBinding: TraversalTraversal[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
   final case class TraversalLens[F[_, _], S, T, A](
@@ -712,7 +715,7 @@ object Traversal {
 
     override def noBinding: TraversalLens[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
   final case class TraversalPrism[F[_, _], S, T, A](
@@ -738,7 +741,7 @@ object Traversal {
 
     override def noBinding: TraversalPrism[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
   final case class TraversalOptional[F[_, _], S, T, A](
@@ -764,7 +767,7 @@ object Traversal {
 
     override def noBinding: TraversalOptional[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
   final case class LensTraversal[F[_, _], S, T, A](
@@ -790,7 +793,7 @@ object Traversal {
 
     override def noBinding: LensTraversal[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
   final case class PrismTraversal[F[_, _], S, T, A](
@@ -816,7 +819,7 @@ object Traversal {
 
     override def noBinding: PrismTraversal[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
   final case class OptionalTraversal[F[_, _], S, T, A](
@@ -842,6 +845,6 @@ object Traversal {
 
     override def noBinding: OptionalTraversal[NoBinding, S, T, A] = refineBinding(RefineBinding.noBinding())
 
-    private[schema] lazy val linearized: ArraySeq[Optic[F, _, _]] = first.linearized ++ second.linearized
+    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 }
