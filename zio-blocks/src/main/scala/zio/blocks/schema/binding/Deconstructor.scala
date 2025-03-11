@@ -329,14 +329,19 @@ object Deconstructor {
     _5: Deconstructor[E]
   ): Deconstructor[(A, B, C, D, E)] =
     new Deconstructor[(A, B, C, D, E)] {
-      def usedRegisters: RegisterOffset = _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters + _5.usedRegisters
+      def usedRegisters: RegisterOffset =
+        _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters + _5.usedRegisters
 
       def deconstruct(out: Registers, baseOffset: RegisterOffset, in: (A, B, C, D, E)): Unit = {
         _1.deconstruct(out, baseOffset, in._1)
         _2.deconstruct(out, baseOffset + _1.usedRegisters, in._2)
         _3.deconstruct(out, baseOffset + _1.usedRegisters + _2.usedRegisters, in._3)
         _4.deconstruct(out, baseOffset + _1.usedRegisters + _2.usedRegisters + _3.usedRegisters, in._4)
-        _5.deconstruct(out, baseOffset + _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters, in._5)
+        _5.deconstruct(
+          out,
+          baseOffset + _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters,
+          in._5
+        )
       }
     }
 
@@ -349,15 +354,24 @@ object Deconstructor {
     _6: Deconstructor[F]
   ): Deconstructor[(A, B, C, D, E, F)] =
     new Deconstructor[(A, B, C, D, E, F)] {
-      def usedRegisters: RegisterOffset = _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters + _5.usedRegisters + _6.usedRegisters
+      def usedRegisters: RegisterOffset =
+        _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters + _5.usedRegisters + _6.usedRegisters
 
       def deconstruct(out: Registers, baseOffset: RegisterOffset, in: (A, B, C, D, E, F)): Unit = {
         _1.deconstruct(out, baseOffset, in._1)
         _2.deconstruct(out, baseOffset + _1.usedRegisters, in._2)
         _3.deconstruct(out, baseOffset + _1.usedRegisters + _2.usedRegisters, in._3)
         _4.deconstruct(out, baseOffset + _1.usedRegisters + _2.usedRegisters + _3.usedRegisters, in._4)
-        _5.deconstruct(out, baseOffset + _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters, in._5)
-        _6.deconstruct(out, baseOffset + _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters + _5.usedRegisters, in._6)
+        _5.deconstruct(
+          out,
+          baseOffset + _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters,
+          in._5
+        )
+        _6.deconstruct(
+          out,
+          baseOffset + _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters + _5.usedRegisters,
+          in._6
+        )
       }
     }
 }
