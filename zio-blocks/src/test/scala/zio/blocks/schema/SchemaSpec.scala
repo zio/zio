@@ -68,19 +68,19 @@ object SchemaSpec extends ZIOSpecDefault {
         assert(record1.registers(0).usedRegisters)(equalTo(1L << RegisterOffset.BytesShift)) &&
         assert(record1.fields(1).value.isInstanceOf[Primitive[Binding, Int]])(equalTo(true)) &&
         assert(record1.registers(1).usedRegisters)(equalTo(1L << RegisterOffset.IntsShift)) &&
-        assert(record1.usedRegisters)(equalTo(record1.registers.foldLeft(0L)(_ | _.usedRegisters))) &&
+        assert(record1.usedRegisters)(equalTo(record1.registers.foldLeft(0L)(_ + _.usedRegisters))) &&
         assert(record2.length)(equalTo(1)) &&
         assert(record2.fields.length)(equalTo(1)) &&
         assert(record2.registers.length)(equalTo(1)) &&
         assert(record2.fields(0).value.isInstanceOf[Primitive[Binding, Double]])(equalTo(true)) &&
         assert(record2.registers(0).usedRegisters)(equalTo(1L << RegisterOffset.DoublesShift)) &&
-        assert(record2.usedRegisters)(equalTo(record2.registers.foldLeft(0L)(_ | _.usedRegisters))) &&
+        assert(record2.usedRegisters)(equalTo(record2.registers.foldLeft(0L)(_ + _.usedRegisters))) &&
         assert(record3.length)(equalTo(1)) &&
         assert(record3.fields.length)(equalTo(1)) &&
         assert(record3.registers.length)(equalTo(1)) &&
         assert(record3.fields(0).value.isInstanceOf[Primitive[Binding, String]])(equalTo(true)) &&
         assert(record3.registers(0).usedRegisters)(equalTo(1L << RegisterOffset.ObjectsShift)) &&
-        assert(record3.usedRegisters)(equalTo(record3.registers.foldLeft(0L)(_ | _.usedRegisters)))
+        assert(record3.usedRegisters)(equalTo(record3.registers.foldLeft(0L)(_ + _.usedRegisters)))
       }
     ),
     suite("variant")(
@@ -180,7 +180,6 @@ object SchemaSpec extends ZIOSpecDefault {
         val dynamic2 = dynamic1.copy(dynamicBinding = null.asInstanceOf[Binding.Dynamic])
         val dynamic3 = dynamic1.copy(doc = Doc("text"))
         val dynamic4 = dynamic1.copy(modifiers = List(Modifier.config("key", "value")))
-
         assert(Schema(dynamic1))(equalTo(Schema(dynamic1))) &&
         assert(Schema(dynamic1).hashCode)(equalTo(Schema(dynamic1).hashCode)) &&
         assert(Schema(dynamic2))(equalTo(Schema(dynamic1))) &&
@@ -196,7 +195,6 @@ object SchemaSpec extends ZIOSpecDefault {
         val deferred3 = Reflect.Deferred[Binding, Int](() =>
           Primitive(PrimitiveType.Int(Validation.Numeric.Positive), Binding.Primitive.int, TypeName.int, Doc.Empty, Nil)
         )
-
         assert(Schema(deferred1))(equalTo(Schema(deferred1))) &&
         assert(Schema(deferred1).hashCode)(equalTo(Schema(deferred1).hashCode)) &&
         assert(Schema(deferred2))(equalTo(Schema(deferred1))) &&
