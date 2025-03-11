@@ -57,7 +57,7 @@ object SchemaSpec extends ZIOSpecDefault {
         assert(Schema(record4))(not(equalTo(Record.schema))) &&
         assert(Schema(record5))(not(equalTo(Record.schema)))
       },
-      test("has consistent fields, length, registers and size") {
+      test("has consistent fields, length, registers and usedRegisters") {
         val record1 = Record.schema.reflect.asInstanceOf[Reflect.Record[Binding, Record]]
         val record2 = Case1.schema.reflect.asInstanceOf[Reflect.Record[Binding, Case1]]
         val record3 = Case2.schema.reflect.asInstanceOf[Reflect.Record[Binding, Case2]]
@@ -65,22 +65,22 @@ object SchemaSpec extends ZIOSpecDefault {
         assert(record1.fields.length)(equalTo(2)) &&
         assert(record1.registers.length)(equalTo(2)) &&
         assert(record1.fields(0).value.isInstanceOf[Primitive[Binding, Byte]])(equalTo(true)) &&
-        assert(record1.registers(0).size)(equalTo(1L << RegisterOffset.BytesShift)) &&
+        assert(record1.registers(0).usedRegisters)(equalTo(1L << RegisterOffset.BytesShift)) &&
         assert(record1.fields(1).value.isInstanceOf[Primitive[Binding, Int]])(equalTo(true)) &&
-        assert(record1.registers(1).size)(equalTo(1L << RegisterOffset.IntsShift)) &&
-        assert(record1.size)(equalTo(record1.registers.foldLeft(0L)(_ | _.size))) &&
+        assert(record1.registers(1).usedRegisters)(equalTo(1L << RegisterOffset.IntsShift)) &&
+        assert(record1.usedRegisters)(equalTo(record1.registers.foldLeft(0L)(_ | _.usedRegisters))) &&
         assert(record2.length)(equalTo(1)) &&
         assert(record2.fields.length)(equalTo(1)) &&
         assert(record2.registers.length)(equalTo(1)) &&
         assert(record2.fields(0).value.isInstanceOf[Primitive[Binding, Double]])(equalTo(true)) &&
-        assert(record2.registers(0).size)(equalTo(1L << RegisterOffset.DoublesShift)) &&
-        assert(record2.size)(equalTo(record2.registers.foldLeft(0L)(_ | _.size))) &&
+        assert(record2.registers(0).usedRegisters)(equalTo(1L << RegisterOffset.DoublesShift)) &&
+        assert(record2.usedRegisters)(equalTo(record2.registers.foldLeft(0L)(_ | _.usedRegisters))) &&
         assert(record3.length)(equalTo(1)) &&
         assert(record3.fields.length)(equalTo(1)) &&
         assert(record3.registers.length)(equalTo(1)) &&
         assert(record3.fields(0).value.isInstanceOf[Primitive[Binding, String]])(equalTo(true)) &&
-        assert(record3.registers(0).size)(equalTo(1L << RegisterOffset.ObjectsShift)) &&
-        assert(record3.size)(equalTo(record3.registers.foldLeft(0L)(_ | _.size)))
+        assert(record3.registers(0).usedRegisters)(equalTo(1L << RegisterOffset.ObjectsShift)) &&
+        assert(record3.usedRegisters)(equalTo(record3.registers.foldLeft(0L)(_ | _.usedRegisters)))
       }
     ),
     suite("variant")(
@@ -218,13 +218,13 @@ object SchemaSpec extends ZIOSpecDefault {
         typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Record"),
         recordBinding = Binding.Record(
           constructor = new Constructor[Record] {
-            def size: RegisterOffset = RegisterOffset(bytes = 1, ints = 1)
+            def usedRegisters: RegisterOffset = RegisterOffset(bytes = 1, ints = 1)
 
             def construct(in: Registers, baseOffset: RegisterOffset): Record =
               Record(in.getByte(baseOffset, 0), in.getInt(baseOffset, 0))
           },
           deconstructor = new Deconstructor[Record] {
-            def size: RegisterOffset = RegisterOffset(bytes = 1, ints = 1)
+            def usedRegisters: RegisterOffset = RegisterOffset(bytes = 1, ints = 1)
 
             def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Record): Unit = {
               out.setByte(baseOffset, 0, in.b)
@@ -281,13 +281,13 @@ object SchemaSpec extends ZIOSpecDefault {
         typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Case1"),
         recordBinding = Binding.Record(
           constructor = new Constructor[Case1] {
-            def size: RegisterOffset = RegisterOffset(doubles = 1)
+            def usedRegisters: RegisterOffset = RegisterOffset(doubles = 1)
 
             def construct(in: Registers, baseOffset: RegisterOffset): Case1 =
               Case1(in.getDouble(baseOffset, 0))
           },
           deconstructor = new Deconstructor[Case1] {
-            def size: RegisterOffset = RegisterOffset(doubles = 1)
+            def usedRegisters: RegisterOffset = RegisterOffset(doubles = 1)
 
             def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Case1): Unit =
               out.setDouble(baseOffset, 0, in.d)
@@ -310,13 +310,13 @@ object SchemaSpec extends ZIOSpecDefault {
         typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Case2"),
         recordBinding = Binding.Record(
           constructor = new Constructor[Case2] {
-            def size: RegisterOffset = RegisterOffset(objects = 1)
+            def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
             def construct(in: Registers, baseOffset: RegisterOffset): Case2 =
               Case2(in.getObject(baseOffset, 0).asInstanceOf[String])
           },
           deconstructor = new Deconstructor[Case2] {
-            def size: RegisterOffset = RegisterOffset(objects = 1)
+            def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
             def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Case2): Unit =
               out.setObject(baseOffset, 0, in.s)

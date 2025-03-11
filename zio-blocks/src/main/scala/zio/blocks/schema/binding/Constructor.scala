@@ -11,7 +11,7 @@ abstract class Constructor[+A] { self =>
   /**
    * The size of the registers required to construct a value of type `A`.
    */
-  def size: RegisterOffset
+  def usedRegisters: RegisterOffset
 
   /**
    * Constructs a value of type `A` from the registers.
@@ -23,7 +23,7 @@ abstract class Constructor[+A] { self =>
    */
   final def map[B](f: A => B): Constructor[B] =
     new Constructor[B] {
-      def size: RegisterOffset = self.size
+      def usedRegisters: RegisterOffset = self.usedRegisters
 
       def construct(in: Registers, baseOffset: RegisterOffset): B = f(self.construct(in, baseOffset))
     }
@@ -36,7 +36,7 @@ abstract class Constructor[+A] { self =>
 }
 object Constructor {
   private val _of = new Constructor[AnyRef] {
-    def size: RegisterOffset = RegisterOffset(objects = 1)
+    def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
     def construct(in: Registers, baseOffset: RegisterOffset): AnyRef = in.getObject(baseOffset, 0)
   }
@@ -45,70 +45,70 @@ object Constructor {
 
   val unit: Constructor[Unit] =
     new Constructor[Unit] {
-      def size: RegisterOffset = RegisterOffset.Zero
+      def usedRegisters: RegisterOffset = RegisterOffset.Zero
 
       def construct(in: Registers, baseOffset: RegisterOffset): Unit = ()
     }
 
   val boolean: Constructor[Boolean] =
     new Constructor[Boolean] {
-      def size: RegisterOffset = RegisterOffset(booleans = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(booleans = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): Boolean = in.getBoolean(baseOffset, 0)
     }
 
   val byte: Constructor[Byte] =
     new Constructor[Byte] {
-      def size: RegisterOffset = RegisterOffset(bytes = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(bytes = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): Byte = in.getByte(baseOffset, 0)
     }
 
   val short: Constructor[Short] =
     new Constructor[Short] {
-      def size: RegisterOffset = RegisterOffset(shorts = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(shorts = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): Short = in.getShort(baseOffset, 0)
     }
 
   val int: Constructor[Int] =
     new Constructor[Int] {
-      def size: RegisterOffset = RegisterOffset(ints = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(ints = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): Int = in.getInt(baseOffset, 0)
     }
 
   val long: Constructor[Long] =
     new Constructor[Long] {
-      def size: RegisterOffset = RegisterOffset(longs = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(longs = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): Long = in.getLong(baseOffset, 0)
     }
 
   val float: Constructor[Float] =
     new Constructor[Float] {
-      def size: RegisterOffset = RegisterOffset(floats = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(floats = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): Float = in.getFloat(baseOffset, 0)
     }
 
   val double: Constructor[Double] =
     new Constructor[Double] {
-      def size: RegisterOffset = RegisterOffset(doubles = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(doubles = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): Double = in.getDouble(baseOffset, 0)
     }
 
   val char: Constructor[Char] =
     new Constructor[Char] {
-      def size: RegisterOffset = RegisterOffset(chars = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(chars = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): Char = in.getChar(baseOffset, 0)
     }
 
   val string: Constructor[String] =
     new Constructor[String] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): String =
         in.getObject(baseOffset, 0).asInstanceOf[String]
@@ -116,7 +116,7 @@ object Constructor {
 
   val bigInt: Constructor[BigInt] =
     new Constructor[BigInt] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): BigInt =
         in.getObject(baseOffset, 0).asInstanceOf[BigInt]
@@ -124,7 +124,7 @@ object Constructor {
 
   val bigDecimal: Constructor[BigDecimal] =
     new Constructor[BigDecimal] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): BigDecimal =
         in.getObject(baseOffset, 0).asInstanceOf[BigDecimal]
@@ -132,7 +132,7 @@ object Constructor {
 
   val dayOfWeek: Constructor[java.time.DayOfWeek] =
     new Constructor[java.time.DayOfWeek] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.DayOfWeek =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.DayOfWeek]
@@ -140,7 +140,7 @@ object Constructor {
 
   val duration: Constructor[java.time.Duration] =
     new Constructor[java.time.Duration] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.Duration =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.Duration]
@@ -148,7 +148,7 @@ object Constructor {
 
   val instant: Constructor[java.time.Instant] =
     new Constructor[java.time.Instant] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.Instant =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.Instant]
@@ -156,7 +156,7 @@ object Constructor {
 
   val localDate: Constructor[java.time.LocalDate] =
     new Constructor[java.time.LocalDate] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.LocalDate =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.LocalDate]
@@ -164,7 +164,7 @@ object Constructor {
 
   val localDateTime: Constructor[java.time.LocalDateTime] =
     new Constructor[java.time.LocalDateTime] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.LocalDateTime =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.LocalDateTime]
@@ -172,7 +172,7 @@ object Constructor {
 
   val localTime: Constructor[java.time.LocalTime] =
     new Constructor[java.time.LocalTime] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.LocalTime =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.LocalTime]
@@ -180,7 +180,7 @@ object Constructor {
 
   val month: Constructor[java.time.Month] =
     new Constructor[java.time.Month] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.Month =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.Month]
@@ -188,7 +188,7 @@ object Constructor {
 
   val monthDay: Constructor[java.time.MonthDay] =
     new Constructor[java.time.MonthDay] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.MonthDay =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.MonthDay]
@@ -196,7 +196,7 @@ object Constructor {
 
   val offsetDateTime: Constructor[java.time.OffsetDateTime] =
     new Constructor[java.time.OffsetDateTime] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.OffsetDateTime =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.OffsetDateTime]
@@ -204,7 +204,7 @@ object Constructor {
 
   val offsetTime: Constructor[java.time.OffsetTime] =
     new Constructor[java.time.OffsetTime] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.OffsetTime =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.OffsetTime]
@@ -212,7 +212,7 @@ object Constructor {
 
   val period: Constructor[java.time.Period] =
     new Constructor[java.time.Period] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.Period =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.Period]
@@ -220,7 +220,7 @@ object Constructor {
 
   val year: Constructor[java.time.Year] =
     new Constructor[java.time.Year] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.Year =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.Year]
@@ -228,7 +228,7 @@ object Constructor {
 
   val yearMonth: Constructor[java.time.YearMonth] =
     new Constructor[java.time.YearMonth] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.YearMonth =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.YearMonth]
@@ -236,7 +236,7 @@ object Constructor {
 
   val zoneId: Constructor[java.time.ZoneId] =
     new Constructor[java.time.ZoneId] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.ZoneId =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.ZoneId]
@@ -244,7 +244,7 @@ object Constructor {
 
   val zoneOffset: Constructor[java.time.ZoneOffset] =
     new Constructor[java.time.ZoneOffset] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.ZoneOffset =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.ZoneOffset]
@@ -252,7 +252,7 @@ object Constructor {
 
   val zonedDateTime: Constructor[java.time.ZonedDateTime] =
     new Constructor[java.time.ZonedDateTime] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.time.ZonedDateTime =
         in.getObject(baseOffset, 0).asInstanceOf[java.time.ZonedDateTime]
@@ -260,7 +260,7 @@ object Constructor {
 
   val currency: Constructor[java.util.Currency] =
     new Constructor[java.util.Currency] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.util.Currency =
         in.getObject(baseOffset, 0).asInstanceOf[java.util.Currency]
@@ -268,7 +268,7 @@ object Constructor {
 
   val uuid: Constructor[java.util.UUID] =
     new Constructor[java.util.UUID] {
-      def size: RegisterOffset = RegisterOffset(objects = 1)
+      def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
       def construct(in: Registers, baseOffset: RegisterOffset): java.util.UUID =
         in.getObject(baseOffset, 0).asInstanceOf[java.util.UUID]
@@ -284,12 +284,12 @@ object Constructor {
 
   def tuple2[A, B](_1: Constructor[A], _2: Constructor[B]): Constructor[(A, B)] =
     new Constructor[(A, B)] {
-      def size: RegisterOffset = _1.size + _2.size
+      def usedRegisters: RegisterOffset = _1.usedRegisters + _2.usedRegisters
 
       def construct(in: Registers, baseOffset: RegisterOffset): (A, B) = {
 
         val a: A = _1.construct(in, baseOffset)
-        val b: B = _2.construct(in, baseOffset + _1.size)
+        val b: B = _2.construct(in, baseOffset + _1.usedRegisters)
 
         (a, b)
       }
@@ -297,12 +297,12 @@ object Constructor {
 
   def tuple3[A, B, C](_1: Constructor[A], _2: Constructor[B], _3: Constructor[C]): Constructor[(A, B, C)] =
     new Constructor[(A, B, C)] {
-      def size: RegisterOffset = _1.size + _2.size + _3.size
+      def usedRegisters: RegisterOffset = _1.usedRegisters + _2.usedRegisters + _3.usedRegisters
 
       def construct(in: Registers, baseOffset: RegisterOffset): (A, B, C) = {
         val a: A = _1.construct(in, baseOffset)
-        val b: B = _2.construct(in, baseOffset + _1.size)
-        val c: C = _3.construct(in, baseOffset + _1.size + _2.size)
+        val b: B = _2.construct(in, baseOffset + _1.usedRegisters)
+        val c: C = _3.construct(in, baseOffset + _1.usedRegisters + _2.usedRegisters)
 
         (a, b, c)
       }
@@ -315,13 +315,13 @@ object Constructor {
     _4: Constructor[D]
   ): Constructor[(A, B, C, D)] =
     new Constructor[(A, B, C, D)] {
-      def size: RegisterOffset = _1.size + _2.size + _3.size + _4.size
+      def usedRegisters: RegisterOffset = _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters
 
       def construct(in: Registers, baseOffset: RegisterOffset): (A, B, C, D) = {
         val a: A = _1.construct(in, baseOffset)
-        val b: B = _2.construct(in, baseOffset + _1.size)
-        val c: C = _3.construct(in, baseOffset + _1.size + _2.size)
-        val d: D = _4.construct(in, baseOffset + _1.size + _2.size + _3.size)
+        val b: B = _2.construct(in, baseOffset + _1.usedRegisters)
+        val c: C = _3.construct(in, baseOffset + _1.usedRegisters + _2.usedRegisters)
+        val d: D = _4.construct(in, baseOffset + _1.usedRegisters + _2.usedRegisters + _3.usedRegisters)
 
         (a, b, c, d)
       }
@@ -335,14 +335,14 @@ object Constructor {
     _5: Constructor[E]
   ): Constructor[(A, B, C, D, E)] =
     new Constructor[(A, B, C, D, E)] {
-      def size: RegisterOffset = _1.size + _2.size + _3.size + _4.size + _5.size
+      def usedRegisters: RegisterOffset = _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters + _5.usedRegisters
 
       def construct(in: Registers, baseOffset: RegisterOffset): (A, B, C, D, E) = {
         val a: A = _1.construct(in, baseOffset)
-        val b: B = _2.construct(in, baseOffset + _1.size)
-        val c: C = _3.construct(in, baseOffset + _1.size + _2.size)
-        val d: D = _4.construct(in, baseOffset + _1.size + _2.size + _3.size)
-        val e: E = _5.construct(in, baseOffset + _1.size + _2.size + _3.size + _4.size)
+        val b: B = _2.construct(in, baseOffset + _1.usedRegisters)
+        val c: C = _3.construct(in, baseOffset + _1.usedRegisters + _2.usedRegisters)
+        val d: D = _4.construct(in, baseOffset + _1.usedRegisters + _2.usedRegisters + _3.usedRegisters)
+        val e: E = _5.construct(in, baseOffset + _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters)
 
         (a, b, c, d, e)
       }
@@ -357,15 +357,15 @@ object Constructor {
     _6: Constructor[F]
   ): Constructor[(A, B, C, D, E, F)] =
     new Constructor[(A, B, C, D, E, F)] {
-      def size: RegisterOffset = _1.size + _2.size + _3.size + _4.size + _5.size + _6.size
+      def usedRegisters: RegisterOffset = _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters + _5.usedRegisters + _6.usedRegisters
 
       def construct(in: Registers, baseOffset: RegisterOffset): (A, B, C, D, E, F) = {
         val a: A = _1.construct(in, baseOffset)
-        val b: B = _2.construct(in, baseOffset + _1.size)
-        val c: C = _3.construct(in, baseOffset + _1.size + _2.size)
-        val d: D = _4.construct(in, baseOffset + _1.size + _2.size + _3.size)
-        val e: E = _5.construct(in, baseOffset + _1.size + _2.size + _3.size + _4.size)
-        val f: F = _6.construct(in, baseOffset + _1.size + _2.size + _3.size + _4.size + _5.size)
+        val b: B = _2.construct(in, baseOffset + _1.usedRegisters)
+        val c: C = _3.construct(in, baseOffset + _1.usedRegisters + _2.usedRegisters)
+        val d: D = _4.construct(in, baseOffset + _1.usedRegisters + _2.usedRegisters + _3.usedRegisters)
+        val e: E = _5.construct(in, baseOffset + _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters)
+        val f: F = _6.construct(in, baseOffset + _1.usedRegisters + _2.usedRegisters + _3.usedRegisters + _4.usedRegisters + _5.usedRegisters)
 
         (a, b, c, d, e, f)
       }
