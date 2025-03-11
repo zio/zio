@@ -9,7 +9,7 @@ import zio.test._
 
 object SchemaSpec extends ZIOSpecDefault {
   def spec: Spec[TestEnvironment with Scope, Any] = suite("SchemaSpec")(
-    suite("primitive")(
+    suite("Reflect.Primitive")(
       test("has consistent equals and hashCode") {
         val long1 = Primitive(
           primitiveType = PrimitiveType.Long(Validation.None),
@@ -32,7 +32,7 @@ object SchemaSpec extends ZIOSpecDefault {
         assert(Schema(long5))(not(equalTo(Schema[Long])))
       }
     ),
-    suite("record")(
+    suite("Reflect.Record")(
       test("has consistent equals and hashCode") {
         val record1 = Reflect.Record(
           fields = List[Term[Binding, Record, _]](
@@ -83,7 +83,7 @@ object SchemaSpec extends ZIOSpecDefault {
         assert(record3.usedRegisters)(equalTo(record3.registers.foldLeft(0L)(_ + _.usedRegisters)))
       }
     ),
-    suite("variant")(
+    suite("Reflect.Variant")(
       test("has consistent equals and hashCode") {
         val variant1 = Reflect.Variant[Binding, Variant](
           cases = List(
@@ -109,7 +109,7 @@ object SchemaSpec extends ZIOSpecDefault {
         assert(Schema(variant5))(not(equalTo(Variant.schema)))
       }
     ),
-    suite("sequence")(
+    suite("Reflect.Sequence")(
       test("has consistent equals and hashCode") {
         val sequence1 = Reflect.Sequence[Binding, Double, List](
           element = Reflect.double,
@@ -134,7 +134,7 @@ object SchemaSpec extends ZIOSpecDefault {
         assert(Schema(sequence5))(not(equalTo(Schema[List[Double]])))
       }
     ),
-    suite("map")(
+    suite("Reflect.Map")(
       test("has consistent equals and hashCode") {
         val map1 = Reflect.Map[Binding, Short, Float, Map](
           key = Reflect.short,
@@ -170,7 +170,7 @@ object SchemaSpec extends ZIOSpecDefault {
         assert(Schema(map6))(not(equalTo(Schema[Map[Short, Float]])))
       }
     ),
-    suite("dynamic")(
+    suite("Reflect.Dynamic")(
       test("has consistent equals and hashCode") {
         val dynamic1 = Reflect.Dynamic[Binding](
           dynamicBinding = Binding.Dynamic(),
@@ -188,7 +188,7 @@ object SchemaSpec extends ZIOSpecDefault {
         assert(Schema(dynamic4))(not(equalTo(Schema(dynamic1))))
       }
     ),
-    suite("deferred")(
+    suite("Reflect.Deferred")(
       test("has consistent equals and hashCode") {
         val deferred1 = Reflect.Deferred[Binding, Int](() => Reflect.int)
         val deferred2 = Reflect.Deferred[Binding, Int](() => Reflect.int)
