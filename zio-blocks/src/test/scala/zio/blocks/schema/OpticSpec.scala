@@ -54,12 +54,16 @@ object OpticSpec extends ZIOSpecDefault {
     suite("Optional.OptionalLens")(
       test("has consistent equals and hashCode") {
         assert(Variant1.c2_r3_r2_r1_b_right_associative)(equalTo(Variant1.c2_r3_r2_r1_b_right_associative)) &&
-          assert(Variant1.c2_r3_r2_r1_b_right_associative.hashCode)(equalTo(Variant1.c2_r3_r2_r1_b_right_associative.hashCode)) &&
-          assert(Variant1.c2_r3: Any)(not(equalTo(Variant1.c2_r3_r2_r1_b_right_associative)))
+        assert(Variant1.c2_r3_r2_r1_b_right_associative.hashCode)(
+          equalTo(Variant1.c2_r3_r2_r1_b_right_associative.hashCode)
+        ) &&
+        assert(Variant1.c2_r3: Any)(not(equalTo(Variant1.c2_r3_r2_r1_b_right_associative)))
       },
       test("has associative equals and hashCode") {
         assert(Variant1.c2_r3_r2_r1_b_left_associative)(equalTo(Variant1.c2_r3_r2_r1_b_right_associative)) &&
-          assert(Variant1.c2_r3_r2_r1_b_left_associative.hashCode)(equalTo(Variant1.c2_r3_r2_r1_b_right_associative.hashCode))
+        assert(Variant1.c2_r3_r2_r1_b_left_associative.hashCode)(
+          equalTo(Variant1.c2_r3_r2_r1_b_right_associative.hashCode)
+        )
       }
     ),
     suite("Optional.OptionalPrism")(
@@ -244,7 +248,7 @@ object OpticSpec extends ZIOSpecDefault {
       Prism.Root(reflect, reflect.cases(0).asInstanceOf[Term.Bound[Variant1, Case1]])
     val c2: Prism.Root[Binding, Variant1, Case2] =
       Prism.Root(reflect, reflect.cases(1).asInstanceOf[Term.Bound[Variant1, Case2]])
-    val c1_d: Optional.PrismLens[Binding, Variant1, Case1, Double] = Optional.PrismLens(c1, Case1.d)
+    val c1_d: Optional.PrismLens[Binding, Variant1, Case1, Double]   = Optional.PrismLens(c1, Case1.d)
     val c2_r3: Optional.PrismLens[Binding, Variant1, Case2, Record3] = Optional.PrismLens(c2, Case2.r3)
     val c2_r3_r2_r1_b_left_associative: Optional.OptionalLens[Binding, Variant1, Record3, Boolean] =
       Optional.OptionalLens(c2_r3, Record3.r2_r1_b_left_associative)

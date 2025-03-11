@@ -118,7 +118,9 @@ object Lens {
 
   def apply[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A]): Lens[F, S, A] = Root(parent, child)
 
-  final case class Root[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A]) extends Lens[F, S, A] with Leaf[F, S, A] {
+  final case class Root[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A])
+      extends Lens[F, S, A]
+      with Leaf[F, S, A] {
     def structure: Reflect[F, S] = parent
 
     def focus: Reflect[F, A] = child.value
@@ -205,7 +207,8 @@ object Prism {
     Root(parent, child)
 
   final case class Root[F[_, _], S, A <: S](parent: Reflect.Variant[F, S], child: Term[F, S, A])
-      extends Prism[F, S, A] with Leaf[F, S, A] {
+      extends Prism[F, S, A]
+      with Leaf[F, S, A] {
     private var matcher: Matcher[A] = null
 
     private def init(F: HasBinding[F]): Unit =
@@ -466,7 +469,9 @@ object Traversal {
     Reflect.array(reflect)
   )
 
-  final case class Seq[F[_, _], A, C[_]](seq: Reflect.Sequence[F, A, C]) extends Traversal[F, C[A], A]  with Leaf[F, C[A], A] {
+  final case class Seq[F[_, _], A, C[_]](seq: Reflect.Sequence[F, A, C])
+      extends Traversal[F, C[A], A]
+      with Leaf[F, C[A], A] {
     def structure: Reflect[F, C[A]] = seq
 
     def focus: Reflect[F, A] = seq.element
@@ -552,7 +557,8 @@ object Traversal {
   }
 
   final case class MapKeys[F[_, _], Key, Value, M[_, _]](map: Reflect.Map[F, Key, Value, M])
-      extends Traversal[F, M[Key, Value], Key] with Leaf[F, M[Key, Value], Key] {
+      extends Traversal[F, M[Key, Value], Key]
+      with Leaf[F, M[Key, Value], Key] {
     def structure: Reflect[F, M[Key, Value]] = map
 
     def focus: Reflect[F, Key] = map.key
@@ -609,7 +615,8 @@ object Traversal {
   }
 
   final case class MapValues[F[_, _], Key, Value, M[_, _]](map: Reflect.Map[F, Key, Value, M])
-      extends Traversal[F, M[Key, Value], Value] with Leaf[F, M[Key, Value], Value] {
+      extends Traversal[F, M[Key, Value], Value]
+      with Leaf[F, M[Key, Value], Value] {
     def structure: Reflect[F, M[Key, Value]] = map
 
     def focus: Reflect[F, Value] = map.value
