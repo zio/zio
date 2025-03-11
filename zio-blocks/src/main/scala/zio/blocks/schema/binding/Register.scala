@@ -11,7 +11,7 @@ sealed trait Register[A] {
 
   def set(registers: Registers, base: RegisterOffset, boxed: Boxed): Unit
 
-  def size: RegisterOffset
+  def usedRegisters: RegisterOffset
 }
 object Register {
   case object Unit extends Register[scala.Unit] {
@@ -20,7 +20,7 @@ object Register {
     def get(registers: Registers, base: RegisterOffset): scala.Unit              = ()
     def set(registers: Registers, base: RegisterOffset, boxed: scala.Unit): Unit = ()
 
-    def size: RegisterOffset = RegisterOffset.Zero
+    def usedRegisters: RegisterOffset = RegisterOffset.Zero
   }
   final case class Boolean(relativeIndex: scala.Int) extends Register[scala.Boolean] {
     def registerType: RegisterType[scala.Boolean] = RegisterType.Boolean
@@ -29,7 +29,7 @@ object Register {
     def set(registers: Registers, base: RegisterOffset, boxed: scala.Boolean): Unit =
       registers.setBoolean(base, relativeIndex, boxed)
 
-    def size: RegisterOffset = RegisterOffset.incrementBooleans(RegisterOffset.Zero)
+    def usedRegisters: RegisterOffset = RegisterOffset.incrementBooleans(RegisterOffset.Zero)
   }
   final case class Byte(relativeIndex: scala.Int) extends Register[scala.Byte] {
     def registerType: RegisterType[scala.Byte] = RegisterType.Byte
@@ -38,7 +38,7 @@ object Register {
     def set(registers: Registers, base: RegisterOffset, boxed: scala.Byte): Unit =
       registers.setByte(base, relativeIndex, boxed)
 
-    def size: RegisterOffset = RegisterOffset.incrementBytes(RegisterOffset.Zero)
+    def usedRegisters: RegisterOffset = RegisterOffset.incrementBytes(RegisterOffset.Zero)
   }
   final case class Short(relativeIndex: scala.Int) extends Register[scala.Short] {
     def registerType: RegisterType[scala.Short] = RegisterType.Short
@@ -47,7 +47,7 @@ object Register {
     def set(registers: Registers, base: RegisterOffset, boxed: scala.Short): Unit =
       registers.setShort(base, relativeIndex, boxed)
 
-    def size: RegisterOffset = RegisterOffset.incrementShorts(RegisterOffset.Zero)
+    def usedRegisters: RegisterOffset = RegisterOffset.incrementShorts(RegisterOffset.Zero)
   }
   final case class Int(relativeIndex: scala.Int) extends Register[scala.Int] {
     def registerType: RegisterType[scala.Int] = RegisterType.Int
@@ -56,7 +56,7 @@ object Register {
     def set(registers: Registers, base: RegisterOffset, boxed: scala.Int): Unit =
       registers.setInt(base, relativeIndex, boxed)
 
-    def size: RegisterOffset = RegisterOffset.incrementInts(RegisterOffset.Zero)
+    def usedRegisters: RegisterOffset = RegisterOffset.incrementInts(RegisterOffset.Zero)
   }
   final case class Long(relativeIndex: scala.Int) extends Register[scala.Long] {
     def registerType: RegisterType[scala.Long] = RegisterType.Long
@@ -65,7 +65,7 @@ object Register {
     def set(registers: Registers, base: RegisterOffset, boxed: scala.Long): Unit =
       registers.setLong(base, relativeIndex, boxed)
 
-    def size: RegisterOffset = RegisterOffset.incrementLongs(RegisterOffset.Zero)
+    def usedRegisters: RegisterOffset = RegisterOffset.incrementLongs(RegisterOffset.Zero)
   }
   final case class Float(relativeIndex: scala.Int) extends Register[scala.Float] {
     def registerType: RegisterType[scala.Float] = RegisterType.Float
@@ -74,7 +74,7 @@ object Register {
     def set(registers: Registers, base: RegisterOffset, boxed: scala.Float): Unit =
       registers.setFloat(base, relativeIndex, boxed)
 
-    def size: RegisterOffset = RegisterOffset.incrementFloats(RegisterOffset.Zero)
+    def usedRegisters: RegisterOffset = RegisterOffset.incrementFloats(RegisterOffset.Zero)
   }
   final case class Double(relativeIndex: scala.Int) extends Register[scala.Double] {
     def registerType: RegisterType[scala.Double] = RegisterType.Double
@@ -83,7 +83,7 @@ object Register {
     def set(registers: Registers, base: RegisterOffset, boxed: scala.Double): Unit =
       registers.setDouble(base, relativeIndex, boxed)
 
-    def size: RegisterOffset = RegisterOffset.incrementDoubles(RegisterOffset.Zero)
+    def usedRegisters: RegisterOffset = RegisterOffset.incrementDoubles(RegisterOffset.Zero)
   }
   final case class Char(relativeIndex: scala.Int) extends Register[scala.Char] {
     def registerType: RegisterType[scala.Char] = RegisterType.Char
@@ -92,7 +92,7 @@ object Register {
     def set(registers: Registers, base: RegisterOffset, boxed: scala.Char): Unit =
       registers.setChar(base, relativeIndex, boxed)
 
-    def size: RegisterOffset = RegisterOffset.incrementChars(RegisterOffset.Zero)
+    def usedRegisters: RegisterOffset = RegisterOffset.incrementChars(RegisterOffset.Zero)
   }
   final case class Object[A <: AnyRef](relativeIndex: scala.Int) extends Register[A] {
     def registerType: RegisterType[Boxed] = RegisterType.Object[Boxed]()
@@ -102,6 +102,6 @@ object Register {
     def set(registers: Registers, base: RegisterOffset, boxed: Boxed): Unit =
       registers.setObject(base, relativeIndex, boxed)
 
-    def size: RegisterOffset = RegisterOffset.incrementObjects(RegisterOffset.Zero)
+    def usedRegisters: RegisterOffset = RegisterOffset.incrementObjects(RegisterOffset.Zero)
   }
 }

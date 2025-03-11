@@ -109,8 +109,8 @@ object Reflect {
       ArraySeq.unsafeWrapArray(registers)
     }
 
-    val size: RegisterOffset = registers.foldLeft(RegisterOffset.Zero) { (acc, register) =>
-      RegisterOffset.add(acc, register.size)
+    val usedRegisters: RegisterOffset = registers.foldLeft(RegisterOffset.Zero) { (acc, register) =>
+      RegisterOffset.add(acc, register.usedRegisters)
     }
   }
 

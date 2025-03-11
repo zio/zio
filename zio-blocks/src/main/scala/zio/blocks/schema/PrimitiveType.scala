@@ -1,6 +1,5 @@
 package zio.blocks.schema
 
-// FIXME: Add all primitive types, including date/time, currency, etc.
 sealed trait PrimitiveType[A] {
   def validation: Validation[A]
 }

@@ -21,7 +21,7 @@ object Main {
 
     val constructor: Constructor[Person] =
       new Constructor[Person] {
-        def size: RegisterOffset = RegisterOffset(ints = 1, objects = 3)
+        def usedRegisters: RegisterOffset = RegisterOffset(ints = 1, objects = 3)
 
         def construct(in: Registers, baseOffset: RegisterOffset): Person = {
           val id      = in.getObject(baseOffset, 0).asInstanceOf[java.util.UUID]
@@ -36,7 +36,7 @@ object Main {
 
     val deconstructor: Deconstructor[Person] =
       new Deconstructor[Person] {
-        def size: RegisterOffset = RegisterOffset(ints = 1, objects = 4)
+        def usedRegisters: RegisterOffset = RegisterOffset(ints = 1, objects = 4)
 
         def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Person): Unit = {
           out.setObject(baseOffset, 0, in.id)

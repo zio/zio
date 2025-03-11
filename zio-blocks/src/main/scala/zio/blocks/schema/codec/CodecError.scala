@@ -7,7 +7,7 @@ import zio.blocks.schema._
 sealed trait CodecError extends Exception with NoStackTrace {
   def message: String
 
-  override def getMessage(): String = message
+  override def getMessage: String = message
 }
 object CodecError {
   // FIXME: Flesh these out

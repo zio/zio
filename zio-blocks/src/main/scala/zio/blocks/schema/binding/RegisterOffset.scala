@@ -69,9 +69,19 @@ object RegisterOffset {
   }
 
   def add(left: RegisterOffset, right: RegisterOffset): RegisterOffset = {
-    val res = left | right
-    if ((left ^ right) != res) throw new IllegalArgumentException("arguments cannot have overlapping bits")
-    else res
+    val res = left + right
+    if (
+      getBooleans(left) + getBooleans(right) != getBooleans(res) ||
+      getBytes(left) + getBytes(right) != getBytes(res) ||
+      getShorts(left) + getShorts(right) != getShorts(res) ||
+      getInts(left) + getInts(right) != getInts(res) ||
+      getLongs(left) + getLongs(right) != getLongs(res) ||
+      getFloats(left) + getFloats(right) != getFloats(res) ||
+      getDoubles(left) + getDoubles(right) != getDoubles(res) ||
+      getChars(left) + getChars(right) != getChars(res) ||
+      getObjects(left) + getObjects(right) != getObjects(res)
+    ) throw new IllegalArgumentException("add overflow")
+    res
   }
 
   def incrementBooleans(offset: RegisterOffset): RegisterOffset = offset + (1L << BooleansShift)
