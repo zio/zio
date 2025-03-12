@@ -35,7 +35,7 @@ object SchemaSpec extends ZIOSpecDefault {
     suite("Reflect.Record")(
       test("has consistent equals and hashCode") {
         val record1 = Reflect.Record(
-          fields = List[Term[Binding, Record, _]](
+          fields = List[Term.Bound[Record, _]](
             Term("b", Reflect.byte, Doc.Empty, Nil),
             Term("i", Reflect.int, Doc.Empty, Nil)
           ),
@@ -58,9 +58,9 @@ object SchemaSpec extends ZIOSpecDefault {
         assert(Schema(record5))(not(equalTo(Record.schema)))
       },
       test("has consistent fields, length, registers and usedRegisters") {
-        val record1 = Record.schema.reflect.asInstanceOf[Reflect.Record[Binding, Record]]
-        val record2 = Case1.schema.reflect.asInstanceOf[Reflect.Record[Binding, Case1]]
-        val record3 = Case2.schema.reflect.asInstanceOf[Reflect.Record[Binding, Case2]]
+        val record1 = Record.schema.reflect.asInstanceOf[Reflect.Record.Bound[Record]]
+        val record2 = Case1.schema.reflect.asInstanceOf[Reflect.Record.Bound[Case1]]
+        val record3 = Case2.schema.reflect.asInstanceOf[Reflect.Record.Bound[Case2]]
         assert(record1.length)(equalTo(2)) &&
         assert(record1.fields.length)(equalTo(2)) &&
         assert(record1.registers.length)(equalTo(2)) &&
@@ -273,7 +273,7 @@ object SchemaSpec extends ZIOSpecDefault {
   object Case1 {
     val schema: Schema[Case1] = Schema(
       reflect = Reflect.Record(
-        fields = List[Term[Binding, Case1, ?]](
+        fields = List[Term.Bound[Case1, ?]](
           Term("d", Reflect.double, Doc.Empty, Nil)
         ),
         typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Case1"),
@@ -302,7 +302,7 @@ object SchemaSpec extends ZIOSpecDefault {
   object Case2 {
     val schema: Schema[Case2] = Schema(
       reflect = Reflect.Record(
-        fields = List[Term[Binding, Case2, ?]](
+        fields = List[Term.Bound[Case2, ?]](
           Term("s", Reflect.string, Doc.Empty, Nil)
         ),
         typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Case2"),

@@ -21,8 +21,8 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Record2.r1_f: Any)(not(equalTo(Record2.r1_b)))
       },
       test("has associative equals and hashCode") {
-        assert(Record3.r2_r1_b_left_associative: Any)(equalTo(Record3.r2_r1_b_right_associative)) &&
-        assert(Record3.r2_r1_b_left_associative.hashCode)(equalTo(Record3.r2_r1_b_right_associative.hashCode))
+        assert(Record3.r2_r1_b_left: Any)(equalTo(Record3.r2_r1_b_right)) &&
+        assert(Record3.r2_r1_b_left.hashCode)(equalTo(Record3.r2_r1_b_right.hashCode))
       }
     ),
     suite("Prism")(
@@ -36,18 +36,14 @@ object OpticSpec extends ZIOSpecDefault {
       test("has consistent equals and hashCode") {
         assert(Variant1.c1_d)(equalTo(Variant1.c1_d)) &&
         assert(Variant1.c1_d.hashCode)(equalTo(Variant1.c1_d.hashCode)) &&
-        assert(Variant1.c2_r3_r2_r1_b_right_associative)(equalTo(Variant1.c2_r3_r2_r1_b_right_associative)) &&
-        assert(Variant1.c2_r3_r2_r1_b_right_associative.hashCode)(
-          equalTo(Variant1.c2_r3_r2_r1_b_right_associative.hashCode)
-        ) &&
+        assert(Variant1.c2_r3_r2_r1_b_right)(equalTo(Variant1.c2_r3_r2_r1_b_right)) &&
+        assert(Variant1.c2_r3_r2_r1_b_right.hashCode)(equalTo(Variant1.c2_r3_r2_r1_b_right.hashCode)) &&
         assert(Variant1.c2_r3: Any)(not(equalTo(Variant1.c1_d))) &&
-        assert(Variant1.c2_r3: Any)(not(equalTo(Variant1.c2_r3_r2_r1_b_right_associative)))
+        assert(Variant1.c2_r3: Any)(not(equalTo(Variant1.c2_r3_r2_r1_b_right)))
       },
       test("has associative equals and hashCode") {
-        assert(Variant1.c2_r3_r2_r1_b_left_associative)(equalTo(Variant1.c2_r3_r2_r1_b_right_associative)) &&
-        assert(Variant1.c2_r3_r2_r1_b_left_associative.hashCode)(
-          equalTo(Variant1.c2_r3_r2_r1_b_right_associative.hashCode)
-        )
+        assert(Variant1.c2_r3_r2_r1_b_left)(equalTo(Variant1.c2_r3_r2_r1_b_right)) &&
+        assert(Variant1.c2_r3_r2_r1_b_left.hashCode)(equalTo(Variant1.c2_r3_r2_r1_b_right.hashCode))
       }
     ),
     suite("Traversal")(
@@ -62,8 +58,8 @@ object OpticSpec extends ZIOSpecDefault {
   case class Record1(b: Boolean, f: Float)
 
   object Record1 {
-    val reflect: Reflect.Record[Binding, Record1] = Reflect.Record(
-      fields = List[Term[Binding, Record1, ?]](
+    val reflect: Reflect.Record.Bound[Record1] = Reflect.Record(
+      fields = List[Term.Bound[Record1, ?]](
         Term("b", Reflect.boolean, Doc.Empty, Nil),
         Term("f", Reflect.float, Doc.Empty, Nil)
       ),
@@ -87,14 +83,14 @@ object OpticSpec extends ZIOSpecDefault {
       doc = Doc.Empty,
       modifiers = Nil
     )
-    val b: Lens[Binding, Record1, Boolean] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record1, Boolean]])
-    val f: Lens[Binding, Record1, Float]   = Lens(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Record1, Float]])
+    val b: Lens.Bound[Record1, Boolean] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record1, Boolean]])
+    val f: Lens.Bound[Record1, Float]   = Lens(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Record1, Float]])
   }
 
   case class Record2(l: Long, li: List[Int], r1: Record1)
 
   object Record2 {
-    val reflect: Reflect.Record[Binding, Record2] = Reflect.Record[Binding, Record2](
+    val reflect: Reflect.Record.Bound[Record2] = Reflect.Record(
       fields = List(
         Term("l", Reflect.long, Doc.Empty, Nil),
         Term("li", Reflect.list(Reflect.int), Doc.Empty, Nil),
@@ -125,19 +121,18 @@ object OpticSpec extends ZIOSpecDefault {
       doc = Doc.Empty,
       modifiers = Nil
     )
-    val l: Lens[Binding, Record2, Long] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record2, Long]])
-    val li: Traversal[Binding, Record2, Int] =
+    val l: Lens.Bound[Record2, Long] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record2, Long]])
+    val li: Traversal.Bound[Record2, Int] =
       Lens(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Record2, List[Int]]]).list
-    val r1: Lens[Binding, Record2, Record1] =
-      Lens(reflect, reflect.fields(2).asInstanceOf[Term.Bound[Record2, Record1]])
-    val r1_b: Lens[Binding, Record2, Boolean] = r1(Record1.b)
-    val r1_f: Lens[Binding, Record2, Float]   = r1(Record1.f)
+    val r1: Lens.Bound[Record2, Record1]   = Lens(reflect, reflect.fields(2).asInstanceOf[Term.Bound[Record2, Record1]])
+    val r1_b: Lens.Bound[Record2, Boolean] = r1(Record1.b)
+    val r1_f: Lens.Bound[Record2, Float]   = r1(Record1.f)
   }
 
   case class Record3(r1: Record1, r2: Record2)
 
   object Record3 {
-    val reflect: Reflect.Record[Binding, Record3] = Reflect.Record[Binding, Record3](
+    val reflect: Reflect.Record.Bound[Record3] = Reflect.Record(
       fields = List(
         Term("r1", Record1.reflect, Doc.Empty, Nil),
         Term("r2", Record2.reflect, Doc.Empty, Nil)
@@ -165,18 +160,16 @@ object OpticSpec extends ZIOSpecDefault {
       doc = Doc.Empty,
       modifiers = Nil
     )
-    val r1: Lens[Binding, Record3, Record1] =
-      Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record3, Record1]])
-    val r2: Lens[Binding, Record3, Record2] =
-      Lens(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Record3, Record2]])
-    val r2_r1_b_left_associative: Lens[Binding, Record3, Boolean]  = r2(Record2.r1)(Record1.b)
-    val r2_r1_b_right_associative: Lens[Binding, Record3, Boolean] = r2(Record2.r1(Record1.b))
+    val r1: Lens.Bound[Record3, Record1]            = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record3, Record1]])
+    val r2: Lens.Bound[Record3, Record2]            = Lens(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Record3, Record2]])
+    val r2_r1_b_left: Lens.Bound[Record3, Boolean]  = r2(Record2.r1)(Record1.b)
+    val r2_r1_b_right: Lens.Bound[Record3, Boolean] = r2(Record2.r1(Record1.b))
   }
 
   sealed trait Variant1
 
   object Variant1 {
-    val reflect: Reflect.Variant[Binding, Variant1] = Reflect.Variant[Binding, Variant1](
+    val reflect: Reflect.Variant.Bound[Variant1] = Reflect.Variant(
       cases = List(
         Term("case1", Case1.reflect, Doc.Empty, Nil),
         Term("case2", Case2.reflect, Doc.Empty, Nil)
@@ -201,19 +194,19 @@ object OpticSpec extends ZIOSpecDefault {
       doc = Doc.Empty,
       modifiers = Nil
     )
-    val c1: Prism[Binding, Variant1, Case1]                                   = Prism(reflect, reflect.cases(0).asInstanceOf[Term.Bound[Variant1, Case1]])
-    val c2: Prism[Binding, Variant1, Case2]                                   = Prism(reflect, reflect.cases(1).asInstanceOf[Term.Bound[Variant1, Case2]])
-    val c1_d: Optional[Binding, Variant1, Double]                             = c1(Case1.d)
-    val c2_r3: Optional[Binding, Variant1, Record3]                           = c2(Case2.r3)
-    val c2_r3_r2_r1_b_left_associative: Optional[Binding, Variant1, Boolean]  = c2_r3(Record3.r2_r1_b_left_associative)
-    val c2_r3_r2_r1_b_right_associative: Optional[Binding, Variant1, Boolean] = c2_r3(Record3.r2_r1_b_right_associative)
+    val c1: Prism.Bound[Variant1, Case1]                       = Prism(reflect, reflect.cases(0).asInstanceOf[Term.Bound[Variant1, Case1]])
+    val c2: Prism.Bound[Variant1, Case2]                       = Prism(reflect, reflect.cases(1).asInstanceOf[Term.Bound[Variant1, Case2]])
+    val c1_d: Optional.Bound[Variant1, Double]                 = c1(Case1.d)
+    val c2_r3: Optional.Bound[Variant1, Record3]               = c2(Case2.r3)
+    val c2_r3_r2_r1_b_left: Optional.Bound[Variant1, Boolean]  = c2_r3(Record3.r2_r1_b_left)
+    val c2_r3_r2_r1_b_right: Optional.Bound[Variant1, Boolean] = c2_r3(Record3.r2_r1_b_right)
   }
 
   case class Case1(d: Double) extends Variant1
 
   object Case1 {
-    val reflect: Reflect.Record[Binding, Case1] = Reflect.Record(
-      fields = List[Term[Binding, Case1, ?]](
+    val reflect: Reflect.Record.Bound[Case1] = Reflect.Record(
+      fields = List[Term.Bound[Case1, ?]](
         Term("d", Reflect.double, Doc.Empty, Nil)
       ),
       typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Case1"),
@@ -234,14 +227,14 @@ object OpticSpec extends ZIOSpecDefault {
       doc = Doc.Empty,
       modifiers = Nil
     )
-    val d: Lens[Binding, Case1, Double] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Case1, Double]])
+    val d: Lens.Bound[Case1, Double] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Case1, Double]])
   }
 
   case class Case2(r: Record3) extends Variant1
 
   object Case2 {
-    val reflect: Reflect.Record[Binding, Case2] = Reflect.Record(
-      fields = List[Term[Binding, Case2, ?]](
+    val reflect: Reflect.Record.Bound[Case2] = Reflect.Record(
+      fields = List[Term.Bound[Case2, ?]](
         Term("r3", Record3.reflect, Doc.Empty, Nil)
       ),
       typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Case2"),
@@ -262,6 +255,6 @@ object OpticSpec extends ZIOSpecDefault {
       doc = Doc.Empty,
       modifiers = Nil
     )
-    val r3: Lens[Binding, Case2, Record3] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Case2, Record3]])
+    val r3: Lens.Bound[Case2, Record3] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Case2, Record3]])
   }
 }

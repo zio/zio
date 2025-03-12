@@ -47,31 +47,31 @@ object Main {
         }
       }
 
-    val personRecord: Reflect.Record[Binding, Person] =
+    val personRecord: Reflect.Record.Bound[Person] =
       Reflect.Record(
-        List[Term[Binding, Person, ?]](
-          Term("id", Reflect.uuid[Binding], Doc.Empty, List.empty),
-          Term("name", Reflect.string[Binding], Doc.Empty, List.empty),
-          Term("age", Reflect.int[Binding], Doc.Empty, List.empty),
-          Term("address", Reflect.string[Binding], Doc.Empty, List.empty),
-          Term("childrenAges", Reflect.list[Binding, Int](Reflect.int[Binding]), Doc.Empty, List.empty)
+        List[Term.Bound[Person, ?]](
+          Term("id", Reflect.uuid, Doc.Empty, Nil),
+          Term("name", Reflect.string, Doc.Empty, Nil),
+          Term("age", Reflect.int, Doc.Empty, Nil),
+          Term("address", Reflect.string, Doc.Empty, Nil),
+          Term("childrenAges", Reflect.list(Reflect.int), Doc.Empty, Nil)
         ),
-        TypeName(Namespace(List("example"), List.empty), "Person"),
+        TypeName(Namespace(List("example"), Nil), "Person"),
         Binding.Record(constructor, deconstructor),
         Doc.Empty,
-        List.empty
+        Nil
       )
 
     val id: Lens.Bound[Person, java.util.UUID] =
-      Lens.Root(personRecord, personRecord.fields(0).asInstanceOf[Term.Bound[Person, java.util.UUID]])
+      Lens(personRecord, personRecord.fields(0).asInstanceOf[Term.Bound[Person, java.util.UUID]])
     val name: Lens.Bound[Person, String] =
-      Lens.Root(personRecord, personRecord.fields(1).asInstanceOf[Term.Bound[Person, String]])
+      Lens(personRecord, personRecord.fields(1).asInstanceOf[Term.Bound[Person, String]])
     val age: Lens.Bound[Person, Int] =
-      Lens.Root(personRecord, personRecord.fields(2).asInstanceOf[Term.Bound[Person, Int]])
+      Lens(personRecord, personRecord.fields(2).asInstanceOf[Term.Bound[Person, Int]])
     val address: Lens.Bound[Person, String] =
-      Lens.Root(personRecord, personRecord.fields(3).asInstanceOf[Term.Bound[Person, String]])
+      Lens(personRecord, personRecord.fields(3).asInstanceOf[Term.Bound[Person, String]])
     val childrenAges: Traversal.Bound[Person, Int] =
-      (Lens.Root(personRecord, personRecord.fields(4).asInstanceOf[Term.Bound[Person, List[Int]]])).list
+      Lens(personRecord, personRecord.fields(4).asInstanceOf[Term.Bound[Person, List[Int]]]).list
   }
 
   import Person._
@@ -82,6 +82,7 @@ object Main {
 
     val person = Person(new java.util.UUID(1L, 1L), "John", 30, "123 Main St", List(5, 7, 9))
 
+    println("id:      " + Person.id.get(person))
     println("name:    " + Person.name.get(person))
     println("age:     " + Person.age.get(person))
     println("address: " + Person.address.get(person))
