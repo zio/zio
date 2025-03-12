@@ -143,7 +143,7 @@ object Lens {
 
     override def equals(obj: Any): Boolean = obj match {
       case other: Field[F, _, _] => other.parent.equals(parent) && other.child.equals(child)
-      case _                    => false
+      case _                     => false
     }
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = ArraySeq(this)
@@ -225,7 +225,7 @@ object Prism {
 
     override def equals(obj: Any): Boolean = obj match {
       case other: Variant[F, _, _] => other.parent.equals(parent) && other.child.equals(child)
-      case _                    => false
+      case _                       => false
     }
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = ArraySeq(this)
