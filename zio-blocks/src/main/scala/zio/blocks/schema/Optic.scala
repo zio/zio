@@ -30,7 +30,7 @@ sealed trait Optic[F[_, _], S, A] { self =>
 
     val list = self.asSub[List[B]]
     list.focus match {
-      case List(element) => list(Traversal.list(element))
+      case List(element) => list(Traversal.listValues(element))
       case _             => sys.error("FIXME - Not a list")
     }
   }
@@ -40,7 +40,7 @@ sealed trait Optic[F[_, _], S, A] { self =>
 
     val vector = self.asSub[Vector[B]]
     vector.focus match {
-      case Vector(element) => vector(Traversal.vector(element))
+      case Vector(element) => vector(Traversal.vectorValues(element))
       case _               => sys.error("FIXME - Not a vector")
     }
   }
@@ -50,7 +50,7 @@ sealed trait Optic[F[_, _], S, A] { self =>
 
     val set = self.asSub[Set[B]]
     set.focus match {
-      case Set(element) => set(Traversal.set(element))
+      case Set(element) => set(Traversal.setValues(element))
       case _            => sys.error("FIXME - Not a set")
     }
   }
@@ -60,7 +60,7 @@ sealed trait Optic[F[_, _], S, A] { self =>
 
     val array = self.asSub[Array[B]]
     array.focus match {
-      case Array(element) => array(Traversal.array(element))
+      case Array(element) => array(Traversal.arrayValues(element))
       case _              => sys.error("FIXME - Not an array")
     }
   }
@@ -433,8 +433,6 @@ sealed trait Traversal[F[_, _], S, A] extends Optic[F, S, A] { self =>
 object Traversal {
   type Bound[S, A] = Traversal[Binding, S, A]
 
-  def apply[F[_, _], A, C[_]](seq: Reflect.Sequence[F, A, C]): Traversal[F, C[A], A] = new Seq(seq)
-
   def apply[F[_, _], S, T, A](first: Traversal[F, S, T], second: Traversal[F, T, A]): Traversal[F, S, A] =
     new TraversalTraversal(first, second)
 
@@ -456,11 +454,11 @@ object Traversal {
   def apply[F[_, _], S, T, A](first: Optional[F, S, T], second: Traversal[F, T, A]): Traversal[F, S, A] =
     new OptionalTraversal(first, second)
 
-  def array[F[_, _], A](reflect: Reflect[F, A])(implicit F: FromBinding[F]): Traversal[F, Array[A], A] =
-    new Seq(Reflect.array(reflect))
+  def arrayValues[F[_, _], A](reflect: Reflect[F, A])(implicit F: FromBinding[F]): Traversal[F, Array[A], A] =
+    new SeqValues(Reflect.array(reflect))
 
-  def list[F[_, _], A](reflect: Reflect[F, A])(implicit F: FromBinding[F]): Traversal[F, List[A], A] =
-    new Seq(Reflect.list(reflect))
+  def listValues[F[_, _], A](reflect: Reflect[F, A])(implicit F: FromBinding[F]): Traversal[F, List[A], A] =
+    new SeqValues(Reflect.list(reflect))
 
   def mapKeys[F[_, _], Key, Value, M[_, _]](map: Reflect.Map[F, Key, Value, M]): Traversal[F, M[Key, Value], Key] =
     new MapKeys(map)
@@ -468,13 +466,15 @@ object Traversal {
   def mapValues[F[_, _], Key, Value, M[_, _]](map: Reflect.Map[F, Key, Value, M]): Traversal[F, M[Key, Value], Value] =
     new MapValues(map)
 
-  def set[F[_, _], A](reflect: Reflect[F, A])(implicit F: FromBinding[F]): Traversal[F, Set[A], A] =
-    new Seq(Reflect.set(reflect))
+  def seqValues[F[_, _], A, C[_]](seq: Reflect.Sequence[F, A, C]): Traversal[F, C[A], A] = new SeqValues(seq)
 
-  def vector[F[_, _], A](reflect: Reflect[F, A])(implicit F: FromBinding[F]): Traversal[F, Vector[A], A] =
-    new Seq(Reflect.vector(reflect))
+  def setValues[F[_, _], A](reflect: Reflect[F, A])(implicit F: FromBinding[F]): Traversal[F, Set[A], A] =
+    new SeqValues(Reflect.set(reflect))
 
-  private case class Seq[F[_, _], A, C[_]](seq: Reflect.Sequence[F, A, C])
+  def vectorValues[F[_, _], A](reflect: Reflect[F, A])(implicit F: FromBinding[F]): Traversal[F, Vector[A], A] =
+    new SeqValues(Reflect.vector(reflect))
+
+  private case class SeqValues[F[_, _], A, C[_]](seq: Reflect.Sequence[F, A, C])
       extends Traversal[F, C[A], A]
       with Leaf[F, C[A], A] {
     def structure: Reflect[F, C[A]] = seq
@@ -527,13 +527,13 @@ object Traversal {
       }
     }
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Seq[G, A, C] = new Seq(seq.refineBinding(f))
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): SeqValues[G, A, C] = new SeqValues(seq.refineBinding(f))
 
     override def hashCode: Int = seq.hashCode
 
     override def equals(obj: Any): Boolean = obj match {
-      case other: Seq[F, _, _] => other.seq.equals(seq)
-      case _                   => false
+      case other: SeqValues[F, _, _] => other.seq.equals(seq)
+      case _                         => false
     }
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = ArraySeq(this)
