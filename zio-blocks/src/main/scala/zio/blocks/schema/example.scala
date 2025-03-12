@@ -49,7 +49,7 @@ object Main {
 
     val personRecord: Reflect.Record.Bound[Person] =
       Reflect.Record(
-        List[Term.Bound[Person, ?]](
+        List(
           Term("id", Reflect.uuid, Doc.Empty, Nil),
           Term("name", Reflect.string, Doc.Empty, Nil),
           Term("age", Reflect.int, Doc.Empty, Nil),

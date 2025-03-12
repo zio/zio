@@ -272,8 +272,8 @@ object SchemaSpec extends ZIOSpecDefault {
 
   object Case1 {
     val schema: Schema[Case1] = Schema(
-      reflect = Reflect.Record(
-        fields = List[Term.Bound[Case1, ?]](
+      reflect = Reflect.Record[Binding, Case1](
+        fields = List(
           Term("d", Reflect.double, Doc.Empty, Nil)
         ),
         typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Case1"),
@@ -301,8 +301,8 @@ object SchemaSpec extends ZIOSpecDefault {
 
   object Case2 {
     val schema: Schema[Case2] = Schema(
-      reflect = Reflect.Record(
-        fields = List[Term.Bound[Case2, ?]](
+      reflect = Reflect.Record[Binding, Case2](
+        fields = List(
           Term("s", Reflect.string, Doc.Empty, Nil)
         ),
         typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Case2"),

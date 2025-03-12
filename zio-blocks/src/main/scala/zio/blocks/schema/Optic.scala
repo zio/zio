@@ -136,7 +136,7 @@ object Lens {
       F.constructor(parent.recordBinding).construct(registers, RegisterOffset.Zero)
     }
 
-    override def refineBinding[G[_, _]](f: RefineBinding[F, G]): Root[G, S, A] =
+    override def refineBinding[G[_, _]](f: RefineBinding[F, G]): Lens[G, S, A] =
       new Root(parent.refineBinding(f), child.refineBinding(f))
 
     override def hashCode: Int = parent.hashCode ^ child.hashCode
@@ -158,7 +158,7 @@ object Lens {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.set(s, second.set(first.get(s), a))
 
-    override def refineBinding[G[_, _]](f: RefineBinding[F, G]): LensLens[G, S, T, A] =
+    override def refineBinding[G[_, _]](f: RefineBinding[F, G]): Lens[G, S, A] =
       new LensLens(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
@@ -186,6 +186,7 @@ sealed trait Prism[F[_, _], S, A] extends Optic[F, S, A] {
 
   override def noBinding: Prism[NoBinding, S, A] = refineBinding(RefineBinding.noBinding())
 }
+
 object Prism {
   type Bound[S, A] = Prism[Binding, S, A]
 
@@ -217,7 +218,7 @@ object Prism {
 
     def reverseGet(a: A): S = a
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Root[G, S, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Prism[G, S, A] =
       new Root(parent.refineBinding(f), child.refineBinding(f))
 
     override def hashCode: Int = parent.hashCode ^ child.hashCode
@@ -240,7 +241,7 @@ object Prism {
 
     def reverseGet(a: A): S = first.reverseGet(second.reverseGet(a))
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): PrismPrism[G, S, T, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Prism[G, S, A] =
       new PrismPrism(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
@@ -268,6 +269,7 @@ sealed trait Optional[F[_, _], S, A] extends Optic[F, S, A] {
 
   override def noBinding: Optional[NoBinding, S, A] = refineBinding(RefineBinding.noBinding())
 }
+
 object Optional {
   type Bound[S, A] = Optional[Binding, S, A]
 
@@ -302,7 +304,7 @@ object Optional {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.set(s, second.reverseGet(a))
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): LensPrism[G, S, T, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new LensPrism(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
@@ -318,7 +320,7 @@ object Optional {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.set(s, second.set(first.get(s), a))
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): LensOptional[G, S, T, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new LensOptional(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
@@ -334,7 +336,7 @@ object Optional {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.reverseGet(second.set(first.getOption(s).get, a))
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): PrismLens[G, S, T, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new PrismLens(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
@@ -350,7 +352,7 @@ object Optional {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.reverseGet(second.set(first.getOption(s).get, a))
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): PrismOptional[G, S, T, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new PrismOptional(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
@@ -366,7 +368,7 @@ object Optional {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.set(s, second.set(first.getOption(s).get, a))
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): OptionalLens[G, S, T, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new OptionalLens(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
@@ -382,7 +384,7 @@ object Optional {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.set(s, second.reverseGet(a))
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): OptionalPrism[G, S, T, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new OptionalPrism(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
@@ -398,7 +400,7 @@ object Optional {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.set(s, second.set(first.getOption(s).get, a))
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): OptionalOptional[G, S, T, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new OptionalOptional(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
@@ -615,9 +617,8 @@ object Traversal {
       constructor.resultObject(builder)
     }
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): MapValues[G, Key, Value, M] = new MapValues(
-      map.refineBinding(f)
-    )
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): MapValues[G, Key, Value, M] =
+      new MapValues(map.refineBinding(f))
 
     override def hashCode: Int = map.hashCode
 
@@ -641,7 +642,7 @@ object Traversal {
 
     def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, t => second.modify(t, f))
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): TraversalTraversal[G, S, T, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new TraversalTraversal(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
@@ -658,7 +659,7 @@ object Traversal {
 
     def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, t => second.set(t, f(second.get(t))))
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): TraversalLens[G, S, T, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new TraversalLens(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
@@ -676,7 +677,7 @@ object Traversal {
     def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S =
       first.modify(s, t => second.getOption(t).map(a => second.reverseGet(f(a))).getOrElse(t))
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): TraversalPrism[G, S, T, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new TraversalPrism(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
@@ -694,7 +695,7 @@ object Traversal {
     def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S =
       first.modify(s, t => second.getOption(t).map(a => second.set(t, f(a))).getOrElse(t))
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): TraversalOptional[G, S, T, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new TraversalOptional(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
@@ -710,7 +711,7 @@ object Traversal {
 
     def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.set(s, second.modify(first.get(s), f))
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): LensTraversal[G, S, T, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new LensTraversal(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
@@ -728,7 +729,7 @@ object Traversal {
     def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S =
       first.getOption(s).map(t => first.reverseGet(second.modify(t, f))).getOrElse(s)
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): PrismTraversal[G, S, T, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new PrismTraversal(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
@@ -746,7 +747,7 @@ object Traversal {
     def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S =
       first.getOption(s).map(t => first.set(s, second.modify(t, f))).getOrElse(s)
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): OptionalTraversal[G, S, T, A] =
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new OptionalTraversal(first.refineBinding(f), second.refineBinding(f))
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized

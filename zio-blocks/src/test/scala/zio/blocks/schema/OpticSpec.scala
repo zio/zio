@@ -59,7 +59,7 @@ object OpticSpec extends ZIOSpecDefault {
 
   object Record1 {
     val reflect: Reflect.Record.Bound[Record1] = Reflect.Record(
-      fields = List[Term.Bound[Record1, ?]](
+      fields = List(
         Term("b", Reflect.boolean, Doc.Empty, Nil),
         Term("f", Reflect.float, Doc.Empty, Nil)
       ),
@@ -206,7 +206,7 @@ object OpticSpec extends ZIOSpecDefault {
 
   object Case1 {
     val reflect: Reflect.Record.Bound[Case1] = Reflect.Record(
-      fields = List[Term.Bound[Case1, ?]](
+      fields = List(
         Term("d", Reflect.double, Doc.Empty, Nil)
       ),
       typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Case1"),
@@ -230,11 +230,11 @@ object OpticSpec extends ZIOSpecDefault {
     val d: Lens.Bound[Case1, Double] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Case1, Double]])
   }
 
-  case class Case2(r: Record3) extends Variant1
+  case class Case2(r3: Record3) extends Variant1
 
   object Case2 {
     val reflect: Reflect.Record.Bound[Case2] = Reflect.Record(
-      fields = List[Term.Bound[Case2, ?]](
+      fields = List(
         Term("r3", Record3.reflect, Doc.Empty, Nil)
       ),
       typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Case2"),
@@ -249,7 +249,7 @@ object OpticSpec extends ZIOSpecDefault {
           def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
           def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Case2): Unit =
-            out.setObject(baseOffset, 0, in.r)
+            out.setObject(baseOffset, 0, in.r3)
         }
       ),
       doc = Doc.Empty,
