@@ -8,100 +8,131 @@ import zio.test._
 
 object OpticSpec extends ZIOSpecDefault {
   def spec: Spec[TestEnvironment with Scope, Any] = suite("OpticSpec")(
-    suite("Lens.Root")(
+    suite("Lens")(
       test("has consistent equals and hashCode") {
         assert(Record1.b)(equalTo(Record1.b)) &&
         assert(Record1.b.hashCode)(equalTo(Record1.b.hashCode)) &&
+        assert(Record2.r1_b)(equalTo(Record2.r1_b)) &&
+        assert(Record2.r1_b.hashCode)(equalTo(Record2.r1_b.hashCode)) &&
         assert(Record1.f: Any)(not(equalTo(Record1.b))) &&
         assert(Record2.l: Any)(not(equalTo(Record1.b))) &&
         assert(Record2.li: Any)(not(equalTo(Record1.b))) &&
-        assert(Record2.r1: Any)(not(equalTo(Record1.b)))
-      }
-    ),
-    suite("Lens.LensLens")(
-      test("has consistent equals and hashCode") {
-        assert(Record2.r1_b)(equalTo(Record2.r1_b)) &&
-        assert(Record2.r1_b.hashCode)(equalTo(Record2.r1_b.hashCode)) &&
+        assert(Record2.r1: Any)(not(equalTo(Record1.b))) &&
         assert(Record2.r1_f: Any)(not(equalTo(Record2.r1_b)))
       },
       test("has associative equals and hashCode") {
-        assert(Record3.r2_r1_b_left_associative: Any)(equalTo(Record3.r2_r1_b_right_associative)) &&
-        assert(Record3.r2_r1_b_left_associative.hashCode)(equalTo(Record3.r2_r1_b_right_associative.hashCode))
+        assert(Record3.r2_r1_b_left: Any)(equalTo(Record3.r2_r1_b_right)) &&
+        assert(Record3.r2_r1_b_left.hashCode)(equalTo(Record3.r2_r1_b_right.hashCode))
+      },
+      test("returns a class structure") {
+        assert(Record1.b.structure)(equalTo(Record1.reflect)) &&
+        assert(Record2.r1_b.structure)(equalTo(Record2.reflect))
+      },
+      test("returns a field structure") {
+        assert(Record1.b.focus)(equalTo(Reflect.boolean[Binding])) &&
+        assert(Record2.r1_b.focus)(equalTo(Reflect.boolean[Binding]))
+      },
+      test("gets a field value") {
+        assert(Record1.b.get(Record1(true, 1)))(equalTo(true)) &&
+        assert(Record1.b.get(Record1(false, 1)))(equalTo(false)) &&
+        assert(Record2.r1_b.get(Record2(2L, Nil, Record1(true, 1))))(equalTo(true)) &&
+        assert(Record2.r1_b.get(Record2(2L, Nil, Record1(false, 1))))(equalTo(false)) &&
+        assert(Record3.r2_r1_b_left.get(Record3(Record1(false, 3), Record2(2L, Nil, Record1(true, 1)))))(
+          equalTo(true)
+        ) &&
+        assert(Record3.r2_r1_b_right.get(Record3(Record1(true, 3), Record2(2L, Nil, Record1(false, 1)))))(
+          equalTo(false)
+        )
+      },
+      test("sets a field value") {
+        assert(Record1.b.set(Record1(true, 1), false))(equalTo(Record1(false, 1))) &&
+        assert(Record2.r1_b.set(Record2(2L, Nil, Record1(true, 1)), false))(
+          equalTo(Record2(2L, Nil, Record1(false, 1)))
+        ) &&
+        assert(Record3.r2_r1_b_left.set(Record3(Record1(true, 3), Record2(2L, Nil, Record1(true, 1))), false))(
+          equalTo(Record3(Record1(true, 3), Record2(2L, Nil, Record1(false, 1))))
+        )
       }
     ),
-    suite("Prism.Root")(
+    suite("Prism")(
       test("has consistent equals and hashCode") {
         assert(Variant1.c1)(equalTo(Variant1.c1)) &&
         assert(Variant1.c1.hashCode)(equalTo(Variant1.c1.hashCode)) &&
         assert(Variant1.c2: Any)(not(equalTo(Variant1.c1)))
+      },
+      test("returns a base class structure") {
+        assert(Variant1.c1.structure)(equalTo(Variant1.reflect)) &&
+        assert(Variant1.c2.structure)(equalTo(Variant1.reflect))
+      },
+      test("returns a case class structure") {
+        assert(Variant1.c1.focus)(equalTo(Case1.reflect)) &&
+        assert(Variant1.c2.focus)(equalTo(Case2.reflect))
+      },
+      test("gets a case class value") {
+        assert(Variant1.c1.getOption(Case1(0.1): Variant1))(isSome(equalTo(Case1(0.1)))) &&
+        assert(Variant1.c2.getOption(Case2(Record3(null, null)): Variant1))(isSome(equalTo(Case2(Record3(null, null)))))
+      },
+      test("reverse gets a base class value") {
+        assert(Variant1.c1.reverseGet(Case1(0.1)))(equalTo(Case1(0.1): Variant1)) &&
+        assert(Variant1.c2.reverseGet(Case2(Record3(null, null))))(equalTo(Case2(Record3(null, null)): Variant1))
       }
     ),
-    suite("Prism.PrismPrism")(
-    ),
-    suite("Optional.LensPrism")(
-    ),
-    suite("Optional.LensOptional")(
-    ),
-    suite("Optional.PrismLens")(
+    suite("Optional")(
       test("has consistent equals and hashCode") {
         assert(Variant1.c1_d)(equalTo(Variant1.c1_d)) &&
         assert(Variant1.c1_d.hashCode)(equalTo(Variant1.c1_d.hashCode)) &&
-        assert(Variant1.c2_r3: Any)(not(equalTo(Variant1.c1_d)))
-      }
-    ),
-    suite("Optional.PrismOptional")(
-    ),
-    suite("Optional.OptionalLens")(
-      test("has consistent equals and hashCode") {
-        assert(Variant1.c2_r3_r2_r1_b_right_associative)(equalTo(Variant1.c2_r3_r2_r1_b_right_associative)) &&
-        assert(Variant1.c2_r3_r2_r1_b_right_associative.hashCode)(
-          equalTo(Variant1.c2_r3_r2_r1_b_right_associative.hashCode)
-        ) &&
-        assert(Variant1.c2_r3: Any)(not(equalTo(Variant1.c2_r3_r2_r1_b_right_associative)))
+        assert(Variant1.c2_r3_r2_r1_b_right)(equalTo(Variant1.c2_r3_r2_r1_b_right)) &&
+        assert(Variant1.c2_r3_r2_r1_b_right.hashCode)(equalTo(Variant1.c2_r3_r2_r1_b_right.hashCode)) &&
+        assert(Variant1.c2_r3: Any)(not(equalTo(Variant1.c1_d))) &&
+        assert(Variant1.c2_r3: Any)(not(equalTo(Variant1.c2_r3_r2_r1_b_right)))
       },
       test("has associative equals and hashCode") {
-        assert(Variant1.c2_r3_r2_r1_b_left_associative)(equalTo(Variant1.c2_r3_r2_r1_b_right_associative)) &&
-        assert(Variant1.c2_r3_r2_r1_b_left_associative.hashCode)(
-          equalTo(Variant1.c2_r3_r2_r1_b_right_associative.hashCode)
-        )
+        assert(Variant1.c2_r3_r2_r1_b_left)(equalTo(Variant1.c2_r3_r2_r1_b_right)) &&
+        assert(Variant1.c2_r3_r2_r1_b_left.hashCode)(equalTo(Variant1.c2_r3_r2_r1_b_right.hashCode))
+      },
+      test("returns a class structure") {
+        assert(Variant1.c1_d.structure)(equalTo(Variant1.reflect)) &&
+        assert(Variant1.c2_r3.structure)(equalTo(Variant1.reflect))
+      },
+      test("returns a field structure") {
+        assert(Variant1.c1_d.focus)(equalTo(Reflect.double[Binding])) &&
+        assert(Variant1.c2_r3.focus)(equalTo(Record3.reflect))
+      },
+      test("gets a field value") {
+        assert(Variant1.c1_d.getOption(Case1(0.1): Variant1))(isSome(equalTo(0.1))) &&
+        assert(Variant1.c2_r3.getOption(Case2(Record3(null, null)): Variant1))(isSome(equalTo(Record3(null, null))))
+      },
+      test("sets a field value") {
+        assert(Variant1.c1_d.set(Case1(0.1), 0.2))(equalTo(Case1(0.2))) &&
+        assert(Variant1.c2_r3.set(Case2(null), Record3(null, null)))(equalTo(Case2(Record3(null, null))))
       }
     ),
-    suite("Optional.OptionalPrism")(
-    ),
-    suite("Optional.OptionalOptional")(
-    ),
-    suite("Traversal.Seq")(
+    suite("Traversal")(
       test("has consistent equals and hashCode") {
         assert(Record2.li)(equalTo(Record2.li)) &&
         assert(Record2.li.hashCode)(equalTo(Record2.li.hashCode)) &&
         assert(Record2.r1_f: Any)(not(equalTo(Record2.li)))
+      },
+      test("returns a class structure") {
+        assert(Record2.li.structure)(equalTo(Record2.reflect))
+      },
+      test("returns a collection element structure") {
+        assert(Record2.li.focus)(equalTo(Reflect.int[Binding]))
+      },
+      test("folds collection values") {
+        assert(Record2.li.fold[Int](Record2(2L, List(1, 2, 3), null))(0, _ + _))(equalTo(6))
+      },
+      test("modifies collection values") {
+        assert(Record2.li.modify(Record2(2L, List(1, 2, 3), null), _ + 1))(equalTo(Record2(2L, List(2, 3, 4), null)))
       }
-    ),
-    suite("Traversal.MapKeys")(
-    ),
-    suite("Traversal.MapValues")(
-    ),
-    suite("Traversal.TraversalTraversal")(
-    ),
-    suite("Traversal.TraversalLens")(
-    ),
-    suite("Traversal.TraversalPrism")(
-    ),
-    suite("Traversal.TraversalOptional")(
-    ),
-    suite("Traversal.LensTraversal")(
-    ),
-    suite("Traversal.PrismTraversal")(
-    ),
-    suite("Traversal.OptionalTraversal")(
     )
   )
 
   case class Record1(b: Boolean, f: Float)
 
   object Record1 {
-    val reflect: Reflect.Record[Binding, Record1] = Reflect.Record(
-      fields = List[Term[Binding, Record1, ?]](
+    val reflect: Reflect.Record.Bound[Record1] = Reflect.Record(
+      fields = List(
         Term("b", Reflect.boolean, Doc.Empty, Nil),
         Term("f", Reflect.float, Doc.Empty, Nil)
       ),
@@ -125,16 +156,14 @@ object OpticSpec extends ZIOSpecDefault {
       doc = Doc.Empty,
       modifiers = Nil
     )
-    val b: Lens.Root[Binding, Record1, Boolean] =
-      Lens.Root(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record1, Boolean]])
-    val f: Lens.Root[Binding, Record1, Float] =
-      Lens.Root(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Record1, Float]])
+    val b: Lens.Bound[Record1, Boolean] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record1, Boolean]])
+    val f: Lens.Bound[Record1, Float]   = Lens(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Record1, Float]])
   }
 
   case class Record2(l: Long, li: List[Int], r1: Record1)
 
   object Record2 {
-    val reflect: Reflect.Record[Binding, Record2] = Reflect.Record[Binding, Record2](
+    val reflect: Reflect.Record.Bound[Record2] = Reflect.Record(
       fields = List(
         Term("l", Reflect.long, Doc.Empty, Nil),
         Term("li", Reflect.list(Reflect.int), Doc.Empty, Nil),
@@ -165,20 +194,18 @@ object OpticSpec extends ZIOSpecDefault {
       doc = Doc.Empty,
       modifiers = Nil
     )
-    val l: Lens.Root[Binding, Record2, Long] =
-      Lens.Root(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record2, Long]])
-    val li: Traversal[Binding, Record2, Int] =
-      Lens.Root(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Record2, List[Int]]]).list
-    val r1: Lens.Root[Binding, Record2, Record1] =
-      Lens.Root(reflect, reflect.fields(2).asInstanceOf[Term.Bound[Record2, Record1]])
-    val r1_b: Lens.LensLens[Binding, Record2, Record1, Boolean] = Lens.LensLens(r1, Record1.b)
-    val r1_f: Lens.LensLens[Binding, Record2, Record1, Float]   = Lens.LensLens(r1, Record1.f)
+    val l: Lens.Bound[Record2, Long] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record2, Long]])
+    val li: Traversal.Bound[Record2, Int] =
+      Lens(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Record2, List[Int]]]).list
+    val r1: Lens.Bound[Record2, Record1]   = Lens(reflect, reflect.fields(2).asInstanceOf[Term.Bound[Record2, Record1]])
+    val r1_b: Lens.Bound[Record2, Boolean] = r1(Record1.b)
+    val r1_f: Lens.Bound[Record2, Float]   = r1(Record1.f)
   }
 
   case class Record3(r1: Record1, r2: Record2)
 
   object Record3 {
-    val reflect: Reflect.Record[Binding, Record3] = Reflect.Record[Binding, Record3](
+    val reflect: Reflect.Record.Bound[Record3] = Reflect.Record(
       fields = List(
         Term("r1", Record1.reflect, Doc.Empty, Nil),
         Term("r2", Record2.reflect, Doc.Empty, Nil)
@@ -206,20 +233,18 @@ object OpticSpec extends ZIOSpecDefault {
       doc = Doc.Empty,
       modifiers = Nil
     )
-    val r1: Lens.Root[Binding, Record3, Record1] =
-      Lens.Root(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record3, Record1]])
-    val r2: Lens.Root[Binding, Record3, Record2] =
-      Lens.Root(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Record3, Record2]])
-    val r2_r1_b_left_associative: Lens.LensLens[Binding, Record3, Record1, Boolean] =
-      Lens.LensLens(Lens.LensLens(r2, Record2.r1), Record1.b)
-    val r2_r1_b_right_associative: Lens.LensLens[Binding, Record3, Record2, Boolean] =
-      Lens.LensLens(r2, Lens.LensLens(Record2.r1, Record1.b))
+    val r1: Lens.Bound[Record3, Record1] =
+      Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record3, Record1]])
+    val r2: Lens.Bound[Record3, Record2] =
+      Lens(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Record3, Record2]])
+    val r2_r1_b_left: Lens.Bound[Record3, Boolean]  = r2(Record2.r1)(Record1.b)
+    val r2_r1_b_right: Lens.Bound[Record3, Boolean] = r2(Record2.r1(Record1.b))
   }
 
   sealed trait Variant1
 
   object Variant1 {
-    val reflect: Reflect.Variant[Binding, Variant1] = Reflect.Variant[Binding, Variant1](
+    val reflect: Reflect.Variant.Bound[Variant1] = Reflect.Variant(
       cases = List(
         Term("case1", Case1.reflect, Doc.Empty, Nil),
         Term("case2", Case2.reflect, Doc.Empty, Nil)
@@ -244,23 +269,21 @@ object OpticSpec extends ZIOSpecDefault {
       doc = Doc.Empty,
       modifiers = Nil
     )
-    val c1: Prism.Root[Binding, Variant1, Case1] =
-      Prism.Root(reflect, reflect.cases(0).asInstanceOf[Term.Bound[Variant1, Case1]])
-    val c2: Prism.Root[Binding, Variant1, Case2] =
-      Prism.Root(reflect, reflect.cases(1).asInstanceOf[Term.Bound[Variant1, Case2]])
-    val c1_d: Optional.PrismLens[Binding, Variant1, Case1, Double]   = Optional.PrismLens(c1, Case1.d)
-    val c2_r3: Optional.PrismLens[Binding, Variant1, Case2, Record3] = Optional.PrismLens(c2, Case2.r3)
-    val c2_r3_r2_r1_b_left_associative: Optional.OptionalLens[Binding, Variant1, Record3, Boolean] =
-      Optional.OptionalLens(c2_r3, Record3.r2_r1_b_left_associative)
-    val c2_r3_r2_r1_b_right_associative: Optional.OptionalLens[Binding, Variant1, Record3, Boolean] =
-      Optional.OptionalLens(c2_r3, Record3.r2_r1_b_right_associative)
+    val c1: Prism.Bound[Variant1, Case1] =
+      Prism(reflect, reflect.cases(0).asInstanceOf[Term.Bound[Variant1, Case1]])
+    val c2: Prism.Bound[Variant1, Case2] =
+      Prism(reflect, reflect.cases(1).asInstanceOf[Term.Bound[Variant1, Case2]])
+    val c1_d: Optional.Bound[Variant1, Double]                 = c1(Case1.d)
+    val c2_r3: Optional.Bound[Variant1, Record3]               = c2(Case2.r3)
+    val c2_r3_r2_r1_b_left: Optional.Bound[Variant1, Boolean]  = c2_r3(Record3.r2_r1_b_left)
+    val c2_r3_r2_r1_b_right: Optional.Bound[Variant1, Boolean] = c2_r3(Record3.r2_r1_b_right)
   }
 
   case class Case1(d: Double) extends Variant1
 
   object Case1 {
-    val reflect: Reflect.Record[Binding, Case1] = Reflect.Record(
-      fields = List[Term[Binding, Case1, ?]](
+    val reflect: Reflect.Record.Bound[Case1] = Reflect.Record(
+      fields = List(
         Term("d", Reflect.double, Doc.Empty, Nil)
       ),
       typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Case1"),
@@ -281,15 +304,14 @@ object OpticSpec extends ZIOSpecDefault {
       doc = Doc.Empty,
       modifiers = Nil
     )
-    val d: Lens.Root[Binding, Case1, Double] =
-      Lens.Root(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Case1, Double]])
+    val d: Lens.Bound[Case1, Double] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Case1, Double]])
   }
 
-  case class Case2(r: Record3) extends Variant1
+  case class Case2(r3: Record3) extends Variant1
 
   object Case2 {
-    val reflect: Reflect.Record[Binding, Case2] = Reflect.Record(
-      fields = List[Term[Binding, Case2, ?]](
+    val reflect: Reflect.Record.Bound[Case2] = Reflect.Record(
+      fields = List(
         Term("r3", Record3.reflect, Doc.Empty, Nil)
       ),
       typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Case2"),
@@ -304,13 +326,12 @@ object OpticSpec extends ZIOSpecDefault {
           def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
 
           def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Case2): Unit =
-            out.setObject(baseOffset, 0, in.r)
+            out.setObject(baseOffset, 0, in.r3)
         }
       ),
       doc = Doc.Empty,
       modifiers = Nil
     )
-    val r3: Lens.Root[Binding, Case2, Record3] =
-      Lens.Root(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Case2, Record3]])
+    val r3: Lens.Bound[Case2, Record3] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Case2, Record3]])
   }
 }

@@ -169,7 +169,7 @@ object Reflect {
 
     def seqDeconstructor(implicit F: HasBinding[F]): SeqDeconstructor[C] = F.seqDeconstructor(seqBinding)
 
-    def traversal: Traversal[F, C[A], A] = Traversal(this)
+    def traversal: Traversal[F, C[A], A] = Traversal.seqValues(this)
   }
 
   object Sequence {
@@ -197,9 +197,9 @@ object Reflect {
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Map[G, Key, Value, M] =
       Map(key.refineBinding(f), value.refineBinding(f), f(mapBinding), typeName, doc, modifiers)
 
-    def keys: Traversal[F, M[Key, Value], Key] = Traversal.MapKeys(this)
+    def keys: Traversal[F, M[Key, Value], Key] = Traversal.mapKeys(this)
 
-    def values: Traversal[F, M[Key, Value], Value] = Traversal.MapValues(this)
+    def values: Traversal[F, M[Key, Value], Value] = Traversal.mapValues(this)
   }
 
   object Map {
