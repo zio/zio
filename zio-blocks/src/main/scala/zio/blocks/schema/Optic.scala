@@ -118,7 +118,7 @@ object Lens {
 
   def apply[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A]): Lens[F, S, A] = Root(parent, child)
 
-  final case class Root[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A])
+  private[schema] case class Root[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A])
       extends Lens[F, S, A]
       with Leaf[F, S, A] {
     def structure: Reflect[F, S] = parent
@@ -160,7 +160,8 @@ object Lens {
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = ArraySeq(this)
   }
-  final case class LensLens[F[_, _], S, T, A](first: Lens[F, S, T], second: Lens[F, T, A]) extends Lens[F, S, A] {
+  private[schema] case class LensLens[F[_, _], S, T, A](first: Lens[F, S, T], second: Lens[F, T, A])
+      extends Lens[F, S, A] {
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -206,7 +207,7 @@ object Prism {
   def apply[F[_, _], S, A <: S](parent: Reflect.Variant[F, S], child: Term[F, S, A]): Prism[F, S, A] =
     Root(parent, child)
 
-  final case class Root[F[_, _], S, A <: S](parent: Reflect.Variant[F, S], child: Term[F, S, A])
+  private[schema] case class Root[F[_, _], S, A <: S](parent: Reflect.Variant[F, S], child: Term[F, S, A])
       extends Prism[F, S, A]
       with Leaf[F, S, A] {
     private var matcher: Matcher[A] = null
@@ -244,7 +245,8 @@ object Prism {
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = ArraySeq(this)
   }
-  final case class PrismPrism[F[_, _], S, T, A](first: Prism[F, S, T], second: Prism[F, T, A]) extends Prism[F, S, A] {
+  private[schema] case class PrismPrism[F[_, _], S, T, A](first: Prism[F, S, T], second: Prism[F, T, A])
+      extends Prism[F, S, A] {
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -286,7 +288,8 @@ sealed trait Optional[F[_, _], S, A] extends Optic[F, S, A] {
 object Optional {
   type Bound[S, A] = Optional[Binding, S, A]
 
-  final case class LensPrism[F[_, _], S, T, A](first: Lens[F, S, T], second: Prism[F, T, A]) extends Optional[F, S, A] {
+  private[schema] case class LensPrism[F[_, _], S, T, A](first: Lens[F, S, T], second: Prism[F, T, A])
+      extends Optional[F, S, A] {
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -303,7 +306,7 @@ object Optional {
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
-  final case class LensOptional[F[_, _], S, T, A](first: Lens[F, S, T], second: Optional[F, T, A])
+  private[schema] case class LensOptional[F[_, _], S, T, A](first: Lens[F, S, T], second: Optional[F, T, A])
       extends Optional[F, S, A] {
     def structure: Reflect[F, S] = first.structure
 
@@ -321,7 +324,8 @@ object Optional {
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
-  final case class PrismLens[F[_, _], S, T, A](first: Prism[F, S, T], second: Lens[F, T, A]) extends Optional[F, S, A] {
+  private[schema] case class PrismLens[F[_, _], S, T, A](first: Prism[F, S, T], second: Lens[F, T, A])
+      extends Optional[F, S, A] {
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -339,7 +343,7 @@ object Optional {
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
-  final case class PrismOptional[F[_, _], S, T, A](
+  private[schema] case class PrismOptional[F[_, _], S, T, A](
     first: Prism[F, S, T],
     second: Optional[F, T, A]
   ) extends Optional[F, S, A] {
@@ -360,7 +364,7 @@ object Optional {
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
-  final case class OptionalLens[F[_, _], S, T, A](first: Optional[F, S, T], second: Lens[F, T, A])
+  private[schema] case class OptionalLens[F[_, _], S, T, A](first: Optional[F, S, T], second: Lens[F, T, A])
       extends Optional[F, S, A] {
     def structure: Reflect[F, S] = first.structure
 
@@ -379,7 +383,7 @@ object Optional {
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
-  final case class OptionalPrism[F[_, _], S, T, A](first: Optional[F, S, T], second: Prism[F, T, A])
+  private[schema] case class OptionalPrism[F[_, _], S, T, A](first: Optional[F, S, T], second: Prism[F, T, A])
       extends Optional[F, S, A] {
     def structure: Reflect[F, S] = first.structure
 
@@ -398,7 +402,7 @@ object Optional {
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
-  final case class OptionalOptional[F[_, _], S, T, A](first: Optional[F, S, T], second: Optional[F, T, A])
+  private[schema] case class OptionalOptional[F[_, _], S, T, A](first: Optional[F, S, T], second: Optional[F, T, A])
       extends Optional[F, S, A] {
     def structure: Reflect[F, S] = first.structure
 
@@ -469,7 +473,7 @@ object Traversal {
     Reflect.array(reflect)
   )
 
-  final case class Seq[F[_, _], A, C[_]](seq: Reflect.Sequence[F, A, C])
+  private[schema] case class Seq[F[_, _], A, C[_]](seq: Reflect.Sequence[F, A, C])
       extends Traversal[F, C[A], A]
       with Leaf[F, C[A], A] {
     def structure: Reflect[F, C[A]] = seq
@@ -556,7 +560,7 @@ object Traversal {
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = ArraySeq(this)
   }
 
-  final case class MapKeys[F[_, _], Key, Value, M[_, _]](map: Reflect.Map[F, Key, Value, M])
+  private[schema] case class MapKeys[F[_, _], Key, Value, M[_, _]](map: Reflect.Map[F, Key, Value, M])
       extends Traversal[F, M[Key, Value], Key]
       with Leaf[F, M[Key, Value], Key] {
     def structure: Reflect[F, M[Key, Value]] = map
@@ -614,7 +618,7 @@ object Traversal {
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = ArraySeq(this)
   }
 
-  final case class MapValues[F[_, _], Key, Value, M[_, _]](map: Reflect.Map[F, Key, Value, M])
+  private[schema] case class MapValues[F[_, _], Key, Value, M[_, _]](map: Reflect.Map[F, Key, Value, M])
       extends Traversal[F, M[Key, Value], Value]
       with Leaf[F, M[Key, Value], Value] {
     def structure: Reflect[F, M[Key, Value]] = map
@@ -673,7 +677,7 @@ object Traversal {
   }
 
   // All compositions that yield Traversal:
-  final case class TraversalTraversal[F[_, _], S, T, A](
+  private[schema] case class TraversalTraversal[F[_, _], S, T, A](
     first: Traversal[F, S, T],
     second: Traversal[F, T, A]
   ) extends Traversal[F, S, A] {
@@ -699,7 +703,7 @@ object Traversal {
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
-  final case class TraversalLens[F[_, _], S, T, A](
+  private[schema] case class TraversalLens[F[_, _], S, T, A](
     first: Traversal[F, S, T],
     second: Lens[F, T, A]
   ) extends Traversal[F, S, A] {
@@ -725,7 +729,7 @@ object Traversal {
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
-  final case class TraversalPrism[F[_, _], S, T, A](
+  private[schema] case class TraversalPrism[F[_, _], S, T, A](
     first: Traversal[F, S, T],
     second: Prism[F, T, A]
   ) extends Traversal[F, S, A] {
@@ -751,7 +755,7 @@ object Traversal {
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
-  final case class TraversalOptional[F[_, _], S, T, A](
+  private[schema] case class TraversalOptional[F[_, _], S, T, A](
     first: Traversal[F, S, T],
     second: Optional[F, T, A]
   ) extends Traversal[F, S, A] {
@@ -777,7 +781,7 @@ object Traversal {
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
-  final case class LensTraversal[F[_, _], S, T, A](
+  private[schema] case class LensTraversal[F[_, _], S, T, A](
     first: Lens[F, S, T],
     second: Traversal[F, T, A]
   ) extends Traversal[F, S, A] {
@@ -803,7 +807,7 @@ object Traversal {
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
-  final case class PrismTraversal[F[_, _], S, T, A](
+  private[schema] case class PrismTraversal[F[_, _], S, T, A](
     first: Prism[F, S, T],
     second: Traversal[F, T, A]
   ) extends Traversal[F, S, A] {
@@ -829,7 +833,7 @@ object Traversal {
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
-  final case class OptionalTraversal[F[_, _], S, T, A](
+  private[schema] case class OptionalTraversal[F[_, _], S, T, A](
     first: Optional[F, S, T],
     second: Traversal[F, T, A]
   ) extends Traversal[F, S, A] {
