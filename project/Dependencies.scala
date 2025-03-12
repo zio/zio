@@ -24,7 +24,7 @@ object Dependencies {
   val ShardcakeVersion  = "2.4.2"
 
   val ZioMetricsConnectorsVersion      = "2.3.1"
-  val ZioHttpVersion                   = "3.0.1"
+  val ZioHttpVersion                   = "3.1.0"
   val IzumiVersion                     = "1.2.15"
   val ZioConfigVersion                 = "4.0.2"
   val ZioFtpVersion                    = "0.4.3"
