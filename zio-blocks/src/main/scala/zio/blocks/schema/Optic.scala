@@ -67,10 +67,10 @@ sealed trait Optic[F[_, _], S, A] { self =>
 
   final def asSub[B](implicit ev: A <:< B): Optic[F, S, B] = self.asInstanceOf[Optic[F, S, B]]
 
-  override def hashCode: Int = this.linearized.hashCode
+  override def hashCode: Int = linearized.hashCode
 
   override def equals(obj: Any): Boolean = obj match {
-    case other: Optic[F, _, _] => other.linearized.equals(this.linearized)
+    case other: Optic[F, _, _] => other.linearized.equals(linearized)
     case _                     => false
   }
 
@@ -109,11 +109,11 @@ sealed trait Lens[F[_, _], S, A] extends Optic[F, S, A] {
 object Lens {
   type Bound[S, A] = Lens[Binding, S, A]
 
-  def apply[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A]): Lens[F, S, A] = new Root(parent, child)
+  def apply[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A]): Lens[F, S, A] = new Field(parent, child)
 
   def apply[F[_, _], S, T, A](first: Lens[F, S, T], second: Lens[F, T, A]): Lens[F, S, A] = new LensLens(first, second)
 
-  private case class Root[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A])
+  private case class Field[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A])
       extends Lens[F, S, A]
       with Leaf[F, S, A] {
     def structure: Reflect[F, S] = parent
@@ -137,12 +137,12 @@ object Lens {
     }
 
     override def refineBinding[G[_, _]](f: RefineBinding[F, G]): Lens[G, S, A] =
-      new Root(parent.refineBinding(f), child.refineBinding(f))
+      new Field(parent.refineBinding(f), child.refineBinding(f))
 
     override def hashCode: Int = parent.hashCode ^ child.hashCode
 
     override def equals(obj: Any): Boolean = obj match {
-      case other: Root[F, _, _] => other.parent.equals(this.parent) && other.child.equals(this.child)
+      case other: Field[F, _, _] => other.parent.equals(parent) && other.child.equals(child)
       case _                    => false
     }
 
@@ -191,12 +191,12 @@ object Prism {
   type Bound[S, A] = Prism[Binding, S, A]
 
   def apply[F[_, _], S, A <: S](parent: Reflect.Variant[F, S], child: Term[F, S, A]): Prism[F, S, A] =
-    new Root(parent, child)
+    new Variant(parent, child)
 
   def apply[F[_, _], S, T, A](first: Prism[F, S, T], second: Prism[F, T, A]): Prism[F, S, A] =
     new PrismPrism(first, second)
 
-  private case class Root[F[_, _], S, A <: S](parent: Reflect.Variant[F, S], child: Term[F, S, A])
+  private case class Variant[F[_, _], S, A <: S](parent: Reflect.Variant[F, S], child: Term[F, S, A])
       extends Prism[F, S, A]
       with Leaf[F, S, A] {
     private var matcher: Matcher[A] = null
@@ -219,12 +219,12 @@ object Prism {
     def reverseGet(a: A): S = a
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Prism[G, S, A] =
-      new Root(parent.refineBinding(f), child.refineBinding(f))
+      new Variant(parent.refineBinding(f), child.refineBinding(f))
 
     override def hashCode: Int = parent.hashCode ^ child.hashCode
 
     override def equals(obj: Any): Boolean = obj match {
-      case other: Root[F, _, _] => other.parent.equals(this.parent) && other.child.equals(this.child)
+      case other: Variant[F, _, _] => other.parent.equals(parent) && other.child.equals(child)
       case _                    => false
     }
 
@@ -408,8 +408,6 @@ object Optional {
 }
 
 sealed trait Traversal[F[_, _], S, A] extends Optic[F, S, A] { self =>
-  def focus: Reflect[F, A]
-
   def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z
 
   // Core operation - modify all focuses
@@ -534,7 +532,7 @@ object Traversal {
     override def hashCode: Int = seq.hashCode
 
     override def equals(obj: Any): Boolean = obj match {
-      case other: Seq[F, _, _] => other.seq.equals(this.seq)
+      case other: Seq[F, _, _] => other.seq.equals(seq)
       case _                   => false
     }
 
@@ -578,7 +576,7 @@ object Traversal {
     override def hashCode: Int = map.hashCode
 
     override def equals(obj: Any): Boolean = obj match {
-      case other: MapKeys[F, _, _, M] => other.map.equals(this.map)
+      case other: MapKeys[F, _, _, M] => other.map.equals(map)
       case _                          => false
     }
 
@@ -623,7 +621,7 @@ object Traversal {
     override def hashCode: Int = map.hashCode
 
     override def equals(obj: Any): Boolean = obj match {
-      case other: MapValues[F, _, _, M] => other.map.equals(this.map)
+      case other: MapValues[F, _, _, M] => other.map.equals(map)
       case _                            => false
     }
 
