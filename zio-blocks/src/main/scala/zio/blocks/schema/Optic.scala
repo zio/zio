@@ -81,7 +81,7 @@ object Optic {
   type Bound[S, A] = Optic[Binding, S, A]
 }
 
-sealed trait Leaf[F[_, _], S, A] extends Optic[F, S, A]
+private[schema] sealed trait Leaf[F[_, _], S, A] extends Optic[F, S, A]
 
 sealed trait Lens[F[_, _], S, A] extends Optic[F, S, A] {
   def get(s: S)(implicit F: HasBinding[F]): A
@@ -191,12 +191,12 @@ object Prism {
   type Bound[S, A] = Prism[Binding, S, A]
 
   def apply[F[_, _], S, A <: S](parent: Reflect.Variant[F, S], child: Term[F, S, A]): Prism[F, S, A] =
-    new Variant(parent, child)
+    new Case(parent, child)
 
   def apply[F[_, _], S, T, A](first: Prism[F, S, T], second: Prism[F, T, A]): Prism[F, S, A] =
     new PrismPrism(first, second)
 
-  private case class Variant[F[_, _], S, A <: S](parent: Reflect.Variant[F, S], child: Term[F, S, A])
+  private case class Case[F[_, _], S, A <: S](parent: Reflect.Variant[F, S], child: Term[F, S, A])
       extends Prism[F, S, A]
       with Leaf[F, S, A] {
     private var matcher: Matcher[A] = null
@@ -219,13 +219,13 @@ object Prism {
     def reverseGet(a: A): S = a
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Prism[G, S, A] =
-      new Variant(parent.refineBinding(f), child.refineBinding(f))
+      new Case(parent.refineBinding(f), child.refineBinding(f))
 
     override def hashCode: Int = parent.hashCode ^ child.hashCode
 
     override def equals(obj: Any): Boolean = obj match {
-      case other: Variant[F, _, _] => other.parent.equals(parent) && other.child.equals(child)
-      case _                       => false
+      case other: Case[F, _, _] => other.parent.equals(parent) && other.child.equals(child)
+      case _                    => false
     }
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = ArraySeq(this)
