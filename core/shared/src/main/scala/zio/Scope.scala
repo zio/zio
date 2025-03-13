@@ -266,10 +266,10 @@ object Scope {
             Exit.succeed(release(nextKey, _)),
             Running(next(nextKey), fins.updated(nextKey, finalizer))
           )
-        case Exited(exit) =>
+        case exited @ Exited(exit) =>
           (
             ZIO.suspendSucceed(finalizer(exit)) *> ReleaseMap.noopFinalizer,
-            Exited(exit)
+            exited
           )
       }
 
@@ -285,10 +285,10 @@ object Scope {
             Exit.unit,
             Running(next(nextKey), fins.updated(nextKey, finalizer))
           )
-        case Exited(exit) =>
+        case exited @ Exited(exit) =>
           (
             ZIO.suspendSucceed(finalizer(exit).unit),
-            Exited(exit)
+            exited
           )
       }
 
@@ -332,9 +332,8 @@ object Scope {
                     val it    = fins.values.iterator
                     ZIO
                       .whileLoop(it.hasNext)(it.next()(exit).exit) {
-                        case _: Exit.Success[?]               => ()
-                        case Exit.Failure(c) if error eq null => error = c
-                        case Exit.Failure(c)                  => error = error ++ c
+                        case Exit.Failure(c) => error = if (error eq null) c else error ++ c
+                        case _               => ()
                       }
                       .flatMap(_ => if (error eq null) Exit.unit else Exit.failCause(error))
                   }
