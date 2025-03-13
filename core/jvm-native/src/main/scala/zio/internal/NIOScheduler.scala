@@ -9,6 +9,8 @@ private final class NIOScheduler extends Executor {
   import NIOScheduler.poolSize
   import NIOScheduler.Worker
 
+  private[this] val globalQueue = new ConcurrentLinkedQueue[Runnable]()
+
   private[this] val workers = Array.ofDim[NIOScheduler.Worker](poolSize)
   private[this] val cache   = new ConcurrentLinkedQueue[NIOScheduler.Worker]()
 
@@ -79,6 +81,8 @@ private final class NIOScheduler extends Executor {
         worker.active = true
         LockSupport.unpark(worker)
       }
+    } else {
+      globalQueue.offer(runnable)
     }
 
     true
@@ -96,7 +100,10 @@ private final class NIOScheduler extends Executor {
 
         while (!isInterrupted) {
           currentBlocking = blocking
-          runnable = localQueue.poll(null)
+          runnable = globalQueue.poll()
+          if (runnable eq null) {
+            runnable = localQueue.poll(null)
+          }
 
           if (runnable eq null) {
             active = false
