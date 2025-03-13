@@ -541,7 +541,7 @@ lazy val commonJunitTestSettings = Seq(
     "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.22" % Test,
     "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.22" % Test,
     "org.codehaus.plexus"       % "plexus-component-annotations"   % "2.2.0"  % Test,
-    "org.slf4j"                 % "slf4j-simple"                   % "2.0.16" % Test
+    "org.slf4j"                 % "slf4j-simple"                   % "2.0.17" % Test
   )
 )
 
@@ -652,7 +652,7 @@ lazy val benchmarks = project.module
         "com.twitter"               %% "util-core"     % "24.2.0",
         "com.typesafe.akka"         %% "akka-stream"   % "2.8.8",
         "io.github.timwspence"      %% "cats-stm"      % "0.13.4",
-        "io.projectreactor"          % "reactor-core"  % "3.7.3",
+        "io.projectreactor"          % "reactor-core"  % "3.7.4",
         "io.reactivex.rxjava2"       % "rxjava"        % "2.2.21",
         "org.jctools"                % "jctools-core"  % "4.0.5",
         "org.typelevel"             %% "cats-effect"   % CatsEffectVersion,
