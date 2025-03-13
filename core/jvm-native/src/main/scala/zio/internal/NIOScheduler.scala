@@ -84,25 +84,7 @@ private final class NIOScheduler extends Executor {
     true
   }
 
-  private def leastLoadedWorker(): Worker = {
-    var minWorker = workers(0)
-    var minLoad   = minWorker.localQueue.size()
-
-    var i = 1
-    while (i < workers.length) {
-      val currentWorker = workers(i)
-      val currentLoad   = currentWorker.localQueue.size()
-
-      if (currentLoad < minLoad) {
-        minWorker = currentWorker
-        minLoad = currentLoad
-      }
-
-      i += 1
-    }
-
-    minWorker
-  }
+  private def leastLoadedWorker(): Worker = workers.minBy(_.localQueue.size())
 
   private[this] def makeWorker(): NIOScheduler.Worker =
     new NIOScheduler.Worker {
@@ -122,7 +104,7 @@ private final class NIOScheduler extends Executor {
               cache.offer(self)
             }
 
-            while (!active && !isInterrupted) {
+            while (localQueue.size() == 0 && !isInterrupted) {
               LockSupport.park()
             }
           } else {
@@ -190,7 +172,7 @@ private final class NIOScheduler extends Executor {
             }
             workerId += 1
           }
-          val deadline = java.lang.System.currentTimeMillis() + 1000
+          val deadline = java.lang.System.currentTimeMillis() + 100
           var loop     = true
           while (loop) {
             LockSupport.parkUntil(deadline)
