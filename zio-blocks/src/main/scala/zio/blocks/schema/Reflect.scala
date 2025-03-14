@@ -270,19 +270,23 @@ object Reflect {
       if (v.containsKey(this)) 0 // exit from recursion
       else {
         v.put(this, this)
-        try super.hashCode
+        try inner.hashCode
         finally v.remove(this)
       }
     }
 
-    override def equals(obj: Any): Boolean = {
-      val v = visited.get
-      if (v.containsKey(this)) true // exit from recursion
-      else {
-        v.put(this, this)
-        try super.equals(obj)
-        finally v.remove(this)
-      }
+    override def equals(obj: Any): Boolean = obj match {
+      case that: Reflect[_, _] =>
+        (this eq that) || {
+          val v = visited.get
+          if (v.containsKey(this)) true // exit from recursion
+          else {
+            v.put(this, this)
+            try inner == that.inner
+            finally v.remove(this)
+          }
+        }
+      case _ => false
     }
 
     private[this] lazy val visited: ThreadLocal[java.util.IdentityHashMap[AnyRef, AnyRef]] =

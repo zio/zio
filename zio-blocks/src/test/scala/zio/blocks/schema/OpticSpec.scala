@@ -426,7 +426,7 @@ object OpticSpec extends ZIOSpecDefault {
     val r2: Lens.Bound[Record3, Record2] =
       Lens(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Record3, Record2]])
     lazy val v1: Lens.Bound[Record3, Variant1] =
-      Lens(reflect, reflect.fields(3).asInstanceOf[Term.Bound[Record3, Variant1]])
+      Lens(reflect, reflect.fields(2).asInstanceOf[Term.Bound[Record3, Variant1]])
     val r2_r1_b_left: Lens.Bound[Record3, Boolean]  = r2(Record2.r1)(Record1.b)
     val r2_r1_b_right: Lens.Bound[Record3, Boolean] = r2(Record2.r1(Record1.b))
   }
