@@ -22,7 +22,7 @@ trait Matcher[+A] {
     try {
       Some(unsafeDowncast(any))
     } catch {
-      case _: IllegalArgumentException => None
+      case _: RuntimeException => None
     }
 }
 object Matcher {

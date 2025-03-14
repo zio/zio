@@ -1,8 +1,7 @@
 package zio.blocks.schema
 
+import zio.blocks.schema.binding.RegisterOffset.RegisterOffset
 import zio.blocks.schema.binding._
-
-import RegisterOffset.RegisterOffset
 
 object Main {
   final case class Person(id: java.util.UUID, name: String, age: Int, address: String, childrenAges: List[Int])

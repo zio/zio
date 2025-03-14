@@ -116,6 +116,8 @@ object Lens {
   private case class Field[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A])
       extends Lens[F, S, A]
       with Leaf[F, S, A] {
+    require((parent ne null) && (child ne null))
+
     def structure: Reflect[F, S] = parent
 
     def focus: Reflect[F, A] = child.value
@@ -150,6 +152,8 @@ object Lens {
   }
 
   private case class LensLens[F[_, _], S, T, A](first: Lens[F, S, T], second: Lens[F, T, A]) extends Lens[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -199,6 +203,8 @@ object Prism {
   private case class Case[F[_, _], S, A <: S](parent: Reflect.Variant[F, S], child: Term[F, S, A])
       extends Prism[F, S, A]
       with Leaf[F, S, A] {
+    require((parent ne null) && (child ne null))
+
     private var matcher: Matcher[A] = null
 
     private def init(F: HasBinding[F]): Unit =
@@ -233,6 +239,8 @@ object Prism {
 
   private case class PrismPrism[F[_, _], S, T, A](first: Prism[F, S, T], second: Prism[F, T, A])
       extends Prism[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -296,6 +304,8 @@ object Optional {
 
   private case class LensPrism[F[_, _], S, T, A](first: Lens[F, S, T], second: Prism[F, T, A])
       extends Optional[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -312,6 +322,8 @@ object Optional {
 
   private case class LensOptional[F[_, _], S, T, A](first: Lens[F, S, T], second: Optional[F, T, A])
       extends Optional[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -328,6 +340,8 @@ object Optional {
 
   private case class PrismLens[F[_, _], S, T, A](first: Prism[F, S, T], second: Lens[F, T, A])
       extends Optional[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -344,6 +358,8 @@ object Optional {
 
   private case class PrismOptional[F[_, _], S, T, A](first: Prism[F, S, T], second: Optional[F, T, A])
       extends Optional[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -360,6 +376,8 @@ object Optional {
 
   private case class OptionalLens[F[_, _], S, T, A](first: Optional[F, S, T], second: Lens[F, T, A])
       extends Optional[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -376,6 +394,8 @@ object Optional {
 
   private case class OptionalPrism[F[_, _], S, T, A](first: Optional[F, S, T], second: Prism[F, T, A])
       extends Optional[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -392,6 +412,8 @@ object Optional {
 
   private case class OptionalOptional[F[_, _], S, T, A](first: Optional[F, S, T], second: Optional[F, T, A])
       extends Optional[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -477,6 +499,8 @@ object Traversal {
   private case class SeqValues[F[_, _], A, C[_]](seq: Reflect.Sequence[F, A, C])
       extends Traversal[F, C[A], A]
       with Leaf[F, C[A], A] {
+    require(seq ne null)
+
     def structure: Reflect[F, C[A]] = seq
 
     def focus: Reflect[F, A] = seq.element
@@ -542,6 +566,8 @@ object Traversal {
   private case class MapKeys[F[_, _], Key, Value, M[_, _]](map: Reflect.Map[F, Key, Value, M])
       extends Traversal[F, M[Key, Value], Key]
       with Leaf[F, M[Key, Value], Key] {
+    require(map ne null)
+
     def structure: Reflect[F, M[Key, Value]] = map
 
     def focus: Reflect[F, Key] = map.key
@@ -586,6 +612,8 @@ object Traversal {
   private case class MapValues[F[_, _], Key, Value, M[_, _]](map: Reflect.Map[F, Key, Value, M])
       extends Traversal[F, M[Key, Value], Value]
       with Leaf[F, M[Key, Value], Value] {
+    require(map ne null)
+
     def structure: Reflect[F, M[Key, Value]] = map
 
     def focus: Reflect[F, Value] = map.value
@@ -631,6 +659,8 @@ object Traversal {
   // All compositions that yield Traversal:
   private case class TraversalTraversal[F[_, _], S, T, A](first: Traversal[F, S, T], second: Traversal[F, T, A])
       extends Traversal[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -648,6 +678,8 @@ object Traversal {
 
   private case class TraversalLens[F[_, _], S, T, A](first: Traversal[F, S, T], second: Lens[F, T, A])
       extends Traversal[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -665,6 +697,8 @@ object Traversal {
 
   private case class TraversalPrism[F[_, _], S, T, A](first: Traversal[F, S, T], second: Prism[F, T, A])
       extends Traversal[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -683,6 +717,8 @@ object Traversal {
 
   private case class TraversalOptional[F[_, _], S, T, A](first: Traversal[F, S, T], second: Optional[F, T, A])
       extends Traversal[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -701,6 +737,8 @@ object Traversal {
 
   private case class LensTraversal[F[_, _], S, T, A](first: Lens[F, S, T], second: Traversal[F, T, A])
       extends Traversal[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -717,6 +755,8 @@ object Traversal {
 
   private case class PrismTraversal[F[_, _], S, T, A](first: Prism[F, S, T], second: Traversal[F, T, A])
       extends Traversal[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus
@@ -735,6 +775,8 @@ object Traversal {
 
   private case class OptionalTraversal[F[_, _], S, T, A](first: Optional[F, S, T], second: Traversal[F, T, A])
       extends Traversal[F, S, A] {
+    require((first ne null) && (second ne null))
+
     def structure: Reflect[F, S] = first.structure
 
     def focus: Reflect[F, A] = second.focus

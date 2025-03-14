@@ -21,7 +21,7 @@ sealed trait Reflect[F[_, _], A] extends Reflectable[A] { self =>
   override def hashCode: Int = inner.hashCode
 
   override def equals(obj: Any): Boolean = obj match {
-    case that: Reflect[_, _] => inner == that.inner
+    case that: Reflect[_, _] => (this eq that) || inner == that.inner
     case _                   => false
   }
 }
@@ -169,7 +169,7 @@ object Reflect {
 
     def seqDeconstructor(implicit F: HasBinding[F]): SeqDeconstructor[C] = F.seqDeconstructor(seqBinding)
 
-    def traversal: Traversal[F, C[A], A] = Traversal.seqValues(this)
+    def values: Traversal[F, C[A], A] = Traversal.seqValues(this)
   }
 
   object Sequence {
@@ -255,7 +255,43 @@ object Reflect {
 
     def doc: Doc = value.doc
 
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Reflect[G, A] = value.refineBinding(f)
+    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Reflect[G, A] = {
+      val v = visited.get
+      if (v.containsKey(this)) value.asInstanceOf[Reflect[G, A]] // exit from recursion
+      else {
+        v.put(this, this)
+        try value.refineBinding(f)
+        finally v.remove(this)
+      }
+    }
+
+    override def hashCode: Int = {
+      val v = visited.get
+      if (v.containsKey(this)) 0 // exit from recursion
+      else {
+        v.put(this, this)
+        try innerHashCode
+        finally v.remove(this)
+      }
+    }
+
+    override def equals(obj: Any): Boolean = obj match {
+      case that: Reflect[_, _] =>
+        (this eq that) || {
+          val v = visited.get
+          if (v.containsKey(this)) true // exit from recursion
+          else {
+            v.put(this, this)
+            try inner == that.inner
+            finally v.remove(this)
+          }
+        }
+      case _ => false
+    }
+
+    private[this] lazy val visited: ThreadLocal[java.util.IdentityHashMap[AnyRef, AnyRef]] =
+      ThreadLocal.withInitial(() => new java.util.IdentityHashMap[AnyRef, AnyRef]())
+    private[this] lazy val innerHashCode = inner.hashCode
   }
 
   def unit[F[_, _]](implicit F: FromBinding[F]): Reflect[F, Unit] =
