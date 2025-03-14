@@ -9,7 +9,6 @@ import zio.test._
 object OpticSpec extends ZIOSpecDefault {
   def spec: Spec[TestEnvironment with Scope, Any] = suite("OpticSpec")(
     suite("Lens")(
-      /*
       test("has consistent equals and hashCode") {
         assert(Record1.b)(equalTo(Record1.b)) &&
         assert(Record1.b.hashCode)(equalTo(Record1.b.hashCode)) &&
@@ -26,7 +25,6 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Record3.r2_r1_b_left: Any)(equalTo(Record3.r2_r1_b_right)) &&
         assert(Record3.r2_r1_b_left.hashCode)(equalTo(Record3.r2_r1_b_right.hashCode))
       },
-       */
       test("returns an initial structure") {
         assert(Record1.b.structure)(equalTo(Record1.reflect)) &&
         assert(Record2.r1_b.structure)(equalTo(Record2.reflect))
@@ -35,12 +33,10 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Record1.b.focus)(equalTo(Reflect.boolean[Binding])) &&
         assert(Record2.r1_b.focus)(equalTo(Reflect.boolean[Binding]))
       },
-      /*
       test("refines a binding") {
         assert(Record1.b.refineBinding(RefineBinding.noBinding()))(equalTo(Record1.b.noBinding)) &&
         assert(Record2.r1_b.refineBinding(RefineBinding.noBinding()))(equalTo(Record2.r1_b.noBinding))
       },
-       */
       test("gets a focus value") {
         assert(Record1.b.get(Record1(true, 1)))(equalTo(true)) &&
         assert(Record1.b.get(Record1(false, 1)))(equalTo(false)) &&
@@ -66,7 +62,6 @@ object OpticSpec extends ZIOSpecDefault {
       }
     ),
     suite("Prism")(
-      /*
       test("has consistent equals and hashCode") {
         assert(Variant1.c1)(equalTo(Variant1.c1)) &&
         assert(Variant1.c1.hashCode)(equalTo(Variant1.c1.hashCode)) &&
@@ -75,7 +70,6 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Variant2.c3: Any)(not(equalTo(Variant1.c1))) &&
         assert(Variant2.c4: Any)(not(equalTo(Variant1.c1)))
       },
-       */
       test("returns a base class structure") {
         assert(Variant1.c1.structure)(equalTo(Variant1.reflect)) &&
         assert(Variant1.c2.structure)(equalTo(Variant1.reflect)) &&
@@ -90,12 +84,10 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Variant1.v2_c3.focus)(equalTo(Case3.reflect)) &&
         assert(Variant1.v2_c4.focus)(equalTo(Case4.reflect))
       },
-      /*
       test("refines a binding") {
         assert(Variant1.c1.refineBinding(RefineBinding.noBinding()))(equalTo(Variant1.c1.noBinding)) &&
         assert(Variant1.v2_c3.refineBinding(RefineBinding.noBinding()))(equalTo(Variant1.v2_c3.noBinding))
       },
-       */
       test("gets an optional case class value") {
         assert(Variant1.c1.getOption(Case1(0.1): Variant1))(isSome(equalTo(Case1(0.1)))) &&
         assert(Variant1.c2.getOption(Case2(Record3(null, null, null)): Variant1))(
@@ -122,7 +114,6 @@ object OpticSpec extends ZIOSpecDefault {
       }
     ),
     suite("Optional")(
-      /*
       test("has consistent equals and hashCode") {
         assert(Variant1.c1_d)(equalTo(Variant1.c1_d)) &&
         assert(Variant1.c1_d.hashCode)(equalTo(Variant1.c1_d.hashCode)) &&
@@ -137,7 +128,6 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Variant2.c3_v1_c1_left)(equalTo(Variant2.c3_v1_c1_right)) &&
         assert(Variant2.c3_v1_c1_left.hashCode)(equalTo(Variant2.c3_v1_c1_left.hashCode))
       },
-       */
       test("returns an initial structure") {
         assert(Variant1.c1_d.structure)(equalTo(Variant1.reflect)) &&
         assert(Variant1.c2_r3.structure)(equalTo(Variant1.reflect)) &&
@@ -156,17 +146,23 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Variant2.c3_v1_c1_d_right.focus)(equalTo(Reflect.double[Binding])) &&
         assert(Case3.v1_c1_d.focus)(equalTo(Reflect.double[Binding]))
       },
-      /*
       test("refines a binding") {
         assert(Variant1.c1_d.refineBinding(RefineBinding.noBinding()))(equalTo(Variant1.c1_d.noBinding)) &&
         assert(Variant1.c2_r3.refineBinding(RefineBinding.noBinding()))(equalTo(Variant1.c2_r3.noBinding)) &&
-        assert(Variant2.c3_v1_c1_left.refineBinding(RefineBinding.noBinding()))(equalTo(Variant2.c3_v1_c1_left.noBinding)) &&
-        assert(Variant2.c3_v1_c1_right.refineBinding(RefineBinding.noBinding()))(equalTo(Variant2.c3_v1_c1_right.noBinding)) &&
-        assert(Variant1.c2_r3_r2_r1_b_left.refineBinding(RefineBinding.noBinding()))(equalTo(Variant1.c2_r3_r2_r1_b_left.noBinding)) &&
-        assert(Variant1.c2_r3_r2_r1_b_right.refineBinding(RefineBinding.noBinding()))(equalTo(Variant1.c2_r3_r2_r1_b_right.noBinding)) &&
+        assert(Variant2.c3_v1_c1_left.refineBinding(RefineBinding.noBinding()))(
+          equalTo(Variant2.c3_v1_c1_left.noBinding)
+        ) &&
+        assert(Variant2.c3_v1_c1_right.refineBinding(RefineBinding.noBinding()))(
+          equalTo(Variant2.c3_v1_c1_right.noBinding)
+        ) &&
+        assert(Variant1.c2_r3_r2_r1_b_left.refineBinding(RefineBinding.noBinding()))(
+          equalTo(Variant1.c2_r3_r2_r1_b_left.noBinding)
+        ) &&
+        assert(Variant1.c2_r3_r2_r1_b_right.refineBinding(RefineBinding.noBinding()))(
+          equalTo(Variant1.c2_r3_r2_r1_b_right.noBinding)
+        ) &&
         assert(Case3.v1_c1_d.refineBinding(RefineBinding.noBinding()))(equalTo(Case3.v1_c1_d.noBinding))
       },
-       */
       test("gets an optional focus value") {
         assert(Variant1.c1_d.getOption(Case1(0.1): Variant1))(isSome(equalTo(0.1))) &&
         assert(Variant1.c2_r3.getOption(Case2(Record3(null, null, null)): Variant1))(
@@ -180,14 +176,12 @@ object OpticSpec extends ZIOSpecDefault {
       }
     ),
     suite("Traversal")(
-      /*
       test("has consistent equals and hashCode") {
         assert(Record2.li)(equalTo(Record2.li)) &&
         assert(Record2.li.hashCode)(equalTo(Record2.li.hashCode)) &&
         assert(Record2.r1_f: Any)(not(equalTo(Record2.li))) &&
         assert(Case4.lr3: Any)(not(equalTo(Record2.li)))
       },
-       */
       test("returns an initial structure") {
         assert(Record2.li.structure)(equalTo(Record2.reflect)) &&
         assert(Case4.lr3.structure)(equalTo(Case4.reflect))
@@ -196,12 +190,10 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Record2.li.focus)(equalTo(Reflect.int[Binding])) &&
         assert(Case4.lr3.focus)(equalTo(Record3.reflect))
       },
-      /*
       test("refines a binding") {
         assert(Record2.li.refineBinding(RefineBinding.noBinding()))(equalTo(Record2.li.noBinding)) &&
         assert(Case4.lr3.refineBinding(RefineBinding.noBinding()))(equalTo(Case4.lr3.noBinding))
       },
-       */
       test("folds collection values") {
         assert(Record2.li.fold[Int](Record2(2L, List(1, 2, 3), null))(0, _ + _))(equalTo(6))
       },
