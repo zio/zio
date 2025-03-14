@@ -288,6 +288,7 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Collections.lc4.modify(List(Case4(List(Record3(null, null, null)))), _.copy(r1 = Record1(true, 0.1f))))(
           equalTo(List(Case4(List(Record3(Record1(true, 0.1f), null, null)))))
         ) &&
+        assert(Collections.lr1.modify(List(Record1(true, 0.1f)), x => !x))(equalTo(List(Record1(false, 0.1f)))) &&
         assert(Record2.vi.modify(Record2(2L, Vector(1, 2, 3), null), _ + 1))(
           equalTo(Record2(2L, Vector(2, 3, 4), null))
         ) &&
@@ -623,6 +624,44 @@ object OpticSpec extends ZIOSpecDefault {
     )
     val lr3: Traversal.Bound[Case4, Record3] =
       Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Case4, List[Record3]]]).list
+  }
+
+  case class Record5(si: Set[Int], as: Array[String])
+
+  object Record5 {
+    val reflect: Reflect.Record.Bound[Record5] = Reflect.Record(
+      fields = List(
+        Term("si", Reflect.set(Reflect.int), Doc.Empty, Nil),
+        Term("as", Reflect.array(Reflect.string), Doc.Empty, Nil)
+      ),
+      typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Record5"),
+      recordBinding = Binding.Record(
+        constructor = new Constructor[Record5] {
+          def usedRegisters: RegisterOffset = RegisterOffset(objects = 2)
+
+          def construct(in: Registers, baseOffset: RegisterOffset): Record5 = Record5(
+            in.getObject(baseOffset, 0).asInstanceOf[Set[Int]],
+            in.getObject(baseOffset, 1).asInstanceOf[Array[String]]
+          )
+        },
+        deconstructor = new Deconstructor[Record5] {
+          def usedRegisters: RegisterOffset = RegisterOffset(objects = 2)
+
+          def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Record5): Unit = {
+            out.setObject(baseOffset, 0, in.si)
+            out.setObject(baseOffset, 1, in.as)
+          }
+        }
+      ),
+      doc = Doc.Empty,
+      modifiers = Nil
+    )
+    /* FIXME: Is a bug in the compiler?
+    val si: Traversal.Bound[Record5, Int] =
+      Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record5, Set[Int]]]).set
+     */
+    val as: Traversal.Bound[Record5, String] =
+      Lens(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Record5, Array[String]]]).array
   }
 
   object Collections {
