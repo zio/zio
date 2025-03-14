@@ -1950,7 +1950,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * element in the middle of a Chunk, the other elements of the chunk are lost.
    */
   def mapZIOChunked[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: Trace): ZStream[R1, E1, A1] =
-    this.chunksWith(stream => stream.mapZIO(f))
+    this.chunksWith(_.mapZIO(c => ZIO.foreach(c)(f)))
 
   /**
    * Maps over elements of the stream with the specified effectful function,
