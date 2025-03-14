@@ -2735,6 +2735,30 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk(Right(1), Right(2), Left("boom"))))
           }
         ),
+        suite("mapZIOChunked")(
+          test("ZIO#foreach equivalence when error-free") {
+            check(Gen.small(Gen.listOfN(_)(Gen.byte)), Gen.function(Gen.successes(Gen.byte))) { (data, f) =>
+              val s = ZStream.fromIterable(data)
+
+              for {
+                l <- s.mapZIOChunked(f).runCollect
+                r <- ZIO.foreach(data)(f)
+              } yield assert(l.toList)(equalTo(r))
+            }
+          },
+          test("laziness on chunks") {
+            assertZIO(
+              ZStream
+                .fromChunks(Chunk(1), Chunk(2, 3))
+                .mapZIOChunked {
+                  case 3 => ZIO.fail("boom")
+                  case x => ZIO.succeed(x)
+                }
+                .either
+                .runCollect
+            )(equalTo(Chunk(Right(1), Left("boom"))))
+          }
+        ),
         suite("mapZIOPar")(
           test("foreachParN equivalence") {
             checkN(10)(Gen.small(Gen.listOfN(_)(Gen.byte)), Gen.function(Gen.successes(Gen.byte))) { (data, f) =>

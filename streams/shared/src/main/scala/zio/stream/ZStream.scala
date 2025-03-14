@@ -1944,6 +1944,15 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   }
 
   /**
+   * Maps over elements of the stream with the specified effectful function.
+   *
+   * Unlike `mapZIO` processing is done chunk by chunk. When `f` fails for an
+   * element in the middle of a Chunk, the other elements of the chunk are lost.
+   */
+  def mapZIOChunked[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: Trace): ZStream[R1, E1, A1] =
+    this.chunksWith(stream => stream.mapZIO(f))
+
+  /**
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. Transformed elements
    * will be emitted in the original order.
