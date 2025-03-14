@@ -169,7 +169,7 @@ object Reflect {
 
     def seqDeconstructor(implicit F: HasBinding[F]): SeqDeconstructor[C] = F.seqDeconstructor(seqBinding)
 
-    def traversal: Traversal[F, C[A], A] = Traversal.seqValues(this)
+    def values: Traversal[F, C[A], A] = Traversal.seqValues(this)
   }
 
   object Sequence {
