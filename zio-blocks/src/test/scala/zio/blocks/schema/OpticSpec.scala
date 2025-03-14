@@ -14,6 +14,8 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Record1.b.hashCode)(equalTo(Record1.b.hashCode)) &&
         assert(Record2.r1_b)(equalTo(Record2.r1_b)) &&
         assert(Record2.r1_b.hashCode)(equalTo(Record2.r1_b.hashCode)) &&
+        assert(Record3.v1)(equalTo(Record3.v1)) &&
+        assert(Record3.v1.hashCode)(equalTo(Record3.v1.hashCode)) &&
         assert(Record1.f: Any)(not(equalTo(Record1.b))) &&
         assert(Record2.l: Any)(not(equalTo(Record1.b))) &&
         assert(Record2.vi: Any)(not(equalTo(Record1.b))) &&
@@ -122,6 +124,16 @@ object OpticSpec extends ZIOSpecDefault {
       test("has consistent equals and hashCode") {
         assert(Variant1.c1_d)(equalTo(Variant1.c1_d)) &&
         assert(Variant1.c1_d.hashCode)(equalTo(Variant1.c1_d.hashCode)) &&
+        assert(Variant1.c2_r3)(equalTo(Variant1.c2_r3)) &&
+        assert(Variant1.c2_r3.hashCode)(equalTo(Variant1.c2_r3.hashCode)) &&
+        assert(Variant1.c2_r3_r1)(equalTo(Variant1.c2_r3_r1)) &&
+        assert(Variant1.c2_r3_r1.hashCode)(equalTo(Variant1.c2_r3_r1.hashCode)) &&
+        assert(Variant2.c3_v1)(equalTo(Variant2.c3_v1)) &&
+        assert(Variant2.c3_v1.hashCode)(equalTo(Variant2.c3_v1.hashCode)) &&
+        assert(Variant2.c3_v1_v2)(equalTo(Variant2.c3_v1_v2)) &&
+        assert(Variant2.c3_v1_v2.hashCode)(equalTo(Variant2.c3_v1_v2.hashCode)) &&
+        assert(Variant2.c3_v1_v2_c4_lr3)(equalTo(Variant2.c3_v1_v2_c4_lr3)) &&
+        assert(Variant2.c3_v1_v2_c4_lr3.hashCode)(equalTo(Variant2.c3_v1_v2_c4_lr3.hashCode)) &&
         assert(Case3.v1_c1_d)(equalTo(Case3.v1_c1_d)) &&
         assert(Case3.v1_c1_d.hashCode)(equalTo(Case3.v1_c1_d.hashCode)) &&
         assert(Variant1.c2_r3: Any)(not(equalTo(Variant1.c1_d))) &&
