@@ -270,7 +270,7 @@ object Reflect {
       if (v.containsKey(this)) 0 // exit from recursion
       else {
         v.put(this, this)
-        try inner.hashCode
+        try innerHashCode
         finally v.remove(this)
       }
     }
@@ -291,6 +291,7 @@ object Reflect {
 
     private[this] lazy val visited: ThreadLocal[java.util.IdentityHashMap[AnyRef, AnyRef]] =
       ThreadLocal.withInitial(() => new java.util.IdentityHashMap[AnyRef, AnyRef]())
+    private[this] lazy val innerHashCode = inner.hashCode
   }
 
   def unit[F[_, _]](implicit F: FromBinding[F]): Reflect[F, Unit] =
