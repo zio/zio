@@ -238,7 +238,7 @@ object OpticSpec extends ZIOSpecDefault {
   case class Record2(l: Long, li: List[Int], r1: Record1)
 
   object Record2 {
-    lazy val reflect: Reflect.Record.Bound[Record2] = Reflect.Record(
+    val reflect: Reflect.Record.Bound[Record2] = Reflect.Record(
       fields = List(
         Term("l", Reflect.long, Doc.Empty, Nil),
         Term("li", Reflect.list(Reflect.int), Doc.Empty, Nil),
@@ -269,13 +269,13 @@ object OpticSpec extends ZIOSpecDefault {
       doc = Doc.Empty,
       modifiers = Nil
     )
-    lazy val l: Lens.Bound[Record2, Long] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record2, Long]])
-    lazy val li: Traversal.Bound[Record2, Int] =
+    val l: Lens.Bound[Record2, Long] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record2, Long]])
+    val li: Traversal.Bound[Record2, Int] =
       Lens(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Record2, List[Int]]]).list
-    lazy val r1: Lens.Bound[Record2, Record1] =
+    val r1: Lens.Bound[Record2, Record1] =
       Lens(reflect, reflect.fields(2).asInstanceOf[Term.Bound[Record2, Record1]])
-    lazy val r1_b: Lens.Bound[Record2, Boolean] = r1(Record1.b)
-    lazy val r1_f: Lens.Bound[Record2, Float]   = r1(Record1.f)
+    val r1_b: Lens.Bound[Record2, Boolean] = r1(Record1.b)
+    val r1_f: Lens.Bound[Record2, Float]   = r1(Record1.f)
   }
 
   case class Record3(r1: Record1, r2: Record2, v1: Variant1)
@@ -373,7 +373,7 @@ object OpticSpec extends ZIOSpecDefault {
   case class Case1(d: Double) extends Variant1
 
   object Case1 {
-    lazy val reflect: Reflect.Record.Bound[Case1] = Reflect.Record(
+    val reflect: Reflect.Record.Bound[Case1] = Reflect.Record(
       fields = List(
         Term("d", Reflect.double, Doc.Empty, Nil)
       ),
@@ -395,7 +395,7 @@ object OpticSpec extends ZIOSpecDefault {
       doc = Doc.Empty,
       modifiers = Nil
     )
-    lazy val d: Lens.Bound[Case1, Double] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Case1, Double]])
+    val d: Lens.Bound[Case1, Double] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Case1, Double]])
   }
 
   case class Case2(r3: Record3) extends Variant1
