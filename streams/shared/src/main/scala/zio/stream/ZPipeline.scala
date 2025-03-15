@@ -483,12 +483,21 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self >>> ZPipeline.mapZIO(f)
 
   /**
-   * Creates a pipeline that maps elements with the specified effectful
-   * function.
+   * Creates a pipeline that maps over elements of the stream with the specified
+   * effectful function.
    *
-   * Unlike `mapZIO` processing is done chunk by chunk. When `f` fails for an
-   * element in the middle of a Chunk, the following elements of the chunk are
-   * consumed but not processed; they are lost.
+   * Unlike `mapZIO` processing is done chunk by chunk. This means that
+   * `mapZIOChunked` provides weaker guarantees than `mapZIO`. While
+   * `stream.mapZIO(f).mapZIO(g)` is guaranteed to be equivalent to
+   * `stream.mapZIO(x => f(x).flatMap(g))`, the same is not true for
+   * `mapZIOChunked`. For example, `mapZIO` guarantees that the first element of
+   * a stream will first be processed with `f` and then `g` before the second
+   * element is processed with `f`. `mapZIOChunked` may process the first two
+   * elements with `f` and only then move on to process the first element with
+   * `g`.
+   *
+   * When `f` fails for an element in the middle of a Chunk, the following
+   * elements of the chunk are consumed but not processed; they are lost.
    */
   def mapZIOChunked[Env2 <: Env, Err2 >: Err, Out2](
     f: Out => ZIO[Env2, Err2, Out2]
@@ -1812,12 +1821,21 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   }
 
   /**
-   * Creates a pipeline that maps elements with the specified effectful
-   * function.
+   * Creates a pipeline that maps over elements of the stream with the specified
+   * effectful function.
    *
-   * Unlike `mapZIO` processing is done chunk by chunk. When `f` fails for an
-   * element in the middle of a Chunk, the following elements of the chunk are
-   * consumed but not processed; they are lost.
+   * Unlike `mapZIO` processing is done chunk by chunk. This means that
+   * `mapZIOChunked` provides weaker guarantees than `mapZIO`. While
+   * `stream.mapZIO(f).mapZIO(g)` is guaranteed to be equivalent to
+   * `stream.mapZIO(x => f(x).flatMap(g))`, the same is not true for
+   * `mapZIOChunked`. For example, `mapZIO` guarantees that the first element of
+   * a stream will first be processed with `f` and then `g` before the second
+   * element is processed with `f`. `mapZIOChunked` may process the first two
+   * elements with `f` and only then move on to process the first element with
+   * `g`.
+   *
+   * When `f` fails for an element in the middle of a Chunk, the following
+   * elements of the chunk are consumed but not processed; they are lost.
    */
   def mapZIOChunked[Env, Err, In, Out](
     f: In => ZIO[Env, Err, Out]
@@ -1831,28 +1849,23 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         ZChannel.unwrap {
           val a = chunkIterator.nextAt(index)
           f(a).foldCause(
-            cause =>
-              if (builder ne null) ZChannel.write(builder.result()) *> ZChannel.refailCause(cause)
-              else ZChannel.refailCause(cause),
+            cause => ZChannel.write(builder.result()) *> ZChannel.refailCause(cause),
             a1 => {
-              val b = if (builder ne null) builder else ChunkBuilder.make[Out](chunkIterator.length)
-              b += a1
-              loop(chunkIterator, index + 1, b)
+              builder += a1
+              loop(chunkIterator, index + 1, builder)
             }
           )
         }
       } else {
-        if (builder ne null) ZChannel.write(builder.result()) *> reader
-        else reader
+        ZChannel.write(builder.result()) *> reader
       }
 
     lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
       ZChannel.readWithCause(
-        elem => loop(elem.chunkIterator, 0, null),
+        elem => if (elem.nonEmpty) loop(elem.chunkIterator, 0, ChunkBuilder.make[Out](elem.size)) else reader,
         err => ZChannel.refailCause(err),
         done => ZChannel.succeed(done)
       )
-
     new ZPipeline(reader)
   }
 
