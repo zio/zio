@@ -1015,7 +1015,7 @@ import zio.http._
 import zio.Scope
 
 object WebService {
-  def apply(counter: Messenger[CounterMessage]): Routes[Sharding with Scope, Nothing] =
+  def apply(counter: Messenger[CounterMessage]): Routes[Sharding, Nothing] =
 
     Routes(
       Method.GET / string("entityId") / "inc" -> handler { (entityId: String, _: Request) =>
@@ -1099,7 +1099,7 @@ object HttpApp extends ZIOAppDefault {
         _       <- Sharding.registerEntity(Counter, Counter.behavior)
         _       <- Sharding.registerScoped
         counter <- Sharding.messenger(Counter)
-        _       <- Server.serve(WebService(counter)).provideSome[Sharding & Scope](Server.defaultWithPort(port))
+        _       <- Server.serve(WebService(counter)).provideSome[Sharding](Server.defaultWithPort(port))
       } yield ()
     }.provide(
       ShardConfig.layer,
