@@ -28,7 +28,7 @@
     "@zio.dev/zio-bson": "1.0.8",
     "@zio.dev/zio-cache": "0.2.4",
     "@zio.dev/zio-cli": "0.7.0",
-    "@zio.dev/zio-config": "4.0.3",
+    "@zio.dev/zio-config": "4.0.4",
     "@zio.dev/zio-direct": "1.0.0-RC7",
     "@zio.dev/zio-dynamodb": "1.0.0-RC18",
     "@zio.dev/zio-ftp": "0.4.3",
