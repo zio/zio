@@ -1956,9 +1956,6 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * element is processed with `f`. `mapZIOChunked` may process the first two
    * elements with `f` and only then move on to process the first element with
    * `g`.
-   *
-   * When `f` fails for an element in the middle of a Chunk, the following
-   * elements of the chunk are consumed but not processed; they are lost.
    */
   def mapZIOChunked[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: Trace): ZStream[R1, E1, A1] =
     self >>> ZPipeline.mapZIOChunked(f)

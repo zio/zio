@@ -495,9 +495,6 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
    * element is processed with `f`. `mapZIOChunked` may process the first two
    * elements with `f` and only then move on to process the first element with
    * `g`.
-   *
-   * When `f` fails for an element in the middle of a Chunk, the following
-   * elements of the chunk are consumed but not processed; they are lost.
    */
   def mapZIOChunked[Env2 <: Env, Err2 >: Err, Out2](
     f: Out => ZIO[Env2, Err2, Out2]
@@ -1833,9 +1830,6 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * element is processed with `f`. `mapZIOChunked` may process the first two
    * elements with `f` and only then move on to process the first element with
    * `g`.
-   *
-   * When `f` fails for an element in the middle of a Chunk, the following
-   * elements of the chunk are consumed but not processed; they are lost.
    */
   def mapZIOChunked[Env, Err, In, Out](
     f: In => ZIO[Env, Err, Out]
