@@ -2765,7 +2765,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .either
                 .chunks
                 .runCollect
-            )(equalTo(Chunk(Right(1), Right(2)), Chunk(Right(3)), Chunk(Left("boom"))))
+            )(equalTo(Chunk(Chunk(Right(1), Right(2)), Chunk(Right(3)), Chunk(Left("boom")))))
           }
         ),
         suite("mapZIOPar")(
