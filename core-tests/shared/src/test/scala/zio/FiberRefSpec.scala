@@ -104,7 +104,7 @@ object FiberRefSpec extends ZIOBaseSpec {
       test("`locally` restores parent's value after timeout") {
         for {
           fiberRef <- FiberRef.make(initial)
-          child    <- fiberRef.locally(update)(ZIO.sleep(10.seconds)).timeout(1.second).fork
+          child    <- fiberRef.locally(update)(ZIO.never).timeout(1.second).fork
           _        <- TestClock.adjust(1.second)
           _        <- child.join
           value    <- fiberRef.get
