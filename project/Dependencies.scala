@@ -20,7 +20,7 @@ object Dependencies {
   val DoobieVersion     = "1.0.0-RC5"
   val Fs2Version        = "3.11.0"
   val Http4sVersion     = "0.23.29"
-  val QuillVersion      = "4.8.4"
+  val QuillVersion      = "4.8.5"
   val ShardcakeVersion  = "2.4.2"
 
   val ZioMetricsConnectorsVersion      = "2.3.1"
@@ -28,7 +28,7 @@ object Dependencies {
   val IzumiVersion                     = "1.2.15"
   val ZioConfigVersion                 = "4.0.2"
   val ZioFtpVersion                    = "0.4.3"
-  val ZioJsonVersion                   = "0.7.3"
+  val ZioJsonVersion                   = "0.7.38"
   val ZioPreludeVersion                = "1.0.0-RC34"
   val ZioProcessVersion                = "0.7.2"
   val ZioRocksDBVersion                = "0.4.4"
