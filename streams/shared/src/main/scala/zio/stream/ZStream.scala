@@ -1947,18 +1947,21 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * Maps over elements of the stream with the specified effectful function.
    *
    * Unlike `mapZIO` processing is done chunk by chunk. When `f` fails for an
-   * element in the middle of a Chunk, the other elements of the chunk are lost.
+   * element in the middle of a Chunk, the following elements of the chunk are
+   * consumed but not processed; they are lost.
    */
   def mapZIOChunked[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: Trace): ZStream[R1, E1, A1] =
     this.chunks.flatMap { chunk =>
       val buffer = Chunk.newBuilder[A1]
       ZStream.unwrap {
-        ZIO.foreachDiscard(chunk) { a =>
-          f(a).tap(a1 => ZIO.succeed(buffer += a1))
-        }.fold(
-          err => ZStream.fromChunk(buffer.result()) ++ ZStream.fail(err),
-          _ => ZStream.fromChunk(buffer.result())
-        )
+        ZIO
+          .foreachDiscard(chunk) { a =>
+            f(a).tap(a1 => ZIO.succeed(buffer += a1))
+          }
+          .fold(
+            err => ZStream.fromChunk(buffer.result()) ++ ZStream.fail(err),
+            _ => ZStream.fromChunk(buffer.result())
+          )
       }
     }
 

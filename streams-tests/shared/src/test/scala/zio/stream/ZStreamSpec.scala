@@ -2754,17 +2754,18 @@ object ZStreamSpec extends ZIOBaseSpec {
               .runCount
               .map(count => assertTrue(count == 1))
           },
-          test("laziness on chunks") {
+          test("retains chunks up to error") {
             assertZIO(
               ZStream
-                .fromChunks(Chunk(1), Chunk(2, 3))
+                .fromChunks(Chunk(1, 2), Chunk(3, 4, 5))
                 .mapZIOChunked {
-                  case 3 => ZIO.fail("boom")
+                  case 4 => ZIO.fail("boom")
                   case x => ZIO.succeed(x)
                 }
                 .either
+                .chunks
                 .runCollect
-            )(equalTo(Chunk(Right(1), Right(2), Left("boom"))))
+            )(equalTo(Chunk(Right(1), Right(2)), Chunk(Right(3)), Chunk(Left("boom"))))
           }
         ),
         suite("mapZIOPar")(
