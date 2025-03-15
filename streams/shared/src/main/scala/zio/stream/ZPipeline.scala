@@ -1843,7 +1843,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         ZChannel.unwrap {
           val a = chunkIterator.nextAt(index)
           f(a).foldCause(
-            cause => ZChannel.write(builder.result()) *> ZChannel.refailCause(cause),
+            cause => {
+              val out = builder.result()
+              if (out.nonEmpty) ZChannel.write(out) *> ZChannel.refailCause(cause)
+              else ZChannel.refailCause(cause)
+            },
             a1 => {
               builder += a1
               loop(chunkIterator, index + 1, builder)
