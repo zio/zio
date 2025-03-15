@@ -483,6 +483,19 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self >>> ZPipeline.mapZIO(f)
 
   /**
+   * Creates a pipeline that maps elements with the specified effectful
+   * function.
+   *
+   * Unlike `mapZIO` processing is done chunk by chunk. When `f` fails for an
+   * element in the middle of a Chunk, the following elements of the chunk are
+   * consumed but not processed; they are lost.
+   */
+  def mapZIOChunked[Env2 <: Env, Err2 >: Err, Out2](
+    f: Out => ZIO[Env2, Err2, Out2]
+  )(implicit trace: Trace): ZPipeline[Env2, Err2, In, Out2] =
+    self >>> ZPipeline.mapZIOChunked(f)
+
+  /**
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. Transformed elements
    * will be emitted in the original order.
@@ -1796,6 +1809,51 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         )
 
     new ZPipeline(loop(Chunk.ChunkIterator.empty, 0))
+  }
+
+  /**
+   * Creates a pipeline that maps elements with the specified effectful
+   * function.
+   *
+   * Unlike `mapZIO` processing is done chunk by chunk. When `f` fails for an
+   * element in the middle of a Chunk, the following elements of the chunk are
+   * consumed but not processed; they are lost.
+   */
+  def mapZIOChunked[Env, Err, In, Out](
+    f: In => ZIO[Env, Err, Out]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
+    def loop(
+      chunkIterator: Chunk.ChunkIterator[In],
+      index: Int,
+      builder: ChunkBuilder[Out]
+    ): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+      if (chunkIterator.hasNextAt(index)) {
+        ZChannel.unwrap {
+          val a = chunkIterator.nextAt(index)
+          f(a).foldCause(
+            cause =>
+              if (builder ne null) ZChannel.write(builder.result()) *> ZChannel.refailCause(cause)
+              else ZChannel.refailCause(cause),
+            a1 => {
+              val b = if (builder ne null) builder else ChunkBuilder.make[Out](chunkIterator.length)
+              b += a1
+              loop(chunkIterator, index + 1, b)
+            }
+          )
+        }
+      } else {
+        if (builder ne null) ZChannel.write(builder.result()) *> reader
+        else reader
+      }
+
+    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.readWithCause(
+        elem => loop(elem.chunkIterator, 0, null),
+        err => ZChannel.refailCause(err),
+        done => ZChannel.succeed(done)
+      )
+
+    new ZPipeline(reader)
   }
 
   /**
