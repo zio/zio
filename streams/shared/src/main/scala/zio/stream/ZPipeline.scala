@@ -1842,7 +1842,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       if (out.nonEmpty) ZChannel.write(out) *> next else next
     }
 
-    val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
       ZChannel.readWithCause(
         chunk =>
           ZChannel.unwrap {
