@@ -1834,33 +1834,26 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapZIOChunked[Env, Err, In, Out](
     f: In => ZIO[Env, Err, Out]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
-    def loop(
-      chunkIterator: Chunk.ChunkIterator[In],
-      index: Int,
-      builder: ChunkBuilder[Out]
-    ): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
-      if (chunkIterator.hasNextAt(index)) {
-        ZChannel.unwrap {
-          val a = chunkIterator.nextAt(index)
-          f(a).foldCause(
-            cause => {
-              val out = builder.result()
-              if (out.nonEmpty) ZChannel.write(out) *> ZChannel.refailCause(cause)
-              else ZChannel.refailCause(cause)
-            },
-            a1 => {
-              builder += a1
-              loop(chunkIterator, index + 1, builder)
-            }
-          )
-        }
-      } else {
-        ZChannel.write(builder.result()) *> reader
-      }
+    def writeWithNext(
+      builder: ChunkBuilder[Out],
+      next: => ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any]
+    ): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] = {
+      val out = builder.result()
+      if (out.nonEmpty) ZChannel.write(out) *> next else next
+    }
 
-    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+    val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
       ZChannel.readWithCause(
-        elem => if (elem.nonEmpty) loop(elem.chunkIterator, 0, ChunkBuilder.make[Out](elem.size)) else reader,
+        chunk =>
+          ZChannel.unwrap {
+            val builder = ChunkBuilder.make[Out](chunk.size)
+            chunk
+              .mapZIODiscard(f(_).map(builder += _))
+              .foldCause(
+                cause => writeWithNext(builder, ZChannel.refailCause(cause)),
+                _ => writeWithNext(builder, reader)
+              )
+          },
         err => ZChannel.refailCause(err),
         done => ZChannel.succeed(done)
       )
