@@ -30,19 +30,19 @@ class LensGetBenchmark {
   @Benchmark
   def optionPresent: Option[String] = for {
     aOpt <- Option(a)
-    b <- Option(aOpt.b)
-    c <- Option(b.c)
-    d <- Option(c.d)
-    e <- Option(d.e)
+    b    <- Option(aOpt.b)
+    c    <- Option(b.c)
+    d    <- Option(c.d)
+    e    <- Option(d.e)
   } yield e.s
 
   @Benchmark
   def optionAbsent: Option[String] = for {
     aOpt <- Option(aWithNull)
-    b <- Option(aOpt.b)
-    c <- Option(b.c)
-    d <- Option(c.d)
-    e <- Option(d.e)
+    b    <- Option(aOpt.b)
+    c    <- Option(b.c)
+    d    <- Option(c.d)
+    e    <- Option(d.e)
   } yield e.s
 }
 
@@ -207,7 +207,7 @@ object Domain {
       doc = Doc.Empty,
       modifiers = Nil
     )
-    val b: Lens.Bound[A, B] = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[A, B]])
+    val b: Lens.Bound[A, B]              = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[A, B]])
     val b_c_d_e_s: Lens.Bound[A, String] = b.apply(B.c).apply(C.d).apply(D.e).apply(E.s)
   }
 }
