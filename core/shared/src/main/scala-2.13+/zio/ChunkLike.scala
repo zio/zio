@@ -111,7 +111,7 @@ trait ChunkLike[+A]
    * exposes a `newBuilder` method that is not referentially transparent because
    * it allocates mutable state.
    */
-  override val iterableFactory: SeqFactory[Chunk] =
+  override def iterableFactory: SeqFactory[Chunk] =
     Chunk
 
   /**
