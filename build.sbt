@@ -670,7 +670,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .nativeSettings(nativeSettings)
 
 lazy val benchmarks = project.module
-  .dependsOn(core.jvm, streams.jvm, tests.jvm)
+  .dependsOn(core.jvm, streams.jvm, tests.jvm, zioBlocks.jvm)
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
