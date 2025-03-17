@@ -127,7 +127,7 @@ object Semaphore {
         override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
           tryReserve(n).flatMap {
             case Some(reservation) => (reservation.acquire *> zio <* reservation.release).asSome
-            case None              => ZIO.succeed(None)
+            case _                 => Exit.none
           }
 
         case class Reservation(acquire: UIO[Unit], release: UIO[Any])
