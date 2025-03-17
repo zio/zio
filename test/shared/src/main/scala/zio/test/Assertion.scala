@@ -37,6 +37,9 @@ final case class Assertion[-A](arrow: TestArrow[A, Boolean]) { self =>
   def ??(message: String): Assertion[A] =
     self.label(message)
 
+  def contramap[B](fun: B => A): Assertion[B] =
+    Assertion(TestArrow.fromFunction(fun) >>> arrow)
+
   def run(value: => A)(implicit sourceLocation: SourceLocation): TestResult =
     Assertion.smartAssert(value)(self)
 

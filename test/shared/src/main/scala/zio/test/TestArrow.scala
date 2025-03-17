@@ -200,6 +200,9 @@ sealed trait TestArrow[-A, +B] { self =>
   def >>>[C](that: TestArrow[B, C]): TestArrow[A, C] =
     AndThen[A, B, C](self, that)
 
+  def >>>(that: Assertion[B]): Assertion[A] =
+    Assertion(self >>> that.arrow)
+
   def &&[A1 <: A](that: TestArrow[A1, Boolean])(implicit ev: B <:< Boolean): TestArrow[A1, Boolean] =
     And(self.asInstanceOf[TestArrow[A1, Boolean]], that)
 
