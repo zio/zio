@@ -101,6 +101,15 @@ object FiberRefSpec extends ZIOBaseSpec {
           value      <- fiberRef.get
         } yield assert(localValue)(equalTo(update)) && assert(value)(equalTo(initial))
       },
+      test("`locally` restores parent's value after timeout") {
+        for {
+          fiberRef <- FiberRef.make(initial)
+          child    <- fiberRef.locally(update)(ZIO.never).timeout(1.second).fork
+          _        <- TestClock.adjust(1.second)
+          _        <- child.join
+          value    <- fiberRef.get
+        } yield assert(value)(equalTo(initial))
+      },
       test("`modify` changes value") {
         for {
           fiberRef <- FiberRef.make(initial)
