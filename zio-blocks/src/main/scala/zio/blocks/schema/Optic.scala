@@ -86,8 +86,9 @@ private[schema] sealed trait Leaf[F[_, _], S, A] extends Optic[F, S, A]
 sealed trait Lens[F[_, _], S, A] extends Optic[F, S, A] {
   def get(s: S)(implicit F: HasBinding[F]): A
 
-  // FIXME: Introduce modify(s: S, f: A => A) for performance reasons, implement set in terms of that.
   def set(s: S, a: A)(implicit F: HasBinding[F]): S
+
+  def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S
 
   // Compose this lens with a lens:
   override def apply[B](that: Lens[F, A, B]): Lens[F, S, B] = Lens(this, that)
@@ -138,6 +139,13 @@ object Lens {
       F.constructor(parent.recordBinding).construct(registers, RegisterOffset.Zero)
     }
 
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = {
+      val registers = Registers()
+      F.deconstructor(parent.recordBinding).deconstruct(registers, RegisterOffset.Zero, s)
+      register.set(registers, RegisterOffset.Zero, f(register.get(registers, RegisterOffset.Zero)))
+      F.constructor(parent.recordBinding).construct(registers, RegisterOffset.Zero)
+    }
+
     override def refineBinding[G[_, _]](f: RefineBinding[F, G]): Lens[G, S, A] =
       new Field(parent.refineBinding(f), child.refineBinding(f))
 
@@ -161,6 +169,11 @@ object Lens {
     def get(s: S)(implicit F: HasBinding[F]): A = second.get(first.get(s))
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.set(s, second.set(first.get(s), a))
+
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = {
+      val x = first.get(s)
+      first.set(s, second.set(x, f(second.get(x))))
+    }
 
     override def refineBinding[G[_, _]](f: RefineBinding[F, G]): Lens[G, S, A] =
       new LensLens(first.refineBinding(f), second.refineBinding(f))
