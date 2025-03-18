@@ -66,6 +66,12 @@ object OpticSpec extends ZIOSpecDefault {
         )(
           equalTo(Record3(Record1(true, 3), Record2(2L, Vector.empty, Record1(false, 1)), Case1(0.5)))
         )
+      },
+      test("modifies a focus value") {
+        assert(Record1.b.modify(Record1(true, 1), x => !x))(equalTo(Record1(false, 1))) &&
+        assert(Record2.r1_b.modify(Record2(2L, Vector.empty, Record1(true, 1)), x => !x))(
+          equalTo(Record2(2L, Vector.empty, Record1(false, 1)))
+        )
       }
     ),
     suite("Prism")(
