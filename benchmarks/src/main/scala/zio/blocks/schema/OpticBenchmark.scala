@@ -16,34 +16,14 @@ class LensGetBenchmark {
 
   var a: A = A(B(C(D(E("test")))))
 
-  var aWithNull: A = A(B(null))
+  @Benchmark
+  def direct: String = a.b.c.d.e.s
 
   @Benchmark
-  def unsafePresent: String = a.b.c.d.e.s
+  def monocle: String = A.b_c_d_e_s_monocle_get.get(a)
 
   @Benchmark
-  def zioBlocksPresent: String = A.b_c_d_e_s.get(a)
-
-  @Benchmark
-  def zioBlocksAbsent: String = A.b_c_d_e_s.get(aWithNull)
-
-  @Benchmark
-  def optionPresent: Option[String] = for {
-    aOpt <- Option(a)
-    b    <- Option(aOpt.b)
-    c    <- Option(b.c)
-    d    <- Option(c.d)
-    e    <- Option(d.e)
-  } yield e.s
-
-  @Benchmark
-  def optionAbsent: Option[String] = for {
-    aOpt <- Option(aWithNull)
-    b    <- Option(aOpt.b)
-    c    <- Option(b.c)
-    d    <- Option(c.d)
-    e    <- Option(d.e)
-  } yield e.s
+  def zioBlocks: String = A.b_c_d_e_s.get(a)
 }
 
 @State(JScope.Thread)
@@ -57,16 +37,17 @@ class LensSetBenchmark {
 
   var a: A = A(B(C(D(E("test")))))
 
-  var aWithNull: A = A(B(null))
+  @Benchmark
+  def direct: A = a.copy(b = a.b.copy(c = a.b.c.copy(d = a.b.c.d.copy(e = a.b.c.d.e.copy(s = "test2")))))
 
   @Benchmark
-  def unsafePresent: A = a.copy(b = a.b.copy(c = a.b.c.copy(d = a.b.c.d.copy(e = a.b.c.d.e.copy(s = "test2")))))
+  def monocle: A = A.b_c_d_e_s_monocle_set.replace("test2").apply(a)
 
   @Benchmark
-  def zioBlocksPresent: A = A.b_c_d_e_s.set(a, "test2")
+  def quicklens: A = A.b_c_d_e_s_qiocklens.apply(a).setTo("test2")
 
   @Benchmark
-  def zioBlocksAbsent: A = A.b_c_d_e_s.set(aWithNull, "test2")
+  def zioBlocks: A = A.b_c_d_e_s.set(a, "test2")
 }
 
 object Domain {
@@ -209,5 +190,22 @@ object Domain {
     )
     val b: Lens.Bound[A, B]              = Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[A, B]])
     val b_c_d_e_s: Lens.Bound[A, String] = b.apply(B.c).apply(C.d).apply(D.e).apply(E.s)
+
+    import com.softwaremill.quicklens._
+
+    val b_c_d_e_s_qiocklens =
+      (modify(_: A)(_.b))
+        .andThenModify(modify(_: B)(_.c))
+        .andThenModify(modify(_: C)(_.d))
+        .andThenModify(modify(_: D)(_.e))
+        .andThenModify(modify(_: E)(_.s))
+
+    import monocle.Focus
+
+    val b_c_d_e_s_monocle_get =
+      Focus[A](_.b).andThen(Focus[B](_.c)).andThen(Focus[C](_.d)).andThen(Focus[D](_.e)).andThen(Focus[E](_.s)).asGetter
+
+    val b_c_d_e_s_monocle_set =
+      Focus[A](_.b).andThen(Focus[B](_.c)).andThen(Focus[C](_.d)).andThen(Focus[D](_.e)).andThen(Focus[E](_.s)).asSetter
   }
 }
