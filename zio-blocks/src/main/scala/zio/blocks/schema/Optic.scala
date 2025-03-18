@@ -168,12 +168,9 @@ object Lens {
 
     def get(s: S)(implicit F: HasBinding[F]): A = second.get(first.get(s))
 
-    def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.set(s, second.set(first.get(s), a))
+    def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.modify(s, second.set(_, a))
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = {
-      val x = first.get(s)
-      first.set(s, second.set(x, f(second.get(x))))
-    }
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
     override def refineBinding[G[_, _]](f: RefineBinding[F, G]): Lens[G, S, A] =
       new LensLens(first.refineBinding(f), second.refineBinding(f))
