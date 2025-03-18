@@ -9,8 +9,6 @@ private final class NIOScheduler extends Executor {
   import NIOScheduler.poolSize
   import NIOScheduler.Worker
 
-  private[this] val globalQueue = new ConcurrentLinkedQueue[Runnable]()
-
   private[this] val workers = Array.ofDim[NIOScheduler.Worker](poolSize)
   private[this] val cache   = new ConcurrentLinkedQueue[NIOScheduler.Worker]()
 
@@ -81,14 +79,33 @@ private final class NIOScheduler extends Executor {
         worker.active = true
         LockSupport.unpark(worker)
       }
-    } else {
-      globalQueue.offer(runnable)
     }
 
     true
   }
 
-  private def leastLoadedWorker(): Worker = workers.minBy(_.localQueue.size())
+  private def leastLoadedWorker(): Worker = {
+    var bestWorker: Worker        = null
+    var leastLoadedWorker: Worker = null
+    var minLoad                   = Int.MaxValue
+    var minOverallLoad            = Int.MaxValue
+
+    workers.foreach { worker =>
+      val queueSize = worker.localQueue.size()
+
+      if (worker.active && queueSize <= 128 && queueSize < minLoad) {
+        minLoad = queueSize
+        bestWorker = worker
+      }
+
+      if (queueSize < minOverallLoad) {
+        minOverallLoad = queueSize
+        leastLoadedWorker = worker
+      }
+    }
+
+    if (bestWorker != null) bestWorker else leastLoadedWorker
+  }
 
   private[this] def makeWorker(): NIOScheduler.Worker =
     new NIOScheduler.Worker {
@@ -100,10 +117,8 @@ private final class NIOScheduler extends Executor {
 
         while (!isInterrupted) {
           currentBlocking = blocking
-          runnable = globalQueue.poll()
-          if (runnable eq null) {
-            runnable = localQueue.poll(null)
-          }
+
+          runnable = localQueue.poll(null)
 
           if (runnable eq null) {
             active = false
@@ -131,7 +146,7 @@ private final class NIOScheduler extends Executor {
           blocking = true
           val idx = workers.indexOf(self)
           if (idx >= 0) {
-            val runnables = self.localQueue.pollUpTo(256)
+            val runnables = self.localQueue.pollUpTo(512)
             val worker    = cache.poll()
             if (worker eq null) {
               val worker = makeWorker()
@@ -242,7 +257,7 @@ private object NIOScheduler {
      * The local work queue for this worker.
      */
     val localQueue: RingBufferPow2[Runnable] =
-      RingBufferPow2[Runnable](256)
+      RingBufferPow2[Runnable](512)
 
     /**
      * The number of tasks that have been executed by this worker.
