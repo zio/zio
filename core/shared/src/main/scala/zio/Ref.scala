@@ -359,7 +359,7 @@ object Ref extends Serializable {
     override def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: Trace): UIO[A] =
       ZIO.succeed(unsafe.updateSomeAndGet(pf)(Unsafe))
 
-    override def toString: String = s"Ref.Atomic(initial = $initial)"
+    override def toString: String = s"Ref.Atomic"
 
     trait UnsafeAPI extends Serializable {
       def get(implicit unsafe: Unsafe): A
