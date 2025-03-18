@@ -75,9 +75,6 @@ object RefSpec extends ZIOBaseSpec {
           value <- ref.get
         } yield assert(value)(equalTo(update))
       },
-      test("toString") {
-        assertZIO(Ref.make(42).map(_.toString))(equalTo("Ref.Atomic(initial = 42)"))
-      },
       test("update") {
         for {
           ref   <- Ref.make(current)
