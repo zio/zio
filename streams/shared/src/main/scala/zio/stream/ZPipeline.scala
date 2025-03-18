@@ -1836,7 +1836,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
     def writeWithNext(
       builder: ChunkBuilder[Out],
-      next: => ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any]
+      next: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any]
     ): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] = {
       val out = builder.result()
       if (out.nonEmpty) ZChannel.write(out) *> next else next
