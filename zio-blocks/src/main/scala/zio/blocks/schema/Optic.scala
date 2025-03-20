@@ -518,15 +518,171 @@ object Traversal {
     def fold[Z](s: C[A])(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z = {
       val deconstructor = F.seqDeconstructor(seq.seqBinding)
       deconstructor match {
-        case indexed: SeqDeconstructor.Indexed[c] =>
-          var idx = 0
+        case indexed: SeqDeconstructor.SpecializedIndexed[C] =>
           val len = indexed.length(s)
-          var z   = zero
-          while (idx < len) {
-            z = f(z, indexed.objectAt(s, idx)) // TODO: Specialize
-            idx = idx + 1
+          var idx = 0
+          indexed.elementType(s) match {
+            case _: RegisterType.Boolean.type =>
+              var z  = zero
+              val ss = s.asInstanceOf[C[Boolean]]
+              val sf = f.asInstanceOf[(Z, Boolean) => Z]
+              while (idx < len) {
+                z = sf(z, indexed.booleanAt(ss, idx))
+                idx = idx + 1
+              }
+              z
+            case _: RegisterType.Byte.type =>
+              var z  = zero
+              val ss = s.asInstanceOf[C[Byte]]
+              val sf = f.asInstanceOf[(Z, Byte) => Z]
+              while (idx < len) {
+                z = sf(z, indexed.byteAt(ss, idx))
+                idx = idx + 1
+              }
+              z
+            case _: RegisterType.Short.type =>
+              var z  = zero
+              val ss = s.asInstanceOf[C[Short]]
+              val sf = f.asInstanceOf[(Z, Short) => Z]
+              while (idx < len) {
+                z = sf(z, indexed.shortAt(ss, idx))
+                idx = idx + 1
+              }
+              z
+            case _: RegisterType.Int.type =>
+              zero match {
+                case zi: Int =>
+                  var z: Int = zi
+                  val ss     = s.asInstanceOf[C[Int]]
+                  val sf     = f.asInstanceOf[(Int, Int) => Int]
+                  while (idx < len) {
+                    z = sf(z, indexed.intAt(ss, idx))
+                    idx = idx + 1
+                  }
+                  z.asInstanceOf[Z]
+                case zl: Long =>
+                  var z: Long = zl
+                  val ss      = s.asInstanceOf[C[Int]]
+                  val sf      = f.asInstanceOf[(Long, Int) => Long]
+                  while (idx < len) {
+                    z = sf(z, indexed.intAt(ss, idx))
+                    idx = idx + 1
+                  }
+                  z.asInstanceOf[Z]
+                case zd: Double =>
+                  var z: Double = zd
+                  val ss        = s.asInstanceOf[C[Int]]
+                  val sf        = f.asInstanceOf[(Double, Int) => Double]
+                  while (idx < len) {
+                    z = sf(z, indexed.intAt(ss, idx))
+                    idx = idx + 1
+                  }
+                  z.asInstanceOf[Z]
+                case _ =>
+                  var z  = zero
+                  val ss = s.asInstanceOf[C[Int]]
+                  val sf = f.asInstanceOf[(Z, Int) => Z]
+                  while (idx < len) {
+                    z = sf(z, indexed.intAt(ss, idx))
+                    idx = idx + 1
+                  }
+                  z
+              }
+            case _: RegisterType.Long.type =>
+              zero match {
+                case zi: Int =>
+                  var z: Int = zi
+                  val ss     = s.asInstanceOf[C[Long]]
+                  val sf     = f.asInstanceOf[(Int, Long) => Int]
+                  while (idx < len) {
+                    z = sf(z, indexed.longAt(ss, idx))
+                    idx = idx + 1
+                  }
+                  z.asInstanceOf[Z]
+                case zl: Long =>
+                  var z: Long = zl
+                  val ss      = s.asInstanceOf[C[Long]]
+                  val sf      = f.asInstanceOf[(Long, Long) => Long]
+                  while (idx < len) {
+                    z = sf(z, indexed.longAt(ss, idx))
+                    idx = idx + 1
+                  }
+                  z.asInstanceOf[Z]
+                case zd: Double =>
+                  var z: Double = zd
+                  val ss        = s.asInstanceOf[C[Long]]
+                  val sf        = f.asInstanceOf[(Double, Long) => Double]
+                  while (idx < len) {
+                    z = sf(z, indexed.longAt(ss, idx))
+                    idx = idx + 1
+                  }
+                  z.asInstanceOf[Z]
+                case _ =>
+                  var z  = zero
+                  val ss = s.asInstanceOf[C[Long]]
+                  val sf = f.asInstanceOf[(Z, Long) => Z]
+                  while (idx < len) {
+                    z = sf(z, indexed.longAt(ss, idx))
+                    idx = idx + 1
+                  }
+                  z
+              }
+            case _: RegisterType.Double.type =>
+              zero match {
+                case zi: Int =>
+                  var z: Int = zi
+                  val ss     = s.asInstanceOf[C[Double]]
+                  val sf     = f.asInstanceOf[(Int, Double) => Int]
+                  while (idx < len) {
+                    z = sf(z, indexed.doubleAt(ss, idx))
+                    idx = idx + 1
+                  }
+                  z.asInstanceOf[Z]
+                case zl: Long =>
+                  var z: Long = zl
+                  val ss      = s.asInstanceOf[C[Double]]
+                  val sf      = f.asInstanceOf[(Long, Double) => Long]
+                  while (idx < len) {
+                    z = sf(z, indexed.doubleAt(ss, idx))
+                    idx = idx + 1
+                  }
+                  z.asInstanceOf[Z]
+                case zd: Double =>
+                  var z: Double = zd
+                  val ss        = s.asInstanceOf[C[Double]]
+                  val sf        = f.asInstanceOf[(Double, Double) => Double]
+                  while (idx < len) {
+                    z = sf(z, indexed.doubleAt(ss, idx))
+                    idx = idx + 1
+                  }
+                  z.asInstanceOf[Z]
+                case _ =>
+                  var z  = zero
+                  val ss = s.asInstanceOf[C[Double]]
+                  val sf = f.asInstanceOf[(Z, Double) => Z]
+                  while (idx < len) {
+                    z = sf(z, indexed.doubleAt(ss, idx))
+                    idx = idx + 1
+                  }
+                  z
+              }
+            case _: RegisterType.Char.type =>
+              var z  = zero
+              val ss = s.asInstanceOf[C[Char]]
+              val sf = f.asInstanceOf[(Z, Char) => Z]
+              while (idx < len) {
+                z = sf(z, indexed.charAt(ss, idx))
+                idx = idx + 1
+              }
+              z
+            case _ =>
+              var z = zero
+              while (idx < len) {
+                z = f(z, indexed.objectAt(s, idx))
+                idx = idx + 1
+              }
+              z
           }
-          z
         case _ =>
           var z  = zero
           val it = deconstructor.deconstruct(s)
@@ -540,19 +696,102 @@ object Traversal {
     def modify(s: C[A], f: A => A)(implicit F: HasBinding[F]): C[A] = {
       val deconstructor = F.seqDeconstructor(seq.seqBinding)
       deconstructor match {
-        case indexed: SeqDeconstructor.Indexed[c] =>
+        case indexed: SeqDeconstructor.SpecializedIndexed[C] =>
           val len         = indexed.length(s)
           val constructor = F.seqConstructor(seq.seqBinding)
-          val builder     = constructor.newObjectBuilder[A]() // TODO: Specialize
-          var idx         = 0
-          while (idx < len) {
-            constructor.addObject(builder, f(indexed.objectAt(s, idx))) // TODO: Specialize
-            idx = idx + 1
+          indexed.elementType(s) match {
+            case _: RegisterType.Boolean.type =>
+              val ss      = s.asInstanceOf[C[Boolean]]
+              val sf      = f.asInstanceOf[Boolean => Boolean]
+              val builder = constructor.newBooleanBuilder()
+              var idx     = 0
+              while (idx < len) {
+                constructor.addBoolean(builder, sf(indexed.booleanAt(ss, idx)))
+                idx = idx + 1
+              }
+              constructor.resultBoolean(builder).asInstanceOf[C[A]]
+            case _: RegisterType.Byte.type =>
+              val ss      = s.asInstanceOf[C[Byte]]
+              val sf      = f.asInstanceOf[Byte => Byte]
+              val builder = constructor.newByteBuilder()
+              var idx     = 0
+              while (idx < len) {
+                constructor.addByte(builder, sf(indexed.byteAt(ss, idx)))
+                idx = idx + 1
+              }
+              constructor.resultByte(builder).asInstanceOf[C[A]]
+            case _: RegisterType.Short.type =>
+              val ss      = s.asInstanceOf[C[Short]]
+              val sf      = f.asInstanceOf[Short => Short]
+              val builder = constructor.newShortBuilder()
+              var idx     = 0
+              while (idx < len) {
+                constructor.addShort(builder, sf(indexed.shortAt(ss, idx)))
+                idx = idx + 1
+              }
+              constructor.resultShort(builder).asInstanceOf[C[A]]
+            case _: RegisterType.Int.type =>
+              val ss      = s.asInstanceOf[C[Int]]
+              val sf      = f.asInstanceOf[Int => Int]
+              val builder = constructor.newIntBuilder()
+              var idx     = 0
+              while (idx < len) {
+                constructor.addInt(builder, sf(indexed.intAt(ss, idx)))
+                idx = idx + 1
+              }
+              constructor.resultInt(builder).asInstanceOf[C[A]]
+            case _: RegisterType.Long.type =>
+              val ss      = s.asInstanceOf[C[Long]]
+              val sf      = f.asInstanceOf[Long => Long]
+              val builder = constructor.newLongBuilder()
+              var idx     = 0
+              while (idx < len) {
+                constructor.addLong(builder, sf(indexed.longAt(ss, idx)))
+                idx = idx + 1
+              }
+              constructor.resultLong(builder).asInstanceOf[C[A]]
+            case _: RegisterType.Float.type =>
+              val ss      = s.asInstanceOf[C[Float]]
+              val sf      = f.asInstanceOf[Float => Float]
+              val builder = constructor.newFloatBuilder()
+              var idx     = 0
+              while (idx < len) {
+                constructor.addFloat(builder, sf(indexed.floatAt(ss, idx)))
+                idx = idx + 1
+              }
+              constructor.resultFloat(builder).asInstanceOf[C[A]]
+            case _: RegisterType.Double.type =>
+              val ss      = s.asInstanceOf[C[Double]]
+              val sf      = f.asInstanceOf[Double => Double]
+              val builder = constructor.newDoubleBuilder()
+              var idx     = 0
+              while (idx < len) {
+                constructor.addDouble(builder, sf(indexed.doubleAt(ss, idx)))
+                idx = idx + 1
+              }
+              constructor.resultDouble(builder).asInstanceOf[C[A]]
+            case _: RegisterType.Char.type =>
+              val ss      = s.asInstanceOf[C[Char]]
+              val sf      = f.asInstanceOf[Char => Char]
+              val builder = constructor.newCharBuilder()
+              var idx     = 0
+              while (idx < len) {
+                constructor.addChar(builder, sf(indexed.charAt(ss, idx)))
+                idx = idx + 1
+              }
+              constructor.resultChar(builder).asInstanceOf[C[A]]
+            case _ =>
+              val builder = constructor.newObjectBuilder[A]()
+              var idx     = 0
+              while (idx < len) {
+                constructor.addObject(builder, f(indexed.objectAt(s, idx)))
+                idx = idx + 1
+              }
+              constructor.resultObject(builder)
           }
-          constructor.resultObject(builder)
         case _ =>
           val constructor = F.seqConstructor(seq.seqBinding)
-          val builder     = constructor.newObjectBuilder[A]() // TODO: Specialize
+          val builder     = constructor.newObjectBuilder[A]()
           val it          = deconstructor.deconstruct(s)
           while (it.hasNext) {
             constructor.addObject(builder, f(it.next()))
