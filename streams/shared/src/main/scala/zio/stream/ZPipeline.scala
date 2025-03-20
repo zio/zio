@@ -1153,13 +1153,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] = {
     val withoutBOM =
       ZPipeline.mapChunks((s: Chunk[String]) =>
-        s.foldLeft[Chunk[Char]](Chunk.empty)((acc, str) => acc ++ Chunk.fromArray(str.toCharArray))
+        Chunk.fromArray(s.foldLeft[Array[Char]](Array.emptyCharArray)((acc, str) => acc ++ str.toCharArray))
       ) >>> encodeCharsWith(charset)
 
-    if (bom.isEmpty) withoutBOM
-    else {
-      ZPipeline.fromChannel(ZChannel.write(bom) *> withoutBOM.channel)
-    }
+    val bom0 = bom
+    if (bom0.isEmpty) withoutBOM
+    else ZPipeline.fromChannel(ZChannel.write(bom0) *> withoutBOM.channel)
   }
 
   /**
