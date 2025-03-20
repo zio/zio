@@ -3283,6 +3283,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     mapZIO(a => f(a).as(a))
 
   /**
+   * Adds an effect to consume the underlying chunks of the stream.
+   */
+  def tapChunks[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit trace: Trace): ZStream[R1, E1, A] =
+    mapChunksZIO(chunk => f(chunk).as(chunk))
+
+  /**
    * Returns a stream that effectfully "peeks" at the failure and adds an effect
    * to consume every element of the stream
    *

@@ -4042,6 +4042,19 @@ object ZStreamSpec extends ZIOBaseSpec {
             )
           }
         ),
+        suite("tapChunks")(
+          test("tapChunks") {
+            for {
+              ref <- Ref.make(0)
+              res <- ZStream
+                       .fromChunks(Chunk(9, 7), Chunk(1))
+                       .tapChunks[Any, Nothing](c => ref.update(_ + c.size))
+                       .chunks
+                       .runCollect
+              sum <- ref.get
+            } yield assert(res)(equalTo(Chunk(Chunk(9, 7), Chunk(1)))) && assert(sum)(equalTo(3))
+          }
+        ),
         suite("tapBoth")(
           test("just tap values") {
             for {
