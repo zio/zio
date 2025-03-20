@@ -4,7 +4,9 @@ trait SeqDeconstructor[C[_]] {
   def deconstruct[A](c: C[A]): Iterator[A]
 }
 object SeqDeconstructor {
-  sealed trait Indexed[C[_]] extends SeqDeconstructor[C] {
+  sealed trait SpecializedIndexed[C[_]] extends SeqDeconstructor[C] {
+    def elementType[A](c: C[A]): RegisterType[A]
+
     def length[A](c: C[A]): Int
 
     def objectAt[A](c: C[A], index: Int): A
@@ -40,8 +42,20 @@ object SeqDeconstructor {
     def deconstruct[A](c: Vector[A]): Iterator[A] = c.iterator
   }
 
-  implicit val arrayDeconstructor: Indexed[Array] = new Indexed[Array] {
+  implicit val arrayDeconstructor: SpecializedIndexed[Array] = new SpecializedIndexed[Array] {
     def deconstruct[A](c: Array[A]): Iterator[A] = c.iterator
+
+    def elementType[A](c: Array[A]): RegisterType[A] = c match {
+      case _: Array[Boolean] => RegisterType.Boolean
+      case _: Array[Byte]    => RegisterType.Byte
+      case _: Array[Short]   => RegisterType.Short
+      case _: Array[Int]     => RegisterType.Int
+      case _: Array[Long]    => RegisterType.Long
+      case _: Array[Float]   => RegisterType.Float
+      case _: Array[Double]  => RegisterType.Double
+      case _: Array[Char]    => RegisterType.Char
+      case _                 => RegisterType.Object().asInstanceOf[RegisterType[A]]
+    }
 
     def length[A](c: Array[A]): Int = c.length
 

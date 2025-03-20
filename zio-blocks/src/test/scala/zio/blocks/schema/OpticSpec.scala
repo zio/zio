@@ -220,8 +220,8 @@ object OpticSpec extends ZIOSpecDefault {
       test("has consistent equals and hashCode") {
         assert(Record2.vi)(equalTo(Record2.vi)) &&
         assert(Record2.vi.hashCode)(equalTo(Record2.vi.hashCode)) &&
-        assert(Collections.as)(equalTo(Collections.as)) &&
-        assert(Collections.as.hashCode)(equalTo(Collections.as.hashCode)) &&
+        assert(Collections.ai)(equalTo(Collections.ai)) &&
+        assert(Collections.ai.hashCode)(equalTo(Collections.ai.hashCode)) &&
         assert(Collections.mkc)(equalTo(Collections.mkc)) &&
         assert(Collections.mkc.hashCode)(equalTo(Collections.mkc.hashCode)) &&
         assert(Collections.mvs)(equalTo(Collections.mvs)) &&
@@ -233,7 +233,7 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Collections.mvs: Any)(not(equalTo("")))
       },
       test("returns an initial structure") {
-        assert(Collections.as.structure)(equalTo(Reflect.array(Reflect.string[Binding]))) &&
+        assert(Collections.ai.structure)(equalTo(Reflect.array(Reflect.int[Binding]))) &&
         assert(Collections.mkc.structure)(equalTo(Reflect.map(Reflect.char[Binding], Reflect.string[Binding]))) &&
         assert(Collections.mvs.structure)(equalTo(Reflect.map(Reflect.char[Binding], Reflect.string[Binding]))) &&
         assert(Collections.lc1.structure)(equalTo(Reflect.list(Variant1.reflect))) &&
@@ -246,7 +246,7 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Variant2.c3_v1_v2_c4_lr3.structure)(equalTo(Variant2.reflect))
       },
       test("returns a collection element structure") {
-        assert(Collections.as.focus)(equalTo(Reflect.string[Binding])) &&
+        assert(Collections.ai.focus)(equalTo(Reflect.int[Binding])) &&
         assert(Collections.mkc.focus)(equalTo(Reflect.char[Binding])) &&
         assert(Collections.mvs.focus)(equalTo(Reflect.string[Binding])) &&
         assert(Collections.lc1.focus)(equalTo(Case1.reflect)) &&
@@ -259,7 +259,7 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Variant2.c3_v1_v2_c4_lr3.focus)(equalTo(Record3.reflect))
       },
       test("refines a binding") {
-        assert(Collections.as.refineBinding(RefineBinding.noBinding()))(equalTo(Collections.as.noBinding)) &&
+        assert(Collections.ai.refineBinding(RefineBinding.noBinding()))(equalTo(Collections.ai.noBinding)) &&
         assert(Collections.mkc.refineBinding(RefineBinding.noBinding()))(equalTo(Collections.mkc.noBinding)) &&
         assert(Collections.mvs.refineBinding(RefineBinding.noBinding()))(equalTo(Collections.mvs.noBinding)) &&
         assert(Collections.lc1.refineBinding(RefineBinding.noBinding()))(equalTo(Collections.lc1.noBinding)) &&
@@ -274,6 +274,23 @@ object OpticSpec extends ZIOSpecDefault {
         )
       },
       test("folds collection values") {
+        assert(Collections.abl.fold[Int](Array(true, false, true))(0, (z, x) => if (x) z + 1 else z))(equalTo(2)) &&
+        assert(Collections.ab.fold[Int](Array(1: Byte, 2: Byte, 3: Byte))(0, _ + _))(equalTo(6)) &&
+        assert(Collections.ash.fold[Int](Array(1: Short, 2: Short, 3: Short))(0, _ + _))(equalTo(6)) &&
+        assert(Collections.ai.fold[Int](Array(1, 2, 3))(0, _ + _))(equalTo(6)) &&
+        assert(Collections.ai.fold[Long](Array(1, 2, 3))(0L, _ + _))(equalTo(6L)) &&
+        assert(Collections.ai.fold[Double](Array(1, 2, 3))(0.0, _ + _))(equalTo(6.0)) &&
+        assert(Collections.ai.fold[String](Array(1, 2, 3))("", _ + _))(equalTo("123")) &&
+        assert(Collections.al.fold[Int](Array(1L, 2L, 3L))(0, _ + _.toInt))(equalTo(6)) &&
+        assert(Collections.al.fold[Long](Array(1L, 2L, 3L))(0L, _ + _))(equalTo(6L)) &&
+        assert(Collections.al.fold[Double](Array(1L, 2L, 3L))(0.0, _ + _))(equalTo(6.0)) &&
+        assert(Collections.al.fold[String](Array(1L, 2L, 3L))("", _ + _))(equalTo("123")) &&
+        assert(Collections.ad.fold[Int](Array(1.0, 2.0, 3.0))(0, _ + _.toInt))(equalTo(6)) &&
+        assert(Collections.ad.fold[Long](Array(1.0, 2.0, 3.0))(0L, _ + _.toLong))(equalTo(6L)) &&
+        assert(Collections.ad.fold[Double](Array(1.0, 2.0, 3.0))(0.0, _ + _))(equalTo(6.0)) &&
+        assert(Collections.ad.fold[String](Array(1.0, 2.0, 3.0))("", _ + _))(equalTo("1.02.03.0")) &&
+        assert(Collections.af.fold[Int](Array(1.0f, 2.0f, 3.0f))(0, _ + _.toInt))(equalTo(6)) &&
+        assert(Collections.ac.fold[String](Array('a', 'b', 'c'))("", _ + _))(equalTo("abc")) &&
         assert(Collections.as.fold[String](Array("1", "2", "3"))("", _ + _))(equalTo("123")) &&
         assert(Collections.mkc.fold[String](Map('a' -> "1", 'b' -> "2", 'c' -> "3"))("", _ + _.toString))(
           equalTo("abc")
@@ -294,6 +311,18 @@ object OpticSpec extends ZIOSpecDefault {
         )(equalTo(Record3(null, null, null)))
       },
       test("modifies collection values") {
+        assert(Collections.abl.modify(Array(true, false, true), x => !x).toList)(equalTo(List(false, true, false))) &&
+        assert(Collections.ab.modify(Array(1: Byte, 2: Byte, 3: Byte), x => (x + 1).toByte).toList)(
+          equalTo(List(2: Byte, 3: Byte, 4: Byte))
+        ) &&
+        assert(Collections.ash.modify(Array(1: Short, 2: Short, 3: Short), x => (x + 1).toShort).toList)(
+          equalTo(List(2: Short, 3: Short, 4: Short))
+        ) &&
+        assert(Collections.ai.modify(Array(1, 2, 3), _ + 1).toList)(equalTo(List(2, 3, 4))) &&
+        assert(Collections.al.modify(Array(1L, 2L, 3L), _ + 1L).toList)(equalTo(List(2L, 3L, 4L))) &&
+        assert(Collections.ad.modify(Array(1.0, 2.0, 3.0), _ + 1.0).toList)(equalTo(List(2.0, 3.0, 4.0))) &&
+        assert(Collections.af.modify(Array(1.0f, 2.0f, 3.0f), _ + 1.0f).toList)(equalTo(List(2.0f, 3.0f, 4.0f))) &&
+        assert(Collections.ac.modify(Array('a', 'b', 'c'), _.toUpper).toList)(equalTo(List('A', 'B', 'C'))) &&
         assert(Collections.as.modify(Array("1", "2", "3"), _ + "x").toList)(equalTo(List("1x", "2x", "3x"))) &&
         assert(Collections.mkc.modify(Map('a' -> "1", 'b' -> "2", 'c' -> "3"), _.toUpper))(
           equalTo(Map('A' -> "1", 'B' -> "2", 'C' -> "3"))
@@ -685,6 +714,14 @@ object OpticSpec extends ZIOSpecDefault {
   object Collections {
     val lb: Traversal.Bound[List[Byte], Byte]            = Reflect.list(Reflect.byte[Binding]).values
     val vs: Traversal.Bound[Vector[Short], Short]        = Traversal.vectorValues(Reflect.short)
+    val abl: Traversal.Bound[Array[Boolean], Boolean]    = Traversal.arrayValues(Reflect.boolean)
+    val ab: Traversal.Bound[Array[Byte], Byte]           = Traversal.arrayValues(Reflect.byte)
+    val ash: Traversal.Bound[Array[Short], Short]        = Traversal.arrayValues(Reflect.short)
+    val ai: Traversal.Bound[Array[Int], Int]             = Traversal.arrayValues(Reflect.int)
+    val al: Traversal.Bound[Array[Long], Long]           = Traversal.arrayValues(Reflect.long)
+    val ad: Traversal.Bound[Array[Double], Double]       = Traversal.arrayValues(Reflect.double)
+    val af: Traversal.Bound[Array[Float], Float]         = Traversal.arrayValues(Reflect.float)
+    val ac: Traversal.Bound[Array[Char], Char]           = Traversal.arrayValues(Reflect.char)
     val as: Traversal.Bound[Array[String], String]       = Traversal.arrayValues(Reflect.string)
     val sf: Traversal.Bound[Set[Float], Float]           = Traversal.setValues(Reflect.float)
     val mkc: Traversal.Bound[Map[Char, String], Char]    = Traversal.mapKeys(Reflect.map(Reflect.char, Reflect.string))
