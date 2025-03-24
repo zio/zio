@@ -1922,6 +1922,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *
    * @note
    *   This combinator destroys the chunking structure.
+   * @see
+   *   [[mapZIOChunked]] for a version that preserves the chunking structure
    */
   def mapZIO[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: Trace): ZStream[R1, E1, A1] = {
 
