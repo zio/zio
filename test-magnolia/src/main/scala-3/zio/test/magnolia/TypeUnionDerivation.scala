@@ -54,10 +54,10 @@ object TypeUnionDerivation {
     )
 
     '{
-      val gens: List[Gen[Any, T]] = ${ deriveGenByTypeNameList }.map(_.derive).asInstanceOf[List[Gen[Any, T]]]
-
       new DeriveGen[T] {
-        def derive: Gen[Any, T] = Gen.oneOf[Any, T](gens*)
+        private val gen: Gen[Any, T] = Gen.oneOf[Any, T](${ deriveGenByTypeNameList }.map(_.derive).asInstanceOf[List[Gen[Any, T]]]*)
+
+        def derive: Gen[Any, T] = gen
       }
     }
   }
