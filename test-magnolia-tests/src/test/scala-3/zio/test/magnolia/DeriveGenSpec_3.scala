@@ -43,7 +43,7 @@ object DeriveGenSpec_3 extends ZIOBaseSpec {
         check(Gen.listOfN(100)(anyUnionType)) { vs =>
           assertTrue(vs.exists(_.isInstanceOf[Boolean]))
         }
-      },
+      }
     ),
     suite("nested union type")(
       test("derivation")(assertDeriveGen[NestedUnionType]),
@@ -61,7 +61,7 @@ object DeriveGenSpec_3 extends ZIOBaseSpec {
         check(Gen.listOfN(100)(anyNestedUnionType)) { vs =>
           assertTrue(vs.exists(_.isInstanceOf[String]))
         }
-      },
-    ),
+      }
+    )
   )
 }
