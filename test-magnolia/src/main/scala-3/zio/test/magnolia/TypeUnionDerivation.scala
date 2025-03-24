@@ -8,8 +8,8 @@ import zio.test.Gen
  * Implementation copied/adapted from Caliban
  *
  * See:
- *  - https://github.com/ghostdogpr/caliban/pull/2215
- *  - https://github.com/ghostdogpr/caliban/blob/v2.10.0/core/src/main/scala-3/caliban/schema/TypeUnionDerivation.scala
+ *   - https://github.com/ghostdogpr/caliban/pull/2215
+ *   - https://github.com/ghostdogpr/caliban/blob/v2.10.0/core/src/main/scala-3/caliban/schema/TypeUnionDerivation.scala
  */
 object TypeUnionDerivation {
   inline def derived[T]: DeriveGen[T] = ${ typeUnionDeriveGen[T] }
@@ -31,12 +31,12 @@ object TypeUnionDerivation {
       TypeRepr.of(using tpe).dealias match {
         case OrType(l, r) =>
           rec(using l.asType.asInstanceOf[Type[Any]]) ++ rec(using r.asType.asInstanceOf[Type[Any]])
-        case otherRepr    =>
+        case otherRepr =>
           val expr: TypeAndDeriveGen[A] =
             Expr.summon[DeriveGen[A]] match {
               case Some(foundDeriveGen) =>
                 TypeAndDeriveGen[A](foundDeriveGen, otherRepr.asType.asInstanceOf[Type[A]])
-              case None              =>
+              case None =>
                 val otherString: String = otherRepr.show
                 quotes.reflect.report.errorAndAbort(s"Couldn't resolve DeriveGen[$otherString]")
             }
@@ -49,13 +49,14 @@ object TypeUnionDerivation {
     val deriveGenByTypeNameList: Expr[List[DeriveGen[Any]]] = Expr.ofList(
       typeAndDeriveGens.map { case (tas: TypeAndDeriveGen[a]) =>
         given Type[a] = tas.tpe
-      '{ ${ tas.deriveGen }.asInstanceOf[DeriveGen[Any]] }
+        '{ ${ tas.deriveGen }.asInstanceOf[DeriveGen[Any]] }
       }
     )
 
     '{
       new DeriveGen[T] {
-        private val gen: Gen[Any, T] = Gen.oneOf[Any, T](${ deriveGenByTypeNameList }.map(_.derive).asInstanceOf[List[Gen[Any, T]]]*)
+        private val gen: Gen[Any, T] =
+          Gen.oneOf[Any, T](${ deriveGenByTypeNameList }.map(_.derive).asInstanceOf[List[Gen[Any, T]]]*)
 
         def derive: Gen[Any, T] = gen
       }
