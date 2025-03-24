@@ -497,18 +497,24 @@ sealed trait ZIO[-R, +E, +A]
    * Taps the effect, printing the result of calling `.toString` on the value.
    */
   final def debug(implicit trace: Trace): ZIO[R, E, A] =
-    self
-      .tap(value => ZIO.succeed(println(value)))
-      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $error")))
+    ZIO.uninterruptibleMask { restore =>
+      restore(self).exitWith {
+        case exit @ Exit.Success(value) => ZIO.succeed(println(value)) *> exit
+        case exit @ Exit.Failure(error) => ZIO.succeed(println(s"<FAIL> $error")) *> exit
+      }
+    }
 
   /**
    * Taps the effect, printing the result of calling `.toString` on the value.
    * Prefixes the output with the given message.
    */
   final def debug(prefix: => String)(implicit trace: Trace): ZIO[R, E, A] =
-    self
-      .tap(value => ZIO.succeed(println(s"$prefix: $value")))
-      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $prefix: $error")))
+    ZIO.uninterruptibleMask { restore =>
+      restore(self).exitWith {
+        case exit @ Exit.Success(value) => ZIO.succeed(println(s"$prefix: $value")) *> exit
+        case exit @ Exit.Failure(error) => ZIO.succeed(println(s"<FAIL> $prefix: $error")) *> exit
+      }
+    }
 
   /**
    * Returns an effect that is delayed from this effect by the specified
@@ -605,7 +611,7 @@ sealed trait ZIO[-R, +E, +A]
    * an [[zio.Exit]] for the completion value of the fiber.
    */
   final def exit(implicit trace: Trace): URIO[R, Exit[E, A]] =
-    self.foldCause(Exit.failCause, Exit.succeed(_))
+    self.foldCause(Exit.failCause, ZIO.successFn)
 
   /**
    * Extracts this effect as an [[zio.Exit]] and then applies the provided
@@ -701,7 +707,10 @@ sealed trait ZIO[-R, +E, +A]
   final def flatMapError[R1 <: R, E2](
     f: E => URIO[R1, E2]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E2, A] =
-    flipWith(_ flatMap f)
+    self.foldZIO(
+      success = ZIO.successFn,
+      failure = f(_).flip
+    )
 
   /**
    * Returns an effect that performs the outer effect first, followed by the
@@ -893,7 +902,7 @@ sealed trait ZIO[-R, +E, +A]
    * Returns a successful effect with the head of the list if the list is
    * non-empty or fails with the error `None` if the list is empty.
    */
-  final def head[B](implicit ev: A IsSubtypeOfOutput List[B], trace: Trace): ZIO[R, Option[E], B] =
+  final def head[B](implicit ev: A IsSubtypeOfOutput Seq[B], trace: Trace): ZIO[R, Option[E], B] =
     self.foldZIO(
       e => Exit.fail(Some(e)),
       a => ev(a).headOption.fold[ZIO[R, Option[E], B]](Exit.failNone)(ZIO.successFn)
@@ -1329,7 +1338,8 @@ sealed trait ZIO[-R, +E, +A]
   final def provideSomeEnvironment[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit trace: Trace): ZIO[R0, E, A] =
-    ZIO.environmentWithZIO(r0 => self.provideEnvironment(f(r0)))
+    FiberRef.currentEnvironment
+      .locallyWith(f.asInstanceOf[ZEnvironment[Any] => ZEnvironment[Any]])(self.asInstanceOf[ZIO[Any, E, A]])
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -2765,8 +2775,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           Some(parentFiber),
           childFiber
         )
-
-        childFiber.addObserver(exit => supervisor.onEnd(exit, childFiber))
       }
 
       val parentScope =
@@ -3313,12 +3321,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Returns an effect that models failure with the specified `Cause`.
    */
   def failCause[E](cause: => Cause[E])(implicit trace0: Trace): IO[E, Nothing] =
-    ZIO.stackTrace(trace0).flatMap { trace =>
-      FiberRef.currentLogSpan.getWith { spans =>
-        FiberRef.currentLogAnnotations.getWith { annotations =>
-          Exit.failCause(cause.applyAll(trace, spans, annotations))
-        }
-      }
+    ZIO.withFiberRuntime[Any, E, Nothing] { (state, _) =>
+      val trace = state.generateStackTrace()
+      val refs  = state.getFiberRefs(false)
+      val spans = refs.getOrDefault(FiberRef.currentLogSpan)
+      val anns  = refs.getOrDefault(FiberRef.currentLogAnnotations)
+      Exit.failCause(cause.applyAll(trace, spans, anns))
     }
 
   /**
@@ -3775,13 +3783,23 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Lifts an `Either` into a `ZIO` value.
    */
   def fromEither[E, A](v: => Either[E, A])(implicit trace: Trace): IO[E, A] =
-    succeed(v).flatMap(_.fold(ZIO.failFn, ZIO.successFn))
+    ZIO.suspendSucceed {
+      v match {
+        case Right(s) => Exit.succeed(s)
+        case Left(e)  => ZIO.fail(e)
+      }
+    }
 
   /**
    * Lifts an `Either` into a `ZIO` value.
    */
   def fromEitherCause[E, A](v: => Either[Cause[E], A])(implicit trace: Trace): IO[E, A] =
-    succeed(v).flatMap(_.fold(Exit.failCause, ZIO.successFn))
+    ZIO.suspendSucceed {
+      v match {
+        case Right(s) => Exit.succeed(s)
+        case Left(c)  => ZIO.failCause(c)
+      }
+    }
 
   /**
    * Creates a `ZIO` value that represents the exit value of the specified
@@ -4342,11 +4360,11 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def logSpan(label: => String): LogSpan = new LogSpan(() => label)
 
   def logSpanScoped(label: => String)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-    FiberRef.currentLogSpan.getWith { stack =>
+    FiberRef.currentLogSpan.locallyScopedWith { stack =>
       val instant = java.lang.System.currentTimeMillis()
       val logSpan = zio.LogSpan(label, instant)
 
-      FiberRef.currentLogSpan.locallyScoped(logSpan :: stack)
+      logSpan :: stack
     }
 
   /**
@@ -4942,7 +4960,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Capture ZIO stack trace at the current point.
    */
   def stackTrace(implicit trace: Trace): UIO[StackTrace] =
-    GenerateStackTrace(trace)
+    ZIO.withFiberRuntime[Any, Nothing, StackTrace] { (state, _) =>
+      Exit.succeed(state.generateStackTrace())
+    }
 
   /**
    * Tags each metric in this effect with the specific tag.
@@ -5559,15 +5579,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   @implicitNotFound(
     "Pattern guards are only supported when the error type is a supertype of NoSuchElementException. However, your effect has ${E} for the error type."
   )
-  abstract class CanFilter[+E] {
+  sealed abstract class CanFilter[+E] {
     def apply(t: NoSuchElementException): E
   }
-
   object CanFilter {
-    implicit def canFilter[E >: NoSuchElementException]: CanFilter[E] =
-      new CanFilter[E] {
-        def apply(t: NoSuchElementException): E = t
-      }
+    private val instance: CanFilter[Any]                              = new CanFilter[Any] { def apply(t: NoSuchElementException): Any = t }
+    implicit def canFilter[E >: NoSuchElementException]: CanFilter[E] = instance.asInstanceOf[CanFilter[E]]
   }
 
   final class Grafter(private val scope: FiberScope) extends AnyVal { self =>
@@ -5659,14 +5676,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
           (winner, loser) =>
             winner.await.flatMap { exit =>
-              winner.inheritAll *> loser.interruptAs(parentFiberId) *> exit.mapExit(f)
+              loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
             },
           (winner, loser) =>
             winner.await.flatMap {
               case e: Exit.Failure[Nothing] =>
-                loser.inheritAll *> loser.interruptAs(parentFiberId) *> e
+                loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
               case _ =>
-                loser.inheritAll *> loser.interruptAs(parentFiberId).as(b())
+                loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
             },
           null,
           FiberScope.global
@@ -5720,7 +5737,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-      Scope.make.flatMap(_.use[R](zio))
+      ZIO.suspendSucceed(Scope.unsafe.make(Unsafe).use[R](zio))
   }
 
   final class UsingPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
@@ -5783,24 +5800,33 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     import zio.{LogSpan => ZioLogSpan}
 
     def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-      FiberRef.currentLogSpan.getWith { stack =>
+      FiberRef.currentLogSpan.locallyWith { stack =>
         val instant = java.lang.System.currentTimeMillis()
         val logSpan = ZioLogSpan(label(), instant)
 
-        FiberRef.currentLogSpan.locally(logSpan :: stack)(zio)
-      }
+        logSpan :: stack
+      }(zio)
   }
 
   final class LogAnnotate(val annotations: () => Set[LogAnnotation]) { self =>
     def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-      FiberRef.currentLogAnnotations.locallyWith(_ ++ annotations().map { case LogAnnotation(key, value) =>
-        key -> value
-      })(zio)
+      FiberRef.currentLogAnnotations.locallyWith { stack =>
+        var result = stack
+        val it     = annotations().iterator
+        while (it.hasNext) {
+          val ann = it.next()
+          result = result.updated(ann.key, ann.value)
+        }
+        result
+      }(zio)
   }
 
   final class Tagged(val tags: () => Set[MetricLabel]) { self =>
     def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-      FiberRef.currentTags.locallyWith(_ ++ tags())(zio)
+      FiberRef.currentTags.locallyWith { stack =>
+        if (stack.isEmpty) tags()
+        else stack ++ tags()
+      }(zio)
   }
 
   @inline
@@ -6216,6 +6242,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = f(oldRuntimeFlags)
     }
   }
+  @deprecated("Kept for binary compatibility only", since = "2.1.15")
   private[zio] final case class GenerateStackTrace(trace: Trace) extends ZIO[Any, Nothing, StackTrace]
   private[zio] final case class Stateful[R, E, A](
     trace: Trace,
