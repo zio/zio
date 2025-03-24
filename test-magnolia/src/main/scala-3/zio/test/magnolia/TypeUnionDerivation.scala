@@ -47,15 +47,15 @@ object TypeUnionDerivation {
     val typeAndDeriveGens: List[TypeAndDeriveGen[?]] = rec[T]
 
     val deriveGenByTypeNameList: Expr[List[DeriveGen[Any]]] = Expr.ofList(
-      typeAndDeriveGens.map { case (tas: TypeAndDeriveGen[a]) =>
-        given Type[a] = tas.tpe
-        '{ ${ tas.deriveGen }.asInstanceOf[DeriveGen[Any]] }
+      typeAndDeriveGens.map { case (t: TypeAndDeriveGen[a]) =>
+        given Type[a] = t.tpe
+        '{ ${ t.deriveGen }.asInstanceOf[DeriveGen[Any]] }
       }
     )
 
     '{
       new DeriveGen[T] {
-        private val gen: Gen[Any, T] =
+        private lazy val gen: Gen[Any, T] =
           Gen.oneOf[Any, T](${ deriveGenByTypeNameList }.map(_.derive).asInstanceOf[List[Gen[Any, T]]]*)
 
         def derive: Gen[Any, T] = gen
