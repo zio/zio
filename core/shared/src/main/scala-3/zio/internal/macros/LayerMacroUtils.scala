@@ -16,10 +16,11 @@ private[zio] object LayerMacroUtils {
   )(using Trace): ZLayer[R1, E, O2] =
     lhs >>> rhs
 
-  def constructLayer[R0: Type, R: Type, E: Type](using Quotes)(
+  private def constructTypelessLayer[R0: Type, R: Type, E: Type](using Quotes)(
     layers: Seq[LayerExpr[E]],
-    provideMethod: ProvideMethod
-  ): Expr[ZLayer[R0, E, R]] = {
+    provideMethod: ProvideMethod,
+    inferRemainder: Boolean
+  ): Expr[ZLayer[_, _, _]] = {
     import quotes.reflect._
 
     def renderExpr[A](expr: Expr[A]): String =
@@ -27,9 +28,9 @@ private[zio] object LayerMacroUtils {
 
     def getNode(layer: LayerExpr[E]): Node[TypeRepr, LayerExpr[E]] = layer match {
       case '{ $layer: ZLayer[in, e, out] } =>
-        val inputs  = getRequirements[in]
-        val outputs = getRequirements[out]
-        Node(inputs, outputs, layer)
+    val inputs  = getRequirements[in]
+    val outputs = getRequirements[out]
+    Node(inputs, outputs, layer)
     }
 
     def getRequirements[T: Type]: List[TypeRepr] = {
@@ -60,22 +61,22 @@ private[zio] object LayerMacroUtils {
         def composeH(lhs: LayerExpr[E], rhs: LayerExpr[E]): LayerExpr[E] =
           lhs match {
             case '{ $lhs: ZLayer[i, E, o] } =>
-              rhs match {
-                case '{ $rhs: ZLayer[i2, E, o2] } =>
-                  rhs.asTerm match {
-                    case _: Ident => '{ $lhs.++($rhs)(summonInline) }
-                    case _        => '{ $lhs +!+ $rhs }
-                  }
-              }
+          rhs match {
+          case '{ $rhs: ZLayer[i2, E, o2] } =>
+          rhs.asTerm match {
+          case _: Ident => '{ $lhs.++($rhs)(summonInline) }
+          case _        => '{ $lhs +!+ $rhs }
+          }
+          }
           }
 
         def composeV(lhs: LayerExpr[E], rhs: LayerExpr[E]): LayerExpr[E] =
           lhs match {
             case '{ $lhs: ZLayer[i, E, o] } =>
-              rhs match {
-                case '{ $rhs: ZLayer[`o`, E, o2] } =>
-                  '{ composeLayer($lhs, $rhs)(using trace) }
-              }
+          rhs match {
+          case '{ $rhs: ZLayer[`o`, E, o2] } =>
+          '{ composeLayer($lhs, $rhs)(using trace) }
+          }
           }
 
         def buildFinalTree(tree: LayerTree[LayerExpr[E]]): LayerExpr[E] = {
@@ -88,9 +89,15 @@ private[zio] object LayerMacroUtils {
             .asExprOf[ZLayer[_, E, _]]
         }
 
+        val remainder = if (inferRemainder) {
+          RemainderMethod.Inferred[TypeRepr]()
+        } else {
+          RemainderMethod.Provided(getRequirements[R0])
+        }
+
         val builder = LayerBuilder[TypeRepr, LayerExpr[E]](
           target0 = getRequirements[R],
-          remainder = getRequirements[R0],
+          remainder = remainder,
           providedLayers0 = layers.toList,
           layerToDebug = layerToDebug,
           typeEquals = _ <:< _,
@@ -109,5 +116,23 @@ private[zio] object LayerMacroUtils {
         builder.build.asTerm.asExprOf[ZLayer[R0, E, R]]
       }
     }
+  }
+
+  def constructStaticLayer[R0: Type, R: Type, E: Type](using Quotes)(
+    layers: Seq[LayerExpr[E]],
+    provideMethod: ProvideMethod
+  ): Expr[ZLayer[R0, E, R]] = {
+    import quotes.reflect._
+
+    constructTypelessLayer[R0, R, E](layers, provideMethod, false).asExprOf[ZLayer[R0, E, R]]
+  }
+
+  def constructDynamicLayer[R: Type, E: Type](using Quotes)(
+    layers: Seq[LayerExpr[E]],
+    provideMethod: ProvideMethod
+  ): Expr[ZLayer[_, _, R]] = {
+    import quotes.reflect._
+
+    constructTypelessLayer[Nothing, R, E](layers, provideMethod, true).asExprOf[ZLayer[_, _, R]]
   }
 }
