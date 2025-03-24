@@ -21,7 +21,7 @@ object LayerMacros {
 
   def constructDynamicLayer[R: Type, E: Type](
     layers: Expr[Seq[ZLayer[_, E, _]]]
-  )(using Quotes): Expr[ZLayer[_, _, R]] =
+  )(using Quotes): Expr[ZLayer[_, E, R]] =
     layers match {
       case Varargs(layers) =>
         LayerMacroUtils.constructDynamicLayer[R, E](layers, ProvideMethod.Provide)
@@ -42,8 +42,9 @@ object LayerMacros {
     layer: Expr[Seq[ZLayer[_, E, _]]]
   )(using
     Quotes
-  ): Expr[ZIO[_, _, _]] = {
+  ): Expr[ZIO[_, E, A]] = {
     val layerExpr = constructDynamicLayer[R, E](layer)
+
     layerExpr match {
       case '{ $layer: ZLayer[in, e, out] } => {
         // This is very weird cast - compiler knows that layerExpr is ZLayer[R, _, _] so it should match
@@ -52,6 +53,7 @@ object LayerMacros {
         //  [error]    |   Please provide a layer for the following type:
         //  [error]    |
         //  [error]    |     1. scala.Nothing
+        // Fortunatelly asExprOf is safe cast, so nothing unsafe is happening here
         val z = zio.asExprOf[ZIO[out, E, A]]
         '{ $z.provideLayer($layer) }
       }

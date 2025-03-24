@@ -130,9 +130,9 @@ private[zio] object LayerMacroUtils {
   def constructDynamicLayer[R: Type, E: Type](using Quotes)(
     layers: Seq[LayerExpr[E]],
     provideMethod: ProvideMethod
-  ): Expr[ZLayer[_, _, R]] = {
+  ): Expr[ZLayer[_, E, R]] = {
     import quotes.reflect._
 
-    constructTypelessLayer[Nothing, R, E](layers, provideMethod, true).asExprOf[ZLayer[_, _, R]]
+    constructTypelessLayer[Nothing, R, E](layers, provideMethod, true).asExprOf[ZLayer[_, E, R]]
   }
 }

@@ -30,7 +30,7 @@ private[zio] transparent trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, 
    * val zio2 = zio.provideSome(clockLayer) // Inferred type is ZIO[Random, Nothing, Unit]
    * }}}
    */
-  inline transparent def provideSomeAuto[E1 >: E](inline layer: ZLayer[_, E1, _]*): Any =
+  inline transparent def provideSomeAuto[E1 >: E](inline layer: ZLayer[_, E1, _]*): ZIO[_, E1, A] =
     ${ LayerMacros.provideDynamicImpl[R, E1, A]('self, 'layer) }
 
   /**
