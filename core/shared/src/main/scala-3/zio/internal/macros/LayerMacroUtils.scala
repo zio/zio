@@ -28,9 +28,9 @@ private[zio] object LayerMacroUtils {
 
     def getNode(layer: LayerExpr[E]): Node[TypeRepr, LayerExpr[E]] = layer match {
       case '{ $layer: ZLayer[in, e, out] } =>
-    val inputs  = getRequirements[in]
-    val outputs = getRequirements[out]
-    Node(inputs, outputs, layer)
+        val inputs  = getRequirements[in]
+        val outputs = getRequirements[out]
+        Node(inputs, outputs, layer)
     }
 
     def getRequirements[T: Type]: List[TypeRepr] = {
@@ -61,22 +61,22 @@ private[zio] object LayerMacroUtils {
         def composeH(lhs: LayerExpr[E], rhs: LayerExpr[E]): LayerExpr[E] =
           lhs match {
             case '{ $lhs: ZLayer[i, E, o] } =>
-          rhs match {
-          case '{ $rhs: ZLayer[i2, E, o2] } =>
-          rhs.asTerm match {
-          case _: Ident => '{ $lhs.++($rhs)(summonInline) }
-          case _        => '{ $lhs +!+ $rhs }
-          }
-          }
+              rhs match {
+                case '{ $rhs: ZLayer[i2, E, o2] } =>
+                  rhs.asTerm match {
+                    case _: Ident => '{ $lhs.++($rhs)(summonInline) }
+                    case _        => '{ $lhs +!+ $rhs }
+                  }
+              }
           }
 
         def composeV(lhs: LayerExpr[E], rhs: LayerExpr[E]): LayerExpr[E] =
           lhs match {
             case '{ $lhs: ZLayer[i, E, o] } =>
-          rhs match {
-          case '{ $rhs: ZLayer[`o`, E, o2] } =>
-          '{ composeLayer($lhs, $rhs)(using trace) }
-          }
+              rhs match {
+                case '{ $rhs: ZLayer[`o`, E, o2] } =>
+                  '{ composeLayer($lhs, $rhs)(using trace) }
+              }
           }
 
         def buildFinalTree(tree: LayerTree[LayerExpr[E]]): LayerExpr[E] = {
