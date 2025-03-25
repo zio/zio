@@ -16,6 +16,24 @@ private[zio] object LayerMacroUtils {
   )(using Trace): ZLayer[R1, E, O2] =
     lhs >>> rhs
 
+  def constructStaticLayer[R0: Type, R: Type, E: Type](using Quotes)(
+    layers: Seq[LayerExpr[E]],
+    provideMethod: ProvideMethod
+  ): Expr[ZLayer[R0, E, R]] = {
+    import quotes.reflect._
+
+    constructTypelessLayer[R0, R, E](layers, provideMethod, false).asExprOf[ZLayer[R0, E, R]]
+  }
+
+  def constructDynamicLayer[R: Type, E: Type](using Quotes)(
+    layers: Seq[LayerExpr[E]],
+    provideMethod: ProvideMethod
+  ): Expr[ZLayer[_, E, R]] = {
+    import quotes.reflect._
+
+    constructTypelessLayer[Nothing, R, E](layers, provideMethod, true).asExprOf[ZLayer[_, E, R]]
+  }
+
   private def constructTypelessLayer[R0: Type, R: Type, E: Type](using Quotes)(
     layers: Seq[LayerExpr[E]],
     provideMethod: ProvideMethod,
@@ -116,23 +134,5 @@ private[zio] object LayerMacroUtils {
         builder.build.asTerm.asExprOf[ZLayer[R0, E, R]]
       }
     }
-  }
-
-  def constructStaticLayer[R0: Type, R: Type, E: Type](using Quotes)(
-    layers: Seq[LayerExpr[E]],
-    provideMethod: ProvideMethod
-  ): Expr[ZLayer[R0, E, R]] = {
-    import quotes.reflect._
-
-    constructTypelessLayer[R0, R, E](layers, provideMethod, false).asExprOf[ZLayer[R0, E, R]]
-  }
-
-  def constructDynamicLayer[R: Type, E: Type](using Quotes)(
-    layers: Seq[LayerExpr[E]],
-    provideMethod: ProvideMethod
-  ): Expr[ZLayer[_, E, R]] = {
-    import quotes.reflect._
-
-    constructTypelessLayer[Nothing, R, E](layers, provideMethod, true).asExprOf[ZLayer[_, E, R]]
   }
 }
