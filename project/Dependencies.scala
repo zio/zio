@@ -18,7 +18,7 @@ object Dependencies {
   // Documentations and example dependencies
   val CatsEffectVersion = "3.6.0"
   val DoobieVersion     = "1.0.0-RC5"
-  val Fs2Version        = "3.11.0"
+  val Fs2Version        = "3.12.0"
   val Http4sVersion     = "0.23.29"
   val QuillVersion      = "4.8.5"
   val ShardcakeVersion  = "2.4.2"
