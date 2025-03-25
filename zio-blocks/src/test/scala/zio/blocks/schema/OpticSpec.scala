@@ -83,19 +83,27 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Variant2.c3: Any)(not(equalTo(Variant1.c1))) &&
         assert(Variant2.c4: Any)(not(equalTo(Variant1.c1)))
       },
+      test("has associative equals and hashCode") {
+        assert(Variant1.v2_v3_c5_left)(equalTo(Variant1.v2_v3_c5_right)) &&
+        assert(Variant1.v2_v3_c5_left.hashCode)(equalTo(Variant1.v2_v3_c5_right.hashCode))
+      },
       test("returns a base class structure") {
         assert(Variant1.c1.structure)(equalTo(Variant1.reflect)) &&
         assert(Variant1.c2.structure)(equalTo(Variant1.reflect)) &&
         assert(Variant1.v2.structure)(equalTo(Variant1.reflect)) &&
         assert(Variant1.v2_c3.structure)(equalTo(Variant1.reflect)) &&
-        assert(Variant1.v2_c4.structure)(equalTo(Variant1.reflect))
+        assert(Variant1.v2_c4.structure)(equalTo(Variant1.reflect)) &&
+        assert(Variant1.v2_v3_c5_left.structure)(equalTo(Variant1.reflect)) &&
+        assert(Variant1.v2_v3_c5_right.structure)(equalTo(Variant1.reflect))
       },
       test("returns a case class structure") {
         assert(Variant1.c1.focus)(equalTo(Case1.reflect)) &&
         assert(Variant1.c2.focus)(equalTo(Case2.reflect)) &&
         assert(Variant1.v2.focus)(equalTo(Variant2.reflect)) &&
         assert(Variant1.v2_c3.focus)(equalTo(Case3.reflect)) &&
-        assert(Variant1.v2_c4.focus)(equalTo(Case4.reflect))
+        assert(Variant1.v2_c4.focus)(equalTo(Case4.reflect)) &&
+        assert(Variant1.v2_v3_c5_left.focus)(equalTo(Case5.reflect)) &&
+        assert(Variant1.v2_v3_c5_right.focus)(equalTo(Case5.reflect))
       },
       test("refines a binding") {
         assert(Variant1.c1.refineBinding(RefineBinding.noBinding()))(equalTo(Variant1.c1.noBinding)) &&
@@ -111,7 +119,9 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Variant2.c3.getOption(Case3(Case1(0.1)): Variant2))(isSome(equalTo(Case3(Case1(0.1))))) &&
         assert(Variant2.c4.getOption(Case4(List(Record3(null, null, null))): Variant2))(
           isSome(equalTo(Case4(List(Record3(null, null, null)))))
-        )
+        ) &&
+        assert(Variant1.v2_v3_c5_left.getOption(Case5(null, null): Variant1))(isSome(equalTo(Case5(null, null)))) &&
+        assert(Variant1.v2_v3_c5_right.getOption(Case5(null, null): Variant1))(isSome(equalTo(Case5(null, null))))
       },
       test("reverse gets a base class value") {
         assert(Variant1.c1.reverseGet(Case1(0.1)))(equalTo(Case1(0.1): Variant1)) &&
@@ -123,7 +133,9 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Variant2.c3.reverseGet(Case3(Case1(0.1))))(equalTo(Case3(Case1(0.1)): Variant2)) &&
         assert(Variant2.c4.reverseGet(Case4(List(Record3(null, null, null)))))(
           equalTo(Case4(List(Record3(null, null, null))): Variant2)
-        )
+        ) &&
+        assert(Variant1.v2_v3_c5_left.reverseGet(Case5(null, null)))(equalTo(Case5(null, null): Variant1)) &&
+        assert(Variant1.v2_v3_c5_right.reverseGet(Case5(null, null)))(equalTo(Case5(null, null): Variant1))
       }
     ),
     suite("Optional")(
@@ -475,7 +487,7 @@ object OpticSpec extends ZIOSpecDefault {
         Term("case2", Case2.reflect, Doc.Empty, Nil),
         Term("variant2", Variant2.reflect, Doc.Empty, Nil)
       ),
-      typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Variant"),
+      typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Variant1"),
       variantBinding = Binding.Variant(
         discriminator = new Discriminator[Variant1] {
           override def discriminate(a: Variant1): Int = a match {
@@ -507,6 +519,8 @@ object OpticSpec extends ZIOSpecDefault {
       Prism(reflect, reflect.cases(2).asInstanceOf[Term.Bound[Variant1, Variant2]])
     lazy val v2_c3: Prism.Bound[Variant1, Case3]                    = v2(Variant2.c3)
     lazy val v2_c4: Prism.Bound[Variant1, Case4]                    = v2(Variant2.c4)
+    lazy val v2_v3_c5_left: Prism.Bound[Variant1, Case5]            = v2(Variant2.v3)(Variant3.c5)
+    lazy val v2_v3_c5_right: Prism.Bound[Variant1, Case5]           = v2(Variant2.v3(Variant3.c5))
     lazy val v2_c4_lr3: Traversal.Bound[Variant1, Record3]          = v2(Variant2.c4(Case4.lr3))
     lazy val c1_d: Optional.Bound[Variant1, Double]                 = c1(Case1.d)
     lazy val c2_r3: Optional.Bound[Variant1, Record3]               = c2(Case2.r3)
@@ -577,9 +591,10 @@ object OpticSpec extends ZIOSpecDefault {
     val reflect: Reflect.Variant.Bound[Variant2] = Reflect.Variant(
       cases = List(
         Term("case3", Case3.reflect, Doc.Empty, Nil),
-        Term("case4", Case4.reflect, Doc.Empty, Nil)
+        Term("case4", Case4.reflect, Doc.Empty, Nil),
+        Term("variant3", Variant3.reflect, Doc.Empty, Nil)
       ),
-      typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Variant"),
+      typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Variant2"),
       variantBinding = Binding.Variant(
         discriminator = new Discriminator[Variant2] {
           override def discriminate(a: Variant2): Int = a match {
@@ -603,6 +618,8 @@ object OpticSpec extends ZIOSpecDefault {
       Prism(reflect, reflect.cases(0).asInstanceOf[Term.Bound[Variant2, Case3]])
     val c4: Prism.Bound[Variant2, Case4] =
       Prism(reflect, reflect.cases(1).asInstanceOf[Term.Bound[Variant2, Case4]])
+    val v3: Prism.Bound[Variant2, Variant3] =
+      Prism(reflect, reflect.cases(2).asInstanceOf[Term.Bound[Variant2, Variant3]])
     lazy val c3_v1: Optional.Bound[Variant2, Variant1]           = c3(Case3.v1)
     lazy val c3_v1_c1_left: Optional.Bound[Variant2, Case1]      = c3(Case3.v1)(Variant1.c1)
     lazy val c3_v1_c1_right: Optional.Bound[Variant2, Case1]     = c3(Case3.v1_c1)
@@ -673,28 +690,60 @@ object OpticSpec extends ZIOSpecDefault {
       Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Case4, List[Record3]]]).list
   }
 
-  case class Record5(si: Set[Int], as: Array[String])
+  sealed trait Variant3 extends Variant2
 
-  object Record5 {
-    val reflect: Reflect.Record.Bound[Record5] = Reflect.Record(
+  object Variant3 {
+    val reflect: Reflect.Variant.Bound[Variant3] = Reflect.Variant(
+      cases = List(
+        Term("case5", Case5.reflect, Doc.Empty, Nil),
+        Term("case6", Case6.reflect, Doc.Empty, Nil)
+      ),
+      typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Variant3"),
+      variantBinding = Binding.Variant(
+        discriminator = new Discriminator[Variant3] {
+          override def discriminate(a: Variant3): Int = a match {
+            case _: Case5 => 0
+            case _: Case6 => 1
+          }
+        },
+        matchers = Matchers(
+          new Matcher[Case5] {
+            override def unsafeDowncast(a: Any): Case5 = a.asInstanceOf[Case5]
+          },
+          new Matcher[Case6] {
+            override def unsafeDowncast(a: Any): Case6 = a.asInstanceOf[Case6]
+          }
+        )
+      ),
+      doc = Doc.Empty,
+      modifiers = Nil
+    )
+    val c5: Prism.Bound[Variant3, Case5] =
+      Prism(reflect, reflect.cases(0).asInstanceOf[Term.Bound[Variant3, Case5]])
+  }
+
+  case class Case5(si: Set[Int], as: Array[String]) extends Variant3
+
+  object Case5 {
+    val reflect: Reflect.Record.Bound[Case5] = Reflect.Record(
       fields = List(
         Term("si", Reflect.set(Reflect.int), Doc.Empty, Nil),
         Term("as", Reflect.array(Reflect.string), Doc.Empty, Nil)
       ),
-      typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Record5"),
+      typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Case5"),
       recordBinding = Binding.Record(
-        constructor = new Constructor[Record5] {
+        constructor = new Constructor[Case5] {
           def usedRegisters: RegisterOffset = RegisterOffset(objects = 2)
 
-          def construct(in: Registers, baseOffset: RegisterOffset): Record5 = Record5(
+          def construct(in: Registers, baseOffset: RegisterOffset): Case5 = Case5(
             in.getObject(baseOffset, 0).asInstanceOf[Set[Int]],
             in.getObject(baseOffset, 1).asInstanceOf[Array[String]]
           )
         },
-        deconstructor = new Deconstructor[Record5] {
+        deconstructor = new Deconstructor[Case5] {
           def usedRegisters: RegisterOffset = RegisterOffset(objects = 2)
 
-          def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Record5): Unit = {
+          def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Case5): Unit = {
             out.setObject(baseOffset, 0, in.si)
             out.setObject(baseOffset, 1, in.as)
           }
@@ -704,11 +753,38 @@ object OpticSpec extends ZIOSpecDefault {
       modifiers = Nil
     )
     /* FIXME: Is a bug in the compiler?
-    val si: Traversal.Bound[Record5, Int] =
-      Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Record5, Set[Int]]]).set
+    val si: Traversal.Bound[Case5, Int] =
+      Lens(reflect, reflect.fields(0).asInstanceOf[Term.Bound[Case5, Set[Int]]]).set
      */
-    val as: Traversal.Bound[Record5, String] =
-      Lens(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Record5, Array[String]]]).array
+    val as: Traversal.Bound[Case5, String] =
+      Lens(reflect, reflect.fields(1).asInstanceOf[Term.Bound[Case5, Array[String]]]).array
+  }
+
+  case class Case6(v2: Variant2) extends Variant3
+
+  object Case6 {
+    lazy val reflect: Reflect.Record.Bound[Case6] = Reflect.Record(
+      fields = List(
+        Term("v2", Reflect.Deferred(() => Variant2.reflect), Doc.Empty, Nil)
+      ),
+      typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Case6"),
+      recordBinding = Binding.Record(
+        constructor = new Constructor[Case6] {
+          def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
+
+          def construct(in: Registers, baseOffset: RegisterOffset): Case6 =
+            Case6(in.getObject(baseOffset, 0).asInstanceOf[Variant2])
+        },
+        deconstructor = new Deconstructor[Case6] {
+          def usedRegisters: RegisterOffset = RegisterOffset(objects = 1)
+
+          def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Case6): Unit =
+            out.setObject(baseOffset, 0, in.v2)
+        }
+      ),
+      doc = Doc.Empty,
+      modifiers = Nil
+    )
   }
 
   object Collections {

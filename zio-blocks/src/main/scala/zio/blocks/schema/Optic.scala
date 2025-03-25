@@ -14,7 +14,7 @@ sealed trait Optic[F[_, _], S, A] { self =>
   def apply[B](that: Lens[F, A, B]): Optic[F, S, B]
 
   // Compose this optic with a prism:
-  def apply[B](that: Prism[F, A, B]): Optic[F, S, B]
+  def apply[B <: A](that: Prism[F, A, B]): Optic[F, S, B]
 
   // Compose this optic with an optional:
   def apply[B](that: Optional[F, A, B]): Optic[F, S, B]
@@ -95,7 +95,7 @@ sealed trait Lens[F[_, _], S, A] extends Optic[F, S, A] {
   override def apply[B](that: Lens[F, A, B]): Lens[F, S, B] = Lens(this, that)
 
   // Compose this lens with a prism:
-  override def apply[B](that: Prism[F, A, B]): Optional[F, S, B] = Optional(this, that)
+  override def apply[B <: A](that: Prism[F, A, B]): Optional[F, S, B] = Optional(this, that)
 
   // Compose this lens with an optional:
   override def apply[B](that: Optional[F, A, B]): Optional[F, S, B] = Optional(this, that)
@@ -111,8 +111,10 @@ sealed trait Lens[F[_, _], S, A] extends Optic[F, S, A] {
 object Lens {
   type Bound[S, A] = Lens[Binding, S, A]
 
-  def apply[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A]): Lens[F, S, A] =
+  def apply[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A]): Lens[F, S, A] = {
+    require((parent ne null) && (child ne null))
     new LensImpl(ArraySeq(parent), ArraySeq(child))
+  }
 
   def apply[F[_, _], S, T, A](first: Lens[F, S, T], second: Lens[F, T, A]): Lens[F, S, A] = {
     val u1 = first.asInstanceOf[LensImpl[F, S, A]]
@@ -133,16 +135,16 @@ object Lens {
       var usedRegisters = RegisterOffset.Zero
       var i             = 0
       while (i < len) {
-        val p             = parents(i)
-        val deconstructor = F.deconstructor(p.recordBinding).asInstanceOf[Deconstructor[Any]]
-        val constructor   = F.constructor(p.recordBinding).asInstanceOf[Constructor[Any]]
-        val register = p
-          .registers(p.fields.indexWhere {
+        val parent        = parents(i)
+        val deconstructor = F.deconstructor(parent.recordBinding).asInstanceOf[Deconstructor[Any]]
+        val constructor   = F.constructor(parent.recordBinding).asInstanceOf[Constructor[Any]]
+        val register = parent
+          .registers(parent.fields.indexWhere {
             val childName = childs(i).name
             x => x.name == childName
           })
           .asInstanceOf[Register[Any]]
-        usedRegisters = RegisterOffset.add(usedRegisters, p.usedRegisters)
+        usedRegisters = RegisterOffset.add(usedRegisters, parent.usedRegisters)
         bindings(i) = (deconstructor, constructor, register, usedRegisters)
         i += 1
       }
@@ -239,13 +241,13 @@ object Lens {
   }
 }
 
-sealed trait Prism[F[_, _], S, A] extends Optic[F, S, A] {
+sealed trait Prism[F[_, _], S, A <: S] extends Optic[F, S, A] {
   def getOption(s: S)(implicit F: HasBinding[F]): Option[A]
 
   def reverseGet(a: A): S
 
   // Compose this prism with a prism:
-  override def apply[B](that: Prism[F, A, B]): Prism[F, S, B] = Prism(this, that)
+  override def apply[B <: A](that: Prism[F, A, B]): Prism[F, S, B] = Prism(this, that)
 
   // Compose this prism with a lens:
   override def apply[B](that: Lens[F, A, B]): Optional[F, S, B] = Optional(this, that)
@@ -262,67 +264,55 @@ sealed trait Prism[F[_, _], S, A] extends Optic[F, S, A] {
 }
 
 object Prism {
-  type Bound[S, A] = Prism[Binding, S, A]
+  type Bound[S, A <: S] = Prism[Binding, S, A]
 
-  def apply[F[_, _], S, A <: S](parent: Reflect.Variant[F, S], child: Term[F, S, A]): Prism[F, S, A] =
-    new Case(parent, child)
-
-  def apply[F[_, _], S, T, A](first: Prism[F, S, T], second: Prism[F, T, A]): Prism[F, S, A] =
-    new PrismPrism(first, second)
-
-  private case class Case[F[_, _], S, A <: S](parent: Reflect.Variant[F, S], child: Term[F, S, A])
-      extends Prism[F, S, A]
-      with Leaf[F, S, A] {
+  def apply[F[_, _], S, A <: S](parent: Reflect.Variant[F, S], child: Term[F, S, A]): Prism[F, S, A] = {
     require((parent ne null) && (child ne null))
+    new PrismImpl(parent, parent, child)
+  }
 
-    private var matcher: Matcher[A] = null
+  def apply[F[_, _], S, T <: S, A <: T](first: Prism[F, S, T], second: Prism[F, T, A]): Prism[F, S, A] = {
+    val u1 = first.asInstanceOf[PrismImpl[F, _, _, _]]
+    val u2 = second.asInstanceOf[PrismImpl[F, _, _, _]]
+    new PrismImpl(
+      u1.structure.asInstanceOf[Reflect.Variant[F, S]],
+      u2.parent.asInstanceOf[Reflect.Variant[F, T]],
+      u2.child.asInstanceOf[Term[F, T, A]]
+    )
+  }
 
-    private def init(F: HasBinding[F]): Unit =
-      if (matcher eq null) {
-        val matchers = F.matchers(parent.variantBinding)
-        matcher = matchers(parent.cases.indexWhere(_.name == child.name)).asInstanceOf[Matcher[A]]
-      }
+  private case class PrismImpl[F[_, _], S, T <: S, A <: T](
+    structure: Reflect.Variant[F, S],
+    parent: Reflect.Variant[F, T],
+    child: Term[F, T, A]
+  ) extends Prism[F, S, A]
+      with Leaf[F, S, A] {
+    private[this] var matcher: Matcher[A] = null
 
-    def structure: Reflect[F, S] = parent
+    private def init(implicit F: HasBinding[F]): Unit =
+      matcher =
+        F.matchers(parent.variantBinding).apply(parent.cases.indexWhere(_.name == child.name)).asInstanceOf[Matcher[A]]
 
     def focus: Reflect[F, A] = child.value
 
     def getOption(s: S)(implicit F: HasBinding[F]): Option[A] = {
-      init(F)
+      if (matcher eq null) init
       matcher.downcastOption(s)
     }
 
     def reverseGet(a: A): S = a
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Prism[G, S, A] =
-      new Case(parent.refineBinding(f), child.refineBinding(f))
+      new PrismImpl(structure.refineBinding(f), parent.refineBinding(f), child.refineBinding(f))
 
-    override def hashCode: Int = parent.hashCode ^ child.hashCode
+    override def hashCode: Int = structure.hashCode ^ child.hashCode
 
     override def equals(obj: Any): Boolean = obj match {
-      case other: Case[F, _, _] => other.parent.equals(parent) && other.child.equals(child)
-      case _                    => false
+      case other: PrismImpl[F, _, _, _] => other.structure.equals(structure) && other.child.equals(child)
+      case _                            => false
     }
 
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = ArraySeq(this)
-  }
-
-  private case class PrismPrism[F[_, _], S, T, A](first: Prism[F, S, T], second: Prism[F, T, A])
-      extends Prism[F, S, A] {
-    require((first ne null) && (second ne null))
-
-    def structure: Reflect[F, S] = first.structure
-
-    def focus: Reflect[F, A] = second.focus
-
-    def getOption(s: S)(implicit F: HasBinding[F]): Option[A] = first.getOption(s).flatMap(second.getOption)
-
-    def reverseGet(a: A): S = first.reverseGet(second.reverseGet(a))
-
-    def refineBinding[G[_, _]](f: RefineBinding[F, G]): Prism[G, S, A] =
-      new PrismPrism(first.refineBinding(f), second.refineBinding(f))
-
-    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 }
 
@@ -335,7 +325,7 @@ sealed trait Optional[F[_, _], S, A] extends Optic[F, S, A] {
   override def apply[B](that: Lens[F, A, B]): Optional[F, S, B] = Optional(this, that)
 
   // Compose this optional with a prism:
-  override def apply[B](that: Prism[F, A, B]): Optional[F, S, B] = Optional(this, that)
+  override def apply[B <: A](that: Prism[F, A, B]): Optional[F, S, B] = Optional(this, that)
 
   // Compose this optional with an optional:
   override def apply[B](that: Optional[F, A, B]): Optional[F, S, B] = Optional(this, that)
@@ -354,25 +344,25 @@ object Optional {
   def apply[F[_, _], S, T, A](first: Optional[F, S, T], second: Lens[F, T, A]): Optional[F, S, A] =
     new Optional.OptionalLens(first, second)
 
-  def apply[F[_, _], S, T, A](first: Optional[F, S, T], second: Prism[F, T, A]): Optional[F, S, A] =
+  def apply[F[_, _], S, T, A <: T](first: Optional[F, S, T], second: Prism[F, T, A]): Optional[F, S, A] =
     new Optional.OptionalPrism(first, second)
 
   def apply[F[_, _], S, T, A](first: Optional[F, S, T], second: Optional[F, T, A]): Optional[F, S, A] =
     new Optional.OptionalOptional(first, second)
 
-  def apply[F[_, _], S, T, A](first: Lens[F, S, T], second: Prism[F, T, A]): Optional[F, S, A] =
+  def apply[F[_, _], S, T, A <: T](first: Lens[F, S, T], second: Prism[F, T, A]): Optional[F, S, A] =
     new Optional.LensPrism(first, second)
 
   def apply[F[_, _], S, T, A](first: Lens[F, S, T], second: Optional[F, T, A]): Optional[F, S, A] =
     new Optional.LensOptional(first, second)
 
-  def apply[F[_, _], S, T, A](first: Prism[F, S, T], second: Lens[F, T, A]): Optional[F, S, A] =
+  def apply[F[_, _], S, T <: S, A](first: Prism[F, S, T], second: Lens[F, T, A]): Optional[F, S, A] =
     new Optional.PrismLens(first, second)
 
-  def apply[F[_, _], S, T, A](first: Prism[F, S, T], second: Optional[F, T, A]): Optional[F, S, A] =
+  def apply[F[_, _], S, T <: S, A](first: Prism[F, S, T], second: Optional[F, T, A]): Optional[F, S, A] =
     new Optional.PrismOptional(first, second)
 
-  private case class LensPrism[F[_, _], S, T, A](first: Lens[F, S, T], second: Prism[F, T, A])
+  private case class LensPrism[F[_, _], S, T, A <: T](first: Lens[F, S, T], second: Prism[F, T, A])
       extends Optional[F, S, A] {
     require((first ne null) && (second ne null))
 
@@ -408,7 +398,7 @@ object Optional {
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
-  private case class PrismLens[F[_, _], S, T, A](first: Prism[F, S, T], second: Lens[F, T, A])
+  private case class PrismLens[F[_, _], S, T <: S, A](first: Prism[F, S, T], second: Lens[F, T, A])
       extends Optional[F, S, A] {
     require((first ne null) && (second ne null))
 
@@ -426,7 +416,7 @@ object Optional {
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
-  private case class PrismOptional[F[_, _], S, T, A](first: Prism[F, S, T], second: Optional[F, T, A])
+  private case class PrismOptional[F[_, _], S, T <: S, A](first: Prism[F, S, T], second: Optional[F, T, A])
       extends Optional[F, S, A] {
     require((first ne null) && (second ne null))
 
@@ -462,7 +452,7 @@ object Optional {
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
-  private case class OptionalPrism[F[_, _], S, T, A](first: Optional[F, S, T], second: Prism[F, T, A])
+  private case class OptionalPrism[F[_, _], S, T, A <: T](first: Optional[F, S, T], second: Prism[F, T, A])
       extends Optional[F, S, A] {
     require((first ne null) && (second ne null))
 
@@ -509,7 +499,7 @@ sealed trait Traversal[F[_, _], S, A] extends Optic[F, S, A] { self =>
   override def apply[B](that: Lens[F, A, B]): Traversal[F, S, B] = Traversal(this, that)
 
   // Compose this traversal with a prism:
-  override def apply[B](that: Prism[F, A, B]): Traversal[F, S, B] = Traversal(this, that)
+  override def apply[B <: A](that: Prism[F, A, B]): Traversal[F, S, B] = Traversal(this, that)
 
   // Compose this traversal with an optional:
   override def apply[B](that: Optional[F, A, B]): Traversal[F, S, B] = Traversal(this, that)
@@ -531,7 +521,7 @@ object Traversal {
   def apply[F[_, _], S, T, A](first: Traversal[F, S, T], second: Lens[F, T, A]): Traversal[F, S, A] =
     new TraversalLens(first, second)
 
-  def apply[F[_, _], S, T, A](first: Traversal[F, S, T], second: Prism[F, T, A]): Traversal[F, S, A] =
+  def apply[F[_, _], S, T, A <: T](first: Traversal[F, S, T], second: Prism[F, T, A]): Traversal[F, S, A] =
     new TraversalPrism(first, second)
 
   def apply[F[_, _], S, T, A](first: Traversal[F, S, T], second: Optional[F, T, A]): Traversal[F, S, A] =
@@ -540,7 +530,7 @@ object Traversal {
   def apply[F[_, _], S, T, A](first: Lens[F, S, T], second: Traversal[F, T, A]): Traversal[F, S, A] =
     new LensTraversal(first, second)
 
-  def apply[F[_, _], S, T, A](first: Prism[F, S, T], second: Traversal[F, T, A]): Traversal[F, S, A] =
+  def apply[F[_, _], S, T <: S, A](first: Prism[F, S, T], second: Traversal[F, T, A]): Traversal[F, S, A] =
     new PrismTraversal(first, second)
 
   def apply[F[_, _], S, T, A](first: Optional[F, S, T], second: Traversal[F, T, A]): Traversal[F, S, A] =
@@ -1004,7 +994,7 @@ object Traversal {
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
-  private case class TraversalPrism[F[_, _], S, T, A](first: Traversal[F, S, T], second: Prism[F, T, A])
+  private case class TraversalPrism[F[_, _], S, T, A <: T](first: Traversal[F, S, T], second: Prism[F, T, A])
       extends Traversal[F, S, A] {
     require((first ne null) && (second ne null))
 
@@ -1062,7 +1052,7 @@ object Traversal {
     private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
   }
 
-  private case class PrismTraversal[F[_, _], S, T, A](first: Prism[F, S, T], second: Traversal[F, T, A])
+  private case class PrismTraversal[F[_, _], S, T <: S, A](first: Prism[F, S, T], second: Traversal[F, T, A])
       extends Traversal[F, S, A] {
     require((first ne null) && (second ne null))
 
