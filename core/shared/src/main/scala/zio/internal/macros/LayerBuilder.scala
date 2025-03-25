@@ -391,7 +391,7 @@ object ProvideMethod {
   case object ProvideCustom     extends ProvideMethod
 }
 
-sealed trait RemainderMethod[T] {
+sealed trait RemainderMethod[T] extends Product with Serializable {
   def getProvidedTypes: List[T] = this match {
     case RemainderMethod.Provided(providedTypes) => providedTypes
     case RemainderMethod.Inferred()              => List.empty

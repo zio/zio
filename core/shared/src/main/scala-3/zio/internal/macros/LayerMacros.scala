@@ -53,7 +53,7 @@ object LayerMacros {
         //  [error]    |   Please provide a layer for the following type:
         //  [error]    |
         //  [error]    |     1. scala.Nothing
-        // Fortunatelly asExprOf is safe cast, so nothing unsafe is happening here
+        // Fortunately asExprOf is safe cast, so nothing unsafe is happening here
         val z = zio.asExprOf[ZIO[out, E, A]]
         '{ $z.provideLayer($layer) }
       }
