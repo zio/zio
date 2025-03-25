@@ -1,6 +1,7 @@
 package zio.blocks.schema
 
-import zio.blocks.schema.binding._
+import zio.blocks.schema.binding.RegisterOffset.RegisterOffset
+import zio.blocks.schema.binding.{RegisterOffset, _}
 
 import scala.collection.immutable.ArraySeq
 
@@ -110,72 +111,131 @@ sealed trait Lens[F[_, _], S, A] extends Optic[F, S, A] {
 object Lens {
   type Bound[S, A] = Lens[Binding, S, A]
 
-  def apply[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A]): Lens[F, S, A] = new Field(parent, child)
+  def apply[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A]): Lens[F, S, A] =
+    new LensImpl(ArraySeq(parent), ArraySeq(child))
 
-  def apply[F[_, _], S, T, A](first: Lens[F, S, T], second: Lens[F, T, A]): Lens[F, S, A] = new LensLens(first, second)
-
-  private case class Field[F[_, _], S, A](parent: Reflect.Record[F, S], child: Term[F, S, A])
-      extends Lens[F, S, A]
-      with Leaf[F, S, A] {
-    require((parent ne null) && (child ne null))
-
-    def structure: Reflect[F, S] = parent
-
-    def focus: Reflect[F, A] = child.value
-
-    private val register: Register[A] =
-      parent.registers(parent.fields.indexWhere(_.name == child.name)).asInstanceOf[Register[A]]
-
-    def get(s: S)(implicit F: HasBinding[F]): A = {
-      val registers = Registers()
-      F.deconstructor(parent.recordBinding).deconstruct(registers, RegisterOffset.Zero, s)
-      register.get(registers, RegisterOffset.Zero)
-    }
-
-    def set(s: S, a: A)(implicit F: HasBinding[F]): S = {
-      val registers = Registers()
-      F.deconstructor(parent.recordBinding).deconstruct(registers, RegisterOffset.Zero, s)
-      register.set(registers, RegisterOffset.Zero, a)
-      F.constructor(parent.recordBinding).construct(registers, RegisterOffset.Zero)
-    }
-
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = {
-      val registers = Registers()
-      F.deconstructor(parent.recordBinding).deconstruct(registers, RegisterOffset.Zero, s)
-      register.set(registers, RegisterOffset.Zero, f(register.get(registers, RegisterOffset.Zero)))
-      F.constructor(parent.recordBinding).construct(registers, RegisterOffset.Zero)
-    }
-
-    override def refineBinding[G[_, _]](f: RefineBinding[F, G]): Lens[G, S, A] =
-      new Field(parent.refineBinding(f), child.refineBinding(f))
-
-    override def hashCode: Int = parent.hashCode ^ child.hashCode
-
-    override def equals(obj: Any): Boolean = obj match {
-      case other: Field[F, _, _] => other.parent.equals(parent) && other.child.equals(child)
-      case _                     => false
-    }
-
-    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = ArraySeq(this)
+  def apply[F[_, _], S, T, A](first: Lens[F, S, T], second: Lens[F, T, A]): Lens[F, S, A] = {
+    val u1 = first.asInstanceOf[LensImpl[F, S, A]]
+    val u2 = second.asInstanceOf[LensImpl[F, S, A]]
+    new LensImpl(u1.parents ++ u2.parents, u1.childs ++ u2.childs)
   }
 
-  private case class LensLens[F[_, _], S, T, A](first: Lens[F, S, T], second: Lens[F, T, A]) extends Lens[F, S, A] {
-    require((first ne null) && (second ne null))
+  private case class LensImpl[F[_, _], S, A](
+    parents: ArraySeq[Reflect.Record[F, S]],
+    childs: ArraySeq[Term[F, S, A]]
+  ) extends Lens[F, S, A]
+      with Leaf[F, S, A] {
+    private[this] var bindings: Array[(Deconstructor[Any], Constructor[Any], Register[Any], RegisterOffset)] = null
 
-    def structure: Reflect[F, S] = first.structure
+    private[this] def init(implicit F: HasBinding[F]): Unit = {
+      val len           = parents.length
+      val bindings      = new Array[(Deconstructor[Any], Constructor[Any], Register[Any], RegisterOffset)](len)
+      var usedRegisters = RegisterOffset.Zero
+      var i             = 0
+      while (i < len) {
+        val p             = parents(i)
+        val deconstructor = F.deconstructor(p.recordBinding).asInstanceOf[Deconstructor[Any]]
+        val constructor   = F.constructor(p.recordBinding).asInstanceOf[Constructor[Any]]
+        val register = p
+          .registers(p.fields.indexWhere {
+            val childName = childs(i).name
+            x => x.name == childName
+          })
+          .asInstanceOf[Register[Any]]
+        usedRegisters = RegisterOffset.add(usedRegisters, p.usedRegisters)
+        bindings(i) = (deconstructor, constructor, register, usedRegisters)
+        i += 1
+      }
+      this.bindings = bindings
+    }
 
-    def focus: Reflect[F, A] = second.focus
+    override def get(s: S)(implicit F: HasBinding[F]): A = {
+      val registers = Registers()
+      if (this.bindings eq null) init
+      val bindings = this.bindings
+      var offset   = RegisterOffset.Zero
+      var x: Any   = s
+      val len      = bindings.length
+      var i        = 0
+      while (i < len) {
+        val binding = bindings(i)
+        i += 1
+        binding._1.deconstruct(registers, offset, x)
+        x = binding._3.get(registers, offset)
+        offset = binding._4
+      }
+      x.asInstanceOf[A]
+    }
 
-    def get(s: S)(implicit F: HasBinding[F]): A = second.get(first.get(s))
+    override def set(s: S, a: A)(implicit F: HasBinding[F]): S = {
+      val registers = Registers()
+      if (this.bindings eq null) init
+      val bindings = this.bindings
+      var offset   = RegisterOffset.Zero
+      var x: Any   = s
+      val len      = parents.length
+      var i        = 0
+      while (i < len) {
+        val binding = bindings(i)
+        i += 1
+        binding._1.deconstruct(registers, offset, x)
+        if (i < len) {
+          x = binding._3.get(registers, offset)
+          offset = binding._4
+        }
+      }
+      x = a
+      while (i > 0) {
+        i -= 1
+        offset = if (i > 0) bindings(i - 1)._4 else RegisterOffset.Zero
+        val binding = bindings(i)
+        binding._3.set(registers, offset, x)
+        x = binding._2.construct(registers, offset)
+      }
+      x.asInstanceOf[S]
+    }
 
-    def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.modify(s, second.set(_, a))
-
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
+    override def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = {
+      val registers = Registers()
+      if (this.bindings eq null) init
+      val bindings = this.bindings
+      var offset   = RegisterOffset.Zero
+      var x: Any   = s
+      val len      = parents.length
+      var i        = 0
+      while (i < len) {
+        val binding = bindings(i)
+        i += 1
+        binding._1.deconstruct(registers, offset, x)
+        x = binding._3.get(registers, offset)
+        offset = binding._4
+      }
+      x = f(x.asInstanceOf[A])
+      while (i > 0) {
+        i -= 1
+        offset = if (i > 0) bindings(i - 1)._4 else RegisterOffset.Zero
+        val binding = bindings(i)
+        binding._3.set(registers, offset, x)
+        x = binding._2.construct(registers, offset)
+      }
+      x.asInstanceOf[S]
+    }
 
     override def refineBinding[G[_, _]](f: RefineBinding[F, G]): Lens[G, S, A] =
-      new LensLens(first.refineBinding(f), second.refineBinding(f))
+      new LensImpl(parents.map(_.refineBinding(f)), childs.map(_.refineBinding(f)))
 
-    private[schema] lazy val linearized: ArraySeq[Leaf[F, _, _]] = first.linearized ++ second.linearized
+    override def structure: Reflect[F, S] = parents(0)
+
+    override def focus: Reflect[F, A] = childs(childs.length - 1).value
+
+    override def hashCode: Int = parents.hashCode ^ childs.hashCode
+
+    override def equals(obj: Any): Boolean = obj match {
+      case other: LensImpl[F, _, _] => other.parents.equals(parents) && other.childs.equals(childs)
+      case _                        => false
+    }
+
+    override private[schema] def linearized: ArraySeq[Leaf[F, S, A]] = ArraySeq(this)
   }
 }
 
