@@ -312,7 +312,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val s   = "division by zero"
         val zio = ZIO.fail(new IllegalArgumentException(s))
         for {
-          result <- zio.catchAllFailure(e => ZIO.succeed(e.failureOption.get.getMessage))
+          result <- zio.catchFailureCause(e => ZIO.succeed(e.failureOption.get.getMessage))
         } yield assert(result)(equalTo(s))
       },
       test("leaves defects") {
@@ -390,7 +390,7 @@ object ZIOSpec extends ZIOBaseSpec {
       test("catches matching cause") {
         ZIO
           .fail("fail")
-          .catchSomeFailure {
+          .catchSomeFailureCause {
             case c if c.failureOption.get == "fail" => ZIO.succeed(true)
           }
           .sandbox
@@ -401,7 +401,7 @@ object ZIOSpec extends ZIOBaseSpec {
       test("fails if cause doesn't match") {
         ZIO
           .fail("no-match")
-          .catchSomeFailure {
+          .catchSomeFailureCause {
             case c if c.failureOption.get == "fail" => ZIO.succeed(true)
           }
           .sandbox
@@ -412,7 +412,9 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       test("doesn't catch defects") {
         for {
-          result <- (ZIO.attempt(42) *> ZIO.dieMessage("die")).catchSomeFailure { case _ => ZIO.succeed(true) }.exit
+          result <- (ZIO.attempt(42) *> ZIO.dieMessage("die")).catchSomeFailureCause { case _ =>
+                      ZIO.succeed(true)
+                    }.exit
         } yield assert(result)(dies(hasMessage(equalTo("die"))))
       }
     ) @@ zioTag(errors),
@@ -3923,7 +3925,7 @@ object ZIOSpec extends ZIOBaseSpec {
       test("doesn't peek at the defect of this effect") {
         for {
           ref    <- Ref.make(false)
-          result <- (ZIO.attempt(42) *> ZIO.dieMessage("die")).tapFailure(_ => ref.set(true)).exit
+          result <- (ZIO.attempt(42) *> ZIO.dieMessage("die")).tapFailureCause(_ => ref.set(true)).exit
           effect <- ref.get
         } yield assert(result)(dies(hasMessage(equalTo("die")))) &&
           assert(effect)(isFalse)
@@ -3931,7 +3933,7 @@ object ZIOSpec extends ZIOBaseSpec {
       test("effectually peeks at the failure of this effect") {
         for {
           ref    <- Ref.make(false)
-          result <- ZIO.fail("fail").tapFailure(_ => ref.set(true)).exit
+          result <- ZIO.fail("fail").tapFailureCause(_ => ref.set(true)).exit
           effect <- ref.get
         } yield assert(result)(fails(equalTo("fail"))) &&
           assert(effect)(isTrue)

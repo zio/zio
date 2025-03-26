@@ -306,7 +306,7 @@ sealed trait ZIO[-R, +E, +A]
    * '''WARNING''': There is no sensible way to recover from defects. This
    * method should be used only at the boundary between ZIO and an external
    * system, to transmit information on a defect for diagnostic or explanatory
-   * purposes. Consider using `catchAll` or `catchAllFailure` instead.
+   * purposes. Consider using `catchAll` or `catchFailureCause` instead.
    *
    * @see
    *   [[absorb]], [[sandbox]], [[mapErrorCause]] - other functions that can
@@ -343,13 +343,13 @@ sealed trait ZIO[-R, +E, +A]
    * defects, use `catchAllCause` instead.
    *
    * {{{
-   * effect.catchAllFailure(c => ZIO.logErrorCause("failure", c))
+   * effect.catchFailureCause(c => ZIO.logErrorCause("failure", c))
    * }}}
    */
-  final def catchAllFailure[R1 <: R, E1 >: E, A1 >: A](
+  final def catchFailureCause[R1 <: R, E1 >: E, A1 >: A](
     h: Cause[E] => ZIO[R1, E1, A1]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A1] =
-    catchSomeFailure { case t => h(t) }
+    catchSomeFailureCause { case t => h(t) }
 
   /**
    * Recovers from all NonFatal Throwables.
@@ -409,7 +409,7 @@ sealed trait ZIO[-R, +E, +A]
    * '''WARNING''': There is no sensible way to recover from defects. This
    * method should be used only at the boundary between ZIO and an external
    * system, to transmit information on a defect for diagnostic or explanatory
-   * purposes. Consider using `catchSomeFailure` instead.
+   * purposes. Consider using `catchSomeFailureCause` instead.
    */
   final def catchSomeCause[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[Cause[E], ZIO[R1, E1, A1]]
@@ -446,12 +446,12 @@ sealed trait ZIO[-R, +E, +A]
    * defects as well, use `catchSomeCause` or `catchSomeDefect` instead.
    *
    * {{{
-   * effect.catchSomeFailure {
+   * effect.catchSomeFailureCause {
    *   case _: FileNotFoundException => createFile()
    * }
    * }}}
    */
-  final def catchSomeFailure[R1 <: R, E1 >: E, A1 >: A](
+  final def catchSomeFailureCause[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[Cause[E], ZIO[R1, E1, A1]]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A1] = {
     def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
@@ -2154,7 +2154,7 @@ sealed trait ZIO[-R, +E, +A]
    * this effect.
    *
    * This method "peeks" at both the failure and defect of this effect. If you
-   * only need to "peek" at the failure, use `tapFailure` instead.
+   * only need to "peek" at the failure, use `tapFailureCause` instead.
    *
    * {{{
    * readFile("data.json").tapErrorCause(logCause(_))
@@ -2186,7 +2186,7 @@ sealed trait ZIO[-R, +E, +A]
    * readFile("data.json").tapError(logError(_))
    * }}}
    */
-  final def tapFailure[R1 <: R, E1 >: E](
+  final def tapFailureCause[R1 <: R, E1 >: E](
     f: Cause[E] => ZIO[R1, E1, Any]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A] =
     self.foldCauseZIO(
