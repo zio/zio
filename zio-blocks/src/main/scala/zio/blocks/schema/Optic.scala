@@ -127,25 +127,27 @@ object Lens {
     childs: ArraySeq[Term[F, S, A]]
   ) extends Lens[F, S, A]
       with Leaf[F, S, A] {
-    private[this] var bindings: Array[(Deconstructor[Any], Constructor[Any], Register[Any], RegisterOffset)] = null
+    private[this] var bindings: Array[LensBinding] = null
 
     private[this] def init(implicit F: HasBinding[F]): Unit = {
       val len           = parents.length
-      val bindings      = new Array[(Deconstructor[Any], Constructor[Any], Register[Any], RegisterOffset)](len)
+      val bindings      = new Array[LensBinding](len)
       var usedRegisters = RegisterOffset.Zero
       var i             = 0
       while (i < len) {
-        val parent        = parents(i)
-        val deconstructor = F.deconstructor(parent.recordBinding).asInstanceOf[Deconstructor[Any]]
-        val constructor   = F.constructor(parent.recordBinding).asInstanceOf[Constructor[Any]]
-        val register = parent
-          .registers(parent.fields.indexWhere {
-            val childName = childs(i).name
-            x => x.name == childName
-          })
-          .asInstanceOf[Register[Any]]
+        val parent = parents(i)
         usedRegisters = RegisterOffset.add(usedRegisters, parent.usedRegisters)
-        bindings(i) = (deconstructor, constructor, register, usedRegisters)
+        bindings(i) = new LensBinding(
+          deconstructor = F.deconstructor(parent.recordBinding).asInstanceOf[Deconstructor[Any]],
+          constructor = F.constructor(parent.recordBinding).asInstanceOf[Constructor[Any]],
+          register = parent
+            .registers(parent.fields.indexWhere {
+              val childName = childs(i).name
+              x => x.name == childName
+            })
+            .asInstanceOf[Register[Any]],
+          usedRegisters = usedRegisters
+        )
         i += 1
       }
       this.bindings = bindings
@@ -162,9 +164,9 @@ object Lens {
       while (i < len) {
         val binding = bindings(i)
         i += 1
-        binding._1.deconstruct(registers, offset, x)
-        x = binding._3.get(registers, offset)
-        offset = binding._4
+        binding.deconstructor.deconstruct(registers, offset, x)
+        x = binding.register.get(registers, offset)
+        offset = binding.usedRegisters
       }
       x.asInstanceOf[A]
     }
@@ -180,19 +182,19 @@ object Lens {
       while (i < len) {
         val binding = bindings(i)
         i += 1
-        binding._1.deconstruct(registers, offset, x)
+        binding.deconstructor.deconstruct(registers, offset, x)
         if (i < len) {
-          x = binding._3.get(registers, offset)
-          offset = binding._4
+          x = binding.register.get(registers, offset)
+          offset = binding.usedRegisters
         }
       }
       x = a
       while (i > 0) {
         i -= 1
-        offset = if (i > 0) bindings(i - 1)._4 else RegisterOffset.Zero
+        offset = if (i > 0) bindings(i - 1).usedRegisters else RegisterOffset.Zero
         val binding = bindings(i)
-        binding._3.set(registers, offset, x)
-        x = binding._2.construct(registers, offset)
+        binding.register.set(registers, offset, x)
+        x = binding.constructor.construct(registers, offset)
       }
       x.asInstanceOf[S]
     }
@@ -208,17 +210,17 @@ object Lens {
       while (i < len) {
         val binding = bindings(i)
         i += 1
-        binding._1.deconstruct(registers, offset, x)
-        x = binding._3.get(registers, offset)
-        offset = binding._4
+        binding.deconstructor.deconstruct(registers, offset, x)
+        x = binding.register.get(registers, offset)
+        offset = binding.usedRegisters
       }
       x = f(x.asInstanceOf[A])
       while (i > 0) {
         i -= 1
-        offset = if (i > 0) bindings(i - 1)._4 else RegisterOffset.Zero
+        offset = if (i > 0) bindings(i - 1).usedRegisters else RegisterOffset.Zero
         val binding = bindings(i)
-        binding._3.set(registers, offset, x)
-        x = binding._2.construct(registers, offset)
+        binding.register.set(registers, offset, x)
+        x = binding.constructor.construct(registers, offset)
       }
       x.asInstanceOf[S]
     }
@@ -239,6 +241,13 @@ object Lens {
 
     override private[schema] def linearized: ArraySeq[Leaf[F, S, A]] = ArraySeq(this)
   }
+
+  private case class LensBinding(
+    deconstructor: Deconstructor[Any],
+    constructor: Constructor[Any],
+    register: Register[Any],
+    usedRegisters: RegisterOffset
+  )
 }
 
 sealed trait Prism[F[_, _], S, A <: S] extends Optic[F, S, A] {
