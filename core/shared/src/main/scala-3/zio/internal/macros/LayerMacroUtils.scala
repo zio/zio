@@ -108,7 +108,7 @@ private[zio] object LayerMacroUtils {
         }
 
         val remainder = if (inferRemainder) {
-          RemainderMethod.Inferred[TypeRepr]()
+          RemainderMethod.Inferred
         } else {
           RemainderMethod.Provided(getRequirements[R0])
         }
