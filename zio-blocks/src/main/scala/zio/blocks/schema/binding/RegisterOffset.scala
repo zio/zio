@@ -5,32 +5,32 @@ object RegisterOffset {
 
   val Zero: RegisterOffset = 0
 
-  val BooleansShift = 0
-  val BooleansMask  = 0x7f
+  private[this] val BooleansShift = 0
+  private[this] val BooleansMask  = 0x7f
 
-  val BytesShift = 7
-  val BytesMask  = 0x7f
+  private[this] val BytesShift = 7
+  private[this] val BytesMask  = 0x7f
 
-  val ShortsShift = 14
-  val ShortsMask  = 0x7f
+  private[this] val ShortsShift = 14
+  private[this] val ShortsMask  = 0x7f
 
-  val IntsShift = 21
-  val IntsMask  = 0x7f
+  private[this] val IntsShift = 21
+  private[this] val IntsMask  = 0x7f
 
-  val LongsShift = 28
-  val LongsMask  = 0x7f
+  private[this] val LongsShift = 28
+  private[this] val LongsMask  = 0x7f
 
-  val FloatsShift = 35
-  val FloatsMask  = 0x7f
+  private[this] val FloatsShift = 35
+  private[this] val FloatsMask  = 0x7f
 
-  val DoublesShift = 42
-  val DoublesMask  = 0x7f
+  private[this] val DoublesShift = 42
+  private[this] val DoublesMask  = 0x7f
 
-  val CharsShift = 49
-  val CharsMask  = 0x7f
+  private[this] val CharsShift = 49
+  private[this] val CharsMask  = 0x7f
 
-  val ObjectsShift = 56
-  val ObjectsMask  = 0x7f
+  private[this] val ObjectsShift = 56
+  private[this] val ObjectsMask  = 0x7f
 
   def getBooleans(offset: RegisterOffset): Int = ((offset >> BooleansShift) & BooleansMask).toInt
   def getBytes(offset: RegisterOffset): Int    = ((offset >> BytesShift) & BytesMask).toInt
