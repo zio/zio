@@ -319,14 +319,14 @@ object ZIOSpec extends ZIOBaseSpec {
         val t   = new IllegalArgumentException("division by zero")
         val zio = ZIO.attempt(true) *> ZIO.die(t)
         for {
-          exit <- zio.catchAllFailure(e => ZIO.succeed(e.failureOption.get.getMessage)).exit
+          exit <- zio.catchFailureCause(e => ZIO.succeed(e.failureOption.get.getMessage)).exit
         } yield assert(exit)(dies(equalTo(t)))
       },
       test("leaves values") {
         val t   = new IllegalArgumentException("division by zero")
         val zio = ZIO.attempt(t)
         for {
-          result <- zio.catchAllFailure(e => ZIO.succeed(e.failureOption.get.getMessage))
+          result <- zio.catchFailureCause(e => ZIO.succeed(e.failureOption.get.getMessage))
         } yield assert(result)((equalTo(t)))
       }
     ) @@ zioTag(errors),
