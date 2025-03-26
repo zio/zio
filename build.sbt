@@ -35,7 +35,7 @@ addCommandAlias(
 
 addCommandAlias(
   "compileJVM",
-  ";coreTestsJVM/Test/compile;stacktracerJVM/Test/compile;streamsTestsJVM/Test/compile;testTestsJVM/Test/compile;testMagnoliaTestsJVM/Test/compile;testRefinedJVM/Test/compile;testRunnerJVM/Test/compile;examplesJVM/Test/compile;macrosTestsJVM/Test/compile;concurrentJVM/Test/compile;managedTestsJVM/Test/compile"
+  ";coreTestsJVM/Test/compile;stacktracerJVM/Test/compile;streamsTestsJVM/Test/compile;testTestsJVM/Test/compile;testMagnoliaTestsJVM/Test/compile;testRefinedJVM/Test/compile;testRunnerJVM/Test/compile;examplesJVM/Test/compile;macrosTestsJVM/Test/compile;concurrentJVM/Test/compile;managedTestsJVM/Test/compile;taggingTestsJVM/Test/compile"
 )
 addCommandAlias(
   "testNative",
@@ -43,15 +43,15 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test;testRunnerJVM/Test/run;examplesJVM/Test/compile;benchmarks/Test/compile;macrosTestsJVM/test;concurrentJVM/test;managedTestsJVM/test;set ThisBuild/isSnapshot:=true;testJunitRunnerTests/test;testJunitEngineTests/test;reload"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test;testRunnerJVM/Test/run;examplesJVM/Test/compile;benchmarks/Test/compile;macrosTestsJVM/test;concurrentJVM/test;managedTestsJVM/test;taggingTestsJVM/test;set ThisBuild/isSnapshot:=true;testJunitRunnerTests/test;testJunitEngineTests/test;reload"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/Test/compile;testRunnerJVM/Test/run;examplesJVM/Test/compile;concurrentJVM/test;managedTestsJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/Test/compile;testRunnerJVM/Test/run;examplesJVM/Test/compile;concurrentJVM/test;managedTestsJVM/test;taggingTestsJVM/test"
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/Test/compile;macrosTestsJS/test;concurrentJS/test"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/Test/compile;macrosTestsJS/test;concurrentJS/test;taggingTestsJS/test"
 )
 addCommandAlias(
   "mimaChecks",
@@ -73,7 +73,9 @@ lazy val projectsCommon = List(
   streamsTests,
   tests,
   testRunner,
-  testTests
+  testTests,
+  tagging,
+  taggingTests
 )
 
 lazy val rootJVM = project.in(file("target/rootJVM")).settings(publish / skip := true).aggregate(rootJVM213)
@@ -374,6 +376,22 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     }
   )
   .nativeSettings(nativeSettings)
+
+lazy val tagging = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+  .in(file("tagging"))
+  .dependsOn(core, testRunner % Test)
+  .settings(stdSettings("tagging"))
+  .settings(crossScalaVersions := Seq(Scala213))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(macroDefinitionSettings)
+  .settings(macroExpansionSettings)
+
+lazy val taggingTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+  .in(file("tagging-tests"))
+  .dependsOn(tagging, testRunner)
+  .settings(stdSettings("tagging-tests"))
+  .settings(crossScalaVersions := Seq(Scala213))
+  .enablePlugins(BuildInfoPlugin)
 
 lazy val tests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test"))
