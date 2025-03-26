@@ -610,7 +610,6 @@ lazy val testJunitEngineTests = project.module
   )
 
 lazy val zioBlocks = crossProject(JSPlatform, JVMPlatform, NativePlatform)
-  .crossType(CrossType.Pure)
   .in(file("zio-blocks"))
   .dependsOn(testRunner % Test)
   .settings(stdSettings("zio-blocks"))
@@ -621,6 +620,7 @@ lazy val zioBlocks = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .jsSettings(jsSettings)
   .nativeSettings(nativeSettings)
   .settings(
+    compileOrder := CompileOrder.JavaThenScala,
     scalacOptions += "-Wconf:msg=[@nowarn annotation does not suppress any warnings]:silent",
     scalacOptions ++= (if (scalaVersion.value == Scala3) Seq("-explain") else Nil),
     crossScalaVersions -= Scala212
