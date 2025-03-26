@@ -64,11 +64,11 @@ final case class LayerBuilder[Type, Expr](
 ) {
 
   lazy val target =
-    if (method.isProvideSomeShared) target0.filterNot(t1 => remainder.getProvidedTypes.exists(t2 => typeEquals(t1, t2)))
+    if (method.isProvideSomeShared) target0.filterNot(t1 => remainder.providedTypes.exists(t2 => typeEquals(t1, t2)))
     else target0
 
   private lazy val remainderNodes: List[Node[Type, Expr]] =
-    remainder.getProvidedTypes.map(typeToNode).distinct
+    remainder.providedTypes.map(typeToNode).distinct
 
   private val (providedLayers, maybeDebug): (List[Expr], Option[ZLayer.Debug]) = {
     val maybeDebug = providedLayers0.collectFirst(layerToDebug)
@@ -84,7 +84,7 @@ final case class LayerBuilder[Type, Expr](
 
     val remainderTypeFactory = remainder match {
       case RemainderMethod.Provided(_) => (_: Type) => None
-      case RemainderMethod.Inferred()  => (t: Type) => Some(typeToNode(t))
+      case RemainderMethod.Inferred    => (t: Type) => Some(typeToNode(t))
     }
 
     /**
@@ -391,14 +391,14 @@ object ProvideMethod {
   case object ProvideCustom     extends ProvideMethod
 }
 
-sealed trait RemainderMethod[T] extends Product with Serializable {
-  def getProvidedTypes: List[T] = this match {
-    case RemainderMethod.Provided(providedTypes) => providedTypes
-    case RemainderMethod.Inferred()              => List.empty
+sealed trait RemainderMethod[+T] extends Product with Serializable {
+  final def providedTypes: List[T] = this match {
+    case RemainderMethod.Provided(types) => types
+    case RemainderMethod.Inferred        => List.empty
   }
 }
 
 object RemainderMethod {
-  case class Provided[T](providedTypes: List[T]) extends RemainderMethod[T]
-  case class Inferred[T]()                       extends RemainderMethod[T]
+  case class Provided[T](types: List[T]) extends RemainderMethod[T]
+  case object Inferred                   extends RemainderMethod[Nothing]
 }
