@@ -1,5 +1,7 @@
 package zio.blocks.schema.binding
 
+import java.util
+
 /**
  * Temporary storage to be used during encoding and decoding for schema-based
  * data structures. These are mutable and should be cached with thread locals,
@@ -8,176 +10,113 @@ package zio.blocks.schema.binding
 class Registers private {
   import RegisterOffset.RegisterOffset
 
-  private var booleans: Array[Boolean] = new Array[Boolean](8)
-  private var bytes: Array[Byte]       = new Array[Byte](8)
-  private var shorts: Array[Short]     = new Array[Short](8)
-  private var ints: Array[Int]         = new Array[Int](8)
-  private var longs: Array[Long]       = new Array[Long](8)
-  private var floats: Array[Float]     = new Array[Float](8)
-  private var doubles: Array[Double]   = new Array[Double](8)
-  private var chars: Array[Char]       = new Array[Char](8)
-  private var objects: Array[AnyRef]   = new Array[AnyRef](8)
+  private[this] var booleans: Array[Boolean] = new Array[Boolean](4)
+  private[this] var bytes: Array[Byte]       = new Array[Byte](4)
+  private[this] var shorts: Array[Short]     = new Array[Short](4)
+  private[this] var ints: Array[Int]         = new Array[Int](4)
+  private[this] var longs: Array[Long]       = new Array[Long](4)
+  private[this] var floats: Array[Float]     = new Array[Float](4)
+  private[this] var doubles: Array[Double]   = new Array[Double](4)
+  private[this] var chars: Array[Char]       = new Array[Char](4)
+  private[this] var objects: Array[AnyRef]   = new Array[AnyRef](4)
 
-  private def ensureBooleanSize(absoluteIndex: Int): Unit =
-    if (absoluteIndex >= booleans.length) {
-      val newBooleans = new Array[Boolean](booleans.length * 2)
-      System.arraycopy(booleans, 0, newBooleans, 0, booleans.length)
-      booleans = newBooleans
-    }
+  def getBoolean(baseOffset: RegisterOffset, relativeIndex: Int): Boolean =
+    booleans(RegisterOffset.getBooleans(baseOffset) + relativeIndex)
 
-  private def ensureByteSize(absoluteIndex: Int): Unit =
-    if (absoluteIndex >= bytes.length) {
-      val newBytes = new Array[Byte](bytes.length * 2)
-      System.arraycopy(bytes, 0, newBytes, 0, bytes.length)
-      bytes = newBytes
-    }
+  def getByte(baseOffset: RegisterOffset, relativeIndex: Int): Byte =
+    bytes(RegisterOffset.getBytes(baseOffset) + relativeIndex)
 
-  private def ensureShortSize(absoluteIndex: Int): Unit =
-    if (absoluteIndex >= shorts.length) {
-      val newShorts = new Array[Short](shorts.length * 2)
-      System.arraycopy(shorts, 0, newShorts, 0, shorts.length)
-      shorts = newShorts
-    }
+  def getShort(baseOffset: RegisterOffset, relativeIndex: Int): Short =
+    shorts(RegisterOffset.getShorts(baseOffset) + relativeIndex)
 
-  private def ensureIntSize(absoluteIndex: Int): Unit =
-    if (absoluteIndex >= ints.length) {
-      val newInts = new Array[Int](ints.length * 2)
-      System.arraycopy(ints, 0, newInts, 0, ints.length)
-      ints = newInts
-    }
+  def getInt(baseOffset: RegisterOffset, relativeIndex: Int): Int =
+    ints(RegisterOffset.getInts(baseOffset) + relativeIndex)
 
-  private def ensureLongSize(absoluteIndex: Int): Unit =
-    if (absoluteIndex >= longs.length) {
-      val newLongs = new Array[Long](longs.length * 2)
-      System.arraycopy(longs, 0, newLongs, 0, longs.length)
-      longs = newLongs
-    }
+  def getLong(baseOffset: RegisterOffset, relativeIndex: Int): Long =
+    longs(RegisterOffset.getLongs(baseOffset) + relativeIndex)
 
-  private def ensureFloatSize(absoluteIndex: Int): Unit =
-    if (absoluteIndex >= floats.length) {
-      val newFloats = new Array[Float](floats.length * 2)
-      System.arraycopy(floats, 0, newFloats, 0, floats.length)
-      floats = newFloats
-    }
+  def getFloat(baseOffset: RegisterOffset, relativeIndex: Int): Float =
+    floats(RegisterOffset.getFloats(baseOffset) + relativeIndex)
 
-  private def ensureDoubleSize(absoluteIndex: Int): Unit =
-    if (absoluteIndex >= doubles.length) {
-      val newDoubles = new Array[Double](doubles.length * 2)
-      System.arraycopy(doubles, 0, newDoubles, 0, doubles.length)
-      doubles = newDoubles
-    }
+  def getDouble(baseOffset: RegisterOffset, relativeIndex: Int): Double =
+    doubles(RegisterOffset.getDoubles(baseOffset) + relativeIndex)
 
-  private def ensureCharSize(absoluteIndex: Int): Unit =
-    if (absoluteIndex >= chars.length) {
-      val newChars = new Array[Char](chars.length * 2)
-      System.arraycopy(chars, 0, newChars, 0, chars.length)
-      chars = newChars
-    }
+  def getChar(baseOffset: RegisterOffset, relativeIndex: Int): Char =
+    chars(RegisterOffset.getChars(baseOffset) + relativeIndex)
 
-  private def ensureObjectSize(absoluteIndex: Int): Unit =
-    if (absoluteIndex >= objects.length) {
-      val newObjects = new Array[AnyRef](objects.length * 2)
-      System.arraycopy(objects, 0, newObjects, 0, objects.length)
-      objects = newObjects
-    }
-
-  def getBoolean(baseOffset: RegisterOffset, relativeIndex: Int): Boolean = {
-    val offset = RegisterOffset.getBooleans(baseOffset) + relativeIndex
-    booleans(offset)
-  }
-
-  def getByte(baseOffset: RegisterOffset, relativeIndex: Int): Byte = {
-    val offset = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    bytes(offset)
-  }
-
-  def getShort(baseOffset: RegisterOffset, relativeIndex: Int): Short = {
-    val offset = RegisterOffset.getShorts(baseOffset) + relativeIndex
-    shorts(offset)
-  }
-
-  def getInt(baseOffset: RegisterOffset, relativeIndex: Int): Int = {
-    val offset = RegisterOffset.getInts(baseOffset) + relativeIndex
-    ints(offset)
-  }
-
-  def getLong(baseOffset: RegisterOffset, relativeIndex: Int): Long = {
-    val offset = RegisterOffset.getLongs(baseOffset) + relativeIndex
-    longs(offset)
-  }
-
-  def getFloat(baseOffset: RegisterOffset, relativeIndex: Int): Float = {
-    val offset = RegisterOffset.getFloats(baseOffset) + relativeIndex
-    floats(offset)
-  }
-
-  def getDouble(baseOffset: RegisterOffset, relativeIndex: Int): Double = {
-    val offset = RegisterOffset.getDoubles(baseOffset) + relativeIndex
-    doubles(offset)
-  }
-
-  def getChar(baseOffset: RegisterOffset, relativeIndex: Int): Char = {
-    val offset = RegisterOffset.getChars(baseOffset) + relativeIndex
-    chars(offset)
-  }
-
-  def getObject(baseOffset: RegisterOffset, relativeIndex: Int): AnyRef = {
-    val offset = RegisterOffset.getObjects(baseOffset) + relativeIndex
-    objects(offset)
-  }
+  def getObject(baseOffset: RegisterOffset, relativeIndex: Int): AnyRef =
+    objects(RegisterOffset.getObjects(baseOffset) + relativeIndex)
 
   def setBoolean(baseOffset: RegisterOffset, relativeIndex: Int, value: Boolean): Unit = {
-    val offset = RegisterOffset.getBooleans(baseOffset) + relativeIndex
-    ensureBooleanSize(offset)
-    booleans(offset) = value
+    val absoluteIndex = RegisterOffset.getBooleans(baseOffset) + relativeIndex
+    if (absoluteIndex >= booleans.length) {
+      booleans = util.Arrays.copyOf(booleans, Math.max(booleans.length << 1, absoluteIndex + 1))
+    }
+    booleans(absoluteIndex) = value
   }
 
   def setByte(baseOffset: RegisterOffset, relativeIndex: Int, value: Byte): Unit = {
-    val offset = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    ensureByteSize(offset)
-    bytes(offset) = value
+    val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
+    if (absoluteIndex >= bytes.length) {
+      bytes = util.Arrays.copyOf(bytes, Math.max(bytes.length << 1, absoluteIndex + 1))
+    }
+    bytes(absoluteIndex) = value
   }
 
   def setShort(baseOffset: RegisterOffset, relativeIndex: Int, value: Short): Unit = {
-    val offset = RegisterOffset.getShorts(baseOffset) + relativeIndex
-    ensureShortSize(offset)
-    shorts(offset) = value
+    val absoluteIndex = RegisterOffset.getShorts(baseOffset) + relativeIndex
+    if (absoluteIndex >= shorts.length) {
+      shorts = util.Arrays.copyOf(shorts, Math.max(shorts.length << 1, absoluteIndex + 1))
+    }
+    shorts(absoluteIndex) = value
   }
 
   def setInt(baseOffset: RegisterOffset, relativeIndex: Int, value: Int): Unit = {
-    val offset = RegisterOffset.getInts(baseOffset) + relativeIndex
-    ensureIntSize(offset)
-    ints(offset) = value
+    val absoluteIndex = RegisterOffset.getInts(baseOffset) + relativeIndex
+    if (absoluteIndex >= ints.length) {
+      ints = util.Arrays.copyOf(ints, Math.max(ints.length << 1, absoluteIndex + 1))
+    }
+    ints(absoluteIndex) = value
   }
 
   def setLong(baseOffset: RegisterOffset, relativeIndex: Int, value: Long): Unit = {
-    val offset = RegisterOffset.getLongs(baseOffset) + relativeIndex
-    ensureLongSize(offset)
-    longs(offset) = value
+    val absoluteIndex = RegisterOffset.getLongs(baseOffset) + relativeIndex
+    if (absoluteIndex >= longs.length) {
+      longs = util.Arrays.copyOf(longs, Math.max(longs.length << 1, absoluteIndex + 1))
+    }
+    longs(absoluteIndex) = value
   }
 
   def setFloat(baseOffset: RegisterOffset, relativeIndex: Int, value: Float): Unit = {
-    val offset = RegisterOffset.getFloats(baseOffset) + relativeIndex
-    ensureFloatSize(offset)
-    floats(offset) = value
+    val absoluteIndex = RegisterOffset.getFloats(baseOffset) + relativeIndex
+    if (absoluteIndex >= floats.length) {
+      floats = util.Arrays.copyOf(floats, Math.max(floats.length << 1, absoluteIndex + 1))
+    }
+    floats(absoluteIndex) = value
   }
 
   def setDouble(baseOffset: RegisterOffset, relativeIndex: Int, value: Double): Unit = {
-    val offset = RegisterOffset.getDoubles(baseOffset) + relativeIndex
-    ensureDoubleSize(offset)
-    doubles(offset) = value
+    val absoluteIndex = RegisterOffset.getDoubles(baseOffset) + relativeIndex
+    if (absoluteIndex >= doubles.length) {
+      doubles = util.Arrays.copyOf(doubles, Math.max(doubles.length << 1, absoluteIndex + 1))
+    }
+    doubles(absoluteIndex) = value
   }
 
   def setChar(baseOffset: RegisterOffset, relativeIndex: Int, value: Char): Unit = {
-    val offset = RegisterOffset.getChars(baseOffset) + relativeIndex
-    ensureCharSize(offset)
-    chars(offset) = value
+    val absoluteIndex = RegisterOffset.getChars(baseOffset) + relativeIndex
+    if (absoluteIndex >= chars.length) {
+      chars = util.Arrays.copyOf(chars, Math.max(chars.length << 1, absoluteIndex + 1))
+    }
+    chars(absoluteIndex) = value
   }
 
   def setObject(baseOffset: RegisterOffset, relativeIndex: Int, value: AnyRef): Unit = {
-    val offset = RegisterOffset.getObjects(baseOffset) + relativeIndex
-    ensureObjectSize(offset)
-    objects(offset) = value
+    val absoluteIndex = RegisterOffset.getObjects(baseOffset) + relativeIndex
+    if (absoluteIndex >= objects.length) {
+      objects = util.Arrays.copyOf(objects, Math.max(objects.length << 1, absoluteIndex + 1))
+    }
+    objects(absoluteIndex) = value
   }
 }
 object Registers {
