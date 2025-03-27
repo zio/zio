@@ -544,13 +544,22 @@ object OpticSpec extends ZIOSpecDefault {
         },
         matchers = Matchers(
           new Matcher[Case1] {
-            override def unsafeDowncast(a: Any): Case1 = a.asInstanceOf[Case1]
+            override def unsafeDowncast(a: Any): Case1 = a match {
+              case x: Case1 => x
+              case _        => throw new IllegalArgumentException("Expected Case1")
+            }
           },
           new Matcher[Case2] {
-            override def unsafeDowncast(a: Any): Case2 = a.asInstanceOf[Case2]
+            override def unsafeDowncast(a: Any): Case2 = a match {
+              case x: Case2 => x
+              case _        => throw new IllegalArgumentException("Expected Case2")
+            }
           },
           new Matcher[Variant2] {
-            override def unsafeDowncast(a: Any): Variant2 = a.asInstanceOf[Variant2]
+            override def unsafeDowncast(a: Any): Variant2 = a match {
+              case x: Variant2 => x
+              case _           => throw new IllegalArgumentException("Expected Variant2")
+            }
           }
         )
       ),
@@ -650,10 +659,16 @@ object OpticSpec extends ZIOSpecDefault {
         },
         matchers = Matchers(
           new Matcher[Case3] {
-            override def unsafeDowncast(a: Any): Case3 = a.asInstanceOf[Case3]
+            override def unsafeDowncast(a: Any): Case3 = a match {
+              case x: Case3 => x
+              case _        => throw new IllegalArgumentException("Expected Case3")
+            }
           },
           new Matcher[Case4] {
-            override def unsafeDowncast(a: Any): Case4 = a.asInstanceOf[Case4]
+            override def unsafeDowncast(a: Any): Case4 = a match {
+              case x: Case4 => x
+              case _        => throw new IllegalArgumentException("Expected Case4")
+            }
           }
         )
       ),
@@ -754,10 +769,16 @@ object OpticSpec extends ZIOSpecDefault {
         },
         matchers = Matchers(
           new Matcher[Case5] {
-            override def unsafeDowncast(a: Any): Case5 = a.asInstanceOf[Case5]
+            override def unsafeDowncast(a: Any): Case5 = a match {
+              case x: Case5 => x
+              case _        => throw new IllegalArgumentException("Expected Case5")
+            }
           },
           new Matcher[Case6] {
-            override def unsafeDowncast(a: Any): Case6 = a.asInstanceOf[Case6]
+            override def unsafeDowncast(a: Any): Case6 = a match {
+              case x: Case6 => x
+              case _        => throw new IllegalArgumentException("Expected Case6")
+            }
           }
         )
       ),
