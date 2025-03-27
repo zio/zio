@@ -4,7 +4,7 @@
   "scripts": {
     "docusaurus": "docusaurus",
     "start": "docusaurus generate-sidebar; docusaurus start",
-    "build": "docusaurus generate-sidebar; docusaurus build",
+    "build": "docusaurus generate-sidebar; USE_SIMPLE_CSS_MINIFIER=true docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus generate-sidebar; docusaurus deploy",
     "serve": "docusaurus generate-sidebar; docusaurus serve",
