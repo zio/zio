@@ -1057,7 +1057,7 @@ object Traversal {
     def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
       first.fold[Z](s)(zero, (z, t) => second.fold(t)(z, f))
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, t => second.modify(t, f))
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new TraversalTraversal(first.refineBinding(f), second.refineBinding(f))
@@ -1076,7 +1076,7 @@ object Traversal {
     def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
       first.fold(s)(zero, (z, t) => f(z, second.get(t)))
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, t => second.set(t, f(second.get(t))))
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new TraversalLens(first.refineBinding(f), second.refineBinding(f))
@@ -1095,8 +1095,14 @@ object Traversal {
     def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
       first.fold[Z](s)(zero, (z, t) => second.getOption(t).map(a => f(z, a)).getOrElse(z))
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S =
-      first.modify(s, t => second.getOption(t).map(a => second.reverseGet(f(a))).getOrElse(t))
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(
+      s,
+      t =>
+        second.getOption(t) match {
+          case Some(a) => second.reverseGet(f(a))
+          case _       => t
+        }
+    )
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new TraversalPrism(first.refineBinding(f), second.refineBinding(f))
@@ -1115,8 +1121,7 @@ object Traversal {
     def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
       first.fold[Z](s)(zero, (z, t) => second.getOption(t).map(a => f(z, a)).getOrElse(z))
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S =
-      first.modify(s, t => second.getOption(t).map(a => second.set(t, f(a))).getOrElse(t))
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new TraversalOptional(first.refineBinding(f), second.refineBinding(f))
@@ -1134,7 +1139,7 @@ object Traversal {
 
     def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z = second.fold(first.get(s))(zero, f)
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.set(s, second.modify(first.get(s), f))
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new LensTraversal(first.refineBinding(f), second.refineBinding(f))
@@ -1153,8 +1158,10 @@ object Traversal {
     def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
       first.getOption(s).map(t => second.fold(t)(zero, f)).getOrElse(zero)
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S =
-      first.getOption(s).map(t => first.reverseGet(second.modify(t, f))).getOrElse(s)
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
+      case Some(t) => first.reverseGet(second.modify(t, f))
+      case _       => s
+    }
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new PrismTraversal(first.refineBinding(f), second.refineBinding(f))
@@ -1173,8 +1180,7 @@ object Traversal {
     def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
       first.getOption(s).map(t => second.fold(t)(zero, f)).getOrElse(zero)
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S =
-      first.getOption(s).map(t => first.set(s, second.modify(t, f))).getOrElse(s)
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new OptionalTraversal(first.refineBinding(f), second.refineBinding(f))
