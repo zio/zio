@@ -226,6 +226,52 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Variant2.c3_v1.set(Case3(Case1(0.1)), Case1(0.2)))(equalTo(Case3(Case1(0.2)))) &&
         assert(Case3.v1_c1_d.set(Case3(Case1(0.1)), 0.2))(equalTo(Case3(Case1(0.2)))) &&
         assert(Case3.v1_c1.set(Case3(Case1(0.1)), Case1(0.2)))(equalTo(Case3(Case1(0.2))))
+      },
+      test("doesn't set a focus value if it's not possible") {
+        assert(Variant1.c2_r3_r1.set(Case3(Case1(0.1)), Record1(false, 0.2f)))(equalTo(Case3(Case1(0.1)))) &&
+        assert(Variant2.c3_v1_c1_left.set(Case4(Nil), Case1(0.2)))(equalTo(Case4(Nil))) &&
+        assert(Variant2.c3_v1_c1_right.set(Case4(Nil), Case1(0.2)))(equalTo(Case4(Nil))) &&
+        assert(Variant2.c3_v1_c1_d_right.set(Case4(Nil), 0.2))(equalTo(Case4(Nil))) &&
+        assert(Variant2.c3_v1.set(Case4(Nil), Case1(0.2)))(equalTo(Case4(Nil))) &&
+        assert(Case3.v1_c1_d.set(Case3(Case4(Nil)), 0.2))(equalTo(Case3(Case4(Nil))))
+      },
+      test("optionally sets a focus value") {
+        assert(Variant1.c2_r3_r1.setOption(Case2(Record3(Record1(true, 0.1f), null, null)), Record1(false, 0.2f)))(
+          equalTo(Some(Case2(Record3(Record1(false, 0.2f), null, null))))
+        ) &&
+        assert(Variant2.c3_v1_c1_left.setOption(Case3(Case1(0.1)), Case1(0.2)))(equalTo(Some(Case3(Case1(0.2))))) &&
+        assert(Variant2.c3_v1_c1_right.setOption(Case3(Case1(0.1)), Case1(0.2)))(equalTo(Some(Case3(Case1(0.2))))) &&
+        assert(Variant2.c3_v1_c1_d_right.setOption(Case3(Case1(0.1)), 0.2))(equalTo(Some(Case3(Case1(0.2))))) &&
+        assert(Variant2.c3_v1.setOption(Case3(Case1(0.1)), Case1(0.2)))(equalTo(Some(Case3(Case1(0.2))))) &&
+        assert(Case3.v1_c1_d.setOption(Case3(Case1(0.1)), 0.2))(equalTo(Some(Case3(Case1(0.2))))) &&
+        assert(Case3.v1_c1.setOption(Case3(Case1(0.1)), Case1(0.2)))(equalTo(Some(Case3(Case1(0.2)))))
+      },
+      test("optionally doesn't set a focus value if it's not possible") {
+        assert(Variant1.c2_r3_r1.setOption(Case3(Case1(0.1)), Record1(false, 0.2f)))(equalTo(None)) &&
+        assert(Variant2.c3_v1_c1_left.setOption(Case4(Nil), Case1(0.2)))(equalTo(None)) &&
+        assert(Variant2.c3_v1_c1_right.setOption(Case4(Nil), Case1(0.2)))(equalTo(None)) &&
+        assert(Variant2.c3_v1_c1_d_right.setOption(Case4(Nil), 0.2))(equalTo(None)) &&
+        assert(Variant2.c3_v1.setOption(Case4(Nil), Case1(0.2)))(equalTo(None)) &&
+        assert(Case3.v1_c1_d.setOption(Case3(Case4(Nil)), 0.2))(equalTo(None))
+      },
+      test("modifies a focus value") {
+        assert(Variant1.c2_r3_r1.modify(Case2(Record3(Record1(true, 0.1f), null, null)), _ => Record1(false, 0.2f)))(
+          equalTo(Case2(Record3(Record1(false, 0.2f), null, null)))
+        ) &&
+        assert(Variant2.c3_v1_c1_left.modify(Case3(Case1(0.1)), _ => Case1(0.2)))(equalTo(Case3(Case1(0.2)))) &&
+        assert(Variant2.c3_v1_c1_right.modify(Case3(Case1(0.1)), _ => Case1(0.2)))(equalTo(Case3(Case1(0.2)))) &&
+        assert(Variant2.c3_v1_c1_d_right.modify(Case3(Case1(0.1)), _ => 0.2))(equalTo(Case3(Case1(0.2)))) &&
+        assert(Variant2.c3_v1.modify(Case3(Case1(0.1)), _ => Case1(0.2)))(equalTo(Case3(Case1(0.2)))) &&
+        assert(Case3.v1_c1_d.modify(Case3(Case1(0.1)), _ => 0.2))(equalTo(Case3(Case1(0.2)))) &&
+        assert(Case3.v1_c1.modify(Case3(Case1(0.1)), _ => Case1(0.2)))(equalTo(Case3(Case1(0.2))))
+      },
+      test("doesn't modify a focus value if it's not possible") {
+        assert(Variant1.c2_r3_r1.modify(Case3(Case1(0.1)), _ => Record1(false, 0.2f)))(equalTo(Case3(Case1(0.1)))) &&
+        assert(Variant2.c3_v1_c1_left.modify(Case4(Nil), _ => Case1(0.2)))(equalTo(Case4(Nil))) &&
+        assert(Variant2.c3_v1_c1_right.modify(Case4(Nil), _ => Case1(0.2)))(equalTo(Case4(Nil))) &&
+        assert(Variant2.c3_v1_c1_d_right.modify(Case4(Nil), _ => 0.2))(equalTo(Case4(Nil))) &&
+        assert(Variant2.c3_v1.modify(Case4(Nil), _ => Case1(0.2)))(equalTo(Case4(Nil))) &&
+        assert(Case3.v1_c1_d.modify(Case3(Case4(Nil)), _ => 0.2))(equalTo(Case3(Case4(Nil))))
       }
     ),
     suite("Traversal")(
@@ -498,13 +544,22 @@ object OpticSpec extends ZIOSpecDefault {
         },
         matchers = Matchers(
           new Matcher[Case1] {
-            override def unsafeDowncast(a: Any): Case1 = a.asInstanceOf[Case1]
+            override def unsafeDowncast(a: Any): Case1 = a match {
+              case x: Case1 => x
+              case _        => throw new IllegalArgumentException("Expected Case1")
+            }
           },
           new Matcher[Case2] {
-            override def unsafeDowncast(a: Any): Case2 = a.asInstanceOf[Case2]
+            override def unsafeDowncast(a: Any): Case2 = a match {
+              case x: Case2 => x
+              case _        => throw new IllegalArgumentException("Expected Case2")
+            }
           },
           new Matcher[Variant2] {
-            override def unsafeDowncast(a: Any): Variant2 = a.asInstanceOf[Variant2]
+            override def unsafeDowncast(a: Any): Variant2 = a match {
+              case x: Variant2 => x
+              case _           => throw new IllegalArgumentException("Expected Variant2")
+            }
           }
         )
       ),
@@ -604,10 +659,16 @@ object OpticSpec extends ZIOSpecDefault {
         },
         matchers = Matchers(
           new Matcher[Case3] {
-            override def unsafeDowncast(a: Any): Case3 = a.asInstanceOf[Case3]
+            override def unsafeDowncast(a: Any): Case3 = a match {
+              case x: Case3 => x
+              case _        => throw new IllegalArgumentException("Expected Case3")
+            }
           },
           new Matcher[Case4] {
-            override def unsafeDowncast(a: Any): Case4 = a.asInstanceOf[Case4]
+            override def unsafeDowncast(a: Any): Case4 = a match {
+              case x: Case4 => x
+              case _        => throw new IllegalArgumentException("Expected Case4")
+            }
           }
         )
       ),
@@ -708,10 +769,16 @@ object OpticSpec extends ZIOSpecDefault {
         },
         matchers = Matchers(
           new Matcher[Case5] {
-            override def unsafeDowncast(a: Any): Case5 = a.asInstanceOf[Case5]
+            override def unsafeDowncast(a: Any): Case5 = a match {
+              case x: Case5 => x
+              case _        => throw new IllegalArgumentException("Expected Case5")
+            }
           },
           new Matcher[Case6] {
-            override def unsafeDowncast(a: Any): Case6 = a.asInstanceOf[Case6]
+            override def unsafeDowncast(a: Any): Case6 = a match {
+              case x: Case6 => x
+              case _        => throw new IllegalArgumentException("Expected Case6")
+            }
           }
         )
       ),

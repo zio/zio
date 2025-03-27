@@ -324,6 +324,10 @@ sealed trait Optional[F[_, _], S, A] extends Optic[F, S, A] {
 
   def set(s: S, a: A)(implicit F: HasBinding[F]): S
 
+  def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S]
+
+  def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S
+
   // Compose this optional with a lens:
   override def apply[B](that: Lens[F, A, B]): Optional[F, S, B] = Optional(this, that)
 
@@ -377,6 +381,17 @@ object Optional {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.set(s, second.reverseGet(a))
 
+    def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S] = new Some(first.set(s, second.reverseGet(a)))
+
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(
+      s,
+      t =>
+        second.getOption(t) match {
+          case Some(a) => second.reverseGet(f(a))
+          case _       => t
+        }
+    )
+
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new LensPrism(first.refineBinding(f), second.refineBinding(f))
 
@@ -393,7 +408,14 @@ object Optional {
 
     def getOption(s: S)(implicit F: HasBinding[F]): Option[A] = second.getOption(first.get(s))
 
-    def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.set(s, second.set(first.get(s), a))
+    def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.modify(s, second.set(_, a))
+
+    def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S] = second.setOption(first.get(s), a) match {
+      case Some(t) => new Some(first.set(s, t))
+      case _       => None
+    }
+
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new LensOptional(first.refineBinding(f), second.refineBinding(f))
@@ -411,7 +433,20 @@ object Optional {
 
     def getOption(s: S)(implicit F: HasBinding[F]): Option[A] = first.getOption(s).map(second.get)
 
-    def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.reverseGet(second.set(first.getOption(s).get, a))
+    def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
+      case Some(x) => first.reverseGet(second.set(x, a))
+      case _       => s
+    }
+
+    def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S] = first.getOption(s) match {
+      case Some(x) => new Some(first.reverseGet(second.set(x, a)))
+      case _       => None
+    }
+
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
+      case Some(x) => first.reverseGet(second.modify(x, f))
+      case _       => s
+    }
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new PrismLens(first.refineBinding(f), second.refineBinding(f))
@@ -429,7 +464,20 @@ object Optional {
 
     def getOption(s: S)(implicit F: HasBinding[F]): Option[A] = first.getOption(s).flatMap(second.getOption)
 
-    def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.reverseGet(second.set(first.getOption(s).get, a))
+    def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
+      case Some(x) => first.reverseGet(second.set(x, a))
+      case _       => s
+    }
+
+    def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S] = first.getOption(s) match {
+      case Some(x) => new Some(first.reverseGet(second.set(x, a)))
+      case _       => None
+    }
+
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
+      case Some(x) => first.reverseGet(second.modify(x, f))
+      case _       => s
+    }
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new PrismOptional(first.refineBinding(f), second.refineBinding(f))
@@ -447,7 +495,20 @@ object Optional {
 
     def getOption(s: S)(implicit F: HasBinding[F]): Option[A] = first.getOption(s).map(second.get)
 
-    def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.set(s, second.set(first.getOption(s).get, a))
+    def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
+      case Some(x) => first.set(s, second.set(x, a))
+      case _       => s
+    }
+
+    def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S] = first.getOption(s) match {
+      case Some(x) => new Some(first.set(s, second.set(x, a)))
+      case _       => None
+    }
+
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
+      case Some(x) => first.set(s, second.modify(x, f))
+      case _       => s
+    }
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new OptionalLens(first.refineBinding(f), second.refineBinding(f))
@@ -467,6 +528,19 @@ object Optional {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.set(s, second.reverseGet(a))
 
+    def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S] =
+      if (first.getOption(s) ne None) new Some(first.set(s, second.reverseGet(a)))
+      else None
+
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(
+      s,
+      t =>
+        second.getOption(t) match {
+          case Some(a) => second.reverseGet(f(a))
+          case _       => t
+        }
+    )
+
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new OptionalPrism(first.refineBinding(f), second.refineBinding(f))
 
@@ -483,7 +557,20 @@ object Optional {
 
     def getOption(s: S)(implicit F: HasBinding[F]): Option[A] = first.getOption(s).flatMap(second.getOption)
 
-    def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.set(s, second.set(first.getOption(s).get, a))
+    def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
+      case Some(x) => first.set(s, second.set(x, a))
+      case _       => s
+    }
+
+    def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S] = first.getOption(s) match {
+      case Some(x) => new Some(first.set(s, second.set(x, a)))
+      case _       => None
+    }
+
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
+      case Some(x) => first.set(s, second.modify(x, f))
+      case _       => s
+    }
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new OptionalOptional(first.refineBinding(f), second.refineBinding(f))
@@ -970,7 +1057,7 @@ object Traversal {
     def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
       first.fold[Z](s)(zero, (z, t) => second.fold(t)(z, f))
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, t => second.modify(t, f))
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new TraversalTraversal(first.refineBinding(f), second.refineBinding(f))
@@ -989,7 +1076,7 @@ object Traversal {
     def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
       first.fold(s)(zero, (z, t) => f(z, second.get(t)))
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, t => second.set(t, f(second.get(t))))
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new TraversalLens(first.refineBinding(f), second.refineBinding(f))
@@ -1005,11 +1092,23 @@ object Traversal {
 
     def focus: Reflect[F, A] = second.focus
 
-    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
-      first.fold[Z](s)(zero, (z, t) => second.getOption(t).map(a => f(z, a)).getOrElse(z))
+    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z = first.fold[Z](s)(
+      zero,
+      (z, t) =>
+        second.getOption(t) match {
+          case Some(a) => f(z, a)
+          case _       => z
+        }
+    )
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S =
-      first.modify(s, t => second.getOption(t).map(a => second.reverseGet(f(a))).getOrElse(t))
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(
+      s,
+      t =>
+        second.getOption(t) match {
+          case Some(a) => second.reverseGet(f(a))
+          case _       => t
+        }
+    )
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new TraversalPrism(first.refineBinding(f), second.refineBinding(f))
@@ -1025,11 +1124,16 @@ object Traversal {
 
     def focus: Reflect[F, A] = second.focus
 
-    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
-      first.fold[Z](s)(zero, (z, t) => second.getOption(t).map(a => f(z, a)).getOrElse(z))
+    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z = first.fold[Z](s)(
+      zero,
+      (z, t) =>
+        second.getOption(t) match {
+          case Some(a) => f(z, a)
+          case _       => z
+        }
+    )
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S =
-      first.modify(s, t => second.getOption(t).map(a => second.set(t, f(a))).getOrElse(t))
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new TraversalOptional(first.refineBinding(f), second.refineBinding(f))
@@ -1047,7 +1151,7 @@ object Traversal {
 
     def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z = second.fold(first.get(s))(zero, f)
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.set(s, second.modify(first.get(s), f))
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new LensTraversal(first.refineBinding(f), second.refineBinding(f))
@@ -1063,11 +1167,15 @@ object Traversal {
 
     def focus: Reflect[F, A] = second.focus
 
-    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
-      first.getOption(s).map(t => second.fold(t)(zero, f)).getOrElse(zero)
+    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z = first.getOption(s) match {
+      case Some(t) => second.fold(t)(zero, f)
+      case _       => zero
+    }
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S =
-      first.getOption(s).map(t => first.reverseGet(second.modify(t, f))).getOrElse(s)
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
+      case Some(t) => first.reverseGet(second.modify(t, f))
+      case _       => s
+    }
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new PrismTraversal(first.refineBinding(f), second.refineBinding(f))
@@ -1083,11 +1191,12 @@ object Traversal {
 
     def focus: Reflect[F, A] = second.focus
 
-    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
-      first.getOption(s).map(t => second.fold(t)(zero, f)).getOrElse(zero)
+    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z = first.getOption(s) match {
+      case Some(t) => second.fold(t)(zero, f)
+      case _       => zero
+    }
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S =
-      first.getOption(s).map(t => first.set(s, second.modify(t, f))).getOrElse(s)
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new OptionalTraversal(first.refineBinding(f), second.refineBinding(f))
