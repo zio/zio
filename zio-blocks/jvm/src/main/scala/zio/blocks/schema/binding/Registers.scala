@@ -44,75 +44,63 @@ class Registers private (userRegister: RegisterOffset) {
 
   def setBoolean(baseOffset: RegisterOffset, relativeIndex: Int, value: Boolean): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex >= bytes.length) {
-      bytes = util.Arrays.copyOf(bytes, Math.max(bytes.length << 1, absoluteIndex + 1))
-    }
+    if (absoluteIndex >= bytes.length) growBytes(absoluteIndex)
     bytes(absoluteIndex) = if (value) (1: Byte) else (0: Byte)
   }
 
   def setByte(baseOffset: RegisterOffset, relativeIndex: Int, value: Byte): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex >= bytes.length) {
-      bytes = util.Arrays.copyOf(bytes, Math.max(bytes.length << 1, absoluteIndex + 1))
-    }
+    if (absoluteIndex >= bytes.length) growBytes(absoluteIndex)
     bytes(absoluteIndex) = value
   }
 
   def setShort(baseOffset: RegisterOffset, relativeIndex: Int, value: Short): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex + 1 >= bytes.length) {
-      bytes = util.Arrays.copyOf(bytes, Math.max(bytes.length << 1, absoluteIndex + 2))
-    }
+    if (absoluteIndex + 1 >= bytes.length) growBytes(absoluteIndex)
     ByteArrayAccess.setShort(bytes, absoluteIndex, value)
   }
 
   def setInt(baseOffset: RegisterOffset, relativeIndex: Int, value: Int): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex + 3 >= bytes.length) {
-      bytes = util.Arrays.copyOf(bytes, Math.max(bytes.length << 1, absoluteIndex + 4))
-    }
+    if (absoluteIndex + 3 >= bytes.length) growBytes(absoluteIndex)
     ByteArrayAccess.setInt(bytes, absoluteIndex, value)
   }
 
   def setLong(baseOffset: RegisterOffset, relativeIndex: Int, value: Long): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex + 7 >= bytes.length) {
-      bytes = util.Arrays.copyOf(bytes, Math.max(bytes.length << 1, absoluteIndex + 8))
-    }
+    if (absoluteIndex + 7 >= bytes.length) growBytes(absoluteIndex)
     ByteArrayAccess.setLong(bytes, absoluteIndex, value)
   }
 
   def setFloat(baseOffset: RegisterOffset, relativeIndex: Int, value: Float): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex + 3 >= bytes.length) {
-      bytes = util.Arrays.copyOf(bytes, Math.max(bytes.length << 1, absoluteIndex + 4))
-    }
+    if (absoluteIndex + 3 >= bytes.length) growBytes(absoluteIndex)
     ByteArrayAccess.setFloat(bytes, absoluteIndex, value)
   }
 
   def setDouble(baseOffset: RegisterOffset, relativeIndex: Int, value: Double): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex + 7 >= bytes.length) {
-      bytes = util.Arrays.copyOf(bytes, Math.max(bytes.length << 1, absoluteIndex + 8))
-    }
+    if (absoluteIndex + 7 >= bytes.length) growBytes(absoluteIndex)
     ByteArrayAccess.setDouble(bytes, absoluteIndex, value)
   }
 
   def setChar(baseOffset: RegisterOffset, relativeIndex: Int, value: Char): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex + 1 >= bytes.length) {
-      bytes = util.Arrays.copyOf(bytes, Math.max(bytes.length << 1, absoluteIndex + 2))
-    }
+    if (absoluteIndex + 1 >= bytes.length) growBytes(absoluteIndex)
     ByteArrayAccess.setChar(bytes, absoluteIndex, value)
   }
 
   def setObject(baseOffset: RegisterOffset, relativeIndex: Int, value: AnyRef): Unit = {
     val absoluteIndex = RegisterOffset.getObjects(baseOffset) + relativeIndex
-    if (absoluteIndex >= objects.length) {
-      objects = util.Arrays.copyOf(objects, Math.max(objects.length << 1, absoluteIndex + 1))
-    }
+    if (absoluteIndex >= objects.length) growObjects(absoluteIndex)
     objects(absoluteIndex) = value
   }
+
+  private[this] def growBytes(absoluteIndex: RegisterOffset): Unit =
+    bytes = util.Arrays.copyOf(bytes, Math.max(bytes.length << 1, absoluteIndex + 8))
+
+  private[this] def growObjects(absoluteIndex: RegisterOffset): Unit =
+    objects = util.Arrays.copyOf(objects, Math.max(objects.length << 1, absoluteIndex + 1))
 }
 
 object Registers {

@@ -226,7 +226,7 @@ object SchemaSpec extends ZIOSpecDefault {
 
             def deconstruct(out: Registers, baseOffset: RegisterOffset, in: Record): Unit = {
               out.setByte(baseOffset, 0, in.b)
-              out.setInt(baseOffset, 0, in.i)
+              out.setInt(baseOffset, 1, in.i)
             }
           }
         ),

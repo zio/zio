@@ -127,16 +127,16 @@ object Lens {
     childs: ArraySeq[Term[F, S, A]]
   ) extends Lens[F, S, A]
       with Leaf[F, S, A] {
-    private[this] var bindings: Array[LensBinding] = null
+    private[this] var bindings: Array[LensBinding]  = null
+    private[this] var usedRegisters: RegisterOffset = RegisterOffset.Zero
 
     private[this] def init(implicit F: HasBinding[F]): Unit = {
-      val len           = parents.length
-      val bindings      = new Array[LensBinding](len)
-      var usedRegisters = RegisterOffset.Zero
-      var i             = 0
+      var offset   = RegisterOffset.Zero
+      val len      = parents.length
+      val bindings = new Array[LensBinding](len)
+      var i        = 0
       while (i < len) {
         val parent = parents(i)
-        usedRegisters = RegisterOffset.add(usedRegisters, parent.usedRegisters)
         bindings(i) = new LensBinding(
           deconstructor = F.deconstructor(parent.recordBinding).asInstanceOf[Deconstructor[Any]],
           constructor = F.constructor(parent.recordBinding).asInstanceOf[Constructor[Any]],
@@ -146,53 +146,49 @@ object Lens {
               x => x.name == childName
             })
             .asInstanceOf[Register[Any]],
-          usedRegisters = usedRegisters
+          offset = offset
         )
+        offset = RegisterOffset.add(offset, parent.usedRegisters)
         i += 1
       }
       this.bindings = bindings
+      this.usedRegisters = offset
     }
 
     override def get(s: S)(implicit F: HasBinding[F]): A = {
-      if (this.bindings eq null) init
-      val bindings  = this.bindings
-      val len       = bindings.length
-      val registers = Registers(bindings(len - 1).usedRegisters)
-      var offset    = RegisterOffset.Zero
+      if (bindings eq null) init
+      val registers = Registers(usedRegisters)
       var x: Any    = s
+      val len       = bindings.length
       var i         = 0
       while (i < len) {
         val binding = bindings(i)
-        i += 1
+        val offset  = binding.offset
         binding.deconstructor.deconstruct(registers, offset, x)
         x = binding.register.get(registers, offset)
-        offset = binding.usedRegisters
+        i += 1
       }
       x.asInstanceOf[A]
     }
 
     override def set(s: S, a: A)(implicit F: HasBinding[F]): S = {
-      if (this.bindings eq null) init
-      val bindings  = this.bindings
-      val len       = bindings.length
-      val registers = Registers(bindings(len - 1).usedRegisters)
-      var offset    = RegisterOffset.Zero
+      if (bindings eq null) init
+      val registers = Registers(usedRegisters)
       var x: Any    = s
+      val len       = bindings.length
       var i         = 0
       while (i < len) {
         val binding = bindings(i)
-        i += 1
+        val offset  = binding.offset
         binding.deconstructor.deconstruct(registers, offset, x)
-        if (i < len) {
-          x = binding.register.get(registers, offset)
-          offset = binding.usedRegisters
-        }
+        if (i < len) x = binding.register.get(registers, offset)
+        i += 1
       }
       x = a
       while (i > 0) {
         i -= 1
-        offset = if (i > 0) bindings(i - 1).usedRegisters else RegisterOffset.Zero
         val binding = bindings(i)
+        val offset  = binding.offset
         binding.register.set(registers, offset, x)
         x = binding.constructor.construct(registers, offset)
       }
@@ -200,25 +196,23 @@ object Lens {
     }
 
     override def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = {
-      if (this.bindings eq null) init
-      val bindings  = this.bindings
-      val len       = bindings.length
-      val registers = Registers(bindings(len - 1).usedRegisters)
-      var offset    = RegisterOffset.Zero
+      if (bindings eq null) init
+      val registers = Registers(usedRegisters)
       var x: Any    = s
+      val len       = bindings.length
       var i         = 0
       while (i < len) {
         val binding = bindings(i)
-        i += 1
+        val offset  = binding.offset
         binding.deconstructor.deconstruct(registers, offset, x)
         x = binding.register.get(registers, offset)
-        offset = binding.usedRegisters
+        i += 1
       }
       x = f(x.asInstanceOf[A])
       while (i > 0) {
         i -= 1
-        offset = if (i > 0) bindings(i - 1).usedRegisters else RegisterOffset.Zero
         val binding = bindings(i)
+        val offset  = binding.offset
         binding.register.set(registers, offset, x)
         x = binding.constructor.construct(registers, offset)
       }
@@ -246,7 +240,7 @@ object Lens {
     deconstructor: Deconstructor[Any],
     constructor: Constructor[Any],
     register: Register[Any],
-    usedRegisters: RegisterOffset
+    offset: RegisterOffset
   )
 }
 

@@ -12,107 +12,95 @@ import java.util
 class Registers private (userRegister: RegisterOffset) {
   import RegisterOffset.RegisterOffset
 
-  private[this] var primitives: Array[Byte] = new Array[Byte](RegisterOffset.getBytes(userRegister))
-  private[this] var objects: Array[AnyRef]  = new Array[AnyRef](RegisterOffset.getObjects(userRegister))
+  private[this] var bytes: Array[Byte]     = new Array[Byte](RegisterOffset.getBytes(userRegister))
+  private[this] var objects: Array[AnyRef] = new Array[AnyRef](RegisterOffset.getObjects(userRegister))
 
   def getBoolean(baseOffset: RegisterOffset, relativeIndex: Int): Boolean =
-    ByteArrayAccess.getBoolean(primitives, RegisterOffset.getBytes(baseOffset) + relativeIndex)
+    ByteArrayAccess.getBoolean(bytes, RegisterOffset.getBytes(baseOffset) + relativeIndex)
 
   def getByte(baseOffset: RegisterOffset, relativeIndex: Int): Byte =
-    primitives(RegisterOffset.getBytes(baseOffset) + relativeIndex)
+    bytes(RegisterOffset.getBytes(baseOffset) + relativeIndex)
 
   def getShort(baseOffset: RegisterOffset, relativeIndex: Int): Short =
-    ByteArrayAccess.getShort(primitives, RegisterOffset.getBytes(baseOffset) + relativeIndex)
+    ByteArrayAccess.getShort(bytes, RegisterOffset.getBytes(baseOffset) + relativeIndex)
 
   def getInt(baseOffset: RegisterOffset, relativeIndex: Int): Int =
-    ByteArrayAccess.getInt(primitives, RegisterOffset.getBytes(baseOffset) + relativeIndex)
+    ByteArrayAccess.getInt(bytes, RegisterOffset.getBytes(baseOffset) + relativeIndex)
 
   def getLong(baseOffset: RegisterOffset, relativeIndex: Int): Long =
-    ByteArrayAccess.getLong(primitives, RegisterOffset.getBytes(baseOffset) + relativeIndex)
+    ByteArrayAccess.getLong(bytes, RegisterOffset.getBytes(baseOffset) + relativeIndex)
 
   def getFloat(baseOffset: RegisterOffset, relativeIndex: Int): Float =
-    ByteArrayAccess.getFloat(primitives, RegisterOffset.getBytes(baseOffset) + relativeIndex)
+    ByteArrayAccess.getFloat(bytes, RegisterOffset.getBytes(baseOffset) + relativeIndex)
 
   def getDouble(baseOffset: RegisterOffset, relativeIndex: Int): Double =
-    ByteArrayAccess.getDouble(primitives, RegisterOffset.getBytes(baseOffset) + relativeIndex)
+    ByteArrayAccess.getDouble(bytes, RegisterOffset.getBytes(baseOffset) + relativeIndex)
 
   def getChar(baseOffset: RegisterOffset, relativeIndex: Int): Char =
-    ByteArrayAccess.getChar(primitives, RegisterOffset.getBytes(baseOffset) + relativeIndex)
+    ByteArrayAccess.getChar(bytes, RegisterOffset.getBytes(baseOffset) + relativeIndex)
 
   def getObject(baseOffset: RegisterOffset, relativeIndex: Int): AnyRef =
     objects(RegisterOffset.getObjects(baseOffset) + relativeIndex)
 
   def setBoolean(baseOffset: RegisterOffset, relativeIndex: Int, value: Boolean): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex >= primitives.length) {
-      primitives = util.Arrays.copyOf(primitives, Math.max(primitives.length << 1, absoluteIndex + 1))
-    }
-    ByteArrayAccess.setBoolean(primitives, absoluteIndex, value)
+    if (absoluteIndex >= bytes.length) growBytes(absoluteIndex)
+    ByteArrayAccess.setBoolean(bytes, absoluteIndex, value)
   }
 
   def setByte(baseOffset: RegisterOffset, relativeIndex: Int, value: Byte): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex >= primitives.length) {
-      primitives = util.Arrays.copyOf(primitives, Math.max(primitives.length << 1, absoluteIndex + 1))
-    }
-    primitives(absoluteIndex) = value
+    if (absoluteIndex >= bytes.length) growBytes(absoluteIndex)
+    bytes(absoluteIndex) = value
   }
 
   def setShort(baseOffset: RegisterOffset, relativeIndex: Int, value: Short): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex + 1 >= primitives.length) {
-      primitives = util.Arrays.copyOf(primitives, Math.max(primitives.length << 1, absoluteIndex + 2))
-    }
-    ByteArrayAccess.setShort(primitives, absoluteIndex, value)
+    if (absoluteIndex + 1 >= bytes.length) growBytes(absoluteIndex)
+    ByteArrayAccess.setShort(bytes, absoluteIndex, value)
   }
 
   def setInt(baseOffset: RegisterOffset, relativeIndex: Int, value: Int): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex + 3 >= primitives.length) {
-      primitives = util.Arrays.copyOf(primitives, Math.max(primitives.length << 1, absoluteIndex + 4))
-    }
-    ByteArrayAccess.setInt(primitives, absoluteIndex, value)
+    if (absoluteIndex + 3 >= bytes.length) growBytes(absoluteIndex)
+    ByteArrayAccess.setInt(bytes, absoluteIndex, value)
   }
 
   def setLong(baseOffset: RegisterOffset, relativeIndex: Int, value: Long): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex + 7 >= primitives.length) {
-      primitives = util.Arrays.copyOf(primitives, Math.max(primitives.length << 1, absoluteIndex + 8))
-    }
-    ByteArrayAccess.setLong(primitives, absoluteIndex, value)
+    if (absoluteIndex + 7 >= bytes.length) growBytes(absoluteIndex)
+    ByteArrayAccess.setLong(bytes, absoluteIndex, value)
   }
 
   def setFloat(baseOffset: RegisterOffset, relativeIndex: Int, value: Float): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex + 3 >= primitives.length) {
-      primitives = util.Arrays.copyOf(primitives, Math.max(primitives.length << 1, absoluteIndex + 4))
-    }
-    ByteArrayAccess.setFloat(primitives, absoluteIndex, value)
+    if (absoluteIndex + 3 >= bytes.length) growBytes(absoluteIndex)
+    ByteArrayAccess.setFloat(bytes, absoluteIndex, value)
   }
 
   def setDouble(baseOffset: RegisterOffset, relativeIndex: Int, value: Double): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex + 7 >= primitives.length) {
-      primitives = util.Arrays.copyOf(primitives, Math.max(primitives.length << 1, absoluteIndex + 8))
-    }
-    ByteArrayAccess.setDouble(primitives, absoluteIndex, value)
+    if (absoluteIndex + 7 >= bytes.length) growBytes(absoluteIndex)
+    ByteArrayAccess.setDouble(bytes, absoluteIndex, value)
   }
 
   def setChar(baseOffset: RegisterOffset, relativeIndex: Int, value: Char): Unit = {
     val absoluteIndex = RegisterOffset.getBytes(baseOffset) + relativeIndex
-    if (absoluteIndex + 1 >= primitives.length) {
-      primitives = util.Arrays.copyOf(primitives, Math.max(primitives.length << 1, absoluteIndex + 2))
-    }
-    ByteArrayAccess.setChar(primitives, absoluteIndex, value)
+    if (absoluteIndex + 1 >= bytes.length) growBytes(absoluteIndex)
+    ByteArrayAccess.setChar(bytes, absoluteIndex, value)
   }
 
   def setObject(baseOffset: RegisterOffset, relativeIndex: Int, value: AnyRef): Unit = {
     val absoluteIndex = RegisterOffset.getObjects(baseOffset) + relativeIndex
-    if (absoluteIndex >= objects.length) {
-      objects = util.Arrays.copyOf(objects, Math.max(objects.length << 1, absoluteIndex + 1))
-    }
+    if (absoluteIndex >= objects.length) growObjects(absoluteIndex)
     objects(absoluteIndex) = value
   }
+
+  private[this] def growBytes(absoluteIndex: RegisterOffset): Unit =
+    bytes = util.Arrays.copyOf(bytes, Math.max(bytes.length << 1, absoluteIndex + 8))
+
+  private[this] def growObjects(absoluteIndex: RegisterOffset): Unit =
+    objects = util.Arrays.copyOf(objects, Math.max(objects.length << 1, absoluteIndex + 1))
 }
 
 object Registers {

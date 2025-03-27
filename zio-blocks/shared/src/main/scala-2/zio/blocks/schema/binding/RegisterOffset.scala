@@ -16,16 +16,16 @@ object RegisterOffset {
     chars: Int = 0,
     objects: Int = 0
   ): RegisterOffset = {
-    val primitives = booleans + bytes | (chars + shorts) << 1 | (floats + ints) << 2 | (doubles + longs) << 3
+    val primitives = booleans + bytes + ((chars + shorts) << 1) + ((floats + ints) << 2) + ((doubles + longs) << 3)
     if ((primitives | objects) >> 16 != 0) {
-      throw new IllegalArgumentException("arguments must be from 0x00 to 0x7f inclusive")
+      throw new IllegalArgumentException("offset overflow")
     }
     primitives << 16 | objects
   }
 
   def add(left: RegisterOffset, right: RegisterOffset): RegisterOffset = {
     if ((getBytes(left) + getBytes(right) | getObjects(left) + getObjects(right)) >> 16 != 0) {
-      throw new IllegalArgumentException("add overflow")
+      throw new IllegalArgumentException("offset sum overflow")
     }
     left + right
   }
