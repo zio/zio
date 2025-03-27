@@ -1092,8 +1092,14 @@ object Traversal {
 
     def focus: Reflect[F, A] = second.focus
 
-    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
-      first.fold[Z](s)(zero, (z, t) => second.getOption(t).map(a => f(z, a)).getOrElse(z))
+    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z = first.fold[Z](s)(
+      zero,
+      (z, t) =>
+        second.getOption(t) match {
+          case Some(a) => f(z, a)
+          case _       => z
+        }
+    )
 
     def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(
       s,
@@ -1118,8 +1124,14 @@ object Traversal {
 
     def focus: Reflect[F, A] = second.focus
 
-    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
-      first.fold[Z](s)(zero, (z, t) => second.getOption(t).map(a => f(z, a)).getOrElse(z))
+    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z = first.fold[Z](s)(
+      zero,
+      (z, t) =>
+        second.getOption(t) match {
+          case Some(a) => f(z, a)
+          case _       => z
+        }
+    )
 
     def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
@@ -1155,8 +1167,10 @@ object Traversal {
 
     def focus: Reflect[F, A] = second.focus
 
-    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
-      first.getOption(s).map(t => second.fold(t)(zero, f)).getOrElse(zero)
+    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z = first.getOption(s) match {
+      case Some(t) => second.fold(t)(zero, f)
+      case _       => zero
+    }
 
     def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
       case Some(t) => first.reverseGet(second.modify(t, f))
@@ -1177,8 +1191,10 @@ object Traversal {
 
     def focus: Reflect[F, A] = second.focus
 
-    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z =
-      first.getOption(s).map(t => second.fold(t)(zero, f)).getOrElse(zero)
+    def fold[Z](s: S)(zero: Z, f: (Z, A) => Z)(implicit F: HasBinding[F]): Z = first.getOption(s) match {
+      case Some(t) => second.fold(t)(zero, f)
+      case _       => zero
+    }
 
     def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
