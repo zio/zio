@@ -324,6 +324,8 @@ sealed trait Optional[F[_, _], S, A] extends Optic[F, S, A] {
 
   def set(s: S, a: A)(implicit F: HasBinding[F]): S
 
+  def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S]
+
   // Compose this optional with a lens:
   override def apply[B](that: Lens[F, A, B]): Optional[F, S, B] = Optional(this, that)
 
@@ -377,6 +379,8 @@ object Optional {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.set(s, second.reverseGet(a))
 
+    def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S] = new Some(first.set(s, second.reverseGet(a)))
+
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new LensPrism(first.refineBinding(f), second.refineBinding(f))
 
@@ -394,6 +398,11 @@ object Optional {
     def getOption(s: S)(implicit F: HasBinding[F]): Option[A] = second.getOption(first.get(s))
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.modify(s, second.set(_, a))
+
+    def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S] = second.setOption(first.get(s), a) match {
+      case Some(t) => new Some(first.set(s, t))
+      case _       => None
+    }
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new LensOptional(first.refineBinding(f), second.refineBinding(f))
@@ -413,7 +422,12 @@ object Optional {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
       case Some(x) => first.reverseGet(second.set(x, a))
-      case None    => s
+      case _       => s
+    }
+
+    def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S] = first.getOption(s) match {
+      case Some(x) => new Some(first.reverseGet(second.set(x, a)))
+      case _       => None
     }
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
@@ -434,7 +448,12 @@ object Optional {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
       case Some(x) => first.reverseGet(second.set(x, a))
-      case None    => s
+      case _       => s
+    }
+
+    def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S] = first.getOption(s) match {
+      case Some(x) => new Some(first.reverseGet(second.set(x, a)))
+      case _       => None
     }
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
@@ -455,7 +474,12 @@ object Optional {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
       case Some(x) => first.set(s, second.set(x, a))
-      case None    => s
+      case _       => s
+    }
+
+    def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S] = first.getOption(s) match {
+      case Some(x) => new Some(first.set(s, second.set(x, a)))
+      case _       => None
     }
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
@@ -476,6 +500,10 @@ object Optional {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.set(s, second.reverseGet(a))
 
+    def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S] =
+      if (first.getOption(s) ne None) new Some(first.set(s, second.reverseGet(a)))
+      else None
+
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
       new OptionalPrism(first.refineBinding(f), second.refineBinding(f))
 
@@ -494,7 +522,12 @@ object Optional {
 
     def set(s: S, a: A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
       case Some(x) => first.set(s, second.set(x, a))
-      case None    => s
+      case _       => s
+    }
+
+    def setOption(s: S, a: A)(implicit F: HasBinding[F]): Option[S] = first.getOption(s) match {
+      case Some(x) => new Some(first.set(s, second.set(x, a)))
+      case _       => None
     }
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Optional[G, S, A] =
