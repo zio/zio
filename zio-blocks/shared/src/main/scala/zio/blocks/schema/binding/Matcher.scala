@@ -1,7 +1,5 @@
 package zio.blocks.schema.binding
 
-import scala.util.control.NonFatal
-
 /**
  * A {{Matcher}} is a typeclass that can match a value of type `A` with a
  * specific term of its sum type.
@@ -9,22 +7,15 @@ import scala.util.control.NonFatal
 trait Matcher[+A] {
 
   /**
-   * An unsafe unsafeDowncast operation that attempts to unsafeDowncast a value
-   * of type `Any` to a value of type `A`. If the unsafeDowncast fails, an
-   * `IllegalArgumentException` is thrown.
+   * Downcasts a value of type `Any` to a value of type `A` or return `null`.
    */
-  def unsafeDowncast(any: Any): A
+  def downcastOrNull(any: Any): A
 
   /**
-   * A safe unsafeDowncast operation that attempts to unsafeDowncast a value of
-   * type `Any` to a value of type `A`. If the unsafeDowncast fails, `None` is
-   * returned.
+   * Downcasts a value of type `Any` to a value of type `A` and box it to `Some`
+   * or return `None`.
    */
-  final def downcastOption(any: Any): Option[A] =
-    try Some(unsafeDowncast(any))
-    catch {
-      case x if NonFatal(x) => None
-    }
+  final def downcastOption(any: Any): Option[A] = Option(downcastOrNull(any))
 }
 object Matcher {
   def apply[A](implicit m: Matcher[A]): Matcher[A] = m
@@ -42,44 +33,44 @@ object Matcher {
   implicit def failure[A]: Matcher[scala.util.Failure[A]] = _failureMatcher.asInstanceOf[Matcher[scala.util.Failure[A]]]
 
   private val _someMatcher: Matcher[Some[Any]] = new Matcher[Some[Any]] {
-    def unsafeDowncast(any: Any): Some[Any] = any match {
+    def downcastOrNull(any: Any): Some[Any] = any match {
       case x: Some[_] => x
-      case _          => throw new IllegalArgumentException("Expected Some")
+      case _          => null
     }
   }
 
   private val _noneMatcher: Matcher[None.type] = new Matcher[None.type] {
-    def unsafeDowncast(any: Any): None.type = any match {
+    def downcastOrNull(any: Any): None.type = any match {
       case None => None
-      case _    => throw new IllegalArgumentException("Expected None")
+      case _    => null
     }
   }
 
   private val _leftMatcher: Matcher[Left[Any, Any]] = new Matcher[Left[Any, Any]] {
-    def unsafeDowncast(any: Any): Left[Any, Any] = any match {
+    def downcastOrNull(any: Any): Left[Any, Any] = any match {
       case x: Left[_, _] => x
-      case _             => throw new IllegalArgumentException("Expected Left")
+      case _             => null
     }
   }
 
   private val _rightMatcher: Matcher[Right[Any, Any]] = new Matcher[Right[Any, Any]] {
-    def unsafeDowncast(any: Any): Right[Any, Any] = any match {
+    def downcastOrNull(any: Any): Right[Any, Any] = any match {
       case x: Right[_, _] => x
-      case _              => throw new IllegalArgumentException("Expected Right")
+      case _              => null
     }
   }
 
   private val _successMatcher: Matcher[scala.util.Success[Any]] = new Matcher[scala.util.Success[Any]] {
-    def unsafeDowncast(any: Any): scala.util.Success[Any] = any match {
+    def downcastOrNull(any: Any): scala.util.Success[Any] = any match {
       case x: scala.util.Success[_] => x
-      case _                        => throw new IllegalArgumentException("Expected Success")
+      case _                        => null
     }
   }
 
   private val _failureMatcher: Matcher[scala.util.Failure[Any]] = new Matcher[scala.util.Failure[Any]] {
-    def unsafeDowncast(any: Any): scala.util.Failure[Any] = any match {
-      case x: scala.util.Failure[_] => x.asInstanceOf[scala.util.Failure[Any]]
-      case _                        => throw new IllegalArgumentException("Expected Failure")
+    def downcastOrNull(any: Any): scala.util.Failure[Any] = any match {
+      case x: scala.util.Failure[_] => x
+      case _                        => null
     }
   }
 }

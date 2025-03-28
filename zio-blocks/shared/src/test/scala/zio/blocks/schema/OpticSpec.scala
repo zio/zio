@@ -578,7 +578,7 @@ object OpticSpec extends ZIOSpecDefault {
       typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Variant1"),
       variantBinding = Binding.Variant(
         discriminator = new Discriminator[Variant1] {
-          override def discriminate(a: Variant1): Int = a match {
+          def discriminate(a: Variant1): Int = a match {
             case _: Case1    => 0
             case _: Case2    => 1
             case _: Variant2 => 2
@@ -586,21 +586,21 @@ object OpticSpec extends ZIOSpecDefault {
         },
         matchers = Matchers(
           new Matcher[Case1] {
-            override def unsafeDowncast(a: Any): Case1 = a match {
+            def downcastOrNull(a: Any): Case1 = a match {
               case x: Case1 => x
-              case _        => throw new IllegalArgumentException("Expected Case1")
+              case _        => null
             }
           },
           new Matcher[Case2] {
-            override def unsafeDowncast(a: Any): Case2 = a match {
+            def downcastOrNull(a: Any): Case2 = a match {
               case x: Case2 => x
-              case _        => throw new IllegalArgumentException("Expected Case2")
+              case _        => null
             }
           },
           new Matcher[Variant2] {
-            override def unsafeDowncast(a: Any): Variant2 = a match {
+            def downcastOrNull(a: Any): Variant2 = a match {
               case x: Variant2 => x
-              case _           => throw new IllegalArgumentException("Expected Variant2")
+              case _           => null
             }
           }
         )
@@ -694,22 +694,22 @@ object OpticSpec extends ZIOSpecDefault {
       typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Variant2"),
       variantBinding = Binding.Variant(
         discriminator = new Discriminator[Variant2] {
-          override def discriminate(a: Variant2): Int = a match {
+          def discriminate(a: Variant2): Int = a match {
             case _: Case3 => 0
             case _: Case4 => 1
           }
         },
         matchers = Matchers(
           new Matcher[Case3] {
-            override def unsafeDowncast(a: Any): Case3 = a match {
+            def downcastOrNull(a: Any): Case3 = a match {
               case x: Case3 => x
-              case _        => throw new IllegalArgumentException("Expected Case3")
+              case _        => null
             }
           },
           new Matcher[Case4] {
-            override def unsafeDowncast(a: Any): Case4 = a match {
+            def downcastOrNull(a: Any): Case4 = a match {
               case x: Case4 => x
-              case _        => throw new IllegalArgumentException("Expected Case4")
+              case _        => null
             }
           }
         )
@@ -804,22 +804,22 @@ object OpticSpec extends ZIOSpecDefault {
       typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Variant3"),
       variantBinding = Binding.Variant(
         discriminator = new Discriminator[Variant3] {
-          override def discriminate(a: Variant3): Int = a match {
+          def discriminate(a: Variant3): Int = a match {
             case _: Case5 => 0
             case _: Case6 => 1
           }
         },
         matchers = Matchers(
           new Matcher[Case5] {
-            override def unsafeDowncast(a: Any): Case5 = a match {
+            def downcastOrNull(a: Any): Case5 = a match {
               case x: Case5 => x
-              case _        => throw new IllegalArgumentException("Expected Case5")
+              case _        => null
             }
           },
           new Matcher[Case6] {
-            override def unsafeDowncast(a: Any): Case6 = a match {
+            def downcastOrNull(a: Any): Case6 = a match {
               case x: Case6 => x
-              case _        => throw new IllegalArgumentException("Expected Case6")
+              case _        => null
             }
           }
         )

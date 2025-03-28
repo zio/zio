@@ -309,10 +309,9 @@ object Prism {
 
     def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = {
       if (matcher eq null) init
-      matcher.downcastOption(s) match {
-        case Some(a) => f(a)
-        case _       => s
-      }
+      val a = matcher.downcastOrNull(s)
+      if (a != null) f(a)
+      else s
     }
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Prism[G, S, A] =
