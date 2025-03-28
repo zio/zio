@@ -46,6 +46,20 @@ sealed trait Semaphore extends Serializable {
   def awaiting(implicit trace: Trace): UIO[Long] = ZIO.succeed(0L)
 
   /**
+   * Executes the effect, acquiring a permit if available and releasing it after
+   * execution. Returns `None` if no permits were available.
+   */
+  def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+    tryWithPermits(1L)(zio)
+
+  /**
+   * Executes the effect, acquiring `n` permits if available and releasing them
+   * after execution. Returns `None` if no permits were available.
+   */
+  def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+    ZIO.none
+
+  /**
    * Executes the specified workflow, acquiring a permit immediately before the
    * workflow begins execution and releasing it immediately after the workflow
    * completes execution, whether by success, failure, or interruption.
@@ -72,19 +86,6 @@ sealed trait Semaphore extends Serializable {
    */
   def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
 
-  /**
-   * Executes the effect, acquiring a permit if available and releasing it after
-   * execution. Returns `None` if no permits were available.
-   */
-  def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-    tryWithPermits(1L)(zio)
-
-  /**
-   * Executes the effect, acquiring `n` permits if available and releasing them
-   * after execution. Returns `None` if no permits were available.
-   */
-  def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-    ZIO.succeed(None)
 }
 
 object Semaphore {
@@ -127,7 +128,7 @@ object Semaphore {
         override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
           tryReserve(n).flatMap {
             case Some(reservation) => (reservation.acquire *> zio <* reservation.release).asSome
-            case _                 => Exit.none
+            case _                 => ZIO.none
           }
 
         case class Reservation(acquire: UIO[Unit], release: UIO[Any])
@@ -146,7 +147,7 @@ object Semaphore {
           if (n < 0)
             ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
           else if (n == 0L)
-            ZIO.succeedNow(Reservation(ZIO.unit, ZIO.unit))
+            ZIO.succeed(Reservation(ZIO.unit, ZIO.unit))
           else
             Promise.make[Nothing, Unit].flatMap { promise =>
               ref.modify {
