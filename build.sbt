@@ -659,7 +659,7 @@ lazy val benchmarks = project.module
         "org.scalacheck"            %% "scalacheck"    % ScalaCheckVersion,
         "qa.hedgehog"               %% "hedgehog-core" % "0.11.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % nyanaVersion,
-        "org.springframework"        % "spring-core"   % "6.2.3"
+        "org.springframework"        % "spring-core"   % "6.2.5"
       )
     },
     excludeDependencies ++= {
@@ -772,6 +772,9 @@ lazy val docs_make_zio_app_configurable =
         "io.getquill"   %% "quill-zio"      % QuillVersion,
         "io.getquill"   %% "quill-jdbc-zio" % QuillVersion,
         "com.h2database" % "h2"             % "2.3.232"
+      ),
+      dependencyOverrides ++= Seq(
+        `zio-json`
       )
     )
     .dependsOn(core.jvm, streams.jvm)
@@ -890,6 +893,9 @@ lazy val docs = project.module
       "com.devsisters"                %% "shardcake-serialization-kryo"  % ShardcakeVersion,
       "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core"                 % "0.6.3",
       "dev.hnaderi"                   %% "scala-k8s-zio"                 % "0.20.1"
+    ),
+    dependencyOverrides ++= Seq(
+      `zio-json`
     ),
     resolvers += "Confluent" at "https://packages.confluent.io/maven",
     fork           := true,

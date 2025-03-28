@@ -1,7 +1,10 @@
 package zio
 
 import zio.test.Assertion._
+import zio.test.TestAspect._
 import zio.test._
+
+import scala.ref.WeakReference
 
 object RefSpec extends ZIOBaseSpec {
 
@@ -74,9 +77,6 @@ object RefSpec extends ZIOBaseSpec {
           _     <- ref.set(update)
           value <- ref.get
         } yield assert(value)(equalTo(update))
-      },
-      test("toString") {
-        assertZIO(Ref.make(42).map(_.toString))(equalTo("Ref.Atomic(initial = 42)"))
       },
       test("update") {
         for {
@@ -246,7 +246,27 @@ object RefSpec extends ZIOBaseSpec {
         val result   = typeCheck(""" Ref.make("").incrementAndGet """)
         val expected = "value incrementAndGet is not a member of zio.UIO[zio.Ref[String]]"
         assertZIO(result)(isLeft(startsWithString(expected)))
-      }
+      },
+      test("Initial value is GC'd") {
+        class Bar
+        ZIO.succeedUnsafe { implicit u =>
+          val n        = 1000
+          var i        = 0
+          val refs     = Array.ofDim[Ref.Atomic[Bar]](n)
+          val weakRefs = Array.ofDim[WeakReference[Bar]](n)
+          while (i < n) {
+            val bar = new Bar()
+            val ref = Ref.unsafe.make(bar)
+            refs(i) = ref
+            weakRefs(i) = new WeakReference[Bar](bar)
+            ref.unsafe.set(null)
+            i += 1
+          }
+          java.lang.System.gc()
+
+          assertTrue(!weakRefs.exists(_.get.nonEmpty))
+        }
+      } @@ jvmOnly
     )
   )
 
