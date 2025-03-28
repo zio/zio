@@ -45,20 +45,11 @@ object LayerMacros {
   ): Expr[ZIO[_, E, A]] = {
     val layerExpr = constructDynamicLayer[R, E](layer)
 
+    // https://github.com/scala/scala3/issues/22886
     layerExpr match {
-      case '{ $layer: ZLayer[in, e, out] } => {
-        // This is very weird cast - compiler knows that layerExpr is ZLayer[R, _, _] so it should match
-        // but without it I get
-        //  [error]    |   Your effect requires a service that is not in the environment.
-        //  [error]    |   Please provide a layer for the following type:
-        //  [error]    |
-        //  [error]    |     1. scala.Nothing
-        // Fortunately asExprOf is safe cast, so nothing unsafe is happening here
-        val z = zio.asExprOf[ZIO[out, E, A]]
-        '{ $z.provideLayer($layer) }
-      }
+      case '{ $layer: ZLayer[in, e, out] } =>
+        '{ $zio.provideLayer($layer) }
     }
-
   }
 
   def runWithImpl[R: Type, E: Type](

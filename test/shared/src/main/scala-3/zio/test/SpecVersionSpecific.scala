@@ -13,8 +13,14 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
   def provideSome[R0] =
     new ProvideSomePartiallyApplied[R0, R, E](self)
 
+  inline transparent def provideSomeAuto[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[_, E1] =
+    ${ SpecLayerMacros.provideAutoImpl[R, E1]('self, 'layer) }
+
   def provideSomeShared[R0] =
     new ProvideSomeSharedPartiallyApplied[R0, R, E](self)
+
+  inline transparent def provideSomeSharedAuto[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[_, E1] =
+    ${ SpecLayerMacros.provideSharedAutoImpl[R, E1]('self, 'layer) }
 
   /**
    * Automatically constructs the part of the environment that is not part of

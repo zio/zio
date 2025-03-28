@@ -30,8 +30,9 @@ private[zio] transparent trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, 
    * val zio2 = zio.provideSome(clockLayer) // Inferred type is ZIO[Random, Nothing, Unit]
    * }}}
    *
-   * Note for Intellij users: By default, Intellij will not show correct type on hover. To fix this enable
-   * `Use types reported by Scala compiler (experimental)` in `Settings | Languages & Frameworks | Scala | Editor`
+   * Note for Intellij users: By default, Intellij will not show correct type on
+   * hover. To fix this enable `Use types reported by Scala compiler
+   * (experimental)` in `Settings | Languages & Frameworks | Scala | Editor`
    */
   inline transparent def provideSomeAuto[E1 >: E](inline layer: ZLayer[_, E1, _]*): ZIO[_, E1, A] =
     ${ LayerMacros.provideDynamicImpl[R, E1, A]('self, 'layer) }
