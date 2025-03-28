@@ -202,7 +202,7 @@ const config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} ZIO Maintainers - Built with <a href="https://v2.docusaurus.io/">Docusaurus v2</a>`,
+      copyright: `Copyright © ${new Date().getFullYear()} ZIO Maintainers - Built with <a href="https://docusaurus.io/">Docusaurus</a>`,
     },
   },
   presets: [
@@ -264,9 +264,7 @@ const config = {
       return {
         name: 'docusaurus-tailwindcss',
         configurePostCss(postcssOptions) {
-          // Appends TailwindCSS and AutoPrefixer.
-          postcssOptions.plugins.push(require('tailwindcss'));
-          postcssOptions.plugins.push(require('autoprefixer'));
+          postcssOptions.plugins.push(require("@tailwindcss/postcss"));
           return postcssOptions;
         },
       };

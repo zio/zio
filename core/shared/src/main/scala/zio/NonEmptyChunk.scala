@@ -20,6 +20,7 @@ import zio.NonEmptyChunk._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.language.implicitConversions
+import scala.reflect.ClassTag
 
 /**
  * A `NonEmptyChunk` is a `Chunk` that is guaranteed to contain at least one
@@ -270,6 +271,9 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
   override def reverse: NonEmptyChunk[A] =
     nonEmpty(chunk.reverse)
 
+  override def size: Int =
+    chunk.size
+
   override def sortBy[B](f: A => B)(implicit ord: Ordering[B]): NonEmptyChunk[A] =
     nonEmpty(chunk.sortBy(f))
 
@@ -278,6 +282,12 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
 
   override def tail: Chunk[A] =
     chunk.tail
+
+  /**
+   * Converts this `NonEmptyChunk` to an array.
+   */
+  override def toArray[B >: A: ClassTag]: Array[B] =
+    chunk.toArray
 
   /**
    * Converts this `NonEmptyChunk` to a `Chunk`, discarding information about it
@@ -291,6 +301,18 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
    */
   def toCons[A1 >: A]: ::[A1] =
     ::(chunk(0), chunk.drop(1).toList)
+
+  /**
+   * Converts this `NonEmptyChunk` to an `Iterable`.
+   */
+  override def toIterable: Iterable[A] =
+    chunk
+
+  /**
+   * Converts this `NonEmptyChunk` to a `List`.
+   */
+  override def toList: List[A] =
+    chunk.toList
 
   /**
    * Renders this `NonEmptyChunk` as a `String`.
@@ -332,7 +354,7 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
   /**
    * Annotates each element of this `NonEmptyChunk` with its index.
    */
-  def zipWithIndex: NonEmptyChunk[(A, Int)] =
+  override def zipWithIndex: NonEmptyChunk[(A, Int)] =
     nonEmpty(chunk.zipWithIndex)
 
   /**
