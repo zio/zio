@@ -128,7 +128,7 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Variant1.c2.reverseGet(Case2(Record3(null, null, null))))(
           equalTo(Case2(Record3(null, null, null)): Variant1)
         ) &&
-        assert(Variant1.v2.reverseGet(Case3(Case1(0.1)): Variant2))(equalTo(Case3(Case1(0.1)): Variant1)) &&
+        assert(Variant1.v2.reverseGet(Case3(Case1(0.1))))(equalTo(Case3(Case1(0.1)): Variant1)) &&
         assert(Variant1.v2_c3.reverseGet(Case3(Case1(0.1))))(equalTo(Case3(Case1(0.1)): Variant1)) &&
         assert(Variant2.c3.reverseGet(Case3(Case1(0.1))))(equalTo(Case3(Case1(0.1)): Variant2)) &&
         assert(Variant2.c4.reverseGet(Case4(List(Record3(null, null, null)))))(
@@ -136,6 +136,40 @@ object OpticSpec extends ZIOSpecDefault {
         ) &&
         assert(Variant1.v2_v3_c5_left.reverseGet(Case5(null, null)))(equalTo(Case5(null, null): Variant1)) &&
         assert(Variant1.v2_v3_c5_right.reverseGet(Case5(null, null)))(equalTo(Case5(null, null): Variant1))
+      },
+      test("modify an optional case class value") {
+        assert(Variant1.c1.modify(Case1(0.1), _ => Case1(0.2)))(equalTo(Case1(0.2): Variant1)) &&
+        assert(Variant1.c2.modify(Case2(Record3(null, null, null)), _ => Case2(null)))(
+          equalTo(Case2(null): Variant1)
+        ) &&
+        assert(Variant1.v2.modify(Case3(Case1(0.1)), _ => Case4(Nil)))(equalTo(Case4(Nil): Variant1)) &&
+        assert(Variant1.v2_c3.modify(Case3(Case1(0.1)), _ => Case3(Case1(0.2))))(
+          equalTo(Case3(Case1(0.2)): Variant1)
+        ) &&
+        assert(Variant2.c3.modify(Case3(Case1(0.1)), _ => Case3(Case1(0.2))))(equalTo(Case3(Case1(0.2)): Variant2)) &&
+        assert(Variant2.c4.modify(Case4(List(Record3(null, null, null))), _ => Case4(Nil)))(
+          equalTo(Case4(Nil): Variant2)
+        ) &&
+        assert(Variant1.v2_v3_c5_left.modify(Case5(null, null), _ => Case5(Set.empty, null)))(
+          equalTo(Case5(Set.empty, null): Variant1)
+        ) &&
+        assert(Variant1.v2_v3_c5_right.modify(Case5(null, null), _ => Case5(Set.empty, null)))(
+          equalTo(Case5(Set.empty, null): Variant1)
+        )
+      },
+      test("doesn't modify other case class values") {
+        assert(Variant1.c1.modify(Case2(null), _ => Case1(0.2)))(equalTo(Case2(null): Variant1)) &&
+        assert(Variant1.c2.modify(Case1(0.1), _ => Case2(null)))(equalTo(Case1(0.1): Variant1)) &&
+        assert(Variant1.v2.modify(Case2(null), _ => Case4(Nil)))(equalTo(Case2(null): Variant1)) &&
+        assert(Variant1.v2_c3.modify(Case1(0.1), _ => Case3(Case1(0.2))))(equalTo(Case1(0.1): Variant1)) &&
+        assert(Variant2.c3.modify(Case4(List(Record3(null, null, null))), _ => Case3(Case1(0.2))))(
+          equalTo(Case4(List(Record3(null, null, null))): Variant2)
+        ) &&
+        assert(Variant2.c4.modify(Case3(Case1(0.1)), _ => Case4(Nil)))(
+          equalTo(Case3(Case1(0.1)): Variant2)
+        ) &&
+        assert(Variant1.v2_v3_c5_left.modify(Case4(Nil), _ => Case5(Set.empty, null)))(equalTo(Case4(Nil): Variant1)) &&
+        assert(Variant1.v2_v3_c5_right.modify(Case4(Nil), _ => Case5(Set.empty, null)))(equalTo(Case4(Nil): Variant1))
       }
     ),
     suite("Optional")(
@@ -150,8 +184,6 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Variant2.c3_v1.hashCode)(equalTo(Variant2.c3_v1.hashCode)) &&
         assert(Variant2.c3_v1_v2)(equalTo(Variant2.c3_v1_v2)) &&
         assert(Variant2.c3_v1_v2.hashCode)(equalTo(Variant2.c3_v1_v2.hashCode)) &&
-        assert(Variant2.c3_v1_v2_c4_lr3)(equalTo(Variant2.c3_v1_v2_c4_lr3)) &&
-        assert(Variant2.c3_v1_v2_c4_lr3.hashCode)(equalTo(Variant2.c3_v1_v2_c4_lr3.hashCode)) &&
         assert(Case3.v1_c1_d)(equalTo(Case3.v1_c1_d)) &&
         assert(Case3.v1_c1_d.hashCode)(equalTo(Case3.v1_c1_d.hashCode)) &&
         assert(Variant1.c2_r3: Any)(not(equalTo(Variant1.c1_d))) &&
@@ -284,6 +316,8 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Collections.mkc.hashCode)(equalTo(Collections.mkc.hashCode)) &&
         assert(Collections.mvs)(equalTo(Collections.mvs)) &&
         assert(Collections.mvs.hashCode)(equalTo(Collections.mvs.hashCode)) &&
+        assert(Variant2.c3_v1_v2_c4_lr3)(equalTo(Variant2.c3_v1_v2_c4_lr3)) &&
+        assert(Variant2.c3_v1_v2_c4_lr3.hashCode)(equalTo(Variant2.c3_v1_v2_c4_lr3.hashCode)) &&
         assert(Record2.r1_f: Any)(not(equalTo(Record2.vi))) &&
         assert(Variant2.c4_lr3: Any)(not(equalTo(Case4.lr3))) &&
         assert(Collections.lb: Any)(not(equalTo(""))) &&
@@ -368,6 +402,10 @@ object OpticSpec extends ZIOSpecDefault {
           Variant2.c3_v1_v2_c4_lr3.fold[Record3](Case3(Case4(List(Record3(null, null, null)))))(null, (_, x) => x)
         )(equalTo(Record3(null, null, null)))
       },
+      test("folds zero values for non-matching cases") {
+        assert(Variant2.c3_v1_v2_c4_lr3.fold[Record3](Case4(Nil))(null, (_, x) => x))(equalTo(null)) &&
+        assert(Variant2.c4_lr3.fold[Record3](Case3(Case1(0.1)))(null, (_, x) => x))(equalTo(null))
+      },
       test("modifies collection values") {
         assert(Collections.abl.modify(Array(true, false, true), x => !x).toList)(equalTo(List(false, true, false))) &&
         assert(Collections.ab.modify(Array(1: Byte, 2: Byte, 3: Byte), x => (x + 1).toByte).toList)(
@@ -401,6 +439,10 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Variant2.c3_v1_v2_c4_lr3.modify(Case3(Case4(List(Record3(null, null, null)))), _ => null))(
           equalTo(Case3(Case4(List(null))))
         )
+      },
+      test("doesn't modify collection values for non-matching cases") {
+        assert(Variant2.c3_v1_v2_c4_lr3.modify(Case4(Nil), _ => null))(equalTo(Case4(Nil))) &&
+        assert(Variant2.c4_lr3.modify(Case3(Case1(0.1)), _ => null))(equalTo(Case3(Case1(0.1))))
       }
     )
   )
@@ -687,7 +729,7 @@ object OpticSpec extends ZIOSpecDefault {
     lazy val c3_v1_c1_d_left: Optional.Bound[Variant2, Double]   = c3(Case3.v1)(Variant1.c1_d)
     lazy val c3_v1_c1_d_right: Optional.Bound[Variant2, Double]  = c3_v1(Variant1.c1_d)
     lazy val c3_v1_v2: Optional.Bound[Variant2, Variant2]        = c3(Case3.v1)(Variant1.v2)
-    val c4_lr3: Traversal.Bound[Variant2, Record3]               = c4(Case4.lr3)
+    lazy val c4_lr3: Traversal.Bound[Variant2, Record3]          = c4(Case4.lr3)
     lazy val c3_v1_v2_c4_lr3: Traversal.Bound[Variant2, Record3] = c3_v1_v2(c4_lr3)
   }
 
