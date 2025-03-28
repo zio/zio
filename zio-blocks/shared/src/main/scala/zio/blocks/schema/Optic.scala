@@ -195,7 +195,7 @@ object Lens {
       x.asInstanceOf[S]
     }
 
-    override def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = {
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = {
       if (bindings eq null) init
       val registers = Registers(usedRegisters)
       var x: Any    = s
@@ -248,6 +248,8 @@ sealed trait Prism[F[_, _], S, A <: S] extends Optic[F, S, A] {
   def getOption(s: S)(implicit F: HasBinding[F]): Option[A]
 
   def reverseGet(a: A): S
+
+  def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S
 
   // Compose this prism with a prism:
   override def apply[B <: A](that: Prism[F, A, B]): Prism[F, S, B] = Prism(this, that)
@@ -304,6 +306,14 @@ object Prism {
     }
 
     def reverseGet(a: A): S = a
+
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = {
+      if (matcher eq null) init
+      matcher.downcastOption(s) match {
+        case Some(a) => f(a)
+        case _       => s
+      }
+    }
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Prism[G, S, A] =
       new PrismImpl(structure.refineBinding(f), parent.refineBinding(f), child.refineBinding(f))
@@ -1101,14 +1111,7 @@ object Traversal {
         }
     )
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(
-      s,
-      t =>
-        second.getOption(t) match {
-          case Some(a) => second.reverseGet(f(a))
-          case _       => t
-        }
-    )
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new TraversalPrism(first.refineBinding(f), second.refineBinding(f))
@@ -1172,10 +1175,7 @@ object Traversal {
       case _       => zero
     }
 
-    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.getOption(s) match {
-      case Some(t) => first.reverseGet(second.modify(t, f))
-      case _       => s
-    }
+    def modify(s: S, f: A => A)(implicit F: HasBinding[F]): S = first.modify(s, second.modify(_, f))
 
     def refineBinding[G[_, _]](f: RefineBinding[F, G]): Traversal[G, S, A] =
       new PrismTraversal(first.refineBinding(f), second.refineBinding(f))

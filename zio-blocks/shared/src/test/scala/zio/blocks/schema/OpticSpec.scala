@@ -128,7 +128,7 @@ object OpticSpec extends ZIOSpecDefault {
         assert(Variant1.c2.reverseGet(Case2(Record3(null, null, null))))(
           equalTo(Case2(Record3(null, null, null)): Variant1)
         ) &&
-        assert(Variant1.v2.reverseGet(Case3(Case1(0.1)): Variant2))(equalTo(Case3(Case1(0.1)): Variant1)) &&
+        assert(Variant1.v2.reverseGet(Case3(Case1(0.1))))(equalTo(Case3(Case1(0.1)): Variant1)) &&
         assert(Variant1.v2_c3.reverseGet(Case3(Case1(0.1))))(equalTo(Case3(Case1(0.1)): Variant1)) &&
         assert(Variant2.c3.reverseGet(Case3(Case1(0.1))))(equalTo(Case3(Case1(0.1)): Variant2)) &&
         assert(Variant2.c4.reverseGet(Case4(List(Record3(null, null, null)))))(
@@ -136,6 +136,40 @@ object OpticSpec extends ZIOSpecDefault {
         ) &&
         assert(Variant1.v2_v3_c5_left.reverseGet(Case5(null, null)))(equalTo(Case5(null, null): Variant1)) &&
         assert(Variant1.v2_v3_c5_right.reverseGet(Case5(null, null)))(equalTo(Case5(null, null): Variant1))
+      },
+      test("modify an optional case class value") {
+        assert(Variant1.c1.modify(Case1(0.1), _ => Case1(0.2)))(equalTo(Case1(0.2): Variant1)) &&
+        assert(Variant1.c2.modify(Case2(Record3(null, null, null)), _ => Case2(null)))(
+          equalTo(Case2(null): Variant1)
+        ) &&
+        assert(Variant1.v2.modify(Case3(Case1(0.1)), _ => Case4(Nil)))(equalTo(Case4(Nil): Variant1)) &&
+        assert(Variant1.v2_c3.modify(Case3(Case1(0.1)), _ => Case3(Case1(0.2))))(
+          equalTo(Case3(Case1(0.2)): Variant1)
+        ) &&
+        assert(Variant2.c3.modify(Case3(Case1(0.1)), _ => Case3(Case1(0.2))))(equalTo(Case3(Case1(0.2)): Variant2)) &&
+        assert(Variant2.c4.modify(Case4(List(Record3(null, null, null))), _ => Case4(Nil)))(
+          equalTo(Case4(Nil): Variant2)
+        ) &&
+        assert(Variant1.v2_v3_c5_left.modify(Case5(null, null), _ => Case5(Set.empty, null)))(
+          equalTo(Case5(Set.empty, null): Variant1)
+        ) &&
+        assert(Variant1.v2_v3_c5_right.modify(Case5(null, null), _ => Case5(Set.empty, null)))(
+          equalTo(Case5(Set.empty, null): Variant1)
+        )
+      },
+      test("doesn't modify other case class values") {
+        assert(Variant1.c1.modify(Case2(null), _ => Case1(0.2)))(equalTo(Case2(null): Variant1)) &&
+        assert(Variant1.c2.modify(Case1(0.1), _ => Case2(null)))(equalTo(Case1(0.1): Variant1)) &&
+        assert(Variant1.v2.modify(Case2(null), _ => Case4(Nil)))(equalTo(Case2(null): Variant1)) &&
+        assert(Variant1.v2_c3.modify(Case1(0.1), _ => Case3(Case1(0.2))))(equalTo(Case1(0.1): Variant1)) &&
+        assert(Variant2.c3.modify(Case4(List(Record3(null, null, null))), _ => Case3(Case1(0.2))))(
+          equalTo(Case4(List(Record3(null, null, null))): Variant2)
+        ) &&
+        assert(Variant2.c4.modify(Case3(Case1(0.1)), _ => Case4(Nil)))(
+          equalTo(Case3(Case1(0.1)): Variant2)
+        ) &&
+        assert(Variant1.v2_v3_c5_left.modify(Case4(Nil), _ => Case5(Set.empty, null)))(equalTo(Case4(Nil): Variant1)) &&
+        assert(Variant1.v2_v3_c5_right.modify(Case4(Nil), _ => Case5(Set.empty, null)))(equalTo(Case4(Nil): Variant1))
       }
     ),
     suite("Optional")(
