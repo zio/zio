@@ -248,17 +248,23 @@ object SchemaSpec extends ZIOSpecDefault {
         typeName = TypeName(Namespace(List("zio", "blocks", "schema"), Nil), "Variant"),
         variantBinding = Binding.Variant(
           discriminator = new Discriminator[Variant] {
-            override def discriminate(a: Variant): Int = a match {
+            def discriminate(a: Variant): Int = a match {
               case _: Case1 => 0
               case _: Case2 => 1
             }
           },
           matchers = Matchers(
             new Matcher[Case1] {
-              override def unsafeDowncast(a: Any): Case1 = a.asInstanceOf[Case1]
+              def downcastOrNull(a: Any): Case1 = a match {
+                case x: Case1 => x
+                case _        => null
+              }
             },
             new Matcher[Case2] {
-              override def unsafeDowncast(a: Any): Case2 = a.asInstanceOf[Case2]
+              def downcastOrNull(a: Any): Case2 = a match {
+                case x: Case2 => x
+                case _        => null
+              }
             }
           )
         ),
