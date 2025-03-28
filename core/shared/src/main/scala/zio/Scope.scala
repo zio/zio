@@ -216,7 +216,8 @@ object Scope {
     // important for the finalization, in which we want to walk it in reverse order. So we insert
     // into the map using keys that will build it in reverse. That way, when we do the final iteration,
     // the finalizers are already in correct order.
-    final val initial: State = Running(-1L, LongMap.empty)
+    final val firstKey       = -1L
+    final val initial: State = Running(firstKey, LongMap.empty)
 
     final case class Exited(exit: Exit[Any, Any])                           extends State
     final case class Running(nextKey: Long, finalizers: LongMap[Finalizer]) extends State
@@ -318,11 +319,14 @@ object Scope {
     def releaseAll(exit: Exit[Any, Any], execStrategy: ExecutionStrategy)(implicit trace: Trace): UIO[Unit] =
       modify {
         case s: Exited => (Exit.unit, s)
-        case Running(_, fins) =>
+        case Running(nextKey, fins) =>
           val finalizer =
-            if (fins.isEmpty)
+            if (nextKey == State.firstKey || fins.isEmpty)
               Exit.unit
-            else if (fins.firstKey == fins.lastKey) // Most efficient way of checking for size == 1 on LongMap
+            // NOTE: Don't call `.size` on `LongMap` as it's O(n)!
+            // NOTE 2: This is not strictly accurate as we might have removed entries from the LongMap and have only 1 remaining.
+            // But this should be extremely rare so we don't need to cater for it
+            else if (nextKey == State.firstKey - 1L)
               ZIO.suspendSucceed(fins(fins.firstKey)(exit)).unit
             else {
               execStrategy match {
