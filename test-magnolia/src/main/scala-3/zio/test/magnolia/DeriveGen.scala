@@ -38,6 +38,18 @@ object DeriveGen {
       val derive: Gen[Any, A] = gen
     }
 
+  /**
+   * Util to derive a `DeriveGen` instance for a union type
+   *
+   * Usage example:
+   * {{{
+   *  type StringOrInt = String | Int
+   *  given DeriveGen[StringOrInt] = DeriveGen.unionType[StringOrInt]
+   *  lazy val anyStringOrInt: Gen[Any, StringOrInt] = DeriveGen[UnionType]
+   * }}}
+   */
+  inline def unionType[T]: DeriveGen[T] = ${ TypeUnionDerivation.typeUnionDeriveGen[T] }
+
   given DeriveGen[Boolean]       = instance(Gen.boolean)
   given DeriveGen[Byte]          = instance(Gen.byte)
   given DeriveGen[Char]          = instance(Gen.char)
