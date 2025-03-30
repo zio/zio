@@ -1,6 +1,6 @@
 package zio.test.sbt
 
-import sbt.testing.{EventHandler, Logger, Task, TaskDef, TestSelector}
+import sbt.testing.{EventHandler, Logger, Task, TaskDef, TestSelector, TestWildcardSelector}
 import zio.{CancelableFuture, Console, Scope, Trace, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 import zio.test._
 
@@ -48,11 +48,11 @@ abstract class BaseTestTask[T](
   }
 
   /**
-   * If this task def contains only `TestSelector`s, returns the search terms to
-   * add to the test arguments, so that only the test cases specified in the
-   * `TestSelector`s are executed. If this task def contains any other type of
-   * selector, no search terms are returned and the entire suite will be
-   * executed.
+   * If this task def contains only `TestSelector`s and `TestWildcardSelector`s,
+   * returns the search terms to add to the test arguments, so that only the
+   * test cases specified in the `TestSelector`s and `TestWildcardSelector`s are
+   * executed. If this task def contains any other type of selector, no search
+   * terms are returned and the entire suite will be executed.
    *
    * @param td
    *   The task def whose selectors to inspect.
@@ -65,9 +65,15 @@ abstract class BaseTestTask[T](
     spec.caseValue match {
       // Test events' names are prefixed with the top level label and a dash. We need to remove that prefix
       // in order to create the appropriate search term.
-      case Spec.LabeledCase(label, _) if td.selectors().forall(_.isInstanceOf[TestSelector]) =>
+      case Spec.LabeledCase(label, _)
+          if td
+            .selectors()
+            .forall(selector => selector.isInstanceOf[TestSelector] || selector.isInstanceOf[TestWildcardSelector]) =>
         val prefix = s"$label - "
-        val terms  = td.selectors().toList.collect { case ts: TestSelector => ts.testName().stripPrefix(prefix) }
+        val terms = td.selectors().toList.collect {
+          case ts: TestSelector          => ts.testName().stripPrefix(prefix)
+          case tws: TestWildcardSelector => tws.testWildcard().stripPrefix(prefix)
+        }
         terms
       case _ => Nil
     }

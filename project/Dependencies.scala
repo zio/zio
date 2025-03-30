@@ -3,7 +3,7 @@ import sbt.*
 object Dependencies {
   // Runtime dependencies
   val JunitVersion                 = "4.13.2"
-  val JunitPlatformEngineVersion   = "1.12.0"
+  val JunitPlatformEngineVersion   = "1.12.1"
   val IzumiReflectVersion          = "3.0.1"
   val MagnoliaScala2Version        = "1.1.10"
   val MagnoliaScala3Version        = "1.3.16"
@@ -16,19 +16,19 @@ object Dependencies {
   val ScalaJsDomVersion            = "2.8.0"
 
   // Documentations and example dependencies
-  val CatsEffectVersion = "3.5.7"
+  val CatsEffectVersion = "3.6.0"
   val DoobieVersion     = "1.0.0-RC5"
-  val Fs2Version        = "3.11.0"
+  val Fs2Version        = "3.12.0"
   val Http4sVersion     = "0.23.29"
-  val QuillVersion      = "4.8.4"
+  val QuillVersion      = "4.8.5"
   val ShardcakeVersion  = "2.4.2"
 
   val ZioMetricsConnectorsVersion      = "2.3.1"
-  val ZioHttpVersion                   = "3.0.1"
+  val ZioHttpVersion                   = "3.2.0"
   val IzumiVersion                     = "1.2.15"
   val ZioConfigVersion                 = "4.0.2"
   val ZioFtpVersion                    = "0.4.3"
-  val ZioJsonVersion                   = "0.7.3"
+  val ZioJsonVersion                   = "0.7.38"
   val ZioPreludeVersion                = "1.0.0-RC34"
   val ZioProcessVersion                = "0.7.2"
   val ZioRocksDBVersion                = "0.4.4"

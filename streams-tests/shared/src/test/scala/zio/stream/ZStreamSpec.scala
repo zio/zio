@@ -2735,6 +2735,39 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk(Right(1), Right(2), Left("boom"))))
           }
         ),
+        suite("mapZIOChunked")(
+          test("ZIO#foreach equivalence when error-free") {
+            check(Gen.small(Gen.listOfN(_)(Gen.byte)), Gen.function(Gen.successes(Gen.byte))) { (data, f) =>
+              val s = ZStream.fromIterable(data)
+
+              for {
+                l <- s.mapZIOChunked(f).runCollect
+                r <- ZIO.foreach(data)(f)
+              } yield assert(l.toList)(equalTo(r))
+            }
+          },
+          test("retains chunks") {
+            ZStream
+              .fromChunks(Chunk(1, 2))
+              .mapZIOChunked(ZIO.succeed(_))
+              .chunks
+              .runCount
+              .map(count => assertTrue(count == 1))
+          },
+          test("retains chunks up to error") {
+            assertZIO(
+              ZStream
+                .fromChunks(Chunk(1, 2), Chunk(3, 4, 5))
+                .mapZIOChunked {
+                  case 4 => ZIO.fail("boom")
+                  case x => ZIO.succeed(x)
+                }
+                .either
+                .chunks
+                .runCollect
+            )(equalTo(Chunk(Chunk(Right(1), Right(2)), Chunk(Right(3)), Chunk(Left("boom")))))
+          }
+        ),
         suite("mapZIOPar")(
           test("foreachParN equivalence") {
             checkN(10)(Gen.small(Gen.listOfN(_)(Gen.byte)), Gen.function(Gen.successes(Gen.byte))) { (data, f) =>
@@ -4040,6 +4073,19 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertZIO(ZStream(1, 2, 3).tap(x => ZIO.when(x == 3)(ZIO.fail("error"))).either.runCollect)(
               equalTo(Chunk(Right(1), Right(2), Left("error")))
             )
+          }
+        ),
+        suite("tapChunks")(
+          test("tapChunks") {
+            for {
+              ref <- Ref.make(0)
+              res <- ZStream
+                       .fromChunks(Chunk(9, 7), Chunk(1))
+                       .tapChunks[Any, Nothing](c => ref.update(_ + c.size))
+                       .chunks
+                       .runCollect
+              sum <- ref.get
+            } yield assert(res)(equalTo(Chunk(Chunk(9, 7), Chunk(1)))) && assert(sum)(equalTo(3))
           }
         ),
         suite("tapBoth")(

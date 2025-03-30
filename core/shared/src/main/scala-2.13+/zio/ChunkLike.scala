@@ -42,6 +42,10 @@ trait ChunkLike[+A]
     with StrictOptimizedSeqOps[A, Chunk, Chunk[A]]
     with IterableFactoryDefaults[A, Chunk] { self: Chunk[A] =>
 
+  // this weird () is there to trigger the create of synthetic method $init$ and maintain binary compatibility
+  // removing it should trigger a mima failure
+  ()
+
   override final def appended[A1 >: A](a1: A1): Chunk[A1] =
     append(a1)
 
@@ -111,7 +115,7 @@ trait ChunkLike[+A]
    * exposes a `newBuilder` method that is not referentially transparent because
    * it allocates mutable state.
    */
-  override val iterableFactory: SeqFactory[Chunk] =
+  override def iterableFactory: SeqFactory[Chunk] =
     Chunk
 
   /**
