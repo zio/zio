@@ -4094,6 +4094,21 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     }
 
   /**
+   * Logs the specified failure with optional trace at the current log level.
+   */
+  def logFailure(e: Any, stackTrace: StackTrace = StackTrace.none)(implicit trace: Trace): UIO[Unit] =
+    ZIO.logCause(Cause.fail(e, stackTrace))
+
+  /**
+   * Logs the specified message and failure with optional trace at the current
+   * log level.
+   */
+  def logFailure(message: => String, e: Any, stackTrace: StackTrace = StackTrace.none)(implicit
+    trace: Trace
+  ): UIO[Unit] =
+    ZIO.logCause(message, Cause.fail(e, stackTrace))
+
+  /**
    * Annotates each log in this effect with the specified log annotation.
    */
   def logAnnotate(key: => String, value: => String): LogAnnotate =
@@ -4153,6 +4168,21 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     logDebugCause("", cause)
 
   /**
+   * Logs the specified failure with optional trace at the debug log level.
+   */
+  def logDebugFailure(e: Any, stackTrace: StackTrace = StackTrace.none)(implicit trace: Trace): UIO[Unit] =
+    ZIO.logDebugCause(Cause.fail(e, stackTrace))
+
+  /**
+   * Logs the specified message and failure with optional trace at the debug log
+   * level.
+   */
+  def logDebugFailure(message: => String, e: Any, stackTrace: StackTrace = StackTrace.none)(implicit
+    trace: Trace
+  ): UIO[Unit] =
+    ZIO.logDebugCause(message, Cause.fail(e, stackTrace))
+
+  /**
    * Logs the specified message at the error log level.
    */
   def logError(message: => String)(implicit trace: Trace): UIO[Unit] =
@@ -4173,6 +4203,21 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def logErrorCause(cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
     logErrorCause("", cause)
+
+  /**
+   * Logs the specified failure with optional trace as an error.
+   */
+  def logErrorFailure(e: Any, stackTrace: StackTrace = StackTrace.none)(implicit trace: Trace): UIO[Unit] =
+    ZIO.logErrorCause(Cause.fail(e, stackTrace))
+
+  /**
+   * Logs the specified message and failure with optional trace at the error log
+   * level.
+   */
+  def logErrorFailure(message: => String, e: Any, stackTrace: StackTrace = StackTrace.none)(implicit
+    trace: Trace
+  ): UIO[Unit] =
+    ZIO.logErrorCause(message, Cause.fail(e, stackTrace))
 
   /**
    * Logs the specified message at the fatal log level.
@@ -4197,6 +4242,21 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     logFatalCause("", cause)
 
   /**
+   * Logs the specified failure with optional trace as a fatal.
+   */
+  def logFatalFailure(e: Any, stackTrace: StackTrace = StackTrace.none)(implicit trace: Trace): UIO[Unit] =
+    ZIO.logFatalCause(Cause.fail(e, stackTrace))
+
+  /**
+   * Logs the specified message and failure with optional trace at the fatal log
+   * level.
+   */
+  def logFatalFailure(message: => String, e: Any, stackTrace: StackTrace = StackTrace.none)(implicit
+    trace: Trace
+  ): UIO[Unit] =
+    ZIO.logFatalCause(message, Cause.fail(e, stackTrace))
+
+  /**
    * Logs the specified message at the informational log level.
    */
   def logInfo(message: => String)(implicit trace: Trace): UIO[Unit] =
@@ -4217,6 +4277,21 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def logInfoCause(cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
     logInfoCause("", cause)
+
+  /**
+   * Logs the specified failure with optional trace as an informational.
+   */
+  def logInfoFailure(e: Any, stackTrace: StackTrace = StackTrace.none)(implicit trace: Trace): UIO[Unit] =
+    ZIO.logInfoCause(Cause.fail(e, stackTrace))
+
+  /**
+   * Logs the specified message and failure with optional trace at the fatal log
+   * level.
+   */
+  def logInfoFailure(message: => String, e: Any, stackTrace: StackTrace = StackTrace.none)(implicit
+    trace: Trace
+  ): UIO[Unit] =
+    ZIO.logInfoCause(message, Cause.fail(e, stackTrace))
 
   /**
    * Sets the log level for this effect.
@@ -4277,6 +4352,21 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     logTraceCause("", cause)
 
   /**
+   * Logs the specified failure with optional trace as a trace.
+   */
+  def logTraceFailure(e: Any, stackTrace: StackTrace = StackTrace.none)(implicit trace: Trace): UIO[Unit] =
+    ZIO.logTraceCause(Cause.fail(e, stackTrace))
+
+  /**
+   * Logs the specified message and failure with optional trace at the trace log
+   * level.
+   */
+  def logTraceFailure(message: => String, e: Any, stackTrace: StackTrace = StackTrace.none)(implicit
+    trace: Trace
+  ): UIO[Unit] =
+    ZIO.logTraceCause(message, Cause.fail(e, stackTrace))
+
+  /**
    * Logs the specified message at the warning log level.
    */
   def logWarning(message: => String)(implicit trace: Trace): UIO[Unit] =
@@ -4297,6 +4387,21 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def logWarningCause(cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
     logWarningCause("", cause)
+
+  /**
+   * Logs the specified failure with optional trace as a warning.
+   */
+  def logWarningFailure(e: Any, stackTrace: StackTrace = StackTrace.none)(implicit trace: Trace): UIO[Unit] =
+    ZIO.logWarningCause(Cause.fail(e, stackTrace))
+
+  /**
+   * Logs the specified message and failure with optional trace at the warning
+   * log level.
+   */
+  def logWarningFailure(message: => String, e: Any, stackTrace: StackTrace = StackTrace.none)(implicit
+    trace: Trace
+  ): UIO[Unit] =
+    ZIO.logWarningCause(message, Cause.fail(e, stackTrace))
 
   /**
    * Returns a memoized version of the specified effectual function.
