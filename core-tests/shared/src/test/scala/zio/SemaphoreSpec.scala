@@ -39,10 +39,17 @@ object SemaphoreSpec extends ZIOBaseSpec {
         permits <- sem.available
       } yield assertTrue(permits == 3L && ans.isDefined)
     },
+    test("tryWithPermits if 0 permits requested") {
+      for {
+        sem     <- Semaphore.make(3L)
+        ans     <- sem.tryWithPermits(0L)(ZIO.succeed("I got executed"))
+        permits <- sem.available
+      } yield assertTrue(permits == 3L && ans.contains("I got executed"))
+    },
     test("tryWithPermits returns None if no permits available") {
       for {
         sem     <- Semaphore.make(3L)
-        ans     <- sem.tryWithPermits(4L)(ZIO.unit)
+        ans     <- sem.tryWithPermits(4L)(ZIO.succeed("Shouldn't get executed"))
         permits <- sem.available
       } yield assertTrue(permits == 3L && ans.isEmpty)
     },

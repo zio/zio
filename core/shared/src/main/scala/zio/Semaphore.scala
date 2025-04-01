@@ -126,16 +126,22 @@ object Semaphore {
           ZIO.acquireRelease(reserve(n))(_.release).flatMap(_.acquire)
 
         override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-          tryReserve(n).flatMap {
-            case Some(reservation) => (reservation.acquire *> zio <* reservation.release).asSome
-            case _                 => Exit.none
+          ZIO.acquireReleaseWith(tryReserve(n)) {
+            case Some(reservation) => reservation.release
+            case None              => Exit.none
+          } {
+            case Some(_) => zio.asSome
+            case None    => Exit.none
           }
 
         case class Reservation(acquire: UIO[Unit], release: UIO[Any])
+        object Reservation {
+          private[zio] val zero = Reservation(ZIO.unit, ZIO.unit)
+        }
 
         def tryReserve(n: Long)(implicit trace: Trace): UIO[Option[Reservation]] =
           if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
-          else if (n == 0L) ZIO.succeed(Some(Reservation(ZIO.unit, ZIO.unit)))
+          else if (n == 0L) ZIO.succeed(Some(Reservation.zero))
           else
             ref.modify {
               case Right(permits) if permits >= n =>
@@ -147,7 +153,7 @@ object Semaphore {
           if (n < 0)
             ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
           else if (n == 0L)
-            ZIO.succeed(Reservation(ZIO.unit, ZIO.unit))
+            ZIO.succeed(Reservation.zero)
           else
             Promise.make[Nothing, Unit].flatMap { promise =>
               ref.modify {
