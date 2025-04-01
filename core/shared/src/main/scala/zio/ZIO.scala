@@ -28,6 +28,13 @@ import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.control.NoStackTrace
 import izumi.reflect.macrortti.LightTypeTag
+import zio.Cause.Empty
+import zio.Cause.Then
+import zio.Cause.Interrupt
+import zio.Cause.Die
+import zio.Cause.Stackless
+import zio.Cause.Fail
+import zio.Cause.Both
 
 /**
  * A `ZIO[R, E, A]` value is an immutable value (called an "effect") that
@@ -346,10 +353,15 @@ sealed trait ZIO[-R, +E, +A]
    * effect.catchFailureCause(c => ZIO.logErrorCause("failure", c))
    * }}}
    */
-  final def catchFailureCause[R1 <: R, E1 >: E, A1 >: A](
-    h: Cause.Fail[E] => ZIO[R1, E1, A1]
-  )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A1] =
-    catchSomeFailureCause { case t => h(t) }
+  final def catchFailureCause[R1 <: R, E2, A1 >: A](
+    h: Cause.Fail[E] => ZIO[R1, E2, A1]
+  )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E2, A1] =
+    self.foldTraceZIO[R1, E2, A1](
+      { case (e, stackTrace) =>
+        h(Cause.Fail(e, stackTrace))
+      },
+      ZIO.successFn
+    )
 
   /**
    * Recovers from all NonFatal Throwables.
