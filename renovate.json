@@ -1,6 +1,7 @@
 {
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    ":disableDependencyDashboard"
   ],
   "includePaths": [
     "website/package.json"
