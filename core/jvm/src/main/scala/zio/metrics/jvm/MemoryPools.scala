@@ -81,8 +81,42 @@ object MemoryPools {
       )
     )
 
+  val liveV2: ZLayer[JvmMetricsSchedule, Throwable, MemoryPools] = withNames(
+    jvmMemoryCommittedBytes = "jvm_memory_committed_bytes",
+    jvmMemoryInitBytes = "jvm_memory_init_bytes",
+    jvmMemoryMaxBytes = "jvm_memory_max_bytes",
+    jvmMemoryUsedBytes = "jvm_memory_used_bytes",
+    jvmMemoryPoolUsedBytes = "jvm_memory_pool_used_bytes",
+    jvmMemoryPoolCommittedBytes = "jvm_memory_pool_committed_bytes",
+    jvmMemoryPoolMaxBytes = "jvm_memory_pool_max_bytes",
+    jvmMemoryPoolInitBytes = "jvm_memory_pool_init_bytes"
+  )
+
+  @deprecated(
+    "This layer exposes JVM metrics with the non-OpenMetrics-compliant names used in prometheus client_java 0.16: https://github.com/prometheus/client_java/blob/main/docs/content/migration/simpleclient.md#jvm-metrics. Use the `liveV2` layer instead, it uses names compatible with the client_java 1.0 library"
+  )
+  val live: ZLayer[JvmMetricsSchedule, Throwable, MemoryPools] = withNames(
+    jvmMemoryCommittedBytes = "jvm_memory_bytes_committed",
+    jvmMemoryInitBytes = "jvm_memory_bytes_init",
+    jvmMemoryMaxBytes = "jvm_memory_bytes_max",
+    jvmMemoryUsedBytes = "jvm_memory_bytes_used",
+    jvmMemoryPoolUsedBytes = "jvm_memory_pool_bytes_used",
+    jvmMemoryPoolCommittedBytes = "jvm_memory_pool_bytes_committed",
+    jvmMemoryPoolMaxBytes = "jvm_memory_pool_bytes_max",
+    jvmMemoryPoolInitBytes = "jvm_memory_pool_bytes_init"
+  )
+
   @nowarn("msg=JavaConverters")
-  val live: ZLayer[JvmMetricsSchedule, Throwable, MemoryPools] =
+  private def withNames(
+    jvmMemoryCommittedBytes: String,
+    jvmMemoryInitBytes: String,
+    jvmMemoryMaxBytes: String,
+    jvmMemoryUsedBytes: String,
+    jvmMemoryPoolUsedBytes: String,
+    jvmMemoryPoolCommittedBytes: String,
+    jvmMemoryPoolMaxBytes: String,
+    jvmMemoryPoolInitBytes: String
+  ): ZLayer[JvmMetricsSchedule, Throwable, MemoryPools] =
     ZLayer.scoped {
       for {
         memoryMXBean <- ZIO.attempt(ManagementFactory.getMemoryMXBean)
@@ -94,55 +128,55 @@ object MemoryPools {
                                          .contramap[Int](_.toDouble),
                                        ZIO.attempt(memoryMXBean.getObjectPendingFinalizationCount)
                                      )
-        memoryBytesUsed = pollingMemoryMetric(
-                            "jvm_memory_bytes_used",
+        memoryUsedBytes = pollingMemoryMetric(
+                            jvmMemoryUsedBytes,
                             ZIO.attempt(memoryMXBean.getHeapMemoryUsage.getUsed),
                             ZIO.attempt(memoryMXBean.getNonHeapMemoryUsage.getUsed)
                           )
-        memoryBytesCommitted = pollingMemoryMetric(
-                                 "jvm_memory_bytes_committed",
+        memoryCommittedBytes = pollingMemoryMetric(
+                                 jvmMemoryCommittedBytes,
                                  ZIO.attempt(memoryMXBean.getHeapMemoryUsage.getCommitted),
                                  ZIO.attempt(memoryMXBean.getNonHeapMemoryUsage.getCommitted)
                                )
-        memoryBytesMax = pollingMemoryMetric(
-                           "jvm_memory_bytes_max",
+        memoryMaxBytes = pollingMemoryMetric(
+                           jvmMemoryMaxBytes,
                            ZIO.attempt(memoryMXBean.getHeapMemoryUsage.getMax),
                            ZIO.attempt(memoryMXBean.getNonHeapMemoryUsage.getMax)
                          )
-        memoryBytesInit = pollingMemoryMetric(
-                            "jvm_memory_bytes_init",
+        memoryInitBytes = pollingMemoryMetric(
+                            jvmMemoryInitBytes,
                             ZIO.attempt(memoryMXBean.getHeapMemoryUsage.getInit),
                             ZIO.attempt(memoryMXBean.getNonHeapMemoryUsage.getInit)
                           )
 
-        poolBytesUsed = PollingMetric.collectAll(poolMXBeans.flatMap { poolBean =>
+        poolUsedBytes = PollingMetric.collectAll(poolMXBeans.flatMap { poolBean =>
                           pollingPoolMetric(
                             poolBean,
-                            "jvm_memory_pool_bytes_used",
+                            jvmMemoryPoolUsedBytes,
                             "jvm_memory_pool_collection_used_bytes",
                             _.getUsed
                           )
                         })
-        poolBytesCommitted = PollingMetric.collectAll(poolMXBeans.flatMap { poolBean =>
+        poolCommittedBytes = PollingMetric.collectAll(poolMXBeans.flatMap { poolBean =>
                                pollingPoolMetric(
                                  poolBean,
-                                 "jvm_memory_pool_bytes_committed",
+                                 jvmMemoryPoolCommittedBytes,
                                  "jvm_memory_pool_collection_committed_bytes",
                                  _.getCommitted
                                )
                              })
-        poolBytesMax = PollingMetric.collectAll(poolMXBeans.flatMap { poolBean =>
+        poolMaxBytes = PollingMetric.collectAll(poolMXBeans.flatMap { poolBean =>
                          pollingPoolMetric(
                            poolBean,
-                           "jvm_memory_pool_bytes_max",
+                           jvmMemoryPoolMaxBytes,
                            "jvm_memory_pool_collection_max_bytes",
                            _.getMax
                          )
                        })
-        poolBytesInit = PollingMetric.collectAll(poolMXBeans.flatMap { poolBean =>
+        poolInitBytes = PollingMetric.collectAll(poolMXBeans.flatMap { poolBean =>
                           pollingPoolMetric(
                             poolBean,
-                            "jvm_memory_pool_bytes_init",
+                            jvmMemoryPoolInitBytes,
                             "jvm_memory_pool_collection_init_bytes",
                             _.getInit
                           )
@@ -150,23 +184,23 @@ object MemoryPools {
 
         schedule <- ZIO.service[JvmMetricsSchedule]
         _        <- objectsPendingFinalization.launch(schedule.updateMetrics)
-        _        <- memoryBytesUsed.launch(schedule.updateMetrics)
-        _        <- memoryBytesCommitted.launch(schedule.updateMetrics)
-        _        <- memoryBytesMax.launch(schedule.updateMetrics)
-        _        <- memoryBytesInit.launch(schedule.updateMetrics)
-        _        <- poolBytesUsed.launch(schedule.updateMetrics)
-        _        <- poolBytesCommitted.launch(schedule.updateMetrics)
-        _        <- poolBytesMax.launch(schedule.updateMetrics)
-        _        <- poolBytesInit.launch(schedule.updateMetrics)
+        _        <- memoryUsedBytes.launch(schedule.updateMetrics)
+        _        <- memoryCommittedBytes.launch(schedule.updateMetrics)
+        _        <- memoryMaxBytes.launch(schedule.updateMetrics)
+        _        <- memoryInitBytes.launch(schedule.updateMetrics)
+        _        <- poolUsedBytes.launch(schedule.updateMetrics)
+        _        <- poolCommittedBytes.launch(schedule.updateMetrics)
+        _        <- poolMaxBytes.launch(schedule.updateMetrics)
+        _        <- poolInitBytes.launch(schedule.updateMetrics)
       } yield MemoryPools(
-        memoryBytesUsed,
-        memoryBytesCommitted,
-        memoryBytesMax,
-        memoryBytesInit,
-        poolBytesUsed,
-        poolBytesCommitted,
-        poolBytesMax,
-        poolBytesInit
+        memoryUsedBytes,
+        memoryCommittedBytes,
+        memoryMaxBytes,
+        memoryInitBytes,
+        poolUsedBytes,
+        poolCommittedBytes,
+        poolMaxBytes,
+        poolInitBytes
       )
     }
 }
