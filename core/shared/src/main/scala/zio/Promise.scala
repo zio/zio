@@ -255,12 +255,14 @@ object Promise {
     private case object Empty extends Pending[Nothing, Nothing] { self =>
       override def complete(io: IO[Nothing, Nothing]): Unit = ()
       def size                                              = 0
-      def add(waiter: IO[Nothing, Nothing] => Any): Pending[Nothing, Nothing]     = new Link[Nothing, Nothing](waiter, self) {
-        override def size = 1
-      }
-      def remove(waiter: IO[Nothing, Nothing] => Any): Pending[Nothing, Nothing]     = self
+      def add(waiter: IO[Nothing, Nothing] => Any): Pending[Nothing, Nothing] =
+        new Link[Nothing, Nothing](waiter, self) {
+          override def size = 1
+        }
+      def remove(waiter: IO[Nothing, Nothing] => Any): Pending[Nothing, Nothing] = self
     }
-    private sealed abstract class Link[E, A](val waiter: IO[E, A] => Any, val ws: Pending[E, A]) extends Pending[E, A] { self =>
+    private sealed abstract class Link[E, A](val waiter: IO[E, A] => Any, val ws: Pending[E, A]) extends Pending[E, A] {
+      self =>
       final def add(waiter: IO[E, A] => Any): Pending[E, A] = new Link(waiter, self) {
         override val size = self.size + 1
         override val ws   = self

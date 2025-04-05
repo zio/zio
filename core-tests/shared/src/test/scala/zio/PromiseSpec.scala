@@ -7,7 +7,8 @@ object PromiseSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  private def empty[E, A]: Promise.internal.Pending[E, A] = Promise.internal.State.empty[E, A].asInstanceOf[Promise.internal.Pending[E, A]]
+  private def empty[E, A]: Promise.internal.Pending[E, A] =
+    Promise.internal.State.empty[E, A].asInstanceOf[Promise.internal.Pending[E, A]]
 
   def spec: Spec[Any, TestFailure[Any]] = suite("PromiseSpec")(
     test("complete a promise using succeed") {
@@ -164,9 +165,9 @@ object PromiseSpec extends ZIOBaseSpec {
           assert(increment)(equalTo(0))
         },
         test("multiple") {
-          val n     = 10
-          var fired = 0
-          val cb    = (_: IO[Nothing, Unit]) => ()
+          val n        = 10
+          var fired    = 0
+          val cb       = (_: IO[Nothing, Unit]) => ()
           val toRemove = (_: IO[Nothing, Unit]) => fired += 1
           val state =
             (0 until n).foldLeft(empty[Nothing, Unit])((acc, i) => if (i < 5) acc.add(cb) else acc.add(toRemove))
@@ -179,14 +180,14 @@ object PromiseSpec extends ZIOBaseSpec {
       suite("complete")(
         test("one") {
           var completed = 0
-          val state = empty[Nothing, Unit].add(_ => completed += 1)
+          val state     = empty[Nothing, Unit].add(_ => completed += 1)
           state.complete(ZIO.unit)
           assert(completed)(equalTo(1))
         },
         test("multiple") {
-          val n     = 10
+          val n         = 10
           var completed = Seq.empty[Int]
-          val state = (0 until n).foldLeft(empty[Nothing, Unit])((acc, i) => acc.add(_ => completed = completed :+ i))
+          val state     = (0 until n).foldLeft(empty[Nothing, Unit])((acc, i) => acc.add(_ => completed = completed :+ i))
           state.complete(ZIO.unit)
           assert(completed)(equalTo(0 until n))
         }
