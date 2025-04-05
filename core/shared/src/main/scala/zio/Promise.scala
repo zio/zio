@@ -250,7 +250,7 @@ object Promise {
       def complete(io: IO[E, A]): Unit
       def add(waiter: IO[E, A] => Any): Pending[E, A]
       def remove(waiter: IO[E, A] => Any): Pending[E, A]
-      def size: Int
+      protected def size: Int
     }
     private case object Empty extends Pending[Nothing, Nothing] { self =>
       override def complete(io: IO[Nothing, Nothing]): Unit = ()
