@@ -261,11 +261,11 @@ object Promise {
         }
       def remove(waiter: IO[Nothing, Nothing] => Any): Pending[Nothing, Nothing] = self
     }
-    private sealed abstract class Link[E, A](val waiter: IO[E, A] => Any, val ws: Pending[E, A]) extends Pending[E, A] {
+    private sealed abstract class Link[E, A](final val waiter: IO[E, A] => Any, final val ws: Pending[E, A])
+        extends Pending[E, A] {
       self =>
       final def add(waiter: IO[E, A] => Any): Pending[E, A] = new Link(waiter, self) {
         override val size = self.size + 1
-        override val ws   = self
       }
       final def complete(io: IO[E, A]): Unit =
         if (size == 1) waiter(io)
