@@ -49,7 +49,7 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
       state.get match {
         case Done(value) => value
         case pending =>
-          ZIO.async[Any, E, A]( // intentionally never remove the callback, interrupted fibers won't be resumed
+          ZIO.asyncInterrupt[Any, E, A](
             k => {
               @annotation.tailrec
               def loop(current: State[E, A]): Unit =
@@ -60,6 +60,11 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
                   case Done(value) => k(value)
                 }
               loop(pending)
+
+              Left(ZIO.succeed(state.updateAndGet {
+                case pending: Pending[?, ?] => pending.remove(k)
+                case completed              => completed
+              }))
             },
             blockingOn
           )
@@ -238,39 +243,67 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
 
 }
 object Promise {
-  private[Promise] object internal {
+  private[zio] object internal {
     sealed abstract class State[E, A]            extends Serializable
     final case class Done[E, A](value: IO[E, A]) extends State[E, A]
     sealed abstract class Pending[E, A] extends State[E, A] { self =>
       def complete(io: IO[E, A]): Unit
       def add(waiter: IO[E, A] => Any): Pending[E, A]
+      def remove(waiter: IO[E, A] => Any): Pending[E, A]
       def size: Int
     }
     private case object Empty extends Pending[Nothing, Nothing] { self =>
       override def complete(io: IO[Nothing, Nothing]): Unit = ()
-      override def add(waiter: IO[Nothing, Nothing] => Any): Pending[Nothing, Nothing] =
-        new Link[Nothing, Nothing](waiter, self, 1) {
-          override def complete(io: IO[Nothing, Nothing]): Unit = this.waiter(io)
-        }
-      def size = 0
+      def size                                              = 0
+      def add(waiter: IO[Nothing, Nothing] => Any): Pending[Nothing, Nothing]     = new Link[Nothing, Nothing](waiter, self) {
+        override def size = 1
+      }
+      def remove(waiter: IO[Nothing, Nothing] => Any): Pending[Nothing, Nothing]     = self
     }
-    private sealed class Link[E, A](val waiter: IO[E, A] => Any, val ws: Pending[E, A], val size: Int)
-        extends Pending[E, A] { self =>
-      def complete(io: IO[E, A]): Unit = {
-        val size = self.size
-        val arr  = new Array[IO[E, A] => Any](size)
+    private sealed abstract class Link[E, A](val waiter: IO[E, A] => Any, val ws: Pending[E, A]) extends Pending[E, A] { self =>
+      final def add(waiter: IO[E, A] => Any): Pending[E, A] = new Link(waiter, self) {
+        override val size = self.size + 1
+        override val ws   = self
+      }
+      final def complete(io: IO[E, A]): Unit =
+        if (size == 1) waiter(io)
+        else Link.materialize(self, size).foreach(_(io))
+
+      final def remove(waiter: IO[E, A] => Any): Pending[E, A] =
+        if (size == 1 && (waiter eq self.waiter)) ws
+        else {
+          val arr = Link.materialize(self, size)
+
+          @annotation.tailrec
+          def tabulate(i: Int, acc: Pending[E, A]): Pending[E, A] =
+            if (i >= 0) {
+              if (arr(i) ne waiter)
+                tabulate(i - 1, acc.add(arr(i)))
+              else
+                tabulate(i - 1, acc)
+            } else acc
+
+          tabulate(size - 1, Empty.asInstanceOf[Pending[E, A]])
+        }
+    }
+
+    private object Link {
+      def materialize[E, A](pending: Pending[E, A], size: Int): Array[IO[E, A] => Any] = {
+        val array = new Array[IO[E, A] => Any](size)
+
         @annotation.tailrec
         def fill(pending: Pending[E, A], i: Int): Unit =
-          pending match {
-            case link: Link[?, ?] =>
-              arr(i) = link.waiter
-              fill(link.ws, i - 1)
-            case _ => () // Empty
-          }
-        fill(self, size - 1)
-        arr.foreach(_(io))
+          if (i >= 0)
+            pending match {
+              case link: Link[?, ?] =>
+                array(i) = link.waiter
+                fill(link.ws, i - 1)
+              case _ => () // Empty
+            }
+
+        fill(pending, size - 1)
+        array
       }
-      def add(waiter: IO[E, A] => Any): Pending[E, A] = new Link(waiter, self, size + 1)
     }
 
     object State {

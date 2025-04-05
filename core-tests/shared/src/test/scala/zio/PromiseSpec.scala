@@ -7,6 +7,8 @@ object PromiseSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
+  private def empty[E, A]: Promise.internal.Pending[E, A] = Promise.internal.State.empty[E, A].asInstanceOf[Promise.internal.Pending[E, A]]
+
   def spec: Spec[Any, TestFailure[Any]] = suite("PromiseSpec")(
     test("complete a promise using succeed") {
       for {
@@ -128,6 +130,67 @@ object PromiseSpec extends ZIOBaseSpec {
         _      <- p.complete(Exit.unit)
         _      <- ZIO.foreach(fibers)(_.await)
       } yield assertCompletes
-    }
+    },
+    suite("State")(
+      suite("add")(
+        test("stack safety") {
+          (0 to 100000).foldLeft(empty[Nothing, Unit])((acc, _) => acc.add(_ => ()))
+          assertCompletes
+        }
+      ),
+      suite("complete")(
+        test("one") {
+          var increment = 0
+          val state     = empty[Nothing, Unit].add(_ => increment += 1)
+          state.complete(ZIO.unit)
+          assert(increment)(equalTo(1))
+        },
+        test("multiple") {
+          val n         = 10
+          var increment = 0
+          val state     = (0 until n).foldLeft(empty[Nothing, Unit])((acc, _) => acc.add(_ => increment += 1))
+          state.complete(ZIO.unit)
+          assert(increment)(equalTo(n))
+        }
+      ),
+      suite("remove")(
+        test("one") {
+          var increment = 0
+          val cb        = (_: IO[Nothing, Unit]) => increment += 1
+          val state     = empty[Nothing, Unit].add(cb)
+          val removed   = state.remove(cb)
+          removed.complete(ZIO.unit)
+          assert(removed)(equalTo(empty[Nothing, Unit])) &&
+          assert(increment)(equalTo(0))
+        },
+        test("multiple") {
+          val n     = 10
+          var fired = 0
+          val cb    = (_: IO[Nothing, Unit]) => ()
+          val toRemove = (_: IO[Nothing, Unit]) => fired += 1
+          val state =
+            (0 until n).foldLeft(empty[Nothing, Unit])((acc, i) => if (i < 5) acc.add(cb) else acc.add(toRemove))
+          val removed = state.remove(toRemove)
+          removed.complete(ZIO.unit)
+          assert(removed.size)(equalTo(5)) &&
+          assert(fired)(equalTo(0))
+        }
+      ),
+      suite("complete")(
+        test("one") {
+          var completed = 0
+          val state = empty[Nothing, Unit].add(_ => completed += 1)
+          state.complete(ZIO.unit)
+          assert(completed)(equalTo(1))
+        },
+        test("multiple") {
+          val n     = 10
+          var completed = Seq.empty[Int]
+          val state = (0 until n).foldLeft(empty[Nothing, Unit])((acc, i) => acc.add(_ => completed = completed :+ i))
+          state.complete(ZIO.unit)
+          assert(completed)(equalTo(0 until n))
+        }
+      )
+    )
   )
 }
