@@ -657,7 +657,7 @@ lazy val benchmarks = project.module
         "org.jctools"                % "jctools-core"  % "4.0.5",
         "org.typelevel"             %% "cats-effect"   % CatsEffectVersion,
         "org.scalacheck"            %% "scalacheck"    % ScalaCheckVersion,
-        "qa.hedgehog"               %% "hedgehog-core" % "0.11.0",
+        "qa.hedgehog"               %% "hedgehog-core" % "0.12.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % nyanaVersion,
         "org.springframework"        % "spring-core"   % "6.2.5"
       )
