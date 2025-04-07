@@ -73,7 +73,6 @@ private[zio] object javaz {
           if (cf.isDone) {
             unwrapDone(isFatal)(cf)
           } else {
-            val cancel = ZIO.succeed(cf.cancel(false))
             restore {
               ZIO.asyncInterrupt[Any, Throwable, A] { cb =>
                 cs.handle[Unit] { (v: A, t: Throwable) =>
@@ -82,7 +81,7 @@ private[zio] object javaz {
                     else catchFromGet(isFatal).applyOrElse(t, (d: Throwable) => ZIO.die(d))
                   cb(io)
                 }
-                Left(cancel)
+                Left(ZIO.succeed(cf.cancel(false)))
               }
             }
           }
