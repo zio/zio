@@ -1785,7 +1785,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     f: In => ZStream[Env, Err, Out]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     new ZPipeline(
-      ZChannel.identity[Nothing, Chunk[In], Any].concatMap(_.foldLeft(ZChannel.unit)((acc, elem) => acc *> f(elem).channel))
+      ZChannel
+        .identity[Nothing, Chunk[In], Any]
+        .concatMap(_.foldLeft(ZChannel.unit)((acc, elem) => acc *> f(elem).channel))
     )
 
   /**
