@@ -1789,6 +1789,41 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     )
 
   /**
+   * Creates a pipeline that maps chunks of elements with the specified
+   * function.
+   *
+   * Will stop on the first Left found
+   */
+  def mapEitherChunked[Env, Err, In, Out](
+    f: In => Either[Err, Out]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
+    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.readWithCause(
+        chunk => {
+          val valueBuilder = ChunkBuilder.make[Out](chunk.size)
+          var error: Err   = null.asInstanceOf[Err]
+          val iterator     = chunk.iterator
+
+          while (iterator.hasNext && (error == null)) {
+            val a = iterator.next()
+            f(a) match {
+              case r: Right[?, Out] => valueBuilder.addOne(r.value)
+              case l: Left[Err, ?]  => error = l.value
+            }
+          }
+
+          val values = valueBuilder.result()
+          val next   = if (error == null) reader else ZChannel.refailCause(Cause.fail(error))
+          if (values.nonEmpty) ZChannel.write(values) *> next else next
+        },
+        err => ZChannel.refailCause(err),
+        done => ZChannel.succeed(done)
+      )
+
+    new ZPipeline(reader)
+  }
+
+  /**
    * Creates a pipeline that maps elements with the specified effectful
    * function.
    */
