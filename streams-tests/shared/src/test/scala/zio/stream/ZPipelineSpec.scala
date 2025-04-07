@@ -312,10 +312,10 @@ object ZPipelineSpec extends ZIOBaseSpec {
           for {
             collector <- Queue.unbounded[Int]
             result <- ZStream
-              .fromChunk(chunk)
-              .via(ZPipeline.mapEitherChunked(i => if (i == 5) Left(i) else Right(i)))
-              .run(ZSink.fromQueue(collector))
-              .exit
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapEitherChunked(i => if (i == 5) Left(i) else Right(i)))
+                        .run(ZSink.fromQueue(collector))
+                        .exit
             collected <- collector.takeAll
           } yield assert(result)(fails(equalTo(5))) && assert(collected)(equalTo(Chunk(1, 2, 3, 4)))
         }

@@ -1800,19 +1800,19 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
       ZChannel.readWithCause(
         chunk => {
-          val valueBuilder = ChunkBuilder.make[Out](chunk.size)
-          var error: Err   = null.asInstanceOf[Err]
-          val iterator     = chunk.iterator
+          val builder: ChunkBuilder[Out] = ChunkBuilder.make[Out](chunk.size)
+          val iterator: Iterator[In]     = chunk.iterator
+          var error: Err                 = null.asInstanceOf[Err]
 
           while (iterator.hasNext && (error == null)) {
             val a = iterator.next()
             f(a) match {
-              case r: Right[?, Out] => valueBuilder.addOne(r.value)
+              case r: Right[?, Out] => builder.addOne(r.value)
               case l: Left[Err, ?]  => error = l.value
             }
           }
 
-          val values = valueBuilder.result()
+          val values = builder.result()
           val next   = if (error == null) reader else ZChannel.refailCause(Cause.fail(error))
           if (values.nonEmpty) ZChannel.write(values) *> next else next
         },
