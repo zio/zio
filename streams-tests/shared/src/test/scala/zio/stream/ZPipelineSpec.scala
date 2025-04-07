@@ -294,7 +294,32 @@ object ZPipelineSpec extends ZIOBaseSpec {
           }
           .runCollect
           .map(assert(_)(equalTo(Chunk.range(1, 21))))
-      }
+      },
+      suite("mapEitherChunk")(
+        test("Keeps order and values intact") {
+          val range = 1.to(10)
+          val chunk = Chunk.fromIterable(range)
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapEitherChunked(i => Right(i)))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(equalTo(Chunk(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)))
+        },
+        test("stop at the first Left") {
+          val range = 1.to(10)
+          val chunk = Chunk.fromIterable(range)
+          for {
+            collector <- Queue.unbounded[Int]
+            result <- ZStream
+              .fromChunk(chunk)
+              .via(ZPipeline.mapEitherChunked(i => if (i == 5) Left(i) else Right(i)))
+              .run(ZSink.fromQueue(collector))
+              .exit
+            collected <- collector.takeAll
+          } yield assert(result)(fails(equalTo(5))) && assert(collected)(equalTo(Chunk(1, 2, 3, 4)))
+        }
+      )
     )
 
   val weirdStringGenForSplitLines: Gen[Any, Chunk[String]] = Gen
