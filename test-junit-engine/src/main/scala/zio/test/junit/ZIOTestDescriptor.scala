@@ -16,9 +16,12 @@
 
 package zio.test.junit
 
-import org.junit.platform.engine.{TestDescriptor, UniqueId}
 import org.junit.platform.engine.support.descriptor.AbstractTestDescriptor
-import zio.test.TestAnnotationMap
+import org.junit.platform.engine.{TestDescriptor, TestTag, UniqueId}
+import zio.test.{TestAnnotation, TestAnnotationMap}
+
+import java.util
+import scala.jdk.CollectionConverters._
 
 /**
  * Describes a JUnit 5 test descriptor for a single ZIO tests.
@@ -45,6 +48,9 @@ class ZIOTestDescriptor(
 ) extends AbstractTestDescriptor(uniqueId, label, ZIOTestSource(testClass, annotations)) {
   setParent(parent)
   override def getType: TestDescriptor.Type = TestDescriptor.Type.TEST
+
+  override def getTags: util.Set[TestTag] =
+    annotations.get(TestAnnotation.tagged).map(TestTag.create).asJava
 }
 
 object ZIOTestDescriptor {
