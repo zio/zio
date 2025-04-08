@@ -237,7 +237,7 @@ sealed trait ZIO[-R, +E, +A]
    * Returns an effect that, if evaluated, will return the cached result of this
    * effect. Cached results will expire after `timeToLive` duration.
    */
-  final def cached(timeToLive: => Duration)(implicit trace: Trace): ZIO[R, Nothing, IO[E, A]] =
+  final def cached(timeToLive: => Duration)(implicit trace: Trace): UIO[ZIO[R, E, A]] =
     cachedInvalidate(timeToLive).map(_._1)
 
   /**
@@ -248,7 +248,7 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def cachedInvalidate(
     timeToLive0: => Duration
-  )(implicit trace: Trace): ZIO[R, Nothing, (IO[E, A], UIO[Unit])] =
+  )(implicit trace: Trace): UIO[(ZIO[R, E, A], UIO[Unit])] =
     ZIO.suspendSucceed {
       val timeToLive = timeToLive0
 
@@ -271,9 +271,8 @@ sealed trait ZIO[-R, +E, +A]
         cache.set(None)
 
       for {
-        r     <- ZIO.environment[R]
         cache <- Ref.Synchronized.make[Option[(Long, Promise[E, A])]](None)
-      } yield (get(cache).provideEnvironment(r), invalidate(cache))
+      } yield (get(cache), invalidate(cache))
     }
 
   /**
