@@ -16,7 +16,7 @@ object Dependencies {
   val ScalaJsDomVersion            = "2.8.0"
 
   // Documentations and example dependencies
-  val CatsEffectVersion = "3.6.0"
+  val CatsEffectVersion = "3.6.1"
   val DoobieVersion     = "1.0.0-RC5"
   val Fs2Version        = "3.12.0"
   val Http4sVersion     = "0.23.29"
