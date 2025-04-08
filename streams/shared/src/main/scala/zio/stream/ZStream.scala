@@ -386,8 +386,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * buffering up to `capacity` elements in a queue.
    *
    * @note
-   *   This combinator destroys the chunking structure. It's recommended to use
-   *   rechunk afterwards.
+   *   This combinator destroys the chunking structure.
    * @note
    *   Prefer capacities that are powers of 2 for better performance.
    */
@@ -474,8 +473,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * buffering up to `capacity` elements in a dropping queue.
    *
    * @note
-   *   This combinator destroys the chunking structure. It's recommended to use
-   *   rechunk afterwards.
+   *   This combinator destroys the chunking structure.
    * @note
    *   Prefer capacities that are powers of 2 for better performance.
    */
@@ -490,8 +488,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * buffering up to `capacity` elements in a sliding queue.
    *
    * @note
-   *   This combinator destroys the chunking structure. It's recommended to use
-   *   rechunk afterwards.
+   *   This combinator destroys the chunking structure.
    * @note
    *   Prefer capacities that are powers of 2 for better performance.
    */
@@ -794,6 +791,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   /**
    * Taps the stream, printing the result of calling `.toString` on the emitted
    * values.
+   *
+   * @note
+   *   This combinator destroys the chunking structure.
    */
   def debug(implicit trace: Trace): ZStream[R, E, A] =
     self
@@ -803,6 +803,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   /**
    * Taps the stream, printing the result of calling `.toString` on the emitted
    * values. Prefixes the output with the given label.
+   *
+   * @note
+   *   This combinator destroys the chunking structure.
    */
   def debug(label: String)(implicit trace: Trace): ZStream[R, E, A] =
     self
@@ -1465,6 +1468,10 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def flattenTake[E1 >: E, A1](implicit ev: A <:< Take[E1, A1], trace: Trace): ZStream[R, E1, A1] =
     self.asInstanceOf[ZStream[R, E, Take[E1, A1]]] >>> ZPipeline.flattenTake
 
+  /**
+   * @note
+   *   This combinator destroys the chunking structure.
+   */
   def flattenZIO[R1 <: R, E1 >: E, A1](implicit ev: A <:< ZIO[R1, E1, A1], trace: Trace): ZStream[R1, E1, A1] =
     mapZIO(ev)
 
@@ -1871,6 +1878,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   /**
    * Effectfully maps each element to a chunk, and flattens the chunks into the
    * output of this stream.
+   *
+   * @note
+   *   This combinator destroys the chunking structure.
    */
   def mapConcatChunkZIO[R1 <: R, E1 >: E, A2](f: A => ZIO[R1, E1, Chunk[A2]])(implicit
     trace: Trace
@@ -1880,6 +1890,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   /**
    * Effectfully maps each element to an iterable, and flattens the iterables
    * into the output of this stream.
+   *
+   * @note
+   *   This combinator destroys the chunking structure.
    */
   def mapConcatZIO[R1 <: R, E1 >: E, A2](f: A => ZIO[R1, E1, Iterable[A2]])(implicit
     trace: Trace
@@ -1906,6 +1919,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
 
   /**
    * Maps over elements of the stream with the specified effectful function.
+   *
+   * @note
+   *   This combinator destroys the chunking structure.
+   * @see
+   *   [[mapZIOChunked]] for a version that preserves the chunking structure
    */
   def mapZIO[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: Trace): ZStream[R1, E1, A1] = {
 
@@ -1928,13 +1946,29 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   }
 
   /**
+   * Creates a pipeline that maps over elements of the stream with the specified
+   * effectful function.
+   *
+   * Unlike `mapZIO` processing is done chunk by chunk. This means that
+   * `mapZIOChunked` provides weaker guarantees than `mapZIO`. While
+   * `stream.mapZIO(f).mapZIO(g)` is guaranteed to be equivalent to
+   * `stream.mapZIO(x => f(x).flatMap(g))`, the same is not true for
+   * `mapZIOChunked`. For example, `mapZIO` guarantees that the first element of
+   * a stream will first be processed with `f` and then `g` before the second
+   * element is processed with `f`. `mapZIOChunked` may process the first two
+   * elements with `f` and only then move on to process the first element with
+   * `g`.
+   */
+  def mapZIOChunked[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: Trace): ZStream[R1, E1, A1] =
+    self >>> ZPipeline.mapZIOChunked(f)
+
+  /**
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. Transformed elements
    * will be emitted in the original order.
    *
    * @note
-   *   This combinator destroys the chunking structure. It's recommended to use
-   *   rechunk afterwards.
+   *   This combinator destroys the chunking structure.
    */
   def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
@@ -1947,8 +1981,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * will be emitted in the original order.
    *
    * @note
-   *   This combinator destroys the chunking structure. It's recommended to use
-   *   rechunk afterwards.
+   *   This combinator destroys the chunking structure.
    */
   def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: Int = 16)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
@@ -1962,6 +1995,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * outputs of type `K`. Up to `buffer` elements may be buffered per partition.
    * Transformed elements may be reordered but the order within a partition is
    * maintained.
+   *
+   * @note
+   *   This combinator destroys the chunking structure.
    */
   def mapZIOParByKey[R1 <: R, E1 >: E, A2, K](
     keyBy: A => K,
@@ -1973,6 +2009,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. The element order is
    * not enforced by this combinator, and elements may be reordered.
+   *
+   * @note
+   *   This combinator destroys the chunking structure.
    */
   def mapZIOParUnordered[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
@@ -2682,6 +2721,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
 
   /**
    * Fails with given error 'e' if value is `Left`.
+   *
+   * @note
+   *   This combinator destroys the chunking structure.
    */
   def rightOrFail[A1, A2, E1 >: E](
     e: => E1
@@ -2893,7 +2935,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     ZIO.scoped[R](runIntoQueueScoped(queue))
 
   /**
-   * Like [[ZStream#runIntoQueue]], but provides the result as a scoped [[ZIO]
+   * Like [[ZStream#runIntoQueue]], but provides the result as a scoped [[ZIO]]
    * to allow for scope composition.
    */
   def runIntoQueueScoped(
@@ -3060,6 +3102,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
 
   /**
    * Extracts the optional value, or fails with the given error 'e'.
+   *
+   * @note
+   *   This combinator destroys the chunking structure.
    */
   def someOrFail[A2, E1 >: E](e: => E1)(implicit ev: A <:< Option[A2], trace: Trace): ZStream[R, E1, A2] =
     self.mapZIO(ev(_).fold[IO[E1, A2]](ZIO.fail(e))(ZIO.succeed(_)))
@@ -3248,14 +3293,26 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     self >>> ZPipeline.takeWhileZIO(f)
 
   /**
-   * Adds an effect to consumption of every element of the stream.
+   * Adds an effect to consume every element of the stream.
+   *
+   * @note
+   *   This combinator destroys the chunking structure.
    */
   def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any])(implicit trace: Trace): ZStream[R1, E1, A] =
     mapZIO(a => f(a).as(a))
 
   /**
+   * Adds an effect to consume the underlying chunks of the stream.
+   */
+  def tapChunks[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit trace: Trace): ZStream[R1, E1, A] =
+    mapChunksZIO(chunk => f(chunk).as(chunk))
+
+  /**
    * Returns a stream that effectfully "peeks" at the failure and adds an effect
-   * to consumption of every element of the stream
+   * to consume every element of the stream
+   *
+   * @note
+   *   This combinator destroys the chunking structure.
    */
   def tapBoth[R1 <: R, E1 >: E](
     f: E => ZIO[R1, E1, Any],

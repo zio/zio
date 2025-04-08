@@ -1,5 +1,7 @@
 package zio
 
+import scala.reflect.ClassTag
+
 trait NonEmptyOps[+A, CC[+_], EC[+_]] {
   def collect[B](pf: PartialFunction[A, B]): EC[B]
   def exists(p: A => Boolean): Boolean
@@ -15,7 +17,11 @@ trait NonEmptyOps[+A, CC[+_], EC[+_]] {
   def last: A
   def map[B](f: A => B): CC[B]
   def reduce[B >: A](op: (B, B) => B): B
+  def size: Int = toIterable.size
   def tail: EC[A]
+  def toArray[B >: A: ClassTag]: Array[B] = toIterable.toArray
+  def toIterable: Iterable[A]             = iterator.toList
+  def toList: List[A]                     = toIterable.toList
   def zip[B](that: CC[B])(implicit zippable: Zippable[A, B]): CC[zippable.Out]
   def zipWithIndex: CC[(A, Int)]
 }
