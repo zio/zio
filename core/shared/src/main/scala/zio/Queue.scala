@@ -152,7 +152,7 @@ object Queue extends QueuePlatformSpecific {
     strategy: Strategy[A]
   ): Queue[A] = new QueueImpl[A](queue, takers, shutdownHook, shutdownFlag, strategy)
 
-  final class QueueImpl[A] private[Queue] (
+  private final class QueueImpl[A](
     queue: MutableConcurrentQueue[A],
     takers: ConcurrentDeque[Promise[Nothing, A]],
     shutdownHook: Promise[Nothing, Unit],
