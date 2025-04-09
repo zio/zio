@@ -49,27 +49,27 @@ private[zio] final class LinkedQueue[A] private (addMetrics: Boolean)
 
   override def size(): Int = jucConcurrentQueue.size()
 
-  override def enqueuedCount(): Long = if (addMetrics) enqueuedCounter.get() else 0L
+  override def enqueuedCount(): Long = if (enqueuedCounter ne null) enqueuedCounter.get() else 0L
 
-  override def dequeuedCount(): Long = if (addMetrics) dequeuedCounter.get() else 0L
+  override def dequeuedCount(): Long = if (dequeuedCounter ne null) dequeuedCounter.get() else 0L
 
   override def offer(a: A): Boolean = {
     val success = jucConcurrentQueue.offer(a)
-    if (addMetrics && success) enqueuedCounter.incrementAndGet()
+    if ((enqueuedCounter ne null) && success) enqueuedCounter.incrementAndGet()
     success
   }
 
   override def offerAll[A1 <: A](as: Iterable[A1]): Chunk[A1] = {
     import collection.JavaConverters._
     jucConcurrentQueue.addAll(as.asJavaCollection): @nowarn("msg=JavaConverters")
-    if (addMetrics) enqueuedCounter.addAndGet(as.size.toLong)
+    if (enqueuedCounter ne null) enqueuedCounter.addAndGet(as.size.toLong)
     Chunk.empty
   }
 
   override def poll(default: A): A = {
     val polled = jucConcurrentQueue.poll()
     if (polled != null) {
-      if (addMetrics) dequeuedCounter.incrementAndGet()
+      if (dequeuedCounter ne null) dequeuedCounter.incrementAndGet()
       polled
     } else default
   }
