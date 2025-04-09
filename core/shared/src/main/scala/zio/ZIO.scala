@@ -249,31 +249,27 @@ sealed trait ZIO[-R, +E, +A]
   final def cachedInvalidate(
     timeToLive0: => Duration
   )(implicit trace: Trace): ZIO[R, Nothing, (IO[E, A], UIO[Unit])] =
-    ZIO.suspendSucceed {
-      val timeToLive = timeToLive0
+    ZIO.environmentWith[R] { r =>
+      val timeToLive = timeToLive0.toNanos
+      val cache      = Ref.Synchronized.unsafe.make[Option[(Long, Promise[E, A])]](None)(Unsafe)
 
-      def get(cache: Ref.Synchronized[Option[(Long, Promise[E, A])]]): ZIO[R, E, A] =
+      def compute(start: Long): ZIO[R, Nothing, Option[(Long, Promise[E, A])]] =
+        for {
+          p <- Promise.make[E, A]
+          _ <- self.intoPromise(p)
+        } yield Some((start + timeToLive, p))
+
+      val get: ZIO[R, E, A] =
         ZIO.uninterruptibleMask { restore =>
           Clock.nanoTime.flatMap { time =>
-            cache.modifyZIO {
-              case Some((end, p)) if end - time > 0 =>
-                Exit.succeed(p.await -> Some((end, p)))
-              case _ =>
-                Promise.make[E, A].map { p =>
-                  val effect = self.onExit(p.done(_))
-                  effect -> Some((time + timeToLive.toNanos, p))
-                }
-            }.flatMap(restore(_))
+            cache.updateSomeAndGetZIO {
+              case None                              => restore(compute(time))
+              case Some((end, _)) if end - time <= 0 => restore(compute(time))
+            }.flatMap(a => restore(a.get._2.await))
           }
         }
 
-      def invalidate(cache: Ref.Synchronized[Option[(Long, Promise[E, A])]]): UIO[Unit] =
-        cache.set(None)
-
-      for {
-        r     <- ZIO.environment[R]
-        cache <- Ref.Synchronized.make[Option[(Long, Promise[E, A])]](None)
-      } yield (get(cache).provideEnvironment(r), invalidate(cache))
+      get.provideEnvironment(r) -> cache.set(None)
     }
 
   /**
