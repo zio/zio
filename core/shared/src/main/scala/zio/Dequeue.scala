@@ -94,7 +94,7 @@ trait Dequeue[+A] extends Serializable {
           takeUpTo(max).flatMap { bs =>
             val remaining = min - bs.length
 
-            if (remaining <= 0) ZIO.succeed(acc ++ bs)
+            if (remaining <= 0) Exit.succeed(acc ++ bs)
             else if (remaining == 1) take.map(b => acc ++ bs :+ b)
             else takeRemainder(remaining, max - bs.length, acc ++ bs)
           }
