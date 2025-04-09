@@ -150,14 +150,22 @@ object Queue extends QueuePlatformSpecific {
     shutdownHook: Promise[Nothing, Unit],
     shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
-  ): Queue[A] = new Queue[A] {
+  ): Queue[A] = new QueueImpl[A](queue, takers, shutdownHook, shutdownFlag, strategy)
+
+  private final class QueueImpl[A](
+    queue: MutableConcurrentQueue[A],
+    takers: ConcurrentDeque[Promise[Nothing, A]],
+    shutdownHook: Promise[Nothing, Unit],
+    shutdownFlag: AtomicBoolean,
+    strategy: Strategy[A]
+  ) extends Queue[A] {
 
     private def removeTaker(taker: Promise[Nothing, A])(implicit trace: Trace): UIO[Unit] =
       ZIO.succeed(takers.remove(taker))
 
-    val capacity: Int = queue.capacity
+    override def capacity: Int = queue.capacity
 
-    def offer(a: A)(implicit trace: Trace): UIO[Boolean] =
+    override def offer(a: A)(implicit trace: Trace): UIO[Boolean] =
       ZIO.suspendSucceed {
         if (shutdownFlag.get) ZIO.interrupt
         else {
@@ -186,7 +194,7 @@ object Queue extends QueuePlatformSpecific {
         }
       }
 
-    def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
+    override def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
       ZIO.suspendSucceed {
         if (shutdownFlag.get) ZIO.interrupt
         else {
@@ -212,9 +220,9 @@ object Queue extends QueuePlatformSpecific {
         }
       }
 
-    def awaitShutdown(implicit trace: Trace): UIO[Unit] = shutdownHook.await
+    override def awaitShutdown(implicit trace: Trace): UIO[Unit] = shutdownHook.await
 
-    def size(implicit trace: Trace): UIO[Int] =
+    override def size(implicit trace: Trace): UIO[Int] =
       ZIO.suspendSucceed {
         if (shutdownFlag.get)
           ZIO.interrupt
@@ -222,7 +230,7 @@ object Queue extends QueuePlatformSpecific {
           Exit.succeed(queue.size() - takers.size() + strategy.surplusSize)
       }
 
-    def shutdown(implicit trace: Trace): UIO[Unit] =
+    override def shutdown(implicit trace: Trace): UIO[Unit] =
       ZIO.fiberIdWith { fiberId =>
         shutdownFlag.set(true)
 
@@ -231,9 +239,9 @@ object Queue extends QueuePlatformSpecific {
         )
       }.uninterruptible
 
-    def isShutdown(implicit trace: Trace): UIO[Boolean] = ZIO.succeed(shutdownFlag.get)
+    override def isShutdown(implicit trace: Trace): UIO[Boolean] = ZIO.succeed(shutdownFlag.get)
 
-    def take(implicit trace: Trace): UIO[A] =
+    override def take(implicit trace: Trace): UIO[A] =
       ZIO.fiberIdWith { fiberId =>
         if (shutdownFlag.get) ZIO.interrupt
         else {
@@ -258,7 +266,7 @@ object Queue extends QueuePlatformSpecific {
         }
       }
 
-    def takeAll(implicit trace: Trace): UIO[Chunk[A]] =
+    override def takeAll(implicit trace: Trace): UIO[Chunk[A]] =
       ZIO.suspendSucceed {
         if (shutdownFlag.get)
           ZIO.interrupt
@@ -273,7 +281,7 @@ object Queue extends QueuePlatformSpecific {
         }
       }
 
-    def takeUpTo(max: Int)(implicit trace: Trace): UIO[Chunk[A]] =
+    override def takeUpTo(max: Int)(implicit trace: Trace): UIO[Chunk[A]] =
       ZIO.suspendSucceed {
         if (shutdownFlag.get)
           ZIO.interrupt
