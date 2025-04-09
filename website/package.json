@@ -34,7 +34,7 @@
     "@zio.dev/zio-dynamodb": "1.0.0-RC18",
     "@zio.dev/zio-ftp": "0.4.3",
     "@zio.dev/zio-http": "3.2.0",
-    "@zio.dev/zio-json": "0.7.39",
+    "@zio.dev/zio-json": "0.7.40",
     "@zio.dev/zio-kafka": "2.12.0",
     "@zio.dev/zio-lambda": "1.0.5",
     "@zio.dev/zio-logging": "2.5.0",
