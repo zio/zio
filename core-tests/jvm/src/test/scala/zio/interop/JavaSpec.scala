@@ -9,6 +9,7 @@ import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketChannel}
 import java.util.concurrent.{CompletableFuture, CompletionStage, Future}
+import java.util.function.BiFunction
 
 object JavaSpec extends ZIOBaseSpec {
 
@@ -99,7 +100,31 @@ object JavaSpec extends ZIOBaseSpec {
           _ <- task
           _ <- task
         } yield assert(n)(equalTo(2))
-      }
+      },
+      test("interrupt completion stage only once") {
+        ZIO.suspendSucceedUnsafe { implicit u =>
+          @volatile var cancellations = 0
+          val promise                 = Promise.unsafe.make[Nothing, Unit](FiberId.None)
+
+          ZIO
+            .fromCompletionStage(new CompletableFuture[Unit]() {
+              override def handle[U](fn: BiFunction[_ >: Unit, Throwable, _ <: U]): CompletableFuture[U] = {
+                promise.unsafe.succeedUnit
+                super.handle(fn)
+              }
+              override def cancel(mayInterruptIfRunning: Boolean): Boolean = {
+                cancellations += 1
+                true
+              }
+            })
+            .fork
+            .zipLeft(promise.await)
+            .flatMap(_.interrupt)
+            .as {
+              assertTrue(cancellations == 1)
+            }
+        }
+      } @@ TestAspect.nonFlaky
     ) @@ zioTag(future),
     suite("`ZIO.toCompletableFuture` must")(
       test("produce always a successful `IO` of `Future`") {

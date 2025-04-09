@@ -37,17 +37,16 @@ private[zio] trait FiberPlatformSpecific {
           if (cf.isDone) {
             ZIO
               .isFatalWith(isFatal => javaz.unwrapDone(isFatal)(cf))
-              .fold(Exit.fail, Exit.succeed)
-              .map(Some(_))
+              .fold(e => Some(Exit.fail(e)), v => Some(Exit.succeed(v)))
           } else {
-            ZIO.succeed(None)
+            Exit.none
           }
         }
 
       def id: FiberId = FiberId.None
 
       final def interruptAsFork(id: FiberId)(implicit trace: Trace): UIO[Unit] =
-        ZIO.succeed(cs.toCompletableFuture.cancel(false)).unit
+        ZIO.succeed(cs.toCompletableFuture.cancel(false): Unit)
 
       final def inheritAll(implicit trace: Trace): UIO[Unit] = ZIO.unit
     }
@@ -72,17 +71,16 @@ private[zio] trait FiberPlatformSpecific {
           if (ftr.isDone) {
             ZIO
               .isFatalWith(isFatal => javaz.unwrapDone(isFatal)(ftr))
-              .fold(Exit.fail, Exit.succeed)
-              .map(Some(_))
+              .fold(e => Some(Exit.fail(e)), v => Some(Exit.succeed(v)))
           } else {
-            ZIO.none
+            Exit.none
           }
         }
 
       def id: FiberId = FiberId.None
 
       def interruptAsFork(id: FiberId)(implicit trace: Trace): UIO[Unit] =
-        ZIO.succeed(ftr.cancel(false)).unit
+        ZIO.succeed(ftr.cancel(false): Unit)
 
       def inheritAll(implicit trace: Trace): UIO[Unit] = ZIO.unit
     }

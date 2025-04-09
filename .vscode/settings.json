@@ -7,5 +7,6 @@
   ],
   "files.watcherExclude": {
     "**/target": true
-  }
+  },
+  "CodeGPT.apiKey": "Ollama"
 }
