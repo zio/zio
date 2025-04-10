@@ -876,6 +876,9 @@ object QueueSpec extends ZIOBaseSpec {
         } yield assertCompletes
 
       List(
+        test("take")(testSuspension(_.take)),
+        test("takeN(1)")(testSuspension(_.takeN(1))),
+        test("takeN(>1)")(testSuspension(_.takeN(10))),
         test("takeBetween with min 1")(testSuspension(_.takeBetween(1, 10))),
         test("takeBetween with min >= 1")(testSuspension(_.takeBetween(5, 10)))
       )
