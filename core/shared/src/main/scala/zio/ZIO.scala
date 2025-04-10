@@ -16,18 +16,17 @@
 
 package zio
 
-import zio.internal.{FiberScope, Platform}
+import zio.internal.FiberScope
 import zio.metrics.{MetricLabel, Metrics}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.function.IntFunction
-import scala.annotation.implicitNotFound
-import scala.collection.mutable.{Builder, ListBuffer}
+import scala.annotation.{implicitNotFound, nowarn}
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
-import scala.util.control.NoStackTrace
-import izumi.reflect.macrortti.LightTypeTag
 
 /**
  * A `ZIO[R, E, A]` value is an immutable value (called an "effect") that
@@ -4617,9 +4616,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * consumes only a small amount of heap regardless of `n`.
    */
   def replicate[R, E, A](n: Int)(effect: ZIO[R, E, A])(implicit trace: Trace): Iterable[ZIO[R, E, A]] =
-    new Iterable[ZIO[R, E, A]] {
-      override def iterator: Iterator[ZIO[R, E, A]] = Iterator.range(0, n).map(_ => effect)
-    }
+    Iterable.fill(n)(effect)
 
   /**
    * Performs this effect the specified number of times and collects the
@@ -6310,15 +6307,20 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       case 0 => Exit.unit
       case 1 => f(as.head).unit
       case size =>
-        def worker(queue: Queue[A]): ZIO[R, E, Unit] =
-          queue.poll.flatMap {
-            case Some(a) => f(a) *> worker(queue)
-            case _       => Exit.unit
-          }
-        Queue.bounded[A](size).flatMap { queue =>
+        ZIO.suspendSucceed {
+          import scala.collection.JavaConverters._
+
+          val queue = new ConcurrentLinkedQueue[A](as.asJavaCollection): @nowarn("msg=JavaConverters")
+
+          lazy val worker: ZIO[R, E, Unit] =
+            ZIO.suspendSucceed(queue.poll() match {
+              case null => Exit.unit
+              case a    => f(a) *> worker
+            })
+
           val nWorkers = n.min(size)
-          val workers  = ZIO.replicate(nWorkers)(worker(queue))
-          queue.offerAll(as) *> ZIO.collectAllParUnboundedDiscard(workers, nWorkers)
+          val workers  = ZIO.replicate(nWorkers)(worker)
+          ZIO.collectAllParUnboundedDiscard(workers, nWorkers)
         }
     }
 
