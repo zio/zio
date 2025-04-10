@@ -23,7 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.io.IOException
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.function.IntFunction
-import scala.annotation.{implicitNotFound, nowarn}
+import scala.annotation.implicitNotFound
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
@@ -6308,9 +6308,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       case 1 => f(as.head).unit
       case size =>
         ZIO.suspendSucceed {
-          import scala.collection.JavaConverters._
+          import scala.jdk.CollectionConverters._
 
-          val queue = new ConcurrentLinkedQueue[A](as.asJavaCollection): @nowarn("msg=JavaConverters")
+          val queue = new ConcurrentLinkedQueue[A](as.asJavaCollection)
 
           lazy val worker: ZIO[R, E, Unit] =
             ZIO.suspendSucceed(queue.poll() match {
