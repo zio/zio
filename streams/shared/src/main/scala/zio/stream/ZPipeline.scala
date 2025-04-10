@@ -1778,14 +1778,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
     lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
       ZChannel.readWithCause(
-        chunk => {
-          if (chunk.isEmpty) reader
-          else
-            f(chunk) match {
-              case Left(err)  => ZChannel.refailCause(Cause.fail(err))
-              case Right(out) => ZChannel.write(out) *> reader
-            }
-        },
+        chunk =>
+          f(chunk) match {
+            case r: Right[?, Chunk[Out]] => ZChannel.write(r.value) *> reader
+            case l: Left[Err, ?]         => ZChannel.refailCause(Cause.fail(l.value))
+          },
         err => ZChannel.refailCause(err),
         done => ZChannel.succeed(done)
       )
