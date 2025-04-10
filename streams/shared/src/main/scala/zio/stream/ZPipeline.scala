@@ -21,19 +21,9 @@ import zio.internal.SingleThreadedRingBuffer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.encoding.EncodingException
 import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
-import zio.stream.internal.SingleProducerAsyncInput
 
-import java.nio.{Buffer, ByteBuffer, CharBuffer}
-import java.nio.charset.{
-  CharacterCodingException,
-  Charset,
-  CharsetDecoder,
-  CoderResult,
-  MalformedInputException,
-  StandardCharsets,
-  UnmappableCharacterException
-}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.nio.charset._
+import java.nio.{ByteBuffer, CharBuffer}
 
 /**
  * A `ZPipeline[Env, Err, In, Out]` is a polymorphic stream transformer.
@@ -1793,6 +1783,53 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           )
         )
     )
+
+  /**
+   * Creates a pipeline that maps chunks of elements with the specified
+   * function.
+   *
+   * Will stop on the first Left found
+   */
+  def mapEitherChunked[Env, Err, In, Out](
+    f: In => Either[Err, Out]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
+    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.readWithCause(
+        chunk => {
+          val size = chunk.size
+
+          if (size == 0) reader
+          else if (size == 1) {
+            val a = chunk.head
+
+            f(a) match {
+              case r: Right[?, Out] => ZChannel.write(Chunk.single(r.value)) *> reader
+              case l: Left[Err, ?]  => ZChannel.refailCause(Cause.fail(l.value))
+            }
+          } else {
+            val builder: ChunkBuilder[Out] = ChunkBuilder.make[Out](chunk.size)
+            val iterator: Iterator[In]     = chunk.iterator
+            var error: Err                 = null.asInstanceOf[Err]
+
+            while (iterator.hasNext && (error == null)) {
+              val a = iterator.next()
+              f(a) match {
+                case r: Right[?, Out] => builder.addOne(r.value)
+                case l: Left[Err, ?]  => error = l.value
+              }
+            }
+
+            val values = builder.result()
+            val next   = if (error == null) reader else ZChannel.refailCause(Cause.fail(error))
+            if (values.nonEmpty) ZChannel.write(values) *> next else next
+          }
+        },
+        err => ZChannel.refailCause(err),
+        done => ZChannel.succeed(done)
+      )
+
+    new ZPipeline(reader)
+  }
 
   /**
    * Creates a pipeline that maps elements with the specified effectful
