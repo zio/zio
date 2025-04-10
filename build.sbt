@@ -214,7 +214,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % IzumiReflectVersion)
+  .settings(
+    libraryDependencies ++= List(
+      "dev.zio"                %%% "izumi-reflect"           % IzumiReflectVersion,
+      "org.scala-lang.modules" %%% "scala-collection-compat" % ScalaCollectionCompatVersion
+    )
+  )
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
   .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
