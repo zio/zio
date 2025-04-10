@@ -232,11 +232,16 @@ object Queue extends QueuePlatformSpecific {
 
     override def shutdown(implicit trace: Trace): UIO[Unit] =
       ZIO.fiberIdWith { fiberId =>
-        shutdownFlag.set(true)
-
-        ZIO.whenDiscard(shutdownHook.unsafe.completeWith(Exit.unit)(Unsafe))(
-          ZIO.foreachParDiscard(unsafePollAll(takers))(_.interruptAs(fiberId)) *> strategy.shutdown
-        )
+        if (shutdownFlag.compareAndSet(false, true)) {
+          implicit val unsafe: Unsafe = Unsafe
+          shutdownHook.unsafe.succeedUnit
+          val it = unsafePollAll(takers).iterator
+          while (it.hasNext) {
+            it.next().unsafe.interruptAs(fiberId)
+          }
+          strategy.shutdown(fiberId)
+        }
+        Exit.unit
       }.uninterruptible
 
     override def isShutdown(implicit trace: Trace): UIO[Boolean] = ZIO.succeed(shutdownFlag.get)
@@ -272,7 +277,7 @@ object Queue extends QueuePlatformSpecific {
           ZIO.interrupt
         else {
           val as = unsafePollAll(queue)
-          if (as.nonEmpty) {
+          if (!as.isEmpty) {
             strategy.unsafeOnQueueEmptySpace(queue, takers)
             Exit.succeed(as)
           } else {
@@ -287,7 +292,7 @@ object Queue extends QueuePlatformSpecific {
           ZIO.interrupt
         else {
           val as = unsafePollN(queue, max)
-          if (as.nonEmpty) {
+          if (!as.isEmpty) {
             strategy.unsafeOnQueueEmptySpace(queue, takers)
             Exit.succeed(as)
           } else {
@@ -328,7 +333,7 @@ object Queue extends QueuePlatformSpecific {
 
     def surplusSize: Int
 
-    def shutdown(implicit trace: Trace): UIO[Unit]
+    def shutdown(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Unit
 
     @tailrec
     final def unsafeCompleteTakers(
@@ -446,12 +451,14 @@ object Queue extends QueuePlatformSpecific {
 
       def surplusSize: Int = putters.size()
 
-      def shutdown(implicit trace: Trace): UIO[Unit] =
-        for {
-          fiberId <- ZIO.fiberId
-          putters <- ZIO.succeed(unsafePollAll(putters))
-          _       <- ZIO.foreachPar(putters) { case (_, p, lastItem) => if (lastItem) p.interruptAs(fiberId) else ZIO.unit }
-        } yield ()
+      def shutdown(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Unit = {
+        var next = putters.poll()
+        while (next ne null) {
+          val (_, promise, isLast) = next
+          if (isLast) promise.unsafe.interruptAs(fiberId)
+          next = putters.poll()
+        }
+      }
     }
 
     final case class Dropping[A]() extends Strategy[A] {
@@ -461,7 +468,7 @@ object Queue extends QueuePlatformSpecific {
         queue: MutableConcurrentQueue[A],
         takers: ConcurrentDeque[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
-      )(implicit trace: Trace): UIO[Boolean] = ZIO.succeed(false)
+      )(implicit trace: Trace): UIO[Boolean] = Exit.`false`
 
       def unsafeOnQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
@@ -470,7 +477,7 @@ object Queue extends QueuePlatformSpecific {
 
       def surplusSize: Int = 0
 
-      def shutdown(implicit trace: Trace): UIO[Unit] = ZIO.unit
+      def shutdown(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Unit = ()
     }
 
     final case class Sliding[A]() extends Strategy[A] {
@@ -481,7 +488,7 @@ object Queue extends QueuePlatformSpecific {
         isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] = {
         def unsafeSlidingOffer(as: Iterable[A]): Unit =
-          if (as.nonEmpty && queue.capacity > 0) {
+          if (!as.isEmpty && queue.capacity > 0) {
             val iterator = as.iterator
             var a        = iterator.next()
             var loop     = true
@@ -511,7 +518,7 @@ object Queue extends QueuePlatformSpecific {
 
       def surplusSize: Int = 0
 
-      def shutdown(implicit trace: Trace): UIO[Unit] = ZIO.unit
+      def shutdown(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Unit = ()
     }
   }
 
