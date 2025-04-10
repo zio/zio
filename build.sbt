@@ -573,12 +573,7 @@ lazy val testJunitRunnerTests = project.module
 lazy val testJunitEngine = project.module
   .in(file("test-junit-engine"))
   .settings(stdSettings("zio-test-junit-engine"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.junit.platform"      % "junit-platform-engine"   % JunitPlatformEngineVersion,
-      "org.scala-lang.modules" %% "scala-collection-compat" % ScalaCollectionCompatVersion
-    )
-  )
+  .settings(libraryDependencies += "org.junit.platform" % "junit-platform-engine" % JunitPlatformEngineVersion)
   .dependsOn(tests.jvm)
 
 lazy val testJunitEngineTests = project.module
