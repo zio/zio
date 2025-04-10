@@ -214,7 +214,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % IzumiReflectVersion)
+  .settings(
+    libraryDependencies ++= List(
+      "dev.zio"                %%% "izumi-reflect"           % IzumiReflectVersion,
+      "org.scala-lang.modules" %%% "scala-collection-compat" % ScalaCollectionCompatVersion
+    )
+  )
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
   .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
@@ -568,12 +573,7 @@ lazy val testJunitRunnerTests = project.module
 lazy val testJunitEngine = project.module
   .in(file("test-junit-engine"))
   .settings(stdSettings("zio-test-junit-engine"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.junit.platform"      % "junit-platform-engine"   % JunitPlatformEngineVersion,
-      "org.scala-lang.modules" %% "scala-collection-compat" % ScalaCollectionCompatVersion
-    )
-  )
+  .settings(libraryDependencies += "org.junit.platform" % "junit-platform-engine" % JunitPlatformEngineVersion)
   .dependsOn(tests.jvm)
 
 lazy val testJunitEngineTests = project.module
@@ -657,7 +657,7 @@ lazy val benchmarks = project.module
         "org.jctools"                % "jctools-core"  % "4.0.5",
         "org.typelevel"             %% "cats-effect"   % CatsEffectVersion,
         "org.scalacheck"            %% "scalacheck"    % ScalaCheckVersion,
-        "qa.hedgehog"               %% "hedgehog-core" % "0.11.0",
+        "qa.hedgehog"               %% "hedgehog-core" % "0.12.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % nyanaVersion,
         "org.springframework"        % "spring-core"   % "6.2.5"
       )
