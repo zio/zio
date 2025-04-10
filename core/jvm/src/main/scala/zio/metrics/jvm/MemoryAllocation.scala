@@ -70,7 +70,6 @@ object MemoryAllocation {
     }
   }
 
-  @nowarn("msg=JavaConverters")
   val live: ZLayer[Any, Throwable, MemoryAllocation] =
     ZLayer.scoped {
       ZIO
