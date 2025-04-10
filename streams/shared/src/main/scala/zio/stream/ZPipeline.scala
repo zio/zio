@@ -1768,6 +1768,32 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOutZIO(f))
 
   /**
+   * Creates a pipeline that maps chunks of elements with the specified
+   * function.
+   *
+   * Will stop on the first Left found
+   */
+  def mapChunksEither[Env, Err, In, Out](
+    f: Chunk[In] => Either[Err, Chunk[Out]]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
+    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.readWithCause(
+        chunk => {
+          if (chunk.isEmpty) reader
+          else
+            f(chunk) match {
+              case Left(err)  => ZChannel.refailCause(Cause.fail(err))
+              case Right(out) => ZChannel.write(out) *> reader
+            }
+        },
+        err => ZChannel.refailCause(err),
+        done => ZChannel.succeed(done)
+      )
+
+    new ZPipeline(reader)
+  }
+
+  /**
    * Creates a pipeline that maps elements with the specified function that
    * returns a stream.
    */
@@ -1785,8 +1811,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     )
 
   /**
-   * Creates a pipeline that maps chunks of elements with the specified
-   * function.
+   * Creates a pipeline that maps elements with the specified function.
    *
    * Will stop on the first Left found
    */
