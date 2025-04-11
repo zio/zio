@@ -13,7 +13,7 @@ import scala.xml.XML
  * when running from IDE run `sbt publishM2`, copy the snapshot version the
  * artifacts were published under (something like:
  * `1.0.2+0-37ee0765+20201006-1859-SNAPSHOT`) and put this into `VM Parameters`:
- * `-Dproject.dir=\$PROJECT_DIR\$/test-junit-tests/jvm
+ * `-Dproject.dir=\$PROJECT_DIR\$/test-junit-engine-tests
  * -Dproject.version=\$snapshotVersion`
  */
 object MavenJunitSpec extends ZIOSpecDefault {
@@ -40,6 +40,21 @@ object MavenJunitSpec extends ZIOSpecDefault {
         ) &&
         assertTrue(reportDefect.length == 1) // spec with defect is reported
       }
+    },
+    test("Spec tags are exposed to junit") {
+      ZIO
+        .foreach(Seq(Set("a") -> 2, Set("b") -> 2, Set("tagged") -> 4, Set("a", "b") -> 3)) {
+          case (tags, expectedTests) =>
+            for {
+              mvn       <- makeMaven
+              mvnResult <- mvn.clean() *> mvn.test(tags)
+              report    <- mvn.parseSurefireReport("zio.test.junit.maven.TaggedSpec")
+            } yield {
+              assert(mvnResult)(equalTo(0)) &&
+              assert(report.length)(equalTo(expectedTests))
+            }
+        }
+        .map(TestResult.allSuccesses)
     }
   ) @@ TestAspect.sequential /*@@
     // flaky: sometimes maven fails to download dependencies in CI
@@ -52,7 +67,7 @@ object MavenJunitSpec extends ZIOSpecDefault {
         .orElseFail(
           new AssertionError(
             "Missing project.dir system property\n" +
-              "when running from IDE put this into `VM Parameters`: `-Dproject.dir=$PROJECT_DIR$/test-junit-tests/jvm`"
+              "when running from IDE put this into `VM Parameters`: `-Dproject.dir=$PROJECT_DIR$/test-junit-engine-tests`"
           )
         )
     projectVer <-
@@ -75,8 +90,14 @@ object MavenJunitSpec extends ZIOSpecDefault {
 
     def clean(): Task[Int] = run("clean")
 
-    def test(): Task[Int] = run(
+    def test(tags: Set[String] = Set.empty): Task[Int] = run(
       "test",
+      if (tags.isEmpty) {
+        // only run tests without tags
+        "-Dgroups=none()"
+      } else {
+        s"-Dgroups=${tags.mkString(",")}"
+      },
       s"-Dzio.version=$projectVersion",
       s"-Dscala.version=$scalaVersion",
       s"-Dscala.compat.version=$scalaCompatVersion",

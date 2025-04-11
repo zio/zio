@@ -1922,6 +1922,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *
    * @note
    *   This combinator destroys the chunking structure.
+   * @see
+   *   [[mapZIOChunked]] for a version that preserves the chunking structure
    */
   def mapZIO[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: Trace): ZStream[R1, E1, A1] = {
 
@@ -1942,6 +1944,23 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
 
     new ZStream(self.channel >>> loop(Chunk.ChunkIterator.empty, 0))
   }
+
+  /**
+   * Creates a pipeline that maps over elements of the stream with the specified
+   * effectful function.
+   *
+   * Unlike `mapZIO` processing is done chunk by chunk. This means that
+   * `mapZIOChunked` provides weaker guarantees than `mapZIO`. While
+   * `stream.mapZIO(f).mapZIO(g)` is guaranteed to be equivalent to
+   * `stream.mapZIO(x => f(x).flatMap(g))`, the same is not true for
+   * `mapZIOChunked`. For example, `mapZIO` guarantees that the first element of
+   * a stream will first be processed with `f` and then `g` before the second
+   * element is processed with `f`. `mapZIOChunked` may process the first two
+   * elements with `f` and only then move on to process the first element with
+   * `g`.
+   */
+  def mapZIOChunked[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: Trace): ZStream[R1, E1, A1] =
+    self >>> ZPipeline.mapZIOChunked(f)
 
   /**
    * Maps over elements of the stream with the specified effectful function,
