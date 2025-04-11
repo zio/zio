@@ -120,7 +120,7 @@ In the previous example, if we just want to provide the `Foo`, we should use `ZI
 
 ```scala mdoc:compile-only
 val mainEffectSome: ZIO[Bar, Nothing, Unit] = 
-  myApp.provideSome[Bar](FooLive.layer)
+  myApp.provideSome(FooLive.layer)
 ```
 
 :::caution
@@ -131,7 +131,7 @@ When using `ZIO#provideSome[R0]`, we should provide the remaining type as `R0` t
 
 In Scala 3 enhanced version of `ZIO#provideSome` is introduced. The `ZIO#provideSomeAuto` method automatically infers the remaining type of the effect.
 
-```scala mdoc:compile-only
-val mainEffectSome: ZIO[Bar, Nothing, Unit] = 
-  myApp.provideSomeAuto(FooLive.layer) // No need to provide `Bar`
+```scala
+val mainEffectSomeAuto =
+  myApp.provideSomeAuto(FooLive.layer) // No need to provide `Bar` anywhere
 ```
