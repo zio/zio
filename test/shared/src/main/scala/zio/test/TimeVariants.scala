@@ -19,8 +19,7 @@ package zio.test
 import zio.{Duration, Trace}
 
 import java.time._
-import scala.annotation.nowarn
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait TimeVariants {
 
@@ -287,7 +286,6 @@ trait TimeVariants {
   /**
    * A generator of `java.time.ZoneId` values. Doesn't have any shrinking.
    */
-  @nowarn("msg=JavaConverters")
   final def zoneId(implicit trace: Trace): Gen[Any, ZoneId] =
     Gen.elements(ZoneId.getAvailableZoneIds.asScala.map(ZoneId.of).toList: _*).noShrink
 

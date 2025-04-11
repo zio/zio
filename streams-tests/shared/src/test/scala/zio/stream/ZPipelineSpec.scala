@@ -2,8 +2,9 @@ package zio.stream
 
 import zio._
 import zio.stream.encoding.EncodingException
-import zio.test.Assertion.{equalTo, fails}
+import zio.test.Assertion.{equalTo, fails, isEmpty}
 import zio.test._
+
 import scala.io.Source
 
 object ZPipelineSpec extends ZIOBaseSpec {
@@ -294,7 +295,62 @@ object ZPipelineSpec extends ZIOBaseSpec {
           }
           .runCollect
           .map(assert(_)(equalTo(Chunk.range(1, 21))))
-      }
+      },
+      suite("mapEitherChunk")(
+        test("with empty chunk") {
+          val chunk = Chunk.empty[Int]
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapEitherChunked(i => Right(i)))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(isEmpty)
+        },
+        test("with a 1 element chunk - Right") {
+          val chunk = Chunk(1)
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapEitherChunked(i => Right(i)))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(equalTo(Chunk(1)))
+        },
+        test("with a 1 element chunk - Left") {
+          val chunk = Chunk(1)
+          for {
+            collector <- Queue.unbounded[Int]
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapEitherChunked(i => Left(i)))
+                        .run(ZSink.fromQueue(collector))
+                        .exit
+            collected <- collector.takeAll
+          } yield assert(result)(fails(equalTo(1))) && assert(collected)(isEmpty)
+        },
+        test("Keeps order and values intact") {
+          val range = 1.to(10)
+          val chunk = Chunk.fromIterable(range)
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapEitherChunked(i => Right(i)))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(equalTo(Chunk(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)))
+        },
+        test("stop at the first Left") {
+          val range = 1.to(10)
+          val chunk = Chunk.fromIterable(range)
+          for {
+            collector <- Queue.unbounded[Int]
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapEitherChunked(i => if (i == 5) Left(i) else Right(i)))
+                        .run(ZSink.fromQueue(collector))
+                        .exit
+            collected <- collector.takeAll
+          } yield assert(result)(fails(equalTo(5))) && assert(collected)(equalTo(Chunk(1, 2, 3, 4)))
+        }
+      )
     )
 
   val weirdStringGenForSplitLines: Gen[Any, Chunk[String]] = Gen

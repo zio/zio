@@ -864,7 +864,25 @@ object QueueSpec extends ZIOBaseSpec {
         _       <- queue.offerAll(expected).fork
         actual  <- queue.take.replicateZIO(100).map(Chunk.fromIterable)
       } yield assertTrue(actual == expected)
-    } @@ exceptJS(nonFlaky(1000))
+    } @@ exceptJS(nonFlaky(1000)),
+    suite("suspension of take methods") {
+
+      def testSuspension(takeF: Queue[?] => UIO[Any]): UIO[TestResult] =
+        for {
+          q <- Queue.unbounded[String]
+          f <- takeF(q).fork
+          _ <- f.status.repeatUntil(_.isSuspended)
+          _ <- f.interrupt
+        } yield assertCompletes
+
+      List(
+        test("take")(testSuspension(_.take)),
+        test("takeN(1)")(testSuspension(_.takeN(1))),
+        test("takeN(>1)")(testSuspension(_.takeN(10))),
+        test("takeBetween with min 1")(testSuspension(_.takeBetween(1, 10))),
+        test("takeBetween with min >= 1")(testSuspension(_.takeBetween(5, 10)))
+      )
+    } @@ TestAspect.timeout(5.seconds)
   )
 }
 

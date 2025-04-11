@@ -4,8 +4,7 @@ import zio._
 import zio.metrics._
 
 import java.lang.management.ManagementFactory
-import scala.annotation.nowarn
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 final case class GarbageCollector(
   gcCollectionSecondsSum: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]],
@@ -13,7 +12,6 @@ final case class GarbageCollector(
 )
 
 object GarbageCollector {
-  @nowarn("msg=JavaConverters")
   val live: ZLayer[JvmMetricsSchedule, Throwable, GarbageCollector] =
     ZLayer.scoped {
       for {
