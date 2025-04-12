@@ -383,8 +383,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
           } yield assert(result)(fails(equalTo("this is an error"))) && assert(collected)(isEmpty)
         },
         test("returns the chunk in the Right") {
-          val range = 1.to(10)
-          val chunk = Chunk.fromIterable(range)
+          val chunk = Chunk.range(1, 11)
           for {
             result <- ZStream
                         .fromChunk(chunk)
