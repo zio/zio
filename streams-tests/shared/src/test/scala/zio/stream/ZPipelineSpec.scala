@@ -371,8 +371,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
           } yield assert(result)(isEmpty)
         },
         test("fails with the err in the Left") {
-          val range = 1.to(10)
-          val chunk = Chunk.fromIterable(range)
+          val chunk = Chunk.range(0, 10)
           for {
             collector <- Queue.unbounded[Int]
             result <- ZStream
