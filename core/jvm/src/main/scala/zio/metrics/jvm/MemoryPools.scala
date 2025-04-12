@@ -1,12 +1,10 @@
 package zio.metrics.jvm
 
 import zio._
-import zio.metrics.MetricKeyType.Gauge
 import zio.metrics._
 
 import java.lang.management.{ManagementFactory, MemoryPoolMXBean, MemoryUsage}
-import scala.annotation.nowarn
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 final case class MemoryPools(
   memoryBytesUsed: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]],
@@ -106,7 +104,6 @@ object MemoryPools {
     jvmMemoryPoolInitBytes = "jvm_memory_pool_bytes_init"
   )
 
-  @nowarn("msg=JavaConverters")
   private def withNames(
     jvmMemoryCommittedBytes: String,
     jvmMemoryInitBytes: String,

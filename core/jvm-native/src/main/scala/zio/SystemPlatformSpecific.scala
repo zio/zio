@@ -20,8 +20,7 @@ import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.{System => JSystem}
-import scala.annotation.nowarn
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 private[zio] trait SystemPlatformSpecific { self: System.type =>
 
@@ -29,7 +28,6 @@ private[zio] trait SystemPlatformSpecific { self: System.type =>
     override def env(variable: String): Option[String] =
       Option(JSystem.getenv(variable))
 
-    @nowarn("msg=JavaConverters")
     override def envs: Map[String, String] =
       JSystem.getenv().asScala.toMap
   }
