@@ -350,6 +350,47 @@ object ZPipelineSpec extends ZIOBaseSpec {
             collected <- collector.takeAll
           } yield assert(result)(fails(equalTo(5))) && assert(collected)(equalTo(Chunk(1, 2, 3, 4)))
         }
+      ),
+      suite("mapChunksEither")(
+        test("with empty chunk - Right") {
+          val chunk = Chunk.empty[Int]
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapChunksEither(chunk => Right(chunk)))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(isEmpty)
+        },
+        test("with empty chunk - Left") {
+          val chunk = Chunk.empty[Int]
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapChunksEither(chunk => Left(chunk)))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(isEmpty)
+        },
+        test("fails with the err in the Left") {
+          val chunk = Chunk.range(0, 10)
+          for {
+            collector <- Queue.unbounded[Int]
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapChunksEither(_ => Left("this is an error")))
+                        .run(ZSink.fromQueue(collector))
+                        .exit
+            collected <- collector.takeAll
+          } yield assert(result)(fails(equalTo("this is an error"))) && assert(collected)(isEmpty)
+        },
+        test("returns the chunk in the Right") {
+          val chunk = Chunk.range(1, 11)
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapChunksEither(chunk => Right(chunk.map(_ * 10))))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(equalTo(Chunk(10, 20, 30, 40, 50, 60, 70, 80, 90, 100)))
+        }
       )
     )
 
