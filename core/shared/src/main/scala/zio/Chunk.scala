@@ -470,12 +470,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
           index += 1
 
           f(a).flatMap {
-            if (_) ZIO.succeed(Some(a))
+            if (_) Exit.succeed(Some(a))
             else loop(iterator)
           }
-        } else {
-          ZIO.succeed(None)
-        }
+        } else Exit.none
 
       loop(iterator)
     }
