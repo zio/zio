@@ -25,7 +25,7 @@ jobs:
     - name: Checkout current branch
       uses: actions/checkout@v4.2.2
     - name: Setup Java
-      uses: actions/setup-java@v4.7.0
+      uses: actions/setup-java@v4.7.1
       with:
         distribution: temurin
         java-version: 17
@@ -53,7 +53,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Java
-        uses: actions/setup-java@v4.7.0
+        uses: actions/setup-java@v4.7.1
         with:
           distribution: temurin
           java-version: 11
@@ -85,7 +85,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Java
-        uses: actions/setup-java@v4.7.0
+        uses: actions/setup-java@v4.7.1
         with:
           distribution: temurin
           java-version: 17
@@ -135,7 +135,7 @@ jobs:
     - name: Checkout current branch
       uses: actions/checkout@v4.2.2
     - name: Setup Java
-      uses: actions/setup-java@v4.7.0
+      uses: actions/setup-java@v4.7.1
       with:
         distribution: temurin
         java-version: ${{ matrix.java }}
@@ -195,7 +195,7 @@ jobs:
       - name: Checkout current branch
         uses: actions/checkout@v4.2.2
       - name: Setup Java
-        uses: actions/setup-java@v4.7.0
+        uses: actions/setup-java@v4.7.1
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
@@ -231,7 +231,7 @@ jobs:
         if: ${{ startsWith(matrix.platform, 'Native') }}
         run: sudo apt-get update && sudo apt-get install -y libgc-dev
       - name: Setup Java
-        uses: actions/setup-java@v4.7.0
+        uses: actions/setup-java@v4.7.1
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
@@ -267,7 +267,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Java
-        uses: actions/setup-java@v4.7.0
+        uses: actions/setup-java@v4.7.1
         with:
           distribution: temurin
           java-version: 11
