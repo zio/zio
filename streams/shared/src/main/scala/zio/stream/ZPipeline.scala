@@ -1950,14 +1950,19 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def mapZIOPar[Env, Err, In, Out](n: => Int, bufferSize: => Int = 16)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
-  ): ZPipeline[Env, Err, In, Out] =
-    new ZPipeline(
+  ): ZPipeline[Env, Err, In, Out] = {
+    /*new ZPipeline(
       ZChannel
         .identity[Nothing, Chunk[In], Any]
         .concatMap(ZChannel.writeChunk(_))
         .mapOutZIOPar(n, bufferSize)(f)
         .mapOut(Chunk.single)
-    )
+    )*/
+    ZPipeline
+      .fromFunction{ strm : ZStream[Any, Nothing, In] =>
+        strm.mapZIOPar(n, bufferSize)(f)
+      }
+  }
 
   /**
    * Maps over elements of the stream with the specified effectful function,
