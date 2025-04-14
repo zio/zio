@@ -1981,14 +1981,19 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def mapZIOParUnordered[Env, Err, In, Out](n: => Int, bufferSize: => Int = 16)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
-  ): ZPipeline[Env, Err, In, Out] =
-    new ZPipeline(
+  ): ZPipeline[Env, Err, In, Out] = {
+    /*new ZPipeline(
       ZChannel
         .identity[Nothing, Chunk[In], Any]
         .concatMap(ZChannel.writeChunk(_))
         .mapOutZIOParUnordered(n, bufferSize)(f)
         .mapOut(Chunk.single)
-    )
+    )*/
+    ZPipeline
+      .fromFunction{ strm : ZStream[Any, Nothing, In] =>
+        strm.mapZIOParUnordered(n, bufferSize)(f)
+      }
+  }
 
   /**
    * Emits the provided chunk before emitting any other value.
