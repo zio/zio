@@ -87,6 +87,19 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assertTrue(zio.Duration.fromNanos(1000) == zio.Duration.Zero)
       }
     ) @@ failing,
+    suite("class constructors")(
+      test("string constructor") {
+        val bytes: Array[Byte] = "test".getBytes
+        assertTrue(new String(bytes) == "test")
+      },
+      test("class constructor") {
+        assertTrue(new Service("serviceName").name == "serviceName")
+      },
+      test("generic class contructor") {
+        assertTrue(new GenericService[Int](52).value == 52) &&
+        assertTrue(new GenericService(52).value == 52)
+      }
+    ),
     suite("contains")(
       test("Option") {
         assertTrue(company.users.head.posts.head.publishDate.contains(LocalDateTime.MAX))
