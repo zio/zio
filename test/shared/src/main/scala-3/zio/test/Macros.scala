@@ -165,7 +165,7 @@ object SmartAssertMacros {
         val arrow                 = Inlined(a, b, transform(expr.asExprOf[A]).asTerm).asExprOf[zio.test.TestArrow[Any, A]]
         '{ $arrow.span($preMacroExpansionSpan) }
 
-      case Unseal(Apply(Select(lhs, op @ (">" | ">=" | "<" | "<=")), List(rhs))) =>
+      case Unseal(tree @ Apply(Select(lhs, op @ (">" | ">=" | "<" | "<=")), List(rhs))) =>
         def tpesPriority(tpe: TypeRepr): Int =
           tpe.toString match {
             case "Byte"   => 0
@@ -263,6 +263,9 @@ object SmartAssertMacros {
                             .span($span)
                         }.asExprOf[TestArrow[Any, A]]
                     }
+                  case (None, _) =>
+                    val span = getSpan(tree)
+                    '{ TestArrow.succeed($expr).span($span) }
                   case _ => throw new Error("NO")
                 }
             }
