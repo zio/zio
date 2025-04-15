@@ -31,8 +31,7 @@ private[zio] object MutableConcurrentQueue {
     if (capacity == 1) new OneElementConcurrentQueue()
     else RingBuffer[A](capacity)
 
-  def unbounded[A]: MutableConcurrentQueue[A] =
-    new LinkedQueue[A]
+  def unbounded[A]: MutableConcurrentQueue[A] = LinkedQueue[A](addMetrics = false)
 
   /**
    * Rounds up to the nearest power of 2 and subtracts 1. e.g.,

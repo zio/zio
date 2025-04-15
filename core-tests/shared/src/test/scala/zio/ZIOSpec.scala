@@ -266,7 +266,14 @@ object ZIOSpec extends ZIOBaseSpec {
           _                 <- startWaiting.await
           _                 <- callFiber.interrupt
         } yield assert(first)(equalTo(false))
-      }
+      },
+      test("does not cache interruption") {
+        for {
+          effect <- ZIO.sleep(Duration.fromSeconds(1)).cached(Duration.Infinity)
+          res1   <- effect.timeout(Duration.fromMillis(1)).exit
+          res2   <- effect.exit
+        } yield assertTrue(res1.isSuccess, !res1.isInterrupted, res2.isSuccess, !res2.isInterrupted)
+      } @@ TestAspect.withLiveClock
     ),
     suite("catchNonFatalOrDie")(
       test("recovers from NonFatal") {

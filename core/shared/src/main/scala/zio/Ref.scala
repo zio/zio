@@ -359,8 +359,6 @@ object Ref extends Serializable {
     override def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: Trace): UIO[A] =
       ZIO.succeed(unsafe.updateSomeAndGet(pf)(Unsafe))
 
-    override def toString: String = s"Ref.Atomic(initial = $initial)"
-
     trait UnsafeAPI extends Serializable {
       def get(implicit unsafe: Unsafe): A
       def getAndSet(a: A)(implicit unsafe: Unsafe): A
@@ -376,8 +374,10 @@ object Ref extends Serializable {
       def updateSomeAndGet(pf: PartialFunction[A, A])(implicit unsafe: Unsafe): A
     }
 
-    val unsafe: UnsafeAPI =
-      new AtomicReference[A](initial) with UnsafeAPI { ref: AtomicReference[A] =>
+    val unsafe: UnsafeAPI = {
+      // NOTE: Instantiate the AtomicReference with a null and then set its value
+      // so that the initial value is not added as a class field allowing it to be GC'd
+      val ref0 = new AtomicReference[A]() with UnsafeAPI { ref: AtomicReference[A] =>
         def get(implicit unsafe: Unsafe): A =
           ref.asInstanceOf[AtomicReference[A]].get
 
@@ -438,6 +438,9 @@ object Ref extends Serializable {
             .asInstanceOf[AtomicReference[A]]
             .updateAndGet((current: A) => pf.applyOrElse(current, (_: Any) => current))
       }
+      ref0.asInstanceOf[AtomicReference[A]].set(initial)
+      ref0
+    }
 
     @deprecated("Kept for binary compatibility only. Do not use", "2.1.15")
     private[zio] def value: AtomicReference[A] = unsafe.asInstanceOf[AtomicReference[A]]

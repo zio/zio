@@ -21,19 +21,9 @@ import zio.internal.SingleThreadedRingBuffer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.encoding.EncodingException
 import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
-import zio.stream.internal.SingleProducerAsyncInput
 
-import java.nio.{Buffer, ByteBuffer, CharBuffer}
-import java.nio.charset.{
-  CharacterCodingException,
-  Charset,
-  CharsetDecoder,
-  CoderResult,
-  MalformedInputException,
-  StandardCharsets,
-  UnmappableCharacterException
-}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.nio.charset._
+import java.nio.{ByteBuffer, CharBuffer}
 
 /**
  * A `ZPipeline[Env, Err, In, Out]` is a polymorphic stream transformer.
@@ -481,6 +471,25 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     f: Out => ZIO[Env2, Err2, Out2]
   )(implicit trace: Trace): ZPipeline[Env2, Err2, In, Out2] =
     self >>> ZPipeline.mapZIO(f)
+
+  /**
+   * Creates a pipeline that maps over elements of the stream with the specified
+   * effectful function.
+   *
+   * Unlike `mapZIO` processing is done chunk by chunk. This means that
+   * `mapZIOChunked` provides weaker guarantees than `mapZIO`. While
+   * `stream.mapZIO(f).mapZIO(g)` is guaranteed to be equivalent to
+   * `stream.mapZIO(x => f(x).flatMap(g))`, the same is not true for
+   * `mapZIOChunked`. For example, `mapZIO` guarantees that the first element of
+   * a stream will first be processed with `f` and then `g` before the second
+   * element is processed with `f`. `mapZIOChunked` may process the first two
+   * elements with `f` and only then move on to process the first element with
+   * `g`.
+   */
+  def mapZIOChunked[Env2 <: Env, Err2 >: Err, Out2](
+    f: Out => ZIO[Env2, Err2, Out2]
+  )(implicit trace: Trace): ZPipeline[Env2, Err2, In, Out2] =
+    self >>> ZPipeline.mapZIOChunked(f)
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -1759,6 +1768,29 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOutZIO(f))
 
   /**
+   * Creates a pipeline that maps chunks of elements with the specified
+   * function.
+   *
+   * Will stop on the first Left found
+   */
+  def mapChunksEither[Env, Err, In, Out](
+    f: Chunk[In] => Either[Err, Chunk[Out]]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
+    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.readWithCause(
+        chunk =>
+          f(chunk) match {
+            case r: Right[?, Chunk[Out]] => ZChannel.write(r.value) *> reader
+            case l: Left[Err, ?]         => ZChannel.refailCause(Cause.fail(l.value))
+          },
+        err => ZChannel.refailCause(err),
+        done => ZChannel.succeed(done)
+      )
+
+    new ZPipeline(reader)
+  }
+
+  /**
    * Creates a pipeline that maps elements with the specified function that
    * returns a stream.
    */
@@ -1766,8 +1798,60 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     f: In => ZStream[Env, Err, Out]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     new ZPipeline(
-      ZChannel.identity[Nothing, Chunk[In], Any].concatMap(_.map(f).map(_.channel).fold(ZChannel.unit)(_ *> _))
+      ZChannel
+        .identity[Nothing, Chunk[In], Any]
+        .concatMap(
+          _.foldLeft(ZChannel.unit: ZChannel[Env, Any, Any, Any, Err, Chunk[Out], Any])((acc, elem) =>
+            acc *> f(elem).channel
+          )
+        )
     )
+
+  /**
+   * Creates a pipeline that maps elements with the specified function.
+   *
+   * Will stop on the first Left found
+   */
+  def mapEitherChunked[Env, Err, In, Out](
+    f: In => Either[Err, Out]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
+    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.readWithCause(
+        chunk => {
+          val size = chunk.size
+
+          if (size == 0) reader
+          else if (size == 1) {
+            val a = chunk.head
+
+            f(a) match {
+              case r: Right[?, Out] => ZChannel.write(Chunk.single(r.value)) *> reader
+              case l: Left[Err, ?]  => ZChannel.refailCause(Cause.fail(l.value))
+            }
+          } else {
+            val builder: ChunkBuilder[Out] = ChunkBuilder.make[Out](chunk.size)
+            val iterator: Iterator[In]     = chunk.iterator
+            var error: Err                 = null.asInstanceOf[Err]
+
+            while (iterator.hasNext && (error == null)) {
+              val a = iterator.next()
+              f(a) match {
+                case r: Right[?, Out] => builder.addOne(r.value)
+                case l: Left[Err, ?]  => error = l.value
+              }
+            }
+
+            val values = builder.result()
+            val next   = if (error == null) reader else ZChannel.refailCause(Cause.fail(error))
+            if (values.nonEmpty) ZChannel.write(values) *> next else next
+          }
+        },
+        err => ZChannel.refailCause(err),
+        done => ZChannel.succeed(done)
+      )
+
+    new ZPipeline(reader)
+  }
 
   /**
    * Creates a pipeline that maps elements with the specified effectful
@@ -1796,6 +1880,49 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         )
 
     new ZPipeline(loop(Chunk.ChunkIterator.empty, 0))
+  }
+
+  /**
+   * Creates a pipeline that maps over elements of the stream with the specified
+   * effectful function.
+   *
+   * Unlike `mapZIO` processing is done chunk by chunk. This means that
+   * `mapZIOChunked` provides weaker guarantees than `mapZIO`. While
+   * `stream.mapZIO(f).mapZIO(g)` is guaranteed to be equivalent to
+   * `stream.mapZIO(x => f(x).flatMap(g))`, the same is not true for
+   * `mapZIOChunked`. For example, `mapZIO` guarantees that the first element of
+   * a stream will first be processed with `f` and then `g` before the second
+   * element is processed with `f`. `mapZIOChunked` may process the first two
+   * elements with `f` and only then move on to process the first element with
+   * `g`.
+   */
+  def mapZIOChunked[Env, Err, In, Out](
+    f: In => ZIO[Env, Err, Out]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
+    def writeWithNext(
+      builder: ChunkBuilder[Out],
+      next: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any]
+    ): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] = {
+      val out = builder.result()
+      if (out.nonEmpty) ZChannel.write(out) *> next else next
+    }
+
+    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.readWithCause(
+        chunk =>
+          ZChannel.unwrap {
+            val builder = ChunkBuilder.make[Out](chunk.size)
+            chunk
+              .mapZIODiscard(f(_).map(builder += _))
+              .foldCause(
+                cause => writeWithNext(builder, ZChannel.refailCause(cause)),
+                _ => writeWithNext(builder, reader)
+              )
+          },
+        err => ZChannel.refailCause(err),
+        done => ZChannel.succeed(done)
+      )
+    new ZPipeline(reader)
   }
 
   /**

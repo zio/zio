@@ -460,25 +460,25 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    * Returns the first element that satisfies the effectful predicate.
    */
   final def findZIO[R, E](f: A => ZIO[R, E, Boolean])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-    ZIO.suspendSucceed {
-      val iterator = self.chunkIterator
-      var index    = 0
+    if (self.isEmpty) ZIO.none
+    else
+      ZIO.suspendSucceed {
+        val iterator = self.chunkIterator
+        var index    = 0
 
-      def loop(iterator: Chunk.ChunkIterator[A]): ZIO[R, E, Option[A]] =
-        if (iterator.hasNextAt(index)) {
-          val a = iterator.nextAt(index)
-          index += 1
+        def loop(iterator: Chunk.ChunkIterator[A]): ZIO[R, E, Option[A]] =
+          if (iterator.hasNextAt(index)) {
+            val a = iterator.nextAt(index)
+            index += 1
 
-          f(a).flatMap {
-            if (_) ZIO.succeed(Some(a))
-            else loop(iterator)
-          }
-        } else {
-          ZIO.succeed(None)
-        }
+            f(a).flatMap {
+              if (_) Exit.succeed(Some(a))
+              else loop(iterator)
+            }
+          } else Exit.none
 
-      loop(iterator)
-    }
+        loop(iterator)
+      }
 
   /**
    * Get the element at the specified index.

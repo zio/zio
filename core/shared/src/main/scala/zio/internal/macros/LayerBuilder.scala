@@ -47,7 +47,7 @@ import scala.collection.{immutable, mutable}
  */
 final case class LayerBuilder[Type, Expr](
   target0: List[Type],
-  remainder: List[Type],
+  remainder: RemainderMethod[Type],
   providedLayers0: List[Expr],
   layerToDebug: PartialFunction[Expr, Debug],
   sideEffectType: Type,
@@ -64,11 +64,11 @@ final case class LayerBuilder[Type, Expr](
 ) {
 
   lazy val target =
-    if (method.isProvideSomeShared) target0.filterNot(t1 => remainder.exists(t2 => typeEquals(t1, t2)))
+    if (method.isProvideSomeShared) target0.filterNot(t1 => remainder.providedTypes.exists(t2 => typeEquals(t1, t2)))
     else target0
 
   private lazy val remainderNodes: List[Node[Type, Expr]] =
-    remainder.map(typeToNode).distinct
+    remainder.providedTypes.map(typeToNode).distinct
 
   private val (providedLayers, maybeDebug): (List[Expr], Option[ZLayer.Debug]) = {
     val maybeDebug = providedLayers0.collectFirst(layerToDebug)
@@ -82,6 +82,11 @@ final case class LayerBuilder[Type, Expr](
   def build: Expr = {
     assertNoAmbiguity()
 
+    val remainderTypeFactory = remainder match {
+      case RemainderMethod.Provided(_) => (_: Type) => None
+      case RemainderMethod.Inferred    => (t: Type) => Some(typeToNode(t))
+    }
+
     /**
      * Build the layer tree. This represents the structure of a successfully
      * constructed ZLayer that will build the target types. This, of course, may
@@ -89,7 +94,7 @@ final case class LayerBuilder[Type, Expr](
      */
     val layerTreeEither: Either[::[GraphError[Type, Expr]], LayerTree[Expr]] = {
       val nodes: List[Node[Type, Expr]] = providedLayerNodes ++ remainderNodes ++ sideEffectNodes
-      val graph                         = Graph(nodes, typeEquals)
+      val graph                         = Graph(nodes, typeEquals, remainderTypeFactory)
 
       for {
         original    <- graph.buildComplete(target)
@@ -173,7 +178,7 @@ final case class LayerBuilder[Type, Expr](
           reportWarn(message)
         }
 
-        if (remainder.isEmpty) {
+        if (remainder == RemainderMethod.Provided[Type](List.empty)) {
           val message = "\n" + TerminalRendering.provideSomeNothingEnvError
           reportWarn(message)
         }
@@ -384,4 +389,16 @@ object ProvideMethod {
   case object ProvideSome       extends ProvideMethod
   case object ProvideSomeShared extends ProvideMethod
   case object ProvideCustom     extends ProvideMethod
+}
+
+sealed trait RemainderMethod[+T] extends Product with Serializable {
+  final def providedTypes: List[T] = this match {
+    case RemainderMethod.Provided(types) => types
+    case RemainderMethod.Inferred        => List.empty
+  }
+}
+
+object RemainderMethod {
+  case class Provided[T](types: List[T]) extends RemainderMethod[T]
+  case object Inferred                   extends RemainderMethod[Nothing]
 }

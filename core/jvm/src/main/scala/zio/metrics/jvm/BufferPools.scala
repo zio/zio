@@ -4,8 +4,7 @@ import zio._
 import zio.metrics._
 
 import java.lang.management.{BufferPoolMXBean, ManagementFactory}
-import scala.annotation.nowarn
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 final case class BufferPools(
   bufferPoolUsedBytes: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]],
@@ -14,7 +13,6 @@ final case class BufferPools(
 )
 
 object BufferPools {
-  @nowarn("msg=JavaConverters")
   val live: ZLayer[JvmMetricsSchedule, Throwable, Reloadable[BufferPools]] =
     ZLayer.scoped {
       for {
