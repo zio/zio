@@ -16,18 +16,17 @@
 
 package zio
 
-import zio.internal.{FiberScope, Platform}
+import zio.internal.FiberScope
 import zio.metrics.{MetricLabel, Metrics}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.function.IntFunction
 import scala.annotation.implicitNotFound
-import scala.collection.mutable.{Builder, ListBuffer}
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
-import scala.util.control.NoStackTrace
-import izumi.reflect.macrortti.LightTypeTag
 
 /**
  * A `ZIO[R, E, A]` value is an immutable value (called an "effect") that
@@ -249,31 +248,27 @@ sealed trait ZIO[-R, +E, +A]
   final def cachedInvalidate(
     timeToLive0: => Duration
   )(implicit trace: Trace): ZIO[R, Nothing, (IO[E, A], UIO[Unit])] =
-    ZIO.suspendSucceed {
-      val timeToLive = timeToLive0
+    ZIO.environmentWith[R] { r =>
+      val timeToLive = timeToLive0.toNanos
+      val cache      = Ref.Synchronized.unsafe.make[Option[(Long, Promise[E, A])]](None)(Unsafe)
 
-      def get(cache: Ref.Synchronized[Option[(Long, Promise[E, A])]]): ZIO[R, E, A] =
+      def compute(start: Long): ZIO[R, Nothing, Option[(Long, Promise[E, A])]] =
+        for {
+          p <- Promise.make[E, A]
+          _ <- self.intoPromise(p)
+        } yield Some((start + timeToLive, p))
+
+      val get: ZIO[R, E, A] =
         ZIO.uninterruptibleMask { restore =>
           Clock.nanoTime.flatMap { time =>
-            cache.modifyZIO {
-              case Some((end, p)) if end - time > 0 =>
-                Exit.succeed(p.await -> Some((end, p)))
-              case _ =>
-                Promise.make[E, A].map { p =>
-                  val effect = self.onExit(p.done(_))
-                  effect -> Some((time + timeToLive.toNanos, p))
-                }
-            }.flatMap(restore(_))
+            cache.updateSomeAndGetZIO {
+              case None                              => restore(compute(time))
+              case Some((end, _)) if end - time <= 0 => restore(compute(time))
+            }.flatMap(a => restore(a.get._2.await))
           }
         }
 
-      def invalidate(cache: Ref.Synchronized[Option[(Long, Promise[E, A])]]): UIO[Unit] =
-        cache.set(None)
-
-      for {
-        r     <- ZIO.environment[R]
-        cache <- Ref.Synchronized.make[Option[(Long, Promise[E, A])]](None)
-      } yield (get(cache).provideEnvironment(r), invalidate(cache))
+      get.provideEnvironment(r) -> cache.set(None)
     }
 
   /**
@@ -4621,9 +4616,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * consumes only a small amount of heap regardless of `n`.
    */
   def replicate[R, E, A](n: Int)(effect: ZIO[R, E, A])(implicit trace: Trace): Iterable[ZIO[R, E, A]] =
-    new Iterable[ZIO[R, E, A]] {
-      override def iterator: Iterator[ZIO[R, E, A]] = Iterator.range(0, n).map(_ => effect)
-    }
+    Iterable.fill(n)(effect)
 
   /**
    * Performs this effect the specified number of times and collects the
@@ -6314,15 +6307,20 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       case 0 => Exit.unit
       case 1 => f(as.head).unit
       case size =>
-        def worker(queue: Queue[A]): ZIO[R, E, Unit] =
-          queue.poll.flatMap {
-            case Some(a) => f(a) *> worker(queue)
-            case _       => Exit.unit
-          }
-        Queue.bounded[A](size).flatMap { queue =>
+        ZIO.suspendSucceed {
+          import scala.jdk.CollectionConverters._
+
+          val queue = new ConcurrentLinkedQueue[A](as.asJavaCollection)
+
+          lazy val worker: ZIO[R, E, Unit] =
+            ZIO.suspendSucceed(queue.poll() match {
+              case null => Exit.unit
+              case a    => f(a) *> worker
+            })
+
           val nWorkers = n.min(size)
-          val workers  = ZIO.replicate(nWorkers)(worker(queue))
-          queue.offerAll(as) *> ZIO.collectAllParUnboundedDiscard(workers, nWorkers)
+          val workers  = ZIO.replicate(nWorkers)(worker)
+          ZIO.collectAllParUnboundedDiscard(workers, nWorkers)
         }
     }
 

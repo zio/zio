@@ -26,6 +26,6 @@ object JvmMetricAppExample extends ZIOAppDefault {
       ZLayer.succeed(MetricsConfig(5.seconds)),
 
       // Default JVM Metrics
-      DefaultJvmMetrics.live.unit
+      DefaultJvmMetrics.liveV2.unit
     )
 }

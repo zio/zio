@@ -85,27 +85,20 @@ trait Dequeue[+A] extends Serializable {
    * maximum. If there are fewer than the minimum number of elements available,
    * suspends until at least the minimum number of elements have been collected.
    */
-  final def takeBetween(min: Int, max: Int)(implicit trace: Trace): UIO[Chunk[A]] =
-    ZIO.suspendSucceed {
+  final def takeBetween(min: Int, max: Int)(implicit trace: Trace): UIO[Chunk[A]] = {
+    def takeRemainder(min: Int, max: Int, acc: Chunk[A]): UIO[Chunk[A]] =
+      if (max < min) ZIO.succeed(acc)
+      else
+        takeUpTo(max).flatMap { bs =>
+          val remaining = min - bs.length
 
-      def takeRemainder(min: Int, max: Int, acc: Chunk[A]): UIO[Chunk[A]] =
-        if (max < min) ZIO.succeed(acc)
-        else
-          takeUpTo(max).flatMap { bs =>
-            val remaining = min - bs.length
-            if (remaining == 1)
-              take.map(b => acc ++ bs :+ b)
-            else if (remaining > 1) {
-              take.flatMap { b =>
-                takeRemainder(remaining - 1, max - bs.length - 1, acc ++ bs :+ b)
+          if (remaining <= 0) Exit.succeed(acc ++ bs)
+          else if (remaining == 1) take.map(b => acc ++ bs :+ b)
+          else take.flatMap(b => takeRemainder(remaining - 1, max - bs.length - 1, acc ++ bs :+ b))
+        }
 
-              }
-            } else
-              ZIO.succeed(acc ++ bs)
-          }
-
-      takeRemainder(min, max, Chunk.empty)
-    }
+    takeRemainder(min, max, Chunk.empty)
+  }
 
   /**
    * Takes the specified number of elements from the queue. If there are fewer
