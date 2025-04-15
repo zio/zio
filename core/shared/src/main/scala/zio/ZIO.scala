@@ -4765,6 +4765,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     new ServiceWithZIOPartiallyApplied[Service]
 
   /**
+   * Builds a ZIO from the specified function.
+   */
+  def fromFunctionZIO[In](in: In)(implicit constructor: ZIOFunctionConstructor[In], trace: Trace): constructor.Out =
+    constructor(in)
+
+  /**
    * Returns an effect that shifts execution to the specified executor. This is
    * useful to specify a default executor that effects sequenced after this one
    * will be run on if they are not shifted somewhere else. It can also be used
