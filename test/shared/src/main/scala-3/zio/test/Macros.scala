@@ -46,11 +46,13 @@ object SmartAssertMacros {
     ): Option[(quotes.reflect.Term, String, List[quotes.reflect.TypeRepr], Option[List[quotes.reflect.Term]])] = {
       import quotes.reflect._
       tree match {
-        case Select(lhs, name)                               => Some((lhs, name, List.empty, None))
-        case TypeApply(Select(lhs, name), tpes)              => Some((lhs, name, tpes.map(_.tpe), None))
-        case Apply(Select(lhs, name), args)                  => Some((lhs, name, List.empty, Some(args)))
-        case Apply(TypeApply(Select(lhs, name), tpes), args) => Some((lhs, name, tpes.map(_.tpe), Some(args)))
-        case _                                               => None
+        case Select(lhs, name)                  => Some((lhs, name, List.empty, None))
+        case TypeApply(Select(lhs, name), tpes) => Some((lhs, name, tpes.map(_.tpe), None))
+        case Apply(select @ Select(lhs, name), args) if !select.symbol.isClassConstructor =>
+          Some((lhs, name, List.empty, Some(args)))
+        case Apply(TypeApply(select @ Select(lhs, name), tpes), args) if !select.symbol.isClassConstructor =>
+          Some((lhs, name, tpes.map(_.tpe), Some(args)))
+        case _ => None
       }
     }
   }
