@@ -170,20 +170,28 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
               )
 
             case ZChannel.PipeTo(left, right) =>
-              val previousInput = input
+              val instantiatedRight = right().asInstanceOf[Channel[Env]]
 
-              val leftExec: ErasedExecutor[Env] = new ChannelExecutor(left, providedEnv, executeCloseLastSubstream)
-              leftExec.input = previousInput
-              input = leftExec
+              instantiatedRight match {
+                case ZChannel.DeferedUpstream(f) =>
+                  val instantiatedLeft = left()
+                  currentChannel = f(instantiatedLeft.asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]])
+                case _ =>
+                  val previousInput = input
 
-              addFinalizer { exit =>
-                val effect = restorePipe(exit, previousInput)
+                  val leftExec: ErasedExecutor[Env] = new ChannelExecutor(left, providedEnv, executeCloseLastSubstream)
+                  leftExec.input = previousInput
+                  input = leftExec
 
-                if (effect ne null) effect
-                else ZIO.unit
+                  addFinalizer { exit =>
+                    val effect = restorePipe(exit, previousInput)
+
+                    if (effect ne null) effect
+                    else ZIO.unit
+                  }
+
+                  currentChannel = instantiatedRight
               }
-
-              currentChannel = right().asInstanceOf[Channel[Env]]
 
             case read @ ZChannel.Read(_, _) =>
               result = ChannelState.Read(
