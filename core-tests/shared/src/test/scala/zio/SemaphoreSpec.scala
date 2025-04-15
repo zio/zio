@@ -69,7 +69,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
     test("tryWithPermits restores permits after failure") {
       for {
         sem     <- Semaphore.make(3L)
-        failure = ZIO.fail("exception")
+        failure  = ZIO.fail("exception")
         result  <- sem.tryWithPermits(2L)(failure).exit
         permits <- sem.available
       } yield assertTrue(

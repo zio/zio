@@ -128,10 +128,10 @@ object Semaphore {
         override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
           ZIO.acquireReleaseWith(tryReserve(n)) {
             case Some(reservation) => reservation.release
-            case _              => Exit.none
+            case _                 => Exit.none
           } {
             case _: Some[?] => zio.asSome
-            case _    => Exit.none
+            case _          => Exit.none
           }
 
         case class Reservation(acquire: UIO[Unit], release: UIO[Any])
