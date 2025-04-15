@@ -66,6 +66,18 @@ object SemaphoreSpec extends ZIOBaseSpec {
         ans <- sem.tryWithPermits(-1L)(ZIO.unit).exit
       } yield assert(ans)(dies(isSubtype[IllegalArgumentException](anything)))
     },
+    test("tryWithPermits restores permits after failure") {
+      for {
+        sem     <- Semaphore.make(3L)
+        failure = ZIO.fail("exception")
+        result  <- sem.tryWithPermits(2L)(failure).exit
+        permits <- sem.available
+      } yield assertTrue(
+        permits == 3L,
+        result.isFailure,
+        result == Exit.fail("exception")
+      )
+    },
     test("awaiting returns the count of waiting fibers") {
       for {
         semaphore    <- Semaphore.make(1)
