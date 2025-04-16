@@ -61,6 +61,12 @@ object SmartAssertMacros {
     def apply(using Quotes)(term: quotes.reflect.Term) = new PositionContext(term.pos.start)
   }
 
+  def unsupportedOperationErrorExpr(using Quotes) = '{
+    scala.compiletime.error(
+      "Unsupported operation in 'assertTrue'\nPlease open an issue: https://github.com/zio/zio/issues/new"
+    )
+  }
+
   def transformAs[Start: Type, End: Type](
     expr: Expr[TestLens[End]]
   )(start: Expr[TestArrow[Any, Start]])(using PositionContext, Quotes): Expr[TestArrow[Any, End]] = {
@@ -229,10 +235,7 @@ object SmartAssertMacros {
                             .span($span)
                         }.asExprOf[TestArrow[Any, A]]
                     }
-                  case _ =>
-                    throw new IllegalArgumentException(
-                      "Unsupported operation in 'assertTrue'\nPlease open an issue: https://github.com/zio/zio/issues/new"
-                    )
+                  case _ => unsupportedOperationErrorExpr
                 }
             }
           case Some(false) =>
@@ -269,10 +272,7 @@ object SmartAssertMacros {
                   case (None, _) =>
                     val span = getSpan(tree)
                     '{ TestArrow.succeed($expr).span($span) }
-                  case _ =>
-                    throw new IllegalArgumentException(
-                      "Unsupported operation in 'assertTrue'\nPlease open an issue: https://github.com/zio/zio/issues/new"
-                    )
+                  case _ => unsupportedOperationErrorExpr
                 }
             }
           case None =>
@@ -306,10 +306,7 @@ object SmartAssertMacros {
                             .span($span)
                         }.asExprOf[TestArrow[Any, A]]
                     }
-                  case _ =>
-                    throw new IllegalArgumentException(
-                      "Unsupported operation in 'assertTrue'\nPlease open an issue: https://github.com/zio/zio/issues/new"
-                    )
+                  case _ => unsupportedOperationErrorExpr
                 }
             }
         }
