@@ -7,7 +7,7 @@ import java.nio.file.Path
 
 object ResultFileOpsJsonSpec extends ZIOBaseSpec {
   def spec = suite("ResultFileOpsJsonSpec")(
-    test("writes lines within the result array sequentially")(
+    test("trailing comma from last entry is removed")(
       for {
         path    <- writeToTestFile(parallel = false)("\naaa", "\nbbb", "\nccc")
         results <- readFile(path)
@@ -16,6 +16,20 @@ object ResultFileOpsJsonSpec extends ZIOBaseSpec {
         results(1) == "  \"results\": [",
         results(2) == "aaa",
         results(3) == "bbb",
+        results(4) == "ccc",
+        results(5) == "  ]",
+        results(6) == "}"
+      )
+    ),
+    test("trailing comma from last entry is removed")(
+      for {
+        path    <- writeToTestFile(parallel = false)("\naaa,", "\nbbb,", "\nccc,")
+        results <- readFile(path)
+      } yield assertTrue(
+        results(0) == "{",
+        results(1) == "  \"results\": [",
+        results(2) == "aaa,",
+        results(3) == "bbb,",
         results(4) == "ccc",
         results(5) == "  ]",
         results(6) == "}"

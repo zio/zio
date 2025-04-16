@@ -12,7 +12,7 @@ private[test] object ResultFileOps {
   val live: ZLayer[Any, Nothing, ResultFileOps] =
     ZLayer.scoped(Json.apply)
 
-  private[test] class Json private (resultPath: String) extends ResultFileOps {
+  private[test] final class Json private (resultPath: String) extends ResultFileOps {
     private val queue = new ConcurrentLinkedQueue[String]()
 
     def write(content: => String): UIO[Unit] =
