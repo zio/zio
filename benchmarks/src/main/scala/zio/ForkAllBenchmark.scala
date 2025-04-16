@@ -17,6 +17,8 @@ class ForkAllBenchmark {
   var count: Int = 0
 
   var z: ZIO[Any, Nothing, Chunk[Unit]] = _
+  var zScoped: ZIO[Any, Nothing, Chunk[Unit]] = _
+  var zScopedAlt: ZIO[Any, Nothing, Chunk[Unit]] = _
 
   @Setup
   def setup(): Unit = {
@@ -25,10 +27,28 @@ class ForkAllBenchmark {
         ZIO.succeed(())
       }
     z = ZIO.forkAll(tasks).flatMap(_.join)
+    zScoped = ZIO.scoped{
+        ZIO.foreach(tasks)(_.forkScoped)
+          .map(Fiber.collectAll(_))
+          .flatMap(_.join)
+      }
+    zScopedAlt = ZIO.scopedWith { scope =>
+        ZIO.foreach(tasks)(_.forkInAlt(scope))
+          .map(Fiber.collectAll(_))
+          .flatMap(_.join)
+      }
   }
 
   @Benchmark
   def run(): Chunk[Unit] =
     unsafeRun(z)
+
+  @Benchmark
+  def scoped(): Chunk[Unit] =
+    unsafeRun(zScoped)
+
+  @Benchmark
+  def scopedAlt(): Chunk[Unit] =
+    unsafeRun(zScopedAlt)
 
 }
