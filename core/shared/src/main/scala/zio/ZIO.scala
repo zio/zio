@@ -801,6 +801,37 @@ sealed trait ZIO[-R, +E, +A]
       }
     }
 
+  final def forkInAlt(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] = {
+    ZIO.uninterruptibleMask{ restore =>
+      var fib : Fiber.Runtime[E, A] = null
+
+      scope
+        .forkSingle {
+          ZIO.suspendSucceed {
+            if(null eq fib)
+              zio.Exit.unit
+            else
+              ZIO.fiberIdWith{ fibId =>
+                if(fib.id == fibId)
+                  zio.Exit.unit
+                else
+                  fib.interruptAs(fibId)
+              }
+          }
+        }
+        .flatMap{ dropFinalizer =>
+          restore(self)
+            .onExit(_ => dropFinalizer)
+            .forkDaemon
+            .tap { f =>
+              fib = f
+              zio.Exit.unit
+            }
+        }
+
+    }
+  }
+
   /**
    * Forks the effect into a new fiber attached to the global scope. Because the
    * new fiber is attached to the global scope, when the fiber executing the

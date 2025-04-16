@@ -73,6 +73,15 @@ trait Scope extends Serializable { self =>
    */
   final def fork(implicit trace: Trace): UIO[Scope.Closeable] =
     forkWith(executionStrategy)
+
+  def forkSingle(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: Trace) : UIO[Exit[Any, Any] => UIO[Any]]
+  final def forkSingle(finalizer : UIO[Any])(implicit trace: Trace) : UIO[UIO[Any]] =
+    forkSingle(_ => finalizer)
+      .map{f =>
+        ZIO.fiberIdWith{id =>
+          f(Exit.interrupt(id))
+        }
+      }
 }
 
 object Scope {
@@ -143,6 +152,8 @@ object Scope {
       def forkWith(executionStrategy: => ExecutionStrategy)(implicit trace: Trace): UIO[Scope.Closeable] =
         makeWith(executionStrategy)
       def size: Int = 0
+      def forkSingle(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: Trace) : UIO[Exit[Any, Any] => UIO[Any]] =
+        Exit.succeed(_ => Exit.unit)
     }
 
   /**
@@ -191,6 +202,11 @@ object Scope {
             .flatMap(scope.addFinalizerExit)
             .zipRight(Exit.succeed(scope))
         }
+
+      def forkSingle(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: Trace) : UIO[Exit[Any, Any] => UIO[Any]] = {
+        releaseMap
+          .add(finalizer)
+      }
 
       def size: Int =
         releaseMap.size
