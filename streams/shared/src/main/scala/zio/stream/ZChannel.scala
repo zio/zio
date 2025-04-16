@@ -698,7 +698,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                                    )
                              )
                              .interruptible
-                             .forkIn(childScope)
+                             .forkInAlt(childScope)
                              .flatMap(fiber => latch.await *> outgoing.offer(fiber))
                          }.forever.interruptible
                            .onError(_.failureOrCause match {
@@ -714,7 +714,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                            })
                            .ignore
 
-          _ <- (processElems raceFirst ZChannel.awaitErrorSignal(childScope, fiberId)(errorSignal)).forkIn(scope)
+          _ <- (processElems raceFirst ZChannel.awaitErrorSignal(childScope, fiberId)(errorSignal)).forkInAlt(scope)
         } yield {
           lazy val writer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
             ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
@@ -780,7 +780,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                          )
                      )
                      .interruptible
-                     .forkIn(childScope)
+                     .forkInAlt(childScope)
               _ <- latch.await
             } yield ()
           }.forever.interruptible
@@ -797,7 +797,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             })
             .ignore
             .raceFirst(ZChannel.awaitErrorSignal(childScope, fiberId)(errorSignal))
-            .forkIn(scope)
+            .forkInAlt(scope)
       } yield {
         lazy val writer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
           ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
