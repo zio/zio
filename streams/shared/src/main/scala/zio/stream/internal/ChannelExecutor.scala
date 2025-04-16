@@ -301,11 +301,8 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
                   }
 
                 result = ChannelState.Effect(
-                  drainer.forkDaemon.flatMap { fiber =>
-                    ZIO.succeed(addFinalizer { exit =>
-                      fiber.interrupt *>
-                        ZIO.suspendSucceed(restorePipe(exit, inputExecutor))
-                    })
+                  drainer.forkDaemon.map { fiber =>
+                    addFinalizer(exit => fiber.interrupt *> restorePipe(exit, inputExecutor))
                   }
                 )
               }
