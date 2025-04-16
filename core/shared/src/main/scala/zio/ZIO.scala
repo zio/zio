@@ -22,6 +22,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicReference
 import java.util.function.IntFunction
 import scala.annotation.implicitNotFound
 import scala.collection.mutable.ListBuffer
@@ -803,29 +804,37 @@ sealed trait ZIO[-R, +E, +A]
 
   final def forkInAlt(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] = {
     ZIO.uninterruptibleMask{ restore =>
-      var fib : Fiber.Runtime[E, A] = null
+      //var fib : Fiber.Runtime[E, A] = null
+      val ref = Ref.unsafe.make[AnyRef](null)(zio.Unsafe)
 
       scope
-        .forkSingle {
-          ZIO.suspendSucceed {
-            if(null eq fib)
-              zio.Exit.unit
-            else
-              ZIO.fiberIdWith{ fibId =>
-                if(fib.id == fibId)
-                  zio.Exit.unit
-                else
-                  fib.interruptAs(fibId)
-              }
-          }
+        .forkSingle { ex =>
+            ref
+              .unsafe
+              .modify{
+                case null =>
+                  //early interrupt, possible when the scope is managed by another fiber
+                  zio.Exit.unit -> ex
+                case fib : Fiber.Runtime[E, A] =>
+                  ZIO.fiberIdWith { fiberId =>
+                    if (fiberId == fib.id) Exit.unit else fib.interrupt
+                  } -> ex
+              } (zio.Unsafe)
         }
         .flatMap{ dropFinalizer =>
           restore(self)
-            .onExit(_ => dropFinalizer)
+            .onExit(dropFinalizer)
             .forkDaemon
-            .tap { f =>
-              fib = f
-              zio.Exit.unit
+            .flatMap { fib =>
+              ref
+                .unsafe
+                .modify{
+                  case null =>
+                    zio.Exit.Success(fib) -> fib
+                  case _ =>
+                    //can't be a fiber, so must be an Exit from an early interrupt
+                    fib.interrupt.as(fib) -> fib
+                } (zio.Unsafe)
             }
         }
 
