@@ -229,7 +229,10 @@ object SmartAssertMacros {
                             .span($span)
                         }.asExprOf[TestArrow[Any, A]]
                     }
-                  case _ => throw new Error("NO")
+                  case _ =>
+                    throw new IllegalArgumentException(
+                      "Unsupported operation in 'assertTrue'\nPlease open an issue: https://github.com/zio/zio/issues/new"
+                    )
                 }
             }
           case Some(false) =>
@@ -266,7 +269,10 @@ object SmartAssertMacros {
                   case (None, _) =>
                     val span = getSpan(tree)
                     '{ TestArrow.succeed($expr).span($span) }
-                  case _ => throw new Error("NO")
+                  case _ =>
+                    throw new IllegalArgumentException(
+                      "Unsupported operation in 'assertTrue'\nPlease open an issue: https://github.com/zio/zio/issues/new"
+                    )
                 }
             }
           case None =>
@@ -300,7 +306,10 @@ object SmartAssertMacros {
                             .span($span)
                         }.asExprOf[TestArrow[Any, A]]
                     }
-                  case _ => throw new Error("NO")
+                  case _ =>
+                    throw new IllegalArgumentException(
+                      "Unsupported operation in 'assertTrue'\nPlease open an issue: https://github.com/zio/zio/issues/new"
+                    )
                 }
             }
         }
