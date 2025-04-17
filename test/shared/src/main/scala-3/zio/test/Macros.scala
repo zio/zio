@@ -63,6 +63,12 @@ object SmartAssertMacros {
     def apply(using Quotes)(term: quotes.reflect.Term) = new PositionContext(term.pos.start)
   }
 
+  def unsupportedOperationErrorExpr(using Quotes) = '{
+    scala.compiletime.error(
+      "Unsupported operation in 'assertTrue'\nPlease open an issue: https://github.com/zio/zio/issues/new"
+    )
+  }
+
   def transformAs[Start: Type, End: Type](
     expr: Expr[TestLens[End]]
   )(start: Expr[TestArrow[Any, Start]])(using PositionContext, Quotes): Expr[TestArrow[Any, End]] = {
@@ -167,7 +173,7 @@ object SmartAssertMacros {
         val arrow                 = Inlined(a, b, transform(expr.asExprOf[A]).asTerm).asExprOf[zio.test.TestArrow[Any, A]]
         '{ $arrow.span($preMacroExpansionSpan) }
 
-      case Unseal(Apply(Select(lhs, op @ (">" | ">=" | "<" | "<=")), List(rhs))) =>
+      case Unseal(tree @ Apply(Select(lhs, op @ (">" | ">=" | "<" | "<=")), List(rhs))) =>
         def tpesPriority(tpe: TypeRepr): Int =
           tpe.toString match {
             case "Byte"   => 0
@@ -231,7 +237,7 @@ object SmartAssertMacros {
                             .span($span)
                         }.asExprOf[TestArrow[Any, A]]
                     }
-                  case _ => throw new Error("NO")
+                  case _ => unsupportedOperationErrorExpr
                 }
             }
           case Some(false) =>
@@ -265,7 +271,10 @@ object SmartAssertMacros {
                             .span($span)
                         }.asExprOf[TestArrow[Any, A]]
                     }
-                  case _ => throw new Error("NO")
+                  case (None, _) =>
+                    val span = getSpan(tree)
+                    '{ TestArrow.succeed($expr).span($span) }
+                  case _ => unsupportedOperationErrorExpr
                 }
             }
           case None =>
@@ -299,7 +308,7 @@ object SmartAssertMacros {
                             .span($span)
                         }.asExprOf[TestArrow[Any, A]]
                     }
-                  case _ => throw new Error("NO")
+                  case _ => unsupportedOperationErrorExpr
                 }
             }
         }
