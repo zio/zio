@@ -805,9 +805,36 @@ sealed trait ZIO[-R, +E, +A]
   final def forkInAlt(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] = {
     ZIO.uninterruptibleMask{ restore =>
       //var fib : Fiber.Runtime[E, A] = null
-      val ref = Ref.unsafe.make[AnyRef](null)(zio.Unsafe)
+      //val ref = Ref.unsafe.make[AnyRef](null)(zio.Unsafe)
 
-      scope
+      ZIO.withFiberRuntime[R, E, A] {
+        case (fib, _) =>
+          //set and read only by the fiber itself
+          var interrupted = false
+          scope
+            .forkSingle{
+              ZIO.fiberIdWith { fiberId =>
+                if (fiberId == fib.id) {
+                  interrupted = true
+                  Exit.unit
+                } else fib.interrupt
+              }
+            }
+            .flatMap{ dropFinalizer =>
+              if(interrupted) { //this effectively means the scope was already closed before adding the finalizer
+                //it also means we don't have to drop the finalizer since the scope closure already did that
+                //dropFinalizer *>
+                Exit.interrupt(fib.id)
+              } else {
+                restore(self.exit)
+                  .flatMap(dropFinalizer *> _)
+              }
+
+            }
+      }
+      .forkDaemon
+
+      /*scope
         .forkSingle { ex =>
             ref
               .unsafe
@@ -822,21 +849,20 @@ sealed trait ZIO[-R, +E, +A]
               } (zio.Unsafe)
         }
         .flatMap{ dropFinalizer =>
-          restore(self)
-            .onExit(dropFinalizer)
-            .forkDaemon
-            .flatMap { fib =>
+          ZIO.withFiberRuntime[R, E, A]{
+            case (fib, _) =>
               ref
-                .unsafe
-                .modify{
-                  case null =>
-                    zio.Exit.Success(fib) -> fib
-                  case _ =>
-                    //can't be a fiber, so must be an Exit from an early interrupt
-                    fib.interrupt.as(fib) -> fib
-                } (zio.Unsafe)
-            }
-        }
+              .unsafe
+              .modify{
+                case null =>
+                  restore(self) -> fib
+                case ex =>
+                  //can only be an exit, since this is the only place where we set a fiber
+                  Exit.interrupt(fib.id) -> ex
+              } (zio.Unsafe)
+          }
+          .forkDaemon
+        }*/
 
     }
   }
