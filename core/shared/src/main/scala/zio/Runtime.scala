@@ -24,7 +24,7 @@ import scala.concurrent.Future
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
  */
-trait Runtime[+R] { self =>
+sealed trait Runtime[+R] { self =>
 
   /**
    * The environment of the runtime.
@@ -207,6 +207,7 @@ trait Runtime[+R] { self =>
 }
 
 object Runtime extends RuntimePlatformSpecific {
+  private[zio] abstract class Internal[+R] extends Runtime[R]
 
   def addFatal(fatal: Class[_ <: Throwable])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentFatal.locallyScopedWith(_ | IsFatal(fatal)))

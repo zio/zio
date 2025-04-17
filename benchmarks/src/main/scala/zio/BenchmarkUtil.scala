@@ -5,7 +5,7 @@ import cats.effect.{Fiber => CFiber, IO => CIO}
 
 import scala.concurrent.ExecutionContext
 
-object BenchmarkUtil extends Runtime[Any] { self =>
+object BenchmarkUtil extends Runtime.Internal[Any] { self =>
   val environment = Runtime.default.environment
 
   val fiberRefs = Runtime.default.fiberRefs
@@ -39,7 +39,7 @@ object BenchmarkUtil extends Runtime[Any] { self =>
     Unsafe.unsafe(implicit unsafe => rt.unsafe.run(zio).getOrThrowFiberFailure())
   }
 
-  private object NoFiberRootsRuntime extends Runtime[Any] {
+  private object NoFiberRootsRuntime extends Runtime.Internal[Any] {
     val environment  = Runtime.default.environment
     val fiberRefs    = Runtime.default.fiberRefs
     val runtimeFlags = RuntimeFlags(RuntimeFlag.CooperativeYielding, RuntimeFlag.Interruption)
