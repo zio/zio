@@ -2,83 +2,67 @@ package zio.test.results
 
 import zio._
 
-import java.io.IOException
-import scala.io.Source
+import java.util.concurrent.ConcurrentLinkedQueue
 
 private[test] trait ResultFileOps {
-  def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit]
+  def write(content: => String): UIO[Unit]
 }
 
 private[test] object ResultFileOps {
   val live: ZLayer[Any, Nothing, ResultFileOps] =
-    ZLayer.scoped(
-      Json.apply
-    )
+    ZLayer.scoped(Json.apply)
 
-  private[test] case class Json(resultPath: String, lock: Ref.Synchronized[Unit]) extends ResultFileOps {
-    def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit] =
-      lock.updateZIO(_ =>
-        ZIO
-          .acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter(resultPath, append)))(f =>
-            ZIO.attemptBlocking(f.close()).orDie
-          ) { f =>
-            ZIO.attemptBlockingIO(f.append(content))
-          }
-          .ignore
-      )
+  private[test] final class Json private (resultPath: String) extends ResultFileOps {
+    private val queue = new ConcurrentLinkedQueue[String]()
 
-    private val makeOutputDirectory = ZIO.attempt {
+    def write(content: => String): UIO[Unit] =
+      ZIO.succeed {
+        queue.offer(content)
+        ()
+      }
+
+    private def close: UIO[Unit] =
+      ZIO.attemptBlocking {
+        makeOutputDirectory()
+        flushUnsafe()
+      }.orDie
+
+    private def makeOutputDirectory(): Unit = {
       import java.nio.file.{Files, Paths}
 
       val fp = Paths.get(resultPath)
       Files.createDirectories(fp.getParent)
-    }.unit
+      ()
+    }
 
-    private def closeJson: ZIO[Scope, Throwable, Unit] =
-      removeLastComma *>
-        write("\n  ]\n}", append = true).orDie
+    private def flushUnsafe(): Unit = {
+      val file = new java.io.FileWriter(resultPath, false)
+      try {
+        file.write("""|{
+                      |  "results": [""".stripMargin)
 
-    private def writeJsonPreamble: URIO[Any, Unit] =
-      write(
-        """|{
-           |  "results": [""".stripMargin,
-        append = false
-      ).orDie
-
-    private val removeLastComma =
-      for {
-        source <- ZIO.succeed(Source.fromFile(resultPath))
-        updatedLines = {
-          val lines = source.getLines().toList
-          if (lines.nonEmpty && lines.last.endsWith(",")) {
-            val lastLine    = lines.last
-            val newLastLine = lastLine.dropRight(1)
-            lines.init :+ newLastLine
+        var next = queue.poll()
+        while (next ne null) {
+          val current = next
+          next = queue.poll()
+          if ((next eq null) && current.endsWith(",")) {
+            file.write(current.dropRight(1))
           } else {
-            lines
+            file.write(current)
           }
         }
-        _ <- ZIO.when(updatedLines.nonEmpty) {
-               val firstLine :: rest = updatedLines
-               for {
-                 _ <- write(firstLine + "\n", append = false)
-                 _ <- ZIO.foreach(rest)(line => write(line + "\n", append = true))
-                 _ <- ZIO.addFinalizer(ZIO.attempt(source.close()).orDie)
-               } yield ()
-             }
-      } yield ()
-
+        file.write("\n  ]\n}")
+      } finally {
+        file.close()
+      }
+    }
   }
 
   object Json {
+    def apply(filename: String): ZIO[Scope, Nothing, Json] =
+      ZIO.acquireRelease(ZIO.succeed(new Json(filename)))(_.close)
+
     def apply: ZIO[Scope, Nothing, Json] =
-      ZIO.acquireRelease(
-        for {
-          fileLock <- Ref.Synchronized.make[Unit](())
-          instance  = Json("target/test-reports-zio/output.json", fileLock)
-          _        <- instance.makeOutputDirectory.orDie
-          _        <- instance.writeJsonPreamble
-        } yield instance
-      )(instance => instance.closeJson.orDie)
+      apply("target/test-reports-zio/output.json")
   }
 }
