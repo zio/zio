@@ -1959,6 +1959,17 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         .mapOut(Chunk.single)
     )
 
+  def mapZIOPar[Env, Err, In, Out](n: Ref[Int], bufferSize: => Int)(f: In => ZIO[Env, Err, Out])(implicit
+    trace: Trace
+  ): ZPipeline[Env, Err, In, Out] =
+    new ZPipeline(
+      ZChannel
+        .identity[Nothing, Chunk[In], Any]
+        .concatMap(ZChannel.writeChunk(_))
+        .mapOutZIOPar(n, bufferSize)(f)
+        .mapOut(Chunk.single)
+    )
+
   /**
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. The element order is

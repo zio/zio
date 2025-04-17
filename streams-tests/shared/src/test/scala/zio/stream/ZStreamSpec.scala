@@ -2868,6 +2868,38 @@ object ZStreamSpec extends ZIOBaseSpec {
               _     <- f.join
             } yield assertTrue(count == 0)
           } @@ TestAspect.jvmOnly @@ nonFlaky,
+          test("parallelism is controlled by Ref") {
+            // each second parallelism is updated
+            // then counts how many increments have been done each second
+            val iterations = 70
+            for {
+              parallelism <- Ref.make(1)
+              counter     <- Ref.make(Array.tabulate(iterations)(_ => 0))
+              f0 <- ZStream
+                      .range(0, iterations)
+                      .mapZIOPar(parallelism, bufferSize = 16)(_ =>
+                        (for {
+                          second <- Clock.instant.map(_.getEpochSecond)
+                          _ <- counter.update { a =>
+                                 val index = second.toInt % iterations
+                                 val c     = a(index)
+                                 a(index) = c + 1
+                                 a
+                               }
+                        } yield ()).delay(99.millis)
+                      )
+                      .runDrain
+                      .fork
+
+              f1      <- parallelism.set(2).delay(1000.millis).fork
+              f2      <- parallelism.set(4).delay(2000.millis).fork
+              _       <- TestClock.adjust((iterations * 100).millis)
+              _       <- f0.join
+              _       <- f1.join
+              _       <- f2.join
+              buckets <- counter.get.map(_.toList.take(3))
+            } yield assertTrue(buckets == List(10, 20, 39)) // off by one
+          } @@ TestAspect.jvmOnly @@ nonFlaky(3),
           test("accumulates parallel errors") {
             sealed abstract class DbError extends Product with Serializable
             case object Missing           extends DbError

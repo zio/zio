@@ -739,6 +739,99 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       }
     }
 
+  final def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Ref[Int], bufferSize: Int)(
+    f: OutElem => ZIO[Env1, OutErr1, OutElem2]
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
+    ZChannel.unwrapScopedWith { scope =>
+      ZIO.fiberIdWith { fiberId =>
+        val input       = SingleProducerAsyncInput.unsafe.make[InErr, InElem, InDone](fiberId)(Unsafe)
+        val queueReader = ZChannel.fromInput(input)
+        val bufferSize0 = bufferSize
+        val outgoing    = Queue.unsafe.bounded[Fiber[Either[Unit, OutDone], OutElem2]](bufferSize0, fiberId)(Unsafe)
+        val errorSignal = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
+        val failureRef  = Ref.unsafe.make[Cause[OutErr1]](Cause.empty)(Unsafe)
+
+        val setFinalizer: UIO[Unit] =
+          ZIO.uninterruptible {
+            scope.addFinalizer(outgoing.shutdown)
+          }
+
+        for {
+          _          <- setFinalizer
+          pull       <- (queueReader >>> self).toPullInAlt(scope)
+          n0         <- n.get
+          semaphore  <- Ref.make((n0, Semaphore.unsafe.make(n0)(Unsafe)))
+          childScope <- scope.fork
+          processElems = pull.flatMap { outElem =>
+                           val latch = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
+                           val refreshSemaphore = for {
+                             t                 <- semaphore.get
+                             (prevPar, prevSem) = t
+                             curPar            <- n.get
+                             s <- if (prevPar == curPar)
+                                    ZIO.succeed(prevSem)
+                                  else {
+                                    val s = Semaphore.unsafe.make(curPar)(Unsafe)
+                                    semaphore.set((curPar, s)).as(s)
+                                  }
+                           } yield s
+
+                           refreshSemaphore
+                             .flatMap(s =>
+                               s.withPermit(
+                                 latch.succeedUnit *>
+                                   f(outElem)
+                                     .catchAllCause(cause =>
+                                       failureRef.update(_ && cause).unless(cause.isInterruptedOnly) *>
+                                         errorSignal.succeedUnit *>
+                                         ZChannel.failLeftUnit
+                                     )
+                               )
+                             )
+                             .interruptible
+                             .forkIn(childScope)
+                             .flatMap(fiber => latch.await *> outgoing.offer(fiber))
+                         }.forever.interruptible
+                           .onError(_.failureOrCause match {
+                             case Left(x: Left[OutErr, ?]) =>
+                               failureRef.update(_ && Cause.fail(x.value)) *>
+                                 outgoing.offer(Fiber.done(ZChannel.failLeftUnit))
+                             case Left(x: Right[?, OutDone]) =>
+                               semaphore.get.flatMap(s =>
+                                 s._2.withPermits(n0)(ZIO.unit).interruptible *>
+                                   outgoing.offer(Fiber.fail(x.asInstanceOf[Either[Unit, OutDone]]))
+                               )
+                             case Right(cause) =>
+                               failureRef.update(_ && cause).unless(cause.isInterruptedOnly) *>
+                                 outgoing.offer(Fiber.done(ZChannel.failLeftUnit))
+                           })
+                           .ignore
+
+          _ <- (processElems raceFirst ZChannel.awaitErrorSignal(childScope, fiberId)(errorSignal)).forkIn(scope)
+        } yield {
+          lazy val writer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
+            ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
+              outgoing.take.flatMap(_.await).flatMap {
+                case s: Exit.Success[OutElem2] => Exit.succeed(ZChannel.write(s.value) *> writer)
+                case f: Exit.Failure[Either[Unit, OutDone]] =>
+                  val failure0 = failureRef.unsafe.get(Unsafe)
+                  val out = f.cause.failureOrCause match {
+                    case Left(_: Left[Unit, OutDone]) => ZChannel.refailCause(failure0)
+                    case Left(x: Right[Unit, OutDone]) =>
+                      if (failure0 eq Cause.empty) ZChannel.succeedNow(x.value)
+                      else ZChannel.refailCause(failure0)
+                    case Right(c) if c.isInterruptedOnly => ZChannel.refailCause(failure0)
+                    case Right(cause)                    => ZChannel.refailCause(cause)
+                  }
+                  outgoing.shutdown.as(out)
+              }
+            }
+
+          writer.embedInput(input)
+        }
+      }
+    }
+
   /**
    * Creates a channel that is like this channel but the given ZIO function gets
    * applied to each emitted output element, taking `n` elements at once and
