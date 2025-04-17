@@ -15,4 +15,8 @@ object SmartTestTypes {
 
   case class Company(name: String, users: List[User])
 
+  class Service(val name: String)
+
+  class GenericService[A](val value: A)
+
 }
