@@ -139,5 +139,5 @@ sealed trait TDequeue[+A] extends Serializable {
     takeBetween(n, n)
 }
 private[zio] object TDequeue {
-  private[zio] abstract class Internal[+A] extends TDequeue[A]
+  private[zio] trait Internal[+A] extends TDequeue[A]
 }
