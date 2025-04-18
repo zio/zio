@@ -6328,9 +6328,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
             case a    => f(a) *> worker
           })
 
-        val nWorkers = parallelism.min(size)
-        val workers  = ZIO.replicate(nWorkers)(worker)
-        ZIO.collectAllParUnboundedDiscard(workers, nWorkers)
+        val workers = ZIO.replicate(parallelism)(worker)
+        ZIO.collectAllParUnboundedDiscard(workers, parallelism)
       }
 
   private def foreachParUnbounded[R, E, A, B, Collection[+Element] <: Iterable[Element]](
