@@ -1986,9 +1986,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: Int = 16)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] = {
-    //self >>> ZPipeline.mapZIOPar(n, bufferSize)(f)
-    val c0: ZChannel[R1, Any, Any, Any, E1, Chunk[A2], Any] = self
-      .toChannel
+    // self >>> ZPipeline.mapZIOPar(n, bufferSize)(f)
+    val c0: ZChannel[R1, Any, Any, Any, E1, Chunk[A2], Any] = self.toChannel
       .concatMap(ZChannel.writeChunk(_))
       .mapOutZIOPar[R1, E1, A2](n, bufferSize)(f)
       .mapOut(Chunk.single)
@@ -2033,9 +2032,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIOParUnordered[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: => Int = 16)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] = {
-    //self >>> ZPipeline.mapZIOParUnordered(n, bufferSize)(f)
-    val ch = self
-      .toChannel
+    // self >>> ZPipeline.mapZIOParUnordered(n, bufferSize)(f)
+    val ch = self.toChannel
       .concatMap(ZChannel.writeChunk(_))
       .mapOutZIOParUnordered[R1, E1, A2](n, bufferSize)(f)
       .mapOut(Chunk.single)

@@ -802,42 +802,40 @@ sealed trait ZIO[-R, +E, +A]
       }
     }
 
-  final def forkInAlt(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] = {
-    ZIO.uninterruptibleMask{ restore =>
-      //val ref = Ref.unsafe.make[AnyRef](null)(zio.Unsafe)
-      ZIO.withFiberRuntime[R, E, A] { case (fibRt, _) =>
-        //this is read and updated ONLY by the child fiber itself, hence no need for atomics!
-        var state = 0
-        scope
-          .forkSingle{
-            ZIO.fiberIdWith{interruptorId =>
-              //running in interrupting fiber, may be parent, child or any other fiber
-              if(interruptorId == fibRt.id) {
-                //inside childFiber, safe to read/update the state var
-                if(0 == state)
+  final def forkInAlt(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
+    ZIO.uninterruptibleMask { restore =>
+      // val ref = Ref.unsafe.make[AnyRef](null)(zio.Unsafe)
+      ZIO
+        .withFiberRuntime[R, E, A] { case (fibRt, _) =>
+          // this is read and updated ONLY by the child fiber itself, hence no need for atomics!
+          var state = 0
+          scope.forkSingle {
+            ZIO.fiberIdWith { interruptorId =>
+              // running in interrupting fiber, may be parent, child or any other fiber
+              if (interruptorId == fibRt.id) {
+                // inside childFiber, safe to read/update the state var
+                if (0 == state)
                   state = -1
                 zio.Exit.unit
               } else {
                 fibRt.interrupt
               }
             }
-          }
-        .flatMap{ dropFinalizer =>
-          //back in child fiber
-          if(-1 == state) { //scope was already closed
-            zio.Exit.interrupt(fibRt.id)
-          } else {
-            restore(self)
-              .foldCauseZIO(
-                c => dropFinalizer *> zio.Exit.failCause(c),
-                v => dropFinalizer.as(v)
-              )
+          }.flatMap { dropFinalizer =>
+            // back in child fiber
+            if (-1 == state) { // scope was already closed
+              zio.Exit.interrupt(fibRt.id)
+            } else {
+              restore(self)
+                .foldCauseZIO(
+                  c => dropFinalizer *> zio.Exit.failCause(c),
+                  v => dropFinalizer.as(v)
+                )
+            }
           }
         }
-      }
-      .forkDaemon
+        .forkDaemon
     }
-  }
 
   /**
    * Forks the effect into a new fiber attached to the global scope. Because the

@@ -173,7 +173,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
               val instantiatedRight = right().asInstanceOf[Channel[Env]]
 
               instantiatedRight match {
-                case ZChannel.DeferedUpstream(f) if false =>  //need to figure out how to handle the null env issue here
+                case ZChannel.DeferedUpstream(f) if false => // need to figure out how to handle the null env issue here
                   val instantiatedLeft = left()
                   currentChannel = f(instantiatedLeft.asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]])
                 case _ =>
