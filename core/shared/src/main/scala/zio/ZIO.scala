@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.FiberScope
+import zio.internal.{FiberMessage, FiberRuntime, FiberScope}
 import zio.metrics.{MetricLabel, Metrics}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -802,7 +802,128 @@ sealed trait ZIO[-R, +E, +A]
       }
     }
 
-  final def forkInAlt(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] = {
+  final def forkInAlt(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]]  =
+    forkInAlt01(scope)
+
+  final def forkInAlt0(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] = {
+    ZIO.uninterruptibleMask{ restore =>
+      //var fib : Fiber.Runtime[E, A] = null
+      val ref = Ref.unsafe.make[AnyRef](null)(zio.Unsafe)
+
+      scope
+        .forkSingle { ex =>
+          ref
+            .unsafe
+            .modify{
+              case null =>
+                //early interrupt, possible when the scope is managed by another fiber
+                zio.Exit.unit -> ex
+              case fib : Fiber.Runtime[E, A] =>
+                ZIO.fiberIdWith { fiberId =>
+                  if (fiberId == fib.id) Exit.unit else fib.interrupt
+                } -> ex
+            } (zio.Unsafe)
+        }
+        .flatMap{ dropFinalizer =>
+          restore(self)
+            .onExit(dropFinalizer)
+            .forkDaemon
+            .flatMap { fib =>
+              ref
+                .unsafe
+                .modify{
+                  case null =>
+                    zio.Exit.Success(fib) -> fib
+                  case _ =>
+                    //can't be a fiber, so must be an Exit from an early interrupt
+                    fib.interrupt.as(fib) -> fib
+                } (zio.Unsafe)
+            }
+        }
+
+    }
+  }
+
+  final def forkInAlt00(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] = {
+    ZIO.uninterruptibleMask{ restore =>
+      //var fib : Fiber.Runtime[E, A] = null
+      val ref = Ref.unsafe.make[AnyRef](null)(zio.Unsafe)
+
+      scope
+        .forkSingle { ex =>
+          ref
+            .unsafe
+            .modify{
+              case null =>
+                //early interrupt, possible when the scope is managed by another fiber
+                zio.Exit.unit -> ex
+              case fib : Fiber.Runtime[E, A] =>
+                ZIO.fiberIdWith { fiberId =>
+                  if (fiberId == fib.id) Exit.unit else fib.interrupt
+                } -> ex
+            } (zio.Unsafe)
+        }
+        .flatMap{ dropFinalizer =>
+          ZIO.withFiberRuntime[R, E, A]{ case (fibRt, _) =>
+            ref
+              .unsafe
+              .modify{
+                case null =>
+                  restore(self)
+                    .foldCauseZIO(c => {
+                        val ex = zio.Exit.failCause(c)
+                        dropFinalizer(ex) *> ex
+                      },
+                      v => dropFinalizer(zio.Exit.unit).as(v)
+                    ) -> fibRt
+                case x => //must be Exit, hence finalizer already executed so no need to drop it
+                  zio.Exit.interrupt(fibRt.id) -> x
+              }(zio.Unsafe)
+          }
+          .forkDaemon
+        }
+
+    }
+  }
+
+  final def forkInAlt01(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] = {
+    ZIO.uninterruptibleMask{ restore =>
+      //val ref = Ref.unsafe.make[AnyRef](null)(zio.Unsafe)
+      ZIO.withFiberRuntime[R, E, A] { case (fibRt, _) =>
+        //this is read and updated ONLY by the child fiber itself, hence no need for atomics!
+        var state = 0
+        scope
+          .forkSingle{
+            ZIO.fiberIdWith{interruptorId =>
+              //running in interrupting fiber, may be parent, child or any other fiber
+              if(interruptorId == fibRt.id) {
+                //inside childFiber, safe to read/update the state var
+                if(0 == state)
+                  state = -1
+                zio.Exit.unit
+              } else {
+                fibRt.interrupt
+              }
+            }
+          }
+        .flatMap{ dropFinalizer =>
+          //back in child fiber
+          if(-1 == state) { //scope was already closed
+            zio.Exit.interrupt(fibRt.id)
+          } else {
+            restore(self)
+              .foldCauseZIO(
+                c => dropFinalizer *> zio.Exit.failCause(c),
+                v => dropFinalizer.as(v)
+              )
+          }
+        }
+      }
+      .forkDaemon
+    }
+  }
+
+  final def forkInAlt1(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] = {
     ZIO.uninterruptibleMask{ restore =>
       //var fib : Fiber.Runtime[E, A] = null
       val ref = Ref.unsafe.make[AnyRef](null)(zio.Unsafe)
@@ -841,6 +962,104 @@ sealed trait ZIO[-R, +E, +A]
     }
   }
 
+  final def forkInAlt2(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
+    ZIO.uninterruptibleMask { restore =>
+      ZIO.withFiberRuntime[R, Nothing, Fiber.Runtime[E, A]] { case (parentFiber, parentStatus) =>
+        implicit val u: Unsafe = zio.Unsafe
+        val parentId = parentFiber.id
+        val childFiber = ZIO.unsafe.makeChildFiber(self.trace,
+          self,
+          parentFiber,
+          parentStatus.runtimeFlags,
+          FiberScope.global)
+        val childId = childFiber.id
+        var state = 0
+        scope
+          .forkSingle {
+            ZIO.fiberIdWith {
+              case `childId` =>
+                //child fiber is closing the scope
+                zio.Exit.unit
+              case `parentId` if 0 == state =>
+                //scope is already closed
+                state = -1 //early termination
+                childFiber.start(zio.Exit.interrupt(parentFiber.id))
+                zio.Exit.unit
+              case interruptingFiberId =>
+                //this is racy with childFiber.start
+                //but not a real issue since we have two possibilities here:
+                //1. interrupt wins, fiber immediately completes, Resume message sent by startConcurrently is effectively ignored
+                //2. startConcurrently sins, interrupt message is handled like any other interrupt
+                childFiber.interruptAs(interruptingFiberId)
+            }
+          }
+          .flatMap { dropFinalizer =>
+            state match {
+              case 0 =>
+                //mark child fiber running, this is important in case the parent fiber later closes the scope, we must distinguish this case from the 'already closed scope' case
+                state = 1
+                val effect =
+                  restore(self)
+                    .foldCauseZIO(
+                      c => dropFinalizer *> Exit.failCause(c),
+                      v => dropFinalizer.as(v)
+                    )
+                if (parentFiber.shouldYieldBeforeFork())
+                  ZIO
+                    .yieldNow
+                    .map { _ =>
+                      childFiber
+                        .startConcurrently(effect)
+                      childFiber
+                    }
+                else {
+                  childFiber
+                    .startConcurrently(effect)
+                  zio.Exit.succeed(childFiber)
+                }
+              case -1 =>
+                //scope was already closed (by the parent fiber), no need to drop the finalizer
+                //child fiber was also run to interrupt as well
+                zio.Exit.succeed(childFiber)
+            }
+          }
+      }
+    }
+
+  final def forkInAlt3(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
+    ZIO.uninterruptibleMask { restore =>
+      restore(self)
+        .forkDaemon
+        .tap{ fib =>
+          scope
+            .forkSingle{
+              ZIO.fiberIdWith { fibId =>
+                if (fibId == fib.id)
+                  ZIO.unit
+                else
+                  fib.interruptAs(fibId)
+              }
+            }
+            .tap{ dropFinalizer =>
+              fib
+                .asInstanceOf[FiberRuntime[E, A]]
+                .tell{
+                  FiberMessage.Stateful{fibRt =>
+                    fibRt.addObserver { ex =>
+                      //this is hacky as hell since it relies on what seems to be a FiberRuntime bug where it doesn't reject Resume messages after setting its exitValue
+                      //observers are invoked from within setExitValue, so this observer 'installs' a message in the fiber's mailbox,
+                      //once setExitValue and evaluateEffect completes, the calling method checks the mailbox again and picks this message...
+                      fibRt
+                        .tell(
+                          FiberMessage.Resume(dropFinalizer *> ex)
+                        )
+                    } (zio.Unsafe)
+                  }
+                }
+              zio.Exit.unit
+            }
+        }
+    }
   /**
    * Forks the effect into a new fiber attached to the global scope. Because the
    * new fiber is attached to the global scope, when the fiber executing the
