@@ -1958,7 +1958,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         .mapOutZIOPar(n, bufferSize)(f)
         .mapOut(Chunk.single)
     )*/
-    ZPipeline.fromFunction { strm: ZStream[Any, Nothing, In] =>
+    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
       strm.mapZIOPar(n, bufferSize)(f)
     }
 
@@ -1987,7 +1987,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         .mapOutZIOParUnordered(n, bufferSize)(f)
         .mapOut(Chunk.single)
     )*/
-    ZPipeline.fromFunction { strm: ZStream[Any, Nothing, In] =>
+    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
       strm.mapZIOParUnordered(n, bufferSize)(f)
     }
 
