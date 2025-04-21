@@ -3547,23 +3547,25 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Applies the function `f` to each element of the `Collection[A]` and returns
    * the result in a new `Collection[B]` using the specified execution strategy.
    */
-  final def foreachExec[R, E, A, B, Collection[+Element] <: Iterable[Element]](as: Collection[A])(
+  def foreachExec[R, E, A, B, Collection[+Element] <: Iterable[Element]](
+    as: Collection[A]
+  )(
     exec: => ExecutionStrategy
   )(
     f: A => ZIO[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] =
-    if (as.isEmpty) ZIO.succeed(bf.fromSpecific(as)(Nil))
-    else
-      ZIO.suspendSucceed {
-        exec match {
-          case ExecutionStrategy.Parallel =>
-            ZIO.withParallelismUnboundedMask(restore => ZIO.foreachPar(as)(a => restore(f(a))))
-          case ExecutionStrategy.ParallelN(n) =>
-            ZIO.withParallelismMask(n)(restore => ZIO.foreachPar(as)(a => restore(f(a))))
-          case ExecutionStrategy.Sequential =>
-            ZIO.foreach(as)(f)
+    as.size match {
+      case 0 => ZIO.succeed(bf.fromSpecific(as)(Nil))
+      case 1 => ZIO.suspendSucceed(f(as.head)).map(b => bf.fromSpecific(as)(as.map(_ => b)))
+      case size =>
+        ZIO.suspendSucceed {
+          exec match {
+            case ExecutionStrategy.Parallel     => ZIO.foreachParUnbounded(as, size)(f)
+            case ExecutionStrategy.ParallelN(n) => ZIO.foreachPar(n)(as, size)(f)
+            case ExecutionStrategy.Sequential   => ZIO.foreach(as)(f)
+          }
         }
-      }
+    }
 
   /**
    * Applies the function `f` to each element of the `Collection[A]` in
@@ -6291,44 +6293,50 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   ): ZIO[R, E, Unit] =
     foreachParUnboundedDiscard(as, size)(ZIO.identityFn)
 
-  private def foreachPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
+  private def foreachPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](
+    parallelism: Int
+  )(
     as: Collection[A],
     size: Int
   )(
     fn: A => ZIO[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] =
-    ZIO.suspendSucceed {
-      val array = Array.ofDim[AnyRef](size)
-      val zioFunction: ((A, Int)) => ZIO[R, E, Any] = { case (a, i) =>
-        fn(a).flatMap { b => array(i) = b.asInstanceOf[AnyRef]; Exit.unit }
+    if (parallelism <= 1)
+      foreach(as)(fn)
+    else if (parallelism >= size)
+      foreachParUnbounded(as, size)(fn)
+    else
+      ZIO.suspendSucceed {
+        val array = Array.ofDim[AnyRef](size)
+        val zioFunction: ((A, Int)) => ZIO[R, E, Any] = { case (a, i) =>
+          fn(a).flatMap { b => array(i) = b.asInstanceOf[AnyRef]; Exit.unit }
+        }
+        foreachParDiscard(parallelism)(as.zipWithIndex, size)(zioFunction)
+          .as(bf.fromSpecific(as)(array.asInstanceOf[Array[B]]))
       }
-      foreachParDiscard(n)(as.zipWithIndex, size)(zioFunction)
-        .as(bf.fromSpecific(as)(array.asInstanceOf[Array[B]]))
-    }
 
   private def foreachParDiscard[R, E, A](
-    n: Int
+    parallelism: Int
   )(as: Iterable[A], size: Int)(f: A => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
-    size match {
-      case 0 => Exit.unit
-      case 1 => f(as.head).unit
-      case size =>
-        ZIO.suspendSucceed {
-          import scala.jdk.CollectionConverters._
+    if (parallelism <= 1)
+      foreachDiscard(as)(f)
+    else if (parallelism >= size)
+      foreachParUnboundedDiscard(as, size)(f)
+    else
+      ZIO.suspendSucceed {
+        import scala.jdk.CollectionConverters._
 
-          val queue = new ConcurrentLinkedQueue[A](as.asJavaCollection)
+        val queue = new ConcurrentLinkedQueue[A](as.asJavaCollection)
 
-          lazy val worker: ZIO[R, E, Unit] =
-            ZIO.suspendSucceed(queue.poll() match {
-              case null => Exit.unit
-              case a    => f(a) *> worker
-            })
+        lazy val worker: ZIO[R, E, Unit] =
+          ZIO.suspendSucceed(queue.poll() match {
+            case null => Exit.unit
+            case a    => f(a) *> worker
+          })
 
-          val nWorkers = n.min(size)
-          val workers  = ZIO.replicate(nWorkers)(worker)
-          ZIO.collectAllParUnboundedDiscard(workers, nWorkers)
-        }
-    }
+        val workers = ZIO.replicate(parallelism)(worker)
+        ZIO.collectAllParUnboundedDiscard(workers, parallelism)
+      }
 
   private def foreachParUnbounded[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[A],
