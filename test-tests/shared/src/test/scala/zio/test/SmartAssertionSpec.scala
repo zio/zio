@@ -265,6 +265,13 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       assertTrue(b > aL) && assertTrue(bL > a) &&
       assertTrue(b >= aL) && assertTrue(bL >= a)
     },
+    test("comparison compiles when comparing types with ops implicit class containing compare operation") {
+      import java.time.temporal.ChronoUnit._
+
+      val duration = Duration(500, MILLIS)
+      assertTrue(duration < Duration(1, SECONDS)) &&
+      assertTrue("testing" > "test")
+    },
     test("exists must succeed when at least one element of iterable satisfy specified assertion") {
       assertTrue(Seq(1, 42, 5).exists(_ == 42))
     },
