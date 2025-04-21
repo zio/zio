@@ -1,6 +1,7 @@
 package zio
 
 import zio.internal.FiberScope
+import zio.metrics.Metric
 import zio.test._
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -61,6 +62,35 @@ object FiberRuntimeSpec extends ZIOBaseSpec {
               )
             }
         }
+      }
+    ),
+    suite("runtime metrics")(
+      test("Failures are counted once for the fiber that caused them and exits are not") {
+        val nullErrors = ZIO.foreachParDiscard(1 to 2)(_ => ZIO.attempt(throw new NullPointerException))
+
+        val customErrors =
+          ZIO.foreachParDiscard(1 to 5)(_ => ZIO.fail("Custom application error"))
+
+        val exitErrors =
+          ZIO.foreachParDiscard(1 to 5)(_ => Exit.fail(new IllegalArgumentException("Foo")))
+
+        (nullErrors <&> exitErrors <&> customErrors)
+          .foldCauseZIO(
+            _ =>
+              Metric.runtime.fiberFailureCauses.value
+                .map(_.occurrences)
+                .map { oc =>
+                  assertTrue(
+                    oc.size == 2,
+                    oc.get("java.lang.String").contains(5),
+                    oc.get("java.lang.NullPointerException").contains(2)
+                  )
+                },
+            _ => ZIO.succeed(assertNever("Effect did not fail"))
+          )
+          .provide(Runtime.enableRuntimeMetrics) @@
+          // Need to tag them to extract metrics from this specific effect
+          ZIOAspect.tagged("FiberRuntimeSpec" -> "Failures")
       }
     )
   )
