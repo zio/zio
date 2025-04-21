@@ -788,7 +788,7 @@ sealed trait ZIO[-R, +E, +A]
    * Forks the effect in the specified scope. The fiber will be interrupted when
    * the scope is closed.
    */
-  final def forkIn(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
+  private[zio] final def forkInOrig(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
     ZIO.uninterruptibleMask { restore =>
       def interrupt(fiber: Fiber.Runtime[Any, Any]): ZIO[Any, Nothing, Any] =
         ZIO.fiberIdWith { fiberId =>
@@ -802,7 +802,7 @@ sealed trait ZIO[-R, +E, +A]
       }
     }
 
-  final def forkInAlt(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
+  final def forkIn(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
     ZIO.uninterruptibleMask { restore =>
       // val ref = Ref.unsafe.make[AnyRef](null)(zio.Unsafe)
       ZIO

@@ -17,10 +17,10 @@ class ForkAllBenchmark {
   var count: Int = 0
 
   var z: ZIO[Any, Nothing, Chunk[Unit]]           = _
-  var zScoped: ZIO[Any, Nothing, Chunk[Unit]]     = _
-  var zScopedM: ZIO[Any, Nothing, Chunk[Unit]]    = _
-  var zScopedAlt: ZIO[Any, Nothing, Chunk[Unit]]  = _
-  var zScopedAltM: ZIO[Any, Nothing, Chunk[Unit]] = _
+  var zScopedOrig: ZIO[Any, Nothing, Chunk[Unit]]     = _
+  var zScopedOrigM: ZIO[Any, Nothing, Chunk[Unit]]    = _
+  var zScoped: ZIO[Any, Nothing, Chunk[Unit]]  = _
+  var zScopedM: ZIO[Any, Nothing, Chunk[Unit]] = _
 
   @Setup
   def setup(): Unit = {
@@ -29,9 +29,36 @@ class ForkAllBenchmark {
         ZIO.succeed(())
       }
     z = ZIO.forkAll(tasks).flatMap(_.join)
-    zScoped = ZIO.scoped {
+    zScopedOrig = ZIO.scopedWith { scope =>
       ZIO
-        .foreach(tasks)(_.forkScoped)
+        .foreach(tasks)(_.forkInOrig(scope))
+        .map(Fiber.collectAll(_))
+        .flatMap(_.join)
+    }
+    zScopedOrigM = ZIO.scopedWith { parentScope =>
+      val nScopes = (count / 256) + 1
+      val scopesZ =
+        if (nScopes == 1)
+          zio.Exit.succeed(zio.Chunk.single(parentScope))
+        else
+          ZIO
+            .replicateZIO(nScopes)(parentScope.fork)
+      scopesZ.flatMap { scopes_ =>
+        val scopes = zio.Chunk.fromIterable(scopes_)
+        var idx    = 0
+        ZIO
+          .foreach(tasks) { task =>
+            val scope = scopes(idx % nScopes)
+            idx += 1
+            task.forkInOrig(scope)
+          }
+          .map(Fiber.collectAll(_))
+          .flatMap(_.join)
+      }
+    }
+    zScoped = ZIO.scopedWith { scope =>
+      ZIO
+        .foreach(tasks)(_.forkIn(scope))
         .map(Fiber.collectAll(_))
         .flatMap(_.join)
     }
@@ -56,33 +83,6 @@ class ForkAllBenchmark {
           .flatMap(_.join)
       }
     }
-    zScopedAlt = ZIO.scopedWith { scope =>
-      ZIO
-        .foreach(tasks)(_.forkInAlt(scope))
-        .map(Fiber.collectAll(_))
-        .flatMap(_.join)
-    }
-    zScopedAltM = ZIO.scopedWith { parentScope =>
-      val nScopes = (count / 256) + 1
-      val scopesZ =
-        if (nScopes == 1)
-          zio.Exit.succeed(zio.Chunk.single(parentScope))
-        else
-          ZIO
-            .replicateZIO(nScopes)(parentScope.fork)
-      scopesZ.flatMap { scopes_ =>
-        val scopes = zio.Chunk.fromIterable(scopes_)
-        var idx    = 0
-        ZIO
-          .foreach(tasks) { task =>
-            val scope = scopes(idx % nScopes)
-            idx += 1
-            task.forkInAlt(scope)
-          }
-          .map(Fiber.collectAll(_))
-          .flatMap(_.join)
-      }
-    }
   }
 
   @Benchmark
@@ -90,19 +90,19 @@ class ForkAllBenchmark {
     unsafeRun(z)
 
   @Benchmark
+  def scopedOrig(): Chunk[Unit] =
+    unsafeRun(zScopedOrig)
+
+  @Benchmark
   def scoped(): Chunk[Unit] =
     unsafeRun(zScoped)
 
   @Benchmark
-  def scopedAlt(): Chunk[Unit] =
-    unsafeRun(zScopedAlt)
-
-  @Benchmark
-  def scopedAltM(): Chunk[Unit] =
-    unsafeRun(zScopedAltM)
-
-  @Benchmark
   def scopedM(): Chunk[Unit] =
     unsafeRun(zScopedM)
+
+  @Benchmark
+  def scopedOrigM(): Chunk[Unit] =
+    unsafeRun(zScopedOrigM)
 
 }
