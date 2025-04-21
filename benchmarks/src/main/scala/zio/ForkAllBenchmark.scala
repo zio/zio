@@ -16,9 +16,9 @@ class ForkAllBenchmark {
   @Param(Array("1", "128", "1024"))
   var count: Int = 0
 
-  var z: ZIO[Any, Nothing, Chunk[Unit]]            = _
-  var zScoped: ZIO[Any, Nothing, Chunk[Unit]]      = _
-  var zScopedM: ZIO[Any, Nothing, Chunk[Unit]]     = _
+  var z: ZIO[Any, Nothing, Chunk[Unit]]        = _
+  var zScoped: ZIO[Any, Nothing, Chunk[Unit]]  = _
+  var zScopedM: ZIO[Any, Nothing, Chunk[Unit]] = _
 
   @Setup
   def setup(): Unit = {
