@@ -152,7 +152,8 @@ object Scope {
         makeWith(executionStrategy)
       def size: Int = 0
       def forkSingle(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: Trace): UIO[Exit[Any, Any] => UIO[Any]] =
-        Exit.succeed(_ => Exit.unit)
+        // while the scope itself will never be closed, explicitly removing a finalizer effectively invokes it (follows the behavior of forked scopes)
+        Exit.succeed(finalizer)
     }
 
   /**
