@@ -3753,6 +3753,103 @@ object ZIOSpec extends ZIOBaseSpec {
         assertZIO(zio.provide(ZLayer.succeed(0)))(equalTo(3))
       }
     ),
+    suite("fromFunctionZIO")(
+      test("1 arg") {
+        ZIO.fromFunctionZIO { (int: Int) =>
+          ZIO.succeed(assertTrue(int == 1))
+        }
+          .provide(ZLayer.succeed(1))
+      },
+      test("fromFunction works with environment") {
+        trait MyService {
+          def n: Int
+        }
+
+        ZIO.fromFunctionZIO { (int: Int) =>
+          ZIO
+            .serviceWith[MyService](_.n + int)
+            .map(n => assertTrue(n == 3))
+        }
+          .provide(ZLayer.succeed(2) ++ ZLayer.succeed(new MyService { def n = 1 }))
+      },
+      test("2 arg") {
+        ZIO.fromFunctionZIO { (int: Int, string: String) =>
+          ZIO.succeed(assertTrue(int == 1, string == "ab"))
+        }
+          .provide(ZLayer.succeed(1) ++ ZLayer.succeed("ab"))
+      },
+      test("3 arg") {
+        ZIO.fromFunctionZIO { (int: Int, string: String, double: Double) =>
+          ZIO.succeed(assertTrue(int == 1, string == "ab", double == 3))
+        }
+          .provide(
+            ZLayer.succeed(1) ++
+              ZLayer.succeed("ab") ++
+              ZLayer.succeed(3.toDouble)
+          )
+      },
+      test("4 arg") {
+        ZIO.fromFunctionZIO { (int: Int, string: String, double: Double, byte: Byte) =>
+          ZIO.succeed(assertTrue(int == 1, string == "ab", double == 3, byte == 4))
+        }
+          .provide(
+            ZLayer.succeed(1) ++
+              ZLayer.succeed("ab") ++
+              ZLayer.succeed(3.toDouble) ++
+              ZLayer.succeed(4.toByte)
+          )
+      },
+      test("5 arg") {
+        ZIO.fromFunctionZIO { (int: Int, string: String, double: Double, byte: Byte, c: Char) =>
+          ZIO.succeed(assertTrue(int == 1, string == "ab", double == 3, byte == 4, c == 'c'))
+        }
+          .provide(
+            ZLayer.succeed(1) ++
+              ZLayer.succeed("ab") ++
+              ZLayer.succeed(3.toDouble) ++
+              ZLayer.succeed(4.toByte) ++
+              ZLayer.succeed('c')
+          )
+      },
+      test("6 arg") {
+        ZIO.fromFunctionZIO { (int: Int, string: String, double: Double, byte: Byte, c: Char, li: List[Int]) =>
+          ZIO.succeed(assertTrue(int == 1, string == "ab", double == 3, byte == 4, c == 'c', li == List(1, 2)))
+        }
+          .provide(
+            ZLayer.succeed(1) ++
+              ZLayer.succeed("ab") ++
+              ZLayer.succeed(3.toDouble) ++
+              ZLayer.succeed(4.toByte) ++
+              ZLayer.succeed('c') ++
+              ZLayer.succeed(List(1, 2))
+          )
+      },
+      test("7 arg") {
+        ZIO.fromFunctionZIO {
+          (int: Int, string: String, double: Double, byte: Byte, c: Char, li: List[Int], ls: List[String]) =>
+            ZIO.succeed(
+              assertTrue(
+                int == 1,
+                string == "ab",
+                double == 3,
+                byte == 4,
+                c == 'c',
+                li == List(1, 2),
+                ls == List("a", "b")
+              )
+            )
+        }
+          .provide(
+            ZLayer.succeed(1) ++
+              ZLayer.succeed("ab") ++
+              ZLayer.succeed(3.toDouble) ++
+              ZLayer.succeed(4.toByte) ++
+              ZLayer.succeed('c') ++
+              ZLayer.succeed(List(1, 2)) ++
+              ZLayer.succeed(List("a", "b"))
+          )
+      }
+    ),
     suite("schedule")(
       test("runs effect for each recurrence of the schedule") {
         for {
