@@ -10,15 +10,62 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
   inline def provide[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[Any, E1] =
     ${ SpecLayerMacros.provideImpl[Any, R, E1]('self, 'layer) }
 
+  /**
+   * Splits the environment into two parts, providing each test with one part
+   * using the specified layer and leaving the remainder `R0`.
+   *
+   * {{{
+   * val spec: ZSpec[Clock with Random, Nothing] = ???
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val spec2: ZSpec[Random, Nothing] = spec.provideSome[Random](clockLayer)
+   * }}}
+   */
   def provideSome[R0] =
     new ProvideSomePartiallyApplied[R0, R, E](self)
 
+  /**
+   * Same as [[provideSome]], but does not require providing remainder
+   *
+   * {{{
+   * val spec: ZSpec[Clock with Random, Nothing] = ???
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val spec2 = spec.provideSome(clockLayer) // Inferred type is ZSpec[Random, Nothing]
+   * }}}
+   */
   inline transparent def provideSomeAuto[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[_, E1] =
     ${ SpecLayerMacros.provideAutoImpl[R, E1]('self, 'layer) }
 
+  /**
+   * Splits the environment into two parts, providing all tests with a shared
+   * version of one part using the specified layer and leaving the remainder
+   * `R0`.
+   *
+   * {{{
+   * val spec: ZSpec[Int with Random, Nothing] = ???
+   * val intLayer: ZLayer[Any, Nothing, Int] = ???
+   *
+   * val spec2 = spec.provideSomeShared[Random](intLayer)
+   * }}}
+   */
   def provideSomeShared[R0] =
     new ProvideSomeSharedPartiallyApplied[R0, R, E](self)
 
+  /**
+   * Same as [[provideSomeShared]], but does not require providing remainder
+   *
+   * {{{
+   * val spec: ZSpec[Int with Random, Nothing] = ???
+   * val intLayer: ZLayer[Any, Nothing, Int] = ???
+   *
+   * val spec2 = spec.provideSomeShared(intLayer) // Inferred type is ZSpec[Random, Nothing]
+   * }}}
+   *
+   * Note for Intellij users: By default, Intellij will not show correct type on
+   * hover. To fix this enable `Use types reported by Scala compiler
+   * (experimental)` in `Settings | Languages & Frameworks | Scala | Editor`
+   */
   inline transparent def provideSomeSharedAuto[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[_, E1] =
     ${ SpecLayerMacros.provideSharedAutoImpl[R, E1]('self, 'layer) }
 
