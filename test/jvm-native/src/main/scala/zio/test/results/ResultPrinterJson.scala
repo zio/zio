@@ -8,13 +8,11 @@ private[test] object ResultPrinterJson {
     ZLayer.make[ResultPrinter](
       ResultSerializer.live,
       ResultFileOps.live,
-      ZLayer.fromFunction(
-        LiveImpl(_, _)
-      )
+      ZLayer.fromFunction(LiveImpl.apply _)
     )
 
   private case class LiveImpl(serializer: ResultSerializer, resultFileOps: ResultFileOps) extends ResultPrinter {
     override def print[E](event: ExecutionEvent.Test[E]): ZIO[Any, Nothing, Unit] =
-      resultFileOps.write(serializer.render(event), append = true).orDie
+      resultFileOps.write(serializer.render(event))
   }
 }

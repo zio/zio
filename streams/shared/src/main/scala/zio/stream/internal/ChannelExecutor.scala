@@ -8,7 +8,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable.Stack
 
-private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   initialChannel: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
   @volatile private var providedEnv: ZEnvironment[Any],
   executeCloseLastSubstream: URIO[Env, Any] => URIO[Env, Any]
