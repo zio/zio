@@ -1,7 +1,9 @@
 package zio
 
+import zio.Random.RandomLive
 import zio.internal.FiberScope
 import zio.metrics.Metric
+import zio.test.TestAspect.{nonFlaky, timeout}
 import zio.test._
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -74,11 +76,18 @@ object FiberRuntimeSpec extends ZIOBaseSpec {
         val exitErrors =
           ZIO.foreachParDiscard(1 to 5)(_ => Exit.fail(new IllegalArgumentException("Foo")))
 
-        (nullErrors <&> exitErrors <&> customErrors)
+        (nullErrors <&> exitErrors <&> customErrors).uninterruptible
           .foldCauseZIO(
             _ =>
               Metric.runtime.fiberFailureCauses.value
                 .map(_.occurrences)
+                // NOTE: Fibers in foreachParDiscard register metrics at the very end of the fiber's life which might be after we check them
+                // so we might need to retry until they are registered
+                .repeatUntil { oc =>
+                  oc.size >= 2 &&
+                  oc.getOrElse("java.lang.String", 0L) >= 5L &&
+                  oc.getOrElse("java.lang.NullPointerException", 0L) >= 2L
+                }
                 .map { oc =>
                   assertTrue(
                     oc.size == 2,
@@ -90,8 +99,8 @@ object FiberRuntimeSpec extends ZIOBaseSpec {
           )
           .provide(Runtime.enableRuntimeMetrics) @@
           // Need to tag them to extract metrics from this specific effect
-          ZIOAspect.tagged("FiberRuntimeSpec" -> "Failures")
-      }
+          ZIOAspect.tagged("FiberRuntimeSpec" -> RandomLive.unsafe.nextString(20))
+      } @@ nonFlaky(1000) @@ timeout(10.seconds)
     )
   )
 
