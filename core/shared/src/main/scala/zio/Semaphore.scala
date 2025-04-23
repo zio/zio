@@ -49,7 +49,7 @@ sealed trait Semaphore extends Serializable {
    * Executes the effect, acquiring a permit if available and releasing it after
    * execution. Returns `None` if no permits were available.
    */
-  def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+  final def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
     tryWithPermits(1L)(zio)
 
   /**
@@ -128,7 +128,7 @@ object Semaphore {
         override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
           ZIO.acquireReleaseWith(tryReserve(n)) {
             case Some(reservation) => reservation.release
-            case _                 => Exit.none
+            case _                 => Exit.unit
           } {
             case _: Some[?] => zio.asSome
             case _          => Exit.none
