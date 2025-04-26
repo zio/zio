@@ -974,12 +974,12 @@ package object test extends CompileVariants {
     Spec.labeled(
       label,
       if (specs.isEmpty) Spec.empty
-      else if (specs.length == 1) wrapIfLabeledOrExecCase(specs.head)
+      else if (specs.length == 1) wrapIfLabelledCase(specs.head)
       else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec)))
     )
 
   // Ensures we render suite label when we have an individual Labeled / Exec test case
-  private def wrapIfLabeledOrExecCase[In](spec: In)(implicit suiteConstructor: SuiteConstructor[In], trace: Trace) = {
+  private def wrapIfLabelledCase[In](spec: In)(implicit suiteConstructor: SuiteConstructor[In], trace: Trace) = {
     val suite = suiteConstructor(spec)
     suite.caseValue match {
       case _: LabeledCase[?] | _: ExecCase[?] => Spec.multiple(Chunk.single(suite))
