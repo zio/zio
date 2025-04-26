@@ -80,6 +80,9 @@ final case class LayerBuilder[Type, Expr](
     providedLayers.map(exprToNode).partition(_.outputs.exists(typeEquals(_, sideEffectType)))
 
   /**
+   * 
+   * Returns tree representing final `ZLayer[In, Err, Out]`
+   * 
    * ==If [[remainder]] is [[RemainderMethod.Inferred]]==
    *   - `In` will be some generated type
    *   - `Err` will be the union of all errors in the provided layers
