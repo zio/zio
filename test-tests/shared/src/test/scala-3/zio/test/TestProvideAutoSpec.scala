@@ -2,7 +2,6 @@ package zio.test
 
 import zio.*
 import zio.test.Assertion.*
-import zio.test.TestProvideSpecTypes.{IntService, StringService}
 
 object TestProvideAutoSpec extends ZIOBaseSpec {
   def spec =
@@ -17,40 +16,7 @@ object TestProvideAutoSpec extends ZIOBaseSpec {
         }.provideSomeAuto(stringLayer)
 
         myTest.provide(ZLayer.succeed(10))
-      },
-      suite(".provideSomeSharedAuto") {
-
-        val addOne: ZIO[IntService, Nothing, Int] =
-          ZIO.serviceWithZIO[IntService](_.add(1))
-
-        val appendBang: ZIO[StringService, Nothing, String] =
-          ZIO.serviceWithZIO[StringService](_.append("!"))
-
-        val intService: ULayer[IntService] = ZLayer(Ref.make(0).map(IntService(_)))
-        val stringService: ULayer[StringService] =
-          ZLayer(Ref.make("Hello").map(StringService(_)).debug("MAKING"))
-
-        def customTest(int: Int) =
-          test(s"test $int") {
-            for {
-              x   <- addOne
-              str <- appendBang
-            } yield assertTrue(x == int && str == s"Hello!")
-          }
-
-        suite("layers are shared between tests and suites")(
-          suite("suite 1")(
-            customTest(1),
-            customTest(2)
-          ),
-          suite("suite 4")(
-            customTest(3),
-            customTest(4)
-          )
-        )
-          .provideSomeSharedAuto(intService)
-          .provide(stringService) @@ TestAspect.sequential
-      } @@ TestAspect.exceptScala3
+      }
     )
 
   object TestLayer {
