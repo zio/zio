@@ -25,7 +25,8 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
     new ProvideSomePartiallyApplied[R0, R, E](self)
 
   /**
-   * Equivalent to [[provideSome]], but does not require providing the remainder type
+   * Equivalent to [[provideSome]], but does not require providing the remainder
+   * type
    *
    * {{{
    * val spec: ZSpec[Clock with Random, Nothing] = ???
