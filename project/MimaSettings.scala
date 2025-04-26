@@ -25,6 +25,8 @@ object MimaSettings {
         exclude[Problem]("zio.Scope$ReleaseMap*"),
         exclude[MissingClassProblem]("zio.Scope$Running*"),
         exclude[MissingClassProblem]("zio.Scope$Exited*"),
+        exclude[Problem]("zio.Scope$State$Exited*"),
+        exclude[Problem]("zio.Scope#State#Exited*"),
         exclude[NewMixinForwarderProblem]("zio.Exit.as"),
         exclude[NewMixinForwarderProblem]("zio.Exit.fold"),
         exclude[NewMixinForwarderProblem]("zio.Exit.foldCause"),
@@ -35,6 +37,7 @@ object MimaSettings {
         exclude[NewMixinForwarderProblem]("zio.Exit.unit"),
         exclude[Problem]("zio.Promise#internal*"),
         exclude[Problem]("zio.Promise$internal*")
+        exclude[Problem]("zio.Queue#Strategy*.shutdown")
       ),
       mimaFailOnProblem := failOnProblem
     )

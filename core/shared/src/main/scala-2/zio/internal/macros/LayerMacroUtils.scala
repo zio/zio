@@ -110,7 +110,7 @@ private[zio] trait LayerMacroUtils {
 
     val builder = LayerBuilder[Type, LayerExpr](
       target0 = getRequirements[R],
-      remainder = getRequirements[R0],
+      remainder = RemainderMethod.Provided(getRequirements[R0]),
       providedLayers0 = layers.toList,
       layerToDebug = debugMap,
       sideEffectType = definitions.UnitTpe,

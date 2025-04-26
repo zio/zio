@@ -46,11 +46,13 @@ object SmartAssertMacros {
     ): Option[(quotes.reflect.Term, String, List[quotes.reflect.TypeRepr], Option[List[quotes.reflect.Term]])] = {
       import quotes.reflect._
       tree match {
-        case Select(lhs, name)                               => Some((lhs, name, List.empty, None))
-        case TypeApply(Select(lhs, name), tpes)              => Some((lhs, name, tpes.map(_.tpe), None))
-        case Apply(Select(lhs, name), args)                  => Some((lhs, name, List.empty, Some(args)))
-        case Apply(TypeApply(Select(lhs, name), tpes), args) => Some((lhs, name, tpes.map(_.tpe), Some(args)))
-        case _                                               => None
+        case Select(lhs, name)                  => Some((lhs, name, List.empty, None))
+        case TypeApply(Select(lhs, name), tpes) => Some((lhs, name, tpes.map(_.tpe), None))
+        case Apply(select @ Select(lhs, name), args) if !select.symbol.isClassConstructor =>
+          Some((lhs, name, List.empty, Some(args)))
+        case Apply(TypeApply(select @ Select(lhs, name), tpes), args) if !select.symbol.isClassConstructor =>
+          Some((lhs, name, tpes.map(_.tpe), Some(args)))
+        case _ => None
       }
     }
   }
@@ -59,6 +61,12 @@ object SmartAssertMacros {
 
   object PositionContext {
     def apply(using Quotes)(term: quotes.reflect.Term) = new PositionContext(term.pos.start)
+  }
+
+  def unsupportedOperationErrorExpr(using Quotes) = '{
+    scala.compiletime.error(
+      "Unsupported operation in 'assertTrue'\nPlease open an issue: https://github.com/zio/zio/issues/new"
+    )
   }
 
   def transformAs[Start: Type, End: Type](
@@ -165,7 +173,7 @@ object SmartAssertMacros {
         val arrow                 = Inlined(a, b, transform(expr.asExprOf[A]).asTerm).asExprOf[zio.test.TestArrow[Any, A]]
         '{ $arrow.span($preMacroExpansionSpan) }
 
-      case Unseal(Apply(Select(lhs, op @ (">" | ">=" | "<" | "<=")), List(rhs))) =>
+      case Unseal(tree @ Apply(Select(lhs, op @ (">" | ">=" | "<" | "<=")), List(rhs))) =>
         def tpesPriority(tpe: TypeRepr): Int =
           tpe.toString match {
             case "Byte"   => 0
@@ -229,7 +237,7 @@ object SmartAssertMacros {
                             .span($span)
                         }.asExprOf[TestArrow[Any, A]]
                     }
-                  case _ => throw new Error("NO")
+                  case _ => unsupportedOperationErrorExpr
                 }
             }
           case Some(false) =>
@@ -263,7 +271,10 @@ object SmartAssertMacros {
                             .span($span)
                         }.asExprOf[TestArrow[Any, A]]
                     }
-                  case _ => throw new Error("NO")
+                  case (None, _) =>
+                    val span = getSpan(tree)
+                    '{ TestArrow.succeed($expr).span($span) }
+                  case _ => unsupportedOperationErrorExpr
                 }
             }
           case None =>
@@ -297,7 +308,7 @@ object SmartAssertMacros {
                             .span($span)
                         }.asExprOf[TestArrow[Any, A]]
                     }
-                  case _ => throw new Error("NO")
+                  case _ => unsupportedOperationErrorExpr
                 }
             }
         }

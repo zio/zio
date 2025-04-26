@@ -18,13 +18,13 @@ package zio.test
 
 import zio.Random._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.stream.{Stream, ZStream}
+import zio.stream.ZStream
 import zio.{Chunk, NonEmptyChunk, Random, Trace, UIO, URIO, ZIO, Zippable}
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
-import scala.collection.JavaConverters._
 import scala.collection.immutable.SortedMap
+import scala.jdk.CollectionConverters._
 import scala.math.Numeric.DoubleIsFractional
 
 /**

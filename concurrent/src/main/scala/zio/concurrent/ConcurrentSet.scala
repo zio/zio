@@ -4,8 +4,7 @@ import zio.{UIO, ZIO}
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.{Consumer, Predicate}
-import scala.annotation.nowarn
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /**
  * A `ConcurrentSet` is a Set wrapper over
@@ -24,7 +23,7 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
    * Adds all new values.
    */
   def addAll(xs: Iterable[A]): UIO[Boolean] =
-    ZIO.succeed(underlying.addAll(xs.asJavaCollection): @nowarn("msg=JavaConverters"))
+    ZIO.succeed(underlying.addAll(xs.asJavaCollection))
 
   /**
    * Removes all elements.
@@ -139,7 +138,7 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
    * existing element.
    */
   def removeAll(xs: Iterable[A]): UIO[Boolean] =
-    ZIO.succeed(underlying.removeAll(xs.asJavaCollection): @nowarn("msg=JavaConverters"))
+    ZIO.succeed(underlying.removeAll(xs.asJavaCollection))
 
   /**
    * Removes all elements which satisfy the given predicate.
@@ -152,7 +151,7 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
    * existing element.
    */
   def retainAll(xs: Iterable[A]): UIO[Boolean] =
-    ZIO.succeed(underlying.retainAll(xs.asJavaCollection): @nowarn("msg=JavaConverters"))
+    ZIO.succeed(underlying.retainAll(xs.asJavaCollection))
 
   /**
    * Removes all elements which do not satisfy the given predicate.
@@ -170,12 +169,11 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
    * Convert the ConcurrentSet to Set.
    */
   def toSet: UIO[Set[A]] =
-    ZIO.succeed(underlying.asScala.toSet: @nowarn("msg=JavaConverters"))
+    ZIO.succeed(underlying.asScala.toSet)
 
   /**
    * Transform all elements of the ConcurrentSet using the given function.
    */
-  @nowarn("msg=JavaConverters")
   def transform(f: A => A): UIO[Unit] =
     ZIO.succeed {
       val set = underlying.asScala.toSet

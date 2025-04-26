@@ -8,9 +8,8 @@ import zio.metrics._
 import java.lang.management.{GarbageCollectorMXBean, ManagementFactory}
 import javax.management.openmbean.CompositeData
 import javax.management.{Notification, NotificationEmitter, NotificationListener}
-import scala.annotation.nowarn
-import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 
 final case class MemoryAllocation(listener: NotificationListener, garbageCollectorMXBeans: List[GarbageCollectorMXBean])
 
@@ -26,7 +25,6 @@ object MemoryAllocation {
   private class Listener(runtime: Runtime[Any]) extends NotificationListener {
     private val lastMemoryUsage: mutable.Map[String, Long] = mutable.HashMap.empty
 
-    @nowarn("msg=JavaConverters")
     override def handleNotification(notification: Notification, handback: Any): Unit = {
       val info =
         GarbageCollectionNotificationInfo.from(notification.getUserData.asInstanceOf[CompositeData])
@@ -72,7 +70,6 @@ object MemoryAllocation {
     }
   }
 
-  @nowarn("msg=JavaConverters")
   val live: ZLayer[Any, Throwable, MemoryAllocation] =
     ZLayer.scoped {
       ZIO

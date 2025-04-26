@@ -214,7 +214,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % IzumiReflectVersion)
+  .settings(
+    libraryDependencies ++= List(
+      "dev.zio"                %%% "izumi-reflect"           % IzumiReflectVersion,
+      "org.scala-lang.modules" %%% "scala-collection-compat" % ScalaCollectionCompatVersion
+    )
+  )
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
   .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
@@ -568,12 +573,7 @@ lazy val testJunitRunnerTests = project.module
 lazy val testJunitEngine = project.module
   .in(file("test-junit-engine"))
   .settings(stdSettings("zio-test-junit-engine"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.junit.platform"      % "junit-platform-engine"   % JunitPlatformEngineVersion,
-      "org.scala-lang.modules" %% "scala-collection-compat" % ScalaCollectionCompatVersion
-    )
-  )
+  .settings(libraryDependencies += "org.junit.platform" % "junit-platform-engine" % JunitPlatformEngineVersion)
   .dependsOn(tests.jvm)
 
 lazy val testJunitEngineTests = project.module
@@ -652,14 +652,14 @@ lazy val benchmarks = project.module
         "com.twitter"               %% "util-core"     % "24.2.0",
         "com.typesafe.akka"         %% "akka-stream"   % "2.8.8",
         "io.github.timwspence"      %% "cats-stm"      % "0.13.4",
-        "io.projectreactor"          % "reactor-core"  % "3.7.4",
+        "io.projectreactor"          % "reactor-core"  % "3.7.5",
         "io.reactivex.rxjava2"       % "rxjava"        % "2.2.21",
         "org.jctools"                % "jctools-core"  % "4.0.5",
         "org.typelevel"             %% "cats-effect"   % CatsEffectVersion,
         "org.scalacheck"            %% "scalacheck"    % ScalaCheckVersion,
-        "qa.hedgehog"               %% "hedgehog-core" % "0.11.0",
+        "qa.hedgehog"               %% "hedgehog-core" % "0.12.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % nyanaVersion,
-        "org.springframework"        % "spring-core"   % "6.2.5"
+        "org.springframework"        % "spring-core"   % "6.2.6"
       )
     },
     excludeDependencies ++= {

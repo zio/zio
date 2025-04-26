@@ -65,38 +65,6 @@ Accessor methods have some drawbacks:
 The recommended [service pattern](service-pattern.md) injects service dependencies directly, and therefore has none of
 these problems.
 
-## Generating Accessor Methods with Macros
-
-:::info
-Accessor Methods macros are only available for Scala versions `2.x`. They will _not_ be made available for scala `3.x`.
-:::
-
-Writing accessor methods is a repetitive task and is tedious for services with many methods. We can automate the
-generation of accessor methods using the `zio-macro` module.
-
-To install the `zio-macro` add the following line in the `build.sbt` file:
-
-```scala
-libraryDependencies += "dev.zio" %% "zio-macros" % "<zio-version>"
-```
-
-In addition, enable macro expansion with:
-
-- for Scala `2.13` add the compiler option:
-
-  ```scala
-  scalacOptions += "-Ymacro-annotations"
-  ```
-
-- for Scala `< 2.13` add the macro paradise compiler plugin:
-
-  ```scala
-  compilerPlugin(("org.scalamacros" % "paradise"  % "2.1.1") cross CrossVersion.full)
-  ```
-
-If you are using IntelliJ, macro generated accessors will not be available in IDE hints
-without [ZIO plugin](../../guides/tutorials/running-our-first-zio-project-with-intellij-idea.md).
-
 ## Monomorphic Services
 
 We can use the `@accessible` macro to generate _service member accessors_:

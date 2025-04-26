@@ -26,10 +26,10 @@ import scala.math.log
 import scala.reflect.{ClassTag, classTag}
 
 /**
- * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
- * are usually backed by arrays, but expose a purely functional, safe interface
- * to the underlying elements, and they become lazy on operations that would be
- * costly with arrays, such as repeated concatenation.
+ * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are usually
+ * backed by arrays, but expose a purely functional, safe interface to the
+ * underlying elements, and they become lazy on operations that would be costly
+ * with arrays, such as repeated concatenation.
  *
  * The implementation of balanced concatenation is based on the one for
  * Conc-Trees in "Conc-Trees for Functional and Parallel Programming" by
@@ -460,25 +460,25 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    * Returns the first element that satisfies the effectful predicate.
    */
   final def findZIO[R, E](f: A => ZIO[R, E, Boolean])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-    ZIO.suspendSucceed {
-      val iterator = self.chunkIterator
-      var index    = 0
+    if (self.isEmpty) ZIO.none
+    else
+      ZIO.suspendSucceed {
+        val iterator = self.chunkIterator
+        var index    = 0
 
-      def loop(iterator: Chunk.ChunkIterator[A]): ZIO[R, E, Option[A]] =
-        if (iterator.hasNextAt(index)) {
-          val a = iterator.nextAt(index)
-          index += 1
+        def loop(iterator: Chunk.ChunkIterator[A]): ZIO[R, E, Option[A]] =
+          if (iterator.hasNextAt(index)) {
+            val a = iterator.nextAt(index)
+            index += 1
 
-          f(a).flatMap {
-            if (_) ZIO.succeed(Some(a))
-            else loop(iterator)
-          }
-        } else {
-          ZIO.succeed(None)
-        }
+            f(a).flatMap {
+              if (_) Exit.succeed(Some(a))
+              else loop(iterator)
+            }
+          } else Exit.none
 
-      loop(iterator)
-    }
+        loop(iterator)
+      }
 
   /**
    * Get the element at the specified index.
