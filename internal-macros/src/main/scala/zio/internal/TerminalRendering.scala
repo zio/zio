@@ -77,7 +77,7 @@ object TerminalRendering {
       if (isUsingProvideSome) {
         s"""
  Alternatively, you may add them to the remainder type ascription:
- 
+
    ${methodName("provideSome")}[${allMissingTypes.map(_.magenta.bold).mkString(" & ")}]
 """
 
@@ -92,7 +92,7 @@ object TerminalRendering {
        | ${message.bold}
        |
        |$errors
-       |$provideSomeSuggestion      
+       |$provideSomeSuggestion
        |${line.red}
        |
        |""".stripMargin

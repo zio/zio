@@ -41,7 +41,7 @@ object ZManagedMacros {
     schedule: Expr[ZManaged[R, E, A]],
     layer: Expr[Seq[ZLayer[_, E, _]]]
   )(using Quotes): Expr[ZManaged[R0, E, A]] = {
-    val layerExpr = LayerMacros.constructStaticLayer[R0, R, E](layer)
+    val layerExpr = LayerMacros.constructStaticProvideLayer[R0, R, E](layer)
     '{
       $schedule.provideLayer($layerExpr.asInstanceOf[ZLayer[R0, E, R]])
     }
