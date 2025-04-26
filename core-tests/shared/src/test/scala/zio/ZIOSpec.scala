@@ -3753,6 +3753,71 @@ object ZIOSpec extends ZIOBaseSpec {
         assertZIO(zio.provide(ZLayer.succeed(0)))(equalTo(3))
       }
     ),
+    suite("fromFunction")(
+      test("1 arg") {
+        ZIO
+          .fromFunction((int: Int) => int + 1)
+          .map(n => assertTrue(n == 2))
+          .provide(ZLayer.succeed(1))
+      },
+      test("2 arg") {
+        ZIO.fromFunction { (int: Int, s: String) =>
+          assertTrue(int == 1, s == "a")
+        }
+          .provide(ZLayer.succeed(1) ++ ZLayer.succeed("a"))
+      },
+      test("3 arg") {
+        ZIO.fromFunction { (int: Int, s: String, d: Double) =>
+          assertTrue(int == 1, s == "a", d == 2.0)
+        }
+          .provide(ZLayer.succeed(1) ++ ZLayer.succeed("a") ++ ZLayer.succeed(2.0))
+      },
+      test("4 arg") {
+        ZIO.fromFunction { (int: Int, s: String, d: Double, b: Byte) =>
+          assertTrue(int == 1, s == "a", d == 2.0, b == 3)
+        }
+          .provide(ZLayer.succeed(1) ++ ZLayer.succeed("a") ++ ZLayer.succeed(2.0) ++ ZLayer.succeed(3.toByte))
+      },
+      test("5 arg") {
+        ZIO.fromFunction { (int: Int, s: String, d: Double, b: Byte, c: Char) =>
+          assertTrue(int == 1, s == "a", d == 2.0, b == 3, c == 'c')
+        }
+          .provide(
+            ZLayer.succeed(1) ++
+              ZLayer.succeed("a") ++
+              ZLayer.succeed(2.0) ++
+              ZLayer.succeed(3.toByte) ++
+              ZLayer.succeed('c')
+          )
+      },
+      test("6 arg") {
+        ZIO.fromFunction { (int: Int, s: String, d: Double, b: Byte, c: Char, li: List[Int]) =>
+          assertTrue(int == 1, s == "a", d == 2.0, b == 3, c == 'c', li == List(1, 2))
+        }
+          .provide(
+            ZLayer.succeed(1) ++
+              ZLayer.succeed("a") ++
+              ZLayer.succeed(2.0) ++
+              ZLayer.succeed(3.toByte) ++
+              ZLayer.succeed('c') ++
+              ZLayer.succeed(List(1, 2))
+          )
+      },
+      test("7 arg") {
+        ZIO.fromFunction { (int: Int, s: String, d: Double, b: Byte, c: Char, li: List[Int], ls: List[String]) =>
+          assertTrue(int == 1, s == "a", d == 2.0, b == 3, c == 'c', li == List(1, 2), ls == List("a", "b"))
+        }
+          .provide(
+            ZLayer.succeed(1) ++
+              ZLayer.succeed("a") ++
+              ZLayer.succeed(2.0) ++
+              ZLayer.succeed(3.toByte) ++
+              ZLayer.succeed('c') ++
+              ZLayer.succeed(List(1, 2)) ++
+              ZLayer.succeed(List("a", "b"))
+          )
+      }
+    ),
     suite("fromFunctionZIO")(
       test("1 arg") {
         ZIO.fromFunctionZIO { (int: Int) =>

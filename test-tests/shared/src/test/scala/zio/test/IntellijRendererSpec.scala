@@ -29,6 +29,9 @@ object IntellijRendererSpec extends ZIOBaseSpec {
       test("correctly reports empty test suite") {
         runLog(suite4).map(res => suite4Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
       },
+      test("nested suite with sequential tests") {
+        runLog(suite5).map(res => suite5Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
+      },
       test("correctly reports failure of simple assertion") {
         runLog(test5).map(res => test5Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
       },
@@ -89,6 +92,15 @@ object IntellijRendererSpec extends ZIOBaseSpec {
     suiteStarted("Suite4")
   ) ++ suite1Expected ++ Vector(suiteStarted("Empty"), suiteFinished("Empty")) ++
     test3Expected ++ Vector(suiteFinished("Suite4"))
+
+  def suite5Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
+    suiteStarted("Suite1"),
+    suiteStarted("Suite2"),
+    testStarted("Test1"),
+    testFinished("Test1"),
+    suiteFinished("Suite2"),
+    suiteFinished("Suite1")
+  )
 
   def test5Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("Addition works fine"),

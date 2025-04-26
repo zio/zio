@@ -53,23 +53,6 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
     new ProvideSomeSharedPartiallyApplied[R0, R, E](self)
 
   /**
-   * Equivalent to [[provideSomeShared]], but does not require providing the remainder type
-   *
-   * {{{
-   * val spec: ZSpec[Int with Random, Nothing] = ???
-   * val intLayer: ZLayer[Any, Nothing, Int] = ???
-   *
-   * val spec2 = spec.provideSomeShared(intLayer) // Inferred type is ZSpec[Random, Nothing]
-   * }}}
-   *
-   * Note for Intellij users: By default, Intellij will not show correct type on
-   * hover. To fix this enable `Use types reported by Scala compiler
-   * (experimental)` in `Settings | Languages & Frameworks | Scala | Editor`
-   */
-  inline transparent def provideSomeSharedAuto[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[_, E1] =
-    ${ SpecLayerMacros.provideSharedAutoImpl[R, E1]('self, 'layer) }
-
-  /**
    * Automatically constructs the part of the environment that is not part of
    * the `TestEnvironment`, leaving an effect that only depends on the
    * `TestEnvironment`. This will also satisfy transitive `TestEnvironment`

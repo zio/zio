@@ -4769,6 +4769,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   /**
    * Builds a ZIO from the specified function.
    */
+  def fromFunction[In](in: In)(implicit constructor: FunctionConstructor[In], trace: Trace): constructor.Out =
+    constructor(in)
+
+  /**
+   * Builds a ZIO from the specified function.
+   */
   def fromFunctionZIO[In](in: In)(implicit constructor: ZIOFunctionConstructor[In], trace: Trace): constructor.Out =
     constructor(in)
 
