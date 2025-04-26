@@ -574,7 +574,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      *   correct type inference and dependency resolution during `ZLayer`
      *   derivation.
      */
-    sealed trait Default[+A] {
+    trait Default[+A] {
       type R
       type E
 
@@ -967,7 +967,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * a function of type `Input`. This allows the type of the `ZLayer` value
    * constructed to depend on `Input`.
    */
-  sealed trait FunctionConstructor[In] {
+  trait FunctionConstructor[In] {
 
     /**
      * The type of the `ZLayer` value.
