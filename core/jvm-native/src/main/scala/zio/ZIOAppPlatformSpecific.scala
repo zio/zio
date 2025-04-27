@@ -24,20 +24,18 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
       } yield result).provideLayer(newLayer.tapErrorCause(ZIO.logErrorCause(_)))
 
     runtime.unsafe.run {
-      ZIO.uninterruptibleMask { restore =>
+      ZIO.uninterruptible {
         for {
           fiberId <- ZIO.fiberId
-          p       <- Promise.make[Nothing, Set[FiberId.Runtime]]
-          fiber <- restore(workflow).onExit { exit0 =>
-                     val exitCode  = if (exit0.isSuccess) ExitCode.success else ExitCode.failure
-                     val interrupt = interruptRootFibers(p)
+          fiber <- workflow.interruptible.exitWith { exit0 =>
+                     val exitCode = if (exit0.isSuccess) ExitCode.success else ExitCode.failure
                      // If we're shutting down due to an external signal, the shutdown hook will fulfill the promise
                      // Otherwise it means we're shutting down due to normal completion and we need to fulfill the promise
-                     ZIO.unless(shuttingDown.get())(p.succeed(Set(fiberId))) *> interrupt *> exit(exitCode)
+                     interruptRootFibers(fiberId).as(exitCode)
                    }.fork
           _ <-
             ZIO.succeed(Platform.addShutdownHook { () =>
-              if (!shuttingDown.getAndSet(true)) {
+              if (shuttingDown.compareAndSet(false, true)) {
 
                 if (FiberRuntime.catastrophicFailure.get) {
                   println(
@@ -49,27 +47,23 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
                   )
                 } else {
                   try {
-                    val completePromise = ZIO.fiberIdWith(fid2 => p.succeed(Set(fiberId, fid2)))
-                    runtime.unsafe.run(completePromise *> fiber.interrupt)
+                    fiber.tellInterrupt(Cause.interrupt(fiberId))
                   } catch {
                     case _: Throwable =>
                   }
                 }
-
-                ()
               }
             })
           result <- fiber.join
-        } yield result
+          _      <- exit(result)
+        } yield ()
       }
     }.getOrThrowFiberFailure()
   }
 
-  private def interruptRootFibers(p: Promise[Nothing, Set[FiberId.Runtime]])(implicit trace: Trace): UIO[Unit] =
+  private def interruptRootFibers(mainFiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
     for {
-      ignoredIds <- p.await
-      roots      <- Fiber.roots
-      _          <- Fiber.interruptAll(roots.view.filter(fiber => fiber.isAlive() && !ignoredIds(fiber.id)))
+      roots <- Fiber.roots
+      _     <- Fiber.interruptAll(roots.view.filter(fiber => fiber.isAlive() && (fiber.id != mainFiberId)))
     } yield ()
-
 }
