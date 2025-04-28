@@ -29,8 +29,6 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
           fiberId <- ZIO.fiberId
           fiber <- workflow.interruptible.exitWith { exit0 =>
                      val exitCode = if (exit0.isSuccess) ExitCode.success else ExitCode.failure
-                     // If we're shutting down due to an external signal, the shutdown hook will fulfill the promise
-                     // Otherwise it means we're shutting down due to normal completion and we need to fulfill the promise
                      interruptRootFibers(fiberId).as(exitCode)
                    }.fork
           _ <-
@@ -46,6 +44,8 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
                       "Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context."
                   )
                 } else {
+                  // NOTE: try-catch likely not needed,
+                  // but guarding against cases where the submission of the task fails spuriously
                   try {
                     fiber.tellInterrupt(Cause.interrupt(fiberId))
                   } catch {
