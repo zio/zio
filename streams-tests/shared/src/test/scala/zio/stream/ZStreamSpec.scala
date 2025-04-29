@@ -5396,7 +5396,20 @@ object ZStreamSpec extends ZIOBaseSpec {
               .map(_.foldLeft(assertCompletes)(_ && _))
           }
             @@ withLiveClock // Can't emulate the bug with the TestClock unfortunately
-            @@ exceptJS(nonFlaky(20))
+            @@ exceptJS(nonFlaky(20)),
+          test("environment") {
+            for {
+              streamEnv    <- Ref.make[String]("")
+              finalizerEnv <- Ref.make[String]("")
+              _ <- ZStream
+                     .serviceWithZIO[String](streamEnv.set)
+                     .ensuring(ZIO.serviceWithZIO[String](finalizerEnv.set))
+                     .provideEnvironment(ZEnvironment("env"))
+                     .runDrain
+              streamEnv    <- streamEnv.get
+              finalizerEnv <- finalizerEnv.get
+            } yield assertTrue(streamEnv == "env", finalizerEnv == "env")
+          }
         ),
         suite("from")(
           test("Chunk") {

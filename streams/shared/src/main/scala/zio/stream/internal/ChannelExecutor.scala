@@ -450,8 +450,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
   ): URIO[Env, Any] =
     if (finalizers.isEmpty) null
     else
-      ZIO
-        .foreach(finalizers)(_.apply(ex).exit)
+      provide(ZIO.foreach(finalizers)(_.apply(ex).exit))
         .map(results => Exit.collectAll(results) getOrElse Exit.unit)
         .unexit
 
