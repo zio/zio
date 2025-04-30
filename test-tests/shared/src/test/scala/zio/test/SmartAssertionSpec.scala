@@ -628,6 +628,34 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         val exit: Exit[String, Int] = Exit.succeed(1)
         assertTrue(exit.isSuccess)
       },
+      test("class with overload - new instance") {
+        class ClassWithOverload {
+          def overloaded: Int         = 1
+          def overloaded(x: Int): Int = x
+        }
+        assertTrue(new ClassWithOverload().overloaded == 1)
+      },
+      test("class with overload with type args - new instance") {
+        class ClassWithOverload[A] {
+          def overloaded: Int         = 1
+          def overloaded(x: Int): Int = x
+        }
+        assertTrue(new ClassWithOverload[Int]().overloaded == 1)
+      },
+      test("class with overload with args - new instance") {
+        class ClassWithOverload(x: Int) {
+          def overloaded: Int         = x
+          def overloaded(x: Int): Int = x
+        }
+        assertTrue(new ClassWithOverload(1).overloaded == 1)
+      },
+      test("class with overload with args and type args - new instance") {
+        class ClassWithOverload[A](x: Int) {
+          def overloaded: Int         = x
+          def overloaded(x: Int): Int = x
+        }
+        assertTrue(new ClassWithOverload[Int](1).overloaded == 1)
+      },
       test("equalTo on java.lang.Boolean works") {
         val jBool = java.lang.Boolean.FALSE
         assertTrue(jBool == false)
