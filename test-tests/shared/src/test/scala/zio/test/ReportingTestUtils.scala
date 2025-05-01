@@ -234,6 +234,20 @@ object ReportingTestUtils {
       test3Expected()
   }
 
+  def suite5(implicit sourceLocation: SourceLocation): Spec[Any, Nothing] =
+    suite("Suite1")(
+      suite("Suite2")(
+        test("Test1")(assertCompletes)
+      ) @@ TestAspect.sequential
+    )
+
+  def suite5Expected(implicit sourceLocation: SourceLocation): Vector[String] =
+    Vector(
+      expectedSuccess("Suite1"),
+      expectedSuccess("Suite2"),
+      expectedSuccess("Test1")
+    )
+
   def assertSourceLocation()(implicit sourceLocation: SourceLocation): String =
     cyan(s"at ${sourceLocation.path}:${sourceLocation.line} ")
 

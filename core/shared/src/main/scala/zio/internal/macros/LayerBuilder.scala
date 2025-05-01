@@ -79,6 +79,25 @@ final case class LayerBuilder[Type, Expr](
   private val (sideEffectNodes, providedLayerNodes): (List[Node[Type, Expr]], List[Node[Type, Expr]]) =
     providedLayers.map(exprToNode).partition(_.outputs.exists(typeEquals(_, sideEffectType)))
 
+  /**
+   * Returns tree representing final `ZLayer[In, Err, Out]`
+   *
+   * ==If [[remainder]] is [[RemainderMethod.Inferred]]==
+   *   - `In` will be some generated type
+   *   - `Err` will be the union of all errors in the provided layers
+   *   - `Out` will be AND'ed together types from [[target0]]
+   *
+   * ==If [[remainder]] is [[RemainderMethod.Provided]] and provide method is not [[ProvideMethod.ProvideSomeShared]]==
+   *   - `In` will be AND'ed together types from [[remainder]]
+   *   - `Err` will be the union of all errors in the provided layers
+   *   - `Out` will be AND'ed together types from [[target0]]
+   *
+   * ==If [[remainder]] is [[RemainderMethod.Provided]] and provide method is [[ProvideMethod.ProvideSomeShared]]==
+   *   - `In` will be AND'ed together types from [[remainder]]
+   *   - `Err` will be the union of all errors in the provided layers
+   *   - `Out` will be generated type (AND'ed together types from [[target0]]
+   *     minus types from [[remainder]])
+   */
   def build: Expr = {
     assertNoAmbiguity()
 
