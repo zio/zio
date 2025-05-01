@@ -23,7 +23,7 @@ private[test] object ZIOSpecAbstractSpecificMacros {
 }
 
 private[test] class ZIOSpecAbstractSpecificMacros(val ctx: Quotes) {
-  given Quotes = ctx
+  inline given Quotes = ctx
   import ctx.reflect._
 
   def validate[Provided: Type, Required: Type, E: Type](spec: Expr[Spec[Required, E]]) = {

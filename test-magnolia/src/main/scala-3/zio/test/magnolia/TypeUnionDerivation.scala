@@ -48,7 +48,7 @@ object TypeUnionDerivation {
 
     val deriveGenByTypeNameList: Expr[List[DeriveGen[Any]]] = Expr.ofList(
       typeAndDeriveGens.map { case (t: TypeAndDeriveGen[a]) =>
-        given Type[a] = t.tpe
+        inline given Type[a] = t.tpe
         '{ ${ t.deriveGen }.asInstanceOf[DeriveGen[Any]] }
       }
     )

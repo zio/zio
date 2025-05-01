@@ -23,7 +23,7 @@ private[zio] object ZIOAppVersionSpecificMacros {
 }
 
 private[zio] class ZIOAppVersionSpecificMacros(val ctx: Quotes) {
-  given Quotes = ctx
+  inline given Quotes = ctx
   import ctx.reflect._
 
   def validate[Provided: Type, Required: Type, E: Type, A: Type](zio: Expr[ZIO[Required, E, A]]) = {

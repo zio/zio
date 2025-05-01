@@ -47,7 +47,7 @@ object SpecLayerMacros {
     '{
       // Contract of constructStaticProvideSomeSharedLayer ensures this
       // I cannot obtain `?` from ZLayer, so I'm using `Any`
-      given <:<[R0 & Any, R] = null
+      implicit val ev: <:<[R0 & Any, R] = null
       $spec.provideSomeLayerShared[R0]($expr)
     }
   }
