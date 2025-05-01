@@ -21,7 +21,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
     val currInput = input
     input = prev
 
-    if (currInput ne null) currInput.close(exit) else ZIO.unit
+    if (currInput ne null) currInput.close(exit) else Exit.unit
   }
 
   private[this] final def popAllFinalizers(
@@ -170,28 +170,15 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
               )
 
             case ZChannel.PipeTo(left, right) =>
-              val instantiatedRight = right().asInstanceOf[Channel[Env]]
+              val previousInput = input
 
-              instantiatedRight match {
-                case ZChannel.DeferedUpstream(f) if false => // need to figure out how to handle the null env issue here
-                  val instantiatedLeft = left()
-                  currentChannel = f(instantiatedLeft.asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]])
-                case _ =>
-                  val previousInput = input
+              val leftExec: ErasedExecutor[Env] = new ChannelExecutor(left, providedEnv, executeCloseLastSubstream)
+              leftExec.input = previousInput
+              input = leftExec
 
-                  val leftExec: ErasedExecutor[Env] = new ChannelExecutor(left, providedEnv, executeCloseLastSubstream)
-                  leftExec.input = previousInput
-                  input = leftExec
+              addFinalizer(exit => restorePipe(exit, previousInput))
 
-                  addFinalizer { exit =>
-                    val effect = restorePipe(exit, previousInput)
-
-                    if (effect ne null) effect
-                    else ZIO.unit
-                  }
-
-                  currentChannel = instantiatedRight
-              }
+              currentChannel = right().asInstanceOf[Channel[Env]]
 
             case read @ ZChannel.Read(_, _) =>
               result = ChannelState.Read(
@@ -268,12 +255,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
 
               val previousInput = input
               input = null
-              addFinalizer { exit =>
-                val effect = restorePipe(exit, previousInput)
-
-                if (effect ne null) effect
-                else ZIO.unit
-              }
+              addFinalizer(exit => restorePipe(exit, previousInput))
               currentChannel = nextChannel
 
             case ZChannel.Bridge(bridgeInput, channel) =>
@@ -319,16 +301,8 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
                   }
 
                 result = ChannelState.Effect(
-                  drainer.forkDaemon.flatMap { fiber =>
-                    ZIO.succeed(addFinalizer { exit =>
-                      fiber.interrupt *>
-                        ZIO.suspendSucceed {
-                          val effect = restorePipe(exit, inputExecutor)
-
-                          if (effect ne null) effect
-                          else ZIO.unit
-                        }
-                    })
+                  drainer.forkDaemon.map { fiber =>
+                    addFinalizer(exit => fiber.interrupt *> restorePipe(exit, inputExecutor))
                   }
                 )
               }
@@ -476,8 +450,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
   ): URIO[Env, Any] =
     if (finalizers.isEmpty) null
     else
-      ZIO
-        .foreach(finalizers)(_.apply(ex).exit)
+      provide(ZIO.foreach(finalizers)(_.apply(ex).exit))
         .map(results => Exit.collectAll(results) getOrElse Exit.unit)
         .unexit
 

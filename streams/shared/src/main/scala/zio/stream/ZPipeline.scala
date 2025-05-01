@@ -1951,16 +1951,13 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapZIOPar[Env, Err, In, Out](n: => Int, bufferSize: => Int = 16)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
   ): ZPipeline[Env, Err, In, Out] =
-    /*new ZPipeline(
+    new ZPipeline(
       ZChannel
         .identity[Nothing, Chunk[In], Any]
         .concatMap(ZChannel.writeChunk(_))
         .mapOutZIOPar(n, bufferSize)(f)
         .mapOut(Chunk.single)
-    )*/
-    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
-      strm.mapZIOPar(n, bufferSize)(f)
-    }
+    )
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -1980,16 +1977,13 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapZIOParUnordered[Env, Err, In, Out](n: => Int, bufferSize: => Int = 16)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
   ): ZPipeline[Env, Err, In, Out] =
-    /*new ZPipeline(
+    new ZPipeline(
       ZChannel
         .identity[Nothing, Chunk[In], Any]
         .concatMap(ZChannel.writeChunk(_))
         .mapOutZIOParUnordered(n, bufferSize)(f)
         .mapOut(Chunk.single)
-    )*/
-    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
-      strm.mapZIOParUnordered(n, bufferSize)(f)
-    }
+    )
 
   /**
    * Emits the provided chunk before emitting any other value.
