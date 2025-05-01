@@ -74,10 +74,10 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
 
 final class ProvideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
   inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[R0, E1] =
-    ${ SpecLayerMacros.provideImpl[R0, R, E1]('self, 'layer) }
+    ${ SpecLayerMacros.provideSomeImpl[R0, R, E1]('self, 'layer) } // TODO:
 }
 
 final class ProvideSomeSharedPartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
   inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[R0, E1] =
-    ${ SpecLayerMacros.provideSharedImpl[R0, R, E1]('self, 'layer) }
+    ${ SpecLayerMacros.provideSomeSharedImpl[R0, R, E1]('self, 'layer) }
 }

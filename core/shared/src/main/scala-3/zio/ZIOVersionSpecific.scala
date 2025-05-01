@@ -48,5 +48,5 @@ private[zio] transparent trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, 
 
 final class ProvideSomePartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
   inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): ZIO[R0, E1, A] =
-    ${ LayerMacros.provideStaticImpl[R0, R, E1, A]('self, 'layer) }
+    ${ LayerMacros.provideSomeStaticImpl[R0, R, E1, A]('self, 'layer) }
 }
