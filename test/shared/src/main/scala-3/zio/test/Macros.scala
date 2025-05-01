@@ -357,7 +357,7 @@ object SmartAssertMacros {
                       .find(f => f.name == name)
                       .orElse(s.methodMember(name).filter(_.declarations.nonEmpty).headOption)
                       .getOrElse(
-                        throw new Error(s"Could not resolve $name on ${owner.show(using Printer.TreeStructure)}")
+                        report.errorAndAbort(s"Could not resolve $name on ${owner.show(using Printer.TreeStructure)}")
                       )
                     Select(param, member)
                   }
