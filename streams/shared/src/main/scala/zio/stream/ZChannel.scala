@@ -674,20 +674,76 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         val errorSignal = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
         val permits     = Semaphore.unsafe.make(n0)(Unsafe)
         val failureRef  = Ref.unsafe.make[Cause[OutErr1]](Cause.empty)(Unsafe)
+        val inFlightFibers = Array.ofDim[Fiber.Runtime[Left[Unit, Nothing], OutElem2]](n)
+        var cyclicIdx = 0
+
+        def forkManaged(z : ZIO[Env1, Left[Unit, Nothing], OutElem2]) = {
+          val i = cyclicIdx
+          cyclicIdx = (i + 1) % n
+          ZIO.uninterruptibleMask { restore =>
+            restore {
+              permits.withPermit {
+                z
+                  .ensuring {
+                    //the slot is effectively guarded by the semaphore
+                    inFlightFibers(i) = null
+                    zio.Exit.unit
+                  }
+              }
+            }
+            .forkDaemon
+            .map{fib =>
+              inFlightFibers(i) = fib
+              fib.unsafe.poll (zio.Unsafe) match {
+                case Some(_) =>
+                  //fiber already exited, it could have executed the ensuring section even before fib was set into this slot
+                  // so we make sure to set it to null, just in case
+                  inFlightFibers(i) = null
+                case _ =>
+              }
+              fib
+            }
+
+          }
+        }
+
+        def interruptInFlight = ZIO.fiberIdWith { currFibId =>
+          /*val liveFibers = inFlightFibers
+            .flatMap { fib =>
+              if ((fib ne null) && (fib.id != currFibId))
+                Some(fib)
+              else None
+            }
+          Fiber.interruptAll(liveFibers)*/
+          ZIO
+            .foreachDiscard(inFlightFibers){ fib =>
+              if( (null ne fib) && (fib.id != currFibId)) {
+                fib.interruptAsFork(currFibId)
+              } else
+                zio.Exit.unit
+            } *>
+            ZIO
+              .foreachDiscard(inFlightFibers){ fib =>
+                if( (null ne fib) && (fib.id != currFibId)) {
+                  fib.await
+                } else
+                  zio.Exit.unit
+              }
+        }
 
         val setFinalizer: UIO[Unit] =
-          ZIO.uninterruptible {
-            scope.addFinalizer(outgoing.shutdown)
+          ZIO.uninterruptible {scope.addFinalizer(outgoing.shutdown)
           }
 
         for {
           _          <- setFinalizer
           pull       <- (queueReader >>> self).toPullInAlt(scope)
           childScope <- scope.fork
+          _ <- childScope.addFinalizer(interruptInFlight)
           processElems = pull.flatMap { outElem =>
                            val latch = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
 
-                           permits
+                           /*permits
                              .withPermit(
                                latch.succeedUnit *>
                                  f(outElem)
@@ -698,8 +754,17 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                                    )
                              )
                              .interruptible
-                             .forkIn(childScope)
-                             .flatMap(fiber => latch.await *> outgoing.offer(fiber))
+                             .forkIn(childScope)*/
+                           forkManaged{
+                             latch.succeedUnit *>
+                               f(outElem)
+                                 .catchAllCause(cause =>
+                                   failureRef.update(_ && cause).unless(cause.isInterruptedOnly) *>
+                                     errorSignal.succeedUnit *>
+                                     ZChannel.failLeftUnit
+                                 )
+                           }
+                           .flatMap(fiber => latch.await *> outgoing.offer(fiber))
                          }.forever.interruptible
                            .onError(_.failureOrCause match {
                              case Left(x: Left[OutErr, ?]) =>
