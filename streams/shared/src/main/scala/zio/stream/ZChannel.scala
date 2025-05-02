@@ -674,12 +674,16 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         val errorSignal = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
         val permits     = Semaphore.unsafe.make(n0)(Unsafe)
         val failureRef  = Ref.unsafe.make[Cause[OutErr1]](Cause.empty)(Unsafe)
-        val inFlightFibers = Array.ofDim[Fiber.Runtime[Left[Unit, Nothing], OutElem2]](n)
+        //worst case: buffer is full + 1 pre-push + 1 post-pop, this number can be capped further by n (parallelism level) but in this case it becomes harder to track the next free slot in the array
+        val maxInFlight = bufferSize + 2
+        val inFlightFibers = Array.ofDim[Fiber.Runtime[Left[Unit, Nothing], OutElem2]](maxInFlight)
         var cyclicIdx = 0
 
         def forkManaged(z : ZIO[Env1, Left[Unit, Nothing], OutElem2]) = {
+          //buffer may be full, in addition there may be 1 post-pop fiber, hence bufferSize+1 occupied slots
+          // hence % (bufferSize + 2) combined with the pattern of a single writer guarantees no overruns
           val i = cyclicIdx
-          cyclicIdx = (i + 1) % n
+          cyclicIdx = (i + 1) % maxInFlight
           ZIO.uninterruptibleMask { restore =>
             restore {
               permits.withPermit {
@@ -708,23 +712,17 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         }
 
         def interruptInFlight = ZIO.fiberIdWith { currFibId =>
-          /*val liveFibers = inFlightFibers
-            .flatMap { fib =>
-              if ((fib ne null) && (fib.id != currFibId))
-                Some(fib)
-              else None
-            }
-          Fiber.interruptAll(liveFibers)*/
+          implicit val unsafe = zio.Unsafe
           ZIO
             .foreachDiscard(inFlightFibers){ fib =>
-              if( (null ne fib) && (fib.id != currFibId)) {
+              if( (null ne fib) && (fib.id != currFibId) && fib.unsafe.poll.isEmpty)  {
                 fib.interruptAsFork(currFibId)
               } else
                 zio.Exit.unit
             } *>
             ZIO
               .foreachDiscard(inFlightFibers){ fib =>
-                if( (null ne fib) && (fib.id != currFibId)) {
+                if( (null ne fib) && (fib.id != currFibId) && fib.unsafe.poll.isEmpty) {
                   fib.await
                 } else
                   zio.Exit.unit
