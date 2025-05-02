@@ -177,7 +177,7 @@ object BuildHelper {
       case Some((2, 13)) =>
         List("2.13+", "2.12-2.13")
       case Some((3, _)) =>
-        List("2.13+")
+        List("2.13+", "3")
       case _ =>
         List()
     }
