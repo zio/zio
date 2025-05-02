@@ -109,5 +109,5 @@ private[zio] object ZReader {
     runtime: Runtime[R],
     pull: ZIO[R, Option[Throwable], Chunk[Char]]
   )(implicit trace: Trace): ZReader =
-    new ZReader(Iterator.empty ++ ZIO.unfoldPull(runtime, pull)(trace, Unsafe.unsafe))
+    new ZReader(Iterator.empty ++ stream.unfoldPull(runtime, pull)(trace, Unsafe.unsafe))
 }

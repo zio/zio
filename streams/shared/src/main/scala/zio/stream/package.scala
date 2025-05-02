@@ -24,4 +24,19 @@ package object stream {
   type UStream[+A] = ZStream[Any, Nothing, A]
 
   type Sink[+OutErr, -In, +L, +Z] = ZSink[Any, OutErr, In, L, Z]
+
+  private[stream] def unfoldPull[R, A](
+    runtime: Runtime[R],
+    pull: ZIO[R, Option[Throwable], A]
+  )(implicit trace: Trace, unsafe: Unsafe): Iterator[A] =
+    runtime.unsafe.run(pull) match {
+      case Exit.Success(value) =>
+        Iterator.single(value) ++ unfoldPull(runtime, pull)
+      case Exit.Failure(cause) =>
+        cause.failureOrCause match {
+          case Left(None)    => Iterator.empty
+          case Left(Some(e)) => Exit.fail(e).getOrThrow()
+          case Right(c)      => Exit.failCause(c).getOrThrowFiberFailure()
+        }
+    }
 }

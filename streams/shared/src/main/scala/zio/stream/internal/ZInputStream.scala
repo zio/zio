@@ -112,5 +112,5 @@ private[zio] object ZInputStream {
     runtime: Runtime[R],
     pull: ZIO[R, Option[Throwable], Chunk[Byte]]
   )(implicit trace: Trace): ZInputStream =
-    new ZInputStream(Iterator.empty ++ ZIO.unfoldPull(runtime, pull)(trace, Unsafe.unsafe))
+    new ZInputStream(Iterator.empty ++ stream.unfoldPull(runtime, pull)(trace, Unsafe.unsafe))
 }

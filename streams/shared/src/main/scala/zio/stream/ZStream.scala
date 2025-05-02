@@ -3526,7 +3526,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def toIterator(implicit trace: Trace): ZIO[R with Scope, Nothing, Iterator[Either[E, A]]] = for {
     runtime <- ZIO.runtime[R]
     pull    <- either.toPull
-  } yield ZIO.unfoldPull(runtime, pull)(trace, Unsafe.unsafe).flatten
+  } yield unfoldPull(runtime, pull)(trace, Unsafe.unsafe).flatten
 
   /**
    * Returns in a scope a ZIO effect that can be used to repeatedly pull chunks

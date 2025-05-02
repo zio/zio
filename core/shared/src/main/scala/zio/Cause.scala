@@ -505,14 +505,14 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     builder.result()
   }
 
-  /** Pretty-prints this cause with the provided `println` function. */
-  final def prettyPrintWith(println: String => Unit)(implicit unsafe: Unsafe): Unit = {
+  /** Pretty-prints this cause with the provided `append` function. */
+  private[zio] final def prettyPrintWith(append: String => Unit)(implicit unsafe: Unsafe): Unit = {
     import Cause.Unified
 
     var size = 0
-    def append(line: String): Unit =
+    def appendLine(line: String): Unit =
       if (size <= 1024) {
-        println(line)
+        append(line)
         size += 1
       }
 
@@ -528,8 +528,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       val baseIndent  = "\t" * indent
       val traceIndent = baseIndent + "\t"
 
-      append(s"$baseIndent$prefix${unified.className}: ${unified.message}")
-      unified.trace.foreach(trace => append(s"${traceIndent}at $trace"))
+      appendLine(s"$baseIndent$prefix${unified.className}: ${unified.message}")
+      unified.trace.foreach(trace => appendLine(s"${traceIndent}at $trace"))
     }
 
     val (die, fail, interrupt) =
