@@ -9,7 +9,14 @@ object SpecLayerMacros {
   def provideImpl[R0: Type, R: Type, E: Type](spec: Expr[Spec[R, E]], layer: Expr[Seq[ZLayer[_, E, _]]])(using
     Quotes
   ): Expr[Spec[R0, E]] = {
-    val expr = LayerMacros.constructStaticLayer[R0, R, E](layer)
+    val expr = LayerMacros.constructStaticProvideLayer[R0, R, E](layer)
+    '{ $spec.provideLayer($expr) }
+  }
+
+  def provideSomeImpl[R0: Type, R: Type, E: Type](spec: Expr[Spec[R, E]], layer: Expr[Seq[ZLayer[_, E, _]]])(using
+    Quotes
+  ): Expr[Spec[R0, E]] = {
+    val expr = LayerMacros.constructStaticProvideSomeLayer[R0, R, E](layer)
     '{ $spec.provideLayer($expr) }
   }
 
@@ -27,8 +34,22 @@ object SpecLayerMacros {
   def provideSharedImpl[R0: Type, R: Type, E: Type](spec: Expr[Spec[R, E]], layer: Expr[Seq[ZLayer[_, E, _]]])(using
     Quotes
   ): Expr[Spec[R0, E]] = {
-    val expr = LayerMacros.constructStaticLayer[R0, R, E](layer)
+    import quotes.reflect._
+    val expr = LayerMacros.constructStaticProvideLayer[R0, R, E](layer)
     '{ $spec.provideLayerShared($expr) }
+  }
+
+  def provideSomeSharedImpl[R0: Type, R: Type, E: Type](spec: Expr[Spec[R, E]], layer: Expr[Seq[ZLayer[_, E, _]]])(using
+    Quotes
+  ): Expr[Spec[R0, E]] = {
+    import quotes.reflect._
+    val expr: Expr[ZLayer[R0, E, ?]] = LayerMacros.constructStaticProvideSomeSharedLayer[R0, R, E](layer)
+    '{
+      // Contract of constructStaticProvideSomeSharedLayer ensures this
+      // I cannot obtain `?` from ZLayer, so I'm using `Any`
+      given <:<[R0 & Any, R] = null
+      $spec.provideSomeLayerShared[R0]($expr)
+    }
   }
 
   def provideSharedAutoImpl[R: Type, E: Type](spec: Expr[Spec[R, E]], layer: Expr[Seq[ZLayer[_, E, _]]])(using

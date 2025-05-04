@@ -9,12 +9,12 @@ import zio._
 ```
 
 ## Why Chunk?
-Arrays are fast and don’t box primitive values but due to `ClassTag` requirements and mutability they are painful to use and don't integrate well info functional code. ZIO chunks are backed by arrays so they also have zero boxing for primitives while providing an immutable interface and avoiding `ClassTag` requirements.
+Arrays are fast and don’t box primitive values but due to `ClassTag` requirements and mutability they are painful to use and don't integrate well into functional code. ZIO chunks are backed by arrays so they also have zero boxing for primitives while providing an immutable interface and avoiding `ClassTag` requirements.
 
-Lets to get more details behind why Chunk invented:
+Let's get more details behind why Chunk was invented:
 
 ### Immutability
-In Scala, there is no immutable data type that can efficiently represent primitive data types. There is Array, but Array is a mutable interface. The Array data type can efficiently represent primitives without boxing but only by exposing some unsafe mutable methods like `update`.
+In Scala, there is no immutable data type that can efficiently represent primitive data types. There is Array, but Array is a mutable interface. The Array data type can efficiently represent primitives without boxing, but only by exposing some unsafe mutable methods like `update`.
 
 ### Ergonomic Design
 Every time, when we create an array of generic types in Scala, we need a [ClassTag](https://www.scala-lang.org/api/current/scala/reflect/ClassTag.html) to provide runtime information about that generic type, which is very inconvenient and isn't ergonomic. It leads us to a very cumbersome API.
@@ -120,7 +120,7 @@ Chunk("A","B") == Chunk("A", "C")
 Chunk(1,2,3).toArray
 ```
 
-`toSeq`converts the chunk into `Seq`.
+`toSeq` converts the chunk into `Seq`.
 
 ``` scala mdoc
 Chunk(1,2,3).toSeq

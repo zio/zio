@@ -18,9 +18,9 @@ package zio
 
 import zio.internal.stacktracer.{SourceLocation, Tracer}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.stream.{ZChannel, ZSink, ZStream}
+import zio.stream.{ZSink, ZStream}
 import zio.test.ReporterEventRenderer.ConsoleEventRenderer
-import zio.test.Spec.LabeledCase
+import zio.test.Spec.{ExecCase, LabeledCase}
 
 import scala.language.implicitConversions
 
@@ -974,18 +974,18 @@ package object test extends CompileVariants {
     Spec.labeled(
       label,
       if (specs.isEmpty) Spec.empty
-      else if (specs.length == 1) {
-        wrapIfLabelledCase(specs.head)
-      } else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec)))
+      else if (specs.length == 1) wrapIfLabelledCase(specs.head)
+      else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec)))
     )
 
-  // Ensures we render suite label when we have an individual Labeled test case
-  private def wrapIfLabelledCase[In](spec: In)(implicit suiteConstructor: SuiteConstructor[In], trace: Trace) =
-    spec match {
-      case Spec(LabeledCase(_, _)) =>
-        Spec.multiple(Chunk(suiteConstructor(spec)))
-      case _ => suiteConstructor(spec)
+  // Ensures we render suite label when we have an individual Labeled / Exec test case
+  private def wrapIfLabelledCase[In](spec: In)(implicit suiteConstructor: SuiteConstructor[In], trace: Trace) = {
+    val suite = suiteConstructor(spec)
+    suite.caseValue match {
+      case _: LabeledCase[?] | _: ExecCase[?] => Spec.multiple(Chunk.single(suite))
+      case _                                  => suite
     }
+  }
 
   /**
    * Builds a spec with a single test.

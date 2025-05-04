@@ -1312,9 +1312,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           }
 
           if (runtimeMetricsEnabled) {
-            val tags = getFiberRef(FiberRef.currentTags)
-            Metric.runtime.fiberFailures.unsafe.update(1, tags)(Unsafe)
-            cause.foldContext(tags)(FiberRuntime.fiberFailureTracker)
+            val filteredCause = cause.filter(_.traces.exists(_.fiberId eq fiberId))
+            if (!filteredCause.isEmpty) {
+              val tags = getFiberRef(FiberRef.currentTags)
+              Metric.runtime.fiberFailures.unsafe.update(1, tags)(Unsafe)
+              filteredCause.foldContext(tags)(FiberRuntime.fiberFailureTracker)
+            }
           }
         } catch {
           case throwable: Throwable =>
