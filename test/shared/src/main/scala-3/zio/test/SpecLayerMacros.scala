@@ -64,11 +64,25 @@ object SpecLayerMacros {
   def provideSharedAutoImpl[R: Type, E: Type](spec: Expr[Spec[R, E]], layer: Expr[Seq[ZLayer[_, E, _]]])(using
     Quotes
   ): Expr[Spec[_, E]] = {
-    val layerExpr = LayerMacros.constructDynamicLayer[R, E](layer)
-    // https://github.com/scala/scala3/issues/22886
+    val layerExpr = LayerMacros.constructDynamicProvideSomeSharedLayer[R, E](layer)
+//    if (true) {
+//      throw RuntimeException(layerExpr.show)
+//    }
     layerExpr match {
       case '{ $layer: ZLayer[in, e, out] } =>
-        '{ $spec.provideLayerShared($layer) }
+        val proof = Expr.summon[in & out <:< R] match {
+          case Some(e) =>
+            e
+          case None =>
+            throw RuntimeException(
+              s"Cannot summon in (${Type.show[in]}) & out (${Type.show[out]}) <:< R (${Type.show[R]})"
+            )
+        }
+
+        '{
+          given <:<[in & out, R] = $proof
+          $spec.provideSomeLayerShared[in]($layer)
+        }
     }
   }
 }

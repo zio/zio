@@ -25,7 +25,7 @@ private[zio] object LayerMacroUtils {
     constructTypelessLayer[R0, R, E](layers, provideMethod, false).asExprOf[ZLayer[R0, E, R]]
   }
 
-  def constructStaticSomeLayer[R0: Type, R: Type, E: Type](using Quotes)(
+  def constructStaticSomeSharedLayer[R0: Type, R: Type, E: Type](using Quotes)(
     layers: Seq[LayerExpr[E]],
     provideMethod: ProvideMethod
   ): Expr[ZLayer[R0, E, _]] = {
@@ -41,6 +41,15 @@ private[zio] object LayerMacroUtils {
     import quotes.reflect._
 
     constructTypelessLayer[Nothing, R, E](layers, provideMethod, true).asExprOf[ZLayer[_, E, R]]
+  }
+
+  def constructDynamicSomeSharedLayer[R: Type, E: Type](using Quotes)(
+    layers: Seq[LayerExpr[E]],
+    provideMethod: ProvideMethod
+  ): Expr[ZLayer[_, E, _]] = {
+    import quotes.reflect._
+
+    constructTypelessLayer[Nothing, R, E](layers, provideMethod, true).asExprOf[ZLayer[_, E, _]]
   }
 
   private def constructTypelessLayer[R0: Type, R: Type, E: Type](using Quotes)(
@@ -140,7 +149,12 @@ private[zio] object LayerMacroUtils {
           reportError = report.errorAndAbort
         )
 
-        builder.build.asTerm.asExprOf[ZLayer[_, _, _]]
+        val tree = if (inferRemainder) {
+          builder.buildAuto
+        } else {
+          builder.build
+        }
+        tree.asTerm.asExprOf[ZLayer[_, _, _]]
       }
     }
   }

@@ -132,6 +132,51 @@ final case class LayerBuilder[Type, Expr](
     }
   }
 
+  def buildAuto: Expr = {
+    assertNoAmbiguity()
+
+    val remainders = mutable.Set[Type]()
+
+    val remainderTypeFactory = (t: Type) => {
+      remainders.addOne(t)
+      Some(typeToNode(t))
+    }
+
+    /**
+     * Build the layer tree. This represents the structure of a successfully
+     * constructed ZLayer that will build the target types. This, of course, may
+     * fail with one or more GraphErrors.
+     */
+    val layerTreeEither: Either[::[GraphError[Type, Expr]], LayerTree[Expr]] = {
+      val nodes: List[Node[Type, Expr]] = providedLayerNodes ++ sideEffectNodes
+      val nodesInputs                   = nodes.flatMap(n => n.outputs)
+      val graph                         = Graph(nodes, typeEquals, remainderTypeFactory)
+
+      // ProvideSomeShared ignores optionalInputs - they are the "shared" part
+      val (requiredInputs, optionalInputs) = target0
+        .partition(t => nodesInputs.exists(tpe => typeEquals(tpe, t)))
+
+      for {
+        inputs <- if (method.isProvideSomeShared) {
+                    graph.buildComplete(requiredInputs)
+                  } else {
+                    graph.buildComplete(requiredInputs ++ optionalInputs)
+                  }
+        sideEffects <- graph.buildNodes(sideEffectNodes)
+      } yield sideEffects ++ inputs
+    }
+
+    layerTreeEither match {
+      case Left(buildErrors) =>
+        reportBuildErrors(buildErrors)
+
+      case Right(tree) =>
+//        warnUnused(tree)
+        maybeDebug.foreach(debugLayer(_, tree))
+        foldTree(tree)
+    }
+  }
+
   /**
    * Checks to see if any type is provided by multiple layers. If so, this will
    * report a compilation error about ambiguous layers. Otherwise, our algorithm

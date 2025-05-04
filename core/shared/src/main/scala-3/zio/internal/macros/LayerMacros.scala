@@ -32,7 +32,15 @@ object LayerMacros {
   )(using Quotes): Expr[ZLayer[R0, E, _]] =
     layers match {
       case Varargs(layers) =>
-        LayerMacroUtils.constructStaticSomeLayer[R0, R, E](layers, ProvideMethod.ProvideSomeShared)
+        LayerMacroUtils.constructStaticSomeSharedLayer[R0, R, E](layers, ProvideMethod.ProvideSomeShared)
+    }
+
+  def constructDynamicProvideSomeSharedLayer[R: Type, E: Type](
+    layers: Expr[Seq[ZLayer[_, E, _]]]
+  )(using Quotes): Expr[ZLayer[_, E, _]] =
+    layers match {
+      case Varargs(layers) =>
+        LayerMacroUtils.constructDynamicSomeSharedLayer[R, E](layers, ProvideMethod.ProvideSomeShared)
     }
 
   def constructDynamicLayer[R: Type, E: Type](
