@@ -57,10 +57,7 @@ object SpecLayerMacros {
               s"Cannot proof that R0 (${Type.show[R0]}) & out (${Type.show[out]}) <:< R (${Type.show[R]})"
             )
         }
-        '{
-          given <:<[R0 & out, R] = $proof
-          $spec.provideSomeLayerShared[R0]($layer)
-        }
+        '{ $spec.provideSomeLayerShared[R0]($layer)(using $proof) }
     }
   }
 
