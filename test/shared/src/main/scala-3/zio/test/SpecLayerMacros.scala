@@ -49,12 +49,12 @@ object SpecLayerMacros {
         /**
          * Contract of [[zio.internal.macros.LayerBuilder.build]] ensures this
          */
-        val proof = Expr.summon[R0 & out <:< R] match {
+        val proof = Expr.summon[(R0 & out) <:< R] match {
           case Some(e) =>
             e
           case None =>
             throw RuntimeException(
-              s"Cannot summon R0 (${Type.show[R0]}) & out (${Type.show[out]}) <:< R (${Type.show[R]})"
+              s"Cannot proof that R0 (${Type.show[R0]}) & out (${Type.show[out]}) <:< R (${Type.show[R]})"
             )
         }
         '{
