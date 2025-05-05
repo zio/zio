@@ -46,16 +46,13 @@ object SpecLayerMacros {
     val layerExpr: Expr[ZLayer[R0, E, ?]] = LayerMacros.constructStaticProvideSomeSharedLayer[R0, R, E](layer)
     layerExpr match {
       case '{ $layer: ZLayer[in, e, out] } =>
-        /**
-         * Contract of [[zio.internal.macros.LayerBuilder.build]] ensures this
-         */
-        val proof = Expr.summon[(R0 & out) <:< R] match {
-          case Some(e) =>
-            e
-          case None =>
-            report.errorAndAbort(
-              s"Cannot proof that R0 (${Type.show[R0]}) & out (${Type.show[out]}) <:< R (${Type.show[R]})"
-            )
+        '{
+
+          /**
+           * Contract of [[zio.internal.macros.LayerBuilder.build]] ensures this
+           */
+          given <:<[R0 & out, R] = null
+          $spec.provideSomeLayerShared[R0]($layer)
         }
         '{ $spec.provideSomeLayerShared[R0]($layer)(using $proof) }
     }
