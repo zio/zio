@@ -53,7 +53,7 @@ object SpecLayerMacros {
           case Some(e) =>
             e
           case None =>
-            throw RuntimeException(
+            report.errorAndAbort(
               s"Cannot proof that R0 (${Type.show[R0]}) & out (${Type.show[out]}) <:< R (${Type.show[R]})"
             )
         }
