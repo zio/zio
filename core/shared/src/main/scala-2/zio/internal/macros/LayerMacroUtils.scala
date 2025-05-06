@@ -120,6 +120,8 @@ private[zio] trait LayerMacroUtils {
       method = provideMethod,
       exprToNode = getNode,
       typeToNode = typeToNode,
+      combinedTypes = (_, _) => ???,
+      expandRIn = (_, _) => ???,
       showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
       showType = _.toString,
       reportWarn = c.warning(c.enclosingPosition, _),

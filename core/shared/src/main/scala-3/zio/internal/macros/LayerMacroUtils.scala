@@ -115,6 +115,14 @@ private[zio] object LayerMacroUtils {
               }
           }
 
+        def expandRin(expr: LayerExpr[E], tpe: TypeRepr): LayerExpr[E] =
+          expr match {
+            case '{ $layer: ZLayer[in, _, out] } =>
+              tpe.asType match {
+                case '[t] => '{ $layer: ZLayer[in & t, E, out] }
+              }
+          }
+
         def buildFinalTree(tree: LayerTree[LayerExpr[E]]): LayerExpr[E] = {
           val layerExprs = tree.toList
           ValDef
@@ -143,6 +151,8 @@ private[zio] object LayerMacroUtils {
           method = provideMethod,
           exprToNode = getNode,
           typeToNode = typeToNode,
+          combinedTypes = (t1, t2) => AndType(t1, t2),
+          expandRIn = expandRin,
           showExpr = renderExpr,
           showType = _.show,
           reportWarn = report.warning,

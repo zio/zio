@@ -38,18 +38,6 @@ object TestProvideAutoSpec extends ZIOBaseSpec {
               } yield assertTrue(x == int && str == s"Hello!")
             }
 
-          val t: String = suite("layers are shared between tests and suites")(
-            suite("suite 1")(
-              customTest(1),
-              customTest(2)
-            ),
-            suite("suite 4")(
-              customTest(3),
-              customTest(4)
-            )
-          )
-            .provideSomeSharedAuto(intService)
-
           suite("layers are shared between tests and suites")(
             suite("suite 1")(
               customTest(1),
@@ -62,45 +50,45 @@ object TestProvideAutoSpec extends ZIOBaseSpec {
           )
             .provideSomeSharedAuto(intService)
             .provide(stringService) @@ TestAspect.sequential
+        },
+        suite("providing 3rd layer as input") {
+          val initialValue: ULayer[Int] = ZLayer.succeed(0)
+
+          val addOne: ZIO[IntService, Nothing, Int] =
+            ZIO.serviceWithZIO[IntService](_.add(1))
+
+          val appendBang: ZIO[StringService, Nothing, String] =
+            ZIO.serviceWithZIO[StringService](_.append("!"))
+
+          val intService = ZLayer.fromZIO(for {
+            initial <- ZIO.service[Int]
+            ref     <- Ref.make(initial)
+          } yield IntService(ref))
+
+          val stringService: ULayer[StringService] =
+            ZLayer(Ref.make("Hello").map(StringService(_)).debug("MAKING"))
+
+          def customTest(int: Int) =
+            test(s"test $int") {
+              for {
+                x   <- addOne
+                str <- appendBang
+              } yield assertTrue(x == int && str == s"Hello!")
+            }
+
+          suite("layers are shared between tests and suites")(
+            suite("suite 1")(
+              customTest(1),
+              customTest(2)
+            ),
+            suite("suite 4")(
+              customTest(3),
+              customTest(4)
+            )
+          )
+            .provideSomeSharedAuto(intService)
+            .provide(stringService ++ initialValue) @@ TestAspect.sequential
         }
-//        suite("providing 3rd layer as input") {
-//          val initialValue: ULayer[Int] = ZLayer.succeed(0)
-//
-//          val addOne: ZIO[IntService, Nothing, Int] =
-//            ZIO.serviceWithZIO[IntService](_.add(1))
-//
-//          val appendBang: ZIO[StringService, Nothing, String] =
-//            ZIO.serviceWithZIO[StringService](_.append("!"))
-//
-//          val intService = ZLayer.fromZIO(for {
-//            initial <- ZIO.service[Int]
-//            ref     <- Ref.make(initial)
-//          } yield IntService(ref))
-//
-//          val stringService: ULayer[StringService] =
-//            ZLayer(Ref.make("Hello").map(StringService(_)).debug("MAKING"))
-//
-//          def customTest(int: Int) =
-//            test(s"test $int") {
-//              for {
-//                x   <- addOne
-//                str <- appendBang
-//              } yield assertTrue(x == int && str == s"Hello!")
-//            }
-//
-//          suite("layers are shared between tests and suites")(
-//            suite("suite 1")(
-//              customTest(1),
-//              customTest(2)
-//            ),
-//            suite("suite 4")(
-//              customTest(3),
-//              customTest(4)
-//            )
-//          )
-//            .provideSomeSharedAuto(intService)
-//            .provide(stringService ++ initialValue) @@ TestAspect.sequential
-//        }
       )
     )
 

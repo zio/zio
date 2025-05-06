@@ -61,28 +61,25 @@ object SpecLayerMacros {
     }
   }
 
-  def provideSharedAutoImpl[R: Type, E: Type](spec: Expr[Spec[R, E]], layer: Expr[Seq[ZLayer[_, E, _]]])(using
+  def provideSomeSharedAutoImpl[R: Type, E: Type](spec: Expr[Spec[R, E]], layer: Expr[Seq[ZLayer[_, E, _]]])(using
     Quotes
   ): Expr[Spec[_, E]] = {
+    import quotes.reflect._
     val layerExpr = LayerMacros.constructDynamicProvideSomeSharedLayer[R, E](layer)
-//    if (true) {
-//      throw RuntimeException(layerExpr.show)
-//    }
     layerExpr match {
       case '{ $layer: ZLayer[in, e, out] } =>
-        val proof = Expr.summon[in & out <:< R] match {
+        val proof = Expr.summon[(in & out) <:< R] match {
           case Some(e) =>
             e
           case None =>
-            throw RuntimeException(
-              s"Cannot summon in (${Type.show[in]}) & out (${Type.show[out]}) <:< R (${Type.show[R]})"
+            report.errorAndAbort(
+              s"Cannot summon in (${Type.show[in]}) & out (${Type.show[out]}) <:< R (${Type
+                  .show[R]}). The layer expression is:\n${layerExpr.show}"
             )
         }
 
-        '{
-          given <:<[in & out, R] = $proof
-          $spec.provideSomeLayerShared[in]($layer)
-        }
+        '{ $spec.provideSomeLayerShared[in]($layer)(using $proof) }
     }
+
   }
 }

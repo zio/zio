@@ -7,6 +7,7 @@ The `Spec` data type has a mechanism to share layers within all tests in a suite
 - `provideShared`
 - `provideCustomShared`
 - `provideSomeShared`
+- `provideSomeSharedAuto` (Scala 3 only)
 - `provideLayerShared`
 - `provideCustomLayerShared`
 - `provideSomeLayerShared`

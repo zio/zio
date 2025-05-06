@@ -57,6 +57,8 @@ final case class LayerBuilder[Type, Expr](
   method: ProvideMethod,
   exprToNode: Expr => Node[Type, Expr],
   typeToNode: Type => Node[Type, Expr],
+  expandRIn: (Expr, Type) => Expr,
+  combinedTypes: (Type, Type) => Type,
   showExpr: Expr => String,
   showType: Type => String,
   reportWarn: String => Unit,
@@ -135,27 +137,24 @@ final case class LayerBuilder[Type, Expr](
   def buildAuto: Expr = {
     assertNoAmbiguity()
 
-    val remainders = mutable.Set[Type]()
-
     val remainderTypeFactory = (t: Type) => {
-      remainders.addOne(t)
       Some(typeToNode(t))
     }
+
+    val nodes: List[Node[Type, Expr]] = providedLayerNodes ++ sideEffectNodes
+    val nodesInputs                   = nodes.flatMap(n => n.outputs)
+    val graph                         = Graph(nodes, typeEquals, remainderTypeFactory)
+
+    // ProvideSomeShared ignores optionalInputs - they are the "shared" part
+    val (requiredInputs, optionalInputs) = target0
+      .partition(t => nodesInputs.exists(tpe => typeEquals(tpe, t)))
 
     /**
      * Build the layer tree. This represents the structure of a successfully
      * constructed ZLayer that will build the target types. This, of course, may
      * fail with one or more GraphErrors.
      */
-    val layerTreeEither: Either[::[GraphError[Type, Expr]], LayerTree[Expr]] = {
-      val nodes: List[Node[Type, Expr]] = providedLayerNodes ++ sideEffectNodes
-      val nodesInputs                   = nodes.flatMap(n => n.outputs)
-      val graph                         = Graph(nodes, typeEquals, remainderTypeFactory)
-
-      // ProvideSomeShared ignores optionalInputs - they are the "shared" part
-      val (requiredInputs, optionalInputs) = target0
-        .partition(t => nodesInputs.exists(tpe => typeEquals(tpe, t)))
-
+    val layerTreeEither: Either[::[GraphError[Type, Expr]], LayerTree[Expr]] =
       for {
         inputs <- if (method.isProvideSomeShared) {
                     graph.buildComplete(requiredInputs)
@@ -164,18 +163,33 @@ final case class LayerBuilder[Type, Expr](
                   }
         sideEffects <- graph.buildNodes(sideEffectNodes)
       } yield sideEffects ++ inputs
-    }
 
     layerTreeEither match {
       case Left(buildErrors) =>
         reportBuildErrors(buildErrors)
 
       case Right(tree) =>
+        // TODO: Write some tests for previous implementation and prepare new implementation based on them
 //        warnUnused(tree)
         maybeDebug.foreach(debugLayer(_, tree))
-        foldTree(tree)
+        val finalTree = if (method.isProvideSomeShared) {
+          expandRin(foldTree(tree), optionalInputs)
+        } else {
+          foldTree(tree)
+        }
+        finalTree
     }
   }
+
+  private def expandRin(expr: Expr, tpes: List[Type]): Expr =
+    expandRIn(expr, combineTypes(tpes))
+
+  private def combineTypes(types: List[Type]): Type =
+    types match {
+      case Nil          => anyType
+      case head :: Nil  => head
+      case head :: tail => combinedTypes(head, combineTypes(tail))
+    }
 
   /**
    * Checks to see if any type is provided by multiple layers. If so, this will
