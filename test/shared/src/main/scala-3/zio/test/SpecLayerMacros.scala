@@ -54,7 +54,8 @@ object SpecLayerMacros {
             e
           case None =>
             report.errorAndAbort(
-              s"Cannot proof that R0 (${Type.show[R0]}) & out (${Type.show[out]}) <:< R (${Type.show[R]})"
+              s"Cannot proof that R0 (${Type.show[R0]}) & out (${Type.show[out]}) <:< R (${Type
+                  .show[R]}). The layer expression is:\n${layerExpr.show}"
             )
         }
         '{ $spec.provideSomeLayerShared[R0]($layer)(using $proof) }
@@ -73,7 +74,7 @@ object SpecLayerMacros {
             e
           case None =>
             report.errorAndAbort(
-              s"Cannot summon in (${Type.show[in]}) & out (${Type.show[out]}) <:< R (${Type
+              s"Cannot proof that in (${Type.show[in]}) & out (${Type.show[out]}) <:< R (${Type
                   .show[R]}). The layer expression is:\n${layerExpr.show}"
             )
         }

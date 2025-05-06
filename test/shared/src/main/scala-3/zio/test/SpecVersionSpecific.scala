@@ -54,8 +54,8 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
     new ProvideSomeSharedPartiallyApplied[R0, R, E](self)
 
   /**
-   * Equivalent to [[provideSomeShared]], but does not require providing the remainder
-   * type
+   * Equivalent to [[provideSomeShared]], but does not require providing the
+   * remainder type
    *
    * {{{
    * val spec: ZSpec[Int with Random, Nothing] = ???
