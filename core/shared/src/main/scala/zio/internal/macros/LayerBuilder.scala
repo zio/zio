@@ -58,7 +58,7 @@ final case class LayerBuilder[Type, Expr](
   exprToNode: Expr => Node[Type, Expr],
   typeToNode: Type => Node[Type, Expr],
   expandRIn: (Expr, Type) => Expr,
-  combinedTypes: (Type, Type) => Type,
+  combineTypes: (Type, Type) => Type,
   showExpr: Expr => String,
   showType: Type => String,
   reportWarn: String => Unit,
@@ -192,13 +192,13 @@ final case class LayerBuilder[Type, Expr](
   }
 
   private def expandRin(expr: Expr, tpes: List[Type]): Expr =
-    expandRIn(expr, combineTypes(tpes))
+    expandRIn(expr, foldTypes(tpes))
 
-  private def combineTypes(types: List[Type]): Type =
+  private def foldTypes(types: List[Type]): Type =
     types match {
       case Nil          => anyType
       case head :: Nil  => head
-      case head :: tail => combinedTypes(head, combineTypes(tail))
+      case head :: tail => combineTypes(head, foldTypes(tail))
     }
 
   /**

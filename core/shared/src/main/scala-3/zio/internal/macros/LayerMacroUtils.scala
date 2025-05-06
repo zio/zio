@@ -151,7 +151,7 @@ private[zio] object LayerMacroUtils {
           method = provideMethod,
           exprToNode = getNode,
           typeToNode = typeToNode,
-          combinedTypes = (t1, t2) => AndType(t1, t2),
+          combineTypes = (t1, t2) => AndType(t1, t2),
           expandRIn = expandRin,
           showExpr = renderExpr,
           showType = _.show,
