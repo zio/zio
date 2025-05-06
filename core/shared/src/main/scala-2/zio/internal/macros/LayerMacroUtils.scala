@@ -137,8 +137,7 @@ private[zio] trait LayerMacroUtils {
     provideMethod: ProvideMethod
   ): Expr[F[R0, E, A]] = {
     val expr = constructLayer[R0, R, E](layers, provideMethod)
-    val t = s"SCALA2: R0: ${weakTypeOf[R0]}, R: ${weakTypeOf[R]} layer: ${expr.actualType} type2: ${expr.staticType} EXPR SCALA2: ${expr.tree.toString()}"
-    c.Expr[F[R0, E, A]](q"{println($t); ${c.prefix}.${TermName(method)}($expr)}")
+    c.Expr[F[R0, E, A]](q"${c.prefix}.${TermName(method)}($expr)")
   }
 
   /**
