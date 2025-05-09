@@ -121,6 +121,26 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       }
     }
 
+  override def interruptAs(fiberId: FiberId)(implicit trace: Trace): UIO[Exit[E, A]] =
+    ZIO.suspendSucceed {
+      val exit = _exitValue
+      if (exit ne null) Exit.succeed(exit)
+      else {
+        val cause = Cause.interrupt(fiberId, StackTrace(self.fiberId, Chunk.single(trace)))
+        inbox.add(FiberMessage.InterruptSignal(cause))
+
+        // If the fiber is not running (which means it's suspended), and the current thread is in the same executor as the fiber,
+        // then execute the runloop on the current thread, avoiding context switching and suspension
+        if (running.compareAndSet(false, true)) {
+          val executor = getCurrentExecutor()
+          if (executor.isCurrentThreadInExecutor) run()
+          else drainQueueLaterOnExecutor(false)
+        }
+
+        await
+      }
+    }
+
   def interruptAsFork(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
     ZIO.succeed {
       val cause = Cause.interrupt(fiberId, StackTrace(self.fiberId, Chunk.single(trace)))
@@ -553,9 +573,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   }
 
   private[zio] def getCurrentExecutor(): Executor =
-    getFiberRef(FiberRef.overrideExecutor) match {
-      case None        => Runtime.defaultExecutor
+    getFiberRefOrNull(FiberRef.overrideExecutor) match {
       case Some(value) => value
+      case _           => Runtime.defaultExecutor
     }
 
   private[zio] def getFiberRef[A](fiberRef: FiberRef[A]): A =
@@ -1491,7 +1511,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         self.getFiberRefs()
 
       def removeObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit =
-        self.tell(FiberMessage.Stateful(_.asInstanceOf[FiberRuntime[E, A]].removeObserver(observer)))
+        if (self._exitValue ne null)
+          self.tell(FiberMessage.Stateful(_.asInstanceOf[FiberRuntime[E, A]].removeObserver(observer)))
 
       def poll(implicit unsafe: Unsafe): Option[Exit[E, A]] =
         Option(self.exitValue())
