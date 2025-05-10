@@ -181,7 +181,7 @@ object CauseSpec extends ZIOBaseSpec {
             genCause(Both(current, Empty), depth - 1)
           }
 
-        val cause = genCause(Cause.fail("Error"), 2_000)
+        val cause = genCause(Cause.fail("Error"), 2000)
 
         assert(cause.toString)(anything)
       },
