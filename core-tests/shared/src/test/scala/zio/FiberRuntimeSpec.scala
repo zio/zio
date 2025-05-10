@@ -99,6 +99,7 @@ object FiberRuntimeSpec extends ZIOBaseSpec {
           )
         }
       } @@ TestAspect.nonFlaky(10)
+    ),
     suite("runtime metrics")(
       test("Failures are counted once for the fiber that caused them and exits are not") {
         val nullErrors = ZIO.foreachParDiscard(1 to 2)(_ => ZIO.attempt(throw new NullPointerException))
