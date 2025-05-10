@@ -67,19 +67,22 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
 
   def await(implicit trace: Trace): UIO[Exit[E, A]] =
-    ZIO.suspendSucceed {
-      val exitValue = self._exitValue
-      if (exitValue ne null) Exit.succeed(exitValue)
-      else
-        ZIO.asyncInterrupt[Any, Nothing, Exit[E, A]](
-          { k =>
-            val cb = (exit: Exit[_, _]) => k(Exit.Success(exit.asInstanceOf[Exit[E, A]]))
-            unsafe.addObserver(cb)(Unsafe)
-            Left(ZIO.succeed(unsafe.removeObserver(cb)(Unsafe)))
-          },
-          id
-        )
-    }
+    ZIO.suspendSucceed(awaitUnsafe)
+
+  @inline
+  private[this] def awaitUnsafe(implicit trace: Trace): UIO[Exit[E, A]] = {
+    val exitValue = self._exitValue
+    if (exitValue ne null) Exit.succeed(exitValue)
+    else
+      ZIO.asyncInterrupt[Any, Nothing, Exit[E, A]](
+        { k =>
+          val cb = (exit: Exit[_, _]) => k(Exit.Success(exit.asInstanceOf[Exit[E, A]]))
+          unsafe.addObserver(cb)(Unsafe)
+          Left(ZIO.succeed(unsafe.removeObserver(cb)(Unsafe)))
+        },
+        id
+      )
+  }
 
   private[this] def childrenChunk(children: java.util.Set[Fiber.Runtime[?, ?]]): Chunk[Fiber.Runtime[_, _]] =
     // may be executed by a foreign fiber (under Sync), hence we're risking a race over the _children variable being set back to null by a concurrent transferChildren call
@@ -133,11 +136,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         // then execute the runloop on the current thread, avoiding context switching and suspension
         if (running.compareAndSet(false, true)) {
           val executor = getCurrentExecutor()
-          if (executor.isCurrentThreadInExecutor) run()
+          if (executor.isCurrentThreadInExecutor) drainQueueOnCurrentThread(0)
           else drainQueueLaterOnExecutor(false)
         }
 
-        await
+        awaitUnsafe(trace)
       }
     }
 
