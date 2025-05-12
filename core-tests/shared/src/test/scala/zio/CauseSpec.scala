@@ -174,14 +174,14 @@ object CauseSpec extends ZIOBaseSpec {
     suite("toString")(
       test("not fail with StackOverflowError") {
         @tailrec
-        def genCause[E](current: Cause[E], depth: Int): Cause[E] =
+        def genCause(current: Cause[String], depth: Int): Cause[String] =
           if (depth <= 0) {
             current
           } else {
-            genCause(Both(current, Empty), depth - 1)
+            genCause(Both(current, Cause.fail(s"Error$depth")), depth - 1)
           }
 
-        val cause = genCause(Cause.fail("Error"), 2000)
+        val cause = genCause(Cause.fail("Error"), 20000)
 
         assert(cause.toString)(anything)
       },

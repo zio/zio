@@ -756,7 +756,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     e
   }
 
-  override def toString = Cause.causeToString(this)
+  final override def toString = Cause.causeToString(this)
 }
 
 object Cause extends Serializable {
