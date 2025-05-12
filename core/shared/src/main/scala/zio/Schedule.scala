@@ -422,6 +422,15 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     trace: Trace
   ): Schedule.WithState[(self.State, Option[OffsetDateTime]), Env, In, Out] =
     self <* Schedule.upTo(duration)
+    
+  /**
+   * A schedule that recurs until the specified duration has elapsed.
+   * Alias for `upTo` with a more intuitive name.
+   */
+  final def deadline(duration: Duration)(implicit
+    trace: Trace
+  ): Schedule.WithState[(self.State, Option[OffsetDateTime]), Env, In, Out] =
+    upTo(duration)
 
   /**
    * Returns a new schedule with the specified effectfully computed delay added
@@ -1319,6 +1328,15 @@ object Schedule {
     trace: Trace
   ): Schedule.WithState[Option[OffsetDateTime], Any, Any, Duration] =
     elapsed.whileOutput(_ < duration)
+
+  /**
+   * A schedule that recurs until the specified duration has elapsed.
+   * Alias for `upTo` with a more intuitive name.
+   */
+  def deadline(duration: Duration)(implicit
+    trace: Trace
+  ): Schedule.WithState[Option[OffsetDateTime], Any, Any, Duration] =
+    upTo(duration)
 
   /**
    * A schedule that always recurs, producing a count of repeats: 0, 1, 2.

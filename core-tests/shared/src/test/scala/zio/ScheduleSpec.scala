@@ -137,6 +137,22 @@ object ScheduleSpec extends ZIOBaseSpec {
         val expected  = Chunk(0L, 1L, 2L, 3L, 4L, 5L)
         assertZIO(scheduled)(equalTo(expected))
       },
+      test("respect Schedule.deadline even if more input is provided than needed") {
+        val schedule  = Schedule.spaced(1.second).deadline(5.seconds)
+        val scheduled = Clock.currentDateTime.flatMap(schedule.run(_, 1 to 10))
+        val expected  = Chunk(0L, 1L, 2L, 3L, 4L, 5L)
+        assertZIO(scheduled)(equalTo(expected))
+      },
+      test("Schedule.deadline is an alias for Schedule.upTo") {
+        val schedule1 = Schedule.deadline(5.seconds)
+        val schedule2 = Schedule.upTo(5.seconds)
+        val scheduled1 = Clock.currentDateTime.flatMap(schedule1.run(_, 1 to 10))
+        val scheduled2 = Clock.currentDateTime.flatMap(schedule2.run(_, 1 to 10))
+        for {
+          result1 <- scheduled1
+          result2 <- scheduled2
+        } yield assert(result1)(equalTo(result2))
+      },
       test("free from stack overflow") {
         assertZIO(ZStream.fromSchedule(Schedule.forever *> Schedule.recurs(100000)).runCount)(
           equalTo(100000L)
