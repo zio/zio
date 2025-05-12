@@ -756,7 +756,58 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     e
   }
 
-  final override def toString = Cause.causeToString(this)
+  /**
+   * Stack-safe toString for Cause
+   */
+  final private def causeToString: String = {
+    // result modifier function or cause to visit
+    val visitStack = new mutable.Stack[Either[() => Unit, Cause[E]]]()
+    val results    = new mutable.Stack[String]()
+
+    def twoArgStr(name: String) = {
+      val right = results.pop()
+      val left  = results.pop()
+      results.push(s"$name($left,$right)")
+    }
+
+    @tailrec
+    def visitRecursive(): String = {
+      def visitCause(current: Cause[E]) =
+        current match {
+          case Both(left, right) =>
+            visitStack.push(Left(() => twoArgStr("Both")), Right(right), Right(left))
+          case Then(left, right) =>
+            visitStack.push(Left(() => twoArgStr("Then")), Right(right), Right(left))
+          case Stackless(cause, stackless) =>
+            visitStack.push(Left(() => results.push(s"Stackless(${results.pop()},$stackless)")), Right(cause))
+          case Die(value, trace) =>
+            results.push(s"Die($value,$trace)")
+          case Empty =>
+            results.push("Empty")
+          case Fail(value, trace) =>
+            results.push(s"Fail($value,$trace)")
+          case Interrupt(fiberId, trace) =>
+            results.push(s"Interrupt($fiberId,$trace)")
+        }
+
+      if (visitStack.isEmpty) {
+        results.pop()
+      } else {
+        visitStack.pop() match {
+          case Left(fn) =>
+            fn()
+          case Right(cause) =>
+            visitCause(cause)
+        }
+        visitRecursive()
+      }
+    }
+
+    visitStack.push(Right(this))
+    visitRecursive()
+  }
+
+  final override def toString = causeToString
 }
 
 object Cause extends Serializable {
@@ -1104,56 +1155,5 @@ object Cause extends Serializable {
 
   private case class FiberTrace(trace: String) extends Throwable(null, null, true, false) {
     override final def getMessage: String = trace
-  }
-
-  /**
-   * Stack-safe toString for Cause
-   */
-  def causeToString[E](cause: Cause[E]): String = {
-    // result modifier function or cause to visit
-    val visitStack = new mutable.Stack[Either[() => Unit, Cause[E]]]()
-    val results    = new mutable.Stack[String]()
-
-    def twoArgStr(name: String) = {
-      val right = results.pop()
-      val left  = results.pop()
-      results.push(s"$name($left,$right)")
-    }
-
-    @tailrec
-    def visitRecursive(): String = {
-      def visitCause(current: Cause[E]) =
-        current match {
-          case Both(left, right) =>
-            visitStack.push(Left(() => twoArgStr("Both")), Right(right), Right(left))
-          case Then(left, right) =>
-            visitStack.push(Left(() => twoArgStr("Then")), Right(right), Right(left))
-          case Stackless(cause, stackless) =>
-            visitStack.push(Left(() => results.push(s"Stackless(${results.pop()},$stackless)")), Right(cause))
-          case Die(value, trace) =>
-            results.push(s"Die($value,$trace)")
-          case Empty =>
-            results.push("Empty")
-          case Fail(value, trace) =>
-            results.push(s"Fail($value,$trace)")
-          case Interrupt(fiberId, trace) =>
-            results.push(s"Interrupt($fiberId,$trace)")
-        }
-
-      if (visitStack.isEmpty) {
-        results.pop()
-      } else {
-        visitStack.pop() match {
-          case Left(fn) =>
-            fn()
-          case Right(cause) =>
-            visitCause(cause)
-        }
-        visitRecursive()
-      }
-    }
-
-    visitStack.push(Right(cause))
-    visitRecursive()
   }
 }
