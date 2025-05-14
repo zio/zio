@@ -285,8 +285,8 @@ object Promise {
       final def remove(waiter: IO[E, A] => Any): Pending[E, A] =
         if (size == 1) if (waiter eq self.waiter) ws else self
         else {
-          val arr = Link.materialize(self, size)
-          var i = size - 1
+          val arr                = Link.materialize(self, size)
+          var i                  = size - 1
           var acc: Pending[E, A] = Empty.asInstanceOf[Pending[E, A]]
 
           while (i >= 0) {
@@ -300,13 +300,15 @@ object Promise {
     }
 
     private object Link {
+
       /**
-        * Materializes the pending state into an array of waiters in reverse order.
-        */
+       * Materializes the pending state into an array of waiters in reverse
+       * order.
+       */
       def materialize[E, A](pending: Pending[E, A], size: Int): Array[IO[E, A] => Any] = {
-        val array = new Array[IO[E, A] => Any](size)
+        val array   = new Array[IO[E, A] => Any](size)
         var current = pending
-        var i = size - 1
+        var i       = size - 1
 
         while (i >= 0) {
           current match {
