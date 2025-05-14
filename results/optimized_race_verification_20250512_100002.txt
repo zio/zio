@@ -1,0 +1,80 @@
+=== ZIO Race Verification Benchmark ===
+Iterations per run: 100000
+Warmup runs: 3
+Measurement runs: 5
+
+Starting benchmarks...
+
+Running Cats-effect race benchmark...
+Performing 3 warmup runs...
+  Warmup 1/3: 741.63 ms, 134838.28 ops/sec
+  Warmup 2/3: 146.43 ms, 682934.35 ops/sec
+  Warmup 3/3: 147.08 ms, 679883.60 ops/sec
+Performing 5 measurement runs...
+  Run 1/5: 139.70 ms, 715801.90 ops/sec
+  Run 2/5: 147.60 ms, 677487.65 ops/sec
+  Run 3/5: 136.48 ms, 732689.07 ops/sec
+  Run 4/5: 140.67 ms, 710859.83 ops/sec
+  Run 5/5: 144.43 ms, 692372.74 ops/sec
+Running ZIO race (left never) benchmark...
+Performing 3 warmup runs...
+  Warmup 1/3: 772.22 ms, 129496.85 ops/sec
+  Warmup 2/3: 367.69 ms, 271969.04 ops/sec
+  Warmup 3/3: 327.37 ms, 305468.77 ops/sec
+Performing 5 measurement runs...
+  Run 1/5: 370.63 ms, 269812.17 ops/sec
+  Run 2/5: 292.70 ms, 341641.44 ops/sec
+  Run 3/5: 313.13 ms, 319352.10 ops/sec
+  Run 4/5: 292.42 ms, 341973.53 ops/sec
+  Run 5/5: 282.26 ms, 354278.42 ops/sec
+Running ZIO race (right never) benchmark...
+Performing 3 warmup runs...
+  Warmup 1/3: 423.78 ms, 235973.23 ops/sec
+  Warmup 2/3: 319.63 ms, 312864.72 ops/sec
+  Warmup 3/3: 275.03 ms, 363603.09 ops/sec
+Performing 5 measurement runs...
+  Run 1/5: 265.36 ms, 376839.92 ops/sec
+  Run 2/5: 309.38 ms, 323230.10 ops/sec
+  Run 3/5: 318.30 ms, 314167.25 ops/sec
+  Run 4/5: 289.47 ms, 345454.17 ops/sec
+  Run 5/5: 275.74 ms, 362656.48 ops/sec
+Running Original ZIO race benchmark...
+Performing 3 warmup runs...
+  Warmup 1/3: 318.87 ms, 313604.02 ops/sec
+  Warmup 2/3: 275.57 ms, 362886.62 ops/sec
+  Warmup 3/3: 295.85 ms, 338008.08 ops/sec
+Performing 5 measurement runs...
+  Run 1/5: 307.41 ms, 325294.23 ops/sec
+  Run 2/5: 319.62 ms, 312874.84 ops/sec
+  Run 3/5: 256.52 ms, 389827.96 ops/sec
+  Run 4/5: 278.10 ms, 359586.92 ops/sec
+  Run 5/5: 292.93 ms, 341376.45 ops/sec
+
+=== Benchmark Results ===
+Cats-effect race: 141.78 ms, 705321.33 ops/sec
+ZIO race (left never): 310.23 ms, 322341.30 ops/sec
+ZIO race (right never): 291.65 ms, 342874.24 ops/sec
+Original ZIO race: 290.92 ms, 343741.21 ops/sec
+
+=== Performance Ratios (time) ===
+ZIO (left never) / Cats-effect = 2.19x (higher means slower)
+ZIO (right never) / Cats-effect = 2.06x (higher means slower)
+Original ZIO / Cats-effect = 2.05x (higher means slower)
+
+=== Performance Ratios (ops/sec) ===
+Cats-effect / ZIO (left never) = 2.19x (higher means faster)
+Cats-effect / ZIO (right never) = 2.06x (higher means faster)
+Cats-effect / Original ZIO = 2.05x (higher means faster)
+
+=== Performance Analysis ===
+This benchmark compares the performance of cats-effect race with ZIO race implementations.
+The results show how ZIO race performs in different scenarios:
+1. When the left side never completes (ZIO.never.race(ZIO.succeed(...)))
+2. When the right side never completes (ZIO.succeed(...).race(ZIO.never))
+3. The original implementation with both sides potentially completing
+
+Note: The OptimizedRace implementation in OptimizedRace.scala aims to improve
+performance by reusing the calling fiber for one side of the race, reducing
+overhead by creating only one new fiber instead of two.
+
+Benchmark complete!

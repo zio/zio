@@ -1,0 +1,55 @@
+[sbt_options] declare -a sbt_options='()'
+[process_args] java_version = '23'
+[copyRt] java9_rt = '/Users/diouf/.sbt/1.0/java9-rt-ext-homebrew_23_0_2/rt.jar'
+# Executing command line:
+java
+-Dcats.effect.stackTracingMode=full
+-Dfile.encoding=UTF8
+-Xms256M
+-Xmx6G
+-XX:+UseG1GC
+-Dsbt.script=/opt/homebrew/Cellar/sbt/1.10.11/libexec/bin/sbt
+-Dscala.ext.dirs=/Users/diouf/.sbt/1.0/java9-rt-ext-homebrew_23_0_2
+-jar
+/opt/homebrew/Cellar/sbt/1.10.11/libexec/bin/sbt-launch.jar
+--error
+coreJVM/compile
+
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:65:55: Unit does not take parameters
+[error]           rightFiber.asInstanceOf[FiberRunnable].run()(unsafe)
+[error]                                                       ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:70:53: value evalAsync is not a member of zio.internal.FiberRunnable
+[error] Error occurred in an application involving default arguments.
+[error]             parentFiber.asInstanceOf[FiberRunnable].evalAsync(leftEffect.asInstanceOf[ZIO.Erased]) { leftExit =>
+[error]                                                     ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:118:55: Unit does not take parameters
+[error]           rightFiber.asInstanceOf[FiberRunnable].run()(unsafe)
+[error]                                                       ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:123:53: value evalAsync is not a member of zio.internal.FiberRunnable
+[error] Error occurred in an application involving default arguments.
+[error]             parentFiber.asInstanceOf[FiberRunnable].evalAsync(leftEffect.asInstanceOf[ZIO.Erased]) { leftExit =>
+[error]                                                     ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:170:55: Unit does not take parameters
+[error]           rightFiber.asInstanceOf[FiberRunnable].run()(unsafe)
+[error]                                                       ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:175:53: value evalAsync is not a member of zio.internal.FiberRunnable
+[error] Error occurred in an application involving default arguments.
+[error]             parentFiber.asInstanceOf[FiberRunnable].evalAsync(leftEffect.asInstanceOf[ZIO.Erased]) { leftExit =>
+[error]                                                     ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:216:27: illegal inheritance from sealed class Fiber
+[error]       val leftFiber = new Fiber[E, A] {
+[error]                           ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:254:55: Unit does not take parameters
+[error]           rightFiber.asInstanceOf[FiberRunnable].run()(unsafe)
+[error]                                                       ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:259:53: value evalAsync is not a member of zio.internal.FiberRunnable
+[error] Error occurred in an application involving default arguments.
+[error]             parentFiber.asInstanceOf[FiberRunnable].evalAsync(leftEffect.asInstanceOf[ZIO.Erased]) { leftExit =>
+[error]                                                     ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedTimeout.scala:8:46: type mismatch;
+[error]  found   : zio.ZIO[R,Nothing,Unit]
+[error]  required: zio.ZIO[R,E,B1]
+[error]       ZIO.withFiberRuntime[R, Nothing, Unit] { (state, _) =>
+[error]                                              ^
+[error] 10 errors found
+[error] (coreJVM / Compile / compileIncremental) Compilation failed

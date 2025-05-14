@@ -697,6 +697,27 @@ object Fiber extends FiberPlatformSpecific {
 
   private[zio] object Synthetic {
     abstract class Internal[+E, +A] extends Synthetic[E, A]
+    
+    object Internal {
+      /**
+       * Creates a synthetic fiber with the specified implementation functions.
+       */
+      def make[E, A](
+        await0: (implicit trace: Trace) => UIO[Exit[E, A]],
+        children0: (implicit trace: Trace) => UIO[Chunk[Fiber.Runtime[_, _]]],
+        id0: FiberId,
+        inheritAll0: (implicit trace: Trace) => UIO[Unit],
+        interruptAsFork0: FiberId => (implicit trace: Trace) => UIO[Unit],
+        poll0: (implicit trace: Trace) => UIO[Option[Exit[E, A]]]
+      ): Fiber.Synthetic[E, A] = new Internal[E, A] {
+        def await(implicit trace: Trace): UIO[Exit[E, A]] = await0
+        def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = children0
+        def id: FiberId = id0
+        def inheritAll(implicit trace: Trace): UIO[Unit] = inheritAll0
+        def interruptAsFork(id: FiberId)(implicit trace: Trace): UIO[Unit] = interruptAsFork0(id)
+        def poll(implicit trace: Trace): UIO[Option[Exit[E, A]]] = poll0
+      }
+    }
   }
 
   private[zio] abstract class Internal[+E, +A] extends Fiber[E, A]

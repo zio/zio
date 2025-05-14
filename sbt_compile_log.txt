@@ -1,0 +1,43 @@
+[info] welcome to sbt 1.10.11 (Homebrew Java 23.0.2)
+[info] loading settings for project zio-build from plugins.sbt...
+[info] loading project definition from /Users/diouf/zio/project
+[info] loading settings for project root from build.sbt...
+[info] resolving key references (110310 settings) ...
+[info]  ________ ___
+[info] |__  /_ _/ _ \
+[info]   / / | | | | |
+[info]  / /_ | | |_| |
+[info] /____|___\___/   0.0.0+8211-9ea20872+20250507-1829-SNAPSHOT
+[info] 
+[info] Useful sbt tasks:
+[info] > build - Prepares sources, compiles and runs tests.
+[info] > fmt - Formats source files using scalafmt
+[info] > ~compileJVM - Compiles all JVM modules (file-watch enabled)
+[info] > testJVM - Runs all JVM tests
+[info] > testJS - Runs all ScalaJS tests
+[info] > testOnly *.YourSpec -- -t "YourLabel" - Only runs tests with matching term e.g.
+[info]   > coreTestsJVM/testOnly *.ZIOSpec -- -t "happy-path"
+[info]       
+[info] compiling 1 Scala source to /Users/diouf/zio/stacktracer/.jvm/target/scala-2.13/classes ...
+[info] done compiling
+[info] compiling 205 Scala sources and 1 Java source to /Users/diouf/zio/core/jvm/target/scala-2.13/classes ...
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:55:40: type mismatch;
+[error]  found   : E
+[error]  required: zio.Cause[?]
+[error]                 cause => ZIO.failCause(cause),
+[error]                                        ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:62:29: value startSuspended is not a member of rightFiber.UnsafeAPI
+[error]           rightFiber.unsafe.startSuspended()(unsafe)
+[error]                             ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:65:35: value unsafeRunAsync is not a member of zio.ZIO[R,E,A]
+[error]           graft.applyOnExit(left).unsafeRunAsync { leftResult =>
+[error]                                   ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:131:29: value startSuspended is not a member of rightFiber.UnsafeAPI
+[error]           rightFiber.unsafe.startSuspended()(unsafe)
+[error]                             ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:135:22: value unsafeRunAsync is not a member of zio.ZIO[R,E,A]
+[error]           leftEffect.unsafeRunAsync { leftExit => // leftExit is Exit[E, A]
+[error]                      ^
+[error] 5 errors found
+[error] (coreJVM / Compile / compileIncremental) Compilation failed
+[error] Total time: 52 s, completed May 7, 2025, 6:30:31 PM

@@ -1,0 +1,88 @@
+[info] welcome to sbt 1.10.11 (Homebrew Java 23.0.2)
+[info] loading settings for project zio-build from plugins.sbt...
+[info] loading project definition from /Users/diouf/zio/project
+[info] loading settings for project root from build.sbt...
+[info] resolving key references (110310 settings) ...
+[info]  ________ ___
+[info] |__  /_ _/ _ \
+[info]   / / | | | | |
+[info]  / /_ | | |_| |
+[info] /____|___\___/   0.0.0+8211-9ea20872+20250510-2009-SNAPSHOT
+[info] 
+[info] Useful sbt tasks:
+[info] > build - Prepares sources, compiles and runs tests.
+[info] > fmt - Formats source files using scalafmt
+[info] > ~compileJVM - Compiles all JVM modules (file-watch enabled)
+[info] > testJVM - Runs all JVM tests
+[info] > testJS - Runs all ScalaJS tests
+[info] > testOnly *.YourSpec -- -t "YourLabel" - Only runs tests with matching term e.g.
+[info]   > coreTestsJVM/testOnly *.ZIOSpec -- -t "happy-path"
+[info]       
+[info] compiling 1 Scala source to /Users/diouf/zio/stacktracer/.jvm/target/scala-2.13/classes ...
+[info] done compiling
+[info] compiling 206 Scala sources and 1 Java source to /Users/diouf/zio/core/jvm/target/scala-2.13/classes ...
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:65:29: value startFork is not a member of rightFiber.UnsafeAPI
+[error]           rightFiber.unsafe.startFork()(unsafe)
+[error]                             ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:69:30: value runAsync is not a member of parentFiber.UnsafeAPI
+[error]           parentFiber.unsafe.runAsync(leftEffect) { leftExit =>
+[error]                              ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:115:29: value startFork is not a member of rightFiber.UnsafeAPI
+[error]           rightFiber.unsafe.startFork()(unsafe)
+[error]                             ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:119:30: value runAsync is not a member of parentFiber.UnsafeAPI
+[error]           parentFiber.unsafe.runAsync(leftEffect) { leftExit =>
+[error]                              ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:164:29: value startFork is not a member of rightFiber.UnsafeAPI
+[error]           rightFiber.unsafe.startFork()(unsafe)
+[error]                             ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:168:30: value runAsync is not a member of parentFiber.UnsafeAPI
+[error]           parentFiber.unsafe.runAsync(leftEffect) { leftExit =>
+[error]                              ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:206:33: illegal inheritance from sealed class Synthetic
+[error]       val leftFiber = new Fiber.Synthetic[E, A] {
+[error]                                 ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:211:73: type mismatch;
+[error]  found   : zio.Exit[zio.Cause[Nothing],Nothing]
+[error]  required: zio.Exit[E,A]
+[error]         def await(implicit trace: Trace): UIO[Exit[E, A]] = ZIO.succeed(leftExit)
+[error]                                                                         ^
+[info] zio.Exit[zio.Cause[Nothing],Nothing] <: zio.Exit[E,A]?
+[info] false
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:230:85: type mismatch;
+[error]  found   : zio.Exit[zio.Cause[Nothing],Nothing]
+[error]  required: zio.Exit[E,A]
+[error]         def poll(implicit trace: Trace): UIO[Option[Exit[E, A]]] = ZIO.succeed(Some(leftExit))
+[error]                                                                                     ^
+[info] zio.Exit[zio.Cause[Nothing],Nothing] <: zio.Exit[E,A]?
+[info] false
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:235:21: illegal inheritance from sealed class Synthetic
+[error]           new Fiber.Synthetic[E1, A1] {
+[error]                     ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:268:21: illegal inheritance from sealed class Synthetic
+[error]           new Fiber.Synthetic[E, B] {
+[error]                     ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:271:39: type mismatch;
+[error]  found   : zio.ZIO[Any,zio.Cause[Nothing],B]
+[error]  required: zio.Exit[E,B]
+[error]               ZIO.succeed(leftExit.map(f))
+[error]                                       ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:289:44: type mismatch;
+[error]  found   : zio.ZIO[Any,zio.Cause[Nothing],B]
+[error]  required: zio.Exit[E,B]
+[error]               ZIO.succeed(Some(leftExit.map(f)))
+[error]                                            ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:305:29: value startFork is not a member of rightFiber.UnsafeAPI
+[error]           rightFiber.unsafe.startFork()(unsafe)
+[error]                             ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedRace.scala:309:30: value runAsync is not a member of parentFiber.UnsafeAPI
+[error]           parentFiber.unsafe.runAsync(leftEffect) { leftExit =>
+[error]                              ^
+[error] /Users/diouf/zio/core/shared/src/main/scala/zio/OptimizedTimeout.scala:8:46: type mismatch;
+[error]  found   : zio.ZIO[R,Nothing,Unit]
+[error]  required: zio.ZIO[R,E,B1]
+[error]       ZIO.withFiberRuntime[R, Nothing, Unit] { (state, _) =>
+[error]                                              ^
+[error] 16 errors found
+[error] (coreJVM / Compile / compileIncremental) Compilation failed
+[error] Total time: 11 s, completed May 10, 2025, 8:09:26 PM
