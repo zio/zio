@@ -23,7 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * A `THub` is a transactional message hub. Publishers can publish messages to
  * the hub and subscribers can subscribe to take messages from the hub.
  */
-abstract class THub[A] extends TEnqueue[A] {
+sealed abstract class THub[A] extends TEnqueue.Internal[A] {
 
   /**
    * Publishes a message to the hub, returning whether the message was published
@@ -253,7 +253,7 @@ object THub {
     subscriberCount: TRef[Int],
     subscribers: TRef[Set[TRef[TRef[Node[A]]]]]
   ): TDequeue[A] =
-    new TDequeue[A] {
+    new TDequeue.Internal[A] {
       override def capacity: Int =
         requestedCapacity
       override def isShutdown: USTM[Boolean] =

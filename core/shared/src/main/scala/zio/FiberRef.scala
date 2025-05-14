@@ -53,7 +53,7 @@ import zio.metrics.MetricLabel
  * Here `value` will be 2 as the value in the joined fiber is lower and we
  * specified `max` as our combining function.
  */
-trait FiberRef[A] extends Serializable { self =>
+sealed trait FiberRef[A] extends Serializable { self =>
 
   /**
    * The type of the value of the `FiberRef`.

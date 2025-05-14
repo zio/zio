@@ -24,6 +24,7 @@ import scala.concurrent.Future
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
  */
+@deprecatedInheritance("Use Runtime.apply", since = "2.1.18")
 trait Runtime[+R] { self =>
 
   /**
