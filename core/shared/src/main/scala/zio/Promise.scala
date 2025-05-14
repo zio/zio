@@ -269,41 +269,54 @@ object Promise {
       }
       final def complete(io: IO[E, A]): Unit =
         if (size == 1) waiter(io)
-        else Link.materialize(self, size).foreach(_(io))
+        else {
+          var current: Pending[E, A] = self
+          while (current ne Empty) {
+            current match {
+              case link: Link[?, ?] =>
+                link.waiter(io)
+                current = link.ws
+              case _ => // Empty
+                current = Empty.asInstanceOf[Pending[E, A]]
+            }
+          }
+        }
 
       final def remove(waiter: IO[E, A] => Any): Pending[E, A] =
-        if (size == 1 && (waiter eq self.waiter)) ws
+        if (size == 1) if (waiter eq self.waiter) ws else self
         else {
           val arr = Link.materialize(self, size)
+          var i = size - 1
+          var acc: Pending[E, A] = Empty.asInstanceOf[Pending[E, A]]
 
-          @annotation.tailrec
-          def tabulate(i: Int, acc: Pending[E, A]): Pending[E, A] =
-            if (i >= 0) {
-              if (arr(i) ne waiter)
-                tabulate(i - 1, acc.add(arr(i)))
-              else
-                tabulate(i - 1, acc)
-            } else acc
-
-          tabulate(size - 1, Empty.asInstanceOf[Pending[E, A]])
+          while (i >= 0) {
+            if (arr(i) ne waiter) {
+              acc = acc.add(arr(i))
+            }
+            i -= 1
+          }
+          acc
         }
     }
 
     private object Link {
+      /**
+        * Materializes the pending state into an array of waiters in reverse order.
+        */
       def materialize[E, A](pending: Pending[E, A], size: Int): Array[IO[E, A] => Any] = {
         val array = new Array[IO[E, A] => Any](size)
+        var current = pending
+        var i = size - 1
 
-        @annotation.tailrec
-        def fill(pending: Pending[E, A], i: Int): Unit =
-          if (i >= 0)
-            pending match {
-              case link: Link[?, ?] =>
-                array(i) = link.waiter
-                fill(link.ws, i - 1)
-              case _ => () // Empty
-            }
-
-        fill(pending, size - 1)
+        while (i >= 0) {
+          current match {
+            case link: Link[?, ?] =>
+              array(i) = link.waiter
+              current = link.ws
+            case _ => () // Empty
+          }
+          i -= 1
+        }
         array
       }
     }

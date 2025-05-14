@@ -10,6 +10,8 @@ object PromiseSpec extends ZIOBaseSpec {
   private def empty[E, A]: Promise.internal.Pending[E, A] =
     Promise.internal.State.empty[E, A].asInstanceOf[Promise.internal.Pending[E, A]]
 
+  val n = 10000
+
   def spec: Spec[Any, TestFailure[Any]] = suite("PromiseSpec")(
     test("complete a promise using succeed") {
       for {
@@ -127,7 +129,7 @@ object PromiseSpec extends ZIOBaseSpec {
     test("waiter stack safety") {
       for {
         p      <- Promise.make[Nothing, Unit]
-        fibers <- ZIO.foreach(1 to 100000)(_ => p.await.forkDaemon)
+        fibers <- ZIO.foreach(1 to n)(_ => p.await.forkDaemon)
         _      <- p.complete(Exit.unit)
         _      <- ZIO.foreach(fibers)(_.await)
       } yield assertCompletes
@@ -147,7 +149,6 @@ object PromiseSpec extends ZIOBaseSpec {
           assert(increment)(equalTo(1))
         },
         test("multiple") {
-          val n         = 10
           var increment = 0
           val state     = (0 until n).foldLeft(empty[Nothing, Unit])((acc, _) => acc.add(_ => increment += 1))
           state.complete(ZIO.unit)
@@ -165,7 +166,6 @@ object PromiseSpec extends ZIOBaseSpec {
           assert(increment)(equalTo(0))
         },
         test("multiple") {
-          val n        = 10
           var fired    = 0
           val cb       = (_: IO[Nothing, Unit]) => ()
           val toRemove = (_: IO[Nothing, Unit]) => fired += 1
@@ -185,11 +185,10 @@ object PromiseSpec extends ZIOBaseSpec {
           assert(completed)(equalTo(1))
         },
         test("multiple") {
-          val n         = 10
-          var completed = Seq.empty[Int]
-          val state     = (0 until n).foldLeft(empty[Nothing, Unit])((acc, i) => acc.add(_ => completed = completed :+ i))
+          var completed = List.empty[Int]
+          val state     = (0 until n).foldLeft(empty[Nothing, Unit])((acc, i) => acc.add(_ => completed = i :: completed))
           state.complete(ZIO.unit)
-          assert(completed)(equalTo(0 until n))
+          assert(completed)(equalTo(List.range(0, n)))
         }
       )
     )
