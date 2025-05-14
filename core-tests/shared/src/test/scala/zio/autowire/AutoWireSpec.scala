@@ -248,6 +248,30 @@ object AutoWireSpec extends ZIOBaseSpec {
                 ZLayer.succeed(true) ++ ZLayer.succeed(100.1) >>> layer
               )
             assertZIO(provided)(equalTo(128))
+          },
+          test("displays error message when remainder type does not match") {
+
+            val checked = typeCheck(
+              """
+               class Engine
+               class Wheels
+               class Car
+
+               val carLayer: ZLayer[Engine with Wheels, Nothing, Car] = ???
+               val wheelsLayer: ZLayer[Any, Nothing, Wheels] = ???
+               val layer = ZLayer.makeSome[String, Car](carLayer, wheelsLayer)
+               """
+            )
+
+            assertZIO(checked)(
+              isLeft(
+                containsStringWithoutAnsi("Please provide a layer for the following type:") &&
+                  containsStringWithoutAnsi("Required by carLayer") &&
+                  containsStringWithoutAnsi("1. Engine") &&
+                  containsStringWithoutAnsi("Alternatively, you may add them to the remainder type ascription:") &&
+                  containsStringWithoutAnsi("provideSome[Engine]")
+              )
+            )
           }
         )
       )

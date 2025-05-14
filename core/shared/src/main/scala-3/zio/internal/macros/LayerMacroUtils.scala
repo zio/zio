@@ -25,6 +25,15 @@ private[zio] object LayerMacroUtils {
     constructTypelessLayer[R0, R, E](layers, provideMethod, false).asExprOf[ZLayer[R0, E, R]]
   }
 
+  def constructStaticSomeLayer[R0: Type, R: Type, E: Type](using Quotes)(
+    layers: Seq[LayerExpr[E]],
+    provideMethod: ProvideMethod
+  ): Expr[ZLayer[R0, E, _]] = {
+    import quotes.reflect._
+
+    constructTypelessLayer[R0, R, E](layers, provideMethod, false).asExprOf[ZLayer[R0, E, _]]
+  }
+
   def constructDynamicLayer[R: Type, E: Type](using Quotes)(
     layers: Seq[LayerExpr[E]],
     provideMethod: ProvideMethod
@@ -131,7 +140,7 @@ private[zio] object LayerMacroUtils {
           reportError = report.errorAndAbort
         )
 
-        builder.build.asTerm.asExprOf[ZLayer[R0, E, R]]
+        builder.build.asTerm.asExprOf[ZLayer[_, _, _]]
       }
     }
   }

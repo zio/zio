@@ -109,6 +109,43 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     }
 
   /**
+   * Tries to acquire a single permit in a transactional context. Returns `true`
+   * if the permit was acquired, otherwise `false`.
+   */
+  def tryAcquire: USTM[Boolean] = tryAcquireN(1L)
+
+  /**
+   * Tries to acquire the specified number of permits in a transactional
+   * context. Returns `true` if the permits were acquired, otherwise `false`.
+   */
+  def tryAcquireN(n: Long): USTM[Boolean] =
+    ZSTM.Effect { (journal, _, _) =>
+      assertNonNegative(n)
+
+      val available: Long = permits.unsafeGet(journal)
+      if (available >= n) {
+        permits.unsafeSet(journal, available - n)
+        true
+      } else false
+    }
+
+  /**
+   * Executes the specified effect, acquiring `1` permit if available and
+   * releasing them after execution. Returns `None` if no permits were
+   * available.
+   */
+  def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+    tryWithPermits(1L)(zio)
+
+  /**
+   * Executes the specified effect, acquiring `n` permits if available and
+   * releasing them after execution. Returns `None` if no permits were
+   * available.
+   */
+  def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+    ZSTM.acquireReleaseWith(tryAcquireN(n))(releaseN(n).commit.whenDiscard(_))(zio.when(_))
+
+  /**
    * Executes the specified effect, acquiring a permit immediately before the
    * effect begins execution and releasing it immediately after the effect
    * completes execution, whether by success, failure, or interruption.

@@ -24,7 +24,7 @@ import java.util.concurrent._
 private[zio] trait ClockPlatformSpecific {
   import Scheduler.CancelToken
 
-  private[zio] val globalScheduler = new Scheduler {
+  private[zio] val globalScheduler: Scheduler = new Scheduler.Internal {
 
     private[this] val service = makeService()
 

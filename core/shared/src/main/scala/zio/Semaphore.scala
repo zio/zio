@@ -46,6 +46,20 @@ sealed trait Semaphore extends Serializable {
   def awaiting(implicit trace: Trace): UIO[Long] = ZIO.succeed(0L)
 
   /**
+   * Executes the effect, acquiring a permit if available and releasing it after
+   * execution. Returns `None` if no permits were available.
+   */
+  final def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+    tryWithPermits(1L)(zio)
+
+  /**
+   * Executes the effect, acquiring `n` permits if available and releasing them
+   * after execution. Returns `None` if no permits were available.
+   */
+  def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+    ZIO.none
+
+  /**
    * Executes the specified workflow, acquiring a permit immediately before the
    * workflow begins execution and releasing it immediately after the workflow
    * completes execution, whether by success, failure, or interruption.
@@ -71,6 +85,7 @@ sealed trait Semaphore extends Serializable {
    * permits and releasing them when the scope is closed.
    */
   def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
+
 }
 
 object Semaphore {
@@ -110,13 +125,35 @@ object Semaphore {
         def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
           ZIO.acquireRelease(reserve(n))(_.release).flatMap(_.acquire)
 
+        override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+          ZIO.acquireReleaseWith(tryReserve(n)) {
+            case Some(reservation) => reservation.release
+            case _                 => Exit.unit
+          } {
+            case _: Some[?] => zio.asSome
+            case _          => Exit.none
+          }
+
         case class Reservation(acquire: UIO[Unit], release: UIO[Any])
+        object Reservation {
+          private[zio] val zero = Reservation(ZIO.unit, ZIO.unit)
+        }
+
+        def tryReserve(n: Long)(implicit trace: Trace): UIO[Option[Reservation]] =
+          if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
+          else if (n == 0L) ZIO.succeed(Some(Reservation.zero))
+          else
+            ref.modify {
+              case Right(permits) if permits >= n =>
+                Some(Reservation(ZIO.unit, releaseN(n))) -> Right(permits - n)
+              case other => None -> other
+            }
 
         def reserve(n: Long)(implicit trace: Trace): UIO[Reservation] =
           if (n < 0)
             ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
           else if (n == 0L)
-            ZIO.succeedNow(Reservation(ZIO.unit, ZIO.unit))
+            ZIO.succeed(Reservation.zero)
           else
             Promise.make[Nothing, Unit].flatMap { promise =>
               ref.modify {
