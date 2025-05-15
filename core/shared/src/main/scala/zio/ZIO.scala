@@ -6112,19 +6112,21 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   }
 
   private[zio] type Erased = ZIO[Any, Any, Any]
+  // abstract class to reduce bytecode size in subtypes
+  private[ZIO] sealed abstract class Base[-R, +E, +A] extends ZIO[R, E, A]
 
   private[zio] final case class FlatMap[R, E, A1, A2](
     trace: Trace,
     first: ZIO[R, E, A1],
     successK: A1 => ZIO[R, E, A2]
-  ) extends Continuation
-      with ZIO[R, E, A2]
+  ) extends Continuation[R, E, A2]
 
-  private[zio] sealed abstract class Continuation {
+  private[zio] sealed abstract class Continuation[-R, +E, +A] extends ZIO[R, E, A] {
     def trace: Trace
   }
   object Continuation {
-    def apply[R, E, A, B](f: A => ZIO[R, E, B])(implicit trace: Trace): Continuation =
+    private[zio] type Erased = Continuation[Any, Any, Any]
+    def apply[R, E, A, B](f: A => ZIO[R, E, B])(implicit trace: Trace): Continuation[R, E, B] =
       FlatMap[R, E, A, B](trace, null, f)
   }
   private[zio] case class FoldZIO[R, E1, E2, A1, A2](
@@ -6132,65 +6134,64 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     first: ZIO[R, E1, A1],
     successK: A1 => ZIO[R, E2, A2],
     failureK: Cause[E1] => ZIO[R, E2, A2]
-  ) extends Continuation
-      with ZIO[R, E2, A2]
-  private[zio] final case class Sync[A](trace: Trace, eval: () => A) extends ZIO[Any, Nothing, A]
+  ) extends Continuation[R, E2, A2]
+  private[zio] final case class Sync[A](trace: Trace, eval: () => A) extends Base[Any, Nothing, A]
   private[zio] final case class Async[R, E, A](
     trace: Trace,
     registerCallback: (ZIO[R, E, A] => Unit) => ZIO[R, E, A],
     blockingOn: () => FiberId
-  ) extends ZIO[R, E, A]
+  ) extends Base[R, E, A]
   private[zio] final case class UpdateRuntimeFlags(trace: Trace, update: RuntimeFlags.Patch)
-      extends Continuation
-      with ZIO[Any, Nothing, Unit]
+      extends Continuation[Any, Nothing, Unit]
 
   private[zio] sealed trait UpdateRuntimeFlagsWithin[R, E, A] extends ZIO[R, E, A] {
     def update: RuntimeFlags.Patch
     def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A]
   }
+  private[ZIO] sealed abstract class UpdateRuntimeFlagsBase[R, E, A] extends UpdateRuntimeFlagsWithin[R, E, A]
   private[zio] object UpdateRuntimeFlagsWithin extends UpdateRuntimeFlagsWithinPlatformSpecific {
     def apply[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: IntFunction[ZIO[R, E, A]]): DynamicNoBox[R, E, A] =
       DynamicNoBox(trace, update, f)
 
     @deprecated("Kept for bin-compat only", "2.1.7")
     final case class Interruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
-        extends UpdateRuntimeFlagsWithin[R, E, A] {
+        extends UpdateRuntimeFlagsBase[R, E, A] {
       def update: RuntimeFlags.Patch = RuntimeFlags.enableInterruption
 
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
     }
     @deprecated("Kept for bin-compat only", "2.1.7")
     final case class Uninterruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
-        extends UpdateRuntimeFlagsWithin[R, E, A] {
+        extends UpdateRuntimeFlagsBase[R, E, A] {
       def update: RuntimeFlags.Patch = RuntimeFlags.disableInterruption
 
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
     }
     @deprecated("Kept for bin-compat only", "2.1.7")
     final case class Dynamic[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: RuntimeFlags => ZIO[R, E, A])
-        extends UpdateRuntimeFlagsWithin[R, E, A] {
+        extends UpdateRuntimeFlagsBase[R, E, A] {
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = f(oldRuntimeFlags)
     }
     final case class DynamicNoBox[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: IntFunction[ZIO[R, E, A]])
-        extends UpdateRuntimeFlagsWithin[R, E, A] {
+        extends UpdateRuntimeFlagsBase[R, E, A] {
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = f(oldRuntimeFlags)
     }
   }
   @deprecated("Kept for binary compatibility only", since = "2.1.15")
-  private[zio] final case class GenerateStackTrace(trace: Trace) extends ZIO[Any, Nothing, StackTrace]
+  private[zio] final case class GenerateStackTrace(trace: Trace) extends Base[Any, Nothing, StackTrace]
   private[zio] final case class Stateful[R, E, A](
     trace: Trace,
     onState: (Fiber.Runtime[E, A], Fiber.Status.Running) => ZIO[R, E, A]
-  ) extends ZIO[R, E, A]
+  ) extends Base[R, E, A]
   private[zio] final case class WhileLoop[R, E, A](
     trace: Trace,
     check: () => Boolean,
     body: () => ZIO[R, E, A],
     process: A => Any
-  ) extends ZIO[R, E, Unit] { self =>
-    val k: ZIO.Continuation = ZIO.Continuation { (element: A) => process(element); self }(trace)
+  ) extends Base[R, E, Unit] { self =>
+    val k: ZIO.Continuation[R, E, Unit] = ZIO.Continuation { (element: A) => process(element); self }(trace)
   }
-  private[zio] final case class YieldNow(trace: Trace, forceAsync: Boolean) extends ZIO[Any, Nothing, Unit]
+  private[zio] final case class YieldNow(trace: Trace, forceAsync: Boolean) extends Base[Any, Nothing, Unit]
 
   sealed trait InterruptibilityRestorer {
     def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
@@ -6716,9 +6717,11 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
 }
 
 object Exit extends Serializable {
+  // abstract class to reduce bytecode size in Success/Failure
+  private[Exit] sealed abstract class Base[+E, +A] extends Exit[E, A]
 
-  final case class Success[+A](value: A)        extends Exit[Nothing, A]
-  final case class Failure[+E](cause: Cause[E]) extends Exit[E, Nothing]
+  final case class Success[+A](value: A)        extends Base[Nothing, A]
+  final case class Failure[+E](cause: Cause[E]) extends Base[E, Nothing]
 
   def interrupt(id: FiberId): Exit[Nothing, Nothing] =
     failCause(Cause.interrupt(id))

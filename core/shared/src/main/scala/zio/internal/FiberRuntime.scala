@@ -46,7 +46,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
-  private var _stack          = null.asInstanceOf[Array[Continuation]]
+  private var _stack          = null.asInstanceOf[Array[Continuation.Erased]]
   private var _stackSize      = 0
   private var _isInterrupted  = false
 
@@ -366,7 +366,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     if (stackLength < size) {
       val newSize = if ((size & (size - 1)) == 0) size else Integer.highestOneBit(size) << 1
 
-      val newStack = new Array[Continuation](newSize)
+      val newStack = new Array[Continuation.Erased](newSize)
 
       java.lang.System.arraycopy(stack, 0, newStack, 0, stackLength)
 
@@ -394,7 +394,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     val supervisor = getSupervisor()
 
     if (supervisor ne Supervisor.none) supervisor.onResume(self)(Unsafe)
-    if (_stack eq null) _stack = new Array[Continuation](FiberRuntime.InitialStackSize)
+    if (_stack eq null) _stack = new Array[Continuation.Erased](FiberRuntime.InitialStackSize)
 
     try {
       var effect    = effect0
@@ -919,7 +919,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   }
 
   @inline
-  private def pushStackFrame(k: Continuation, stackIndex: Int): Int = {
+  private def pushStackFrame(k: Continuation.Erased, stackIndex: Int): Int = {
     val newSize = stackIndex + 1
 
     ensureStackCapacity(newSize)
