@@ -66,6 +66,40 @@ object FiberRuntimeSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("async")(
+      test("async callback after interruption is ignored") {
+        ZIO.suspendSucceed {
+          val executed = Ref.unsafe.make(0)
+          val cb       = Ref.unsafe.make[Option[ZIO[Any, Nothing, Unit] => Unit]](None)
+          val latch    = Promise.unsafe.make[Nothing, Unit](FiberId.None)
+          val async = ZIO.async[Any, Nothing, Unit] { k =>
+            cb.unsafe.set(Some(k))
+            latch.unsafe.done(Exit.unit)
+          }
+          val increment = executed.update(_ + 1)
+          for {
+            fiber          <- async.fork
+            _              <- latch.await
+            exit           <- fiber.interrupt
+            callback       <- cb.get.some
+            state1         <- fiber.poll
+            _              <- ZIO.succeed(callback(increment))
+            state2         <- fiber.poll
+            executedBefore <- executed.get
+            _              <- ZIO.succeed(callback(increment))
+            state3         <- fiber.poll
+            executedAfter  <- executed.get
+          } yield assertTrue(
+            state1 == Some(exit),
+            state2 == Some(exit),
+            state3 == Some(exit),
+            executedBefore == 0,
+            executedAfter == 0,
+            exit.isInterrupted
+          )
+        }
+      } @@ TestAspect.nonFlaky(10)
+    ),
     suite("runtime metrics")(
       test("Failures are counted once for the fiber that caused them and exits are not") {
         val nullErrors = ZIO.foreachParDiscard(1 to 2)(_ => ZIO.attempt(throw new NullPointerException))
