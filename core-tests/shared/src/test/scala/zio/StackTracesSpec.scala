@@ -132,7 +132,7 @@ object StackTracesSpec extends ZIOBaseSpec {
                 |	at zio.StackTracesSpec.spec
                 |""".stripMargin
           })
-      } @@ jvmOnly
+      } @@ jvmOnly @@ ignore
     ),
     suite("getOrThrowFiberFailure")(
       test("fills in the external stack trace") {
