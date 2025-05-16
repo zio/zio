@@ -20,7 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 
-trait ZOutputStream {
+sealed trait ZOutputStream {
   def write(chunk: Chunk[Byte])(implicit trace: Trace): IO[IOException, Unit]
 }
 

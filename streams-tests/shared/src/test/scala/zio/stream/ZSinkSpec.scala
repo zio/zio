@@ -829,7 +829,7 @@ object ZSinkSpec extends ZIOBaseSpec {
       suite("fromQueueWithShutdown")(
         test("should enqueue all elements and shutsdown queue") {
 
-          def createQueueSpy[A](q: Queue[A]) = new Queue[A] {
+          def createQueueSpy[A](q: Queue[A]) = new Queue.Internal[A] {
 
             @volatile
             private var isShutDown = false

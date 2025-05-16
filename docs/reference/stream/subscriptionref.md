@@ -5,6 +5,12 @@ title: "SubscriptionRef"
 
 A `SubscriptionRef[A]` is a `Ref` that lets us subscribe to receive the current value along with all changes to that value.
 
+```scala mdoc:invisible
+object Ref {
+  abstract class Synchronized[A]
+}
+```
+
 ```scala mdoc
 import zio._
 import zio.stream._

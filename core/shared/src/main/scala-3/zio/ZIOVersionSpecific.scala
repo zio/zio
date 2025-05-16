@@ -20,7 +20,8 @@ private[zio] transparent trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, 
     new ProvideSomePartiallyApplied[R0, R, E, A](self)
 
   /**
-   * Same as [[provideSome]], but does not require providing remainder
+   * Equivalent to [[provideSome]], but does not require providing the remainder
+   * type
    *
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???

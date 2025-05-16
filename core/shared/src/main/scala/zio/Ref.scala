@@ -203,7 +203,7 @@ object Ref extends Serializable {
    * semantically block other writers, while multiple readers can read
    * simultaneously.
    */
-  abstract class Synchronized[A] extends Ref[A] {
+  sealed abstract class Synchronized[A] extends Ref[A] {
 
     /**
      * Reads the value from the `Ref`.
@@ -295,6 +295,7 @@ object Ref extends Serializable {
   }
 
   object Synchronized {
+    private[zio] abstract class Internal[A] extends Synchronized[A]
 
     /**
      * Creates a new `Ref.Synchronized` with the specified value.

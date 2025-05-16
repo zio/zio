@@ -6056,7 +6056,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       }
   }
 
-  trait ZIOConstructorLowPriority1 extends ZIOConstructorLowPriority2 {
+  sealed trait ZIOConstructorLowPriority1 extends ZIOConstructorLowPriority2 {
 
     /**
      * Constructs a `ZIO[Any, E, A]` from an `Either[E, A]`.
@@ -6095,7 +6095,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       }
   }
 
-  trait ZIOConstructorLowPriority2 extends ZIOConstructorLowPriority3 {
+  sealed trait ZIOConstructorLowPriority2 extends ZIOConstructorLowPriority3 {
 
     /**
      * Constructs a `ZIO[Any, Throwable, A]` from an `A`.
@@ -6569,10 +6569,15 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   }
 
   final def getOrThrow()(implicit ev: E <:< Throwable, unsafe: Unsafe): A =
-    getOrElse(cause => throw cause.squashTrace)
+    getOrElse(cause => throw cause.traced(externalStackTrace).squashTrace)
 
   final def getOrThrowFiberFailure()(implicit unsafe: Unsafe): A =
-    getOrElse(c => throw FiberFailure(c))
+    getOrElse(cause => throw FiberFailure(cause.traced(externalStackTrace)))
+
+  private def externalStackTrace: StackTrace = {
+    val stackTrace = new Throwable().getStackTrace.dropWhile(_.getClassName.startsWith("zio.Exit"))
+    StackTrace.fromJava(FiberId.None, stackTrace)(Trace.empty)
+  }
 
   /**
    * Determines if the result is a failure.

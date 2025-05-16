@@ -26,7 +26,7 @@ import scala.annotation.tailrec
  * A `Queue` is a lightweight, asynchronous queue into which values can be
  * enqueued and of which elements can be dequeued.
  */
-abstract class Queue[A] extends Dequeue[A] with Enqueue[A] {
+sealed abstract class Queue[A] extends Dequeue.Internal[A] with Enqueue.Internal[A] {
 
   /**
    * Checks whether the queue is currently empty.
@@ -42,6 +42,7 @@ abstract class Queue[A] extends Dequeue[A] with Enqueue[A] {
 }
 
 object Queue extends QueuePlatformSpecific {
+  private[zio] abstract class Internal[A] extends Queue[A]
 
   /**
    * Makes a new bounded queue. When the capacity of the queue is reached, any

@@ -19,7 +19,7 @@ package zio
  * A [[Cached]] is a possibly resourceful value that is loaded into memory, and
  * which can be refreshed either manually or automatically.
  */
-trait Cached[+Error, +Resource] {
+sealed trait Cached[+Error, +Resource] {
 
   /**
    * Retrieves the current value stored in the cache.

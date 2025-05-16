@@ -21,7 +21,7 @@ import zio._
 /**
  * A transactional queue that can only be enqueued.
  */
-trait TEnqueue[-A] extends Serializable {
+sealed trait TEnqueue[-A] extends Serializable {
 
   /**
    * The maximum capacity of the queue.
@@ -72,4 +72,7 @@ trait TEnqueue[-A] extends Serializable {
    */
   def isFull: USTM[Boolean] =
     size.map(_ == capacity)
+}
+private[zio] object TEnqueue {
+  private[zio] trait Internal[-A] extends TEnqueue[A]
 }

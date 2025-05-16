@@ -43,12 +43,21 @@ object SpecLayerMacros {
     Quotes
   ): Expr[Spec[R0, E]] = {
     import quotes.reflect._
-    val expr: Expr[ZLayer[R0, E, ?]] = LayerMacros.constructStaticProvideSomeSharedLayer[R0, R, E](layer)
-    '{
-      // Contract of constructStaticProvideSomeSharedLayer ensures this
-      // I cannot obtain `?` from ZLayer, so I'm using `Any`
-      given <:<[R0 & Any, R] = null
-      $spec.provideSomeLayerShared[R0]($expr)
+    val layerExpr: Expr[ZLayer[R0, E, ?]] = LayerMacros.constructStaticProvideSomeSharedLayer[R0, R, E](layer)
+    layerExpr match {
+      case '{ $layer: ZLayer[in, e, out] } =>
+        /**
+         * Contract of [[zio.internal.macros.LayerBuilder.build]] ensures this
+         */
+        val proof = Expr.summon[(R0 & out) <:< R] match {
+          case Some(e) =>
+            e
+          case None =>
+            report.errorAndAbort(
+              s"Cannot proof that R0 (${Type.show[R0]}) & out (${Type.show[out]}) <:< R (${Type.show[R]})"
+            )
+        }
+        '{ $spec.provideSomeLayerShared[R0]($layer)(using $proof) }
     }
   }
 
