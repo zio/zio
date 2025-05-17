@@ -131,21 +131,37 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
         } @@ TestAspect.jvmOnly +
         suite("OpLog") {
           test("enabled") {
-            val syncEffect               = ZIO.Sync(Trace.empty, () => {})
-            val whileLoopEffect          = ZIO.WhileLoop(Trace.empty, () => true, () => ZIO.succeed(()), (_: Any) => {})
-            val statefulEffect           = ZIO.Stateful(Trace.empty, (_: Any, _) => ZIO.succeed(()))
-            val yieldNowEffect           = ZIO.YieldNow(Trace.empty, forceAsync = true)
-            val flatMapEffect            = ZIO.FlatMap(Trace.empty, ZIO.succeed(()), (_: Any) => ZIO.unit)
-            val updateValue              = RuntimeFlags.enable(RuntimeFlag.Interruption)
-            val updateRuntimeFlagsEffect = ZIO.UpdateRuntimeFlags(Trace.empty, updateValue)
+            val syncEffect = ZIO.Sync(Trace.empty, () => {})
+            val whileLoopEffect = ZIO
+              .WhileLoop[Any, Nothing, Unit](Trace.empty, () => true, () => ZIO.succeed(()), (_: Any) => {})
+            val statefulEffect =
+              ZIO.Stateful[Any, Nothing, Unit](Trace.empty, (_: Any, _) => ZIO.succeed(()))
+            val yieldNowEffect = ZIO.YieldNow(Trace.empty, forceAsync = true)
+            val flatMapEffect =
+              ZIO.FlatMap[Any, Nothing, Unit, Unit](Trace.empty, ZIO.succeed(()), (_: Any) => ZIO.unit)
+            val updateValue = RuntimeFlags.enable(RuntimeFlag.Interruption)
+            val updateRuntimeFlagsEffect =
+              ZIO.UpdateRuntimeFlags(Trace.empty, updateValue)
             val foldZioEffect =
-              ZIO.FoldZIO(Trace.empty, ZIO.succeed(()), (_: Any) => ZIO.succeed(()), (_: Any) => ZIO.fail(()))
-            val asyncEffect = ZIO.Async(Trace.empty, (_: Any) => ZIO.succeed(()), () => FiberId.None)
-            val dynamicNoBoxEffect = ZIO.UpdateRuntimeFlagsWithin.DynamicNoBox(
-              Trace.empty,
-              RuntimeFlags.disable(RuntimeFlag.WindDown),
-              (_: Int) => ZIO.succeed(()): ZIO[Any, E, Unit]
-            )
+              ZIO
+                .FoldZIO[Any, Nothing, Unit, Unit, Unit](
+                  Trace.empty,
+                  ZIO.succeed(()),
+                  (_: Any) => ZIO.succeed(()),
+                  (_: Any) => ZIO.fail(())
+                )
+
+            val asyncEffect = ZIO
+              .Async[Any, Nothing, Unit](Trace.empty, (_: Any) => ZIO.succeed(()), () => FiberId.None)
+
+            val dynamicNoBoxEffect =
+              ZIO.UpdateRuntimeFlagsWithin
+                .DynamicNoBox[Any, Nothing, Unit](
+                  Trace.empty,
+                  updateValue,
+                  (_: Int) => ZIO.succeed(())
+                )
+
             val exitSuccessEffect = Exit.succeed(0)
             val exitFailureEffect = Exit.fail("boom")
 
@@ -156,8 +172,10 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
             assertTrue(ZIO.render(flatMapEffect) == "FlatMap(first=Sync())") &&
             assertTrue(ZIO.render(updateRuntimeFlagsEffect) == s"UpdateRuntimeFlags(update=$updateValue)") &&
             assertTrue(ZIO.render(foldZioEffect) == "FoldZIO(first=Sync())") &&
-            assertTrue(ZIO.render(asyncEffect) == "Async()")
-            assertTrue(ZIO.render(dynamicNoBoxEffect).startsWith("UpdateRuntimeFlagsWithin.DynamicNoBox(update=")) &&
+            assertTrue(ZIO.render(asyncEffect) == "Async()") &&
+            assertTrue(
+              ZIO.render(dynamicNoBoxEffect) == s"UpdateRuntimeFlagsWithin.DynamicNoBox(update=$updateValue)"
+            ) &&
             assertTrue(ZIO.render(exitSuccessEffect) == "Exit.Success(value=0)") &&
             assertTrue(
               ZIO.render(exitFailureEffect) == "Exit.Failure(cause=Fail(boom,Stack trace for thread \"zio-fiber-\":\n))"
