@@ -180,8 +180,7 @@ final case class LayerBuilder[Type, Expr](
         reportBuildErrors(buildErrors)
 
       case Right(tree) =>
-        // TODO: Write some tests for previous implementation and prepare new implementation based on them
-//        warnUnused(tree)
+        warnUnused(tree)
         maybeDebug.foreach(debugLayer(_, tree))
         val finalTree = if (method.isProvideSomeShared) {
           expandRin(foldTree(tree), optionalInputs)
