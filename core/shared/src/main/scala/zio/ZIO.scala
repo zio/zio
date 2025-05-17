@@ -6396,6 +6396,36 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           }
         }
     }
+
+  def render(zio: ZIO.Erased): String =
+    zio match {
+      case Sync(_, _)                    => s"Sync()"
+      case WhileLoop(_, _, _, _)         => s"WhileLoop()"
+      case Stateful(_, _)                => s"Stateful()"
+      case GenerateStackTrace(_)         => s"GenerateStackTrace()"
+      case YieldNow(_, forceAsync)       => s"YieldNow(forceAsync=$forceAsync)"
+      case FlatMap(_, first, _)          => s"FlatMap(first=${render(first)})"
+      case UpdateRuntimeFlags(_, update) => s"UpdateRuntimeFlags(update=$update)"
+      case FoldZIO(_, first, _, _)       => s"FoldZIO(first=${render(first)})"
+      case Async(_, _, _)                => s"Async()"
+      case within: UpdateRuntimeFlagsWithin[_, _, _] =>
+        within match {
+          case UpdateRuntimeFlagsWithin.Interruptible(_, effect) =>
+            s"UpdateRuntimeFlagsWithin.Interruptible(effect=$effect)"
+          case UpdateRuntimeFlagsWithin.Uninterruptible(_, effect) =>
+            s"UpdateRuntimeFlagsWithin.Uninterruptible(effect=$effect)"
+          case UpdateRuntimeFlagsWithin.Dynamic(_, update, _) =>
+            s"UpdateRuntimeFlagsWithin.Dynamic(update=$update)"
+          case UpdateRuntimeFlagsWithin.DynamicNoBox(_, update, _) =>
+            s"UpdateRuntimeFlagsWithin.DynamicNoBox(update=$update)"
+        }
+      case exit: Exit[_, _] =>
+        exit match {
+          case Exit.Success(value) => s"Exit.Success(value=$value)"
+          case Exit.Failure(cause) => s"Exit.Failure(cause=$cause)"
+        }
+      case _ => "Operation Not Found"
+    }
 }
 
 /**
