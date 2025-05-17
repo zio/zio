@@ -27,7 +27,7 @@ import scala.collection.immutable.LongMap
  * to the scope, and `close`, which closes a scope and runs all finalizers that
  * have been added to the scope.
  */
-trait Scope extends Serializable { self =>
+sealed trait Scope extends Serializable { self =>
 
   /**
    * Adds a finalizer to this scope. The finalizer is guaranteed to be run when

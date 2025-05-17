@@ -21,7 +21,7 @@ import zio._
 /**
  * A transactional queue that can only be dequeued.
  */
-trait TDequeue[+A] extends Serializable {
+sealed trait TDequeue[+A] extends Serializable {
 
   /**
    * The maximum capacity of the queue.
@@ -137,4 +137,7 @@ trait TDequeue[+A] extends Serializable {
    */
   final def takeN(n: Int): ZSTM[Any, Nothing, Chunk[A]] =
     takeBetween(n, n)
+}
+private[zio] object TDequeue {
+  private[zio] trait Internal[+A] extends TDequeue[A]
 }

@@ -6191,7 +6191,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   private def mapDequeue[A, B](dequeue: Dequeue[A])(f: A => B): Dequeue[B] =
-    new Dequeue[B] {
+    new Dequeue.Internal[B] {
       def awaitShutdown(implicit trace: Trace): UIO[Unit] =
         dequeue.awaitShutdown
       def capacity: Int =
