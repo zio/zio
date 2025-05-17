@@ -4,9 +4,10 @@ import zio.ZIO.Async
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.targetName
 
-transparent trait ZIOCompanionVersionSpecific {
+private[zio] transparent trait ZIOCompanionVersionSpecific {
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -51,22 +52,15 @@ transparent trait ZIOCompanionVersionSpecific {
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.suspendSucceed {
-      val cancelerRef = new java.util.concurrent.atomic.AtomicReference[URIO[R, Any]](ZIO.unit)
+      val state = new AtomicReference[URIO[R, Any]](Exit.unit) with ((ZIO[R, E, A] => Unit) => ZIO[R, E, A]) {
+        def apply(k: ZIO[R, E, A] => Unit): ZIO[R, E, A] =
+          register(using Unsafe)(k(_)) match {
+            case Left(canceler) => set(canceler); null.asInstanceOf[ZIO[R, E, A]]
+            case Right(done)    => done
+          }
+      }
 
-      ZIO
-        .Async[R, E, A](
-          trace,
-          { k =>
-            val result = register(using Unsafe)(k(_))
-
-            result match {
-              case Left(canceler) => cancelerRef.set(canceler); null.asInstanceOf[ZIO[R, E, A]]
-              case Right(done)    => done
-            }
-          },
-          () => blockingOn
-        )
-        .onInterrupt(cancelerRef.get())
+      ZIO.Async[R, E, A](trace, state, () => blockingOn).onInterrupt(state.get())
     }
 
   /**
@@ -210,12 +204,12 @@ transparent trait ZIOCompanionVersionSpecific {
 
   @targetName("succeed")
   @deprecated("use succeed", "2.1.7")
-  def _succeedCompat[A](a: Unsafe ?=> A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
+  private[zio] def _succeedCompat[A](a: Unsafe ?=> A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
     succeed(a)
 
   @targetName("succeedBlocking")
   @deprecated("use succeedBlocking", "2.1.7")
-  def _succeedBlockingCompat[A](a: Unsafe ?=> A)(implicit trace: Trace): UIO[A] =
+  private[zio] def _succeedBlockingCompat[A](a: Unsafe ?=> A)(implicit trace: Trace): UIO[A] =
     ZIO.blocking(ZIO.succeed(a))
 
 }

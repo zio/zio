@@ -16,10 +16,38 @@ private[zio] object LayerMacroUtils {
   )(using Trace): ZLayer[R1, E, O2] =
     lhs >>> rhs
 
-  def constructLayer[R0: Type, R: Type, E: Type](using Quotes)(
+  def constructStaticLayer[R0: Type, R: Type, E: Type](using Quotes)(
     layers: Seq[LayerExpr[E]],
     provideMethod: ProvideMethod
   ): Expr[ZLayer[R0, E, R]] = {
+    import quotes.reflect._
+
+    constructTypelessLayer[R0, R, E](layers, provideMethod, false).asExprOf[ZLayer[R0, E, R]]
+  }
+
+  def constructStaticSomeLayer[R0: Type, R: Type, E: Type](using Quotes)(
+    layers: Seq[LayerExpr[E]],
+    provideMethod: ProvideMethod
+  ): Expr[ZLayer[R0, E, _]] = {
+    import quotes.reflect._
+
+    constructTypelessLayer[R0, R, E](layers, provideMethod, false).asExprOf[ZLayer[R0, E, _]]
+  }
+
+  def constructDynamicLayer[R: Type, E: Type](using Quotes)(
+    layers: Seq[LayerExpr[E]],
+    provideMethod: ProvideMethod
+  ): Expr[ZLayer[_, E, R]] = {
+    import quotes.reflect._
+
+    constructTypelessLayer[Nothing, R, E](layers, provideMethod, true).asExprOf[ZLayer[_, E, R]]
+  }
+
+  private def constructTypelessLayer[R0: Type, R: Type, E: Type](using Quotes)(
+    layers: Seq[LayerExpr[E]],
+    provideMethod: ProvideMethod,
+    inferRemainder: Boolean
+  ): Expr[ZLayer[_, _, _]] = {
     import quotes.reflect._
 
     def renderExpr[A](expr: Expr[A]): String =
@@ -88,9 +116,15 @@ private[zio] object LayerMacroUtils {
             .asExprOf[ZLayer[_, E, _]]
         }
 
+        val remainder = if (inferRemainder) {
+          RemainderMethod.Inferred
+        } else {
+          RemainderMethod.Provided(getRequirements[R0])
+        }
+
         val builder = LayerBuilder[TypeRepr, LayerExpr[E]](
           target0 = getRequirements[R],
-          remainder = getRequirements[R0],
+          remainder = remainder,
           providedLayers0 = layers.toList,
           layerToDebug = layerToDebug,
           typeEquals = _ <:< _,
@@ -106,7 +140,7 @@ private[zio] object LayerMacroUtils {
           reportError = report.errorAndAbort
         )
 
-        builder.build.asTerm.asExprOf[ZLayer[R0, E, R]]
+        builder.build.asTerm.asExprOf[ZLayer[_, _, _]]
       }
     }
   }

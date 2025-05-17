@@ -24,6 +24,7 @@ import scala.concurrent.Future
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
  */
+@deprecatedInheritance("Use Runtime.apply", since = "2.1.18")
 trait Runtime[+R] { self =>
 
   /**
@@ -153,8 +154,6 @@ trait Runtime[+R] { self =>
 
       if (supervisor ne Supervisor.none) {
         supervisor.onStart(environment, zio, None, fiber)
-
-        fiber.addObserver(exit => supervisor.onEnd(exit, fiber))
       }
 
       val exit = fiber.start[R](zio)
@@ -201,8 +200,6 @@ trait Runtime[+R] { self =>
 
       if (supervisor ne Supervisor.none) {
         supervisor.onStart(environment, zio, None, fiber)
-
-        fiber.addObserver(exit => supervisor.onEnd(exit, fiber))
       }
 
       fiber

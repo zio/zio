@@ -20,8 +20,24 @@ object MimaSettings {
         exclude[ReversedMissingMethodProblem]("zio.Fiber#Runtime#UnsafeAPI.zio$Fiber$Runtime$UnsafeAPI$$$outer"),
         exclude[FinalClassProblem]("zio.ZPool$DefaultPool"),
         exclude[DirectMissingMethodProblem]("zio.ZPool#DefaultPool.invalidated"),
-        exclude[ReversedMissingMethodProblem]("zio.Scope#ReleaseMap.size"),
-        exclude[ReversedMissingMethodProblem]("zio.Scope#Closeable.size")
+        exclude[ReversedMissingMethodProblem]("zio.Scope#Closeable.size"),
+        exclude[Problem]("zio.Scope#ReleaseMap*"),
+        exclude[Problem]("zio.Scope$ReleaseMap*"),
+        exclude[MissingClassProblem]("zio.Scope$Running*"),
+        exclude[MissingClassProblem]("zio.Scope$Exited*"),
+        exclude[Problem]("zio.Scope$State$Exited*"),
+        exclude[Problem]("zio.Scope#State#Exited*"),
+        exclude[NewMixinForwarderProblem]("zio.Exit.as"),
+        exclude[NewMixinForwarderProblem]("zio.Exit.fold"),
+        exclude[NewMixinForwarderProblem]("zio.Exit.foldCause"),
+        exclude[NewMixinForwarderProblem]("zio.Exit.map"),
+        exclude[NewMixinForwarderProblem]("zio.Exit.mapBoth"),
+        exclude[NewMixinForwarderProblem]("zio.Exit.mapError"),
+        exclude[NewMixinForwarderProblem]("zio.Exit.mapErrorCause"),
+        exclude[NewMixinForwarderProblem]("zio.Exit.unit"),
+        exclude[Problem]("zio.Promise#internal*"),
+        exclude[Problem]("zio.Promise$internal*"),
+        exclude[Problem]("zio.Queue#Strategy*.shutdown")
       ),
       mimaFailOnProblem := failOnProblem
     )

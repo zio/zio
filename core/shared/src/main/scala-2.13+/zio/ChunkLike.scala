@@ -32,7 +32,7 @@ import scala.reflect.ClassTag
  *
  * Note that `IndexedSeq` is not a referentially transparent interface in that
  * it exposes methods that are partial (e.g. `apply`), allocate mutable state
- * (e.g. `iterator`), or are purely side effecting (e.g. `foreach`). `Chunk`
+ * (e.g. `iterator`), or are purely side effecting (e.g. `foreach`). `ChunkLike`
  * extends `IndexedSeq` to provide interoperability with Scala's collection
  * library but users should avoid these methods whenever possible.
  */
@@ -41,6 +41,10 @@ trait ChunkLike[+A]
     with IndexedSeqOps[A, Chunk, Chunk[A]]
     with StrictOptimizedSeqOps[A, Chunk, Chunk[A]]
     with IterableFactoryDefaults[A, Chunk] { self: Chunk[A] =>
+
+  // this weird () is there to trigger the create of synthetic method $init$ and maintain binary compatibility
+  // removing it should trigger a mima failure
+  ()
 
   override final def appended[A1 >: A](a1: A1): Chunk[A1] =
     append(a1)
@@ -111,7 +115,7 @@ trait ChunkLike[+A]
    * exposes a `newBuilder` method that is not referentially transparent because
    * it allocates mutable state.
    */
-  override val iterableFactory: SeqFactory[Chunk] =
+  override def iterableFactory: SeqFactory[Chunk] =
     Chunk
 
   /**

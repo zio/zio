@@ -4,7 +4,7 @@ import zio._
 
 import zio.internal.macros.LayerMacros
 
-trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A] =>
+private[managed] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A] =>
 
   /**
    * Splits the environment into two parts, assembling one part using the
@@ -41,7 +41,7 @@ object ZManagedMacros {
     schedule: Expr[ZManaged[R, E, A]],
     layer: Expr[Seq[ZLayer[_, E, _]]]
   )(using Quotes): Expr[ZManaged[R0, E, A]] = {
-    val layerExpr = LayerMacros.constructLayer[R0, R, E](layer)
+    val layerExpr = LayerMacros.constructStaticProvideLayer[R0, R, E](layer)
     '{
       $schedule.provideLayer($layerExpr.asInstanceOf[ZLayer[R0, E, R]])
     }

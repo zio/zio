@@ -1,6 +1,9 @@
 package zio
 
+import zio.Random.RandomLive
 import zio.internal.FiberScope
+import zio.metrics.Metric
+import zio.test.TestAspect.{nonFlaky, timeout}
 import zio.test._
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -62,6 +65,76 @@ object FiberRuntimeSpec extends ZIOBaseSpec {
             }
         }
       }
+    ),
+    suite("async")(
+      test("async callback after interruption is ignored") {
+        ZIO.suspendSucceed {
+          val executed = Ref.unsafe.make(0)
+          val cb       = Ref.unsafe.make[Option[ZIO[Any, Nothing, Unit] => Unit]](None)
+          val latch    = Promise.unsafe.make[Nothing, Unit](FiberId.None)
+          val async = ZIO.async[Any, Nothing, Unit] { k =>
+            cb.unsafe.set(Some(k))
+            latch.unsafe.done(Exit.unit)
+          }
+          val increment = executed.update(_ + 1)
+          for {
+            fiber          <- async.fork
+            _              <- latch.await
+            exit           <- fiber.interrupt
+            callback       <- cb.get.some
+            state1         <- fiber.poll
+            _              <- ZIO.succeed(callback(increment))
+            state2         <- fiber.poll
+            executedBefore <- executed.get
+            _              <- ZIO.succeed(callback(increment))
+            state3         <- fiber.poll
+            executedAfter  <- executed.get
+          } yield assertTrue(
+            state1 == Some(exit),
+            state2 == Some(exit),
+            state3 == Some(exit),
+            executedBefore == 0,
+            executedAfter == 0,
+            exit.isInterrupted
+          )
+        }
+      } @@ TestAspect.nonFlaky(10)
+    ),
+    suite("runtime metrics")(
+      test("Failures are counted once for the fiber that caused them and exits are not") {
+        val nullErrors = ZIO.foreachParDiscard(1 to 2)(_ => ZIO.attempt(throw new NullPointerException))
+
+        val customErrors =
+          ZIO.foreachParDiscard(1 to 5)(_ => ZIO.fail("Custom application error"))
+
+        val exitErrors =
+          ZIO.foreachParDiscard(1 to 5)(_ => Exit.fail(new IllegalArgumentException("Foo")))
+
+        (nullErrors <&> exitErrors <&> customErrors).uninterruptible
+          .foldCauseZIO(
+            _ =>
+              Metric.runtime.fiberFailureCauses.value
+                .map(_.occurrences)
+                // NOTE: Fibers in foreachParDiscard register metrics at the very end of the fiber's life which might be after we check them
+                // so we might need to retry until they are registered
+                .repeatUntil { oc =>
+                  oc.size >= 2 &&
+                  oc.getOrElse("java.lang.String", 0L) >= 5L &&
+                  oc.getOrElse("java.lang.NullPointerException", 0L) >= 2L
+                }
+                .map { oc =>
+                  assertTrue(
+                    oc.size == 2,
+                    oc.get("java.lang.String").contains(5),
+                    oc.get("java.lang.NullPointerException").contains(2)
+                  )
+                },
+            _ => ZIO.succeed(assertNever("Effect did not fail"))
+          )
+          .provide(Runtime.enableRuntimeMetrics) @@
+          // Need to tag them to extract metrics from this specific effect
+          ZIOAspect.tagged("FiberRuntimeSpec" -> RandomLive.unsafe.nextString(20))
+      } @@ nonFlaky(1000) @@ timeout(10.seconds)
     )
   )
 

@@ -214,7 +214,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % IzumiReflectVersion)
+  .settings(
+    libraryDependencies ++= List(
+      "dev.zio"                %%% "izumi-reflect"           % IzumiReflectVersion,
+      "org.scala-lang.modules" %%% "scala-collection-compat" % ScalaCollectionCompatVersion
+    )
+  )
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
   .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
@@ -538,10 +543,10 @@ lazy val commonJunitTestSettings = Seq(
     "org.apache.maven"          % "maven-compat"                   % "3.9.9"  % Test,
     "com.google.inject"         % "guice"                          % "6.0.0"  % Test,
     "org.eclipse.sisu"          % "org.eclipse.sisu.inject"        % "0.3.5"  % Test,
-    "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.22" % Test,
-    "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.22" % Test,
+    "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.23" % Test,
+    "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.23" % Test,
     "org.codehaus.plexus"       % "plexus-component-annotations"   % "2.2.0"  % Test,
-    "org.slf4j"                 % "slf4j-simple"                   % "2.0.16" % Test
+    "org.slf4j"                 % "slf4j-simple"                   % "2.0.17" % Test
   )
 )
 
@@ -568,12 +573,7 @@ lazy val testJunitRunnerTests = project.module
 lazy val testJunitEngine = project.module
   .in(file("test-junit-engine"))
   .settings(stdSettings("zio-test-junit-engine"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.junit.platform"      % "junit-platform-engine"   % JunitPlatformEngineVersion,
-      "org.scala-lang.modules" %% "scala-collection-compat" % ScalaCollectionCompatVersion
-    )
-  )
+  .settings(libraryDependencies += "org.junit.platform" % "junit-platform-engine" % JunitPlatformEngineVersion)
   .dependsOn(tests.jvm)
 
 lazy val testJunitEngineTests = project.module
@@ -652,14 +652,14 @@ lazy val benchmarks = project.module
         "com.twitter"               %% "util-core"     % "24.2.0",
         "com.typesafe.akka"         %% "akka-stream"   % "2.8.8",
         "io.github.timwspence"      %% "cats-stm"      % "0.13.4",
-        "io.projectreactor"          % "reactor-core"  % "3.7.0",
+        "io.projectreactor"          % "reactor-core"  % "3.7.6",
         "io.reactivex.rxjava2"       % "rxjava"        % "2.2.21",
         "org.jctools"                % "jctools-core"  % "4.0.5",
         "org.typelevel"             %% "cats-effect"   % CatsEffectVersion,
         "org.scalacheck"            %% "scalacheck"    % ScalaCheckVersion,
-        "qa.hedgehog"               %% "hedgehog-core" % "0.11.0",
+        "qa.hedgehog"               %% "hedgehog-core" % "0.12.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % nyanaVersion,
-        "org.springframework"        % "spring-core"   % "6.2.0"
+        "org.springframework"        % "spring-core"   % "6.2.7"
       )
     },
     excludeDependencies ++= {
@@ -772,6 +772,9 @@ lazy val docs_make_zio_app_configurable =
         "io.getquill"   %% "quill-zio"      % QuillVersion,
         "io.getquill"   %% "quill-jdbc-zio" % QuillVersion,
         "com.h2database" % "h2"             % "2.3.232"
+      ),
+      dependencyOverrides ++= Seq(
+        `zio-json`
       )
     )
     .dependsOn(core.jvm, streams.jvm)
@@ -867,17 +870,14 @@ lazy val docs = project.module
       "com.github.poslegm"    %% "munit-zio"                 % "0.3.0",
       "nl.vroste"             %% "rezilience"                % "0.10.3",
       "io.github.gaelrenoux"  %% "tranzactio"                % "4.2.0",
-      "io.github.neurodyne"   %% "zio-arrow"                 % "0.2.1",
       "nl.vroste"             %% "zio-amqp"                  % "0.5.0",
 //      "dev.zio"                       %% "zio-aws-core"                  % "5.17.102.7",
 //      "dev.zio"                       %% "zio-aws-ec2"                   % "5.17.102.7",
 //      "dev.zio"                       %% "zio-aws-elasticbeanstalk"      % "5.17.102.7",
 //      "dev.zio"                       %% "zio-aws-netty"                 % "5.17.102.7",
-      "io.github.neurodyne"           %% "zio-aws-s3"                    % "0.4.13",
       "com.coralogix"                 %% "zio-k8s-client"                % "3.1.0",
       "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.10.1",
       "nl.vroste"                     %% "zio-kinesis"                   % "0.35.0",
-      "com.vladkopanev"               %% "zio-saga-core"                 % "0.6.0",
       "io.scalac"                     %% "zio-slick-interop"             % "0.6.0",
       "com.typesafe.slick"            %% "slick-hikaricp"                % "3.5.2",
       "info.senia"                    %% "zio-test-akka-http"            % "2.0.14",
@@ -893,6 +893,9 @@ lazy val docs = project.module
       "com.devsisters"                %% "shardcake-serialization-kryo"  % ShardcakeVersion,
       "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core"                 % "0.6.3",
       "dev.hnaderi"                   %% "scala-k8s-zio"                 % "0.20.1"
+    ),
+    dependencyOverrides ++= Seq(
+      `zio-json`
     ),
     resolvers += "Confluent" at "https://packages.confluent.io/maven",
     fork           := true,

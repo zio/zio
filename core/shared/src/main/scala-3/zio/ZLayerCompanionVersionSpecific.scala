@@ -5,15 +5,15 @@ import scala.deriving._
 
 final class WirePartiallyApplied[R](val dummy: Boolean = true) extends AnyVal {
   inline def apply[E](inline layer: ZLayer[_, E, _]*): ZLayer[Any, E, R] =
-    ${ LayerMacros.constructLayer[Any, R, E]('layer) }
+    ${ LayerMacros.constructStaticProvideLayer[Any, R, E]('layer) }
 }
 
 final class WireSomePartiallyApplied[R0, R](val dummy: Boolean = true) extends AnyVal {
   inline def apply[E](inline layer: ZLayer[_, E, _]*): ZLayer[R0, E, R] =
-    ${ LayerMacros.constructLayer[R0, R, E]('layer) }
+    ${ LayerMacros.constructStaticProvideSomeLayer[R0, R, E]('layer) }
 }
 
-transparent trait ZLayerCompanionVersionSpecific {
+private[zio] transparent trait ZLayerCompanionVersionSpecific {
 
   /**
    * Automatically assembles a layer for the provided type.

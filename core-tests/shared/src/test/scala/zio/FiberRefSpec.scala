@@ -101,6 +101,15 @@ object FiberRefSpec extends ZIOBaseSpec {
           value      <- fiberRef.get
         } yield assert(localValue)(equalTo(update)) && assert(value)(equalTo(initial))
       },
+      test("`locally` restores parent's value after timeout") {
+        for {
+          fiberRef <- FiberRef.make(initial)
+          child    <- fiberRef.locally(update)(ZIO.never).timeout(1.second).fork
+          _        <- TestClock.adjust(1.second)
+          _        <- child.join
+          value    <- fiberRef.get
+        } yield assert(value)(equalTo(initial))
+      },
       test("`modify` changes value") {
         for {
           fiberRef <- FiberRef.make(initial)
@@ -452,7 +461,56 @@ object FiberRefSpec extends ZIOBaseSpec {
         _        <- promise.succeed(child2)
         value    <- child1.join
       } yield assertTrue(value)
-    }
+    },
+    suite("hasIdentityFork & hasSecondFnJoin")(
+      test("ZIO-provided refs") {
+        val shouldBeTrue = List(
+          FiberRef.currentLogLevel,
+          FiberRef.currentLogSpan,
+          FiberRef.currentLogAnnotations,
+          FiberRef.currentTags,
+          FiberRef.overrideExecutor,
+          FiberRef.currentEnvironment,
+          FiberRef.currentBlockingExecutor,
+          FiberRef.currentFatal,
+          FiberRef.currentFiberIdGenerator,
+          FiberRef.currentLoggers,
+          FiberRef.currentReportFatal,
+          FiberRef.currentRuntimeFlags,
+          FiberRef.currentSupervisor,
+          FiberRef.unhandledErrorLogLevel
+        )
+        val shouldBeFalse = List(
+          FiberRef.forkScopeOverride,
+          FiberRef.interruptedCause
+        )
+        assertTrue(
+          shouldBeTrue.forall(_.hasIdentityFork),
+          shouldBeTrue.forall(_.hasSecondFnJoin),
+          !shouldBeFalse.exists(_.hasIdentityFork),
+          !shouldBeFalse.exists(_.hasSecondFnJoin)
+        )
+      },
+      test("user-defined ref") {
+        implicit val unsafe: Unsafe = Unsafe
+
+        val ref1 = FiberRef.unsafe.make[String]("foo")
+        val ref2 = FiberRef.unsafe.make[String]("foo", fork = _ => "foo")
+        val ref3 = FiberRef.unsafe.make[String]("foo", join = (l, r) => l + r)
+        val ref4 = FiberRef.unsafe.make[String]("foo", fork = _ => "foo", join = (l, r) => l + r)
+
+        assertTrue(
+          ref1.hasIdentityFork,
+          ref1.hasSecondFnJoin,
+          !ref2.hasIdentityFork,
+          ref2.hasSecondFnJoin,
+          ref3.hasIdentityFork,
+          !ref3.hasSecondFnJoin,
+          !ref4.hasIdentityFork,
+          !ref4.hasSecondFnJoin
+        )
+      }
+    )
   ) @@ TestAspect.fromLayer(Runtime.enableCurrentFiber) @@ TestAspect.sequential
 }
 

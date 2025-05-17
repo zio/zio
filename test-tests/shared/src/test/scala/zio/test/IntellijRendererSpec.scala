@@ -29,6 +29,9 @@ object IntellijRendererSpec extends ZIOBaseSpec {
       test("correctly reports empty test suite") {
         runLog(suite4).map(res => suite4Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
       },
+      test("nested suite with sequential tests") {
+        runLog(suite5).map(res => suite5Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
+      },
       test("correctly reports failure of simple assertion") {
         runLog(test5).map(res => test5Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
       },
@@ -90,6 +93,15 @@ object IntellijRendererSpec extends ZIOBaseSpec {
   ) ++ suite1Expected ++ Vector(suiteStarted("Empty"), suiteFinished("Empty")) ++
     test3Expected ++ Vector(suiteFinished("Suite4"))
 
+  def suite5Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
+    suiteStarted("Suite1"),
+    suiteStarted("Suite2"),
+    testStarted("Test1"),
+    testFinished("Test1"),
+    suiteFinished("Suite2"),
+    suiteFinished("Suite1")
+  )
+
   def test5Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("Addition works fine"),
     testFailed(
@@ -125,13 +137,26 @@ object IntellijRendererSpec extends ZIOBaseSpec {
     testFailed(
       "labeled failures",
       Vector(
-        withOffset(2)("✗ 0 was not equal to 1\n"),
-        withOffset(2)("third\n"),
-        withOffset(2)("c did not satisfy isSome(equalTo(1)).label(\"third\")\n"),
-        withOffset(2)("isSome = 0\n"),
-        withOffset(2)("c = Some(0)\n"),
-        withOffset(2)(assertSourceLocation()),
-        "\n"
+        """  ✗ Option was None
+          |  someB
+          |  b did not satisfy isSome(equalTo(1).label("eqB")).label("someB")
+          |  b = None
+          |""".stripMargin,
+        withOffset(2)(assertSourceLocation()) + '\n',
+        """  ✗ 0 was not equal to 1
+          |  eqC
+          |  c did not satisfy isSome(equalTo(1).label("eqC")).label("someC")
+          |  isSome = 0
+          |  c = Some(0)
+          |""".stripMargin,
+        withOffset(2)(assertSourceLocation()) + '\n',
+        """  ✗ 0 was not equal to 1
+          |  lblD
+          |  d did not satisfy isSome(equalTo(1))
+          |  isSome = 0
+          |  d = Some(0)
+          |""".stripMargin,
+        withOffset(2)(assertSourceLocation()) + '\n'
       )
     )
   )

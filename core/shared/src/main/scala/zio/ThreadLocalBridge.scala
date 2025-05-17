@@ -5,7 +5,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicReference
 
-trait ThreadLocalBridge {
+sealed trait ThreadLocalBridge {
   def makeFiberRef[A](initialValue: A)(link: A => Unit): ZIO[Scope, Nothing, FiberRef[A]]
 }
 
@@ -41,7 +41,8 @@ object ThreadLocalBridge {
 
   private class FiberRefTrackingSupervisor extends Supervisor[Unit] {
 
-    private val trackedRefs: Ref.Atomic[Set[(FiberRef[_], Any => Unit)]] = Ref.Atomic(new AtomicReference(Set.empty))
+    private val trackedRefs: Ref.Atomic[Set[(FiberRef[_], Any => Unit)]] =
+      Ref.unsafe.make(Set.empty[(FiberRef[_], Any => Unit)])(Unsafe)
 
     override def value(implicit trace: Trace): UIO[Unit] = ZIO.unit
 

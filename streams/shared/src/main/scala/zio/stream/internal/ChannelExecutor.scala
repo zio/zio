@@ -8,7 +8,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable.Stack
 
-private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   initialChannel: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
   @volatile private var providedEnv: ZEnvironment[Any],
   executeCloseLastSubstream: URIO[Env, Any] => URIO[Env, Any]
@@ -21,7 +21,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
     val currInput = input
     input = prev
 
-    if (currInput ne null) currInput.close(exit) else ZIO.unit
+    if (currInput ne null) currInput.close(exit) else Exit.unit
   }
 
   private[this] final def popAllFinalizers(
@@ -176,12 +176,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
               leftExec.input = previousInput
               input = leftExec
 
-              addFinalizer { exit =>
-                val effect = restorePipe(exit, previousInput)
-
-                if (effect ne null) effect
-                else ZIO.unit
-              }
+              addFinalizer(exit => restorePipe(exit, previousInput))
 
               currentChannel = right().asInstanceOf[Channel[Env]]
 
@@ -247,26 +242,20 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
             case ZChannel.DeferedUpstream(mkChannel) =>
               val inpAsChannel: ZChannel[Env, Any, Any, Any, Any, Any, Any] = execToPullingChannel(input)
 
-              //when input's provided env is null, we have to explicitly provide it with the 'outer' env
-              //otherwise any env provided by downstream will override the 'correct' env when the input channel executes effects.
-              val nextChannel: Channel[Env] = {
+              // when input's provided env is null, we have to explicitly provide it with the 'outer' env
+              // otherwise any env provided by downstream will override the 'correct' env when the input channel executes effects.
+              val nextChannel: Channel[Env] =
                 if (null != input.providedEnv)
                   mkChannel(inpAsChannel.asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]])
                 else
-                  ZChannel //todo: can we eliminate the effect evaluation here? i.e. by usingFiber.currentFiber()
+                  ZChannel // todo: can we eliminate the effect evaluation here? i.e. by usingFiber.currentFiber()
                     .environmentWithChannel[Env] { env =>
                       mkChannel(inpAsChannel.provideEnvironment(env))
                     }
-              }
 
               val previousInput = input
               input = null
-              addFinalizer { exit =>
-                val effect = restorePipe(exit, previousInput)
-
-                if (effect ne null) effect
-                else ZIO.unit
-              }
+              addFinalizer(exit => restorePipe(exit, previousInput))
               currentChannel = nextChannel
 
             case ZChannel.Bridge(bridgeInput, channel) =>
@@ -312,16 +301,8 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
                   }
 
                 result = ChannelState.Effect(
-                  drainer.forkDaemon.flatMap { fiber =>
-                    ZIO.succeed(addFinalizer { exit =>
-                      fiber.interrupt *>
-                        ZIO.suspendSucceed {
-                          val effect = restorePipe(exit, inputExecutor)
-
-                          if (effect ne null) effect
-                          else ZIO.unit
-                        }
-                    })
+                  drainer.forkDaemon.map { fiber =>
+                    addFinalizer(exit => fiber.interrupt *> restorePipe(exit, inputExecutor))
                   }
                 )
               }
@@ -469,8 +450,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
   ): URIO[Env, Any] =
     if (finalizers.isEmpty) null
     else
-      ZIO
-        .foreach(finalizers)(_.apply(ex).exit)
+      provide(ZIO.foreach(finalizers)(_.apply(ex).exit))
         .map(results => Exit.collectAll(results) getOrElse Exit.unit)
         .unexit
 
@@ -1000,10 +980,16 @@ private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
 
 private[zio] object SingleProducerAsyncInput {
   def make[Err, Elem, Done](implicit trace: Trace): UIO[SingleProducerAsyncInput[Err, Elem, Done]] =
-    Promise
-      .make[Nothing, Unit]
-      .flatMap(p => Ref.make[State[Err, Elem, Done]](State.Empty(p)))
-      .map(new SingleProducerAsyncInput(_))
+    ZIO.fiberIdWith(fiberId => ZIO.succeed(unsafe.make(fiberId)(Unsafe)))
+
+  object unsafe {
+    def make[Err, Elem, Done](fiberId: FiberId)(implicit unsafe: Unsafe): SingleProducerAsyncInput[Err, Elem, Done] = {
+      val promise: Promise[Nothing, Unit]      = Promise.unsafe.make[Nothing, Unit](fiberId)
+      val initialState: State[Err, Elem, Done] = State.Empty[Err, Elem, Done](promise)
+      val ref: Ref[State[Err, Elem, Done]]     = Ref.unsafe.make(initialState)
+      new SingleProducerAsyncInput[Err, Elem, Done](ref)
+    }
+  }
 
   sealed trait State[Err, Elem, Done]
   object State {

@@ -19,7 +19,7 @@ package zio
 /**
  * A queue that can only be enqueued.
  */
-trait Enqueue[-A] extends Serializable {
+sealed trait Enqueue[-A] extends Serializable {
 
   /**
    * Waits until the queue is shutdown. The `IO` returned by this method will
@@ -86,4 +86,7 @@ trait Enqueue[-A] extends Serializable {
    */
   def isFull(implicit trace: Trace): UIO[Boolean] =
     size.map(_ >= capacity)
+}
+private[zio] object Enqueue {
+  private[zio] trait Internal[-A] extends Enqueue[A]
 }

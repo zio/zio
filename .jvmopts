@@ -1,1 +1,5 @@
 -Dcats.effect.stackTracingMode=full
+-Dfile.encoding=UTF8
+-Xms256M
+-Xmx6G
+-XX:+UseG1GC

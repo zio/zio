@@ -87,6 +87,19 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assertTrue(zio.Duration.fromNanos(1000) == zio.Duration.Zero)
       }
     ) @@ failing,
+    suite("class constructors")(
+      test("string constructor") {
+        val bytes: Array[Byte] = "test".getBytes
+        assertTrue(new String(bytes) == "test")
+      },
+      test("class constructor") {
+        assertTrue(new Service("serviceName").name == "serviceName")
+      },
+      test("generic class contructor") {
+        assertTrue(new GenericService[Int](52).value == 52) &&
+        assertTrue(new GenericService(52).value == 52)
+      }
+    ),
     suite("contains")(
       test("Option") {
         assertTrue(company.users.head.posts.head.publishDate.contains(LocalDateTime.MAX))
@@ -251,6 +264,13 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       assertTrue(a <= bL) && assertTrue(aL <= b) &&
       assertTrue(b > aL) && assertTrue(bL > a) &&
       assertTrue(b >= aL) && assertTrue(bL >= a)
+    },
+    test("comparison compiles when comparing types with ops implicit class containing compare operation") {
+      import java.time.temporal.ChronoUnit._
+
+      val duration = Duration(500, MILLIS)
+      assertTrue(duration < Duration(1, SECONDS)) &&
+      assertTrue("testing" > "test")
     },
     test("exists must succeed when at least one element of iterable satisfy specified assertion") {
       assertTrue(Seq(1, 42, 5).exists(_ == 42))
@@ -607,6 +627,34 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("isSuccess on Exit[_, _] works") {
         val exit: Exit[String, Int] = Exit.succeed(1)
         assertTrue(exit.isSuccess)
+      },
+      test("class with overload - new instance") {
+        class ClassWithOverload {
+          def overloaded: Int         = 1
+          def overloaded(x: Int): Int = x
+        }
+        assertTrue(new ClassWithOverload().overloaded == 1)
+      },
+      test("class with overload with type args - new instance") {
+        class ClassWithOverload[A] {
+          def overloaded: Int         = 1
+          def overloaded(x: Int): Int = x
+        }
+        assertTrue(new ClassWithOverload[Int]().overloaded == 1)
+      },
+      test("class with overload with args - new instance") {
+        class ClassWithOverload(x: Int) {
+          def overloaded: Int         = x
+          def overloaded(x: Int): Int = x
+        }
+        assertTrue(new ClassWithOverload(1).overloaded == 1)
+      },
+      test("class with overload with args and type args - new instance") {
+        class ClassWithOverload[A](x: Int) {
+          def overloaded: Int         = x
+          def overloaded(x: Int): Int = x
+        }
+        assertTrue(new ClassWithOverload[Int](1).overloaded == 1)
       },
       test("equalTo on java.lang.Boolean works") {
         val jBool = java.lang.Boolean.FALSE

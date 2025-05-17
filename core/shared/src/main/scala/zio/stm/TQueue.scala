@@ -25,7 +25,7 @@ import scala.collection.immutable.{Queue => ScalaQueue}
  * A `TQueue` is a transactional queue. Offerors can offer values to the queue
  * and takers can take values from the queue.
  */
-trait TQueue[A] extends TDequeue[A] with TEnqueue[A] {
+sealed trait TQueue[A] extends TDequeue.Internal[A] with TEnqueue.Internal[A] {
 
   override final def awaitShutdown: USTM[Unit] =
     isShutdown.flatMap(b => if (b) ZSTM.unit else ZSTM.retry)
@@ -41,6 +41,12 @@ trait TQueue[A] extends TDequeue[A] with TEnqueue[A] {
    */
   override final def isFull: USTM[Boolean] =
     size.map(_ == capacity)
+
+  /**
+   * Views all elements in the queue without removing them
+   */
+  def peekAll: ZSTM[Any, Nothing, Chunk[A]] = takeAll.tap(offerAll(_))
+
 }
 
 object TQueue {
@@ -144,6 +150,12 @@ object TQueue {
                 ref.unsafeSet(journal, queue.drop(toDrop) ++ forQueue)
                 true
             }
+        }
+      override val peekAll: USTM[Chunk[A]] =
+        ZSTM.Effect { (journal, fiberId, _) =>
+          val queue = ref.unsafeGet(journal)
+          if (queue eq null) throw ZSTM.InterruptException(fiberId)
+          else Chunk.fromIterable(queue)
         }
       val peek: USTM[A] =
         ZSTM.Effect { (journal, fiberId, _) =>

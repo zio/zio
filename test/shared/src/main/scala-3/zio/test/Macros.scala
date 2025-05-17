@@ -46,11 +46,13 @@ object SmartAssertMacros {
     ): Option[(quotes.reflect.Term, String, List[quotes.reflect.TypeRepr], Option[List[quotes.reflect.Term]])] = {
       import quotes.reflect._
       tree match {
-        case Select(lhs, name)                               => Some((lhs, name, List.empty, None))
-        case TypeApply(Select(lhs, name), tpes)              => Some((lhs, name, tpes.map(_.tpe), None))
-        case Apply(Select(lhs, name), args)                  => Some((lhs, name, List.empty, Some(args)))
-        case Apply(TypeApply(Select(lhs, name), tpes), args) => Some((lhs, name, tpes.map(_.tpe), Some(args)))
-        case _                                               => None
+        case Select(lhs, name)                  => Some((lhs, name, List.empty, None))
+        case TypeApply(Select(lhs, name), tpes) => Some((lhs, name, tpes.map(_.tpe), None))
+        case Apply(select @ Select(lhs, name), args) if !select.symbol.isClassConstructor =>
+          Some((lhs, name, List.empty, Some(args)))
+        case Apply(TypeApply(select @ Select(lhs, name), tpes), args) if !select.symbol.isClassConstructor =>
+          Some((lhs, name, tpes.map(_.tpe), Some(args)))
+        case _ => None
       }
     }
   }
@@ -59,6 +61,12 @@ object SmartAssertMacros {
 
   object PositionContext {
     def apply(using Quotes)(term: quotes.reflect.Term) = new PositionContext(term.pos.start)
+  }
+
+  def unsupportedOperationErrorExpr(using Quotes) = '{
+    scala.compiletime.error(
+      "Unsupported operation in 'assertTrue'\nPlease open an issue: https://github.com/zio/zio/issues/new"
+    )
   }
 
   def transformAs[Start: Type, End: Type](
@@ -165,7 +173,7 @@ object SmartAssertMacros {
         val arrow                 = Inlined(a, b, transform(expr.asExprOf[A]).asTerm).asExprOf[zio.test.TestArrow[Any, A]]
         '{ $arrow.span($preMacroExpansionSpan) }
 
-      case Unseal(Apply(Select(lhs, op @ (">" | ">=" | "<" | "<=")), List(rhs))) =>
+      case Unseal(tree @ Apply(Select(lhs, op @ (">" | ">=" | "<" | "<=")), List(rhs))) =>
         def tpesPriority(tpe: TypeRepr): Int =
           tpe.toString match {
             case "Byte"   => 0
@@ -229,7 +237,7 @@ object SmartAssertMacros {
                             .span($span)
                         }.asExprOf[TestArrow[Any, A]]
                     }
-                  case _ => throw new Error("NO")
+                  case _ => unsupportedOperationErrorExpr
                 }
             }
           case Some(false) =>
@@ -263,7 +271,10 @@ object SmartAssertMacros {
                             .span($span)
                         }.asExprOf[TestArrow[Any, A]]
                     }
-                  case _ => throw new Error("NO")
+                  case (None, _) =>
+                    val span = getSpan(tree)
+                    '{ TestArrow.succeed($expr).span($span) }
+                  case _ => unsupportedOperationErrorExpr
                 }
             }
           case None =>
@@ -297,7 +308,7 @@ object SmartAssertMacros {
                             .span($span)
                         }.asExprOf[TestArrow[Any, A]]
                     }
-                  case _ => throw new Error("NO")
+                  case _ => unsupportedOperationErrorExpr
                 }
             }
         }
@@ -334,29 +345,42 @@ object SmartAssertMacros {
         }
 
       case Unseal(method @ MethodCall(lhs, name, tpeArgs, args)) =>
-        def body(param: Term) =
+        def body(param: Term): Term =
           (tpeArgs, args) match {
             case (Nil, None) =>
               try Select.unique(param, name)
               catch {
                 case _: AssertionError =>
-                  def getFieldOrMethod(s: Symbol) =
-                    s.fieldMembers
+                  def getFieldOrMethod(tpe: TypeRepr, owner: Tree): Select = {
+                    val s = tpe.typeSymbol
+                    val member = s.fieldMembers
                       .find(f => f.name == name)
                       .orElse(s.methodMember(name).filter(_.declarations.nonEmpty).headOption)
+                      .getOrElse(
+                        report.errorAndAbort(s"Could not resolve $name on ${owner.show(using Printer.TreeStructure)}")
+                      )
+                    Select(param, member)
+                  }
 
-                  // Tries to find directly the referenced method on lhs's type (or if lhs is method, on lhs's returned type)
-                  lhs.symbol.tree match {
-                    case DefDef(_, _, tpt, _) =>
-                      getFieldOrMethod(tpt.symbol) match {
-                        case Some(fieldOrMethod) => Select(param, fieldOrMethod)
-                        case None                => throw new Error(s"Could not resolve $name on $tpt")
-                      }
-                    case _ =>
-                      getFieldOrMethod(lhs.symbol) match {
-                        case Some(fieldOrMethod) => Select(param, fieldOrMethod)
-                        case None                => throw new Error(s"Could not resolve $name on $lhs")
-                      }
+                  lhs.underlyingArgument match {
+                    case Block(List(cls: ClassDef), term) =>
+                      // if this is new instance of anonymous class - take symbol from it instead of block
+                      getFieldOrMethod(term.tpe, term)
+
+                    case Typed(Block(List(cls: ClassDef), term), _) =>
+                      getFieldOrMethod(term.tpe, term)
+
+                    // Tries to find directly the referenced method on lhs's type (or if lhs is method, on lhs's returned type)
+                    case lhs =>
+                      if lhs.symbol == Symbol.noSymbol then
+                        report.errorAndAbort(s"Can't get symbol of ${lhs.show(using Printer.TreeStructure)}")
+                      else
+                        lhs.symbol.tree match {
+                          case DefDef(_, _, tpt, _) =>
+                            getFieldOrMethod(tpt.tpe, tpt)
+                          case _ =>
+                            getFieldOrMethod(lhs.tpe, lhs)
+                        }
                   }
               }
             case (tpeArgs, Some(args)) => Select.overloaded(param, name, tpeArgs, args)

@@ -20,15 +20,16 @@ import java.nio._
 import java.nio.charset.Charset
 import java.util.concurrent.atomic.AtomicInteger
 import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.collection.mutable.Builder
 import scala.math.log
 import scala.reflect.{ClassTag, classTag}
 
 /**
- * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
- * are usually backed by arrays, but expose a purely functional, safe interface
- * to the underlying elements, and they become lazy on operations that would be
- * costly with arrays, such as repeated concatenation.
+ * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are usually
+ * backed by arrays, but expose a purely functional, safe interface to the
+ * underlying elements, and they become lazy on operations that would be costly
+ * with arrays, such as repeated concatenation.
  *
  * The implementation of balanced concatenation is based on the one for
  * Conc-Trees in "Conc-Trees for Functional and Parallel Programming" by
@@ -459,25 +460,25 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    * Returns the first element that satisfies the effectful predicate.
    */
   final def findZIO[R, E](f: A => ZIO[R, E, Boolean])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-    ZIO.suspendSucceed {
-      val iterator = self.chunkIterator
-      var index    = 0
+    if (self.isEmpty) ZIO.none
+    else
+      ZIO.suspendSucceed {
+        val iterator = self.chunkIterator
+        var index    = 0
 
-      def loop(iterator: Chunk.ChunkIterator[A]): ZIO[R, E, Option[A]] =
-        if (iterator.hasNextAt(index)) {
-          val a = iterator.nextAt(index)
-          index += 1
+        def loop(iterator: Chunk.ChunkIterator[A]): ZIO[R, E, Option[A]] =
+          if (iterator.hasNextAt(index)) {
+            val a = iterator.nextAt(index)
+            index += 1
 
-          f(a).flatMap {
-            if (_) ZIO.succeed(Some(a))
-            else loop(iterator)
-          }
-        } else {
-          ZIO.succeed(None)
-        }
+            f(a).flatMap {
+              if (_) Exit.succeed(Some(a))
+              else loop(iterator)
+            }
+          } else Exit.none
 
-      loop(iterator)
-    }
+        loop(iterator)
+      }
 
   /**
    * Get the element at the specified index.
@@ -1018,7 +1019,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     builder.result()
   }
 
-  //noinspection AccessorLikeMethodIsUnit
+  // noinspection AccessorLikeMethodIsUnit
   protected[zio] final def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit =
     toArray(0, dest, n, length)
 
@@ -1170,7 +1171,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   /**
    * Returns a chunk backed by an array.
    *
-   * WARNING: The array must not be mutated after creating the chunk.
+   * '''WARNING''': The array must not be mutated after creating the chunk. If
+   * you're unsure whether the array will be mutated, prefer
+   * `Chunk.fromIterable` or `Chunk.from` which create a copy of the provided
+   * array.
    */
   def fromArray[A](array: Array[A]): Chunk[A] =
     (if (array.isEmpty) Empty
@@ -1272,6 +1276,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       case chunk: Chunk[A]              => chunk
       case iterable if iterable.isEmpty => Empty
       case vector: Vector[A]            => VectorChunk(vector)
+      case arrSeq: mutable.ArraySeq[A]  => fromArraySeq(arrSeq)
       case iterable =>
         val builder = ChunkBuilder.make[A]()
         builder.sizeHint(iterable)

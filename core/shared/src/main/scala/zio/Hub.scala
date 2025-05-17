@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A `Hub` is an asynchronous message hub. Publishers can offer messages to the
  * hub and subscribers can subscribe to take messages from the hub.
  */
-abstract class Hub[A] extends Enqueue[A] {
+sealed abstract class Hub[A] extends Enqueue.Internal[A] {
 
   /**
    * Publishes a message to the hub, returning whether the message was published
@@ -160,10 +160,9 @@ object Hub {
         ZIO.fiberIdWith { fiberId =>
           shutdownFlag.set(true)
           ZIO
-            .whenZIO(shutdownHook.succeed(())) {
+            .whenZIODiscard(shutdownHook.succeedUnit) {
               scope.close(Exit.interrupt(fiberId)) *> strategy.shutdown
             }
-            .unit
         }.uninterruptible
       def size(implicit trace: Trace): UIO[Int] =
         ZIO.suspendSucceed {
@@ -214,7 +213,7 @@ object Hub {
     shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
   ): Dequeue[A] =
-    new Dequeue[A] { self =>
+    new Dequeue.Internal[A] { self =>
       def awaitShutdown(implicit trace: Trace): UIO[Unit] =
         shutdownHook.await
       val capacity: Int =
@@ -229,15 +228,14 @@ object Hub {
         ZIO.fiberIdWith { fiberId =>
           shutdownFlag.set(true)
           ZIO
-            .whenZIO(shutdownHook.succeed(())) {
-              ZIO.foreachPar(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
+            .whenZIODiscard(shutdownHook.succeedUnit) {
+              ZIO.foreachParDiscard(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
                 ZIO.succeed {
                   subscribers.remove(subscription -> pollers)
                   subscription.unsubscribe()
                   strategy.unsafeOnHubEmptySpace(hub, subscribers)
                 }
             }
-            .unit
         }.uninterruptible
       def size(implicit trace: Trace): UIO[Int] =
         ZIO.suspendSucceed {
