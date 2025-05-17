@@ -1,6 +1,5 @@
 package zio
 
-import zio.AcquireReleaseWithTypeInferenceSpec.E
 import zio.test._
 
 object RuntimeFlagsSpec extends ZIOBaseSpec {
