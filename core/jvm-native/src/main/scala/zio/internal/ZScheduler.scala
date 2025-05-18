@@ -160,18 +160,29 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
-      var notify = false
+      var notify = true
       if ((worker eq null) || worker.blocking) {
         globalQueue.offer(runnable)
-        notify = true
-      } else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
-        worker.nextRunnable = runnable
-      } else if (worker.localQueue.offer(runnable)) {
-        notify = true
-      } else {
-        handleFullWorkerQueue(worker, runnable)
-        notify = true
       }
+      // Attempt resumption in the current Thread
+      else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
+        // NOTE: Ideally, we want to do a full work-steal here, but that's too expensive on each yield so we only check the global queue
+        val fromGlobal = globalQueue.poll()
+        // Happy path, global queue is empty, so we can proceed to run the current runnable
+        if (fromGlobal eq null) {
+          worker.nextRunnable = runnable
+          notify = false
+        } else {
+          // Less common path, global queue is not empty, so we have to prioritize the runnable from it
+          worker.nextRunnable = fromGlobal
+          worker.localQueue.offer(runnable)
+        }
+      }
+      // We have to yield, add the runnable to the local / global queue so that it can be scheduled accordingly
+      else if (!worker.localQueue.offer(runnable)) {
+        handleFullWorkerQueue(worker, runnable)
+      }
+
       if (notify) {
         val currentState = state.get
         maybeUnparkWorker(currentState)
