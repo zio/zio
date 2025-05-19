@@ -790,7 +790,6 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def forkIn(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
     ZIO.uninterruptibleMask { restore =>
-      // val ref = Ref.unsafe.make[AnyRef](null)(zio.Unsafe)
       ZIO
         .withFiberRuntime[R, E, A] { case (fibRt, _) =>
           // this is read and updated ONLY by the child fiber itself, hence no need for atomics!
