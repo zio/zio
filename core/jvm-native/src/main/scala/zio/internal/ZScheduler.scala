@@ -29,7 +29,7 @@ import scala.collection.mutable
  * applications. Inspired by "Making the Tokio Scheduler 10X Faster" by Carl
  * Lerche. [[https://tokio.rs/blog/2019-10-scheduler]]
  */
-private final class ZScheduler(autoBlocking: Boolean) extends Executor {
+private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent =>
 
   import Trace.{empty => emptyTrace}
   import ZScheduler.{poolSize, workerOrNull}
@@ -277,14 +277,23 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
   private[this] def makeWorker(): ZScheduler.Worker =
     new ZScheduler.Worker {
       self =>
-      override val submittedLocations = makeLocations()
+      override val submittedLocations: ZScheduler.Locations = makeLocations()
 
-      override def run(): Unit = {
+      final override def run(): Unit = {
+        // Store parent mutable object references in stack memory to avoid fetching it from the heap every time
+        val globalQueue = parent.globalQueue
+        val workers     = parent.workers
+        val state       = parent.state
+        val cache       = parent.cache
+        val idle        = parent.idle
+        val poolSize    = ZScheduler.poolSize
+
         var currentBlocking = false
         var currentOpCount  = 0L
         val random          = ThreadLocalRandom.current
         var runnable        = null.asInstanceOf[Runnable]
         var searching       = false
+
         while (!isInterrupted) {
           currentBlocking = blocking
           val currentNextRunnable = nextRunnable
@@ -332,7 +341,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
                         currentBlocking = blocking
                         if (currentBlocking) {
                           val runnables = localQueue.pollUpTo(256)
-                          if (runnables.nonEmpty) {
+                          if (!runnables.isEmpty) {
                             globalQueue.offerAll(runnables, random)
                           }
                         }
@@ -399,7 +408,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
 
       // NOTE: Synchronized block in case the supervisor attempts to mark the worker as blocking at the same time
       // as an external call
-      def markAsBlocking(): Unit = synchronized {
+      final def markAsBlocking(): Unit = synchronized {
         if (blocking) ()
         else {
           blocking = true
