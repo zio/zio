@@ -138,9 +138,8 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
             val yieldNowEffect = ZIO.YieldNow(Trace.empty, forceAsync = true)
             val flatMapEffect =
               ZIO.FlatMap[Any, Nothing, Unit, Unit](Trace.empty, ZIO.succeed(()), (_: Any) => ZIO.unit)
-            val updateValue = RuntimeFlags.enable(RuntimeFlag.Interruption)
             val updateRuntimeFlagsEffect =
-              ZIO.UpdateRuntimeFlags(Trace.empty, updateValue)
+              ZIO.UpdateRuntimeFlags(Trace.empty, RuntimeFlags.enable(RuntimeFlag.Interruption))
             val foldZioEffect =
               ZIO
                 .FoldZIO[Any, Nothing, Unit, Unit, Unit](
@@ -157,23 +156,35 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
               ZIO.UpdateRuntimeFlagsWithin
                 .DynamicNoBox[Any, Nothing, Unit](
                   Trace.empty,
-                  updateValue,
+                  RuntimeFlags.enable(RuntimeFlag.Interruption),
                   (_: Int) => ZIO.succeed(())
                 )
 
             val exitSuccessEffect = Exit.succeed(0)
             val exitFailureEffect = Exit.fail("boom")
 
-            assertTrue(ZIO.render(syncEffect) == "Sync()") &&
-            assertTrue(ZIO.render(whileLoopEffect) == "WhileLoop()") &&
-            assertTrue(ZIO.render(statefulEffect) == "Stateful()") &&
-            assertTrue(ZIO.render(yieldNowEffect) == "YieldNow(forceAsync=true)") &&
-            assertTrue(ZIO.render(flatMapEffect) == "FlatMap(first=Sync())") &&
-            assertTrue(ZIO.render(updateRuntimeFlagsEffect) == s"UpdateRuntimeFlags(update=$updateValue)") &&
-            assertTrue(ZIO.render(foldZioEffect) == "FoldZIO(first=Sync())") &&
-            assertTrue(ZIO.render(asyncEffect) == "Async()") &&
+            assertTrue(ZIO.render(syncEffect) == s"Sync(trace=${syncEffect.trace})") &&
+            assertTrue(ZIO.render(whileLoopEffect) == s"WhileLoop(trace=${whileLoopEffect.trace})") &&
+            assertTrue(ZIO.render(statefulEffect) == s"Stateful(trace=${statefulEffect.trace})") &&
+            assertTrue(ZIO.render(yieldNowEffect) == s"YieldNow(trace=${yieldNowEffect.trace}, forceAsync=true)") &&
             assertTrue(
-              ZIO.render(dynamicNoBoxEffect) == s"UpdateRuntimeFlagsWithin.DynamicNoBox(update=$updateValue)"
+              ZIO.render(
+                flatMapEffect
+              ) == s"FlatMap(trace=${flatMapEffect.trace}, first=Sync(trace=${flatMapEffect.first.trace}))"
+            ) &&
+            assertTrue(
+              ZIO.render(updateRuntimeFlagsEffect) == s"UpdateRuntimeFlags(trace=${updateRuntimeFlagsEffect.trace})"
+            ) &&
+            assertTrue(
+              ZIO.render(
+                foldZioEffect
+              ) == s"FoldZIO(trace=${foldZioEffect.trace}, first=Sync(trace=${foldZioEffect.first.trace}))"
+            ) &&
+            assertTrue(ZIO.render(asyncEffect) == s"Async(trace=${asyncEffect.trace})") &&
+            assertTrue(
+              ZIO.render(
+                dynamicNoBoxEffect
+              ) == s"UpdateRuntimeFlagsWithin.DynamicNoBox(trace=${dynamicNoBoxEffect.trace})"
             ) &&
             assertTrue(ZIO.render(exitSuccessEffect) == "Exit.Success(value=0)") &&
             assertTrue(
