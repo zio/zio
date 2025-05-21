@@ -1465,11 +1465,8 @@ sealed trait ZIO[-R, +E, +A]
             complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
           }(Unsafe)
 
+          leftFiber.startConcurrently(leftEff)
           rightFiber.startConcurrently(rightEff)
-          // Start effect on current thread until the first async boundary.
-          // In cases that the left effect does not contain any async effects, that will be
-          // substantially faster as sync resumption will kick in instantly
-          leftFiber.start(leftEff)
           ()
         },
         leftFiber.id <> rightFiber.id
