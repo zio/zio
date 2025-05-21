@@ -6399,32 +6399,31 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   def render(zio: ZIO.Erased): String =
     zio match {
-      case Sync(_, _)                    => s"Sync()"
-      case WhileLoop(_, _, _, _)         => s"WhileLoop()"
-      case Stateful(_, _)                => s"Stateful()"
-      case GenerateStackTrace(_)         => s"GenerateStackTrace()"
-      case YieldNow(_, forceAsync)       => s"YieldNow(forceAsync=$forceAsync)"
-      case FlatMap(_, first, _)          => s"FlatMap(first=${render(first)})"
-      case UpdateRuntimeFlags(_, update) => s"UpdateRuntimeFlags(update=$update)"
-      case FoldZIO(_, first, _, _)       => s"FoldZIO(first=${render(first)})"
-      case Async(_, _, _)                => s"Async()"
+      case Sync(trace, _)               => s"Sync(trace=$trace)"
+      case WhileLoop(trace, _, _, _)    => s"WhileLoop(trace=$trace)"
+      case Stateful(trace, _)           => s"Stateful(trace=$trace)"
+      case GenerateStackTrace(trace)    => s"GenerateStackTrace(trace=$trace)"
+      case YieldNow(trace, forceAsync)  => s"YieldNow(trace=$trace, forceAsync=$forceAsync)"
+      case FlatMap(trace, first, _)     => s"FlatMap(trace=$trace, first=${render(first)})"
+      case UpdateRuntimeFlags(trace, _) => s"UpdateRuntimeFlags(trace=$trace)"
+      case FoldZIO(trace, first, _, _)  => s"FoldZIO(trace=$trace, first=${render(first)})"
+      case Async(trace, _, _)           => s"Async(trace=$trace)"
       case within: UpdateRuntimeFlagsWithin[_, _, _] =>
         within match {
-          case UpdateRuntimeFlagsWithin.Interruptible(_, effect) =>
-            s"UpdateRuntimeFlagsWithin.Interruptible(effect=$effect)"
-          case UpdateRuntimeFlagsWithin.Uninterruptible(_, effect) =>
-            s"UpdateRuntimeFlagsWithin.Uninterruptible(effect=$effect)"
-          case UpdateRuntimeFlagsWithin.Dynamic(_, update, _) =>
-            s"UpdateRuntimeFlagsWithin.Dynamic(update=$update)"
-          case UpdateRuntimeFlagsWithin.DynamicNoBox(_, update, _) =>
-            s"UpdateRuntimeFlagsWithin.DynamicNoBox(update=$update)"
+          case UpdateRuntimeFlagsWithin.Interruptible(trace, effect) =>
+            s"UpdateRuntimeFlagsWithin.Interruptible(trace=$trace, effect=$effect)"
+          case UpdateRuntimeFlagsWithin.Uninterruptible(trace, effect) =>
+            s"UpdateRuntimeFlagsWithin.Uninterruptible(trace=$trace, effect=$effect)"
+          case UpdateRuntimeFlagsWithin.Dynamic(trace, _, _) =>
+            s"UpdateRuntimeFlagsWithin.Dynamic(trace=$trace)"
+          case UpdateRuntimeFlagsWithin.DynamicNoBox(trace, _, _) =>
+            s"UpdateRuntimeFlagsWithin.DynamicNoBox(trace=$trace)"
         }
       case exit: Exit[_, _] =>
         exit match {
           case Exit.Success(value) => s"Exit.Success(value=$value)"
           case Exit.Failure(cause) => s"Exit.Failure(cause=$cause)"
         }
-      case _ => "Operation Not Found"
     }
 }
 
