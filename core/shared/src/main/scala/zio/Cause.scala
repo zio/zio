@@ -930,7 +930,7 @@ object Cause extends Serializable {
   /**
    * A Cause that contains one or more sub-causes
    */
-  sealed trait CompositeCause[+E] { self: Cause[E] =>
+  private[Cause] sealed trait CompositeCause[+E] { self: Cause[E] =>
 
     /**
      * Stack-safe toString for Cause
