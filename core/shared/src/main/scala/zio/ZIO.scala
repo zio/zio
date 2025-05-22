@@ -6034,7 +6034,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       }
   }
 
-  trait ZIOConstructorLowPriority1 extends ZIOConstructorLowPriority2 {
+  sealed trait ZIOConstructorLowPriority1 extends ZIOConstructorLowPriority2 {
 
     /**
      * Constructs a `ZIO[Any, E, A]` from an `Either[E, A]`.
@@ -6073,7 +6073,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       }
   }
 
-  trait ZIOConstructorLowPriority2 extends ZIOConstructorLowPriority3 {
+  sealed trait ZIOConstructorLowPriority2 extends ZIOConstructorLowPriority3 {
 
     /**
      * Constructs a `ZIO[Any, Throwable, A]` from an `A`.

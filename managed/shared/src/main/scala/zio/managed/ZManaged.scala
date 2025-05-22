@@ -2432,7 +2432,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * [[ZManaged]] to the `apply` method will create (inside an effect) a managed
    * resource which is already acquired and cannot fail.
    */
-  abstract class PreallocationScope {
+  sealed abstract class PreallocationScope {
     def apply[R, E, A](managed: => ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
   }
 
@@ -2507,7 +2507,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * managed resource to the `apply` method will return an effect that allocates
    * the resource and returns it with an early-release handle.
    */
-  abstract class Scope {
+  sealed abstract class Scope {
     def apply[R, E, A](managed: => ZManaged[R, E, A]): ZIO[R, E, (ZManaged.Finalizer, A)]
   }
 

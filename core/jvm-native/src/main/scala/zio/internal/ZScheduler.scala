@@ -29,7 +29,7 @@ import scala.collection.mutable
  * applications. Inspired by "Making the Tokio Scheduler 10X Faster" by Carl
  * Lerche. [[https://tokio.rs/blog/2019-10-scheduler]]
  */
-private final class ZScheduler(autoBlocking: Boolean) extends Executor {
+private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent =>
 
   import Trace.{empty => emptyTrace}
   import ZScheduler.{poolSize, workerOrNull}
@@ -160,18 +160,29 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
-      var notify = false
+      var notify = true
       if ((worker eq null) || worker.blocking) {
         globalQueue.offer(runnable)
-        notify = true
-      } else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
-        worker.nextRunnable = runnable
-      } else if (worker.localQueue.offer(runnable)) {
-        notify = true
-      } else {
-        handleFullWorkerQueue(worker, runnable)
-        notify = true
       }
+      // Attempt resumption in the current Thread
+      else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
+        // NOTE: Ideally, we want to do a full work-steal here, but that's too expensive on each yield so we only check the global queue
+        val fromGlobal = globalQueue.poll()
+        // Happy path, global queue is empty, so we can proceed to run the current runnable
+        if (fromGlobal eq null) {
+          worker.nextRunnable = runnable
+          notify = false
+        } else {
+          // Less common path, global queue is not empty, so we have to prioritize the runnable from it
+          worker.nextRunnable = fromGlobal
+          worker.localQueue.offer(runnable)
+        }
+      }
+      // We have to yield, add the runnable to the local / global queue so that it can be scheduled accordingly
+      else if (!worker.localQueue.offer(runnable)) {
+        handleFullWorkerQueue(worker, runnable)
+      }
+
       if (notify) {
         val currentState = state.get
         maybeUnparkWorker(currentState)
@@ -266,14 +277,23 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
   private[this] def makeWorker(): ZScheduler.Worker =
     new ZScheduler.Worker {
       self =>
-      override val submittedLocations = makeLocations()
+      override val submittedLocations: ZScheduler.Locations = makeLocations()
 
-      override def run(): Unit = {
+      final override def run(): Unit = {
+        // Store parent mutable object references in stack memory to avoid fetching it from the heap every time
+        val globalQueue = parent.globalQueue
+        val workers     = parent.workers
+        val state       = parent.state
+        val cache       = parent.cache
+        val idle        = parent.idle
+        val poolSize    = ZScheduler.poolSize
+
         var currentBlocking = false
         var currentOpCount  = 0L
         val random          = ThreadLocalRandom.current
         var runnable        = null.asInstanceOf[Runnable]
         var searching       = false
+
         while (!isInterrupted) {
           currentBlocking = blocking
           val currentNextRunnable = nextRunnable
@@ -321,7 +341,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
                         currentBlocking = blocking
                         if (currentBlocking) {
                           val runnables = localQueue.pollUpTo(256)
-                          if (runnables.nonEmpty) {
+                          if (!runnables.isEmpty) {
                             globalQueue.offerAll(runnables, random)
                           }
                         }
@@ -388,7 +408,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor {
 
       // NOTE: Synchronized block in case the supervisor attempts to mark the worker as blocking at the same time
       // as an external call
-      def markAsBlocking(): Unit = synchronized {
+      final def markAsBlocking(): Unit = synchronized {
         if (blocking) ()
         else {
           blocking = true

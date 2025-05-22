@@ -131,6 +131,10 @@ As you can see, the operators on `Hub` are identical to the ones on `Queue` with
 
 In fact, a `Hub` can be viewed as a `Queue` that can only be written to.
 
+```scala mdoc:invisible
+trait Enqueue[-A]
+```
+
 ```scala mdoc:nest
 trait Hub[A] extends Enqueue[A]
 ```

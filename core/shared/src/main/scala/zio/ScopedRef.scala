@@ -23,7 +23,7 @@ package zio
  * resources). The reference itself takes care of properly releasing resources
  * for the old value whenever a new value is obtained.
  */
-trait ScopedRef[A] {
+sealed trait ScopedRef[A] {
 
   /**
    * Sets the value of this reference to the specified resourcefully-created

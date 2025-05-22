@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A `Hub` is an asynchronous message hub. Publishers can offer messages to the
  * hub and subscribers can subscribe to take messages from the hub.
  */
-abstract class Hub[A] extends Enqueue[A] {
+sealed abstract class Hub[A] extends Enqueue.Internal[A] {
 
   /**
    * Publishes a message to the hub, returning whether the message was published
@@ -213,7 +213,7 @@ object Hub {
     shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
   ): Dequeue[A] =
-    new Dequeue[A] { self =>
+    new Dequeue.Internal[A] { self =>
       def awaitShutdown(implicit trace: Trace): UIO[Unit] =
         shutdownHook.await
       val capacity: Int =
