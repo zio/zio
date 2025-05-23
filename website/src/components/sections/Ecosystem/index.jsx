@@ -2,26 +2,18 @@ import React from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import styles from './styles.module.css';
+import SectionWrapper from '@site/src/components/ui/SectionWrapper';
 
 import { ecosystemProjects } from './data';
 
-export default function Ecosystem() {
+export default function Ecosystem({ title, subtitle, children}) {
   // Separate ZIO HTTP from other projects (featured project)
   const featuredProject = ecosystemProjects.find(p => p.name === 'ZIO HTTP');
   const otherProjects = ecosystemProjects.filter(p => p.name !== 'ZIO HTTP');
 
   return (
-    <section className="py-10">
+    <SectionWrapper title={title} subtitle={subtitle} >
       <div className={styles.wideContainer}>
-        <div className={clsx('row', styles.ecosystemHeader)}>
-          <div className="col col--12 text--center">
-            <h2 className="sectionHeader">ZIO Ecosystem</h2>
-            <p className={styles.ecosystemSubtitle}>
-              A rich ecosystem of libraries built on ZIO to solve real-world problems
-            </p>
-          </div>
-        </div>
-
         {/* Featured project in its own row */}
         {featuredProject && (
           <div className={clsx('row', styles.ecosystemCards)}>
@@ -80,6 +72,6 @@ export default function Ecosystem() {
           ))}
         </div>
       </div>
-    </section>
+    </SectionWrapper>
   );
 }

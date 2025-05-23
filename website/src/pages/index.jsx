@@ -21,7 +21,7 @@ export default function WelcomePage() {
 
       <main>
         <Features />
-        <Ecosystem />
+        <Ecosystem title = "Ecosystem" subtitle="A rich ecosystem of libraries built on ZIO to solve real-world problems"/>
         <Sponsors />
       </main>
     </Layout>
