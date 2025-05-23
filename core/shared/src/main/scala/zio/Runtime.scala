@@ -271,6 +271,7 @@ object Runtime extends RuntimePlatformSpecific {
   def enableRuntimeMetrics(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     enableFlags(RuntimeFlag.RuntimeMetrics)
 
+  @deprecated("Unused + unimplemented: using this flag will have no effect", "2.1.19")
   def enableWorkStealing(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     enableFlags(RuntimeFlag.WorkStealing)
 
