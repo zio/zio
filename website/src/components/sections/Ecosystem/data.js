@@ -13,7 +13,7 @@ export const ecosystemProjects = [
       'Integration with ZIO Schema for automatic codecs',
       'Built-in support for streaming responses',
     ],
-    link: 'https://zio-http.netlify.app',
+    link: 'https://ziohttp.com',
     icon: '🌐'
   },
   {
