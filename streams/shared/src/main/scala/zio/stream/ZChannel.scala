@@ -736,23 +736,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         for {
           _          <- setFinalizer
           pull       <- (queueReader >>> self).toPullInAlt(scope)
-          childScope <- scope.fork
-          _ <- childScope.addFinalizer(interruptInFlight)
+//          childScope <- scope.fork
+//          _ <- childScope.addFinalizer(interruptInFlight)
           processElems = pull.flatMap { outElem =>
                            val latch = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
-
-                           /*permits
-                             .withPermit(
-                               latch.succeedUnit *>
-                                 f(outElem)
-                                   .catchAllCause(cause =>
-                                     failureRef.update(_ && cause).unless(cause.isInterruptedOnly) *>
-                                       errorSignal.succeedUnit *>
-                                       ZChannel.failLeftUnit
-                                   )
-                             )
-                             .interruptible
-                             .forkIn(childScope)*/
                            forkManaged{
                              latch.succeedUnit *>
                                f(outElem)
@@ -776,8 +763,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                                  outgoing.offer(Fiber.done(ZChannel.failLeftUnit))
                            })
                            .ignore
+                           .ensuring(interruptInFlight)
 
-          _ <- (processElems raceFirst ZChannel.awaitErrorSignal(childScope, fiberId)(errorSignal)).forkIn(scope)
+          _ <- (processElems raceFirst /*ZChannel.awaitErrorSignal(childScope, fiberId)(errorSignal)*/ errorSignal.await.interruptible).forkIn(scope)
         } yield {
           lazy val writer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
             ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
