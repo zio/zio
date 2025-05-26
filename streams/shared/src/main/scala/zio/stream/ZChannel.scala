@@ -713,6 +713,12 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           }
         }
 
+        //notice this is a non-deterministic view of the inflight fibers, however:
+        //1. it's only used by the forking fiber, hence no race with introducing new fibers into the array.
+        //2. furthermore, it's only used once no more fibers are forked
+        //3. it may race with fibers terminating and removing themselves from the array,
+        // this is ok since 'missing' this deletion doesn't break correctness as it results with including a completed fiber in the view,
+        // this fiber is safe to interrupt (noop) or await (returns immediately).
         def fibersIterable(parentFibId : FiberId): View[Fiber.Runtime[Left[Unit, Nothing], OutElem2]] =
           inFlightFibers
             .view
@@ -734,25 +740,35 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           _          <- setFinalizer
           pull       <- (queueReader >>> self).toPullInAlt(scope)
           processElems = pull.flatMap { outElem =>
-                           val latch = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
                            forkManaged{
-                             latch.succeedUnit *>
-                               f(outElem)
-                                 .catchAllCause(cause =>
-                                   failureRef.update(_ && cause).unless(cause.isInterruptedOnly) *>
-                                     errorSignal.succeedUnit *>
-                                     ZChannel.failLeftUnit
-                                 )
+                             f(outElem)
+                               .catchAllCause(cause =>
+                                 failureRef.update(_ && cause).unless(cause.isInterruptedOnly) *>
+                                   errorSignal.succeedUnit *>
+                                   ZChannel.failLeftUnit
+                               )
                            }
-                           .flatMap(fiber => latch.await *> outgoing.offer(fiber))
+                           .flatMap(fiber => outgoing.offer(fiber))
                          }.forever.interruptible
                            .onError(_.failureOrCause match {
                              case Left(x: Left[OutErr, ?]) =>
                                failureRef.update(_ && Cause.fail(x.value)) *>
                                  outgoing.offer(Fiber.done(ZChannel.failLeftUnit))
                              case Left(x: Right[?, OutDone]) =>
-                               permits.withPermits(n0)(ZIO.unit).interruptible *>
-                                 outgoing.offer(Fiber.fail(x.asInstanceOf[Either[Unit, OutDone]]))
+                               ZIO.fiberIdWith{ currentFibId =>
+                                 //upstream completed, hence no more forks,
+                                 //however there may be some in-flight fibers still running.
+                                 //so we must wait for them to complete before notifying completion to downstream.
+                                 // * notice that just placing a message in the queue isn't enough since one of these fibers may fail and interrupt the others,
+                                 //   in this case we want to ensure downstream sees the failure.
+                                 // since we already maintain a list of in-flights (for cleanup purposes) we can use it to await all pending fibers (this replaces the old latch based mechanism).
+                                 //todo: is it possible to skip this and 'transfer' the interrupt-all responsibility to the downstream fiber? not sure if this gives any benefits
+                                 Fiber
+                                   .collectAllDiscard(fibersIterable(currentFibId))
+                                   .await
+                                   .interruptible *>
+                                   outgoing.offer(Fiber.fail(x.asInstanceOf[Either[Unit, OutDone]]))
+                               }
                              case Right(cause) =>
                                failureRef.update(_ && cause).unless(cause.isInterruptedOnly) *>
                                  outgoing.offer(Fiber.done(ZChannel.failLeftUnit))
