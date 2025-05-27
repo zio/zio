@@ -29,7 +29,7 @@ export default function HomepageZionomicon() {
                 <li>Concurrent and asynchronous programming patterns</li>
                 <li>Building predictable and testable applications</li>
                 <li>Structured dependency injection using ZIO's layer system</li>
-                <li>ZIO Streams for processing infinite data and backpressure</li>
+                <li>And much more to explore!</li>
               </ul>
               <div className={styles.buttonContainer}>
                 <Link
