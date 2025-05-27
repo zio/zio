@@ -5435,8 +5435,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       )
     }
 
-  private[zio] val unitFn: Any => Unit    = (_: Any) => ()
-  private val unitZIOFn: Any => UIO[Unit] = (_: Any) => Exit.unit
+  private[zio] val unitFn: Any => Unit         = (_: Any) => ()
+  private[zio] val unitZIOFn: Any => UIO[Unit] = (_: Any) => Exit.unit
 
   implicit final class ZIOAutoCloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 

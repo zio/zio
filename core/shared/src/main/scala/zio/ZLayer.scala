@@ -402,6 +402,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] extends ZLayerVersionSpecific[RIn,
     memoMap: ZLayer.MemoMap
   )(implicit trace: Trace): ZIO[RIn, E, ZEnvironment[ROut]] = ZIO.suspendSucceed {
     self match {
+      case ZLayer.Suspend(self) =>
+        memoMap.getOrElseMemoize(scope)(self())
       case ZLayer.Apply(self) =>
         self
       case ZLayer.ExtendScope(self) =>
@@ -419,8 +421,6 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] extends ZLayerVersionSpecific[RIn,
         self.build(scope)
       case ZLayer.Scoped(self) =>
         scope.extend[RIn](self)
-      case ZLayer.Suspend(self) =>
-        memoMap.getOrElseMemoize(scope)(self())
       case ZLayer.To(self, that) =>
         memoMap
           .getOrElseMemoize(scope)(self)
@@ -2365,7 +2365,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
             ZIO.fiberIdWith { fiberId =>
               val promise      = Promise.unsafe.make[E, (FiberRefs.Patch, ZEnvironment[B])](fiberId)
               val observers    = new AtomicInteger(0)
-              val finalizerRef = new AtomicReference[Exit[Any, Any] => UIO[Any]](_ => ZIO.unit)
+              val finalizerRef = new AtomicReference[Exit[Any, Any] => UIO[Any]](ZIO.unitZIOFn)
               val resource = ZIO.uninterruptibleMask { restore =>
                 val innerScope = Scope.unsafe.make
                 restore(
@@ -2373,19 +2373,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                     .scope(innerScope, self)
                     .diffFiberRefs
                 ).exitWith {
-                  case Exit.Success((patch, b)) =>
+                  case e @ Exit.Success((_, b)) =>
                     finalizerRef.set { (e: Exit[Any, Any]) =>
-                      ZIO.whenDiscard(observers.getAndDecrement() == 1)(innerScope.close(e))
+                      ZIO.suspendSucceed {
+                        if (observers.getAndDecrement() == 1) innerScope.close(e)
+                        else Exit.unit
+                      }
                     }
                     observers.incrementAndGet()
                     scope
                       .addFinalizerExit(e => ZIO.suspendSucceed(finalizerRef.get.apply(e)))
                       .as {
-                        promise.unsafe.succeed((patch, b))
+                        promise.unsafe.done(e)
                         b
                       }
-                  case e @ Exit.Failure(cause) =>
-                    promise.failCause(cause) *> innerScope.close(e) *> ZIO.failCause(cause)
+                  case e =>
+                    promise.unsafe.done(e)
+                    innerScope.close(e) *> e.asInstanceOf[Exit.Failure[E]]
                 }
               }
 
