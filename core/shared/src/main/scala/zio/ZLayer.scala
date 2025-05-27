@@ -2387,9 +2387,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                         promise.unsafe.done(e)
                         b
                       }
-                  case e =>
+                  case e @ Exit.Failure(cause) =>
                     promise.unsafe.done(e)
-                    innerScope.close(e) *> e.asInstanceOf[Exit.Failure[E]]
+                    innerScope.close(e) *> ZIO.failCause(cause)
                 }
               }
 
