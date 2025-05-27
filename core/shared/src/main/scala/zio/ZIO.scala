@@ -472,7 +472,13 @@ sealed trait ZIO[-R, +E, +A]
    * `FiberRef` values.
    */
   def diffFiberRefs(implicit trace: Trace): ZIO[R, E, (FiberRefs.Patch, A)] =
-    summarized(ZIO.getFiberRefs)(FiberRefs.Patch.diff)
+    ZIO.withFiberRuntime[R, E, (FiberRefs.Patch, A)] { (state, _) =>
+      val refs0 = state.getFiberRefs()
+      self.map { value =>
+        val refs1 = state.getFiberRefs()
+        (FiberRefs.Patch.diff(refs0, refs1), value)
+      }
+    }
 
   /**
    * Returns an effect that is always interruptible, but whose interruption will
