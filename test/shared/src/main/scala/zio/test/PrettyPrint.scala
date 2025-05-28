@@ -53,18 +53,41 @@ ${indent(body.mkString(",\n"))}
 
       case product: Product =>
         val name    = product.productPrefix
+        val size    = product.productArity
         val labels0 = labels(product)
-        val body = labels0
-          .zip(product.productIterator)
-          .map { case (key, value) =>
-            s"${(key + " =").faint} ${PrettyPrint(value)}"
+
+        if (size < 1) s"$name()"
+        else {
+          val isMultiLine = size > 1
+          val indentation = if (isMultiLine) "  " else ""
+
+          val acc = new Array[String](size)
+
+          // First line handling
+          val key0            = labels0.next()
+          val value0          = product.productElement(0)
+          val firstLineSuffix = if (isMultiLine) ',' else ""
+          val firstLine       = s"$indentation${(key0 + " =").faint} ${PrettyPrint(value0)}$firstLineSuffix"
+          acc(0) = firstLine
+
+          // Remaining lines handling
+          var i       = 1
+          var hasNext = labels0.hasNext
+          while (hasNext) {
+            val key   = labels0.next()
+            val value = product.productElement(i)
+            hasNext = labels0.hasNext
+            val isLastLine = !hasNext
+            val suffix     = if (isLastLine) "" else ","
+            acc(i) = s"\n$indentation${(key + " =").faint} ${PrettyPrint(value)}$suffix"
+            i += 1
           }
-          .toList
-          .mkString(",\n")
-        val isMultiline  = body.split("\n").length > 1
-        val indentedBody = indent(body, if (isMultiline) 2 else 0)
-        val spacer       = if (isMultiline) "\n" else ""
-        s"""$name($spacer$indentedBody$spacer)"""
+
+          // Final result formatting
+          val body   = acc.mkString
+          val spacer = if (isMultiLine) '\n' else ""
+          s"""$name($spacer$body$spacer)"""
+        }
 
       case other => other.toString
     }
@@ -83,8 +106,7 @@ ${indent(body.mkString(",\n"))}
       builder.result()
     }
 
-  private def indent(string: String, n: Int = 2): String =
-    string.split("\n").map((" " * n) + _).mkString("\n")
+  private def indent(string: String): String = string.split("\n").map(v => s"  $v").mkString("\n")
 
   private def className(any: Any): String = any.getClass.getSimpleName
 

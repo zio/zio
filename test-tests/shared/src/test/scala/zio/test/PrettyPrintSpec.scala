@@ -34,7 +34,16 @@ Map(
         ).unstyled == expected
       )
     },
-    test("Case Class") {
+    test("Case Class - single-line") {
+      final case class Person(name: String)
+      val expected = """
+Person(name = "Glenda")
+""".trim
+      assertTrue(
+        PrettyPrint(Person("Glenda")).unstyled == expected
+      )
+    } @@ TestAspect.exceptScala212,
+    test("Case Class - multi-line") {
       final case class Person(name: String, age: Int)
       val expected = """
 Person(
