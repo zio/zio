@@ -50,43 +50,7 @@ private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
 ${indent(body.mkString(",\n"))}
 )"""
 
-      case product: Product =>
-        val name    = product.productPrefix
-        val size    = product.productArity
-        val labels0 = labels(product)
-
-        if (size < 1) s"$name()"
-        else {
-          val isMultiLine = size > 1
-          val indentation = if (isMultiLine) "  " else ""
-
-          val acc = new Array[String](size)
-
-          // First line handling
-          val key0            = labels0.next()
-          val value0          = product.productElement(0)
-          val firstLineSuffix = if (isMultiLine) ',' else ""
-          val firstLine       = s"$indentation${(key0 + " =").faint} ${PrettyPrint(value0)}$firstLineSuffix"
-          acc(0) = firstLine
-
-          // Remaining lines handling
-          var i       = 1
-          var hasNext = labels0.hasNext
-          while (hasNext) {
-            val key   = labels0.next()
-            val value = product.productElement(i)
-            hasNext = labels0.hasNext
-            val isLastLine = !hasNext
-            val suffix     = if (isLastLine) "" else ","
-            acc(i) = s"\n$indentation${(key + " =").faint} ${PrettyPrint(value)}$suffix"
-            i += 1
-          }
-
-          // Final result formatting
-          val body   = acc.mkString
-          val spacer = if (isMultiLine) '\n' else ""
-          s"""$name($spacer$body$spacer)"""
-        }
+      case product: Product => prettyPrintProduct(product)
 
       case other => other.toString
     }
