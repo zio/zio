@@ -57,15 +57,17 @@ ${indent(body.mkString(",\n"))}
   private def prettyPrintIterator(iterable: Iterable[_], className: String): String =
     if (iterable.isEmpty) s"$className()"
     else {
-      val builder = new StringBuilder
-      builder.append(s"$className(")
+      val acc = new java.lang.StringBuilder
+      acc.append(className)
+      acc.append('(')
       val iterator = iterable.iterator
-      builder.append(s"${PrettyPrint.apply(iterator.next)}")
+      acc.append(PrettyPrint(iterator.next))
       while (iterator.hasNext) {
-        builder.append(s", ${PrettyPrint.apply(iterator.next)}")
+        acc.append(", ")
+        acc.append(PrettyPrint(iterator.next))
       }
-      builder.append(")")
-      builder.result()
+      acc.append(')')
+      acc.toString
     }
 
   private def indent(string: String): String = string.split("\n").map(v => s"  $v").mkString("\n")
