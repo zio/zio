@@ -13,8 +13,13 @@ private[test] trait PrettyPrintVersionSpecific {
     else {
       val isMultiLine = size > 1
       val indentation = if (isMultiLine) "  " else ""
+      val spacer      = if (isMultiLine) '\n' else ""
 
       val acc = new java.lang.StringBuilder
+
+      acc.append(name)
+      acc.append('(')
+      acc.append(spacer)
 
       // First line handling
       val key0            = product.productElementName(0)
@@ -44,10 +49,9 @@ private[test] trait PrettyPrintVersionSpecific {
         i += 1
       }
 
-      // Final result formatting
-      val body   = acc.toString
-      val spacer = if (isMultiLine) '\n' else ""
-      s"""$name($spacer$body$spacer)"""
+      acc.append(spacer)
+      acc.append(')')
+      acc.toString
     }
   }
 }
