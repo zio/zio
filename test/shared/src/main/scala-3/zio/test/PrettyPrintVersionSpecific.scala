@@ -8,7 +8,6 @@ private[test] trait PrettyPrintVersionSpecific {
   def prettyPrintProduct(product: Product): String = {
     val name   = product.productPrefix
     val size   = product.productArity
-    val labels = product.productElementNames
 
     if (size < 1) s"$name()"
     else {
@@ -18,7 +17,7 @@ private[test] trait PrettyPrintVersionSpecific {
       val acc = new Array[String](size)
 
       // First line handling
-      val key0            = labels.next()
+      val key0            = product.productElementName(0)
       val value0          = product.productElement(0)
       val firstLineSuffix = if (isMultiLine) ',' else ""
       val firstLine       = s"$indentation${(key0 + " =").faint} ${PrettyPrint(value0)}$firstLineSuffix"
@@ -27,8 +26,8 @@ private[test] trait PrettyPrintVersionSpecific {
       // Remaining lines handling
       var i           = 1
       val lastElement = size - 1
-      while (labels.hasNext) {
-        val key        = labels.next()
+      while (i < size) {
+        val key        = product.productElementName(i)
         val value      = product.productElement(i)
         val isLastLine = i == lastElement
         val suffix     = if (isLastLine) "" else ","
