@@ -14,14 +14,17 @@ private[test] trait PrettyPrintVersionSpecific {
       val isMultiLine = size > 1
       val indentation = if (isMultiLine) "  " else ""
 
-      val acc = new Array[String](size)
+      val acc = new java.lang.StringBuilder
 
       // First line handling
       val key0            = product.productElementName(0)
       val value0          = product.productElement(0)
       val firstLineSuffix = if (isMultiLine) ',' else ""
-      val firstLine       = s"$indentation${(key0 + " =").faint} ${PrettyPrint(value0)}$firstLineSuffix"
-      acc(0) = firstLine
+      acc.append(indentation)
+      acc.append(key0)
+      acc.append(" = ")
+      acc.append(PrettyPrint(value0))
+      acc.append(firstLineSuffix)
 
       // Remaining lines handling
       var i           = 1
@@ -30,13 +33,19 @@ private[test] trait PrettyPrintVersionSpecific {
         val key        = product.productElementName(i)
         val value      = product.productElement(i)
         val isLastLine = i == lastElement
-        val suffix     = if (isLastLine) "" else ","
-        acc(i) = s"\n$indentation${(key + " =").faint} ${PrettyPrint(value)}$suffix"
+        val suffix     = if (isLastLine) "" else ','
+        acc.append('\n')
+        acc.append(indentation)
+        acc.append(key)
+        acc.append(" = ")
+        acc.append(PrettyPrint(value))
+        acc.append(suffix)
+
         i += 1
       }
 
       // Final result formatting
-      val body   = acc.mkString
+      val body   = acc.toString
       val spacer = if (isMultiLine) '\n' else ""
       s"""$name($spacer$body$spacer)"""
     }
