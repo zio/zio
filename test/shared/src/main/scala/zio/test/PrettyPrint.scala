@@ -1,6 +1,5 @@
 package zio.test
 
-import zio.internal.ansi.AnsiStringOps
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{Chunk, NonEmptyChunk}
 
@@ -58,7 +57,7 @@ ${indent(body.mkString(",\n"))}
   private def prettyPrintIterator(iterable: Iterable[_], className: String): String =
     if (iterable.isEmpty) s"$className()"
     else {
-      val builder = new StringBuilder(iterable.size + 2)
+      val builder = new StringBuilder
       builder.append(s"$className(")
       val iterator = iterable.iterator
       builder.append(s"${PrettyPrint.apply(iterator.next)}")
