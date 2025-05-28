@@ -1,8 +1,8 @@
 package zio.test
 
 import zio.internal.ansi.AnsiStringOps
-import zio.{Chunk, NonEmptyChunk}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.{Chunk, NonEmptyChunk}
 
 /**
  * PrettyPrint will attempt to render a Scala value as the syntax used to create
@@ -10,25 +10,28 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * console during tests back into runnable code.
  */
 private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
-  private val maxListLength = 10
   def apply(any: Any): String =
     any match {
-      case nonEmptyChunk: NonEmptyChunk[_] =>
-        prettyPrintIterator(nonEmptyChunk.iterator, nonEmptyChunk.size, "NonEmptyChunk")
-      case chunk: Chunk[_] =>
-        prettyPrintIterator(chunk.iterator, chunk.size, "Chunk")
-      case array: Array[_] =>
-        prettyPrintIterator(array.iterator, array.length, "Array")
+      case null => "<null>"
+
+      case string: String =>
+        val surround = if (string.split("\n").length > 1) "\"\"\"" else "\""
+        string.replace("\"", """\"""").mkString(surround, "", surround)
+
+      case char: Char =>
+        s"'${char.toString}'"
 
       case Some(a) => s"Some(${PrettyPrint(a)})"
       case None    => s"None"
       case Nil     => "Nil"
 
-      case set: Set[_] =>
-        prettyPrintIterator(set.iterator, set.size, className(set))
-
-      case iterable: Seq[_] =>
-        prettyPrintIterator(iterable.iterator, iterable.size, className(iterable))
+      case chunk: Chunk[_]                 => prettyPrintIterator(chunk, "Chunk")
+      case list: List[_]                   => prettyPrintIterator(list, "List")
+      case vector: Vector[_]               => prettyPrintIterator(vector, "Vector")
+      case array: Array[_]                 => prettyPrintIterator(array, "Array")
+      case set: Set[_]                     => prettyPrintIterator(set, className(set))
+      case nonEmptyChunk: NonEmptyChunk[_] => prettyPrintIterator(nonEmptyChunk, "NonEmptyChunk")
+      case iterable: Seq[_]                => prettyPrintIterator(iterable, className(iterable))
 
       case map: Map[_, _] =>
         val body = map.map { case (key, value) => s"${PrettyPrint(key)} -> ${PrettyPrint(value)}" }
@@ -51,33 +54,26 @@ ${indent(body.mkString(",\n"))}
         val spacer       = if (isMultiline) "\n" else ""
         s"""$name($spacer$indentedBody$spacer)"""
 
-      case string: String =>
-        val surround = if (string.split("\n").length > 1) "\"\"\"" else "\""
-        string.replace("\"", """\"""").mkString(surround, "", surround)
-
-      case char: Char =>
-        s"'${char.toString}'"
-
-      case null => "<null>"
-
       case other => other.toString
     }
 
-  private def prettyPrintIterator(iterator: Iterator[_], length: Int, className: String): String = {
-    val suffix = if (length > maxListLength) {
-      s" + ${length - maxListLength} more)"
-    } else {
-      ")"
+  private def prettyPrintIterator(iterable: Iterable[_], className: String): String =
+    if (iterable.isEmpty) s"$className()"
+    else {
+      val builder = new StringBuilder(iterable.size + 2)
+      builder.append(s"$className(")
+      val iterator = iterable.iterator
+      builder.append(s"${PrettyPrint.apply(iterator.next)}")
+      while (iterator.hasNext) {
+        builder.append(s", ${PrettyPrint.apply(iterator.next)}")
+      }
+      builder.append(")")
+      builder.result()
     }
-    iterator.take(maxListLength).map(PrettyPrint.apply).mkString(s"${className}(", ", ", suffix)
-  }
 
   private def indent(string: String, n: Int = 2): String =
     string.split("\n").map((" " * n) + _).mkString("\n")
 
-  private def className(any: Any): String = any match {
-    case _: List[_] => "List"
-    case other      => other.getClass.getSimpleName
-  }
+  private def className(any: Any): String = any.getClass.getSimpleName
 
 }
