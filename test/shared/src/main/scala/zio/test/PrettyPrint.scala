@@ -4,6 +4,8 @@ import zio.internal.ansi.AnsiStringOps
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{Chunk, NonEmptyChunk}
 
+import scala.annotation.switch
+
 /**
  * PrettyPrint will attempt to render a Scala value as the syntax used to create
  * that value. This makes it easier to copy-paste from values printed to the
@@ -11,15 +13,25 @@ import zio.{Chunk, NonEmptyChunk}
  */
 private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
   def apply(any: Any): String =
-    any match {
-      case null => "<null>"
+    (any: @switch) match {
+      case null    => "<null>"
+      case _: Unit => "()" // Unit is printed as empty parentheses
 
       case string: String =>
         val surround = if (string.split("\n").length > 1) "\"\"\"" else "\""
         string.replace("\"", """\"""").mkString(surround, "", surround)
 
-      case char: Char =>
-        s"'${char.toString}'"
+      case int: Int               => int.toString
+      case long: Long             => long.toString
+      case double: Double         => double.toString
+      case float: Float           => float.toString
+      case boolean: Boolean       => boolean.toString
+      case char: Char             => s"'${char.toString}'"
+      case short: Short           => short.toString
+      case byte: Byte             => byte.toString
+      case bigDecimal: BigDecimal => bigDecimal.toString
+      case bigInt: BigInt         => bigInt.toString
+      case symbol: Symbol         => symbol.toString
 
       case Some(a) => s"Some(${PrettyPrint(a)})"
       case None    => s"None"
