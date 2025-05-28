@@ -538,7 +538,7 @@ lazy val commonJunitTestSettings = Seq(
   ),
   libraryDependencies ++= Seq(
     "junit"                     % "junit"                          % "4.13.2" % Test,
-    "org.scala-lang.modules"   %% "scala-xml"                      % "2.3.0"  % Test,
+    "org.scala-lang.modules"   %% "scala-xml"                      % "2.4.0"  % Test,
     "org.apache.maven"          % "maven-embedder"                 % "3.9.9"  % Test,
     "org.apache.maven"          % "maven-compat"                   % "3.9.9"  % Test,
     "com.google.inject"         % "guice"                          % "6.0.0"  % Test,
