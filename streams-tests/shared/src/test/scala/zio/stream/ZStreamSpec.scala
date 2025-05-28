@@ -1466,11 +1466,9 @@ object ZStreamSpec extends ZIOBaseSpec {
                          _ <- ZStream.acquireReleaseWith(push("open1"))(_ => push("close1"))
                          _ <- ZStream
                                 .fromChunks(Chunk(()), Chunk(()))
-                                .tap(_ => ZIO.debug("use2") *> push("use2"))
+                                .tap(_ => push("use2"))
                                 .ensuring(push("close2"))
-                         _ <- ZStream.acquireReleaseWith(ZIO.debug("open3") *> push("open3"))(_ =>
-                                ZIO.debug("close3") *> push("close3")
-                              )
+                         _ <- ZStream.acquireReleaseWith(push("open3"))(_ => push("close3"))
                          _ <- ZStream
                                 .fromChunks(Chunk(()), Chunk(()))
                                 .tap(_ => push("use4"))
@@ -1507,10 +1505,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               stream = for {
                          _ <- ZStream
                                 .fromChunks(Chunk(1), Chunk(2))
-                                .tap(n => ZIO.debug(s">>> use2 $n") *> push("use2"))
-                         _ <- ZStream.acquireReleaseWith(ZIO.debug("open3") *> push("open3"))(_ =>
-                                ZIO.debug("close3") *> push("close3")
-                              )
+                                .tap(_ => push("use2"))
+                         _ <- ZStream.acquireReleaseWith(push("open3"))(_ => push("close3"))
                        } yield ()
               _      <- stream.runDrain
               result <- effects.get
@@ -4636,7 +4632,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val pipeline = ZPipeline.fromFunction[Scope, Throwable, Byte, Unit] { s =>
               ZStream.fromZIO {
                 for {
-                  is <- s.toInputStream.debug("toInputStream")
+                  is <- s.toInputStream
                   _  <- ZIO.attemptBlocking(is.read())
                 } yield ()
               }
