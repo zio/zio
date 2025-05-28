@@ -18,7 +18,7 @@ private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
       case _: Unit => "()" // Unit is printed as empty parentheses
 
       case string: String =>
-        val surround = if (string.split("\n").length > 1) "\"\"\"" else "\""
+        val surround = if (string.contains('\n')) "\"\"\"" else "\""
         string.replace("\"", """\"""").mkString(surround, "", surround)
 
       case int: Int               => int.toString
