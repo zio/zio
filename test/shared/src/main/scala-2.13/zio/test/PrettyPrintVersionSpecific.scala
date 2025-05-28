@@ -6,8 +6,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 private[test] trait PrettyPrintVersionSpecific {
 
   def prettyPrintProduct(product: Product): String = {
-    val name   = product.productPrefix
-    val size   = product.productArity
+    val name = product.productPrefix
+    val size = product.productArity
 
     if (size < 1) s"$name()"
     else {
