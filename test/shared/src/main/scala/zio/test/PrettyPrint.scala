@@ -15,7 +15,6 @@ private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
   def apply(any: Any): String =
     (any: @switch) match {
       case null    => "<null>"
-      case _: Unit => "()" // Unit is printed as empty parentheses
 
       case string: String =>
         val surround = if (string.contains('\n')) "\"\"\"" else "\""
