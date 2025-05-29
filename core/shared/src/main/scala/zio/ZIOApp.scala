@@ -51,6 +51,8 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific {
   /**
    * The time that the application will wait for finalizers to run before
    * exiting.
+   *
+   * '''NOTE''': This is currently used only for JVM & ScalaNative applications
    */
   def gracefulShutdownTimeout: Duration = Duration.Infinity
 
