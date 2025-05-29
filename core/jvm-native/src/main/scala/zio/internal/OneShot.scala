@@ -18,7 +18,6 @@ package zio.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.{Condition, ReentrantLock}
 
 /**
