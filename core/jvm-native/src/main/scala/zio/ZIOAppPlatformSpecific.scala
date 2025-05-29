@@ -39,7 +39,11 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
           } else {
             try {
               fiber.tellInterrupt(Cause.interrupt(fiberId))
-              shutdownLatch.get(gracefulShutdownTimeout.toMillis)
+              gracefulShutdownTimeout match {
+                case Duration.Infinity       => shutdownLatch.get()
+                case d if d <= Duration.Zero => ()
+                case d                       => shutdownLatch.get(d.toMillis)
+              }
             } catch {
               case _: OneShot.TimeoutException =>
                 println(
