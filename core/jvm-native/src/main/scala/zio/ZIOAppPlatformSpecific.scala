@@ -48,7 +48,7 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
               case _: OneShot.TimeoutException =>
                 println(
                   "**** WARNING ****\n" +
-                    s"Timed out waiting for ZIO application to shut down after $gracefulShutdownTimeout. " +
+                    s"Timed out waiting for ZIO application to shut down after ${gracefulShutdownTimeout.render}. " +
                     "You can adjust your application's shutdown timeout by overriding the `shutdownTimeout` method"
                 )
               case _: Throwable =>
