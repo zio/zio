@@ -684,17 +684,23 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         //worst case: buffer is full + 1 pre-push + 1 post-pop, this number can be capped further by n (parallelism level) but in this case it becomes harder to track the next free slot in the array
         val maxInFlight = bufferSize + 2
         val inFlightFibers = Array.ofDim[Fiber.Runtime[Left[Unit, Nothing], OutElem2]](maxInFlight)
+        //track next insertion point into the inflights array
         var cyclicIdx = 0
 
-        implicit val unsafe = zio.Unsafe
+        implicit val unsafe: Unsafe = zio.Unsafe
 
         def forkManaged(z : ZIO[Env1, Left[Unit, Nothing], OutElem2]) = {
           ZIO.withFiberRuntime[Any, Nothing, FiberRuntime[Left[Unit, Nothing], OutElem2]]{ case (parentFiber, parentState) =>
-            //buffer may be full, in addition there may be 1 post-pop fiber, hence bufferSize+1 occupied slots
+            //buffer may be full, in addition there may be 1 post-pop fiber, hence bufferSize+1 occupied slots, plus the fiber we're about to fork,
             // hence % (bufferSize + 2) combined with the pattern of a single writer guarantees no overruns
             val i = cyclicIdx
             cyclicIdx = (i + 1) % maxInFlight
 
+            //make sure to respect parallelism, make sure to nullify the in-flights slot once the fiber is completed.
+            //notice the n+2 invariant guarantees this write in NOT overwriting any wright by the forker fiber.
+            //however, it is possible this write won't be visible to the writer but this i=s not an issue since:
+            //the forker will either make another write to this slot or later read the stale reference and ignore it since it'd find out it's not running anymore.
+            //todo: replace ensuring with an observer?
             val z0 = permits.withPermit(z).ensuring(ZIO.succeed(inFlightFibers(i) = null))
 
             //once entered this block of code, we're 'interrupt safe' except from the case we have to yield before forking
@@ -762,7 +768,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                                  // * notice that just placing a message in the queue isn't enough since one of these fibers may fail and interrupt the others,
                                  //   in this case we want to ensure downstream sees the failure.
                                  // since we already maintain a list of in-flights (for cleanup purposes) we can use it to await all pending fibers (this replaces the old latch based mechanism).
-                                 //todo: is it possible to skip this and 'transfer' the interrupt-all responsibility to the downstream fiber? not sure if this gives any benefits
+                                 //todo: is it possible to skip this and 'transfer' the interrupt-all responsibility to the downstream fiber? not sure if this gives any benefits,
+                                 // furthermore it raises visibility concerns this approach avoids (same fiber writes and reads, aside from the 'dirty' deletions by the child fibers which we cope with)
                                  Fiber
                                    .collectAllDiscard(fibersIterable(currentFibId))
                                    .await
@@ -775,8 +782,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                            })
                            .ignore
                            .ensuring(interruptInFlight)
-
-          _ <- (processElems raceFirst /*ZChannel.awaitErrorSignal(childScope, fiberId)(errorSignal)*/ errorSignal.await.interruptible).forkIn(scope)
+          // race with potential errors from the child fibers, notice in this case the forker is the one to interrupt all remaining children,
+          // this is important for consistent read after write on the in-flights array.
+          _ <- (processElems raceFirst errorSignal.await.interruptible).forkIn(scope)
         } yield {
           lazy val writer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
             ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
