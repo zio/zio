@@ -18,6 +18,7 @@ package zio.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.{Condition, ReentrantLock}
 
 /**
@@ -48,6 +49,23 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
     }
   }
 
+  def trySet(v: A): Boolean = {
+    if (v == null) throw new Error("Defect: OneShot variable cannot be set to null value")
+
+    this.lock()
+
+    try {
+      if (value ne null) return false
+
+      value = v.asInstanceOf[A with AnyRef]
+
+      this.isSetCondition.signalAll()
+      true
+    } finally {
+      this.unlock()
+    }
+  }
+
   /**
    * Determines if the variable has been set.
    */
@@ -72,7 +90,7 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
         this.unlock()
       }
 
-      if (value eq null) throw new Error("Timed out waiting for variable to be set")
+      if (value eq null) throw new OneShot.TimeoutException
 
       value
     }
@@ -106,4 +124,6 @@ private[zio] object OneShot {
    * Makes a new (unset) variable.
    */
   def make[A]: OneShot[A] = new OneShot()
+
+  final class TimeoutException extends Error("Timed out waiting for variable to be set")
 }
