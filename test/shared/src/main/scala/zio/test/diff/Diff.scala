@@ -8,7 +8,7 @@ import zio.{Chunk, NonEmptyChunk}
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.util.Try
 
-trait Diff[A] { self =>
+trait Diff[-A] { self =>
   def diff(x: A, y: A): DiffResult
 
   final def contramap[B](f: B => A): Diff[B] = new Diff[B] {

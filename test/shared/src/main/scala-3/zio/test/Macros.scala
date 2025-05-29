@@ -315,9 +315,9 @@ object SmartAssertMacros {
 
       case Unseal(MethodCall(lhs, "==", tpes, Some(List(rhs)))) =>
         val span = getSpan(rhs)
-        lhs.tpe.widen.asType match {
-          case '[l] =>
-            Expr.summon[OptionalImplicit[Diff[l]]] match {
+        (lhs.tpe.widen.asType, rhs.tpe.widen.asType) match {
+          case ('[l], '[r]) =>
+            Expr.summon[OptionalImplicit[Diff[l | r]]] match {
               case Some(optDiff) =>
                 '{
                   ${ transform(lhs.asExpr) } >>> SmartAssertions
