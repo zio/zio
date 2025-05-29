@@ -681,72 +681,70 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         val errorSignal = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
         val permits     = Semaphore.unsafe.make(n0)(Unsafe)
         val failureRef  = Ref.unsafe.make[Cause[OutErr1]](Cause.empty)(Unsafe)
-        //worst case: buffer is full + 1 pre-push + 1 post-pop, this number can be capped further by n (parallelism level) but in this case it becomes harder to track the next free slot in the array
-        val maxInFlight = bufferSize + 2
+        // worst case: buffer is full + 1 pre-push + 1 post-pop, this number can be capped further by n (parallelism level) but in this case it becomes harder to track the next free slot in the array
+        val maxInFlight    = bufferSize + 2
         val inFlightFibers = Array.ofDim[Fiber.Runtime[Left[Unit, Nothing], OutElem2]](maxInFlight)
-        //track next insertion point into the inflights array
+        // track next insertion point into the inflights array
         var cyclicIdx = 0
 
         implicit val unsafe: Unsafe = zio.Unsafe
 
-        def forkManaged(z : ZIO[Env1, Left[Unit, Nothing], OutElem2]) = {
-          ZIO.withFiberRuntime[Any, Nothing, FiberRuntime[Left[Unit, Nothing], OutElem2]]{ case (parentFiber, parentState) =>
-            //buffer may be full, in addition there may be 1 post-pop fiber, hence bufferSize+1 occupied slots, plus the fiber we're about to fork,
-            // hence % (bufferSize + 2) combined with the pattern of a single writer guarantees no overruns
-            val i = cyclicIdx
-            cyclicIdx = (i + 1) % maxInFlight
+        def forkManaged(z: ZIO[Env1, Left[Unit, Nothing], OutElem2]) =
+          ZIO.withFiberRuntime[Any, Nothing, FiberRuntime[Left[Unit, Nothing], OutElem2]] {
+            case (parentFiber, parentState) =>
+              // buffer may be full, in addition there may be 1 post-pop fiber, hence bufferSize+1 occupied slots, plus the fiber we're about to fork,
+              // hence % (bufferSize + 2) combined with the pattern of a single writer guarantees no overruns
+              val i = cyclicIdx
+              cyclicIdx = (i + 1) % maxInFlight
 
-            //make sure to respect parallelism, make sure to nullify the in-flights slot once the fiber is completed.
-            //notice the n+2 invariant guarantees this write in NOT overwriting any wright by the forker fiber.
-            //however, it is possible this write won't be visible to the writer but this i=s not an issue since:
-            //the forker will either make another write to this slot or later read the stale reference and ignore it since it'd find out it's not running anymore.
-            //todo: replace ensuring with an observer?
-            val z0 = permits.withPermit(z).ensuring(ZIO.succeed(inFlightFibers(i) = null))
+              // make sure to respect parallelism, make sure to nullify the in-flights slot once the fiber is completed.
+              // notice the n+2 invariant guarantees this write in NOT overwriting any wright by the forker fiber.
+              // however, it is possible this write won't be visible to the writer but this i=s not an issue since:
+              // the forker will either make another write to this slot or later read the stale reference and ignore it since it'd find out it's not running anymore.
+              // todo: replace ensuring with an observer?
+              val z0 = permits.withPermit(z).ensuring(ZIO.succeed(inFlightFibers(i) = null))
 
-            //once entered this block of code, we're 'interrupt safe' except from the case we have to yield before forking
-            //in this case the fiber won't be started, however the parent fiber is now interrupted and it's guaranteed to interrupt all in flight fibers, including the unstarted one
-            val unstartedFib: FiberRuntime[Left[Unit, Nothing], OutElem2] = ZIO.unsafe.makeChildFiber(trace, z0, parentFiber, parentState.runtimeFlags, FiberScope.global)
-            inFlightFibers(i) = unstartedFib
+              // once entered this block of code, we're 'interrupt safe' except from the case we have to yield before forking
+              // in this case the fiber won't be started, however the parent fiber is now interrupted and it's guaranteed to interrupt all in flight fibers, including the unstarted one
+              val unstartedFib: FiberRuntime[Left[Unit, Nothing], OutElem2] =
+                ZIO.unsafe.makeChildFiber(trace, z0, parentFiber, parentState.runtimeFlags, FiberScope.global)
+              inFlightFibers(i) = unstartedFib
 
-            val startFib: ZIO[Any, Nothing, FiberRuntime[Left[Unit, Nothing], OutElem2]] = ZIO.succeed{
-              unstartedFib.startConcurrently(z0)
-              unstartedFib
-            }
+              val startFib: ZIO[Any, Nothing, FiberRuntime[Left[Unit, Nothing], OutElem2]] = ZIO.succeed {
+                unstartedFib.startConcurrently(z0)
+                unstartedFib
+              }
 
-            if(parentFiber.shouldYieldBeforeFork())
-              ZIO.yieldNow *> startFib
-            else startFib
+              if (parentFiber.shouldYieldBeforeFork())
+                ZIO.yieldNow *> startFib
+              else startFib
           }
-        }
 
-        //notice this is a non-deterministic view of the inflight fibers, however:
-        //1. it's only used by the forking fiber, hence no race with introducing new fibers into the array.
-        //2. furthermore, it's only used once no more fibers are forked
-        //3. it may race with fibers terminating and removing themselves from the array,
+        // notice this is a non-deterministic view of the inflight fibers, however:
+        // 1. it's only used by the forking fiber, hence no race with introducing new fibers into the array.
+        // 2. furthermore, it's only used once no more fibers are forked
+        // 3. it may race with fibers terminating and removing themselves from the array,
         // this is ok since 'missing' this deletion doesn't break correctness as it results with including a completed fiber in the view,
         // this fiber is safe to interrupt (noop) or await (returns immediately).
-        def fibersIterable(parentFibId : FiberId): View[Fiber.Runtime[Left[Unit, Nothing], OutElem2]] =
-          inFlightFibers
-            .view
-            .filter{fib =>
-              (null ne fib) &&
-                (fib.id != parentFibId) &&
-                fib.isAlive()
-            }
+        def fibersIterable(parentFibId: FiberId): View[Fiber.Runtime[Left[Unit, Nothing], OutElem2]] =
+          inFlightFibers.view.filter { fib =>
+            (null ne fib) &&
+            (fib.id != parentFibId) &&
+            fib.isAlive()
+          }
 
         def interruptInFlight = ZIO.fiberIdWith { currFibId =>
           Fiber.interruptAllAs(currFibId)(fibersIterable(currFibId))
         }
 
         val setFinalizer: UIO[Unit] =
-          ZIO.uninterruptible {scope.addFinalizer(outgoing.shutdown)
-          }
+          ZIO.uninterruptible(scope.addFinalizer(outgoing.shutdown))
 
         for {
-          _          <- setFinalizer
-          pull       <- (queueReader >>> self).toPullInAlt(scope)
+          _    <- setFinalizer
+          pull <- (queueReader >>> self).toPullInAlt(scope)
           processElems = pull.flatMap { outElem =>
-                           forkManaged{
+                           forkManaged {
                              f(outElem)
                                .catchAllCause(cause =>
                                  failureRef.update(_ && cause).unless(cause.isInterruptedOnly) *>
@@ -754,21 +752,21 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                                    ZChannel.failLeftUnit
                                )
                            }
-                           .flatMap(fiber => outgoing.offer(fiber))
+                             .flatMap(fiber => outgoing.offer(fiber))
                          }.forever.interruptible
                            .onError(_.failureOrCause match {
                              case Left(x: Left[OutErr, ?]) =>
                                failureRef.update(_ && Cause.fail(x.value)) *>
                                  outgoing.offer(Fiber.done(ZChannel.failLeftUnit))
                              case Left(x: Right[?, OutDone]) =>
-                               ZIO.fiberIdWith{ currentFibId =>
-                                 //upstream completed, hence no more forks,
-                                 //however there may be some in-flight fibers still running.
-                                 //so we must wait for them to complete before notifying completion to downstream.
+                               ZIO.fiberIdWith { currentFibId =>
+                                 // upstream completed, hence no more forks,
+                                 // however there may be some in-flight fibers still running.
+                                 // so we must wait for them to complete before notifying completion to downstream.
                                  // * notice that just placing a message in the queue isn't enough since one of these fibers may fail and interrupt the others,
                                  //   in this case we want to ensure downstream sees the failure.
                                  // since we already maintain a list of in-flights (for cleanup purposes) we can use it to await all pending fibers (this replaces the old latch based mechanism).
-                                 //todo: is it possible to skip this and 'transfer' the interrupt-all responsibility to the downstream fiber? not sure if this gives any benefits,
+                                 // todo: is it possible to skip this and 'transfer' the interrupt-all responsibility to the downstream fiber? not sure if this gives any benefits,
                                  // furthermore it raises visibility concerns this approach avoids (same fiber writes and reads, aside from the 'dirty' deletions by the child fibers which we cope with)
                                  Fiber
                                    .collectAllDiscard(fibersIterable(currentFibId))
