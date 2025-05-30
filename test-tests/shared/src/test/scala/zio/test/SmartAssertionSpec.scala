@@ -272,6 +272,14 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       assertTrue(duration < Duration(1, SECONDS)) &&
       assertTrue("testing" > "test")
     },
+    test("comparison with Ordering implicits") {
+      import java.time.Instant
+      import Ordering.Implicits._
+
+      val now     = Instant.now()
+      val earlier = now.minusSeconds(60)
+      assertTrue(earlier < now, now <= now, now > earlier, now >= now)
+    },
     test("exists must succeed when at least one element of iterable satisfy specified assertion") {
       assertTrue(Seq(1, 42, 5).exists(_ == 42))
     },
