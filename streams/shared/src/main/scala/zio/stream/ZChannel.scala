@@ -1,18 +1,11 @@
 package zio.stream
 
 import zio.internal.{FiberRuntime, FiberScope}
-import zio.internal.FiberScope.global
-import zio.{ZIO, _}
-import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.internal.ChannelExecutor.ChannelState
 import zio.stream.internal.{AsyncInputConsumer, AsyncInputProducer, ChannelExecutor, SingleProducerAsyncInput}
+import zio.{ZIO, _}
 
-import java.util.concurrent.ConcurrentLinkedDeque
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, AtomicReference}
-import scala.annotation.tailrec
-import scala.collection.View
-import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters.{IterableHasAsScala, IteratorHasAsScala, SeqHasAsJava}
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A `ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]` is a nexus
@@ -726,7 +719,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         // 3. it may race with fibers terminating and removing themselves from the array,
         // this is ok since 'missing' this deletion doesn't break correctness as it results with including a completed fiber in the view,
         // this fiber is safe to interrupt (noop) or await (returns immediately).
-        def fibersIterable(parentFibId: FiberId): View[Fiber.Runtime[Left[Unit, Nothing], OutElem2]] =
+        def fibersIterable(parentFibId: FiberId): Iterable[Fiber.Runtime[Left[Unit, Nothing], OutElem2]] =
           inFlightFibers.view.filter { fib =>
             (null ne fib) &&
             (fib.id != parentFibId) &&
