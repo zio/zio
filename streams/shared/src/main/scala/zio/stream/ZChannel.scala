@@ -684,9 +684,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         implicit val unsafe: Unsafe = zio.Unsafe
 
         def forkManaged(z: ZIO[Env1, Left[Unit, Nothing], OutElem2]) =
-          ZIO.uninterruptibleMask { restore =>
-            ZIO.withFiberRuntime[Any, Nothing, FiberRuntime[Left[Unit, Nothing], OutElem2]] {
-              case (parentFiber, parentState) =>
+          ZIO.withFiberRuntime[Any, Nothing, FiberRuntime[Left[Unit, Nothing], OutElem2]] {
+            case (parentFiber, parentState) =>
+              // once entered this block of code, we're 'interrupt safe',
+              // otherwise the fiber won't be created nor started.
+              val actualFork: ZIO[Any, Nothing, FiberRuntime[Left[Unit, Nothing], OutElem2]] = ZIO.succeed {
                 // buffer may be full, in addition there may be 1 post-pop fiber, hence bufferSize+1 occupied slots, plus the fiber we're about to fork,
                 // hence % (bufferSize + 2) combined with the pattern of a single writer guarantees no overruns
                 val i = cyclicIdx
@@ -697,27 +699,25 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 // however, it is possible this write won't be visible to the writer but this i=s not an issue since:
                 // the forker will either make another write to this slot or later read the stale reference and ignore it since it'd find out it's not running anymore.
                 // todo: replace ensuring with an observer?
-                val z0 = restore(z).ensuring(ZIO.succeed(inFlightFibers(i) = null))
-
-                // once entered this block of code, we're 'interrupt safe' except from the case we have to yield before forking
-                // in this case the fiber won't be started, however the parent fiber is now interrupted and it's guaranteed to interrupt all in flight fibers, including the unstarted one
+                val z0 = z.ensuring(ZIO.succeed(inFlightFibers(i) = null))
                 val unstartedFib: FiberRuntime[Left[Unit, Nothing], OutElem2] =
                   ZIO.unsafe.makeChildFiber(trace, z0, parentFiber, parentState.runtimeFlags, FiberScope.global)
+
+                // notice: this expose the fiber for interruption, however such interruption can't take place until this 'succeed' effect completes
+                // this is guaranteed since all inflight fibers are owned by the forker fiber which interrupts them in an 'ensuring' block.
                 inFlightFibers(i) = unstartedFib
+
                 // fiber must be started (one way or another), otherwise it may get interrupted BEFORE effectively starting,
                 // worst, it may get interrupted and NEVER actually start, when this happens the fiber state changes to interrupted (respecting non-interruptible regions and so on...) but it's not yet completed.
                 // in order for an early interrupted fiber to complete it must actually process an effect.
-                // there are multiple ways to achieve this by calling one of the startXXX methods.
+                // there are multiple ways to achieve this by calling one of the startXXX methods, we use startConcurrently.
+                unstartedFib.startConcurrently(z0)
+                unstartedFib
+              }
 
-                val startFib: ZIO[Any, Nothing, FiberRuntime[Left[Unit, Nothing], OutElem2]] = ZIO.succeed {
-                  unstartedFib.startConcurrently(z0)
-                  unstartedFib
-                }
-
-                if (parentFiber.shouldYieldBeforeFork())
-                  ZIO.yieldNow *> startFib
-                else startFib
-            }
+              if (parentFiber.shouldYieldBeforeFork())
+                ZIO.yieldNow *> actualFork
+              else actualFork
           }
 
         // notice this is a non-deterministic view of the inflight fibers, however:
