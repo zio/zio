@@ -2510,9 +2510,9 @@ object ZChannel {
    * by the single consumer.
    */
   class SingleConsumerSemaphore(maxPermits: Int) {
-    implicit val unsafe = zio.Unsafe
+    implicit val unsafe: Unsafe = zio.Unsafe
     // we start at zero since the consumer knows max permits and can start performing without consulting the semaphore
-    val ref = zio.Ref.unsafe.make(Left(0).withRight[zio.Promise[Nothing, Any]])
+    val ref: Ref.Atomic[Either[RuntimeFlags, Promise[Nothing, Any]]] = zio.Ref.unsafe.make(Left(0))
 
     // consumer only calls this after exhausting all permit from the last time,
     // this method either blocks untill a permit is released or immediately returns all currently available permits
