@@ -398,6 +398,9 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           NonEmptyChunk("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
         assertTrue(l1 == l2)
       } @@ failing,
+      test("Chunk and Seq diff") {
+        assertTrue(Chunk(1, 2, 3) == Seq(1, 2, 3))
+      },
       test("Set diffs") {
         val l1 = Set(1, 2, 3, 4)
         val l2 = Set(1, 2, 8, 4, 5)
