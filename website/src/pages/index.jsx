@@ -6,6 +6,7 @@ import Hero from '@site/src/components/sections/Hero';
 import Features from '@site/src/components/sections/Features';
 import Ecosystem from '@site/src/components/sections/Ecosystem';
 import Sponsors from '@site/src/components/sections/Sponsors';
+import Zionomicon from '@site/src/components/sections/Zionomicon';
 
 // Construct the home page from all components
 export default function WelcomePage() {
@@ -22,6 +23,7 @@ export default function WelcomePage() {
       <main>
         <Features />
         <Ecosystem title = "Ecosystem" subtitle="A rich ecosystem of libraries built on ZIO to solve real-world problems"/>
+        <Zionomicon />
         <Sponsors />
       </main>
     </Layout>
