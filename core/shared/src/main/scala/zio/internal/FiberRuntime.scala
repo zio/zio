@@ -987,7 +987,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       }
 
       if (RuntimeFlags.opLog(_runtimeFlags)) {
-        log(() => ZIO.render(cur), Cause.empty, Some(LogLevel.Info), cur.trace)
+        val safeCur = cur
+        log(() => ZIO.render(safeCur), Cause.empty, ZIO.someDebug, safeCur.trace)
       }
 
       cur = drainQueueWhileRunning(cur)

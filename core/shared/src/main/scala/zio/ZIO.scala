@@ -6411,9 +6411,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       case within: UpdateRuntimeFlagsWithin[_, _, _] =>
         within match {
           case UpdateRuntimeFlagsWithin.Interruptible(trace, effect) =>
-            s"UpdateRuntimeFlagsWithin.Interruptible(trace=$trace, effect=$effect)"
+            s"UpdateRuntimeFlagsWithin.Interruptible(trace=$trace, effect=${render(effect)})"
           case UpdateRuntimeFlagsWithin.Uninterruptible(trace, effect) =>
-            s"UpdateRuntimeFlagsWithin.Uninterruptible(trace=$trace, effect=$effect)"
+            s"UpdateRuntimeFlagsWithin.Uninterruptible(trace=$trace, effect=${render(effect)})"
           case UpdateRuntimeFlagsWithin.Dynamic(trace, _, _) =>
             s"UpdateRuntimeFlagsWithin.Dynamic(trace=$trace)"
           case UpdateRuntimeFlagsWithin.DynamicNoBox(trace, _, _) =>

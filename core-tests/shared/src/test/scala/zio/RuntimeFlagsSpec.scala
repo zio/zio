@@ -129,7 +129,7 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
             }.provide(Runtime.enableFlags(RuntimeFlag.EagerShiftBack))
         } @@ TestAspect.jvmOnly +
         suite("OpLog") {
-          test("enabled") {
+          test("rendered") {
             val syncEffect = ZIO.Sync(Trace.empty, () => {})
             val whileLoopEffect = ZIO
               .WhileLoop[Any, Nothing, Unit](Trace.empty, () => true, () => ZIO.succeed(()), (_: Any) => {})
@@ -159,7 +159,6 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
                   RuntimeFlags.enable(RuntimeFlag.Interruption),
                   (_: Int) => ZIO.succeed(())
                 )
-
             val exitSuccessEffect = Exit.succeed(0)
             val exitFailureEffect = Exit.fail("boom")
 
@@ -190,6 +189,15 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
             assertTrue(
               ZIO.render(exitFailureEffect) == "Exit.Failure(cause=Fail(boom,Stack trace for thread \"zio-fiber-\":\n))"
             )
+          }
+          test("enabled") {
+            val effect         = ZIO.succeed(0)
+            val effectRendered = ZIO.render(effect)
+
+            for {
+              _      <- effect
+              output <- ZTestLogger.logOutput
+            } yield assertTrue(output.exists(_.message() == effectRendered))
           }.provide(Runtime.enableFlags(RuntimeFlag.OpLog))
         }
     }
