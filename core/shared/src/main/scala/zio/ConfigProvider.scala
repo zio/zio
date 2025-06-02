@@ -66,7 +66,19 @@ trait ConfigProvider {
    * to the naming convention of a config provider.
    */
   final def kebabCase: ConfigProvider =
-    contramapPath(_.replaceAll("([a-z])([A-Z])", "$1-$2").toLowerCase)
+    contramapPath { name =>
+      // Handle the sequence of transformations to convert camelCase to kebab-case
+      name
+        // Insert dash between lowercase and uppercase letters
+        .replaceAll("([a-z])([A-Z])", "$1-$2")
+        // Insert dash between letters and numbers
+        .replaceAll("([a-zA-Z])([0-9])", "$1-$2")
+        // Insert dash between numbers and uppercase letters
+        .replaceAll("([0-9])([A-Z])", "$1-$2")
+        // Handle multiple consecutive uppercase letters
+        .replaceAll("([A-Z]+)([A-Z][a-z])", "$1-$2")
+        .toLowerCase
+    }
 
   /**
    * Returns a new config provider that will automatically convert all property
@@ -101,7 +113,19 @@ trait ConfigProvider {
    * to the naming convention of a config provider.
    */
   final def snakeCase: ConfigProvider =
-    contramapPath(_.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase)
+    contramapPath { name =>
+      // Handle the sequence of transformations to convert camelCase to snake_case
+      name
+        // Insert underscore between lowercase and uppercase letters
+        .replaceAll("([a-z])([A-Z])", "$1_$2")
+        // Insert underscore between letters and numbers
+        .replaceAll("([a-zA-Z])([0-9])", "$1_$2")
+        // Insert underscore between numbers and uppercase letters
+        .replaceAll("([0-9])([A-Z])", "$1_$2")
+        // Handle multiple consecutive uppercase letters
+        .replaceAll("([A-Z]+)([A-Z][a-z])", "$1_$2")
+        .toLowerCase
+    }
 
   /**
    * Returns a new config provider that will automatically unnest all
