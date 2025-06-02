@@ -132,7 +132,7 @@ object MyApp extends ZIOAppDefault {
 :::note
 1. This only applies on JVM and Scala Native. Other platforms like Scala.js do not invoke the shutdown hook on external signals.
 
-2. If finalizers take too long, when the timeout elapses, the runtime prints exactly:
+2. If finalizers take too long when the timeout elapses, the runtime prints exactly:
 ```
 **** WARNING ****
 Timed out waiting for ZIO application to shut down after 30 seconds. You can adjust your application's shutdown timeout by overriding the `shutdownTimeout` method
