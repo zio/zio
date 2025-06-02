@@ -402,7 +402,9 @@ val parentInterruptibleChild = ZIO.uninterruptible {
     _   <- fib.interrupt *> ZIO.logInfo("Interrupt invoked!")
   } yield ()
 }
+```
 :::
+
 
 In the following example, we create a separate fiber to output a delayed print message and then wait for that fiber to succeed with a value:
 
