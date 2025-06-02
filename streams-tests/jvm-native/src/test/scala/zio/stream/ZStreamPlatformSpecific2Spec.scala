@@ -111,6 +111,29 @@ object ZStreamPlatformSpecific2Spec extends ZIOBaseSpec {
             .exit
             .map(assert(_)(fails(isSubtype[IOException](anything))))
         }
+      ),
+      suite("async")(
+        test("ZStream.async must never drop any of the 10 elements on Native") {
+          def asyncTenStream: ZStream[Any, Nothing, Int] =
+            ZStream.async { cb =>
+              var i = 1
+              while (i <= 10) {
+                cb(ZIO.succeed(Chunk.single(i)))
+                i += 1
+              }
+              cb.end
+              ()
+            }
+
+          def countElements: UIO[Int] =
+            asyncTenStream.runCount.map(_.toInt)
+
+          val runs: UIO[IndexedSeq[Int]] = ZIO.foreach(1 to 100)(_ => countElements)
+
+          for {
+            counts <- runs
+          } yield assert(counts)(Assertion.forall(equalTo(10)))
+        }
       )
     )
   )
