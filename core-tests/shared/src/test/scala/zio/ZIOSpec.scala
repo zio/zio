@@ -2760,37 +2760,37 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assertTrue(value == 42)
       },
       test("async should not resume fiber twice after interruption") {
+        implicit val us: Unsafe = Unsafe
         for {
-          step            <- Promise.make[Nothing, Unit]
+          started         <- Promise.make[Nothing, Unit]
+          step            <- Promise.make[Nothing, ZIO[Any, Nothing, Unit] => Unit]
           unexpectedPlace <- Ref.make(List.empty[Int])
           runtime         <- ZIO.runtime[Live]
           fork <- ZIO
                     .async[Any, Nothing, Unit] { k =>
-                      Unsafe.unsafe { implicit unsafe =>
-                        runtime.unsafe.fork {
-                          step.await *> ZIO.succeed(k(unexpectedPlace.update(1 :: _)))
-                        }
+                      runtime.unsafe.fork {
+                        step.await *> ZIO.succeed(k(unexpectedPlace.update(1 :: _)))
                       }
+                      started.unsafe.succeedUnit
                       ()
                     }
-                    .ensuring(ZIO.async[Any, Nothing, Unit] { _ =>
-                      Unsafe.unsafe { implicit unsafe =>
-                        runtime.unsafe.fork {
-                          step.succeed(())
-                        }
-                      }
+                    .ensuring(ZIO.async[Any, Nothing, Unit] { k =>
+                      step.unsafe.succeed(k)
                       ()
                       // never complete
                     })
                     .ensuring(unexpectedPlace.update(2 :: _))
                     .forkDaemon
-          result     <- Live.withLive(fork.interrupt)(_.timeout(5.seconds))
+          _          <- started.await
+          result     <- fork.interrupt.timeout(100.millis)
           unexpected <- unexpectedPlace.get
+          // Invoke the callback now we collected everything otherwise the fiber is stuck in an uninterruptible region
+          _ <- step.await.map(_(Exit.unit))
         } yield {
           assert(unexpected)(isEmpty) &&
           assert(result)(isNone) // timeout happens
         }
-      } @@ zioTag(interruption) @@ flaky,
+      } @@ zioTag(interruption) @@ withLiveClock @@ nonFlaky(10),
       test("test interruption of infinite async in uninterruptible region") {
         for {
           finalized <- Ref.make(false)
