@@ -741,10 +741,16 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           ZIO.uninterruptible(scope.addFinalizer(outgoing.shutdown))
 
         for {
+          upstreamScope <-
+            scope.fork // we need this because we want to interrupt the upstream fiber AFTER closing the queue
           _    <- setFinalizer
           pull <- (queueReader >>> self).toPullInAlt(scope)
           proc = {
-                   def go(outElem: OutElem, availPermits: Int): ZIO[Env1, Either[OutErr, OutDone], Nothing] =
+                   def loop(availPermits: Int): ZIO[Env1, Either[OutErr, OutDone], Unit] =
+                     pull
+                       .flatMap(go(_, availPermits))
+
+                   def go(outElem: OutElem, availPermits: Int): ZIO[Env1, Either[OutErr, OutDone], Unit] =
                      if (0 == availPermits)
                        sem.acquire.flatMap(go(outElem, _))
                      else {
@@ -758,47 +764,68 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                            .ensuring(sem.releaseOne)
                        )
                          .flatMap(fiber => outgoing.offer(fiber)) *>
-                         pull.flatMap(go(_, availPermits - 1))
+                         loop(availPermits - 1)
                      }
 
-                   pull
-                     .flatMap(go(_, n))
-                 }.interruptible.onError {
-                   _.failureOrCause match {
-                     case Left(x: Left[OutErr, ?]) =>
-                       failureRef.update(_ && Cause.fail(x.value)) *>
-                         outgoing.offer(Fiber.done(ZChannel.failLeftUnit)).interruptible
-                     case Left(x: Right[?, OutDone]) =>
-                       ZIO.fiberIdWith { currentFibId =>
-                         // upstream completed, hence no more forks,
-                         // however there may be some in-flight fibers still running.
-                         // so we must wait for them to complete before notifying completion to downstream.
-                         // * notice that just placing a message in the queue isn't enough since one of these fibers may fail and interrupt the others,
-                         //   in this case we want to ensure downstream sees the failure.
-                         // since we already maintain a list of in-flights (for cleanup purposes) we can use it to await all pending fibers (this replaces the old latch based mechanism).
-                         // todo: is it possible to skip this and 'transfer' the interrupt-all responsibility to the downstream fiber? not sure if this gives any benefits,
-                         // furthermore it raises visibility concerns this approach avoids (same fiber writes and reads, aside from the 'dirty' deletions by the child fibers which we cope with)
-                         {
-                           Fiber
-                             .collectAllDiscard(fibersIterable(currentFibId))
-                             .await *>
-                             outgoing.offer(Fiber.fail(x.asInstanceOf[Either[Unit, OutDone]]))
+                   loop(n).catchAllCause { cause =>
+                     // upstream completed one way or another,
+                     // at this point we have to wait for all fibers to complete and then offer a termination message to the queue
+                     // notice some of the running fibers may fail, in this case this fiber will be interrupted,
+                     // either at this stage whre upstream is complete or earlier.
+                     // this case (and the external interrupt case) are handled by the onInterrupt handler below.
+                     val lastMsg = cause.failureOrCause match {
+                       case Left(Left(x)) =>
+                         // upstream failure, update the failure ref and select the failure notification message
+                         failureRef
+                           .update(_ && Cause.fail(x))
+                           .as(ZChannel.failLeftUnit)
+                       case Left(x @ Right(_)) =>
+                         // upstream finished successfully, select a message with the successful completion value.
+                         zio.Exit.succeed(
+                           zio.Exit.fail(x.asInstanceOf[Either[Unit, OutDone]])
+                         )
+                       case Right(c) =>
+                         // upstream failed with a Die, behaves like 'regular' upstream error
+                         // notice catchAllCause doesn't handle interrupt failures (at least nםt in interruptible regions)
+                         failureRef
+                           .update(_ && c)
+                           .as(ZChannel.failLeftUnit)
+                     }
+
+                     lastMsg.flatMap { msg =>
+                       // fibers are still running and may fail, in this case we'd be interrupted.
+                       // let's make sure we'd respect this interruption.
+                       ZIO.interruptible {
+                         ZIO.fiberIdWith { currentFibId =>
+                           // wait for pending fibers to complete, then send the appropriate termination message.
+                           Fiber.collectAllDiscard(fibersIterable(currentFibId)).await *>
+                             outgoing.offer(Fiber.done(msg))
                          }
-                           // error handler is running in an uninterruptible region, however this case is effectively the happy case, furthermore it might block and should respond to external interrupt
-                           .interruptible
-                       }
-                     case Right(cause) =>
-                       failureRef.update(_ && cause).unless(cause.isInterruptedOnly) *>
-                         outgoing.offer(Fiber.done(ZChannel.failLeftUnit)).interruptible
+                       }.unit
+                     }
                    }
-                 }.ignore
+                 }.interruptible
+                   // unless we're interrupted, this will be a noop as all fibers were already awaited
                    .ensuring(interruptInFlight)
-          _ <- (proc raceFirst errorSignal.await.interruptible).forkIn(scope)
+                   .onInterrupt {
+                     // send termination error indicating message.
+                     // few things to notice here:
+                     // 1. downstream is likely to notice the failure condition via one of the fibers in the queue
+                     // 2. the failing fiber may have failed BEFORE being offered to the queue, in this case downstream would have missed the failure notification if this last message wasn't sent.
+                     // 3. this is a blocking call inside a non-interruptible region, this is ok snice:
+                     //  a. if the queue is not full or all fibers in the queue are successful, this offer eventually succeeds.
+                     //  b. in case downstream notices the failure via one of the fibers in the queue, it'll close the scope which shuts down the queue, guaranteeing (interrupted) completion of the offer operation.
+                     //  c. ditto in case of external interruption or early close of this channel (i.e. when downstream terminates without consuming the entire stream).
+                     outgoing.offer(Fiber.done(ZChannel.failLeftUnit))
+                   }
+                   .ignore
+          _ <- (proc raceFirst errorSignal.await.interruptible).forkIn(upstreamScope)
         } yield {
           lazy val writer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
             ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
               outgoing.take.flatMap(_.await).flatMap {
-                case s: Exit.Success[OutElem2] => Exit.succeed(ZChannel.write(s.value) *> writer)
+                case s: Exit.Success[OutElem2] =>
+                  Exit.succeed(ZChannel.write(s.value) *> writer)
                 case f: Exit.Failure[Either[Unit, OutDone]] =>
                   val failure0 = failureRef.unsafe.get(Unsafe)
                   val out = f.cause.failureOrCause match {
