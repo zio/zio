@@ -2536,7 +2536,7 @@ object ZChannel {
    * notice the samaphore doesn't enforce maxPaermits, this is actually enforced
    * by the single consumer.
    */
-  class SingleConsumerSemaphore(maxPermits: Int) {
+  private[ZChannel] class SingleConsumerSemaphore(maxPermits: Int) {
     implicit val unsafe: Unsafe = zio.Unsafe
     // we start at zero since the consumer knows max permits and can start performing without consulting the semaphore
     val ref: Ref.Atomic[Either[RuntimeFlags, Promise[Nothing, Any]]] = zio.Ref.unsafe.make(Left(0))
