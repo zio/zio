@@ -135,7 +135,7 @@ object MyApp extends ZIOAppDefault {
 }
 ```
 
-In this example, `MyApp` starts and logs "Acquiring resource...". When you press Ctrl+C (sending SIGINT), ZIO interrupts the main fiber and immediately runs the finalizer which logs "Releasing resource (3s) ..." and then sleeps for three seconds. Because the finalizer completes its work well within the 30s timeout, the runtime finishes cleanup and the process exits normally.
+In this example, `MyApp` starts and logs `Acquiring resource...`. When you press Ctrl+C (sending SIGINT), ZIO interrupts the main fiber and immediately runs the finalizer which logs `Releasing resource (3s) ...` and then sleeps for three seconds. Because the finalizer completes its work well within the 30s timeout, the runtime finishes cleanup and the process exits normally.
 
 ### Example 2: Finalizer exceeds the timeout
 ```scala mdoc:compile-only
@@ -154,7 +154,7 @@ object MyAppTimeout extends ZIOAppDefault {
     }
 }
 ```
-Here, `MyAppTimeout` starts and logs "Acquiring resource...". If you press Ctrl+C after a few seconds, ZIO interrupts the main fiber and starts running the finalizer, logging "Releasing resource (20s) ..." before sleeping for twenty seconds. However, `gracefulShutdownTimeout` is set to just five seconds, ZIO waits those five seconds and then prints exactly:
+Here, `MyAppTimeout` starts and logs `Acquiring resource...`. If you press Ctrl+C after a few seconds, ZIO interrupts the main fiber and starts running the finalizer, logging `Releasing resource (20s) ...` before sleeping for twenty seconds. However, `gracefulShutdownTimeout` is set to just five seconds, ZIO waits those five seconds and then prints exactly:
 
 ```bash
 **** WARNING ****
