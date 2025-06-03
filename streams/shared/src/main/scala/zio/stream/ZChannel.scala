@@ -677,7 +677,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         // worst case: buffer is full + 1 pre-push + 1 post-pop, this number can be capped further by n (parallelism level) but in this case it becomes harder to track the next free slot in the array
         val maxInFlight    = bufferSize + 2
         val inFlightFibers = Array.ofDim[Fiber.Runtime[Left[Unit, Nothing], OutElem2]](maxInFlight)
-        // track next insertion point into the inflights array
+        // track next insertion point into the in-flights array
         var cyclicIdx = 0
         val sem       = new ZChannel.SingleConsumerSemaphore(n) {}
 
@@ -695,8 +695,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 cyclicIdx = (i + 1) % maxInFlight
 
                 // make sure to respect parallelism, make sure to nullify the in-flights slot once the fiber is completed.
-                // notice the n+2 invariant guarantees this write in NOT overwriting any wright by the forker fiber.
-                // however, it is possible this write won't be visible to the writer but this i=s not an issue since:
+                // notice the bufferSize+2 invariant guarantees this write in NOT overwriting any write by the forker fiber.
+                // however, it is possible this write won't be visible to the writer but this is not an issue since:
                 // the forker will either make another write to this slot or later read the stale reference and ignore it since it'd find out it's not running anymore.
                 // todo: replace ensuring with an observer?
                 val z0 = z.ensuring(ZIO.succeed(inFlightFibers(i) = null))
@@ -771,7 +771,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                      // upstream completed one way or another,
                      // at this point we have to wait for all fibers to complete and then offer a termination message to the queue
                      // notice some of the running fibers may fail, in this case this fiber will be interrupted,
-                     // either at this stage whre upstream is complete or earlier.
+                     // either at this stage where upstream is complete or earlier.
                      // this case (and the external interrupt case) are handled by the onInterrupt handler below.
                      val lastMsg = cause.failureOrCause match {
                        case Left(Left(x)) =>
@@ -2529,20 +2529,20 @@ object ZChannel {
    * basic idea: the consumer ('forker') grabs all available permits and fires
    * off worker fibers accordingly, the worker fibers release the permit upon
    * completion/termination. once the forker runs out of permits it attempts to
-   * acquire the next round of permits, in case there're no available permits
+   * acquire the next round of permits, in case there are no available permits
    * it'd block until a worker fiber releases one, otherwise it immediately gets
    * all avail permits atm.
    *
-   * notice the samaphore doesn't enforce maxPaermits, this is actually enforced
+   * notice the semaphore doesn't enforce maxPaermits, this is actually enforced
    * by the single consumer.
    */
   private[ZChannel] class SingleConsumerSemaphore(maxPermits: Int) {
     implicit val unsafe: Unsafe = zio.Unsafe
     // we start at zero since the consumer knows max permits and can start performing without consulting the semaphore
-    val ref: Ref.Atomic[Either[RuntimeFlags, Promise[Nothing, Any]]] = zio.Ref.unsafe.make(Left(0))
+    val ref: Ref.Atomic[Either[Int, Promise[Nothing, Any]]] = zio.Ref.unsafe.make(Left(0))
 
     // consumer only calls this after exhausting all permit from the last time,
-    // this method either blocks untill a permit is released or immediately returns all currently available permits
+    // this method either blocks until a (single) permit is released or immediately returns all currently available permits
     def acquire(implicit trace: Trace): UIO[Int] =
       ref.modify {
         case Left(0) =>
