@@ -36,6 +36,13 @@ private[managed] trait ZManagedCompatPlatformSpecific {
       register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => ZManaged[R, E, Any],
       outputBuffer: => Int = 16
     )(implicit trace: Trace): ZStream[R, E, A] =
-      ZStream.asyncScoped[R, E, A](register(_).scoped, outputBuffer)
+      ZStream.asyncScoped[R, E, A](
+        (callbackUnit: ZIO[R, Option[E], Chunk[A]] => Unit) =>
+          register { zioPull =>
+            callbackUnit(zioPull)
+            Future.successful(true)
+          }.scoped,
+        outputBuffer
+      )
   }
 }
