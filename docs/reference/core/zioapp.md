@@ -114,8 +114,7 @@ The `<>` operator combines the layers of the two applications and then runs the 
 
 When a ZIO application (e.g. one extending `ZIOAppDefault`) receives an external interruption signal such as **SIGINT** when pressing **Ctrl+C**, the runtime will attempt to run all finalizers (cleanup logic) before exiting. By default, `gracefulShutdownTimeout` set to `Duration.Infinity`, which means ZIO will wait indefinitely for finalizers unless you override it.
 
-Below are two examples: one where cleanup finishes within the timeout, and one where cleanup deliberately exceeds it.
-
+Below are two examples: one where cleanup finishes within the timeout and one where cleanup deliberately exceeds it.
 
 ### Example 1: Finalizer completes within the timeout
 
@@ -136,7 +135,7 @@ object MyApp extends ZIOAppDefault {
 }
 ```
 
-In this example, `MyApp` starts and logs "Acquiring resource...". When you press Ctrl+C (sending SIGINT), ZIO interrupts the main fiber and immediately runs the finalizer hich logs "Releasing resource (3s) ..." and then sleeps for three seconds. Because the finalizer completes its work well within the 30s timeout, the runtime finishes cleanup and the process exits normally.
+In this example, `MyApp` starts and logs "Acquiring resource...". When you press Ctrl+C (sending SIGINT), ZIO interrupts the main fiber and immediately runs the finalizer which logs "Releasing resource (3s) ..." and then sleeps for three seconds. Because the finalizer completes its work well within the 30s timeout, the runtime finishes cleanup and the process exits normally.
 
 ### Example 2: Finalizer exceeds the timeout
 ```scala mdoc:compile-only
