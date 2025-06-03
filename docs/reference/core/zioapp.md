@@ -112,9 +112,12 @@ The `<>` operator combines the layers of the two applications and then runs the 
 
 ## Graceful Shutdown Timeout
 
-When a ZIO application (e.g. one extending `ZIOAppDefault`) receives an external interruption signal such as **SIGINT** when pressing **Ctrl+C**, the runtime will attempt to run all finalizers (cleanup logic) before exiting. By default, `gracefulShutdownTimeout` returns `Duration.Infinity`, which means ZIO will wait forever for finalizers unless you override.
+When a ZIO application (e.g. one extending `ZIOAppDefault`) receives an external interruption signal such as **SIGINT** when pressing **Ctrl+C**, the runtime will attempt to run all finalizers (cleanup logic) before exiting. By default, `gracefulShutdownTimeout` set to `Duration.Infinity`, which means ZIO will wait indefinitely for finalizers unless you override it.
 
-Override `gracefulShutdownTimeout` to bound how long the runtime should wait for finalizers. For example, to wait at most 30 seconds:
+Below are two examples: one where cleanup finishes within the timeout, and one where cleanup deliberately exceeds it.
+
+
+### Example 1: Finalizer completes within the timeout
 
 ```scala mdoc:compile-only
 import zio._
@@ -123,18 +126,44 @@ object MyApp extends ZIOAppDefault {
   // Wait at most 30 seconds for all finalizers to complete on SIGINT
   override def gracefulShutdownTimeout: Duration = Duration.fromSeconds(30)
 
-  val run =
-    ZIO.logInfo("MyApp is running...") *>
-    ZIO.never
+  val run: ZIO[ZIOAppArgs with Scope, Any, Any] =
+    ZIO.acquireReleaseWith(
+      acquire = ZIO.logInfo("Acquiring resource...") *> ZIO.succeed("MyResource")
+    )(release = _ => ZIO.logInfo("Releasing resource (3s) ...") *> ZIO.sleep(3.seconds)) {
+      resource =>
+        ZIO.logInfo(s"Running with $resource, press Ctrl+C to interrupt") *> ZIO.never
+    }
 }
 ```
 
-:::note
-1. This only applies on JVM and Scala Native. Other platforms like Scala.js do not invoke the shutdown hook on external signals.
+In this example, `MyApp` starts and logs "Acquiring resource...". When you press Ctrl+C (sending SIGINT), ZIO interrupts the main fiber and immediately runs the finalizer hich logs "Releasing resource (3s) ..." and then sleeps for three seconds. Because the finalizer completes its work well within the 30s timeout, the runtime finishes cleanup and the process exits normally.
 
-2. If finalizers take too long when the timeout elapses, the runtime prints exactly:
+### Example 2: Finalizer exceeds the timeout
+```scala mdoc:compile-only
+import zio._
+
+object MyAppTimeout extends ZIOAppDefault {
+  // Wait at most 5 seconds for finalizers to complete on SIGINT
+  override def gracefulShutdownTimeout: Duration = Duration.fromSeconds(5)
+
+  val run: ZIO[ZIOAppArgs with Scope, Any, Any] =
+    ZIO.acquireReleaseWith(
+      acquire = ZIO.logInfo("Acquiring resource...") *> ZIO.succeed("MyResource")
+    )(release = _ => ZIO.logInfo("Releasing resource (20s) ...") *> ZIO.sleep(20.seconds)) {
+      resource =>
+        ZIO.logInfo(s"Running with $resource, press Ctrl+C to interrupt") *> ZIO.never
+    }
+}
 ```
+Here, `MyAppTimeout` starts and logs "Acquiring resource...". If you press Ctrl+C after a few seconds, ZIO interrupts the main fiber and starts running the finalizer, logging "Releasing resource (20s) ..." before sleeping for twenty seconds. However, `gracefulShutdownTimeout` is set to just five seconds, ZIO waits those five seconds and then prints exactly:
+
+```bash
 **** WARNING ****
-Timed out waiting for ZIO application to shut down after 30 seconds. You can adjust your application's shutdown timeout by overriding the `shutdownTimeout` method
+Timed out waiting for ZIO application to shut down after 5 seconds. You can adjust your application's shutdown timeout by overriding the `shutdownTimeout` method
 ```
+
+At that point, the JVM process exits immediately even though the 20-second finalizer has not yet finished.
+
+:::note
+This only applies on **JVM** and **Scala Native**. Other platforms like **Scala.js** do not invoke the shutdown hook on external signals.
 :::
