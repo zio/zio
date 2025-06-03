@@ -280,8 +280,8 @@ const config = {
             from: '/about/about_contributing',
           },
           {
-            from: '/zio-http'
-            to: 'https://ziohttp.com',
+            from: '/zio-http',
+            to: 'https://ziohttp.com'
           }
         ],
       },
