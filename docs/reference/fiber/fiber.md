@@ -373,20 +373,65 @@ Still running ...
 ### fork and join
 Whenever we need to start a fiber, we have to `fork` an effect to get a new fiber. This is similar to the `start` method on Java thread or submitting a new thread to the thread pool in Java, it is the same idea. Also, joining is a way of waiting for that fiber to compute its value. We are going to wait until it's done and receive its result.
 
-In the following example, we create a separate fiber to output a delayed print message and then wait for that fiber to succeed with a value:
+:::note
+Fibers (including those created with `forkDaemon`) **inherit the interruptibility status of their parent**. This means that if the parent effect is running in an uninterruptible region, any fibers forked from it will also be uninterruptible, even if they are created after the uninterruptible region ends.
+
+This behavior exists because ZIO uses an asynchronous interruption model where fibers can be interrupted at any point except in uninterruptible regions. Uninterruptible regions are important for:
+- Ensuring resource safety (preventing resource leaks during acquisition)
+- Maintaining consistent state in critical sections
+- Guaranteeing finalization code runs to completion
+
+To ensure a forked fiber is interruptible while preserving the parent's uninterruptibility, use `ZIO.uninterruptibleMask`. This allows you to temporarily restore the inherited interruptibility status:
 
 ```scala mdoc:silent
 import zio._
-import zio.Console._
-for {
-  fiber <- (ZIO.sleep(3.seconds) *>
-    printLine("Hello, after 3 second") *>
-    ZIO.succeed(10)).fork
-  _ <- printLine(s"Hello, World!")
-  res <- fiber.join
-  _ <- printLine(s"Our fiber succeeded with $res")
-} yield ()
+
+def debugInterruption(taskName: String) = (fibers: Set[FiberId]) =>
+  for {
+    fn <- ZIO.fiberId.map(_.threadName)
+    _ <- ZIO.debug(
+      s"The $fn fiber which is the underlying fiber of the $taskName task " +
+      s"interrupted by ${fibers.map(_.threadName).mkString(", ")}"
+    )
+  } yield ()
+
+val parent = ZIO.uninterruptible {
+  for {
+    fn <- ZIO.fiberId.map(_.threadName)
+    _ <- ZIO.debug(s"$fn starts in uninterruptible region")
+    
+    // Create an interruptible child fiber using uninterruptibleMask
+    childFiber <- ZIO.uninterruptibleMask { restore =>
+      restore {
+        for {
+          cfn <- ZIO.fiberId.map(_.threadName)
+          _ <- ZIO.debug(s"$cfn starts as interruptible child")
+          _ <- ZIO.never
+        } yield ()
+      }.onInterrupt(debugInterruption("child")).fork
+    }
+    
+    // Attempt to interrupt the child after 5 seconds
+    _ <- ZIO.debug("Attempting to interrupt the child in 5 seconds...")
+    _ <- ZIO.sleep(5.seconds)
+    _ <- childFiber.interrupt *> ZIO.debug("Interrupt invoked!")
+  } yield ()
+}
 ```
+
+In this example:
+1. The parent effect is uninterruptible for safety
+2. We use `uninterruptibleMask` to get a `restore` function
+3. The `restore` function temporarily restores the original interruptibility status
+4. The forked fiber inherits this restored status, making it interruptible
+5. We can see the interruption working through debug logs
+6. The child fiber can be interrupted even though its parent is uninterruptible
+
+This pattern is particularly useful when you need to create interruptible background tasks from within an uninterruptible region, such as:
+- Starting background workers during resource acquisition
+- Launching monitoring tasks in critical sections
+- Creating interruptible child processes from uninterruptible parent processes
+:::
 
 ### interrupt
 Whenever we want to get rid of our fiber, we can simply call `interrupt` on that. The interrupt operation does not resume until the fiber has completed or has been interrupted and all its finalizers have been run. These precise semantics allow construction of programs that do not leak resources.
