@@ -14,20 +14,26 @@ object ZStreamAspectSpec extends ZIOBaseSpec {
         val aspect = annotated("testKey", "testValue")
 
         for {
-          _           <- aspect(base).runDrain
-          annotations <- ZIO.logAnnotations
-        } yield assert(annotations.get("testKey"))(isSome(equalTo("testValue")))
+          annotations <- Ref.make[Map[String, String]](Map.empty)
+          _ <- aspect(base)
+                 .tap(_ => ZIO.logAnnotations.flatMap(anns => annotations.set(anns)))
+                 .runDrain
+          result <- annotations.get
+        } yield assert(result.get("testKey"))(isSome(equalTo("testValue")))
       },
       test("multiple annotations add all log annotations to stream") {
         val base   = ZStream(1, 2, 3)
         val aspect = annotated("k1" -> "v1", "k2" -> "v2", "k3" -> "v3")
 
         for {
-          _           <- aspect(base).runDrain
-          annotations <- ZIO.logAnnotations
-        } yield assert(annotations.get("k1"))(isSome(equalTo("v1"))) &&
-          assert(annotations.get("k2"))(isSome(equalTo("v2"))) &&
-          assert(annotations.get("k3"))(isSome(equalTo("v3")))
+          annotations <- Ref.make[Map[String, String]](Map.empty)
+          _ <- aspect(base)
+                 .tap(_ => ZIO.logAnnotations.flatMap(anns => annotations.set(anns)))
+                 .runDrain
+          result <- annotations.get
+        } yield assert(result.get("k1"))(isSome(equalTo("v1"))) &&
+          assert(result.get("k2"))(isSome(equalTo("v2"))) &&
+          assert(result.get("k3"))(isSome(equalTo("v3")))
       }
     ),
     suite("rechunk")(
@@ -74,14 +80,18 @@ object ZStreamAspectSpec extends ZIOBaseSpec {
         val composed = aspect(base)
 
         for {
-          chunks      <- composed.chunks.runCollect
-          annotations <- ZIO.logAnnotations
+          annotations <- Ref.make[Map[String, String]](Map.empty)
+          chunks <- composed
+                      .tap(_ => ZIO.logAnnotations.flatMap(anns => annotations.set(anns)))
+                      .chunks
+                      .runCollect
+          result <- annotations.get
         } yield {
           val allChunks = chunks.toList
           val flattened = chunks.foldLeft(Chunk.empty[Int])(_ ++ _)
           assert(flattened)(equalTo(Chunk.fromIterable(1 to 5))) &&
           assert(allChunks.forall(_.size <= 2))(isTrue) &&
-          assert(annotations.get("x"))(isSome(equalTo("y")))
+          assert(result.get("x"))(isSome(equalTo("y")))
         }
       },
       test("rechunk >>> tagged preserves elements and applies rechunking") {
