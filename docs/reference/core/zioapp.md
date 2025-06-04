@@ -239,35 +239,26 @@ object MultiResourceApp extends ZIOAppDefault {
   // Wait at most 15 seconds for all finalizers to complete on SIGINT
   override def gracefulShutdownTimeout: Duration = Duration.fromSeconds(15)
 
-  val run: ZIO[ZIOAppArgs with Scope, Any, Any] = {
-    // Database resource
-    val dbResource = ZIO.acquireReleaseWith(
-      acquire = ZIO.logInfo("Connecting to database...") *> 
-                ZIO.sleep(1.second) *> 
-                ZIO.succeed("DBConnection")
-    )(
-      release = conn => 
-        ZIO.logInfo(s"Closing database connection (3s) ...") *> 
-        ZIO.sleep(3.seconds) *> 
-        ZIO.logInfo(s"Database connection $conn closed successfully")
-    )
-
-    // File resource
-    val fileResource = ZIO.acquireReleaseWith(
-      acquire = ZIO.logInfo("Opening file...") *> 
+  val run: ZIO[ZIOAppArgs with Scope, Any, Any] = ZIO.scoped {
+    for {
+      db <- ZIO.acquireRelease(
+              ZIO.logInfo("Connecting to database...") *> 
+              ZIO.sleep(1.second) *> 
+              ZIO.succeed("DBConnection")
+            )(conn =>
+              ZIO.logInfo(s"Closing database connection (3s) ...") *> 
+              ZIO.sleep(3.seconds) *> 
+              ZIO.logInfo(s"Database connection $conn closed successfully")
+            )
+      file <- ZIO.acquireRelease(
+                ZIO.logInfo("Opening file...") *> 
                 ZIO.sleep(1.second) *> 
                 ZIO.succeed("FileHandle")
-    )(
-      release = file => 
-        ZIO.logInfo(s"Closing file (5s) ...") *> 
-        ZIO.sleep(5.seconds) *> 
-        ZIO.logInfo(s"File $file closed successfully")
-    )
-
-    // Combine resources using for comprehension
-    for {
-      db <- dbResource
-      file <- fileResource
+              )(file =>
+                ZIO.logInfo(s"Closing file (5s) ...") *> 
+                ZIO.sleep(5.seconds) *> 
+                ZIO.logInfo(s"File $file closed successfully")
+              )
       _ <- ZIO.logInfo(s"Running with database $db and file $file, press Ctrl+C to interrupt") *> 
            ZIO.never
     } yield ()
@@ -279,7 +270,7 @@ This example demonstrates:
 1. Managing multiple resources (database and file)
 2. Each resource has its own cleanup time (3s and 5s)
 3. Total cleanup time is 8 seconds (well within the 15s timeout)
-4. Proper resource acquisition and release using `ZIO.acquireReleaseWith`
+4. Proper resource acquisition and release using `ZIO.acquireRelease`
 5. Clean shutdown with all resources properly released
 
 ### Platform-Specific Behavior
