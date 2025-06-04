@@ -89,6 +89,14 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
 
   private[zio] def stealWork(depth: Int): Boolean =
     false
+
+  /**
+   * Used to identify whether the current thread is part of this executor.
+   * @note
+   *   This method is only ovewritten in the ZScheduler
+   */
+  private[zio] def isCurrentThreadInExecutor: Boolean =
+    false
 }
 
 object Executor extends DefaultExecutors with Serializable {
