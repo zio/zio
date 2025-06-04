@@ -123,7 +123,6 @@ object TestClockSpecJVM extends ZIOBaseSpec {
             _      <- ZIO.succeed(future.cancel(false))
             _      <- TestClock.adjust(11.seconds)
             values <- ref.get
-            _      <- ZIO.logInfo(s"Values after interruption: $values")
           } yield assert(values.reverse)(equalTo(List(5L)))
         }
       ),
@@ -132,5 +131,5 @@ object TestClockSpecJVM extends ZIOBaseSpec {
           (TestClock.adjust(1.second) &> TestClock.adjust(1.second)).as(assertCompletes)
         } @@ timeout(10.seconds)
       )
-    ) @@ nonFlaky(20)
+    ) @@ nonFlaky(10)
 }

@@ -1391,8 +1391,10 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def raceFirst[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit
     trace: Trace
-  ): ZIO[R1, E1, A1] =
-    (self.exit race that.exit).unexit
+  ): ZIO[R1, E1, A1] = {
+    val f = (exit: Exit[E1, A1], loser: Fiber[E1, A1]) => loser.interrupt *> exit
+    self.raceWith(that)(f, f)
+  }
 
   @deprecated("use raceFirst", "2.0.7")
   final def raceFirstAwait[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit
@@ -1423,19 +1425,14 @@ sealed trait ZIO[-R, +E, +A]
    * with the fibers. It can be considered a low-level building block for
    * higher-level operators like `race`.
    */
-  private final def raceFibersWith[R1 <: R, ER, E2, B, C](right: ZIO[R1, ER, B])(
+  private final def raceFibersWith[R1 <: R, ER, E2, B, C](right: => ZIO[R1, ER, B])(
     leftWins: (Fiber.Runtime[E, A], Fiber.Runtime[ER, B]) => ZIO[R1, E2, C],
     rightWins: (Fiber.Runtime[ER, B], Fiber.Runtime[E, A]) => ZIO[R1, E2, C],
     leftScope: FiberScope = null,
     rightScope: FiberScope = null
   )(implicit trace: Trace): ZIO[R1, E2, C] =
     ZIO.withFiberRuntime[R1, E2, C] { (parentFiber, parentStatus) =>
-      val graft = ZIO.Grafter(parentFiber)
       import java.util.concurrent.atomic.AtomicBoolean
-
-      implicit val unsafe: Unsafe = Unsafe
-
-      val parentRuntimeFlags = parentStatus.runtimeFlags
 
       @inline def complete[E0, E1, A, B](
         winner: Fiber.Runtime[E0, A],
@@ -1443,35 +1440,37 @@ sealed trait ZIO[-R, +E, +A]
         cont: (Fiber.Runtime[E0, A], Fiber.Runtime[E1, B]) => ZIO[R1, E2, C],
         ab: AtomicBoolean,
         cb: ZIO[R1, E2, C] => Any
-      ): Any =
-        if (ab.compareAndSet(true, false)) {
+      ): Unit =
+        if (ab.compareAndSet(false, true)) {
           cb(cont(winner, loser))
         }
 
-      val raceIndicator = new AtomicBoolean(true)
+      val graft    = ZIO.Grafter(parentFiber)
+      val leftEff  = graft.applyOnExit(self)
+      val rightEff = graft.applyOnExit(right)
 
-      val leftFiber  = ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, leftScope)
-      val rightFiber = ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, rightScope)
+      val flags      = parentStatus.runtimeFlags
+      val leftFiber  = ZIO.unsafe.makeChildFiber(trace, leftEff, parentFiber, flags, leftScope)(Unsafe)
+      val rightFiber = ZIO.unsafe.makeChildFiber(trace, rightEff, parentFiber, flags, rightScope)(Unsafe)
 
-      val startLeftFiber  = leftFiber.startSuspended()
-      val startRightFiber = rightFiber.startSuspended()
+      ZIO.async[R1, E2, C](
+        { cb =>
+          val raceIndicator = new AtomicBoolean()
 
-      ZIO
-        .async[R1, E2, C](
-          { cb =>
-            leftFiber.addObserver { _ =>
-              complete(leftFiber, rightFiber, leftWins, raceIndicator, cb)
-            }
+          leftFiber.addObserver { _ =>
+            complete(leftFiber, rightFiber, leftWins, raceIndicator, cb)
+          }(Unsafe)
 
-            rightFiber.addObserver { _ =>
-              complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
-            }
+          rightFiber.addObserver { _ =>
+            complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
+          }(Unsafe)
 
-            startLeftFiber(graft.applyOnExit(self))
-            startRightFiber(graft.applyOnExit(right))
-          },
-          leftFiber.id <> rightFiber.id
-        )
+          leftFiber.startConcurrently(leftEff)
+          rightFiber.startConcurrently(rightEff)
+          ()
+        },
+        leftFiber.id <> rightFiber.id
+      )
     }
 
   /**
@@ -1488,14 +1487,14 @@ sealed trait ZIO[-R, +E, +A]
         winner.await.flatMap {
           case exit: Exit.Success[?] =>
             winner.inheritAll *> leftDone(exit, loser)
-          case exit: Exit.Failure[_] =>
+          case exit =>
             leftDone(exit, loser)
         },
       (winner, loser) =>
         winner.await.flatMap {
           case exit: Exit.Success[B] =>
             winner.inheritAll *> rightDone(exit, loser)
-          case exit: Exit.Failure[E1] =>
+          case exit =>
             rightDone(exit, loser)
         }
     )

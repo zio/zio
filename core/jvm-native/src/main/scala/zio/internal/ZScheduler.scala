@@ -58,6 +58,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     supervisor.start()
   }
 
+  override private[zio] def isCurrentThreadInExecutor: Boolean =
+    Thread.currentThread().isInstanceOf[ZScheduler.Worker]
+
   def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics] = {
     val metrics = new ExecutionMetrics {
       def capacity: Int =
