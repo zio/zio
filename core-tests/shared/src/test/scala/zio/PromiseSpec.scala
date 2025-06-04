@@ -129,7 +129,7 @@ object PromiseSpec extends ZIOBaseSpec {
     test("waiter stack safety") {
       for {
         p      <- Promise.make[Nothing, Unit]
-        fibers <- ZIO.foreach(1 to n)(_ => p.await.forkDaemon)
+        fibers <- ZIO.foreach(1 to 100000)(_ => p.await.forkDaemon)
         _      <- p.complete(Exit.unit)
         _      <- ZIO.foreach(fibers)(_.await)
       } yield assertCompletes
