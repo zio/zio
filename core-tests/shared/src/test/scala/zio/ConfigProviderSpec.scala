@@ -648,15 +648,21 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         } yield assertTrue(result == Map("camelCase" -> "camelCase"))
       } +
       test("kebabCaseLegacy maintains old behavior with numbers") {
-        val configProvider = ConfigProvider.fromMap(Map("hey-there23cool" -> "value")).kebabCaseLegacy
-        val config         = Config.string("heyThere23Cool")
+        val configProvider =
+          ConfigProvider.fromMap(Map("hey-there23cool" -> "value")).kebabCaseLegacy: @annotation.nowarn(
+            "msg=method kebabCaseLegacy in trait ConfigProvider is deprecated"
+          )
+        val config = Config.string("heyThere23Cool")
         for {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value")
       } +
       test("snakeCaseLegacy maintains old behavior with numbers") {
-        val configProvider = ConfigProvider.fromMap(Map("hey_there23cool" -> "value")).snakeCaseLegacy
-        val config         = Config.string("heyThere23Cool")
+        val configProvider =
+          ConfigProvider.fromMap(Map("hey_there23cool" -> "value")).snakeCaseLegacy: @annotation.nowarn(
+            "msg=method snakeCaseLegacy in trait ConfigProvider is deprecated"
+          )
+        val config = Config.string("heyThere23Cool")
         for {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value")
