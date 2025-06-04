@@ -166,7 +166,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    *   `UIO[Exit, E, A]]`
    */
   final def interrupt(implicit trace: Trace): UIO[Exit[E, A]] =
-    ZIO.fiberIdWith(fiberId => self.interruptAs(fiberId))
+    ZIO.fiberIdWith(self.interruptAs)
 
   /**
    * Interrupts the fiber as if interrupted from the specified fiber. If the
@@ -176,7 +176,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @return
    *   `UIO[Exit, E, A]]`
    */
-  final def interruptAs(fiberId: FiberId)(implicit trace: Trace): UIO[Exit[E, A]] =
+  def interruptAs(fiberId: FiberId)(implicit trace: Trace): UIO[Exit[E, A]] =
     self.interruptAsFork(fiberId) *> self.await
 
   /**

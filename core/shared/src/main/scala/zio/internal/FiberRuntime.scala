@@ -67,19 +67,22 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
 
   def await(implicit trace: Trace): UIO[Exit[E, A]] =
-    ZIO.suspendSucceed {
-      val exitValue = self._exitValue
-      if (exitValue ne null) Exit.succeed(exitValue)
-      else
-        ZIO.asyncInterrupt[Any, Nothing, Exit[E, A]](
-          { k =>
-            val cb = (exit: Exit[_, _]) => k(Exit.Success(exit.asInstanceOf[Exit[E, A]]))
-            unsafe.addObserver(cb)(Unsafe)
-            Left(ZIO.succeed(unsafe.removeObserver(cb)(Unsafe)))
-          },
-          id
-        )
-    }
+    ZIO.suspendSucceed(awaitUnsafe)
+
+  @inline
+  private[this] def awaitUnsafe(implicit trace: Trace): UIO[Exit[E, A]] = {
+    val exitValue = self._exitValue
+    if (exitValue ne null) Exit.succeed(exitValue)
+    else
+      ZIO.asyncInterrupt[Any, Nothing, Exit[E, A]](
+        { k =>
+          val cb = (exit: Exit[_, _]) => k(Exit.Success(exit.asInstanceOf[Exit[E, A]]))
+          unsafe.addObserver(cb)(Unsafe)
+          Left(ZIO.succeed(unsafe.removeObserver(cb)(Unsafe)))
+        },
+        id
+      )
+  }
 
   private[this] def childrenChunk(children: java.util.Set[Fiber.Runtime[?, ?]]): Chunk[Fiber.Runtime[_, _]] =
     // may be executed by a foreign fiber (under Sync), hence we're risking a race over the _children variable being set back to null by a concurrent transferChildren call
@@ -118,6 +121,26 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         ZIO.updateRuntimeFlags(patch)
       } else {
         Exit.unit
+      }
+    }
+
+  override def interruptAs(fiberId: FiberId)(implicit trace: Trace): UIO[Exit[E, A]] =
+    ZIO.suspendSucceed {
+      val exit = _exitValue
+      if (exit ne null) Exit.succeed(exit)
+      else {
+        val cause = Cause.interrupt(fiberId, StackTrace(self.fiberId, Chunk.single(trace)))
+        inbox.add(FiberMessage.InterruptSignal(cause))
+
+        // If the fiber is not running (which means it's suspended), and the current thread is in the same executor as the fiber,
+        // then execute the runloop on the current thread, avoiding context switching and suspension
+        if (running.compareAndSet(false, true)) {
+          val executor = getCurrentExecutor()
+          if (executor.isCurrentThreadInExecutor) drainQueueOnCurrentThread(0)
+          else drainQueueLaterOnExecutor(false)
+        }
+
+        awaitUnsafe(trace)
       }
     }
 
@@ -553,9 +576,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   }
 
   private[zio] def getCurrentExecutor(): Executor =
-    getFiberRef(FiberRef.overrideExecutor) match {
-      case None        => Runtime.defaultExecutor
+    getFiberRefOrNull(FiberRef.overrideExecutor) match {
       case Some(value) => value
+      case _           => Runtime.defaultExecutor
     }
 
   private[zio] def getFiberRef[A](fiberRef: FiberRef[A]): A =
@@ -1491,7 +1514,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         self.getFiberRefs()
 
       def removeObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit =
-        self.tell(FiberMessage.Stateful(_.asInstanceOf[FiberRuntime[E, A]].removeObserver(observer)))
+        if (self._exitValue ne null)
+          self.tell(FiberMessage.Stateful(_.asInstanceOf[FiberRuntime[E, A]].removeObserver(observer)))
 
       def poll(implicit unsafe: Unsafe): Option[Exit[E, A]] =
         Option(self.exitValue())
