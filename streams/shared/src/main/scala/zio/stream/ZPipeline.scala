@@ -1225,7 +1225,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         for {
           result         <- ZIO.succeed(encoder.encode(charBuffer, byteBuffer, true))
           encodedBytes   <- handleCoderResult(result)
-          remainderBytes <- if (result.isOverflow) endOfInput else Exit.emptyChunk
+          remainderBytes <- if (result.isOverflow) flushRemaining else Exit.emptyChunk
         } yield encodedBytes ++ remainderBytes
 
       def flushRemaining: IO[CharacterCodingException, Chunk[Byte]] =
