@@ -39,9 +39,9 @@ val analyzed =
 When we fork fibers, depending on how we fork them we can have four different lifetime strategies for the child fibers:
 
 1. **Fork With Automatic Supervision**— If we use the ordinary `ZIO#fork` operation, the child fiber will be automatically supervised by the parent fiber. The lifetime child fibers are tied to the lifetime of their parent fiber. This means that these fibers will be terminated either when they end naturally, or when their parent fiber is terminated.
-3. **Fork in Global Scope (Daemon)**— Sometimes we want to run long-running background fibers that aren't tied to their parent fiber, and also we want to fork them in a global scope. Any fiber that is forked in global scope will become daemon fiber. This can be achieved by using the `ZIO#forkDaemon` operator. As these fibers have no parent, they are not supervised, and they will be terminated when they end naturally, or when our application is terminated.
-4. **Fork in Local Scope**— Sometimes, we want to run a background fiber that isn't tied to its parent fiber, but we want to live that fiber in the local scope. We can fork fibers in the local scope by using `ZIO#forkScoped`. Such fibers can outlive their parent fiber (so they are not supervised by their parents), and they will be terminated when their life end or their local scope is closed.
-5. **Fork in Specific Scope**— This is similar to the previous strategy, but we can have more fine-grained control over the lifetime of the child fiber by forking it in a specific scope. We can do this by using the `ZIO#forkIn` operator.
+2. **Fork in Global Scope (Daemon)**— Sometimes we want to run long-running background fibers that aren't tied to their parent fiber, and also we want to fork them in a global scope. Any fiber that is forked in global scope will become daemon fiber. This can be achieved by using the `ZIO#forkDaemon` operator. As these fibers have no parent, they are not supervised, and they will be terminated when they end naturally, or when our application is terminated.
+3. **Fork in Local Scope**— Sometimes, we want to run a background fiber that isn't tied to its parent fiber, but we want to live that fiber in the local scope. We can fork fibers in the local scope by using `ZIO#forkScoped`. Such fibers can outlive their parent fiber (so they are not supervised by their parents), and they will be terminated when their life end or their local scope is closed.
+4. **Fork in Specific Scope**— This is similar to the previous strategy, but we can have more fine-grained control over the lifetime of the child fiber by forking it in a specific scope. We can do this by using the `ZIO#forkIn` operator.
 
 :::note
 Forking with **automatic supervision** is the _default strategy_. When we use the `ZIO#fork` method, the lifetime of child fibers is tied to their parent fiber. However, sometimes we don't want this behavior. Instead, we use three other alternatives.
@@ -371,7 +371,42 @@ Still running ...
 ## Operations
 
 ### fork and join
+
 Whenever we need to start a fiber, we have to `fork` an effect to get a new fiber. This is similar to the `start` method on Java thread or submitting a new thread to the thread pool in Java, it is the same idea. Also, joining is a way of waiting for that fiber to compute its value. We are going to wait until it's done and receive its result.
+
+:::note
+Fibers (including those created with `forkDaemon`) **inherit the interruptibility status of their parent**. In other words, if the parent effect is currently running uninterruptibly then the child fiber will also be uninterruptible even calling `child.interrupt` will have no effect. To ensure a forked fiber is interruptible while preserving the parent's uninterruptibility, use `ZIO.uninterruptibleMask`. For example:
+
+```scala mdoc:silent
+import zio._
+
+val parent = ZIO.uninterruptibleMask { restore =>
+  for {
+    _   <- ZIO.logInfo("Parent is uninterruptible")
+    fib <- ZIO.never.fork
+    // child is also uninterruptible by default
+    _ <- ZIO.logInfo("Attempting to interrupt the child in 5 seconds...")
+    _ <- ZIO.sleep(5.seconds)
+    _ <- fib.interrupt *> ZIO.logInfo("Interrupt invoked!")
+  } yield ()
+}
+
+// The above `fib.interrupt` will not cancel the child, because it inherited
+// uninterruptibility. If instead we write:
+val parentInterruptibleChild = ZIO.uninterruptibleMask { restore =>
+  for {
+    _   <- ZIO.logInfo("Parent is uninterruptible")
+    fib <- restore(ZIO.never).fork
+    // child is now interruptible
+    _ <- ZIO.logInfo("Attempting to interrupt the child in 5 seconds...")
+    _ <- ZIO.sleep(5.seconds)
+    _ <- fib.interrupt *> ZIO.logInfo("Interrupt invoked!")
+  } yield ()
+}
+```
+
+Here, using `ZIO.uninterruptibleMask` at the top level keeps the parent uninterruptible. Inside the mask, calling `restore(ZIO.never)` runs that effect as interruptible so the forked fiber becomes interruptible even though its parent is not.
+:::
 
 In the following example, we create a separate fiber to output a delayed print message and then wait for that fiber to succeed with a value:
 
@@ -432,7 +467,7 @@ The `zipPar` combinator has resource-safe semantics. If one computation fails, t
 
 ### Racing
 
-Two actions can be *raced*, which means they will be executed in parallel, and the value of the first action that completes successfully will be returned.
+Two actions can be _raced_, which means they will be executed in parallel, and the value of the first action that completes successfully will be returned.
 
 ```scala
 fib(100) race fib(200)
@@ -442,7 +477,7 @@ The `race` combinator is resource-safe, which means that if one of the two actio
 
 The `race` and even `zipPar` combinators are a specialization of a much-more powerful combinator called `raceWith`, which allows executing user-defined logic when the first of two actions succeeds.
 
-On the JVM, fibers will use threads, but will not consume *unlimited* threads. Instead, fibers yield cooperatively during periods of high-contention.
+On the JVM, fibers will use threads, but will not consume _unlimited_ threads. Instead, fibers yield cooperatively during periods of high-contention.
 
 ```scala mdoc:silent
 def fib(n: Int): UIO[Int] =
@@ -470,11 +505,11 @@ val errorEither: ZIO[Any, Nothing, Either[Throwable, String]] = error.either
 
 Separately from errors of type `E`, a fiber may be terminated for the following reasons:
 
-* **The fiber self-terminated or was interrupted by another fiber**. The "main" fiber cannot be interrupted because it was not forked from any other fiber.
+- **The fiber self-terminated or was interrupted by another fiber**. The "main" fiber cannot be interrupted because it was not forked from any other fiber.
 
-* **The fiber failed to handle some error of type `E`**. This can happen only when an `ZIO.fail` is not handled. For values of type `UIO[A]`, this type of failure is impossible.
+- **The fiber failed to handle some error of type `E`**. This can happen only when an `ZIO.fail` is not handled. For values of type `UIO[A]`, this type of failure is impossible.
 
-* **The fiber has a defect that leads to a non-recoverable error**. There are only two ways this can happen:
+- **The fiber has a defect that leads to a non-recoverable error**. There are only two ways this can happen:
 
      1. A partial function is passed to a higher-order function such as `map` or `flatMap`. For example, `io.map(_ => throw e)`, or `io.flatMap(a => throw e)`. The solution to this problem is to not to pass impure functions to purely functional libraries like ZIO, because doing so leads to violations of laws and destruction of equational reasoning.
      2. Error-throwing code was embedded into some value via `ZIO.succeed`, etc. For importing partial effects into `ZIO`, the proper solution is to use a method such as `ZIO.attempt`, which safely translates exceptions into values.
@@ -603,8 +638,8 @@ These defaults help to guarantee stack safety and cooperative multitasking. They
 ## Types of Workloads
 Let's discuss the types of workloads that a fiber can handle. There are three types of them:
 1. **CPU Work/Pure CPU Bound** is a workload that exploits the processing power of a CPU for pure computations of a huge chunk of work, e.g. complex numerical computations.
-4. **Blocking I/O** is a workload that goes beyond pure computation by doing communication in a blocking fashion. For example, waiting for a certain amount of time to elapse or waiting for an external event to happen are blocking I/O operations.
-5. **Asynchronous I/O** is a workload that goes beyond pure computation by doing communication asynchronously, e.g. registering a callback for a specific event.
+2. **Blocking I/O** is a workload that goes beyond pure computation by doing communication in a blocking fashion. For example, waiting for a certain amount of time to elapse or waiting for an external event to happen are blocking I/O operations.
+3. **Asynchronous I/O** is a workload that goes beyond pure computation by doing communication asynchronously, e.g. registering a callback for a specific event.
 
 ### CPU Work
 What we refer to as CPU Work is pure computational firepower without involving any interaction and communication with the outside world. It doesn't involve any I/O operation. It's a pure computation. By I/O, we mean anything that involves reading from and writing to an external resource such as a file or a socket or web API, or anything that would be characterized as I/O. 
