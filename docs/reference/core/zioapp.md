@@ -127,7 +127,7 @@ object MyApp extends ZIOAppDefault {
 
   val run: ZIO[ZIOAppArgs with Scope, Any, Any] =
     ZIO.acquireReleaseWith(
-      acquire = ZIO.logInfo("Acquiring resource...") *> ZIO.succeed("MyResource")
+      acquire = ZIO.logInfo("Acquiring resource...").as("MyResource")
     )(release = _ => ZIO.logInfo("Releasing resource (3s) ...") *> ZIO.sleep(3.seconds)) {
       resource =>
         ZIO.logInfo(s"Running with $resource, press Ctrl+C to interrupt") *> ZIO.never
@@ -164,5 +164,5 @@ Timed out waiting for ZIO application to shut down after 5 seconds. You can adju
 At that point, the JVM process exits immediately even though the 20-second finalizer has not yet finished.
 
 :::note
-This only applies on **JVM** and **Scala Native**. Other platforms like **Scala.js** do not invoke the shutdown hook on external signals.
+Currently, `gracefulShutdownTimeout` is implemented for the **JVM** and **Scala Native** only
 :::
