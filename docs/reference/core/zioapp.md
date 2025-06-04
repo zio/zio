@@ -123,7 +123,7 @@ import zio._
 
 object MyApp extends ZIOAppDefault {
   // Wait at most 30 seconds for all finalizers to complete on SIGINT
-  override def gracefulShutdownTimeout: Duration = Duration.fromSeconds(30)
+  override def gracefulShutdownTimeout: Duration = 30.seconds
 
   val run: ZIO[ZIOAppArgs with Scope, Any, Any] =
     ZIO.acquireReleaseWith(
