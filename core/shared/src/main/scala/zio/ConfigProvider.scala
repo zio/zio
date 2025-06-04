@@ -64,10 +64,10 @@ trait ConfigProvider {
    * names to kebab case. This can be utilized to adapt the names of
    * configuration properties from the default naming convention of camel case
    * to the naming convention of a config provider.
-   * 
+   *
    * Note: This method now correctly handles numbers in camelCase names (e.g.,
-   * "myValue123" becomes "my-value-123"). For backward compatibility with
-   * the legacy behavior, use [[kebabCaseLegacy]].
+   * "myValue123" becomes "my-value-123"). For backward compatibility with the
+   * legacy behavior, use [[kebabCaseLegacy]].
    */
   final def kebabCase: ConfigProvider =
     contramapPath { name =>
@@ -86,12 +86,13 @@ trait ConfigProvider {
 
   /**
    * Legacy implementation of kebab case conversion that maintains backward
-   * compatibility with ZIO 2.0.x behavior. This method does not handle
-   * numbers in camelCase names (e.g., "myValue123" becomes "my-value123").
-   * 
+   * compatibility with ZIO 2.0.x behavior. This method does not handle numbers
+   * in camelCase names (e.g., "myValue123" becomes "my-value123").
+   *
    * Consider migrating to [[kebabCase]] for better handling of numbers.
-   * 
-   * @deprecated Use [[kebabCase]] for improved number handling
+   *
+   * @deprecated
+   *   Use [[kebabCase]] for improved number handling
    */
   @deprecated("Use kebabCase for improved number handling", "2.1.0")
   final def kebabCaseLegacy: ConfigProvider =
@@ -128,10 +129,10 @@ trait ConfigProvider {
    * names to snake case. This can be utilized to adapt the names of
    * configuration properties from the default naming convention of camel case
    * to the naming convention of a config provider.
-   * 
+   *
    * Note: This method now correctly handles numbers in camelCase names (e.g.,
-   * "myValue123" becomes "my_value_123"). For backward compatibility with
-   * the legacy behavior, use [[snakeCaseLegacy]].
+   * "myValue123" becomes "my_value_123"). For backward compatibility with the
+   * legacy behavior, use [[snakeCaseLegacy]].
    */
   final def snakeCase: ConfigProvider =
     contramapPath { name =>
@@ -150,12 +151,13 @@ trait ConfigProvider {
 
   /**
    * Legacy implementation of snake case conversion that maintains backward
-   * compatibility with ZIO 2.0.x behavior. This method does not handle
-   * numbers in camelCase names (e.g., "myValue123" becomes "my_value123").
-   * 
+   * compatibility with ZIO 2.0.x behavior. This method does not handle numbers
+   * in camelCase names (e.g., "myValue123" becomes "my_value123").
+   *
    * Consider migrating to [[snakeCase]] for improved number handling.
-   * 
-   * @deprecated Use [[snakeCase]] for improved number handling
+   *
+   * @deprecated
+   *   Use [[snakeCase]] for improved number handling
    */
   @deprecated("Use snakeCase for improved number handling", "2.1.0")
   final def snakeCaseLegacy: ConfigProvider =
