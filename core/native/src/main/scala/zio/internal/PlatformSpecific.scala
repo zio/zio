@@ -74,8 +74,9 @@ private[zio] trait PlatformSpecific {
   final def newWeakHashMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] =
     Collections.synchronizedMap(new WeakHashMap[A, B]())
 
+  // Use a synchronized HashMap for Scala Native
   final def newConcurrentMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] =
-    new ConcurrentHashMap[A, B]()
+    Collections.synchronizedMap(new java.util.HashMap[A, B]())
 
   final def newConcurrentWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
     Collections.synchronizedSet(newWeakSet[A]())
@@ -83,11 +84,17 @@ private[zio] trait PlatformSpecific {
   final def newWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
     Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
 
+  // Using the custom ConcurrentHashSet implementation for Scala Native
   final def newConcurrentSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
-    ConcurrentHashMap.newKeySet[A]()
+    new ConcurrentHashSet[A]()
 
   final def newConcurrentSet[A](initialCapacity: Int)(implicit unsafe: zio.Unsafe): JSet[A] =
-    ConcurrentHashMap.newKeySet[A](initialCapacity)
+    new ConcurrentHashSet[A](initialCapacity)
+
+  final def newWeakReference[A](value: A)(implicit unsafe: zio.Unsafe): () => A = {
+    val ref = new WeakReference[A](value)
+    () => ref.get()
+  }
 
   private def blackhole(a: Any): Unit = {
     val _ = a

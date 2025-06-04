@@ -77,7 +77,17 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
     val lockAcquired = gcStatus.compareAndSet(false, true)
 
     // NOTE: try-finally most probably not needed; just being extra cautious not to accidentally lock GC
-    try if (force || lockAcquired) graduates.removeIf(notAlive)
+    try
+      if (force || lockAcquired) {
+        // For Scala Native, we need to handle the case where we're using a synchronized collection
+        val iterator = graduates.iterator()
+        while (iterator.hasNext) {
+          val ref = iterator.next()
+          if (notAlive.test(ref)) {
+            iterator.remove()
+          }
+        }
+      }
     finally if (lockAcquired) gcStatus.set(false)
   }
 
