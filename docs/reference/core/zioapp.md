@@ -236,9 +236,11 @@ import zio._
 import zio.Console
 
 object MultiResourceApp extends ZIOAppDefault {
+  // Wait at most 15 seconds for all finalizers to complete on SIGINT
   override def gracefulShutdownTimeout: Duration = Duration.fromSeconds(15)
 
   val run: ZIO[ZIOAppArgs with Scope, Any, Any] = {
+    // Database resource
     val dbResource = ZIO.acquireReleaseWith(
       acquire = ZIO.logInfo("Connecting to database...") *> 
                 ZIO.sleep(1.second) *> 
@@ -247,35 +249,38 @@ object MultiResourceApp extends ZIOAppDefault {
       release = conn => 
         ZIO.logInfo(s"Closing database connection (3s) ...") *> 
         ZIO.sleep(3.seconds) *> 
-        ZIO.logInfo(s"Database connection $conn closed")
+        ZIO.logInfo(s"Database connection $conn closed successfully")
     )
 
+    // File resource
     val fileResource = ZIO.acquireReleaseWith(
       acquire = ZIO.logInfo("Opening file...") *> 
                 ZIO.sleep(1.second) *> 
-                ZIO.succeed("File")
+                ZIO.succeed("FileHandle")
     )(
       release = file => 
         ZIO.logInfo(s"Closing file (5s) ...") *> 
         ZIO.sleep(5.seconds) *> 
-        ZIO.logInfo(s"File $file closed")
+        ZIO.logInfo(s"File $file closed successfully")
     )
 
+    // Combine resources using for comprehension
     for {
       db <- dbResource
       file <- fileResource
-      _ <- ZIO.logInfo(s"Running with resources: $db, $file, press Ctrl+C to interrupt") *> 
-            ZIO.never
+      _ <- ZIO.logInfo(s"Running with database $db and file $file, press Ctrl+C to interrupt") *> 
+           ZIO.never
     } yield ()
   }
 }
 ```
 
-This example shows how to handle multiple resources that need cleanup:
-1. Database connection (3s cleanup)
-2. File handle (5s cleanup)
-3. Total cleanup time: 8s
-4. Timeout: 15s (sufficient for both resources)
+This example demonstrates:
+1. Managing multiple resources (database and file)
+2. Each resource has its own cleanup time (3s and 5s)
+3. Total cleanup time is 8 seconds (well within the 15s timeout)
+4. Proper resource acquisition and release using `ZIO.acquireReleaseWith`
+5. Clean shutdown with all resources properly released
 
 ### Platform-Specific Behavior
 
