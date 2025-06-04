@@ -4,7 +4,6 @@ import zio._
 import zio.stream.ZStreamAspect._
 import zio.test._
 import zio.test.Assertion._
-import zio.metrics.MetricLabel
 
 object ZStreamAspectSpec extends ZIOBaseSpec {
 
