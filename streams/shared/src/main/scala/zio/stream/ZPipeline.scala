@@ -1241,9 +1241,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         case None =>
           for {
             _              <- ZIO.succeed(charBuffer.flip())
-            encodedBytes   <- endOfInput
-            remainingBytes <- flushRemaining
-            result          = encodedBytes ++ remainingBytes
+            result   <- endOfInput
             _ <- ZIO.succeed {
                    charBuffer.clear()
                    byteBuffer.clear()
