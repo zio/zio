@@ -20,6 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.{Collections, WeakHashMap, Map => JMap, Set => JSet}
+import java.lang.ref.WeakReference
 
 private[zio] trait PlatformSpecific {
 
@@ -86,10 +87,10 @@ private[zio] trait PlatformSpecific {
 
   // Using the custom ConcurrentHashSet implementation for Scala Native
   final def newConcurrentSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
-    new ConcurrentHashSet[A]()
+    new ConcurrentHashSet[A]().asInstanceOf[JSet[A]]
 
   final def newConcurrentSet[A](initialCapacity: Int)(implicit unsafe: zio.Unsafe): JSet[A] =
-    new ConcurrentHashSet[A](initialCapacity)
+    new ConcurrentHashSet[A](initialCapacity).asInstanceOf[JSet[A]]
 
   final def newWeakReference[A](value: A)(implicit unsafe: zio.Unsafe): () => A = {
     val ref = new WeakReference[A](value)

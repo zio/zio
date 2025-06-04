@@ -4,18 +4,24 @@ import java.util.concurrent.atomic.AtomicReferenceArray
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import scala.annotation.tailrec
+import java.util.{Set => JSet, Collection => JCollection}
+import java.util.Iterator
+import java.util.Spliterator
+import java.util.Spliterators
+import java.util.function.{Consumer, Predicate, Function}
+import java.util.stream.Stream
 
 /**
  * A thread-safe set implementation optimized for Scala Native that avoids the
  * treeification issues of ConcurrentHashMap. Uses a simple array-based approach
  * with locks for each bucket.
  */
-private[zio] final class ConcurrentHashSet[A](initialCapacity: Int = 16) {
+private[zio] final class ConcurrentHashSet[A](initialCapacity: Int = 16) extends JSet[A] {
   private[this] val loadFactor = 0.75f
-  private[this] val locks      = new Array[ReentrantLock](initialCapacity)
-  private[this] val table      = new AtomicReferenceArray[Array[AnyRef]](initialCapacity)
+  private[this] var locks      = new Array[ReentrantLock](initialCapacity)
+  private[this] var table      = new AtomicReferenceArray[Array[AnyRef]](initialCapacity)
   private[this] val size       = new AtomicInteger(0)
-  private[this] val threshold  = (initialCapacity * loadFactor).toInt
+  private[this] var threshold  = (initialCapacity * loadFactor).toInt
 
   // Initialize locks and table
   (0 until initialCapacity).foreach { i =>
@@ -23,7 +29,7 @@ private[zio] final class ConcurrentHashSet[A](initialCapacity: Int = 16) {
     table.set(i, new Array[AnyRef](0))
   }
 
-  def add(element: A): Boolean = {
+  override def add(element: A): Boolean = {
     if (element == null) return false
 
     val hash  = element.hashCode()
@@ -61,7 +67,7 @@ private[zio] final class ConcurrentHashSet[A](initialCapacity: Int = 16) {
     }
   }
 
-  def remove(element: A): Boolean = {
+  override def remove(element: Any): Boolean = {
     if (element == null) return false
 
     val hash  = element.hashCode()
@@ -91,7 +97,7 @@ private[zio] final class ConcurrentHashSet[A](initialCapacity: Int = 16) {
     }
   }
 
-  def contains(element: A): Boolean = {
+  override def contains(element: Any): Boolean = {
     if (element == null) return false
 
     val hash  = element.hashCode()
@@ -114,11 +120,11 @@ private[zio] final class ConcurrentHashSet[A](initialCapacity: Int = 16) {
     }
   }
 
-  def size(): Int = size.get()
+  override def size(): Int = size.get()
 
-  def isEmpty: Boolean = size.get() == 0
+  override def isEmpty: Boolean = size.get() == 0
 
-  def clear(): Unit = {
+  override def clear(): Unit = {
     var i = 0
     while (i < table.length()) {
       val lock = locks(i)
@@ -132,6 +138,147 @@ private[zio] final class ConcurrentHashSet[A](initialCapacity: Int = 16) {
     }
     size.set(0)
   }
+
+  override def addAll(c: JCollection[_ <: A]): Boolean = {
+    var modified = false
+    val it       = c.iterator()
+    while (it.hasNext) {
+      if (add(it.next())) modified = true
+    }
+    modified
+  }
+
+  override def containsAll(c: JCollection[_]): Boolean = {
+    val it = c.iterator()
+    while (it.hasNext) {
+      if (!contains(it.next())) return false
+    }
+    true
+  }
+
+  override def removeAll(c: JCollection[_]): Boolean = {
+    var modified = false
+    val it       = c.iterator()
+    while (it.hasNext) {
+      if (remove(it.next())) modified = true
+    }
+    modified
+  }
+
+  override def retainAll(c: JCollection[_]): Boolean = {
+    var modified = false
+    val it       = iterator()
+    while (it.hasNext) {
+      val e = it.next()
+      if (!c.contains(e)) {
+        it.remove()
+        modified = true
+      }
+    }
+    modified
+  }
+
+  override def toArray(): Array[AnyRef] = {
+    val result = new Array[AnyRef](size())
+    var i      = 0
+    val it     = iterator()
+    while (it.hasNext) {
+      result(i) = it.next().asInstanceOf[AnyRef]
+      i += 1
+    }
+    result
+  }
+
+  override def toArray[T](a: Array[T]): Array[T] = {
+    val size = size()
+    val result =
+      if (a.length >= size) a
+      else java.lang.reflect.Array.newInstance(a.getClass.getComponentType, size).asInstanceOf[Array[T]]
+    var i  = 0
+    val it = iterator()
+    while (it.hasNext) {
+      result(i) = it.next().asInstanceOf[T]
+      i += 1
+    }
+    if (i < result.length) result(i) = null.asInstanceOf[T]
+    result
+  }
+
+  override def iterator(): Iterator[A] = new Iterator[A] {
+    private[this] var currentIndex                 = 0
+    private[this] var currentBucket: Array[AnyRef] = null
+    private[this] var currentPos                   = 0
+    private[this] var lastReturned: A              = _
+
+    @tailrec
+    def findNext(): Unit = {
+      if (currentBucket != null && currentPos < currentBucket.length) {
+        // Already have a bucket with elements
+        return
+      }
+
+      while (currentIndex < table.length()) {
+        val lock = locks(currentIndex)
+        lock.lock()
+        try {
+          val bucket = table.get(currentIndex)
+          if (bucket != null && bucket.length > 0) {
+            currentBucket = bucket
+            currentPos = 0
+            return
+          }
+        } finally {
+          lock.unlock()
+        }
+        currentIndex += 1
+      }
+      currentBucket = null
+    }
+
+    override def hasNext: Boolean = {
+      findNext()
+      currentBucket != null && currentPos < currentBucket.length
+    }
+
+    override def next(): A = {
+      if (!hasNext) throw new NoSuchElementException()
+      lastReturned = currentBucket(currentPos).asInstanceOf[A]
+      currentPos += 1
+      lastReturned
+    }
+
+    override def remove(): Unit = {
+      if (lastReturned == null) throw new IllegalStateException()
+      ConcurrentHashSet.this.remove(lastReturned)
+      lastReturned = null.asInstanceOf[A]
+    }
+  }
+
+  override def spliterator(): Spliterator[A] = Spliterators.spliterator(iterator(), size(), Spliterator.DISTINCT)
+
+  override def forEach(action: Consumer[_ >: A]): Unit = {
+    val it = iterator()
+    while (it.hasNext) {
+      action.accept(it.next())
+    }
+  }
+
+  override def removeIf(filter: Predicate[_ >: A]): Boolean = {
+    var removed = false
+    val it      = iterator()
+    while (it.hasNext) {
+      val e = it.next()
+      if (filter.test(e)) {
+        it.remove()
+        removed = true
+      }
+    }
+    removed
+  }
+
+  override def stream(): Stream[A] = java.util.stream.StreamSupport.stream(spliterator(), false)
+
+  override def parallelStream(): Stream[A] = java.util.stream.StreamSupport.stream(spliterator(), true)
 
   private def resize(): Unit = {
     val oldTable  = table
@@ -186,48 +333,5 @@ private[zio] final class ConcurrentHashSet[A](initialCapacity: Int = 16) {
     table = newTable
     locks = newLocks
     threshold = (newLength * loadFactor).toInt
-  }
-
-  def iterator: Iterator[A] = new Iterator[A] {
-    private[this] var currentIndex                 = 0
-    private[this] var currentBucket: Array[AnyRef] = null
-    private[this] var currentPos                   = 0
-
-    @tailrec
-    def findNext(): Unit = {
-      if (currentBucket != null && currentPos < currentBucket.length) {
-        // Already have a bucket with elements
-        return
-      }
-
-      while (currentIndex < table.length()) {
-        val lock = locks(currentIndex)
-        lock.lock()
-        try {
-          val bucket = table.get(currentIndex)
-          if (bucket != null && bucket.length > 0) {
-            currentBucket = bucket
-            currentPos = 0
-            return
-          }
-        } finally {
-          lock.unlock()
-        }
-        currentIndex += 1
-      }
-      currentBucket = null
-    }
-
-    def hasNext: Boolean = {
-      findNext()
-      currentBucket != null && currentPos < currentBucket.length
-    }
-
-    def next(): A = {
-      if (!hasNext) throw new NoSuchElementException()
-      val result = currentBucket(currentPos).asInstanceOf[A]
-      currentPos += 1
-      result
-    }
   }
 }
