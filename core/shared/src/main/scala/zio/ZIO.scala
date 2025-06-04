@@ -6397,7 +6397,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         }
     }
 
-  def render(zio: ZIO.Erased): String =
+  private[zio] def render(zio: ZIO.Erased): String =
     zio match {
       case Sync(trace, _)               => s"Sync(trace=$trace)"
       case WhileLoop(trace, _, _, _)    => s"WhileLoop(trace=$trace)"
