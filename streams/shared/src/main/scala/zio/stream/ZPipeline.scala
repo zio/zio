@@ -1240,8 +1240,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           encodeChunk(inChunk)
         case None =>
           for {
-            _              <- ZIO.succeed(charBuffer.flip())
-            result   <- endOfInput
+            _      <- ZIO.succeed(charBuffer.flip())
+            result <- endOfInput
             _ <- ZIO.succeed {
                    charBuffer.clear()
                    byteBuffer.clear()
