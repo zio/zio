@@ -3673,6 +3673,31 @@ object ZIOSpec extends ZIOBaseSpec {
           value <- finalized.await *> ZIO.succeed(ref.get())
         } yield assert(value)(equalTo(0))
       } @@ exceptJS(nonFlaky),
+      suite("asyncInterrupt cancellation converts thrown exceptions to defects") {
+        def testCase(onInterrupt: ZIO[Any, Nothing, Unit]) =
+          for {
+            latch <- Promise.make[Nothing, Unit]
+            async = ZIO.asyncInterruptUnsafe[Any, Nothing, Nothing] { implicit u => _ =>
+                      latch.unsafe.succeedUnit
+                      Left(onInterrupt)
+                    }
+            fiber  <- async.fork
+            _      <- latch.await
+            _      <- fiber.interrupt
+            result <- fiber.await
+          } yield result match {
+            case Exit.Failure(cause) =>
+              assertTrue(cause.isInterrupted, cause.isDie, cause.defects.headOption.exists(_.getMessage == "boom"))
+            case _ => assertNever("Expected fiber to fail")
+          }
+
+        val cancel = ZIO.succeed(throw new Exception("boom"))
+        List(
+          test("with Sync")(testCase(cancel)),
+          test("with FlatMap")(testCase(ZIO.suspendSucceed(cancel))),
+          test("with Async")(testCase(ZIO.asyncMaybe(_ => Some(cancel))))
+        )
+      } @@ zioTag(interruption),
       test("interruption is not inherited on fork") {
         for {
           promise1 <- Promise.make[Nothing, Unit]
