@@ -7,6 +7,7 @@ import Features from '@site/src/components/sections/Features';
 import Ecosystem from '@site/src/components/sections/Ecosystem';
 import Sponsors from '@site/src/components/sections/Sponsors';
 import Zionomicon from '@site/src/components/sections/Zionomicon';
+import Testimonials from '@site/src/components/sections/Testimonials';
 
 // Construct the home page from all components
 export default function WelcomePage() {
@@ -24,6 +25,7 @@ export default function WelcomePage() {
         <Features />
         <Ecosystem title = "Ecosystem" subtitle="A rich ecosystem of libraries built on ZIO to solve real-world problems"/>
         <Zionomicon />
+        <Testimonials />
         <Sponsors />
       </main>
     </Layout>

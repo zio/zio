@@ -488,7 +488,6 @@ module.exports = {
       type: "category",
       label: "Tutorial Guides",
       items: [
-        "guides/tutorials/configurable-zio-application",
         "guides/tutorials/encode-and-decode-json-data",
         "guides/tutorials/enable-logging-in-a-zio-application",
         "guides/tutorials/create-custom-logger-for-a-zio-application",
