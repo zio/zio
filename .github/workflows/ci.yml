@@ -223,7 +223,7 @@ jobs:
       fail-fast: false
       matrix:
         java: ['17']
-        platform: ['JS', 'Native']
+        platform: ['Native']
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v4.2.2
