@@ -214,7 +214,7 @@ const config = {
           customCss: [require.resolve('./src/css/custom.css')],
         },
         docs: {
-          routeBasePath: '/docs',
+          routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
           lastVersion: 'current',
           versions: {
@@ -276,7 +276,7 @@ const config = {
       {
         redirects: [
           {
-            to: '/docs/contributor-guidelines',
+            to: '/contributor-guidelines',
             from: '/about/about_contributing',
           },
         ],
