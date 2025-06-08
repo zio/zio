@@ -58,7 +58,13 @@ object Assertion extends AssertionVariants {
     val completeString =
       codeString.flatMap(code =>
         assertionString.map { assertion =>
-          code.blue + " did not satisfy " + assertion.cyan
+          val code0      = code.blue
+          val assertion0 = assertion.cyan
+          new StringBuilder(17 + code0.length + assertion0.length)
+            .append(code0)
+            .append(" did not satisfy ")
+            .append(assertion0)
+            .result()
         }
       )
     TestResult(
