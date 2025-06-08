@@ -622,7 +622,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(publish / skip := true)
   .settings(Test / test := (Test / compile).value)
   .settings(
-    resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
+    resolvers += Resolver.sonatypeCentralSnapshots,
     libraryDependencies ++= List(
       `zio-http`,
       `zio-metrics-connectors`,
@@ -808,7 +808,7 @@ lazy val docs = project.module
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
     docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
-    resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
+    resolvers += Resolver.sonatypeCentralSnapshots,
     mdocVariables ++= Map(
       "ZIO_METRICS_CONNECTORS_VERSION" -> ZioMetricsConnectorsVersion,
       "ZIO_CONFIG_VERSION"             -> ZioConfigVersion,
