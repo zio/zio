@@ -10,7 +10,7 @@ export default function Hero() {
   const { siteConfig = {} } = context;
 
   return (
-    <section className="flex flex-col gap-24 py-20">
+    <section className="flex flex-col gap-24 py-10">
       <div className="container flex flex-col items-center gap-6">
         <img
           className="h-20"

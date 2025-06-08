@@ -28,7 +28,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   def spec: Spec[Environment with TestEnvironment with Scope, Any]
 
   def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment]] =
-    Chunk(TestAspect.fibers, TestAspect.timeoutWarning(60.seconds))
+    Chunk(TestAspect.timeoutWarning(60.seconds))
 
   def bootstrap: ZLayer[Any, Any, Environment]
 
@@ -121,7 +121,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
               testEventHandler
             )
         )
-      randomId <- ZIO.withRandom(Random.RandomLive)(Random.nextInt).map("test_case_" + _)
+      randomId <- Random.RandomLive.nextInt.map("test_case_" + _)
       summary <-
         runner.run(randomId, aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
     } yield summary
