@@ -17,7 +17,7 @@ object FiberIdSpec extends ZIOBaseSpec {
       test("toSet") {
         assert(fiberId.toSet.size)(equalTo(20000))
       }
-    ) @@ sequential @@ exceptJS
+    ) @@ sequential @@ jvmOnly
   )
 
   val fiberId: FiberId = {

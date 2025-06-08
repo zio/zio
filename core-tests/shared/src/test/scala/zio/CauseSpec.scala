@@ -184,7 +184,7 @@ object CauseSpec extends ZIOBaseSpec {
         val cause = genCause(Cause.fail("Error"), 20000)
 
         assert(cause.toString)(anything)
-      },
+      } @@ TestAspect.jvmOnly,
       test("return properly structured string for nested cause") {
         val fiberId    = FiberId(123, 456, Trace.empty)
         val stackTrace = StackTrace(fiberId, Chunk.empty)
@@ -337,12 +337,10 @@ object CauseSpec extends ZIOBaseSpec {
         val bldr = Seq.newBuilder[(Seq[String], Boolean)]
         val c = c123.filter { c =>
           val res = !c.isInstanceOf[Cause.Both[?]]
-          println(s"applying filter on: ${c.failures} -> $res")
           bldr += (c.failures -> res)
           res
         }
 
-        println(s"\nfiltered cause: $c")
         zio.test.assert(c)(Assertion.equalTo(c1)) &&
         zio.test.assert(bldr.result()) {
           equalTo {

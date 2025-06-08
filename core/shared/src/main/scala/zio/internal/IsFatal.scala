@@ -103,7 +103,7 @@ object IsFatal {
       }
 
   private[zio] def toSet(isFatal: IsFatal): Set[IsFatal] =
-    if (isFatal == IsFatal.empty) Set.empty
+    if (isFatal eq IsFatal.empty) Set.empty
     else
       isFatal match {
         case Both(left, right) => toSet(left) ++ toSet(right)

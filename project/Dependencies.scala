@@ -3,7 +3,7 @@ import sbt.*
 object Dependencies {
   // Runtime dependencies
   val JunitVersion                 = "4.13.2"
-  val JunitPlatformEngineVersion   = "1.12.2"
+  val JunitPlatformEngineVersion   = "1.13.1"
   val IzumiReflectVersion          = "3.0.1"
   val MagnoliaScala2Version        = "1.1.10"
   val MagnoliaScala3Version        = "1.3.18"
@@ -24,7 +24,7 @@ object Dependencies {
   val ShardcakeVersion  = "2.4.2"
 
   val ZioMetricsConnectorsVersion      = "2.3.1"
-  val ZioHttpVersion                   = "3.3.0"
+  val ZioHttpVersion                   = "3.3.3"
   val IzumiVersion                     = "1.2.15"
   val ZioConfigVersion                 = "4.0.2"
   val ZioFtpVersion                    = "0.4.3"

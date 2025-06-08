@@ -75,28 +75,24 @@ object ZTestEventSpec extends ZIOSpecDefault {
   // Required because
   //  - `Selector` equality isn't working
   //  - Ansi colors make comparisons horrible to work with
-  def assertEqualEvents(result: Event, expected: Event): TestResult = {
-    println(stripAnsi(result.throwable()))
-    println("\n==================\n")
-    println(stripAnsi(result.throwable()))
+  def assertEqualEvents(result: Event, expected: Event): TestResult =
     assertTrue(
       result.fullyQualifiedName() == expected.fullyQualifiedName()
     ) &&
-    assertTrue(
-      result.selector().toString == expected.selector().toString
-    ) &&
-    assertTrue(
-      result.status() == expected.status()
-    ) &&
-    assertTrue(
-      stripAnsi(result.throwable())
-        == stripAnsi(expected.throwable())
-    ) &&
-    assertTrue(
-      result.duration() == expected.duration()
-    ) &&
-    assertCompletes
-  }
+      assertTrue(
+        result.selector().toString == expected.selector().toString
+      ) &&
+      assertTrue(
+        result.status() == expected.status()
+      ) &&
+      assertTrue(
+        stripAnsi(result.throwable())
+          == stripAnsi(expected.throwable())
+      ) &&
+      assertTrue(
+        result.duration() == expected.duration()
+      ) &&
+      assertCompletes
 
   private def stripAnsi(input: Any) =
     input.toString

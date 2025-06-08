@@ -151,13 +151,11 @@ object HigherKindedTagCorrectness extends ZIOBaseSpec {
         (for {
           _     <- Cache.put[Option, Int, String](1, "one")
           value <- Cache.get[Option, Int, String](1)
-          _     <- ZIO.debug(value)
           a      = Tag[Cache[Option, Int, String]]
           b      = Tag[Cache[({ type Out[In] = Option[In] })#Out, Int, String]]
           c      = Tag[Cache[({ type Bar = Double; type Out[In] = Option[Bar] })#Out, Int, String]]
           d      = Tag[Cache[({ type Out[In] = Option[Double] })#Out, Int, String]]
           e      = Tag[Cache[({ type Id[A] = A; type Out[In] = Option[Id[In]] })#Out, Int, String]]
-          _     <- ZIO.debug(s"WHAT" + b)
         } yield assertTrue(
           a.tag <:< b.tag,
           b.tag <:< a.tag,
