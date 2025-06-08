@@ -114,7 +114,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] extends ZLayerVersionSpecific[RIn,
    * Builds a layer into a scoped value.
    */
   final def build(implicit trace: Trace): ZIO[RIn with Scope, E, ZEnvironment[ROut]] =
-    ZIO.serviceWithZIO[Scope](build(_))
+    ZIO.scopeWith(build(_))
 
   /**
    * Builds a layer into a ZIO value. Any resources associated with this layer
@@ -233,9 +233,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] extends ZLayerVersionSpecific[RIn,
    * your entire application is a layer, such as an HTTP server.
    */
   final def launch(implicit trace: Trace): ZIO[RIn, E, Nothing] =
-    ZIO.scoped[RIn] {
-      ZIO.serviceWithZIO[Scope](build(_)) *> ZIO.never
-    }
+    ZIO.scopedWith(build(_) *> ZIO.never)
 
   /**
    * Returns a new layer whose output is mapped by the specified function.
@@ -407,9 +405,9 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] extends ZLayerVersionSpecific[RIn,
       case ZLayer.Apply(self) =>
         self
       case ZLayer.ExtendScope(self) =>
-        ZIO.scopeWith { scope =>
-          memoMap.getOrElseMemoize(scope)(self)
-        }.asInstanceOf[ZIO[RIn, E, ZEnvironment[ROut]]]
+        ZIO
+          .scopeWith(memoMap.getOrElseMemoize(_)(self))
+          .asInstanceOf[ZIO[RIn, E, ZEnvironment[ROut]]]
       case ZLayer.Fold(self, failure, success) =>
         memoMap
           .getOrElseMemoize(scope)(self)
