@@ -37,9 +37,18 @@ addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/Test/compile;stacktracerJVM/Test/compile;streamsTestsJVM/Test/compile;testTestsJVM/Test/compile;testMagnoliaTestsJVM/Test/compile;testRefinedJVM/Test/compile;testRunnerJVM/Test/compile;examplesJVM/Test/compile;macrosTestsJVM/Test/compile;concurrentJVM/Test/compile;managedTestsJVM/Test/compile"
 )
+// Split Native commands in half so that we can run them in parallel in CI
+addCommandAlias(
+  "testNative1",
+  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;"
+)
+addCommandAlias(
+  "testNative2",
+  ";testTestsNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test"
+)
 addCommandAlias(
   "testNative",
-  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test"
+  ";testNative1;testNative2"
 )
 addCommandAlias(
   "testJVM",
