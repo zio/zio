@@ -262,10 +262,11 @@ object BuildHelper {
 
   def nativeSettings = Seq(
     nativeConfig ~= { cfg =>
-      val os = System.getProperty("os.name").toLowerCase
-      // For some unknown reason, we can't run the test suites in debug mode on MacOS
-      if (os.contains("mac")) cfg.withMode(Mode.releaseFast)
-      else cfg.withGC(GC.boehm) // See https://github.com/scala-native/scala-native/issues/4032
+      // For some unknown reason, we get errors when runnign test suites in debug mode
+      val os   = System.getProperty("os.name").toLowerCase
+      val cfg0 = cfg.withMode(Mode.releaseFast)
+      if (os.contains("mac")) cfg0
+      else cfg0.withGC(GC.boehm) // See https://github.com/scala-native/scala-native/issues/4032
     },
     scalacOptions += "-P:scalanative:genStaticForwardersForNonTopLevelObjects",
     Test / fork := false,
