@@ -20,8 +20,6 @@ import zio.internal.SpecializationHelpers.SpecializeInt
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.{switch, tailrec}
-import scala.collection.mutable
-import scala.collection.compat._
 import scala.runtime.BoxesRunTime
 
 /**
