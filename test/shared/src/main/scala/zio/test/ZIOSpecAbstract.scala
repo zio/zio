@@ -122,8 +122,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
             )
         )
       randomId <- Random.RandomLive.nextInt.map("test_case_" + _)
-      summary <-
-        runner.run(randomId, aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
+      summary  <- runner.run(randomId, aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect._fibers)
     } yield summary
   }
 
@@ -150,6 +149,6 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
           ZLayer.succeedEnvironment(castedRuntime.environment) >>> ExecutionEventSink.live,
           testEventHandler
         )
-    ).run(fullyQualifiedName, aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
+    ).run(fullyQualifiedName, aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect._fibers)
   }
 }
