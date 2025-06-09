@@ -3,7 +3,7 @@ import sbt.*
 object Dependencies {
   // Runtime dependencies
   val JunitVersion                 = "4.13.2"
-  val JunitPlatformEngineVersion   = "1.13.0"
+  val JunitPlatformEngineVersion   = "1.13.1"
   val IzumiReflectVersion          = "3.0.1"
   val MagnoliaScala2Version        = "1.1.10"
   val MagnoliaScala3Version        = "1.3.18"
