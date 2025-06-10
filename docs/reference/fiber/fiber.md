@@ -376,7 +376,7 @@ Whenever we need to start a fiber, we have to `fork` an effect to get a new fibe
 :::note
 Fibers (including those created with `forkDaemon`) **inherit the interruptibility status of their parent**. In other words, if the parent effect is currently running uninterruptibly then the child fiber will also be uninterruptible even calling `child.interrupt` will have no effect. To ensure a forked fiber is interruptible while preserving the parent’s uninterruptibility, use `ZIO.uninterruptibleMask`.
 
-For example, this code hangs because the child inherited uninterruptibility:
+For example, this code hangs because the child inherited uninterruptibility using `fib.interrupt`:
 
 ```scala mdoc:silent
 import zio._
