@@ -507,14 +507,28 @@ object TestAspect extends TimeoutVariants {
         )
     }
 
-  private[test] val _fibers: TestAspectPoly =
+  /**
+   * An aspect that records the state of fibers spawned by the current test in
+   * [[TestAnnotation.fibers]].
+   *
+   * '''NOTE''': Since this aspect is required for the proper functioning of
+   * `TestClock.adjust`, it is applied to all tests automatically. There is no
+   * need to apply this aspect manually to tests.
+   */
+  @deprecated(
+    "This aspect is applied automatically to all tests and no longer needs to be provided explicitly",
+    "2.1.20"
+  )
+  val fibers: TestAspectPoly =
     new PerTest.Poly {
       def perTest[R, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] = {
-        val acquire = ZIO.succeed(new AtomicReference(SortedSet.empty[Fiber.Runtime[Any, Any]])).tap { ref =>
-          Annotations.annotate(TestAnnotation.fibers, Right(Chunk.single(ref)))
+        val acquire = ZIO.suspendSucceed {
+          val ref = new AtomicReference(SortedSet.empty[Fiber.Runtime[Any, Any]])
+          Annotations.annotate(TestAnnotation.fibers, Right(Chunk.single(ref))).as(ref)
         }
+
         val release = Annotations.get(TestAnnotation.fibers).flatMap {
           case Right(refs) =>
             val n =
@@ -536,17 +550,6 @@ object TestAspect extends TimeoutVariants {
         }
       }
     }
-
-  /**
-   * An aspect that records the state of fibers spawned by the current test in
-   * [[TestAnnotation.fibers]]. Applied automatically to all tests. This aspect
-   * is required for the proper functioning of `TestClock.adjust`.
-   */
-  @deprecated(
-    "This aspect is applied automatically to all tests and no longer needs to be provided explicitly",
-    "2.1.20"
-  )
-  def fibers = _fibers
 
   /**
    * An aspect that retries a test until success, with a default limit, for use
