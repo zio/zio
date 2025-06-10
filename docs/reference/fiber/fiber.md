@@ -385,7 +385,6 @@ val parent = ZIO.uninterruptible {
   for {
     _   <- ZIO.logInfo("Parent is uninterruptible")
     fib <- ZIO.never.fork
-    // child is also uninterruptible by default
     _ <- ZIO.logInfo("Attempting to interrupt the child in 5 seconds...")
     _ <- ZIO.sleep(5.seconds)
     _ <- fib.interrupt *> ZIO.logInfo("Interrupt invoked!") // <— this will hang: child inherited uninterruptibility
