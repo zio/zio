@@ -379,7 +379,7 @@ Fibers (including those created with `forkDaemon`) **inherit the interruptibilit
 ```scala mdoc:silent
 import zio._
 
-val parent = ZIO.uninterruptibleMask { restore =>
+val parent = ZIO.uninterruptible {
   for {
     _   <- ZIO.logInfo("Parent is uninterruptible")
     fib <- ZIO.never.fork
