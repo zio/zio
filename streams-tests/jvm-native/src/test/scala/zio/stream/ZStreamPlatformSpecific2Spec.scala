@@ -2,6 +2,7 @@ package zio.stream
 
 import zio._
 import zio.test.Assertion._
+import zio.test.TestAspect._
 import zio.test._
 
 import java.io._
@@ -124,16 +125,8 @@ object ZStreamPlatformSpecific2Spec extends ZIOBaseSpec {
               cb.end
               ()
             }
-
-          def countElements: UIO[Int] =
-            asyncTenStream.runCount.map(_.toInt)
-
-          val runs: UIO[IndexedSeq[Int]] = ZIO.foreach(1 to 100)(_ => countElements)
-
-          for {
-            counts <- runs
-          } yield assert(counts)(Assertion.forall(equalTo(10)))
-        }
+          asyncTenStream.runCount.map(_.toInt).map(count => assertTrue(count == 10))
+        } @@ nonFlaky
       )
     )
   )
