@@ -35,7 +35,7 @@
     "@zio.dev/zio-ftp": "0.4.3",
     "@zio.dev/zio-http": "3.3.3",
     "@zio.dev/zio-json": "0.7.43",
-    "@zio.dev/zio-kafka": "2.12.0",
+    "@zio.dev/zio-kafka": "3.0.0",
     "@zio.dev/zio-lambda": "1.0.5",
     "@zio.dev/zio-logging": "2.5.0",
     "@zio.dev/zio-meta": "0.0.0--21-54bc2e8b-SNAPSHOT",
@@ -89,7 +89,7 @@
   },
   "devDependencies": {
     "@tsconfig/docusaurus": "2.0.3",
-    "@types/react": "19.1.6",
+    "@types/react": "19.1.7",
     "@types/react-helmet": "6.1.11",
     "@types/react-router-dom": "5.3.3",
     "prettier": "3.5.3",
