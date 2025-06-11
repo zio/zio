@@ -22,7 +22,6 @@ import java.lang.{System => JSystem}
 import java.time.temporal.ChronoUnit
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
-import scala.annotation.switch
 
 trait Clock extends Serializable { self =>
 
@@ -77,7 +76,7 @@ trait Clock extends Serializable { self =>
     }
 }
 
-object Clock extends ClockPlatformSpecific with Serializable {
+object Clock extends ClockPlatformSpecific with ClockSyntaxPlatformSpecific with Serializable {
 
   val tag: Tag[Clock] = Tag[Clock]
 
@@ -243,14 +242,4 @@ object Clock extends ClockPlatformSpecific with Serializable {
   def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
     ZIO.clockWith(_.sleep(duration))
 
-  private def toChronoUnit(unit: TimeUnit): ChronoUnit =
-    (unit: @switch) match {
-      case TimeUnit.NANOSECONDS  => ChronoUnit.NANOS
-      case TimeUnit.MICROSECONDS => ChronoUnit.MICROS
-      case TimeUnit.MILLISECONDS => ChronoUnit.MILLIS
-      case TimeUnit.SECONDS      => ChronoUnit.SECONDS
-      case TimeUnit.MINUTES      => ChronoUnit.MINUTES
-      case TimeUnit.HOURS        => ChronoUnit.HOURS
-      case TimeUnit.DAYS         => ChronoUnit.DAYS
-    }
 }
