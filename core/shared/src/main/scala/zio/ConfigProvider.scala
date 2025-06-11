@@ -94,7 +94,7 @@ trait ConfigProvider {
    * @deprecated
    *   Use [[kebabCase]] for improved number handling
    */
-  @deprecated("Use kebabCase for improved number handling", "2.1.0")
+  @deprecated("Use kebabCase for improved number handling", "2.1.20")
   final def kebabCaseLegacy: ConfigProvider =
     contramapPath(_.replaceAll("([a-z])([A-Z])", "$1-$2").toLowerCase)
 
