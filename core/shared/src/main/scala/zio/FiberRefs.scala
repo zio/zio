@@ -420,7 +420,8 @@ object FiberRefs {
      * sequentially.
      */
     def combine(that: Patch): Patch =
-      AndThen(self, that)
+      if (self eq Patch.Empty) that
+      else AndThen(self, that)
   }
 
   object Patch {
@@ -436,27 +437,47 @@ object FiberRefs {
      * collections of `FiberRef`
      */
     def diff(oldValue: FiberRefs, newValue: FiberRefs): Patch = {
-      val (removed, patch) = newValue.fiberRefLocals.foldLeft[(FiberRefs, Patch)](oldValue -> empty) {
-        case ((fiberRefs, patch), (fiberRef, Value(StackEntry(_, newValue, _) :: _, _))) =>
-          type V = fiberRef.Value
-          fiberRefs.getOrNull(fiberRef) match {
-            case null =>
-              fiberRefs -> patch.combine(Add(fiberRef.asInstanceOf[FiberRef[V]], newValue.asInstanceOf[V]))
-            case oldValue =>
-              val patch0 =
-                if (oldValue == newValue) patch
-                else {
-                  patch.combine(
-                    Update(
-                      fiberRef.asInstanceOf[FiberRef.WithPatch[V, fiberRef.Patch]],
-                      fiberRef.diff(oldValue.asInstanceOf[V], newValue.asInstanceOf[V])
-                    )
-                  )
-                }
-              fiberRefs.delete(fiberRef) -> patch0
-          }
+      if (oldValue eq newValue) return empty
+
+      var patch      = empty
+      var newEntries = 0
+
+      val oldRefs = oldValue.fiberRefLocals
+      val newRefs = newValue.fiberRefLocals
+
+      val it0 = newRefs.iterator
+      while (it0.hasNext) {
+        val kv       = it0.next()
+        val fiberRef = kv._1.asInstanceOf[FiberRef[Any]]
+        val newValue = kv._2.stack.head.value
+
+        oldValue.getOrNull(fiberRef) match {
+          case null =>
+            newEntries += 1
+            patch = patch.combine(Add(fiberRef, newValue))
+          case oldValue =>
+            if (oldValue != newValue) {
+              patch = patch.combine(
+                Update(
+                  fiberRef.asInstanceOf[FiberRef.WithPatch[fiberRef.Value, fiberRef.Patch]],
+                  fiberRef.diff(oldValue, newValue)
+                )
+              )
+            }
+        }
       }
-      removed.fiberRefLocals.foldLeft(patch) { case (patch, (fiberRef, _)) => patch.combine(Remove(fiberRef)) }
+
+      // Shortcut for when diff contains updates and additions only, so we don't have to look for removals (most common)
+      if (newRefs.size != oldRefs.size + newEntries) {
+        val it1 = oldRefs.keysIterator
+        while (it1.hasNext) {
+          val fiberRef = it1.next()
+          if (!newRefs.contains(fiberRef))
+            patch = patch.combine(Remove(fiberRef))
+        }
+      }
+
+      patch
     }
 
     private final case class Add[Value0](fiberRef: FiberRef[Value0], value: Value0) extends Patch
