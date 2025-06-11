@@ -22,6 +22,7 @@ import java.lang.{System => JSystem}
 import java.time.temporal.ChronoUnit
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
+import scala.annotation.switch
 
 trait Clock extends Serializable { self =>
 
@@ -108,7 +109,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
     override val unsafe: UnsafeAPI =
       new UnsafeAPI {
         override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
-          currentTime(unit.toChronoUnit)
+          currentTime(toChronoUnit(unit))
 
         override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
           unit.between(Instant.EPOCH, instant())
@@ -178,7 +179,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
     override val unsafe: UnsafeAPI =
       new UnsafeAPI {
         override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
-          currentTime(unit.toChronoUnit)
+          currentTime(toChronoUnit(unit))
 
         override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
           unit.between(Instant.EPOCH, instant())
@@ -242,4 +243,14 @@ object Clock extends ClockPlatformSpecific with Serializable {
   def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
     ZIO.clockWith(_.sleep(duration))
 
+  private def toChronoUnit(unit: TimeUnit): ChronoUnit =
+    (unit: @switch) match {
+      case TimeUnit.NANOSECONDS  => ChronoUnit.NANOS
+      case TimeUnit.MICROSECONDS => ChronoUnit.MICROS
+      case TimeUnit.MILLISECONDS => ChronoUnit.MILLIS
+      case TimeUnit.SECONDS      => ChronoUnit.SECONDS
+      case TimeUnit.MINUTES      => ChronoUnit.MINUTES
+      case TimeUnit.HOURS        => ChronoUnit.HOURS
+      case TimeUnit.DAYS         => ChronoUnit.DAYS
+    }
 }
