@@ -27,7 +27,7 @@ private[zio] trait ZIOCompanionVersionSpecific {
       trace,
       k => {
         register(k)
-        null.asInstanceOf[Either[URIO[R, Unit], ZIO[R, E, A]]]
+        null
       },
       () => blockingOn
     )

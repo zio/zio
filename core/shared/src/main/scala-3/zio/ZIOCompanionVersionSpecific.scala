@@ -28,7 +28,7 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
       trace,
       { k =>
         register(using Unsafe)(k)
-        null.asInstanceOf[Either[URIO[R, Any], ZIO[R, E, A]]]
+        null
       },
       () => blockingOn
     )

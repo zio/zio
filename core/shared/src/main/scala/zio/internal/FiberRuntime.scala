@@ -52,16 +52,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   private var _forksSinceYield = 0
 
-  private[this] final class AsyncCallback extends AtomicBoolean(false) with AsyncContWith.Callback {
-    def apply(effect: Erased): java.lang.Boolean =
-      if (compareAndSet(false, true)) {
-        tell(FiberMessage.Resume(effect))
-        java.lang.Boolean.TRUE
-      } else {
-        java.lang.Boolean.FALSE
-      }
-  }
-
   private[zio] def shouldYieldBeforeFork(): Boolean =
     if (RuntimeFlags.cooperativeYielding(_runtimeFlags)) {
       _forksSinceYield += 1
@@ -703,11 +693,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private def initiateAsync(
     asyncRegister: (ZIO.Erased => Unit) => Either[ZIO.Erased, ZIO.Erased]
   ): ZIO.Erased = {
-    val callback = new AsyncCallback
+    val callback = new AsyncContWith.Callback(self)
     var value    = null.asInstanceOf[Either[ZIO.Erased, ZIO.Erased]]
 
     try {
-      value = asyncRegister(callback.andThen(ZIO.unitFn))
+      value = asyncRegister(callback)
     } catch {
       case throwable: Throwable =>
         if (isFatal(throwable)) handleFatalError(throwable)
@@ -946,14 +936,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
     k.onInterrupt match {
       // No interrupt handler
-      case null => callback(Exit.Failure(cause))
+      case null => callback.completeCause(cause)
 
       // Shortcut cases where the interruption is a simple suspended function (most common)
       case sync: Sync[Any] =>
-        if (callback(Exit.Failure(cause)).booleanValue()) {
+        if (callback.completeCause(cause)) {
           updateLastTrace(sync.trace)
-          try sync.eval()
-          catch {
+          try {
+            sync.eval()
+          } catch {
             case t: Throwable =>
               if (isFatal(t)) handleFatalError(t)
               else addInterruptedCause(Cause.die(t))
@@ -971,7 +962,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         )(Trace.empty)
 
         // We need to disable interruption otherwise `onInterrupt` will be interrupted before it is evaluated
-        if (callback(f).booleanValue())
+        if (callback.completeZIO(f))
           patchRuntimeFlagsOnly(RuntimeFlags.disableInterruption)
     }
   }
@@ -1466,7 +1457,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     tell(FiberMessage.Resume(effect))
 
   private[zio] def startSuspended()(implicit unsafe: Unsafe): ZIO[_, E, A] => Any = {
-    val callback = new AsyncCallback
+    val callback = new AsyncContWith.Callback(self)
 
     self._asyncContWith = AsyncContWith(callback)
     self._blockingOn = FiberRuntime.notBlockingOn
@@ -1644,8 +1635,14 @@ object FiberRuntime {
     "Async operation attempted synchronous resumption, but its callback was already invoked; synchronous value will be discarded"
 
   /**
-   * Value class which doesn't allocate for cases that there is no interruption
-   * handler in the async continuation.
+   * Value class that wraps the asynchronous continuation. While the value class
+   * itself doesn't allocate, constructing the value class by passing an
+   * interruption handler to it via the method below will allocate a
+   * `Tuple2[Callback, ZIO.Erased]`
+   *
+   * {{{
+   *   def apply(callback: Callback, onInterrupt: ZIO.Erased): AsyncContWith
+   * }}}
    */
   private class AsyncContWith private (private val value: AnyRef) extends AnyVal {
     import AsyncContWith.Callback
@@ -1663,7 +1660,35 @@ object FiberRuntime {
   }
 
   private object AsyncContWith {
-    type Callback = ZIO.Erased => java.lang.Boolean
+
+    /**
+     * Callback to be invoked when an asynchronous effect completes.
+     *
+     * '''NOTE''': For performance reasons this class extends `AtomicBoolean`,
+     * but its methods should NOT be used externally. Instead, use one of
+     * [[apply]], [[completeZIO]] or [[completeCause]].
+     */
+    final class Callback(fiber: FiberRuntime[?, ?]) extends AtomicBoolean(false) with (ZIO.Erased => Unit) {
+
+      def apply(effect: ZIO.Erased): Unit =
+        completeZIO(effect)
+
+      def completeZIO(effect: ZIO.Erased): Boolean =
+        if (compareAndSet(false, true)) {
+          fiber.tell(FiberMessage.Resume(effect))
+          true
+        } else {
+          false
+        }
+
+      def completeCause(cause: Cause[Nothing]): Boolean =
+        if (compareAndSet(false, true)) {
+          fiber.tell(FiberMessage.Resume(Exit.Failure(cause)))
+          true
+        } else {
+          false
+        }
+    }
 
     @inline def `null`: AsyncContWith =
       new AsyncContWith(null)
