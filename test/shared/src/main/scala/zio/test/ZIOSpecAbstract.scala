@@ -21,6 +21,8 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.ConsoleRenderer
 
+import scala.annotation.nowarn
+
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecific {
   self =>
@@ -28,7 +30,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   def spec: Spec[Environment with TestEnvironment with Scope, Any]
 
   def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment]] =
-    Chunk(TestAspect.fibers, TestAspect.timeoutWarning(60.seconds))
+    Chunk(TestAspect.timeoutWarning(60.seconds))
 
   def bootstrap: ZLayer[Any, Any, Environment]
 
@@ -121,9 +123,11 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
               testEventHandler
             )
         )
-      randomId <- ZIO.withRandom(Random.RandomLive)(Random.nextInt).map("test_case_" + _)
-      summary <-
-        runner.run(randomId, aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
+      randomId <- Random.RandomLive.nextInt.map("test_case_" + _)
+      summary <- runner.run(
+                   randomId,
+                   aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers: @nowarn("cat=deprecation")
+                 )
     } yield summary
   }
 
@@ -150,6 +154,9 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
           ZLayer.succeedEnvironment(castedRuntime.environment) >>> ExecutionEventSink.live,
           testEventHandler
         )
-    ).run(fullyQualifiedName, aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
+    ).run(
+      fullyQualifiedName,
+      aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers: @nowarn("cat=deprecation")
+    )
   }
 }
