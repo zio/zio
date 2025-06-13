@@ -70,7 +70,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         output  <- process.outputString.delay(2.seconds)
       } yield {
         // Inner resources should be released before outer resources
-        val lineSeparator = System.lineSeparator()
+        val lineSeparator = java.lang.System.lineSeparator()
         val lines = output.split(lineSeparator).toList
         val innerReleaseIndex = lines.indexWhere(_.contains("Inner resource released"))
         

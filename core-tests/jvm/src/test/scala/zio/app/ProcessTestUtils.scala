@@ -42,7 +42,7 @@ object ProcessTestUtils {
      */
     def sendSignal(signal: String): Task[Unit] = ZIO.attempt {
       val pid = ProcessHandle.of(process.pid()).get()
-      val isWindows = System.getProperty("os.name", "").toLowerCase().contains("win")
+      val isWindows = java.lang.System.getProperty("os.name", "").toLowerCase().contains("win")
       
       if (isWindows) {
         // Windows doesn't have the same signal mechanism as Unix
@@ -76,7 +76,7 @@ object ProcessTestUtils {
     /**
      * Gets the captured output as a string.
      */
-    def outputString: UIO[String] = output.map(_.mkString(System.getProperty("line.separator")))
+    def outputString: UIO[String] = output.map(_.mkString(java.lang.System.getProperty("line.separator")))
 
     /**
      * Waits for a specific string to appear in the output.
@@ -147,7 +147,7 @@ object ProcessTestUtils {
       outputRef <- Ref.make(Chunk.empty[String])
       
       process <- ZIO.attempt {
-        val classPath = System.getProperty("java.class.path")
+        val classPath = java.lang.System.getProperty("java.class.path")
         
         // Configure JVM arguments including custom shutdown timeout if provided
         val allJvmArgs = gracefulShutdownTimeout match {
@@ -159,6 +159,7 @@ object ProcessTestUtils {
         
         val processBuilder = new ProcessBuilder()
         val cmdList = List("java") ++ allJvmArgs ++ List("-cp", classPath, mainClass)
+        import scala.jdk.CollectionConverters._
         processBuilder.command(cmdList.asJava)
         
         processBuilder.redirectErrorStream(true)
