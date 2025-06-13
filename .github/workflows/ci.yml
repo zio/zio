@@ -190,7 +190,6 @@ jobs:
       fail-fast: false
       matrix:
         java: ['11', '21']
-        platform: ['JVM']
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v4.2.2
@@ -205,8 +204,9 @@ jobs:
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Test on different JVM versions
-        run: sbt -v test${{ matrix.platform }}
-
+        run: sbt -v testJVM
+        with:
+          CI_RELEASE_MODE: 1
       - name: Report Test Death JVM 11
         if: ${{ failure() &&  startsWith(matrix.java, '11') }}
         uses: actions/upload-artifact@v4
