@@ -159,7 +159,6 @@ object ProcessTestUtils {
         
         val processBuilder = new ProcessBuilder()
         val cmdList = List("java") ++ allJvmArgs ++ List("-cp", classPath, mainClass)
-        import scala.jdk.CollectionConverters._
         processBuilder.command(cmdList.asJava)
         
         processBuilder.redirectErrorStream(true)
