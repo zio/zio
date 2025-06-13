@@ -60,10 +60,26 @@ object ProcessTestUtils {
         // Unix/Mac implementation
         import scala.sys.process._
         signal match {
-          case "INT" => s"kill -SIGINT ${pid.pid()}".!
-          case "TERM" => s"kill -SIGTERM ${pid.pid()}".!
-          case "KILL" => s"kill -SIGKILL ${pid.pid()}".!
-          case other => s"kill -$other ${pid.pid()}".!
+          case "INT" => 
+            val exitCode = s"kill -SIGINT ${pid.pid()}".!
+            if (exitCode != 0) {
+              throw new RuntimeException(s"Failed to send SIGINT to process ${pid.pid()}, exit code: $exitCode")
+            }
+          case "TERM" => 
+            val exitCode = s"kill -SIGTERM ${pid.pid()}".!
+            if (exitCode != 0) {
+              throw new RuntimeException(s"Failed to send SIGTERM to process ${pid.pid()}, exit code: $exitCode")
+            }
+          case "KILL" => 
+            val exitCode = s"kill -SIGKILL ${pid.pid()}".!
+            if (exitCode != 0) {
+              throw new RuntimeException(s"Failed to send SIGKILL to process ${pid.pid()}, exit code: $exitCode")
+            }
+          case other => 
+            val exitCode = s"kill -$other ${pid.pid()}".!
+            if (exitCode != 0) {
+              throw new RuntimeException(s"Failed to send signal $other to process ${pid.pid()}, exit code: $exitCode")
+            }
         }
       }
     }
@@ -119,9 +135,13 @@ object ProcessTestUtils {
     def destroy: Task[Unit] = ZIO.attempt {
       if (process.isAlive) {
         process.destroy()
-        process.waitFor()
+        process.waitFor(); ()
       }
-      Files.deleteIfExists(outputFile.toPath)
+      val deleted = Files.deleteIfExists(outputFile.toPath)
+      if (!deleted) {
+        // Log but don't fail if file couldn't be deleted - it might be cleaned up later
+        println(s"Warning: Could not delete temporary file: ${outputFile.getAbsolutePath}")
+      }
     }
   }
 
