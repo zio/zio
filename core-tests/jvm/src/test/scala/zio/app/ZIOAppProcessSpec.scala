@@ -2,7 +2,6 @@ package zio.app
 
 import zio._
 import zio.test._
-import java.util.concurrent.TimeUnit
 import zio.app.ProcessTestUtils._
 
 /**
