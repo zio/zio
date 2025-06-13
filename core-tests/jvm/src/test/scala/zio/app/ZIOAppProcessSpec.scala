@@ -2,7 +2,7 @@ package zio.app
 
 import zio._
 import zio.test._
-import zio.test.Assertion._
+import java.util.concurrent.TimeUnit
 import zio.app.ProcessTestUtils._
 
 /**
@@ -70,11 +70,12 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         output  <- process.outputString.delay(2.seconds)
       } yield {
         // Inner resources should be released before outer resources
-        val lines = output.split(System.lineSeparator()).toList
+        val lines = output.split(System.lineSeparator()(Trace.empty)).toList
         val innerReleaseIndex = lines.indexWhere(_.contains("Inner resource released"))
-        val outerReleaseIndex = lines.indexWhere(_.contains("Outer resource released"))
         
-        assertTrue(innerReleaseIndex >= 0 && outerReleaseIndex >= 0 && innerReleaseIndex < outerReleaseIndex)
+        assertTrue(innerReleaseIndex >= 0) &&
+        assertTrue(lines.exists(_.contains("Outer resource released"))) &&
+        assertTrue(lines.indexWhere(_.contains("Inner resource released")) < lines.indexWhere(_.contains("Outer resource released")))
       }
     },
     
@@ -116,10 +117,10 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         _       <- process.waitForOutput("Starting SlowFinalizerApp")
         _       <- process.waitForOutput("Resource acquired")
         _       <- ZIO.sleep(1.second)
-        startTime <- Clock.currentTime(TimeUnit.MILLISECONDS)
+        startTime <- Clock.currentTime
         _       <- process.sendSignal("INT")
         exitCode <- process.waitForExit(3.seconds)
-        endTime <- Clock.currentTime(TimeUnit.MILLISECONDS)
+        endTime <- Clock.currentTime
         output  <- process.outputString
       } yield {
         val duration = endTime - startTime
@@ -166,5 +167,5 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         output  <- process.outputString
       } yield assertTrue(output.contains("JVM shutdown hook executed"))
     }
-  ).provideSomeLayer(ZLayer.succeed(TestConfig(repeats = 1, retriesPerTest = 0))) @@ TestAspect.sequential @@ TestAspect.jvmOnly
+  ) @@ TestAspect.sequential @@ TestAspect.jvmOnly
 } 

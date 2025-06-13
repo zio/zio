@@ -38,8 +38,8 @@ object TestApps {
    */
   object ResourceApp extends ZIOAppDefault {
     val resource = ZIO.acquireRelease(
-      Console.printLine("Resource acquired")
-    )(_ => Console.printLine("Resource released"))
+      Console.printLine("Resource acquired").orDie
+    )(_ => Console.printLine("Resource released").orDie)
 
     override def run = 
       Console.printLine("Starting ResourceApp") *>
@@ -51,8 +51,8 @@ object TestApps {
    */
   object ResourceWithNeverApp extends ZIOAppDefault {
     val resource = ZIO.acquireRelease(
-      Console.printLine("Resource acquired")
-    )(_ => Console.printLine("Resource released"))
+      Console.printLine("Resource acquired").orDie
+    )(_ => Console.printLine("Resource released").orDie)
 
     override def run =
       Console.printLine("Starting ResourceWithNeverApp") *>
@@ -78,8 +78,8 @@ object TestApps {
     override def gracefulShutdownTimeout = Duration.fromMillis(1000)
 
     val resource = ZIO.acquireRelease(
-      Console.printLine("Resource acquired")
-    )(_ => Console.printLine("Starting slow finalizer") *> ZIO.sleep(2.seconds) *> Console.printLine("Resource released"))
+      Console.printLine("Resource acquired").orDie
+    )(_ => Console.printLine("Starting slow finalizer").orDie *> ZIO.sleep(2.seconds) *> Console.printLine("Resource released").orDie)
 
     override def run =
       Console.printLine("Starting SlowFinalizerApp") *>
@@ -91,7 +91,7 @@ object TestApps {
    */
   object ShutdownHookApp extends ZIOAppDefault {
     val registerShutdownHook = ZIO.attempt {
-      Runtime.getRuntime.addShutdownHook(new Thread(() => {
+      java.lang.Runtime.getRuntime.addShutdownHook(new Thread(() => {
         println("JVM shutdown hook executed")
       }))
     }
@@ -107,12 +107,12 @@ object TestApps {
    */
   object NestedFinalizersApp extends ZIOAppDefault {
     val innerResource = ZIO.acquireRelease(
-      Console.printLine("Inner resource acquired")
-    )(_ => Console.printLine("Inner resource released"))
+      Console.printLine("Inner resource acquired").orDie
+    )(_ => Console.printLine("Inner resource released").orDie)
 
     val outerResource = ZIO.acquireRelease(
-      Console.printLine("Outer resource acquired") *> innerResource
-    )(_ => Console.printLine("Outer resource released"))
+      Console.printLine("Outer resource acquired").orDie *> innerResource
+    )(_ => Console.printLine("Outer resource released").orDie)
 
     override def run =
       Console.printLine("Starting NestedFinalizersApp") *>
@@ -124,15 +124,15 @@ object TestApps {
    */
   object FinalizerAndHooksApp extends ZIOAppDefault {
     val registerShutdownHook = ZIO.attempt {
-      Runtime.getRuntime.addShutdownHook(new Thread(() => {
+      java.lang.Runtime.getRuntime.addShutdownHook(new Thread(() => {
         println("JVM shutdown hook executed")
         Thread.sleep(100) // Small delay to test race conditions
       }))
     }
 
     val resource = ZIO.acquireRelease(
-      Console.printLine("Resource acquired")
-    )(_ => Console.printLine("Resource released") *> ZIO.sleep(100.millis))
+      Console.printLine("Resource acquired").orDie
+    )(_ => Console.printLine("Resource released").orDie *> ZIO.sleep(100.millis).orDie)
 
     override def run =
       Console.printLine("Starting FinalizerAndHooksApp") *>

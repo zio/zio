@@ -44,7 +44,7 @@ object ProcessTestUtils {
      */
     def sendSignal(signal: String): Task[Unit] = ZIO.attempt {
       val pid = ProcessHandle.of(process.pid()).get()
-      val isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+      val isWindows = System.property("os.name").exists(_.toLowerCase().contains("win"))
       
       if (isWindows) {
         // Windows doesn't have the same signal mechanism as Unix
@@ -78,7 +78,7 @@ object ProcessTestUtils {
     /**
      * Gets the captured output as a string.
      */
-    def outputString: UIO[String] = output.map(_.mkString(System.lineSeparator()))
+    def outputString: UIO[String] = output.map(_.mkString(System.lineSeparator()))(Trace.empty)
 
     /**
      * Waits for a specific string to appear in the output.
@@ -106,8 +106,7 @@ object ProcessTestUtils {
      */
     def waitForExit(timeout: Duration = 30.seconds): Task[Int] = {
       ZIO.attemptBlockingInterrupt {
-        val completed = process.waitFor()
-        if (completed) process.exitValue()
+        if (process.waitFor()) process.exitValue()
         else throw new RuntimeException("Process wait timed out")
       }.timeout(timeout).flatMap {
         case Some(exitCode) => ZIO.succeed(exitCode)
@@ -124,7 +123,7 @@ object ProcessTestUtils {
         process.waitFor()
       }
       Files.deleteIfExists(outputFile.toPath)
-    }.orDie
+    }
   }
 
   /**
@@ -151,7 +150,7 @@ object ProcessTestUtils {
       outputRef <- Ref.make(Chunk.empty[String])
       
       process <- ZIO.attempt {
-        val classPath = System.getProperty("java.class.path")
+        val classPath = System.property("java.class.path").getOrElse("")
         
         // Configure JVM arguments including custom shutdown timeout if provided
         val allJvmArgs = gracefulShutdownTimeout match {
@@ -187,12 +186,16 @@ object ProcessTestUtils {
         
         while (process.isAlive) {
           readLoop()
-          outputRef.set(buffer.get).runRuntimeUninterruptible
+          Unsafe.unsafe { implicit unsafe =>
+            Runtime.default.unsafe.run(outputRef.set(buffer.get)).getOrThrowFiberFailure()
+          }
           Thread.sleep(100)
         }
         
         readLoop() // One final read after process has exited
-        outputRef.set(buffer.get).runRuntimeUninterruptible
+        Unsafe.unsafe { implicit unsafe =>
+          Runtime.default.unsafe.run(outputRef.set(buffer.get)).getOrThrowFiberFailure()
+        }
         reader.close()
       }.fork
     } yield AppProcess(process, outputRef, outputFile)
@@ -214,7 +217,6 @@ object ProcessTestUtils {
   ): ZIO[Any, Throwable, Path] = {
     ZIO.attempt {
       val packageDecl = packageName.fold("")(pkg => s"package $pkg\n\n")
-      val fqn = packageName.fold(className)(pkg => s"$pkg.$className")
       
       val code =
         s"""$packageDecl
