@@ -373,6 +373,39 @@ Still running ...
 ### fork and join
 Whenever we need to start a fiber, we have to `fork` an effect to get a new fiber. This is similar to the `start` method on Java thread or submitting a new thread to the thread pool in Java, it is the same idea. Also, joining is a way of waiting for that fiber to compute its value. We are going to wait until it's done and receive its result.
 
+:::note
+Fibers (including those created with `forkDaemon`) **inherit the interruptibility status of their parent**. In other words, if the parent effect is currently running uninterruptibly then the child fiber will also be uninterruptible even calling `child.interrupt` will have no effect. To ensure a forked fiber is interruptible while preserving the parent’s uninterruptibility, use `ZIO.uninterruptibleMask`.
+
+For example, this code hangs because the child inherited uninterruptibility using `fib.interrupt`:
+
+```scala mdoc:silent
+import zio._
+
+val parent = ZIO.uninterruptible {
+  for {
+    _   <- ZIO.logInfo("Parent is uninterruptible")
+    fib <- ZIO.never.fork
+    _ <- ZIO.logInfo("Attempting to interrupt the child in 5 seconds...")
+    _ <- ZIO.sleep(5.seconds)
+    _ <- fib.interrupt *> ZIO.logInfo("Interrupt invoked!") // <— this will hang: child inherited uninterruptibility
+  } yield ()
+}
+```
+Using `ZIO.uninterruptibleMask` at the top level keeps the parent uninterruptible. Inside the mask, calling `restore(ZIO.never)` runs that effect as interruptible so the forked fiber becomes interruptible even though its parent is not. For example:
+
+```scala mdoc:silent
+val parentInterruptibleChild = ZIO.uninterruptibleMask { restore =>
+  for {
+    _   <- ZIO.logInfo("Parent is uninterruptible")
+    fib <- restore(ZIO.never).fork   // <— child is now interruptible
+    _ <- ZIO.logInfo("Attempting to interrupt the child in 5 seconds...")
+    _ <- ZIO.sleep(5.seconds)
+    _ <- fib.interrupt *> ZIO.logInfo("Interrupt invoked!")
+  } yield ()
+}
+```
+:::
+
 In the following example, we create a separate fiber to output a delayed print message and then wait for that fiber to succeed with a value:
 
 ```scala mdoc:silent
