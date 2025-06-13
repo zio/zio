@@ -3,6 +3,7 @@ package zio.app
 import zio._
 import zio.test._
 import zio.app.ProcessTestUtils._
+import java.time.temporal.ChronoUnit
 
 /**
  * Tests for ZIOApp that require launching external processes.
@@ -69,7 +70,8 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         output  <- process.outputString.delay(2.seconds)
       } yield {
         // Inner resources should be released before outer resources
-        val lines = output.split(System.lineSeparator()(Trace.empty)).toList
+        val lineSeparator = System.lineSeparator()
+        val lines = output.split(lineSeparator).toList
         val innerReleaseIndex = lines.indexWhere(_.contains("Inner resource released"))
         
         assertTrue(innerReleaseIndex >= 0) &&
@@ -116,10 +118,10 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         _       <- process.waitForOutput("Starting SlowFinalizerApp")
         _       <- process.waitForOutput("Resource acquired")
         _       <- ZIO.sleep(1.second)
-        startTime <- Clock.currentTime
+        startTime <- Clock.currentTime(ChronoUnit.MILLIS)
         _       <- process.sendSignal("INT")
         exitCode <- process.waitForExit(3.seconds)
-        endTime <- Clock.currentTime
+        endTime <- Clock.currentTime(ChronoUnit.MILLIS)
         output  <- process.outputString
       } yield {
         val duration = endTime - startTime

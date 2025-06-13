@@ -132,7 +132,7 @@ object TestApps {
 
     val resource = ZIO.acquireRelease(
       Console.printLine("Resource acquired").orDie
-    )(_ => Console.printLine("Resource released").orDie *> ZIO.sleep(100.millis).orDie)
+    )(_ => Console.printLine("Resource released").orDie *> ZIO.sleep(100.millis))
 
     override def run =
       Console.printLine("Starting FinalizerAndHooksApp") *>

@@ -1,10 +1,8 @@
 package zio.app
 
 import java.io.{BufferedReader, File, InputStreamReader, PrintWriter}
-import java.lang.ProcessBuilder.Redirect
 import java.nio.file.{Files, Path}
 import java.util.concurrent.atomic.AtomicReference
-import scala.jdk.CollectionConverters._
 import zio._
 
 /**
@@ -44,7 +42,7 @@ object ProcessTestUtils {
      */
     def sendSignal(signal: String): Task[Unit] = ZIO.attempt {
       val pid = ProcessHandle.of(process.pid()).get()
-      val isWindows = System.property("os.name").exists(_.toLowerCase().contains("win"))
+      val isWindows = System.getProperty("os.name", "").toLowerCase().contains("win")
       
       if (isWindows) {
         // Windows doesn't have the same signal mechanism as Unix
@@ -78,7 +76,7 @@ object ProcessTestUtils {
     /**
      * Gets the captured output as a string.
      */
-    def outputString: UIO[String] = output.map(_.mkString(System.lineSeparator()))(Trace.empty)
+    def outputString: UIO[String] = output.map(_.mkString(System.getProperty("line.separator")))
 
     /**
      * Waits for a specific string to appear in the output.
@@ -106,8 +104,9 @@ object ProcessTestUtils {
      */
     def waitForExit(timeout: Duration = 30.seconds): Task[Int] = {
       ZIO.attemptBlockingInterrupt {
-        if (process.waitFor()) process.exitValue()
-        else throw new RuntimeException("Process wait timed out")
+        val exitCode = process.waitFor()
+        if (process.isAlive) throw new RuntimeException("Process wait timed out")
+        exitCode
       }.timeout(timeout).flatMap {
         case Some(exitCode) => ZIO.succeed(exitCode)
         case None => ZIO.fail(new RuntimeException("Process wait timed out"))
@@ -130,13 +129,11 @@ object ProcessTestUtils {
    * Runs a ZIO application in a separate process.
    *
    * @param mainClass The fully qualified name of the ZIOApp class
-   * @param args Command line arguments to pass to the application
    * @param gracefulShutdownTimeout Custom graceful shutdown timeout (if testing it)
    * @param jvmArgs Additional JVM arguments
    */
   def runApp(
     mainClass: String, 
-    args: List[String] = List.empty,
     gracefulShutdownTimeout: Option[Duration] = None,
     jvmArgs: List[String] = List.empty
   ): ZIO[Any, Throwable, AppProcess] = {
@@ -150,7 +147,7 @@ object ProcessTestUtils {
       outputRef <- Ref.make(Chunk.empty[String])
       
       process <- ZIO.attempt {
-        val classPath = System.property("java.class.path").getOrElse("")
+        val classPath = System.getProperty("java.class.path")
         
         // Configure JVM arguments including custom shutdown timeout if provided
         val allJvmArgs = gracefulShutdownTimeout match {
@@ -160,12 +157,13 @@ object ProcessTestUtils {
             jvmArgs
         }
         
-        val processBuilder = new ProcessBuilder(
-          (List("java") ++ allJvmArgs ++ List("-cp", classPath, mainClass) ++ args).asJava
-        )
+        val processBuilder = new ProcessBuilder()
+        val cmdList = List("java") ++ allJvmArgs ++ List("-cp", classPath, mainClass)
+        import scala.jdk.CollectionConverters._
+        processBuilder.command(cmdList.asJava)
         
         processBuilder.redirectErrorStream(true)
-        processBuilder.redirectOutput(Redirect.to(outputFile))
+        processBuilder.redirectOutput(ProcessBuilder.Redirect.to(outputFile))
         
         processBuilder.start()
       }
