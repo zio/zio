@@ -1,7 +1,6 @@
 package zio.app
 
-import zio._
-import zio.test._
+import zio.ZIOBaseSpec
 
 /**
  * Main test suite for ZIOApp.

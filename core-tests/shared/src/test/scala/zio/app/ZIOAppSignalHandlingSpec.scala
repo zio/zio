@@ -12,55 +12,51 @@ import zio.test.Assertion._
 object ZIOAppSignalHandlingSpec extends ZIOBaseSpec {
   def spec = suite("ZIOAppSignalHandlingSpec")(
     test("addSignalHandler does not throw on any platform") {
-      // Test that installing signal handlers doesn't throw exceptions
-      // The real test is that this doesn't throw ClassDefNotFoundError on JS/Native
-      val app = new ZIOAppDefault {
-        override def run = ZIO.unit
-        
-        // Override the installSignalHandlers method to force execution for testing
-        override protected def installSignalHandlers(runtime: Runtime[Any])(implicit trace: Trace): UIO[Any] = {
-          super.installSignalHandlers(runtime)
-        }
-      }
+      // TestApp exposes the protected method for testing
+      val app = new TestZIOApp()
       
       for {
         runtime <- ZIO.runtime[Any]
-        result <- app.installSignalHandlers(runtime).exit
+        result <- app.testInstallSignalHandlers(runtime).exit
       } yield assertTrue(result.isSuccess)
     },
     
     test("signal handlers are installed exactly once") {
-      // Create a custom app that tracks how many times signal handlers are installed
       val counter = new java.util.concurrent.atomic.AtomicInteger(0)
       
-      val app = new ZIOAppDefault {
-        override def run = ZIO.unit
-        
-        // Override to count installations
-        override protected def installSignalHandlers(runtime: Runtime[Any])(implicit trace: Trace): UIO[Any] = {
+      val app = new TestZIOApp {
+        override def testInstallSignalHandlers(runtime: Runtime[Any])(implicit trace: Trace): UIO[Any] = {
           ZIO.attempt(counter.incrementAndGet()).ignore
         }
       }
       
       for {
         runtime <- ZIO.runtime[Any]
-        _       <- app.installSignalHandlers(runtime)
-        _       <- app.installSignalHandlers(runtime)  // Call again, should be no-op
-        _       <- app.installSignalHandlers(runtime)  // Call again, should be no-op
+        _       <- app.testInstallSignalHandlers(runtime)
+        _       <- app.testInstallSignalHandlers(runtime)
+        _       <- app.testInstallSignalHandlers(runtime)
         count   <- ZIO.succeed(counter.get())
       } yield assertTrue(count == 1)
     },
     
     test("windows platform detection works correctly") {
-      // This is a unit test for the system detection that affects signal handling
+      // Use ZIO's System service instead of Java's System
       for {
+        osName <- zio.System.property("os.name").map(_.getOrElse(""))
         isWindows <- ZIO.attempt(System.os.isWindows)
       } yield {
-        val osName = System.getProperty("os.name", "").toLowerCase()
-        val expectedWindows = osName.contains("win")
-        
+        val expectedWindows = osName.toLowerCase().contains("win")
         assertTrue(isWindows == expectedWindows)
       }
     }
   )
+  
+  // Helper class that exposes the protected method
+  class TestZIOApp extends ZIOAppDefault {
+    override def run = ZIO.unit
+    
+    def testInstallSignalHandlers(runtime: Runtime[Any])(implicit trace: Trace): UIO[Any] = {
+      installSignalHandlers(runtime)
+    }
+  }
 } 

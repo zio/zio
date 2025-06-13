@@ -78,17 +78,17 @@ object ZIOAppSpec extends ZIOBaseSpec {
         outer = ZIO.acquireRelease(
           results.update(_ :+ "acquire-outer") *> inner
         )(_ => results.update(_ :+ "release-outer"))
-        app = ZIOAppDefault.fromZIO(outer *> ZIO.interrupt)
-        _ <- app.invoke(Chunk.empty).ignore
+        _ <- ZIO.scoped {
+          outer *> ZIO.interrupt
+        }.exit
         finalResults <- results.get
       } yield {
-        val expectedOrder = List(
+        assertTrue(finalResults == List(
           "acquire-outer",
           "acquire-inner",
           "release-inner",
           "release-outer"
-        )
-        assertTrue(finalResults == expectedOrder)
+        ))
       }
     },
 
@@ -159,9 +159,15 @@ object ZIOAppSpec extends ZIOBaseSpec {
 
     test("multiple layers can be composed") {
       val app = new ZIOApp {
-        case class ServiceA(value: String)
-        case class ServiceB(value: Int)
-        case class ServiceC(a: ServiceA, b: ServiceB)
+        case class ServiceA(value: String) {
+          def getValue: String = value
+        }
+        case class ServiceB(value: Int) {
+          def getValue: Int = value
+        }
+        case class ServiceC(a: ServiceA, b: ServiceB) {
+          def getValues: String = s"${a.getValue}-${b.getValue}"
+        }
         
         type Environment = ServiceC
         val bootstrap = {
@@ -173,7 +179,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
         }
         def run = for {
           svc <- ZIO.service[ServiceC]
-          res = s"${svc.a.value}-${svc.b.value}"
+          res = svc.getValues
         } yield res
         val environmentTag = EnvironmentTag[ServiceC]
       }
