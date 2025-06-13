@@ -2,7 +2,6 @@ package zio.app
 
 import zio._
 import zio.test._
-import zio.test.Assertion._
 
 /**
  * Tests specific to signal handling behavior in ZIOApp.
