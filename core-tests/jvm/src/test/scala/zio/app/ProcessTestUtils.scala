@@ -52,7 +52,7 @@ object ProcessTestUtils {
           case "TERM" => // Equivalent to SIGTERM
             process.destroy() 
           case "KILL" => // Equivalent to SIGKILL
-            process.destroyForcibly()
+            process.destroyForcibly(); ()
           case _ =>
             throw new UnsupportedOperationException(s"Signal $signal not supported on Windows")
         }
