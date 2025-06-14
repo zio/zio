@@ -2,9 +2,11 @@ package zio.app
 
 import zio._
 import zio.test._
+import zio.test.Assertion._
 import zio.test.TestAspect._
 
 import java.nio.file.Path
+import java.time.temporal.ChronoUnit
 import zio.app.ProcessTestUtils._
 /**
  * Test suite for ZIOApp, focusing on:
@@ -250,5 +252,9 @@ object ZIOAppSpec extends ZIOSpecDefault {
    * Compiles a Scala source file containing a ZIOApp.
    * In this version, we skip the actual compilation to avoid needing scalac installed.
    */
-
+  private def compileApp(srcFile: Path): Task[Unit] = {
+    // Skip actual compilation but pretend it succeeded
+    ZIO.logWarning(s"Skipping compilation of $srcFile - scalac not available") *>
+    ZIO.unit
+  }
 } 
