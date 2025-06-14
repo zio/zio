@@ -5,9 +5,8 @@ import zio.test._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 
-import java.nio.file.{Files, Path}
+import java.nio.file.Path
 import java.time.temporal.ChronoUnit
-import java.util.concurrent.TimeUnit
 
 /**
  * Test suite for ZIOApp, focusing on:
@@ -18,6 +17,10 @@ import java.util.concurrent.TimeUnit
  * 5. Timeout behavior
  */
 object ZIOAppSpec extends ZIOSpecDefault {
+
+  // Import the ProcessTestUtils from the JVM-specific test package
+  @scala.annotation.nowarn("cat=unused")  // Suppress unused import warnings during test
+  import zio.app.ProcessTestUtils
 
   def spec = suite("ZIOAppSpec")(
     // Platform-independent tests
@@ -199,10 +202,10 @@ object ZIOAppSpec extends ZIOSpecDefault {
           _ <- process.sendSignal("INT")
           // Wait for process to exit
           _ <- process.waitForExit()
-          output <- process.outputString
+          outputStr <- process.outputString
           _ <- process.destroy
-        } yield assert(output)(containsString("LONG_FINALIZER_START")) &&
-               assert(output)(containsString("LONG_FINALIZER_END"))
+        } yield assert(outputStr)(containsString("LONG_FINALIZER_START")) &&
+               assert(outputStr)(containsString("LONG_FINALIZER_END"))
       },
 
       test("nested finalizers execute in correct order") {
@@ -235,7 +238,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
           _ <- process.sendSignal("INT")
           // Wait for process to exit
           _ <- process.waitForExit()
-          output <- process.outputString
+          _ <- process.outputString
           lines <- process.output
           _ <- process.destroy
           
