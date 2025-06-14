@@ -41,7 +41,18 @@ object ProcessTestUtils {
      * @param signal The signal to send (e.g. "TERM", "INT", etc.)
      */
     def sendSignal(signal: String): Task[Unit] = ZIO.attempt {
-      val pid = ProcessHandle.of(process.pid()).get()
+      if (!process.isAlive) {
+        println(s"Process is no longer alive, cannot send signal $signal")
+        return ZIO.unit
+      }
+      
+      val pidOpt = ProcessHandle.of(process.pid())
+      if (pidOpt.isEmpty) {
+        println(s"Cannot get process handle for PID ${process.pid()}, process may have terminated")
+        return ZIO.unit
+      }
+      
+      val pid = pidOpt.get()
       val isWindows = java.lang.System.getProperty("os.name", "").toLowerCase().contains("win")
       
       if (isWindows) {
