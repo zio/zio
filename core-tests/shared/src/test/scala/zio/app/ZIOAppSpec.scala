@@ -2,11 +2,9 @@ package zio.app
 
 import zio._
 import zio.test._
-import zio.test.Assertion._
 import zio.test.TestAspect._
 
 import java.nio.file.Path
-import java.time.temporal.ChronoUnit
 /**
  * Test suite for ZIOApp, focusing on:
  * 1. Normal completion behavior
