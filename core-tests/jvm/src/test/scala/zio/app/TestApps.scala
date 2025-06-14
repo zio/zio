@@ -116,6 +116,13 @@ object TestApps {
   }
 
   /**
+   * App that does nothing but succeed, with no other effects.
+   */
+  object PureSuccessApp extends ZIOAppDefault {
+    override def run = ZIO.unit
+  }
+
+  /**
    * App that fails with an error
    */
   object FailureApp extends ZIOAppDefault {

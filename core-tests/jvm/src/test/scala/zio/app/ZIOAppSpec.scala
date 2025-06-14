@@ -44,6 +44,14 @@ object ZIOAppSpec extends ZIOSpecDefault {
         } yield assert(exitCode)(equalTo(0))
       },
 
+      test("pure successful app returns exit code 0") {
+        for {
+          process <- ProcessTestUtils.runApp("zio.app.TestApps$PureSuccessApp")
+          exitCode <- process.waitForExit()
+          _ <- process.destroy
+        } yield assert(exitCode)(equalTo(0))
+      },
+
       test("failing app returns non-zero exit code") {
         for {
           process <- ProcessTestUtils.runApp("zio.app.TestApps$FailureApp")
