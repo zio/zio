@@ -140,35 +140,4 @@ object ZIOAppSpec extends ZIOSpecDefault {
       }
     ) @@ jvmOnly @@ withLiveClock
   )
-
-  /**
-   * Compiles a single Scala source file.
-   * This is a simplified implementation for testing purposes.
-   * It assumes scalac is on the system path.
-   */
-  private def compileApp(srcFile: Path): ZIO[Any, Throwable, Unit] = {
-    // Check if we should use precompiled apps instead
-    val usePrecompiled = java.lang.Boolean.getBoolean("zio.test.precompiled")
-    
-    if (usePrecompiled) {
-      ZIO.logWarning(s"Using precompiled test apps from TestApps.ziotest package instead of compiling ${srcFile.toString}")
-    } else {
-      ZIO.attemptBlocking {
-        import scala.sys.process._
-        val classpath = java.lang.System.getProperty("java.class.path")
-        val command = Seq("scalac", "-cp", classpath, srcFile.toString)
-        
-        val process = command.run(new ProcessLogger {
-          def out(s: => String): Unit = println(s)
-          def err(s: => String): Unit = System.err.println(s)
-          def buffer[T](f: => T): T = f
-        })
-        
-        val exitCode = process.exitValue()
-        if (exitCode != 0) {
-          throw new Exception(s"Compilation failed with exit code $exitCode for file $srcFile")
-        }
-      }
-    }
-  }
 } 
