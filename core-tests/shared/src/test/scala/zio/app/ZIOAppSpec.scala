@@ -54,7 +54,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
 
       test("finalizers run on normal completion") {
         for {
-          process <- ProcessTestUtils.runApp("zio.app.TestApps$ResourceApp")
+          process <- ProcessTestUtils.runApp("zio.app.ResourceApp")
           _ <- process.waitForExit()
           output <- process.outputString
           _ <- process.destroy
@@ -63,7 +63,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
 
       test("finalizers run when interrupted by signal") {
         for {
-          process <- ProcessTestUtils.runApp("zio.app.TestApps$ResourceWithNeverApp")
+          process <- ProcessTestUtils.runApp("zio.app.ResourceWithNeverApp")
           // Wait for app to start
           _ <- process.waitForOutput("Starting ResourceWithNeverApp")
           // Send interrupt signal
@@ -79,7 +79,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
         for {
           // Run with a short timeout
           process <- ProcessTestUtils.runApp(
-            "zio.app.TestApps$SlowFinalizerApp",
+            "zio.app.SlowFinalizerApp",
             Some(Duration.fromMillis(500))
           )
           // Wait for app to start
@@ -102,7 +102,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
         for {
           // Run with a longer timeout
           process <- ProcessTestUtils.runApp(
-            "zio.app.TestApps$SlowFinalizerApp",
+            "zio.app.SlowFinalizerApp",
             Some(Duration.fromMillis(3000))
           )
           // Wait for app to start

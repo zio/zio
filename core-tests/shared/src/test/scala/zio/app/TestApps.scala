@@ -18,6 +18,42 @@ object NestedFinalizersApp extends ZIOAppDefault {
     Console.printLine("Starting NestedFinalizersApp") *>
     outerResource *> ZIO.never
 }
+ object SlowFinalizerApp extends ZIOAppDefault {
+    override def gracefulShutdownTimeout = Duration.fromMillis(1000)
+
+    val resource = ZIO.acquireRelease(
+      Console.printLine("Resource acquired").orDie
+    )(_ => Console.printLine("Starting slow finalizer").orDie *> ZIO.sleep(2.seconds) *> Console.printLine("Resource released").orDie)
+
+    override def run =
+      Console.printLine("Starting SlowFinalizerApp") *>
+      resource *> ZIO.never
+  }
+/**
+ * App with resource that needs cleanup
+ */
+object ResourceApp extends ZIOAppDefault {
+  val resource = ZIO.acquireRelease(
+    Console.printLine("Resource acquired").orDie
+  )(_ => Console.printLine("Resource released").orDie)
+
+  override def run =
+    Console.printLine("Starting ResourceApp") *>
+    resource *> ZIO.succeed(())
+}
+
+/**
+ * App with resource that will be interrupted
+ */
+object ResourceWithNeverApp extends ZIOAppDefault {
+  val resource = ZIO.acquireRelease(
+    Console.printLine("Resource acquired").orDie
+  )(_ => Console.printLine("Resource released").orDie)
+
+  override def run =
+    Console.printLine("Starting ResourceWithNeverApp") *>
+    resource *> ZIO.never
+}
 
 /**
  * App with both finalizers and shutdown hooks to test race conditions
@@ -89,29 +125,17 @@ object TestApps {
   }
 
   /**
-   * App with resource that needs cleanup
+   * App with slow finalizers to test timeout behavior
    */
-  object ResourceApp extends ZIOAppDefault {
-    val resource = ZIO.acquireRelease(
-      Console.printLine("Resource acquired").orDie
-    )(_ => Console.printLine("Resource released").orDie)
-
-    override def run = 
-      Console.printLine("Starting ResourceApp") *>
-      resource *> ZIO.succeed(())
-  }
+ 
 
   /**
-   * App with resource that will be interrupted
+   * App that throws an exception for testing error handling
    */
-  object ResourceWithNeverApp extends ZIOAppDefault {
-    val resource = ZIO.acquireRelease(
-      Console.printLine("Resource acquired").orDie
-    )(_ => Console.printLine("Resource released").orDie)
-
+  object CrashingApp extends ZIOAppDefault {
     override def run =
-      Console.printLine("Starting ResourceWithNeverApp") *>
-      resource *> ZIO.never
+      Console.printLine("Starting CrashingApp") *>
+      ZIO.attempt(throw new RuntimeException("Simulated crash!"))
   }
 
   /**
@@ -124,29 +148,5 @@ object TestApps {
       Console.printLine("Starting TimeoutApp") *>
       Console.printLine(s"Graceful shutdown timeout: ${gracefulShutdownTimeout.render}") *>
       ZIO.never
-  }
-
-  /**
-   * App with slow finalizers to test timeout behavior
-   */
-  object SlowFinalizerApp extends ZIOAppDefault {
-    override def gracefulShutdownTimeout = Duration.fromMillis(1000)
-
-    val resource = ZIO.acquireRelease(
-      Console.printLine("Resource acquired").orDie
-    )(_ => Console.printLine("Starting slow finalizer").orDie *> ZIO.sleep(2.seconds) *> Console.printLine("Resource released").orDie)
-
-    override def run =
-      Console.printLine("Starting SlowFinalizerApp") *>
-      resource *> ZIO.never
-  }
-
-  /**
-   * App that throws an exception for testing error handling
-   */
-  object CrashingApp extends ZIOAppDefault {
-    override def run =
-      Console.printLine("Starting CrashingApp") *>
-      ZIO.attempt(throw new RuntimeException("Simulated crash!"))
   }
 } 
