@@ -38,7 +38,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
             Some("ziotest")
           )
           _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest.SuccessApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps$ziotest$SuccessApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
         } yield assert(exitCode)(equalTo(0))
@@ -53,7 +53,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
             Some("ziotest")
           )
           _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest.FailingApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps$ziotest$FailingApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
         } yield assert(exitCode)(equalTo(42))
@@ -68,7 +68,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
             Some("ziotest")
           )
           _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest.ErrorApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps$ziotest$ErrorApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
         } yield assert(exitCode)(equalTo(1))
@@ -91,7 +91,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
             Some("ziotest")
           )
           _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest.FinalizerApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps$ziotest$FinalizerApp")
           _ <- process.waitForExit()
           output <- process.outputString
           _ <- process.destroy
@@ -115,7 +115,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
             Some("ziotest")
           )
           _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest.InterruptibleApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps$ziotest$InterruptibleApp")
           // Wait for app to start
           _ <- process.waitForOutput("Starting infinite wait")
           // Send interrupt signal
@@ -148,7 +148,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
           _ <- compileApp(srcFile)
           // Run with a short timeout
           process <- ProcessTestUtils.runApp(
-            "ziotest.SlowFinalizerApp", 
+            "zio.app.TestApps$ziotest$SlowFinalizerApp", 
             Some(Duration.fromMillis(500))
           )
           // Wait for app to start
@@ -188,7 +188,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
           _ <- compileApp(srcFile)
           // Run with a longer timeout
           process <- ProcessTestUtils.runApp(
-            "ziotest.LongFinalizerApp", 
+            "zio.app.TestApps$ziotest$LongFinalizerApp", 
             Some(Duration.fromMillis(3000))
           )
           // Wait for app to start
@@ -226,7 +226,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
             Some("ziotest")
           )
           _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest.NestedFinalizerApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps$ziotest$NestedFinalizerApp")
           // Wait for app to start
           _ <- process.waitForOutput("Starting infinite wait")
           // Send interrupt signal
@@ -250,10 +250,11 @@ object ZIOAppSpec extends ZIOSpecDefault {
   /**
    * Compiles a Scala source file containing a ZIOApp.
    * In this version, we skip the actual compilation to avoid needing scalac installed.
+   * Instead, we rely on the precompiled test applications in TestApps.ziotest.
    */
   private def compileApp(srcFile: Path): Task[Unit] = {
     // Skip actual compilation but pretend it succeeded
-    ZIO.logWarning(s"Skipping compilation of $srcFile - scalac not available") *>
+    ZIO.logWarning(s"Using precompiled test apps from TestApps.ziotest package instead of compiling $srcFile") *>
     ZIO.unit
   }
 } 
