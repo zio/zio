@@ -4,6 +4,7 @@ import zio._
 import zio.test._
 import zio.app.ProcessTestUtils._
 import java.time.temporal.ChronoUnit
+import zio.test.TestAspect
 
 /**
  * Tests for ZIOApp that require launching external processes.
@@ -168,5 +169,5 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         output  <- process.outputString
       } yield assertTrue(output.contains("JVM shutdown hook executed"))
     }
-  ) @@ TestAspect.sequential @@ TestAspect.jvmOnly
+  ) @@ TestAspect.sequential @@ TestAspect.jvmOnly @@ TestAspect.withLiveClock
 } 
