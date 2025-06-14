@@ -140,7 +140,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     // Race condition tests (issue #9807)
     test("no race conditions with JVM shutdown hooks") {
       for {
-        process <- runApp("zio.app.TestApps$FinalizerAndHooksApp")
+        process <- runApp("zio.app.FinalizerAndHooksApp")
         _       <- process.waitForOutput("Starting FinalizerAndHooksApp")
         _       <- process.waitForOutput("Resource acquired")
         _       <- ZIO.sleep(1.second)
@@ -161,7 +161,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     // Shutdown hook tests
     test("shutdown hooks run during application shutdown") {
       for {
-        process <- runApp("zio.app.TestApps$ShutdownHookApp")
+        process <- runApp("zio.app.ShutdownHookApp")
         _       <- process.waitForOutput("Starting ShutdownHookApp")
         _       <- ZIO.sleep(1.second)
         _       <- process.sendSignal("INT")

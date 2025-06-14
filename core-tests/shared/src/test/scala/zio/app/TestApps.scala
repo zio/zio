@@ -20,6 +20,44 @@ object NestedFinalizersApp extends ZIOAppDefault {
 }
 
 /**
+ * App with both finalizers and shutdown hooks to test race conditions
+ */
+object FinalizerAndHooksApp extends ZIOAppDefault {
+  val registerShutdownHook = ZIO.attempt {
+    java.lang.Runtime.getRuntime.addShutdownHook(new Thread(() => {
+      println("JVM shutdown hook executed")
+      Thread.sleep(100) // Small delay to test race conditions
+    }))
+  }
+
+  val resource = ZIO.acquireRelease(
+    Console.printLine("Resource acquired").orDie
+  )(_ => Console.printLine("Resource released").orDie *> ZIO.sleep(100.millis))
+
+  override def run =
+    Console.printLine("Starting FinalizerAndHooksApp") *>
+    registerShutdownHook *>
+    resource *>
+    ZIO.never
+}
+
+/**
+ * App that registers a JVM shutdown hook to ensure its execution on termination
+ */
+object ShutdownHookApp extends ZIOAppDefault {
+  val registerShutdownHook = ZIO.attempt {
+    java.lang.Runtime.getRuntime.addShutdownHook(new Thread(() => {
+      println("JVM shutdown hook executed")
+    }))
+  }
+
+  override def run =
+    Console.printLine("Starting ShutdownHookApp") *>
+    registerShutdownHook *>
+    ZIO.never
+}
+
+/**
  * Test applications for ZIOApp testing.
  */
 object TestApps {
@@ -101,44 +139,6 @@ object TestApps {
     override def run =
       Console.printLine("Starting SlowFinalizerApp") *>
       resource *> ZIO.never
-  }
-
-  /**
-   * App that registers a JVM shutdown hook to ensure its execution on termination
-   */
-  object ShutdownHookApp extends ZIOAppDefault {
-    val registerShutdownHook = ZIO.attempt {
-      java.lang.Runtime.getRuntime.addShutdownHook(new Thread(() => {
-        println("JVM shutdown hook executed")
-      }))
-    }
-
-    override def run =
-      Console.printLine("Starting ShutdownHookApp") *>
-      registerShutdownHook *>
-      ZIO.never
-  }
-
-  /**
-   * App with both finalizers and shutdown hooks to test race conditions
-   */
-  object FinalizerAndHooksApp extends ZIOAppDefault {
-    val registerShutdownHook = ZIO.attempt {
-      java.lang.Runtime.getRuntime.addShutdownHook(new Thread(() => {
-        println("JVM shutdown hook executed")
-        Thread.sleep(100) // Small delay to test race conditions
-      }))
-    }
-
-    val resource = ZIO.acquireRelease(
-      Console.printLine("Resource acquired").orDie
-    )(_ => Console.printLine("Resource released").orDie *> ZIO.sleep(100.millis))
-
-    override def run =
-      Console.printLine("Starting FinalizerAndHooksApp") *>
-      registerShutdownHook *>
-      resource *>
-      ZIO.never
   }
 
   /**
