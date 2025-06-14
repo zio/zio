@@ -38,7 +38,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
             Some("ziotest")
           )
           _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest$SuccessApp")
+          process <- ProcessTestUtils.runApp("SuccessApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
         } yield assert(exitCode)(equalTo(0))
@@ -53,7 +53,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
             Some("ziotest")
           )
           _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest$FailingApp")
+          process <- ProcessTestUtils.runApp("FailingApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
         } yield assert(exitCode)(equalTo(42))
@@ -68,7 +68,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
             Some("ziotest")
           )
           _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest$ErrorApp")
+          process <- ProcessTestUtils.runApp("ErrorApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
         } yield assert(exitCode)(equalTo(1))
@@ -115,7 +115,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
             Some("ziotest")
           )
           _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest$InterruptibleApp")
+          process <- ProcessTestUtils.runApp("InterruptibleApp")
           // Wait for app to start
           _ <- process.waitForOutput("Starting infinite wait")
           // Send interrupt signal
@@ -148,7 +148,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
           _ <- compileApp(srcFile)
           // Run with a short timeout
           process <- ProcessTestUtils.runApp(
-            "ziotest$SlowFinalizerApp", 
+            "SlowFinalizerApp", 
             Some(Duration.fromMillis(500))
           )
           // Wait for app to start
@@ -188,7 +188,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
           _ <- compileApp(srcFile)
           // Run with a longer timeout
           process <- ProcessTestUtils.runApp(
-            "ziotest$LongFinalizerApp", 
+            "LongFinalizerApp", 
             Some(Duration.fromMillis(3000))
           )
           // Wait for app to start
@@ -226,7 +226,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
             Some("ziotest")
           )
           _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest$NestedFinalizerApp")
+          process <- ProcessTestUtils.runApp("NestedFinalizerApp")
           // Wait for app to start
           _ <- process.waitForOutput("Starting infinite wait")
           // Send interrupt signal
