@@ -148,7 +148,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
           _ <- compileApp(srcFile)
           // Run with a short timeout
           process <- ProcessTestUtils.runApp(
-            "zio.app.TestApps$ziotest$SlowFinalizerApp", 
+            "ziotest$SlowFinalizerApp", 
             Some(Duration.fromMillis(500))
           )
           // Wait for app to start
@@ -188,7 +188,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
           _ <- compileApp(srcFile)
           // Run with a longer timeout
           process <- ProcessTestUtils.runApp(
-            "zio.app.TestApps$ziotest$LongFinalizerApp", 
+            "ziotest$LongFinalizerApp", 
             Some(Duration.fromMillis(3000))
           )
           // Wait for app to start
