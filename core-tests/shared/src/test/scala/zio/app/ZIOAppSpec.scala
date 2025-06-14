@@ -8,8 +8,6 @@ import zio.test.TestAspect._
 import java.nio.file.Path
 import java.time.temporal.ChronoUnit
 @scala.annotation.nowarn("cat=unused") // Suppress unused import warnings during test
-import zio.app.ProcessTestUtils
-
 /**
  * Test suite for ZIOApp, focusing on:
  * 1. Normal completion behavior
