@@ -3,6 +3,23 @@ package zio.app
 import zio._
 
 /**
+ * App with nested finalizers to test execution order
+ */
+object NestedFinalizersApp extends ZIOAppDefault {
+  val innerResource = ZIO.acquireRelease(
+    Console.printLine("Inner resource acquired").orDie
+  )(_ => Console.printLine("Inner resource released").orDie)
+
+  val outerResource = ZIO.acquireRelease(
+    Console.printLine("Outer resource acquired").orDie *> innerResource
+  )(_ => Console.printLine("Outer resource released").orDie)
+
+  override def run =
+    Console.printLine("Starting NestedFinalizersApp") *>
+    outerResource *> ZIO.never
+}
+
+/**
  * Test applications for ZIOApp testing.
  */
 object TestApps {
@@ -100,23 +117,6 @@ object TestApps {
       Console.printLine("Starting ShutdownHookApp") *>
       registerShutdownHook *>
       ZIO.never
-  }
-
-  /**
-   * App with nested finalizers to test execution order
-   */
-  object NestedFinalizersApp extends ZIOAppDefault {
-    val innerResource = ZIO.acquireRelease(
-      Console.printLine("Inner resource acquired").orDie
-    )(_ => Console.printLine("Inner resource released").orDie)
-
-    val outerResource = ZIO.acquireRelease(
-      Console.printLine("Outer resource acquired").orDie *> innerResource
-    )(_ => Console.printLine("Outer resource released").orDie)
-
-    override def run =
-      Console.printLine("Starting NestedFinalizersApp") *>
-      outerResource *> ZIO.never
   }
 
   /**

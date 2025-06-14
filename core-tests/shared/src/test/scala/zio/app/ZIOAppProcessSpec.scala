@@ -62,7 +62,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     
     test("nested finalizers run in the correct order") {
       for {
-        process <- runApp("zio.app.TestApps$NestedFinalizersApp")
+        process <- runApp("zio.app.NestedFinalizersApp")
         _       <- process.waitForOutput("Starting NestedFinalizersApp")
         _       <- process.waitForOutput("Outer resource acquired")
         _       <- process.waitForOutput("Inner resource acquired")
