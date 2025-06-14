@@ -91,7 +91,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
             Some("ziotest")
           )
           _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest$FinalizerApp")
+          process <- ProcessTestUtils.runApp("FinalizerApp")
           _ <- process.waitForExit()
           output <- process.outputString
           _ <- process.destroy
