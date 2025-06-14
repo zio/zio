@@ -249,9 +249,5 @@ object ZIOAppSpec extends ZIOSpecDefault {
    * Compiles a Scala source file containing a ZIOApp.
    * In this version, we skip the actual compilation to avoid needing scalac installed.
    */
-  private def compileApp(srcFile: Path): Task[Unit] = {
-    // Skip actual compilation but pretend it succeeded
-    ZIO.logWarning(s"Skipping compilation of $srcFile - scalac not available") *>
-    ZIO.unit
-  }
+  
 } 
