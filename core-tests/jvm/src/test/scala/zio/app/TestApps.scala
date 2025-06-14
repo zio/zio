@@ -107,6 +107,15 @@ object TestApps {
   }
 
   /**
+   * App that completes successfully with a specific exit code
+   */
+  object SuccessAppWithCode extends ZIOAppDefault {
+    override def run =
+      Console.printLine("Starting SuccessAppWithCode") *>
+      ZIO.succeed(0)
+  }
+
+  /**
    * App that fails with an error
    */
   object FailureApp extends ZIOAppDefault {
