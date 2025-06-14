@@ -7,7 +7,6 @@ import zio.test.TestAspect._
 
 import java.nio.file.Path
 import java.time.temporal.ChronoUnit
-import zio.app.ProcessTestUtils._
 /**
  * Test suite for ZIOApp, focusing on:
  * 1. Normal completion behavior
