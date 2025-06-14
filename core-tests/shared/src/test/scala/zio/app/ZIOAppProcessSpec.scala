@@ -15,7 +15,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     // Normal completion tests
     test("app completes successfully") {
       for {
-        process <- runApp("zio.app.TestApps$SuccessApp")
+        process <- runApp("SuccessApp")
         _       <- process.waitForOutput("Starting SuccessApp")
         exitCode <- process.waitForExit()
       } yield assertTrue(exitCode == 0)
@@ -23,7 +23,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     
     test("app fails with non-zero exit code on error") {
       for {
-        process <- runApp("zio.app.TestApps$FailureApp")
+        process <- runApp("FailureApp")
         _       <- process.waitForOutput("Starting FailureApp")
         exitCode <- process.waitForExit()
       } yield assertTrue(exitCode != 0)
@@ -31,7 +31,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     
     test("app crashes with exception gives non-zero exit code") {
       for {
-        process <- runApp("zio.app.TestApps$CrashingApp")
+        process <- runApp("CrashingApp")
         _       <- process.waitForOutput("Starting CrashingApp")
         exitCode <- process.waitForExit()
       } yield assertTrue(exitCode != 0)
@@ -40,7 +40,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     // Finalizer tests
     test("finalizers run on normal completion") {
       for {
-        process <- runApp("zio.app.TestApps$ResourceApp")
+        process <- runApp("ResourceApp")
         _       <- process.waitForOutput("Starting ResourceApp")
         _       <- process.waitForOutput("Resource acquired")
         output  <- process.waitForOutput("Resource released").as(true).timeout(5.seconds).map(_.getOrElse(false))
@@ -50,7 +50,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     
     test("finalizers run on signal interruption") {
       for {
-        process <- runApp("zio.app.TestApps$ResourceWithNeverApp")
+        process <- runApp("ResourceWithNeverApp")
         _       <- process.waitForOutput("Starting ResourceWithNeverApp")
         _       <- process.waitForOutput("Resource acquired")
         _       <- ZIO.sleep(1.second)
@@ -62,7 +62,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     
     test("nested finalizers run in the correct order") {
       for {
-        process <- runApp("zio.app.TestApps$NestedFinalizersApp")
+        process <- runApp("NestedFinalizersApp")
         _       <- process.waitForOutput("Starting NestedFinalizersApp")
         _       <- process.waitForOutput("Outer resource acquired")
         _       <- process.waitForOutput("Inner resource acquired")
@@ -84,7 +84,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     // Signal handling tests
     test("SIGINT (Ctrl+C) triggers graceful shutdown") {
       for {
-        process <- runApp("zio.app.TestApps$ResourceWithNeverApp")
+        process <- runApp("ResourceWithNeverApp")
         _       <- process.waitForOutput("Starting ResourceWithNeverApp")
         _       <- process.waitForOutput("Resource acquired")
         _       <- ZIO.sleep(1.second)
@@ -95,7 +95,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     
     test("SIGTERM triggers graceful shutdown") {
       for {
-        process <- runApp("zio.app.TestApps$ResourceWithNeverApp")
+        process <- runApp("ResourceWithNeverApp")
         _       <- process.waitForOutput("Starting ResourceWithNeverApp")
         _       <- process.waitForOutput("Resource acquired")
         _       <- ZIO.sleep(1.second)
@@ -107,7 +107,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     // Timeout tests
     test("gracefulShutdownTimeout configuration works") {
       for {
-        process <- runApp("zio.app.TestApps$TimeoutApp")
+        process <- runApp("TimeoutApp")
         _       <- process.waitForOutput("Starting TimeoutApp")
         output  <- process.waitForOutput("Graceful shutdown timeout: 500ms").as(true).timeout(5.seconds).map(_.getOrElse(false))
       } yield assertTrue(output)
@@ -115,7 +115,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     
     test("slow finalizers are cut off after timeout") {
       for {
-        process <- runApp("zio.app.TestApps$SlowFinalizerApp")
+        process <- runApp("SlowFinalizerApp")
         _       <- process.waitForOutput("Starting SlowFinalizerApp")
         _       <- process.waitForOutput("Resource acquired")
         _       <- ZIO.sleep(1.second)
@@ -140,7 +140,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     // Race condition tests (issue #9807)
     test("no race conditions with JVM shutdown hooks") {
       for {
-        process <- runApp("zio.app.TestApps$FinalizerAndHooksApp")
+        process <- runApp("FinalizerAndHooksApp")
         _       <- process.waitForOutput("Starting FinalizerAndHooksApp")
         _       <- process.waitForOutput("Resource acquired")
         _       <- ZIO.sleep(1.second)
@@ -161,7 +161,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     // Shutdown hook tests
     test("shutdown hooks run during application shutdown") {
       for {
-        process <- runApp("zio.app.TestApps$ShutdownHookApp")
+        process <- runApp("ShutdownHookApp")
         _       <- process.waitForOutput("Starting ShutdownHookApp")
         _       <- ZIO.sleep(1.second)
         _       <- process.sendSignal("INT")
