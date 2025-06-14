@@ -31,14 +31,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
     suite("ZIOApp JVM process tests")(
       test("successful app returns exit code 0") {
         for {
-          // Create a simple app that succeeds
-          srcFile <- ProcessTestUtils.createTestApp(
-            "SuccessApp",
-            "ZIO.succeed(println(\"Success!\"))",
-            Some("ziotest")
-          )
-          _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest.SuccessApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps$SuccessApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
         } yield assert(exitCode)(equalTo(0))
@@ -46,14 +39,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
 
       test("failing app returns non-zero exit code") {
         for {
-          // Create an app that fails
-          srcFile <- ProcessTestUtils.createTestApp(
-            "FailingApp",
-            "ZIO.fail(\"Deliberate failure\").mapError(_ => 42)",
-            Some("ziotest")
-          )
-          _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest.FailingApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps$FailureApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
         } yield assert(exitCode)(equalTo(42))
@@ -61,14 +47,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
 
       test("app with unhandled error returns exit code 1") {
         for {
-          // Create an app with an unhandled error
-          srcFile <- ProcessTestUtils.createTestApp(
-            "ErrorApp",
-            "ZIO.attempt(throw new RuntimeException(\"Boom!\"))",
-            Some("ziotest")
-          )
-          _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest.ErrorApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps$CrashingApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
         } yield assert(exitCode)(equalTo(1))
@@ -76,83 +55,36 @@ object ZIOAppSpec extends ZIOSpecDefault {
 
       test("finalizers run on normal completion") {
         for {
-          // Create an app with finalizers
-          srcFile <- ProcessTestUtils.createTestApp(
-            "FinalizerApp",
-            """
-            |ZIO.acquireReleaseWith(
-            |  ZIO.succeed(println("Resource acquired"))
-            |)(
-            |  _ => ZIO.succeed(println("FINALIZER_EXECUTED"))
-            |)(
-            |  _ => ZIO.succeed(println("Using resource"))
-            |)
-            """.stripMargin,
-            Some("ziotest")
-          )
-          _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest.FinalizerApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps$ResourceApp")
           _ <- process.waitForExit()
           output <- process.outputString
           _ <- process.destroy
-        } yield assert(output)(containsString("FINALIZER_EXECUTED"))
+        } yield assert(output)(containsString("Resource released"))
       },
 
       test("finalizers run when interrupted by signal") {
         for {
-          // Create an app that runs forever but can be interrupted
-          srcFile <- ProcessTestUtils.createTestApp(
-            "InterruptibleApp",
-            """
-            |ZIO.acquireReleaseWith(
-            |  ZIO.succeed(println("Resource acquired"))
-            |)(
-            |  _ => ZIO.succeed(println("FINALIZER_EXECUTED"))
-            |)(
-            |  _ => ZIO.succeed(println("Starting infinite wait")) *> ZIO.never
-            |)
-            """.stripMargin,
-            Some("ziotest")
-          )
-          _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest.InterruptibleApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps$ResourceWithNeverApp")
           // Wait for app to start
-          _ <- process.waitForOutput("Starting infinite wait")
+          _ <- process.waitForOutput("Starting ResourceWithNeverApp")
           // Send interrupt signal
           _ <- process.sendSignal("INT")
           // Wait for process to exit
           _ <- process.waitForExit()
           output <- process.outputString
           _ <- process.destroy
-        } yield assert(output)(containsString("FINALIZER_EXECUTED"))
+        } yield assert(output)(containsString("Resource released"))
       },
 
       test("graceful shutdown timeout is respected") {
         for {
-          // Create an app with a slow finalizer
-          srcFile <- ProcessTestUtils.createTestApp(
-            "SlowFinalizerApp",
-            """
-            |ZIO.acquireReleaseWith(
-            |  ZIO.succeed(println("Resource acquired"))
-            |)(
-            |  _ => ZIO.succeed(println("SLOW_FINALIZER_START")) *> 
-            |        ZIO.sleep(5.seconds) *> 
-            |        ZIO.succeed(println("SLOW_FINALIZER_END"))
-            |)(
-            |  _ => ZIO.succeed(println("Starting infinite wait")) *> ZIO.never
-            |)
-            """.stripMargin,
-            Some("ziotest")
-          )
-          _ <- compileApp(srcFile)
           // Run with a short timeout
           process <- ProcessTestUtils.runApp(
-            "ziotest.SlowFinalizerApp", 
+            "zio.app.TestApps$SlowFinalizerApp",
             Some(Duration.fromMillis(500))
           )
           // Wait for app to start
-          _ <- process.waitForOutput("Starting infinite wait")
+          _ <- process.waitForOutput("Starting SlowFinalizerApp")
           // Send interrupt signal
           _ <- process.sendSignal("INT")
           // Wait for process to exit
@@ -162,73 +94,35 @@ object ZIOAppSpec extends ZIOSpecDefault {
           output <- process.outputString
           _ <- process.destroy
           duration = Duration.fromMillis(endTime - startTime)
-        } yield assert(output)(containsString("SLOW_FINALIZER_START")) &&
-               assert(output)(not(containsString("SLOW_FINALIZER_END"))) &&
-               assert(duration.toMillis)(isLessThan(5000L))
+        } yield assert(output)(containsString("Starting slow finalizer")) &&
+               assert(output)(not(containsString("Resource released"))) &&
+               assert(duration.toMillis)(isLessThan(2000L))
       },
 
       test("custom graceful shutdown timeout allows longer finalizers") {
         for {
-          // Create an app with a slow finalizer
-          srcFile <- ProcessTestUtils.createTestApp(
-            "LongFinalizerApp",
-            """
-            |ZIO.acquireReleaseWith(
-            |  ZIO.succeed(println("Resource acquired"))
-            |)(
-            |  _ => ZIO.succeed(println("LONG_FINALIZER_START")) *> 
-            |        ZIO.sleep(2.seconds) *> 
-            |        ZIO.succeed(println("LONG_FINALIZER_END"))
-            |)(
-            |  _ => ZIO.succeed(println("Starting infinite wait")) *> ZIO.never
-            |)
-            """.stripMargin,
-            Some("ziotest")
-          )
-          _ <- compileApp(srcFile)
           // Run with a longer timeout
           process <- ProcessTestUtils.runApp(
-            "ziotest.LongFinalizerApp", 
+            "zio.app.TestApps$SlowFinalizerApp",
             Some(Duration.fromMillis(3000))
           )
           // Wait for app to start
-          _ <- process.waitForOutput("Starting infinite wait")
+          _ <- process.waitForOutput("Starting SlowFinalizerApp")
           // Send interrupt signal
           _ <- process.sendSignal("INT")
           // Wait for process to exit
           _ <- process.waitForExit()
           outputStr <- process.outputString
           _ <- process.destroy
-        } yield assert(outputStr)(containsString("LONG_FINALIZER_START")) &&
-               assert(outputStr)(containsString("LONG_FINALIZER_END"))
+        } yield assert(outputStr)(containsString("Starting slow finalizer")) &&
+               assert(outputStr)(containsString("Resource released"))
       },
 
       test("nested finalizers execute in correct order") {
         for {
-          // Create an app with nested finalizers
-          srcFile <- ProcessTestUtils.createTestApp(
-            "NestedFinalizerApp",
-            """
-            |ZIO.acquireReleaseWith(
-            |  ZIO.succeed(println("Outer resource acquired"))
-            |)(
-            |  _ => ZIO.succeed(println("OUTER_FINALIZER_EXECUTED"))
-            |)(
-            |  _ => ZIO.acquireReleaseWith(
-            |    ZIO.succeed(println("Inner resource acquired"))
-            |  )(
-            |    _ => ZIO.succeed(println("INNER_FINALIZER_EXECUTED"))
-            |  )(
-            |    _ => ZIO.succeed(println("Starting infinite wait")) *> ZIO.never
-            |  )
-            |)
-            """.stripMargin,
-            Some("ziotest")
-          )
-          _ <- compileApp(srcFile)
-          process <- ProcessTestUtils.runApp("ziotest.NestedFinalizerApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps$NestedFinalizersApp")
           // Wait for app to start
-          _ <- process.waitForOutput("Starting infinite wait")
+          _ <- process.waitForOutput("Starting NestedFinalizersApp")
           // Send interrupt signal
           _ <- process.sendSignal("INT")
           // Wait for process to exit
@@ -238,8 +132,8 @@ object ZIOAppSpec extends ZIOSpecDefault {
           _ <- process.destroy
           
           // Find the indices of the finalizer messages
-          innerFinalizerIndex = lines.indexWhere(_.contains("INNER_FINALIZER_EXECUTED"))
-          outerFinalizerIndex = lines.indexWhere(_.contains("OUTER_FINALIZER_EXECUTED"))
+          innerFinalizerIndex = lines.indexWhere(_.contains("Inner resource released"))
+          outerFinalizerIndex = lines.indexWhere(_.contains("Outer resource released"))
         } yield assert(innerFinalizerIndex)(isGreaterThanEqualTo(0)) &&
                assert(outerFinalizerIndex)(isGreaterThanEqualTo(0)) &&
                assert(innerFinalizerIndex)(isLessThan(outerFinalizerIndex))
@@ -248,13 +142,33 @@ object ZIOAppSpec extends ZIOSpecDefault {
   )
 
   /**
-   * Compiles a Scala source file containing a ZIOApp.
-   * In this version, we skip the actual compilation to avoid needing scalac installed.
-   * Instead, we rely on the precompiled test applications in TestApps.ziotest.
+   * Compiles a single Scala source file.
+   * This is a simplified implementation for testing purposes.
+   * It assumes scalac is on the system path.
    */
-  private def compileApp(srcFile: Path): Task[Unit] = {
-    // Skip actual compilation but pretend it succeeded
-    ZIO.logWarning(s"Using precompiled test apps from TestApps.ziotest package instead of compiling $srcFile") *>
-    ZIO.unit
+  private def compileApp(srcFile: Path): ZIO[Any, Throwable, Unit] = {
+    // Check if we should use precompiled apps instead
+    val usePrecompiled = java.lang.Boolean.getBoolean("zio.test.precompiled")
+    
+    if (usePrecompiled) {
+      ZIO.logWarning(s"Using precompiled test apps from TestApps.ziotest package instead of compiling ${srcFile.toString}")
+    } else {
+      ZIO.attemptBlocking {
+        import scala.sys.process._
+        val classpath = java.lang.System.getProperty("java.class.path")
+        val command = Seq("scalac", "-cp", classpath, srcFile.toString)
+        
+        val process = command.run(new ProcessLogger {
+          def out(s: => String): Unit = println(s)
+          def err(s: => String): Unit = System.err.println(s)
+          def buffer[T](f: => T): T = f
+        })
+        
+        val exitCode = process.exitValue()
+        if (exitCode != 0) {
+          throw new Exception(s"Compilation failed with exit code $exitCode for file $srcFile")
+        }
+      }
+    }
   }
 } 
