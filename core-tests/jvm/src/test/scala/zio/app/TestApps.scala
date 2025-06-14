@@ -150,115 +150,115 @@ object TestApps {
       Console.printLine("Starting CrashingApp") *>
       ZIO.attempt(throw new RuntimeException("Simulated crash!"))
   }
+}
+
+/**
+ * Special test applications needed by ZIOAppSpec in the ziotest package
+ */
+package object ziotest {
+  /**
+   * App that successfully returns exit code 0
+   */
+  object SuccessApp extends ZIOAppDefault {
+    def run = ZIO.succeed(println("Success!"))
+  }
 
   /**
-   * Special test applications needed by ZIOAppSpec
+   * App that fails with exit code 42
    */
-  package ziotest {
-    /**
-     * App that successfully returns exit code 0
-     */
-    object SuccessApp extends ZIOAppDefault {
-      def run = ZIO.succeed(println("Success!"))
-    }
+  object FailingApp extends ZIOAppDefault {
+    def run = ZIO.fail("Deliberate failure").mapError(_ => 42)
+  }
 
-    /**
-     * App that fails with exit code 42
-     */
-    object FailingApp extends ZIOAppDefault {
-      def run = ZIO.fail("Deliberate failure").mapError(_ => 42)
-    }
+  /**
+   * App that throws an unhandled exception to test exit code 1
+   */
+  object ErrorApp extends ZIOAppDefault {
+    def run = ZIO.attempt(throw new RuntimeException("Boom!"))
+  }
 
-    /**
-     * App that throws an unhandled exception to test exit code 1
-     */
-    object ErrorApp extends ZIOAppDefault {
-      def run = ZIO.attempt(throw new RuntimeException("Boom!"))
+  /**
+   * App with finalizer to test normal completion
+   */
+  object FinalizerApp extends ZIOAppDefault {
+    def run = {
+      ZIO.acquireReleaseWith(
+        ZIO.succeed(println("Resource acquired"))
+      )(
+        _ => ZIO.succeed(println("FINALIZER_EXECUTED"))
+      )(
+        _ => ZIO.succeed(println("Using resource"))
+      )
     }
+  }
 
-    /**
-     * App with finalizer to test normal completion
-     */
-    object FinalizerApp extends ZIOAppDefault {
-      def run = {
-        ZIO.acquireReleaseWith(
-          ZIO.succeed(println("Resource acquired"))
+  /**
+   * App that can be interrupted
+   */
+  object InterruptibleApp extends ZIOAppDefault {
+    def run = {
+      ZIO.acquireReleaseWith(
+        ZIO.succeed(println("Resource acquired"))
+      )(
+        _ => ZIO.succeed(println("FINALIZER_EXECUTED"))
+      )(
+        _ => ZIO.succeed(println("Starting infinite wait")) *> ZIO.never
+      )
+    }
+  }
+
+  /**
+   * App with slow finalizer
+   */
+  object SlowFinalizerApp extends ZIOAppDefault {
+    def run = {
+      ZIO.acquireReleaseWith(
+        ZIO.succeed(println("Resource acquired"))
+      )(
+        _ => ZIO.succeed(println("SLOW_FINALIZER_START")) *> 
+             ZIO.sleep(5.seconds) *> 
+             ZIO.succeed(println("SLOW_FINALIZER_END"))
+      )(
+        _ => ZIO.succeed(println("Starting infinite wait")) *> ZIO.never
+      )
+    }
+  }
+  
+  /**
+   * App with a finalizer that completes within the timeout
+   */
+  object LongFinalizerApp extends ZIOAppDefault {
+    def run = {
+      ZIO.acquireReleaseWith(
+        ZIO.succeed(println("Resource acquired"))
+      )(
+        _ => ZIO.succeed(println("LONG_FINALIZER_START")) *> 
+             ZIO.sleep(2.seconds) *> 
+             ZIO.succeed(println("LONG_FINALIZER_END"))
+      )(
+        _ => ZIO.succeed(println("Starting infinite wait")) *> ZIO.never
+      )
+    }
+  }
+  
+  /**
+   * App with nested finalizers to test execution order
+   */
+  object NestedFinalizerApp extends ZIOAppDefault {
+    def run = {
+      ZIO.acquireReleaseWith(
+        ZIO.succeed(println("Outer resource acquired"))
+      )(
+        _ => ZIO.succeed(println("OUTER_FINALIZER_EXECUTED"))
+      )(
+        _ => ZIO.acquireReleaseWith(
+          ZIO.succeed(println("Inner resource acquired"))
         )(
-          _ => ZIO.succeed(println("FINALIZER_EXECUTED"))
-        )(
-          _ => ZIO.succeed(println("Using resource"))
-        )
-      }
-    }
-
-    /**
-     * App that can be interrupted
-     */
-    object InterruptibleApp extends ZIOAppDefault {
-      def run = {
-        ZIO.acquireReleaseWith(
-          ZIO.succeed(println("Resource acquired"))
-        )(
-          _ => ZIO.succeed(println("FINALIZER_EXECUTED"))
+          _ => ZIO.succeed(println("INNER_FINALIZER_EXECUTED"))
         )(
           _ => ZIO.succeed(println("Starting infinite wait")) *> ZIO.never
         )
-      }
-    }
-
-    /**
-     * App with slow finalizer
-     */
-    object SlowFinalizerApp extends ZIOAppDefault {
-      def run = {
-        ZIO.acquireReleaseWith(
-          ZIO.succeed(println("Resource acquired"))
-        )(
-          _ => ZIO.succeed(println("SLOW_FINALIZER_START")) *> 
-               ZIO.sleep(5.seconds) *> 
-               ZIO.succeed(println("SLOW_FINALIZER_END"))
-        )(
-          _ => ZIO.succeed(println("Starting infinite wait")) *> ZIO.never
-        )
-      }
-    }
-    
-    /**
-     * App with a finalizer that completes within the timeout
-     */
-    object LongFinalizerApp extends ZIOAppDefault {
-      def run = {
-        ZIO.acquireReleaseWith(
-          ZIO.succeed(println("Resource acquired"))
-        )(
-          _ => ZIO.succeed(println("LONG_FINALIZER_START")) *> 
-               ZIO.sleep(2.seconds) *> 
-               ZIO.succeed(println("LONG_FINALIZER_END"))
-        )(
-          _ => ZIO.succeed(println("Starting infinite wait")) *> ZIO.never
-        )
-      }
-    }
-    
-    /**
-     * App with nested finalizers to test execution order
-     */
-    object NestedFinalizerApp extends ZIOAppDefault {
-      def run = {
-        ZIO.acquireReleaseWith(
-          ZIO.succeed(println("Outer resource acquired"))
-        )(
-          _ => ZIO.succeed(println("OUTER_FINALIZER_EXECUTED"))
-        )(
-          _ => ZIO.acquireReleaseWith(
-            ZIO.succeed(println("Inner resource acquired"))
-          )(
-            _ => ZIO.succeed(println("INNER_FINALIZER_EXECUTED"))
-          )(
-            _ => ZIO.succeed(println("Starting infinite wait")) *> ZIO.never
-          )
-        )
-      }
+      )
     }
   }
 } 
