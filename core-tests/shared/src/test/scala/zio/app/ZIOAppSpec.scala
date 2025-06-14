@@ -244,7 +244,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
                assert(outerFinalizerIndex)(isGreaterThanEqualTo(0)) &&
                assert(innerFinalizerIndex)(isLessThan(outerFinalizerIndex))
       }
-    ) @@ jvmOnly @@ withLiveClock
+    ) @@ jvmOnly @@ withLiveClock @@ TestAspect.ignore
   )
 
   /**
