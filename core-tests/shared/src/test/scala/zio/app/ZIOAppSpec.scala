@@ -5,6 +5,7 @@ import zio.test._
 import zio.test.TestAspect._
 
 import java.nio.file.Path
+import zio.app.ProcessTestUtils._
 /**
  * Test suite for ZIOApp, focusing on:
  * 1. Normal completion behavior
@@ -249,5 +250,5 @@ object ZIOAppSpec extends ZIOSpecDefault {
    * Compiles a Scala source file containing a ZIOApp.
    * In this version, we skip the actual compilation to avoid needing scalac installed.
    */
-  
+
 } 
