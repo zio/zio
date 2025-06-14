@@ -7,7 +7,9 @@ import zio.test.TestAspect._
 
 import java.nio.file.Path
 import java.time.temporal.ChronoUnit
+@scala.annotation.nowarn("cat=unused") // Suppress unused import warnings during test
 import zio.app.ProcessTestUtils
+
 /**
  * Test suite for ZIOApp, focusing on:
  * 1. Normal completion behavior
@@ -17,10 +19,6 @@ import zio.app.ProcessTestUtils
  * 5. Timeout behavior
  */
 object ZIOAppSpec extends ZIOSpecDefault {
-
-  // Import the ProcessTestUtils from the JVM-specific test package
-  @scala.annotation.nowarn("cat=unused")  // Suppress unused import warnings during test
-  
 
   def spec = suite("ZIOAppSpec")(
     // Platform-independent tests
