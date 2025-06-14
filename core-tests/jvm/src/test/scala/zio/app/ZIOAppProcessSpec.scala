@@ -56,7 +56,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         _       <- ZIO.sleep(1.second)
         _       <- process.sendSignal("INT") // Send SIGINT (Ctrl+C)
         output  <- process.waitForOutput("Resource released").as(true).timeout(5.seconds).map(_.getOrElse(false))
-        exitCode <- process.waitForExit()
+        _       <- process.waitForExit()
       } yield assertTrue(output)
     },
     
@@ -121,7 +121,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         _       <- ZIO.sleep(1.second)
         startTime <- Clock.currentTime(ChronoUnit.MILLIS)
         _       <- process.sendSignal("INT")
-        exitCode <- process.waitForExit(3.seconds)
+        _       <- process.waitForExit(3.seconds)
         endTime <- Clock.currentTime(ChronoUnit.MILLIS)
         output  <- process.outputString
       } yield {
@@ -145,7 +145,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         _       <- process.waitForOutput("Resource acquired")
         _       <- ZIO.sleep(1.second)
         _       <- process.sendSignal("INT")
-        exitCode <- process.waitForExit()
+        _       <- process.waitForExit()
         output  <- process.outputString
       } yield {
         // Check if the output contains any stack traces or exceptions
