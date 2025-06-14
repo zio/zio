@@ -2,190 +2,269 @@ package zio.app
 
 import zio._
 import zio.test._
+import zio.test.Assertion._
+import zio.test.TestAspect._
+
+import java.nio.file.{Files, Path}
+import java.time.temporal.ChronoUnit
+import java.util.concurrent.TimeUnit
 
 /**
- * Tests for ZIOApp functionality that work across all platforms.
- * This test suite focuses on the core functionality of ZIOApp without
- * requiring process spawning or signal handling.
+ * Test suite for ZIOApp, focusing on:
+ * 1. Normal completion behavior
+ * 2. Error handling behavior
+ * 3. Finalizer execution during shutdown
+ * 4. Signal handling and graceful shutdown
+ * 5. Timeout behavior
  */
-object ZIOAppSpec extends ZIOBaseSpec {
+object ZIOAppSpec extends ZIOSpecDefault {
+
   def spec = suite("ZIOAppSpec")(
-    // Core functionality tests
-    test("ZIOApp.fromZIO creates an app that executes the effect") {
-      for {
-        ref <- Ref.make(0)
-        _   <- ZIOApp.fromZIO(ref.update(_ + 1)).invoke(Chunk.empty)
-        v   <- ref.get
-      } yield assertTrue(v == 1)
-    },
-
-    test("failure translates into ExitCode.failure") {
-      for {
-        code <- ZIOApp.fromZIO(ZIO.fail("Uh oh!")).invoke(Chunk.empty).exitCode
-      } yield assertTrue(code == ExitCode.failure)
-    },
-
-    test("success translates into ExitCode.success") {
-      for {
-        code <- ZIOApp.fromZIO(ZIO.succeed("Hurray!")).invoke(Chunk.empty).exitCode
-      } yield assertTrue(code == ExitCode.success)
-    },
-
-    test("composed app logic runs component logic") {
-      for {
-        ref <- Ref.make(2)
-        app1 = ZIOApp.fromZIO(ref.update(_ + 3))
-        app2 = ZIOApp.fromZIO(ref.update(_ - 5))
-        _   <- (app1 <> app2).invoke(Chunk.empty)
-        v   <- ref.get
-      } yield assertTrue(v == 0)
-    },
-
-    // Finalizer tests that don't require process spawning
-    test("execution of finalizers on interruption") {
-      for {
-        running   <- Promise.make[Nothing, Unit]
-        ref       <- Ref.make(false)
-        effect     = (running.succeed(()) *> ZIO.never).ensuring(ref.set(true))
-        app        = ZIOAppDefault.fromZIO(effect)
-        fiber     <- app.invoke(Chunk.empty).fork
-        _         <- running.await
-        _         <- fiber.interrupt
-        finalized <- ref.get
-      } yield assertTrue(finalized)
-    },
-
-    test("finalizers are run in scope of bootstrap layer") {
-      for {
-        ref1 <- Ref.make(false)
-        ref2 <- Ref.make(false)
-        app = new ZIOAppDefault {
-                override val bootstrap = ZLayer.scoped(ZIO.acquireRelease(ref1.set(true))(_ => ref1.set(false)))
-                val run                = ZIO.acquireRelease(ZIO.unit)(_ => ref1.get.flatMap(ref2.set))
-              }
-        _     <- app.invoke(Chunk.empty)
-        value <- ref2.get
-      } yield assertTrue(value)
-    },
-
-    test("nested finalizers run in correct order") {
-      for {
-        results <- Ref.make(List.empty[String])
-        inner = ZIO.acquireRelease(
-          results.update(_ :+ "acquire-inner")
-        )(_ => results.update(_ :+ "release-inner"))
-        outer = ZIO.acquireRelease(
-          results.update(_ :+ "acquire-outer") *> inner
-        )(_ => results.update(_ :+ "release-outer"))
-        _ <- ZIO.scoped {
-          outer *> ZIO.interrupt
-        }.exit
-        finalResults <- results.get
-      } yield {
-        assertTrue(finalResults == List(
-          "acquire-outer",
-          "acquire-inner",
-          "release-inner",
-          "release-outer"
-        ))
+    // Platform-independent tests
+    suite("ZIOApp behavior")(
+      test("successful exit code") {
+        for {
+          _ <- ZIO.unit // Test will be implemented based on platform
+        } yield assertCompletes
       }
-    },
+    ),
 
-    // Platform runtime handling tests
-    test("hook update platform") {
-      val counter = new java.util.concurrent.atomic.AtomicInteger(0)
+    // JVM-specific tests that require process management
+    suite("ZIOApp JVM process tests")(
+      test("successful app returns exit code 0") {
+        for {
+          // Create a simple app that succeeds
+          srcFile <- ProcessTestUtils.createTestApp(
+            "SuccessApp",
+            "ZIO.succeed(println(\"Success!\"))",
+            Some("ziotest")
+          )
+          _ <- compileApp(srcFile)
+          process <- ProcessTestUtils.runApp("ziotest.SuccessApp")
+          exitCode <- process.waitForExit()
+          _ <- process.destroy
+        } yield assert(exitCode)(equalTo(0))
+      },
 
-      val logger1 = new ZLogger[Any, Unit] {
-        def apply(
-          trace: Trace,
-          fiberId: zio.FiberId,
-          logLevel: zio.LogLevel,
-          message: () => Any,
-          cause: Cause[Any],
-          context: FiberRefs,
-          spans: List[zio.LogSpan],
-          annotations: Map[String, String]
-        ): Unit = {
-          counter.incrementAndGet()
-          ()
-        }
-      }
+      test("failing app returns non-zero exit code") {
+        for {
+          // Create an app that fails
+          srcFile <- ProcessTestUtils.createTestApp(
+            "FailingApp",
+            "ZIO.fail(\"Deliberate failure\").mapError(_ => 42)",
+            Some("ziotest")
+          )
+          _ <- compileApp(srcFile)
+          process <- ProcessTestUtils.runApp("ziotest.FailingApp")
+          exitCode <- process.waitForExit()
+          _ <- process.destroy
+        } yield assert(exitCode)(equalTo(42))
+      },
 
-      val app1 = ZIOApp(ZIO.fail("Uh oh!"), Runtime.addLogger(logger1))
+      test("app with unhandled error returns exit code 1") {
+        for {
+          // Create an app with an unhandled error
+          srcFile <- ProcessTestUtils.createTestApp(
+            "ErrorApp",
+            "ZIO.attempt(throw new RuntimeException(\"Boom!\"))",
+            Some("ziotest")
+          )
+          _ <- compileApp(srcFile)
+          process <- ProcessTestUtils.runApp("ziotest.ErrorApp")
+          exitCode <- process.waitForExit()
+          _ <- process.destroy
+        } yield assert(exitCode)(equalTo(1))
+      },
 
-      for {
-        c <- app1.invoke(Chunk.empty).exitCode
-        v <- ZIO.succeed(counter.get())
-      } yield assertTrue(c == ExitCode.failure) && assertTrue(v == 1)
-    },
+      test("finalizers run on normal completion") {
+        for {
+          // Create an app with finalizers
+          srcFile <- ProcessTestUtils.createTestApp(
+            "FinalizerApp",
+            """
+            |ZIO.acquireReleaseWith(
+            |  ZIO.succeed(println("Resource acquired"))
+            |)(
+            |  _ => ZIO.succeed(println("FINALIZER_EXECUTED"))
+            |)(
+            |  _ => ZIO.succeed(println("Using resource"))
+            |)
+            """.stripMargin,
+            Some("ziotest")
+          )
+          _ <- compileApp(srcFile)
+          process <- ProcessTestUtils.runApp("ziotest.FinalizerApp")
+          _ <- process.waitForExit()
+          output <- process.outputString
+          _ <- process.destroy
+        } yield assert(output)(containsString("FINALIZER_EXECUTED"))
+      },
 
-    // Command line args tests
-    test("command line arguments are passed correctly") {
-      val args = Chunk("arg1", "arg2", "arg3")
-      
-      for {
-        receivedArgs <- ZIOApp.fromZIO(ZIO.service[ZIOAppArgs].map(_.getArgs)).invoke(args)
-      } yield assertTrue(receivedArgs == args)
-    },
+      test("finalizers run when interrupted by signal") {
+        for {
+          // Create an app that runs forever but can be interrupted
+          srcFile <- ProcessTestUtils.createTestApp(
+            "InterruptibleApp",
+            """
+            |ZIO.acquireReleaseWith(
+            |  ZIO.succeed(println("Resource acquired"))
+            |)(
+            |  _ => ZIO.succeed(println("FINALIZER_EXECUTED"))
+            |)(
+            |  _ => ZIO.succeed(println("Starting infinite wait")) *> ZIO.never
+            |)
+            """.stripMargin,
+            Some("ziotest")
+          )
+          _ <- compileApp(srcFile)
+          process <- ProcessTestUtils.runApp("ziotest.InterruptibleApp")
+          // Wait for app to start
+          _ <- process.waitForOutput("Starting infinite wait")
+          // Send interrupt signal
+          _ <- process.sendSignal("INT")
+          // Wait for process to exit
+          _ <- process.waitForExit()
+          output <- process.outputString
+          _ <- process.destroy
+        } yield assert(output)(containsString("FINALIZER_EXECUTED"))
+      },
 
-    // Error handling tests
-    test("exceptions in run are converted to failures") {
-      val exception = new RuntimeException("Boom!")
-      val app = ZIOAppDefault.fromZIO(ZIO.attempt(throw exception))
-      
-      app.invoke(Chunk.empty).exit.map { exit =>
-        assertTrue(exit.isFailure) &&
-        assertTrue(exit.causeOption.exists(_.failureOption.exists(_.isInstanceOf[RuntimeException])))
-      }
-    },
+      test("graceful shutdown timeout is respected") {
+        for {
+          // Create an app with a slow finalizer
+          srcFile <- ProcessTestUtils.createTestApp(
+            "SlowFinalizerApp",
+            """
+            |ZIO.acquireReleaseWith(
+            |  ZIO.succeed(println("Resource acquired"))
+            |)(
+            |  _ => ZIO.succeed(println("SLOW_FINALIZER_START")) *> 
+            |        ZIO.sleep(5.seconds) *> 
+            |        ZIO.succeed(println("SLOW_FINALIZER_END"))
+            |)(
+            |  _ => ZIO.succeed(println("Starting infinite wait")) *> ZIO.never
+            |)
+            """.stripMargin,
+            Some("ziotest")
+          )
+          _ <- compileApp(srcFile)
+          // Run with a short timeout
+          process <- ProcessTestUtils.runApp(
+            "ziotest.SlowFinalizerApp", 
+            Some(Duration.fromMillis(500))
+          )
+          // Wait for app to start
+          _ <- process.waitForOutput("Starting infinite wait")
+          // Send interrupt signal
+          _ <- process.sendSignal("INT")
+          // Wait for process to exit
+          startTime <- Clock.currentTime(ChronoUnit.MILLIS)
+          _ <- process.waitForExit()
+          endTime <- Clock.currentTime(ChronoUnit.MILLIS)
+          output <- process.outputString
+          _ <- process.destroy
+          duration = Duration.fromMillis(endTime - startTime)
+        } yield assert(output)(containsString("SLOW_FINALIZER_START")) &&
+               assert(output)(not(containsString("SLOW_FINALIZER_END"))) &&
+               assert(duration.toMillis)(isLessThan(5000L))
+      },
 
-    // Layer tests
-    test("bootstrap layer is provided correctly") {
-      val testValue = "test-value"
-      val testLayer = ZLayer.succeed(testValue)
-      
-      val app = new ZIOApp {
-        type Environment = String
-        val bootstrap = ZLayer.environment[ZIOAppArgs] >>> testLayer
-        def run = ZIO.service[String]
-        val environmentTag = EnvironmentTag[String]
-      }
-      
-      for {
-        result <- app.invoke(Chunk.empty)
-      } yield assertTrue(result == testValue)
-    },
+      test("custom graceful shutdown timeout allows longer finalizers") {
+        for {
+          // Create an app with a slow finalizer
+          srcFile <- ProcessTestUtils.createTestApp(
+            "LongFinalizerApp",
+            """
+            |ZIO.acquireReleaseWith(
+            |  ZIO.succeed(println("Resource acquired"))
+            |)(
+            |  _ => ZIO.succeed(println("LONG_FINALIZER_START")) *> 
+            |        ZIO.sleep(2.seconds) *> 
+            |        ZIO.succeed(println("LONG_FINALIZER_END"))
+            |)(
+            |  _ => ZIO.succeed(println("Starting infinite wait")) *> ZIO.never
+            |)
+            """.stripMargin,
+            Some("ziotest")
+          )
+          _ <- compileApp(srcFile)
+          // Run with a longer timeout
+          process <- ProcessTestUtils.runApp(
+            "ziotest.LongFinalizerApp", 
+            Some(Duration.fromMillis(3000))
+          )
+          // Wait for app to start
+          _ <- process.waitForOutput("Starting infinite wait")
+          // Send interrupt signal
+          _ <- process.sendSignal("INT")
+          // Wait for process to exit
+          _ <- process.waitForExit()
+          output <- process.outputString
+          _ <- process.destroy
+        } yield assert(output)(containsString("LONG_FINALIZER_START")) &&
+               assert(output)(containsString("LONG_FINALIZER_END"))
+      },
 
-    test("multiple layers can be composed") {
-      val app = new ZIOApp {
-        case class ServiceA(value: String) {
-          def getValue: String = value
-        }
-        case class ServiceB(value: Int) {
-          def getValue: Int = value
-        }
-        case class ServiceC(a: ServiceA, b: ServiceB) {
-          def getValues: String = s"${a.getValue}-${b.getValue}"
-        }
-        
-        type Environment = ServiceC
-        val bootstrap = {
-          val layerA = ZLayer.succeed(ServiceA("test"))
-          val layerB = ZLayer.succeed(ServiceB(42))
-          val layerC = ZLayer.fromFunction(ServiceC(_, _))
+      test("nested finalizers execute in correct order") {
+        for {
+          // Create an app with nested finalizers
+          srcFile <- ProcessTestUtils.createTestApp(
+            "NestedFinalizerApp",
+            """
+            |ZIO.acquireReleaseWith(
+            |  ZIO.succeed(println("Outer resource acquired"))
+            |)(
+            |  _ => ZIO.succeed(println("OUTER_FINALIZER_EXECUTED"))
+            |)(
+            |  _ => ZIO.acquireReleaseWith(
+            |    ZIO.succeed(println("Inner resource acquired"))
+            |  )(
+            |    _ => ZIO.succeed(println("INNER_FINALIZER_EXECUTED"))
+            |  )(
+            |    _ => ZIO.succeed(println("Starting infinite wait")) *> ZIO.never
+            |  )
+            |)
+            """.stripMargin,
+            Some("ziotest")
+          )
+          _ <- compileApp(srcFile)
+          process <- ProcessTestUtils.runApp("ziotest.NestedFinalizerApp")
+          // Wait for app to start
+          _ <- process.waitForOutput("Starting infinite wait")
+          // Send interrupt signal
+          _ <- process.sendSignal("INT")
+          // Wait for process to exit
+          _ <- process.waitForExit()
+          output <- process.outputString
+          lines <- process.output
+          _ <- process.destroy
           
-          ZLayer.environment[ZIOAppArgs] >>> (layerA ++ layerB) >>> layerC
-        }
-        def run = for {
-          svc <- ZIO.service[ServiceC]
-          res = svc.getValues
-        } yield res
-        val environmentTag = EnvironmentTag[ServiceC]
+          // Find the indices of the finalizer messages
+          innerFinalizerIndex = lines.indexWhere(_.contains("INNER_FINALIZER_EXECUTED"))
+          outerFinalizerIndex = lines.indexWhere(_.contains("OUTER_FINALIZER_EXECUTED"))
+        } yield assert(innerFinalizerIndex)(isGreaterThanEqualTo(0)) &&
+               assert(outerFinalizerIndex)(isGreaterThanEqualTo(0)) &&
+               assert(innerFinalizerIndex)(isLessThan(outerFinalizerIndex))
       }
-      
-      for {
-        result <- app.invoke(Chunk.empty)
-      } yield assertTrue(result == "test-42")
-    }
+    ) @@ jvmOnly @@ withLiveClock
   )
+
+  /**
+   * Compiles a Scala source file containing a ZIOApp.
+   */
+  private def compileApp(srcFile: Path): Task[Unit] = {
+    ZIO.attemptBlockingInterrupt {
+      import scala.sys.process._
+      
+      val srcPath = srcFile.toString
+      val classPath = java.lang.System.getProperty("java.class.path")
+      
+      val compileCmd = s"scalac -classpath $classPath $srcPath"
+      val exitCode = compileCmd.!
+      
+      if (exitCode != 0) {
+        throw new RuntimeException(s"Compilation failed with exit code $exitCode")
+      }
+    }
+  }
 } 

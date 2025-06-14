@@ -40,58 +40,66 @@ object ProcessTestUtils {
      *
      * @param signal The signal to send (e.g. "TERM", "INT", etc.)
      */
-    def sendSignal(signal: String): Task[Unit] = ZIO.attempt {
+    def sendSignal(signal: String): Task[Unit] = {
       if (!process.isAlive) {
-        println(s"Process is no longer alive, cannot send signal $signal")
-        return ZIO.unit
-      }
-      
-      val pidOpt = ProcessHandle.of(process.pid())
-      if (pidOpt.isEmpty) {
-        println(s"Cannot get process handle for PID ${process.pid()}, process may have terminated")
-        return ZIO.unit
-      }
-      
-      val pid = pidOpt.get()
-      val isWindows = java.lang.System.getProperty("os.name", "").toLowerCase().contains("win")
-      
-      if (isWindows) {
-        // Windows doesn't have the same signal mechanism as Unix
-        signal match {
-          case "INT" => // Simulate Ctrl+C
-            process.destroy()
-          case "TERM" => // Equivalent to SIGTERM
-            process.destroy() 
-          case "KILL" => // Equivalent to SIGKILL
-            process.destroyForcibly(); ()
-          case _ =>
-            throw new UnsupportedOperationException(s"Signal $signal not supported on Windows")
-        }
+        ZIO.logWarning(s"Process is no longer alive, cannot send signal $signal")
       } else {
-        // Unix/Mac implementation
-        import scala.sys.process._
-        signal match {
-          case "INT" => 
-            val exitCode = s"kill -SIGINT ${pid.pid()}".!
-            if (exitCode != 0) {
-              throw new RuntimeException(s"Failed to send SIGINT to process ${pid.pid()}, exit code: $exitCode")
-            }
-          case "TERM" => 
-            val exitCode = s"kill -SIGTERM ${pid.pid()}".!
-            if (exitCode != 0) {
-              throw new RuntimeException(s"Failed to send SIGTERM to process ${pid.pid()}, exit code: $exitCode")
-            }
-          case "KILL" => 
-            val exitCode = s"kill -SIGKILL ${pid.pid()}".!
-            if (exitCode != 0) {
-              throw new RuntimeException(s"Failed to send SIGKILL to process ${pid.pid()}, exit code: $exitCode")
-            }
-          case other => 
-            val exitCode = s"kill -$other ${pid.pid()}".!
-            if (exitCode != 0) {
-              throw new RuntimeException(s"Failed to send signal $other to process ${pid.pid()}, exit code: $exitCode")
-            }
-        }
+        for {
+          pidOpt <- ZIO.attempt(ProcessHandle.of(process.pid()))
+          result <- if (pidOpt.isEmpty) {
+                     ZIO.logWarning(s"Cannot get process handle for PID ${process.pid()}, process may have terminated")
+                   } else {
+                     val pid = pidOpt.get()
+                     val isWindows = java.lang.System.getProperty("os.name", "").toLowerCase().contains("win")
+                     
+                     if (isWindows) {
+                       // Windows doesn't have the same signal mechanism as Unix
+                       signal match {
+                         case "INT" => // Simulate Ctrl+C
+                           ZIO.attempt(process.destroy())
+                         case "TERM" => // Equivalent to SIGTERM
+                           ZIO.attempt(process.destroy())
+                         case "KILL" => // Equivalent to SIGKILL
+                           ZIO.attempt { process.destroyForcibly(); () }
+                         case _ =>
+                           ZIO.fail(new UnsupportedOperationException(s"Signal $signal not supported on Windows"))
+                       }
+                     } else {
+                       // Unix/Mac implementation
+                       import scala.sys.process._
+                       signal match {
+                         case "INT" => 
+                           ZIO.attempt {
+                             val exitCode = s"kill -SIGINT ${pid.pid()}".!
+                             if (exitCode != 0) {
+                               throw new RuntimeException(s"Failed to send SIGINT to process ${pid.pid()}, exit code: $exitCode")
+                             }
+                           }
+                         case "TERM" => 
+                           ZIO.attempt {
+                             val exitCode = s"kill -SIGTERM ${pid.pid()}".!
+                             if (exitCode != 0) {
+                               throw new RuntimeException(s"Failed to send SIGTERM to process ${pid.pid()}, exit code: $exitCode")
+                             }
+                           }
+                         case "KILL" => 
+                           ZIO.attempt {
+                             val exitCode = s"kill -SIGKILL ${pid.pid()}".!
+                             if (exitCode != 0) {
+                               throw new RuntimeException(s"Failed to send SIGKILL to process ${pid.pid()}, exit code: $exitCode")
+                             }
+                           }
+                         case other => 
+                           ZIO.attempt {
+                             val exitCode = s"kill -$other ${pid.pid()}".!
+                             if (exitCode != 0) {
+                               throw new RuntimeException(s"Failed to send signal $other to process ${pid.pid()}, exit code: $exitCode")
+                             }
+                           }
+                       }
+                     }
+                   }
+        } yield ()
       }
     }
 
