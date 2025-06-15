@@ -10,9 +10,12 @@ object NestedFinalizersApp extends ZIOAppDefault {
     Console.printLine("Inner resource acquired").orDie
   )(_ => Console.printLine("Inner resource released").orDie)
 
-  val outerResource = ZIO.acquireRelease(
-    Console.printLine("Outer resource acquired").orDie *> innerResource
-  )(_ => Console.printLine("Outer resource released").orDie)
+  // Use acquireReleaseWith instead of acquireRelease to properly nest the resources
+  val outerResource = ZIO.acquireReleaseWith(
+    Console.printLine("Outer resource acquired").orDie
+  )(_ => Console.printLine("Outer resource released").orDie) { _ =>
+    innerResource
+  }
 
   override def run =
     Console.printLine("Starting NestedFinalizersApp") *>
