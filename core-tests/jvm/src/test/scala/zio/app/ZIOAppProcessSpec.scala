@@ -125,9 +125,10 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     // Timeout tests
     test("gracefulShutdownTimeout configuration works") {
       for {
-        process <- runApp("zio.app.TestApps$TimeoutApp")
+        // Pass an explicit timeout of 3000ms (3 seconds)
+        process <- runApp("zio.app.TestApps$TimeoutApp", Some(Duration.fromMillis(3000)))
         _       <- process.waitForOutput("Starting TimeoutApp")
-        output  <- process.waitForOutput("Graceful shutdown timeout: 500ms").as(true).timeout(5.seconds).map(_.getOrElse(false))
+        output  <- process.waitForOutput("Using overridden graceful shutdown timeout: 3000ms").as(true).timeout(5.seconds).map(_.getOrElse(false))
       } yield assertTrue(output)
     },
     

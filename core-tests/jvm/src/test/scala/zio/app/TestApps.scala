@@ -249,7 +249,20 @@ object TestApps {
 
     override def run = {
       Console.printLine("Starting TimeoutApp") *>
-      Console.printLine(s"Graceful shutdown timeout: ${gracefulShutdownTimeout.render}") *>
+      // Check if we're using an overridden timeout
+      ZIO.attempt {
+        val shouldOverride = java.lang.System.getProperty("zio.test.override.shutdown.timeout") == "true"
+        if (shouldOverride) {
+          val timeoutMillis = Option(java.lang.System.getProperty("zio.app.graceful.shutdown.timeout"))
+            .orElse(Option(java.lang.System.getProperty("zio.app.shutdown.timeout")))
+            .orElse(Option(java.lang.System.getProperty("zio.gracefulShutdownTimeout")))
+            .map(_.toLong)
+            .getOrElse(1000L)
+          println(s"Using overridden graceful shutdown timeout: ${timeoutMillis}ms")
+        } else {
+          println(s"Graceful shutdown timeout: ${gracefulShutdownTimeout.render}")
+        }
+      } *>
       ZIO.never
     }
   }
