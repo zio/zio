@@ -30,7 +30,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
     suite("ZIOApp JVM process tests")(
       test("successful app returns exit code 0") {
         for {
-          process <- ProcessTestUtils.runApp("zio.app.TestApps$SuccessApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps.SuccessApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
         } yield assert(exitCode)(equalTo(0)) // Normal exit code is 0
@@ -38,7 +38,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
 
       test("successful app with explicit exit code 0 returns 0") {
         for {
-          process <- ProcessTestUtils.runApp("zio.app.TestApps$SuccessAppWithCode")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps.SuccessAppWithCode")
           exitCode <- process.waitForExit()
           _ <- process.destroy
         } yield assert(exitCode)(equalTo(0)) // Normal exit code is 0
@@ -46,7 +46,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
 
       test("pure successful app returns exit code 0") {
         for {
-          process <- ProcessTestUtils.runApp("zio.app.TestApps$PureSuccessApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps.PureSuccessApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
         } yield assert(exitCode)(equalTo(0)) // Normal exit code is 0
@@ -54,7 +54,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
 
       test("failing app returns exit code 1") {
         for {
-          process <- ProcessTestUtils.runApp("zio.app.TestApps$FailureApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps.FailureApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
         } yield assert(exitCode)(equalTo(1)) // Error exit code is 1
@@ -62,7 +62,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
 
       test("app with unhandled error returns exit code 1") {
         for {
-          process <- ProcessTestUtils.runApp("zio.app.TestApps$CrashingApp")
+          process <- ProcessTestUtils.runApp("zio.app.TestApps.CrashingApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
         } yield assert(exitCode)(equalTo(1)) // Error exit code is 1
