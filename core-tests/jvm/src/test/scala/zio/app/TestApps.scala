@@ -172,7 +172,7 @@ object SpecialExitCodeApp extends ZIOAppDefault {
 /**
  * Test applications for ZIOApp testing.
  */
-object TestApps {
+
   /**
    * App that completes successfully
    */
@@ -288,4 +288,3 @@ object TestApps {
       ZIO.never
     }
   }
-} 
