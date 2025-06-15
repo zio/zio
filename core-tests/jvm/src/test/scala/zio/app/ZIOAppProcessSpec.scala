@@ -126,15 +126,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
       for {
         process <- runApp("zio.app.TestApps$TimeoutApp")
         _       <- process.waitForOutput("Starting TimeoutApp")
-        initialOutput <- process.outputString
-        _       <- ZIO.debug(s"Initial output after starting: $initialOutput")
-        _       <- ZIO.sleep(1.second)
-        fullOutput <- process.outputString
-        _       <- ZIO.debug(s"Full output after waiting: $fullOutput")
-        containsTimeout <- ZIO.succeed(fullOutput.contains("500"))
-        _       <- ZIO.debug(s"Output contains '500': $containsTimeout")
         output  <- process.waitForOutput("Graceful shutdown timeout: 500ms").as(true).timeout(5.seconds).map(_.getOrElse(false))
-        _       <- ZIO.debug(s"Found exact match 'Graceful shutdown timeout: 500ms': $output")
       } yield assertTrue(output)
     },
     

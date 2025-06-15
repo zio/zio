@@ -226,19 +226,27 @@ object TestApps {
    * App with a specific graceful shutdown timeout
    */
   object TimeoutApp extends ZIOAppDefault {
-    override def gracefulShutdownTimeout = Duration.fromMillis(500)
+    // Check for override property and use it if present
+    override def gracefulShutdownTimeout = {
+      val shouldOverride = java.lang.System.getProperty("zio.test.override.shutdown.timeout") == "true"
+      if (shouldOverride) {
+        // Try to get the timeout from various possible system properties
+        val timeoutMillis = Option(java.lang.System.getProperty("zio.app.graceful.shutdown.timeout"))
+          .orElse(Option(java.lang.System.getProperty("zio.app.shutdown.timeout")))
+          .orElse(Option(java.lang.System.getProperty("zio.gracefulShutdownTimeout")))
+          .map(_.toLong)
+          .getOrElse(1000L) // Default to 1 second if not specified
+        
+        Duration.fromMillis(timeoutMillis)
+      } else {
+        // Use the default timeout
+        Duration.fromMillis(500)
+      }
+    }
 
     override def run = {
-      // Print multiple formats to help debug
-      val timeout = gracefulShutdownTimeout
-      val timeoutMs = timeout.toMillis
-      val timeoutRender = timeout.render
-      
       Console.printLine("Starting TimeoutApp") *>
-      Console.printLine(s"DEBUG: Timeout in milliseconds: $timeoutMs") *>
-      Console.printLine(s"DEBUG: Timeout rendered: '$timeoutRender'") *>
       Console.printLine(s"Graceful shutdown timeout: ${gracefulShutdownTimeout.render}") *>
-      Console.printLine("DEBUG: If you see this line, the previous line was printed") *>
       ZIO.never
     }
   }
