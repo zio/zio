@@ -210,9 +210,18 @@ object TestApps {
   object TimeoutApp extends ZIOAppDefault {
     override def gracefulShutdownTimeout = Duration.fromMillis(500)
 
-    override def run =
+    override def run = {
+      // Print multiple formats to help debug
+      val timeout = gracefulShutdownTimeout
+      val timeoutMs = timeout.toMillis
+      val timeoutRender = timeout.render
+      
       Console.printLine("Starting TimeoutApp") *>
+      Console.printLine(s"DEBUG: Timeout in milliseconds: $timeoutMs") *>
+      Console.printLine(s"DEBUG: Timeout rendered: '$timeoutRender'") *>
       Console.printLine(s"Graceful shutdown timeout: ${gracefulShutdownTimeout.render}") *>
+      Console.printLine("DEBUG: If you see this line, the previous line was printed") *>
       ZIO.never
+    }
   }
 } 

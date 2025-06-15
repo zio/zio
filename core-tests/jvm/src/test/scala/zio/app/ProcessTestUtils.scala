@@ -212,14 +212,20 @@ object ProcessTestUtils {
      */
     def waitForOutput(marker: String, timeout: Duration = 10.seconds): ZIO[Any, Throwable, Boolean] = {
       def check: ZIO[Any, Nothing, Boolean] =
-        outputString.map(_.contains(marker))
+        outputString.flatMap { output =>
+          // Add debugging to see what we're checking against
+          val result = output.contains(marker)
+          ZIO.debug(s"waitForOutput checking for: '$marker'").as(result)
+        }
 
       def loop: ZIO[Any, Nothing, Boolean] =
         check.flatMap {
           case true  => ZIO.succeed(true)
           case false => 
             // Attempt to refresh output buffer, then wait a bit before retrying
-            refreshOutput.ignore *> ZIO.sleep(100.millis) *> loop
+            refreshOutput.ignore *> 
+            outputString.flatMap(output => ZIO.debug(s"waitForOutput current output: '$output'")) *>
+            ZIO.sleep(100.millis) *> loop
         }
 
       // Ensure we have read at least once before starting the loop
