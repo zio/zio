@@ -287,7 +287,7 @@ object ProcessTestUtils {
                println(s"DEBUG: Process output contains 'DEBUG:' lines: ${output.contains("DEBUG:")}")
                println(s"DEBUG: Process output contains 'successful exit code': ${output.contains("successful exit code")}")
                // Print a few lines of output for debugging
-               val lines = output.split(System.lineSeparator()).take(10).mkString(System.lineSeparator())
+               val lines = output.split(java.lang.System.lineSeparator()).take(10).mkString(java.lang.System.lineSeparator())
                println(s"DEBUG: First few lines of output:\n$lines")
              }
         // If we're on Windows and have a signal marker, fix the exit code

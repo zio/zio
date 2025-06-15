@@ -185,10 +185,12 @@ object TestApps {
         val pid = ProcessHandle.current().pid()
         println(s"DEBUG: Process ID: $pid")
         // Print the JVM system properties that might affect exit code handling
-        println(s"DEBUG: zio.test.environment=${System.getProperty("zio.test.environment")}")
-        println(s"DEBUG: zio.test.signal.support=${System.getProperty("zio.test.signal.support")}")
+        println(s"DEBUG: zio.test.environment=${java.lang.System.getProperty("zio.test.environment")}")
+        println(s"DEBUG: zio.test.signal.support=${java.lang.System.getProperty("zio.test.signal.support")}")
+        // Print explicit exit code information
+        println(s"DEBUG: Explicitly returning ExitCode.success (${ExitCode.success.code})")
       } *>
-      ZIO.succeed(())
+      ZIO.succeed(ExitCode.success)
   }
 
   /**
@@ -197,14 +199,25 @@ object TestApps {
   object SuccessAppWithCode extends ZIOAppDefault {
     override def run =
       Console.printLine("Starting SuccessAppWithCode") *>
-      ZIO.succeed(0)
+      ZIO.attempt {
+        println("DEBUG: About to return explicit exit code 0")
+        println(s"DEBUG: Process ID: ${ProcessHandle.current().pid()}")
+        println(s"DEBUG: Explicitly returning ExitCode(0)")
+      } *>
+      ZIO.succeed(ExitCode(0))
   }
 
   /**
    * App that does nothing but succeed, with no other effects.
    */
   object PureSuccessApp extends ZIOAppDefault {
-    override def run = ZIO.unit
+    override def run = 
+      Console.printLine("Starting PureSuccessApp") *>
+      ZIO.attempt {
+        println("DEBUG: PureSuccessApp about to return ExitCode.success")
+        println(s"DEBUG: Process ID: ${ProcessHandle.current().pid()}")
+      } *>
+      ZIO.succeed(ExitCode.success)
   }
 
   /**
