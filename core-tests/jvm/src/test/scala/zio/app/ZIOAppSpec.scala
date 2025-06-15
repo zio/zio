@@ -185,7 +185,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
           exitCode <- process.waitForExit()
           // Note: We don't expect finalizers to run with SIGKILL
           _ <- process.destroy
-        } yield assert(exitCode)(isOneOf(equalTo(139))) // SIGKILL typically gives 137 or 139
+        } yield assert(exitCode)(equalTo(139)) // SIGKILL typically gives 137 or 139
       }
     ) @@ jvmOnly @@ withLiveClock
   )
