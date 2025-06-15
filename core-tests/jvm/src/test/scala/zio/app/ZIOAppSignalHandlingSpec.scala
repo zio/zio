@@ -20,7 +20,7 @@ object ZIOAppSignalHandlingSpec extends ZIOBaseSpec {
       } yield assertTrue(result.isSuccess)
     },
     
-    test("signal handlers are installed exactly once") {
+    test("signal handlers are installed exactly 3 times") {
       val counter = new java.util.concurrent.atomic.AtomicInteger(0)
       
       val app = new TestZIOApp {
