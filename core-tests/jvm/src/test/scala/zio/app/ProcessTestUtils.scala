@@ -113,7 +113,7 @@ object ProcessTestUtils {
                             case "INT" => // Simulate Ctrl+C with expected exit code 130
                               ZIO.attempt {
                                 // First set expected exit code if possible via environment/property
-                                val exitCode = mapSignalExitCode("INT", 1) // Map default exit code 1 to expected 130
+                                val _ = mapSignalExitCode("INT", 1) // Map default exit code 1 to expected 130
                                 process.destroy()
                                 
                                 // Wait a bit to ensure process starts terminating
@@ -125,7 +125,7 @@ object ProcessTestUtils {
                             case "TERM" => // Equivalent to SIGTERM with expected exit code 143
                               ZIO.attempt {
                                 // First set expected exit code if possible
-                                val exitCode = mapSignalExitCode("TERM", 1) // Map default exit code 1 to expected 143
+                                val _ = mapSignalExitCode("TERM", 1) // Map default exit code 1 to expected 143
                                 process.destroy()
                                 
                                 // Wait a bit to ensure process starts terminating
@@ -137,7 +137,7 @@ object ProcessTestUtils {
                             case "KILL" => // Equivalent to SIGKILL with expected exit code 139
                               ZIO.attempt { 
                                 // Set expected exit code 
-                                val exitCode = mapSignalExitCode("KILL", 1) // Map to expected 139
+                                val _ = mapSignalExitCode("KILL", 1) // Map to expected 139
                                 process.destroyForcibly()
                                 () 
                               }
