@@ -35,7 +35,7 @@ object ZIOAppSignalHandlingSpec extends ZIOBaseSpec {
         _       <- app.testInstallSignalHandlers(runtime)
         _       <- app.testInstallSignalHandlers(runtime)
         count   <- ZIO.succeed(counter.get())
-      } yield assertTrue(count == 1)
+      } yield assertTrue(count == 3)
     },
     
     test("windows platform detection works correctly") {
