@@ -181,8 +181,9 @@ object ZIOAppSpec extends ZIOSpecDefault {
           process <- ProcessTestUtils.runApp("zio.app.ResourceWithNeverApp")
           // Wait for app to start
           _ <- process.waitForOutput("Starting ResourceWithNeverApp")
-          // Send KILL signal
-          _ <- process.sendSignal("KILL")
+          // Use process.destroyForcibly directly instead of sendSignal("KILL")
+          // This is more reliable across platforms
+          _ <- ZIO.attempt(process.process.destroyForcibly())
           // Wait for process to exit
           exitCode <- process.waitForExit()
           // Note: We don't expect finalizers to run with SIGKILL
@@ -227,8 +228,9 @@ object ZIOAppSpec extends ZIOSpecDefault {
             process <- ProcessTestUtils.runApp("zio.app.SpecialExitCodeApp")
             // Wait for app to start and signal handler to be installed
             _ <- process.waitForOutput("Signal handler installed")
-            // Send KILL signal
-            _ <- process.sendSignal("KILL")
+            // Use process.destroyForcibly directly instead of sendSignal("KILL")
+            // This is more reliable across platforms
+            _ <- ZIO.attempt(process.process.destroyForcibly())
             // Wait for process to exit
             exitCode <- process.waitForExit()
             _ <- process.destroy
