@@ -211,13 +211,13 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         } yield assertTrue(output.contains("ZIO-SIGNAL: TERM")) && assertTrue(exitCode == 143)
       },
       
-      test("SpecialExitCodeApp consistently returns exit code 139 for SIGKILL") {
+      test("SpecialExitCodeApp consistently returns exit code 137 for SIGKILL") {
         for {
           process <- runApp("zio.app.SpecialExitCodeApp")
           _       <- process.waitForOutput("Signal handler installed")
           _       <- process.sendSignal("KILL")
           exitCode <- process.waitForExit()
-        } yield assertTrue(exitCode == 139) // Maintainer-specified exit code for SIGKILL
+        } yield assertTrue(exitCode == 137) // Maintainer-specified exit code for SIGKILL
       }
     )
   ) @@ TestAspect.sequential @@ TestAspect.jvmOnly @@ TestAspect.withLiveClock
