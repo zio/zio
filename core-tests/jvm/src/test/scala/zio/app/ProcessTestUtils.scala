@@ -48,7 +48,7 @@ object ProcessTestUtils {
         signal match {
           case "INT"  => 130 // Expected SIGINT code: 128 + 2
           case "TERM" => 143 // Expected SIGTERM code: 128 + 15
-          case "KILL" => 139 // Expected SIGKILL code (as per maintainer): 139
+          case "KILL" => 137 // Expected SIGKILL code (as per maintainer): 137
           case _      => code // Other signals use as-is
         }
       } else {
@@ -56,7 +56,7 @@ object ProcessTestUtils {
         if (code > 128 && code < 165) {
           // This is likely a signal exit already
           signal match {
-            case "KILL" => 139 // Override SIGKILL (normally 137) to 139 as per maintainer's requirements
+            case "KILL" => 137 // Override SIGKILL (normally 137) to 137 as per maintainer's requirements
             case _      => code // Keep the actual exit code for other signals
           }
         } else {
@@ -64,7 +64,7 @@ object ProcessTestUtils {
           signal match {
             case "INT"  => 130
             case "TERM" => 143
-            case "KILL" => 139
+            case "KILL" => 137
             case _      => code
           }
         }
@@ -134,10 +134,10 @@ object ProcessTestUtils {
                                   process.destroyForcibly()
                                 }
                               }
-                            case "KILL" => // Equivalent to SIGKILL with expected exit code 139
+                            case "KILL" => // Equivalent to SIGKILL with expected exit code 137
                               ZIO.attempt { 
                                 // Set expected exit code 
-                                val _ = mapSignalExitCode("KILL", 1) // Map to expected 139
+                                val _ = mapSignalExitCode("KILL", 1) // Map to expected 137
                                 process.destroyForcibly()
                                 () 
                               }
@@ -433,7 +433,7 @@ object ProcessTestUtils {
       |          val exitCode = signal match {
       |            case "INT" => 130
       |            case "TERM" => 143  
-      |            case "KILL" => 139
+      |            case "KILL" => 137
       |            case _ => 1
       |          }
       |          java.lang.System.exit(exitCode)

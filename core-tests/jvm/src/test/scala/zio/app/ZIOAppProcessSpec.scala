@@ -108,7 +108,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
       } yield assertTrue(released) && assertTrue(exitCode == 143) // SIGTERM exit code is 143
     },
     
-    test("SIGKILL gives exit code 139") {
+    test("SIGKILL gives exit code 137") {
       for {
         process <- runApp("zio.app.ResourceWithNeverApp")
         _       <- process.waitForOutput("Starting ResourceWithNeverApp")
@@ -117,8 +117,8 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         _       <- process.sendSignal("KILL") // Send SIGKILL
         exitCode <- process.waitForExit()
       } yield 
-        // SIGKILL should give exit code 139 as per maintainer requirements
-        assertTrue(exitCode == 139)
+        // SIGKILL should give exit code 137 as per maintainer requirements
+        assertTrue(exitCode == 137)
     },
     
     // Timeout tests

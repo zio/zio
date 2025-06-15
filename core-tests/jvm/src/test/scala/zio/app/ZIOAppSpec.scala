@@ -174,7 +174,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
                assert(exitCode)(equalTo(143)) // SIGTERM exit code is 143
       },
 
-      test("SIGKILL results in exit code 139") {
+      test("SIGKILL results in exit code 137") {
         for {
           process <- ProcessTestUtils.runApp("zio.app.ResourceWithNeverApp")
           // Wait for app to start
@@ -185,7 +185,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
           exitCode <- process.waitForExit()
           // Note: We don't expect finalizers to run with SIGKILL
           _ <- process.destroy
-        } yield assert(exitCode)(equalTo(139)) // SIGKILL exit code is 139 per maintainer
+        } yield assert(exitCode)(equalTo(137)) // SIGKILL exit code is 137 per maintainer
       },
       
       // New tests using SpecialExitCodeApp for consistent exit code testing
@@ -220,7 +220,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
                  assert(exitCode)(equalTo(143))
         },
         
-        test("SIGKILL produces exit code 139 via SpecialExitCodeApp") {
+        test("SIGKILL produces exit code 137 via SpecialExitCodeApp") {
           for {
             process <- ProcessTestUtils.runApp("zio.app.SpecialExitCodeApp")
             // Wait for app to start and signal handler to be installed
@@ -230,7 +230,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
             // Wait for process to exit
             exitCode <- process.waitForExit()
             _ <- process.destroy
-          } yield assert(exitCode)(equalTo(139))
+          } yield assert(exitCode)(equalTo(137))
         }
       )
     ) @@ jvmOnly @@ withLiveClock

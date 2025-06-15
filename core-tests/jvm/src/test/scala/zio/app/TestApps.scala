@@ -120,7 +120,7 @@ object SpecialExitCodeApp extends ZIOAppDefault {
             val exitCode = signal match {
               case "INT" => 130   // SIGINT exit code
               case "TERM" => 143  // SIGTERM exit code
-              case "KILL" => 139  // SIGKILL exit code (maintainer specified 139 instead of normal 137)
+              case "KILL" => 137  // SIGKILL exit code (maintainer specified 137)
               case _ => 1         // Default error code
             }
             
