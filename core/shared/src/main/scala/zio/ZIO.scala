@@ -17,7 +17,8 @@
 package zio
 
 import zio.internal.FiberScope
-import zio.metrics.{MetricLabel, Metrics}
+import zio.metrics.MetricLabel
+import zio.metrics.Metrics
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
@@ -2037,7 +2038,7 @@ sealed trait ZIO[-R, +E, +A]
    * forked in the effect are reported to the specified supervisor.
    */
   final def supervised(supervisor: => Supervisor[Any])(implicit trace: Trace): ZIO[R, E, A] =
-    FiberRef.currentSupervisor.locallyWith(_ ++ supervisor)(self)
+    FiberRef.currentSupervisor.locallyWith(_.patchAdd(supervisor))(self)
 
   /**
    * Returns an effect that effectfully "peeks" at the success of this effect.
