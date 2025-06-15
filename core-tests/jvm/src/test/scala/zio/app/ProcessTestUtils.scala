@@ -346,7 +346,14 @@ object ProcessTestUtils {
         // Also add a marker indicating this is a test environment
         val allJvmArgs = gracefulShutdownTimeout match {
           case Some(timeout) => 
+            // Use multiple properties to ensure the timeout is properly overridden
+            // The ZIOApp implementation checks these properties in a specific order
             s"-Dzio.app.shutdown.timeout=${timeout.toMillis}" ::
+            s"-Dzio.app.graceful.shutdown.timeout=${timeout.toMillis}" ::
+            s"-Dzio.app.gracefulShutdownTimeout=${timeout.toMillis}" ::
+            s"-Dzio.gracefulShutdownTimeout=${timeout.toMillis}" ::
+            // Force the ZIOApp to use our timeout by setting a special test property
+            "-Dzio.test.override.shutdown.timeout=true" ::
             "-Dzio.test.environment=true" ::  // Add this to identify test runs
             "-Dzio.test.signal.support=true" ::  // Signal handling support flag
             jvmArgs

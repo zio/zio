@@ -19,7 +19,25 @@ object NestedFinalizersApp extends ZIOAppDefault {
     outerResource *> ZIO.never
 }
  object SlowFinalizerApp extends ZIOAppDefault {
-    override def gracefulShutdownTimeout = Duration.fromMillis(1000)
+    // Check for override property and use it if present
+    override def gracefulShutdownTimeout = {
+      val shouldOverride = java.lang.System.getProperty("zio.test.override.shutdown.timeout") == "true"
+      if (shouldOverride) {
+        // Try to get the timeout from various possible system properties
+        val timeoutMillis = Option(java.lang.System.getProperty("zio.app.graceful.shutdown.timeout"))
+          .orElse(Option(java.lang.System.getProperty("zio.app.shutdown.timeout")))
+          .orElse(Option(java.lang.System.getProperty("zio.gracefulShutdownTimeout")))
+          .map(_.toLong)
+          .getOrElse(1000L) // Default to 1 second if not specified
+        
+        // Log that we're using an overridden timeout
+        println(s"Using overridden graceful shutdown timeout: ${timeoutMillis}ms")
+        Duration.fromMillis(timeoutMillis)
+      } else {
+        // Use the default timeout
+        Duration.fromMillis(1000)
+      }
+    }
 
     val resource = ZIO.acquireRelease(
       Console.printLine("Resource acquired").orDie
