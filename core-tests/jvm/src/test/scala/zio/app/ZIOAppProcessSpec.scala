@@ -115,7 +115,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         _       <- process.waitForOutput("Starting ResourceWithNeverApp")
         _       <- process.waitForOutput("Resource acquired")
         _       <- ZIO.sleep(1.second)
-        _       <- process.sendSignal("KILL") // Send SIGKILL
+        _       <- ZIO.attempt(process.process.destroyForcibly())
         exitCode <- process.waitForExit()
       } yield 
         // SIGKILL should give exit code 137 as per maintainer requirements
@@ -217,7 +217,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         for {
           process <- runApp("zio.app.SpecialExitCodeApp")
           _       <- process.waitForOutput("Signal handler installed")
-          _       <- process.sendSignal("KILL")
+          _       <- ZIO.attempt(process.process.destroyForcibly())
           exitCode <- process.waitForExit()
         } yield assertTrue(exitCode == 137) // Maintainer-specified exit code for SIGKILL
       }
