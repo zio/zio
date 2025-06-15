@@ -256,19 +256,25 @@ object ProcessTestUtils {
                        
                          val exitCode = if (process.isAlive) {
                            if (process.waitFor(timeout.toMillis, TimeUnit.MILLISECONDS)) {
-                             process.exitValue()
+                             val code = process.exitValue()
+                             println(s"DEBUG: Process exited with raw code: $code")
+                             code
                            } else {
                              throw new RuntimeException("Process wait timed out")
                            }
                          } else {
-                           process.exitValue()
+                           val code = process.exitValue()
+                           println(s"DEBUG: Process was already exited with raw code: $code")
+                           code
                          }
                          
                          // Give a little extra time to ensure we capture all output
                          Thread.sleep(100)
                          exitCode
                        }.timeout(timeout + 500.millis).flatMap {
-                         case Some(exitCode) => ZIO.succeed(exitCode) 
+                         case Some(exitCode) => 
+                           println(s"DEBUG: Raw exit code after timeout handling: $exitCode")
+                           ZIO.succeed(exitCode) 
                          case None => ZIO.fail(new RuntimeException("Process wait timed out"))
                        }
         
@@ -277,6 +283,13 @@ object ProcessTestUtils {
         
         // Check for common error patterns in output to help debugging
         output <- outputString
+        _ <- ZIO.attempt {
+               println(s"DEBUG: Process output contains 'DEBUG:' lines: ${output.contains("DEBUG:")}")
+               println(s"DEBUG: Process output contains 'successful exit code': ${output.contains("successful exit code")}")
+               // Print a few lines of output for debugging
+               val lines = output.split(System.lineSeparator()).take(10).mkString(System.lineSeparator())
+               println(s"DEBUG: First few lines of output:\n$lines")
+             }
         // If we're on Windows and have a signal marker, fix the exit code
         mappedExitCode <- if (output.contains("ZIO-SIGNAL:")) {
                            // Extract the signal type from output
@@ -284,11 +297,16 @@ object ProcessTestUtils {
                                            else if (output.contains("ZIO-SIGNAL: TERM")) "TERM" 
                                            else if (output.contains("ZIO-SIGNAL: KILL")) "KILL"
                                            else "UNKNOWN"
-                                           
+                           
+                           println(s"DEBUG: Mapping signal exit code for signal type: $signalType")
                            ZIO.succeed(mapSignalExitCode(signalType, rawExitCode))
                          } else {
+                           println(s"DEBUG: No signal detected, returning raw exit code: $rawExitCode")
                            ZIO.succeed(rawExitCode)
                          }
+        _ <- ZIO.attempt {
+               println(s"DEBUG: Final mapped exit code: $mappedExitCode")
+             }
       } yield mappedExitCode
     }
 

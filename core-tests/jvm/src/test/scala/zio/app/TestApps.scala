@@ -179,6 +179,15 @@ object TestApps {
   object SuccessApp extends ZIOAppDefault {
     override def run = 
       Console.printLine("Starting SuccessApp") *>
+      Console.printLine("DEBUG: About to return successful exit code") *>
+      ZIO.attempt {
+        // Print the current process ID for debugging
+        val pid = ProcessHandle.current().pid()
+        println(s"DEBUG: Process ID: $pid")
+        // Print the JVM system properties that might affect exit code handling
+        println(s"DEBUG: zio.test.environment=${System.getProperty("zio.test.environment")}")
+        println(s"DEBUG: zio.test.signal.support=${System.getProperty("zio.test.signal.support")}")
+      } *>
       ZIO.succeed(())
   }
 
