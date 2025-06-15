@@ -51,7 +51,8 @@ jobs:
       - name: Checkout current branch
         uses: actions/checkout@v4.2.2
         with:
-          fetch-depth: 0
+          fetch-depth: 1000
+          fetch-tags: true
       - name: Setup Java
         uses: actions/setup-java@v4.7.1
         with:
@@ -83,7 +84,8 @@ jobs:
       - name: Checkout Current Branch
         uses: actions/checkout@v4.2.2
         with:
-          fetch-depth: 0
+          fetch-depth: 1000
+          fetch-tags: true
       - name: Setup Java
         uses: actions/setup-java@v4.7.1
         with:
@@ -186,11 +188,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
+    env:
+      CI_RELEASE_MODE: 1 # Run these tests with optimizations enabled
     strategy:
       fail-fast: false
       matrix:
         java: ['11', '21']
-        platform: ['JVM']
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v4.2.2
@@ -205,8 +208,7 @@ jobs:
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Test on different JVM versions
-        run: sbt -v test${{ matrix.platform }}
-
+        run: sbt -v testJVM
       - name: Report Test Death JVM 11
         if: ${{ failure() &&  startsWith(matrix.java, '11') }}
         uses: actions/upload-artifact@v4
@@ -265,7 +267,8 @@ jobs:
       - name: Checkout current branch
         uses: actions/checkout@v4.2.2
         with:
-          fetch-depth: 0
+          fetch-depth: 1000
+          fetch-tags: true
       - name: Setup Java
         uses: actions/setup-java@v4.7.1
         with:
@@ -291,7 +294,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4.2.2
         with:
-          fetch-depth: 0
+          fetch-depth: 1000
+          fetch-tags: true
       - uses: actions/download-artifact@v4
         with:
           name: website-artifact

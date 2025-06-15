@@ -76,7 +76,7 @@ trait Clock extends Serializable { self =>
     }
 }
 
-object Clock extends ClockPlatformSpecific with Serializable {
+object Clock extends ClockPlatformSpecific with ClockSyntaxPlatformSpecific with Serializable {
 
   val tag: Tag[Clock] = Tag[Clock]
 
@@ -107,17 +107,8 @@ object Clock extends ClockPlatformSpecific with Serializable {
 
     override val unsafe: UnsafeAPI =
       new UnsafeAPI {
-        override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long = {
-          val inst = instant()
-          unit match {
-            case TimeUnit.NANOSECONDS =>
-              inst.getEpochSecond * 1000000000 + inst.getNano
-            case TimeUnit.MICROSECONDS =>
-              inst.getEpochSecond * 1000000 + inst.getNano / 1000
-            case TimeUnit.MILLISECONDS => inst.toEpochMilli
-            case _                     => unit.convert(inst.toEpochMilli, TimeUnit.MILLISECONDS)
-          }
-        }
+        override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
+          currentTime(toChronoUnit(unit))
 
         override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
           unit.between(Instant.EPOCH, instant())
@@ -186,19 +177,8 @@ object Clock extends ClockPlatformSpecific with Serializable {
 
     override val unsafe: UnsafeAPI =
       new UnsafeAPI {
-        override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long = {
-          val inst = instant()
-          // A nicer solution without loss of precision or range would be
-          // unit.toChronoUnit.between(Instant.EPOCH, inst)
-          // However, ChronoUnit is not available on all platforms
-          unit match {
-            case TimeUnit.NANOSECONDS =>
-              inst.getEpochSecond() * 1000000000 + inst.getNano()
-            case TimeUnit.MICROSECONDS =>
-              inst.getEpochSecond() * 1000000 + inst.getNano() / 1000
-            case _ => unit.convert(inst.toEpochMilli(), TimeUnit.MILLISECONDS)
-          }
-        }
+        override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
+          currentTime(toChronoUnit(unit))
 
         override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
           unit.between(Instant.EPOCH, instant())
