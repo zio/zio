@@ -157,7 +157,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
           outerFinalizerIndex = lines.indexWhere(_.contains("Outer resource released"))
         } yield assert(innerFinalizerIndex)(isGreaterThanEqualTo(0)) &&
                assert(outerFinalizerIndex)(isGreaterThanEqualTo(0)) &&
-               assert(innerFinalizerIndex)(isLessThan(outerFinalizerIndex)) &&
+               assert(outerFinalizerIndex)(isLessThan(innerFinalizerIndex)) &&
                assert(exitCode)(equalTo(130)) // SIGINT exit code is 130
       },
 
