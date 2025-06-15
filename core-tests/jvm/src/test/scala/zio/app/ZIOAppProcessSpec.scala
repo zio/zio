@@ -21,20 +21,20 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
       } yield assertTrue(exitCode == 0)
     },
     
-    test("app fails with non-zero exit code on error") {
+    test("app fails with exit code 1 on error") {
       for {
         process <- runApp("zio.app.TestApps$FailureApp")
         _       <- process.waitForOutput("Starting FailureApp")
         exitCode <- process.waitForExit()
-      } yield assertTrue(exitCode != 0)
+      } yield assertTrue(exitCode == 1)
     },
     
-    test("app crashes with exception gives non-zero exit code") {
+    test("app crashes with exception gives exit code 1") {
       for {
         process <- runApp("zio.app.TestApps$CrashingApp")
         _       <- process.waitForOutput("Starting CrashingApp")
         exitCode <- process.waitForExit()
-      } yield assertTrue(exitCode != 0)
+      } yield assertTrue(exitCode == 1)
     },
     
     // Finalizer tests
@@ -56,8 +56,8 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         _       <- ZIO.sleep(1.second)
         _       <- process.sendSignal("INT") // Send SIGINT (Ctrl+C)
         output  <- process.waitForOutput("Resource released").as(true).timeout(5.seconds).map(_.getOrElse(false))
-        _       <- process.waitForExit()
-      } yield assertTrue(output)
+        exitCode <- process.waitForExit()
+      } yield assertTrue(output) && assertTrue(exitCode == 130)
     },
     
     test("nested finalizers run in the correct order") {
@@ -69,6 +69,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         _       <- ZIO.sleep(1.second)
         _       <- process.sendSignal("INT")
         output  <- process.outputString.delay(2.seconds)
+        exitCode <- process.waitForExit()
       } yield {
         // Inner resources should be released before outer resources
         val lineSeparator = java.lang.System.lineSeparator()
@@ -77,12 +78,13 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         
         assertTrue(innerReleaseIndex >= 0) &&
         assertTrue(lines.exists(_.contains("Outer resource released"))) &&
-        assertTrue(lines.indexWhere(_.contains("Inner resource released")) < lines.indexWhere(_.contains("Outer resource released")))
+        assertTrue(lines.indexWhere(_.contains("Inner resource released")) < lines.indexWhere(_.contains("Outer resource released"))) &&
+        assertTrue(exitCode == 130)
       }
     },
     
     // Signal handling tests
-    test("SIGINT (Ctrl+C) triggers graceful shutdown") {
+    test("SIGINT (Ctrl+C) triggers graceful shutdown with exit code 130") {
       for {
         process <- runApp("zio.app.TestApps$ResourceWithNeverApp")
         _       <- process.waitForOutput("Starting ResourceWithNeverApp")
@@ -90,10 +92,11 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         _       <- ZIO.sleep(1.second)
         _       <- process.sendSignal("INT") // Send SIGINT (Ctrl+C)
         released <- process.waitForOutput("Resource released").as(true).timeout(5.seconds).map(_.getOrElse(false))
-      } yield assertTrue(released)
+        exitCode <- process.waitForExit()
+      } yield assertTrue(released) && assertTrue(exitCode == 130)
     },
     
-    test("SIGTERM triggers graceful shutdown") {
+    test("SIGTERM triggers graceful shutdown with exit code 143") {
       for {
         process <- runApp("zio.app.TestApps$ResourceWithNeverApp")
         _       <- process.waitForOutput("Starting ResourceWithNeverApp")
@@ -101,7 +104,22 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         _       <- ZIO.sleep(1.second)
         _       <- process.sendSignal("TERM") // Send SIGTERM
         released <- process.waitForOutput("Resource released").as(true).timeout(5.seconds).map(_.getOrElse(false))
-      } yield assertTrue(released)
+        exitCode <- process.waitForExit()
+      } yield assertTrue(released) && assertTrue(exitCode == 143)
+    },
+    
+    test("SIGKILL gives exit code 137 or 139") {
+      for {
+        process <- runApp("zio.app.TestApps$ResourceWithNeverApp")
+        _       <- process.waitForOutput("Starting ResourceWithNeverApp")
+        _       <- process.waitForOutput("Resource acquired")
+        _       <- ZIO.sleep(1.second)
+        _       <- process.sendSignal("KILL") // Send SIGKILL
+        exitCode <- process.waitForExit()
+      } yield 
+        // SIGKILL typically gives 137 (128+9) on most systems
+        // But per maintainer, it should be 139 which is (128+11, SIGSEGV)
+        assertTrue(exitCode == 139 || exitCode == 137)
     },
     
     // Timeout tests
@@ -121,7 +139,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         _       <- ZIO.sleep(1.second)
         startTime <- Clock.currentTime(ChronoUnit.MILLIS)
         _       <- process.sendSignal("INT")
-        _       <- process.waitForExit(3.seconds)
+        exitCode <- process.waitForExit(3.seconds)
         endTime <- Clock.currentTime(ChronoUnit.MILLIS)
         output  <- process.outputString
       } yield {
@@ -133,7 +151,8 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         // we expect the finalizer to have started but not completed
         assertTrue(startedFinalizer) &&
         assertTrue(!completedFinalizer) &&
-        assertTrue(duration < 2000) // Should not wait the full 2 seconds
+        assertTrue(duration < 2000) && // Should not wait the full 2 seconds
+        assertTrue(exitCode == 130)
       }
     },
     
@@ -145,7 +164,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         _       <- process.waitForOutput("Resource acquired")
         _       <- ZIO.sleep(1.second)
         _       <- process.sendSignal("INT")
-        _       <- process.waitForExit()
+        exitCode <- process.waitForExit()
         output  <- process.outputString
       } yield {
         // Check if the output contains any stack traces or exceptions
@@ -154,7 +173,8 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
                           
         assertTrue(!hasException) && 
         assertTrue(output.contains("Resource released")) &&
-        assertTrue(output.contains("JVM shutdown hook executed"))
+        assertTrue(output.contains("JVM shutdown hook executed")) &&
+        assertTrue(exitCode == 130)
       }
     },
     
@@ -165,9 +185,9 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         _       <- process.waitForOutput("Starting ShutdownHookApp")
         _       <- ZIO.sleep(1.second)
         _       <- process.sendSignal("INT")
-        _       <- ZIO.sleep(1.second) // Give the process time to handle signal
+        exitCode <- process.waitForExit()
         output  <- process.outputString
-      } yield assertTrue(output.contains("JVM shutdown hook executed"))
+      } yield assertTrue(output.contains("JVM shutdown hook executed")) && assertTrue(exitCode == 130)
     }
   ) @@ TestAspect.sequential @@ TestAspect.jvmOnly @@ TestAspect.withLiveClock
 } 

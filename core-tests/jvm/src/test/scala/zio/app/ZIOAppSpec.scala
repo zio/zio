@@ -33,7 +33,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
           process <- ProcessTestUtils.runApp("zio.app.TestApps$SuccessApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
-        } yield assert(exitCode)(equalTo(0))
+        } yield assert(exitCode)(equalTo(0)) // Normal exit code is 0
       },
 
       test("successful app with explicit exit code 0 returns 0") {
@@ -41,7 +41,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
           process <- ProcessTestUtils.runApp("zio.app.TestApps$SuccessAppWithCode")
           exitCode <- process.waitForExit()
           _ <- process.destroy
-        } yield assert(exitCode)(equalTo(0))
+        } yield assert(exitCode)(equalTo(0)) // Normal exit code is 0
       },
 
       test("pure successful app returns exit code 0") {
@@ -49,15 +49,15 @@ object ZIOAppSpec extends ZIOSpecDefault {
           process <- ProcessTestUtils.runApp("zio.app.TestApps$PureSuccessApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
-        } yield assert(exitCode)(equalTo(0))
+        } yield assert(exitCode)(equalTo(0)) // Normal exit code is 0
       },
 
-      test("failing app returns non-zero exit code") {
+      test("failing app returns exit code 1") {
         for {
           process <- ProcessTestUtils.runApp("zio.app.TestApps$FailureApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
-        } yield assert(exitCode)(equalTo(42))
+        } yield assert(exitCode)(equalTo(1)) // Error exit code is 1
       },
 
       test("app with unhandled error returns exit code 1") {
@@ -65,16 +65,17 @@ object ZIOAppSpec extends ZIOSpecDefault {
           process <- ProcessTestUtils.runApp("zio.app.TestApps$CrashingApp")
           exitCode <- process.waitForExit()
           _ <- process.destroy
-        } yield assert(exitCode)(equalTo(1))
+        } yield assert(exitCode)(equalTo(1)) // Error exit code is 1
       },
 
       test("finalizers run on normal completion") {
         for {
           process <- ProcessTestUtils.runApp("zio.app.ResourceApp")
-          _ <- process.waitForExit()
+          exitCode <- process.waitForExit()
           output <- process.outputString
           _ <- process.destroy
-        } yield assert(output)(containsString("Resource released"))
+        } yield assert(output)(containsString("Resource released")) &&
+               assert(exitCode)(equalTo(0)) // Normal exit code is 0
       },
 
       test("finalizers run when interrupted by signal") {
@@ -85,10 +86,11 @@ object ZIOAppSpec extends ZIOSpecDefault {
           // Send interrupt signal
           _ <- process.sendSignal("INT")
           // Wait for process to exit
-          _ <- process.waitForExit()
+          exitCode <- process.waitForExit()
           output <- process.outputString
           _ <- process.destroy
-        } yield assert(output)(containsString("Resource released"))
+        } yield assert(output)(containsString("Resource released")) &&
+               assert(exitCode)(equalTo(130)) // SIGINT exit code is 130
       },
 
       test("graceful shutdown timeout is respected") {
@@ -104,14 +106,15 @@ object ZIOAppSpec extends ZIOSpecDefault {
           _ <- process.sendSignal("INT")
           // Wait for process to exit
           startTime <- Clock.currentTime(ChronoUnit.MILLIS)
-          _ <- process.waitForExit()
+          exitCode <- process.waitForExit()
           endTime <- Clock.currentTime(ChronoUnit.MILLIS)
           output <- process.outputString
           _ <- process.destroy
           duration = Duration.fromMillis(endTime - startTime)
         } yield assert(output)(containsString("Starting slow finalizer")) &&
                assert(output)(not(containsString("Resource released"))) &&
-               assert(duration.toMillis)(isLessThan(2000L))
+               assert(duration.toMillis)(isLessThan(2000L)) &&
+               assert(exitCode)(equalTo(130)) // SIGINT exit code is 130
       },
 
       test("custom graceful shutdown timeout allows longer finalizers") {
@@ -126,11 +129,12 @@ object ZIOAppSpec extends ZIOSpecDefault {
           // Send interrupt signal
           _ <- process.sendSignal("INT")
           // Wait for process to exit
-          _ <- process.waitForExit()
+          exitCode <- process.waitForExit()
           outputStr <- process.outputString
           _ <- process.destroy
         } yield assert(outputStr)(containsString("Starting slow finalizer")) &&
-               assert(outputStr)(containsString("Resource released"))
+               assert(outputStr)(containsString("Resource released")) &&
+               assert(exitCode)(equalTo(130)) // SIGINT exit code is 130
       },
 
       test("nested finalizers execute in correct order") {
@@ -141,7 +145,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
           // Send interrupt signal
           _ <- process.sendSignal("INT")
           // Wait for process to exit
-          _ <- process.waitForExit()
+          exitCode <- process.waitForExit()
           _ <- process.outputString
           lines <- process.output
           _ <- process.destroy
@@ -151,7 +155,37 @@ object ZIOAppSpec extends ZIOSpecDefault {
           outerFinalizerIndex = lines.indexWhere(_.contains("Outer resource released"))
         } yield assert(innerFinalizerIndex)(isGreaterThanEqualTo(0)) &&
                assert(outerFinalizerIndex)(isGreaterThanEqualTo(0)) &&
-               assert(innerFinalizerIndex)(isLessThan(outerFinalizerIndex))
+               assert(innerFinalizerIndex)(isLessThan(outerFinalizerIndex)) &&
+               assert(exitCode)(equalTo(130)) // SIGINT exit code is 130
+      },
+
+      test("SIGTERM triggers graceful shutdown with exit code 143") {
+        for {
+          process <- ProcessTestUtils.runApp("zio.app.ResourceWithNeverApp")
+          // Wait for app to start
+          _ <- process.waitForOutput("Starting ResourceWithNeverApp")
+          // Send TERM signal
+          _ <- process.sendSignal("TERM")
+          // Wait for process to exit
+          exitCode <- process.waitForExit()
+          output <- process.outputString
+          _ <- process.destroy
+        } yield assert(output)(containsString("Resource released")) &&
+               assert(exitCode)(equalTo(143)) // SIGTERM exit code is 143
+      },
+
+      test("SIGKILL results in exit code 137 or 139") {
+        for {
+          process <- ProcessTestUtils.runApp("zio.app.ResourceWithNeverApp")
+          // Wait for app to start
+          _ <- process.waitForOutput("Starting ResourceWithNeverApp")
+          // Send KILL signal
+          _ <- process.sendSignal("KILL")
+          // Wait for process to exit
+          exitCode <- process.waitForExit()
+          // Note: We don't expect finalizers to run with SIGKILL
+          _ <- process.destroy
+        } yield assert(exitCode)(isOneOf(equalTo(139), equalTo(137))) // SIGKILL typically gives 137 or 139
       }
     ) @@ jvmOnly @@ withLiveClock
   )
