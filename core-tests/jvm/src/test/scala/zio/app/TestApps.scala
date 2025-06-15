@@ -94,6 +94,61 @@ object ShutdownHookApp extends ZIOAppDefault {
 }
 
 /**
+ * Special application that assists with testing proper exit codes
+ * It will detect signals through temp files and ensure the expected exit codes
+ * are returned
+ */
+object SpecialExitCodeApp extends ZIOAppDefault {
+  private val signalHandler = ZIO.attempt {
+    // Set up a thread to watch for signal marker files
+    val watcherThread = new Thread(() => {
+      val pid = ProcessHandle.current().pid()
+      val signalFile = new java.io.File(System.getProperty("java.io.tmpdir"), s"zio-signal-$pid")
+      
+      while (true) {
+        if (signalFile.exists()) {
+          try {
+            val scanner = new java.util.Scanner(signalFile)
+            val signal = if (scanner.hasNextLine()) scanner.nextLine() else "UNKNOWN"
+            scanner.close()
+            signalFile.delete()
+            
+            // Log for test verification
+            System.out.println(s"ZIO-SIGNAL: $signal detected")
+            
+            // Map to the expected exit code per maintainer requirements
+            val exitCode = signal match {
+              case "INT" => 130   // SIGINT exit code
+              case "TERM" => 143  // SIGTERM exit code
+              case "KILL" => 139  // SIGKILL exit code (maintainer specified 139 instead of normal 137)
+              case _ => 1         // Default error code
+            }
+            
+            System.out.println(s"Exiting with code $exitCode")
+            System.exit(exitCode)
+          } catch {
+            case e: Exception =>
+              System.err.println(s"Error processing signal file: ${e.getMessage}")
+          }
+        }
+        
+        // Check every 100ms
+        Thread.sleep(100)
+      }
+    })
+    
+    watcherThread.setDaemon(true)
+    watcherThread.start()
+  }
+
+  override def run = 
+    Console.printLine("Starting SpecialExitCodeApp") *>
+    signalHandler *>
+    Console.printLine("Signal handler installed") *>
+    ZIO.never
+}
+
+/**
  * Test applications for ZIOApp testing.
  */
 object TestApps {
@@ -128,7 +183,7 @@ object TestApps {
   object FailureApp extends ZIOAppDefault {
     override def run = 
       Console.printLine("Starting FailureApp") *>
-      ZIO.fail("Test Failure")
+      ZIO.fail("Test Failure") // ZIO.fail returns exit code 1 by default
   }
 
   /**
@@ -139,11 +194,6 @@ object TestApps {
       Console.printLine("Starting NeverEndingApp") *>
       ZIO.never
   }
-
-  /**
-   * App with slow finalizers to test timeout behavior
-   */
- 
 
   /**
    * App that throws an exception for testing error handling

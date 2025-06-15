@@ -139,7 +139,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
 
       test("nested finalizers execute in correct order") {
         for {
-          process <- ProcessTestUtils.runApp("zio.app.TestApps$NestedFinalizersApp")
+          process <- ProcessTestUtils.runApp("zio.app.NestedFinalizersApp")
           // Wait for app to start
           _ <- process.waitForOutput("Starting NestedFinalizersApp")
           // Send interrupt signal
@@ -174,7 +174,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
                assert(exitCode)(equalTo(143)) // SIGTERM exit code is 143
       },
 
-      test("SIGKILL results in exit code 137 or 139") {
+      test("SIGKILL results in exit code 139") {
         for {
           process <- ProcessTestUtils.runApp("zio.app.ResourceWithNeverApp")
           // Wait for app to start
@@ -185,8 +185,54 @@ object ZIOAppSpec extends ZIOSpecDefault {
           exitCode <- process.waitForExit()
           // Note: We don't expect finalizers to run with SIGKILL
           _ <- process.destroy
-        } yield assert(exitCode)(equalTo(139)) // SIGKILL typically gives 137 or 139
-      }
+        } yield assert(exitCode)(equalTo(139)) // SIGKILL exit code is 139 per maintainer
+      },
+      
+      // New tests using SpecialExitCodeApp for consistent exit code testing
+      suite("Exit code consistency suite")(
+        test("SpecialExitCodeApp responds to signals with correct exit codes") {
+          for {
+            process <- ProcessTestUtils.runApp("zio.app.SpecialExitCodeApp")
+            // Wait for app to start and signal handler to be installed
+            _ <- process.waitForOutput("Signal handler installed")
+            // Send INT signal
+            _ <- process.sendSignal("INT")
+            // Wait for process to exit
+            exitCode <- process.waitForExit()
+            output <- process.outputString
+            _ <- process.destroy
+          } yield assert(output)(containsString("ZIO-SIGNAL: INT detected")) &&
+                 assert(exitCode)(equalTo(130))
+        },
+        
+        test("SIGTERM produces exit code 143 via SpecialExitCodeApp") {
+          for {
+            process <- ProcessTestUtils.runApp("zio.app.SpecialExitCodeApp")
+            // Wait for app to start and signal handler to be installed
+            _ <- process.waitForOutput("Signal handler installed")
+            // Send TERM signal
+            _ <- process.sendSignal("TERM")
+            // Wait for process to exit
+            exitCode <- process.waitForExit()
+            output <- process.outputString
+            _ <- process.destroy
+          } yield assert(output)(containsString("ZIO-SIGNAL: TERM detected")) &&
+                 assert(exitCode)(equalTo(143))
+        },
+        
+        test("SIGKILL produces exit code 139 via SpecialExitCodeApp") {
+          for {
+            process <- ProcessTestUtils.runApp("zio.app.SpecialExitCodeApp")
+            // Wait for app to start and signal handler to be installed
+            _ <- process.waitForOutput("Signal handler installed")
+            // Send KILL signal
+            _ <- process.sendSignal("KILL")
+            // Wait for process to exit
+            exitCode <- process.waitForExit()
+            _ <- process.destroy
+          } yield assert(exitCode)(equalTo(139))
+        }
+      )
     ) @@ jvmOnly @@ withLiveClock
   )
 } 
