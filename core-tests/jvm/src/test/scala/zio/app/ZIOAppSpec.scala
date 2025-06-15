@@ -152,6 +152,33 @@ object ZIOAppSpec extends ZIOSpecDefault {
         } yield assert(innerFinalizerIndex)(isGreaterThanEqualTo(0)) &&
                assert(outerFinalizerIndex)(isGreaterThanEqualTo(0)) &&
                assert(innerFinalizerIndex)(isLessThan(outerFinalizerIndex))
+      },
+
+      test("InterruptionBugExample demonstrates interruption bug") {
+        for {
+          // Run the minimal bug example app with a long timeout
+          process <- ProcessTestUtils.runApp(
+                       "zio.app.InterruptionBugExample",
+                       Some(Duration.fromMillis(5000))
+                     )
+          // Wait for the app to start
+          _ <- process.waitForOutput("Resource acquired")
+          // Send an interrupt signal
+          _ <- process.sendSignal("INT")
+          // Wait for the process to exit and get its output
+          exitCode  <- process.waitForExit()
+          outputStr <- process.outputString
+          _         <- process.destroy
+        } yield {
+          // This test demonstrates two bugs:
+          // 1. The finalizer is not allowed to complete because the hardcoded
+          //    `gracefulShutdownTimeout` in the app (1s) overrides the one
+          //    provided here (5s). This causes the first assertion to fail.
+          // 2. The exit code is 1 because external interruption is incorrectly
+          //    treated as an application failure. This causes the second assertion to fail.
+          assert(outputStr)(containsString("Finalizer finished.")) &&
+          assert(exitCode)(equalTo(0))
+        }
       }
     ) @@ jvmOnly @@ withLiveClock
   )
