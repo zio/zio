@@ -88,11 +88,11 @@ object ProcessTestUtils {
                } else {
                  val pid = pidOpt.get()
                  val isWindows = java.lang.System.getProperty("os.name", "").toLowerCase().contains("win")
-                 
+                  
                  // First, set a marker in process environment to indicate signal type
-                 _ <- ZIO.attempt {
+                 signalAttempt <- ZIO.attempt {
                    // Try to write a file that the process can detect
-                   val signalFile = new File(System.getProperty("java.io.tmpdir"), s"zio-signal-${process.pid()}")
+                   val signalFile = new File(java.lang.System.getProperty("java.io.tmpdir"), s"zio-signal-${process.pid()}")
                    val writer = new PrintWriter(signalFile)
                    try {
                      writer.println(signal)
@@ -411,10 +411,10 @@ object ProcessTestUtils {
     val behavior = """
       |    zio.ZIO.attempt {
       |      // Set up signal handler
-      |      val isTestEnv = System.getProperty("zio.test.environment") == "true"
+      |      val isTestEnv = java.lang.System.getProperty("zio.test.environment") == "true"
       |      if (isTestEnv) {
       |        // Check for signal marker files periodically
-      |        val signalFile = new java.io.File(System.getProperty("java.io.tmpdir"), 
+      |        val signalFile = new java.io.File(java.lang.System.getProperty("java.io.tmpdir"), 
       |                                         s"zio-signal-${ProcessHandle.current().pid()}")
       |        
       |        if (signalFile.exists()) {
@@ -424,7 +424,7 @@ object ProcessTestUtils {
       |          signalFile.delete()
       |          
       |          // Print signal marker for test detection
-      |          println(s"ZIO-SIGNAL: $signal")
+      |          java.lang.System.out.println(s"ZIO-SIGNAL: $signal")
       |          
       |          // Map to expected exit code
       |          val exitCode = signal match {
@@ -433,7 +433,7 @@ object ProcessTestUtils {
       |            case "KILL" => 139
       |            case _ => 1
       |          }
-      |          System.exit(exitCode)
+      |          java.lang.System.exit(exitCode)
       |        }
       |      }
       |    }.flatMap(_ => 

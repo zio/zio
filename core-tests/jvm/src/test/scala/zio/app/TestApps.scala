@@ -103,7 +103,7 @@ object SpecialExitCodeApp extends ZIOAppDefault {
     // Set up a thread to watch for signal marker files
     val watcherThread = new Thread(() => {
       val pid = ProcessHandle.current().pid()
-      val signalFile = new java.io.File(System.getProperty("java.io.tmpdir"), s"zio-signal-$pid")
+      val signalFile = new java.io.File(java.lang.System.getProperty("java.io.tmpdir"), s"zio-signal-$pid")
       
       while (true) {
         if (signalFile.exists()) {
@@ -114,7 +114,7 @@ object SpecialExitCodeApp extends ZIOAppDefault {
             signalFile.delete()
             
             // Log for test verification
-            System.out.println(s"ZIO-SIGNAL: $signal detected")
+            java.lang.System.out.println(s"ZIO-SIGNAL: $signal detected")
             
             // Map to the expected exit code per maintainer requirements
             val exitCode = signal match {
@@ -124,11 +124,11 @@ object SpecialExitCodeApp extends ZIOAppDefault {
               case _ => 1         // Default error code
             }
             
-            System.out.println(s"Exiting with code $exitCode")
-            System.exit(exitCode)
+            java.lang.System.out.println(s"Exiting with code $exitCode")
+            java.lang.System.exit(exitCode)
           } catch {
             case e: Exception =>
-              System.err.println(s"Error processing signal file: ${e.getMessage}")
+              java.lang.System.err.println(s"Error processing signal file: ${e.getMessage}")
           }
         }
         
