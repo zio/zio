@@ -146,8 +146,10 @@ object ZIOAppSpec extends ZIOSpecDefault {
           _ <- process.sendSignal("INT")
           // Wait for process to exit
           exitCode <- process.waitForExit()
-          _ <- process.outputString
-          lines <- process.output
+          // Add a delay to ensure all output is captured properly
+          _ <- ZIO.sleep(2.seconds)
+          outputStr <- process.outputString
+          lines = outputStr.split(java.lang.System.lineSeparator()).toList
           _ <- process.destroy
           
           // Find the indices of the finalizer messages
