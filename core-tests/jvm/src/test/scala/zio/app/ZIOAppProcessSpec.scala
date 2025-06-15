@@ -15,7 +15,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     // Normal completion tests
     test("app completes successfully") {
       for {
-        process <- runApp("zio.app.TestApps$SuccessApp")
+        process <- runApp("zio.app.SuccessApp")
         _       <- process.waitForOutput("Starting SuccessApp")
         exitCode <- process.waitForExit()
       } yield assertTrue(exitCode == 0) // Normal exit code is 0
@@ -23,7 +23,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     
     test("app fails with exit code 1 on error") {
       for {
-        process <- runApp("zio.app.TestApps$FailureApp")
+        process <- runApp("zio.app.FailureApp")
         _       <- process.waitForOutput("Starting FailureApp")
         exitCode <- process.waitForExit()
       } yield assertTrue(exitCode == 1) // Error exit code is 1
@@ -31,7 +31,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     
     test("app crashes with exception gives exit code 1") {
       for {
-        process <- runApp("zio.app.TestApps$CrashingApp")
+        process <- runApp("zio.app.CrashingApp")
         _       <- process.waitForOutput("Starting CrashingApp")
         exitCode <- process.waitForExit()
       } yield assertTrue(exitCode == 1) // Exception exit code is 1
@@ -126,7 +126,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     test("gracefulShutdownTimeout configuration works") {
       for {
         // Pass an explicit timeout of 3000ms (3 seconds)
-        process <- runApp("zio.app.TestApps$TimeoutApp", Some(Duration.fromMillis(3000)))
+        process <- runApp("zio.app.TimeoutApp", Some(Duration.fromMillis(3000)))
         _       <- process.waitForOutput("Starting TimeoutApp")
         output  <- process.waitForOutput("Using overridden graceful shutdown timeout: 3000ms").as(true).timeout(5.seconds).map(_.getOrElse(false))
       } yield assertTrue(output)
