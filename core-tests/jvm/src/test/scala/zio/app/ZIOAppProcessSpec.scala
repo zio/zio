@@ -199,7 +199,7 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
           _       <- process.waitForOutput("Signal handler installed")
           _       <- process.sendSignal("INT")
           exitCode <- process.waitForExit()
-          output  <- process.outputString
+          _ <- process.outputString
         } yield assertTrue(exitCode == 130)  // Only check exit code, don't require specific output
       },
       

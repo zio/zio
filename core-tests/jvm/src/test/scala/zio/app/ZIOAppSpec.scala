@@ -203,7 +203,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
             _ <- process.sendSignal("INT")
             // Wait for process to exit
             exitCode <- process.waitForExit()
-            output <- process.outputString
+            _ <- process.outputString
             _ <- process.destroy
           } yield assert(exitCode)(equalTo(130))  // Only check exit code, don't require specific output
         },
