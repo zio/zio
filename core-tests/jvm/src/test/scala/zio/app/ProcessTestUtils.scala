@@ -136,7 +136,6 @@ object ProcessTestUtils {
                      ZIO.attempt { 
                        val _ = mapSignalExitCode("KILL", 1)
                        process.destroyForcibly()
-                       () 
                      }
                    } else {
                      ZIO.fail(new UnsupportedOperationException(s"Signal $signal not supported on Windows"))
@@ -504,4 +503,4 @@ object ProcessTestUtils {
       srcFile
     }
   }
-}}
+}
