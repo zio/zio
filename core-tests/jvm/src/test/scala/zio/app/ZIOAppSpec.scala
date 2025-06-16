@@ -239,6 +239,6 @@ object ZIOAppSpec extends ZIOSpecDefault {
           } yield assert(exitCode)(equalTo(137))
         }
       )
-    ) @@ jvmOnly @@ withLiveClock
+    ) @@ jvmOnly @@ withLiveClock @@ sequential
   )
 } 
