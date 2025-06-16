@@ -94,16 +94,20 @@ object ProcessTestUtils {
                    // Write a file that the process can detect
                    _ <- ZIO.attempt {
                      val signalFile = new File(java.lang.System.getProperty("java.io.tmpdir"), s"zio-signal-${process.pid()}")
+                     println(s"[DEBUG] Creating signal file: ${signalFile.getAbsolutePath()}")
                      val writer = new PrintWriter(signalFile)
                      try {
                        writer.println(signal)
                        signalFile.deleteOnExit()
+                       println(s"[DEBUG] Signal file created successfully: ${signalFile.exists()}")
                      } finally {
                        writer.close()
                      }
                      
                      // Give the process a chance to detect the file
+                     println(s"[DEBUG] Sleeping to allow process to detect signal file")
                      Thread.sleep(100)
+                     println(s"[DEBUG] After sleep, signal file exists: ${signalFile.exists()}")
                    }
                    
                    // Then send the appropriate signal based on platform
@@ -113,12 +117,16 @@ object ProcessTestUtils {
                             case "INT" => // Simulate Ctrl+C with expected exit code 130
                               ZIO.attempt {
                                 // First set expected exit code if possible via environment/property
-                                val _ = mapSignalExitCode("INT", 1) // Map default exit code 1 to expected 130
+                                println(s"[DEBUG] Windows: Sending INT signal to PID ${process.pid()}")
+                                val expectedCode = mapSignalExitCode("INT", 1) // Map default exit code 1 to expected 130
+                                println(s"[DEBUG] Windows: Mapped exit code will be $expectedCode")
                                 process.destroy()
+                                println(s"[DEBUG] Windows: destroy() called, process.isAlive=${process.isAlive()}")
                                 
                                 // Wait a bit to ensure process starts terminating
                                 if (!process.waitFor(200, TimeUnit.MILLISECONDS)) {
                                   // If it didn't terminate fast enough, force it
+                                  println(s"[DEBUG] Windows: Process didn't terminate fast enough, using destroyForcibly()")
                                   process.destroyForcibly()
                                 }
                               }
@@ -150,9 +158,11 @@ object ProcessTestUtils {
                           signal match {
                             case "INT" => 
                               ZIO.attempt {
-                                val exitCode = s"kill -SIGINT ${pid.pid()}".!
-                                if (exitCode != 0) {
-                                  throw new RuntimeException(s"Failed to send SIGINT to process ${pid.pid()}, exit code: $exitCode")
+                                println(s"[DEBUG] Sending SIGINT to process ${pid.pid()} on Unix-like OS...")
+                                val result = s"kill -SIGINT ${pid.pid()}".!
+                                println(s"[DEBUG] kill -SIGINT command returned: $result")
+                                if (result != 0) {
+                                  throw new RuntimeException(s"Failed to send SIGINT to process ${pid.pid()}, exit code: $result")
                                 }
                               }
                             case "TERM" => 

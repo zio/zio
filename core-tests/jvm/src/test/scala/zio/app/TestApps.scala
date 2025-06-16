@@ -126,13 +126,20 @@ object SpecialExitCodeApp extends ZIOAppDefault {
       val pid = ProcessHandle.current().pid()
       val signalFile = new java.io.File(java.lang.System.getProperty("java.io.tmpdir"), s"zio-signal-$pid")
       
+      java.lang.System.out.println(s"[DEBUG] Signal watcher thread started for PID $pid")
+      java.lang.System.out.println(s"[DEBUG] Watching for signal file: ${signalFile.getAbsolutePath()}")
+      java.lang.System.out.println(s"[DEBUG] Current OS: ${java.lang.System.getProperty("os.name")}")
+      
       while (true) {
         if (signalFile.exists()) {
           try {
+            java.lang.System.out.println(s"[DEBUG] Signal file found: ${signalFile.getAbsolutePath()}")
             val scanner = new java.util.Scanner(signalFile)
             val signal = if (scanner.hasNextLine()) scanner.nextLine() else "UNKNOWN"
             scanner.close()
+            java.lang.System.out.println(s"[DEBUG] Signal read from file: $signal")
             signalFile.delete()
+            java.lang.System.out.println(s"[DEBUG] Signal file deleted: ${!signalFile.exists()}")
             
             // Log for test verification
             java.lang.System.out.println(s"ZIO-SIGNAL: $signal detected")
