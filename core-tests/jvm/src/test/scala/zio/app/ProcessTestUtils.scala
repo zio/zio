@@ -150,7 +150,7 @@ object ProcessTestUtils {
                           signal match {
                             case "INT" => 
                               ZIO.attempt {
-                                val exitCode = s"kill -SIGINT ${pid.pid()}".!
+                                val exitCode = Seq("kill", "-s", "INT", pid.pid().toString).!
                                 if (exitCode != 0) {
                                   throw new RuntimeException(s"Failed to send SIGINT to process ${pid.pid()}, exit code: $exitCode")
                                 }
