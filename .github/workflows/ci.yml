@@ -51,7 +51,7 @@ jobs:
       - name: Checkout current branch
         uses: actions/checkout@v4.2.2
         with:
-          fetch-depth: 1000
+          fetch-depth: 5000
           fetch-tags: true
       - name: Setup Java
         uses: actions/setup-java@v4.7.1
@@ -84,7 +84,7 @@ jobs:
       - name: Checkout Current Branch
         uses: actions/checkout@v4.2.2
         with:
-          fetch-depth: 1000
+          fetch-depth: 5000
           fetch-tags: true
       - name: Setup Java
         uses: actions/setup-java@v4.7.1
@@ -231,7 +231,7 @@ jobs:
         uses: actions/checkout@v4.2.2
       - name: Install Boehm GC
         if: ${{ startsWith(matrix.platform, 'Native') }}
-        run: sudo apt-get update && sudo apt-get install -y libgc-dev
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgc-dev
       - name: Setup Java
         uses: actions/setup-java@v4.7.1
         with:
@@ -267,7 +267,7 @@ jobs:
       - name: Checkout current branch
         uses: actions/checkout@v4.2.2
         with:
-          fetch-depth: 1000
+          fetch-depth: 5000
           fetch-tags: true
       - name: Setup Java
         uses: actions/setup-java@v4.7.1
@@ -294,7 +294,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4.2.2
         with:
-          fetch-depth: 1000
+          fetch-depth: 5000
           fetch-tags: true
       - uses: actions/download-artifact@v4
         with:
