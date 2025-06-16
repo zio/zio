@@ -76,13 +76,18 @@ object ZIOAppSpec extends ZIOSpecDefault {
           process <- ProcessTestUtils.runApp("zio.app.ResourceWithNeverApp")
           // Wait for app to start
           _ <- process.waitForOutput("Starting ResourceWithNeverApp")
+          // Wait for resource acquisition to complete
+          _ <- process.waitForOutput("Resource acquired")
+          // Give the app a moment to stabilize
+          _ <- ZIO.sleep(1.second)
           // Send interrupt signal
           _ <- process.sendSignal("INT")
+          // Explicitly wait for finalizer to run before checking exit code
+          released <- process.waitForOutput("Resource released").as(true).timeout(5.seconds).map(_.getOrElse(false))
           // Wait for process to exit
           exitCode <- process.waitForExit()
-          output   <- process.outputString
           _        <- process.destroy
-        } yield assert(output)(containsString("Resource released")) &&
+        } yield assert(released)(isTrue) &&
           assert(exitCode)(equalTo(130)) // SIGINT exit code is 130
       },
       test("graceful shutdown timeout is respected") {
