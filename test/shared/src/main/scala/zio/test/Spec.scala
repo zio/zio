@@ -113,16 +113,22 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * an empty suite if this is a suite or `None` otherwise.
    */
   final def filterLabels(f: String => Boolean)(implicit trace: Trace): Option[Spec[R, E]] =
+    filterLabels(f, prefix = "", accumulatePrefix = false)
+
+  final def filterLabels(f: String => Boolean, prefix: String, accumulatePrefix: Boolean)(implicit
+    trace: Trace
+  ): Option[Spec[R, E]] =
     caseValue match {
       case ExecCase(exec, spec) =>
-        spec.filterLabels(f).map(spec => Spec.exec(exec, spec))
+        spec.filterLabels(f, prefix, accumulatePrefix).map(spec => Spec.exec(exec, spec))
       case LabeledCase(label, spec) =>
-        if (f(label)) Some(Spec.labeled(label, spec))
-        else spec.filterLabels(f).map(spec => Spec.labeled(label, spec))
+        val prefixedLabel: String = if (prefix.isEmpty || !accumulatePrefix) label else s"$prefix - $label"
+        if (f(prefixedLabel)) Some(Spec.labeled(label, spec))
+        else spec.filterLabels(f, prefixedLabel, accumulatePrefix).map(spec => Spec.labeled(label, spec))
       case ScopedCase(scoped) =>
-        Some(Spec.scoped[R](scoped.map(_.filterLabels(f).getOrElse(Spec.empty))))
+        Some(Spec.scoped[R](scoped.map(_.filterLabels(f, prefix, accumulatePrefix).getOrElse(Spec.empty))))
       case MultipleCase(specs) =>
-        val filtered = specs.flatMap(_.filterLabels(f))
+        val filtered = specs.flatMap(_.filterLabels(f, prefix, accumulatePrefix))
         if (filtered.isEmpty) None else Some(Spec.multiple(filtered))
       case TestCase(_, _) =>
         None
