@@ -38,7 +38,7 @@ jobs:
       run: sbt "++2.13; check; ++3.3; check"
 
   publishLocal:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     env:
