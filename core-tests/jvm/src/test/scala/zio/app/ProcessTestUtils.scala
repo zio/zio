@@ -89,96 +89,95 @@ object ProcessTestUtils {
                  val pid = pidOpt.get()
                  val isWindows = java.lang.System.getProperty("os.name", "").toLowerCase().contains("win")
                   
-                 ZIO.succeed {
-                   if (isWindows) {
-                     // On Windows, use signal file mechanism only
-                     // Write a file that the process can detect
+                 if (isWindows) {
+                   // On Windows, use signal file mechanism only
+                   // Write a file that the process can detect
+                   ZIO.attempt {
+                     val signalFile = new File(java.lang.System.getProperty("java.io.tmpdir"), s"zio-signal-${process.pid()}")
+                     println(s"[DEBUG] Creating signal file: ${signalFile.getAbsolutePath()}")
+                     val writer = new PrintWriter(signalFile)
+                     try {
+                       writer.println(signal)
+                       signalFile.deleteOnExit()
+                       println(s"[DEBUG] Signal file created successfully: ${signalFile.exists()}")
+                     } finally {
+                       writer.close()
+                     }
+                     
+                     // Give the process a chance to detect the file
+                     println(s"[DEBUG] Sleeping to allow process to detect signal file")
+                     Thread.sleep(100)
+                     println(s"[DEBUG] After sleep, signal file exists: ${signalFile.exists()}")
+                   } *> 
+                   // If signal file didn't work, fallback to destroy
+                   (if (signal == "INT") {
                      ZIO.attempt {
-                       val signalFile = new File(java.lang.System.getProperty("java.io.tmpdir"), s"zio-signal-${process.pid()}")
-                       println(s"[DEBUG] Creating signal file: ${signalFile.getAbsolutePath()}")
-                       val writer = new PrintWriter(signalFile)
-                       try {
-                         writer.println(signal)
-                         signalFile.deleteOnExit()
-                         println(s"[DEBUG] Signal file created successfully: ${signalFile.exists()}")
-                       } finally {
-                         writer.close()
-                       }
+                       println(s"[DEBUG] Windows: Sending INT signal to PID ${process.pid()}")
+                       val expectedCode = mapSignalExitCode("INT", 1)
+                       println(s"[DEBUG] Windows: Mapped exit code will be $expectedCode")
+                       process.destroy()
+                       println(s"[DEBUG] Windows: destroy() called, process.isAlive=${process.isAlive()}")
                        
-                       // Give the process a chance to detect the file
-                       println(s"[DEBUG] Sleeping to allow process to detect signal file")
-                       Thread.sleep(100)
-                       println(s"[DEBUG] After sleep, signal file exists: ${signalFile.exists()}")
-                     } *> 
-                     // If signal file didn't work, fallback to destroy
-                     (if (signal == "INT") {
-                       ZIO.attempt {
-                         println(s"[DEBUG] Windows: Sending INT signal to PID ${process.pid()}")
-                         val expectedCode = mapSignalExitCode("INT", 1)
-                         println(s"[DEBUG] Windows: Mapped exit code will be $expectedCode")
-                         process.destroy()
-                         println(s"[DEBUG] Windows: destroy() called, process.isAlive=${process.isAlive()}")
-                         
-                         if (!process.waitFor(200, TimeUnit.MILLISECONDS)) {
-                           println(s"[DEBUG] Windows: Process didn't terminate fast enough, using destroyForcibly()")
-                           process.destroyForcibly()
-                         }
-                       }
-                     } else if (signal == "TERM") {
-                       ZIO.attempt {
-                         val _ = mapSignalExitCode("TERM", 1)
-                         process.destroy()
-                         
-                         if (!process.waitFor(200, TimeUnit.MILLISECONDS)) {
-                           process.destroyForcibly()
-                         }
-                       }
-                     } else if (signal == "KILL") {
-                       ZIO.attempt { 
-                         val _ = mapSignalExitCode("KILL", 1)
+                       if (!process.waitFor(200, TimeUnit.MILLISECONDS)) {
+                         println(s"[DEBUG] Windows: Process didn't terminate fast enough, using destroyForcibly()")
                          process.destroyForcibly()
                        }
-                     } else {
-                       ZIO.fail(new UnsupportedOperationException(s"Signal $signal not supported on Windows"))
-                     })
-                   } else {
-                     // Unix/Mac implementation
-                     // Skip signal file creation, go directly to kill commands
-                     import scala.sys.process._
-                     signal match {
-                       case "INT" => 
-                         ZIO.attempt {
-                           println(s"[DEBUG] Sending SIGINT to process ${pid.pid()} on Unix-like OS...")
-                           val result = s"kill -SIGINT ${pid.pid()}".!
-                           println(s"[DEBUG] kill -SIGINT command returned: $result")
-                           if (result != 0) {
-                             throw new RuntimeException(s"Failed to send SIGINT to process ${pid.pid()}, exit code: $result")
-                           }
-                         }
-                       case "TERM" => 
-                         ZIO.attempt {
-                           val exitCode = s"kill -SIGTERM ${pid.pid()}".!
-                           if (exitCode != 0) {
-                             throw new RuntimeException(s"Failed to send SIGTERM to process ${pid.pid()}, exit code: $exitCode")
-                           }
-                         }
-                       case "KILL" => 
-                         ZIO.attempt {
-                           val exitCode = s"kill -SIGKILL ${pid.pid()}".!
-                           if (exitCode != 0) {
-                             throw new RuntimeException(s"Failed to send SIGKILL to process ${pid.pid()}, exit code: $exitCode")
-                           }
-                         }
-                       case other => 
-                         ZIO.attempt {
-                           val exitCode = s"kill -$other ${pid.pid()}".!
-                           if (exitCode != 0) {
-                             throw new RuntimeException(s"Failed to send signal $other to process ${pid.pid()}, exit code: $exitCode")
-                           }
-                         }
                      }
+                   } else if (signal == "TERM") {
+                     ZIO.attempt {
+                       val _ = mapSignalExitCode("TERM", 1)
+                       process.destroy()
+                       
+                       if (!process.waitFor(200, TimeUnit.MILLISECONDS)) {
+                         process.destroyForcibly()
+                       }
+                     }
+                   } else if (signal == "KILL") {
+                     ZIO.attempt { 
+                       val _ = mapSignalExitCode("KILL", 1)
+                       process.destroyForcibly()
+                     }
+                   } else {
+                     ZIO.fail(new UnsupportedOperationException(s"Signal $signal not supported on Windows"))
+                   })
+                 } else {
+                   // Unix/Mac implementation
+                   // Skip signal file creation, go directly to kill commands
+                   import scala.sys.process._
+                   signal match {
+                     case "INT" => 
+                       ZIO.attempt {
+                         println(s"[DEBUG] Sending SIGINT to process ${pid.pid()} on Unix-like OS...")
+                         val result = s"kill -SIGINT ${pid.pid()}".!
+                         println(s"[DEBUG] kill -SIGINT command returned: $result")
+                         if (result != 0) {
+                           throw new RuntimeException(s"Failed to send SIGINT to process ${pid.pid()}, exit code: $result")
+                         }
+                       }
+                     case "TERM" => 
+                       ZIO.attempt {
+                         val exitCode = s"kill -SIGTERM ${pid.pid()}".!
+                         if (exitCode != 0) {
+                           throw new RuntimeException(s"Failed to send SIGTERM to process ${pid.pid()}, exit code: $exitCode")
+                         }
+                       }
+                     case "KILL" => 
+                       ZIO.attempt {
+                         val exitCode = s"kill -SIGKILL ${pid.pid()}".!
+                         if (exitCode != 0) {
+                           throw new RuntimeException(s"Failed to send SIGKILL to process ${pid.pid()}, exit code: $exitCode")
+                         }
+                       }
+                     case other => 
+                       ZIO.attempt {
+                         val exitCode = s"kill -$other ${pid.pid()}".!
+                         if (exitCode != 0) {
+                           throw new RuntimeException(s"Failed to send signal $other to process ${pid.pid()}, exit code: $exitCode")
+                         }
+                       }
                    }
-                 }.flatten
+                 }
+               }
         } yield ()
       }
     }
