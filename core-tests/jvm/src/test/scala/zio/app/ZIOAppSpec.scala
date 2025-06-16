@@ -64,11 +64,11 @@ object ZIOAppSpec extends ZIOSpecDefault {
       },
       test("finalizers run on normal completion") {
         for {
-          process  <- ProcessTestUtils.runApp("zio.app.ResourceApp")
+          process <- ProcessTestUtils.runApp("zio.app.ResourceApp")
           // Wait for app to start
           _ <- process.waitForOutput("Starting ResourceApp")
           // Wait for resource acquisition to complete
-          _ <- process.waitForOutput("Resource acquired")
+          _        <- process.waitForOutput("Resource acquired")
           exitCode <- process.waitForExit()
           output   <- process.outputString
           _        <- process.destroy
