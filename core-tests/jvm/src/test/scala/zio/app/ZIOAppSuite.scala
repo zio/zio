@@ -1,5 +1,5 @@
 package zio.app
-import zio.test.TestAspect
+import zio.test.TestAspect._
 
 import zio.ZIOBaseSpec
 
