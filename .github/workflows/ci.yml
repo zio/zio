@@ -18,7 +18,7 @@ on:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
@@ -38,7 +38,7 @@ jobs:
       run: sbt "++2.13; check; ++3.3; check"
 
   publishLocal:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     env:
@@ -78,7 +78,7 @@ jobs:
         run: sbt --client shutdown
 
   build-website:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
       - name: Checkout Current Branch
@@ -124,7 +124,7 @@ jobs:
         run: find ./website/build -print
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     strategy:
@@ -185,7 +185,7 @@ jobs:
         overwrite: true
 
   testJvms:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     env:
@@ -218,7 +218,7 @@ jobs:
           overwrite: true
 
   testPlatforms:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     strategy:
@@ -251,7 +251,7 @@ jobs:
 
   ci:
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     needs: [lint, publishLocal, build-website, test, testJvms, testPlatforms]
     steps:
       - uses: re-actors/alls-green@release/v1
@@ -259,7 +259,7 @@ jobs:
           jobs: ${{ toJSON(needs) }}
 
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     needs: [ci]
     if: github.event_name != 'pull_request'
@@ -289,7 +289,7 @@ jobs:
   publish-website:
     needs: [ci]
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.2
@@ -308,7 +308,7 @@ jobs:
           folder: ./website-artifact
 
   update-docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     if: ${{ ((github.event_name == 'repository_dispatch') && (github.event.action == 'update-docs')) }}
     steps:
       - name: Git Checkout

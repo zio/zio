@@ -4,7 +4,7 @@ on: pull_request_target
 
 jobs:
   auto-approve-renovate-prs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     if: github.actor == 'renovate[bot]'
     steps:
       - name: Git Checkout

@@ -13,7 +13,7 @@ permissions:
 jobs:
   scala-steward:
     timeout-minutes: 45
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     name: Scala Steward
     steps:
       - name: Setup sbt
