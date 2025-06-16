@@ -240,5 +240,5 @@ object ZIOAppSpec extends ZIOSpecDefault {
         }
       )
     ) @@ jvmOnly @@ withLiveClock @@ sequential
-  )
+  ) @@ sequential
 } 
