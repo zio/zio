@@ -5,8 +5,6 @@ import java.nio.file.{Files, Path}
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.TimeUnit
 import zio._
-import scala.sys.process._   
-
 
 /**
  * Utilities for process-based testing of ZIOApp.
@@ -78,91 +76,113 @@ object ProcessTestUtils {
      *
      * @param signal The signal to send (e.g. "TERM", "INT", etc.)
      */
-  /**
-   * Send a signal to the wrapped java.lang.Process.
-   *
-   *  – On Windows we fall back to destroy / destroyForcibly exactly as before.
-   *  – On POSIX we try a list of kill variants until one of them returns 0
-   *    (works on GNU coreutils, BusyBox, BSD, macOS, Alpine, …).
-   */
-  def sendSignal(signal: String): Task[Unit] = {
-    if (!process.isAlive)
-      ZIO.logWarning(s"Process is no longer alive, cannot send signal $signal") *> ZIO.unit
-    else {
-      val isWindows =
-        System.getProperty("os.name", "").toLowerCase.contains("win")
-      val pidStr = process.pid().toString
-
-      // helper: create the tiny “marker” file the tested apps look for
-      def dropMarker: Task[Unit] =
-        ZIO.attempt {
-          val f = new File(
-            System.getProperty("java.io.tmpdir"),
-            s"zio-signal-${process.pid()}"
-          )
-          val w = new PrintWriter(f)
-          try w.println(signal)
-          finally w.close()
-          f.deleteOnExit()
-          // give the target process a moment to notice the file
-          Thread.sleep(100)
-        }
-
-      // helper: execute kill <args> and return true if exit-code == 0
-      def runKill(args: Seq[String]): Boolean =
-        scala.sys.process.Process("kill" +: args).! == 0
-
-      // POSIX implementation – try the given kill variants in order
-      def posixSend: Task[Unit] = {
-        import scala.sys.process._
-        val variants: List[Seq[String]] = signal match {
-          case "INT"  => List(Seq("-2"), Seq("-s", "INT"), Seq("-s", "SIGINT"))
-          case "TERM" => List(Seq("-15"), Seq("-s", "TERM"), Seq("-s", "SIGTERM"))
-          case "KILL" => List(Seq("-9"), Seq("-s", "KILL"), Seq("-s", "SIGKILL"))
-          case other  => List(Seq(s"-$other"), Seq("-s", other))
-        }
-
-        ZIO.attempt {
-          val ok = variants.exists(args => runKill(args :+ pidStr))
-          if (!ok)
-            throw new RuntimeException(
-              s"Failed to send $signal to process $pidStr"
-            )
-        }
+    def sendSignal(signal: String): Task[Unit] = {
+      if (!process.isAlive) {
+        ZIO.logWarning(s"Process is no longer alive, cannot send signal $signal") *>
+        ZIO.unit
+      } else {
+        for {
+          pidOpt <- ZIO.attempt(ProcessHandle.of(process.pid()))
+          _ <- if (pidOpt.isEmpty) {
+                 ZIO.logWarning(s"Cannot get process handle for PID ${process.pid()}, process may have terminated")
+               } else {
+                 val pid = pidOpt.get()
+                 val isWindows = java.lang.System.getProperty("os.name", "").toLowerCase().contains("win")
+                  
+                 // First, set a marker in process environment to indicate signal type
+                 for {
+                   // Write a file that the process can detect
+                   _ <- ZIO.attempt {
+                     val signalFile = new File(java.lang.System.getProperty("java.io.tmpdir"), s"zio-signal-${process.pid()}")
+                     val writer = new PrintWriter(signalFile)
+                     try {
+                       writer.println(signal)
+                       signalFile.deleteOnExit()
+                     } finally {
+                       writer.close()
+                     }
+                     
+                     // Give the process a chance to detect the file
+                     Thread.sleep(100)
+                   }
+                   
+                   // Then send the appropriate signal based on platform
+                   _ <- if (isWindows) {
+                          // Windows doesn't have the same signal mechanism as Unix
+                          signal match {
+                            case "INT" => // Simulate Ctrl+C with expected exit code 130
+                              ZIO.attempt {
+                                // First set expected exit code if possible via environment/property
+                                val _ = mapSignalExitCode("INT", 1) // Map default exit code 1 to expected 130
+                                process.destroy()
+                                
+                                // Wait a bit to ensure process starts terminating
+                                if (!process.waitFor(200, TimeUnit.MILLISECONDS)) {
+                                  // If it didn't terminate fast enough, force it
+                                  process.destroyForcibly()
+                                }
+                              }
+                            case "TERM" => // Equivalent to SIGTERM with expected exit code 143
+                              ZIO.attempt {
+                                // First set expected exit code if possible
+                                val _ = mapSignalExitCode("TERM", 1) // Map default exit code 1 to expected 143
+                                process.destroy()
+                                
+                                // Wait a bit to ensure process starts terminating
+                                if (!process.waitFor(200, TimeUnit.MILLISECONDS)) {
+                                  // If it didn't terminate fast enough, force it
+                                  process.destroyForcibly()
+                                }
+                              }
+                            case "KILL" => // Equivalent to SIGKILL with expected exit code 137
+                              ZIO.attempt { 
+                                // Set expected exit code 
+                                val _ = mapSignalExitCode("KILL", 1) // Map to expected 137
+                                process.destroyForcibly()
+                                () 
+                              }
+                            case _ =>
+                              ZIO.fail(new UnsupportedOperationException(s"Signal $signal not supported on Windows"))
+                          }
+                        } else {
+                          // Unix/Mac implementation
+                          import scala.sys.process._
+                          signal match {
+                            case "INT" => 
+                              ZIO.attempt {
+                                val exitCode = s"kill -SIGINT ${pid.pid()}".!
+                                if (exitCode != 0) {
+                                  throw new RuntimeException(s"Failed to send SIGINT to process ${pid.pid()}, exit code: $exitCode")
+                                }
+                              }
+                            case "TERM" => 
+                              ZIO.attempt {
+                                val exitCode = s"kill -SIGTERM ${pid.pid()}".!
+                                if (exitCode != 0) {
+                                  throw new RuntimeException(s"Failed to send SIGTERM to process ${pid.pid()}, exit code: $exitCode")
+                                }
+                              }
+                            case "KILL" => 
+                              ZIO.attempt {
+                                val exitCode = s"kill -SIGKILL ${pid.pid()}".!
+                                if (exitCode != 0) {
+                                  throw new RuntimeException(s"Failed to send SIGKILL to process ${pid.pid()}, exit code: $exitCode")
+                                }
+                              }
+                            case other => 
+                              ZIO.attempt {
+                                val exitCode = s"kill -$other ${pid.pid()}".!
+                                if (exitCode != 0) {
+                                  throw new RuntimeException(s"Failed to send signal $other to process ${pid.pid()}, exit code: $exitCode")
+                                }
+                              }
+                          }
+                        }
+                 } yield ()
+               }
+        } yield ()
       }
-
-      // Windows branch (unchanged from the original implementation)
-      def windowsSend: Task[Unit] = signal match {
-        case "INT" =>
-          ZIO.attempt {
-            val _ = mapSignalExitCode("INT", 1) // map default 1 → 130
-            process.destroy()
-            if (!process.waitFor(200, TimeUnit.MILLISECONDS))
-              process.destroyForcibly()
-          }
-        case "TERM" =>
-          ZIO.attempt {
-            val _ = mapSignalExitCode("TERM", 1) // map default 1 → 143
-            process.destroy()
-            if (!process.waitFor(200, TimeUnit.MILLISECONDS))
-              process.destroyForcibly()
-          }
-        case "KILL" =>
-          ZIO.attempt {
-            val _ = mapSignalExitCode("KILL", 1) // map default 1 → 137
-            process.destroyForcibly()
-          }
-        case other =>
-          ZIO.fail(new UnsupportedOperationException(s"Signal $other not supported on Windows"))
-      }
-
-      for {
-        _ <- dropMarker
-        _ <- if (isWindows) windowsSend else posixSend
-      } yield ()
     }
-  }
-
 
     /**
      * Gets the captured output from the process.
