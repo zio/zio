@@ -1,6 +1,7 @@
 package zio.test
 import zio.{Scope, ZIO, ZIOAppArgs, ZLayer}
 import zio.internal.ansi.AnsiStringOps
+import scala.annotation.nowarn
 
 object ZIOSpecAbstractSpec extends ZIOBaseSpec {
   private val basicSpec: ZIOSpecAbstract = new ZIOSpecDefault {
@@ -32,7 +33,7 @@ object ZIOSpecAbstractSpec extends ZIOBaseSpec {
                  .runSpecAsApp(composedSpec.spec, TestArgs.empty, console)
                  .provideSome[zio.Scope with TestEnvironment](composedSpec.bootstrap)
                  .catchAllCause(t => console.printLine(t.toString))
-                 .exitCode
+                 .exitCode: @nowarn("cat=deprecation")
              }
         output <- TestConsole.output.map(_.mkString("\n"))
       } yield assertTrue(output.contains("scala.NotImplementedError: an implementation is missing")) &&
@@ -66,7 +67,7 @@ object ZIOSpecAbstractSpec extends ZIOBaseSpec {
                  .runSpecAsApp(composedSpec.spec, TestArgs.empty, console)
                  .provideSome[zio.Scope with TestEnvironment](composedSpec.bootstrap)
                  .catchAllCause(t => console.printLine(t.toString))
-                 .exitCode
+                 .exitCode: @nowarn("cat=deprecation")
              }
         output <- TestConsole.output.map(_.mkString("\n"))
       } yield assertTrue(output.contains("scala.NotImplementedError: an implementation is missing")) &&
@@ -106,12 +107,17 @@ object ZIOSpecAbstractSpec extends ZIOBaseSpec {
     },
     test("run method reports exitcode=1 sanely")(
       for {
-        exitCode <- basicFailSpec.run.provideSome[zio.ZIOAppArgs with zio.Scope](basicFailSpec.bootstrap).exitCode
+        exitCode <-
+          basicFailSpec.run.provideSome[zio.ZIOAppArgs with zio.Scope](basicFailSpec.bootstrap).exitCode: @nowarn(
+            "cat=deprecation"
+          )
       } yield assertTrue(exitCode.code == 1)
     ),
     test("run method reports exitcode=0 sanely")(
       for {
-        exitCode <- basicSpec.run.provideSome[zio.ZIOAppArgs with zio.Scope](basicSpec.bootstrap).exitCode
+        exitCode <- basicSpec.run.provideSome[zio.ZIOAppArgs with zio.Scope](basicSpec.bootstrap).exitCode: @nowarn(
+                      "cat=deprecation"
+                    )
       } yield assertTrue(exitCode.code == 0)
     )
   )
