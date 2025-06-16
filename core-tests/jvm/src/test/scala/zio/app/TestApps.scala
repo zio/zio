@@ -19,37 +19,41 @@ object NestedFinalizersApp extends ZIOAppDefault {
 
   override def run =
     Console.printLine("Starting NestedFinalizersApp") *>
-    outerResource *> ZIO.never
+      outerResource *> ZIO.never
 }
- object SlowFinalizerApp extends ZIOAppDefault {
-    // Check for override property and use it if present
-    override def gracefulShutdownTimeout = {
-      val shouldOverride = java.lang.System.getProperty("zio.test.override.shutdown.timeout") == "true"
-      if (shouldOverride) {
-        // Try to get the timeout from various possible system properties
-        val timeoutMillis = Option(java.lang.System.getProperty("zio.app.graceful.shutdown.timeout"))
-          .orElse(Option(java.lang.System.getProperty("zio.app.shutdown.timeout")))
-          .orElse(Option(java.lang.System.getProperty("zio.gracefulShutdownTimeout")))
-          .map(_.toLong)
-          .getOrElse(1000L) // Default to 1 second if not specified
-        
-        // Log that we're using an overridden timeout
-        println(s"Using overridden graceful shutdown timeout: ${timeoutMillis}ms")
-        Duration.fromMillis(timeoutMillis)
-      } else {
-        // Use the default timeout
-        Duration.fromMillis(1000)
-      }
+object SlowFinalizerApp extends ZIOAppDefault {
+  // Check for override property and use it if present
+  override def gracefulShutdownTimeout = {
+    val shouldOverride = java.lang.System.getProperty("zio.test.override.shutdown.timeout") == "true"
+    if (shouldOverride) {
+      // Try to get the timeout from various possible system properties
+      val timeoutMillis = Option(java.lang.System.getProperty("zio.app.graceful.shutdown.timeout"))
+        .orElse(Option(java.lang.System.getProperty("zio.app.shutdown.timeout")))
+        .orElse(Option(java.lang.System.getProperty("zio.gracefulShutdownTimeout")))
+        .map(_.toLong)
+        .getOrElse(1000L) // Default to 1 second if not specified
+
+      // Log that we're using an overridden timeout
+      println(s"Using overridden graceful shutdown timeout: ${timeoutMillis}ms")
+      Duration.fromMillis(timeoutMillis)
+    } else {
+      // Use the default timeout
+      Duration.fromMillis(1000)
     }
-
-    val resource = ZIO.acquireRelease(
-      Console.printLine("Resource acquired").orDie
-    )(_ => Console.printLine("Starting slow finalizer").orDie *> ZIO.sleep(2.seconds) *> Console.printLine("Resource released").orDie)
-
-    override def run =
-      Console.printLine("Starting SlowFinalizerApp") *>
-      resource *> ZIO.never
   }
+
+  val resource = ZIO.acquireRelease(
+    Console.printLine("Resource acquired").orDie
+  )(_ =>
+    Console.printLine("Starting slow finalizer").orDie *> ZIO
+      .sleep(2.seconds) *> Console.printLine("Resource released").orDie
+  )
+
+  override def run =
+    Console.printLine("Starting SlowFinalizerApp") *>
+      resource *> ZIO.never
+}
+
 /**
  * App with resource that needs cleanup
  */
@@ -60,7 +64,7 @@ object ResourceApp extends ZIOAppDefault {
 
   override def run =
     Console.printLine("Starting ResourceApp") *>
-    resource *> ZIO.succeed(())
+      resource *> ZIO.succeed(())
 }
 
 /**
@@ -73,7 +77,7 @@ object ResourceWithNeverApp extends ZIOAppDefault {
 
   override def run =
     Console.printLine("Starting ResourceWithNeverApp") *>
-    resource *> ZIO.never
+      resource *> ZIO.never
 }
 
 /**
@@ -93,9 +97,9 @@ object FinalizerAndHooksApp extends ZIOAppDefault {
 
   override def run =
     Console.printLine("Starting FinalizerAndHooksApp") *>
-    registerShutdownHook *>
-    resource *>
-    ZIO.never
+      registerShutdownHook *>
+      resource *>
+      ZIO.never
 }
 
 /**
@@ -110,48 +114,48 @@ object ShutdownHookApp extends ZIOAppDefault {
 
   override def run =
     Console.printLine("Starting ShutdownHookApp") *>
-    registerShutdownHook *>
-    ZIO.never
+      registerShutdownHook *>
+      ZIO.never
 }
 
 /**
- * Special application that assists with testing proper exit codes
- * It will detect signals through temp files and ensure the expected exit codes
- * are returned
+ * Special application that assists with testing proper exit codes It will
+ * detect signals through temp files and ensure the expected exit codes are
+ * returned
  */
 object SpecialExitCodeApp extends ZIOAppDefault {
   private val signalHandler = ZIO.attempt {
     // Set up a thread to watch for signal marker files
     val watcherThread = new Thread(() => {
-      val pid = ProcessHandle.current().pid()
+      val pid        = ProcessHandle.current().pid()
       val signalFile = new java.io.File(java.lang.System.getProperty("java.io.tmpdir"), s"zio-signal-$pid")
-      
+
       java.lang.System.out.println(s"[DEBUG] Signal watcher thread started for PID $pid")
       java.lang.System.out.println(s"[DEBUG] Watching for signal file: ${signalFile.getAbsolutePath()}")
       java.lang.System.out.println(s"[DEBUG] Current OS: ${java.lang.System.getProperty("os.name")}")
-      
+
       while (true) {
         if (signalFile.exists()) {
           try {
             java.lang.System.out.println(s"[DEBUG] Signal file found: ${signalFile.getAbsolutePath()}")
             val scanner = new java.util.Scanner(signalFile)
-            val signal = if (scanner.hasNextLine()) scanner.nextLine() else "UNKNOWN"
+            val signal  = if (scanner.hasNextLine()) scanner.nextLine() else "UNKNOWN"
             scanner.close()
             java.lang.System.out.println(s"[DEBUG] Signal read from file: $signal")
             signalFile.delete()
             java.lang.System.out.println(s"[DEBUG] Signal file deleted: ${!signalFile.exists()}")
-            
+
             // Log for test verification
             java.lang.System.out.println(s"ZIO-SIGNAL: $signal detected")
-            
+
             // Map to the expected exit code per maintainer requirements
             val exitCode = signal match {
-              case "INT" => 130   // SIGINT exit code
-              case "TERM" => 143  // SIGTERM exit code
-              case "KILL" => 137  // SIGKILL exit code (maintainer specified 137)
-              case _ => 1         // Default error code
+              case "INT"  => 130 // SIGINT exit code
+              case "TERM" => 143 // SIGTERM exit code
+              case "KILL" => 137 // SIGKILL exit code (maintainer specified 137)
+              case _      => 1   // Default error code
             }
-            
+
             java.lang.System.out.println(s"Exiting with code $exitCode")
             java.lang.System.exit(exitCode)
           } catch {
@@ -159,104 +163,104 @@ object SpecialExitCodeApp extends ZIOAppDefault {
               java.lang.System.err.println(s"Error processing signal file: ${e.getMessage}")
           }
         }
-        
+
         // Check every 100ms
         Thread.sleep(100)
       }
     })
-    
+
     watcherThread.setDaemon(true)
     watcherThread.start()
   }
 
-  override def run = 
+  override def run =
     Console.printLine("Starting SpecialExitCodeApp") *>
-    signalHandler *>
-    Console.printLine("Signal handler installed") *>
-    ZIO.never
+      signalHandler *>
+      Console.printLine("Signal handler installed") *>
+      ZIO.never
 }
 
 /**
  * Test applications for ZIOApp testing.
  */
-  /**
-   * App that completes successfully
-   */
-  object SuccessApp extends ZIOAppDefault {
-    override def run = 
-      Console.printLine("Starting SuccessApp") *>
+/**
+ * App that completes successfully
+ */
+object SuccessApp extends ZIOAppDefault {
+  override def run =
+    Console.printLine("Starting SuccessApp") *>
       ZIO.succeed(ExitCode.success)
-  }
+}
 
-  /**
-   * App that completes successfully with a specific exit code
-   */
-  object SuccessAppWithCode extends ZIOAppDefault {
-    override def run =
-      Console.printLine("Starting SuccessAppWithCode") *>
+/**
+ * App that completes successfully with a specific exit code
+ */
+object SuccessAppWithCode extends ZIOAppDefault {
+  override def run =
+    Console.printLine("Starting SuccessAppWithCode") *>
       ZIO.succeed(ExitCode(0))
-  }
+}
 
-  /**
-   * App that does nothing but succeed, with no other effects.
-   */
-  object PureSuccessApp extends ZIOAppDefault {
-    override def run = 
-      Console.printLine("Starting PureSuccessApp") *>
+/**
+ * App that does nothing but succeed, with no other effects.
+ */
+object PureSuccessApp extends ZIOAppDefault {
+  override def run =
+    Console.printLine("Starting PureSuccessApp") *>
       ZIO.succeed(ExitCode.success)
-  }
+}
 
-  /**
-   * App that fails with an error
-   */
-  object FailureApp extends ZIOAppDefault {
-    override def run = 
-      Console.printLine("Starting FailureApp") *>
+/**
+ * App that fails with an error
+ */
+object FailureApp extends ZIOAppDefault {
+  override def run =
+    Console.printLine("Starting FailureApp") *>
       ZIO.fail("Test Failure") // ZIO.fail returns exit code 1 by default
-  }
+}
 
-  /**
-   * App that runs forever
-   */
-  object NeverEndingApp extends ZIOAppDefault {
-    override def run = 
-      Console.printLine("Starting NeverEndingApp") *>
+/**
+ * App that runs forever
+ */
+object NeverEndingApp extends ZIOAppDefault {
+  override def run =
+    Console.printLine("Starting NeverEndingApp") *>
       ZIO.never
-  }
+}
 
-  /**
-   * App that throws an exception for testing error handling
-   */
-  object CrashingApp extends ZIOAppDefault {
-    override def run =
-      Console.printLine("Starting CrashingApp") *>
+/**
+ * App that throws an exception for testing error handling
+ */
+object CrashingApp extends ZIOAppDefault {
+  override def run =
+    Console.printLine("Starting CrashingApp") *>
       ZIO.attempt(throw new RuntimeException("Simulated crash!"))
+}
+
+/**
+ * App with a specific graceful shutdown timeout
+ */
+object TimeoutApp extends ZIOAppDefault {
+  // Check for override property and use it if present
+  override def gracefulShutdownTimeout = {
+    val shouldOverride = java.lang.System.getProperty("zio.test.override.shutdown.timeout") == "true"
+    if (shouldOverride) {
+      // Try to get the timeout from various possible system properties
+      val timeoutMillis = Option(java.lang.System.getProperty("zio.app.graceful.shutdown.timeout"))
+        .orElse(Option(java.lang.System.getProperty("zio.app.shutdown.timeout")))
+        .orElse(Option(java.lang.System.getProperty("zio.gracefulShutdownTimeout")))
+        .map(_.toLong)
+        .getOrElse(1000L) // Default to 1 second if not specified
+
+      Duration.fromMillis(timeoutMillis)
+    } else {
+      // Use the default timeout
+      Duration.fromMillis(500)
+    }
   }
 
-  /**
-   * App with a specific graceful shutdown timeout
-   */
-  object TimeoutApp extends ZIOAppDefault {
-    // Check for override property and use it if present
-    override def gracefulShutdownTimeout = {
-      val shouldOverride = java.lang.System.getProperty("zio.test.override.shutdown.timeout") == "true"
-      if (shouldOverride) {
-        // Try to get the timeout from various possible system properties
-        val timeoutMillis = Option(java.lang.System.getProperty("zio.app.graceful.shutdown.timeout"))
-          .orElse(Option(java.lang.System.getProperty("zio.app.shutdown.timeout")))
-          .orElse(Option(java.lang.System.getProperty("zio.gracefulShutdownTimeout")))
-          .map(_.toLong)
-          .getOrElse(1000L) // Default to 1 second if not specified
-        
-        Duration.fromMillis(timeoutMillis)
-      } else {
-        // Use the default timeout
-        Duration.fromMillis(500)
-      }
-    }
-
-    override def run = {
-      Console.printLine("Starting TimeoutApp") *>
+  override def run =
+    Console.printLine("Starting TimeoutApp") *>
       // Check if we're using an overridden timeout
       ZIO.attempt {
         val shouldOverride = java.lang.System.getProperty("zio.test.override.shutdown.timeout") == "true"
@@ -272,6 +276,4 @@ object SpecialExitCodeApp extends ZIOAppDefault {
         }
       } *>
       ZIO.never
-    }
-  }
-  
+}
