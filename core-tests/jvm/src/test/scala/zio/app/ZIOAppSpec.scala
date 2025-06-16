@@ -65,6 +65,10 @@ object ZIOAppSpec extends ZIOSpecDefault {
       test("finalizers run on normal completion") {
         for {
           process  <- ProcessTestUtils.runApp("zio.app.ResourceApp")
+          // Wait for app to start
+          _ <- process.waitForOutput("Starting ResourceApp")
+          // Wait for resource acquisition to complete
+          _ <- process.waitForOutput("Resource acquired")
           exitCode <- process.waitForExit()
           output   <- process.outputString
           _        <- process.destroy
@@ -99,6 +103,10 @@ object ZIOAppSpec extends ZIOSpecDefault {
                      )
           // Wait for app to start
           _ <- process.waitForOutput("Starting SlowFinalizerApp")
+          // Wait for resource acquisition to complete
+          _ <- process.waitForOutput("Resource acquired")
+          // Give the app a moment to stabilize
+          _ <- ZIO.sleep(1.second)
           // Send interrupt signal
           _ <- process.sendSignal("INT")
           // Wait for process to exit
@@ -122,6 +130,10 @@ object ZIOAppSpec extends ZIOSpecDefault {
                      )
           // Wait for app to start
           _ <- process.waitForOutput("Starting SlowFinalizerApp")
+          // Wait for resource acquisition to complete
+          _ <- process.waitForOutput("Resource acquired")
+          // Give the app a moment to stabilize
+          _ <- ZIO.sleep(1.second)
           // Send interrupt signal
           _ <- process.sendSignal("INT")
           // Wait for process to exit
@@ -137,6 +149,11 @@ object ZIOAppSpec extends ZIOSpecDefault {
           process <- ProcessTestUtils.runApp("zio.app.NestedFinalizersApp")
           // Wait for app to start
           _ <- process.waitForOutput("Starting NestedFinalizersApp")
+          // Wait for resource acquisition to complete
+          _ <- process.waitForOutput("Outer resource acquired")
+          _ <- process.waitForOutput("Inner resource acquired")
+          // Give the app a moment to stabilize
+          _ <- ZIO.sleep(1.second)
           // Send interrupt signal
           _ <- process.sendSignal("INT")
           // Wait for process to exit
@@ -160,6 +177,10 @@ object ZIOAppSpec extends ZIOSpecDefault {
           process <- ProcessTestUtils.runApp("zio.app.ResourceWithNeverApp")
           // Wait for app to start
           _ <- process.waitForOutput("Starting ResourceWithNeverApp")
+          // Wait for resource acquisition to complete
+          _ <- process.waitForOutput("Resource acquired")
+          // Give the app a moment to stabilize
+          _ <- ZIO.sleep(1.second)
           // Use process.destroy directly instead of sendSignal("TERM")
           // This is more reliable across platforms
           _ <- ZIO.attempt(process.process.destroy())
@@ -175,6 +196,10 @@ object ZIOAppSpec extends ZIOSpecDefault {
           process <- ProcessTestUtils.runApp("zio.app.ResourceWithNeverApp")
           // Wait for app to start
           _ <- process.waitForOutput("Starting ResourceWithNeverApp")
+          // Wait for resource acquisition to complete
+          _ <- process.waitForOutput("Resource acquired")
+          // Give the app a moment to stabilize
+          _ <- ZIO.sleep(1.second)
           // Use process.destroyForcibly directly instead of sendSignal("KILL")
           // This is more reliable across platforms
           _ <- ZIO.attempt(process.process.destroyForcibly())
