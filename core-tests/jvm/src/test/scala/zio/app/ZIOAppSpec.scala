@@ -83,8 +83,8 @@ object ZIOAppSpec extends ZIOSpecDefault {
           process <- ProcessTestUtils.runApp("zio.app.ResourceWithNeverApp")
           // Wait for app to start
           _ <- process.waitForOutput("Starting ResourceWithNeverApp")
-          // Use process.destroy instead of sendSignal("INT")
-          _ <- process.destroy
+          // Send interrupt signal
+          _ <- process.sendSignal("INT")
           // Wait for process to exit
           exitCode <- process.waitForExit()
           output <- process.outputString
@@ -102,8 +102,8 @@ object ZIOAppSpec extends ZIOSpecDefault {
           )
           // Wait for app to start
           _ <- process.waitForOutput("Starting SlowFinalizerApp")
-          // Use process.destroy instead of sendSignal("INT")
-          _ <- process.destroy
+          // Send interrupt signal
+          _ <- process.sendSignal("INT")
           // Wait for process to exit
           startTime <- Clock.currentTime(ChronoUnit.MILLIS)
           exitCode <- process.waitForExit()
@@ -126,8 +126,8 @@ object ZIOAppSpec extends ZIOSpecDefault {
           )
           // Wait for app to start
           _ <- process.waitForOutput("Starting SlowFinalizerApp")
-          // Use process.destroy instead of sendSignal("INT")
-          _ <- process.destroy
+          // Send interrupt signal
+          _ <- process.sendSignal("INT")
           // Wait for process to exit
           exitCode <- process.waitForExit()
           outputStr <- process.outputString
@@ -142,8 +142,8 @@ object ZIOAppSpec extends ZIOSpecDefault {
           process <- ProcessTestUtils.runApp("zio.app.NestedFinalizersApp")
           // Wait for app to start
           _ <- process.waitForOutput("Starting NestedFinalizersApp")
-          // Use process.destroy instead of sendSignal("INT")
-          _ <- process.destroy
+          // Send interrupt signal
+          _ <- process.sendSignal("INT")
           // Wait for process to exit
           exitCode <- process.waitForExit()
           // Add a delay to ensure all output is captured properly
@@ -199,13 +199,13 @@ object ZIOAppSpec extends ZIOSpecDefault {
             process <- ProcessTestUtils.runApp("zio.app.SpecialExitCodeApp")
             // Wait for app to start and signal handler to be installed
             _ <- process.waitForOutput("Signal handler installed")
-            // Use process.destroy instead of sendSignal("INT")
-            _ <- process.destroy
+            // Send INT signal
+            _ <- process.sendSignal("INT")
             // Wait for process to exit
             exitCode <- process.waitForExit()
             output <- process.outputString
             _ <- process.destroy
-          } yield assert(output.contains("ZIO-SIGNAL: INT") || exitCode == 130)(isTrue) &&
+          } yield assert(output)(containsString("ZIO-SIGNAL: INT detected")) &&
                  assert(exitCode)(equalTo(130))
         },
         
