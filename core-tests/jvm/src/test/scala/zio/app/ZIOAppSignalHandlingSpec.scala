@@ -2,6 +2,7 @@ package zio.app
 
 import zio._
 import zio.test._
+import zio.test.TestAspect._
 
 /**
  * Tests specific to signal handling behavior in ZIOApp.
@@ -48,7 +49,7 @@ object ZIOAppSignalHandlingSpec extends ZIOBaseSpec {
         assertTrue(isWindows == expectedWindows)
       }
     }
-  )
+  ) @@ sequential  
   
   // Helper class that exposes the protected method
   class TestZIOApp extends ZIOAppDefault {
