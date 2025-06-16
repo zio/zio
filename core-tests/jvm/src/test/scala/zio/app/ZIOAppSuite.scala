@@ -17,5 +17,5 @@ object ZIOAppSuite extends ZIOBaseSpec {
       
       // Process-based tests are included automatically when running on JVM
       // via ZIOAppProcessSpec which is tagged with jvmOnly
-    )
+    ) @@ sequential
 } 
