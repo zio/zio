@@ -5,11 +5,6 @@ import java.nio.file.{Files, Path}
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.TimeUnit
 import zio._
-import zio.process._
-import zio.stream._
-
-import java.nio.charset.StandardCharsets
-import java.time.temporal.ChronoUnit
 
 /**
  * Utilities for process-based testing of ZIOApp. This allows starting a ZIO
@@ -531,8 +526,4 @@ object ProcessTestUtils {
 
       srcFile
     }
-
-  // Helper method for debug logging
-  private def debugLog(msg: String): UIO[Unit] = 
-    ZIO.succeed(println(s"[DEBUG-UTILS] ${java.time.LocalDateTime.now()}: $msg"))
 }
