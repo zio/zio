@@ -105,8 +105,10 @@ sealed class ZTestTask(
       val logic =
         ZIO.consoleWith { console =>
           (for {
-            summary <- spec
-                         .runSpecAsApp(FilteredSpec(spec.spec, args), args, console)
+            summary <- {
+              val zTestHandler = new ZTestEventHandlerSbt(eventHandler, taskDef, args.testRenderer)
+              spec.runSpecAsApp(FilteredSpec(spec.spec, args), args, console, zTestHandler)
+            }
             _ <- sendSummary.provide(ZLayer.succeed(summary))
             // TODO Confirm if/how these events needs to be handled in #6481
             //    Check XML behavior
