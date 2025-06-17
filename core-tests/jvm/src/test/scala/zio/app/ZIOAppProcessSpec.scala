@@ -95,6 +95,14 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         _ <- ZIO.attempt(println(s"[DEBUG] Captured output, waiting for process exit in 'nested finalizers run in the correct order'"))
         exitCode <- process.waitForExit()
         _ <- ZIO.attempt(println(s"[DEBUG] Process exited with code $exitCode in 'nested finalizers run in the correct order'"))
+        // Log the finalizer indices before the yield block
+        _ <- ZIO.attempt {
+          val lineSeparator = java.lang.System.lineSeparator()
+          val lines = output.split(lineSeparator).toList
+          val innerReleaseIndex = lines.indexWhere(_.contains("Inner resource released"))
+          val outerReleaseIndex = lines.indexWhere(_.contains("Outer resource released"))
+          println(s"[DEBUG] Finalizer indices - Inner: $innerReleaseIndex, Outer: $outerReleaseIndex in 'nested finalizers run in the correct order'")
+        }
       } yield {
         // Based on actual observed behavior, outer resources are released before inner resources
         val lineSeparator     = java.lang.System.lineSeparator()
@@ -102,8 +110,6 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
         val innerReleaseIndex = lines.indexWhere(_.contains("Inner resource released"))
         val outerReleaseIndex = lines.indexWhere(_.contains("Outer resource released"))
         
-        _ <- ZIO.attempt(println(s"[DEBUG] Finalizer indices - Inner: $innerReleaseIndex, Outer: $outerReleaseIndex in 'nested finalizers run in the correct order'"))
-
         assertTrue(innerReleaseIndex >= 0) &&
         assertTrue(outerReleaseIndex >= 0) &&
         assertTrue(outerReleaseIndex < innerReleaseIndex) &&
