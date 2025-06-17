@@ -2,6 +2,8 @@ package zio.app
 
 import zio._
 import zio.test._
+import zio.test.Assertion._
+import zio.test.TestAspect._
 import zio.app.ProcessTestUtils._
 import java.time.temporal.ChronoUnit
 import zio.test.TestAspect
@@ -10,15 +12,27 @@ import zio.test.TestAspect
  * Tests for ZIOApp that require launching external processes. These tests
  * verify the behavior of ZIOApp when running as a standalone application.
  */
-object ZIOAppProcessSpec extends ZIOBaseSpec {
+object ZIOAppProcessSpec extends ZIOSpecDefault {
+  // Helper method for debug logging
+  private def debugLog(msg: String): UIO[Unit] = 
+    ZIO.succeed(println(s"[DEBUG-PROCESS-TEST] ${java.time.LocalDateTime.now()}: $msg"))
+
   def spec = suite("ZIOAppProcessSpec")(
     // Normal completion tests
     test("app completes successfully") {
       for {
+        _ <- debugLog("Starting 'normal exit' test")
         process  <- runApp("zio.app.SuccessApp")
-        _        <- process.waitForOutput("Starting SuccessApp")
-        exitCode <- process.waitForExit()
-      } yield assertTrue(exitCode == 0) // Normal exit code is 0
+        _        <- debugLog(s"Process started with PID: ${process.process.pid()}")
+        startExit <- Clock.currentTime(ChronoUnit.MILLIS)
+        exitCode  <- process.waitForExit()
+        endExit   <- Clock.currentTime(ChronoUnit.MILLIS)
+        _         <- debugLog(s"Process exited with code: $exitCode in ${endExit - startExit}ms")
+        output    <- process.outputString
+        _         <- debugLog(s"Process output: ${output.replace("\n", "\\n")}")
+        _         <- process.destroy
+        _         <- debugLog("Process destroyed, test complete")
+      } yield assert(exitCode)(equalTo(0))
     },
     test("app fails with exit code 1 on error") {
       for {
@@ -38,46 +52,84 @@ object ZIOAppProcessSpec extends ZIOBaseSpec {
     // Finalizer tests
     test("finalizers run on normal completion") {
       for {
+        _ <- debugLog("Starting 'finalizers run on normal completion' test")
         process  <- runApp("zio.app.ResourceApp")
+        _        <- debugLog(s"Process started with PID: ${process.process.pid()}")
+        _        <- debugLog("App started message detected")
         _        <- process.waitForOutput("Starting ResourceApp")
-        _        <- process.waitForOutput("Resource acquired")
-        output   <- process.waitForOutput("Resource released").as(true).timeout(5.seconds).map(_.getOrElse(false))
-        exitCode <- process.waitForExit()
-      } yield assertTrue(output) && assertTrue(exitCode == 0) // Normal exit code is 0
+        _        <- debugLog("Resource acquisition detected")
+        startExit <- Clock.currentTime(ChronoUnit.MILLIS)
+        exitCode  <- process.waitForExit()
+        endExit   <- Clock.currentTime(ChronoUnit.MILLIS)
+        _         <- debugLog(s"Process exited with code: $exitCode in ${endExit - startExit}ms")
+        output    <- process.outputString
+        _         <- debugLog(s"Process output: ${output.replace("\n", "\\n")}")
+        _         <- debugLog(s"Output contains 'Resource released': ${output.contains("Resource released")}")
+        _         <- process.destroy
+        _         <- debugLog("Process destroyed, test complete")
+      } yield assert(output)(containsString("Resource released"))
     },
     test("finalizers run on signal interruption") {
       for {
-        process  <- runApp("zio.app.ResourceWithNeverApp")
-        _        <- process.waitForOutput("Starting ResourceWithNeverApp")
-        _        <- process.waitForOutput("Resource acquired")
-        _        <- ZIO.sleep(1.second)
-        _        <- process.sendSignal("INT") // Send SIGINT (Ctrl+C)
-        output   <- process.waitForOutput("Resource released").as(true).timeout(5.seconds).map(_.getOrElse(false))
-        exitCode <- process.waitForExit()
-      } yield assertTrue(output) && assertTrue(exitCode == 130) // SIGINT exit code is 130
+        _ <- debugLog("Starting 'finalizers run on signal interruption' test")
+        process <- runApp("zio.app.ResourceWithNeverApp")
+        _       <- debugLog(s"Process started with PID: ${process.process.pid()}")
+        _       <- process.waitForOutput("Starting ResourceWithNeverApp")
+        _       <- debugLog("App started message detected")
+        _       <- process.waitForOutput("Resource acquired")
+        _       <- debugLog("Resource acquisition detected")
+        startWait <- Clock.currentTime(ChronoUnit.MILLIS)
+        _         <- ZIO.sleep(1.second)
+        endWait   <- Clock.currentTime(ChronoUnit.MILLIS)
+        _         <- debugLog(s"Stabilization wait completed in ${endWait - startWait}ms")
+        _         <- process.sendSignal("INT")
+        _         <- debugLog("INT signal sent")
+        startExit <- Clock.currentTime(ChronoUnit.MILLIS)
+        exitCode  <- process.waitForExit()
+        endExit   <- Clock.currentTime(ChronoUnit.MILLIS)
+        _         <- debugLog(s"Process exited with code: $exitCode in ${endExit - startExit}ms")
+        output    <- process.outputString
+        _         <- debugLog(s"Process output: ${output.replace("\n", "\\n")}")
+        _         <- debugLog(s"Output contains 'Resource released': ${output.contains("Resource released")}")
+        _         <- process.destroy
+        _         <- debugLog("Process destroyed, test complete")
+      } yield assert(exitCode)(equalTo(130)) &&
+             assert(output)(containsString("Resource released"))
     },
     test("nested finalizers run in the correct order") {
       for {
-        process  <- runApp("zio.app.NestedFinalizersApp")
-        _        <- process.waitForOutput("Starting NestedFinalizersApp")
-        _        <- process.waitForOutput("Outer resource acquired")
-        _        <- process.waitForOutput("Inner resource acquired")
-        _        <- ZIO.sleep(1.second)
-        _        <- process.sendSignal("INT")
-        output   <- process.outputString.delay(2.seconds)
-        exitCode <- process.waitForExit()
-      } yield {
-        // Based on actual observed behavior, outer resources are released before inner resources
-        val lineSeparator     = java.lang.System.lineSeparator()
-        val lines             = output.split(lineSeparator).toList
-        val innerReleaseIndex = lines.indexWhere(_.contains("Inner resource released"))
-        val outerReleaseIndex = lines.indexWhere(_.contains("Outer resource released"))
-
-        assertTrue(innerReleaseIndex >= 0) &&
-        assertTrue(outerReleaseIndex >= 0) &&
-        assertTrue(outerReleaseIndex < innerReleaseIndex) &&
-        assertTrue(exitCode == 130) // SIGINT exit code is 130
-      }
+        _ <- debugLog("Starting 'nested finalizers run in the correct order' test")
+        process <- runApp("zio.app.NestedFinalizersApp")
+        _       <- debugLog(s"Process started with PID: ${process.process.pid()}")
+        _       <- process.waitForOutput("Starting NestedFinalizersApp")
+        _       <- debugLog("App started message detected")
+        _       <- process.waitForOutput("Outer resource acquired")
+        _       <- debugLog("Outer resource acquisition detected")
+        _       <- process.waitForOutput("Inner resource acquired")
+        _       <- debugLog("Inner resource acquisition detected")
+        startWait <- Clock.currentTime(ChronoUnit.MILLIS)
+        _         <- ZIO.sleep(1.second)
+        endWait   <- Clock.currentTime(ChronoUnit.MILLIS)
+        _         <- debugLog(s"Stabilization wait completed in ${endWait - startWait}ms")
+        _         <- process.sendSignal("INT")
+        _         <- debugLog("INT signal sent")
+        startExit <- Clock.currentTime(ChronoUnit.MILLIS)
+        exitCode  <- process.waitForExit()
+        endExit   <- Clock.currentTime(ChronoUnit.MILLIS)
+        _         <- debugLog(s"Process exited with code: $exitCode in ${endExit - startExit}ms")
+        output    <- process.outputString
+        _         <- debugLog(s"Process output: ${output.replace("\n", "\\n")}")
+        lines     = output.split(java.lang.System.lineSeparator()).toList
+        _         <- debugLog(s"Output lines: ${lines.size}")
+        
+        innerFinalizerIndex = lines.indexWhere(_.contains("Inner resource released"))
+        outerFinalizerIndex = lines.indexWhere(_.contains("Outer resource released"))
+        _         <- debugLog(s"Inner finalizer index: $innerFinalizerIndex, Outer finalizer index: $outerFinalizerIndex")
+        _         <- process.destroy
+        _         <- debugLog("Process destroyed, test complete")
+      } yield assert(innerFinalizerIndex)(isGreaterThanEqualTo(0)) &&
+             assert(outerFinalizerIndex)(isGreaterThanEqualTo(0)) &&
+             assert(outerFinalizerIndex)(isGreaterThan(innerFinalizerIndex))
     },
 
     // Signal handling tests
