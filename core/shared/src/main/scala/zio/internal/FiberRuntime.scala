@@ -560,7 +560,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       val loc = id.location
       if (loc ne last)
-        builder += id.location // TODO: Allow parent traces?
+        builder += loc // TODO: Allow parent traces?
 
       StackTrace(self.fiberId, builder.result())
     } finally {
@@ -852,11 +852,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def patchRuntimeFlags[R, E0, A0](
+  private def patchRuntimeFlags[E0, A0](
     patch: RuntimeFlags.Patch,
     cause: Cause[E0],
-    continueEffect: ZIO[R, E0, A0]
-  ): ZIO[R, E0, A0] =
+    continueEffect: Exit[E0, A0]
+  ): Exit[E0, A0] =
     patchRuntimeFlagsCause(patch, cause) match {
       case null => continueEffect
       case c    => Exit.Failure(c)
