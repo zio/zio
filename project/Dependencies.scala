@@ -11,7 +11,7 @@ object Dependencies {
   val ScalaCheckVersion            = "1.18.1"
   val ScalaJavaTimeVersion         = "2.6.0"
   val ScalaCollectionCompatVersion = "2.13.0"
-  val ScalaNativeCryptoVersion     = "0.2.0"
+  val ScalaNativeCryptoVersion     = "0.2.1"
   val ScalaSecureRandomVersion     = "1.0.0"
   val ScalaJsDomVersion            = "2.8.0"
 
