@@ -93,7 +93,7 @@
     "@types/react-helmet": "6.1.11",
     "@types/react-router-dom": "5.3.3",
     "prettier": "3.5.3",
-    "prettier-plugin-tailwindcss": "0.6.12",
+    "prettier-plugin-tailwindcss": "0.6.13",
     "typescript": "5.8.3"
   }
 }
