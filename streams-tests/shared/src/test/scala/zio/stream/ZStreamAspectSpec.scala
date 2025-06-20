@@ -3,8 +3,6 @@ package zio.stream
 import zio._
 import zio.metrics.Metric
 import zio.internal.metrics.metricRegistry
-import zio.stream.ZStream
-import zio.stream.ZStreamAspect
 import zio.test._
 import zio.test.Assertion._
 import zio.test.TestAspect._
