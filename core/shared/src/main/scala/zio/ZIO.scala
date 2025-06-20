@@ -3936,7 +3936,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * collected unless interrupted.
    */
   def infinity(implicit trace: Trace): UIO[Nothing] =
-    ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+    ZIO.sleep(Duration.Infinity) *> ZIO.never
 
   /**
    * Inherits values from all [[FiberRef]] instances into current fiber.
