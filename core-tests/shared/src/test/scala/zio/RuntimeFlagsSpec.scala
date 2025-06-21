@@ -191,16 +191,20 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
             )
           } +
             test("enabled") {
+              val effect1 = ZIO.succeed(1)
               val effect = for {
-                a <- ZIO.succeed(1)
+                a <- effect1
                 b <- ZIO.succeed(2)
                 c  = a + b
               } yield c
 
+              val effectRendered =
+                s"FlatMap(trace=${effect.trace}, first=Sync(trace=${effect1.trace}))"
+
               for {
                 _      <- effect
                 output <- ZTestLogger.logOutput
-              } yield assertTrue(output.exists(_.message() == ZIO.render(effect)))
+              } yield assertTrue(output.exists(_.message() == effectRendered))
             }.provide(Runtime.enableFlags(RuntimeFlag.OpLog))
         }
     }
