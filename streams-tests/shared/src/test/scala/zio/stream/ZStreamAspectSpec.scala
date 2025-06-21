@@ -39,6 +39,14 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
             anns.get("key1").isEmpty,
             anns.get("key2").isEmpty
           )
+        },
+        test("annotations do not leak outside the stream") {
+          val aspect = ZStreamAspect.annotated("leak-test", "should-not-leak")
+          val stream = ZStream.fromZIO(ZIO.log("test")) @@ aspect
+          for {
+            _    <- stream.runDrain
+            anns <- ZIO.logAnnotations
+          } yield assertTrue(anns.isEmpty)
         }
       ),
       suite("rechunk")(
@@ -80,33 +88,33 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
       ),
       suite("tagged")(
         test("tags metrics with specified key-value pair") {
-          val aspect = ZStreamAspect.tagged("env", "test")
+          val aspect  = ZStreamAspect.tagged("env", "test")
           val counter = Metric.counter("test_counter")
-          val stream = ZStream.succeed(1).tap(_ => counter.increment) @@ aspect
+          val stream  = ZStream.succeed(1).tap(_ => counter.increment) @@ aspect
           for {
-            _      <- stream.runDrain
+            _       <- stream.runDrain
             metrics <- ZIO.metrics
-            _      <- ZIO.succeed(metricRegistry.snapshot()(Unsafe.unsafe))
+            _       <- ZIO.succeed(metricRegistry.snapshot()(Unsafe.unsafe))
           } yield assertTrue(
             metrics.metrics.exists(m =>
               m.metricKey.name == "test_counter" &&
-              m.metricKey.tags.exists(l => l.key == "env" && l.value == "test")
+                m.metricKey.tags.exists(l => l.key == "env" && l.value == "test")
             )
           )
         },
         test("handles multiple tags") {
-          val aspect = ZStreamAspect.tagged("env", "test") >>> ZStreamAspect.tagged("region", "us")
+          val aspect  = ZStreamAspect.tagged("env", "test") >>> ZStreamAspect.tagged("region", "us")
           val counter = Metric.counter("test_counter")
-          val stream = ZStream.succeed(1).tap(_ => counter.increment) @@ aspect
+          val stream  = ZStream.succeed(1).tap(_ => counter.increment) @@ aspect
           for {
-            _      <- stream.runDrain
+            _       <- stream.runDrain
             metrics <- ZIO.metrics
-            _      <- ZIO.succeed(metricRegistry.snapshot()(Unsafe.unsafe))
+            _       <- ZIO.succeed(metricRegistry.snapshot()(Unsafe.unsafe))
           } yield assertTrue(
             metrics.metrics.exists(m =>
               m.metricKey.name == "test_counter" &&
-              m.metricKey.tags.exists(l => l.key == "env" && l.value == "test") &&
-              m.metricKey.tags.exists(l => l.key == "region" && l.value == "us")
+                m.metricKey.tags.exists(l => l.key == "env" && l.value == "test") &&
+                m.metricKey.tags.exists(l => l.key == "region" && l.value == "us")
             )
           )
         }
@@ -115,7 +123,7 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
         test("composes aspects with >>>") {
           val aspect1 = ZStreamAspect.annotated("key1", "value1")
           val aspect2 = ZStreamAspect.annotated("key2", "value2")
-          val stream = ZStream.fromZIO(ZIO.log("message")) @@ (aspect1 >>> aspect2)
+          val stream  = ZStream.fromZIO(ZIO.log("message")) @@ (aspect1 >>> aspect2)
           for {
             _      <- stream.runDrain
             output <- ZTestLogger.logOutput
@@ -127,7 +135,7 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
         test("composes aspects with @@") {
           val aspect1 = ZStreamAspect.annotated("key1", "value1")
           val aspect2 = ZStreamAspect.annotated("key2", "value2")
-          val stream = ZStream.fromZIO(ZIO.log("message")) @@ aspect1 @@ aspect2
+          val stream  = ZStream.fromZIO(ZIO.log("message")) @@ aspect1 @@ aspect2
           for {
             _      <- stream.runDrain
             output <- ZTestLogger.logOutput
@@ -138,8 +146,9 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
         },
         test("composes different aspect types") {
           val annotate = ZStreamAspect.annotated("key", "value")
-          val rechunk = ZStreamAspect.rechunk(2)
-          val stream = ZStream.fromChunks(Chunk(1), Chunk(2), Chunk(3)).tap(_ => ZIO.log("message")) @@ annotate @@ rechunk
+          val rechunk  = ZStreamAspect.rechunk(2)
+          val stream =
+            ZStream.fromChunks(Chunk(1), Chunk(2), Chunk(3)).tap(_ => ZIO.log("message")) @@ annotate @@ rechunk
           for {
             chunks <- stream.chunks.runCollect
             output <- ZTestLogger.logOutput
@@ -150,26 +159,26 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
         },
         test("composes tagged and annotated aspects") {
           val annotate = ZStreamAspect.annotated("key", "value")
-          val tag = ZStreamAspect.tagged("env", "test")
-          val counter = Metric.counter("test_counter")
-          val stream = ZStream.succeed(1).tap(_ => ZIO.log("message") *> counter.increment) @@ annotate @@ tag
+          val tag      = ZStreamAspect.tagged("env", "test")
+          val counter  = Metric.counter("test_counter")
+          val stream   = ZStream.succeed(1).tap(_ => ZIO.log("message") *> counter.increment) @@ annotate @@ tag
           for {
-            _      <- stream.runDrain
-            output <- ZTestLogger.logOutput
+            _       <- stream.runDrain
+            output  <- ZTestLogger.logOutput
             metrics <- ZIO.metrics
           } yield assertTrue(
             output.exists(e => e.annotations.get("key").contains("value")),
             metrics.metrics.exists(m =>
               m.metricKey.name == "test_counter" &&
-              m.metricKey.tags.exists(l => l.key == "env" && l.value == "test")
+                m.metricKey.tags.exists(l => l.key == "env" && l.value == "test")
             )
           )
         },
         test("verifies aspect application order") {
           val annotate = ZStreamAspect.annotated("key", "value")
-          val rechunk = ZStreamAspect.rechunk(2)
-          val stream = ZStream.fromChunks(Chunk(1), Chunk(2), Chunk(3)).tap(_ => ZIO.log("message"))
-          
+          val rechunk  = ZStreamAspect.rechunk(2)
+          val stream   = ZStream.fromChunks(Chunk(1), Chunk(2), Chunk(3)).tap(_ => ZIO.log("message"))
+
           // Test both orders of composition
           for {
             // First annotate then rechunk
@@ -184,6 +193,18 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
             chunks2 == Chunk(Chunk(1, 2), Chunk(3)),
             output2.exists(e => e.annotations.get("key").contains("value"))
           )
+        },
+        test("annotation order invariance") {
+          val a1   = ZStreamAspect.annotated("order1", "v1")
+          val a2   = ZStreamAspect.annotated("order2", "v2")
+          val base = ZStream.fromZIO(ZIO.log("msg"))
+          for {
+            logs1 <- (base @@ (a1 >>> a2)).runDrain *> ZTestLogger.logOutput
+            logs2 <- (base @@ (a2 >>> a1)).runDrain *> ZTestLogger.logOutput
+          } yield assertTrue(
+            logs1.forall(evt => evt.annotations.contains("order1") && evt.annotations.contains("order2")),
+            logs2.forall(evt => evt.annotations.contains("order1") && evt.annotations.contains("order2"))
+          )
         }
       ),
       suite("edge cases")(
@@ -192,7 +213,7 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
           val stream = (ZStream(1, 2) ++ ZStream.fail("error")) @@ aspect
           for {
             result <- stream.runCollect.either
-            anns <- ZIO.logAnnotations
+            anns   <- ZIO.logAnnotations
           } yield assertTrue(
             result.isLeft,
             result.left.exists(_ == "error"),
@@ -201,11 +222,12 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
         },
         test("handles complex stream with multiple aspects") {
           val annotate = ZStreamAspect.annotated("key", "value")
-          val rechunk = ZStreamAspect.rechunk(2)
-          val tag = ZStreamAspect.tagged("env", "test")
-          val counter = Metric.counter("test_counter")
-          
-          val stream = ZStream.fromChunks(Chunk(1), Chunk(2), Chunk(3))
+          val rechunk  = ZStreamAspect.rechunk(2)
+          val tag      = ZStreamAspect.tagged("env", "test")
+          val counter  = Metric.counter("test_counter")
+
+          val stream = ZStream
+            .fromChunks(Chunk(1), Chunk(2), Chunk(3))
             .tap(_ => ZIO.log("message") *> counter.increment)
             .map(_ * 2)
             .filter(_ > 2)
@@ -213,17 +235,17 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
             .@@(annotate)
             .@@(rechunk)
             .@@(tag)
-            
+
           for {
-            chunks <- stream.chunks.runCollect
-            output <- ZTestLogger.logOutput
+            chunks  <- stream.chunks.runCollect
+            output  <- ZTestLogger.logOutput
             metrics <- ZIO.metrics
           } yield assertTrue(
             chunks == Chunk(Chunk(4, 6)),
             output.exists(e => e.annotations.get("key").contains("value")),
             metrics.metrics.exists(m =>
               m.metricKey.name == "test_counter" &&
-              m.metricKey.tags.exists(l => l.key == "env" && l.value == "test")
+                m.metricKey.tags.exists(l => l.key == "env" && l.value == "test")
             )
           )
         },
@@ -241,11 +263,11 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
           val aspect = ZStreamAspect.annotated("key", "value")
           val stream = ZStream.fromZIO(ZIO.log("message")).take(5) @@ aspect
           for {
-            fiber <- stream.runDrain.fork
-            _     <- TestClock.adjust(1.second)
-            _     <- fiber.interrupt
+            fiber  <- stream.runDrain.fork
+            _      <- TestClock.adjust(1.second)
+            _      <- fiber.interrupt
             output <- ZTestLogger.logOutput
-            anns  <- ZIO.logAnnotations
+            anns   <- ZIO.logAnnotations
           } yield assertTrue(
             output.exists(e => e.annotations.get("key").contains("value")),
             anns.get("key").isEmpty
@@ -253,7 +275,7 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
         },
         test("ensures resource safety with bracket and aspects") {
           val program = Ref.make(false).flatMap { ref =>
-            val stream = ZStream.acquireReleaseWith(ZIO.unit)(_ => ref.set(true)) *> ZStream(1, 2, 3)
+            val stream          = ZStream.acquireReleaseWith(ZIO.unit)(_ => ref.set(true)) *> ZStream(1, 2, 3)
             val annotatedStream = stream @@ ZStreamAspect.annotated("key", "value")
             annotatedStream.runDrain *> ref.get
           }
@@ -264,8 +286,8 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
           val aspect2 = ZStreamAspect.annotated("key2", "value2")
           val stream1 = ZStream.fromZIO(ZIO.log("message1")) @@ aspect1
           val stream2 = ZStream.fromZIO(ZIO.log("message2")) @@ aspect2
-          val merged = stream1.merge(stream2)
-          
+          val merged  = stream1.merge(stream2)
+
           for {
             _      <- merged.runDrain
             output <- ZTestLogger.logOutput
