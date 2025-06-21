@@ -5,7 +5,7 @@ import zio.test._
 import zio.test.ZIOSpecDefault
 import zio.test.ZTestLogger
 import zio.metrics.Metric
-import zio.stream.ZStreamAspect
+import zio.stream.{ZStreamAspect => StreamAspect}
 import zio.internal.metrics.metricRegistry
 import zio.test.Assertion._
 
@@ -15,7 +15,7 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
     (suite("ZStreamAspectSpec")(
       suite("annotated")(
         test("single annotation") {
-          val aspect = ZStreamAspect.annotated("key", "value")
+          val aspect = StreamAspect.annotated("key", "value")
           val stream = ZStream.fromZIO(ZIO.log("message")) @@ aspect
           for {
             _      <- stream.runDrain
@@ -27,7 +27,7 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
           )
         },
         test("multiple annotations") {
-          val aspect = ZStreamAspect.annotated("key1" -> "value1", "key2" -> "value2")
+          val aspect = StreamAspect.annotated("key1" -> "value1", "key2" -> "value2")
           val stream = ZStream(1, 2).tap(_ => ZIO.log("message")) @@ aspect
           for {
             _      <- stream.runDrain
@@ -41,7 +41,7 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
           )
         },
         test("annotations do not leak outside the stream") {
-          val aspect = ZStreamAspect.annotated("leak-test", "should-not-leak")
+          val aspect = StreamAspect.annotated("leak-test", "should-not-leak")
           val stream = ZStream.fromZIO(ZIO.log("test")) @@ aspect
           for {
             _    <- stream.runDrain
@@ -51,35 +51,35 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
       ),
       suite("rechunk")(
         test("rechunks stream to specified size") {
-          val aspect = ZStreamAspect.rechunk(2)
+          val aspect = StreamAspect.rechunk(2)
           val stream = ZStream.fromChunks(Chunk(1), Chunk(2), Chunk(3), Chunk(4)) @@ aspect
           for {
             chunks <- stream.chunks.runCollect
           } yield assertTrue(chunks == Chunk(Chunk(1, 2), Chunk(3, 4)))
         },
         test("handles final chunk smaller than n") {
-          val aspect = ZStreamAspect.rechunk(3)
+          val aspect = StreamAspect.rechunk(3)
           val stream = ZStream.fromChunks(Chunk(1), Chunk(2), Chunk(3), Chunk(4)) @@ aspect
           for {
             chunks <- stream.chunks.runCollect
           } yield assertTrue(chunks == Chunk(Chunk(1, 2, 3), Chunk(4)))
         },
         test("handles empty stream") {
-          val aspect = ZStreamAspect.rechunk(2)
+          val aspect = StreamAspect.rechunk(2)
           val stream = ZStream.empty @@ aspect
           for {
             chunks <- stream.chunks.runCollect
           } yield assertTrue(chunks == Chunk())
         },
         test("handles invalid chunk size") {
-          val aspect = ZStreamAspect.rechunk(0)
+          val aspect = StreamAspect.rechunk(0)
           val stream = ZStream.fromChunks(Chunk(1, 2)) @@ aspect
           for {
             chunks <- stream.chunks.runCollect
           } yield assertTrue(chunks == Chunk(Chunk(1), Chunk(2)))
         },
         test("handles negative chunk size") {
-          val aspect = ZStreamAspect.rechunk(-1)
+          val aspect = StreamAspect.rechunk(-1)
           val stream = ZStream.fromChunks(Chunk(1, 2)) @@ aspect
           for {
             chunks <- stream.chunks.runCollect
@@ -88,7 +88,7 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
       ),
       suite("tagged")(
         test("tags metrics with specified key-value pair") {
-          val aspect  = ZStreamAspect.tagged("env", "test")
+          val aspect  = StreamAspect.tagged("env", "test")
           val counter = Metric.counter("test_counter")
           val stream  = ZStream.succeed(1).tap(_ => counter.increment) @@ aspect
           for {
@@ -103,7 +103,7 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
           )
         },
         test("handles multiple tags") {
-          val aspect  = ZStreamAspect.tagged("env", "test") >>> ZStreamAspect.tagged("region", "us")
+          val aspect  = StreamAspect.tagged("env", "test") >>> StreamAspect.tagged("region", "us")
           val counter = Metric.counter("test_counter")
           val stream  = ZStream.succeed(1).tap(_ => counter.increment) @@ aspect
           for {
@@ -121,8 +121,8 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
       ),
       suite("composition")(
         test("composes aspects with >>>") {
-          val aspect1 = ZStreamAspect.annotated("key1", "value1")
-          val aspect2 = ZStreamAspect.annotated("key2", "value2")
+          val aspect1 = StreamAspect.annotated("key1", "value1")
+          val aspect2 = StreamAspect.annotated("key2", "value2")
           val stream  = ZStream.fromZIO(ZIO.log("message")) @@ (aspect1 >>> aspect2)
           for {
             _      <- stream.runDrain
@@ -133,8 +133,8 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
           )
         },
         test("composes aspects with @@") {
-          val aspect1 = ZStreamAspect.annotated("key1", "value1")
-          val aspect2 = ZStreamAspect.annotated("key2", "value2")
+          val aspect1 = StreamAspect.annotated("key1", "value1")
+          val aspect2 = StreamAspect.annotated("key2", "value2")
           val stream  = ZStream.fromZIO(ZIO.log("message")) @@ aspect1 @@ aspect2
           for {
             _      <- stream.runDrain
@@ -145,8 +145,8 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
           )
         },
         test("composes different aspect types") {
-          val annotate = ZStreamAspect.annotated("key", "value")
-          val rechunk  = ZStreamAspect.rechunk(2)
+          val annotate = StreamAspect.annotated("key", "value")
+          val rechunk  = StreamAspect.rechunk(2)
           val stream =
             ZStream.fromChunks(Chunk(1), Chunk(2), Chunk(3)).tap(_ => ZIO.log("message")) @@ annotate @@ rechunk
           for {
@@ -158,8 +158,8 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
           )
         },
         test("composes tagged and annotated aspects") {
-          val annotate = ZStreamAspect.annotated("key", "value")
-          val tag      = ZStreamAspect.tagged("env", "test")
+          val annotate = StreamAspect.annotated("key", "value")
+          val tag      = StreamAspect.tagged("env", "test")
           val counter  = Metric.counter("test_counter")
           val stream   = ZStream.succeed(1).tap(_ => ZIO.log("message") *> counter.increment) @@ annotate @@ tag
           for {
@@ -175,8 +175,8 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
           )
         },
         test("verifies aspect application order") {
-          val annotate = ZStreamAspect.annotated("key", "value")
-          val rechunk  = ZStreamAspect.rechunk(2)
+          val annotate = StreamAspect.annotated("key", "value")
+          val rechunk  = StreamAspect.rechunk(2)
           val stream   = ZStream.fromChunks(Chunk(1), Chunk(2), Chunk(3)).tap(_ => ZIO.log("message"))
 
           // Test both orders of composition
@@ -195,8 +195,8 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
           )
         },
         test("annotation order invariance") {
-          val a1   = ZStreamAspect.annotated("order1", "v1")
-          val a2   = ZStreamAspect.annotated("order2", "v2")
+          val a1   = StreamAspect.annotated("order1", "v1")
+          val a2   = StreamAspect.annotated("order2", "v2")
           val base = ZStream.fromZIO(ZIO.log("msg"))
           for {
             logs1 <- (base @@ (a1 >>> a2)).runDrain *> ZTestLogger.logOutput
@@ -209,7 +209,7 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
       ),
       suite("edge cases")(
         test("handles stream with errors") {
-          val aspect = ZStreamAspect.rechunk(2)
+          val aspect = StreamAspect.rechunk(2)
           val stream = (ZStream(1, 2) ++ ZStream.fail("error")) @@ aspect
           for {
             result <- stream.runCollect.either
@@ -221,9 +221,9 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
           )
         },
         test("handles complex stream with multiple aspects") {
-          val annotate = ZStreamAspect.annotated("key", "value")
-          val rechunk  = ZStreamAspect.rechunk(2)
-          val tag      = ZStreamAspect.tagged("env", "test")
+          val annotate = StreamAspect.annotated("key", "value")
+          val rechunk  = StreamAspect.rechunk(2)
+          val tag      = StreamAspect.tagged("env", "test")
           val counter  = Metric.counter("test_counter")
 
           val stream = ZStream
@@ -250,7 +250,7 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
           )
         },
         test("handles infinite stream") {
-          val aspect = ZStreamAspect.rechunk(2)
+          val aspect = StreamAspect.rechunk(2)
           val stream = ZStream.repeat(1) @@ aspect
           for {
             chunks <- stream.chunks.take(2).runCollect
@@ -260,7 +260,7 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
           )
         },
         test("handles stream with interruptions") {
-          val aspect = ZStreamAspect.annotated("key", "value")
+          val aspect = StreamAspect.annotated("key", "value")
           val stream = ZStream.fromZIO(ZIO.log("message")).take(5) @@ aspect
           for {
             fiber  <- stream.runDrain.fork
@@ -276,14 +276,14 @@ object ZStreamAspectSpec extends ZIOSpecDefault {
         test("ensures resource safety with bracket and aspects") {
           val program = Ref.make(false).flatMap { ref =>
             val stream          = ZStream.acquireReleaseWith(ZIO.unit)(_ => ref.set(true)) *> ZStream(1, 2, 3)
-            val annotatedStream = stream @@ ZStreamAspect.annotated("key", "value")
+            val annotatedStream = stream @@ StreamAspect.annotated("key", "value")
             annotatedStream.runDrain *> ref.get
           }
           assertZIO(program)(isTrue)
         },
         test("handles merging streams with different aspects") {
-          val aspect1 = ZStreamAspect.annotated("key1", "value1")
-          val aspect2 = ZStreamAspect.annotated("key2", "value2")
+          val aspect1 = StreamAspect.annotated("key1", "value1")
+          val aspect2 = StreamAspect.annotated("key2", "value2")
           val stream1 = ZStream.fromZIO(ZIO.log("message1")) @@ aspect1
           val stream2 = ZStream.fromZIO(ZIO.log("message2")) @@ aspect2
           val merged  = stream1.merge(stream2)
