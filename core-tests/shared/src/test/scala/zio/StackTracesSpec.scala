@@ -115,7 +115,14 @@ object StackTracesSpec extends ZIOBaseSpec {
 
         for (cause <- underlyingFailure.cause)
           yield assert(cause)(causeHasTrace {
-            if (TestVersion.isScala2)
+            if (TestVersion.isScala213 && BuildInfo.optimizationsEnabled)
+              """java.util.NoSuchElementException: head of empty list
+                |	at zio.StackTracesSpec$.$anonfun$spec
+                |	at zio.ZIO.$anonfun$map
+                |	at zio.StackTracesSpec.spec.underlyingFailure
+                |	at zio.StackTracesSpec.spec
+                |""".stripMargin
+            else if (TestVersion.isScala2)
               """java.util.NoSuchElementException: head of empty list
                 |	at scala.collection.immutable.Nil$.head
                 |	at zio.StackTracesSpec$.$anonfun$spec
@@ -132,7 +139,7 @@ object StackTracesSpec extends ZIOBaseSpec {
                 |	at zio.StackTracesSpec.spec
                 |""".stripMargin
           })
-      } @@ jvmOnly @@ ignore
+      } @@ jvmOnly
     ),
     suite("getOrThrowFiberFailure")(
       test("fills in the external stack trace") {

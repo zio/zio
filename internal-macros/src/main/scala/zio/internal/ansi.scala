@@ -42,6 +42,11 @@ object ansi {
     def underlined: String = withAnsi(Style.Underlined)
     def inverted: String   = withAnsi(Style.Reversed)
 
-    def withAnsi(ansiCode: AnsiCode): String = ansiCode.code + self + Reset
+    def withAnsi(ansiCode: AnsiCode): String =
+      new StringBuilder(capacity = ansiCode.code.length + self.length + Reset.length)
+        .append(ansiCode.code)
+        .append(self)
+        .append(Reset)
+        .result()
   }
 }
