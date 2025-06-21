@@ -189,16 +189,19 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
             assertTrue(
               ZIO.render(exitFailureEffect) == "Exit.Failure(cause=Fail(boom,Stack trace for thread \"zio-fiber-\":\n))"
             )
-          }
-          test("enabled") {
-            val effect         = ZIO.succeed(0)
-            val effectRendered = ZIO.render(effect)
+          } +
+            test("enabled") {
+              val effect = for {
+                a <- ZIO.succeed(1)
+                b <- ZIO.succeed(2)
+                c  = a + b
+              } yield c
 
-            for {
-              _      <- effect
-              output <- ZTestLogger.logOutput
-            } yield assertTrue(output.exists(_.message() == effectRendered))
-          }.provide(Runtime.enableFlags(RuntimeFlag.OpLog))
+              for {
+                _      <- effect
+                output <- ZTestLogger.logOutput
+              } yield assertTrue(output.exists(_.message() == ZIO.render(effect)))
+            }.provide(Runtime.enableFlags(RuntimeFlag.OpLog))
         }
     }
 }
