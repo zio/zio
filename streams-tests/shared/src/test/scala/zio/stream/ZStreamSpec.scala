@@ -84,7 +84,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               sink = ZSink.foldZIO(List[Int]())(_ => true) { (acc, el: Int) =>
                        if (el == 1) ZIO.succeed(el :: acc)
                        else
-                         (latch.succeed(()) *> ZIO.infinity)
+                         (latch.succeed(()) *> ZIO.never)
                            .onInterrupt(cancelled.set(true))
                      }
               fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.fork
@@ -98,7 +98,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch     <- Promise.make[Nothing, Unit]
               cancelled <- Ref.make(false)
               sink = ZSink.fromZIO {
-                       (latch.succeed(()) *> ZIO.infinity)
+                       (latch.succeed(()) *> ZIO.never)
                          .onInterrupt(cancelled.set(true))
                      }
               fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.fork
@@ -246,7 +246,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               sink = ZSink.foldZIO(List[Int]())(_ => true) { (acc, el: Int) =>
                        if (el == 1) ZIO.succeed(el :: acc)
                        else
-                         (latch.succeed(()) *> ZIO.infinity)
+                         (latch.succeed(()) *> ZIO.never)
                            .onInterrupt(cancelled.set(true))
                      }
               fiber <- ZStream(1, 1, 2)
@@ -263,7 +263,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch     <- Promise.make[Nothing, Unit]
               cancelled <- Ref.make(false)
               sink = ZSink.fromZIO {
-                       (latch.succeed(()) *> ZIO.infinity)
+                       (latch.succeed(()) *> ZIO.never)
                          .onInterrupt(cancelled.set(true))
                      }
               fiber <- ZStream(1, 1, 2)
@@ -1601,7 +1601,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               fiber <- ZStream(())
                          .flatMapPar(1)(_ =>
                            ZStream.fromZIO(
-                             (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                             (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                            )
                          )
                          .runDrain
@@ -1617,7 +1617,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch              <- Promise.make[Nothing, Unit]
               result <- ZStream(
                           ZStream.fromZIO(
-                            (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                            (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                           ),
                           ZStream.fromZIO(latch.await *> ZIO.fail("Ouch"))
                         ).flatMapPar(2)(identity).runDrain.either
@@ -1631,7 +1631,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> ZIO.fail("Ouch")))
                           .flatMapPar(2) { _ =>
                             ZStream.fromZIO(
-                              (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                              (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                             )
                           }
                           .runDrain
@@ -1647,7 +1647,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch              <- Promise.make[Nothing, Unit]
               result <- ZStream(
                           ZStream.fromZIO(
-                            (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                            (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                           ),
                           ZStream.fromZIO(latch.await *> ZIO.die(ex))
                         ).flatMapPar(2)(identity).runDrain.exit
@@ -1663,7 +1663,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> ZIO.die(ex)))
                           .flatMapPar(2) { _ =>
                             ZStream.fromZIO(
-                              (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                              (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                             )
                           }
                           .runDrain
@@ -1772,7 +1772,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               fiber <- ZStream(())
                          .flatMapParSwitch(1)(_ =>
                            ZStream.fromZIO(
-                             (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                             (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                            )
                          )
                          .runCollect
@@ -1788,7 +1788,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch              <- Promise.make[Nothing, Unit]
               result <- ZStream(
                           ZStream.fromZIO(
-                            (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                            (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                           ),
                           ZStream.fromZIO(latch.await *> ZIO.fail("Ouch"))
                         ).flatMapParSwitch(2)(identity).runDrain.either
@@ -1802,7 +1802,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> ZIO.fail("Ouch")))
                           .flatMapParSwitch(2) { _ =>
                             ZStream.fromZIO(
-                              (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                              (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                             )
                           }
                           .runDrain
@@ -1818,7 +1818,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch              <- Promise.make[Nothing, Unit]
               result <- ZStream(
                           ZStream.fromZIO(
-                            (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                            (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                           ),
                           ZStream.fromZIO(latch.await *> ZIO.die(ex))
                         ).flatMapParSwitch(2)(identity).runDrain.exit
@@ -1834,7 +1834,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> ZIO.die(ex)))
                           .flatMapParSwitch(2) { _ =>
                             ZStream.fromZIO(
-                              (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                              (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                             )
                           }
                           .runDrain
@@ -2787,7 +2787,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               interrupted <- Ref.make(false)
               latch       <- Promise.make[Nothing, Unit]
               fib <- ZStream(())
-                       .mapZIOPar(1)(_ => (latch.succeed(()) *> ZIO.infinity).onInterrupt(interrupted.set(true)))
+                       .mapZIOPar(1)(_ => (latch.succeed(()) *> ZIO.never).onInterrupt(interrupted.set(true)))
                        .runDrain
                        .fork
               _      <- latch.await
@@ -2913,7 +2913,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch       <- Promise.make[Nothing, Unit]
               fib <-
                 ZStream(())
-                  .mapZIOParUnordered(1)(_ => (latch.succeed(()) *> ZIO.infinity).onInterrupt(interrupted.set(true)))
+                  .mapZIOParUnordered(1)(_ => (latch.succeed(()) *> ZIO.never).onInterrupt(interrupted.set(true)))
                   .runDrain
                   .fork
               _      <- latch.await

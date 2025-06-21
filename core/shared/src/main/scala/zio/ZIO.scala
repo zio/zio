@@ -3935,6 +3935,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Like [[never]], but fibers that running this effect won't be garbage
    * collected unless interrupted.
    */
+  @deprecated("Use `ZIO.never` instead", "2.1.20")
   def infinity(implicit trace: Trace): UIO[Nothing] =
     ZIO.sleep(Duration.Infinity) *> ZIO.never
 
