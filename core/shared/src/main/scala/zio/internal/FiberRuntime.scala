@@ -538,7 +538,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     val stack = _stack
     val size  = _stackSize // racy
 
-    builder += _lastTrace
+    var last = _lastTrace
+    builder += last
+
     try {
       if (stack ne null) {
         var i = (if (stack.length < size) stack.length else size) - 1
@@ -546,13 +548,19 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         while (i >= 0) {
           val k = stack(i)
           if (k ne null) { // racy
-            builder += k.trace
+            val trace = k.trace
+            if (trace ne last) {
+              last = trace
+              builder += trace
+            }
             i -= 1
           }
         }
       }
 
-      builder += id.location // TODO: Allow parent traces?
+      val loc = id.location
+      if (loc ne last)
+        builder += loc // TODO: Allow parent traces?
 
       StackTrace(self.fiberId, builder.result())
     } finally {
@@ -844,19 +852,27 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def patchRuntimeFlags[R, E, A](
+  private def patchRuntimeFlags[E0, A0](
     patch: RuntimeFlags.Patch,
-    cause: Cause[E],
-    continueEffect: ZIO[R, E, A]
-  ): ZIO[R, E, A] = {
+    cause: Cause[E0],
+    continueEffect: Exit[E0, A0]
+  ): Exit[E0, A0] =
+    patchRuntimeFlagsCause(patch, cause) match {
+      case null => continueEffect
+      case c    => Exit.Failure(c)
+    }
+
+  private def patchRuntimeFlagsCause[E0](
+    patch: RuntimeFlags.Patch,
+    cause: Cause[E0]
+  ): Cause[E0] = {
     val changed          = patchRuntimeFlagsOnly(patch)
     val interruptEnabled = RuntimeFlags.Patch.isEnabled(patch, RuntimeFlag.Interruption.mask)
 
     if (changed && interruptEnabled && shouldInterrupt()) {
-      if (cause ne null) Exit.Failure(cause ++ getInterruptedCause())
-      else Exit.Failure(getInterruptedCause())
-    } else if (cause ne null) Exit.Failure(cause)
-    else continueEffect
+      if (cause ne null) cause ++ getInterruptedCause()
+      else getInterruptedCause()
+    } else cause
   }
 
   /**
@@ -1241,12 +1257,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                     }
 
                   case updateFlags: ZIO.UpdateRuntimeFlags =>
-                    cur = patchRuntimeFlags(updateFlags.update, cause, null)
+                    cause = patchRuntimeFlagsCause(updateFlags.update, cause)
                 }
               }
 
               if (cur eq null) {
-                return failure
+                val f =
+                  if (cause eq failure.cause) failure
+                  else Exit.Failure(cause)
+                return f
               }
 
             case updateRuntimeFlags: UpdateRuntimeFlags =>

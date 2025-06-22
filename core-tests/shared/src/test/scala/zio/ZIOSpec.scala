@@ -3053,8 +3053,8 @@ object ZIOSpec extends ZIOBaseSpec {
           latch2 <- Promise.make[Nothing, Unit]
           p1     <- Promise.make[Nothing, Unit]
           p2     <- Promise.make[Nothing, Unit]
-          loser1  = ZIO.acquireReleaseWith(latch1.succeed(()))(_ => p1.succeed(()))(_ => ZIO.infinity)
-          loser2  = ZIO.acquireReleaseWith(latch2.succeed(()))(_ => p2.succeed(()))(_ => ZIO.infinity)
+          loser1  = ZIO.acquireReleaseWith(latch1.succeed(()))(_ => p1.succeed(()))(_ => ZIO.never)
+          loser2  = ZIO.acquireReleaseWith(latch2.succeed(()))(_ => p2.succeed(()))(_ => ZIO.never)
           fiber  <- (loser1 race loser2).forkDaemon
           _      <- latch1.await
           _      <- latch2.await
@@ -3065,7 +3065,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       test("supervise fibers") {
         def makeChild(n: Int): UIO[Fiber[Nothing, Unit]] =
-          (Clock.sleep(20.millis * n.toDouble) *> ZIO.infinity).fork
+          (Clock.sleep(20.millis * n.toDouble) *> ZIO.never).fork
 
         val io =
           for {
@@ -3121,7 +3121,7 @@ object ZIOSpec extends ZIOBaseSpec {
           s      <- Promise.make[Nothing, Unit]
           effect <- Promise.make[Nothing, Int]
           winner  = s.await *> ZIO.fromEither(Right(()))
-          loser   = ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.infinity)
+          loser   = ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.never)
           race    = winner raceFirst loser
           _      <- race
           b      <- effect.await
@@ -3132,7 +3132,7 @@ object ZIOSpec extends ZIOBaseSpec {
           s      <- Promise.make[Nothing, Unit]
           effect <- Promise.make[Nothing, Int]
           winner  = s.await *> ZIO.fromEither(Left(new Exception))
-          loser   = ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.infinity)
+          loser   = ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.never)
           race    = winner raceFirst loser
           _      <- race.either
           b      <- effect.await
@@ -3143,7 +3143,7 @@ object ZIOSpec extends ZIOBaseSpec {
           s      <- Promise.make[Nothing, Unit]
           effect <- Promise.make[Nothing, Int]
           winner  = s.await *> ZIO.fromEither(Right(()))
-          losers  = List(ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.infinity))
+          losers  = List(ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.never))
           race    = ZIO.raceFirst(winner, losers)
           _      <- race
           b      <- effect.await
@@ -3154,7 +3154,7 @@ object ZIOSpec extends ZIOBaseSpec {
           s      <- Promise.make[Nothing, Unit]
           effect <- Promise.make[Nothing, Int]
           winner  = s.await *> ZIO.fromEither(Left(new Exception))
-          losers  = List(ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.infinity))
+          losers  = List(ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.never))
           race    = ZIO.raceFirst(winner, losers)
           _      <- race.either
           b      <- effect.await
@@ -3439,7 +3439,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       test("interruption of raced") {
         def make(ref: Ref[Int], start: Promise[Nothing, Unit], done: Promise[Nothing, Unit]) =
-          (start.succeed(()) *> ZIO.infinity).onInterrupt(ref.update(_ + 1) *> done.succeed(()))
+          (start.succeed(()) *> ZIO.never).onInterrupt(ref.update(_ + 1) *> done.succeed(()))
 
         for {
           ref   <- Ref.make(0)
@@ -4089,8 +4089,8 @@ object ZIOSpec extends ZIOBaseSpec {
           fiber <- ZIO.transplant { grafter =>
                      grafter {
                        val zio = for {
-                         _ <- (latch1.succeed(()) *> ZIO.infinity).onInterrupt(latch2.succeed(())).fork
-                         _ <- ZIO.infinity
+                         _ <- (latch1.succeed(()) *> ZIO.never).onInterrupt(latch2.succeed(())).fork
+                         _ <- ZIO.never
                        } yield ()
                        zio.fork
                      }

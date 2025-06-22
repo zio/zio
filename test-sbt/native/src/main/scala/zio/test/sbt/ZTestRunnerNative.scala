@@ -118,8 +118,11 @@ sealed class ZTestTask(
       resOutter = Runtime.default.unsafe.runToFuture {
         ZIO.consoleWith { console =>
           (for {
-            summary <- spec.runSpecAsApp(FilteredSpec(spec.spec, args), args, console)
-            _       <- sendSummary.provideSomeEnvironment[Any](_.add(summary))
+            summary <- {
+              val zTestHandler = new ZTestEventHandlerSbt(eventHandler, taskDef, args.testRenderer)
+              spec.runSpecAsApp(FilteredSpec(spec.spec, args), args, console, zTestHandler)
+            }
+            _ <- sendSummary.provideSomeEnvironment[Any](_.add(summary))
             // TODO Confirm if/how these events needs to be handled in #6481
             //    Check XML behavior
             _ <- ZIO.when(summary.status == Summary.Failure) {
