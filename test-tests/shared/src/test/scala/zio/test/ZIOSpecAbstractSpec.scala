@@ -40,15 +40,15 @@ object ZIOSpecAbstractSpec extends ZIOBaseSpec {
         assertTrue(
           // Brittle with the line numbers
           // number of line with "override val bootstrap = ZLayer.fromZIO(ZIO.attempt(???))"
-          output.contains("ZIOSpecAbstractSpec.scala:22")
+          output.contains("ZIOSpecAbstractSpec.scala:23")
         ) &&
         assertTrue(
           // number of line with "_ <- ZIO.consoleWith { console =>"
-          output.contains("ZIOSpecAbstractSpec.scala:30")
+          output.contains("ZIOSpecAbstractSpec.scala:31")
         ) &&
         assertTrue(
           // number of line with ".provideSome[zio.Scope with TestEnvironment](composedSpec.bootstrap)"
-          output.contains("ZIOSpecAbstractSpec.scala:33")
+          output.contains("ZIOSpecAbstractSpec.scala:34")
         )
     } @@ TestAspect.flaky @@ TestAspect.silent @@ TestAspect.scala2Only,
     test("highlighting composed layer failures - scala 3") {
@@ -74,15 +74,15 @@ object ZIOSpecAbstractSpec extends ZIOBaseSpec {
         assertTrue(
           // Brittle with the line numbers
           // number of line with "override val bootstrap = ZLayer.fromZIO(ZIO.attempt(???))"
-          output.contains("ZIOSpecAbstractSpec.scala:56")
+          output.contains("ZIOSpecAbstractSpec.scala:57")
         ) &&
         assertTrue(
           // number of line next to "_ <- ZIO.consoleWith { console =>"
-          output.contains("ZIOSpecAbstractSpec.scala:65")
+          output.contains("ZIOSpecAbstractSpec.scala:66")
         ) &&
         assertTrue(
           // number of line next to ".provideSome[zio.Scope with TestEnvironment](composedSpec.bootstrap)"
-          output.contains("ZIOSpecAbstractSpec.scala:68")
+          output.contains("ZIOSpecAbstractSpec.scala:69")
         )
     } @@ TestAspect.flaky @@ TestAspect.silent @@ TestAspect.scala3Only,
     test("run method reports successes sanely")(
