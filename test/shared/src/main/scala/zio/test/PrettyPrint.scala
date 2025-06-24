@@ -24,7 +24,13 @@ private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
       case double: Double         => double.toString
       case float: Float           => float.toString
       case boolean: Boolean       => boolean.toString
-      case char: Char             => s"'${char.toString}'"
+      case char: Char             => {
+        val s = new Array[Char](3)
+        s(0) = '\''
+        s(1) = char
+        s(2) = '\''
+        new String(s)
+      }
       case short: Short           => short.toString
       case byte: Byte             => byte.toString
       case bigDecimal: BigDecimal => bigDecimal.toString
