@@ -1,6 +1,7 @@
 package zio.test
 import zio.{Scope, ZIO, ZIOAppArgs, ZLayer}
 import zio.internal.ansi.AnsiStringOps
+import scala.annotation.nowarn
 
 object ZIOSpecAbstractSpec extends ZIOBaseSpec {
   private val basicSpec: ZIOSpecAbstract = new ZIOSpecDefault {
@@ -32,22 +33,22 @@ object ZIOSpecAbstractSpec extends ZIOBaseSpec {
                  .runSpecAsApp(composedSpec.spec, TestArgs.empty, console)
                  .provideSome[zio.Scope with TestEnvironment](composedSpec.bootstrap)
                  .catchAllCause(t => console.printLine(t.toString))
-                 .exitCode
+                 .exitCode: @nowarn("cat=deprecation")
              }
         output <- TestConsole.output.map(_.mkString("\n"))
       } yield assertTrue(output.contains("scala.NotImplementedError: an implementation is missing")) &&
         assertTrue(
           // Brittle with the line numbers
           // number of line with "override val bootstrap = ZLayer.fromZIO(ZIO.attempt(???))"
-          output.contains("ZIOSpecAbstractSpec.scala:22")
+          output.contains("ZIOSpecAbstractSpec.scala:23")
         ) &&
         assertTrue(
           // number of line with "_ <- ZIO.consoleWith { console =>"
-          output.contains("ZIOSpecAbstractSpec.scala:30")
+          output.contains("ZIOSpecAbstractSpec.scala:31")
         ) &&
         assertTrue(
           // number of line with ".provideSome[zio.Scope with TestEnvironment](composedSpec.bootstrap)"
-          output.contains("ZIOSpecAbstractSpec.scala:33")
+          output.contains("ZIOSpecAbstractSpec.scala:34")
         )
     } @@ TestAspect.flaky @@ TestAspect.silent @@ TestAspect.scala2Only,
     test("highlighting composed layer failures - scala 3") {
@@ -66,22 +67,22 @@ object ZIOSpecAbstractSpec extends ZIOBaseSpec {
                  .runSpecAsApp(composedSpec.spec, TestArgs.empty, console)
                  .provideSome[zio.Scope with TestEnvironment](composedSpec.bootstrap)
                  .catchAllCause(t => console.printLine(t.toString))
-                 .exitCode
+                 .exitCode: @nowarn("cat=deprecation")
              }
         output <- TestConsole.output.map(_.mkString("\n"))
       } yield assertTrue(output.contains("scala.NotImplementedError: an implementation is missing")) &&
         assertTrue(
           // Brittle with the line numbers
           // number of line with "override val bootstrap = ZLayer.fromZIO(ZIO.attempt(???))"
-          output.contains("ZIOSpecAbstractSpec.scala:56")
+          output.contains("ZIOSpecAbstractSpec.scala:57")
         ) &&
         assertTrue(
           // number of line next to "_ <- ZIO.consoleWith { console =>"
-          output.contains("ZIOSpecAbstractSpec.scala:65")
+          output.contains("ZIOSpecAbstractSpec.scala:66")
         ) &&
         assertTrue(
           // number of line next to ".provideSome[zio.Scope with TestEnvironment](composedSpec.bootstrap)"
-          output.contains("ZIOSpecAbstractSpec.scala:68")
+          output.contains("ZIOSpecAbstractSpec.scala:69")
         )
     } @@ TestAspect.flaky @@ TestAspect.silent @@ TestAspect.scala3Only,
     test("run method reports successes sanely")(
@@ -106,12 +107,17 @@ object ZIOSpecAbstractSpec extends ZIOBaseSpec {
     },
     test("run method reports exitcode=1 sanely")(
       for {
-        exitCode <- basicFailSpec.run.provideSome[zio.ZIOAppArgs with zio.Scope](basicFailSpec.bootstrap).exitCode
+        exitCode <-
+          basicFailSpec.run.provideSome[zio.ZIOAppArgs with zio.Scope](basicFailSpec.bootstrap).exitCode: @nowarn(
+            "cat=deprecation"
+          )
       } yield assertTrue(exitCode.code == 1)
     ),
     test("run method reports exitcode=0 sanely")(
       for {
-        exitCode <- basicSpec.run.provideSome[zio.ZIOAppArgs with zio.Scope](basicSpec.bootstrap).exitCode
+        exitCode <- basicSpec.run.provideSome[zio.ZIOAppArgs with zio.Scope](basicSpec.bootstrap).exitCode: @nowarn(
+                      "cat=deprecation"
+                    )
       } yield assertTrue(exitCode.code == 0)
     )
   )
