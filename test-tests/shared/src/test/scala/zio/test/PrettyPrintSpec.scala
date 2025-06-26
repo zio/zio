@@ -7,7 +7,11 @@ object PrettyPrintSpec extends ZIOBaseSpec {
 
   def spec = suite("PrettyPrint")(
     test("String") {
-      assertTrue(PrettyPrint("A String").unstyled == "\"A String\"")
+      assertTrue(
+        PrettyPrint("A String").unstyled == "\"A String\"",
+        PrettyPrint("A String with a \" will be well formatted").unstyled == "\"A String with a \\\" will be well formatted\"",
+        PrettyPrint("A String with a \n will use 3 quotes").unstyled == "\"\"\"A String with a \n will use 3 quotes\"\"\"",
+      )
     },
     test("List") {
       assertTrue(PrettyPrint(List(1, 2, 3)).unstyled == "List(1, 2, 3)")
