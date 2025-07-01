@@ -24,20 +24,19 @@ private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
         builder.append(surround)
         builder.toString
 
-      case int: Int               => int.toString
-      case long: Long             => long.toString
-      case double: Double         => double.toString
-      case float: Float           => float.toString
-      case boolean: Boolean       => boolean.toString
-      case char: Char             => {
+      case int: Int               => String.valueOf(int)
+      case long: Long             => String.valueOf(long)
+      case double: Double         => String.valueOf(double)
+      case float: Float           => String.valueOf(float)
+      case boolean: Boolean       => String.valueOf(boolean)
+      case char: Char             =>
         val s = new Array[Char](3)
         s(0) = '\''
         s(1) = char
         s(2) = '\''
         new String(s)
-      }
-      case short: Short           => short.toString
-      case byte: Byte             => byte.toString
+      case short: Short           => String.valueOf(short)
+      case byte: Byte             => String.valueOf(byte)
       case bigDecimal: BigDecimal => bigDecimal.toString
       case bigInt: BigInt         => bigInt.toString
       case symbol: Symbol         => symbol.toString
