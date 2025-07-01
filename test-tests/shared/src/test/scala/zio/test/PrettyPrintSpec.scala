@@ -9,7 +9,11 @@ object PrettyPrintSpec extends ZIOBaseSpec {
       assertTrue(PrettyPrint("A String").unstyled == "\"A String\"")
     },
     test("List") {
-      assertTrue(PrettyPrint(List(1, 2, 3)).unstyled == "List(1, 2, 3)")
+      assertTrue(
+        PrettyPrint(List(1, 2, 3)).unstyled == "List(1, 2, 3)",
+        PrettyPrint(List.empty).unstyled == "Nil",
+        PrettyPrint(Nil).unstyled == "Nil"
+      )
     },
     test("List of String") {
       assertTrue(PrettyPrint(List("1", "2", "3")).unstyled == "List(\"1\", \"2\", \"3\")")
