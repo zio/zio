@@ -18,7 +18,7 @@ private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
       case string: String =>
         val surround = if (string.contains('\n')) "\"\"\"" else "\""
         // `+ 16` to take into account the potientials `\\` added when there are some `\"` characters
-        val builder = new java.lang.StringBuilder(string.length + 16 * surround.length)
+        val builder = new java.lang.StringBuilder(string.length + 2 * surround.length + 16)
         builder.append(surround)
         builder.append(string.replace("\"", """\""""))
         builder.append(surround)
