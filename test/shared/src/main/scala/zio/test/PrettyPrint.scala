@@ -67,7 +67,7 @@ ${indent(body.mkString(",\n"))}
   private def prettyPrintIterator(iterable: Iterable[_], className: String): String =
     if (iterable.isEmpty) s"$className()"
     else {
-      val acc = new java.lang.StringBuilder
+      val acc = new java.lang.StringBuilder(className.length + 16 * iterable.size)
       acc.append(className)
       acc.append('(')
       val iterator = iterable.iterator
