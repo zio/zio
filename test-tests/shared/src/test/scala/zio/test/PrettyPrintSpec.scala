@@ -21,7 +21,7 @@ object PrettyPrintSpec extends ZIOBaseSpec {
       assertTrue(
         PrettyPrint(List(1, 2, 3)).unstyled == "List(1, 2, 3)",
         PrettyPrint(List.empty).unstyled == "Nil",
-        PrettyPrint(Nil).unstyled == "Nil",
+        PrettyPrint(Nil).unstyled == "Nil"
       )
     },
     test("List of String") {

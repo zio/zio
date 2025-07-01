@@ -43,8 +43,9 @@ private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
 
       case Some(a) => s"Some(${PrettyPrint(a)})"
       case None    => "None"
-      case _: Nil.type =>
-        "Nil" // For why `Nil.type` is used. See https://github.com/zio/zio/pull/9900#discussion_r2121380398
+
+      // For why `Nil.type` is used. See https://github.com/zio/zio/pull/9900#discussion_r2121380398
+      case _: Nil.type => "Nil"
 
       case chunk: Chunk[_]                 => prettyPrintIterator(chunk, "Chunk")
       case list: List[_]                   => prettyPrintIterator(list, "List")
