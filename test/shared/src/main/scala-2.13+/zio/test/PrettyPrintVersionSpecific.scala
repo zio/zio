@@ -12,7 +12,9 @@ private[test] trait PrettyPrintVersionSpecific {
     else {
       val isMultiLine = size > 1
 
-      val acc = new java.lang.StringBuilder
+      val acc = new java.lang.StringBuilder(
+        name.length + 16 * size + (if (isMultiLine) 8 * size else 0)
+      )
 
       acc.append(name)
       acc.append('(')
