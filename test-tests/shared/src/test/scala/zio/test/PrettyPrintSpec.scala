@@ -9,8 +9,12 @@ object PrettyPrintSpec extends ZIOBaseSpec {
     test("String") {
       assertTrue(
         PrettyPrint("A String").unstyled == "\"A String\"",
-        PrettyPrint("A String with a \" will be well formatted").unstyled == "\"A String with a \\\" will be well formatted\"",
-        PrettyPrint("A String with a \n will use 3 quotes").unstyled == "\"\"\"A String with a \n will use 3 quotes\"\"\"",
+        PrettyPrint(
+          "A String with a \" will be well formatted"
+        ).unstyled == "\"A String with a \\\" will be well formatted\"",
+        PrettyPrint(
+          "A String with a \n will use 3 quotes"
+        ).unstyled == "\"\"\"A String with a \n will use 3 quotes\"\"\""
       )
     },
     test("List") {

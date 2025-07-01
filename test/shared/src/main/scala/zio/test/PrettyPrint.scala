@@ -24,12 +24,12 @@ private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
         builder.append(surround)
         builder.toString
 
-      case int: Int               => String.valueOf(int)
-      case long: Long             => String.valueOf(long)
-      case double: Double         => String.valueOf(double)
-      case float: Float           => String.valueOf(float)
-      case boolean: Boolean       => String.valueOf(boolean)
-      case char: Char             =>
+      case int: Int         => String.valueOf(int)
+      case long: Long       => String.valueOf(long)
+      case double: Double   => String.valueOf(double)
+      case float: Float     => String.valueOf(float)
+      case boolean: Boolean => String.valueOf(boolean)
+      case char: Char =>
         val s = new Array[Char](3)
         s(0) = '\''
         s(1) = char
@@ -41,9 +41,10 @@ private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
       case bigInt: BigInt         => bigInt.toString
       case symbol: Symbol         => symbol.toString
 
-      case Some(a)     => s"Some(${PrettyPrint(a)})"
-      case None        => "None"
-      case _: Nil.type => "Nil" // For why `Nil.type` is used. See https://github.com/zio/zio/pull/9900#discussion_r2121380398
+      case Some(a) => s"Some(${PrettyPrint(a)})"
+      case None    => "None"
+      case _: Nil.type =>
+        "Nil" // For why `Nil.type` is used. See https://github.com/zio/zio/pull/9900#discussion_r2121380398
 
       case chunk: Chunk[_]                 => prettyPrintIterator(chunk, "Chunk")
       case list: List[_]                   => prettyPrintIterator(list, "List")
