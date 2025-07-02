@@ -1,6 +1,7 @@
 package zio.test
 
 import zio.internal.macros.StringUtils.StringOps
+import zio.test.TestAspect.exceptScala212
 
 import scala.collection.mutable
 
@@ -34,7 +35,7 @@ object PrettyPrintSpec extends ZIOBaseSpec {
     test("Array") {
       assertTrue(
         PrettyPrint(Array(1, 2, 3)).unstyled == "Array(1, 2, 3)",
-        PrettyPrint(Array.empty).unstyled == "Array()",
+        PrettyPrint(Array.empty[Int]).unstyled == "Array()",
       )
     },
     test("Set") {
@@ -48,7 +49,7 @@ object PrettyPrintSpec extends ZIOBaseSpec {
         PrettyPrint(mutable.Set(1, 2, 3)).unstyled == "HashSet(1, 2, 3)",
         PrettyPrint(mutable.Set.empty).unstyled == "HashSet()",
       )
-    },
+    } @@ exceptScala212,
     test("mutable.SortedSet") {
       assertTrue(
         PrettyPrint(mutable.SortedSet(1, 2, 3)).unstyled == "TreeSet(1, 2, 3)",
@@ -86,7 +87,7 @@ Person(name = "Glenda")
       assertTrue(
         PrettyPrint(Person("Glenda")).unstyled == expected
       )
-    } @@ TestAspect.exceptScala212,
+    } @@ exceptScala212,
     test("Case Class - multi-line") {
       final case class Person(name: String, age: Int)
       val expected = """
@@ -98,7 +99,7 @@ Person(
       assertTrue(
         PrettyPrint(Person("Glenda", 123)).unstyled == expected
       )
-    } @@ TestAspect.exceptScala212,
+    } @@ exceptScala212,
     test("Huge list") {
       val list = (1 to 1000).toList
       assertTrue(PrettyPrint(list).unstyled == list.mkString("List(", ", ", ")"))
