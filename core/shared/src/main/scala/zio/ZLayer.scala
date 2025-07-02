@@ -583,7 +583,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
        * Constructs a default layer using the provided value.
        */
       def succeed[A: Tag](a: => A)(implicit trace: Trace): Default.WithContext[Any, Nothing, A] =
-        Default.fromZIO(ZIO.succeed(a))
+        Default.fromZIO(Exit.succeed(a))
 
       /**
        * Constructs a default layer using the provided ZIO value.
@@ -881,14 +881,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from the specified value.
    */
   def succeed[A: Tag](a: => A)(implicit trace: Trace): ULayer[A] =
-    ZLayer.fromZIOEnvironment(ZIO.succeed(ZEnvironment(a)))
+    ZLayer.fromZIOEnvironment(Exit.succeed(ZEnvironment(a)))
 
   /**
    * Constructs a layer from the specified value, which must return one or more
    * services.
    */
   def succeedEnvironment[A](a: => ZEnvironment[A])(implicit trace: Trace): ULayer[A] =
-    ZLayer.fromZIOEnvironment(ZIO.succeed(a))
+    ZLayer.fromZIOEnvironment(Exit.succeed(a))
 
   /**
    * Lazily constructs a layer. This is useful to avoid infinite recursion when

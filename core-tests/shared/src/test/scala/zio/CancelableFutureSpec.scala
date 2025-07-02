@@ -66,7 +66,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         for {
           start <- Promise.make[Nothing, Unit]
           end   <- Promise.make[Nothing, Int]
-          fiber <- roundtrip((start.succeed(()) *> ZIO.infinity).onInterrupt(end.succeed(42))).fork
+          fiber <- roundtrip((start.succeed(()) *> ZIO.never).onInterrupt(end.succeed(42))).fork
           _     <- start.await
           _     <- fiber.interrupt
           value <- end.await

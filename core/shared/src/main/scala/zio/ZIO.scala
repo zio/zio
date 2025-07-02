@@ -576,6 +576,7 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Maps this effect to the default exit codes.
    */
+  @deprecated("This operator swallows errors and is no longer necessary to create a ZIO App.", "2.1.20")
   final def exitCode(implicit trace: Trace): URIO[R, ExitCode] =
     self.foldCause(
       _ => ExitCode.failure,
@@ -3935,8 +3936,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Like [[never]], but fibers that running this effect won't be garbage
    * collected unless interrupted.
    */
+  @deprecated("Use `ZIO.never` instead", "2.1.20")
   def infinity(implicit trace: Trace): UIO[Nothing] =
-    ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+    ZIO.sleep(Duration.Infinity) *> ZIO.never
 
   /**
    * Inherits values from all [[FiberRef]] instances into current fiber.
