@@ -29,31 +29,31 @@ object PrettyPrintSpec extends ZIOBaseSpec {
     test("Vector") {
       assertTrue(
         PrettyPrint(Vector(1, 2, 3)).unstyled == "Vector(1, 2, 3)",
-        PrettyPrint(Vector.empty).unstyled == "Vector()",
+        PrettyPrint(Vector.empty).unstyled == "Vector()"
       )
     },
     test("Array") {
       assertTrue(
         PrettyPrint(Array(1, 2, 3)).unstyled == "Array(1, 2, 3)",
-        PrettyPrint(Array.empty[Int]).unstyled == "Array()",
+        PrettyPrint(Array.empty[Int]).unstyled == "Array()"
       )
     },
     test("Set") {
       assertTrue(
         PrettyPrint(Set(1, 2, 3)).unstyled == "Set(1, 2, 3)",
-        PrettyPrint(Set.empty).unstyled == "Set()",
+        PrettyPrint(Set.empty).unstyled == "Set()"
       )
     },
     test("mutable.Set") {
       assertTrue(
         PrettyPrint(mutable.Set(1, 2, 3)).unstyled == "HashSet(1, 2, 3)",
-        PrettyPrint(mutable.Set.empty).unstyled == "HashSet()",
+        PrettyPrint(mutable.Set.empty).unstyled == "HashSet()"
       )
     } @@ exceptScala212,
     test("mutable.SortedSet") {
       assertTrue(
         PrettyPrint(mutable.SortedSet(1, 2, 3)).unstyled == "TreeSet(1, 2, 3)",
-        PrettyPrint(mutable.SortedSet.empty[Int]).unstyled == "TreeSet()",
+        PrettyPrint(mutable.SortedSet.empty[Int]).unstyled == "TreeSet()"
       )
     },
     test("List of String") {
