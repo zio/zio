@@ -23,6 +23,18 @@ object PrettyPrintSpec extends ZIOBaseSpec {
         PrettyPrint(Nil).unstyled == "Nil"
       )
     },
+    test("Vector") {
+      assertTrue(
+        PrettyPrint(Vector(1, 2, 3)).unstyled == "Vector(1, 2, 3)",
+        PrettyPrint(Vector.empty).unstyled == "Vector()",
+      )
+    },
+    test("Array") {
+      assertTrue(
+        PrettyPrint(Array(1, 2, 3)).unstyled == "Array(1, 2, 3)",
+        PrettyPrint(Array.empty).unstyled == "Array()",
+      )
+    },
     test("List of String") {
       assertTrue(PrettyPrint(List("1", "2", "3")).unstyled == "List(\"1\", \"2\", \"3\")")
     },
