@@ -19,7 +19,7 @@ package zio.internal
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ConcurrentHashMap
-import java.util.{Collections, WeakHashMap, Map => JMap, Set => JSet}
+import java.util.{Collections, HashSet, WeakHashMap, Map => JMap, Set => JSet}
 
 private[zio] trait PlatformSpecific {
 
@@ -84,10 +84,10 @@ private[zio] trait PlatformSpecific {
     Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
 
   final def newConcurrentSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
-    ConcurrentHashMap.newKeySet[A]()
+    Collections.synchronizedSet(new HashSet[A]())
 
   final def newConcurrentSet[A](initialCapacity: Int)(implicit unsafe: zio.Unsafe): JSet[A] =
-    ConcurrentHashMap.newKeySet[A](initialCapacity)
+    Collections.synchronizedSet(new HashSet[A](initialCapacity))
 
   private def blackhole(a: Any): Unit = {
     val _ = a
