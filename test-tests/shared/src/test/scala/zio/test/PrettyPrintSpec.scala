@@ -1,6 +1,5 @@
 package zio.test
 
-import zio.ZIO
 import zio.internal.macros.StringUtils.StringOps
 
 object PrettyPrintSpec extends ZIOBaseSpec {
@@ -108,16 +107,15 @@ Person(
         }
       }
 
-      for {
-        _ <- ZIO.unit
-        // sample of complex objects
-        hugeList = (1 to 1000).map(i => ComplexObject.of(i)).toList
+      // sample of complex objects
+      val hugeList = (1 to 1000).map(i => ComplexObject.of(i)).toList
 
-        shouldNotHave20  = assertTrue(!hugeList.exists(_.name3 == "20"))
-        shouldNotHave510 = assertTrue(!hugeList.exists(_.name3 == "510"))
-        shouldNotHave780 = assertTrue(!hugeList.exists(_.name3 == "780"))
-        shouldNotHave999 = assertTrue(!hugeList.exists(_.name3 == "999"))
-      } yield TestResult.allSuccesses(
+      val shouldNotHave20  = assertTrue(!hugeList.exists(_.name3 == "20"))
+      val shouldNotHave510 = assertTrue(!hugeList.exists(_.name3 == "510"))
+      val shouldNotHave780 = assertTrue(!hugeList.exists(_.name3 == "780"))
+      val shouldNotHave999 = assertTrue(!hugeList.exists(_.name3 == "999"))
+
+      TestResult.allSuccesses(
         shouldNotHave20,
         shouldNotHave510,
         shouldNotHave780,
