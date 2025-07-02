@@ -51,7 +51,7 @@ private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
       case list: List[_]                   => prettyPrintIterator(list, "List")
       case vector: Vector[_]               => prettyPrintIterator(vector, "Vector")
       case array: Array[_]                 => prettyPrintIterator(array, "Array")
-      case set: Set[_]                     => prettyPrintIterator(set, className(set))
+      case set: Set[_]                     => prettyPrintIterator(set, "Set")
       case nonEmptyChunk: NonEmptyChunk[_] => prettyPrintIterator(nonEmptyChunk, "NonEmptyChunk")
       case iterable: Seq[_]                => prettyPrintIterator(iterable, className(iterable))
 

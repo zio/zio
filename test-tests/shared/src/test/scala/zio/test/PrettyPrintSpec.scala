@@ -2,6 +2,8 @@ package zio.test
 
 import zio.internal.macros.StringUtils.StringOps
 
+import scala.collection.mutable
+
 object PrettyPrintSpec extends ZIOBaseSpec {
 
   def spec = suite("PrettyPrint")(
@@ -33,6 +35,24 @@ object PrettyPrintSpec extends ZIOBaseSpec {
       assertTrue(
         PrettyPrint(Array(1, 2, 3)).unstyled == "Array(1, 2, 3)",
         PrettyPrint(Array.empty).unstyled == "Array()",
+      )
+    },
+    test("Set") {
+      assertTrue(
+        PrettyPrint(Set(1, 2, 3)).unstyled == "Set(1, 2, 3)",
+        PrettyPrint(Set.empty).unstyled == "Set()",
+      )
+    },
+    test("mutable.Set") {
+      assertTrue(
+        PrettyPrint(mutable.Set(1, 2, 3)).unstyled == "HashSet(1, 2, 3)",
+        PrettyPrint(mutable.Set.empty).unstyled == "HashSet()",
+      )
+    },
+    test("mutable.SortedSet") {
+      assertTrue(
+        PrettyPrint(mutable.SortedSet(1, 2, 3)).unstyled == "TreeSet(1, 2, 3)",
+        PrettyPrint(mutable.SortedSet.empty[Int]).unstyled == "TreeSet()",
       )
     },
     test("List of String") {
