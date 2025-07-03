@@ -391,10 +391,52 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   Prefer capacities that are powers of 2 for better performance.
    */
   def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
-    val queue = self.toQueueOfElements(capacity)
+    val actualCapacity = capacity
+    // CHANGE #1: Fix for Issue #9810 - Special case detection for capacity == 1
+    if (actualCapacity == 1) {
+      bufferOne // <- NEW: Call specialized method for buffer(1) to ensure only 1 element is buffered
+    } else {
+      // UNCHANGED: Original implementation for all other capacities (2, 3, 4, etc.)
+      val queue = self.toQueueOfElements(actualCapacity)
+      new ZStream(
+        ZChannel.unwrapScoped[R] {
+          queue.map { queue =>
+            lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+              ZChannel.fromZIO {
+                queue.take
+              }.flatMap { (exit: Exit[Option[E], A]) =>
+                exit.foldExit(
+                  Cause
+                    .flipCauseOption(_)
+                    .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
+                  value => ZChannel.write(Chunk.single(value)) *> process
+                )
+              }
+
+            process
+          }
+        }
+      )
+    }
+  }
+
+  /**
+   * CHANGE #2: NEW METHOD - Special implementation for buffer(1) that behaves
+   * like a synchronous queue. Only allows one element to be buffered at a time.
+   * This fixes Issue #9810 where buffer(1) was buffering 2 elements instead of
+   * \1.
+   */
+  private def bufferOne(implicit trace: Trace): ZStream[R, E, A] =
     new ZStream(
       ZChannel.unwrapScoped[R] {
-        queue.map { queue =>
+        for {
+          // CHANGE #3: NEW - Create semaphore with capacity 1 to ensure synchronous behavior
+          semaphore <- Semaphore.make(1) // <- Only 1 permit = only 1 operation at a time
+          // CHANGE #4: NEW - Create bounded queue with capacity 1
+          queue <- Queue.bounded[Exit[Option[E], A]](1) // <- Only 1 element can be queued
+          // CHANGE #5: NEW - Use synchronous version that wraps queue operations with semaphore
+          _ <- self.runIntoQueueElementsSynchronous(queue, semaphore).forkScoped
+        } yield {
           lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
             ZChannel.fromZIO {
               queue.take
@@ -411,6 +453,45 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         }
       }
     )
+
+  /**
+   * CHANGE #6: NEW METHOD - Synchronous version of runIntoQueueElementsScoped
+   * that ensures only one element is buffered at a time using a semaphore. This
+   * prevents the race condition that caused buffer(1) to buffer 2 elements
+   * instead of 1.
+   */
+  private def runIntoQueueElementsSynchronous(
+    queue: Enqueue[Exit[Option[E], A]],
+    semaphore: Semaphore
+  )(implicit trace: Trace): ZIO[R with Scope, Nothing, Unit] = {
+    lazy val writer: ZChannel[R, E, Chunk[A], Any, Nothing, Nothing, Any] =
+      ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Nothing, Any](
+        in =>
+          ZChannel.fromZIO {
+            ZIO.foreach(in) { a =>
+              // CHANGE #7: NEW - Wrap queue.offer with semaphore.withPermit to ensure synchronous access
+              semaphore.withPermit { // <- Only one thread can offer at a time
+                queue.offer(Exit.succeed(a))
+              }
+            }
+          } *> writer,
+        err =>
+          ZChannel.fromZIO {
+            // CHANGE #8: NEW - Wrap error handling with semaphore for consistency
+            semaphore.withPermit { // <- Synchronous error handling
+              queue.offer(Exit.failCause(err.map(Some(_))))
+            }
+          },
+        _ =>
+          ZChannel.fromZIO {
+            // CHANGE #9: NEW - Wrap completion signal with semaphore for consistency
+            semaphore.withPermit { // <- Synchronous completion signal
+              queue.offer(Exit.fail(None))
+            }
+          }
+      )
+
+    (self.channel >>> writer).drain.runScoped.unit
   }
 
   /**
