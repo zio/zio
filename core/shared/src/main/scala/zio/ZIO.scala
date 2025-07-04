@@ -6145,9 +6145,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   private[zio] final case class Sync[A](trace: Trace, eval: () => A) extends ZIO[Any, Nothing, A]
   private[zio] final case class Async[R, E, A](
     trace: Trace,
-    registerCallback: (ZIO[R, E, A] => Unit) => ZIO[R, E, A],
+    registerCallback: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: () => FiberId
   ) extends ZIO[R, E, A]
+
   private[zio] final case class UpdateRuntimeFlags(trace: Trace, update: RuntimeFlags.Patch)
       extends Continuation
       with ZIO[Any, Nothing, Unit]
