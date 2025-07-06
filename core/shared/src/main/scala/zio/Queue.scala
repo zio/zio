@@ -161,9 +161,6 @@ object Queue extends QueuePlatformSpecific {
     strategy: Strategy[A]
   ) extends Queue[A] {
 
-    private def removeTaker(taker: Promise[Nothing, A])(implicit trace: Trace): UIO[Unit] =
-      ZIO.succeed(takers.remove(taker))
-
     override def capacity: Int = queue.capacity
 
     override def offer(a: A)(implicit trace: Trace): UIO[Boolean] =
@@ -253,17 +250,21 @@ object Queue extends QueuePlatformSpecific {
         else {
           queue.poll(null.asInstanceOf[A]) match {
             case null =>
-              // add the promise to takers, then:
-              // - try take again in case a value was added since
-              // - wait for the promise to be completed
-              // - clean up resources in case of interruption
               val p = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe.unsafe)
-
-              ZIO.suspendSucceed {
-                takers.offer(p)
-                strategy.unsafeCompleteTakers(queue, takers)
-                if (shutdownFlag.get) ZIO.interrupt else p.await
-              }.onInterrupt(removeTaker(p))
+              ZIO.uninterruptibleMask { restore =>
+                ZIO.suspendSucceed {
+                  takers.offer(p)
+                  strategy.unsafeCompleteTakers(queue, takers)
+                  if (shutdownFlag.get) ZIO.interrupt
+                  else
+                    restore(p.await).onInterrupt {
+                      ZIO.suspendSucceed {
+                        if (takers.remove(p)) UIO.unit
+                        else p.await.flatMap(a => offer(a).ignore)
+                      }
+                    }
+                }
+              }
 
             case item =>
               strategy.unsafeOnQueueEmptySpace(queue, takers)
