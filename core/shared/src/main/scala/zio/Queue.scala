@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -50,16 +50,16 @@ object Queue extends QueuePlatformSpecific {
    * the queue.
    *
    * @note
-   * when possible use only power of 2 capacities; this will provide better
-   * performance by utilising an optimised version of the underlying
-   * [[zio.internal.RingBuffer]].
+   *   when possible use only power of 2 capacities; this will provide better
+   *   performance by utilising an optimised version of the underlying
+   *   [[zio.internal.RingBuffer]].
    *
    * @param requestedCapacity
-   * capacity of the `Queue`
+   *   capacity of the `Queue`
    * @tparam A
-   * type of the `Queue`
+   *   type of the `Queue`
    * @return
-   * `UIO[Queue[A]]`
+   *   `UIO[Queue[A]]`
    */
   def bounded[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A]] =
     ZIO.fiberId.map(unsafe.bounded(requestedCapacity, _)(Unsafe.unsafe))
@@ -69,16 +69,16 @@ object Queue extends QueuePlatformSpecific {
    * the queue is reached, new elements will be dropped.
    *
    * @note
-   * when possible use only power of 2 capacities; this will provide better
-   * performance by utilising an optimised version of the underlying
-   * [[zio.internal.RingBuffer]].
+   *   when possible use only power of 2 capacities; this will provide better
+   *   performance by utilising an optimised version of the underlying
+   *   [[zio.internal.RingBuffer]].
    *
    * @param requestedCapacity
-   * capacity of the `Queue`
+   *   capacity of the `Queue`
    * @tparam A
-   * type of the `Queue`
+   *   type of the `Queue`
    * @return
-   * `UIO[Queue[A]]`
+   *   `UIO[Queue[A]]`
    */
   def dropping[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A]] =
     ZIO.fiberId.map(unsafe.dropping(requestedCapacity, _)(Unsafe.unsafe))
@@ -89,16 +89,16 @@ object Queue extends QueuePlatformSpecific {
    * dropped.
    *
    * @note
-   * when possible use only power of 2 capacities; this will provide better
-   * performance by utilising an optimised version of the underlying
-   * [[zio.internal.RingBuffer]].
+   *   when possible use only power of 2 capacities; this will provide better
+   *   performance by utilising an optimised version of the underlying
+   *   [[zio.internal.RingBuffer]].
    *
    * @param requestedCapacity
-   * capacity of the `Queue`
+   *   capacity of the `Queue`
    * @tparam A
-   * type of the `Queue`
+   *   type of the `Queue`
    * @return
-   * `UIO[Queue[A]]`
+   *   `UIO[Queue[A]]`
    */
   def sliding[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A]] =
     ZIO.fiberId.map(unsafe.sliding(requestedCapacity, _)(Unsafe.unsafe))
@@ -107,9 +107,9 @@ object Queue extends QueuePlatformSpecific {
    * Makes a new unbounded queue.
    *
    * @tparam A
-   * type of the `Queue`
+   *   type of the `Queue`
    * @return
-   * `UIO[Queue[A]]`
+   *   `UIO[Queue[A]]`
    */
   def unbounded[A](implicit trace: Trace): UIO[Queue[A]] =
     ZIO.fiberId.map(unsafe.unbounded(_)(Unsafe.unsafe))
@@ -160,6 +160,9 @@ object Queue extends QueuePlatformSpecific {
     shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
   ) extends Queue[A] {
+
+    private def removeTaker(taker: Promise[Nothing, A])(implicit trace: Trace): UIO[Unit] =
+      ZIO.succeed(takers.remove(taker))
 
     override def capacity: Int = queue.capacity
 
@@ -250,21 +253,17 @@ object Queue extends QueuePlatformSpecific {
         else {
           queue.poll(null.asInstanceOf[A]) match {
             case null =>
+              // add the promise to takers, then:
+              // - try take again in case a value was added since
+              // - wait for the promise to be completed
+              // - clean up resources in case of interruption
               val p = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe.unsafe)
-              ZIO.uninterruptibleMask { restore =>
-                ZIO.suspendSucceed {
-                  takers.offer(p)
-                  strategy.unsafeCompleteTakers(queue, takers)
-                  if (shutdownFlag.get) ZIO.interrupt
-                  else
-                    restore(p.await).onInterrupt {
-                      ZIO.suspendSucceed {
-                        if (takers.remove(p)) UIO.unit
-                        else p.await.flatMap(a => offer(a).ignore)
-                      }
-                    }
-                }
-              }
+
+              ZIO.suspendSucceed {
+                takers.offer(p)
+                strategy.unsafeCompleteTakers(queue, takers)
+                if (shutdownFlag.get) ZIO.interrupt else p.await
+              }.onInterrupt(removeTaker(p))
 
             case item =>
               strategy.unsafeOnQueueEmptySpace(queue, takers)
