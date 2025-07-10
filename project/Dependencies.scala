@@ -23,7 +23,7 @@ object Dependencies {
   val QuillVersion      = "4.8.5"
   val ShardcakeVersion  = "2.4.2"
 
-  val ZioMetricsConnectorsVersion      = "2.3.1"
+  val ZioMetricsConnectorsVersion      = "2.4.0"
   val ZioHttpVersion                   = "3.3.3"
   val IzumiVersion                     = "1.2.15"
   val ZioConfigVersion                 = "4.0.2"
