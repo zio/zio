@@ -88,7 +88,7 @@ object Queue extends QueuePlatformSpecific {
    * @return
    *   `UIO[Queue[A]]`
    */
-  def dropping[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A]] =
+  def dropping[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[Nothing,A]] =
     ZIO.fiberId.map(unsafe.dropping(requestedCapacity, _)(Unsafe.unsafe))
 
   /**
@@ -108,7 +108,7 @@ object Queue extends QueuePlatformSpecific {
    * @return
    *   `UIO[Queue[A]]`
    */
-  def sliding[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A]] =
+  def sliding[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[Nothing,A]] =
     ZIO.fiberId.map(unsafe.sliding(requestedCapacity, _)(Unsafe.unsafe))
 
   /**
@@ -119,21 +119,21 @@ object Queue extends QueuePlatformSpecific {
    * @return
    *   `UIO[Queue[A]]`
    */
-  def unbounded[A](implicit trace: Trace): UIO[Queue[A]] =
+  def unbounded[A](implicit trace: Trace): UIO[Queue[Nothing,A]] =
     ZIO.fiberId.map(unsafe.unbounded(_)(Unsafe.unsafe))
 
   object unsafe {
 
-    def bounded[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
+    def bounded[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[Nothing,A] =
       createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.BackPressure(), fiberId)
 
-    def dropping[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
+    def dropping[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[Nothing,A] =
       createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.Dropping(), fiberId)
 
-    def sliding[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
+    def sliding[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[Nothing,A] =
       createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.Sliding(), fiberId)
 
-    def unbounded[A](fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
+    def unbounded[A](fiberId: FiberId)(implicit unsafe: Unsafe): Queue[Nothing,A] =
       createQueue(MutableConcurrentQueue.unbounded[A], Strategy.Dropping(), fiberId)
 
   }
