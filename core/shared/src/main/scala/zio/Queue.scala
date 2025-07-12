@@ -255,6 +255,20 @@ object Queue extends QueuePlatformSpecific {
         Exit.unit
       }.uninterruptible
 
+override def shutdownCause(cause: Cause[E])(implicit trace: Trace): UIO[Chunk[A]] =
+  for {
+    set <- shutdownCauseRef.modify {
+             case None    => (true, Some(cause))
+             case some    => (false, some)
+           }
+    items <- if (set) {
+               for {
+                 _ <- shutdown(Trace.empty)
+               } yield unsafePollAll(queue)
+             } else
+               ZIO.failCause(cause)
+  } yield items
+
     override def isShutdown(implicit trace: Trace): UIO[Boolean] = ZIO.succeed(shutdownFlag.get)
 
     override def take(implicit trace: Trace): UIO[A] =
