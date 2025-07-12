@@ -176,7 +176,10 @@ object Queue extends QueuePlatformSpecific {
 
     override def capacity: Int = queue.capacity
 
-    override def offer(a: A)(implicit trace: Trace): UIO[Boolean] =
+    override def offer(a: A)(implicit trace: Trace): ZIO[Any,E,Boolean] =
+      shutdownCauseRef.get.flatMap {
+       case Some(cause) => ZIO.failCause(cause)
+       case None        =>
       ZIO.suspendSucceed {
         if (shutdownFlag.get) ZIO.interrupt
         else {
@@ -204,8 +207,12 @@ object Queue extends QueuePlatformSpecific {
           }
         }
       }
+   }
 
-    override def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
+    override def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): ZIO[Any,E,Chunk[A1]] =
+      shutdownCauseRef.get.flatMap {
+        case Some(cause) => ZIO.failCause(cause)
+        case None        =>
       ZIO.suspendSucceed {
         if (shutdownFlag.get) ZIO.interrupt
         else {
@@ -230,16 +237,21 @@ object Queue extends QueuePlatformSpecific {
           }
         }
       }
+    }
 
     override def awaitShutdown(implicit trace: Trace): UIO[Unit] = shutdownHook.await
 
-    override def size(implicit trace: Trace): UIO[Int] =
+    override def size(implicit trace: Trace): ZIO[Any,E,Int] =
+      shutdownCauseRef.get.flatMap {
+       case Some(cause) => ZIO.failCause(cause)
+       case None        =>
       ZIO.suspendSucceed {
         if (shutdownFlag.get)
           ZIO.interrupt
         else
           Exit.succeed(queue.size() - takers.size() + strategy.surplusSize)
       }
+    }
 
     override def shutdown(implicit trace: Trace): UIO[Unit] =
       ZIO.fiberIdWith { fiberId =>
@@ -269,9 +281,9 @@ override def shutdownCause(cause: Cause[E])(implicit trace: Trace): UIO[Chunk[A]
                ZIO.failCause(cause)
   } yield items
 
-    override def isShutdown(implicit trace: Trace): UIO[Boolean] = ZIO.succeed(shutdownFlag.get)
+    override def isShutdown(implicit trace: Trace): UIO[E,Boolean] = ZIO.succeed(shutdownFlag.get)
 
-    override def take(implicit trace: Trace): UIO[A] =
+    override def take(implicit trace: Trace): ZIO[Any,E,A] =
       ZIO.fiberIdWith { fiberId =>
         if (shutdownFlag.get) ZIO.interrupt
         else {
@@ -283,6 +295,9 @@ override def shutdownCause(cause: Cause[E])(implicit trace: Trace): UIO[Chunk[A]
               // - clean up resources in case of interruption
               val p = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe.unsafe)
 
+             shutdownCauseRef.get.flatMap {
+               case Some(cause) => ZIO.failCause(cause)
+               case None        =>
               ZIO.suspendSucceed {
                 takers.offer(p)
                 strategy.unsafeCompleteTakers(queue, takers)
@@ -295,8 +310,13 @@ override def shutdownCause(cause: Cause[E])(implicit trace: Trace): UIO[Chunk[A]
           }
         }
       }
+    }
 
-    override def takeAll(implicit trace: Trace): UIO[Chunk[A]] =
+    override def takeAll(implicit trace: Trace): ZIO[Any,E,Chunk[A]] =
+      shutdownCauseRef.get.flatMap {
+       case Some(cause) => ZIO.failCause(cause)
+       case None        =>
+      
       ZIO.suspendSucceed {
         if (shutdownFlag.get)
           ZIO.interrupt
@@ -310,8 +330,12 @@ override def shutdownCause(cause: Cause[E])(implicit trace: Trace): UIO[Chunk[A]
           }
         }
       }
+    }
 
-    override def takeUpTo(max: Int)(implicit trace: Trace): UIO[Chunk[A]] =
+    override def takeUpTo(max: Int)(implicit trace: Trace): ZIO[Any,E,Chunk[A]] =
+     shutdownCauseRef.get.flatMap {
+      case Some(cause) => ZIO.failCause(cause)
+      case None        =>
       ZIO.suspendSucceed {
         if (shutdownFlag.get)
           ZIO.interrupt
@@ -325,8 +349,12 @@ override def shutdownCause(cause: Cause[E])(implicit trace: Trace): UIO[Chunk[A]
           }
         }
       }
+    }
 
-    override def poll(implicit trace: Trace): UIO[Option[A]] =
+    override def poll(implicit trace: Trace): ZIO[Any,E,Option[A]] =
+     shutdownCauseRef.get.flatMap {
+      case Some(cause) => ZIO.failCause(cause)
+      case None        =>
       ZIO.suspendSucceed {
         if (shutdownFlag.get)
           ZIO.interrupt
@@ -340,6 +368,7 @@ override def shutdownCause(cause: Cause[E])(implicit trace: Trace): UIO[Chunk[A]
         }
       }
   }
+}
 
   private sealed abstract class Strategy[A] {
     private[this] val draining = new AtomicBoolean(false)
