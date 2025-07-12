@@ -29,6 +29,14 @@ import scala.annotation.tailrec
 sealed abstract class Queue[E,A] extends Dequeue.Internal[A] with Enqueue.Internal[A] {
 
   /**
+   * Shuts down the queue with a specific error cause. 
+   * Any future interaction with the queue
+   * (such as take, offer, poll) will fail with this cause. 
+   */
+  def shutdownCause(cause: Cause[E])(implicit trace: Trace): UIO[Chunk[A]]
+
+
+  /**
    * Checks whether the queue is currently empty.
    */
   override final def isEmpty(implicit trace: Trace): UIO[Boolean] =
