@@ -144,6 +144,7 @@ object Queue extends QueuePlatformSpecific {
     fiberId: FiberId
   )(implicit unsafe: Unsafe): Queue[A] = {
     val p = Promise.unsafe.make[Nothing, Unit](fiberId)
+    val causeRef = Ref.Synchronized.unsafe.make[Option[Cause[E]]](None)
     unsafeCreate(
       queue,
       new ConcurrentDeque[Promise[Nothing, A]],
@@ -159,7 +160,7 @@ object Queue extends QueuePlatformSpecific {
     shutdownHook: Promise[Nothing, Unit],
     shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
-  ): Queue[Nothing,A] = new QueueImpl[A](queue, takers, shutdownHook, shutdownFlag, strategy)
+  ): Queue[Nothing,A] = new QueueImpl[A](queue, takers, shutdownHook, shutdownFlag, strategy, causeRef)
 
   private final class QueueImpl[E,A](
     queue: MutableConcurrentQueue[A],
