@@ -159,15 +159,16 @@ object Queue extends QueuePlatformSpecific {
     shutdownHook: Promise[Nothing, Unit],
     shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
-  ): Queue[A] = new QueueImpl[A](queue, takers, shutdownHook, shutdownFlag, strategy)
+  ): Queue[Nothing,A] = new QueueImpl[A](queue, takers, shutdownHook, shutdownFlag, strategy)
 
-  private final class QueueImpl[A](
+  private final class QueueImpl[E,A](
     queue: MutableConcurrentQueue[A],
     takers: ConcurrentDeque[Promise[Nothing, A]],
     shutdownHook: Promise[Nothing, Unit],
     shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
-  ) extends Queue[A] {
+    shutdownCauseRef: Ref.Synchronized[Option[Cause[E]]]
+  ) extends Queue[E,A] {
 
     private def removeTaker(taker: Promise[Nothing, A])(implicit trace: Trace): UIO[Unit] =
       ZIO.succeed(takers.remove(taker))
