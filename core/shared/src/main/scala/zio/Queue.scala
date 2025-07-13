@@ -273,7 +273,9 @@ object Queue extends QueuePlatformSpecific {
                           ZIO.unit
                         } else {
                           // Promise was completed, need to put the item back
-                          p.await.flatMap(a => offer(a).ignore)
+                          // But only if the queue isn't shut down
+                          if (shutdownFlag.get) ZIO.unit
+                          else p.await.flatMap(a => offer(a).ignore)
                         }
                       }
                     }
