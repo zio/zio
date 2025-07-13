@@ -93,7 +93,6 @@ object QueueSpec extends ZIOBaseSpec {
         size  <- queue.size
       } yield assert(size)(equalTo(2))
     } @@ zioTag(interruption),
-
     test("queue is ordered") {
       for {
         queue <- Queue.unbounded[Int]

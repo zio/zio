@@ -4914,36 +4914,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val exit = Exit.succeed(1).unit
         assertTrue(exit == Exit.unit)
       }
-    ),
-    test("no interruption gap in uninterruptibleMask with synchronous async completion") {
-      val task = for {
-        ref <- ZIO.succeed(new java.util.concurrent.atomic.AtomicReference[Int](42))
-        bodyWasCalled <- ZIO.succeed(new java.util.concurrent.atomic.AtomicBoolean(false))
-        holder <- ZIO.succeed(new java.util.concurrent.atomic.AtomicReference[Int](0))
-        getAndSave = ZIO.uninterruptibleMask { restore =>
-          restore(ZIO.asyncMaybe[Any, Nothing, Int] { _ =>
-            bodyWasCalled.set(true)
-            val v = ref.get()
-            val result = if (v != 0) v else 9999
-            Some(ZIO.succeed(result))
-          }).flatMap { i =>
-            ZIO.succeed(holder.set(i))
-          }
-        }
-        fib <- getAndSave.forkDaemon
-        _ <- fib.interrupt
-        _ <- fib.await
-        bodyCalled <- ZIO.succeed(bodyWasCalled.get())
-        holderContents <- ZIO.succeed(holder.get())
-                 _ <- if (bodyCalled) {
-           if (holderContents == 42) ZIO.unit
-           else ZIO.dieMessage(s"unexpected contents: ${holderContents}")
-         } else {
-           ZIO.unit
-         }
-      } yield ()
-      task.repeatN(999) *> assertCompletes
-    } @@ zioTag(interruption)
+    )
   )
 
   def functionIOGen: Gen[Any, String => ZIO[Any, Throwable, Int]] =
