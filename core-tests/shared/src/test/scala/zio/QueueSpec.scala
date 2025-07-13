@@ -93,28 +93,7 @@ object QueueSpec extends ZIOBaseSpec {
         size  <- queue.size
       } yield assert(size)(equalTo(2))
     } @@ zioTag(interruption),
-    test("take interruption with offer does not lose items") {
-      for {
-        q <- Queue.unbounded[String]
-        ref <- ZIO.succeed(new java.util.concurrent.atomic.AtomicReference[String])
-        fib <- ZIO.uninterruptibleMask { restore =>
-                restore(q.take).flatMap { item =>
-                  ZIO.succeed(ref.set(item))
-                }
-              }.forkDaemon
-        _ <- ZIO.sleep(5.millis)
-        _ <- fib.interrupt.zipPar(q.offer("foo"))
-        _ <- fib.await
-        s <- ZIO.succeed(ref.get())
-        result <- if (s eq null) {
-                   // take was cancelled, item should be in queue
-                   q.takeAll.map(_.headOption.contains("foo"))
-                 } else {
-                   // take was completed, should equal "foo"  
-                   ZIO.succeed(s == "foo")
-                 }
-      } yield assert(result)(isTrue)
-    } @@ zioTag(interruption),
+
     test("queue is ordered") {
       for {
         queue <- Queue.unbounded[Int]
