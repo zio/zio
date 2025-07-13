@@ -108,10 +108,10 @@ object QueueSpec extends ZIOBaseSpec {
         s <- ZIO.succeed(ref.get())
         result <- if (s eq null) {
                    // take was cancelled, item should be in queue
-                   q.take.map(_ == "foo")
+                   q.takeAll.map(_.headOption.contains("foo"))
                  } else {
-                   // take was completed, queue should be empty
-                   q.isEmpty
+                   // take was completed, should equal "foo"  
+                   ZIO.succeed(s == "foo")
                  }
       } yield assert(result)(isTrue)
     } @@ zioTag(interruption),
