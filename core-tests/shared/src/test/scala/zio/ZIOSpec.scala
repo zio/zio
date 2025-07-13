@@ -4935,13 +4935,12 @@ object ZIOSpec extends ZIOBaseSpec {
         _ <- fib.await
         bodyCalled <- ZIO.succeed(bodyWasCalled.get())
         holderContents <- ZIO.succeed(holder.get())
-        _ <- if (bodyCalled) {
-          ZIO.succeed {
-            assert(holderContents == 42, s"unexpected contents: ${holderContents}")
-          }
-        } else {
-          ZIO.unit
-        }
+                 _ <- if (bodyCalled) {
+           if (holderContents == 42) ZIO.unit
+           else ZIO.dieMessage(s"unexpected contents: ${holderContents}")
+         } else {
+           ZIO.unit
+         }
       } yield ()
       task.repeatN(999) *> assertCompletes
     } @@ zioTag(interruption)

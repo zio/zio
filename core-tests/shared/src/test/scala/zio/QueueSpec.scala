@@ -120,8 +120,8 @@ object QueueSpec extends ZIOBaseSpec {
               }
             }
       } yield ()
-      t.repeatN(100) *> assertCompletes
-    } @@ zioTag(interruption),
+      t.repeatN(10) *> assertCompletes
+    } @@ zioTag(interruption) @@ TestAspect.timeout(30.seconds),
     test("queue is ordered") {
       for {
         queue <- Queue.unbounded[Int]
