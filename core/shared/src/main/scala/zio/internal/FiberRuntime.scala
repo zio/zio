@@ -1232,15 +1232,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 popStackFrame(stackIndex)
 
                 // Go backward, on the stack:
-                // For successful effects, don't introduce new interruption opportunities
-                // when reverting flags - this prevents the interruption gap
-                cur = exit match {
-                  case success: Exit.Success[Any] =>
-                    patchRuntimeFlagsOnly(revertFlags)
-                    success
-                  case _ =>
-                    patchRuntimeFlags(revertFlags, exit.causeOrNull, exit)
-                }
+                cur = patchRuntimeFlags(revertFlags, exit.causeOrNull, exit)
               }
 
             case iterate: WhileLoop[Any, Any, Any] =>

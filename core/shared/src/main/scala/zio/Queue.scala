@@ -250,35 +250,13 @@ object Queue extends QueuePlatformSpecific {
         else {
           queue.poll(null.asInstanceOf[A]) match {
             case null =>
-              // add the promise to takers, then:
-              // - try take again in case a value was added since
-              // - wait for the promise to be completed
-              // - clean up resources in case of interruption
               val p = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe.unsafe)
-
-              ZIO.uninterruptibleMask { restore =>
-                ZIO.suspendSucceed {
-                  takers.offer(p)
-                  strategy.unsafeCompleteTakers(queue, takers)
-                  if (shutdownFlag.get) ZIO.interrupt
-                  else
-                    restore(p.await).onInterrupt {
-                      ZIO.suspendSucceed {
-                        // Race condition fix: if the promise was already completed,
-                        // we need to put the item back in the queue
-                        if (takers.remove(p)) {
-                          // Promise wasn't completed yet, safe to remove
-                          ZIO.unit
-                        } else {
-                          // Promise was completed, need to put the item back
-                          // But only if the queue isn't shut down
-                          if (shutdownFlag.get) ZIO.unit
-                          else p.await.flatMap(a => offer(a).ignore)
-                        }
-                      }
-                    }
-                }
-              }
+              ZIO.suspendSucceed {
+                takers.offer(p)
+                strategy.unsafeCompleteTakers(queue, takers)
+                if (shutdownFlag.get) ZIO.interrupt
+                else p.await
+              }.onInterrupt(ZIO.succeed(takers.remove(p)))
 
             case item =>
               strategy.unsafeOnQueueEmptySpace(queue, takers)
