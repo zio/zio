@@ -161,8 +161,7 @@ object Queue extends QueuePlatformSpecific {
     strategy: Strategy[A]
   ) extends Queue[A] {
 
-    private def removeTaker(taker: Promise[Nothing, A])(implicit trace: Trace): UIO[Unit] =
-      ZIO.succeed(takers.remove(taker))
+
 
     override def capacity: Int = queue.capacity
 
@@ -259,15 +258,31 @@ object Queue extends QueuePlatformSpecific {
               // - clean up resources in case of interruption
               val p = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe.unsafe)
 
-              ZIO.suspendSucceed {
-                takers.offer(p)
-                strategy.unsafeCompleteTakers(queue, takers)
-                if (shutdownFlag.get) ZIO.interrupt else p.await
-              }.onInterrupt(removeTaker(p))
+              ZIO.uninterruptibleMask { restore =>
+                ZIO.suspendSucceed {
+                  takers.offer(p)
+                  strategy.unsafeCompleteTakers(queue, takers)
+                  if (shutdownFlag.get) ZIO.interrupt
+                  else
+                    restore(p.await).onInterrupt {
+                      ZIO.suspendSucceed {
+                        // Race condition fix: if the promise was already completed,
+                        // we need to put the item back in the queue
+                        if (takers.remove(p)) {
+                          // Promise wasn't completed yet, safe to remove
+                          ZIO.unit
+                        } else {
+                          // Promise was completed, need to put the item back
+                          p.await.flatMap(a => offer(a).ignore)
+                        }
+                      }
+                    }
+                }
+              }
 
             case item =>
               strategy.unsafeOnQueueEmptySpace(queue, takers)
-              Exit.succeed(item)
+              ZIO.succeed(item)
           }
         }
       }

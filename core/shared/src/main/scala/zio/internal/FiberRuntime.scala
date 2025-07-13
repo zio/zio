@@ -718,7 +718,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       case Right(value) if value ne null =>
         if (callback.compareAndSet(false, true)) {
-          // Synchronous resumption
+          // Synchronous resumption - preserve current interruption status
+          // This ensures that if we're in an uninterruptible region when the async
+          // operation starts, we remain uninterruptible when processing the result
+          val wasInterruptible = isInterruptible()
+          if (wasInterruptible && shouldInterrupt()) {
+            // If we're interruptible and should interrupt, handle it now
+            return Exit.failCause(getInterruptedCause())
+          }
           return value
         }
         log(
@@ -1225,7 +1232,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 popStackFrame(stackIndex)
 
                 // Go backward, on the stack:
-                cur = patchRuntimeFlags(revertFlags, exit.causeOrNull, exit)
+                // For successful effects, don't introduce new interruption opportunities
+                // when reverting flags - this prevents the interruption gap
+                cur = exit match {
+                  case success: Exit.Success[Any] =>
+                    patchRuntimeFlagsOnly(revertFlags)
+                    success
+                  case _ =>
+                    patchRuntimeFlags(revertFlags, exit.causeOrNull, exit)
+                }
               }
 
             case iterate: WhileLoop[Any, Any, Any] =>
