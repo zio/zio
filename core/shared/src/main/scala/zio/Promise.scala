@@ -335,6 +335,15 @@ object Promise {
     ZIO.fiberIdWith(id => Exit.succeed(unsafe.make(id)(Unsafe)))
 
   /**
+   * Makes a new promise that will be completed with the effect.
+   */
+  def makeWith[E, A](io: IO[E, A])(implicit trace: Trace): UIO[Promise[E, A]] = 
+    for {
+      promise <- Promise.make[E, A]
+      _ <- promise.completeWith(io).fork
+    } yield promise
+
+  /**
    * Makes a new promise to be completed by the fiber with the specified id.
    */
   def makeAs[E, A](fiberId: => FiberId)(implicit trace: Trace): UIO[Promise[E, A]] =

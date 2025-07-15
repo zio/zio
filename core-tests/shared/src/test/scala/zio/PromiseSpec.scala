@@ -42,6 +42,15 @@ object PromiseSpec extends ZIOBaseSpec {
         assert(v1)(equalTo(14)) &&
         assert(v2)(equalTo(15))
     },
+    test("make a promise that completes with makeWith") {
+      for {
+        r  <- Ref.make(13)
+        p  <- Promise.makeWith[Nothing, Int](r.updateAndGet(_ + 1))
+        v1 <- p.await
+        v2 <- p.await
+      } yield assert(v1)(equalTo(14)) &&
+        assert(v2)(equalTo(15))
+    },
     test("fail a promise using fail") {
       for {
         p <- Promise.make[String, Int]
@@ -69,6 +78,15 @@ object PromiseSpec extends ZIOBaseSpec {
         v2 <- p.await.exit
       } yield assert(s)(isTrue) &&
         assert(v1)(fails(equalTo("first error"))) &&
+        assert(v2)(fails(equalTo("second error")))
+    } @@ zioTag(errors),
+    test("create a promise with makeWith that fails") {
+      for {
+        r  <- Ref.make(List("first error", "second error"))
+        p  <- Promise.makeWith[String, Int](r.modify(as => (as.head, as.tail)).flip)
+        v1 <- p.await.exit
+        v2 <- p.await.exit
+      } yield assert(v1)(fails(equalTo("first error"))) &&
         assert(v2)(fails(equalTo("second error")))
     } @@ zioTag(errors),
     test("complete a promise twice") {
