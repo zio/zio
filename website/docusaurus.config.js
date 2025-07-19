@@ -282,6 +282,10 @@ const config = {
           {
             from: '/zio-http',
             to: 'https://ziohttp.com'
+          },
+          {
+            from: '/zio-http/*',
+            to: 'https://ziohttp.com'
           }
         ],
       },
