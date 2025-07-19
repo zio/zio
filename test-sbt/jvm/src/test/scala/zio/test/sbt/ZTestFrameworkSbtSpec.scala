@@ -26,7 +26,8 @@ object ZTestFrameworkSbtSpec {
 //    test("should test only selected test")(testTestSelection()),
 //    test("should return summary when done")(testSummary()),
     test("should use a shared layer without re-initializing it")(testSharedLayer()),
-    test("should honor `TestSelector`s")(testTestSelector())
+    test("should honor `TestSelector`s")(testTestSelector()),
+    test("should match tests by long names")(testNestedTestSelection())
 //    test("should warn when no tests are executed")(testNoTestsExecutedWarning())
   )
 
@@ -167,6 +168,29 @@ object ZTestFrameworkSbtSpec {
         ).mkString("\n")
       )
     }
+  }
+
+  def testNestedTestSelection(): Unit = {
+    val loggers               = Array(new MockLogger: Logger)
+    val events                = ArrayBuffer.empty[Event]
+    val handler: EventHandler = (e: Event) => events.append(e)
+    val framework             = new ZTestFramework()
+    val runner                = framework.runner(Array.empty, Array.empty, getClass.getClassLoader)
+    val fqcn                  = FrameworkSpecInstances.NestedSpec.getClass.getName.stripSuffix("$")
+
+    def check(
+      what: String,
+      select: String
+    ): Unit = {
+      events.clear()
+      val taskDef = new TaskDef(fqcn, ZioSpecFingerprint, true, Array(new TestSelector(select)))
+      runner.tasks(Array(taskDef)).head.execute(handler, loggers)
+      assertEquals(what, events.head.selector().asInstanceOf[TestSelector].testName(), "outer - inner - test")
+    }
+
+    check("short", "test")
+    check("medium", "inner - test")
+    check("long", "outer - inner - test")
   }
 
   val randomFailure =

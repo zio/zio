@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
 @Warmup(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)
 @Fork(1)
-@Threads(1)
+@Threads(4)
 class EmptyRaceBenchmark {
   @Param(Array("1000"))
   var size: Int = _
@@ -28,15 +28,11 @@ class EmptyRaceBenchmark {
   }
 
   @Benchmark
-  def zioEmptyRace(): Int = zioEmptyRace(BenchmarkUtil)
-
-  private[this] def zioEmptyRace(runtime: Runtime[Any]): Int = {
+  def zioEmptyRace(): Int = {
     def loop(i: Int): UIO[Int] =
       if (i < size) ZIO.never.raceFirst(ZIO.succeed(i + 1)).flatMap(loop)
       else ZIO.succeed(i)
 
-    Unsafe.unsafe { implicit unsafe =>
-      runtime.unsafe.run(loop(0)).getOrThrowFiberFailure()
-    }
+    BenchmarkUtil.unsafeRun(loop(0))
   }
 }

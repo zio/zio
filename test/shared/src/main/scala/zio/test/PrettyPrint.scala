@@ -1,8 +1,9 @@
 package zio.test
 
-import zio.internal.ansi.AnsiStringOps
-import zio.{Chunk, NonEmptyChunk}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.{Chunk, NonEmptyChunk}
+
+import scala.annotation.switch
 
 /**
  * PrettyPrint will attempt to render a Scala value as the syntax used to create
@@ -10,25 +11,49 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * console during tests back into runnable code.
  */
 private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
-  private val maxListLength = 10
   def apply(any: Any): String =
-    any match {
-      case nonEmptyChunk: NonEmptyChunk[_] =>
-        prettyPrintIterator(nonEmptyChunk.iterator, nonEmptyChunk.size, "NonEmptyChunk")
-      case chunk: Chunk[_] =>
-        prettyPrintIterator(chunk.iterator, chunk.size, "Chunk")
-      case array: Array[_] =>
-        prettyPrintIterator(array.iterator, array.length, "Array")
+    (any: @switch) match {
+      case null => "<null>"
+
+      case string: String =>
+        val surround = if (string.contains('\n')) "\"\"\"" else "\""
+        // `+ 16` to take into account the potientials `\\` added when there are some `\"` characters
+        val builder = new java.lang.StringBuilder(string.length + 2 * surround.length + 16)
+        builder.append(surround)
+        builder.append(string.replace("\"", """\""""))
+        builder.append(surround)
+        builder.toString
+
+      case int: Int         => String.valueOf(int)
+      case long: Long       => String.valueOf(long)
+      case double: Double   => String.valueOf(double)
+      case float: Float     => String.valueOf(float)
+      case boolean: Boolean => String.valueOf(boolean)
+      case char: Char =>
+        val s = new Array[Char](3)
+        s(0) = '\''
+        s(1) = char
+        s(2) = '\''
+        new String(s)
+      case short: Short           => String.valueOf(short)
+      case byte: Byte             => String.valueOf(byte)
+      case bigDecimal: BigDecimal => bigDecimal.toString
+      case bigInt: BigInt         => bigInt.toString
+      case symbol: Symbol         => symbol.toString
 
       case Some(a) => s"Some(${PrettyPrint(a)})"
-      case None    => s"None"
-      case Nil     => "Nil"
+      case None    => "None"
 
-      case set: Set[_] =>
-        prettyPrintIterator(set.iterator, set.size, className(set))
+      // For why `Nil.type` is used. See https://github.com/zio/zio/pull/9900#discussion_r2121380398
+      case _: Nil.type => "Nil"
 
-      case iterable: Seq[_] =>
-        prettyPrintIterator(iterable.iterator, iterable.size, className(iterable))
+      case chunk: Chunk[_]                 => prettyPrintIterator(chunk, "Chunk")
+      case list: List[_]                   => prettyPrintIterator(list, "List")
+      case vector: Vector[_]               => prettyPrintIterator(vector, "Vector")
+      case array: Array[_]                 => prettyPrintIterator(array, "Array")
+      case set: Set[_]                     => prettyPrintIterator(set, "Set")
+      case nonEmptyChunk: NonEmptyChunk[_] => prettyPrintIterator(nonEmptyChunk, "NonEmptyChunk")
+      case iterable: Seq[_]                => prettyPrintIterator(iterable, className(iterable))
 
       case map: Map[_, _] =>
         val body = map.map { case (key, value) => s"${PrettyPrint(key)} -> ${PrettyPrint(value)}" }
@@ -36,48 +61,29 @@ private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
 ${indent(body.mkString(",\n"))}
 )"""
 
-      case product: Product =>
-        val name    = product.productPrefix
-        val labels0 = labels(product)
-        val body = labels0
-          .zip(product.productIterator)
-          .map { case (key, value) =>
-            s"${(key + " =").faint} ${PrettyPrint(value)}"
-          }
-          .toList
-          .mkString(",\n")
-        val isMultiline  = body.split("\n").length > 1
-        val indentedBody = indent(body, if (isMultiline) 2 else 0)
-        val spacer       = if (isMultiline) "\n" else ""
-        s"""$name($spacer$indentedBody$spacer)"""
-
-      case string: String =>
-        val surround = if (string.split("\n").length > 1) "\"\"\"" else "\""
-        string.replace("\"", """\"""").mkString(surround, "", surround)
-
-      case char: Char =>
-        s"'${char.toString}'"
-
-      case null => "<null>"
+      case product: Product => prettyPrintProduct(product)
 
       case other => other.toString
     }
 
-  private def prettyPrintIterator(iterator: Iterator[_], length: Int, className: String): String = {
-    val suffix = if (length > maxListLength) {
-      s" + ${length - maxListLength} more)"
-    } else {
-      ")"
+  private def prettyPrintIterator(iterable: Iterable[_], className: String): String =
+    if (iterable.isEmpty) s"$className()"
+    else {
+      val acc = new java.lang.StringBuilder(className.length + 16 * iterable.size)
+      acc.append(className)
+      acc.append('(')
+      val iterator = iterable.iterator
+      acc.append(PrettyPrint(iterator.next))
+      while (iterator.hasNext) {
+        acc.append(", ")
+        acc.append(PrettyPrint(iterator.next))
+      }
+      acc.append(')')
+      acc.toString
     }
-    iterator.take(maxListLength).map(PrettyPrint.apply).mkString(s"${className}(", ", ", suffix)
-  }
 
-  private def indent(string: String, n: Int = 2): String =
-    string.split("\n").map((" " * n) + _).mkString("\n")
+  private def indent(string: String): String = string.split("\n").map(v => s"  $v").mkString("\n")
 
-  private def className(any: Any): String = any match {
-    case _: List[_] => "List"
-    case other      => other.getClass.getSimpleName
-  }
+  private def className(any: Any): String = any.getClass.getSimpleName
 
 }
