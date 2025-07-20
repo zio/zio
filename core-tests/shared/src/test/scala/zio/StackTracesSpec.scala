@@ -122,7 +122,15 @@ object StackTracesSpec extends ZIOBaseSpec {
                 |	at zio.StackTracesSpec.spec.underlyingFailure
                 |	at zio.StackTracesSpec.spec
                 |""".stripMargin
-            else if (TestVersion.isScala2)
+            else if (TestVersion.isScala213)
+              """java.util.NoSuchElementException: head of empty list
+                |	at scala.collection.immutable.Nil$.head
+                |	at zio.StackTracesSpec$.$anonfun$spec
+                |	at zio.ZIO.$anonfun$map
+                |	at zio.StackTracesSpec.spec.underlyingFailure
+                |	at zio.StackTracesSpec.spec
+                |""".stripMargin
+            else if (TestVersion.isScala212)
               """java.util.NoSuchElementException: head of empty list
                 |	at scala.collection.immutable.Nil$.head
                 |	at zio.StackTracesSpec$.$anonfun$spec
