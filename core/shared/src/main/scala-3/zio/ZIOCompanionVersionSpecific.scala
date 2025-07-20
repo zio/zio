@@ -52,7 +52,7 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
     register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.Async[R, E, A](trace, register(using Unsafe), () => blockingOn)
+    ZIO.Async[R, E, A](trace, register(using Unsafe).map(_.uninterruptible), () => blockingOn)
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -76,7 +76,7 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
     Async(
       trace,
       register(using Unsafe)(_) match {
-        case Some(value) => Right(value)
+        case Some(value) => Right(value.uninterruptible)
         case _           => null
       },
       () => blockingOn

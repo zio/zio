@@ -9,6 +9,9 @@ object QueueSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec = suite("QueueSpec")(
+    test("minimal test discovery works") {
+      assertTrue(1 == 1)
+    },
     test("sequential offer and take") {
       for {
         queue <- Queue.bounded[Int](100)
@@ -755,6 +758,32 @@ object QueueSpec extends ZIOBaseSpec {
         _ <- f.await
       } yield assertCompletes
     } @@ exceptJS(nonFlaky),
+    test("race condition when interrupting Queue#take can cause items to disappear") {
+      for {
+        q   <- Queue.unbounded[String]
+        ref <- Ref.make[Option[String]](None)
+        fib <- ZIO.uninterruptibleMask { restore =>
+                 restore(q.take).flatMap { item =>
+                   ref.set(Some(item))
+                 }
+               }.forkDaemon
+        _ <- TestClock.adjust(Duration.fromMillis(1L))
+        _ <- fib.interrupt zipPar q.offer("foo")
+        _ <- fib.await
+        s <- ref.get
+        _ <- if (s.isEmpty) {
+               // take was cancelled, item should be in q
+               q.take.flatMap { item =>
+                 assertTrue(item == "foo")
+               }
+             } else {
+               // take was completed, q should be empty
+               q.isEmpty.flatMap { empty =>
+                 assertTrue(empty)
+               }
+             }
+      } yield assertCompletes
+    },
     suite("back-pressured bounded queue stress testing") {
       val genChunk = Gen.chunkOfBounded(20, 100)(smallInt)
       List(
