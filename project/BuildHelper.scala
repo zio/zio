@@ -84,7 +84,7 @@ object BuildHelper {
         scalaVersion,
         sbtVersion,
         isSnapshot,
-        BuildInfoKey("optimizationsEnabled" -> isRelease)
+        BuildInfoKey("optimizationsEnabled" -> (isRelease || !isSnapshot.value))
       ),
       buildInfoPackage := packageName
     )
