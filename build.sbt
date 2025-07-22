@@ -548,8 +548,8 @@ lazy val commonJunitTestSettings = Seq(
   libraryDependencies ++= Seq(
     "junit"                     % "junit"                          % "4.13.2" % Test,
     "org.scala-lang.modules"   %% "scala-xml"                      % "2.4.0"  % Test,
-    "org.apache.maven"          % "maven-embedder"                 % "3.9.10" % Test,
-    "org.apache.maven"          % "maven-compat"                   % "3.9.10" % Test,
+    "org.apache.maven"          % "maven-embedder"                 % "3.9.11" % Test,
+    "org.apache.maven"          % "maven-compat"                   % "3.9.11" % Test,
     "com.google.inject"         % "guice"                          % "6.0.0"  % Test,
     "org.eclipse.sisu"          % "org.eclipse.sisu.inject"        % "0.3.5"  % Test,
     "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.24" % Test,
@@ -661,14 +661,14 @@ lazy val benchmarks = project.module
         "com.twitter"               %% "util-core"     % "24.2.0",
         "com.typesafe.akka"         %% "akka-stream"   % "2.8.8",
         "io.github.timwspence"      %% "cats-stm"      % "0.13.4",
-        "io.projectreactor"          % "reactor-core"  % "3.7.7",
+        "io.projectreactor"          % "reactor-core"  % "3.7.8",
         "io.reactivex.rxjava2"       % "rxjava"        % "2.2.21",
         "org.jctools"                % "jctools-core"  % "4.0.5",
         "org.typelevel"             %% "cats-effect"   % CatsEffectVersion,
         "org.scalacheck"            %% "scalacheck"    % ScalaCheckVersion,
         "qa.hedgehog"               %% "hedgehog-core" % "0.12.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % nyanaVersion,
-        "org.springframework"        % "spring-core"   % "6.2.8"
+        "org.springframework"        % "spring-core"   % "6.2.9"
       )
     },
     excludeDependencies ++= {
