@@ -39,7 +39,8 @@ object MimaSettings {
         exclude[Problem]("zio.Promise$internal*"),
         exclude[Problem]("zio.Queue#Strategy*.shutdown"),
         exclude[Problem]("zio.ZLayer$MemoMap*"),
-        exclude[DirectMissingMethodProblem]("zio.ZLayer#MemoMap*")
+        exclude[DirectMissingMethodProblem]("zio.ZLayer#MemoMap*"),
+        exclude[IncompatibleMethTypeProblem]("zio.ZIO.withFiberRuntime")
       ),
       mimaFailOnProblem := failOnProblem
     )
