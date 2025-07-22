@@ -4654,8 +4654,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def runtime[R](implicit trace: Trace): URIO[R, Runtime[R]] =
     ZIO.withFiberRuntime[R, Nothing, Runtime[R]] { (state, runtimeFlags, _) =>
-      val fiberRefs    = state.getFiberRefs()
-      val environment  = fiberRefs.getOrDefault(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
+      val fiberRefs   = state.getFiberRefs()
+      val environment = fiberRefs.getOrDefault(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
       Exit.succeed(Runtime(environment, fiberRefs, runtimeFlags))
     }
 
