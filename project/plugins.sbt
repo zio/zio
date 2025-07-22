@@ -19,6 +19,6 @@ addSbtPlugin("pl.project13.scala"                % "sbt-jmh"                    
 
 addSbtPlugin("org.jetbrains.scala" % "sbt-ide-settings" % "1.1.2")
 
-libraryDependencies += "org.snakeyaml" % "snakeyaml-engine" % "2.9"
+libraryDependencies += "org.snakeyaml" % "snakeyaml-engine" % "2.10"
 
 addDependencyTreePlugin
