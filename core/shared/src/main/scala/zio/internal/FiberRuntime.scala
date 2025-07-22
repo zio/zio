@@ -104,10 +104,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   def id: FiberId.Runtime = fiberId
 
   def inheritAll(implicit trace: Trace): UIO[Unit] =
-    ZIO.withFiberRuntime[Any, Nothing, Unit] { (parentFiber, parentStatus) =>
+    ZIO.withFiberRuntime[Any, Nothing, Unit] { (parentFiber, parentRuntimeFlags, _) =>
       val parentFiberId      = parentFiber.id
       val parentFiberRefs    = parentFiber.getFiberRefs()
-      val parentRuntimeFlags = parentStatus.runtimeFlags
       val childFiberRefs     = self.getFiberRefs() // Inconsistent snapshot
 
       val updatedFiberRefs = parentFiberRefs.joinAs(parentFiberId)(childFiberRefs)
@@ -1148,7 +1147,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               cur = stateful.onState(
                 self.asInstanceOf[FiberRuntime[Any, Any]],
-                Fiber.Status.Running(_runtimeFlags, trace)
+                _runtimeFlags,
+                trace
               )
 
             case fold: FoldZIO[Any, Any, Any, Any, Any] =>

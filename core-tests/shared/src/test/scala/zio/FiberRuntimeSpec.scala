@@ -22,8 +22,8 @@ object FiberRuntimeSpec extends ZIOBaseSpec {
           val supervisor   = new YieldTrackingSupervisor(latch, nOps)
           val f            = ZIO.whileLoop(nOps.getAndIncrement() < nIters)(Exit.unit)(_ => ())
           ZIO
-            .withFiberRuntime[Any, Nothing, Unit] { (parentFib, status) =>
-              val fiber = ZIO.unsafe.makeChildFiber(Trace.empty, f, parentFib, status.runtimeFlags, FiberScope.global)
+            .withFiberRuntime[Any, Nothing, Unit] { (parentFib, runtimeFlags, _) =>
+              val fiber = ZIO.unsafe.makeChildFiber(Trace.empty, f, parentFib, runtimeFlags, FiberScope.global)
               fiber.setFiberRef(FiberRef.currentSupervisor, supervisor)
               fiber.startConcurrently(f)
               latch.await
@@ -51,8 +51,8 @@ object FiberRuntimeSpec extends ZIOBaseSpec {
           val f =
             ZIO.whileLoop(nOps.getAndIncrement() < nIters)(ZIO.when(nOps.get() % 10000 == 0)(ZIO.yieldNow))(_ => ())
           ZIO
-            .withFiberRuntime[Any, Nothing, Unit] { (parentFib, status) =>
-              val fiber = ZIO.unsafe.makeChildFiber(Trace.empty, f, parentFib, status.runtimeFlags, FiberScope.global)
+            .withFiberRuntime[Any, Nothing, Unit] { (parentFib, runtimeFlags, _) =>
+              val fiber = ZIO.unsafe.makeChildFiber(Trace.empty, f, parentFib, runtimeFlags, FiberScope.global)
               fiber.setFiberRef(FiberRef.currentSupervisor, supervisor)
               fiber.startConcurrently(f)
               latch.await
