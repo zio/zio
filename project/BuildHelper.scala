@@ -134,6 +134,7 @@ object BuildHelper {
       case Some((3, _)) =>
         Seq(
           "-language:implicitConversions",
+          "-language:noAutoTupling",
           "-Xignore-scala2-macros",
           "-Xmax-inlines:64",
           "-noindent"

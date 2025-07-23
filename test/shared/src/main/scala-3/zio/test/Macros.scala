@@ -157,7 +157,7 @@ object SmartAssertMacros {
       }
 
     def getSpan(term: quotes.reflect.Term): Expr[(Int, Int)] =
-      Expr(term.pos.start - summon[PositionContext].start, term.pos.end - summon[PositionContext].start)
+      Expr((term.pos.start - summon[PositionContext].start, term.pos.end - summon[PositionContext].start))
 
     expr match {
       case '{ type t; type v; SmartAssertionOps[`t`](${ something }: `t`).is[`v`](${ Unseal(Lambda(terms, body)) }) } =>
