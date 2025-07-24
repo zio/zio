@@ -31,7 +31,7 @@
     "@zio.dev/zio-cli": "0.7.2",
     "@zio.dev/zio-config": "4.0.4",
     "@zio.dev/zio-direct": "1.0.0-RC7",
-    "@zio.dev/zio-dynamodb": "1.0.0-RC19",
+    "@zio.dev/zio-dynamodb": "1.0.0-RC20",
     "@zio.dev/zio-ftp": "0.5.0",
     "@zio.dev/zio-http": "3.3.3",
     "@zio.dev/zio-json": "0.7.44",
