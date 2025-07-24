@@ -13,7 +13,7 @@ object Dependencies {
   val ScalaCollectionCompatVersion = "2.13.0"
   val ScalaNativeCryptoVersion     = "0.2.1"
   val ScalaSecureRandomVersion     = "1.0.0"
-  val ScalaJsDomVersion            = "2.8.0"
+  val ScalaJsDomVersion            = "2.8.1"
 
   // Documentations and example dependencies
   val CatsEffectVersion = "3.6.3"
