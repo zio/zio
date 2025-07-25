@@ -39,8 +39,15 @@ object ExecutionEventSink {
     }
 
   def live(console: Console, eventRenderer: ReporterEventRenderer): ZLayer[Any, Nothing, ExecutionEventSink] =
+    live(console, eventRenderer, reportsParent = TestArgs.reportsParentDefault)
+
+  def live(
+    console: Console,
+    eventRenderer: ReporterEventRenderer,
+    reportsParent: String
+  ): ZLayer[Any, Nothing, ExecutionEventSink] =
     ZLayer.make[ExecutionEventSink](
-      ExecutionEventPrinter.live(console, eventRenderer),
+      ExecutionEventPrinter.live(console, eventRenderer, reportsParent),
       TestOutput.live,
       ZLayer.fromZIO(
         for {

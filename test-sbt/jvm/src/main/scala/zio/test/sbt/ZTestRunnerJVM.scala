@@ -91,7 +91,8 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     val testArgs = TestArgs.parse(args)
 
     renderer = testArgs.testRenderer // Ensures summary is pretty in same style as rest of the test output
-    val sharedTestOutputLayer = ExecutionEventPrinter.live(console, testArgs.testEventRenderer) >>> TestOutput.live
+    val sharedTestOutputLayer =
+      ExecutionEventPrinter.live(console, testArgs.testEventRenderer, testArgs.reportsParent) >>> TestOutput.live
 
     val specTasks: Array[ZIOSpecAbstract] = defs.map(disectTask(_, testClassLoader))
     val sharedLayerFromSpecs: ZLayer[Any, Any, Any] =
