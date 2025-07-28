@@ -82,6 +82,62 @@ object QueueSpec extends ZIOBaseSpec {
         size  <- queue.size
       } yield assert(size)(equalTo(0))
     } @@ zioTag(interruption),
+    test("race condition when interrupting take can cause items to disappear") {
+      import java.util.concurrent.atomic.AtomicReference
+
+      val testIteration = for {
+        q <- Queue.unbounded[String]
+        ref <- ZIO.attempt { new AtomicReference[String] }
+        fib <- ZIO.uninterruptibleMask { restore =>
+          restore(q.take).flatMap { item =>
+            ZIO.attempt { ref.set(item) }
+          }
+        }.forkDaemon
+        _ <- ZIO.sleep(Duration.fromMillis(10L))
+        _ <- fib.interrupt zipPar q.offer("foo")
+        _ <- fib.await
+        s <- ZIO.attempt(ref.get())
+        _ <- if (s eq null) {
+          // take was cancelled, item should be in q
+          q.take.flatMap { item =>
+            if (item != "foo") ZIO.die(new AssertionError("incorrect item: " + item))
+            else ZIO.unit
+          }
+        } else {
+          // take was completed, q should be empty
+          q.isEmpty.flatMap { empty =>
+            if (!empty) ZIO.die(new AssertionError("nonempty q after completed take"))
+            else ZIO.unit
+          }
+        }
+      } yield ()
+
+      testIteration.repeatN(99)
+    } @@ zioTag(interruption) @@ nonFlaky,
+    test("race condition with offerAll and interrupted take") {
+      import java.util.concurrent.atomic.AtomicReference
+
+      val testIteration = for {
+        q <- Queue.unbounded[String]
+        ref <- ZIO.attempt { new AtomicReference[List[String]](Nil) }
+        fib <- ZIO.uninterruptibleMask { restore =>
+          restore(q.take).flatMap { item =>
+            ZIO.attempt { ref.updateAndGet(item :: _) }
+          }
+        }.forkDaemon
+        _ <- ZIO.sleep(Duration.fromMillis(5L))
+        _ <- fib.interrupt zipPar q.offerAll(List("foo", "bar", "baz"))
+        _ <- fib.await
+        taken <- ZIO.attempt(ref.get())
+        remaining <- q.takeAll
+        totalItems = taken.size + remaining.size
+        _ <- if (totalItems != 3) {
+          ZIO.die(new AssertionError(s"Expected 3 items total, got $totalItems (taken: ${taken.size}, remaining: ${remaining.size})"))
+        } else ZIO.unit
+      } yield ()
+
+      testIteration.repeatN(49)
+    } @@ zioTag(interruption) @@ nonFlaky,
     test("offer interruption") {
       for {
         queue <- Queue.bounded[Int](2)

@@ -176,8 +176,13 @@ object Queue extends QueuePlatformSpecific {
 
               if (taker eq null) false
               else {
-                unsafeCompletePromise(taker, a)
-                true
+                val completed = unsafeCompletePromise(taker, a)
+                if (completed) true
+                else {
+                  // Promise was already completed (likely interrupted), put item back in queue
+                  queue.offer(a)
+                  false
+                }
               }
             } else false
 
@@ -201,14 +206,17 @@ object Queue extends QueuePlatformSpecific {
         else {
           val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else Chunk.empty
           val (forTakers, remaining) = as.splitAt(pTakers.size)
-          (pTakers zip forTakers).foreach { case (taker, item) =>
-            unsafeCompletePromise(taker, item)
-          }
+          val failedItems = (pTakers zip forTakers).collect { case (taker, item) =>
+            if (!unsafeCompletePromise(taker, item)) Some(item) else None
+          }.flatten
+          // Put failed items back into the queue and combine with remaining items
+          val allRemaining = failedItems ++ remaining
+          failedItems.foreach(queue.offer)
 
-          if (remaining.isEmpty) Exit.emptyChunk
+          if (allRemaining.isEmpty) Exit.emptyChunk
           else {
             // not enough takers, offer to the queue
-            val surplus = unsafeOfferAll(queue, remaining)
+            val surplus = unsafeOfferAll(queue, allRemaining)
 
             if (surplus.isEmpty) {
               strategy.unsafeCompleteTakers(queue, takers)
@@ -355,8 +363,13 @@ object Queue extends QueuePlatformSpecific {
                   takers.addFirst(taker)
                   keepPolling = false
                 case a =>
-                  unsafeCompletePromise(taker, a)
-                  notifyEmptySpace = true
+                  val completed = unsafeCompletePromise(taker, a)
+                  if (completed) {
+                    notifyEmptySpace = true
+                  } else {
+                    // Promise was already completed (likely interrupted), put item back in queue
+                    queue.offer(a)
+                  }
               }
             }
           }
@@ -523,8 +536,8 @@ object Queue extends QueuePlatformSpecific {
     }
   }
 
-  private def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A): Unit =
-    p.unsafe.done(Exit.succeed(a))(Unsafe.unsafe)
+  private def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A): Boolean =
+    p.unsafe.completeWith(Exit.succeed(a))(Unsafe.unsafe)
 
   /**
    * Offer items to the queue
