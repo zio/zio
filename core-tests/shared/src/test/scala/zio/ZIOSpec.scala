@@ -2808,6 +2808,43 @@ object ZIOSpec extends ZIOBaseSpec {
           result <- finalized.get
         } yield assertTrue(result == false)
       } @@ zioTag(interruption),
+      test("asyncMaybe interruption gap in uninterruptibleMask is fixed") {
+        import java.util.concurrent.atomic.{AtomicReference, AtomicBoolean}
+
+        val singleTest = for {
+          ref <- ZIO.attempt(new AtomicReference[Int](42))
+          bodyWasCalledRef <- ZIO.attempt(new AtomicBoolean(false))
+          holder <- ZIO.attempt(new AtomicReference[Int](0))
+
+          getAndSave = ZIO.uninterruptibleMask { restore =>
+            restore(ZIO.asyncMaybe[Any, Throwable, Int] { _ =>
+              bodyWasCalledRef.set(true)
+              val v = ref.get()
+              val result = if (v != 0) v else 9999
+              Some(ZIO.succeed(result))
+            }).flatMap { i =>
+              ZIO.attempt(holder.set(i))
+            }
+          }
+
+          fib <- getAndSave.forkDaemon
+          _ <- fib.interrupt
+          _ <- fib.await
+
+          bodyWasCalled <- ZIO.attempt(bodyWasCalledRef.get())
+          holderContents <- ZIO.attempt(holder.get())
+
+          _ <- if (bodyWasCalled) {
+            ZIO.attempt {
+              assert(holderContents == 42, s"unexpected contents: ${holderContents}")
+            }
+          } else {
+            ZIO.unit
+          }
+        } yield ()
+
+        singleTest.repeatN(99)
+      } @@ zioTag(interruption) @@ nonFlaky,
       test("sleep 0 must return") {
         assertZIO(Live.live(Clock.sleep(1.nanos)))(isUnit)
       },

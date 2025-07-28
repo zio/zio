@@ -1174,6 +1174,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
             case async: Async[Any, Any, Any] =>
               updateLastTrace(async.trace)
+              val wasInterruptible = isInterruptible()
               cur = initiateAsync(async.registerCallback)
 
               if (cur eq null) {
@@ -1187,7 +1188,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               self._asyncContWith = AsyncContWith.`null`
 
-              if (shouldInterrupt()) {
+              // Only check for interruption if the fiber was interruptible when the async operation started
+              // This prevents the interruption gap when async operations return immediate results
+              if (wasInterruptible && shouldInterrupt()) {
                 cur = Exit.failCause(getInterruptedCause())
               }
 
