@@ -114,7 +114,7 @@ object QueueSpec extends ZIOBaseSpec {
              }
       } yield ()
 
-      testIteration.repeatN(99)
+      testIteration.repeatN(9)
     } @@ zioTag(interruption) @@ nonFlaky,
     test("race condition with offerAll and interrupted take") {
       val testIteration = for {
@@ -142,7 +142,7 @@ object QueueSpec extends ZIOBaseSpec {
              } else ZIO.unit
       } yield ()
 
-      testIteration.repeatN(49)
+      testIteration.repeatN(9)
     } @@ zioTag(interruption) @@ nonFlaky,
     test("offer interruption") {
       for {

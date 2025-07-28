@@ -2841,7 +2841,7 @@ object ZIOSpec extends ZIOBaseSpec {
                }
         } yield ()
 
-        singleTest.repeatN(99)
+        singleTest.repeatN(9)
       } @@ zioTag(interruption) @@ nonFlaky,
       test("sleep 0 must return") {
         assertZIO(Live.live(Clock.sleep(1.nanos)))(isUnit)

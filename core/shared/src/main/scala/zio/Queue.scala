@@ -206,9 +206,9 @@ object Queue extends QueuePlatformSpecific {
         else {
           val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else Chunk.empty
           val (forTakers, remaining) = as.splitAt(pTakers.size)
-          val failedItems = (pTakers zip forTakers).collect { case (taker, item) =>
-            if (!unsafeCompletePromise(taker, item)) Some(item) else None
-          }.flatten
+          val failedItems = (pTakers zip forTakers).collect { case (taker, item) if !unsafeCompletePromise(taker, item) =>
+            item
+          }
           // Put failed items back into the queue and combine with remaining items
           val allRemaining = failedItems ++ remaining
           failedItems.foreach(queue.offer)
