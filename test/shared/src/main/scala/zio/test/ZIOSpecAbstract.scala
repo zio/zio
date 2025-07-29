@@ -111,7 +111,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       perTestLayer = (ZLayer.succeedEnvironment(scopeEnv) ++ liveEnvironment) >>>
                        (TestEnvironment.live ++ ZLayer.environment[Scope])
 
-      executionEventSinkLayer = ExecutionEventSink.live(console, testArgs.testEventRenderer)
+      executionEventSinkLayer = ExecutionEventSink.live(console, testArgs.testEventRenderer, testArgs.reportsParent)
       environment            <- ZIO.environment[Environment]
       runner =
         TestRunner(
