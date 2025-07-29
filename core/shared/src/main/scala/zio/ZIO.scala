@@ -332,6 +332,7 @@ sealed trait ZIO[-R, +E, +A]
    * openFile("data.json").catchNonFatalOrDie(_ => openFile("backup.json"))
    * }}}
    */
+  @deprecated("Use `catchAll`", "2.1.21")
   final def catchNonFatalOrDie[R1 <: R, E2, A1 >: A](
     h: E => ZIO[R1, E2, A1]
   )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: Trace): ZIO[R1, E2, A1] = {
