@@ -1857,7 +1857,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             var index: Int                 = 0
             var error: Err                 = null.asInstanceOf[Err]
 
-            while (iterator.hasNextAt(index) && (error == null)) {
+            while (index < size && error == null) {
               val in = iterator.nextAt(index)
               index += 1
               f(in) match {
