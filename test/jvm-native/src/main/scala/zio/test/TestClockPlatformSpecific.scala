@@ -29,7 +29,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
 
   def scheduler(implicit trace: Trace): UIO[Scheduler] =
     (ZIO.executor <*> ZIO.runtime[Any]).map { case (executor, runtime) =>
-      new Scheduler {
+      new Scheduler.Internal {
         def schedule(runnable: Runnable, duration: Duration)(implicit unsafe: Unsafe): Scheduler.CancelToken = {
           val fiber =
             runtime.unsafe.fork((sleep(duration) *> ZIO.succeed(runnable.run())))

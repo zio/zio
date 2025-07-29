@@ -21,7 +21,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.scalajs.js
 
 private[zio] trait ClockPlatformSpecific {
-  private[zio] val globalScheduler = new Scheduler {
+  private[zio] val globalScheduler: Scheduler = new Scheduler.Internal {
     import Scheduler.CancelToken
 
     private[this] val ConstFalse = () => false

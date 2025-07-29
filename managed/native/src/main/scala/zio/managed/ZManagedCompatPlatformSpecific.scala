@@ -20,8 +20,6 @@ import zio._
 import zio.stream._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import scala.concurrent.Future
-
 private[managed] trait ZManagedCompatPlatformSpecific {
 
   implicit final class ZManagedZStreamCompanionPlatformSpecificSyntax(private val self: ZStream.type) {
@@ -33,7 +31,7 @@ private[managed] trait ZManagedCompatPlatformSpecific {
      * signal the end of the stream, by setting it to `None`.
      */
     def asyncManaged[R, E, A](
-      register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => ZManaged[R, E, Any],
+      register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZManaged[R, E, Any],
       outputBuffer: => Int = 16
     )(implicit trace: Trace): ZStream[R, E, A] =
       ZStream.asyncScoped[R, E, A](register(_).scoped, outputBuffer)

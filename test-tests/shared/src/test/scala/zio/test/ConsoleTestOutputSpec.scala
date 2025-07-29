@@ -41,6 +41,9 @@ object ConsoleTestOutputSpec extends ZIOBaseSpec {
         test("empty test suite") {
           runLog(suite4).map(res => containsUnstyled(res, suite4Expected))
         },
+        test("nested suite with sequential tests") {
+          runLog(suite5).map(res => containsUnstyled(res, suite5Expected))
+        },
         test("failure of simple assertion") {
           runLog(test5).map(res => containsUnstyled(res, test5Expected))
         },

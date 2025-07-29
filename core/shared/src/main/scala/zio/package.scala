@@ -46,7 +46,7 @@ package object zio
 
   type Trace = Tracer.instance.Type with Tracer.Traced
 
-  trait Tag[A] extends EnvironmentTag[A] {
+  sealed trait Tag[A] extends EnvironmentTag[A] {
     def tag: LightTypeTag
   }
 

@@ -73,6 +73,40 @@ class DeepAsyncBenchmark {
   }
 
   @Benchmark
+  def catsDeepAsyncInterruptOne(): Int = {
+    import cats.effect._
+
+    def recurse(n: Int): IO[Int] =
+      if (n > 0) recurse(n - 1).flatMap(i => IO(i + 1))
+      else
+        IO.async[Int] { k =>
+          IO {
+            k(Right(0))
+            Some(IO.unit)
+          }
+        }
+
+    recurse(depth).unsafeRunSync()
+  }
+
+  @Benchmark
+  def catsDeepAsyncInterruptMany(): Int = {
+    import cats.effect._
+
+    def recurse(n: Int): IO[Int] =
+      if (n > 0) recurse(n - 1).flatMap(i => IO.async_(k => k(Right(i + 1))))
+      else
+        IO.async[Int] { k =>
+          IO {
+            k(Right(0))
+            Some(IO.unit)
+          }
+        }
+
+    recurse(depth).unsafeRunSync()
+  }
+
+  @Benchmark
   def zioDeepAsyncOne(): Int = {
     import zio.BenchmarkUtil._
 
@@ -90,6 +124,42 @@ class DeepAsyncBenchmark {
     def recurse(n: Int): UIO[Int] =
       if (n > 0) recurse(n - 1).flatMap(i => ZIO.async[Any, Nothing, Int](k => k(Exit.succeed(i + 1))))
       else ZIO.async[Any, Nothing, Int](k => k(Exit.succeed(0)))
+
+    unsafeRun(recurse(depth))
+  }
+
+  @Benchmark
+  def zioDeepAsyncInterruptOne(): Int = {
+    import zio.BenchmarkUtil._
+
+    def recurse(n: Int): UIO[Int] =
+      if (n > 0) recurse(n - 1).flatMap(i => ZIO.succeed(i + 1))
+      else
+        ZIO.asyncInterrupt[Any, Nothing, Int] { k =>
+          k(Exit.succeed(0))
+          Left(ZIO.unit)
+        }
+
+    unsafeRun(recurse(depth))
+  }
+
+  @Benchmark
+  def zioDeepAsyncInterruptMany(): Int = {
+    import zio.BenchmarkUtil._
+
+    def recurse(n: Int): UIO[Int] =
+      if (n > 0)
+        recurse(n - 1).flatMap(i =>
+          ZIO.asyncInterrupt[Any, Nothing, Int] { k =>
+            k(Exit.succeed(i + 1))
+            Left(ZIO.unit)
+          }
+        )
+      else
+        ZIO.asyncInterrupt[Any, Nothing, Int] { k =>
+          k(Exit.succeed(0))
+          Left(ZIO.unit)
+        }
 
     unsafeRun(recurse(depth))
   }

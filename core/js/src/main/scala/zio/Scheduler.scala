@@ -21,12 +21,14 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 
-abstract class Scheduler {
+sealed abstract class Scheduler {
   def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): CancelToken
 }
 
 object Scheduler {
   type CancelToken = () => Boolean
+
+  private[zio] abstract class Internal extends Scheduler
 
   def fromScheduledExecutorService(service: ScheduledExecutorService): Scheduler =
     new Scheduler {

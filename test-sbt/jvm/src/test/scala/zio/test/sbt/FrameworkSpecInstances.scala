@@ -143,4 +143,13 @@ object FrameworkSpecInstances {
     )
   }
 
+  object NestedSpec extends ZIOSpecDefault {
+    def spec: Spec[Any, TestFailure[Any]] = zio.test.suite("outer")(
+      zio.test.suite("inner")(
+        test("test") {
+          zio.test.assert(1)(Assertion.equalTo(1))
+        }
+      )
+    )
+  }
 }
