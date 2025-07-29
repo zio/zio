@@ -10,7 +10,8 @@ jobs:
       - name: Git Checkout
         uses: actions/checkout@v4.2.2
         with:
-          fetch-depth: '0'
+          fetch-depth: 1000
+          fetch-tags: true
       - name: Approve PR
         run: gh pr review --approve ${{ github.event.number }}
         env:

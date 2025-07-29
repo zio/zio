@@ -33,14 +33,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   self =>
   type Erased = ZIO.Erased
 
-  import FiberRuntime.{DisableAssertions, EvaluationSignal, emptyTrace, stackTraceBuilderPool}
+  import FiberRuntime._
   import ZIO._
 
   private var _lastTrace      = fiberId.location
   private var _fiberRefs      = fiberRefs0
   private var _runtimeFlags   = runtimeFlags0
   private var _blockingOn     = FiberRuntime.notBlockingOn
-  private var _asyncContWith  = null.asInstanceOf[ZIO.Erased => Any]
+  private var _asyncContWith  = null.asInstanceOf[AsyncContWith]
   private val running         = new AtomicBoolean(false)
   private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
@@ -67,19 +67,22 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
 
   def await(implicit trace: Trace): UIO[Exit[E, A]] =
-    ZIO.suspendSucceed {
-      val exitValue = self._exitValue
-      if (exitValue ne null) Exit.succeed(exitValue)
-      else
-        ZIO.asyncInterrupt[Any, Nothing, Exit[E, A]](
-          { k =>
-            val cb = (exit: Exit[_, _]) => k(Exit.Success(exit.asInstanceOf[Exit[E, A]]))
-            unsafe.addObserver(cb)(Unsafe)
-            Left(ZIO.succeed(unsafe.removeObserver(cb)(Unsafe)))
-          },
-          id
-        )
-    }
+    ZIO.suspendSucceed(awaitUnsafe)
+
+  @inline
+  private[this] def awaitUnsafe(implicit trace: Trace): UIO[Exit[E, A]] = {
+    val exitValue = self._exitValue
+    if (exitValue ne null) Exit.succeed(exitValue)
+    else
+      ZIO.asyncInterrupt[Any, Nothing, Exit[E, A]](
+        { k =>
+          val cb = (exit: Exit[_, _]) => k(Exit.Success(exit.asInstanceOf[Exit[E, A]]))
+          unsafe.addObserver(cb)(Unsafe)
+          Left(ZIO.succeed(unsafe.removeObserver(cb)(Unsafe)))
+        },
+        id
+      )
+  }
 
   private[this] def childrenChunk(children: java.util.Set[Fiber.Runtime[?, ?]]): Chunk[Fiber.Runtime[_, _]] =
     // may be executed by a foreign fiber (under Sync), hence we're risking a race over the _children variable being set back to null by a concurrent transferChildren call
@@ -118,6 +121,26 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         ZIO.updateRuntimeFlags(patch)
       } else {
         Exit.unit
+      }
+    }
+
+  override def interruptAs(fiberId: FiberId)(implicit trace: Trace): UIO[Exit[E, A]] =
+    ZIO.suspendSucceed {
+      val exit = _exitValue
+      if (exit ne null) Exit.succeed(exit)
+      else {
+        val cause = Cause.interrupt(fiberId, StackTrace(self.fiberId, Chunk.single(trace)))
+        inbox.add(FiberMessage.InterruptSignal(cause))
+
+        // If the fiber is not running (which means it's suspended), and the current thread is in the same executor as the fiber,
+        // then execute the runloop on the current thread, avoiding context switching and suspension
+        if (running.compareAndSet(false, true)) {
+          val executor = getCurrentExecutor()
+          if (executor.isCurrentThreadInExecutor) drainQueueOnCurrentThread(0)
+          else drainQueueLaterOnExecutor(false)
+        }
+
+        awaitUnsafe(trace)
       }
     }
 
@@ -386,7 +409,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   ): Exit[E, A] = {
     assert(DisableAssertions || running.get)
 
-    self._asyncContWith = null
+    self._asyncContWith = AsyncContWith.`null`
     self._blockingOn = FiberRuntime.notBlockingOn
 
     updateLastTrace(effect0.trace)
@@ -515,7 +538,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     val stack = _stack
     val size  = _stackSize // racy
 
-    builder += _lastTrace
+    var last = _lastTrace
+    builder += last
+
     try {
       if (stack ne null) {
         var i = (if (stack.length < size) stack.length else size) - 1
@@ -523,13 +548,19 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         while (i >= 0) {
           val k = stack(i)
           if (k ne null) { // racy
-            builder += k.trace
+            val trace = k.trace
+            if (trace ne last) {
+              last = trace
+              builder += trace
+            }
             i -= 1
           }
         }
       }
 
-      builder += id.location // TODO: Allow parent traces?
+      val loc = id.location
+      if (loc ne last)
+        builder += loc // TODO: Allow parent traces?
 
       StackTrace(self.fiberId, builder.result())
     } finally {
@@ -553,9 +584,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   }
 
   private[zio] def getCurrentExecutor(): Executor =
-    getFiberRef(FiberRef.overrideExecutor) match {
-      case None        => Runtime.defaultExecutor
+    getFiberRefOrNull(FiberRef.overrideExecutor) match {
       case Some(value) => value
+      case _           => Runtime.defaultExecutor
     }
 
   private[zio] def getFiberRef[A](fiberRef: FiberRef[A]): A =
@@ -636,10 +667,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   private[zio] def getStatus(): Fiber.Status =
     if (_exitValue ne null) Fiber.Status.Done
-    else {
-      if (_asyncContWith ne null) Fiber.Status.Suspended(self._runtimeFlags, _lastTrace, _blockingOn())
-      else Fiber.Status.Running(self._runtimeFlags, _lastTrace)
-    }
+    else if (running.get()) Fiber.Status.Running(self._runtimeFlags, _lastTrace)
+    else Fiber.Status.Suspended(self._runtimeFlags, _lastTrace, _blockingOn())
 
   /**
    * Retrieves the current supervisor the fiber uses for supervising effects.
@@ -670,46 +699,40 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private def initiateAsync(
-    asyncRegister: (ZIO.Erased => Unit) => ZIO.Erased
+    asyncRegister: (ZIO.Erased => Unit) => Either[ZIO.Erased, ZIO.Erased]
   ): ZIO.Erased = {
-    val alreadyCalled = new AtomicBoolean(false)
-
-    val callback = (effect: ZIO.Erased) => {
-      if (alreadyCalled.compareAndSet(false, true)) {
-        tell(FiberMessage.Resume(effect))
-      }
-    }
-
-    if (isInterruptible()) self._asyncContWith = callback
-    else self._asyncContWith = FiberRuntime.IgnoreContinuation
+    val callback = new AsyncContWith.Callback(self)
+    var value    = null.asInstanceOf[Either[ZIO.Erased, ZIO.Erased]]
 
     try {
-      val sync = asyncRegister(callback)
-
-      if (sync ne null) {
-        if (alreadyCalled.compareAndSet(false, true)) {
-          self._asyncContWith = null
-          self._blockingOn = FiberRuntime.notBlockingOn
-          sync
-        } else {
-          log(
-            () =>
-              s"Async operation attempted synchronous resumption, but its callback was already invoked; synchronous value will be discarded",
-            Cause.empty,
-            ZIO.someError,
-            id.location
-          )
-
-          null.asInstanceOf[ZIO.Erased]
-        }
-      } else null.asInstanceOf[ZIO.Erased]
+      value = asyncRegister(callback)
     } catch {
       case throwable: Throwable =>
         if (isFatal(throwable)) handleFatalError(throwable)
         else callback(Exit.Failure(Cause.die(throwable)))
-
-        null.asInstanceOf[ZIO.Erased]
     }
+
+    value match {
+      case Left(onInterrupt) =>
+        if (isInterruptible()) self._asyncContWith = AsyncContWith(callback, onInterrupt)
+
+      case Right(value) if value ne null =>
+        if (callback.compareAndSet(false, true)) {
+          // Synchronous resumption
+          return value
+        }
+        log(
+          FiberRuntime.syncResumptionErrorMessage,
+          Cause.empty,
+          ZIO.someError,
+          id.location
+        )
+
+      case _ =>
+        if (isInterruptible()) self._asyncContWith = AsyncContWith(callback)
+    }
+
+    null
   }
 
   /**
@@ -821,19 +844,27 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def patchRuntimeFlags[R, E, A](
+  private def patchRuntimeFlags[E0, A0](
     patch: RuntimeFlags.Patch,
-    cause: Cause[E],
-    continueEffect: ZIO[R, E, A]
-  ): ZIO[R, E, A] = {
+    cause: Cause[E0],
+    continueEffect: Exit[E0, A0]
+  ): Exit[E0, A0] =
+    patchRuntimeFlagsCause(patch, cause) match {
+      case null => continueEffect
+      case c    => Exit.Failure(c)
+    }
+
+  private def patchRuntimeFlagsCause[E0](
+    patch: RuntimeFlags.Patch,
+    cause: Cause[E0]
+  ): Cause[E0] = {
     val changed          = patchRuntimeFlagsOnly(patch)
     val interruptEnabled = RuntimeFlags.Patch.isEnabled(patch, RuntimeFlag.Interruption.mask)
 
     if (changed && interruptEnabled && shouldInterrupt()) {
-      if (cause ne null) Exit.Failure(cause ++ getInterruptedCause())
-      else Exit.Failure(getInterruptedCause())
-    } else if (cause ne null) Exit.Failure(cause)
-    else continueEffect
+      if (cause ne null) cause ++ getInterruptedCause()
+      else getInterruptedCause()
+    } else cause
   }
 
   /**
@@ -912,9 +943,43 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     self.sendInterruptSignalToAllChildren(_children)
 
     val k = self._asyncContWith
+    self._asyncContWith = AsyncContWith.`null`
 
-    if (k ne null) {
-      k(Exit.Failure(cause))
+    val callback = k.callback
+
+    // Not async interruption or uninterruptible async
+    if (callback eq null) return
+
+    k.onInterrupt match {
+      // No interrupt handler
+      case null => callback.completeCause(cause)
+
+      // Shortcut cases where the interruption is a simple suspended function (most common)
+      case sync: Sync[Any] =>
+        if (callback.completeCause(cause)) {
+          updateLastTrace(sync.trace)
+          try {
+            sync.eval()
+          } catch {
+            case t: Throwable =>
+              if (isFatal(t)) handleFatalError(t)
+              else addInterruptedCause(Cause.die(t))
+          }
+        }
+
+      // Can't shortcut, handle onInterrupt in runloop
+      case onInterrupt =>
+        val f = onInterrupt.foldCauseZIO(
+          c => {
+            addInterruptedCause(c.asInstanceOf[Cause[Nothing]])
+            FiberRuntime.enableInterruptionAfterAsync
+          },
+          _ => FiberRuntime.enableInterruptionAfterAsync
+        )(Trace.empty)
+
+        // We need to disable interruption otherwise `onInterrupt` will be interrupted before it is evaluated
+        if (callback.completeZIO(f))
+          patchRuntimeFlagsOnly(RuntimeFlags.disableInterruption)
     }
   }
 
@@ -1109,8 +1174,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
             case async: Async[Any, Any, Any] =>
               updateLastTrace(async.trace)
-              self._blockingOn = async.blockingOn
-
               cur = initiateAsync(async.registerCallback)
 
               if (cur eq null) {
@@ -1118,8 +1181,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
               if (cur eq null) {
+                self._blockingOn = async.blockingOn
                 return null
               }
+
+              self._asyncContWith = AsyncContWith.`null`
 
               if (shouldInterrupt()) {
                 cur = Exit.failCause(getInterruptedCause())
@@ -1218,12 +1284,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                     }
 
                   case updateFlags: ZIO.UpdateRuntimeFlags =>
-                    cur = patchRuntimeFlags(updateFlags.update, cause, null)
+                    cause = patchRuntimeFlagsCause(updateFlags.update, cause)
                 }
               }
 
               if (cur eq null) {
-                return failure
+                val f =
+                  if (cause eq failure.cause) failure
+                  else Exit.Failure(cause)
+                return f
               }
 
             case updateRuntimeFlags: UpdateRuntimeFlags =>
@@ -1312,9 +1381,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           }
 
           if (runtimeMetricsEnabled) {
-            val tags = getFiberRef(FiberRef.currentTags)
-            Metric.runtime.fiberFailures.unsafe.update(1, tags)(Unsafe)
-            cause.foldContext(tags)(FiberRuntime.fiberFailureTracker)
+            val filteredCause = cause.filter(_.traces.exists(_.fiberId eq fiberId))
+            if (!filteredCause.isEmpty) {
+              val tags = getFiberRef(FiberRef.currentTags)
+              Metric.runtime.fiberFailures.unsafe.update(1, tags)(Unsafe)
+              filteredCause.foldContext(tags)(FiberRuntime.fiberFailureTracker)
+            }
           }
         } catch {
           case throwable: Throwable =>
@@ -1404,17 +1476,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     tell(FiberMessage.Resume(effect))
 
   private[zio] def startSuspended()(implicit unsafe: Unsafe): ZIO[_, E, A] => Any = {
-    val alreadyCalled = new AtomicBoolean(false)
-    val callback = (effect: ZIO[_, E, A]) => {
-      if (alreadyCalled.compareAndSet(false, true)) {
-        tell(FiberMessage.Resume(effect))
-      }
-    }
+    val callback = new AsyncContWith.Callback(self)
 
-    self._asyncContWith = callback.asInstanceOf[ZIO.Erased => Any]
+    self._asyncContWith = AsyncContWith(callback)
     self._blockingOn = FiberRuntime.notBlockingOn
 
-    callback
+    callback.asInstanceOf[ZIO[_, E, A] => Any]
   }
 
   /**
@@ -1488,7 +1555,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         self.getFiberRefs()
 
       def removeObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit =
-        self.tell(FiberMessage.Stateful(_.asInstanceOf[FiberRuntime[E, A]].removeObserver(observer)))
+        if (self._exitValue ne null)
+          self.tell(FiberMessage.Stateful(_.asInstanceOf[FiberRuntime[E, A]].removeObserver(observer)))
 
       def poll(implicit unsafe: Unsafe): Option[Exit[E, A]] =
         Option(self.exitValue())
@@ -1511,8 +1579,6 @@ object FiberRuntime {
 
   private final val InitialStackSize    = 16
   private final val StackIdxGcThreshold = 128
-
-  private final val IgnoreContinuation: Any => Unit = _ => ()
 
   /**
    * For Scala 3, `-X-elide-below` is ignored, and therefore we need to use an
@@ -1564,6 +1630,13 @@ object FiberRuntime {
       RuntimeFlags.disable(RuntimeFlag.WindDown)
     )
 
+  private val enableInterruptionAfterAsync: ZIO.Erased =
+    ZIO.UpdateRuntimeFlagsWithin.DynamicNoBox[Any, Any, Any](
+      Trace.empty,
+      RuntimeFlags.enableInterruption,
+      _ => Exit.unit
+    )
+
   private val notBlockingOn: () => FiberId = () => FiberId.None
 
   /**
@@ -1576,4 +1649,74 @@ object FiberRuntime {
   private val stackTraceBuilderPool: ThreadLocal[StackTraceBuilder] = new ThreadLocal[StackTraceBuilder] {
     override def initialValue(): StackTraceBuilder = StackTraceBuilder.make()(Unsafe)
   }
+
+  private val syncResumptionErrorMessage = () =>
+    "Async operation attempted synchronous resumption, but its callback was already invoked; synchronous value will be discarded"
+
+  /**
+   * Value class that wraps the asynchronous continuation. While the value class
+   * itself doesn't allocate, constructing the value class by passing an
+   * interruption handler to it via the method below will allocate a
+   * `Tuple2[Callback, ZIO.Erased]`
+   *
+   * {{{
+   *   def apply(callback: Callback, onInterrupt: ZIO.Erased): AsyncContWith
+   * }}}
+   */
+  private class AsyncContWith private (private val value: AnyRef) extends AnyVal {
+    import AsyncContWith.Callback
+
+    def callback: Callback = value match {
+      case null             => null
+      case x: Callback      => x
+      case x: (Callback, ?) => x._1
+    }
+
+    def onInterrupt: ZIO.Erased = value match {
+      case x: (?, ZIO.Erased) => x._2
+      case _                  => null
+    }
+  }
+
+  private object AsyncContWith {
+
+    /**
+     * Callback to be invoked when an asynchronous effect completes.
+     *
+     * '''NOTE''': For performance reasons this class extends `AtomicBoolean`,
+     * but its methods should NOT be used externally. Instead, use one of
+     * [[apply]], [[completeZIO]] or [[completeCause]].
+     */
+    final class Callback(fiber: FiberRuntime[?, ?]) extends AtomicBoolean(false) with (ZIO.Erased => Unit) {
+
+      def apply(effect: ZIO.Erased): Unit =
+        completeZIO(effect)
+
+      def completeZIO(effect: ZIO.Erased): Boolean =
+        if (compareAndSet(false, true)) {
+          fiber.tell(FiberMessage.Resume(effect))
+          true
+        } else {
+          false
+        }
+
+      def completeCause(cause: Cause[Nothing]): Boolean =
+        if (compareAndSet(false, true)) {
+          fiber.tell(FiberMessage.Resume(Exit.Failure(cause)))
+          true
+        } else {
+          false
+        }
+    }
+
+    @inline def `null`: AsyncContWith =
+      new AsyncContWith(null)
+
+    @inline def apply(callback: Callback): AsyncContWith =
+      new AsyncContWith(callback)
+
+    def apply(callback: Callback, onInterrupt: ZIO.Erased): AsyncContWith =
+      new AsyncContWith((callback, onInterrupt))
+  }
+
 }

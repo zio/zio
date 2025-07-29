@@ -55,7 +55,7 @@ val loggingImpl = new EmailService {
 val effect = app.provideEnvironment(ZEnvironment(loggingImpl))
 ```
 
-Most of the time, we don't use `ZIO#provideEnvironment` directly to provide our services; instead, we use `ZLayer` to construct the dependency graph of our application, then we use methods like `ZIO#provide`, `ZIO#provideSome` and `ZIO#provideCustom` to propagate dependencies into the environment of our ZIO effect.
+Most of the time, we don't use `ZIO#provideEnvironment` directly to provide our services; instead, we use `ZLayer` to construct the dependency graph of our application, then we use methods like `ZIO#provide`, `ZIO#provideSome`, `ZIO#provideSomeAuto` and `ZIO#provideCustom` to propagate dependencies into the environment of our ZIO effect.
 
 ## Using `ZIO#provide` Method
 
@@ -126,3 +126,12 @@ val mainEffectSome: ZIO[Bar, Nothing, Unit] =
 :::caution
 When using `ZIO#provideSome[R0]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
 :::
+
+## Using `ZIO#provideSomeAuto` Method
+
+In Scala 3 enhanced version of `ZIO#provideSome` is introduced. The `ZIO#provideSomeAuto` method automatically infers the remaining type of the effect.
+
+```scala
+val mainEffectSomeAuto =
+  myApp.provideSomeAuto(FooLive.layer) // No need to provide `Bar` anywhere
+```

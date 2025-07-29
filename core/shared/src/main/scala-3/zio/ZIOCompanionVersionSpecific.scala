@@ -4,6 +4,7 @@ import zio.ZIO.Async
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.targetName
 
 private[zio] transparent trait ZIOCompanionVersionSpecific {
@@ -26,7 +27,8 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
     Async(
       trace,
       { k =>
-        register(using Unsafe)(k); null.asInstanceOf[ZIO[R, E, A]]
+        register(using Unsafe)(k)
+        null
       },
       () => blockingOn
     )
@@ -50,24 +52,7 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
     register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed {
-      val cancelerRef = new java.util.concurrent.atomic.AtomicReference[URIO[R, Any]](ZIO.unit)
-
-      ZIO
-        .Async[R, E, A](
-          trace,
-          { k =>
-            val result = register(using Unsafe)(k(_))
-
-            result match {
-              case Left(canceler) => cancelerRef.set(canceler); null.asInstanceOf[ZIO[R, E, A]]
-              case Right(done)    => done
-            }
-          },
-          () => blockingOn
-        )
-        .onInterrupt(cancelerRef.get())
-    }
+    ZIO.Async[R, E, A](trace, register(using Unsafe), () => blockingOn)
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -88,7 +73,14 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
     register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    Async(trace, k => register(using Unsafe)(k).orNull, () => blockingOn)
+    Async(
+      trace,
+      register(using Unsafe)(_) match {
+        case Some(value) => Right(value)
+        case _           => null
+      },
+      () => blockingOn
+    )
 
   /**
    * Returns an effect that, when executed, will cautiously run the provided

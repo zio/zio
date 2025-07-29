@@ -19,7 +19,9 @@ package zio
 import zio.Cause.Both
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+import java.io.PrintWriter
 import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.runtime.AbstractFunction2
 
 sealed abstract class Cause[+E] extends Product with Serializable { self =>
@@ -497,35 +499,38 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
 
   final def nonEmpty: Boolean = !isEmpty
 
-  /**
-   * Returns a `String` with the cause pretty-printed.
-   */
+  /** Returns a `String` with the cause pretty-printed. */
   final def prettyPrint: String = {
+    val builder = new StringBuilder
+    prettyPrintWith(builder.append(_).append('\n'))(Unsafe.unsafe)
+    builder.result()
+  }
+
+  /** Pretty-prints this cause with the provided `append` function. */
+  private[zio] final def prettyPrintWith(append: String => Unit)(implicit unsafe: Unsafe): Unit = {
     import Cause.Unified
 
-    val builder = ChunkBuilder.make[String]()
-    var size    = 0
-
-    def append(string: String): Unit =
+    var size = 0
+    def appendLine(line: String): Unit =
       if (size <= 1024) {
-        builder += string
+        append(line)
         size += 1
       }
 
     def appendCause(cause: Cause[E]): Unit =
       cause.unified.zipWithIndex.foreach {
         case (unified, 0) =>
-          appendUnified(0, "Exception in thread \"" + unified.fiberId.threadName + "\" ", unified)
+          appendUnified(0, "", unified)
         case (unified, n) =>
-          appendUnified(n, s"Suppressed: ", unified)
+          appendUnified(n, "Suppressed: ", unified)
       }
 
     def appendUnified(indent: Int, prefix: String, unified: Unified): Unit = {
       val baseIndent  = "\t" * indent
       val traceIndent = baseIndent + "\t"
 
-      append(s"${baseIndent}${prefix}${unified.className}: ${unified.message}")
-      unified.trace.foreach(trace => append(s"${traceIndent}at ${trace}"))
+      appendLine(s"$baseIndent$prefix${unified.className}: ${unified.message}")
+      unified.trace.foreach(trace => appendLine(s"${traceIndent}at $trace"))
     }
 
     val (die, fail, interrupt) =
@@ -541,7 +546,6 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     die.foreach(appendCause)
     fail.foreach(appendCause)
     interrupt.foreach(appendCause)
-    builder.result.mkString("\n")
   }
 
   def size: Int = self.foldContext(())(Cause.Folder.Size)
@@ -923,6 +927,60 @@ object Cause extends Serializable {
       (causeOption, stackless) => causeOption.map(Stackless(_, stackless))
     )
 
+  /**
+   * A Cause that contains one or more sub-causes
+   */
+  private[Cause] sealed trait CompositeCause[+E] { self: Cause[E] =>
+
+    /**
+     * Stack-safe toString for Cause
+     */
+    final private def causeToString: String = {
+      // result modifier function (Function0[Unit]) or cause (Cause[E]) to visit
+      val visitStack = new mutable.Stack[Any]()
+      // calculated string results
+      val results = new mutable.Stack[String]()
+
+      def twoArgStr(name: String) = {
+        val right = results.pop()
+        val left  = results.pop()
+        results.push(s"$name($left,$right)")
+      }
+
+      @tailrec
+      def visitRecursive(): String = {
+        def visitCause(current: Cause[E]) =
+          current match {
+            case Both(left, right) =>
+              visitStack.push(() => twoArgStr("Both"), right, left)
+            case Then(left, right) =>
+              visitStack.push(() => twoArgStr("Then"), right, left)
+            case Stackless(cause, stackless) =>
+              visitStack.push(() => results.push(s"Stackless(${results.pop()},$stackless)"), cause)
+            case nonCompositeCause =>
+              results.push(nonCompositeCause.toString)
+          }
+
+        if (visitStack.isEmpty) {
+          results.pop()
+        } else {
+          visitStack.pop() match {
+            case fn: Function0[Unit] =>
+              fn()
+            case cause: Cause[E] =>
+              visitCause(cause)
+          }
+          visitRecursive()
+        }
+      }
+
+      visitStack.push(self)
+      visitRecursive()
+    }
+
+    final override def toString = causeToString
+  }
+
   case object Empty extends Cause[Nothing] { self =>
     override def map[E1](f: Nothing => E1): Cause[E1] = self
     override protected def mapAll(
@@ -1001,11 +1059,11 @@ object Cause extends Serializable {
       }
   }
 
-  final case class Stackless[+E](cause: Cause[E], stackless: Boolean) extends Cause[E]
+  final case class Stackless[+E](cause: Cause[E], stackless: Boolean) extends Cause[E] with CompositeCause[E]
 
-  final case class Then[+E](left: Cause[E], right: Cause[E]) extends Cause[E]
+  final case class Then[+E](left: Cause[E], right: Cause[E]) extends Cause[E] with CompositeCause[E]
 
-  final case class Both[+E](left: Cause[E], right: Cause[E]) extends Cause[E]
+  final case class Both[+E](left: Cause[E], right: Cause[E]) extends Cause[E] with CompositeCause[E]
 
   private def equals(left: Cause[Any], right: Cause[Any]): Boolean = {
 

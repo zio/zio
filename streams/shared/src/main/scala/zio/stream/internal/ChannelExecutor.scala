@@ -8,7 +8,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable.Stack
 
-private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   initialChannel: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
   @volatile private var providedEnv: ZEnvironment[Any],
   executeCloseLastSubstream: URIO[Env, Any] => URIO[Env, Any]
@@ -21,7 +21,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
     val currInput = input
     input = prev
 
-    if (currInput ne null) currInput.close(exit) else ZIO.unit
+    if (currInput ne null) currInput.close(exit) else Exit.unit
   }
 
   private[this] final def popAllFinalizers(
@@ -176,12 +176,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
               leftExec.input = previousInput
               input = leftExec
 
-              addFinalizer { exit =>
-                val effect = restorePipe(exit, previousInput)
-
-                if (effect ne null) effect
-                else ZIO.unit
-              }
+              addFinalizer(exit => restorePipe(exit, previousInput))
 
               currentChannel = right().asInstanceOf[Channel[Env]]
 
@@ -260,12 +255,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
 
               val previousInput = input
               input = null
-              addFinalizer { exit =>
-                val effect = restorePipe(exit, previousInput)
-
-                if (effect ne null) effect
-                else ZIO.unit
-              }
+              addFinalizer(exit => restorePipe(exit, previousInput))
               currentChannel = nextChannel
 
             case ZChannel.Bridge(bridgeInput, channel) =>
@@ -311,16 +301,8 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
                   }
 
                 result = ChannelState.Effect(
-                  drainer.forkDaemon.flatMap { fiber =>
-                    ZIO.succeed(addFinalizer { exit =>
-                      fiber.interrupt *>
-                        ZIO.suspendSucceed {
-                          val effect = restorePipe(exit, inputExecutor)
-
-                          if (effect ne null) effect
-                          else ZIO.unit
-                        }
-                    })
+                  drainer.forkDaemon.map { fiber =>
+                    addFinalizer(exit => fiber.interrupt *> restorePipe(exit, inputExecutor))
                   }
                 )
               }
@@ -468,8 +450,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
   ): URIO[Env, Any] =
     if (finalizers.isEmpty) null
     else
-      ZIO
-        .foreach(finalizers)(_.apply(ex).exit)
+      provide(ZIO.foreach(finalizers)(_.apply(ex).exit))
         .map(results => Exit.collectAll(results) getOrElse Exit.unit)
         .unexit
 

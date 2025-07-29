@@ -257,13 +257,12 @@ $TestResult($ast.withCode($codeString).meta(location = $location))
   }
 
   object UnwrapImplicit {
-    @nowarn("msg=never used")
-    def unapply(tree: c.Tree): Option[c.Tree] =
-      tree match {
-        case q"$wrapper($lhs)" if wrapper.symbol.isImplicit =>
-          Some(lhs)
-        case _ => Some(tree)
-      }
+    def unapply(tree: c.Tree): Option[c.Tree] = tree match {
+      case q"$wrapper(...$lhs)" if wrapper.symbol != null && wrapper.symbol.isImplicit =>
+        lhs.view.flatten.headOption
+      case _ =>
+        Some(tree)
+    }
   }
 
   object MethodCall {

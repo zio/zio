@@ -37,9 +37,18 @@ addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/Test/compile;stacktracerJVM/Test/compile;streamsTestsJVM/Test/compile;testTestsJVM/Test/compile;testMagnoliaTestsJVM/Test/compile;testRefinedJVM/Test/compile;testRunnerJVM/Test/compile;examplesJVM/Test/compile;macrosTestsJVM/Test/compile;concurrentJVM/Test/compile;managedTestsJVM/Test/compile"
 )
+// Split Native commands in half so that we can run them in parallel in CI
+addCommandAlias(
+  "testNative1",
+  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;"
+)
+addCommandAlias(
+  "testNative2",
+  ";testTestsNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test"
+)
 addCommandAlias(
   "testNative",
-  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test"
+  ";testNative1;testNative2"
 )
 addCommandAlias(
   "testJVM",
@@ -538,13 +547,13 @@ lazy val commonJunitTestSettings = Seq(
   ),
   libraryDependencies ++= Seq(
     "junit"                     % "junit"                          % "4.13.2" % Test,
-    "org.scala-lang.modules"   %% "scala-xml"                      % "2.3.0"  % Test,
-    "org.apache.maven"          % "maven-embedder"                 % "3.9.9"  % Test,
-    "org.apache.maven"          % "maven-compat"                   % "3.9.9"  % Test,
+    "org.scala-lang.modules"   %% "scala-xml"                      % "2.4.0"  % Test,
+    "org.apache.maven"          % "maven-embedder"                 % "3.9.11" % Test,
+    "org.apache.maven"          % "maven-compat"                   % "3.9.11" % Test,
     "com.google.inject"         % "guice"                          % "6.0.0"  % Test,
     "org.eclipse.sisu"          % "org.eclipse.sisu.inject"        % "0.3.5"  % Test,
-    "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.22" % Test,
-    "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.22" % Test,
+    "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.24" % Test,
+    "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.24" % Test,
     "org.codehaus.plexus"       % "plexus-component-annotations"   % "2.2.0"  % Test,
     "org.slf4j"                 % "slf4j-simple"                   % "2.0.17" % Test
   )
@@ -622,7 +631,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(publish / skip := true)
   .settings(Test / test := (Test / compile).value)
   .settings(
-    resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
+    resolvers += Resolver.sonatypeCentralSnapshots,
     libraryDependencies ++= List(
       `zio-http`,
       `zio-metrics-connectors`,
@@ -652,14 +661,14 @@ lazy val benchmarks = project.module
         "com.twitter"               %% "util-core"     % "24.2.0",
         "com.typesafe.akka"         %% "akka-stream"   % "2.8.8",
         "io.github.timwspence"      %% "cats-stm"      % "0.13.4",
-        "io.projectreactor"          % "reactor-core"  % "3.7.4",
+        "io.projectreactor"          % "reactor-core"  % "3.7.8",
         "io.reactivex.rxjava2"       % "rxjava"        % "2.2.21",
         "org.jctools"                % "jctools-core"  % "4.0.5",
         "org.typelevel"             %% "cats-effect"   % CatsEffectVersion,
         "org.scalacheck"            %% "scalacheck"    % ScalaCheckVersion,
         "qa.hedgehog"               %% "hedgehog-core" % "0.12.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % nyanaVersion,
-        "org.springframework"        % "spring-core"   % "6.2.5"
+        "org.springframework"        % "spring-core"   % "6.2.9"
       )
     },
     excludeDependencies ++= {
@@ -808,7 +817,7 @@ lazy val docs = project.module
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
     docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
-    resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
+    resolvers += Resolver.sonatypeCentralSnapshots,
     mdocVariables ++= Map(
       "ZIO_METRICS_CONNECTORS_VERSION" -> ZioMetricsConnectorsVersion,
       "ZIO_CONFIG_VERSION"             -> ZioConfigVersion,

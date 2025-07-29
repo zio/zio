@@ -26,10 +26,10 @@ import scala.math.log
 import scala.reflect.{ClassTag, classTag}
 
 /**
- * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
- * are usually backed by arrays, but expose a purely functional, safe interface
- * to the underlying elements, and they become lazy on operations that would be
- * costly with arrays, such as repeated concatenation.
+ * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are usually
+ * backed by arrays, but expose a purely functional, safe interface to the
+ * underlying elements, and they become lazy on operations that would be costly
+ * with arrays, such as repeated concatenation.
  *
  * The implementation of balanced concatenation is based on the one for
  * Conc-Trees in "Conc-Trees for Functional and Parallel Programming" by

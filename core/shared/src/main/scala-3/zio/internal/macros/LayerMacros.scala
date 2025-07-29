@@ -11,12 +11,28 @@ import java.util.Base64
 import LayerMacroUtils._
 
 object LayerMacros {
-  def constructStaticLayer[R0: Type, R: Type, E: Type](
+  def constructStaticProvideLayer[R0: Type, R: Type, E: Type](
     layers: Expr[Seq[ZLayer[_, E, _]]]
   )(using Quotes): Expr[ZLayer[R0, E, R]] =
     layers match {
       case Varargs(layers) =>
         LayerMacroUtils.constructStaticLayer[R0, R, E](layers, ProvideMethod.Provide)
+    }
+
+  def constructStaticProvideSomeLayer[R0: Type, R: Type, E: Type](
+    layers: Expr[Seq[ZLayer[_, E, _]]]
+  )(using Quotes): Expr[ZLayer[R0, E, R]] =
+    layers match {
+      case Varargs(layers) =>
+        LayerMacroUtils.constructStaticLayer[R0, R, E](layers, ProvideMethod.ProvideSome)
+    }
+
+  def constructStaticProvideSomeSharedLayer[R0: Type, R: Type, E: Type](
+    layers: Expr[Seq[ZLayer[_, E, _]]]
+  )(using Quotes): Expr[ZLayer[R0, E, _]] =
+    layers match {
+      case Varargs(layers) =>
+        LayerMacroUtils.constructStaticSomeLayer[R0, R, E](layers, ProvideMethod.ProvideSomeShared)
     }
 
   def constructDynamicLayer[R: Type, E: Type](
@@ -33,7 +49,17 @@ object LayerMacros {
   )(using
     Quotes
   ): Expr[ZIO[R0, E, A]] = {
-    val layerExpr = constructStaticLayer[R0, R, E](layer)
+    val layerExpr = constructStaticProvideLayer[R0, R, E](layer)
+    '{ $zio.provideLayer($layerExpr) }
+  }
+
+  def provideSomeStaticImpl[R0: Type, R: Type, E: Type, A: Type](
+    zio: Expr[ZIO[R, E, A]],
+    layer: Expr[Seq[ZLayer[_, E, _]]]
+  )(using
+    Quotes
+  ): Expr[ZIO[R0, E, A]] = {
+    val layerExpr = constructStaticProvideSomeLayer[R0, R, E](layer)
     '{ $zio.provideLayer($layerExpr) }
   }
 
@@ -56,7 +82,7 @@ object LayerMacros {
     layer: Expr[ZLayer[R, E, Unit]],
     deps: Expr[Seq[ZLayer[_, E, _]]]
   )(using Quotes) = {
-    val layerExpr = constructStaticLayer[Any, R, E](deps)
+    val layerExpr = constructStaticProvideLayer[Any, R, E](deps)
     '{ ZIO.scoped($layer.build).provideLayer($layerExpr).unit }
   }
 
