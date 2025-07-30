@@ -690,13 +690,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                            permits
                              .withPermit(
                                latch.succeedUnit *>
-                                 f(outElem)
-                                   .catchAllCause { cause =>
-                                     def continue = errorSignal.succeedUnit *> ZChannel.failLeftUnit
+                                 f(outElem).catchAllCause { cause =>
+                                   def continue =
+                                     errorSignal.succeedUnit *>
+                                       ZChannel.failLeftUnit
 
-                                     if (cause.isInterruptedOnly) continue
-                                     else failureRef.update(_ && cause) *> continue
-                                   }
+                                   if (cause.isInterruptedOnly) continue
+                                   else failureRef.update(_ && cause) *> continue
+                                 }
                              )
                              .interruptible
                              .forkIn(childScope)
