@@ -4434,77 +4434,82 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromIterator[A](iterator: => Iterator[A], maxChunkSize: => Int = DefaultChunkSize)(implicit
     trace: Trace
   ): ZStream[Any, Throwable, A] =
-    ZStream.succeed(maxChunkSize).flatMap { maxChunkSize =>
-      if (maxChunkSize == 1) fromIteratorSingle(iterator)
-      else {
-        object StreamEnd extends Throwable
-
-        ZStream
-          .fromZIO(
-            FiberRef.currentFatal.get <*> ZIO.attempt(iterator) <*> ZIO.runtime[Any] <*> ZIO
-              .succeed(ChunkBuilder.make[A](maxChunkSize))
-          )
-          .flatMap { case (isFatal, it, rt, builder) =>
-            ZStream.repeatZIOChunkOption {
-              ZIO.attempt {
-                builder.clear()
-                var count = 0
-
-                try {
-                  while (count < maxChunkSize && it.hasNext) {
-                    builder += it.next()
-                    count += 1
-                  }
-                } catch {
-                  case e: Throwable if !isFatal(e) =>
-                    throw e
-                }
-
-                if (count > 0) {
-                  builder.result()
-                } else {
-                  throw StreamEnd
-                }
-              }.mapError {
-                case StreamEnd => None
-                case e         => Some(e)
+    ZStream.suspend {
+      var error: Stream[Throwable, A] = null
+      val it: Iterator[A] =
+        try iterator
+        catch {
+          case t: Throwable =>
+            error = ZStream.fromZIO {
+              ZIO.isFatalWith { isFatal =>
+                if (!isFatal(t)) ZIO.fail(t)
+                else throw t
               }
             }
+            null // not important
+        }
+
+      if (error ne null) error
+      else {
+        val maxChunkSize0 = maxChunkSize
+
+        if (maxChunkSize0 == 1) fromIteratorSingle(it)
+        else {
+          val builder = ChunkBuilder.make[A](maxChunkSize0)
+
+          ZStream.repeatZIOChunkOption {
+            ZIO.suspendSucceed {
+              builder.clear()
+              var count: Int                            = 0
+              var error: IO[Option[Throwable], Nothing] = null
+
+              try {
+                while (count < maxChunkSize0 && it.hasNext) {
+                  builder += it.next()
+                  count += 1
+                }
+              } catch {
+                case t: Throwable =>
+                  error = ZIO.isFatalWith { isFatal =>
+                    if (!isFatal(t)) ZIO.fail(Some(t))
+                    else throw t
+                  }
+              }
+
+              if (error ne null) error
+              else if (count > 0) Exit.succeed(builder.result())
+              else Exit.failNone // end of stream
+            }
           }
+        }
       }
     }
 
-  private def fromIteratorSingle[A](iterator: => Iterator[A])(implicit
+  private def fromIteratorSingle[A](it: Iterator[A])(implicit
     trace: Trace
-  ): ZStream[Any, Throwable, A] = {
-    object StreamEnd extends Throwable
+  ): ZStream[Any, Throwable, A] =
+    ZStream.repeatZIOChunkOption {
+      ZIO.suspendSucceed {
+        var error: IO[Option[Throwable], Nothing] = null
 
-    ZStream.fromZIO(FiberRef.currentFatal.get <*> ZIO.attempt(iterator) <*> ZIO.runtime[Any]).flatMap {
-      case (isFatal, it, rt) =>
-        ZStream.repeatZIOOption {
-          ZIO.attempt {
-
-            val hasNext: Boolean =
-              try it.hasNext
-              catch {
-                case e: Throwable if !isFatal(e) =>
-                  throw e
+        val next: Exit[Nothing, Chunk[A]] =
+          try {
+            if (it.hasNext) Exit.succeed(Chunk.single(it.next()))
+            else null
+          } catch {
+            case t: Throwable =>
+              error = ZIO.isFatalWith { isFatal =>
+                if (!isFatal(t)) ZIO.fail(Some(t))
+                else throw t
               }
-
-            if (hasNext) {
-              try it.next()
-              catch {
-                case e: Throwable if !isFatal(e) =>
-                  throw e
-              }
-            } else throw StreamEnd
-          }.mapError {
-            case StreamEnd => None
-            case e         => Some(e)
+              null // not important
           }
-        }
+
+        if (error ne null) error
+        else if (next ne null) next
+        else Exit.failNone // end of stream
+      }
     }
-  }
 
   /**
    * Creates a stream from a scoped iterator
