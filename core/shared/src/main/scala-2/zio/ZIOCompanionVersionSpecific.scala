@@ -99,10 +99,8 @@ private[zio] trait ZIOCompanionVersionSpecific {
       catch {
         case t: Throwable =>
           ZIO.isFatalWith { isFatal =>
-            if (!isFatal(t))
-              ZIO.failCause(Cause.fail(t))
-            else
-              throw t
+            if (!isFatal(t)) Exit.failCause(Cause.fail(t))
+            else throw t
           }
       }
     }
