@@ -28,28 +28,19 @@ inThisBuild(
 addCommandAlias("build", "; fmt; rootJVM/test")
 addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
-addCommandAlias(
-  "check",
-  "; scalafmtSbtCheck; scalafmtCheckAll"
-)
+addCommandAlias("check", "; scalafmtSbtCheck; scalafmtCheckAll")
 
 addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/Test/compile;stacktracerJVM/Test/compile;streamsTestsJVM/Test/compile;testTestsJVM/Test/compile;testMagnoliaTestsJVM/Test/compile;testRefinedJVM/Test/compile;testRunnerJVM/Test/compile;examplesJVM/Test/compile;macrosTestsJVM/Test/compile;concurrentJVM/Test/compile;managedTestsJVM/Test/compile"
 )
 // Split Native commands in half so that we can run them in parallel in CI
-addCommandAlias(
-  "testNative1",
-  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;"
-)
+addCommandAlias("testNative1", ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;")
 addCommandAlias(
   "testNative2",
   ";testTestsNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test"
 )
-addCommandAlias(
-  "testNative",
-  ";testNative1;testNative2"
-)
+addCommandAlias("testNative", ";testNative1;testNative2")
 addCommandAlias(
   "testJVM",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test;testRunnerJVM/Test/run;examplesJVM/Test/compile;benchmarks/Test/compile;macrosTestsJVM/test;concurrentJVM/test;managedTestsJVM/test;set ThisBuild/isSnapshot:=true;testJunitRunnerTests/test;testJunitEngineTests/test;reload"
@@ -226,6 +217,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     libraryDependencies ++= List(
       "dev.zio"                %%% "izumi-reflect"           % IzumiReflectVersion,
+      "org.jctools"              % "jctools-core"            % JctoolsVersion,
       "org.scala-lang.modules" %%% "scala-collection-compat" % ScalaCollectionCompatVersion
     )
   )
@@ -653,6 +645,7 @@ lazy val benchmarks = project.module
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
+    Test / sources := Seq.empty,
     publish / skip := true,
     libraryDependencies ++= {
       val nyanaVersion = if (scalaVersion.value == Scala212) "0.10.0" else "1.1.0"
