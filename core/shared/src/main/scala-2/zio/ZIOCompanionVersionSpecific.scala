@@ -197,5 +197,5 @@ private[zio] trait ZIOCompanionVersionSpecific {
    * specified value.
    */
   def succeedBlocking[A](a: => A)(implicit trace: Trace): UIO[A] =
-    ZIO.blocking(ZIO.succeed(a))
+    ZIO.blocking(Exit.succeed(a))
 }

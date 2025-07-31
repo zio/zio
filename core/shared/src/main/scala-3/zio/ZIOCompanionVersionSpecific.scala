@@ -198,7 +198,7 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
    * specified value.
    */
   inline def succeedBlocking[A](inline a: Unsafe ?=> A)(implicit trace: Trace): UIO[A] =
-    ZIO.blocking(ZIO.succeed(a))
+    ZIO.blocking(Exit.succeed(a(using Unsafe)))
 
   @targetName("succeed")
   @deprecated("use succeed", "2.1.7")
