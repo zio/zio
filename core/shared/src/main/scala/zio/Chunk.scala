@@ -1822,8 +1822,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     implicit val classTag: ClassTag[A] =
       Tags.fromValue(a)
 
-    override val length =
-      1
+    override def length = 1
 
     override def apply(n: Int): A =
       if (n == 0) a
@@ -1836,17 +1835,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit =
       dest(destPos) = a
 
-    def chunkIterator: ChunkIterator[A] =
+    override def chunkIterator: ChunkIterator[A] =
       self
 
-    def hasNextAt(index: Int): Boolean =
+    override def hasNextAt(index: Int): Boolean =
       index == 0
 
-    def nextAt(index: Int): A =
+    override def nextAt(index: Int): A =
       if (index == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $index")
 
-    def sliceIterator(offset: Int, length: Int): ChunkIterator[A] =
+    override def sliceIterator(offset: Int, length: Int): ChunkIterator[A] =
       if (offset <= 0 && length >= 1) self
       else ChunkIterator.empty
   }
