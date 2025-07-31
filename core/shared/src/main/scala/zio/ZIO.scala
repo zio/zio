@@ -17,9 +17,7 @@
 package zio
 
 import zio.internal.FiberScope
-import zio.metrics.MetricLabel
-import zio.metrics.Metrics
-import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.metrics.{MetricLabel, Metrics}
 
 import java.io.IOException
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -6406,6 +6404,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           }
         }
     }
+
+  /**
+   * This `_emptyChunkThunk` value should probably not be reused outside of the
+   * `emptyChunk` function below
+   */
+  private[zio] val _emptyChunkThunk: () => Chunk[Nothing]                 = () => Chunk.empty
+  private[zio] def emptyChunk(implicit trace: Trace): UIO[Chunk[Nothing]] = ZIO.Sync(trace, _emptyChunkThunk)
 }
 
 /**

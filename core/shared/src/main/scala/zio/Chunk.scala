@@ -235,14 +235,16 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   def collectWhileZIO[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]])(implicit
     trace: Trace
   ): ZIO[R, E, Chunk[B]] =
-    if (isEmpty) ZIO.succeed(Chunk.empty) else self.materialize.collectWhileZIO(pf)
+    if (isEmpty) ZIO.emptyChunk
+    else self.materialize.collectWhileZIO(pf)
 
   /**
    * Returns a filtered, mapped subset of the elements of this chunk based on a
    * .
    */
   def collectZIO[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]])(implicit trace: Trace): ZIO[R, E, Chunk[B]] =
-    if (isEmpty) ZIO.succeed(Chunk.empty) else self.materialize.collectZIO(pf)
+    if (isEmpty) ZIO.emptyChunk
+    else self.materialize.collectZIO(pf)
 
   /**
    * Determines whether this chunk and the specified chunk have the same length
@@ -1601,70 +1603,103 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     override def collectZIO[R, E, B](
       pf: PartialFunction[A, ZIO[R, E, B]]
-    )(implicit trace: Trace): ZIO[R, E, Chunk[B]] = ZIO.suspendSucceed {
-      val builder = ChunkBuilder.make[B]()
-      builder.sizeHint(length)
+    )(implicit trace: Trace): ZIO[R, E, Chunk[B]] =
+      ZIO.suspendSucceed {
+        val self = array
+        val len  = self.length
 
-      val orElse = (_: A) => ZIO.succeed(null.asInstanceOf[B])
+        if (len == 1) (pf andThen (_.map(Chunk.single))).applyOrElse(self(0), (_: A) => ZIO.emptyChunk)
+        else {
+          val builder = ChunkBuilder.make[B]()
+          builder.sizeHint(len)
 
-      def loop(index: Int): ZIO[R, E, Chunk[B]] =
-        if (index < length) {
-          val a = self(index)
-          pf.applyOrElse(a, orElse).flatMap { b =>
-            if (b != null) builder += b
-            loop(index + 1)
+          // implemented this way to try to take advantage of compiler optimizations
+          // See https://www.scala-lang.org/api/current/scala/PartialFunction.html
+          val pf0: PartialFunction[A, ZIO[R, E, Unit]] =
+            pf andThen (_.map(builder += _))
+
+          var index                     = 0
+          val init: Exit[Nothing, Unit] = Exit.unit
+          var acc: ZIO[R, E, Unit]      = init
+          val default                   = (_: A) => acc
+          while (index < len) {
+            val a      = self(index)
+            val effect = pf0.applyOrElse(a, default)
+            if (effect ne acc) {
+              val current = acc
+              acc = current *> effect
+            }
+            index += 1
           }
-        } else ZIO.succeed(builder.result())
 
-      loop(0)
-    }
-
-    override def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] = {
-      val self    = array
-      val len     = self.length
-      val builder = ChunkBuilder.make[B]()
-      builder.sizeHint(len)
-
-      var i    = 0
-      var done = false
-      while (!done && i < len) {
-        val b = pf.applyOrElse(self(i), (_: A) => null.asInstanceOf[B])
-
-        if (b != null) {
-          builder += b
-        } else {
-          done = true
+          if (acc eq init) Exit.emptyChunk
+          else acc.as(builder.result())
         }
-
-        i += 1
       }
 
-      builder.result()
+    override def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] = {
+      val self = array
+      val len  = self.length
+
+      if (len == 1) (pf andThen (b => Chunk.single(b))).applyOrElse(self(0), (_: A) => Chunk.empty[B])
+      else {
+        val builder = ChunkBuilder.make[B]()
+        builder.sizeHint(len)
+
+        // implemented this way to try to take advantage of compiler optimizations
+        // See https://www.scala-lang.org/api/current/scala/PartialFunction.html
+        //
+        // Will return false if the partial function is not defined for the element
+        val pf0: A => Boolean = pf runWith (builder += _)
+
+        var i       = 0
+        var notDone = true
+        while (notDone && i < len) {
+          val a = self(i)
+          i += 1
+          notDone = pf0(a)
+        }
+
+        builder.result()
+      }
     }
 
     override def collectWhileZIO[R, E, B](
       pf: PartialFunction[A, ZIO[R, E, B]]
     )(implicit trace: Trace): ZIO[R, E, Chunk[B]] =
       ZIO.suspendSucceed {
-        val builder = ChunkBuilder.make[B]()
-        builder.sizeHint(length)
+        val self = array
+        val len  = self.length
 
-        val orElse = (_: A) => ZIO.succeed(null.asInstanceOf[B])
+        if (len == 1) (pf andThen (_.map(Chunk.single))).applyOrElse(self(0), (_: A) => ZIO.emptyChunk)
+        else {
+          val builder = ChunkBuilder.make[B]()
+          builder.sizeHint(len)
 
-        def loop(index: Int): ZIO[R, E, Chunk[B]] =
-          if (index < length) {
-            val a = self(index)
-            pf.applyOrElse(a, orElse).flatMap { b =>
-              if (b != null) {
-                builder += b
-                loop(index + 1)
-              } else {
-                ZIO.succeed(builder.result())
-              }
+          // implemented this way to try to take advantage of compiler optimizations
+          // See https://www.scala-lang.org/api/current/scala/PartialFunction.html
+          val pf0: PartialFunction[A, ZIO[R, E, Unit]] =
+            pf andThen (_.map(builder += _))
+
+          var index                = 0
+          val init                 = Exit.unit
+          var acc: ZIO[R, E, Unit] = init
+          val default              = (_: A) => acc
+          var notDone              = true
+          while (notDone && index < len) {
+            val a      = self(index)
+            val effect = pf0.applyOrElse(a, default)
+            notDone = effect ne acc
+            if (notDone) {
+              val current = acc
+              acc = current *> effect
+              index += 1
             }
-          } else ZIO.succeed(builder.result())
+          }
 
-        loop(0)
+          if (acc eq init) Exit.emptyChunk
+          else acc.as(builder.result())
+        }
       }
 
     override def dropWhile(f: A => Boolean): Chunk[A] = {
@@ -1686,12 +1721,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
       var i = 0
       while (i < len) {
-        val elem = self(i)
-
-        if (f(elem)) {
-          builder += elem
-        }
-
+        val a = self(i)
+        if (f(a)) builder += a
         i += 1
       }
 
@@ -1753,20 +1784,26 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       Array.copy(array, srcPos, dest, destPos, length)
 
     override protected def collectChunk[B](pf: PartialFunction[A, B]): Chunk[B] = {
-      val len     = self.length
-      val builder = ChunkBuilder.make[B]()
-      builder.sizeHint(len)
+      val self = array
+      val len  = self.length
 
-      var i = 0
-      while (i < len) {
-        val b = pf.applyOrElse(self(i), (_: A) => null.asInstanceOf[B])
-        if (b != null) {
-          builder += b
+      if (len == 1) (pf andThen (b => Chunk.single(b))).applyOrElse(self(0), (_: A) => Chunk.empty[B])
+      else {
+        val builder = ChunkBuilder.make[B]()
+        builder.sizeHint(len)
+
+        // implemented this way to try to take advantage of compiler optimizations
+        // See https://www.scala-lang.org/api/current/scala/PartialFunction.html
+        val pf0: A => Boolean = pf runWith (builder += _)
+
+        var i = 0
+        while (i < len) {
+          val a = self(i)
+          pf0(a)
+          i += 1
         }
-
-        i += 1
+        builder.result()
       }
-      builder.result()
     }
 
     override protected def mapChunk[B](f: A => B): Chunk[B] = {

@@ -1,7 +1,7 @@
 package zio
 
 import zio.test.Assertion._
-import zio.test.TestAspect.jvmOnly
+import zio.test.TestAspect.{jvmOnly, retries, shrinks, withLiveClock}
 import zio.test._
 
 object ChunkSpec extends ZIOBaseSpec {
@@ -459,10 +459,99 @@ object ChunkSpec extends ZIOBaseSpec {
           } yield assert(result)(equalTo(expected))
         }
       },
+      test("collectZIO chunk - when Chunk is empty, returns a ZIO.emptyChunk") {
+        val pf: PartialFunction[Int, UIO[Int]] = {
+          case 20 => ZIO.succeed(2000)
+          case 30 => ZIO.succeed(3000)
+          case 40 => ZIO.succeed(4000)
+        }
+
+        val c = Chunk.empty
+
+        val doCollect: UIO[Chunk[Int]] = c.collectZIO(pf)
+        assertTrue(
+          doCollect match {
+            case ZIO.Sync(_, eval) => eval eq ZIO._emptyChunkThunk
+            case _                 => false
+          }
+        )
+      },
+      test("collectZIO chunk - when no elements match, returns a ZIO.suspendSucceed(Exit.emptyChunk)") {
+        val pf: PartialFunction[Int, UIO[Int]] = {
+          case 20 => ZIO.succeed(2000)
+          case 30 => ZIO.succeed(3000)
+          case 40 => ZIO.succeed(4000)
+        }
+        check(Gen.chunkOf1(intGen)) { c =>
+          /** See [[ZIO.suspendSucceed]] */
+          def isSuspendSucceedEncoding[R, E, A1, A2](flatMap: ZIO.FlatMap[R, E, A1, A2]) =
+            flatMap.first eq ZIO.unit
+
+          val doCollect: UIO[Chunk[Int]] = c.collectZIO(pf)
+          for {
+            result <- doCollect
+          } yield assertTrue(
+            result eq Chunk.empty,
+            doCollect match {
+              case flatMap: ZIO.FlatMap[?, ?, ?, ?] =>
+                isSuspendSucceedEncoding(flatMap) &&
+                (flatMap.successK.asInstanceOf[Unit => ZIO[?, ?, ?]].apply(()) eq Exit.emptyChunk)
+              case _ => false
+            }
+          )
+        }
+      },
       test("collectZIO chunk that fails") {
         Chunk(1, 2).collectZIO { case 2 => ZIO.fail("Ouch") }.either.map(assert(_)(isLeft(equalTo("Ouch"))))
-      } @@ zioTag(errors)
-    ),
+      } @@ zioTag(errors),
+      suite("order preservation")(
+        test("preserves order") {
+          for {
+            _    <- ZIO.unit
+            chunk = Chunk(1, 2, 3)
+            collecting <- chunk.collectZIO {
+                            case 1 => ZIO.succeed(1).delay(200.millis).fork
+                            case 2 => ZIO.succeed(2).delay(100.millis).fork
+                            case 3 => ZIO.succeed(3).fork
+                          }
+            result <- ZIO.foreachPar(collecting)(_.join)
+          } yield assertTrue(
+            result == chunk // Order should be preserved in result
+          )
+        } @@ retries(10),
+        test("preserves order with forked ZIOs") {
+          for {
+            _           <- ZIO.unit
+            chunk        = Chunk.fromIterable(1 to 20)
+            randomDelays = Array.fill(20)(scala.util.Random.nextInt(1000).millis)
+            collecting  <- chunk.collectZIO(i => ZIO.attemptBlocking(i * 10).delay(randomDelays(i - 1)).fork)
+            result      <- ZIO.foreachPar(collecting)(_.join)
+          } yield assertTrue(
+            result == chunk.map(_ * 10) // Order should be preserved in result
+          )
+        } @@ retries(10),
+        test("preserves order with mixed sync and async ZIOs") {
+          for {
+            _           <- ZIO.unit
+            chunk        = Chunk.fromIterable(1 to 20)
+            randomDelays = Array.fill(20)(scala.util.Random.nextInt(1000).millis)
+            collecting <- chunk.collectZIO { i =>
+                            val baseEffect = ZIO.attemptBlocking(i * 10)
+                            if (i % 2 == 0) {
+                              // Even numbers: async with fork
+                              baseEffect.delay(randomDelays(i - 1)).fork
+                            } else {
+                              // Odd numbers: sync
+                              baseEffect.fork
+                            }
+                          }
+            result <- ZIO.foreachPar(collecting)(_.join)
+          } yield assertTrue(
+            result == chunk.map(_ * 10) // Order should be preserved in result
+          )
+        } @@ retries(10)
+      ) @@ withLiveClock
+    ) @@ shrinks(0),
     suite("collectWhile")(
       test("collectWhile empty Chunk") {
         assert(Chunk.empty[Nothing].collectWhile { case _ => 1 })(isEmpty)
@@ -478,6 +567,48 @@ object ChunkSpec extends ZIOBaseSpec {
       test("collectWhileZIO empty Chunk") {
         assertZIO(Chunk.empty[Nothing].collectWhileZIO { case _ => ZIO.succeed(1) })(equalTo(Chunk.empty))
       },
+      test("collectWhileZIO chunk - when Chunk is empty, returns a ZIO.emptyChunk") {
+        val pf: PartialFunction[Int, UIO[Int]] = {
+          case 20 => ZIO.succeed(2000)
+          case 30 => ZIO.succeed(3000)
+          case 40 => ZIO.succeed(4000)
+        }
+
+        val c = Chunk.empty
+
+        val doCollect: UIO[Chunk[Int]] = c.collectWhileZIO(pf)
+        assertTrue(
+          doCollect match {
+            case ZIO.Sync(_, eval) => eval eq ZIO._emptyChunkThunk
+            case _                 => false
+          }
+        )
+      },
+      test("collectWhileZIO chunk - when no elements match, returns a ZIO.suspendSucceed(Exit.emptyChunk)") {
+        val pf: PartialFunction[Int, UIO[Int]] = {
+          case 20 => ZIO.succeed(2000)
+          case 30 => ZIO.succeed(3000)
+          case 40 => ZIO.succeed(4000)
+        }
+        check(Gen.chunkOf1(intGen)) { c =>
+          /** See [[ZIO.suspendSucceed]] */
+          def isSuspendSucceedEncoding[R, E, A1, A2](flatMap: ZIO.FlatMap[R, E, A1, A2]) =
+            flatMap.first eq ZIO.unit
+
+          val doCollect: UIO[Chunk[Int]] = c.collectWhileZIO(pf)
+          for {
+            result <- doCollect
+          } yield assertTrue(
+            result eq Chunk.empty,
+            doCollect match {
+              case flatMap: ZIO.FlatMap[?, ?, ?, ?] =>
+                isSuspendSucceedEncoding(flatMap) &&
+                (flatMap.successK.asInstanceOf[Unit => ZIO[?, ?, ?]].apply(()) eq Exit.emptyChunk)
+              case _ => false
+            }
+          )
+        }
+      },
       test("collectWhileZIO chunk") {
         val pfGen = Gen.partialFunction[Any, Int, UIO[Int]](Gen.successes(intGen))
         check(Gen.chunkOf(intGen), pfGen) { (c, pf) =>
@@ -489,8 +620,26 @@ object ChunkSpec extends ZIOBaseSpec {
       },
       test("collectWhileZIO chunk that fails") {
         Chunk(1, 2).collectWhileZIO { case _ => ZIO.fail("Ouch") }.either.map(assert(_)(isLeft(equalTo("Ouch"))))
-      } @@ zioTag(errors)
-    ),
+      } @@ zioTag(errors),
+      suite("order preservation")(
+        test("preserves order with forked ZIOs until stopping condition") {
+          for {
+            _           <- ZIO.unit
+            chunk        = Chunk.fromIterable(1 to 21)
+            randomDelays = Array.fill(20)(scala.util.Random.nextInt(1000).millis)
+            max          = 20
+            collecting <- chunk.collectWhileZIO {
+                            case i if i <= max =>
+                              // Each ZIO forks and adds to ref, then returns the value
+                              ZIO.attemptBlocking(i * 10).delay(randomDelays(i - 1)).fork
+                          }
+            result <- ZIO.foreachPar(collecting)(_.join)
+          } yield assertTrue(
+            result == Chunk.fromIterable(1 to max).map(_ * 10) // order should be preserved in result
+          )
+        }
+      ) @@ withLiveClock
+    ) @@ shrinks(0),
     test("foreach") {
       check(Gen.chunkOf(intGen)) { c =>
         var sum = 0
