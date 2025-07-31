@@ -691,7 +691,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                              .withPermit(
                                latch.succeedUnit *>
                                  f(outElem).catchAllCause { cause =>
-                                   def continue =
+                                   @inline def continue =
                                      errorSignal.succeedUnit *>
                                        ZChannel.failLeftUnit
 
@@ -711,7 +711,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                                permits.withPermits(n0)(ZIO.unit).interruptible *>
                                  outgoing.offer(Fiber.fail(x.asInstanceOf[Either[Unit, OutDone]]))
                              case Right(cause) =>
-                               def continue = outgoing.offer(Fiber.done(ZChannel.failLeftUnit))
+                               @inline def continue = outgoing.offer(Fiber.done(ZChannel.failLeftUnit))
 
                                if (cause.isInterruptedOnly) continue
                                else failureRef.update(_ && cause) *> continue
@@ -777,7 +777,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                        latch.succeedUnit *> f(outElem)
                          .foldCauseZIO(
                            cause => {
-                             def continue =
+                             @inline def continue =
                                errorSignal.succeedUnit *>
                                  outgoing.offer(ZChannel.failLeftUnit)
 
@@ -800,7 +800,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 permits.withPermits(n.toLong)(ZIO.unit).interruptible *>
                   outgoing.offer(Exit.fail(x.asInstanceOf[Either[Unit, OutDone]]))
               case Right(cause) =>
-                def continue = outgoing.offer(ZChannel.failLeftUnit)
+                @inline def continue = outgoing.offer(ZChannel.failLeftUnit)
 
                 if (cause.isInterruptedOnly) continue
                 else failure.update(_ && cause) *> continue
