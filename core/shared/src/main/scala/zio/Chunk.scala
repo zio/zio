@@ -1607,16 +1607,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
         val orElse = (_: A) => Exit.`null`.asInstanceOf[ZIO[R, E, B]]
 
-        def loop(index: Int): ZIO[R, E, Chunk[B]] =
+        @tailrec
+        def loop(index: Int, acc: ZIO[R, E, Unit]): ZIO[R, E, Chunk[B]] =
           if (index < length0) {
             val a = self(index)
-            pf.applyOrElse(a, orElse).flatMap { b =>
-              if (b != null) builder += b
-              loop(index + 1)
-            }
-          } else Exit.succeed(builder.result())
+            val effect =
+              acc *> pf.applyOrElse(a, orElse).map { b =>
+                if (b != null) builder += b
+                ()
+              }
+            loop(index + 1, effect)
+          } else acc.as(builder.result())
 
-        loop(0)
+        loop(0, Exit.unit)
       }
 
     override def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] = {
