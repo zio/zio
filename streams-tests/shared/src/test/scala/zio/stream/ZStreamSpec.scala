@@ -5630,11 +5630,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("handles exceptions from making the iterator") {
             check(Gen.small(Gen.const(_), min = 1)) { maxChunkSize =>
               val exception = new RuntimeException("Iterator error")
-              def failingIterator = {
-                throw exception
-
-                List(1, 2).iterator
-              }
+              def failingIterator: Iterator[Int] = throw exception
 
               assertZIO(ZStream.fromIterator(failingIterator, maxChunkSize).runCollect.exit)(fails(equalTo(exception)))
             }
