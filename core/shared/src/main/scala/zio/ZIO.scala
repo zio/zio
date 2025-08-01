@@ -6406,6 +6406,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           }
         }
     }
+
+  private[zio] def emptyChunk[A]: UIO[Chunk[A]]     = _emptyChunk.asInstanceOf[UIO[Chunk[A]]]
+  private[zio] val _emptyChunk: UIO[Chunk[Nothing]] = ZIO.emptyChunk
 }
 
 /**
