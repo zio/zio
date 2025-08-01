@@ -1657,9 +1657,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       var i    = 0
       var done = false
       while (!done && i < len) {
-        val next = self(i)
+        val a = self(i)
 
-        if (pf.isDefinedAt(next)) builder += pf.apply(next)
+        if (pf.isDefinedAt(a)) builder += pf.apply(a)
         else done = true
 
         i += 1
@@ -1672,25 +1672,20 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       pf: PartialFunction[A, ZIO[R, E, B]]
     )(implicit trace: Trace): ZIO[R, E, Chunk[B]] =
       ZIO.suspendSucceed {
+        val len     = self.length
         val builder = ChunkBuilder.make[B]()
-        builder.sizeHint(length)
+        builder.sizeHint(len)
 
-        val orElse = (_: A) => ZIO.succeed(null.asInstanceOf[B])
-
-        def loop(index: Int): ZIO[R, E, Chunk[B]] =
-          if (index < length) {
+        def loop(index: Int, acc: ZIO[R, E, Unit]): ZIO[R, E, Chunk[B]] =
+          if (index < len) {
             val a = self(index)
-            pf.applyOrElse(a, orElse).flatMap { b =>
-              if (b != null) {
-                builder += b
-                loop(index + 1)
-              } else {
-                ZIO.succeed(builder.result())
-              }
-            }
-          } else ZIO.succeed(builder.result())
+            if (pf.isDefinedAt(a))
+              acc *> pf.apply(a).map { b => builder += b; () }
+            else
+              acc.as(builder.result())
+          } else acc.as(builder.result())
 
-        loop(0)
+        loop(0, Exit.unit)
       }
 
     override final def dropWhile(f: A => Boolean): Chunk[A] = {
