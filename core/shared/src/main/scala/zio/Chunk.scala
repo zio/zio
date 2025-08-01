@@ -19,7 +19,7 @@ package zio
 import java.nio._
 import java.nio.charset.Charset
 import java.util.concurrent.atomic.AtomicInteger
-import scala.annotation.tailrec
+import scala.annotation.{switch, tailrec}
 import scala.collection.mutable
 import scala.collection.mutable.Builder
 import scala.math.log
@@ -1412,13 +1412,21 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    * Returns the `ClassTag` for the element type of the chunk.
    */
   private[zio] def classTagOf[A](chunk: Chunk[A]): ClassTag[A] =
-    chunk match {
-      case x: AppendN[_]            => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: Arr[_]                => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: Concat[_]             => x.classTag.asInstanceOf[ClassTag[A]]
+    (chunk: @switch) match {
       case Empty                    => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
-      case x: PrependN[_]           => x.classTag.asInstanceOf[ClassTag[A]]
       case x: Singleton[_]          => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: AnyRefArray[_]        => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: BooleanArray          => x.classTag
+      case x: ByteArray             => x.classTag
+      case x: CharArray             => x.classTag
+      case x: DoubleArray           => x.classTag
+      case x: FloatArray            => x.classTag
+      case x: IntArray              => x.classTag
+      case x: LongArray             => x.classTag
+      case x: ShortArray            => x.classTag
+      case x: AppendN[_]            => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: Concat[_]             => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: PrependN[_]           => x.classTag.asInstanceOf[ClassTag[A]]
       case x: Slice[_]              => x.classTag.asInstanceOf[ClassTag[A]]
       case x: Update[_]             => x.classTag.asInstanceOf[ClassTag[A]]
       case x: VectorChunk[_]        => x.classTag.asInstanceOf[ClassTag[A]]
@@ -1459,15 +1467,16 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   private final case class AppendN[A](start: Chunk[A], buffer: Array[AnyRef], bufferUsed: Int, chain: AtomicInteger)
       extends Chunk[A] { self =>
 
-    def chunkIterator: ChunkIterator[A] =
+    override def chunkIterator: ChunkIterator[A] =
       start.chunkIterator ++ ChunkIterator.fromArray(buffer.asInstanceOf[Array[A]]).sliceIterator(0, bufferUsed)
 
-    implicit val classTag: ClassTag[A] = classTagOf(start)
+    @scala.annotation.threadUnsafe
+    implicit lazy val classTag: ClassTag[A] = classTagOf(start)
 
     override val depth: Int =
       start.depth + 1
 
-    val length: Int =
+    override val length: Int =
       start.length + bufferUsed
 
     override protected def append[A1 >: A](a1: A1): Chunk[A1] =
@@ -1481,7 +1490,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         AppendN(start ++ chunk, buffer, 1, new AtomicInteger(1))
       }
 
-    def apply(n: Int): A =
+    override def apply(n: Int): A =
       if (n < 0 || n >= length) throw new IndexOutOfBoundsException(s"Append chunk access to $n")
       else if (n < start.length) start(n)
       else buffer(n - start.length).asInstanceOf[A]
@@ -1496,17 +1505,18 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   private final case class PrependN[A](end: Chunk[A], buffer: Array[AnyRef], bufferUsed: Int, chain: AtomicInteger)
       extends Chunk[A] { self =>
 
-    def chunkIterator: ChunkIterator[A] =
+    override def chunkIterator: ChunkIterator[A] =
       ChunkIterator
         .fromArray(buffer.asInstanceOf[Array[A]])
         .sliceIterator(BufferSize - bufferUsed, bufferUsed) ++ end.chunkIterator
 
-    implicit val classTag: ClassTag[A] = classTagOf(end)
+    @scala.annotation.threadUnsafe
+    implicit lazy val classTag: ClassTag[A] = classTagOf(end)
 
     override val depth: Int =
       end.depth + 1
 
-    val length: Int =
+    override val length: Int =
       end.length + bufferUsed
 
     override protected def prepend[A1 >: A](a1: A1): Chunk[A1] =
@@ -1520,7 +1530,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         PrependN(chunk ++ end, buffer, 1, new AtomicInteger(1))
       }
 
-    def apply(n: Int): A =
+    override def apply(n: Int): A =
       if (n < 0 || n >= length) throw new IndexOutOfBoundsException(s"Prepend chunk access to $n")
       else if (n < bufferUsed) buffer(BufferSize - bufferUsed + n).asInstanceOf[A]
       else end(n - bufferUsed)
@@ -1540,17 +1550,18 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     chain: AtomicInteger
   ) extends Chunk[A] { self =>
 
-    def chunkIterator: ChunkIterator[A] =
+    override def chunkIterator: ChunkIterator[A] =
       ChunkIterator.fromArray(self.toArray)
 
-    implicit val classTag: ClassTag[A] = Chunk.classTagOf(chunk)
+    @scala.annotation.threadUnsafe
+    implicit lazy val classTag: ClassTag[A] = Chunk.classTagOf(chunk)
 
     override val depth: Int =
       chunk.depth + 1
 
-    def length: Int = chunk.length
+    override def length: Int = chunk.length
 
-    def apply(i: Int): A = {
+    override def apply(i: Int): A = {
       var j = used - 1
       var a = null.asInstanceOf[A]
       while (j >= 0) {
@@ -1592,14 +1603,33 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
   }
 
-  private[zio] sealed abstract class Arr[A] extends Chunk[A] with Serializable { self =>
+  private[zio] sealed abstract class Arr[A] extends Chunk[A] with ChunkIterator[A] with Serializable { self =>
 
     val array: Array[A]
+    val offset: Int
+    val length: Int
 
-    implicit val classTag: ClassTag[A] =
-      ClassTag(array.getClass.getComponentType)
+    protected def make(array: Array[A], offset: Int, length: Int): Arr[A]
+    protected def newBuilder: ChunkBuilder[A]
 
-    override def collectZIO[R, E, B](
+    override final def apply(index: Int): A =
+      array(index + offset)
+
+    override final def chunkIterator: ChunkIterator[A] =
+      self
+
+    override final def hasNextAt(index: Int): Boolean =
+      index < length
+
+    override final def nextAt(index: Int): A =
+      array(index + offset)
+
+    override final def sliceIterator(offset: Int, length: Int): ChunkIterator[A] =
+      if (offset <= 0 && length >= self.length) self
+      else if (offset >= self.length || length <= 0) ChunkIterator.empty
+      else make(array, self.offset + offset, self.length - offset min length)
+
+    override final def collectZIO[R, E, B](
       pf: PartialFunction[A, ZIO[R, E, B]]
     )(implicit trace: Trace): ZIO[R, E, Chunk[B]] = ZIO.suspendSucceed {
       val builder = ChunkBuilder.make[B]()
@@ -1619,7 +1649,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       loop(0)
     }
 
-    override def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] = {
+    override final def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] = {
       val self    = array
       val len     = self.length
       val builder = ChunkBuilder.make[B]()
@@ -1642,7 +1672,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       builder.result()
     }
 
-    override def collectWhileZIO[R, E, B](
+    override final def collectWhileZIO[R, E, B](
       pf: PartialFunction[A, ZIO[R, E, B]]
     )(implicit trace: Trace): ZIO[R, E, Chunk[B]] =
       ZIO.suspendSucceed {
@@ -1667,38 +1697,29 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         loop(0)
       }
 
-    override def dropWhile(f: A => Boolean): Chunk[A] = {
-      val self = array
-      val len  = self.length
-
-      var i = 0
-      while (i < len && f(self(i))) {
-        i += 1
-      }
-
+    override final def dropWhile(f: A => Boolean): Chunk[A] = {
+      val len = self.length
+      var i   = 0
+      while (i < len && f(self(i))) i += 1
       drop(i)
     }
 
-    override def filter(f: A => Boolean): Chunk[A] = {
+    override final def filter(f: A => Boolean): Chunk[A] = {
       val len     = self.length
-      val builder = ChunkBuilder.make[A]()
+      val builder = newBuilder
       builder.sizeHint(len)
 
       var i = 0
       while (i < len) {
         val elem = self(i)
-
-        if (f(elem)) {
-          builder += elem
-        }
-
+        if (f(elem)) builder += elem
         i += 1
       }
 
       builder.result()
     }
 
-    override def foldLeft[S](s0: S)(f: (S, A) => S): S = {
+    override final def foldLeft[S](s0: S)(f: (S, A) => S): S = {
       val len = self.length
       var s   = s0
 
@@ -1711,7 +1732,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       s
     }
 
-    override def foldRight[S](s0: S)(f: (A, S) => S): S = {
+    override final def foldRight[S](s0: S)(f: (A, S) => S): S = {
       val self = array
       val len  = self.length
       var s    = s0
@@ -1725,34 +1746,29 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       s
     }
 
-    override def foreach[B](f: A => B): Unit =
+    override final def foreach[B](f: A => B): Unit =
       array.foreach(f)
 
-    override def iterator: Iterator[A] =
+    override final def iterator: Iterator[A] =
       array.iterator
 
-    override def materialize[A1 >: A]: Chunk[A1] =
+    override final def materialize[A1 >: A]: Chunk[A1] =
       self
 
     /**
      * Takes all elements so long as the predicate returns true.
      */
     override def takeWhile(f: A => Boolean): Chunk[A] = {
-      val self = array
-      val len  = length
-
-      var i = 0
-      while (i < len && f(self(i))) {
-        i += 1
-      }
-
+      val len = length
+      var i   = 0
+      while (i < len && f(self(i))) i += 1
       take(i)
     }
 
-    override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit =
+    override protected[zio] final def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit =
       Array.copy(array, srcPos, dest, destPos, length)
 
-    override protected def collectChunk[B](pf: PartialFunction[A, B]): Chunk[B] = {
+    override protected final def collectChunk[B](pf: PartialFunction[A, B]): Chunk[B] = {
       val len     = self.length
       val builder = ChunkBuilder.make[B]()
       builder.sizeHint(len)
@@ -1782,7 +1798,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def chunkIterator: ChunkIterator[A] =
       left.chunkIterator ++ right.chunkIterator
 
-    implicit val classTag: ClassTag[A] = {
+    @scala.annotation.threadUnsafe
+    implicit lazy val classTag: ClassTag[A] = {
       val lct = classTagOf(left)
       val rct = classTagOf(right)
 
@@ -1821,7 +1838,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
   private final case class Singleton[A](a: A) extends Chunk[A] with ChunkIterator[A] { self =>
 
-    implicit val classTag: ClassTag[A] =
+    @scala.annotation.threadUnsafe
+    implicit lazy val classTag: ClassTag[A] =
       Tags.fromValue(a)
 
     override def length = 1
@@ -1857,7 +1875,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def chunkIterator: ChunkIterator[A] =
       chunk.chunkIterator.sliceIterator(offset, l)
 
-    implicit val classTag: ClassTag[A] =
+    @scala.annotation.threadUnsafe
+    implicit lazy val classTag: ClassTag[A] =
       classTagOf(chunk)
 
     override val depth: Int =
@@ -1888,7 +1907,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def chunkIterator: ChunkIterator[A] =
       ChunkIterator.fromVector(vector)
 
-    implicit val classTag: ClassTag[A] =
+    @scala.annotation.threadUnsafe
+    implicit lazy val classTag: ClassTag[A] =
       Tags.fromValue(vector(0))
 
     override def length: Int = vector.length
@@ -2421,8 +2441,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override def chunkIterator: ChunkIterator[T] =
       self
 
-    implicit val classTag: ClassTag[T] =
-      ops.classTag
+    def classTag: ClassTag[T] = ops.classTag
 
     def hasNextAt(index: Int): Boolean =
       index < length
@@ -2466,52 +2485,33 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       Array.empty
   }
 
-  final case class AnyRefArray[A <: AnyRef](array: Array[A], offset: Int, override val length: Int)
-      extends Arr[A]
-      with ChunkIterator[A] { self =>
-    def apply(index: Int): A =
-      array(index + offset)
-    def chunkIterator: ChunkIterator[A] =
-      self
-    def hasNextAt(index: Int): Boolean =
-      index < length
-    def nextAt(index: Int): A =
-      array(index + offset)
-    def sliceIterator(offset: Int, length: Int): ChunkIterator[A] =
-      if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) ChunkIterator.empty
-      else AnyRefArray(array, self.offset + offset, self.length - offset min length)
+  final case class AnyRefArray[A <: AnyRef](
+    override val array: Array[A],
+    override val offset: Int,
+    override val length: Int
+  ) extends Arr[A] { self =>
+
+    @scala.annotation.threadUnsafe
+    lazy val classTag: ClassTag[A] = ClassTag(array.getClass.getComponentType)
+
+    override protected def make(array: Array[A], offset: RuntimeFlags, length: RuntimeFlags): Arr[A] =
+      AnyRefArray(array, offset, length)
+
+    override protected def newBuilder: ChunkBuilder[A] = ChunkBuilder.make[A]()
   }
 
-  final case class ByteArray(array: Array[Byte], offset: Int, override val length: Int)
-      extends Arr[Byte]
-      with ChunkIterator[Byte] { self =>
-    def apply(index: Int): Byte =
-      array(index + offset)
-    override def byte(index: Int)(implicit ev: Byte <:< Byte): Byte =
-      array(index + offset)
-    def chunkIterator: ChunkIterator[Byte] =
-      self
-    override def filter(f: Byte => Boolean): Chunk[Byte] = {
-      val len     = self.length
-      val builder = new ChunkBuilder.Byte
-      builder.sizeHint(len)
+  final case class ByteArray(override val array: Array[Byte], override val offset: Int, override val length: Int)
+      extends Arr[Byte] { self =>
 
-      var i = 0
-      while (i < len) {
-        val elem = self(i)
+    def classTag: ClassTag[Byte] = ClassTag.Byte
 
-        if (f(elem)) {
-          builder.addOne(elem)
-        }
+    override protected def make(array: Array[Byte], offset: Int, length: Int): Arr[Byte] =
+      ByteArray(array, offset, length)
 
-        i += 1
-      }
+    override protected def newBuilder: ChunkBuilder[Byte] = new ChunkBuilder.Byte
 
-      builder.result()
-    }
-    def hasNextAt(index: Int): Boolean =
-      index < length
+    override def byte(index: Int)(implicit ev: Byte <:< Byte): Byte = array(index + offset)
+
     override protected def mapChunk[B](f: Byte => B): Chunk[B] = {
       val len = self.length
       if (len == 0) Empty
@@ -2541,54 +2541,27 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
-    def nextAt(index: Int): Byte =
-      array(index + offset)
-    def sliceIterator(offset: Int, length: Int): ChunkIterator[Byte] =
-      if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) ChunkIterator.empty
-      else ByteArray(array, self.offset + offset, self.length - offset min length)
+
     override def takeWhile(f: Byte => Boolean): Chunk[Byte] = {
-      val self = array
-      val len  = length
-
-      var i = 0
-      while (i < len && f(self(i))) {
-        i += 1
-      }
-
+      val len = length
+      var i   = 0
+      while (i < len && f(self(i))) i += 1
       take(i)
     }
   }
 
-  final case class CharArray(array: Array[Char], offset: Int, override val length: Int)
-      extends Arr[Char]
-      with ChunkIterator[Char] { self =>
-    def apply(index: Int): Char =
-      array(index + offset)
-    override def char(index: Int)(implicit ev: Char <:< Char): Char =
-      array(index + offset)
-    def chunkIterator: ChunkIterator[Char] =
-      self
-    override def filter(f: Char => Boolean): Chunk[Char] = {
-      val len     = self.length
-      val builder = new ChunkBuilder.Char
-      builder.sizeHint(len)
+  final case class CharArray(override val array: Array[Char], override val offset: Int, override val length: Int)
+      extends Arr[Char] { self =>
 
-      var i = 0
-      while (i < len) {
-        val elem = self(i)
+    def classTag: ClassTag[Char] = ClassTag.Char
 
-        if (f(elem)) {
-          builder.addOne(elem)
-        }
+    override protected def make(array: Array[Char], offset: Int, length: Int): Arr[Char] =
+      CharArray(array, offset, length)
 
-        i += 1
-      }
+    override protected def newBuilder: ChunkBuilder[Char] = new ChunkBuilder.Char
 
-      builder.result()
-    }
-    def hasNextAt(index: Int): Boolean =
-      index < length
+    override def char(index: Int)(implicit ev: Char <:< Char): Char = array(index + offset)
+
     override protected def mapChunk[B](f: Char => B): Chunk[B] = {
       val len = self.length
       if (len == 0) Empty
@@ -2618,54 +2591,27 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
-    def nextAt(index: Int): Char =
-      array(index + offset)
-    def sliceIterator(offset: Int, length: Int): ChunkIterator[Char] =
-      if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) ChunkIterator.empty
-      else CharArray(array, self.offset + offset, self.length - offset min length)
+
     override def takeWhile(f: Char => Boolean): Chunk[Char] = {
-      val self = array
-      val len  = length
-
-      var i = 0
-      while (i < len && f(self(i))) {
-        i += 1
-      }
-
+      val len = length
+      var i   = 0
+      while (i < len && f(self(i))) i += 1
       take(i)
     }
   }
 
-  final case class IntArray(array: Array[Int], offset: Int, override val length: Int)
-      extends Arr[Int]
-      with ChunkIterator[Int] { self =>
-    def apply(index: Int): Int =
-      array(index + offset)
-    def chunkIterator: ChunkIterator[Int] =
-      self
-    override def filter(f: Int => Boolean): Chunk[Int] = {
-      val len     = self.length
-      val builder = new ChunkBuilder.Int
-      builder.sizeHint(len)
+  final case class IntArray(override val array: Array[Int], override val offset: Int, override val length: Int)
+      extends Arr[Int] { self =>
 
-      var i = 0
-      while (i < len) {
-        val elem = self(i)
+    def classTag: ClassTag[Int] = ClassTag.Int
 
-        if (f(elem)) {
-          builder.addOne(elem)
-        }
+    override protected def make(array: Array[Int], offset: Int, length: Int): Arr[Int] =
+      IntArray(array, offset, length)
 
-        i += 1
-      }
+    override protected def newBuilder: ChunkBuilder[Int] = new ChunkBuilder.Int
 
-      builder.result()
-    }
-    def hasNextAt(index: Int): Boolean =
-      index < length
-    override def int(index: Int)(implicit ev: Int <:< Int): Int =
-      array(index + offset)
+    override def int(index: Int)(implicit ev: Int <:< Int): Int = array(index + offset)
+
     override protected def mapChunk[B](f: Int => B): Chunk[B] = {
       val len = self.length
       if (len == 0) Empty
@@ -2695,54 +2641,27 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
-    def nextAt(index: Int): Int =
-      array(index + offset)
-    def sliceIterator(offset: Int, length: Int): ChunkIterator[Int] =
-      if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) ChunkIterator.empty
-      else IntArray(array, self.offset + offset, self.length - offset min length)
+
     override def takeWhile(f: Int => Boolean): Chunk[Int] = {
-      val self = array
-      val len  = length
-
-      var i = 0
-      while (i < len && f(self(i))) {
-        i += 1
-      }
-
+      val len = length
+      var i   = 0
+      while (i < len && f(self(i))) i += 1
       take(i)
     }
   }
 
-  final case class LongArray(array: Array[Long], offset: Int, override val length: Int)
-      extends Arr[Long]
-      with ChunkIterator[Long] { self =>
-    def apply(index: Int): Long =
-      array(index + offset)
-    def chunkIterator: ChunkIterator[Long] =
-      self
-    override def filter(f: Long => Boolean): Chunk[Long] = {
-      val len     = self.length
-      val builder = new ChunkBuilder.Long
-      builder.sizeHint(len)
+  final case class LongArray(override val array: Array[Long], override val offset: Int, override val length: Int)
+      extends Arr[Long] { self =>
 
-      var i = 0
-      while (i < len) {
-        val elem = self(i)
+    def classTag: ClassTag[Long] = ClassTag.Long
 
-        if (f(elem)) {
-          builder.addOne(elem)
-        }
+    override protected def make(array: Array[Long], offset: Int, length: Int): Arr[Long] =
+      LongArray(array, offset, length)
 
-        i += 1
-      }
+    override protected def newBuilder: ChunkBuilder[Long] = new ChunkBuilder.Long
 
-      builder.result()
-    }
-    def hasNextAt(index: Int): Boolean =
-      index < length
-    override def long(index: Int)(implicit ev: Long <:< Long): Long =
-      array(index + offset)
+    override def long(index: Int)(implicit ev: Long <:< Long): Long = array(index + offset)
+
     override protected def mapChunk[B](f: Long => B): Chunk[B] = {
       val len = self.length
       if (len == 0) Empty
@@ -2772,54 +2691,27 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
-    def nextAt(index: Int): Long =
-      array(index + offset)
-    def sliceIterator(offset: Int, length: Int): ChunkIterator[Long] =
-      if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) ChunkIterator.empty
-      else LongArray(array, self.offset + offset, self.length - offset min length)
+
     override def takeWhile(f: Long => Boolean): Chunk[Long] = {
-      val self = array
-      val len  = length
-
-      var i = 0
-      while (i < len && f(self(i))) {
-        i += 1
-      }
-
+      val len = length
+      var i   = 0
+      while (i < len && f(self(i))) i += 1
       take(i)
     }
   }
 
-  final case class DoubleArray(array: Array[Double], offset: Int, override val length: Int)
-      extends Arr[Double]
-      with ChunkIterator[Double] { self =>
-    def apply(index: Int): Double =
-      array(index + offset)
-    def chunkIterator: ChunkIterator[Double] =
-      self
-    override def double(index: Int)(implicit ev: Double <:< Double): Double =
-      array(index + offset)
-    override def filter(f: Double => Boolean): Chunk[Double] = {
-      val len     = self.length
-      val builder = new ChunkBuilder.Double
-      builder.sizeHint(len)
+  final case class DoubleArray(override val array: Array[Double], override val offset: Int, override val length: Int)
+      extends Arr[Double] { self =>
 
-      var i = 0
-      while (i < len) {
-        val elem = self(i)
+    def classTag: ClassTag[Double] = ClassTag.Double
 
-        if (f(elem)) {
-          builder.addOne(elem)
-        }
+    override protected def make(array: Array[Double], offset: Int, length: Int): Arr[Double] =
+      DoubleArray(array, offset, length)
 
-        i += 1
-      }
+    override protected def newBuilder: ChunkBuilder[Double] = new ChunkBuilder.Double
 
-      builder.result()
-    }
-    def hasNextAt(index: Int): Boolean =
-      index < length
+    override def double(index: Int)(implicit ev: Double <:< Double): Double = array(index + offset)
+
     override protected def mapChunk[B](f: Double => B): Chunk[B] = {
       val len = self.length
       if (len == 0) Empty
@@ -2849,54 +2741,27 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
-    def nextAt(index: Int): Double =
-      array(index + offset)
-    def sliceIterator(offset: Int, length: Int): ChunkIterator[Double] =
-      if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) ChunkIterator.empty
-      else DoubleArray(array, self.offset + offset, self.length - offset min length)
+
     override def takeWhile(f: Double => Boolean): Chunk[Double] = {
-      val self = array
-      val len  = length
-
-      var i = 0
-      while (i < len && f(self(i))) {
-        i += 1
-      }
-
+      val len = length
+      var i   = 0
+      while (i < len && f(self(i))) i += 1
       take(i)
     }
   }
 
-  final case class FloatArray(array: Array[Float], offset: Int, override val length: Int)
-      extends Arr[Float]
-      with ChunkIterator[Float] { self =>
-    def apply(index: Int): Float =
-      array(index + offset)
-    def chunkIterator: ChunkIterator[Float] =
-      self
-    override def filter(f: Float => Boolean): Chunk[Float] = {
-      val len     = self.length
-      val builder = new ChunkBuilder.Float
-      builder.sizeHint(len)
+  final case class FloatArray(override val array: Array[Float], override val offset: Int, override val length: Int)
+      extends Arr[Float] { self =>
 
-      var i = 0
-      while (i < len) {
-        val elem = self(i)
+    def classTag: ClassTag[Float] = ClassTag.Float
 
-        if (f(elem)) {
-          builder.addOne(elem)
-        }
+    override protected def make(array: Array[Float], offset: Int, length: Int): Arr[Float] =
+      FloatArray(array, offset, length)
 
-        i += 1
-      }
+    override protected def newBuilder: ChunkBuilder[Float] = new ChunkBuilder.Float
 
-      builder.result()
-    }
-    override def float(index: Int)(implicit ev: Float <:< Float): Float =
-      array(index + offset)
-    def hasNextAt(index: Int): Boolean =
-      index < length
+    override def float(index: Int)(implicit ev: Float <:< Float): Float = array(index + offset)
+
     override protected def mapChunk[B](f: Float => B): Chunk[B] = {
       val len = self.length
       if (len == 0) Empty
@@ -2926,52 +2791,27 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
-    def nextAt(index: Int): Float =
-      array(index + offset)
-    def sliceIterator(offset: Int, length: Int): ChunkIterator[Float] =
-      if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) ChunkIterator.empty
-      else FloatArray(array, self.offset + offset, self.length - offset min length)
+
     override def takeWhile(f: Float => Boolean): Chunk[Float] = {
-      val self = array
-      val len  = length
-
-      var i = 0
-      while (i < len && f(self(i))) {
-        i += 1
-      }
-
+      val len = length
+      var i   = 0
+      while (i < len && f(self(i))) i += 1
       take(i)
     }
   }
 
-  final case class ShortArray(array: Array[Short], offset: Int, override val length: Int)
-      extends Arr[Short]
-      with ChunkIterator[Short] { self =>
-    def apply(index: Int): Short =
-      array(index + offset)
-    def chunkIterator: ChunkIterator[Short] =
-      self
-    override def filter(f: Short => Boolean): Chunk[Short] = {
-      val len     = self.length
-      val builder = new ChunkBuilder.Short
-      builder.sizeHint(len)
+  final case class ShortArray(override val array: Array[Short], override val offset: Int, override val length: Int)
+      extends Arr[Short] { self =>
 
-      var i = 0
-      while (i < len) {
-        val elem = self(i)
+    def classTag: ClassTag[Short] = ClassTag.Short
 
-        if (f(elem)) {
-          builder.addOne(elem)
-        }
+    override protected def make(array: Array[Short], offset: Int, length: Int): Arr[Short] =
+      ShortArray(array, offset, length)
 
-        i += 1
-      }
+    override protected def newBuilder: ChunkBuilder[Short] = new ChunkBuilder.Short
 
-      builder.result()
-    }
-    def hasNextAt(index: Int): Boolean =
-      index < length
+    override def short(index: Int)(implicit ev: Short <:< Short): Short = array(index + offset)
+
     override protected def mapChunk[B](f: Short => B): Chunk[B] = {
       val len = self.length
       if (len == 0) Empty
@@ -3001,56 +2841,27 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
-    def nextAt(index: Int): Short =
-      array(index + offset)
-    override def short(index: Int)(implicit ev: Short <:< Short): Short =
-      array(index + offset)
-    def sliceIterator(offset: Int, length: Int): ChunkIterator[Short] =
-      if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) ChunkIterator.empty
-      else ShortArray(array, self.offset + offset, self.length - offset min length)
+
     override def takeWhile(f: Short => Boolean): Chunk[Short] = {
-      val self = array
-      val len  = length
-
-      var i = 0
-      while (i < len && f(self(i))) {
-        i += 1
-      }
-
+      val len = length
+      var i   = 0
+      while (i < len && f(self(i))) i += 1
       take(i)
     }
   }
 
-  final case class BooleanArray(array: Array[Boolean], offset: Int, length: Int)
-      extends Arr[Boolean]
-      with ChunkIterator[Boolean] { self =>
-    def apply(index: Int): Boolean =
-      array(index + offset)
-    override def boolean(index: Int)(implicit ev: Boolean <:< Boolean): Boolean =
-      array(index + offset)
-    def chunkIterator: ChunkIterator[Boolean] =
-      self
-    override def filter(f: Boolean => Boolean): Chunk[Boolean] = {
-      val len     = self.length
-      val builder = new ChunkBuilder.Boolean
-      builder.sizeHint(len)
+  final case class BooleanArray(override val array: Array[Boolean], override val offset: Int, override val length: Int)
+      extends Arr[Boolean] { self =>
 
-      var i = 0
-      while (i < len) {
-        val elem = self(i)
+    def classTag: ClassTag[Boolean] = ClassTag.Boolean
 
-        if (f(elem)) {
-          builder.addOne(elem)
-        }
+    override protected def make(array: Array[Boolean], offset: Int, length: Int): Arr[Boolean] =
+      BooleanArray(array, offset, length)
 
-        i += 1
-      }
+    override protected def newBuilder: ChunkBuilder.Boolean = new ChunkBuilder.Boolean
 
-      builder.result()
-    }
-    def hasNextAt(index: Int): Boolean =
-      index < length
+    override def boolean(index: Int)(implicit ev: Boolean <:< Boolean): Boolean = array(index + offset)
+
     override protected def mapChunk[B](f: Boolean => B): Chunk[B] = {
       val len = self.length
       if (len == 0) Empty
@@ -3080,21 +2891,11 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
-    def nextAt(index: Int): Boolean =
-      array(index + offset)
-    def sliceIterator(offset: Int, length: Int): ChunkIterator[Boolean] =
-      if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) ChunkIterator.empty
-      else BooleanArray(array, self.offset + offset, self.length - offset min length)
+
     override def takeWhile(f: Boolean => Boolean): Chunk[Boolean] = {
-      val self = array
-      val len  = length
-
-      var i = 0
-      while (i < len && f(self(i))) {
-        i += 1
-      }
-
+      val len = length
+      var i   = 0
+      while (i < len && f(self(i))) i += 1
       take(i)
     }
   }
