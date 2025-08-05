@@ -19,7 +19,7 @@ package zio
 import java.nio._
 import java.nio.charset.Charset
 import java.util.concurrent.atomic.AtomicInteger
-import scala.annotation.{switch, tailrec}
+import scala.annotation.{switch, tailrec, threadUnsafe}
 import scala.collection.mutable
 import scala.collection.mutable.Builder
 import scala.math.log
@@ -1467,7 +1467,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def chunkIterator: ChunkIterator[A] =
       start.chunkIterator ++ ChunkIterator.fromArray(buffer.asInstanceOf[Array[A]]).sliceIterator(0, bufferUsed)
 
-    implicit val classTag: ClassTag[A] = classTagOf(start)
+    @threadUnsafe
+    lazy val classTag: ClassTag[A] = classTagOf(start)
 
     override val depth: Int =
       start.depth + 1
@@ -1506,7 +1507,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         .fromArray(buffer.asInstanceOf[Array[A]])
         .sliceIterator(BufferSize - bufferUsed, bufferUsed) ++ end.chunkIterator
 
-    implicit val classTag: ClassTag[A] = classTagOf(end)
+    @threadUnsafe
+    lazy val classTag: ClassTag[A] = classTagOf(end)
 
     override val depth: Int =
       end.depth + 1
@@ -1546,9 +1548,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   ) extends Chunk[A] { self =>
 
     def chunkIterator: ChunkIterator[A] =
-      ChunkIterator.fromArray(self.toArray)
+      ChunkIterator.fromArray(self.toArray(classTag))
 
-    implicit val classTag: ClassTag[A] = Chunk.classTagOf(chunk)
+    @threadUnsafe
+    lazy val classTag: ClassTag[A] = Chunk.classTagOf(chunk)
 
     override val depth: Int =
       chunk.depth + 1
@@ -1785,7 +1788,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def chunkIterator: ChunkIterator[A] =
       left.chunkIterator ++ right.chunkIterator
 
-    val classTag: ClassTag[A] = {
+    @threadUnsafe
+    lazy val classTag: ClassTag[A] = {
       val lct = classTagOf(left)
       val rct = classTagOf(right)
 
@@ -1824,7 +1828,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
   private final case class Singleton[A](a: A) extends Chunk[A] with ChunkIterator[A] { self =>
 
-    val classTag: ClassTag[A] = Tags.fromValue(a)
+    @threadUnsafe
+    lazy val classTag: ClassTag[A] = Tags.fromValue(a)
 
     override def length = 1
 
@@ -1859,7 +1864,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def chunkIterator: ChunkIterator[A] =
       chunk.chunkIterator.sliceIterator(offset, l)
 
-    val classTag: ClassTag[A] = classTagOf(chunk)
+    @threadUnsafe
+    lazy val classTag: ClassTag[A] = classTagOf(chunk)
 
     override val depth: Int =
       chunk.depth + 1
@@ -1890,7 +1896,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def chunkIterator: ChunkIterator[A] =
       ChunkIterator.fromVector(vector)
 
-    val classTag: ClassTag[A] = Tags.fromValue(vector(0))
+    @threadUnsafe
+    lazy val classTag: ClassTag[A] = Tags.fromValue(vector(0))
 
     override val length: Int =
       vector.length
@@ -2472,7 +2479,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       extends Arr[A]
       with ChunkIterator[A] { self =>
 
-    val classTag: ClassTag[A] = Tags.fromValue(array(0))
+    @threadUnsafe
+    lazy val classTag: ClassTag[A] = Tags.fromValue(array(0))
 
     def apply(index: Int): A =
       array(index + offset)
