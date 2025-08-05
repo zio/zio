@@ -277,6 +277,25 @@ class StreamBenchmarks {
     unsafeRun(result)
   }
 
+  @Benchmark
+  def zioRepeatZIOChunkOption: Long = {
+    var index = 0
+
+    val result =
+      ZStream.repeatZIOChunkOption {
+        ZIO.suspendSucceed {
+          if (index < chunkCount)
+            ZIO.succeed {
+              index += 1
+              Chunk.single(1) // Use a single-element chunk for consistent overhead
+            }
+          else ZIO.fail(None)
+        }
+      }.runCount
+
+    unsafeRun(result)
+  }
+
 }
 
 @State(JScope.Thread)
