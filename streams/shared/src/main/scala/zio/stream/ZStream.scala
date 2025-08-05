@@ -5009,16 +5009,30 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def repeatZIOChunkOption[R, E, A](
     fa: => ZIO[R, Option[E], Chunk[A]]
-  )(implicit trace: Trace): ZStream[R, E, A] =
-    unfoldChunkZIO(fa)(fa =>
-      fa.foldZIO(
-        failure = {
-          case None    => Exit.none
-          case Some(e) => Exit.fail(e)
-        },
-        success = chunk => Exit.succeed(Some((chunk, fa)))
-      )
+  )(implicit trace: Trace): ZStream[R, E, A] = {
+    def loop(s: ZIO[R, E, Chunk[A]]): ZChannel[R, Any, Any, Any, E, Chunk[A], Any] =
+      ZChannel.unwrap {
+        s.map {
+          case null => ZChannel.unit
+          case as   => ZChannel.write(as) *> loop(s)
+        }
+      }
+
+    new ZStream(
+      ZChannel.suspend {
+        val fa0: ZIO[R, E, Chunk[A]] =
+          fa.foldZIO(
+            failure = {
+              case None    => Exit.`null`.asInstanceOf[ZIO[R, E, Chunk[A]]]
+              case Some(e) => Exit.fail(e)
+            },
+            success = chunk => Exit.succeed(chunk)
+          )
+
+        loop(fa0)
+      }
     )
+  }
 
   /**
    * Creates a stream from an effect producing values of type `A` until it fails
@@ -5129,7 +5143,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream by peeling off the "layers" of a value of type `S`
    */
   def unfold[S, A](s: => S)(f: S => Option[(A, S)])(implicit trace: Trace): ZStream[Any, Nothing, A] =
-    unfoldChunk(s)(f(_).map { case (a, s) => Chunk.single(a) -> s })
+    unfoldChunk(s)(f(_).map { case (a, s0) => Chunk.single(a) -> s0 })
 
   /**
    * Creates a stream by peeling off the "layers" of a value of type `S`.
@@ -5137,9 +5151,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def unfoldChunk[S, A](
     s: => S
   )(f: S => Option[(Chunk[A], S)])(implicit trace: Trace): ZStream[Any, Nothing, A] = {
-    def loop(s: S): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
-      f(s) match {
-        case Some((as, s)) => ZChannel.write(as) *> loop(s)
+    def loop(s0: S): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
+      f(s0) match {
+        case Some((as, s1)) => ZChannel.write(as) *> loop(s1)
         case None          => ZChannel.unit
       }
 
@@ -5153,11 +5167,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def unfoldChunkZIO[R, E, A, S](
     s: => S
   )(f: S => ZIO[R, E, Option[(Chunk[A], S)]])(implicit trace: Trace): ZStream[R, E, A] = {
-    def loop(s: S): ZChannel[R, Any, Any, Any, E, Chunk[A], Any] =
+    def loop(s0: S): ZChannel[R, Any, Any, Any, E, Chunk[A], Any] =
       ZChannel.unwrap {
-        f(s).map {
-          case Some((as, s)) => ZChannel.write(as) *> loop(s)
-          case None          => ZChannel.unit
+        f(s0).map {
+          case Some((as, s1)) => ZChannel.write(as) *> loop(s1)
+          case None           => ZChannel.unit
         }
       }
 
@@ -5171,7 +5185,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def unfoldZIO[R, E, A, S](s: => S)(f: S => ZIO[R, E, Option[(A, S)]])(implicit
     trace: Trace
   ): ZStream[R, E, A] =
-    unfoldChunkZIO(s)(f(_).map(_.map { case (a, s) => Chunk.single(a) -> s }))
+    unfoldChunkZIO(s)(f(_).map(_.map { case (a, s0) => Chunk.single(a) -> s0 }))
 
   /**
    * Creates a stream produced from an effect
