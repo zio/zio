@@ -19,7 +19,7 @@ package zio
 import java.nio._
 import java.nio.charset.Charset
 import java.util.concurrent.atomic.AtomicInteger
-import scala.annotation.tailrec
+import scala.annotation.{switch, tailrec}
 import scala.collection.mutable
 import scala.collection.mutable.Builder
 import scala.math.log
@@ -1409,13 +1409,21 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    * Returns the `ClassTag` for the element type of the chunk.
    */
   private[zio] def classTagOf[A](chunk: Chunk[A]): ClassTag[A] =
-    chunk match {
-      case x: AppendN[_]            => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: Arr[_]                => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: Concat[_]             => x.classTag.asInstanceOf[ClassTag[A]]
+    (chunk: @switch) match {
       case Empty                    => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
-      case x: PrependN[_]           => x.classTag.asInstanceOf[ClassTag[A]]
       case x: Singleton[_]          => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: AnyRefArray[_]        => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: BooleanArray          => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: ByteArray             => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: CharArray             => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: DoubleArray           => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: FloatArray            => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: IntArray              => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: LongArray             => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: ShortArray            => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: AppendN[_]            => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: Concat[_]             => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: PrependN[_]           => x.classTag.asInstanceOf[ClassTag[A]]
       case x: Slice[_]              => x.classTag.asInstanceOf[ClassTag[A]]
       case x: Update[_]             => x.classTag.asInstanceOf[ClassTag[A]]
       case x: VectorChunk[_]        => x.classTag.asInstanceOf[ClassTag[A]]
@@ -1593,9 +1601,6 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   private[zio] sealed abstract class Arr[A] extends Chunk[A] with Serializable { self =>
 
     val array: Array[A]
-
-    implicit val classTag: ClassTag[A] =
-      ClassTag(array.getClass.getComponentType)
 
     override def collectZIO[R, E, B](
       pf: PartialFunction[A, ZIO[R, E, B]]
@@ -1780,7 +1785,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def chunkIterator: ChunkIterator[A] =
       left.chunkIterator ++ right.chunkIterator
 
-    implicit val classTag: ClassTag[A] = {
+    val classTag: ClassTag[A] = {
       val lct = classTagOf(left)
       val rct = classTagOf(right)
 
@@ -1819,8 +1824,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
   private final case class Singleton[A](a: A) extends Chunk[A] with ChunkIterator[A] { self =>
 
-    implicit val classTag: ClassTag[A] =
-      Tags.fromValue(a)
+    val classTag: ClassTag[A] = Tags.fromValue(a)
 
     override def length = 1
 
@@ -1855,8 +1859,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def chunkIterator: ChunkIterator[A] =
       chunk.chunkIterator.sliceIterator(offset, l)
 
-    implicit val classTag: ClassTag[A] =
-      classTagOf(chunk)
+    val classTag: ClassTag[A] = classTagOf(chunk)
 
     override val depth: Int =
       chunk.depth + 1
@@ -1887,8 +1890,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def chunkIterator: ChunkIterator[A] =
       ChunkIterator.fromVector(vector)
 
-    implicit val classTag: ClassTag[A] =
-      Tags.fromValue(vector(0))
+    val classTag: ClassTag[A] = Tags.fromValue(vector(0))
 
     override val length: Int =
       vector.length
@@ -2421,8 +2423,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override def chunkIterator: ChunkIterator[T] =
       self
 
-    implicit val classTag: ClassTag[T] =
-      ops.classTag
+    def classTag: ClassTag[T] = ops.classTag
 
     def hasNextAt(index: Int): Boolean =
       index < length
@@ -2470,6 +2471,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   final case class AnyRefArray[A <: AnyRef](array: Array[A], offset: Int, override val length: Int)
       extends Arr[A]
       with ChunkIterator[A] { self =>
+
+    val classTag: ClassTag[A] = Tags.fromValue(array(0))
+
     def apply(index: Int): A =
       array(index + offset)
     def chunkIterator: ChunkIterator[A] =
@@ -2487,6 +2491,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   final case class ByteArray(array: Array[Byte], offset: Int, override val length: Int)
       extends Arr[Byte]
       with ChunkIterator[Byte] { self =>
+
+    def classTag: ClassTag[Byte] = ClassTag.Byte
+
     def apply(index: Int): Byte =
       array(index + offset)
     override def byte(index: Int)(implicit ev: Byte <:< Byte): Byte =
@@ -2564,6 +2571,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   final case class CharArray(array: Array[Char], offset: Int, override val length: Int)
       extends Arr[Char]
       with ChunkIterator[Char] { self =>
+
+    def classTag: ClassTag[Char] = ClassTag.Char
+
     def apply(index: Int): Char =
       array(index + offset)
     override def char(index: Int)(implicit ev: Char <:< Char): Char =
@@ -2641,6 +2651,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   final case class IntArray(array: Array[Int], offset: Int, override val length: Int)
       extends Arr[Int]
       with ChunkIterator[Int] { self =>
+
+    def classTag: ClassTag[Int] = ClassTag.Int
+
     def apply(index: Int): Int =
       array(index + offset)
     def chunkIterator: ChunkIterator[Int] =
@@ -2718,6 +2731,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   final case class LongArray(array: Array[Long], offset: Int, override val length: Int)
       extends Arr[Long]
       with ChunkIterator[Long] { self =>
+
+    def classTag: ClassTag[Long] = ClassTag.Long
+
     def apply(index: Int): Long =
       array(index + offset)
     def chunkIterator: ChunkIterator[Long] =
@@ -2795,6 +2811,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   final case class DoubleArray(array: Array[Double], offset: Int, override val length: Int)
       extends Arr[Double]
       with ChunkIterator[Double] { self =>
+
+    def classTag: ClassTag[Double] = ClassTag.Double
+
     def apply(index: Int): Double =
       array(index + offset)
     def chunkIterator: ChunkIterator[Double] =
@@ -2872,6 +2891,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   final case class FloatArray(array: Array[Float], offset: Int, override val length: Int)
       extends Arr[Float]
       with ChunkIterator[Float] { self =>
+
+    def classTag: ClassTag[Float] = ClassTag.Float
+
     def apply(index: Int): Float =
       array(index + offset)
     def chunkIterator: ChunkIterator[Float] =
@@ -2949,6 +2971,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   final case class ShortArray(array: Array[Short], offset: Int, override val length: Int)
       extends Arr[Short]
       with ChunkIterator[Short] { self =>
+
+    def classTag: ClassTag[Short] = ClassTag.Short
+
     def apply(index: Int): Short =
       array(index + offset)
     def chunkIterator: ChunkIterator[Short] =
@@ -3026,6 +3051,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   final case class BooleanArray(array: Array[Boolean], offset: Int, length: Int)
       extends Arr[Boolean]
       with ChunkIterator[Boolean] { self =>
+
+    def classTag: ClassTag[Boolean] = ClassTag.Boolean
+
     def apply(index: Int): Boolean =
       array(index + offset)
     override def boolean(index: Int)(implicit ev: Boolean <:< Boolean): Boolean =
