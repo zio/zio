@@ -539,6 +539,17 @@ object ChunkSpec extends ZIOBaseSpec {
       val c2 = List(1, 2, 3)
       assert(c1 == c2 && c1.hashCode == c2.hashCode)(Assertion.isTrue)
     },
+    test("empty seq consistency") {
+      val c1 = Chunk()
+      val c2 = List()
+      val c3 = Vector()
+      assert(
+        c1 == c2 &&
+        c1 == c3 &&
+        c1.hashCode == c2.hashCode &&
+        c1.hashCode == c3.hashCode
+      )(Assertion.isTrue)
+    },
     test("nullArrayBug") {
       val c = Chunk.fromArray(Array(1, 2, 3, 4, 5))
 
