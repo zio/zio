@@ -24,6 +24,7 @@ import scala.collection.mutable
 import scala.collection.mutable.Builder
 import scala.math.log
 import scala.reflect.{ClassTag, classTag}
+import scala.util.hashing.MurmurHash3
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are usually
@@ -572,7 +573,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   override final def hashCode: Int =
     toArrayOrNull match {
       case null  => Vector.empty[AnyRef].hashCode()
-      case array => array.toSeq.hashCode
+      case array => MurmurHash3.indexedSeqHash(array, MurmurHash3.seqSeed)
     }
 
   /**
