@@ -4458,28 +4458,26 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
           val builder = ChunkBuilder.make[A](maxChunkSize0)
 
           ZStream.repeatZIOChunkOption {
-            ZIO.suspendSucceed {
-              builder.clear()
-              var count: Int                            = 0
-              var error: IO[Option[Throwable], Nothing] = null
+            builder.clear()
+            var count: Int                            = 0
+            var error: IO[Option[Throwable], Nothing] = null
 
-              try {
-                while (count < maxChunkSize0 && it.hasNext) {
-                  builder += it.next()
-                  count += 1
-                }
-              } catch {
-                case t: Throwable =>
-                  error = ZIO.isFatalWith { isFatal =>
-                    if (!isFatal(t)) ZIO.fail(Some(t))
-                    else throw t
-                  }
+            try {
+              while (count < maxChunkSize0 && it.hasNext) {
+                builder += it.next()
+                count += 1
               }
-
-              if (error ne null) error
-              else if (count > 0) Exit.succeed(builder.result())
-              else Exit.failNone // end of stream
+            } catch {
+              case t: Throwable =>
+                error = ZIO.isFatalWith { isFatal =>
+                  if (!isFatal(t)) ZIO.fail(Some(t))
+                  else throw t
+                }
             }
+
+            if (error ne null) error
+            else if (count > 0) Exit.succeed(builder.result())
+            else Exit.failNone // end of stream
           }
         }
       }
@@ -4489,25 +4487,23 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     trace: Trace
   ): ZStream[Any, Throwable, A] =
     ZStream.repeatZIOChunkOption {
-      ZIO.suspendSucceed {
-        var error: IO[Option[Throwable], Nothing] = null
+      var error: IO[Option[Throwable], Nothing] = null
 
-        val next: Exit[Option[Nothing], Chunk[A]] =
-          try {
-            if (it.hasNext) Exit.succeed(Chunk.single(it.next()))
-            else Exit.failNone // end of stream
-          } catch {
-            case t: Throwable =>
-              error = ZIO.isFatalWith { isFatal =>
-                if (!isFatal(t)) ZIO.fail(Some(t))
-                else throw t
-              }
-              null // not important
-          }
+      val next: Exit[Option[Nothing], Chunk[A]] =
+        try {
+          if (it.hasNext) Exit.succeed(Chunk.single(it.next()))
+          else Exit.failNone // end of stream
+        } catch {
+          case t: Throwable =>
+            error = ZIO.isFatalWith { isFatal =>
+              if (!isFatal(t)) ZIO.fail(Some(t))
+              else throw t
+            }
+            null // not important
+        }
 
-        if (error eq null) next
-        else error
-      }
+      if (error eq null) next
+      else error
     }
 
   /**
@@ -5165,7 +5161,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         }
       }
 
-    new ZStream(loop(s))
+    new ZStream(ZChannel.suspend(loop(s)))
   }
 
   /**
