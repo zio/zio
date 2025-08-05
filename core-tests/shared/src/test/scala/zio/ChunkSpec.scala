@@ -545,9 +545,9 @@ object ChunkSpec extends ZIOBaseSpec {
       val c3 = Vector()
       assert(
         c1 == c2 &&
-        c1 == c3 &&
-        c1.hashCode == c2.hashCode &&
-        c1.hashCode == c3.hashCode
+          c1 == c3 &&
+          c1.hashCode == c2.hashCode &&
+          c1.hashCode == c3.hashCode
       )(Assertion.isTrue)
     },
     test("nullArrayBug") {
