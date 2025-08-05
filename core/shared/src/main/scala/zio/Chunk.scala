@@ -571,7 +571,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
 
   override final def hashCode: Int =
     toArrayOrNull match {
-      case null  => Seq.empty[A].hashCode
+      case null  => Vector.empty[AnyRef].hashCode()
       case array => array.toSeq.hashCode
     }
 
