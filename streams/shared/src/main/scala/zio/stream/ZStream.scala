@@ -5009,30 +5009,25 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def repeatZIOChunkOption[R, E, A](
     fa: => ZIO[R, Option[E], Chunk[A]]
-  )(implicit trace: Trace): ZStream[R, E, A] = {
-    def loop(s: ZIO[R, E, Chunk[A]]): ZChannel[R, Any, Any, Any, E, Chunk[A], Any] =
-      ZChannel.unwrap {
-        s.map {
-          case null => ZChannel.unit
-          case as   => ZChannel.write(as) *> loop(s)
-        }
-      }
-
+  )(implicit trace: Trace): ZStream[R, E, A] =
     new ZStream(
       ZChannel.suspend {
-        val fa0: ZIO[R, E, Chunk[A]] =
-          fa.foldZIO(
-            failure = {
-              case None    => Exit.`null`.asInstanceOf[ZIO[R, E, Chunk[A]]]
-              case Some(e) => Exit.fail(e)
-            },
-            success = chunk => Exit.succeed(chunk)
-          )
+        val fa0 = fa
 
-        loop(fa0)
+        def channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any] =
+          ZChannel.unwrap {
+            fa0.fold(
+              failure = {
+                case None    => ZChannel.unit
+                case Some(e) => ZChannel.fail(e)
+              },
+              success = chunk => ZChannel.write(chunk) *> channel
+            )
+          }
+
+        channel
       }
     )
-  }
 
   /**
    * Creates a stream from an effect producing values of type `A` until it fails
@@ -5154,7 +5149,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def loop(s0: S): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
       f(s0) match {
         case Some((as, s1)) => ZChannel.write(as) *> loop(s1)
-        case None          => ZChannel.unit
+        case None           => ZChannel.unit
       }
 
     new ZStream(ZChannel.suspend(loop(s)))

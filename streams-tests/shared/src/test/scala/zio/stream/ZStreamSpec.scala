@@ -5838,6 +5838,20 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(equalTo(1))
           }
         ),
+        suite("repeatZIOChunkOption")(
+          test("is stacksafe") {
+            for {
+              ref <- Ref.make(0)
+              fa = for {
+                     newCount <- ref.updateAndGet(_ + 1)
+                     res      <- if (newCount > 10000000) ZIO.fail(None) else ZIO.succeed(Chunk.single(newCount))
+                   } yield res
+              res <- ZStream
+                       .repeatZIOChunkOption(fa)
+                       .runCount
+            } yield assert(res)(equalTo(10000000L))
+          }
+        ),
         suite("repeatZIOWithSchedule")(
           test("succeed")(
             for {

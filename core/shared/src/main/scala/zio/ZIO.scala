@@ -6866,7 +6866,6 @@ object Exit extends Serializable {
   private[zio] val `true`: Exit[Nothing, Boolean]            = Success(true)
   private[zio] val `false`: Exit[Nothing, Boolean]           = Success(false)
   private[zio] val none: Exit[Nothing, Option[Nothing]]      = Success(None)
-  private[zio] val `null`: Exit[Nothing, AnyRef]             = Success(null)
   private[zio] val emptyChunk: Exit[Nothing, Chunk[Nothing]] = Success(Chunk.empty)
   private[zio] val failNone: Exit[Option[Nothing], Nothing]  = Failure(Cause.none)
   private[zio] val failUnit: Exit[Unit, Nothing]             = Failure(Cause.unit)
