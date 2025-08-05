@@ -4492,10 +4492,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZIO.suspendSucceed {
         var error: IO[Option[Throwable], Nothing] = null
 
-        val next: Exit[Nothing, Chunk[A]] =
+        val next: Exit[Option[Nothing], Chunk[A]] =
           try {
             if (it.hasNext) Exit.succeed(Chunk.single(it.next()))
-            else null
+            else Exit.failNone // end of stream
           } catch {
             case t: Throwable =>
               error = ZIO.isFatalWith { isFatal =>
@@ -4505,9 +4505,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
               null // not important
           }
 
-        if (error ne null) error
-        else if (next ne null) next
-        else Exit.failNone // end of stream
+        if (error eq null) next
+        else error
       }
     }
 
