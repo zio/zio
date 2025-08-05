@@ -4726,7 +4726,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                        .runCollect
             } yield assert(out)(equalTo(Chunk.fromIterable(1 to n)))).flatMap(ZIO.succeed(_))
           }
-        } @@ TestAspect.jvmOnly, // Until #3360 is solved
+        },
         suite("toQueue")(
           test("toQueue")(check(Gen.chunkOfBounded(0, 3)(Gen.int)) { (c: Chunk[Int]) =>
             val s = ZStream.fromChunk(c).flatMap(ZStream.succeed(_))
