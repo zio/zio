@@ -1545,8 +1545,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override val depth: Int =
       chunk.depth + 1
 
-    val length: Int =
-      chunk.length
+    def length: Int = chunk.length
 
     def apply(i: Int): A = {
       var j = used - 1
@@ -1861,8 +1860,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override val depth: Int =
       chunk.depth + 1
 
-    override val length: Int =
-      l
+    override def length: Int = l
 
     override def apply(n: Int): A =
       chunk.apply(offset + n)
@@ -1890,8 +1888,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     implicit val classTag: ClassTag[A] =
       Tags.fromValue(vector(0))
 
-    override val length: Int =
-      vector.length
+    override def length: Int = vector.length
 
     override def apply(n: Int): A =
       vector(n)
@@ -2440,8 +2437,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def chunkIterator: ChunkIterator[Nothing] =
       ChunkIterator.empty
 
-    override val length: Int =
-      0
+    override def length: Int = 0
 
     override def apply(n: Int): Nothing =
       throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
@@ -3191,14 +3187,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
 
     private case object Empty extends ChunkIterator[Nothing] { self =>
-      def hasNextAt(index: Int): Boolean =
-        false
-      val length: Int =
-        0
-      def nextAt(index: Int): Nothing =
-        throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $index")
-      def sliceIterator(offset: Int, length: Int): ChunkIterator[Nothing] =
-        self
+      def hasNextAt(index: Int): Boolean                                  = false
+      def length: Int                                                     = 0
+      def nextAt(index: Int): Nothing                                     = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $index")
+      def sliceIterator(offset: Int, length: Int): ChunkIterator[Nothing] = self
     }
 
     private final case class Iterator[A](iterator: scala.Iterator[A], length: Int) extends ChunkIterator[A] { self =>
