@@ -573,7 +573,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   override final def hashCode: Int =
     toArrayOrNull match {
       case null  => Vector.empty[AnyRef].hashCode()
-      case array => MurmurHash3.indexedSeqHash(array, MurmurHash3.seqSeed)
+      case array => MurmurHash3.arrayHash(array, MurmurHash3.seqSeed)
     }
 
   /**
