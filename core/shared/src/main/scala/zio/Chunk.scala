@@ -19,7 +19,8 @@ package zio
 import java.nio._
 import java.nio.charset.Charset
 import java.util.concurrent.atomic.AtomicInteger
-import scala.annotation.{switch, tailrec, threadUnsafe}
+import scala.annotation.{switch, tailrec}
+import zio.Scala3Annotations.threadUnsafe
 import scala.collection.mutable
 import scala.collection.mutable.Builder
 import scala.math.log
