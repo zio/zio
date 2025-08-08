@@ -101,10 +101,8 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
       } catch {
         case t: Throwable =>
           ZIO.isFatalWith { isFatal =>
-            if (!isFatal(t))
-              ZIO.failCause(Cause.fail(t))
-            else
-              throw t
+            if (!isFatal(t)) ZIO.fail(t)
+            else throw t
           }
       }
     }

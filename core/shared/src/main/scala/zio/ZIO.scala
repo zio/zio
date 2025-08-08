@@ -3245,18 +3245,22 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * equivalent of `throw` for pure code.
    */
   def fail[E](error: => E)(implicit trace: Trace): IO[E, Nothing] =
-    failCause(Cause.fail(error))
+    failCauseWithFiberId(_ => Cause.fail(error))
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
    */
   def failCause[E](cause: => Cause[E])(implicit trace0: Trace): IO[E, Nothing] =
+    failCauseWithFiberId(_ => cause)
+
+  def failCauseWithFiberId[E](cause: FiberId.Runtime => Cause[E])(implicit trace0: Trace): IO[E, Nothing] =
     ZIO.withFiberRuntime[Any, E, Nothing] { (state, _) =>
+      val id    = state.id
       val trace = state.generateStackTrace()
       val refs  = state.getFiberRefs(false)
       val spans = refs.getOrDefault(FiberRef.currentLogSpan)
       val anns  = refs.getOrDefault(FiberRef.currentLogAnnotations)
-      Exit.failCause(cause.applyAll(trace, spans, anns))
+      Exit.failCause(cause(id).applyAll(trace, spans, anns))
     }
 
   /**
@@ -3954,13 +3958,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * method.
    */
   def interrupt(implicit trace: Trace): UIO[Nothing] =
-    fiberIdWith(interruptAs(_))
+    failCauseWithFiberId(Cause.interrupt(_))
 
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
    */
   def interruptAs(fiberId: => FiberId)(implicit trace: Trace): UIO[Nothing] =
-    failCause(Cause.interrupt(fiberId))
+    failCauseWithFiberId(_ => Cause.interrupt(fiberId))
 
   /**
    * Prefix form of `ZIO#interruptible`.

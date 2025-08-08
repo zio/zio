@@ -128,7 +128,7 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
    * waiting on the value of the promise as by the fiber calling this method.
    */
   def interrupt(implicit trace: Trace): UIO[Boolean] =
-    ZIO.fiberIdWith(id => interruptAs(id))
+    ZIO.succeed(unsafe.interrupt(trace, Unsafe))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
@@ -180,6 +180,7 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit
     def fail(e: E)(implicit trace: Trace, unsafe: Unsafe): Boolean
     def failCause(e: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Boolean
+    def interrupt(implicit trace: Trace, unsafe: Unsafe): Boolean
     def interruptAs(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Boolean
     def isDone(implicit unsafe: Unsafe): Boolean
     def poll(implicit unsafe: Unsafe): Option[IO[E, A]]
@@ -218,6 +219,9 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
 
     def failCause(e: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Boolean =
       completeWith(ZIO.failCause(e))
+
+    def interrupt(implicit trace: Trace, unsafe: Unsafe): Boolean =
+      completeWith(ZIO.interrupt)
 
     def interruptAs(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Boolean =
       completeWith(ZIO.interruptAs(fiberId))

@@ -198,6 +198,7 @@ object StackTracesSpec extends ZIOBaseSpec {
               |	at zio.StackTracesSpec$.$anonfun$spec
               |	at zio.ZIO$.$anonfun$die
               |	at zio.ZIO$.$anonfun$failCause
+              |	at zio.ZIO$.$anonfun$failCauseWithFiberId
               |	at zio.internal.FiberRuntime.runLoop
               |	at zio.internal.FiberRuntime.evaluateEffect
               |	at zio.internal.FiberRuntime.start
@@ -234,6 +235,7 @@ object StackTracesSpec extends ZIOBaseSpec {
               |	at zio.StackTracesSpec$.subcall2$2$$anonfun
               |	at zio.ZIO$.die$$anonfun
               |	at zio.ZIO$.failCause$$anonfun
+              |	at zio.ZIO$.failCauseWithFiberId$$anonfun
               |	at zio.internal.FiberRuntime.runLoop
               |	at zio.internal.FiberRuntime.evaluateEffect
               |	at zio.internal.FiberRuntime.start
