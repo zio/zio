@@ -70,7 +70,11 @@ object Hub {
    * For best performance use capacities that are powers of two.
    */
   def bounded[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Hub[A]] =
-    ZIO.succeed(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.BackPressure()))
+    ZIO.suspendSucceed {
+      val hub = internal.Hub.bounded[A](requestedCapacity)
+
+      makeHub(hub, Strategy.BackPressure())
+    }
 
   /**
    * Creates a bounded hub with the dropping strategy. The hub will drop new
@@ -79,7 +83,11 @@ object Hub {
    * For best performance use capacities that are powers of two.
    */
   def dropping[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Hub[A]] =
-    ZIO.succeed(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.Dropping()))
+    ZIO.suspendSucceed {
+      val hub = internal.Hub.bounded[A](requestedCapacity)
+
+      makeHub(hub, Strategy.Dropping())
+    }
 
   /**
    * Creates a bounded hub with the sliding strategy. The hub will add new
@@ -88,25 +96,35 @@ object Hub {
    * For best performance use capacities that are powers of two.
    */
   def sliding[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Hub[A]] =
-    ZIO.succeed(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.Sliding()))
+    ZIO.suspendSucceed {
+      val hub = internal.Hub.bounded[A](requestedCapacity)
+
+      makeHub(hub, Strategy.Sliding())
+    }
 
   /**
    * Creates an unbounded hub.
    */
   def unbounded[A](implicit trace: Trace): UIO[Hub[A]] =
-    ZIO.succeed(internal.Hub.unbounded[A]).flatMap(makeHub(_, Strategy.Dropping()))
+    ZIO.suspendSucceed {
+      val hub = internal.Hub.unbounded[A]
+
+      makeHub(hub, Strategy.Dropping())
+    }
 
   /**
    * Creates a hub with the specified strategy.
    */
   private def makeHub[A](hub: internal.Hub[A], strategy: Strategy[A])(implicit trace: Trace): UIO[Hub[A]] =
-    Scope.make.flatMap { scope =>
-      Promise.make[Nothing, Unit].map { promise =>
+    ZIO.fiberIdWith { fiberId =>
+      Exit.succeed {
+        val scope   = Scope.unsafe.make(Unsafe)
+        val promise = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
+
         unsafeMakeHub(
           hub,
-          Platform.newConcurrentSet[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]()(
-            Unsafe.unsafe
-          ),
+          Platform
+            .newConcurrentSet[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]()(Unsafe),
           scope,
           promise,
           new AtomicBoolean(false),
@@ -167,7 +185,7 @@ object Hub {
       def size(implicit trace: Trace): UIO[Int] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
-          else ZIO.succeed(hub.size())
+          else Exit.succeed(hub.size())
         }
       def subscribe(implicit trace: Trace): ZIO[Scope, Nothing, Dequeue[A]] =
         ZIO.acquireReleaseExit {
@@ -189,16 +207,21 @@ object Hub {
     subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
     strategy: Strategy[A]
   )(implicit trace: Trace): UIO[Dequeue[A]] =
-    Promise.make[Nothing, Unit].map { promise =>
-      unsafeMakeSubscription(
-        hub,
-        subscribers,
-        hub.subscribe(),
-        MutableConcurrentQueue.unbounded[Promise[Nothing, A]],
-        promise,
-        new AtomicBoolean(false),
-        strategy
-      )
+    ZIO.fiberIdWith { fiberId =>
+      Exit.succeed {
+        val promise = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe.unsafe)
+
+        // Create a new subscription and a queue for pollers.
+        unsafeMakeSubscription(
+          hub,
+          subscribers,
+          hub.subscribe(),
+          MutableConcurrentQueue.unbounded[Promise[Nothing, A]],
+          promise,
+          new AtomicBoolean(false),
+          strategy
+        )
+      }
     }
 
   /**
@@ -230,7 +253,7 @@ object Hub {
           ZIO
             .whenZIODiscard(shutdownHook.succeedUnit) {
               ZIO.foreachParDiscard(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
-                ZIO.succeed {
+                Exit.succeed {
                   subscribers.remove(subscription -> pollers)
                   subscription.unsubscribe()
                   strategy.unsafeOnHubEmptySpace(hub, subscribers)
