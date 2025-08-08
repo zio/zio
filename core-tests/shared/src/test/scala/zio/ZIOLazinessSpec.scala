@@ -20,7 +20,6 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
     test("fromOption")(assertLazy(ZIO.fromOption)),
     test("fromTry")(assertLazy(ZIO.fromTry)),
     test("getOrFailUnit")(assertLazy(ZIO.getOrFailUnit)),
-    test("interruptAs")(assertLazy(ZIO.interruptAs)),
     test("left")(assertLazy(ZIO.left)),
     test("onExecutor")(assertLazy(ZIO.onExecutor)),
     test("provideEnvironment")(assertLazy(ZIO.provideEnvironment)),

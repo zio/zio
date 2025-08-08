@@ -3259,6 +3259,16 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       Exit.failCause(cause.applyAll(trace, spans, anns))
     }
 
+  def failCauseWithFiberId[E](cause: FiberId.Runtime => Cause[E])(implicit trace0: Trace): IO[E, Nothing] =
+    ZIO.withFiberRuntime[Any, E, Nothing] { (state, _) =>
+      val id    = state.id
+      val trace = state.generateStackTrace()
+      val refs  = state.getFiberRefs(false)
+      val spans = refs.getOrDefault(FiberRef.currentLogSpan)
+      val anns  = refs.getOrDefault(FiberRef.currentLogAnnotations)
+      Exit.failCause(cause(id).applyAll(trace, spans, anns))
+    }
+
   /**
    * Returns the `FiberId` of the fiber executing the effect that calls this
    * method.
@@ -3954,11 +3964,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * method.
    */
   def interrupt(implicit trace: Trace): UIO[Nothing] =
-    fiberIdWith(interruptAs(_))
+    failCauseWithFiberId(Cause.interrupt(_))
 
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
    */
+  @deprecated("Use `ZIO.interrupt` instead", "2.1.20")
   def interruptAs(fiberId: => FiberId)(implicit trace: Trace): UIO[Nothing] =
     failCause(Cause.interrupt(fiberId))
 

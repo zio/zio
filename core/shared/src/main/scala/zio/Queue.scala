@@ -232,18 +232,18 @@ object Queue extends QueuePlatformSpecific {
       }
 
     override def shutdown(implicit trace: Trace): UIO[Unit] =
-      ZIO.fiberIdWith { fiberId =>
+      ZIO.uninterruptible {
         if (shutdownFlag.compareAndSet(false, true)) {
           implicit val unsafe: Unsafe = Unsafe
           shutdownHook.unsafe.succeedUnit
           val it = unsafePollAll(takers).iterator
           while (it.hasNext) {
-            it.next().unsafe.interruptAs(fiberId)
+            it.next().unsafe.interrupt
           }
-          strategy.shutdown(fiberId)
+          strategy.shutdown
         }
         Exit.unit
-      }.uninterruptible
+      }
 
     override def isShutdown(implicit trace: Trace): UIO[Boolean] = ZIO.succeed(shutdownFlag.get)
 
@@ -334,7 +334,7 @@ object Queue extends QueuePlatformSpecific {
 
     def surplusSize: Int
 
-    def shutdown(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Unit
+    def shutdown(implicit trace: Trace, unsafe: Unsafe): Unit
 
     @tailrec
     final def unsafeCompleteTakers(
@@ -452,11 +452,11 @@ object Queue extends QueuePlatformSpecific {
 
       def surplusSize: Int = putters.size()
 
-      def shutdown(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Unit = {
+      def shutdown(implicit trace: Trace, unsafe: Unsafe): Unit = {
         var next = putters.poll()
         while (next ne null) {
           val (_, promise, isLast) = next
-          if (isLast) promise.unsafe.interruptAs(fiberId)
+          if (isLast) promise.unsafe.interrupt
           next = putters.poll()
         }
       }
@@ -478,7 +478,7 @@ object Queue extends QueuePlatformSpecific {
 
       def surplusSize: Int = 0
 
-      def shutdown(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Unit = ()
+      def shutdown(implicit trace: Trace, unsafe: Unsafe): Unit = ()
     }
 
     final case class Sliding[A]() extends Strategy[A] {
@@ -519,7 +519,7 @@ object Queue extends QueuePlatformSpecific {
 
       def surplusSize: Int = 0
 
-      def shutdown(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Unit = ()
+      def shutdown(implicit trace: Trace, unsafe: Unsafe): Unit = ()
     }
   }
 
