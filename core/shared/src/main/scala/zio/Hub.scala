@@ -225,18 +225,18 @@ object Hub {
       def offerAll[A1 <: Nothing](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
         ZIO.succeed(Chunk.fromIterable(as))
       def shutdown(implicit trace: Trace): UIO[Unit] =
-        ZIO.fiberIdWith { fiberId =>
+        ZIO.uninterruptible {
           shutdownFlag.set(true)
           ZIO
             .whenZIODiscard(shutdownHook.succeedUnit) {
-              ZIO.foreachParDiscard(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
+              ZIO.foreachParDiscard(unsafePollAll(pollers))(_.interrupt) *>
                 ZIO.succeed {
                   subscribers.remove(subscription -> pollers)
                   subscription.unsubscribe()
                   strategy.unsafeOnHubEmptySpace(hub, subscribers)
                 }
             }
-        }.uninterruptible
+        }
       def size(implicit trace: Trace): UIO[Int] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
@@ -393,13 +393,9 @@ object Hub {
         }
 
       def shutdown(implicit trace: Trace): UIO[Unit] =
-        for {
-          fiberId    <- ZIO.fiberId
-          publishers <- ZIO.succeed(unsafePollAll(publishers))
-          _ <- ZIO.foreachParDiscard(publishers) { case (_, promise, last) =>
-                 if (last) promise.interruptAs(fiberId) else ZIO.unit
-               }
-        } yield ()
+        ZIO.foreachParDiscard(unsafePollAll(publishers)) { case (_, promise, last) =>
+          if (last) promise.interrupt else Exit.unit
+        }
 
       def unsafeOnHubEmptySpace(
         hub: internal.Hub[A],
