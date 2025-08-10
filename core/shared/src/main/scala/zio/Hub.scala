@@ -209,7 +209,7 @@ object Hub {
   )(implicit trace: Trace): UIO[Dequeue[A]] =
     ZIO.fiberIdWith { fiberId =>
       Exit.succeed {
-        val promise = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe.unsafe)
+        val promise = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
 
         // Create a new subscription and a queue for pollers.
         unsafeMakeSubscription(
