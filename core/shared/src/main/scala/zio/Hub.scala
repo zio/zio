@@ -415,17 +415,15 @@ object Hub {
         }
 
       def shutdown(implicit trace: Trace): UIO[Unit] =
-        for {
-          fiberId    <- ZIO.fiberId
-          publishers <- ZIO.succeed(unsafePollAll(publishers))
-          _ <- ZIO.foreachParDiscard(publishers) { case (_, promise, last) =>
-                 if (last) promise.interruptAs(fiberId) else ZIO.unit
-               }
-        } yield ()
+        ZIO.fiberIdWith { fiberId =>
+          ZIO.foreachParDiscard(unsafePollAll(publishers)) { case (_, promise, last) =>
+            if (last) promise.interruptAs(fiberId) else ZIO.unit
+          }
+        }
 
       def unsafeOnHubEmptySpace(
         hub: internal.Hub[A],
-        subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
+        subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
       ): Unit = {
         val empty       = null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]
         var keepPolling = true
