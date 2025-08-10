@@ -8,7 +8,7 @@ import zio.test.TestAspect.{exceptJS, flaky, forked, jvmOnly, nonFlaky, scala2On
 import zio.test._
 
 import java.util.concurrent.atomic.AtomicBoolean
-import scala.annotation.tailrec
+import scala.annotation.{nowarn, tailrec}
 import scala.util.{Failure, Success, Try}
 
 object ZIOSpec extends ZIOBaseSpec {
@@ -279,16 +279,16 @@ object ZIOSpec extends ZIOBaseSpec {
       test("recovers from NonFatal") {
         val s   = "division by zero"
         val zio = ZIO.fail(new IllegalArgumentException(s))
-        for {
-          result <- zio.catchNonFatalOrDie(e => ZIO.succeed(e.getMessage)).exit
-        } yield assert(result)(succeeds(equalTo(s)))
+        @nowarn("cat=deprecation")
+        val result = zio.catchNonFatalOrDie(e => ZIO.succeed(e.getMessage)).exit
+        assertZIO(result)(succeeds(equalTo(s)))
       },
       test("dies if fatal") {
         val e   = new OutOfMemoryError
         val zio = ZIO.fail(e)
-        for {
-          result <- zio.catchNonFatalOrDie(e => ZIO.succeed(e.getMessage)).exit
-        } yield assert(result)(dies(equalTo(e)))
+        @nowarn("cat=deprecation")
+        val result = zio.catchNonFatalOrDie(e => ZIO.succeed(e.getMessage)).exit
+        assertZIO(result)(dies(equalTo(e)))
       } @@ jvmOnly // no fatal exceptions in JS
     ),
     suite("catchAllDefect")(

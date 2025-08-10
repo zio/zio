@@ -4,7 +4,7 @@ object Dependencies {
   // Runtime dependencies
   val JunitVersion                 = "4.13.2"
   val IzumiReflectVersion          = "3.0.5"
-  val JunitPlatformEngineVersion   = "1.13.3"
+  val JunitPlatformEngineVersion   = "1.13.4"
   val MagnoliaScala2Version        = "1.1.10"
   val MagnoliaScala3Version        = "1.3.18"
   val RefinedVersion               = "0.11.3"
@@ -13,10 +13,10 @@ object Dependencies {
   val ScalaCollectionCompatVersion = "2.13.0"
   val ScalaNativeCryptoVersion     = "0.2.1"
   val ScalaSecureRandomVersion     = "1.0.0"
-  val ScalaJsDomVersion            = "2.8.0"
+  val ScalaJsDomVersion            = "2.8.1"
 
   // Documentations and example dependencies
-  val CatsEffectVersion = "3.6.2"
+  val CatsEffectVersion = "3.6.3"
   val DoobieVersion     = "1.0.0-RC5"
   val Fs2Version        = "3.12.0"
   val Http4sVersion     = "0.23.29"
