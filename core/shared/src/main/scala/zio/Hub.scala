@@ -211,7 +211,6 @@ object Hub {
       Exit.succeed {
         val promise = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
 
-        // Create a new subscription and a queue for pollers.
         unsafeMakeSubscription(
           hub,
           subscribers,
