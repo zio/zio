@@ -19,7 +19,6 @@ package zio
 import zio.internal.{MutableConcurrentQueue, Platform}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.Set
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -138,7 +137,7 @@ object Hub {
    */
   private def unsafeMakeHub[A](
     hub: internal.Hub[A],
-    subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+    subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
     scope: Scope.Closeable,
     shutdownHook: Promise[Nothing, Unit],
     shutdownFlag: AtomicBoolean,
@@ -204,7 +203,7 @@ object Hub {
    */
   private def makeSubscription[A](
     hub: internal.Hub[A],
-    subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+    subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
     strategy: Strategy[A]
   )(implicit trace: Trace): UIO[Dequeue[A]] =
     ZIO.fiberIdWith { fiberId =>
@@ -228,7 +227,7 @@ object Hub {
    */
   private def unsafeMakeSubscription[A](
     hub: internal.Hub[A],
-    subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+    subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
     subscription: internal.Hub.Subscription[A],
     pollers: MutableConcurrentQueue[Promise[Nothing, A]],
     shutdownHook: Promise[Nothing, Unit],
@@ -317,7 +316,7 @@ object Hub {
      */
     def handleSurplus(
       hub: internal.Hub[A],
-      subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+      subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
       as: Iterable[A],
       isShutdown: AtomicBoolean
     )(implicit trace: Trace): UIO[Boolean]
@@ -333,7 +332,7 @@ object Hub {
      */
     def unsafeOnHubEmptySpace(
       hub: internal.Hub[A],
-      subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
+      subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
     ): Unit
 
     /**
@@ -343,7 +342,7 @@ object Hub {
      */
     final def unsafeCompletePollers(
       hub: internal.Hub[A],
-      subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+      subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
       subscription: internal.Hub.Subscription[A],
       pollers: MutableConcurrentQueue[Promise[Nothing, A]]
     ): Unit = {
@@ -375,7 +374,7 @@ object Hub {
      */
     final def unsafeCompleteSubscribers(
       hub: internal.Hub[A],
-      subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
+      subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
     ): Unit = {
       val iterator = subscribers.iterator
       while (iterator.hasNext) {
@@ -400,7 +399,7 @@ object Hub {
 
       def handleSurplus(
         hub: internal.Hub[A],
-        subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+        subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
         as: Iterable[A],
         isShutDown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] =
@@ -474,7 +473,7 @@ object Hub {
 
       def handleSurplus(
         hub: internal.Hub[A],
-        subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+        subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
         as: Iterable[A],
         isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] =
@@ -485,7 +484,7 @@ object Hub {
 
       def unsafeOnHubEmptySpace(
         hub: internal.Hub[A],
-        subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
+        subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
       ): Unit =
         ()
     }
@@ -501,7 +500,7 @@ object Hub {
 
       def handleSurplus(
         hub: internal.Hub[A],
-        subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+        subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
         as: Iterable[A],
         isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] = {
@@ -533,7 +532,7 @@ object Hub {
 
       def unsafeOnHubEmptySpace(
         hub: internal.Hub[A],
-        subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
+        subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
       ): Unit =
         ()
     }
