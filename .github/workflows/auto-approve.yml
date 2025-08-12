@@ -8,7 +8,7 @@ jobs:
     if: github.actor == 'renovate[bot]'
     steps:
       - name: Git Checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v5.0.0
         with:
           fetch-depth: 1000
           fetch-tags: true
