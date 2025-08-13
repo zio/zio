@@ -219,7 +219,7 @@ object Runtime extends RuntimePlatformSpecific {
     ZLayer.scoped(ZIO.withLoggerScoped(logger))
 
   def addSupervisor(supervisor: Supervisor[Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
-    ZLayer.scoped(FiberRef.currentSupervisor.locallyScopedWith(_ ++ supervisor))
+    ZLayer.scoped(FiberRef.currentSupervisor.locallyScopedWith(_.patchAdd(supervisor)))
 
   /**
    * Builds a new runtime given an environment `R` and a [[zio.FiberRefs]].
@@ -271,6 +271,7 @@ object Runtime extends RuntimePlatformSpecific {
   def enableRuntimeMetrics(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     enableFlags(RuntimeFlag.RuntimeMetrics)
 
+  @deprecated("Unused + unimplemented: using this flag will have no effect", "2.1.19")
   def enableWorkStealing(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     enableFlags(RuntimeFlag.WorkStealing)
 

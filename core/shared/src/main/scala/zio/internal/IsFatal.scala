@@ -20,20 +20,21 @@ sealed trait IsFatal extends (Throwable => Boolean) { self =>
   import IsFatal._
 
   def apply(t: Throwable): Boolean =
-    if (t.isInstanceOf[StackOverflowError]) true
+    if (t.isInstanceOf[VirtualMachineError]) true
     else
       self match {
+        case _: Empty.type     => false
         case Both(left, right) => left(t) || right(t)
-        case Empty             => false
         case Single(tag)       => tag.isAssignableFrom(t.getClass)
       }
 
   def |(that: IsFatal): IsFatal =
-    (self, that) match {
-      case (self, Empty) => self
-      case (Empty, that) => that
-      case (self, that)  => Both(self, that)
-    }
+    if (self eq Empty) that
+    else
+      that match {
+        case _: Empty.type => self
+        case _             => Both(self, that)
+      }
 }
 
 object IsFatal {
@@ -102,7 +103,7 @@ object IsFatal {
       }
 
   private[zio] def toSet(isFatal: IsFatal): Set[IsFatal] =
-    if (isFatal == IsFatal.empty) Set.empty
+    if (isFatal eq IsFatal.empty) Set.empty
     else
       isFatal match {
         case Both(left, right) => toSet(left) ++ toSet(right)

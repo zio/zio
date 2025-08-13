@@ -198,7 +198,7 @@ sealed trait FiberRef[A] extends Serializable { self =>
 
       fiberState.setFiberRef(self, a)
 
-      ZIO.succeed(b)
+      Exit.succeed(b)
     }
 
   /**

@@ -26,7 +26,8 @@ private[test] final case class TestArgs(
   tagIgnoreTerms: List[String],
   testTaskPolicy: Option[String],
   testRenderer: TestRenderer,
-  printSummary: Boolean
+  printSummary: Boolean,
+  reportsParent: String
 ) {
   val testEventRenderer: ReporterEventRenderer =
     testRenderer match {
@@ -44,20 +45,32 @@ private[test] final case class TestArgs(
 }
 
 object TestArgs {
+  val reportsParentDefault: String = "target"
+  val jsonResultPath: String       = "test-reports-zio/output.json"
+
   def empty: TestArgs =
-    TestArgs(List.empty[String], List.empty[String], List.empty[String], None, ConsoleRenderer, printSummary = true)
+    TestArgs(
+      List.empty[String],
+      List.empty[String],
+      List.empty[String],
+      None,
+      ConsoleRenderer,
+      printSummary = true,
+      reportsParentDefault
+    )
 
   def parse(args: Array[String]): TestArgs = {
     // TODO: Add a proper command-line parser
     val parsedArgs = args
       .sliding(2, 2)
       .collect {
-        case Array("-t", term)           => ("testSearchTerm", term)
-        case Array("-tags", term)        => ("tagSearchTerm", term)
-        case Array("-ignore-tags", term) => ("tagIgnoreTerm", term)
-        case Array("-policy", name)      => ("policy", name)
-        case Array("-renderer", name)    => ("renderer", name)
-        case Array("-summary", flag)     => ("summary", flag)
+        case Array("-t", term)            => ("testSearchTerm", term)
+        case Array("-tags", term)         => ("tagSearchTerm", term)
+        case Array("-ignore-tags", term)  => ("tagIgnoreTerm", term)
+        case Array("-policy", name)       => ("policy", name)
+        case Array("-renderer", name)     => ("renderer", name)
+        case Array("-summary", flag)      => ("summary", flag)
+        case Array("-reports", directory) => ("reportsParent", directory)
       }
       .toList
       .groupBy(_._1)
@@ -71,11 +84,12 @@ object TestArgs {
     val testTaskPolicy = parsedArgs.getOrElse("policy", Nil).headOption
     val testRenderer   = parsedArgs.getOrElse("renderer", Nil).headOption.map(_.toLowerCase)
     val printSummary   = parsedArgs.getOrElse("summary", Nil).headOption.forall(_.toBoolean)
+    val reportsParent  = parsedArgs.getOrElse("reportsParent", Nil).headOption.getOrElse(reportsParentDefault)
     val typedTestRenderer =
       testRenderer match {
         case Some(value) if value == "intellij" => IntelliJRenderer
         case _                                  => ConsoleRenderer
       }
-    TestArgs(terms, tags, ignoreTags, testTaskPolicy, typedTestRenderer, printSummary)
+    TestArgs(terms, tags, ignoreTags, testTaskPolicy, typedTestRenderer, printSummary, reportsParent)
   }
 }

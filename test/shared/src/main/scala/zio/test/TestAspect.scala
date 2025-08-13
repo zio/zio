@@ -25,6 +25,8 @@ import zio.test.TestAspectPoly
 import zio.System.env
 import zio.test.TestAspectAtLeastR
 
+import scala.collection.mutable
+
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of
  * an aspect as a polymorphic function, capable of transforming one test into
@@ -507,29 +509,44 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that records the state of fibers spawned by the current test in
-   * [[TestAnnotation.fibers]]. Applied by default in [[ZIOSpecAbstract]]. This
-   * aspect is required for the proper functioning of `TestClock.adjust`.
+   * [[TestAnnotation.fibers]].
+   *
+   * '''NOTE''': Since this aspect is required for the proper functioning of
+   * `TestClock.adjust`, it is applied to all tests automatically. There is no
+   * need to apply this aspect manually to tests.
    */
-  lazy val fibers: TestAspectPoly =
+  @deprecated(
+    "This aspect is applied automatically to all tests and no longer needs to be provided explicitly",
+    "2.1.20"
+  )
+  val fibers: TestAspectPoly =
     new PerTest.Poly {
       def perTest[R, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] = {
-        val acquire = ZIO.succeed(new AtomicReference(SortedSet.empty[Fiber.Runtime[Any, Any]])).tap { ref =>
-          Annotations.annotate(TestAnnotation.fibers, Right(Chunk(ref)))
+        val acquire = ZIO.suspendSucceed {
+          val ref = new AtomicReference(SortedSet.empty[Fiber.Runtime[Any, Any]])
+          Annotations.annotate(TestAnnotation.fibers, Right(Chunk.single(ref))).as(ref)
         }
+
         val release = Annotations.get(TestAnnotation.fibers).flatMap {
           case Right(refs) =>
-            ZIO
-              .foreach(refs)(ref => ZIO.succeed(ref.get))
-              .map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _).size)
-              .tap { n =>
-                Annotations.annotate(TestAnnotation.fibers, Left(n))
+            val n =
+              if (refs.size == 1) {
+                refs.head.get().size
+              } else {
+                val it      = refs.iterator
+                val builder = new mutable.HashSet[Fiber.Runtime[?, ?]]()
+                while (it.hasNext) {
+                  builder ++= it.next().get()
+                }
+                builder.result().size
               }
-          case Left(_) => ZIO.unit
+            Annotations.annotate(TestAnnotation.fibers, Left(n))
+          case _ => Exit.unit
         }
-        ZIO.acquireReleaseWith(acquire)(_ => release) { ref =>
-          Supervisor.fibersIn(ref).flatMap(supervisor => test.supervised(supervisor))
+        ZIO.acquireReleaseWith(acquire)(_ => release) {
+          Supervisor.fibersIn(_).flatMap(test.supervised(_))
         }
       }
     }
