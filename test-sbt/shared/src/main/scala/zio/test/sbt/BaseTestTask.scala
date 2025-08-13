@@ -1,6 +1,6 @@
 package zio.test.sbt
 
-import sbt.testing.{EventHandler, Logger, Task, TaskDef, TestSelector, TestWildcardSelector}
+import sbt.testing.{EventHandler, Logger, Selector, Task, TaskDef, TestSelector, TestWildcardSelector}
 import zio.{CancelableFuture, Console, Scope, Trace, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 import zio.test._
 
@@ -28,7 +28,7 @@ abstract class BaseTestTask[T](
   private[zio] def run(
     eventHandlerZ: ZTestEventHandler
   )(implicit trace: Trace): ZIO[Any, Throwable, Unit] = {
-    val fullArgs = searchTermsFromSelectors(taskDef(), spec.spec) match {
+    val fullArgs = searchTermsFromSelectors(taskDef().selectors()) match {
       case Nil   => args
       case terms => args.copy(testSearchTerms = args.testSearchTerms ++ terms)
     }
@@ -61,22 +61,30 @@ abstract class BaseTestTask[T](
    * @return
    *   The search term corresponding to the tests that are selected.
    */
-  private def searchTermsFromSelectors(td: TaskDef, spec: Spec[_, _]): List[String] =
-    spec.caseValue match {
-      // Test events' names are prefixed with the top level label and a dash. We need to remove that prefix
-      // in order to create the appropriate search term.
-      case Spec.LabeledCase(label, _)
-          if td
-            .selectors()
-            .forall(selector => selector.isInstanceOf[TestSelector] || selector.isInstanceOf[TestWildcardSelector]) =>
-        val prefix = s"$label - "
-        val terms = td.selectors().toList.collect {
-          case ts: TestSelector          => ts.testName().stripPrefix(prefix)
-          case tws: TestWildcardSelector => tws.testWildcard().stripPrefix(prefix)
-        }
-        terms
-      case _ => Nil
-    }
+  private def searchTermsFromSelectors(selectors: Array[Selector]): List[String] =
+    // If a test is defined as `suite("suite")(test("test"){})`
+    // it seems reasonable that we should be able to ask for it to be executed
+    // by either its short name "test" or by its full name "suite - test".
+    // This *can* be achieved by stripping the suite prefix "suite -" from the names from the selectors.
+    // However, this approach breaks down in the presence of nested suites;
+    // e.g. if a test is defined as `suite("outer")(suite("inner)(test("test"){}))`,
+    // when the outer suite is run:
+    // - selector "test" still executes the test - as it should;
+    // - selector "inner - test" does not execute the test (wrong prefix gets stipped) - but should;
+    // - selector "outer - inner - test" does not execute the test (inner prefix does not get stripped) - but should;
+    // - selector "outer - test" does execute the test - but shouldn't, since test with such a full name does not exist.
+    // To make this work correctly, `Spec.filterLabels()` has to be adjusted to keep track of the accumulated
+    // suite prefix and match the search terms against the full names.
+    // Once that is done, we do not need to strip anything here;
+    // in fact, we do not even need know what the label of the spec is.
+    if (
+      selectors.forall(selector => selector.isInstanceOf[TestSelector] || selector.isInstanceOf[TestWildcardSelector])
+    )
+      selectors.toList.collect {
+        case ts: TestSelector          => ts.testName()
+        case tws: TestWildcardSelector => tws.testWildcard()
+      }
+    else Nil
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
     implicit val trace                    = Trace.empty

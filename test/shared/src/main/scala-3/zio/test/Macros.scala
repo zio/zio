@@ -157,7 +157,7 @@ object SmartAssertMacros {
       }
 
     def getSpan(term: quotes.reflect.Term): Expr[(Int, Int)] =
-      Expr(term.pos.start - summon[PositionContext].start, term.pos.end - summon[PositionContext].start)
+      Expr((term.pos.start - summon[PositionContext].start, term.pos.end - summon[PositionContext].start))
 
     expr match {
       case '{ type t; type v; SmartAssertionOps[`t`](${ something }: `t`).is[`v`](${ Unseal(Lambda(terms, body)) }) } =>
@@ -315,9 +315,9 @@ object SmartAssertMacros {
 
       case Unseal(MethodCall(lhs, "==", tpes, Some(List(rhs)))) =>
         val span = getSpan(rhs)
-        lhs.tpe.widen.asType match {
-          case '[l] =>
-            Expr.summon[OptionalImplicit[Diff[l]]] match {
+        (lhs.tpe.widen.asType, rhs.tpe.widen.asType) match {
+          case ('[l], '[r]) =>
+            Expr.summon[OptionalImplicit[Diff[l | r]]] match {
               case Some(optDiff) =>
                 '{
                   ${ transform(lhs.asExpr) } >>> SmartAssertions

@@ -556,6 +556,48 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value")
       } +
+      test("kebabCase with numbers between words") {
+        val configProvider = ConfigProvider.fromMap(Map("api-version-25-beta" -> "value")).kebabCase
+        val config         = Config.string("apiVersion25Beta")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
+      } +
+      test("kebabCase with trailing numbers") {
+        val configProvider = ConfigProvider.fromMap(Map("version-2" -> "value")).kebabCase
+        val config         = Config.string("version2")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
+      } +
+      test("kebabCase with leading numbers") {
+        val configProvider = ConfigProvider.fromMap(Map("2-fast-2-furious" -> "value")).kebabCase
+        val config         = Config.string("2Fast2Furious")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
+      } +
+      test("kebabCase with acronyms") {
+        val configProvider = ConfigProvider.fromMap(Map("html-parser" -> "value")).kebabCase
+        val config         = Config.string("HTMLParser")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
+      } +
+      test("kebabCase with mixed acronyms and numbers") {
+        val configProvider = ConfigProvider.fromMap(Map("html-2-pdf" -> "value")).kebabCase
+        val config         = Config.string("HTML2PDF")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
+      } +
+      test("kebabCase preserves existing kebab-case") {
+        val configProvider = ConfigProvider.fromMap(Map("already-kebab-case" -> "value")).kebabCase
+        val config         = Config.string("already-kebab-case")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
+      } +
       test("lowerCase") {
         val configProvider = ConfigProvider.fromMap(Map("lowercase" -> "value")).lowerCase
         val config         = Config.string("lowerCase")
@@ -577,12 +619,53 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value")
       } +
+      test("snakeCase with numbers") {
+        val configProvider = ConfigProvider.fromMap(Map("api_version_25_beta" -> "value")).snakeCase
+        val config         = Config.string("apiVersion25Beta")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
+      } +
+      test("snakeCase with acronyms and numbers") {
+        val configProvider = ConfigProvider.fromMap(Map("html_2_pdf" -> "value")).snakeCase
+        val config         = Config.string("HTML2PDF")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
+      } +
+      test("snakeCase preserves existing snake-case") {
+        val configProvider = ConfigProvider.fromMap(Map("already_snake_case" -> "value")).snakeCase
+        val config         = Config.string("already_snake_case")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
+      } +
       test("snakeCase config keep table names") {
         val configProvider = ConfigProvider.fromMap(Map("camelCase" -> "camelCase")).snakeCase
         val config         = Config.table(Config.string)
         for {
           result <- configProvider.load(config)
         } yield assertTrue(result == Map("camelCase" -> "camelCase"))
+      } +
+      test("kebabCaseLegacy maintains old behavior with numbers") {
+        val configProvider =
+          ConfigProvider.fromMap(Map("hey-there23cool" -> "value")).kebabCaseLegacy: @annotation.nowarn(
+            "msg=method kebabCaseLegacy in trait ConfigProvider is deprecated"
+          )
+        val config = Config.string("heyThere23Cool")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
+      } +
+      test("snakeCaseLegacy maintains old behavior with numbers") {
+        val configProvider =
+          ConfigProvider.fromMap(Map("hey_there23cool" -> "value")).snakeCaseLegacy: @annotation.nowarn(
+            "msg=method snakeCaseLegacy in trait ConfigProvider is deprecated"
+          )
+        val config = Config.string("heyThere23Cool")
+        for {
+          result <- configProvider.load(config)
+        } yield assertTrue(result == "value")
       } +
       test("upperCase") {
         val configProvider = ConfigProvider.fromMap(Map("UPPERCASE" -> "value")).upperCase

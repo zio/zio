@@ -9,7 +9,7 @@ private[test] trait ResultFileOps {
 }
 
 private[test] object ResultFileOps {
-  val live: ZLayer[Any, Nothing, ResultFileOps] =
+  def live(jsonResultPath: String): ZLayer[Any, Nothing, ResultFileOps] =
     ZLayer.succeed(
       Json()
     )

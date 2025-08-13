@@ -17,7 +17,8 @@
 package zio
 
 import zio.internal.FiberScope
-import zio.metrics.{MetricLabel, Metrics}
+import zio.metrics.MetricLabel
+import zio.metrics.Metrics
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
@@ -331,6 +332,7 @@ sealed trait ZIO[-R, +E, +A]
    * openFile("data.json").catchNonFatalOrDie(_ => openFile("backup.json"))
    * }}}
    */
+  @deprecated("Use `catchAll`", "2.1.21")
   final def catchNonFatalOrDie[R1 <: R, E2, A1 >: A](
     h: E => ZIO[R1, E2, A1]
   )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: Trace): ZIO[R1, E2, A1] = {
@@ -472,7 +474,13 @@ sealed trait ZIO[-R, +E, +A]
    * `FiberRef` values.
    */
   def diffFiberRefs(implicit trace: Trace): ZIO[R, E, (FiberRefs.Patch, A)] =
-    summarized(ZIO.getFiberRefs)(FiberRefs.Patch.diff)
+    ZIO.withFiberRuntime[R, E, (FiberRefs.Patch, A)] { (state, _) =>
+      val refs0 = state.getFiberRefs()
+      self.map { value =>
+        val refs1 = state.getFiberRefs()
+        (FiberRefs.Patch.diff(refs0, refs1), value)
+      }
+    }
 
   /**
    * Returns an effect that is always interruptible, but whose interruption will
@@ -569,6 +577,7 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Maps this effect to the default exit codes.
    */
+  @deprecated("This operator swallows errors and is no longer necessary to create a ZIO App.", "2.1.20")
   final def exitCode(implicit trace: Trace): URIO[R, ExitCode] =
     self.foldCause(
       _ => ExitCode.failure,
@@ -1391,8 +1400,10 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def raceFirst[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit
     trace: Trace
-  ): ZIO[R1, E1, A1] =
-    (self.exit race that.exit).unexit
+  ): ZIO[R1, E1, A1] = {
+    val f = (exit: Exit[E1, A1], loser: Fiber[E1, A1]) => loser.interrupt *> exit
+    self.raceWith(that)(f, f)
+  }
 
   @deprecated("use raceFirst", "2.0.7")
   final def raceFirstAwait[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit
@@ -1423,19 +1434,14 @@ sealed trait ZIO[-R, +E, +A]
    * with the fibers. It can be considered a low-level building block for
    * higher-level operators like `race`.
    */
-  private final def raceFibersWith[R1 <: R, ER, E2, B, C](right: ZIO[R1, ER, B])(
+  private final def raceFibersWith[R1 <: R, ER, E2, B, C](right: => ZIO[R1, ER, B])(
     leftWins: (Fiber.Runtime[E, A], Fiber.Runtime[ER, B]) => ZIO[R1, E2, C],
     rightWins: (Fiber.Runtime[ER, B], Fiber.Runtime[E, A]) => ZIO[R1, E2, C],
     leftScope: FiberScope = null,
     rightScope: FiberScope = null
   )(implicit trace: Trace): ZIO[R1, E2, C] =
     ZIO.withFiberRuntime[R1, E2, C] { (parentFiber, parentStatus) =>
-      val graft = ZIO.Grafter(parentFiber)
       import java.util.concurrent.atomic.AtomicBoolean
-
-      implicit val unsafe: Unsafe = Unsafe
-
-      val parentRuntimeFlags = parentStatus.runtimeFlags
 
       @inline def complete[E0, E1, A, B](
         winner: Fiber.Runtime[E0, A],
@@ -1443,35 +1449,37 @@ sealed trait ZIO[-R, +E, +A]
         cont: (Fiber.Runtime[E0, A], Fiber.Runtime[E1, B]) => ZIO[R1, E2, C],
         ab: AtomicBoolean,
         cb: ZIO[R1, E2, C] => Any
-      ): Any =
-        if (ab.compareAndSet(true, false)) {
+      ): Unit =
+        if (ab.compareAndSet(false, true)) {
           cb(cont(winner, loser))
         }
 
-      val raceIndicator = new AtomicBoolean(true)
+      val graft    = ZIO.Grafter(parentFiber)
+      val leftEff  = graft.applyOnExit(self)
+      val rightEff = graft.applyOnExit(right)
 
-      val leftFiber  = ZIO.unsafe.makeChildFiber(trace, self, parentFiber, parentRuntimeFlags, leftScope)
-      val rightFiber = ZIO.unsafe.makeChildFiber(trace, right, parentFiber, parentRuntimeFlags, rightScope)
+      val flags      = parentStatus.runtimeFlags
+      val leftFiber  = ZIO.unsafe.makeChildFiber(trace, leftEff, parentFiber, flags, leftScope)(Unsafe)
+      val rightFiber = ZIO.unsafe.makeChildFiber(trace, rightEff, parentFiber, flags, rightScope)(Unsafe)
 
-      val startLeftFiber  = leftFiber.startSuspended()
-      val startRightFiber = rightFiber.startSuspended()
+      ZIO.async[R1, E2, C](
+        { cb =>
+          val raceIndicator = new AtomicBoolean()
 
-      ZIO
-        .async[R1, E2, C](
-          { cb =>
-            leftFiber.addObserver { _ =>
-              complete(leftFiber, rightFiber, leftWins, raceIndicator, cb)
-            }
+          leftFiber.addObserver { _ =>
+            complete(leftFiber, rightFiber, leftWins, raceIndicator, cb)
+          }(Unsafe)
 
-            rightFiber.addObserver { _ =>
-              complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
-            }
+          rightFiber.addObserver { _ =>
+            complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
+          }(Unsafe)
 
-            startLeftFiber(graft.applyOnExit(self))
-            startRightFiber(graft.applyOnExit(right))
-          },
-          leftFiber.id <> rightFiber.id
-        )
+          leftFiber.startConcurrently(leftEff)
+          rightFiber.startConcurrently(rightEff)
+          ()
+        },
+        leftFiber.id <> rightFiber.id
+      )
     }
 
   /**
@@ -1488,14 +1496,14 @@ sealed trait ZIO[-R, +E, +A]
         winner.await.flatMap {
           case exit: Exit.Success[?] =>
             winner.inheritAll *> leftDone(exit, loser)
-          case exit: Exit.Failure[_] =>
+          case exit =>
             leftDone(exit, loser)
         },
       (winner, loser) =>
         winner.await.flatMap {
           case exit: Exit.Success[B] =>
             winner.inheritAll *> rightDone(exit, loser)
-          case exit: Exit.Failure[E1] =>
+          case exit =>
             rightDone(exit, loser)
         }
     )
@@ -2032,7 +2040,7 @@ sealed trait ZIO[-R, +E, +A]
    * forked in the effect are reported to the specified supervisor.
    */
   final def supervised(supervisor: => Supervisor[Any])(implicit trace: Trace): ZIO[R, E, A] =
-    FiberRef.currentSupervisor.locallyWith(_ ++ supervisor)(self)
+    FiberRef.currentSupervisor.locallyWith(_.patchAdd(supervisor))(self)
 
   /**
    * Returns an effect that effectfully "peeks" at the success of this effect.
@@ -3929,8 +3937,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Like [[never]], but fibers that running this effect won't be garbage
    * collected unless interrupted.
    */
+  @deprecated("Use `ZIO.never` instead", "2.1.20")
   def infinity(implicit trace: Trace): UIO[Nothing] =
-    ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+    ZIO.sleep(Duration.Infinity) *> ZIO.never
 
   /**
    * Inherits values from all [[FiberRef]] instances into current fiber.
@@ -5429,8 +5438,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       )
     }
 
-  private[zio] val unitFn: Any => Unit    = (_: Any) => ()
-  private val unitZIOFn: Any => UIO[Unit] = (_: Any) => Exit.unit
+  private[zio] val unitFn: Any => Unit         = (_: Any) => ()
+  private[zio] val unitZIOFn: Any => UIO[Unit] = (_: Any) => Exit.unit
 
   implicit final class ZIOAutoCloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
@@ -6137,9 +6146,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   private[zio] final case class Sync[A](trace: Trace, eval: () => A) extends ZIO[Any, Nothing, A]
   private[zio] final case class Async[R, E, A](
     trace: Trace,
-    registerCallback: (ZIO[R, E, A] => Unit) => ZIO[R, E, A],
+    registerCallback: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: () => FiberId
   ) extends ZIO[R, E, A]
+
   private[zio] final case class UpdateRuntimeFlags(trace: Trace, update: RuntimeFlags.Patch)
       extends Continuation
       with ZIO[Any, Nothing, Unit]

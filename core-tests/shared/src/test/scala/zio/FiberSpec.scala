@@ -124,7 +124,7 @@ object FiberSpec extends ZIOBaseSpec {
         },
         test("in race") {
           for {
-            f <- ZIO.infinity.race(ZIO.infinity).fork
+            f <- ZIO.never.race(ZIO.never).fork
             blockingOn <- f.status
                             .collect(()) { case Fiber.Status.Suspended(_, _, blockingOn) =>
                               blockingOn

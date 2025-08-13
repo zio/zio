@@ -115,4 +115,11 @@ test("another zio test")(???) @@ timeout(60.seconds) @@ jvmOnly
 
 ## Zero Dependencies
 
-As a library with zero third party dependencies, this project is available on the JVM, ScalaJS, Dotty, and will be available on Scala Native in the near future. So we can write our tests once and make sure that our code works correctly across all platforms that we support.
+As a library with zero third party dependencies, this project is available on the JVM, ScalaJS, Dotty, and Scala Native. So we can write our tests once and make sure that our code works correctly across all platforms that we support.
+
+## Build tools other than SBT
+
+This documentation uses SBT build tool exclusively;
+other build tools that support ZIO Test are:
+- [Mill](https://mill-build.org/mill/scalalib/testing.html)
+- [Gradle](https://gradle.org) - with a [plugin](https://github.com/dubinsky/scalajs-gradle)

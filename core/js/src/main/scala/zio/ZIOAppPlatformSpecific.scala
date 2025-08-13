@@ -2,6 +2,7 @@ package zio
 
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import scala.annotation.nowarn
 
 private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
 
@@ -21,7 +22,9 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
         runtime <- ZIO.runtime[Environment with ZIOAppArgs]
         _       <- installSignalHandlers(runtime)
         _       <- runtime.run(ZIO.scoped[Environment with ZIOAppArgs](run)).tapErrorCause(ZIO.logErrorCause(_))
-      } yield ()).provideLayer(newLayer.tapErrorCause(ZIO.logErrorCause(_))).exitCode.tap(exit)
+      } yield ()).provideLayer(newLayer.tapErrorCause(ZIO.logErrorCause(_))).exitCode.tap(exit): @nowarn(
+        "cat=deprecation"
+      )
     }
   }
 }

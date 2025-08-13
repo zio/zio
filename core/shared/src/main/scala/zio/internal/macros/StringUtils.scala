@@ -3,9 +3,11 @@ package zio.internal.macros
 import scala.util.Try
 
 private[zio] object StringUtils {
+  private val UnstyledRegex = "\u001B\\[[;\\d]*m".r
+
   implicit class StringOps(private val self: String) extends AnyVal {
     def unstyled: String =
-      self.replaceAll("\u001B\\[[;\\d]*m", "")
+      UnstyledRegex.replaceAllIn(self, "")
 
     def maxLineWidth: Int =
       Try(unstyled.split("\n").map(_.length).max).getOrElse(0)

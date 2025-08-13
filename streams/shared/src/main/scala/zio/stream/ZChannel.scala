@@ -878,10 +878,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                      .withPermit(
                        latch.succeedUnit *> f(outElem)
                          .foldCauseZIO(
-                           cause =>
-                             failure.update(_ && cause).unless(cause.isInterruptedOnly) *>
+                           cause => {
+                             val continue =
                                errorSignal.succeedUnit *>
-                               outgoing.offer(ZChannel.failLeftUnit),
+                                 outgoing.offer(ZChannel.failLeftUnit)
+
+                             if (cause.isInterruptedOnly) continue
+                             else failure.update(_ && cause) *> continue
+                           },
                            elem => outgoing.offer(Exit.succeed(elem))
                          )
                      )
@@ -898,8 +902,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 permits.withPermits(n.toLong)(ZIO.unit).interruptible *>
                   outgoing.offer(Exit.fail(x.asInstanceOf[Either[Unit, OutDone]]))
               case Right(cause) =>
-                failure.update(_ && cause).unless(cause.isInterruptedOnly) *>
-                  outgoing.offer(ZChannel.failLeftUnit)
+                val continue = outgoing.offer(ZChannel.failLeftUnit)
+
+                if (cause.isInterruptedOnly) continue
+                else failure.update(_ && cause) *> continue
             })
             .ignore
             .raceFirst(ZChannel.awaitErrorSignal(childScope, fiberId)(errorSignal))

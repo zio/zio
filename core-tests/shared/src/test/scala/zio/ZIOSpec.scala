@@ -8,7 +8,7 @@ import zio.test.TestAspect.{exceptJS, flaky, forked, jvmOnly, nonFlaky, scala2On
 import zio.test._
 
 import java.util.concurrent.atomic.AtomicBoolean
-import scala.annotation.tailrec
+import scala.annotation.{nowarn, tailrec}
 import scala.util.{Failure, Success, Try}
 
 object ZIOSpec extends ZIOBaseSpec {
@@ -279,16 +279,16 @@ object ZIOSpec extends ZIOBaseSpec {
       test("recovers from NonFatal") {
         val s   = "division by zero"
         val zio = ZIO.fail(new IllegalArgumentException(s))
-        for {
-          result <- zio.catchNonFatalOrDie(e => ZIO.succeed(e.getMessage)).exit
-        } yield assert(result)(succeeds(equalTo(s)))
+        @nowarn("cat=deprecation")
+        val result = zio.catchNonFatalOrDie(e => ZIO.succeed(e.getMessage)).exit
+        assertZIO(result)(succeeds(equalTo(s)))
       },
       test("dies if fatal") {
         val e   = new OutOfMemoryError
         val zio = ZIO.fail(e)
-        for {
-          result <- zio.catchNonFatalOrDie(e => ZIO.succeed(e.getMessage)).exit
-        } yield assert(result)(dies(equalTo(e)))
+        @nowarn("cat=deprecation")
+        val result = zio.catchNonFatalOrDie(e => ZIO.succeed(e.getMessage)).exit
+        assertZIO(result)(dies(equalTo(e)))
       } @@ jvmOnly // no fatal exceptions in JS
     ),
     suite("catchAllDefect")(
@@ -2760,37 +2760,37 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assertTrue(value == 42)
       },
       test("async should not resume fiber twice after interruption") {
+        implicit val us: Unsafe = Unsafe
         for {
-          step            <- Promise.make[Nothing, Unit]
+          started         <- Promise.make[Nothing, Unit]
+          step            <- Promise.make[Nothing, ZIO[Any, Nothing, Unit] => Unit]
           unexpectedPlace <- Ref.make(List.empty[Int])
           runtime         <- ZIO.runtime[Live]
           fork <- ZIO
                     .async[Any, Nothing, Unit] { k =>
-                      Unsafe.unsafe { implicit unsafe =>
-                        runtime.unsafe.fork {
-                          step.await *> ZIO.succeed(k(unexpectedPlace.update(1 :: _)))
-                        }
+                      runtime.unsafe.fork {
+                        step.await *> ZIO.succeed(k(unexpectedPlace.update(1 :: _)))
                       }
+                      started.unsafe.succeedUnit
                       ()
                     }
-                    .ensuring(ZIO.async[Any, Nothing, Unit] { _ =>
-                      Unsafe.unsafe { implicit unsafe =>
-                        runtime.unsafe.fork {
-                          step.succeed(())
-                        }
-                      }
+                    .ensuring(ZIO.async[Any, Nothing, Unit] { k =>
+                      step.unsafe.succeed(k)
                       ()
                       // never complete
                     })
                     .ensuring(unexpectedPlace.update(2 :: _))
                     .forkDaemon
-          result     <- Live.withLive(fork.interrupt)(_.timeout(5.seconds))
+          _          <- started.await
+          result     <- fork.interrupt.timeout(100.millis)
           unexpected <- unexpectedPlace.get
+          // Invoke the callback now we collected everything otherwise the fiber is stuck in an uninterruptible region
+          _ <- step.await.map(_(Exit.unit))
         } yield {
           assert(unexpected)(isEmpty) &&
           assert(result)(isNone) // timeout happens
         }
-      } @@ zioTag(interruption) @@ flaky,
+      } @@ zioTag(interruption) @@ withLiveClock @@ nonFlaky(10),
       test("test interruption of infinite async in uninterruptible region") {
         for {
           finalized <- Ref.make(false)
@@ -3053,8 +3053,8 @@ object ZIOSpec extends ZIOBaseSpec {
           latch2 <- Promise.make[Nothing, Unit]
           p1     <- Promise.make[Nothing, Unit]
           p2     <- Promise.make[Nothing, Unit]
-          loser1  = ZIO.acquireReleaseWith(latch1.succeed(()))(_ => p1.succeed(()))(_ => ZIO.infinity)
-          loser2  = ZIO.acquireReleaseWith(latch2.succeed(()))(_ => p2.succeed(()))(_ => ZIO.infinity)
+          loser1  = ZIO.acquireReleaseWith(latch1.succeed(()))(_ => p1.succeed(()))(_ => ZIO.never)
+          loser2  = ZIO.acquireReleaseWith(latch2.succeed(()))(_ => p2.succeed(()))(_ => ZIO.never)
           fiber  <- (loser1 race loser2).forkDaemon
           _      <- latch1.await
           _      <- latch2.await
@@ -3065,7 +3065,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       test("supervise fibers") {
         def makeChild(n: Int): UIO[Fiber[Nothing, Unit]] =
-          (Clock.sleep(20.millis * n.toDouble) *> ZIO.infinity).fork
+          (Clock.sleep(20.millis * n.toDouble) *> ZIO.never).fork
 
         val io =
           for {
@@ -3121,7 +3121,7 @@ object ZIOSpec extends ZIOBaseSpec {
           s      <- Promise.make[Nothing, Unit]
           effect <- Promise.make[Nothing, Int]
           winner  = s.await *> ZIO.fromEither(Right(()))
-          loser   = ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.infinity)
+          loser   = ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.never)
           race    = winner raceFirst loser
           _      <- race
           b      <- effect.await
@@ -3132,7 +3132,7 @@ object ZIOSpec extends ZIOBaseSpec {
           s      <- Promise.make[Nothing, Unit]
           effect <- Promise.make[Nothing, Int]
           winner  = s.await *> ZIO.fromEither(Left(new Exception))
-          loser   = ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.infinity)
+          loser   = ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.never)
           race    = winner raceFirst loser
           _      <- race.either
           b      <- effect.await
@@ -3143,7 +3143,7 @@ object ZIOSpec extends ZIOBaseSpec {
           s      <- Promise.make[Nothing, Unit]
           effect <- Promise.make[Nothing, Int]
           winner  = s.await *> ZIO.fromEither(Right(()))
-          losers  = List(ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.infinity))
+          losers  = List(ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.never))
           race    = ZIO.raceFirst(winner, losers)
           _      <- race
           b      <- effect.await
@@ -3154,7 +3154,7 @@ object ZIOSpec extends ZIOBaseSpec {
           s      <- Promise.make[Nothing, Unit]
           effect <- Promise.make[Nothing, Int]
           winner  = s.await *> ZIO.fromEither(Left(new Exception))
-          losers  = List(ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.infinity))
+          losers  = List(ZIO.acquireReleaseWith(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.never))
           race    = ZIO.raceFirst(winner, losers)
           _      <- race.either
           b      <- effect.await
@@ -3439,7 +3439,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       test("interruption of raced") {
         def make(ref: Ref[Int], start: Promise[Nothing, Unit], done: Promise[Nothing, Unit]) =
-          (start.succeed(()) *> ZIO.infinity).onInterrupt(ref.update(_ + 1) *> done.succeed(()))
+          (start.succeed(()) *> ZIO.never).onInterrupt(ref.update(_ + 1) *> done.succeed(()))
 
         for {
           ref   <- Ref.make(0)
@@ -3657,7 +3657,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _       <- fiber.interrupt
           value   <- ref.get
         } yield assertTrue(value == true)
-      } @@ exceptJS(nonFlaky) @@ TestAspect.fibers,
+      } @@ exceptJS(nonFlaky),
       test("asyncInterrupt cancelation") {
         for {
           ref       <- ZIO.succeed(new java.util.concurrent.atomic.AtomicInteger(0))
@@ -3673,6 +3673,31 @@ object ZIOSpec extends ZIOBaseSpec {
           value <- finalized.await *> ZIO.succeed(ref.get())
         } yield assert(value)(equalTo(0))
       } @@ exceptJS(nonFlaky),
+      suite("asyncInterrupt cancellation converts thrown exceptions to defects") {
+        def testCase(onInterrupt: ZIO[Any, Nothing, Unit]) =
+          for {
+            latch <- Promise.make[Nothing, Unit]
+            async = ZIO.asyncInterruptUnsafe[Any, Nothing, Nothing] { implicit u => _ =>
+                      latch.unsafe.succeedUnit
+                      Left(onInterrupt)
+                    }
+            fiber  <- async.fork
+            _      <- latch.await
+            _      <- fiber.interrupt
+            result <- fiber.await
+          } yield result match {
+            case Exit.Failure(cause) =>
+              assertTrue(cause.isInterrupted, cause.isDie, cause.defects.headOption.exists(_.getMessage == "boom"))
+            case _ => assertNever("Expected fiber to fail")
+          }
+
+        val cancel = ZIO.succeed(throw new Exception("boom"))
+        List(
+          test("with Sync")(testCase(cancel)),
+          test("with FlatMap")(testCase(ZIO.suspendSucceed(cancel))),
+          test("with Async")(testCase(ZIO.asyncMaybe(_ => Some(cancel))))
+        )
+      } @@ zioTag(interruption),
       test("interruption is not inherited on fork") {
         for {
           promise1 <- Promise.make[Nothing, Unit]
@@ -4089,8 +4114,8 @@ object ZIOSpec extends ZIOBaseSpec {
           fiber <- ZIO.transplant { grafter =>
                      grafter {
                        val zio = for {
-                         _ <- (latch1.succeed(()) *> ZIO.infinity).onInterrupt(latch2.succeed(())).fork
-                         _ <- ZIO.infinity
+                         _ <- (latch1.succeed(()) *> ZIO.never).onInterrupt(latch2.succeed(())).fork
+                         _ <- ZIO.never
                        } yield ()
                        zio.fork
                      }

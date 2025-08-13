@@ -23,7 +23,14 @@ private[zio] trait ZIOCompanionVersionSpecific {
     register: (ZIO[R, E, A] => Unit) => Unit,
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    Async(trace, k => { register(k); null.asInstanceOf[ZIO[R, E, A]] }, () => blockingOn)
+    Async(
+      trace,
+      k => {
+        register(k)
+        null
+      },
+      () => blockingOn
+    )
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -44,17 +51,7 @@ private[zio] trait ZIOCompanionVersionSpecific {
     register: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed {
-      val state = new AtomicReference[URIO[R, Any]](Exit.unit) with ((ZIO[R, E, A] => Unit) => ZIO[R, E, A]) {
-        def apply(k: ZIO[R, E, A] => Unit): ZIO[R, E, A] =
-          register(k(_)) match {
-            case Left(canceler) => set(canceler); null.asInstanceOf[ZIO[R, E, A]]
-            case Right(done)    => done
-          }
-      }
-
-      ZIO.Async[R, E, A](trace, state, () => blockingOn).onInterrupt(state.get())
-    }
+    ZIO.Async[R, E, A](trace, register, () => blockingOn)
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -75,7 +72,14 @@ private[zio] trait ZIOCompanionVersionSpecific {
     register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    Async(trace, k => { register(k).orNull }, () => blockingOn)
+    Async(
+      trace,
+      register(_) match {
+        case Some(value) => Right(value)
+        case _           => null
+      },
+      () => blockingOn
+    )
 
   /**
    * Returns an effect that, when executed, will cautiously run the provided
