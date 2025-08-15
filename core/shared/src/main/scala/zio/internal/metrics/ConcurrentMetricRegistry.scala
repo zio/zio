@@ -116,50 +116,55 @@ private[zio] class ConcurrentMetricRegistry {
   }
 
   private def getCounter(key: MetricKey.Counter)(implicit unsafe: Unsafe): MetricHook.Counter = {
-    val value = map.get(key)
+    var value = map.get(key)
     if (value eq null) {
       val counter = ConcurrentMetricHooks.counter(key)
       map.putIfAbsent(key, counter)
-      map.get(key).asInstanceOf[MetricHook.Counter]
-    } else value.asInstanceOf[MetricHook.Counter]
+      value = map.get(key)
+    }
+    value.asInstanceOf[MetricHook.Counter]
   }
 
   private def getGauge(key: MetricKey.Gauge)(implicit unsafe: Unsafe): MetricHook.Gauge = {
-    val value = map.get(key)
+    var value = map.get(key)
     if (value eq null) {
       val gauge = ConcurrentMetricHooks.gauge(key, 0.0)
       map.putIfAbsent(key, gauge)
-      map.get(key).asInstanceOf[MetricHook.Gauge]
-    } else value.asInstanceOf[MetricHook.Gauge]
+      value = map.get(key)
+    }
+    value.asInstanceOf[MetricHook.Gauge]
   }
 
   private def getHistogram(key: MetricKey.Histogram)(implicit unsafe: Unsafe): MetricHook.Histogram = {
-    val value = map.get(key)
+    var value = map.get(key)
     if (value eq null) {
       val histogram =
         ConcurrentMetricHooks.histogram(key)
       map.putIfAbsent(key, histogram)
-      map.get(key).asInstanceOf[MetricHook.Histogram]
-    } else value.asInstanceOf[MetricHook.Histogram]
+      value = map.get(key)
+    }
+    value.asInstanceOf[MetricHook.Histogram]
   }
 
   private def getSummary(
     key: MetricKey.Summary
   )(implicit unsafe: Unsafe): MetricHook.Summary = {
-    val value = map.get(key)
+    var value = map.get(key)
     if (value eq null) {
       val summary = ConcurrentMetricHooks.summary(key)
       map.putIfAbsent(key, summary)
-      map.get(key).asInstanceOf[MetricHook.Summary]
-    } else value.asInstanceOf[MetricHook.Summary]
+      value = map.get(key)
+    }
+    value.asInstanceOf[MetricHook.Summary]
   }
 
   private def getSetCount(key: MetricKey.Frequency)(implicit unsafe: Unsafe): MetricHook.Frequency = {
-    val value = map.get(key)
+    var value = map.get(key)
     if (value eq null) {
       val frequency = ConcurrentMetricHooks.frequency(key)
       map.putIfAbsent(key, frequency)
-      map.get(key).asInstanceOf[MetricHook.Frequency]
-    } else value.asInstanceOf[MetricHook.Frequency]
+      value = map.get(key)
+    }
+    value.asInstanceOf[MetricHook.Frequency]
   }
 }
