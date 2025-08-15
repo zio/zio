@@ -4907,7 +4907,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         case (as, None)    => ZChannel.write(as) *> ZChannel.unit
       }
 
-    new ZStream(loop(s))
+    new ZStream(ZChannel.suspend(loop(s)))
   }
 
   /**

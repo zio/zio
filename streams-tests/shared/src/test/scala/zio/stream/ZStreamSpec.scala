@@ -5772,6 +5772,19 @@ object ZStreamSpec extends ZIOBaseSpec {
               .runCollect
           )(equalTo(Chunk(0, 1, 2, 3, 4, 5)))
         },
+        test("paginateChunk - is lazy") {
+          val s = (Chunk.single(0), List(1, 2, 3, 4, 5))
+
+          val result =
+            try {
+              val _ = ZStream.paginateChunk(s)(_ => throw new RuntimeException("This should not be called"))
+              true
+            } catch {
+              case _: RuntimeException => false
+            }
+
+          assertTrue(result)
+        },
         test("paginateChunkZIO") {
           val s        = (Chunk.single(0), List(1, 2, 3, 4, 5))
           val pageSize = 2
