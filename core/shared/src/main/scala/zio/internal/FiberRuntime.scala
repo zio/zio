@@ -329,7 +329,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           updateLastTrace(cur.trace)
           processNewInterruptSignal(cause)
 
-          if (isInterruptible()) {
+          if (isInterruptible() && !shouldIgnoreInterruption()) {
             cur = Exit.Failure(cause)
           }
 
@@ -1425,7 +1425,47 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def setFiberRefs(fiberRefs0: FiberRefs): Unit =
     this._fiberRefs = fiberRefs0
 
-  private[zio] def shouldInterrupt(): Boolean = isInterruptible() && isInterrupted()
+  /**
+   * Checks whether we should temporarily ignore interruption. The rationale
+   * behind this is to bride the gap between exiting and re-entering an
+   * uninterruptible region instantenously, as:
+   *
+   * {{{
+   *   ZIO.uninterruptibleMask(restore => restore(ZIO.uninterruptible(ZIO.sleep(1.second))))
+   * }}}
+   *
+   * With the code above, it's possible for interruption to occur _after_ we
+   * finished sleeping. This is particularly problematic with Queue#take as
+   * it'll cause items to be dropped from the queue.
+   *
+   * @see
+   *   https://github.com/zio/zio/issues/9974
+   * @see
+   *   https://github.com/zio/zio/issues/9973
+   */
+  private[this] def shouldIgnoreInterruption(): Boolean = {
+    import RuntimeFlag.Interruption
+    import RuntimeFlags.Patch.{isDisabled, isEnabled}
+
+    var result = false
+    val size   = _stackSize
+    val stack  = _stack
+    if (size > 0) {
+      stack(size - 1) match {
+        case previous: UpdateRuntimeFlags if isDisabled(previous.update, Interruption.mask) =>
+          stack(size) match {
+            case current: UpdateRuntimeFlags if isEnabled(current.update, Interruption.mask) =>
+              result = true
+            case _ => ()
+          }
+        case _ => ()
+      }
+    }
+    result
+  }
+
+  private[zio] def shouldInterrupt(): Boolean =
+    isInterruptible() && isInterrupted() && !shouldIgnoreInterruption()
 
   /**
    * Begins execution of the effect associated with this fiber on the current

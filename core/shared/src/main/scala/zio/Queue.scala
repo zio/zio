@@ -19,7 +19,7 @@ package zio
 import zio.internal.MutableConcurrentQueue
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.annotation.tailrec
 
 /**
@@ -175,10 +175,7 @@ object Queue extends QueuePlatformSpecific {
               val taker = takers.poll()
 
               if (taker eq null) false
-              else {
-                unsafeCompletePromise(taker, a)
-                true
-              }
+              else unsafeCompletePromise(taker, a)
             } else false
 
           if (noRemaining) Exit.`true`
@@ -248,26 +245,36 @@ object Queue extends QueuePlatformSpecific {
     override def isShutdown(implicit trace: Trace): UIO[Boolean] = ZIO.succeed(shutdownFlag.get)
 
     override def take(implicit trace: Trace): UIO[A] =
-      ZIO.fiberIdWith { fiberId =>
-        if (shutdownFlag.get) ZIO.interrupt
-        else {
-          queue.poll(null.asInstanceOf[A]) match {
-            case null =>
-              // add the promise to takers, then:
-              // - try take again in case a value was added since
-              // - wait for the promise to be completed
-              // - clean up resources in case of interruption
-              val p = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe.unsafe)
+      ZIO.uninterruptibleMask { restore =>
+        ZIO.fiberIdWith { fiberId =>
+          if (shutdownFlag.get) ZIO.interrupt
+          else {
+            queue.poll(null.asInstanceOf[A]) match {
+              case null =>
+                // add the promise to takers, then:
+                // - try take again in case a value was added since
+                // - wait for the promise to be completed
+                // - clean up resources in case of interruption
+                val p = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe.unsafe)
 
-              ZIO.suspendSucceed {
                 takers.offer(p)
                 strategy.unsafeCompleteTakers(queue, takers)
-                if (shutdownFlag.get) ZIO.interrupt else p.await
-              }.onInterrupt(removeTaker(p))
-
-            case item =>
-              strategy.unsafeOnQueueEmptySpace(queue, takers)
-              Exit.succeed(item)
+                if (shutdownFlag.get) ZIO.interrupt
+                else
+                  restore(p.await).catchAllCause {
+                    case c if c.isInterruptedOnly =>
+                      takers.remove(p)
+                      if (p.unsafe.interruptAs(fiberId)(trace, Unsafe)) {
+                        Exit.failCause(c)
+                      } else {
+                        p.await.flatMap(this.offer) *> Exit.failCause(c)
+                      }
+                    case c => Exit.failCause(c)
+                  }
+              case item =>
+                strategy.unsafeOnQueueEmptySpace(queue, takers)
+                Exit.succeed(item)
+            }
           }
         }
       }
@@ -355,8 +362,11 @@ object Queue extends QueuePlatformSpecific {
                   takers.addFirst(taker)
                   keepPolling = false
                 case a =>
-                  unsafeCompletePromise(taker, a)
-                  notifyEmptySpace = true
+                  if (unsafeCompletePromise(taker, a))
+                    notifyEmptySpace = true
+                  else {
+                    queue.offer(a)
+                  }
               }
             }
           }
@@ -523,8 +533,8 @@ object Queue extends QueuePlatformSpecific {
     }
   }
 
-  private def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A): Unit =
-    p.unsafe.done(Exit.succeed(a))(Unsafe.unsafe)
+  private def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A): Boolean =
+    p.unsafe.completeWith(Exit.succeed(a))(Unsafe.unsafe)
 
   /**
    * Offer items to the queue
