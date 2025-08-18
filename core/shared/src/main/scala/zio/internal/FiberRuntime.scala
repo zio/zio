@@ -180,7 +180,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       if (isAlive()) {
         getChildren().add(child)
 
-        if (shouldInterrupt())
+        if (shouldInterrupt(isExternal = true))
           child.tellInterrupt(getInterruptedCause())
       } else {
         child.tellInterrupt(getInterruptedCause())
@@ -192,7 +192,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     if (isAlive()) {
       val childs = getChildren()
 
-      if (shouldInterrupt()) {
+      if (shouldInterrupt(isExternal = true)) {
         val cause = getInterruptedCause()
         while (iter.hasNext) {
           val child = iter.next()
@@ -427,7 +427,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         try {
           // Possible the fiber has been interrupted at a start or trampoline
           // boundary. Check here or else we'll miss the opportunity to cancel:
-          if (shouldInterrupt()) {
+          if (shouldInterrupt(isExternal = false)) {
             effect = Exit.Failure(getInterruptedCause())
           }
 
@@ -861,7 +861,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     val changed          = patchRuntimeFlagsOnly(patch)
     val interruptEnabled = RuntimeFlags.Patch.isEnabled(patch, RuntimeFlag.Interruption.mask)
 
-    if (changed && interruptEnabled && shouldInterrupt()) {
+    if (changed && interruptEnabled && shouldInterrupt(isExternal = false)) {
       if (cause ne null) cause ++ getInterruptedCause()
       else getInterruptedCause()
     } else cause
@@ -1168,7 +1168,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 case s: Success[Any] => cur = fold.successK(s.value)
                 case f: Failure[Any] =>
                   val cause = f.cause
-                  if (shouldInterrupt()) cur = Exit.Failure(cause.stripFailures)
+                  if (shouldInterrupt(isExternal = false)) cur = Exit.Failure(cause.stripFailures)
                   else cur = fold.failureK(cause)
               }
 
@@ -1187,7 +1187,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               self._asyncContWith = AsyncContWith.`null`
 
-              if (shouldInterrupt()) {
+              if (shouldInterrupt(isExternal = false)) {
                 cur = Exit.failCause(getInterruptedCause())
               }
 
@@ -1277,7 +1277,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case _: ZIO.FlatMap[Any, Any, Any, Any] =>
 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
-                    if (shouldInterrupt()) {
+                    if (shouldInterrupt(isExternal = false)) {
                       cause = cause.stripFailures
                     } else {
                       cur = foldZIO.failureK(cause)
@@ -1438,6 +1438,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * finished sleeping. This is particularly problematic with Queue#take as
    * it'll cause items to be dropped from the queue.
    *
+   * '''NOTE''': This method must be invoked by the fiber itself!
+   *
    * @see
    *   https://github.com/zio/zio/issues/9974
    * @see
@@ -1464,8 +1466,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     result
   }
 
+  @deprecated("This method will be removed in a future release.", "2.1.21")
   private[zio] def shouldInterrupt(): Boolean =
-    isInterruptible() && isInterrupted() && !shouldIgnoreInterruption()
+    isInterruptible() && isInterrupted()
+
+  private def shouldInterrupt(isExternal: Boolean): Boolean =
+    (
+      isInterruptible()
+        && isInterrupted()
+        && (isExternal || !shouldIgnoreInterruption())
+    )
 
   /**
    * Begins execution of the effect associated with this fiber on the current

@@ -161,8 +161,7 @@ object Queue extends QueuePlatformSpecific {
     strategy: Strategy[A]
   ) extends Queue[A] {
 
-    private def removeTaker(taker: Promise[Nothing, A])(implicit trace: Trace): UIO[Unit] =
-      ZIO.succeed(takers.remove(taker))
+    private val interruptAsNone = ZIO.interruptAs(FiberId.None)(Trace.empty)
 
     override def capacity: Int = queue.capacity
 
@@ -260,7 +259,8 @@ object Queue extends QueuePlatformSpecific {
                 takers.offer(p)
                 strategy.unsafeCompleteTakers(queue, takers)
                 restore(p.await).catchAllCause { c =>
-                  val removed = takers.remove(p) || p.unsafe.interruptAs(fiberId)(trace, Unsafe)
+                  val removed = p.unsafe.completeWith(interruptAsNone)(Unsafe)
+                  takers.remove(p)
                   if (removed) Exit.failCause(c)
                   else {
                     // The promise was already completed, so if we interrupt here we'll drop the item
@@ -354,8 +354,10 @@ object Queue extends QueuePlatformSpecific {
           var currentItem      = empty
           while (keepPolling) {
             val taker = takers.poll()
-            if (taker eq null) keepPolling = false
-            else {
+            if (taker eq null) {
+              keepPolling = false
+              if (currentItem != null) queue.offer(currentItem)
+            } else if (!taker.unsafe.isDone(Unsafe)) {
               if (currentItem == null) currentItem = queue.poll(empty)
               currentItem match {
                 case null =>
@@ -380,7 +382,6 @@ object Queue extends QueuePlatformSpecific {
         // while we were still holding the lock
         if (!queue.isEmpty()) unsafeCompleteTakers(queue, takers)
       }
-
   }
 
   private object Strategy {
@@ -535,7 +536,7 @@ object Queue extends QueuePlatformSpecific {
   }
 
   private def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A): Boolean =
-    p.unsafe.completeWith(Exit.succeed(a))(Unsafe.unsafe)
+    p.unsafe.completeWith(Exit.succeed(a))(Unsafe)
 
   /**
    * Offer items to the queue
