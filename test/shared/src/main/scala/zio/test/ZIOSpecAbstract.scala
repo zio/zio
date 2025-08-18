@@ -19,7 +19,6 @@ package zio.test
 import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.render.ConsoleRenderer
 
 import scala.annotation.nowarn
 
@@ -136,8 +135,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     spec: Spec[Environment with TestEnvironment with Scope, Any],
     testArgs: TestArgs,
     runtime: Runtime[_],
-    testEventHandler: ZTestEventHandler,
-    console: Console
+    testEventHandler: ZTestEventHandler
   )(implicit
     trace: Trace
   ): UIO[Summary] = {

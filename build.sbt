@@ -52,11 +52,11 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test;testRunnerJVM/Test/run;examplesJVM/Test/compile;benchmarks/Test/compile;macrosTestsJVM/test;concurrentJVM/test;managedTestsJVM/test;set ThisBuild/isSnapshot:=true;testJunitRunnerTests/test;testJunitEngineTests/test;reload"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test;examplesJVM/Test/compile;benchmarks/Test/compile;macrosTestsJVM/test;concurrentJVM/test;managedTestsJVM/test;set ThisBuild/isSnapshot:=true;testJunitRunnerTests/test;testJunitEngineTests/test;reload"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/Test/compile;testRunnerJVM/Test/run;examplesJVM/Test/compile;concurrentJVM/test;managedTestsJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/Test/compile;examplesJVM/Test/compile;concurrentJVM/test;managedTestsJVM/test"
 )
 addCommandAlias(
   "testJS",
@@ -514,7 +514,6 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
   .settings(crossProjectSettings)
-  .settings(Test / run / mainClass := Some("zio.test.sbt.TestMain"))
   .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
   .settings(scalacOptions += "-Wconf:msg=[@nowarn annotation does not suppress any warnings]:silent")
   .dependsOn(core, tests)
