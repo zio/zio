@@ -170,27 +170,27 @@ object Queue extends QueuePlatformSpecific {
       ZIO.suspendSucceed {
         if (shutdownFlag.get) ZIO.interrupt
         else {
-          val noRemaining =
-            if (queue.isEmpty()) {
-              val taker = takers.poll()
-
-              if (taker eq null) false
-              else unsafeCompletePromise(taker, a)
-            } else false
-
-          if (noRemaining) Exit.`true`
-          else {
-            // not enough takers, offer to the queue
-            val succeeded = queue.offer(a)
-
-            if (succeeded) {
-              strategy.unsafeCompleteTakers(queue, takers)
-              Exit.`true`
-            } else
-              strategy.handleSurplus(Chunk.single(a), queue, takers, shutdownFlag)
-          }
+          if (tryOffer(a)) Exit.`true`
+          else strategy.handleSurplus(Chunk.single(a), queue, takers, shutdownFlag)
         }
       }
+
+    private def tryOffer(a: A): Boolean = {
+      @tailrec def offeredToTaker(): Boolean = {
+        val taker = takers.poll()
+        if (taker eq null) false
+        else if (unsafeCompletePromise(taker, a)) true
+        else offeredToTaker()
+      }
+
+      val noRemaining = if (queue.isEmpty()) offeredToTaker() else false
+
+      if (noRemaining) true
+      else if (queue.offer(a)) {
+        strategy.unsafeCompleteTakers(queue, takers)
+        true
+      } else false
+    }
 
     override def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
       ZIO.suspendSucceed {
@@ -255,22 +255,20 @@ object Queue extends QueuePlatformSpecific {
                 // - try take again in case a value was added since
                 // - wait for the promise to be completed
                 // - clean up resources in case of interruption
-                val p = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe.unsafe)
+                val p = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe)
 
                 takers.offer(p)
                 strategy.unsafeCompleteTakers(queue, takers)
-                if (shutdownFlag.get) ZIO.interrupt
-                else
-                  restore(p.await).catchAllCause {
-                    case c if c.isInterruptedOnly =>
-                      takers.remove(p)
-                      if (p.unsafe.interruptAs(fiberId)(trace, Unsafe)) {
-                        Exit.failCause(c)
-                      } else {
-                        p.await.flatMap(this.offer) *> Exit.failCause(c)
-                      }
-                    case c => Exit.failCause(c)
+                restore(p.await).catchAllCause { c =>
+                  val removed = takers.remove(p) || p.unsafe.interruptAs(fiberId)(trace, Unsafe)
+                  if (removed) Exit.failCause(c)
+                  else {
+                    // The promise was already completed, so if we interrupt here we'll drop the item
+                    // This is not ideal but instead of interrupting we recover temporarily.
+                    // Interruption will resume at the next point where it's enabled
+                    p.await
                   }
+                }
               case item =>
                 strategy.unsafeOnQueueEmptySpace(queue, takers)
                 Exit.succeed(item)
@@ -353,19 +351,22 @@ object Queue extends QueuePlatformSpecific {
           var keepPolling      = !queue.isEmpty()
           val empty            = null.asInstanceOf[A]
           var notifyEmptySpace = false
+          var currentItem      = empty
           while (keepPolling) {
             val taker = takers.poll()
             if (taker eq null) keepPolling = false
             else {
-              queue.poll(empty) match {
+              if (currentItem == null) currentItem = queue.poll(empty)
+              currentItem match {
                 case null =>
                   takers.addFirst(taker)
                   keepPolling = false
                 case a =>
-                  if (unsafeCompletePromise(taker, a))
+                  if (unsafeCompletePromise(taker, a)) {
                     notifyEmptySpace = true
-                  else {
-                    queue.offer(a)
+                    currentItem = empty
+                  } else {
+                    currentItem = a
                   }
               }
             }
