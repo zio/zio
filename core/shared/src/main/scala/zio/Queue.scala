@@ -42,6 +42,8 @@ sealed abstract class Queue[A] extends Dequeue.Internal[A] with Enqueue.Internal
 }
 
 object Queue extends QueuePlatformSpecific {
+  private val interruptAsNone = ZIO.interruptAs(FiberId.None)(Trace.empty)
+
   private[zio] abstract class Internal[A] extends Queue[A]
 
   /**
@@ -160,8 +162,6 @@ object Queue extends QueuePlatformSpecific {
     shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
   ) extends Queue[A] {
-
-    private val interruptAsNone = ZIO.interruptAs(FiberId.None)(Trace.empty)
 
     override def capacity: Int = queue.capacity
 

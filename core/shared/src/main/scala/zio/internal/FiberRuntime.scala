@@ -27,24 +27,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{Set => JavaSet}
 import scala.annotation.tailrec
 
-object Foo extends ZIOAppDefault {
-  implicit val t: Trace = Trace.empty
-
-  val f = { (i: Int) =>
-    for {
-      ref <- Ref.make(0)
-      f <- ZIO.uninterruptibleMask { restore =>
-             restore(ZIO.uninterruptible(ref.set(-1))) *> ref.set(1)
-           }.forkDaemon
-      _ <- f.interruptFork
-      _ <- f.await
-      _ <- ZIO.whenZIO(ref.get.map(_ == -1))(ZIO.dieMessage(s"boom ${i}"))
-    } yield ()
-  }
-
-  def run = ZIO.foreachDiscard(1 to 1000000)(f)
-}
-
 final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtimeFlags0: RuntimeFlags)
     extends Fiber.Runtime.Internal[E, A]
     with FiberRunnable {
@@ -1063,11 +1045,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *   https://github.com/zio/zio/issues/9973
    */
   private[this] def ignoreFlagsUpdate(update: RuntimeFlags.Patch, stackIndex: Int) = {
-    def isInterruptionDisabledInNextFrame(stackIndex: Int) =
+    def isInterruptionDisabledInNextFrame(stackIndex: Int) = {
+      assert(DisableAssertions || stackIndex == _stackSize)
       _stack(stackIndex - 1) match {
         case v: UpdateRuntimeFlags => v.update == RuntimeFlags.disableInterruption
         case _                     => false
       }
+    }
 
     (
       update == RuntimeFlags.enableInterruption
