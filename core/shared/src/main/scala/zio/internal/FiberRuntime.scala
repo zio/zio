@@ -27,6 +27,24 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{Set => JavaSet}
 import scala.annotation.tailrec
 
+object Foo extends ZIOAppDefault {
+  implicit val t: Trace = Trace.empty
+
+  val f = { (i: Int) =>
+    for {
+      ref <- Ref.make(0)
+      f <- ZIO.uninterruptibleMask { restore =>
+             restore(ZIO.uninterruptible(ref.set(-1))) *> ref.set(1)
+           }.forkDaemon
+      _ <- f.interruptFork
+      _ <- f.await
+      _ <- ZIO.whenZIO(ref.get.map(_ == -1))(ZIO.dieMessage(s"boom ${i}"))
+    } yield ()
+  }
+
+  def run = ZIO.foreachDiscard(1 to 1000000)(f)
+}
+
 final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtimeFlags0: RuntimeFlags)
     extends Fiber.Runtime.Internal[E, A]
     with FiberRunnable {
@@ -180,7 +198,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       if (isAlive()) {
         getChildren().add(child)
 
-        if (shouldInterrupt(isExternal = true))
+        if (shouldInterrupt())
           child.tellInterrupt(getInterruptedCause())
       } else {
         child.tellInterrupt(getInterruptedCause())
@@ -192,7 +210,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     if (isAlive()) {
       val childs = getChildren()
 
-      if (shouldInterrupt(isExternal = true)) {
+      if (shouldInterrupt()) {
         val cause = getInterruptedCause()
         while (iter.hasNext) {
           val child = iter.next()
@@ -329,7 +347,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           updateLastTrace(cur.trace)
           processNewInterruptSignal(cause)
 
-          if (isInterruptible() && !shouldIgnoreInterruption()) {
+          if (isInterruptible()) {
             cur = Exit.Failure(cause)
           }
 
@@ -427,7 +445,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         try {
           // Possible the fiber has been interrupted at a start or trampoline
           // boundary. Check here or else we'll miss the opportunity to cancel:
-          if (shouldInterrupt(isExternal = false)) {
+          if (shouldInterrupt()) {
             effect = Exit.Failure(getInterruptedCause())
           }
 
@@ -861,7 +879,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     val changed          = patchRuntimeFlagsOnly(patch)
     val interruptEnabled = RuntimeFlags.Patch.isEnabled(patch, RuntimeFlag.Interruption.mask)
 
-    if (changed && interruptEnabled && shouldInterrupt(isExternal = false)) {
+    if (changed && interruptEnabled && shouldInterrupt()) {
       if (cause ne null) cause ++ getInterruptedCause()
       else getInterruptedCause()
     } else cause
@@ -1021,6 +1039,44 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     observers = observers.filter(_ ne observer)
 
   /**
+   * Checks whether we should ignore the update of runtime flags. The rationale
+   * behind this is to bride the gap between exiting and re-entering an
+   * uninterruptible region instantenously, as:
+   *
+   * {{{
+   *   ZIO.uninterruptibleMask(restore => restore(ZIO.uninterruptible(ZIO.sleep(1.second))))
+   * }}}
+   *
+   * With the code above, it's possible for interruption to occur _after_ we
+   * finished sleeping. This is particularly problematic with Queue#take as
+   * it'll cause items to be dropped from the queue.
+   *
+   * We do this by:
+   *   1. Checking whether the current patch enables interruption
+   *   1. If yes, check if the next frame in the stack disables it
+   *
+   * '''IMPORTANT''': This check can only be used where we unwind the stack
+   *
+   * @see
+   *   https://github.com/zio/zio/issues/9974
+   * @see
+   *   https://github.com/zio/zio/issues/9973
+   */
+  private[this] def ignoreFlagsUpdate(update: RuntimeFlags.Patch, stackIndex: Int) = {
+    def isInterruptionDisabledInNextFrame(stackIndex: Int) =
+      _stack(stackIndex - 1) match {
+        case v: UpdateRuntimeFlags => v.update == RuntimeFlags.disableInterruption
+        case _                     => false
+      }
+
+    (
+      update == RuntimeFlags.enableInterruption
+      && stackIndex > 0
+      && isInterruptionDisabledInNextFrame(stackIndex)
+    )
+  }
+
+  /**
    * The main run-loop for evaluating effects. This method is recursive,
    * utilizing JVM stack space.
    *
@@ -1082,8 +1138,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
 
-                  case updateFlags: ZIO.UpdateRuntimeFlags =>
+                  case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
                     cur = patchRuntimeFlags(updateFlags.update, null, null)
+
+                  case _ => ()
                 }
               }
 
@@ -1111,8 +1169,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
 
-                  case updateFlags: ZIO.UpdateRuntimeFlags =>
+                  case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
                     cur = patchRuntimeFlags(updateFlags.update, null, null)
+
+                  case _ => ()
                 }
               }
 
@@ -1168,7 +1228,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 case s: Success[Any] => cur = fold.successK(s.value)
                 case f: Failure[Any] =>
                   val cause = f.cause
-                  if (shouldInterrupt(isExternal = false)) cur = Exit.Failure(cause.stripFailures)
+                  if (shouldInterrupt()) cur = Exit.Failure(cause.stripFailures)
                   else cur = fold.failureK(cause)
               }
 
@@ -1187,7 +1247,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               self._asyncContWith = AsyncContWith.`null`
 
-              if (shouldInterrupt(isExternal = false)) {
+              if (shouldInterrupt()) {
                 cur = Exit.failCause(getInterruptedCause())
               }
 
@@ -1225,7 +1285,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 popStackFrame(stackIndex)
 
                 // Go backward, on the stack:
-                cur = patchRuntimeFlags(revertFlags, exit.causeOrNull, exit)
+                if (ignoreFlagsUpdate(revertFlags, stackIndex)) {
+                  cur = exit
+                } else {
+                  cur = patchRuntimeFlags(revertFlags, exit.causeOrNull, exit)
+                }
+
               }
 
             case iterate: WhileLoop[Any, Any, Any] =>
@@ -1277,14 +1342,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case _: ZIO.FlatMap[Any, Any, Any, Any] =>
 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
-                    if (shouldInterrupt(isExternal = false)) {
+                    if (shouldInterrupt()) {
                       cause = cause.stripFailures
                     } else {
                       cur = foldZIO.failureK(cause)
                     }
 
-                  case updateFlags: ZIO.UpdateRuntimeFlags =>
+                  case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
                     cause = patchRuntimeFlagsCause(updateFlags.update, cause)
+
+                  case _ => ()
                 }
               }
 
@@ -1425,57 +1492,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def setFiberRefs(fiberRefs0: FiberRefs): Unit =
     this._fiberRefs = fiberRefs0
 
-  /**
-   * Checks whether we should temporarily ignore interruption. The rationale
-   * behind this is to bride the gap between exiting and re-entering an
-   * uninterruptible region instantenously, as:
-   *
-   * {{{
-   *   ZIO.uninterruptibleMask(restore => restore(ZIO.uninterruptible(ZIO.sleep(1.second))))
-   * }}}
-   *
-   * With the code above, it's possible for interruption to occur _after_ we
-   * finished sleeping. This is particularly problematic with Queue#take as
-   * it'll cause items to be dropped from the queue.
-   *
-   * '''NOTE''': This method must be invoked by the fiber itself!
-   *
-   * @see
-   *   https://github.com/zio/zio/issues/9974
-   * @see
-   *   https://github.com/zio/zio/issues/9973
-   */
-  private[this] def shouldIgnoreInterruption(): Boolean = {
-    import RuntimeFlag.Interruption
-    import RuntimeFlags.Patch.{isDisabled, isEnabled}
-
-    var result = false
-    val size   = _stackSize
-    val stack  = _stack
-    if (size > 0) {
-      stack(size - 1) match {
-        case previous: UpdateRuntimeFlags if isDisabled(previous.update, Interruption.mask) =>
-          stack(size) match {
-            case current: UpdateRuntimeFlags if isEnabled(current.update, Interruption.mask) =>
-              result = true
-            case _ => ()
-          }
-        case _ => ()
-      }
-    }
-    result
-  }
-
-  @deprecated("This method will be removed in a future release.", "2.1.21")
-  private[zio] def shouldInterrupt(): Boolean =
-    isInterruptible() && isInterrupted()
-
-  private def shouldInterrupt(isExternal: Boolean): Boolean =
-    (
-      isInterruptible()
-        && isInterrupted()
-        && (isExternal || !shouldIgnoreInterruption())
-    )
+  private[zio] def shouldInterrupt(): Boolean = isInterruptible() && isInterrupted()
 
   /**
    * Begins execution of the effect associated with this fiber on the current
