@@ -2,7 +2,7 @@
 
 | Project Stage | CI | Release | Snapshot | Issues |
 | --- | --- | --- | --- | --- |
-| [![Project stage][Badge-Stage]][Badge-Stage-Page] | ![CI][Badge-CI] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Snapshot Artifacts][Badge-SonatypeSnapshots]][Link-SonatypeSnapshots] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] |
+| [![Project stage][Badge-Stage]][Badge-Stage-Page] | ![CI][Badge-CI] | [![Maven Central Version](https://img.shields.io/maven-central/v/dev.zio/zio-http_3)][Link-SonatypeReleases] | [![Snapshot Artifacts][Badge-SonatypeSnapshots]][Link-SonatypeSnapshots] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] |
 
 | Scaladoc | Scaladex | Discord | Twitter | Gitpod | Gurubase |
 | --- | --- | --- | --- | --- | --- |
