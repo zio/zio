@@ -1,6 +1,7 @@
 package zio.internal.metrics
 
 import zio._
+import zio.internal.metrics.MetricHook.SummaryValue
 import zio.test._
 import zio.test.TestAspect._
 import zio.metrics._
@@ -12,7 +13,8 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
         val summary = ConcurrentMetricHooks.summary(
           MetricKey.summary(name = "test", maxSize = 0, maxAge = 10.seconds, error = 0.0, quantiles = Chunk.empty)
         )
-        val observe = Clock.instant.flatMap(now => ZIO.attempt(summary.update((11.0, now))))
+        val observe =
+          Clock.instant.flatMap(now => ZIO.attempt(summary.update(SummaryValue(value = 11.0, timestamp = now))))
 
         for {
           _        <- observe
@@ -34,7 +36,8 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
               quantiles = Chunk.empty
             )
           )
-          val observe = Clock.instant.flatMap(now => ZIO.attempt(summary.update(11.0 -> now)))
+          val observe =
+            Clock.instant.flatMap(now => ZIO.attempt(summary.update(SummaryValue(value = 11.0, timestamp = now))))
 
           for {
             _        <- observe
@@ -58,7 +61,8 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
                 quantiles = Chunk.empty
               )
             )
-            val observe     = Clock.instant.flatMap(now => ZIO.attempt(summary.update(11.0 -> now)))
+            val observe =
+              Clock.instant.flatMap(now => ZIO.attempt(summary.update(SummaryValue(value = 11.0, timestamp = now))))
             val getSnapshot = ZIO.attempt(summary.get())
 
             val test =
