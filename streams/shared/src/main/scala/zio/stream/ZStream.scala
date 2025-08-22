@@ -4529,30 +4529,34 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       else
         ZChannel.unit
 
+    def writeChunks(iterator: Iterator[A], maxChunkSize0: Int): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] = {
+      val builder = ChunkBuilder.make[A](maxChunkSize0)
+
+      def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] = {
+        builder.clear()
+        var count = 0
+        while (count < maxChunkSize0 && iterator.hasNext) {
+          builder += iterator.next()
+          count += 1
+        }
+
+        if (count > 0)
+          ZChannel.write(builder.result()) *> loop(iterator)
+        else
+          ZChannel.unit
+      }
+
+      loop(iterator)
+    }
+
     ZStream.fromChannel {
       ZChannel.suspend {
         val maxChunkSize0 = maxChunkSize
 
-        if (maxChunkSize0 == 1) writeOneByOne(iterator)
-        else {
-          val builder = ChunkBuilder.make[A](maxChunkSize0)
-
-          def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] = {
-            builder.clear()
-            var count = 0
-            while (count < maxChunkSize0 && iterator.hasNext) {
-              builder += iterator.next()
-              count += 1
-            }
-
-            if (count > 0)
-              ZChannel.write(builder.result()) *> loop(iterator)
-            else
-              ZChannel.unit
-          }
-
-          loop(iterator)
-        }
+        if (maxChunkSize0 == 1)
+          writeOneByOne(iterator)
+        else
+          writeChunks(iterator, maxChunkSize0)
       }
     }
   }
