@@ -4531,14 +4531,16 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
     ZStream.fromChannel {
       ZChannel.suspend {
-        if (maxChunkSize == 1) writeOneByOne(iterator)
+        val maxChunkSize0 = maxChunkSize
+
+        if (maxChunkSize0 == 1) writeOneByOne(iterator)
         else {
-          val builder = ChunkBuilder.make[A](maxChunkSize)
+          val builder = ChunkBuilder.make[A](maxChunkSize0)
 
           def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] = {
             builder.clear()
             var count = 0
-            while (count < maxChunkSize && iterator.hasNext) {
+            while (count < maxChunkSize0 && iterator.hasNext) {
               builder += iterator.next()
               count += 1
             }
