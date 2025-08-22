@@ -277,7 +277,7 @@ object Hub {
                   subscribers.add(subscription -> pollers)
                   strategy.unsafeCompletePollers(hub, subscribers, subscription, pollers)
                   if (shutdownFlag.get) ZIO.interrupt else promise.await
-                }.onInterrupt(Exit.succeed(unsafeRemove(pollers, promise)))
+                }.onInterrupt(ZIO.succeed(unsafeRemove(pollers, promise)))
               case a =>
                 strategy.unsafeOnHubEmptySpace(hub, subscribers)
                 Exit.succeed(a)
@@ -410,7 +410,7 @@ object Hub {
             unsafeOnHubEmptySpace(hub, subscribers)
             unsafeCompleteSubscribers(hub, subscribers)
             if (isShutDown.get) ZIO.interrupt else promise.await
-          }.onInterrupt(Exit.succeed(unsafeRemove(promise)))
+          }.onInterrupt(ZIO.succeed(unsafeRemove(promise)))
         }
 
       def shutdown(implicit trace: Trace): UIO[Unit] =
