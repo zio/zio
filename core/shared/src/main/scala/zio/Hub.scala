@@ -19,7 +19,6 @@ package zio
 import zio.internal.{MutableConcurrentQueue, Platform}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.Set
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -70,7 +69,11 @@ object Hub {
    * For best performance use capacities that are powers of two.
    */
   def bounded[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Hub[A]] =
-    ZIO.succeed(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.BackPressure()))
+    ZIO.suspendSucceed {
+      val hub = internal.Hub.bounded[A](requestedCapacity)
+
+      makeHub(hub, Strategy.BackPressure())
+    }
 
   /**
    * Creates a bounded hub with the dropping strategy. The hub will drop new
@@ -79,7 +82,11 @@ object Hub {
    * For best performance use capacities that are powers of two.
    */
   def dropping[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Hub[A]] =
-    ZIO.succeed(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.Dropping()))
+    ZIO.suspendSucceed {
+      val hub = internal.Hub.bounded[A](requestedCapacity)
+
+      makeHub(hub, Strategy.Dropping())
+    }
 
   /**
    * Creates a bounded hub with the sliding strategy. The hub will add new
@@ -88,25 +95,35 @@ object Hub {
    * For best performance use capacities that are powers of two.
    */
   def sliding[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Hub[A]] =
-    ZIO.succeed(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.Sliding()))
+    ZIO.suspendSucceed {
+      val hub = internal.Hub.bounded[A](requestedCapacity)
+
+      makeHub(hub, Strategy.Sliding())
+    }
 
   /**
    * Creates an unbounded hub.
    */
   def unbounded[A](implicit trace: Trace): UIO[Hub[A]] =
-    ZIO.succeed(internal.Hub.unbounded[A]).flatMap(makeHub(_, Strategy.Dropping()))
+    ZIO.suspendSucceed {
+      val hub = internal.Hub.unbounded[A]
+
+      makeHub(hub, Strategy.Dropping())
+    }
 
   /**
    * Creates a hub with the specified strategy.
    */
   private def makeHub[A](hub: internal.Hub[A], strategy: Strategy[A])(implicit trace: Trace): UIO[Hub[A]] =
-    Scope.make.flatMap { scope =>
-      Promise.make[Nothing, Unit].map { promise =>
+    ZIO.fiberIdWith { fiberId =>
+      Exit.succeed {
+        val scope   = Scope.unsafe.make(Unsafe)
+        val promise = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
+
         unsafeMakeHub(
           hub,
-          Platform.newConcurrentSet[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]()(
-            Unsafe.unsafe
-          ),
+          Platform
+            .newConcurrentSet[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]()(Unsafe),
           scope,
           promise,
           new AtomicBoolean(false),
@@ -120,7 +137,7 @@ object Hub {
    */
   private def unsafeMakeHub[A](
     hub: internal.Hub[A],
-    subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+    subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
     scope: Scope.Closeable,
     shutdownHook: Promise[Nothing, Unit],
     shutdownFlag: AtomicBoolean,
@@ -138,7 +155,7 @@ object Hub {
           if (shutdownFlag.get) ZIO.interrupt
           else if (hub.publish(a)) {
             strategy.unsafeCompleteSubscribers(hub, subscribers)
-            ZIO.succeed(true)
+            Exit.`true`
           } else {
             strategy.handleSurplus(hub, subscribers, Chunk.single(a), shutdownFlag)
           }
@@ -151,9 +168,9 @@ object Hub {
             strategy.unsafeCompleteSubscribers(hub, subscribers)
             if (surplus.isEmpty) Exit.emptyChunk
             else
-              strategy.handleSurplus(hub, subscribers, surplus, shutdownFlag).map { published =>
-                if (published) Chunk.empty else surplus
-              }
+              strategy
+                .handleSurplus(hub, subscribers, surplus, shutdownFlag)
+                .map(published => if (published) Chunk.empty else surplus)
           }
         }
       def shutdown(implicit trace: Trace): UIO[Unit] =
@@ -167,7 +184,7 @@ object Hub {
       def size(implicit trace: Trace): UIO[Int] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
-          else ZIO.succeed(hub.size())
+          else Exit.succeed(hub.size())
         }
       def subscribe(implicit trace: Trace): ZIO[Scope, Nothing, Dequeue[A]] =
         ZIO.acquireReleaseExit {
@@ -186,19 +203,23 @@ object Hub {
    */
   private def makeSubscription[A](
     hub: internal.Hub[A],
-    subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+    subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
     strategy: Strategy[A]
   )(implicit trace: Trace): UIO[Dequeue[A]] =
-    Promise.make[Nothing, Unit].map { promise =>
-      unsafeMakeSubscription(
-        hub,
-        subscribers,
-        hub.subscribe(),
-        MutableConcurrentQueue.unbounded[Promise[Nothing, A]],
-        promise,
-        new AtomicBoolean(false),
-        strategy
-      )
+    ZIO.fiberIdWith { fiberId =>
+      Exit.succeed {
+        val promise = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
+
+        unsafeMakeSubscription(
+          hub,
+          subscribers,
+          hub.subscribe(),
+          MutableConcurrentQueue.unbounded[Promise[Nothing, A]],
+          promise,
+          new AtomicBoolean(false),
+          strategy
+        )
+      }
     }
 
   /**
@@ -206,7 +227,7 @@ object Hub {
    */
   private def unsafeMakeSubscription[A](
     hub: internal.Hub[A],
-    subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+    subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
     subscription: internal.Hub.Subscription[A],
     pollers: MutableConcurrentQueue[Promise[Nothing, A]],
     shutdownHook: Promise[Nothing, Unit],
@@ -230,7 +251,7 @@ object Hub {
           ZIO
             .whenZIODiscard(shutdownHook.succeedUnit) {
               ZIO.foreachParDiscard(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
-                ZIO.succeed {
+                Exit.succeed {
                   subscribers.remove(subscription -> pollers)
                   subscription.unsubscribe()
                   strategy.unsafeOnHubEmptySpace(hub, subscribers)
@@ -240,7 +261,7 @@ object Hub {
       def size(implicit trace: Trace): UIO[Int] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
-          else ZIO.succeed(subscription.size())
+          else Exit.succeed(subscription.size())
         }
       def take(implicit trace: Trace): UIO[A] =
         ZIO.fiberIdWith { fiberId =>
@@ -250,16 +271,16 @@ object Hub {
             val message = if (pollers.isEmpty()) subscription.poll(empty) else empty
             message match {
               case null =>
-                val promise = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe.unsafe)
+                val promise = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe)
                 ZIO.suspendSucceed {
                   pollers.offer(promise)
                   subscribers.add(subscription -> pollers)
                   strategy.unsafeCompletePollers(hub, subscribers, subscription, pollers)
                   if (shutdownFlag.get) ZIO.interrupt else promise.await
-                }.onInterrupt(ZIO.succeed(unsafeRemove(pollers, promise)))
+                }.onInterrupt(Exit.succeed(unsafeRemove(pollers, promise)))
               case a =>
                 strategy.unsafeOnHubEmptySpace(hub, subscribers)
-                ZIO.succeed(a)
+                Exit.succeed(a)
             }
           }
         }
@@ -267,18 +288,18 @@ object Hub {
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else {
-            val as = if (pollers.isEmpty()) unsafePollAll(subscription) else Chunk.empty
+            val as = if (pollers.isEmpty()) Exit.succeed(unsafePollAll(subscription)) else Exit.emptyChunk
             strategy.unsafeOnHubEmptySpace(hub, subscribers)
-            ZIO.succeed(as)
+            as
           }
         }
       def takeUpTo(max: Int)(implicit trace: Trace): ZIO[Any, Nothing, Chunk[A]] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else {
-            val as = if (pollers.isEmpty()) unsafePollN(subscription, max) else Chunk.empty
+            val as = if (pollers.isEmpty()) Exit.succeed(unsafePollN(subscription, max)) else Exit.emptyChunk
             strategy.unsafeOnHubEmptySpace(hub, subscribers)
-            ZIO.succeed(as)
+            as
           }
         }
     }
@@ -295,7 +316,7 @@ object Hub {
      */
     def handleSurplus(
       hub: internal.Hub[A],
-      subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+      subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
       as: Iterable[A],
       isShutdown: AtomicBoolean
     )(implicit trace: Trace): UIO[Boolean]
@@ -311,7 +332,7 @@ object Hub {
      */
     def unsafeOnHubEmptySpace(
       hub: internal.Hub[A],
-      subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
+      subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
     ): Unit
 
     /**
@@ -321,7 +342,7 @@ object Hub {
      */
     final def unsafeCompletePollers(
       hub: internal.Hub[A],
-      subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+      subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
       subscription: internal.Hub.Subscription[A],
       pollers: MutableConcurrentQueue[Promise[Nothing, A]]
     ): Unit = {
@@ -353,7 +374,7 @@ object Hub {
      */
     final def unsafeCompleteSubscribers(
       hub: internal.Hub[A],
-      subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
+      subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
     ): Unit = {
       val iterator = subscribers.iterator
       while (iterator.hasNext) {
@@ -378,32 +399,30 @@ object Hub {
 
       def handleSurplus(
         hub: internal.Hub[A],
-        subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+        subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
         as: Iterable[A],
         isShutDown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] =
         ZIO.fiberIdWith { fiberId =>
-          val promise = Promise.unsafe.make[Nothing, Boolean](fiberId)(Unsafe.unsafe)
+          val promise = Promise.unsafe.make[Nothing, Boolean](fiberId)(Unsafe)
           ZIO.suspendSucceed {
             unsafeOffer(as, promise)
             unsafeOnHubEmptySpace(hub, subscribers)
             unsafeCompleteSubscribers(hub, subscribers)
             if (isShutDown.get) ZIO.interrupt else promise.await
-          }.onInterrupt(ZIO.succeed(unsafeRemove(promise)))
+          }.onInterrupt(Exit.succeed(unsafeRemove(promise)))
         }
 
       def shutdown(implicit trace: Trace): UIO[Unit] =
-        for {
-          fiberId    <- ZIO.fiberId
-          publishers <- ZIO.succeed(unsafePollAll(publishers))
-          _ <- ZIO.foreachParDiscard(publishers) { case (_, promise, last) =>
-                 if (last) promise.interruptAs(fiberId) else ZIO.unit
-               }
-        } yield ()
+        ZIO.fiberIdWith { fiberId =>
+          ZIO.foreachParDiscard(unsafePollAll(publishers)) { case (_, promise, last) =>
+            if (last) promise.interruptAs(fiberId) else Exit.unit
+          }
+        }
 
       def unsafeOnHubEmptySpace(
         hub: internal.Hub[A],
-        subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
+        subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
       ): Unit = {
         val empty       = null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]
         var keepPolling = true
@@ -454,7 +473,7 @@ object Hub {
 
       def handleSurplus(
         hub: internal.Hub[A],
-        subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+        subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
         as: Iterable[A],
         isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] =
@@ -465,7 +484,7 @@ object Hub {
 
       def unsafeOnHubEmptySpace(
         hub: internal.Hub[A],
-        subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
+        subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
       ): Unit =
         ()
     }
@@ -481,7 +500,7 @@ object Hub {
 
       def handleSurplus(
         hub: internal.Hub[A],
-        subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
+        subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
         as: Iterable[A],
         isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] = {
@@ -513,7 +532,7 @@ object Hub {
 
       def unsafeOnHubEmptySpace(
         hub: internal.Hub[A],
-        subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
+        subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
       ): Unit =
         ()
     }
@@ -523,7 +542,7 @@ object Hub {
    * Unsafely completes a promise with the specified value.
    */
   private def unsafeCompletePromise[A](promise: Promise[Nothing, A], a: A): Unit =
-    promise.unsafe.done(Exit.succeed(a))(Unsafe.unsafe)
+    promise.unsafe.done(Exit.succeed(a))(Unsafe)
 
   /**
    * Unsafely offers the specified values to a queue.
