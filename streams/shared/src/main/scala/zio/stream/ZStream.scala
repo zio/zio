@@ -4523,37 +4523,40 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromIteratorSucceed[A](iterator: => Iterator[A], maxChunkSize: => Int = DefaultChunkSize)(implicit
     trace: Trace
   ): ZStream[Any, Nothing, A] = {
-
     def writeOneByOne(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
       if (iterator.hasNext)
         ZChannel.write(Chunk.single(iterator.next())) *> writeOneByOne(iterator)
       else
         ZChannel.unit
 
-    def writeChunks(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
-      ZChannel.succeed(ChunkBuilder.make[A]()).flatMap { builder =>
-        def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] = {
-          builder.clear()
-          var count = 0
-          while (count < maxChunkSize && iterator.hasNext) {
-            builder += iterator.next()
-            count += 1
-          }
-          if (count > 0)
-            ZChannel.write(builder.result()) *> loop(iterator)
-          else
-            ZChannel.unit
+    def writeChunks(iterator: Iterator[A], maxChunkSize0: Int): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] = {
+      val builder = ChunkBuilder.make[A](maxChunkSize0)
+
+      def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] = {
+        builder.clear()
+        var count = 0
+        while (count < maxChunkSize0 && iterator.hasNext) {
+          builder += iterator.next()
+          count += 1
         }
 
-        loop(iterator)
+        if (count > 0)
+          ZChannel.write(builder.result()) *> loop(iterator)
+        else
+          ZChannel.unit
       }
+
+      loop(iterator)
+    }
 
     ZStream.fromChannel {
       ZChannel.suspend {
-        if (maxChunkSize == 1)
+        val maxChunkSize0 = maxChunkSize
+
+        if (maxChunkSize0 == 1)
           writeOneByOne(iterator)
         else
-          writeChunks(iterator)
+          writeChunks(iterator, maxChunkSize0)
       }
     }
   }
