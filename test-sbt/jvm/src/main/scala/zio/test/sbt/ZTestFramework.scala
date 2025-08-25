@@ -17,7 +17,7 @@
 package zio.test.sbt
 
 /**
- * TODO update/remove outdated/misplaced doc comment.
+ * Note: this doc comment seems outdated/misplaced.
  *
  * =General Test Pieces=
  *

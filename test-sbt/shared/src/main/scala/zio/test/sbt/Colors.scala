@@ -5,11 +5,11 @@ import scala.annotation.tailrec
 object Colors {
   def colored(code: String)(str: String): String = s"$code$str${Console.RESET}"
 
-  lazy val red: String => String    = colored(Console.RED)
-  lazy val green: String => String  = colored(Console.GREEN)
-  lazy val cyan: String => String   = colored(Console.CYAN)
-  lazy val blue: String => String   = colored(Console.BLUE)
-  lazy val yellow: String => String = colored(Console.YELLOW)
+  val red: String => String    = colored(Console.RED)
+  val green: String => String  = colored(Console.GREEN)
+  val cyan: String => String   = colored(Console.CYAN)
+  val blue: String => String   = colored(Console.BLUE)
+  val yellow: String => String = colored(Console.YELLOW)
 
   def reset(str: String): String = s"${Console.RESET}$str"
 

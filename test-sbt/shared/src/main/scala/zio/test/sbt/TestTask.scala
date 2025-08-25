@@ -22,7 +22,7 @@ abstract class TestTask(
 
   final protected def unsafeAPI: zio.Runtime[Any]#UnsafeAPI = sharedRuntime.getOrElse(zio.Runtime.default).unsafe
 
-  // TODO SBT loggers should be hooked in...
+  // Note: SBT loggers should be hooked in...
   final private[sbt] def run(eventHandler: EventHandler)(implicit trace: zio.Trace): ZIO[Any, Throwable, Unit] = {
     SignalHandlers.install()
 

@@ -30,7 +30,7 @@ object ExecuteSpecs {
     specs: Seq[ZIOSpecAbstract],
     args: Array[String],
     selectors: Array[Selector] = Array(new SuiteSelector)
-  ): ZIO[Any, ::[Throwable], (Seq[String], Seq[Event])] = {
+  ): ZIO[Any, ::[Throwable], (Seq[String], Seq[Event])] = ZIO.suspendSucceed {
     val events = ArrayBuffer.empty[Event]
 
     def attemptBlocking[T](f: => T): ZIO[Any, ::[Throwable], T] = ZIO
@@ -38,7 +38,6 @@ object ExecuteSpecs {
       .mapError((error: Throwable) => ::(error, Nil))
 
     for {
-      // TODO make this test console silent
       testConsole <- testConsole
       taskDefs: Array[TaskDef] =
         specs

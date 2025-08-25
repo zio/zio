@@ -5,7 +5,7 @@ import zio.{Runtime, ZLayer}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{ExecutionEventPrinter, Summary, TestArgs, TestOutput, ZIOSpecAbstract}
 
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ConcurrentLinkedQueue
 
 abstract class TestRunner(
   final override val args: Array[String],
@@ -19,19 +19,20 @@ abstract class TestRunner(
   testClassLoader: ClassLoader,
   runnerType: String
 ) extends Runner {
+  @volatile private var isDone: Boolean = false
+  private def verifyNonDone(): Unit     = if (isDone) throw new IllegalStateException(s"Runner $this is already done!")
+
   final override def remoteArgs(): Array[String] = remoteArgs0
 
   private val testArgs: TestArgs = TestArgs.parse(args)
 
-  private val sharedRuntimes: AtomicReference[Vector[zio.Runtime.Scoped[TestOutput]]] = new AtomicReference(
-    Vector.empty
-  )
+  private val sharedRuntimes: ConcurrentLinkedQueue[zio.Runtime.Scoped[TestOutput]] = new ConcurrentLinkedQueue
 
   protected def sharedRuntimeSupported: Boolean
 
-  private val summaries: AtomicReference[Vector[Summary]] = new AtomicReference(Vector.empty)
+  private val summaries: ConcurrentLinkedQueue[Summary] = new ConcurrentLinkedQueue
 
-  final protected def addSummary(summary: Summary): Unit = summaries.updateAndGet(_ :+ summary)
+  final protected def addSummary(summary: Summary): Unit = summaries.offer(summary)
 
   protected def sendSummary(summary: Summary): Unit
 
@@ -44,15 +45,17 @@ abstract class TestRunner(
     taskDefs: Array[TaskDef],
     console: zio.Console
   )(implicit trace: zio.Trace): Array[TestTask] = {
+    verifyNonDone()
+
     val withSpecs: Array[(TaskDef, ZIOSpecAbstract)] = taskDefs.map(taskDef => taskDef -> loadSpec(taskDef))
 
-    // TODO maybe it is because ConsoleLive is not used on non-JVM backends that tests print more than on JVM?
+    // Note: maybe it is because ConsoleLive is not used on non-JVM backends that tests print more than on JVM?
     val sharedRuntime: Option[zio.Runtime.Scoped[TestOutput]] =
       if (!sharedRuntimeSupported) None
       else
         Some {
           val sharedRuntime: Runtime.Scoped[TestOutput] = getSharedRuntime(withSpecs.map(_._2), console)
-          sharedRuntimes.updateAndGet(_ :+ sharedRuntime)
+          sharedRuntimes.offer(sharedRuntime)
           sharedRuntime
         }
 
@@ -104,11 +107,14 @@ abstract class TestRunner(
   }
 
   final override def done(): String = {
+    verifyNonDone()
+    isDone = true
+
     // If tests are forked, this will only be relevant in the forked
     // JVM, and will not be set in the original JVM.
-    sharedRuntimes.get.foreach(_.unsafe.shutdown()(zio.Unsafe))
+    sharedRuntimes.forEach(_.unsafe.shutdown()(zio.Unsafe))
 
-    val summaries: Seq[Summary] = this.summaries.get
+    val summaries: Seq[Summary] = this.summaries.toArray(Array.empty[Summary])
     val total: Int              = summaries.map(_.total).sum
     val ignore: Int             = summaries.map(_.ignore).sum
 
