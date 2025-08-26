@@ -174,7 +174,6 @@ object ChunkSpec extends ZIOBaseSpec {
       test("fails if the chunk does not contain the specified index") {
         val chunk     = Chunk(1, 2, 3)
         val prepended = 0 +: chunk
-        val _         = -1 +: chunk
         assert(prepended(-1))(throwsA[IndexOutOfBoundsException])
       }
     ),

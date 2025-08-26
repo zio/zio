@@ -227,10 +227,19 @@ object TestArrow {
       case Right(value) => onSucceed(value)
     }
 
+  private val onError: PartialFunction[Throwable, TestTrace[Nothing]] = {
+    case ex if NonFatal(ex) =>
+      ex.setStackTrace(ex.getStackTrace.filterNot { (ste: StackTraceElement) =>
+        ste.getClassName.startsWith("zio.test.TestArrow")
+      })
+      TestTrace.die(ex)
+  }
+
   private def runLoop[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): TestTrace[B] =
     arrow match {
       case TestArrowF(f) =>
-        f(in)
+        try f(in)
+        catch onError
 
       case AndThen(f, g) =>
         val t1 = runLoop(f, in)
@@ -254,7 +263,8 @@ object TestArrow {
           case Left(exception) =>
             TestTrace.die(exception)
           case Right(value) =>
-            runLoop(f(value), in)
+            try runLoop(f(value), in)
+            catch onError
         }
 
       case Meta(arrow, span, parentSpan, code, location, completeCode, customLabel, genFailureDetails) =>
@@ -270,13 +280,7 @@ object TestArrow {
 
   def run[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): TestTrace[B] =
     try runLoop(arrow, in)
-    catch {
-      case ex if NonFatal(ex) =>
-        ex.setStackTrace(ex.getStackTrace.filterNot { (ste: StackTraceElement) =>
-          ste.getClassName.startsWith("zio.test.TestArrow")
-        })
-        TestTrace.die(ex)
-    }
+    catch onError
 
   case class Span(start: Int, end: Int) {
     def substring(str: String): String = {

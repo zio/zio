@@ -168,7 +168,31 @@ object TestArrowSpec extends ZIOBaseSpec {
         }
         val testTrace = TestArrow.run(arrow, Right(()))
         assertTrue(testTrace.result == Result.Succeed(depth))
-      }
+      },
+      suite("run resumes with die")(
+        test("suspend") {
+          val ex      = new Exception("test")
+          val failing = TestArrow.suspend[Any, Int](_ => throw ex)
+          val arrow = failing >>> TestArrow.makeEither(
+            onFail = TestTrace.die,
+            onSucceed = _ => TestTrace.fail("expected failure")
+          )
+
+          val testTrace = TestArrow.run(arrow, Right(()))
+          assertTrue(testTrace.result == Result.Die(ex))
+        },
+        test("succeed") {
+          val ex      = new Exception("test")
+          val failing = TestArrow.succeed[Int](throw ex)
+          val arrow = failing >>> TestArrow.makeEither(
+            onFail = TestTrace.die,
+            onSucceed = _ => TestTrace.fail("expected failure")
+          )
+
+          val testTrace = TestArrow.run(arrow, Right(()))
+          assertTrue(testTrace.result == Result.Die(ex))
+        }
+      )
     )
 
 }
