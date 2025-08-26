@@ -168,7 +168,7 @@ object TestArrowSpec extends ZIOBaseSpec {
         }
         val testTrace = TestArrow.run(arrow, Right(()))
         assertTrue(testTrace.result == Result.Succeed(depth))
-      },
+      } @@ TestAspect.jvmOnly,
       suite("run resumes with die")(
         test("suspend") {
           val ex      = new Exception("test")
