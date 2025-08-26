@@ -368,7 +368,8 @@ sealed trait ZIO[-R, +E, +A]
         c.failureOrCause.fold(t => pf.applyOrElse(t, (_: E) => Exit.failCause(c)), Exit.failCause)
       } else {
         // Cause contains defects or interruptions - don't handle, re-fail
-        Exit.failCause(c)
+        // We need to preserve the original cause type
+        Exit.failCause(c.asInstanceOf[Cause[Nothing]])
       }
 
     self.foldCauseZIO[R1, E1, A1](tryRescue, ZIO.successFn)
@@ -763,7 +764,8 @@ sealed trait ZIO[-R, +E, +A]
         c.failureOrCause.fold(failure, Exit.failCause)
       } else {
         // Cause contains defects or interruptions - don't handle, re-fail
-        Exit.failCause(c)
+        // We need to preserve the original cause type
+        Exit.failCause(c.asInstanceOf[Cause[E2]])
       }
     , success)
 
@@ -858,7 +860,8 @@ sealed trait ZIO[-R, +E, +A]
         c.failureOrCause.fold(handler, Exit.failCause)
       } else {
         // Cause contains defects or interruptions - don't handle, re-fail
-        Exit.failCause(c)
+        // We need to preserve the original cause type
+        Exit.failCause(c.asInstanceOf[Cause[Nothing]])
       }
     ).fork
 

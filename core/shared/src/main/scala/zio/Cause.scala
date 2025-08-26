@@ -932,14 +932,14 @@ object Cause extends Serializable {
    */
   def containsDefects[E](cause: Cause[E]): Boolean = {
     cause.fold(
-      empty = false,
-      failCase = _ => false,
-      dieCase = _ => true,  // Found a defect
-      interruptCase = _ => false
+      false,                    // empty
+      (_, _) => false,         // failCase
+      (_, _) => true,          // dieCase - Found a defect
+      (_, _) => false          // interruptCase
     )(
-      thenCase = (left, right) => left || right,
-      bothCase = (left, right) => left || right,
-      stacklessCase = (value, _) => value
+      (left, right) => left || right,  // thenCase
+      (left, right) => left || right,  // bothCase
+      (value, _) => value              // stacklessCase
     )
   }
   
