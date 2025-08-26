@@ -275,6 +275,10 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Recovers from all errors.
    *
+   * Note: This method will NOT catch defects (exceptions from `ZIO.die`) 
+   * or fiber interruptions. If a Cause contains both failures and defects,
+   * the defects take precedence and the effect will fail with the defect.
+   *
    * {{{
    * openFile("config.json").catchAll(_ => ZIO.succeed(defaultConfig))
    * }}}
@@ -345,6 +349,10 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Recovers from some or all of the error cases.
    *
+   * Note: This method will NOT catch defects (exceptions from `ZIO.die`) 
+   * or fiber interruptions. If a Cause contains both failures and defects,
+   * the defects take precedence and the effect will fail with the defect.
+   *
    * {{{
    * openFile("data.json").catchSome {
    *   case _: FileNotFoundException => openFile("backup.json")
@@ -355,7 +363,13 @@ sealed trait ZIO[-R, +E, +A]
     pf: PartialFunction[E, ZIO[R1, E1, A1]]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A1] = {
     def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
-      c.failureOrCause.fold(t => pf.applyOrElse(t, (_: E) => Exit.failCause(c)), Exit.failCause)
+      if (Cause.isRecoverable(c)) {
+        // Only handle recoverable causes (no defects or interruptions)
+        c.failureOrCause.fold(t => pf.applyOrElse(t, (_: E) => Exit.failCause(c)), Exit.failCause)
+      } else {
+        // Cause contains defects or interruptions - don't handle, re-fail
+        Exit.failCause(c)
+      }
 
     self.foldCauseZIO[R1, E1, A1](tryRescue, ZIO.successFn)
   }
@@ -743,7 +757,15 @@ sealed trait ZIO[-R, +E, +A]
     ev: CanFail[E],
     trace: Trace
   ): ZIO[R1, E2, B] =
-    foldCauseZIO(c => c.failureOrCause.fold(failure, Exit.failCause), success)
+    foldCauseZIO(c => 
+      if (Cause.isRecoverable(c)) {
+        // Only handle recoverable causes (no defects or interruptions)
+        c.failureOrCause.fold(failure, Exit.failCause)
+      } else {
+        // Cause contains defects or interruptions - don't handle, re-fail
+        Exit.failCause(c)
+      }
+    , success)
 
   /**
    * Returns a new effect that will pass the success value of this effect to the
@@ -830,7 +852,15 @@ sealed trait ZIO[-R, +E, +A]
   final def forkWithErrorHandler[R1 <: R](handler: E => URIO[R1, Any])(implicit
     trace: Trace
   ): URIO[R1, Fiber.Runtime[E, A]] =
-    onError(c => c.failureOrCause.fold(handler, Exit.failCause)).fork
+    onError(c => 
+      if (Cause.isRecoverable(c)) {
+        // Only handle recoverable causes (no defects or interruptions)
+        c.failureOrCause.fold(handler, Exit.failCause)
+      } else {
+        // Cause contains defects or interruptions - don't handle, re-fail
+        Exit.failCause(c)
+      }
+    ).fork
 
   private[zio] final def forkWithScopeOverride(
     scopeOverride: FiberScope

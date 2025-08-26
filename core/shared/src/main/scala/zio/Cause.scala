@@ -928,6 +928,29 @@ object Cause extends Serializable {
     )
 
   /**
+   * Checks if a cause contains any defects
+   */
+  def containsDefects[E](cause: Cause[E]): Boolean = {
+    cause.fold(
+      empty = false,
+      failCase = _ => false,
+      dieCase = _ => true,  // Found a defect
+      interruptCase = _ => false
+    )(
+      thenCase = (left, right) => left || right,
+      bothCase = (left, right) => left || right,
+      stacklessCase = (value, _) => value
+    )
+  }
+  
+  /**
+   * Returns true if cause contains only failures (no defects or interruptions)
+   */
+  def isRecoverable[E](cause: Cause[E]): Boolean = {
+    !containsDefects(cause) && !cause.isInterrupted
+  }
+
+  /**
    * A Cause that contains one or more sub-causes
    */
   private[Cause] sealed trait CompositeCause[+E] { self: Cause[E] =>
