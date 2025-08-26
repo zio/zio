@@ -159,7 +159,16 @@ object TestArrowSpec extends ZIOBaseSpec {
           val span = Span(4, 2)
           assertTrue(span.substring("foo bar baz") == "")
         }
-      )
+      ),
+      test("stack safety - bug #10051") {
+        val depth = 4096 // TODO: this should really be much larger, like 20K, but `run` is not fully stack safe
+        val step  = TestArrow.fromFunction[Int, Int](_ + 1)
+        val arrow = (0 until depth).foldLeft(TestArrow.succeed(0): TestArrow[Any, Int]) { (acc, _) =>
+          acc >>> step
+        }
+        val testTrace = TestArrow.run(arrow, Right(()))
+        assertTrue(testTrace.result == Result.Succeed(depth))
+      }
     )
 
 }

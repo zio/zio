@@ -227,48 +227,38 @@ object TestArrow {
       case Right(value) => onSucceed(value)
     }
 
-  private def attempt[A](expr: => TestTrace[A]): TestTrace[A] =
-    try expr
-    catch {
-      case ex if NonFatal(ex) =>
-        ex.setStackTrace(ex.getStackTrace.filterNot { (ste: StackTraceElement) =>
-          ste.getClassName.startsWith("zio.test.TestArrow")
-        })
-        TestTrace.die(ex)
-    }
-
-  def run[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): TestTrace[B] = attempt {
+  private def runLoop[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): TestTrace[B] =
     arrow match {
       case TestArrowF(f) =>
         f(in)
 
       case AndThen(f, g) =>
-        val t1 = run(f, in)
+        val t1 = runLoop(f, in)
         t1.result match {
-          case Result.Fail           => t1.asInstanceOf[TestTrace[B]]
-          case Result.Die(err)       => t1 >>> run(g, Left(err))
-          case Result.Succeed(value) => t1 >>> run(g, Right(value))
+          case _: Result.Fail.type   => t1.asInstanceOf[TestTrace[B]]
+          case Result.Die(err)       => t1 >>> runLoop(g, Left(err))
+          case Result.Succeed(value) => t1 >>> runLoop(g, Right(value))
         }
 
       case And(lhs, rhs) =>
-        run(lhs, in) && run(rhs, in)
+        runLoop(lhs, in) && runLoop(rhs, in)
 
       case Or(lhs, rhs) =>
-        run(lhs, in) || run(rhs, in)
+        runLoop(lhs, in) || runLoop(rhs, in)
 
       case Not(arrow) =>
-        !run(arrow, in)
+        !runLoop(arrow, in)
 
       case Suspend(f) =>
         in match {
           case Left(exception) =>
             TestTrace.die(exception)
           case Right(value) =>
-            run(f(value), in)
+            runLoop(f(value), in)
         }
 
       case Meta(arrow, span, parentSpan, code, location, completeCode, customLabel, genFailureDetails) =>
-        run(arrow, in)
+        runLoop(arrow, in)
           .withSpan(span)
           .withCode(code)
           .withParentSpan(parentSpan)
@@ -278,7 +268,15 @@ object TestArrow {
           .withGenFailureDetails(genFailureDetails)
     }
 
-  }
+  def run[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): TestTrace[B] =
+    try runLoop(arrow, in)
+    catch {
+      case ex if NonFatal(ex) =>
+        ex.setStackTrace(ex.getStackTrace.filterNot { (ste: StackTraceElement) =>
+          ste.getClassName.startsWith("zio.test.TestArrow")
+        })
+        TestTrace.die(ex)
+    }
 
   case class Span(start: Int, end: Int) {
     def substring(str: String): String = {
