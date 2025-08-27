@@ -9,7 +9,6 @@ packages=(
   "@zio.dev/zio-direct"
   "@zio.dev/zio-dynamodb"
   "@zio.dev/zio-ftp"
-  "@zio.dev/zio-http"
   "@zio.dev/zio-json"
   "@zio.dev/zio-kafka"
   "@zio.dev/zio-lambda"
