@@ -1,13 +1,13 @@
 package zio.test.sbt
 
 import sbt.testing.{Status, TestSelector}
-import zio.ZIO
+import zio.{Scope, ZIO}
 import zio.test.{Spec, TestAspect, TestEnvironment, TestResult, ZIOSpecDefault, assertTrue}
 import zio.test.sbt.Colors.{green, red, yellow}
 import zio.test.sbt.ExecuteSpecs.{getEvents, getOutput, getOutputs}
 
 object ZTestFrameworkSpec extends ZIOSpecDefault {
-  override def spec: Spec[TestEnvironment with zio.Scope, Any] = suite("test framework")(
+  override def spec: Spec[TestEnvironment with Scope, Any] = suite("test framework")(
     test("framework fingerprints should be correct")(
       assertTrue(new ZTestFramework().fingerprints().toSeq == Seq(ZioSpecFingerprint))
     ),

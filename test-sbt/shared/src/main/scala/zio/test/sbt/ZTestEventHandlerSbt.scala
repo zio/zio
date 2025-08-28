@@ -2,7 +2,7 @@ package zio.test.sbt
 
 import sbt.testing.{Event, EventHandler, TaskDef}
 import zio.test.render.TestRenderer
-import zio.ZIO
+import zio.{Semaphore, UIO, Unsafe, ZIO}
 import zio.test.{ExecutionEvent, TestFailure, ZTestEventHandler}
 
 /**
@@ -19,24 +19,20 @@ final class ZTestEventHandlerSbt(
   taskDef: TaskDef,
   renderer: TestRenderer
 ) extends ZTestEventHandler {
-  private val semaphore: zio.Semaphore = zio.Semaphore.unsafe.make(1L)(zio.Unsafe)
-  private def forward(event: Event): ZIO[Any, Nothing, Unit] =
-    semaphore.withPermit(ZIO.succeed(eventHandler.handle(event)))
+  private val semaphore: Semaphore = Semaphore.unsafe.make(1L)(Unsafe)
 
-  override def handle(event: ExecutionEvent): zio.UIO[Unit] =
-    event match {
-      // TODO Is there a non-sbt version of this I need to add similar handling to?
-      case ExecutionEvent.TestStarted(_, _, _, _, _) => ZIO.unit
-      case test @ ExecutionEvent.Test(_, _, _, _, _, _, _) =>
-        forward(ZTestEvent.convertTestEvent(test, taskDef, renderer))
-      case ExecutionEvent.SectionStart(_, _, _) => ZIO.unit
-      case ExecutionEvent.SectionEnd(_, _, _)   => ZIO.unit
-      case ExecutionEvent.TopLevelFlush(_)      => ZIO.unit
-      case ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
-        failure match {
-          case TestFailure.Assertion(_, _) => ZIO.unit // Assertion failures all come through Execution.Test path above
-          case failure @ TestFailure.Runtime(_, _) =>
-            forward(ZTestEvent.convertRuntimeFailure(failure, taskDef))
-        }
+  override def handle(executionEvent: ExecutionEvent): UIO[Unit] = {
+    val event: Option[Event] = executionEvent match {
+      case test@ExecutionEvent.Test(_, _, _, _, _, _, _) =>
+        Some(ZTestEvent.convertTestEvent(test, taskDef, renderer))
+      case ExecutionEvent.RuntimeFailure(_, _, failure@TestFailure.Runtime(_, _), _) =>
+        Some(ZTestEvent.convertRuntimeFailure(failure, taskDef))
+      case _ =>
+        None
     }
+
+    event
+      .map(event => semaphore.withPermit(ZIO.succeed(eventHandler.handle(event))))
+      .getOrElse(ZIO.unit)
+  }
 }

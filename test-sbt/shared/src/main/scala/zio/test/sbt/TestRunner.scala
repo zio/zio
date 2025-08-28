@@ -1,7 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing.{Runner, Task, TaskDef}
-import zio.{Runtime, ZLayer}
+import zio.{Runtime, Scope, Trace, Unsafe, ZIOAppArgs, ZLayer}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{ExecutionEventPrinter, Summary, TestArgs, TestOutput, ZIOSpecAbstract}
 
@@ -39,12 +39,12 @@ abstract class TestRunner(
   protected def returnSummary: Boolean
 
   final override def tasks(taskDefs: Array[TaskDef]): Array[Task] =
-    tasks(taskDefs, zio.Console.ConsoleLive)(zio.Trace.empty).toArray
+    tasks(taskDefs, zio.Console.ConsoleLive)(Trace.empty).toArray
 
   final private[sbt] def tasks(
     taskDefs: Array[TaskDef],
     console: zio.Console
-  )(implicit trace: zio.Trace): Array[TestTask] = {
+  )(implicit trace: Trace): Array[TestTask] = {
     verifyNonDone()
 
     val withSpecs: Array[(TaskDef, ZIOSpecAbstract)] = taskDefs.map(taskDef => taskDef -> loadSpec(taskDef))
@@ -65,18 +65,18 @@ abstract class TestRunner(
   private def getSharedRuntime(
     specs: Array[ZIOSpecAbstract],
     console: zio.Console
-  )(implicit trace: zio.Trace): zio.Runtime.Scoped[TestOutput] = {
+  )(implicit trace: Trace): zio.Runtime.Scoped[TestOutput] = {
     val sharedTestOutputLayer: ZLayer[Any, Nothing, TestOutput] =
       ExecutionEventPrinter.live(console, testArgs.testEventRenderer, testArgs.reportsParent) >>> TestOutput.live
 
     val sharedLayerFromSpecs: ZLayer[Any, Any, Any] =
-      (zio.Scope.default ++ zio.ZIOAppArgs.empty) >>> specs
+      (Scope.default ++ ZIOAppArgs.empty) >>> specs
         .map(_.bootstrap)
-        .foldLeft(ZLayer.empty: ZLayer[zio.ZIOAppArgs, Any, Any])(_ +!+ _)
+        .foldLeft(ZLayer.empty: ZLayer[ZIOAppArgs, Any, Any])(_ +!+ _)
 
     val sharedLayer: ZLayer[Any, Any, TestOutput] = sharedLayerFromSpecs +!+ sharedTestOutputLayer
 
-    zio.Runtime.unsafe.fromLayer(sharedLayer)(trace, zio.Unsafe)
+    zio.Runtime.unsafe.fromLayer(sharedLayer)(trace, Unsafe)
   }
 
   private def toTask(
@@ -112,7 +112,7 @@ abstract class TestRunner(
 
     // If tests are forked, this will only be relevant in the forked
     // JVM, and will not be set in the original JVM.
-    sharedRuntimes.forEach(_.unsafe.shutdown()(zio.Unsafe))
+    sharedRuntimes.forEach(_.unsafe.shutdown()(Unsafe))
 
     val summaries: Seq[Summary] = this.summaries.toArray(Array.empty[Summary])
     val total: Int              = summaries.map(_.total).sum

@@ -17,6 +17,7 @@
 package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
+import zio.{CancelableFuture, Trace, Unsafe}
 import zio.test.{Summary, TestArgs, TestOutput, ZIOSpecAbstract}
 
 import scala.concurrent.Await
@@ -37,9 +38,9 @@ final class ZTestTask(
       sharedRuntime
     ) {
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
-    var resOutter: zio.CancelableFuture[Unit] = null
+    var resOutter: CancelableFuture[Unit] = null
     try {
-      resOutter = unsafeAPI.runToFuture(run(eventHandler)(zio.Trace.empty))(zio.Trace.empty, zio.Unsafe)
+      resOutter = unsafeAPI.runToFuture(run(eventHandler)(Trace.empty))(Trace.empty, Unsafe)
       Await.result(resOutter, Duration.Inf)
     } catch {
       case throwable: Throwable =>

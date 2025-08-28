@@ -2,7 +2,7 @@ package zio.test.sbt
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import sbt.testing.{EventHandler, Selector, Task, TaskDef, TestSelector, TestWildcardSelector}
-import zio.{ZIO, ZIOAppArgs, ZLayer}
+import zio.{Scope, Trace, ZIO, ZIOAppArgs, ZLayer}
 import zio.test.{Summary, TestArgs, TestEnvironment, TestOutput, ZIOSpecAbstract, ZTestEventHandler, testEnvironment}
 
 abstract class TestTask(
@@ -23,7 +23,7 @@ abstract class TestTask(
   final protected def unsafeAPI: zio.Runtime[Any]#UnsafeAPI = sharedRuntime.getOrElse(zio.Runtime.default).unsafe
 
   // Note: SBT loggers should be hooked in...
-  final private[sbt] def run(eventHandler: EventHandler)(implicit trace: zio.Trace): ZIO[Any, Throwable, Unit] = {
+  final private[sbt] def run(eventHandler: EventHandler)(implicit trace: Trace): ZIO[Any, Throwable, Unit] = {
     SignalHandlers.install()
 
     val testEventHandler: ZTestEventHandler = new ZTestEventHandlerSbt(
@@ -41,7 +41,7 @@ abstract class TestTask(
   private def runSpecWithSharedRuntimeLayer(
     testEventHandler: ZTestEventHandler,
     sharedRuntime: zio.Runtime.Scoped[TestOutput]
-  )(implicit trace: zio.Trace): ZIO[Any, Throwable, Unit] =
+  )(implicit trace: Trace): ZIO[Any, Throwable, Unit] =
     (for {
       summary <-
         spec.runSpecWithSharedRuntimeLayer(
@@ -58,7 +58,7 @@ abstract class TestTask(
   // Used on backends where shared layer is not supported.
   private def runSpecAsApp(
     testEventHandler: ZTestEventHandler
-  )(implicit trace: zio.Trace): ZIO[Any, Throwable, Unit] = ZIO.consoleWith { console =>
+  )(implicit trace: Trace): ZIO[Any, Throwable, Unit] = ZIO.consoleWith { console =>
     (for {
       summary <-
         spec.runSpecAsApp(
@@ -76,8 +76,8 @@ abstract class TestTask(
       }
   }
 
-  private def sharedFilledTestLayer: ZLayer[Any, Nothing, TestEnvironment with ZIOAppArgs with zio.Scope] =
-    ZIOAppArgs.empty +!+ testEnvironment +!+ zio.Scope.default
+  private def sharedFilledTestLayer: ZLayer[Any, Nothing, TestEnvironment with ZIOAppArgs with Scope] =
+    ZIOAppArgs.empty +!+ testEnvironment +!+ Scope.default
 
   private def argsWithSearchTermsFromSelectors: TestArgs = {
     val selectors: Array[Selector] = taskDef().selectors()

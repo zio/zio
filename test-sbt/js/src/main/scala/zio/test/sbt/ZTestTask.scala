@@ -17,6 +17,7 @@
 package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
+import zio.{Exit, Trace, Unsafe}
 import zio.test.{Summary, TestArgs, TestOutput, ZIOSpecAbstract}
 
 final class ZTestTask(
@@ -33,18 +34,18 @@ final class ZTestTask(
       testArgs,
       sharedRuntime
     ) {
-  // Note: on Scala.js this method is never called - next one is.
-  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = ???
+  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
+    throw new IllegalStateException("ZTestTask.execute() without continuation unexpectedly invoked on Scala.js")
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
     unsafeAPI
-      .fork(run(eventHandler)(zio.Trace.empty))(zio.Trace.empty, zio.Unsafe)
+      .fork(run(eventHandler)(Trace.empty))(Trace.empty, Unsafe)
       .unsafe
       .addObserver { exit =>
         exit match {
-          case zio.Exit.Failure(cause) => Console.err.println(s"$runnerType failed. $cause")
-          case _                       =>
+          case Exit.Failure(cause) => Console.err.println(s"$runnerType failed. $cause")
+          case _                   =>
         }
         continuation(Array())
-      }(zio.Unsafe)
+      }(Unsafe)
 }
