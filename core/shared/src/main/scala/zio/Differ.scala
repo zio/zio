@@ -157,6 +157,7 @@ object Differ {
   /**
    * Constructs a differ that knows how to diff `IsFatal` values.
    */
+  @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
   def isFatal: Differ[IsFatal, IsFatal.Patch] =
     new Differ[IsFatal, IsFatal.Patch] {
       def combine(first: IsFatal.Patch, second: IsFatal.Patch): IsFatal.Patch =

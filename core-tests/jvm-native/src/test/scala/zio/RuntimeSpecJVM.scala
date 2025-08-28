@@ -4,6 +4,7 @@ import zio.test.TestAspect.jvmOnly
 import zio.test._
 
 object RuntimeSpecJVM extends ZIOBaseSpec {
+  @annotation.nowarn("msg=IsFatal")
   def isFatal(t: Throwable): Boolean = FiberRef.currentFatal.initial.apply(t)
 
   def spec = suite("RuntimeSpecJVM")(
