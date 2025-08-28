@@ -23,9 +23,9 @@ final class ZTestEventHandlerSbt(
 
   override def handle(executionEvent: ExecutionEvent): UIO[Unit] = {
     val event: Option[Event] = executionEvent match {
-      case test@ExecutionEvent.Test(_, _, _, _, _, _, _) =>
+      case test @ ExecutionEvent.Test(_, _, _, _, _, _, _) =>
         Some(ZTestEvent.convertTestEvent(test, taskDef, renderer))
-      case ExecutionEvent.RuntimeFailure(_, _, failure@TestFailure.Runtime(_, _), _) =>
+      case ExecutionEvent.RuntimeFailure(_, _, failure @ TestFailure.Runtime(_, _), _) =>
         Some(ZTestEvent.convertRuntimeFailure(failure, taskDef))
       case _ =>
         None
