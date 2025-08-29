@@ -3993,12 +3993,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   /**
    * Retrieves the definition of a fatal error.
    */
+  @deprecated("isFatal is deprecated, kept only for binary compatability. Do not use.", "2.1.21")
   def isFatal(implicit trace: Trace): UIO[Throwable => Boolean] =
     isFatalWith(ZIO.successFn)
 
   /**
    * Constructs an effect based on the definition of a fatal error.
    */
+  @deprecated("isFatalWith is deprecated, kept only for binary compatability. Do not use.", "2.1.21")
   def isFatalWith[R, E, A](f: (Throwable => Boolean) => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     FiberRef.currentFatal.getWith(f)
 
