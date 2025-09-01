@@ -290,7 +290,7 @@ object TestClock extends Serializable {
     /**
      * Polls until all descendants of this fiber are done or suspended.
      */
-    private def awaitSuspended(implicit trace: Trace): UIO[Unit] =
+    private def awaitSuspended(waitFor: Duration)(implicit trace: Trace): UIO[Unit] =
       ZIO.suspendSucceed {
         val ref = new AtomicBoolean(false)
 
@@ -308,13 +308,14 @@ object TestClock extends Serializable {
         }
 
         // Sleep to give suspended fibers a chance to resume
-        val f = ClockLive.sleep(5.millis) *> freeze
+        val f = ClockLive.sleep(waitFor) *> freeze
         f.zipWith(f)(allSuspendedUnchanged)
           .flatMap {
             if (_) ZIO.succeed(ref.get)
             else if (ref.compareAndSet(false, true)) suspendedWarningStart *> Exit.failUnit
             else Exit.failUnit
           }
+          .tapError(ZIO.debug(_))
           .eventually
           .flatMap(ZIO.whenDiscard(_)(suspendedWarningDone))
       }
@@ -341,7 +342,7 @@ object TestClock extends Serializable {
                 if (f.id ne fiberId) f.getStatus() match {
                   case s: Fiber.Status.Suspended => map.update(f.id, s)
                   case Fiber.Status.Done         => ()
-                  case _                         => fail = true
+                  case _: Fiber.Status.Running   => fail = true
                 }
               }
               if (fail) Exit.failUnit else Exit.succeed(map)
@@ -360,28 +361,33 @@ object TestClock extends Serializable {
      * Runs all effects scheduled to occur on or before the specified instant,
      * which may depend on the current time, in order.
      */
-    private def run(f: Instant => Instant)(implicit trace: Trace): UIO[Unit] =
-      awaitSuspended *>
-        clockState.modify { data =>
-          val end = f(data.instant)
-          data.sleeps.sortBy(_._1) match {
-            case (instant, promise) :: sleeps if !end.isBefore(instant) =>
-              (
-                Some((end, promise)),
-                Data(instant, sleeps, data.timeZone)
-              )
-            case _ =>
-              (
-                None,
-                Data(end, data.sleeps, data.timeZone)
-              )
+    private def run(f: Instant => Instant)(implicit trace: Trace): UIO[Unit] = {
+      // Long wait for fibers to settle down
+      def loop(f: Instant => Instant, waitFor: Duration): UIO[Unit] =
+        awaitSuspended(waitFor) *>
+          clockState.modify { data =>
+            val end = f(data.instant)
+            data.sleeps.sortBy(_._1) match {
+              case (instant, promise) :: sleeps if !end.isBefore(instant) =>
+                (
+                  Some((end, promise)),
+                  Data(instant, sleeps, data.timeZone)
+                )
+              case sleeps =>
+                (
+                  None,
+                  Data(end, sleeps, data.timeZone)
+                )
+            }
+          }.flatMap {
+            case Some((end, promise)) =>
+              promise.unsafe.done(Exit.unit)(Unsafe)
+              // We don't need to await for long here because we're waiting for a single fiber and it will resume instantly
+              loop(_ => end, 50.micros)
+            case _ => Exit.unit
           }
-        }.flatMap {
-          case Some((end, promise)) =>
-            promise.unsafe.done(Exit.unit)(Unsafe)
-            run(_ => end)
-          case _ => Exit.unit
-        }
+      loop(f, 5.millis)
+    }
 
     /**
      * Forks a fiber that will display a warning message if a test is advancing
