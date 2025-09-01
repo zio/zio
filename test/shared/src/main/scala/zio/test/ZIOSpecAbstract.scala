@@ -116,12 +116,13 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
               testEventHandler
             )
         )
-      randomId <- Random.RandomLive.nextInt.map("test_case_" + _)
-      summary <- runner.run(
-                   randomId,
-                   aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers: @nowarn("cat=deprecation")
-                 )
-    } yield summary
+
+      val randomId = "test_case_" + ThreadLocalRandom.current().nextInt()
+      runner.run(
+        randomId,
+        aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers: @nowarn("cat=deprecation")
+      )
+    }
   }
 
   private[zio] def runSpecWithSharedRuntimeLayer(

@@ -505,9 +505,6 @@ object TestAspect extends TimeoutVariants {
         )
     }
 
-  @deprecated("This aspect is automatically applied to all tests and can be safely removed", since = "2.1.17")
-  lazy val fibers: TestAspectPoly = supervisedFibers
-
   /**
    * An aspect that records the state of fibers spawned by the current test in
    * [[TestAnnotation.fibers]].
