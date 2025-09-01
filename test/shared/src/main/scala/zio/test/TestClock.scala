@@ -214,13 +214,11 @@ object TestClock extends Serializable {
         if (duration0 <= Duration.Zero) Exit.unit
         else if (duration0 == Duration.Infinity) ZIO.never
         else {
+          val promise = Promise.unsafe.make[Nothing, Unit](FiberId.None)
+          val f       = warningStart *> promise.await
           clockState.unsafe.modify { data =>
             val end = data.instant.plus(duration0)
-            if (end.isAfter(data.instant)) {
-              val promise = Promise.unsafe.make[Nothing, Unit](FiberId.None)
-              (warningStart *> promise.await, data.copy(sleeps = (end, promise) :: data.sleeps))
-            } else
-              (Exit.unit, data)
+            (f, data.copy(sleeps = (end, promise) :: data.sleeps))
           }
         }
       }
@@ -368,13 +366,20 @@ object TestClock extends Serializable {
           val end = f(data.instant)
           data.sleeps.sortBy(_._1) match {
             case (instant, promise) :: sleeps if !end.isBefore(instant) =>
-              (Some((end, promise)), Data(instant, sleeps, data.timeZone))
-            case _ => (None, Data(end, data.sleeps, data.timeZone))
+              (
+                Some((end, promise)),
+                Data(instant, sleeps, data.timeZone)
+              )
+            case _ =>
+              (
+                None,
+                Data(end, data.sleeps, data.timeZone)
+              )
           }
         }.flatMap {
           case Some((end, promise)) =>
             promise.unsafe.done(Exit.unit)(Unsafe)
-            ZIO.yieldNow *> run(_ => end)
+            run(_ => end)
           case _ => Exit.unit
         }
 
