@@ -315,7 +315,6 @@ object TestClock extends Serializable {
             else if (ref.compareAndSet(false, true)) suspendedWarningStart *> Exit.failUnit
             else Exit.failUnit
           }
-          .tapError(ZIO.debug(_))
           .eventually
           .flatMap(ZIO.whenDiscard(_)(suspendedWarningDone))
       }
