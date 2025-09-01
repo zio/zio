@@ -1,0 +1,78 @@
+.zionomicon {
+  display: flex;
+  align-items: center;
+  padding: 4rem 0;
+  width: 100%;
+  background-color: var(--ifm-color-emphasis-0);
+}
+
+.wideContainer {
+  margin: 0 auto;
+  padding: 0 var(--ifm-spacing-horizontal);
+  width: 100%;
+  max-width: 1400px;
+}
+
+.ziconContent {
+  padding: 2rem;
+}
+
+.ziconSubtitle {
+  font-size: 1.2rem;
+  color: var(--ifm-color-primary);
+  margin-bottom: 1.5rem;
+}
+
+.ziconContent ul {
+  margin-bottom: 2rem;
+}
+
+.ziconContent li {
+  margin-bottom: 0.5rem;
+}
+
+.buttonContainer {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.ziconImageContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.ziconImage {
+  max-width: 100%;
+  height: auto;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  transition: transform 0.3s ease;
+  cursor: pointer;
+}
+
+.ziconImage:hover {
+  transform: scale(1.05);
+}
+
+/* Responsive styles */
+@media (max-width: 996px) {
+  .zionomicon .row {
+    flex-direction: column-reverse;
+  }
+
+  .ziconContent {
+    padding: 2rem 1rem;
+    text-align: center;
+  }
+
+  .ziconContent ul {
+    display: inline-block;
+    text-align: left;
+  }
+
+  .ziconImageContainer {
+    padding: 2rem 1rem 0.5rem 1rem;
+  }
+}

@@ -114,7 +114,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] extends ZLayerVersionSpecific[RIn,
    * Builds a layer into a scoped value.
    */
   final def build(implicit trace: Trace): ZIO[RIn with Scope, E, ZEnvironment[ROut]] =
-    ZIO.serviceWithZIO[Scope](build(_))
+    ZIO.scopeWith(build(_))
 
   /**
    * Builds a layer into a ZIO value. Any resources associated with this layer
@@ -124,11 +124,10 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] extends ZLayerVersionSpecific[RIn,
    * layer is provided to.
    */
   final def build(scope: => Scope)(implicit trace: Trace): ZIO[RIn, E, ZEnvironment[ROut]] =
-    for {
-      memoMap <- ZLayer.MemoMap.make
-      run     <- self.scope(scope)
-      value   <- run(memoMap)
-    } yield value
+    ZIO.suspendSucceed {
+      val memoMap = new ZLayer.MemoMap()(trace, Unsafe)
+      self.scope(scope, memoMap)
+    }
 
   /**
    * Recovers from all errors.
@@ -234,9 +233,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] extends ZLayerVersionSpecific[RIn,
    * your entire application is a layer, such as an HTTP server.
    */
   final def launch(implicit trace: Trace): ZIO[RIn, E, Nothing] =
-    ZIO.scoped[RIn] {
-      ZIO.serviceWithZIO[Scope](build(_)) *> ZIO.never
-    }
+    ZIO.scopedWith(build(_) *> ZIO.never)
 
   /**
    * Returns a new layer whose output is mapped by the specified function.
@@ -396,57 +393,47 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] extends ZLayerVersionSpecific[RIn,
    * Returns whether this layer is a fresh version that will not be shared.
    */
   private final def isFresh: Boolean =
-    self match {
-      case ZLayer.Fresh(_) => true
-      case _               => false
-    }
+    self.isInstanceOf[ZLayer.Fresh[?, ?, ?]]
 
-  private final def scope(scope: Scope)(implicit
-    trace: Trace
-  ): ZIO[Any, Nothing, ZLayer.MemoMap => ZIO[RIn, E, ZEnvironment[ROut]]] =
+  private final def scope(
+    scope: Scope,
+    memoMap: ZLayer.MemoMap
+  )(implicit trace: Trace): ZIO[RIn, E, ZEnvironment[ROut]] = ZIO.suspendSucceed {
     self match {
-      case ZLayer.Apply(self) =>
-        ZIO.succeed(_ => self)
-      case ZLayer.ExtendScope(self) =>
-        ZIO.succeed { memoMap =>
-          ZIO.scopeWith { scope =>
-            memoMap.getOrElseMemoize(scope)(self)
-          }
-            .asInstanceOf[ZIO[RIn, E, ZEnvironment[ROut]]]
-        }
-      case ZLayer.Fold(self, failure, success) =>
-        ZIO.succeed { memoMap =>
-          memoMap
-            .getOrElseMemoize(scope)(self)
-            .foldCauseZIO(
-              e => memoMap.getOrElseMemoize(scope)(failure(e)),
-              r => memoMap.getOrElseMemoize(scope)(success(r))
-            )
-        }
-      case ZLayer.Fresh(self) =>
-        ZIO.succeed(_ => self.build(scope))
-      case ZLayer.Scoped(self) =>
-        ZIO.succeed(_ => scope.extend[RIn](self))
       case ZLayer.Suspend(self) =>
-        ZIO.succeed(memoMap => memoMap.getOrElseMemoize(scope)(self()))
+        memoMap.getOrElseMemoize(scope)(self())
+      case ZLayer.Apply(self) =>
+        self
+      case ZLayer.ExtendScope(self) =>
+        ZIO
+          .scopeWith(memoMap.getOrElseMemoize(_)(self))
+          .asInstanceOf[ZIO[RIn, E, ZEnvironment[ROut]]]
+      case ZLayer.Fold(self, failure, success) =>
+        memoMap
+          .getOrElseMemoize(scope)(self)
+          .foldCauseZIO(
+            e => memoMap.getOrElseMemoize(scope)(failure(e)),
+            r => memoMap.getOrElseMemoize(scope)(success(r))
+          )
+      case ZLayer.Fresh(self) =>
+        self.build(scope)
+      case ZLayer.Scoped(self) =>
+        scope.extend[RIn](self)
       case ZLayer.To(self, that) =>
-        ZIO.succeed(memoMap =>
-          memoMap
-            .getOrElseMemoize(scope)(self)
-            .flatMap(r => memoMap.getOrElseMemoize(scope)(that).provideEnvironment(r)(trace))
-        )
+        memoMap
+          .getOrElseMemoize(scope)(self)
+          .flatMap(r => memoMap.getOrElseMemoize(scope)(that).provideEnvironment(r))
       case ZLayer.ZipWith(self, that, f) =>
-        ZIO.succeed(memoMap => memoMap.getOrElseMemoize(scope)(self).zipWith(memoMap.getOrElseMemoize(scope)(that))(f))
+        memoMap.getOrElseMemoize(scope)(self).zipWith(memoMap.getOrElseMemoize(scope)(that))(f)
       case ZLayer.ZipWithPar(self, that, f) =>
-        ZIO.succeed { memoMap =>
-          for {
-            parallel <- scope.forkWith(ExecutionStrategy.Parallel)
-            left     <- parallel.forkWith(scope.executionStrategy)
-            right    <- parallel.forkWith(scope.executionStrategy)
-            out      <- memoMap.getOrElseMemoize(left)(self).zipWithPar(memoMap.getOrElseMemoize(right)(that))(f)
-          } yield out
-        }
+        for {
+          parallel <- scope.forkWith(ExecutionStrategy.Parallel)
+          left     <- parallel.forkWith(scope.executionStrategy)
+          right    <- parallel.forkWith(scope.executionStrategy)
+          out      <- memoMap.getOrElseMemoize(left)(self).zipWithPar(memoMap.getOrElseMemoize(right)(that))(f)
+        } yield out
     }
+  }
 }
 
 object ZLayer extends ZLayerCompanionVersionSpecific {
@@ -596,7 +583,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
        * Constructs a default layer using the provided value.
        */
       def succeed[A: Tag](a: => A)(implicit trace: Trace): Default.WithContext[Any, Nothing, A] =
-        Default.fromZIO(ZIO.succeed(a))
+        Default.fromZIO(Exit.succeed(a))
 
       /**
        * Constructs a default layer using the provided ZIO value.
@@ -894,14 +881,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from the specified value.
    */
   def succeed[A: Tag](a: => A)(implicit trace: Trace): ULayer[A] =
-    ZLayer.fromZIOEnvironment(ZIO.succeed(ZEnvironment(a)))
+    ZLayer.fromZIOEnvironment(Exit.succeed(ZEnvironment(a)))
 
   /**
    * Constructs a layer from the specified value, which must return one or more
    * services.
    */
   def succeedEnvironment[A](a: => ZEnvironment[A])(implicit trace: Trace): ULayer[A] =
-    ZLayer.fromZIOEnvironment(ZIO.succeed(a))
+    ZLayer.fromZIOEnvironment(Exit.succeed(a))
 
   /**
    * Lazily constructs a layer. This is useful to avoid infinite recursion when
@@ -2350,80 +2337,77 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * A `MemoMap` memoizes layers.
    */
-  private abstract class MemoMap { self =>
+  private final class MemoMap(implicit trace: Trace, unsafe: Unsafe) { self =>
+    private[this] val ref =
+      Ref.Synchronized.unsafe
+        .make(Map.empty[ZLayer[Nothing, Any, Any], (IO[Any, Any], Exit[Any, Any] => UIO[Any])])
 
     /**
      * Checks the memo map to see if a layer exists. If it is, immediately
-     * returns it.'' Otherwise, obtains the layer, stores it in the memo map,
-     * and adds a finalizer to the `Scope`.
+     * returns it. Otherwise, obtains the layer, stores it in the memo map, and
+     * adds a finalizer to the `Scope`.
      */
-    def getOrElseMemoize[E, A, B](scope: Scope)(layer: ZLayer[A, E, B]): ZIO[A, E, ZEnvironment[B]]
-  }
-
-  private object MemoMap {
-
-    /**
-     * Constructs an empty memo map.
-     */
-    def make(implicit trace: Trace): UIO[MemoMap] =
-      Ref.Synchronized
-        .make[Map[ZLayer[Nothing, Any, Any], (IO[Any, Any], Exit[Any, Any] => UIO[Any])]](Map.empty)
-        .map { ref =>
-          new MemoMap { self =>
-            final def getOrElseMemoize[E, A, B](scope: Scope)(
-              layer: ZLayer[A, E, B]
-            ): ZIO[A, E, ZEnvironment[B]] =
-              ref.modifyZIO { map =>
-                map.getOrElse(layer, null) match {
-                  case (acquire, release) =>
-                    val cached: ZIO[Any, E, ZEnvironment[B]] = acquire
-                      .asInstanceOf[IO[E, (FiberRefs.Patch, ZEnvironment[B])]]
-                      .flatMap { case (patch, b) => ZIO.patchFiberRefs(patch).as(b) }
-                      .onExit {
-                        case Exit.Success(_) => scope.addFinalizerExit(release)
-                        case Exit.Failure(_) => ZIO.unit
+    def getOrElseMemoize[E, A, B](scope: Scope)(layer: ZLayer[A, E, B]): ZIO[A, E, ZEnvironment[B]] =
+      ref.modifyZIO { map =>
+        map.getOrElse(layer, null) match {
+          case (acquire, release) =>
+            val cached = acquire
+              .asInstanceOf[IO[E, (FiberRefs.Patch, ZEnvironment[B])]]
+              .flatMap { case (patch, b) => ZIO.patchFiberRefs(patch).as(b) }
+              .onExit {
+                case _: Exit.Success[?] => scope.addFinalizerExit(release)
+                case _                  => Exit.unit
+              }
+            Exit.succeed((cached, map))
+          case null =>
+            ZIO.fiberIdWith { fiberId =>
+              val promise      = Promise.unsafe.make[E, (FiberRefs.Patch, ZEnvironment[B])](fiberId)
+              val observers    = new AtomicInteger(0)
+              val finalizerRef = new AtomicReference[Exit[Any, Any] => UIO[Any]](ZIO.unitZIOFn)
+              val resource = ZIO.uninterruptibleMask { restore =>
+                val innerScope = Scope.unsafe.make
+                restore(
+                  layer
+                    .scope(innerScope, self)
+                    .diffFiberRefs
+                ).exitWith {
+                  case e @ Exit.Success((_, b)) =>
+                    finalizerRef.set { (e: Exit[Any, Any]) =>
+                      ZIO.suspendSucceed {
+                        if (observers.getAndDecrement() == 1) innerScope.close(e)
+                        else Exit.unit
                       }
-
-                    ZIO.succeed((cached, map))
-                  case null =>
-                    ZIO.succeedUnsafe { implicit unsafe =>
-                      val observers    = new AtomicInteger(0)
-                      val promise      = Promise.unsafe.make[E, (FiberRefs.Patch, ZEnvironment[B])](FiberId.None)
-                      val finalizerRef = new AtomicReference[Exit[Any, Any] => UIO[Any]](_ => ZIO.unit)
-                      val resource = ZIO.uninterruptibleMask { restore =>
-                        val outerScope = scope
-                        val innerScope = Scope.unsafe.make
-                        restore(
-                          layer
-                            .scope(innerScope)
-                            .flatMap(_.apply(self).diffFiberRefs)
-                        ).exit.flatMap {
-                          case e @ Exit.Failure(cause) =>
-                            promise.failCause(cause) *> innerScope.close(e) *> ZIO.failCause(cause)
-                          case Exit.Success((patch, b)) =>
-                            finalizerRef.set { (e: Exit[Any, Any]) =>
-                              ZIO.whenDiscard(observers.getAndDecrement() == 1)(innerScope.close(e))
-                            }
-                            observers.incrementAndGet()
-                            outerScope.addFinalizerExit(e => ZIO.suspendSucceed(finalizerRef.get.apply(e))).as {
-                              promise.unsafe.succeed((patch, b))
-                              b
-                            }
-                        }
-                      }
-                      val memoized = (
-                        promise.await.exitWith {
-                          case exit: Exit.Success[?] => observers.incrementAndGet(); exit
-                          case exit                  => exit
-                        },
-                        (exit: Exit[Any, Any]) => ZIO.suspendSucceed(finalizerRef.get.apply(exit))
-                      )
-                      (resource, if (layer.isFresh) map else map.updated(layer, memoized))
                     }
+                    observers.incrementAndGet()
+                    scope
+                      .addFinalizerExit(e => ZIO.suspendSucceed(finalizerRef.get.apply(e)))
+                      .as {
+                        promise.unsafe.done(e)
+                        b
+                      }
+                  case e @ Exit.Failure(cause) =>
+                    promise.unsafe.done(e)
+                    innerScope.close(e) *> ZIO.failCause(cause)
                 }
-              }.flatten
-          }
+              }
+
+              val map0 =
+                if (layer.isFresh) map
+                else {
+                  val memoized = (
+                    promise.await.exitWith {
+                      case exit: Exit.Success[?] => observers.incrementAndGet(); exit
+                      case exit                  => exit
+                    },
+                    (exit: Exit[Any, Any]) => ZIO.suspendSucceed(finalizerRef.get.apply(exit))
+                  )
+                  map.updated(layer, memoized)
+                }
+
+              Exit.succeed((resource, map0))
+            }
         }
+      }.flatten
   }
 
   implicit final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {

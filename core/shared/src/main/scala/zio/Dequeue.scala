@@ -19,7 +19,7 @@ package zio
 /**
  * A queue that can only be dequeued.
  */
-trait Dequeue[+A] extends Serializable {
+sealed trait Dequeue[+A] extends Serializable {
 
   /**
    * Waits until the queue is shutdown. The `IO` returned by this method will
@@ -113,4 +113,7 @@ trait Dequeue[+A] extends Serializable {
    */
   def poll(implicit trace: Trace): UIO[Option[A]] =
     takeUpTo(1).map(_.headOption)
+}
+private[zio] object Dequeue {
+  private[zio] abstract class Internal[+A] extends Dequeue[A]
 }

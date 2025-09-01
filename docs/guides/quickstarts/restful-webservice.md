@@ -6,7 +6,7 @@ sidebar_label: "RESTful Web Service"
 
 This quickstart shows how to build a RESTful web service using ZIO. It uses
 
-- [ZIO HTTP](https://zio.dev/zio-http/) for the HTTP server
+- [ZIO HTTP](https://ziohttp.com/) for the HTTP server
 - [ZIO JSON](https://zio.dev/zio-schema/) for schema generation and JSON serialization
 - [ZIO Quill](https://zio.dev/zio-quill/) for type-safe queries on the JDBC database
 
@@ -34,7 +34,7 @@ sbt reStart
 :::note
 If you encounter a "port already in use" error, you can use `sbt-revolver` to manage server restarts more effectively. The `reStart` command will start your server and `reStop` will properly stop it, releasing the port.
 
-To enable this feature, we have included `sbt-revolver` in the project. For more details on this, refer to the [ZIO HTTP documentation on hot-reloading](https://zio.dev/zio-http/installation#hot-reload-changes-watch-mode).
+To enable this feature, we have included `sbt-revolver` in the project. For more details on this, refer to the [ZIO HTTP documentation on hot-reloading](https://ziohttp.com/installation#hot-reload-changes-watch-mode).
 :::
 
 ## Testing The Quickstart

@@ -22,6 +22,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ThreadLocalRandom
 
+import scala.annotation.nowarn
+
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecific {
   self =>
@@ -103,7 +105,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       val perTestLayer =
         (ZLayer.succeedEnvironment[Scope](env) ++ liveEnvironment) >>>
           (TestEnvironment.live ++ ZLayer.environment[Scope])
-      val executionEventSinkLayer = ExecutionEventSink.live(console, testArgs.testEventRenderer)
+      val executionEventSinkLayer = ExecutionEventSink.live(console, testArgs.testEventRenderer, testArgs.reportsParent)
       val runner =
         TestRunner(
           TestExecutor
@@ -114,10 +116,12 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
               testEventHandler
             )
         )
-      val randomId = s"test_case_" + ThreadLocalRandom.current().nextInt()
-      val spec0    = aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.supervisedFibers
-      runner.run(randomId, spec0)
-    }
+      randomId <- Random.RandomLive.nextInt.map("test_case_" + _)
+      summary <- runner.run(
+                   randomId,
+                   aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers: @nowarn("cat=deprecation")
+                 )
+    } yield summary
   }
 
   private[zio] def runSpecWithSharedRuntimeLayer(
@@ -143,6 +147,9 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
           ZLayer.succeedEnvironment(castedRuntime.environment) >>> ExecutionEventSink.live,
           testEventHandler
         )
-    ).run(fullyQualifiedName, aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.supervisedFibers)
+    ).run(
+      fullyQualifiedName,
+      aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers: @nowarn("cat=deprecation")
+    )
   }
 }

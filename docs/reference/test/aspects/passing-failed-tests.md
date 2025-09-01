@@ -9,8 +9,8 @@ The `failing` aspect makes a test that failed for any reason pass.
 import zio._
 import zio.test.{test, _}
 
-test("failing a passing test") {
-  assertTrue(true)
+test("passing a failing test") {
+  assertTrue(false)
 } @@ TestAspect.failing
 ```
 
@@ -20,8 +20,8 @@ If the test passes this aspect will make it fail:
 import zio._
 import zio.test.{test, _}
 
-test("passing a failing test") {
-  assertTrue(false)
+test("failing a passing test") {
+  assertTrue(true)
 } @@ TestAspect.failing
 ```
 

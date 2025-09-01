@@ -4,6 +4,7 @@ import zio.ZIO.Async
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicReference
 
 private[zio] trait ZIOCompanionVersionSpecific {
 
@@ -22,7 +23,14 @@ private[zio] trait ZIOCompanionVersionSpecific {
     register: (ZIO[R, E, A] => Unit) => Unit,
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    Async(trace, k => { register(k); null.asInstanceOf[ZIO[R, E, A]] }, () => blockingOn)
+    Async(
+      trace,
+      k => {
+        register(k)
+        null
+      },
+      () => blockingOn
+    )
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -43,24 +51,7 @@ private[zio] trait ZIOCompanionVersionSpecific {
     register: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed {
-      val cancelerRef = new java.util.concurrent.atomic.AtomicReference[URIO[R, Any]](ZIO.unit)
-
-      ZIO
-        .Async[R, E, A](
-          trace,
-          { k =>
-            val result = register(k(_))
-
-            result match {
-              case Left(canceler) => cancelerRef.set(canceler); null.asInstanceOf[ZIO[R, E, A]]
-              case Right(done)    => done
-            }
-          },
-          () => blockingOn
-        )
-        .onInterrupt(cancelerRef.get())
-    }
+    ZIO.Async[R, E, A](trace, register, () => blockingOn)
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -81,7 +72,14 @@ private[zio] trait ZIOCompanionVersionSpecific {
     register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    Async(trace, k => { register(k).orNull }, () => blockingOn)
+    Async(
+      trace,
+      register(_) match {
+        case Some(value) => Right(value)
+        case _           => null
+      },
+      () => blockingOn
+    )
 
   /**
    * Returns an effect that, when executed, will cautiously run the provided

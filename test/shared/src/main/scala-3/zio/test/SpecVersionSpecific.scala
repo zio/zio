@@ -10,17 +10,48 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
   inline def provide[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[Any, E1] =
     ${ SpecLayerMacros.provideImpl[Any, R, E1]('self, 'layer) }
 
+  /**
+   * Splits the environment into two parts, providing each test with one part
+   * using the specified layer and leaving the remainder `R0`.
+   *
+   * {{{
+   * val spec: ZSpec[Clock with Random, Nothing] = ???
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val spec2: ZSpec[Random, Nothing] = spec.provideSome[Random](clockLayer)
+   * }}}
+   */
   def provideSome[R0] =
     new ProvideSomePartiallyApplied[R0, R, E](self)
 
+  /**
+   * Equivalent to [[provideSome]], but does not require providing the remainder
+   * type
+   *
+   * {{{
+   * val spec: ZSpec[Clock with Random, Nothing] = ???
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val spec2 = spec.provideSome(clockLayer) // Inferred type is ZSpec[Random, Nothing]
+   * }}}
+   */
   inline transparent def provideSomeAuto[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[_, E1] =
     ${ SpecLayerMacros.provideAutoImpl[R, E1]('self, 'layer) }
 
+  /**
+   * Splits the environment into two parts, providing all tests with a shared
+   * version of one part using the specified layer and leaving the remainder
+   * `R0`.
+   *
+   * {{{
+   * val spec: ZSpec[Int with Random, Nothing] = ???
+   * val intLayer: ZLayer[Any, Nothing, Int] = ???
+   *
+   * val spec2 = spec.provideSomeShared[Random](intLayer)
+   * }}}
+   */
   def provideSomeShared[R0] =
     new ProvideSomeSharedPartiallyApplied[R0, R, E](self)
-
-  inline transparent def provideSomeSharedAuto[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[_, E1] =
-    ${ SpecLayerMacros.provideSharedAutoImpl[R, E1]('self, 'layer) }
 
   /**
    * Automatically constructs the part of the environment that is not part of
@@ -77,10 +108,10 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
 
 final class ProvideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
   inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[R0, E1] =
-    ${ SpecLayerMacros.provideImpl[R0, R, E1]('self, 'layer) }
+    ${ SpecLayerMacros.provideSomeImpl[R0, R, E1]('self, 'layer) } // TODO:
 }
 
 final class ProvideSomeSharedPartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
   inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[R0, E1] =
-    ${ SpecLayerMacros.provideSharedImpl[R0, R, E1]('self, 'layer) }
+    ${ SpecLayerMacros.provideSomeSharedImpl[R0, R, E1]('self, 'layer) }
 }

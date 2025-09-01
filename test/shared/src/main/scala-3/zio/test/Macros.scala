@@ -157,7 +157,7 @@ object SmartAssertMacros {
       }
 
     def getSpan(term: quotes.reflect.Term): Expr[(Int, Int)] =
-      Expr(term.pos.start - summon[PositionContext].start, term.pos.end - summon[PositionContext].start)
+      Expr((term.pos.start - summon[PositionContext].start, term.pos.end - summon[PositionContext].start))
 
     expr match {
       case '{ type t; type v; SmartAssertionOps[`t`](${ something }: `t`).is[`v`](${ Unseal(Lambda(terms, body)) }) } =>
@@ -315,9 +315,9 @@ object SmartAssertMacros {
 
       case Unseal(MethodCall(lhs, "==", tpes, Some(List(rhs)))) =>
         val span = getSpan(rhs)
-        lhs.tpe.widen.asType match {
-          case '[l] =>
-            Expr.summon[OptionalImplicit[Diff[l]]] match {
+        (lhs.tpe.widen.asType, rhs.tpe.widen.asType) match {
+          case ('[l], '[r]) =>
+            Expr.summon[OptionalImplicit[Diff[l | r]]] match {
               case Some(optDiff) =>
                 '{
                   ${ transform(lhs.asExpr) } >>> SmartAssertions
@@ -345,29 +345,42 @@ object SmartAssertMacros {
         }
 
       case Unseal(method @ MethodCall(lhs, name, tpeArgs, args)) =>
-        def body(param: Term) =
+        def body(param: Term): Term =
           (tpeArgs, args) match {
             case (Nil, None) =>
               try Select.unique(param, name)
               catch {
                 case _: AssertionError =>
-                  def getFieldOrMethod(s: Symbol) =
-                    s.fieldMembers
+                  def getFieldOrMethod(tpe: TypeRepr, owner: Tree): Select = {
+                    val s = tpe.typeSymbol
+                    val member = s.fieldMembers
                       .find(f => f.name == name)
                       .orElse(s.methodMember(name).filter(_.declarations.nonEmpty).headOption)
+                      .getOrElse(
+                        report.errorAndAbort(s"Could not resolve $name on ${owner.show(using Printer.TreeStructure)}")
+                      )
+                    Select(param, member)
+                  }
 
-                  // Tries to find directly the referenced method on lhs's type (or if lhs is method, on lhs's returned type)
-                  lhs.symbol.tree match {
-                    case DefDef(_, _, tpt, _) =>
-                      getFieldOrMethod(tpt.symbol) match {
-                        case Some(fieldOrMethod) => Select(param, fieldOrMethod)
-                        case None                => throw new Error(s"Could not resolve $name on $tpt")
-                      }
-                    case _ =>
-                      getFieldOrMethod(lhs.symbol) match {
-                        case Some(fieldOrMethod) => Select(param, fieldOrMethod)
-                        case None                => throw new Error(s"Could not resolve $name on $lhs")
-                      }
+                  lhs.underlyingArgument match {
+                    case Block(List(cls: ClassDef), term) =>
+                      // if this is new instance of anonymous class - take symbol from it instead of block
+                      getFieldOrMethod(term.tpe, term)
+
+                    case Typed(Block(List(cls: ClassDef), term), _) =>
+                      getFieldOrMethod(term.tpe, term)
+
+                    // Tries to find directly the referenced method on lhs's type (or if lhs is method, on lhs's returned type)
+                    case lhs =>
+                      if lhs.symbol == Symbol.noSymbol then
+                        report.errorAndAbort(s"Can't get symbol of ${lhs.show(using Printer.TreeStructure)}")
+                      else
+                        lhs.symbol.tree match {
+                          case DefDef(_, _, tpt, _) =>
+                            getFieldOrMethod(tpt.tpe, tpt)
+                          case _ =>
+                            getFieldOrMethod(lhs.tpe, lhs)
+                        }
                   }
               }
             case (tpeArgs, Some(args)) => Select.overloaded(param, name, tpeArgs, args)

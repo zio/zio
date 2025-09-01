@@ -23,6 +23,8 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.immutable.SortedSet
 import scala.collection.mutable
 
+import scala.collection.mutable
+
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of
  * an aspect as a polymorphic function, capable of transforming one test into
@@ -508,39 +510,46 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that records the state of fibers spawned by the current test in
-   * [[TestAnnotation.fibers]]. Applied by default in [[ZIOSpecAbstract]]. This
-   * aspect is required for the proper functioning of `TestClock.adjust`.
+   * [[TestAnnotation.fibers]].
+   *
+   * '''NOTE''': Since this aspect is required for the proper functioning of
+   * `TestClock.adjust`, it is applied to all tests automatically. There is no
+   * need to apply this aspect manually to tests.
    */
-  private[test] val supervisedFibers: TestAspectPoly =
+  @deprecated(
+    "This aspect is applied automatically to all tests and no longer needs to be provided explicitly",
+    "2.1.20"
+  )
+  val fibers: TestAspectPoly =
     new PerTest.Poly {
-      private implicit val trace: Trace = Trace.empty
-
-      private val acquire = ZIO.succeed(new AtomicReference(SortedSet.empty[Fiber.Runtime[Any, Any]])).tap { ref =>
-        Annotations.annotate(TestAnnotation.fibers, Right(Chunk(ref)))
-      }
-
-      private val release = Annotations.get(TestAnnotation.fibers).flatMap {
-        case Right(refs) =>
-          val refs0 = refs.map(_.get()).filter(_.nonEmpty)
-          val n = refs0.size match {
-            case 0 => 0
-            case 1 => refs0.head.size
-            case _ =>
-              val set = mutable.HashSet.empty[Fiber.Runtime[Any, Any]]
-              val it  = refs0.iterator
-              while (it.hasNext) set ++= it.next()
-              set.size
-          }
-          Annotations.annotate(TestAnnotation.fibers, Left(n))
-        case _ => Exit.unit
-      }
-
       def perTest[R, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
-      )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
+      )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] = {
+        val acquire = ZIO.suspendSucceed {
+          val ref = new AtomicReference(SortedSet.empty[Fiber.Runtime[Any, Any]])
+          Annotations.annotate(TestAnnotation.fibers, Right(Chunk.single(ref))).as(ref)
+        }
+
+        val release = Annotations.get(TestAnnotation.fibers).flatMap {
+          case Right(refs) =>
+            val n =
+              if (refs.size == 1) {
+                refs.head.get().size
+              } else {
+                val it      = refs.iterator
+                val builder = new mutable.HashSet[Fiber.Runtime[?, ?]]()
+                while (it.hasNext) {
+                  builder ++= it.next().get()
+                }
+                builder.result().size
+              }
+            Annotations.annotate(TestAnnotation.fibers, Left(n))
+          case _ => Exit.unit
+        }
         ZIO.acquireReleaseWith(acquire)(_ => release) {
           Supervisor.fibersIn(_).flatMap(test.supervised(_))
         }
+      }
     }
 
   /**

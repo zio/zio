@@ -358,7 +358,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     maximumLag: => Int
   )(implicit trace: Trace): ZIO[R with Scope, Nothing, Chunk[Dequeue[Take[E, A]]]] =
     for {
-      hub    <- Hub.bounded[Take[E, A]](maximumLag)
+      hub    <- ZIO.acquireRelease(Hub.bounded[Take[E, A]](maximumLag))(_.shutdown)
       queues <- ZIO.collectAll(Chunk.fill(n)(hub.subscribe))
       _      <- self.runIntoHubScoped(hub).forkScoped
     } yield queues
@@ -3523,24 +3523,10 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * Converts this stream into a `scala.collection.Iterator` wrapped in a scoped
    * [[ZIO]]. The returned iterator will only be valid within the scope.
    */
-  def toIterator(implicit trace: Trace): ZIO[R with Scope, Nothing, Iterator[Either[E, A]]] =
-    for {
-      runtime <- ZIO.runtime[R]
-      pull    <- toPull
-    } yield {
-      def unfoldPull: Iterator[Either[E, A]] =
-        runtime.unsafe.run(pull)(trace, Unsafe.unsafe) match {
-          case Exit.Success(chunk) => chunk.iterator.map(Right(_)) ++ unfoldPull
-          case Exit.Failure(cause) =>
-            cause.failureOrCause match {
-              case Left(None)    => Iterator.empty
-              case Left(Some(e)) => Iterator.single(Left(e))
-              case Right(c)      => throw FiberFailure(c)
-            }
-        }
-
-      unfoldPull
-    }
+  def toIterator(implicit trace: Trace): ZIO[R with Scope, Nothing, Iterator[Either[E, A]]] = for {
+    runtime <- ZIO.runtime[R]
+    pull    <- either.toPull
+  } yield unfoldPull(runtime, pull)(trace, Unsafe.unsafe).flatten
 
   /**
    * Returns in a scope a ZIO effect that can be used to repeatedly pull chunks
@@ -4537,37 +4523,40 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromIteratorSucceed[A](iterator: => Iterator[A], maxChunkSize: => Int = DefaultChunkSize)(implicit
     trace: Trace
   ): ZStream[Any, Nothing, A] = {
-
     def writeOneByOne(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
       if (iterator.hasNext)
         ZChannel.write(Chunk.single(iterator.next())) *> writeOneByOne(iterator)
       else
         ZChannel.unit
 
-    def writeChunks(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
-      ZChannel.succeed(ChunkBuilder.make[A]()).flatMap { builder =>
-        def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] = {
-          builder.clear()
-          var count = 0
-          while (count < maxChunkSize && iterator.hasNext) {
-            builder += iterator.next()
-            count += 1
-          }
-          if (count > 0)
-            ZChannel.write(builder.result()) *> loop(iterator)
-          else
-            ZChannel.unit
+    def writeChunks(iterator: Iterator[A], maxChunkSize0: Int): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] = {
+      val builder = ChunkBuilder.make[A](maxChunkSize0)
+
+      def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] = {
+        builder.clear()
+        var count = 0
+        while (count < maxChunkSize0 && iterator.hasNext) {
+          builder += iterator.next()
+          count += 1
         }
 
-        loop(iterator)
+        if (count > 0)
+          ZChannel.write(builder.result()) *> loop(iterator)
+        else
+          ZChannel.unit
       }
+
+      loop(iterator)
+    }
 
     ZStream.fromChannel {
       ZChannel.suspend {
-        if (maxChunkSize == 1)
+        val maxChunkSize0 = maxChunkSize
+
+        if (maxChunkSize0 == 1)
           writeOneByOne(iterator)
         else
-          writeChunks(iterator)
+          writeChunks(iterator, maxChunkSize0)
       }
     }
   }
@@ -4921,7 +4910,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         case (as, None)    => ZChannel.write(as) *> ZChannel.unit
       }
 
-    new ZStream(loop(s))
+    new ZStream(ZChannel.suspend(loop(s)))
   }
 
   /**
@@ -6205,7 +6194,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   private def mapDequeue[A, B](dequeue: Dequeue[A])(f: A => B): Dequeue[B] =
-    new Dequeue[B] {
+    new Dequeue.Internal[B] {
       def awaitShutdown(implicit trace: Trace): UIO[Unit] =
         dequeue.awaitShutdown
       def capacity: Int =

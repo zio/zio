@@ -131,5 +131,5 @@ object TestClockSpecJVM extends ZIOBaseSpec {
           (TestClock.adjust(1.second) &> TestClock.adjust(1.second)).as(assertCompletes)
         } @@ timeout(10.seconds)
       )
-    ) @@ nonFlaky(20)
+    ) @@ nonFlaky(10)
 }

@@ -72,7 +72,7 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
         this.unlock()
       }
 
-      if (value eq null) throw new Error("Timed out waiting for variable to be set")
+      if (value eq null) throw new OneShot.TimeoutException
 
       value
     }
@@ -106,4 +106,6 @@ private[zio] object OneShot {
    * Makes a new (unset) variable.
    */
   def make[A]: OneShot[A] = new OneShot()
+
+  final class TimeoutException extends Error("Timed out waiting for variable to be set")
 }

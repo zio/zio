@@ -53,7 +53,7 @@ import zio.metrics.MetricLabel
  * Here `value` will be 2 as the value in the joined fiber is lower and we
  * specified `max` as our combining function.
  */
-trait FiberRef[A] extends Serializable { self =>
+sealed trait FiberRef[A] extends Serializable { self =>
 
   /**
    * The type of the value of the `FiberRef`.
@@ -198,7 +198,7 @@ trait FiberRef[A] extends Serializable { self =>
 
       fiberState.setFiberRef(self, a)
 
-      ZIO.succeed(b)
+      Exit.succeed(b)
     }
 
   /**
@@ -438,7 +438,8 @@ object FiberRef {
         ZEnvironment.Patch.empty
       )
 
-    def makeIsFatal[A](
+    @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
+    private[zio] def makeIsFatal[A](
       initial: IsFatal
     )(implicit unsafe: Unsafe): FiberRef.WithPatch[IsFatal, IsFatal.Patch] =
       makePatch[IsFatal, IsFatal.Patch](
@@ -597,6 +598,7 @@ object FiberRef {
   private[zio] val currentBlockingExecutor: FiberRef[Executor] =
     FiberRef.unsafe.make(Runtime.defaultBlockingExecutor)(Unsafe.unsafe)
 
+  @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
   private[zio] val currentFatal: FiberRef.WithPatch[IsFatal, IsFatal.Patch] =
     FiberRef.unsafe.makeIsFatal(Runtime.defaultFatal)(Unsafe.unsafe)
 
