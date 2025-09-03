@@ -161,7 +161,7 @@ object TestArrowSpec extends ZIOBaseSpec {
         }
       ),
       test("stack safety - bug #10051") {
-        val depth = 4096 // TODO: this should really be much larger, like 20K, but `run` is not fully stack safe
+        val depth = 20000
         val step  = TestArrow.fromFunction[Int, Int](_ + 1)
         val arrow = (0 until depth).foldLeft(TestArrow.succeed(0): TestArrow[Any, Int]) { (acc, _) =>
           acc >>> step

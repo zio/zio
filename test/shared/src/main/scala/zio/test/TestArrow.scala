@@ -8,7 +8,7 @@ import zio.internal.stacktracer.SourceLocation
 import zio.test.Assertion.Arguments
 
 import scala.annotation.tailrec
-import scala.util.control.NonFatal
+import scala.util.control.{NonFatal, TailCalls}
 
 case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 
@@ -227,60 +227,68 @@ object TestArrow {
       case Right(value) => onSucceed(value)
     }
 
-  private val onError: PartialFunction[Throwable, TestTrace[Nothing]] = {
+  private val onError: PartialFunction[Throwable, TailCalls.TailRec[TestTrace[Nothing]]] = {
     case ex if NonFatal(ex) =>
       ex.setStackTrace(ex.getStackTrace.filterNot { (ste: StackTraceElement) =>
         ste.getClassName.startsWith("zio.test.TestArrow")
       })
-      TestTrace.die(ex)
+      TailCalls.done(TestTrace.die(ex))
   }
 
-  private def runLoop[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): TestTrace[B] =
-    arrow match {
+  private def runLoop[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): TailCalls.TailRec[TestTrace[B]] =
+    TailCalls.tailcall(arrow match {
       case TestArrowF(f) =>
-        try f(in)
+        try TailCalls.done(f(in))
         catch onError
 
       case AndThen(f, g) =>
-        val t1 = runLoop(f, in)
-        t1.result match {
-          case _: Result.Fail.type   => t1.asInstanceOf[TestTrace[B]]
-          case Result.Die(err)       => t1 >>> runLoop(g, Left(err))
-          case Result.Succeed(value) => t1 >>> runLoop(g, Right(value))
+        runLoop(f, in).flatMap { t1 =>
+          t1.result match {
+            case _: Result.Fail.type   => TailCalls.done(t1.asInstanceOf[TestTrace[B]])
+            case Result.Die(err)       => runLoop(g, Left(err)).map(t1 >>> _)
+            case Result.Succeed(value) => runLoop(g, Right(value)).map(t1 >>> _)
+          }
         }
 
       case And(lhs, rhs) =>
-        runLoop(lhs, in) && runLoop(rhs, in)
+        for {
+          l <- runLoop(lhs, in)
+          r <- runLoop(rhs, in)
+        } yield l && r
 
       case Or(lhs, rhs) =>
-        runLoop(lhs, in) || runLoop(rhs, in)
+        for {
+          l <- runLoop(lhs, in)
+          r <- runLoop(rhs, in)
+        } yield l || r
 
       case Not(arrow) =>
-        !runLoop(arrow, in)
+        runLoop(arrow, in).map(!_)
 
       case Suspend(f) =>
         in match {
           case Left(exception) =>
-            TestTrace.die(exception)
+            TailCalls.done(TestTrace.die(exception))
           case Right(value) =>
             try runLoop(f(value), in)
             catch onError
         }
 
       case Meta(arrow, span, parentSpan, code, location, completeCode, customLabel, genFailureDetails) =>
-        runLoop(arrow, in)
-          .withSpan(span)
-          .withCode(code)
-          .withParentSpan(parentSpan)
-          .withLocation(location)
-          .withCompleteCode(completeCode)
-          .withCustomLabel(customLabel)
-          .withGenFailureDetails(genFailureDetails)
-    }
+        runLoop(arrow, in).map {
+          _.withSpan(span)
+            .withCode(code)
+            .withParentSpan(parentSpan)
+            .withLocation(location)
+            .withCompleteCode(completeCode)
+            .withCustomLabel(customLabel)
+            .withGenFailureDetails(genFailureDetails)
+        }
+    })
 
   def run[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): TestTrace[B] =
-    try runLoop(arrow, in)
-    catch onError
+    (try runLoop(arrow, in)
+    catch onError).result
 
   case class Span(start: Int, end: Int) {
     def substring(str: String): String = {
