@@ -2721,7 +2721,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   /**
    * The level of parallelism for parallel operators.
    */
-  final lazy val Parallelism: FiberRef[Option[Int]] =
+  val Parallelism: FiberRef[Option[Int]] =
     FiberRef.unsafe.make[Option[Int]](None)(Unsafe)
 
   /**
