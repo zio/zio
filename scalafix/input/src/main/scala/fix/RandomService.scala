@@ -3,9 +3,9 @@ rule = Zio2Upgrade
 */
 package fix
 
-import zio.random.Random
 import zio._
+import zio.Random
 
 object RandomService {
-  val random: URIO[Has[Random.Service], Random.Service] = ZIO.service[Random.Service]
+  val random: URIO[Random, _] = ZIO.service[Random]
 }

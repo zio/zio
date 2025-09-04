@@ -5,7 +5,6 @@ package fix
 
 import zio.stm.ZSTM
 
-@annotation.nowarn("msg=pure expression does nothing")
 object ZSTMRenames {
   ZSTM.collectAll_ _
   ZSTM.foreach_ _

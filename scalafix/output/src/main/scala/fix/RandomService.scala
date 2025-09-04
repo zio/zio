@@ -4,5 +4,5 @@ import zio._
 import zio.Random
 
 object RandomService {
-  val random: URIO[Random, Random] = ZIO.service[Random]
+  val random: URIO[Random, _] = ZIO.service[Random]
 }

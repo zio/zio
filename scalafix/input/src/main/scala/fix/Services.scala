@@ -12,7 +12,7 @@ import zio.test.{Annotations, Sized, TestConfig, TestLogger}
 import zio.test.environment.{Live, TestConsole, TestRandom, TestSystem}
 
 object Services {
-  val random: URIO[Random, Random.Service] = ZIO.service[Random.Service]
+  val random: URIO[Random, _] = ZIO.service[Random]
   val console: URIO[Has[Console.Service], Console.Service] = ZIO.service[zio.console.Console.Service]
   val live: ZIO[zio.system.System, Nothing, Unit] = ZIO.unit
   val live2: ZIO[system.System, Nothing, Unit] = ZIO.unit
