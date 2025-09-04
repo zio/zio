@@ -19,7 +19,6 @@ package zio.test
 import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.render.ConsoleRenderer
 
 import scala.annotation.nowarn
 
@@ -131,6 +130,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     } yield summary
   }
 
+  @deprecated("use the overload that does not take Console parameter")
   private[zio] def runSpecWithSharedRuntimeLayer(
     fullyQualifiedName: String,
     spec: Spec[Environment with TestEnvironment with Scope, Any],
@@ -138,6 +138,22 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     runtime: Runtime[_],
     testEventHandler: ZTestEventHandler,
     console: Console
+  )(implicit
+    trace: Trace
+  ): UIO[Summary] = runSpecWithSharedRuntimeLayer(
+    fullyQualifiedName,
+    spec,
+    testArgs,
+    runtime,
+    testEventHandler
+  )
+
+  private[zio] def runSpecWithSharedRuntimeLayer(
+    fullyQualifiedName: String,
+    spec: Spec[Environment with TestEnvironment with Scope, Any],
+    testArgs: TestArgs,
+    runtime: Runtime[_],
+    testEventHandler: ZTestEventHandler
   )(implicit
     trace: Trace
   ): UIO[Summary] = {

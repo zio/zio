@@ -16,27 +16,21 @@
 
 package zio.test.sbt
 
-import sbt.testing._
+import zio.test.Summary
 
-final class ZTestFramework extends Framework {
-  override final val name: String = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
-
-  val fingerprints: Array[Fingerprint] = Array(ZioSpecFingerprint)
-
-  override def runner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader): Runner =
-    new ZMasterTestRunnerJS(args, remoteArgs, testClassLoader)
-
-  override def slaveRunner(
-    args: Array[String],
-    remoteArgs: Array[String],
-    testClassLoader: ClassLoader,
-    send: String => Unit
-  ): Runner =
-    new ZSlaveTestRunnerJS(
+final class ZTestRunner(
+  args: Array[String],
+  remoteArgs: Array[String],
+  testClassLoader: ClassLoader
+) extends TestRunner(
       args,
       remoteArgs,
       testClassLoader,
-      SendSummary.fromSend(summary => send(SummaryProtocol.serialize(summary)))
-    )
+      runnerType = "JVM"
+    ) {
+  override protected def sharedRuntimeSupported: Boolean = true
 
+  override protected def sendSummary(summary: Summary): Unit = addSummary(summary)
+
+  override protected def returnSummary: Boolean = false
 }
