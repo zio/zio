@@ -291,7 +291,7 @@ object TestClock extends Serializable {
      * Polls until all descendants of this fiber are done or suspended.
      */
     private def awaitSuspended(waitFor: Duration)(implicit trace: Trace): UIO[Unit] =
-      ZIO.suspendSucceed {
+      freezeLock.withPermit(ZIO.suspendSucceed {
         val ref = new AtomicBoolean(false)
 
         def allSuspendedUnchanged(
@@ -317,7 +317,7 @@ object TestClock extends Serializable {
           }
           .eventually
           .flatMap(ZIO.whenDiscard(_)(suspendedWarningDone))
-      }
+      })
 
     /**
      * Captures a "snapshot" of the identifier and status of all fibers in this
@@ -328,24 +328,23 @@ object TestClock extends Serializable {
      */
     private val freeze: IO[Unit, collection.Map[FiberId, Fiber.Status]] = {
       implicit val trace: Trace = Trace.empty
-      freezeLock.withPermit {
-        ZIO.fiberIdWith { fiberId =>
-          annotations.get(TestAnnotation.fibers).flatMap {
-            case _: Left[?, ?] => Exit.succeed(Map.empty)
-            case Right(refs) =>
-              val map  = mu.HashMap.empty[FiberId, Fiber.Status]
-              val it   = refs.iterator.flatMap(_.get())
-              var fail = false
-              while (it.hasNext && !fail) {
-                val f = it.next().asInstanceOf[FiberRuntime[Any, Any]]
-                if (f.id ne fiberId) f.getStatus() match {
-                  case s: Fiber.Status.Suspended => map.update(f.id, s)
-                  case Fiber.Status.Done         => ()
-                  case _: Fiber.Status.Running   => fail = true
-                }
+
+      ZIO.fiberIdWith { fiberId =>
+        annotations.get(TestAnnotation.fibers).flatMap {
+          case _: Left[?, ?] => Exit.succeed(Map.empty)
+          case Right(refs) =>
+            val map  = mu.HashMap.empty[FiberId, Fiber.Status]
+            val it   = refs.iterator.flatMap(_.get())
+            var fail = false
+            while (it.hasNext && !fail) {
+              val f = it.next().asInstanceOf[FiberRuntime[Any, Any]]
+              if (f.id ne fiberId) f.getStatus() match {
+                case s: Fiber.Status.Suspended => map.update(f.id, s)
+                case Fiber.Status.Done         => ()
+                case _: Fiber.Status.Running   => fail = true
               }
-              if (fail) Exit.failUnit else Exit.succeed(map)
-          }
+            }
+            if (fail) Exit.failUnit else Exit.succeed(map)
         }
       }
     }
@@ -382,7 +381,7 @@ object TestClock extends Serializable {
             case Some((end, promise)) =>
               promise.unsafe.done(Exit.unit)(Unsafe)
               // We don't need to await for long here because we're waiting for a single fiber and it will resume instantly
-              loop(_ => end, 50.micros)
+              loop(_ => end, 1.milli)
             case _ => Exit.unit
           }
       loop(f, 5.millis)
