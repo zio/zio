@@ -472,7 +472,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
 object Spec {
   sealed abstract class SpecCase[-R, +E, +A] { self =>
     final def map[B](f: A => B)(implicit trace: Trace): SpecCase[R, E, B] = self match {
-      case ExecCase(label, spec)       => ExecCase(label, f(spec))
+      case ExecCase(exec, spec)        => ExecCase(exec, f(spec))
       case LabeledCase(label, spec)    => LabeledCase(label, f(spec))
       case ScopedCase(scoped)          => ScopedCase[R, E, B](scoped.map(f))
       case MultipleCase(specs)         => MultipleCase(specs.map(f))

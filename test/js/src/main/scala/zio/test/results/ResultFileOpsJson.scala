@@ -18,5 +18,4 @@ private[test] object ResultFileOps {
     def write(content: => String, append: Boolean): ZIO[Any, IOException, Unit] =
       ZIO.unit
   }
-
 }

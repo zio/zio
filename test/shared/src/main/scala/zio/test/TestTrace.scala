@@ -317,7 +317,7 @@ object TestTrace {
     }
   }
 
-  def fail: TestTrace[Nothing]                        = Node(Result.Fail)
+  val fail: TestTrace[Nothing]                        = Node(Result.Fail)
   def fail(message: String): TestTrace[Nothing]       = Node(Result.Fail, message = ErrorMessage.text(message))
   def fail(message: ErrorMessage): TestTrace[Nothing] = Node(Result.Fail, message = message)
   def succeed[A](value: A): TestTrace[A]              = Node(Result.succeed(value))
