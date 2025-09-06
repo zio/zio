@@ -5,7 +5,6 @@ package fix
 
 import zio.Schedule.once
 
-@annotation.nowarn("msg=pure expression does nothing")
 object ScheduleRenames {
   once.addDelayM _
   once.checkM _

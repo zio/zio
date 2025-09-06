@@ -3061,7 +3061,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("interrupts pulling on finish") {
             val s1 = ZStream(1, 2, 3)
-            val s2 = ZStream.fromZIO(Clock.sleep(5.seconds).as(4))
+            val s2 = ZStream.fromZIO(zio.Clock.sleep(5.seconds).as(4))
             assertZIO(s1.mergeHaltLeft(s2).runCollect)(equalTo(Chunk(1, 2, 3)))
           }
         ),
@@ -3511,11 +3511,11 @@ object ZStreamSpec extends ZIOBaseSpec {
         suite("schedule")(
           test("schedule") {
             for {
-              start <- Clock.currentTime(TimeUnit.MILLISECONDS)
+              start <- zio.Clock.currentTime(TimeUnit.MILLISECONDS)
               fiber <- ZStream
                          .range(1, 9)
                          .schedule(Schedule.fixed(100.milliseconds))
-                         .mapZIO(n => Clock.currentTime(TimeUnit.MILLISECONDS).map(now => (n, now - start)))
+                         .mapZIO(n => zio.Clock.currentTime(TimeUnit.MILLISECONDS).map(now => (n, now - start)))
                          .runCollect
                          .fork
               _       <- TestClock.adjust(800.millis)
@@ -3701,7 +3701,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               times <- Ref.make(List.empty[java.time.Instant])
               stream =
                 ZStream
-                  .fromZIO(Clock.instant.flatMap(time => times.update(time +: _)))
+                  .fromZIO(zio.Clock.instant.flatMap(time => times.update(time +: _)))
                   .flatMap(_ => ZStream.fail(None))
               streamFib <- stream.retry(Schedule.exponential(1.second)).take(3).runDrain.fork
               _         <- TestClock.adjust(1.second)
@@ -3716,7 +3716,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               ref   <- Ref.make(0)
               stream =
                 ZStream
-                  .fromZIO(Clock.instant.flatMap(time => times.update(time +: _) *> ref.updateAndGet(_ + 1)))
+                  .fromZIO(zio.Clock.instant.flatMap(time => times.update(time +: _) *> ref.updateAndGet(_ + 1)))
                   .flatMap { attemptNr =>
                     if (attemptNr == 3 || attemptNr == 5) ZStream.succeed(attemptNr) else ZStream.fail(None)
                   }
@@ -4219,7 +4219,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                                    res1 <- pull
                                    _    <- queue.offer(2)
                                    res2 <- pull
-                                   _    <- Clock.sleep(4.seconds)
+                                   _    <- zio.Clock.sleep(4.seconds)
                                    _    <- queue.offer(3)
                                    res3 <- pull
                                  } yield assert(Chunk(res1, res2, res3))(
@@ -4242,7 +4242,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                     res1    <- pull
                     _       <- queue.offer(2)
                     res2    <- pull
-                    elapsed <- Clock.currentTime(TimeUnit.SECONDS)
+                    elapsed <- zio.Clock.currentTime(TimeUnit.SECONDS)
                   } yield assert(elapsed)(equalTo(0L)) && assert(Chunk(res1, res2))(
                     equalTo(Chunk(Chunk(1), Chunk(2)))
                   )
@@ -4300,9 +4300,9 @@ object ZStreamSpec extends ZIOBaseSpec {
               assertZIO(for {
                 fiber  <- stream.runCollect.fork
                 _      <- c.offer.fork
-                _      <- (Clock.sleep(500.millis) *> c.offer).fork
-                _      <- (Clock.sleep(2.seconds) *> c.offer).fork
-                _      <- (Clock.sleep(2500.millis) *> c.offer).fork
+                _      <- (zio.Clock.sleep(500.millis) *> c.offer).fork
+                _      <- (zio.Clock.sleep(2.seconds) *> c.offer).fork
+                _      <- (zio.Clock.sleep(2500.millis) *> c.offer).fork
                 _      <- TestClock.adjust(3500.millis)
                 result <- fiber.join
               } yield result)(equalTo(Chunk(Chunk(3, 4), Chunk(6, 7))))

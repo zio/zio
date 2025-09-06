@@ -22,3 +22,5 @@ addSbtPlugin("org.jetbrains.scala" % "sbt-ide-settings" % "1.1.3")
 libraryDependencies += "org.snakeyaml" % "snakeyaml-engine" % "2.10"
 
 addDependencyTreePlugin
+
+addSbtPlugin("dev.zio" % "zio-scalafix" % "0.2.0")

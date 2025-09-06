@@ -5,9 +5,9 @@ import zio.{ Console, Random, System }
 import zio.test.{ Annotations, Live, Sized, TestConfig, TestConsole, TestLogger, TestRandom, TestSystem }
 
 object ServicesIntermediateMilestone {
-  val randomManual: URIO[Random, Random] = ZIO.service[Random]
+  val randomManual: URIO[Random, _] = ZIO.service[Random]
   
-  val random: URIO[Random, Random] = ZIO.service[Random]
+  val random: URIO[Random, _] = ZIO.service[Random]
   val console: URIO[Console, Console] = ZIO.service[Console]
   val live: ZIO[System, Nothing, Unit] = ZIO.unit
   val live2: ZIO[System, Nothing, Unit] = ZIO.unit

@@ -928,3 +928,5 @@ lazy val docs = project.module
   .aggregate(docs_make_zio_app_configurable)
 
 Global / excludeLintKeys += ideSkipProject
+
+ThisBuild / scalafixRules := List(ZIO2)
