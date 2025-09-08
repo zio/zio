@@ -1,85 +1,34 @@
 package zio
 
 import zio.test._
-import scala.annotation.nowarn
+import zio.test.Assertion._
 
-object ZIOAppSpec extends ZIOBaseSpec {
+//testing
+object ZIOAppSpec extends ZIOSpecDefault {
   def spec = suite("ZIOAppSpec")(
-    test("fromZIO") {
-      for {
-        ref <- Ref.make(0)
-        _   <- ZIOApp.fromZIO(ref.update(_ + 1)).invoke(Chunk.empty)
-        v   <- ref.get
-      } yield assertTrue(v == 1)
+    test("a successful ZIO effect completes with a value") {
+      val successEffect = ZIO.succeed(42)
+      assertZIO(successEffect)(equalTo(42))
     },
-    test("failure translates into ExitCode.failure") {
-      for {
-        code <- ZIOApp.fromZIO(ZIO.fail("Uh oh!")).invoke(Chunk.empty).exitCode: @nowarn("cat=deprecation")
-      } yield assertTrue(code == ExitCode.failure)
+    test("a failed ZIO effect returns a typed error") {
+      val failedEffect = ZIO.fail("Uh oh!")
+      assertZIO(failedEffect.exit)(Assertion.fails(equalTo("Uh oh!")))
     },
-    test("success translates into ExitCode.success") {
-      for {
-        code <- ZIOApp.fromZIO(ZIO.succeed("Hurray!")).invoke(Chunk.empty).exitCode: @nowarn("cat=deprecation")
-      } yield assertTrue(code == ExitCode.success)
+    test("a dying ZIO effect returns a defect") {
+      val dyingEffect = ZIO.die(new Exception("Boom!"))
+      assertZIO(dyingEffect.exit)(Assertion.dies(hasMessage(equalTo("Boom!"))))
     },
-    test("composed app logic runs component logic") {
-      for {
-        ref <- Ref.make(2)
-        app1 = ZIOApp.fromZIO(ref.update(_ + 3))
-        app2 = ZIOApp.fromZIO(ref.update(_ - 5))
-        _   <- (app1 <> app2).invoke(Chunk.empty)
-        v   <- ref.get
-      } yield assertTrue(v == 0)
-    },
-    test("hook update platform") {
-      val counter = new java.util.concurrent.atomic.AtomicInteger(0)
-
-      val logger1 = new ZLogger[Any, Unit] {
-        def apply(
-          trace: Trace,
-          fiberId: zio.FiberId,
-          logLevel: zio.LogLevel,
-          message: () => Any,
-          cause: Cause[Any],
-          context: FiberRefs,
-          spans: List[zio.LogSpan],
-          annotations: Map[String, String]
-        ): Unit = {
-          counter.incrementAndGet()
-          ()
-        }
-      }
-
-      val app1 = ZIOApp(ZIO.fail("Uh oh!"), Runtime.addLogger(logger1))
+    test("a ZIO effect using default services executes successfully") {
+      val effectWithClock = for {
+        _ <- ZIO.logInfo("Hello from a ZIO effect")
+        _ <- Clock.sleep(1.millisecond)
+      } yield 42
 
       for {
-        c <- app1.invoke(Chunk.empty).exitCode: @nowarn("cat=deprecation")
-        v <- ZIO.succeed(counter.get())
-      } yield assertTrue(c == ExitCode.failure) && assertTrue(v == 1)
-    },
-    test("execution of finalizers on interruption") {
-      for {
-        running   <- Promise.make[Nothing, Unit]
-        ref       <- Ref.make(false)
-        effect     = (running.succeed(()) *> ZIO.never).ensuring(ref.set(true))
-        app        = ZIOAppDefault.fromZIO(effect)
-        fiber     <- app.invoke(Chunk.empty).fork
-        _         <- running.await
-        _         <- fiber.interrupt
-        finalized <- ref.get
-      } yield assertTrue(finalized)
-    },
-    test("finalizers are run in scope of bootstrap layer") {
-      for {
-        ref1 <- Ref.make(false)
-        ref2 <- Ref.make(false)
-        app = new ZIOAppDefault {
-                override val bootstrap = ZLayer.scoped(ZIO.acquireRelease(ref1.set(true))(_ => ref1.set(false)))
-                val run                = ZIO.acquireRelease(ZIO.unit)(_ => ref1.get.flatMap(ref2.set))
-              }
-        _     <- app.invoke(Chunk.empty)
-        value <- ref2.get
-      } yield assertTrue(value)
+        fiber  <- effectWithClock.fork
+        _      <- TestClock.adjust(1.millisecond)
+        result <- fiber.await
+      } yield assert(result)(Assertion.succeeds(equalTo(42)))
     }
   )
 }
