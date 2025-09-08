@@ -2425,7 +2425,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * it is unbounded.
    */
   def parallelism(implicit trace: Trace): ZManaged[Any, Nothing, Option[Int]] =
-    ZManaged.fromZIO(ZIO.Parallelism.get)
+    ZManaged.fromZIO(FiberRef.parallelism.get)
 
   /**
    * A scope in which resources can be safely preallocated. Passing a
@@ -2741,7 +2741,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * it back to the original value as the `release` action.
    */
   def withParallism(n: => Int)(implicit trace: Trace): ZManaged[Any, Nothing, Unit] =
-    ZManaged.scoped(ZIO.Parallelism.locallyScoped(Some(n)))
+    ZManaged.scoped(FiberRef.parallelism.locallyScoped(Some(n)))
 
   /**
    * Returns a managed effect that describes setting an unbounded maximum number
@@ -2749,7 +2749,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * back to the original value as the `release` action.
    */
   def withParallismUnbounded(implicit trace: Trace): ZManaged[Any, Nothing, Unit] =
-    ZManaged.scoped(ZIO.Parallelism.locallyScoped(None))
+    ZManaged.scoped(FiberRef.parallelism.locallyScoped(None))
 
   /**
    * A `ZManagedConstructor[Input]` knows how to construct a `ZManaged` value
