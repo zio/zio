@@ -2721,6 +2721,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   /**
    * The level of parallelism for parallel operators.
    */
+  @deprecated("Use ZIO.parallelism, parallelismWith, withParallelism or withParallelismMask instead", "2.1.22")
   def Parallelism: FiberRef[Option[Int]] =
     FiberRef.parallelism
 
