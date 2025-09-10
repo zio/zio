@@ -617,6 +617,9 @@ object FiberRef {
   private[zio] val currentSupervisor: FiberRef.WithPatch[Supervisor[Any], Supervisor.Patch] =
     FiberRef.unsafe.makeSupervisor(Runtime.defaultSupervisor)(Unsafe.unsafe)
 
+  private[zio] val parallelism: FiberRef[Option[Int]] =
+    FiberRef.unsafe.make[Option[Int]](None)(Unsafe)
+
   private[zio] val unhandledErrorLogLevel: FiberRef[Option[LogLevel]] =
     FiberRef.unsafe.make[Option[LogLevel]](Some(LogLevel.Debug))(Unsafe.unsafe)
 
