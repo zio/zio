@@ -54,7 +54,7 @@ ZStream(1,2,3).via(ZPipeline.identity[Int])
 ```scala mdoc:silent:nest
 ZStream(
   "5-6-7-8", 
-  "-9-10-1"
+  "-9-10-1",
   "1-12-13"
 )
   .via(ZPipeline.splitOn("-"))
