@@ -143,6 +143,11 @@ object ZPipelineSpec extends ZIOBaseSpec {
           assertZIO(
             ZStream("abc<", ">abc").via(ZPipeline.splitOn("<>")).runCollect
           )(equalTo(Chunk("abc", "abc")))
+        },
+        test("repetitive delimiters that might be in progress and shouldn't be discarded on first non-match") {
+          assertZIO(
+            ZStream("a", "a", "a", "b", "a", "b").via(ZPipeline.splitOn("aab")).runCollect
+          )(equalTo(Chunk("a", "ab")))
         }
       ),
       suite("splitOnMany")(
