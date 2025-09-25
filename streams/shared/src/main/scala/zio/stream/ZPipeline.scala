@@ -25,6 +25,8 @@ import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
 import java.nio.charset._
 import java.nio.{ByteBuffer, CharBuffer}
 import scala.annotation.tailrec
+import scala.collection.concurrent.TrieMap
+import scala.util.{Either, Left, Right}
 
 /**
  * A `ZPipeline[Env, Err, In, Out]` is a polymorphic stream transformer.
@@ -2078,52 +2080,95 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def splitOn(delimiter: => String)(implicit trace: Trace): ZPipeline[Any, Nothing, String, String] =
     ZPipeline.mapChunks[String, Char](_.flatMap(string => Chunk.fromArray(string.toArray))) >>>
-      ZPipeline.splitOnChunk[Char](Chunk.fromArray(delimiter.toArray)) >>>
+      ZPipeline.splitWithTrie[Char](Trie(Seq(delimiter.toList))) >>>
       ZPipeline.mapChunks[Char, String](chunk => Chunk.single(chunk.mkString("")))
+
+  /**
+   * Splits strings on several possible delimiters.
+   */
+  def splitOnMany(delimiters: => Seq[String])(implicit trace: Trace): ZPipeline[Any, Nothing, String, String] =
+    ZPipeline.mapChunks[String, Char](_.flatMap(string => Chunk.fromArray(string.toArray))) >>>
+      ZPipeline.splitWithTrie[Char](Trie(delimiters.map(_.toList))) >>>
+      ZPipeline.mapChunks[Char, String](chunk => Chunk.single(chunk.mkString("")))
+
+  private final case class Trie[T](structure: Map[T, Trie[T]], depth: Int, isLeaf: Boolean = false) {
+    @tailrec
+    def partitionAll(
+      chunk: Chunk[T],
+      curTries: Seq[Trie[T]],
+      offset: Int,
+      curPartitions: Seq[Chunk[T]]
+    ): ((Chunk[T], Int, Seq[Trie[T]]), Seq[Chunk[T]]) =
+      if (offset < chunk.size) {
+        val matchingTries = curTries.flatMap(_.structure.get(chunk(offset)))
+        matchingTries.filter(_.isLeaf).headOption match {
+          case Some(trie) =>
+            partitionAll(
+              if (chunk.size - 1 > offset) chunk.takeRight(chunk.size - offset - 1) else Chunk.empty,
+              Seq(this),
+              0,
+              curPartitions :+ chunk.take(offset - trie.depth + 1)
+            )
+          case None => partitionAll(chunk, matchingTries :+ this, offset + 1, curPartitions)
+        }
+      } else ((chunk, offset, curTries), curPartitions)
+  }
+
+  private object Trie {
+    def empty[T]            = Trie(Map.empty[T, Trie[T]], 0, false)
+    def next[T](depth: Int) = Trie(Map.empty[T, Trie[T]], depth + 1, false)
+
+    def insert[T](trie: Trie[T], seq: => Seq[T]): Trie[T] =
+      seq match {
+        case head +: tail => {
+          val next = trie.structure.getOrElse(head, Trie.next[T](trie.depth))
+          trie.copy(structure = trie.structure.updated(head, insert(next, tail)))
+        }
+        case Nil => trie.copy(isLeaf = true)
+      }
+
+    def apply[T](delimiters: Seq[Seq[T]]): Trie[T] =
+      delimiters.foldLeft(Trie.empty[T]) {
+        case (trie, delimiter) => {
+          insert(trie, delimiter)
+        }
+      }
+  }
 
   /**
    * Splits strings on a delimiter.
    */
-  def splitOnChunk[In](delimiter: => Chunk[In])(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
-    ZPipeline.suspend {
+  def splitOnChunk[In](delimiter: => Seq[In])(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
+    splitWithTrie(Trie(Seq(delimiter)))
 
+  private def splitWithTrie[In](delimiterTrie: Trie[In])(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
+    ZPipeline.suspend {
       def next(
-        leftover: Option[Chunk[In]],
-        delimiterIndex: Int
+        leftover: Chunk[In],
+        offset: Int,
+        curTries: Seq[Trie[In]]
       ): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
         ZChannel.readWithCause(
           inputChunk => {
-            var buffer = null.asInstanceOf[collection.mutable.ArrayBuffer[Chunk[In]]]
-            inputChunk.foldLeft((leftover getOrElse Chunk.empty, delimiterIndex)) {
-              case ((carry, delimiterCursor), a) =>
-                val concatenated = carry :+ a
-                if (delimiterCursor < delimiter.length && a == delimiter(delimiterCursor)) {
-                  if (delimiterCursor + 1 == delimiter.length) {
-                    if (buffer eq null) buffer = collection.mutable.ArrayBuffer[Chunk[In]]()
-                    buffer += concatenated.take(concatenated.length - delimiter.length)
-                    (Chunk.empty, 0)
-                  } else (concatenated, delimiterCursor + 1)
-                } else (concatenated, if (a == delimiter(0)) 1 else 0)
-            } match {
-              case (carry, delimiterCursor) =>
-                ZChannel.writeChunk(if (buffer eq null) Chunk.empty else Chunk.fromArray(buffer.toArray)) *> next(
-                  if (carry.nonEmpty) Some(carry) else None,
-                  delimiterCursor
-                )
+            delimiterTrie.partitionAll(leftover ++ inputChunk, curTries, offset, Seq.empty) match {
+              case ((carryChunk, carryOffset, carryTries), partitions) =>
+                ZChannel.writeChunk(Chunk.fromIterable(partitions)) *> next(carryChunk, carryOffset, carryTries)
             }
           },
           halt =>
-            leftover match {
-              case Some(chunk) => ZChannel.write(chunk) *> ZChannel.refailCause(halt)
-              case None        => ZChannel.refailCause(halt)
+            if (leftover.isDefinedAt(0)) {
+              ZChannel.write(leftover) *> ZChannel.refailCause(halt)
+            } else {
+              ZChannel.refailCause(halt)
             },
           done =>
-            leftover match {
-              case Some(chunk) => ZChannel.write(chunk) *> ZChannel.succeed(done)
-              case None        => ZChannel.succeed(done)
+            if (leftover.isDefinedAt(0)) {
+              ZChannel.write(leftover) *> ZChannel.succeed(done)
+            } else {
+              ZChannel.succeed(done)
             }
         )
-      new ZPipeline(next(None, 0))
+      new ZPipeline(next(Chunk.empty, 0, Seq(delimiterTrie)))
     }
 
   /**
@@ -2131,85 +2176,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * newlines (`\n`).
    */
   def splitLines(implicit trace: Trace): ZPipeline[Any, Nothing, String, String] =
-    ZPipeline.suspend {
-      val stringBuilder = new StringBuilder
-      var midCRLF       = false
-
-      def splitLinesChunk(chunk: Chunk[String]): Chunk[String] = {
-        val chunkBuilder = ChunkBuilder.make[String]()
-        chunk.foreach { string =>
-          if (string.nonEmpty) {
-            var from      = 0
-            var indexOfCR = string.indexOf('\r')
-            var indexOfLF = string.indexOf('\n')
-            if (midCRLF) {
-              if (indexOfLF == 0) {
-                chunkBuilder += stringBuilder.result()
-                stringBuilder.clear()
-                from = 1
-                indexOfLF = string.indexOf('\n', from)
-              } else {
-                stringBuilder += '\r'
-              }
-              midCRLF = false
-            }
-            while (indexOfCR != -1 || indexOfLF != -1) {
-              if (indexOfCR == -1 || (indexOfLF != -1 && indexOfLF < indexOfCR)) {
-                if (stringBuilder.isEmpty) {
-                  chunkBuilder += string.substring(from, indexOfLF)
-                } else {
-                  stringBuilder.append(string.substring(from, indexOfLF))
-                  chunkBuilder += stringBuilder.result()
-                  stringBuilder.clear()
-                }
-                from = indexOfLF + 1
-                indexOfLF = string.indexOf('\n', from)
-              } else {
-                if (string.length == indexOfCR + 1) {
-                  midCRLF = true
-                  indexOfCR = -1
-                } else {
-                  if (indexOfLF == indexOfCR + 1) {
-                    if (stringBuilder.isEmpty) {
-                      chunkBuilder += string.substring(from, indexOfCR)
-                    } else {
-                      stringBuilder.append(string.substring(from, indexOfCR))
-                      chunkBuilder += stringBuilder.result()
-                      stringBuilder.clear()
-                    }
-                    from = indexOfCR + 2
-                    indexOfCR = string.indexOf('\r', from)
-                    indexOfLF = string.indexOf('\n', from)
-                  } else {
-                    indexOfCR = string.indexOf('\r', indexOfCR + 1)
-                  }
-                }
-              }
-            }
-
-            if (midCRLF) stringBuilder.append(string.substring(from, string.length - 1))
-            else stringBuilder.append(string.substring(from, string.length))
-          }
-        }
-        chunkBuilder.result()
-      }
-
-      lazy val loop: ZChannel[Any, ZNothing, Chunk[String], Any, Nothing, Chunk[String], Any] =
-        ZChannel.readWithCause(
-          in => {
-            val out = splitLinesChunk(in)
-            if (out.isEmpty) loop else ZChannel.write(out) *> loop
-          },
-          err =>
-            if (stringBuilder.isEmpty) ZChannel.refailCause(err)
-            else ZChannel.write(Chunk.single(stringBuilder.result)) *> ZChannel.refailCause(err),
-          done =>
-            if (stringBuilder.isEmpty) ZChannel.succeed(done)
-            else ZChannel.write(Chunk.single(stringBuilder.result)) *> ZChannel.succeed(done)
-        )
-
-      new ZPipeline(loop)
-    }
+    splitOnMany(Seq("\r\n", "\n"))
 
   /**
    * Lazily constructs a pipeline.

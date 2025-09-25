@@ -145,6 +145,33 @@ object ZPipelineSpec extends ZIOBaseSpec {
           )(equalTo(Chunk("abc", "abc")))
         }
       ),
+      suite("splitOnMany")(
+        test("preserves data")(
+          check(Gen.chunkOf(Gen.string.filter(!_.contains("|")).filter(!_.contains("&")).filter(_.nonEmpty))) { lines =>
+            val data     = lines.grouped(2).map(_.mkString("|")).mkString("&")
+            val pipeline = ZPipeline.splitOnMany(Seq("|", "&"))
+            assertZIO(pipeline(ZStream.fromChunks(Chunk.single(data))).runCollect)(equalTo(lines))
+          }
+        ),
+        test("handles leftovers") {
+          val pipeline = ZPipeline.splitOnMany(Seq("\n"))
+          assertZIO(pipeline(ZStream.fromChunks(Chunk("ab", "c\nb"), Chunk("c"))).runCollect)(
+            equalTo(Chunk("abc", "bc"))
+          )
+        },
+        test("works") {
+          assertZIO(
+            ZStream("abc", "delimiter", "bc", "other", "bcd", "bcd")
+              .via(ZPipeline.splitOnMany(Seq("delimiter", "other")))
+              .runCollect
+          )(equalTo(Chunk("abc", "bc", "bcdbcd")))
+        },
+        test("no delimiter in data") {
+          assertZIO(
+            ZStream("abc", "abc", "abc").via(ZPipeline.splitOnMany(Seq("hello"))).runCollect
+          )(equalTo(Chunk("abcabcabc")))
+        }
+      ),
       suite("take")(
         test("it takes the correct number of elements") {
           assertZIO(
