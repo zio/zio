@@ -25,8 +25,6 @@ import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
 import java.nio.charset._
 import java.nio.{ByteBuffer, CharBuffer}
 import scala.annotation.tailrec
-import scala.collection.concurrent.TrieMap
-import scala.util.{Either, Left, Right}
 
 /**
  * A `ZPipeline[Env, Err, In, Out]` is a polymorphic stream transformer.
