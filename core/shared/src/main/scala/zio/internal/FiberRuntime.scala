@@ -1021,6 +1021,46 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     observers = observers.filter(_ ne observer)
 
   /**
+   * Checks whether we should ignore the update of runtime flags. The rationale
+   * behind this is to bride the gap between exiting and re-entering an
+   * uninterruptible region instantenously, as:
+   *
+   * {{{
+   *   ZIO.uninterruptibleMask(restore => restore(ZIO.uninterruptible(ZIO.sleep(1.second))))
+   * }}}
+   *
+   * With the code above, it's possible for interruption to occur _after_ we
+   * finished sleeping. This is particularly problematic with Queue#take as
+   * it'll cause items to be dropped from the queue.
+   *
+   * We do this by:
+   *   1. Checking whether the current patch enables interruption
+   *   1. If yes, check if the next frame in the stack disables it
+   *
+   * '''IMPORTANT''': This check can only be used where we unwind the stack
+   *
+   * @see
+   *   https://github.com/zio/zio/issues/9974
+   * @see
+   *   https://github.com/zio/zio/issues/9973
+   */
+  private[this] def ignoreFlagsUpdate(update: RuntimeFlags.Patch, stackIndex: Int) = {
+    def isInterruptionDisabledInNextFrame(stackIndex: Int) = {
+      assert(DisableAssertions || stackIndex == _stackSize)
+      _stack(stackIndex - 1) match {
+        case v: UpdateRuntimeFlags => v.update == RuntimeFlags.disableInterruption
+        case _                     => false
+      }
+    }
+
+    (
+      update == RuntimeFlags.enableInterruption
+      && stackIndex > 0
+      && isInterruptionDisabledInNextFrame(stackIndex)
+    )
+  }
+
+  /**
    * The main run-loop for evaluating effects. This method is recursive,
    * utilizing JVM stack space.
    *
@@ -1082,8 +1122,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
 
-                  case updateFlags: ZIO.UpdateRuntimeFlags =>
+                  case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
                     cur = patchRuntimeFlags(updateFlags.update, null, null)
+
+                  case _ => ()
                 }
               }
 
@@ -1111,8 +1153,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
 
-                  case updateFlags: ZIO.UpdateRuntimeFlags =>
+                  case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
                     cur = patchRuntimeFlags(updateFlags.update, null, null)
+
+                  case _ => ()
                 }
               }
 
@@ -1225,7 +1269,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 popStackFrame(stackIndex)
 
                 // Go backward, on the stack:
-                cur = patchRuntimeFlags(revertFlags, exit.causeOrNull, exit)
+                if (ignoreFlagsUpdate(revertFlags, stackIndex)) {
+                  cur = exit
+                } else {
+                  cur = patchRuntimeFlags(revertFlags, exit.causeOrNull, exit)
+                }
+
               }
 
             case iterate: WhileLoop[Any, Any, Any] =>
@@ -1283,8 +1332,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                       cur = foldZIO.failureK(cause)
                     }
 
-                  case updateFlags: ZIO.UpdateRuntimeFlags =>
+                  case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
                     cause = patchRuntimeFlagsCause(updateFlags.update, cause)
+
+                  case _ => ()
                 }
               }
 
