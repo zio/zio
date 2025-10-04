@@ -2139,19 +2139,25 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def splitOnChunk[In1 >: In, In](delimiter: => Seq[In1])(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     splitWithTrie[In1, In, In](ZChannel.writeChunk, ZChannel.write)(Trie(Seq(delimiter)))
 
-  def splitOnManyChunk[In1 >: In, In](delimiters: => Seq[Seq[In1]])(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
+  def splitOnManyChunk[In1 >: In, In](delimiters: => Seq[Seq[In1]])(implicit
+    trace: Trace
+  ): ZPipeline[Any, Nothing, In, In] =
     splitWithTrie[In1, In, In](ZChannel.writeChunk, ZChannel.write)(Trie(delimiters))
 
-  def splitOnChunkToProduceChunk[In1 >: In, In](delimiter: => Seq[In1])(implicit trace: Trace): ZPipeline[Any, Nothing, In, Chunk[In]] =
-    splitWithTrie[In1, In, Chunk[In]](ZChannel.write, chunk => ZChannel.write(Chunk.single(chunk)))(Trie(Seq(delimiter)))
+  def splitOnChunkToProduceChunk[In1 >: In, In](
+    delimiter: => Seq[In1]
+  )(implicit trace: Trace): ZPipeline[Any, Nothing, In, Chunk[In]] =
+    splitWithTrie[In1, In, Chunk[In]](ZChannel.write, chunk => ZChannel.write(Chunk.single(chunk)))(
+      Trie(Seq(delimiter))
+    )
 
   def splitWithTrie[In1 >: In, In, Out](
-    writeChunkOfChunks: Chunk[Chunk[In]] => ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[Out], Any], 
+    writeChunkOfChunks: Chunk[Chunk[In]] => ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[Out], Any],
     writeLeftover: Chunk[In] => ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[Out], Any]
   )(
     delimiterTrie: Trie[In1]
-  )(
-    implicit trace: Trace
+  )(implicit
+    trace: Trace
   ): ZPipeline[Any, Nothing, In, Out] =
     ZPipeline.suspend {
       def next(
