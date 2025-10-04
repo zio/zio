@@ -2151,7 +2151,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       Trie(Seq(delimiter))
     )
 
-  def splitWithTrie[In1 >: In, In, Out](
+  private def splitWithTrie[In1 >: In, In, Out](
     writeChunkOfChunks: Chunk[Chunk[In]] => ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[Out], Any],
     writeLeftover: Chunk[In] => ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[Out], Any]
   )(
