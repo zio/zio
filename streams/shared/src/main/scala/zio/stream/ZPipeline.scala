@@ -2078,7 +2078,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def splitOn(delimiter: => String)(implicit trace: Trace): ZPipeline[Any, Nothing, String, String] =
     ZPipeline.mapChunks[String, Char](_.flatMap(string => Chunk.fromArray(string.toArray))) >>>
-      ZPipeline.splitWithTrie[Char](Trie(Seq(delimiter.toList))) >>>
+      ZPipeline.splitOnChunk[Char, Char](delimiter.toList) >>>
       ZPipeline.mapChunks[Char, String](chunk => Chunk.single(chunk.mkString("")))
 
   /**
@@ -2086,30 +2086,30 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def splitOnMany(delimiters: => Seq[String])(implicit trace: Trace): ZPipeline[Any, Nothing, String, String] =
     ZPipeline.mapChunks[String, Char](_.flatMap(string => Chunk.fromArray(string.toArray))) >>>
-      ZPipeline.splitWithTrie[Char](Trie(delimiters.map(_.toList))) >>>
+      ZPipeline.splitOnManyChunk[Char, Char](delimiters.map(_.toList)) >>>
       ZPipeline.mapChunks[Char, String](chunk => Chunk.single(chunk.mkString("")))
 
-  private final case class Trie[T](structure: Map[T, Trie[T]], depth: Int, isLeaf: Boolean = false) {
+  private final case class Trie[T1](structure: Map[T1, Trie[T1]], depth: Int, isLeaf: Boolean = false) {
     @tailrec
-    def partitionAll(
+    def partitionAll[T <: T1](
       chunk: Chunk[T],
-      curTries: Seq[Trie[T]],
+      curTries: Seq[Trie[T1]],
       offset: Int,
       curPartitions: Seq[Chunk[T]]
-    ): ((Chunk[T], Int, Seq[Trie[T]]), Seq[Chunk[T]]) =
+    ): ((Chunk[T], Int, Seq[Trie[T1]]), Seq[Chunk[T]]) =
       if (offset < chunk.size) {
         val matchingTries = curTries.flatMap(_.structure.get(chunk(offset)))
-        matchingTries.filter(_.isLeaf).headOption match {
+        matchingTries.filter(_.isLeaf).reverse.headOption match {
           case Some(trie) =>
             partitionAll(
               if (chunk.size - 1 > offset) chunk.takeRight(chunk.size - offset - 1) else Chunk.empty,
               Seq(this),
               0,
-              curPartitions :+ chunk.take(offset - trie.depth + 1)
+              chunk.take(offset - trie.depth + 1) +: curPartitions
             )
-          case None => partitionAll(chunk, matchingTries :+ this, offset + 1, curPartitions)
+          case None => partitionAll(chunk, this +: matchingTries, offset + 1, curPartitions)
         }
-      } else ((chunk, offset, curTries), curPartitions)
+      } else ((chunk, offset, curTries), curPartitions.reverse)
   }
 
   private object Trie {
@@ -2136,32 +2136,45 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * Splits strings on a delimiter.
    */
-  def splitOnChunk[In](delimiter: => Seq[In])(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
-    splitWithTrie(Trie(Seq(delimiter)))
+  def splitOnChunk[In1 >: In, In](delimiter: => Seq[In1])(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
+    splitWithTrie[In1, In, In](ZChannel.writeChunk, ZChannel.write)(Trie(Seq(delimiter)))
 
-  private def splitWithTrie[In](delimiterTrie: Trie[In])(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
+  def splitOnManyChunk[In1 >: In, In](delimiters: => Seq[Seq[In1]])(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
+    splitWithTrie[In1, In, In](ZChannel.writeChunk, ZChannel.write)(Trie(delimiters))
+
+  def splitOnChunkToProduceChunk[In1 >: In, In](delimiter: => Seq[In1])(implicit trace: Trace): ZPipeline[Any, Nothing, In, Chunk[In]] =
+    splitWithTrie[In1, In, Chunk[In]](ZChannel.write, chunk => ZChannel.write(Chunk.single(chunk)))(Trie(Seq(delimiter)))
+
+  def splitWithTrie[In1 >: In, In, Out](
+    writeChunkOfChunks: Chunk[Chunk[In]] => ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[Out], Any], 
+    writeLeftover: Chunk[In] => ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[Out], Any]
+  )(
+    delimiterTrie: Trie[In1]
+  )(
+    implicit trace: Trace
+  ): ZPipeline[Any, Nothing, In, Out] =
     ZPipeline.suspend {
       def next(
         leftover: Chunk[In],
         offset: Int,
-        curTries: Seq[Trie[In]]
-      ): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
+        curTries: Seq[Trie[In1]]
+      ): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[Out], Any] =
         ZChannel.readWithCause(
           inputChunk => {
             delimiterTrie.partitionAll(leftover ++ inputChunk, curTries, offset, Seq.empty) match {
               case ((carryChunk, carryOffset, carryTries), partitions) =>
-                ZChannel.writeChunk(Chunk.fromIterable(partitions)) *> next(carryChunk, carryOffset, carryTries)
+                writeChunkOfChunks(Chunk.fromIterable(partitions)) *> next(carryChunk, carryOffset, carryTries)
             }
           },
           halt =>
             if (leftover.isDefinedAt(0)) {
-              ZChannel.write(leftover) *> ZChannel.refailCause(halt)
+              writeLeftover(leftover) *> ZChannel.refailCause(halt)
             } else {
               ZChannel.refailCause(halt)
             },
           done =>
             if (leftover.isDefinedAt(0)) {
-              ZChannel.write(leftover) *> ZChannel.succeed(done)
+              writeLeftover(leftover) *> ZChannel.succeed(done)
             } else {
               ZChannel.succeed(done)
             }

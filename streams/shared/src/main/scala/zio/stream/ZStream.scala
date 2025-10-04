@@ -3190,45 +3190,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * output.
    */
   def splitOnChunk[A1 >: A](delimiter: => Chunk[A1])(implicit trace: Trace): ZStream[R, E, Chunk[A]] =
-    ZStream.succeed(delimiter).flatMap { delimiter =>
-      def next(
-        leftover: Option[Chunk[A]],
-        delimiterIndex: Int
-      ): ZChannel[R, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] =
-        ZChannel.readWithCause(
-          inputChunk => {
-            var buffer = null.asInstanceOf[collection.mutable.ArrayBuffer[Chunk[A]]]
-            inputChunk.foldLeft((leftover getOrElse Chunk.empty, delimiterIndex)) {
-              case ((carry, delimiterCursor), a) =>
-                val concatenated = carry :+ a
-                if (delimiterCursor < delimiter.length && a == delimiter(delimiterCursor)) {
-                  if (delimiterCursor + 1 == delimiter.length) {
-                    if (buffer eq null) buffer = collection.mutable.ArrayBuffer[Chunk[A]]()
-                    buffer += concatenated.take(concatenated.length - delimiter.length)
-                    (Chunk.empty, 0)
-                  } else (concatenated, delimiterCursor + 1)
-                } else (concatenated, if (a == delimiter(0)) 1 else 0)
-            } match {
-              case (carry, delimiterCursor) =>
-                ZChannel.write(
-                  if (buffer eq null) Chunk.empty
-                  else Chunk.fromArray(buffer.toArray)
-                ) *> next(if (carry.nonEmpty) Some(carry) else None, delimiterCursor)
-            }
-          },
-          halt =>
-            leftover match {
-              case Some(chunk) => ZChannel.write(Chunk.single(chunk)) *> ZChannel.refailCause(halt)
-              case None        => ZChannel.refailCause(halt)
-            },
-          done =>
-            leftover match {
-              case Some(chunk) => ZChannel.write(Chunk.single(chunk)) *> ZChannel.succeed(done)
-              case None        => ZChannel.succeed(done)
-            }
-        )
-      new ZStream(self.channel >>> next(None, 0))
-    }
+    this >>> ZPipeline.splitOnChunkToProduceChunk[A1, A](delimiter)
 
   /**
    * Takes the specified number of elements from this stream.
