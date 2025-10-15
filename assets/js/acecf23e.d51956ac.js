@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkzio_site=globalThis.webpackChunkzio_site||[]).push([[81903],{1912:s=>{s.exports=JSON.parse('{"blogBasePath":"/blog","blogTitle":"ZIO Blog","authorsListPath":"/blog/authors"}')}}]);
