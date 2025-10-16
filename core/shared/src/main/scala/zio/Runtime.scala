@@ -209,6 +209,7 @@ trait Runtime[+R] { self =>
 
 object Runtime extends RuntimePlatformSpecific {
 
+  @deprecated("Custom Fatal handling is deprecated, kept only for binary compatability.", "2.1.22")
   def addFatal(fatal: Class[_ <: Throwable])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentFatal.locallyScopedWith(_ | IsFatal(fatal)))
 
