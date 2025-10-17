@@ -712,8 +712,8 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     test("fromIterable should works with Iterables traversing only once") {
       val traversableOnceIterable = new Iterable[Int] {
-        val it = new Iterator[Int] {
-          var c: Int                    = 3
+        private val it = new Iterator[Int] {
+          private var c: Int            = 3
           override def hasNext: Boolean = c > 0
           override def next(): Int      = { c = c - 1; c }
         }
