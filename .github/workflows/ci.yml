@@ -222,7 +222,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['17']
+        java: ['25']
         platform: ['JS', 'Native1', 'Native2']
     steps:
       - name: Checkout current branch
