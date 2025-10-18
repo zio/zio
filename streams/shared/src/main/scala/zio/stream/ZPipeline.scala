@@ -2113,7 +2113,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         }
         curTries = this +: curTries
       }
-      ((chunk.slice(curPartitionStart, chunk.length), curTries), partitionBuffer)
+      ((chunk.takeRight(chunk.length - curPartitionStart), curTries), partitionBuffer)
     }
   }
 
