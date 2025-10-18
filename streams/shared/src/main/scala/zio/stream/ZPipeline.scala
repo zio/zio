@@ -2096,7 +2096,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       offset: Int
     ): ((Chunk[T], Seq[Trie[T1]]), Iterable[Chunk[T]]) = {
       val iterator          = chunk.chunkIterator
-      var partitionBuffer   = scala.collection.mutable.ArrayBuffer.empty[Chunk[T]]
+      var partitionBuffer   = scala.collection.mutable.ListBuffer.empty[Chunk[T]]
       var curTries          = carryTries
       var index             = offset
       var curPartitionStart = 0
