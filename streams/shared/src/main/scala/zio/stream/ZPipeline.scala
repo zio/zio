@@ -25,6 +25,7 @@ import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
 import java.nio.charset._
 import java.nio.{ByteBuffer, CharBuffer}
 import scala.annotation.tailrec
+import scala.collection.mutable.ListBuffer
 
 /**
  * A `ZPipeline[Env, Err, In, Out]` is a polymorphic stream transformer.
@@ -2090,26 +2091,33 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       ZPipeline.mapChunks[Char, String](chunk => Chunk.single(chunk.mkString("")))
 
   private final case class Trie[T1](structure: Map[T1, Trie[T1]], depth: Int, isLeaf: Boolean = false) {
-    @tailrec
     def partitionAll[T <: T1](
       chunk: Chunk[T],
-      curTries: Seq[Trie[T1]],
-      offset: Int,
-      curPartitions: Seq[Chunk[T]]
-    ): ((Chunk[T], Int, Seq[Trie[T1]]), Seq[Chunk[T]]) =
-      if (offset < chunk.size) {
-        val matchingTries = curTries.flatMap(_.structure.get(chunk(offset)))
+      carryTries: Seq[Trie[T1]],
+      offset: Int
+    ): ((Chunk[T], Seq[Trie[T1]]), Seq[Chunk[T]]) = {
+      val iterator          = chunk.chunkIterator
+      var partitionBuffer   = new ListBuffer[Chunk[T]]()
+      var curTries          = carryTries
+      var index             = offset
+      var curPartitionStart = 0
+      while (iterator.hasNextAt(index)) {
+        val matchingTries = curTries.flatMap(_.structure.get(iterator.nextAt(index)))
         matchingTries.filter(_.isLeaf).reverse.headOption match {
-          case Some(trie) =>
-            partitionAll(
-              if (chunk.size - 1 > offset) chunk.takeRight(chunk.size - offset - 1) else Chunk.empty,
-              Seq(this),
-              0,
-              chunk.take(offset - trie.depth + 1) +: curPartitions
-            )
-          case None => partitionAll(chunk, this +: matchingTries, offset + 1, curPartitions)
+          case Some(trie) => {
+            partitionBuffer += chunk.slice(curPartitionStart, index - trie.depth + 1)
+            index += 1
+            curPartitionStart = index
+            curTries = Seq(this)
+          }
+          case None => {
+            index += 1
+            curTries = matchingTries.prepended(this)
+          }
         }
-      } else ((chunk, offset, curTries), curPartitions.reverse)
+      }
+      ((chunk.slice(curPartitionStart, chunk.length), curTries), partitionBuffer.toSeq)
+    }
   }
 
   private object Trie {
@@ -2162,14 +2170,13 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     ZPipeline.suspend {
       def next(
         leftover: Chunk[In],
-        offset: Int,
         curTries: Seq[Trie[In1]]
       ): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[Out], Any] =
         ZChannel.readWithCause(
           inputChunk => {
-            delimiterTrie.partitionAll(leftover ++ inputChunk, curTries, offset, Seq.empty) match {
-              case ((carryChunk, carryOffset, carryTries), partitions) =>
-                writeChunkOfChunks(Chunk.fromIterable(partitions)) *> next(carryChunk, carryOffset, carryTries)
+            delimiterTrie.partitionAll(leftover ++ inputChunk, curTries, leftover.size) match {
+              case ((carryChunk, carryTries), partitions) =>
+                writeChunkOfChunks(Chunk.fromIterable(partitions)) *> next(carryChunk, carryTries)
             }
           },
           halt =>
@@ -2185,7 +2192,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               ZChannel.succeed(done)
             }
         )
-      new ZPipeline(next(Chunk.empty, 0, Seq(delimiterTrie)))
+      new ZPipeline(next(Chunk.empty, Seq(delimiterTrie)))
     }
 
   /**
