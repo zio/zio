@@ -2096,16 +2096,17 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       carryTries: Seq[Trie[T1]],
       offset: Int
     ): ((Chunk[T], Seq[Trie[T1]]), Seq[Chunk[T]]) = {
-      val iterator          = chunk.chunkIterator
-      var partitionBuffer   = new ListBuffer[Chunk[T]]()
-      var curTries          = carryTries
-      var index             = offset
-      var curPartitionStart = 0
+      val iterator                     = chunk.chunkIterator
+      var partitionBuffer              = new ListBuffer[Chunk[T]]()
+      var curTries                     = carryTries
+      var matchingTries: Seq[Trie[T1]] = null
+      var index                        = offset
+      var curPartitionStart            = 0
       while (iterator.hasNextAt(index)) {
-        val matchingTries = curTries.flatMap(_.structure.get(iterator.nextAt(index)))
+        matchingTries = curTries.flatMap(_.structure.get(iterator.nextAt(index)))
         matchingTries.filter(_.isLeaf).reverse.headOption match {
-          case Some(trie) => {
-            partitionBuffer += chunk.slice(curPartitionStart, index - trie.depth + 1)
+          case Some(leaf) => {
+            partitionBuffer += chunk.slice(curPartitionStart, index - leaf.depth + 1)
             index += 1
             curPartitionStart = index
             curTries = Seq(this)
