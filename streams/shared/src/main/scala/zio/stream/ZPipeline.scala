@@ -25,7 +25,6 @@ import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
 import java.nio.charset._
 import java.nio.{ByteBuffer, CharBuffer}
 import scala.annotation.tailrec
-import scala.collection.mutable.ListBuffer
 
 /**
  * A `ZPipeline[Env, Err, In, Out]` is a polymorphic stream transformer.
@@ -2095,29 +2094,26 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       chunk: Chunk[T],
       carryTries: Seq[Trie[T1]],
       offset: Int
-    ): ((Chunk[T], Seq[Trie[T1]]), Seq[Chunk[T]]) = {
-      val iterator                     = chunk.chunkIterator
-      var partitionBuffer              = new ListBuffer[Chunk[T]]()
-      var curTries                     = carryTries
-      var matchingTries: Seq[Trie[T1]] = null
-      var index                        = offset
-      var curPartitionStart            = 0
+    ): ((Chunk[T], Seq[Trie[T1]]), Iterable[Chunk[T]]) = {
+      val iterator          = chunk.chunkIterator
+      var partitionBuffer   = scala.collection.mutable.ArrayBuffer.empty[Chunk[T]]
+      var curTries          = carryTries
+      var index             = offset
+      var curPartitionStart = 0
       while (iterator.hasNextAt(index)) {
-        matchingTries = curTries.flatMap(_.structure.get(iterator.nextAt(index)))
-        matchingTries.filter(_.isLeaf).reverse.headOption match {
+        curTries = curTries.flatMap(_.structure.get(iterator.nextAt(index)))
+        index += 1
+        curTries.filter(_.isLeaf).reverse.headOption match {
           case Some(leaf) => {
-            partitionBuffer += chunk.slice(curPartitionStart, index - leaf.depth + 1)
-            index += 1
+            partitionBuffer += chunk.slice(curPartitionStart, index - leaf.depth)
             curPartitionStart = index
-            curTries = Seq(this)
+            curTries = Seq.empty
           }
-          case None => {
-            index += 1
-            curTries = matchingTries.prepended(this)
-          }
+          case None => {}
         }
+        curTries = this +: curTries
       }
-      ((chunk.slice(curPartitionStart, chunk.length), curTries), partitionBuffer.toSeq)
+      ((chunk.slice(curPartitionStart, chunk.length), curTries), partitionBuffer)
     }
   }
 
