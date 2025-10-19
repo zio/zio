@@ -3164,7 +3164,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   ZStream.range(1, 10).split(_ % 4 == 0).runCollect // Chunk(Chunk(1, 2, 3), Chunk(5, 6, 7), Chunk(9))
    * }}}
    */
-  def split(f: A => Boolean)(implicit trace: Trace): ZStream[R, E, Chunk[A]] = 
+  def split(f: A => Boolean)(implicit trace: Trace): ZStream[R, E, Chunk[A]] =
     this >>> ZPipeline.splitWhereChunkToProduceChunk(f, false)
 
   /**

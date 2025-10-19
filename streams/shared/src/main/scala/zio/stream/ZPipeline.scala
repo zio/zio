@@ -2141,10 +2141,14 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       }
   }
 
-  def splitWhereChunk[In](where: In => Boolean, allowEmpty: Boolean)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
+  def splitWhereChunk[In](where: In => Boolean, allowEmpty: Boolean)(implicit
+    trace: Trace
+  ): ZPipeline[Any, Nothing, In, In] =
     splitWhere[In, In](where, allowEmpty)(ZChannel.writeChunk, ZChannel.write)
 
-  def splitWhereChunkToProduceChunk[In](where: In => Boolean, allowEmpty: Boolean)(implicit trace: Trace): ZPipeline[Any, Nothing, In, Chunk[In]] =
+  def splitWhereChunkToProduceChunk[In](where: In => Boolean, allowEmpty: Boolean)(implicit
+    trace: Trace
+  ): ZPipeline[Any, Nothing, In, Chunk[In]] =
     splitWhere[In, Chunk[In]](where, allowEmpty)(ZChannel.write, chunk => ZChannel.write(Chunk.single(chunk)))
 
   private def partitionAllWhere[T](
@@ -2206,7 +2210,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * Splits strings on a delimiter.
    */
-  def splitOnChunk[In1 >: In, In](delimiter: => Seq[In1], allowEmpty: Boolean)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
+  def splitOnChunk[In1 >: In, In](delimiter: => Seq[In1], allowEmpty: Boolean)(implicit
+    trace: Trace
+  ): ZPipeline[Any, Nothing, In, In] =
     (delimiter match {
       case Seq(head) => splitWhere[In, In]((x: In) => x == head, allowEmpty)(_, _)
       case _         => splitWithTrie[In1, In, In](Trie(Seq(delimiter)), allowEmpty)(_, _)
