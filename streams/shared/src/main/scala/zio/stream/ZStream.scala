@@ -3164,33 +3164,15 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   ZStream.range(1, 10).split(_ % 4 == 0).runCollect // Chunk(Chunk(1, 2, 3), Chunk(5, 6, 7), Chunk(9))
    * }}}
    */
-  def split(f: A => Boolean)(implicit trace: Trace): ZStream[R, E, Chunk[A]] = {
-    def split(leftovers: Chunk[A])(in: Chunk[A]): ZChannel[R, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] = {
-      val (chunk, remaining) = (leftovers ++ in).splitWhere(f)
-      if (chunk.isEmpty || remaining.isEmpty) loop(chunk ++ remaining.drop(1))
-      else ZChannel.write(Chunk.single(chunk)) *> split(Chunk.empty)(remaining.drop(1))
-    }
-
-    def loop(leftovers: Chunk[A]): ZChannel[R, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] =
-      ZChannel.readWithCause(
-        (in: Chunk[A]) => split(leftovers)(in),
-        (e: Cause[E]) => ZChannel.refailCause(e),
-        (_: Any) => {
-          if (leftovers.isEmpty) ZChannel.unit
-          else if (leftovers.find(f).isEmpty) ZChannel.write(Chunk.single(leftovers)) *> ZChannel.unit
-          else split(Chunk.empty)(leftovers) *> ZChannel.unit
-        }
-      )
-
-    new ZStream(self.channel >>> loop(Chunk.empty))
-  }
+  def split(f: A => Boolean)(implicit trace: Trace): ZStream[R, E, Chunk[A]] = 
+    this >>> ZPipeline.splitWhereChunkToProduceChunk(f, false)
 
   /**
    * Splits elements on a delimiter and transforms the splits into desired
    * output.
    */
   def splitOnChunk[A1 >: A](delimiter: => Chunk[A1])(implicit trace: Trace): ZStream[R, E, Chunk[A]] =
-    this >>> ZPipeline.splitOnChunkToProduceChunk[A1, A](delimiter)
+    this >>> ZPipeline.splitOnChunkToProduceChunk[A1, A](delimiter, true)
 
   /**
    * Takes the specified number of elements from this stream.
