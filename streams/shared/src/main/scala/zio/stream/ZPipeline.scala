@@ -2078,7 +2078,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def splitOn(delimiter: => String)(implicit trace: Trace): ZPipeline[Any, Nothing, String, String] =
     ZPipeline.mapChunks[String, Char](_.flatMap(string => Chunk.fromArray(string.toArray))) >>>
-      ZPipeline.splitOnChunk[Char, Char](delimiter.toList, true) >>>
+      ZPipeline.splitOnChunk[Char, Char](delimiter.toList, allowEmpty = true) >>>
       ZPipeline.mapChunks[Char, String](chunk => Chunk.single(chunk.mkString("")))
 
   /**
@@ -2121,8 +2121,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   }
 
   private object Trie {
-    def empty[T]            = Trie(Map.empty[T, Trie[T]], 0, false)
-    def next[T](depth: Int) = Trie(Map.empty[T, Trie[T]], depth + 1, false)
+    private val _empty               = Trie(structure = Map.empty[Any, Trie[Any]], depth = 0, isLeaf = false)
+    def empty[T]: Trie[T]            = _empty.asInstanceOf[Trie[T]]
+    def next[T](depth: Int): Trie[T] = empty[T].copy(depth = depth + 1)
 
     def insert[T](trie: Trie[T], seq: => Seq[T]): Trie[T] =
       seq match {

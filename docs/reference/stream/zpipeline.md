@@ -70,7 +70,7 @@ ZStream("This is the first line.\nSecond line.\nAnd the last line.")
 
 ```scala mdoc:silent:nest
 ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-  .via(ZPipeline.splitOnChunk(Chunk(4, 5, 6), true))
+  .via(ZPipeline.splitOnChunk(Chunk(4, 5, 6), allowEmpty = true))
 // Output: Chunk(1, 2, 3), Chunk(7, 8, 9, 10)
 ```
 
