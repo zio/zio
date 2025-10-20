@@ -2211,6 +2211,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * Splits strings on a delimiter.
    */
+  def splitOnChunk[In1 >: In, In](delimiter: => Seq[In1])(implicit
+    trace: Trace
+  ): ZPipeline[Any, Nothing, In, In] =
+    splitOnChunk(delimiter, allowEmpty = true)
+
   def splitOnChunk[In1 >: In, In](delimiter: => Seq[In1], allowEmpty: Boolean)(implicit
     trace: Trace
   ): ZPipeline[Any, Nothing, In, In] =
