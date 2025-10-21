@@ -40,6 +40,10 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   private[this] val globalLocations = makeLocations()
   private[this] val state           = new AtomicInteger(poolSize << 16)
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
+  
+  // Optimization: Track last unpark time to avoid excessive unpark operations
+  private[this] val lastUnparkTime  = new AtomicLong(0L)
+  private[this] val UnparkThrottleNanos = 1000L // 1 microsecond throttle
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
@@ -153,7 +157,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         handleFullWorkerQueue(worker, runnable)
       } else ()
       val currentState = state.get
-      maybeUnparkWorker(currentState)
+      maybeUnparkWorkerThrottled(currentState)
       true
     }
   }
@@ -188,7 +192,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
       if (notify) {
         val currentState = state.get
-        maybeUnparkWorker(currentState)
+        maybeUnparkWorkerThrottled(currentState)
       }
       true
     }
@@ -452,6 +456,30 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         state.getAndAdd(0x10001)
         worker.active = true
         LockSupport.unpark(worker)
+      }
+    }
+  }
+
+  // Optimized version that throttles unpark operations to reduce overhead
+  private def maybeUnparkWorkerThrottled(currentState: Int): Unit = {
+    val currentSearching = currentState & 0xffff
+    val currentActive    = (currentState & 0xffff0000) >> 16
+    if (currentActive != poolSize && currentSearching == 0) {
+      val now = java.lang.System.nanoTime()
+      val lastTime = lastUnparkTime.get()
+      
+      // Throttle unpark operations: only unpark if enough time has passed or we're under significant load
+      val shouldUnpark = (now - lastTime) > UnparkThrottleNanos || 
+                        (currentActive < poolSize / 2) || // Low worker utilization
+                        !globalQueue.isEmpty()           // Work waiting in global queue
+      
+      if (shouldUnpark && lastUnparkTime.compareAndSet(lastTime, now)) {
+        val worker = idle.poll()
+        if (worker ne null) {
+          state.getAndAdd(0x10001)
+          worker.active = true
+          LockSupport.unpark(worker)
+        }
       }
     }
   }
