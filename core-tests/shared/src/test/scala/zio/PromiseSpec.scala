@@ -191,6 +191,79 @@ object PromiseSpec extends ZIOBaseSpec {
           assert(completed)(equalTo(List.range(0, n)))
         }
       )
+    ),
+    suite("become")(
+      test("link promise to successful fiber") {
+        for {
+          promise <- Promise.make[String, Int]
+          fiber   <- ZIO.succeed(42).fork
+          linked  <- promise.become(fiber)
+          result  <- promise.await
+        } yield assert(linked)(isTrue) && assert(result)(equalTo(42))
+      },
+      test("link promise to failing fiber") {
+        for {
+          promise <- Promise.make[String, Int]
+          fiber   <- ZIO.fail("error").fork
+          linked  <- promise.become(fiber)
+          result  <- promise.await.exit
+        } yield assert(linked)(isTrue) && assert(result)(fails(equalTo("error")))
+      },
+      test("become returns false when promise already completed") {
+        for {
+          promise <- Promise.make[String, Int]
+          _       <- promise.succeed(100)
+          fiber   <- ZIO.succeed(42).fork
+          linked  <- promise.become(fiber)
+          result  <- promise.await
+        } yield assert(linked)(isFalse) && assert(result)(equalTo(100))
+      },
+      test("become works with long-running fiber") {
+        for {
+          promise <- Promise.make[String, Int]
+          ref     <- Ref.make(0)
+          fiber   <- (ref.update(_ + 1) *> ZIO.sleep(100.millis) *> ZIO.succeed(42)).fork
+          linked  <- promise.become(fiber)
+          result  <- promise.await
+          count   <- ref.get
+        } yield assert(linked)(isTrue) && assert(result)(equalTo(42)) && assert(count)(equalTo(1))
+      },
+      test("become works with interrupted fiber") {
+        for {
+          promise <- Promise.make[String, Int]
+          fiber   <- ZIO.never.fork
+          linked  <- promise.become(fiber)
+          _       <- fiber.interrupt
+          result  <- promise.await.exit
+        } yield assert(linked)(isTrue) && assert(result)(isInterrupted)
+      },
+      test("become allows multiple awaiters") {
+        for {
+          promise  <- Promise.make[String, Int]
+          fiber    <- (ZIO.sleep(50.millis) *> ZIO.succeed(42)).fork
+          linked   <- promise.become(fiber)
+          results  <- ZIO.collectAllPar(List.fill(5)(promise.await))
+        } yield assert(linked)(isTrue) && assert(results)(equalTo(List.fill(5)(42)))
+      },
+      test("become is idempotent - second call returns false") {
+        for {
+          promise <- Promise.make[String, Int]
+          fiber1  <- ZIO.succeed(42).fork
+          fiber2  <- ZIO.succeed(84).fork
+          linked1 <- promise.become(fiber1)
+          linked2 <- promise.become(fiber2)
+          result  <- promise.await
+        } yield assert(linked1)(isTrue) && assert(linked2)(isFalse) && assert(result)(equalTo(42))
+      },
+      test("become with synthetic fiber") {
+        for {
+          promise <- Promise.make[String, Int]
+          // Create a synthetic fiber using Fiber.succeed
+          fiber   = Fiber.succeed(42)
+          linked  <- promise.become(fiber)
+          result  <- promise.await
+        } yield assert(linked)(isTrue) && assert(result)(equalTo(42))
+      }
     )
   )
 }
