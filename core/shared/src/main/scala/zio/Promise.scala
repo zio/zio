@@ -47,7 +47,7 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
   def await(implicit trace: Trace): IO[E, A] =
     ZIO.suspendSucceed {
       state.get match {
-        case Done(value) => value
+        case Done(value)          => value
         case LinkedToFiber(fiber) => fiber.join(trace)
         case pending =>
           ZIO.asyncInterrupt[Any, E, A](
@@ -58,7 +58,7 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
                   case pending: Pending[?, ?] =>
                     if (state.compareAndSet(pending, pending.add(k))) ()
                     else loop(state.get)
-                  case Done(value) => k(value)
+                  case Done(value)          => k(value)
                   case LinkedToFiber(fiber) => k(fiber.join(trace))
                 }
               loop(pending)
@@ -155,7 +155,7 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
 
   /**
    * Makes this promise become linked to the completion of the specified fiber.
-   * When the fiber completes, this promise will be completed with the same 
+   * When the fiber completes, this promise will be completed with the same
    * result. This avoids unnecessary allocations and indirection compared to
    * creating an intermediate promise and using `await`.
    *
@@ -222,27 +222,31 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
         state.get match {
           case pending: Pending[?, ?] =>
             // Try to complete the promise as "linked to fiber"
-            val linkedState: State[E, A] = LinkedToFiber(fiber.asInstanceOf[Fiber.Runtime[E, A]])
-            if (state.compareAndSet(pending, linkedState)) {
-              // Successfully linked - now register observer on the fiber
-              fiber match {
-                case runtimeFiber: Fiber.Runtime[E, A] =>
-                  // Register observer to complete promise when fiber completes
+            fiber match {
+              case runtimeFiber: Fiber.Runtime[E, A] =>
+                val linkedState: State[E, A] = LinkedToFiber(runtimeFiber)
+                if (state.compareAndSet(pending, linkedState)) {
+                  // Successfully linked - now register observer on the fiber
                   runtimeFiber.unsafe.addObserver { exit =>
                     val result = exit.asInstanceOf[Exit[E, A]]
                     // Complete all pending waiters
                     pending.complete(result)
                   }(unsafe)
-                case _ =>
-                  // For synthetic fibers, use await to get the result
-                  val runtime = Runtime.default
-                  runtime.unsafe.fork(fiber.await(Trace.empty).flatMap { exit =>
-                    ZIO.succeed(pending.complete(exit))(Trace.empty)
-                  }(Trace.empty))(Trace.empty, unsafe)
-              }
-              true
-            } else {
-              loop()
+                  true
+                } else {
+                  loop()
+                }
+              case _ =>
+                // For synthetic fibers, complete immediately with the fiber result
+                val runtime = Runtime.default
+                runtime.unsafe.fork(
+                  fiber
+                    .await(Trace.empty)
+                    .flatMap { exit =>
+                      ZIO.succeed(pending.complete(exit))(Trace.empty)
+                    }(Trace.empty)
+                )(Trace.empty, unsafe)
+                true
             }
           case _ => false // Already completed
         }
@@ -281,24 +285,18 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
 
     def isDone(implicit unsafe: Unsafe): Boolean =
       state.get() match {
-        case _: Done[?, ?] => true
+        case _: Done[?, ?]        => true
         case LinkedToFiber(fiber) => 
-          // For linked fibers, we need to check if the fiber has completed
-          // by checking if it's still alive
-          fiber match {
-            case runtimeFiber: Fiber.Runtime[?, ?] => !runtimeFiber.isAlive()
-            case _ => false // Conservative: assume synthetic fibers are not done
-          }
+          // For linked runtime fibers, check if they're alive
+          !fiber.isAlive()
         case _ => false
-      }
-
-    def poll(implicit unsafe: Unsafe): Option[IO[E, A]] =
+      }    def poll(implicit unsafe: Unsafe): Option[IO[E, A]] =
       state.get() match {
-        case Done(value) => Some(value)
-        case LinkedToFiber(fiber) => 
+        case Done(value)          => Some(value)
+        case LinkedToFiber(fiber) =>
           // For linked fibers, delegate to the fiber's join operation
           Some(fiber.join(Trace.empty))
-        case _           => None
+        case _ => None
       }
 
     def refailCause(e: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Boolean =
@@ -314,8 +312,8 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
 }
 object Promise {
   private[zio] object internal {
-    sealed abstract class State[E, A]            extends Serializable
-    final case class Done[E, A](value: IO[E, A]) extends State[E, A]
+    sealed abstract class State[E, A]                        extends Serializable
+    final case class Done[E, A](value: IO[E, A])             extends State[E, A]
     final case class LinkedToFiber[E, A](fiber: Fiber[E, A]) extends State[E, A]
     sealed abstract class Pending[E, A] extends State[E, A] { self =>
       def complete(io: IO[E, A]): Unit

@@ -464,6 +464,9 @@ object FiberRefSpec extends ZIOBaseSpec {
     },
     suite("hasIdentityFork & hasSecondFnJoin")(
       test("ZIO-provided refs") {
+        @annotation.nowarn("msg=deprecated")
+        val currentFatalDeprecated = FiberRef.currentFatal
+
         val shouldBeTrue = List(
           FiberRef.currentLogLevel,
           FiberRef.currentLogSpan,
@@ -472,7 +475,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           FiberRef.overrideExecutor,
           FiberRef.currentEnvironment,
           FiberRef.currentBlockingExecutor,
-          FiberRef.currentFatal: @annotation.nowarn("msg=deprecated"),
+          currentFatalDeprecated,
           FiberRef.currentFiberIdGenerator,
           FiberRef.currentLoggers,
           FiberRef.currentReportFatal,

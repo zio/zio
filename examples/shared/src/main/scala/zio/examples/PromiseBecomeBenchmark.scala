@@ -32,10 +32,10 @@ object PromiseBecomeBenchmark extends ZIOAppDefault {
       for {
         promise <- Promise.make[String, Int]
         fiber   <- (ZIO.sleep(1.nano) *> ZIO.succeed(i)).fork
-        result  <- fiber.await
-        _       <- promise.succeed(result)
-        value   <- promise.await
-      } yield value
+        value   <- fiber.join // Use join instead of await to get the value directly
+        _       <- promise.succeed(value)
+        result  <- promise.await
+      } yield result
     }
     end <- Clock.nanoTime
     duration = (end - start) / 1_000_000 // Convert to milliseconds
