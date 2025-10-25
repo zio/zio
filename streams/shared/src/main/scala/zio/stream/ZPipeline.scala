@@ -24,6 +24,7 @@ import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
 
 import java.nio.charset._
 import java.nio.{ByteBuffer, CharBuffer}
+import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec
 
 /**
@@ -2121,25 +2122,59 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   }
 
   private object Trie {
-    private val _empty               = Trie(structure = Map.empty[Any, Trie[Any]], depth = 0, isLeaf = false)
-    def empty[T]: Trie[T]            = _empty.asInstanceOf[Trie[T]]
-    def next[T](depth: Int): Trie[T] = empty[T].copy(depth = depth + 1)
+    private final case class MutableTrie[T](
+      structure: scala.collection.mutable.Map[T, MutableTrie[T]],
+      depth: Int,
+      isLeaf: AtomicBoolean
+    ) {
+      def toTrie: Trie[T] =
+        Trie(
+          structure = this.structure.map { case (key, mutableTrie) => (key, mutableTrie.toTrie) }.toMap,
+          depth = this.depth,
+          isLeaf = this.isLeaf.get()
+        )
+    }
 
-    def insert[T](trie: Trie[T], seq: => Seq[T]): Trie[T] =
-      seq match {
-        case head +: tail => {
-          val next = trie.structure.getOrElse(head, Trie.next[T](trie.depth))
-          trie.copy(structure = trie.structure.updated(head, insert(next, tail)))
-        }
-        case Nil => trie.copy(isLeaf = true)
-      }
+    private object MutableTrie {
+      def empty[T]: MutableTrie[T] = MutableTrie(
+        structure = scala.collection.mutable.Map.empty[T, MutableTrie[T]],
+        depth = 0,
+        isLeaf = new AtomicBoolean(false)
+      )
+      def next[T](depth: Int): MutableTrie[T] = MutableTrie(
+        structure = scala.collection.mutable.Map.empty[T, MutableTrie[T]],
+        depth = depth,
+        isLeaf = new AtomicBoolean(false)
+      )
+    }
 
-    def apply[T](delimiters: Seq[Seq[T]]): Trie[T] =
-      delimiters.foldLeft(Trie.empty[T]) {
-        case (trie, delimiter) => {
-          insert(trie, delimiter)
+    def apply[T](delimiters: Seq[Seq[T]]): Trie[T] = {
+      var index         = 0
+      val outerIterator = delimiters.iterator
+      var root          = MutableTrie.empty[T]
+
+      while (outerIterator.hasNext) {
+        val innerIterator = outerIterator.next().iterator
+        var curNode       = root
+        index = 0
+        if (innerIterator.hasNext) {
+          while (innerIterator.hasNext) {
+            val elem = innerIterator.next()
+            curNode = curNode.structure.get(elem) match {
+              case Some(nextNode) => nextNode
+              case None => {
+                var nextNode = MutableTrie.next[T](depth = index + 1)
+                curNode.structure += (elem -> nextNode)
+                nextNode
+              }
+            }
+            index += 1
+          }
+          curNode.isLeaf.set(true)
         }
       }
+      return root.toTrie
+    }
   }
 
   def splitWhereChunk[In](where: In => Boolean, allowEmpty: Boolean)(implicit
