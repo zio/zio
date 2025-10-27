@@ -23,6 +23,7 @@ private[zio] sealed trait IsFatal extends (Throwable => Boolean) { self =>
   @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
   def apply(t: Throwable): Boolean =
     if (t.isInstanceOf[VirtualMachineError]) true
+    else if (t.isInstanceOf[LinkageError]) true
     else
       self match {
         case _: Empty.type     => false

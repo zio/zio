@@ -12,7 +12,8 @@ object IsFatalSpec extends ZIOBaseSpec {
         test("apply(VirtualMachineError)") {
           val isFatal = IsFatal.empty
           assert(isFatal(new OutOfMemoryError()))(isTrue) &&
-          assert(isFatal(new StackOverflowError()))(isTrue)
+          assert(isFatal(new StackOverflowError()))(isTrue) &&
+          assert(isFatal(new NoClassDefFoundError()))(isTrue)
         },
         test("apply(Non-VirtualMachineError)") {
           val isFatal = IsFatal.empty
