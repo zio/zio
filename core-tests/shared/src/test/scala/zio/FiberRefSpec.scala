@@ -472,7 +472,6 @@ object FiberRefSpec extends ZIOBaseSpec {
           FiberRef.overrideExecutor,
           FiberRef.currentEnvironment,
           FiberRef.currentBlockingExecutor,
-          FiberRef.currentFatal: @annotation.nowarn("msg=deprecated"),
           FiberRef.currentFiberIdGenerator,
           FiberRef.currentLoggers,
           FiberRef.currentReportFatal,

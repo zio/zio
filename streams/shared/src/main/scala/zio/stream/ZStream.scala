@@ -4441,10 +4441,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
         ZStream
           .fromZIO(
-            FiberRef.currentFatal.get <*> ZIO.attempt(iterator) <*> ZIO.runtime[Any] <*> ZIO
+            ZIO.attempt(iterator) <*> ZIO.runtime[Any] <*> ZIO
               .succeed(ChunkBuilder.make[A](maxChunkSize))
           )
-          .flatMap { case (isFatal, it, rt, builder) =>
+          .flatMap { case (it, rt, builder) =>
             ZStream.repeatZIOChunkOption {
               ZIO.attempt {
                 builder.clear()
@@ -4456,8 +4456,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                     count += 1
                   }
                 } catch {
-                  case e: Throwable if !isFatal(e) =>
-                    throw e
+                  case e: Throwable if !Fiber.isFatal(e) => throw e
                 }
 
                 if (count > 0) {
@@ -4479,30 +4478,29 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   ): ZStream[Any, Throwable, A] = {
     object StreamEnd extends Throwable
 
-    ZStream.fromZIO(FiberRef.currentFatal.get <*> ZIO.attempt(iterator) <*> ZIO.runtime[Any]).flatMap {
-      case (isFatal, it, rt) =>
-        ZStream.repeatZIOOption {
-          ZIO.attempt {
+    ZStream.fromZIO(ZIO.attempt(iterator) <*> ZIO.runtime[Any]).flatMap { case (it, rt) =>
+      ZStream.repeatZIOOption {
+        ZIO.attempt {
 
-            val hasNext: Boolean =
-              try it.hasNext
-              catch {
-                case e: Throwable if !isFatal(e) =>
-                  throw e
-              }
+          val hasNext: Boolean =
+            try it.hasNext
+            catch {
+              case e: Throwable if !Fiber.isFatal(e) =>
+                throw e
+            }
 
-            if (hasNext) {
-              try it.next()
-              catch {
-                case e: Throwable if !isFatal(e) =>
-                  throw e
-              }
-            } else throw StreamEnd
-          }.mapError {
-            case StreamEnd => None
-            case e         => Some(e)
-          }
+          if (hasNext) {
+            try it.next()
+            catch {
+              case e: Throwable if !Fiber.isFatal(e) =>
+                throw e
+            }
+          } else throw StreamEnd
+        }.mapError {
+          case StreamEnd => None
+          case e         => Some(e)
         }
+      }
     }
   }
 

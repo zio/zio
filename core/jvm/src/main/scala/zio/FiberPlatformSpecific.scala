@@ -35,9 +35,7 @@ private[zio] trait FiberPlatformSpecific {
         ZIO.suspendSucceed {
           val cf = cs.toCompletableFuture
           if (cf.isDone) {
-            ZIO
-              .isFatalWith(isFatal => javaz.unwrapDone(isFatal)(cf))
-              .fold(e => Some(Exit.fail(e)), v => Some(Exit.succeed(v)))
+            javaz.unwrapDone(cf).fold(e => Some(Exit.fail(e)), v => Some(Exit.succeed(v)))
           } else {
             Exit.none
           }
@@ -69,9 +67,7 @@ private[zio] trait FiberPlatformSpecific {
       def poll(implicit trace: Trace): UIO[Option[Exit[Throwable, A]]] =
         ZIO.suspendSucceed {
           if (ftr.isDone) {
-            ZIO
-              .isFatalWith(isFatal => javaz.unwrapDone(isFatal)(ftr))
-              .fold(e => Some(Exit.fail(e)), v => Some(Exit.succeed(v)))
+            javaz.unwrapDone(ftr).fold(e => Some(Exit.fail(e)), v => Some(Exit.succeed(v)))
           } else {
             Exit.none
           }

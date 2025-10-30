@@ -465,7 +465,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           }
         } catch {
           case throwable: Throwable =>
-            if (isFatal(throwable)) {
+            if (Fiber.isFatal(throwable)) {
               effect = handleFatalError(throwable)
             } else {
               effect = ZIO.failCause(Cause.die(throwable))(_lastTrace)
@@ -708,7 +708,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       value = asyncRegister(callback)
     } catch {
       case throwable: Throwable =>
-        if (isFatal(throwable)) handleFatalError(throwable)
+        if (Fiber.isFatal(throwable)) handleFatalError(throwable)
         else callback(Exit.Failure(Cause.die(throwable)))
     }
 
@@ -824,7 +824,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       onFiber(self)
     } catch {
       case throwable: Throwable =>
-        if (isFatal(throwable)) {
+        if (Fiber.isFatal(throwable)) {
           handleFatalError(throwable)
         } else {
           log(
@@ -962,7 +962,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             sync.eval()
           } catch {
             case t: Throwable =>
-              if (isFatal(t)) handleFatalError(t)
+              if (Fiber.isFatal(t)) handleFatalError(t)
               else addInterruptedCause(Cause.die(t))
           }
         }
@@ -1441,7 +1441,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           }
         } catch {
           case throwable: Throwable =>
-            if (isFatal(throwable)) {
+            if (Fiber.isFatal(throwable)) {
               handleFatalError(throwable)
             } else {
               println("An exception was thrown by a logger:")
