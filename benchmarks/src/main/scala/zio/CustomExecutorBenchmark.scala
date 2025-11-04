@@ -3,6 +3,7 @@ package zio
 import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations.{Scope => JScope, _}
 import zio.BenchmarkUtil._
+import zio.internal.NIOExecutor
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
@@ -29,6 +30,13 @@ class CustomExecutorBenchmark {
     Runtime.unsafe.fromLayer(kExecutorLayer)
   }
 
+  lazy val nioRuntime = {
+    implicit val unsafe: Unsafe = Unsafe.unsafe(identity)
+    val nioExecutor             = new NIOExecutor(NIOExecutor.NIOExecutorConfig.default)
+    val layer                   = Runtime.setExecutor(nioExecutor)
+    Runtime.unsafe.fromLayer(layer)
+  }
+
   @Benchmark
   def defaultExecutor(): BigInt = zioFib(defaultRuntime)
 
@@ -45,6 +53,15 @@ class CustomExecutorBenchmark {
   def customExecutorInitBoth(): BigInt = {
     defaultRuntime
     zioFib(customRuntime)
+  }
+
+  @Benchmark
+  def nioExecutor(): BigInt = zioFib(nioRuntime)
+
+  @Benchmark
+  def nioExecutorInitBoth(): BigInt = {
+    defaultRuntime
+    zioFib(nioRuntime)
   }
 
   private[this] def zioFib(runtime: Runtime[Any]): BigInt = {

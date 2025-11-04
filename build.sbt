@@ -633,6 +633,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     resolvers += Resolver.sonatypeCentralSnapshots,
     libraryDependencies ++= List(
       `zio-http`,
+      `zio-logging`,
       `zio-metrics-connectors`,
       `zio-metrics-connectors-prometheus`
     )
