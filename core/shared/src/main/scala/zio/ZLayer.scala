@@ -223,11 +223,19 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] extends ZLayerVersionSpecific[RIn,
   final def fresh: ZLayer[RIn, E, ROut] =
     ZLayer.Fresh(self)
 
+  @transient private[this] var _hashCode: Int = 0
+
   /**
    * Returns the hash code of this layer.
    */
-  override final lazy val hashCode: Int =
-    super.hashCode
+  override final def hashCode: Int = {
+    var hc = _hashCode
+    if (hc == 0) {
+      hc = super.hashCode
+      _hashCode = hc
+    }
+    hc
+  }
 
   /**
    * Builds this layer and uses it until it is interrupted. This is useful when
