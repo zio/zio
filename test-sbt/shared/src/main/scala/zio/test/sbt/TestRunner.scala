@@ -70,7 +70,7 @@ abstract class TestRunner(
       ExecutionEventPrinter.live(console, testArgs.testEventRenderer, testArgs.reportsParent) >>> TestOutput.live
 
     val sharedLayerFromSpecs: ZLayer[Any, Any, Any] =
-      (Scope.default ++ ZIOAppArgs.empty) >>> specs
+      (Scope.default <*> ZIOAppArgs.empty) >>> specs
         .map(_.bootstrap)
         .foldLeft(ZLayer.empty: ZLayer[ZIOAppArgs, Any, Any])(_ +!+ _)
 
