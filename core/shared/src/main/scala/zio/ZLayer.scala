@@ -223,7 +223,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] extends ZLayerVersionSpecific[RIn,
   final def fresh: ZLayer[RIn, E, ROut] =
     ZLayer.Fresh(self)
 
-  @transient private[this] var _hashCode: Int = 0
+  private[this] var _hashCode: Int = 0
 
   /**
    * Returns the hash code of this layer.
