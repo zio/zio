@@ -26,13 +26,14 @@ import zio.internal.NIOExecutor
 object NIOClock {
 
   /**
-   * A `ZLayer` that provides a `Clock` service that is powered by an
-   * underlying `NIOExecutor`.
+   * A `ZLayer` that provides a `Clock` service that is powered by an underlying
+   * `NIOExecutor`.
    */
   val live: ZLayer[NIOExecutor, Nothing, Clock] =
     ZLayer.fromZIO {
       ZIO.service[NIOExecutor].map { nioExecutor =>
         new Clock {
+
           /**
            * Schedules the specified effect for execution after the specified
            * duration, delegating to the NIOExecutor's timer.
@@ -61,7 +62,8 @@ object NIOClock {
             }
 
           /**
-           * Other datetime-related methods rely on Clock default implementation.
+           * Other datetime-related methods rely on Clock default
+           * implementation.
            */
           def currentTime(unit: => java.util.concurrent.TimeUnit)(implicit trace: Trace): UIO[Long] =
             Clock.currentTime(unit)

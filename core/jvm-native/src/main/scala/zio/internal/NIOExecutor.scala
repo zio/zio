@@ -37,9 +37,9 @@ private[internal] object TraceLogger {
 }
 
 /**
- * A `NIOExecutor` is an `Executor` that runs ZIO applications using
- * a multi-threaded, work-sharing, least-loaded scheduling algorithm.
- * Inspired by NIO Rust experimental scheduler by Nur Mohammed. 
+ * A `NIOExecutor` is an `Executor` that runs ZIO applications using a
+ * multi-threaded, work-sharing, least-loaded scheduling algorithm. Inspired by
+ * NIO Rust experimental scheduler by Nur Mohammed.
  * [[https://nurmohammed840.github.io/posts/announcing-nio/]]
  */
 final class NIOExecutor(val config: NIOExecutor.NIOExecutorConfig) extends Executor {
@@ -71,8 +71,8 @@ final class NIOExecutor(val config: NIOExecutor.NIOExecutorConfig) extends Execu
   }
 
   /**
-   * Submits a new task to the executor. The method implements two paths: a "hot path" 
-   * for fibers yielded by a worker, and a "cold path" for new tasks.
+   * Submits a new task to the executor. The method implements two paths: a "hot
+   * path" for fibers yielded by a worker, and a "cold path" for new tasks.
    */
   override def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
     TraceLogger.log("Submit called.")
@@ -84,12 +84,12 @@ final class NIOExecutor(val config: NIOExecutor.NIOExecutorConfig) extends Execu
     val currentThread = Thread.currentThread()
 
     if (currentThread.isInstanceOf[NIOWorkerThread]) {
+
     /**
       * HOT PATH: The task is being submitted by one of the executor's own
-      * worker threads as ZIO fibers yield.
-      * The task is placed in the worker's local `deferQueue` for high cache
-      * locality, ensuring it's likely to be picked up immediately by the same
-      * worker.
+       * worker threads as ZIO fibers yield. The task is placed in the worker's
+       * local `deferQueue` for high cache locality, ensuring it's likely to be
+       * picked up immediately by the same worker.
       */
       val worker = currentThread.asInstanceOf[NIOWorkerThread]
       TraceLogger.log(s"HOT PATH: Submitting yielded fiber to local deferQueue of ${worker.getName}.")
@@ -132,9 +132,9 @@ final class NIOExecutor(val config: NIOExecutor.NIOExecutorConfig) extends Execu
   }
 
   /**
-   * Schedules a task for future execution. The task is added to a concurrent 
-   * priority queue and will be executed on the TimerThread after the 
-   * specified duration.
+   * Schedules a task for future execution. The task is added to a concurrent
+   * priority queue and will be executed on the TimerThread after the specified
+   * duration.
    */
   def schedule(task: Runnable, duration: Duration): () => Boolean = {
     TraceLogger.log(s"Scheduling a task to run in ${duration.toNanos}ns.")
@@ -148,9 +148,9 @@ final class NIOExecutor(val config: NIOExecutor.NIOExecutorConfig) extends Execu
 
   /**
    * Initiates a non-blocking shutdown of the executor. It sends an interrupt
-   * signal to all worker threads and the timer thread. Because the threads
-   * are daemons, the JVM will not wait for them to terminate, preventing
-   * deadlocks during application shutdown.
+   * signal to all worker threads and the timer thread. Because the threads are
+   * daemons, the JVM will not wait for them to terminate, preventing deadlocks
+   * during application shutdown.
    */
   def shutdown(): Unit =
     if (shutdownFlag.compareAndSet(false, true)) {
@@ -185,12 +185,14 @@ object NIOExecutor {
   case class NIOExecutorConfig(nThreads: Int, batchSize: Int, trace: Boolean)
 
   /**
-   * Class that allows configurability of the NIOExecutor class, supports the parameters:
-   * - nThreads : integer that indicates the number of threads to use for 
+   * Class that allows configurability of the NIOExecutor class, supports the
+   * parameters:
+   *   - nThreads : integer that indicates the number of threads to use for
    *              executing the work, defaults to number of processors
-   * - batchSize : integer that indicates the number of workers to sample 
-   *               for evaluation of current load, default 4
-   * - trace : boolean that indicates if trace logging has to be enabled, default false
+   *   - batchSize : integer that indicates the number of workers to sample for
+   *     evaluation of current load, default 4
+   *   - trace : boolean that indicates if trace logging has to be enabled,
+   *     default false
    */
   object NIOExecutorConfig {
     val default: NIOExecutorConfig = NIOExecutorConfig(
@@ -199,15 +201,17 @@ object NIOExecutor {
       trace = false
     )
     val config: Config[NIOExecutorConfig] =
-      (Config.int("nThreads") zip Config.int("batchSize") zip Config.boolean("trace"))
-        .map { p => NIOExecutorConfig(p._1, p._2, p._3) }
+      (Config.int("nThreads") zip Config.int("batchSize") zip Config.boolean("trace")).map { p =>
+        NIOExecutorConfig(p._1, p._2, p._3)
+      }
         .nested("zio", "nioexecutor")
         .withDefault(default)
   }
 
   /**
    * Class that describes the current state of the executor worker.
-   * - taskQueue : list of the runnables that may be executed next, not started yet
+   *   - taskQueue : list of the runnables that may be executed next, not
+   *     started yet
    * - queueSize : cached size of the taskQueue, used for metrics
    * - enqueuedCount : cached size of tasks enqueued, used for metrics
    * - dequeuedCount : cached size of tasks dequeued, used for metrics
@@ -252,17 +256,17 @@ object NIOExecutor {
 
   /**
    * A single worker thread. It has a local, LIFO queue named `deferQueue` for
-   * cache-friendly execution of yielded fibers, and a global FIFO queue named `taskQueue` 
-   * for new work.
+   * cache-friendly execution of yielded fibers, and a global FIFO queue named
+   * `taskQueue` for new work.
    */
   private class NIOWorkerThread(val id: Int, val workerState: WorkerState) extends Thread {
     setName(s"NIOExecutor-Worker-$id")
     setDaemon(true)
 
    /**
-    * This is a local, non-concurrent queue for tasks that were yielded by
-    * this worker. Placing them here ensures they are picked up again by the
-    * same thread, maximizing cache locality.
+     * This is a local, non-concurrent queue for tasks that were yielded by this
+     * worker. Placing them here ensures they are picked up again by the same
+     * thread, maximizing cache locality.
     */
     val deferQueue: Deque[Runnable] = new ArrayDeque[Runnable]()
 
@@ -291,8 +295,8 @@ object NIOExecutor {
 
    /*
     * Finds next task to execute. The local `deferQueue` is checked first so that
-    * recently yielded work can finish first. If empty, it polls its main work-sharing queue. 
-    * If that is also empty, it will block and wait for a new task to arrive in 
+     * recently yielded work can finish first. If empty, it polls its main work-sharing queue.
+     * If that is also empty, it will block and wait for a new task to arrive in
     * the main queue.
     */
     private def findTask(): Runnable = {

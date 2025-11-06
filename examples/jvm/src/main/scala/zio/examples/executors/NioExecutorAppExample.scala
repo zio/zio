@@ -37,7 +37,7 @@ object NioExecutorAppExample extends ZIOAppDefault {
     for {
       _     <- ZIO.logInfo("Application starting on NIOExecutor...")
       _     <- ZIO.logTrace("Forking a fiber...")
-      fiber <- ZIO.logDebug("This is a non-blocking forked fiber.").fork
+      _     <- ZIO.logDebug("This is a non-blocking forked fiber.").fork
       _     <- ZIO.logInfo("Submitting a blocking task...")
       _ <- ZIO.blocking {
              ZIO.logInfo("This is a blocking task...");

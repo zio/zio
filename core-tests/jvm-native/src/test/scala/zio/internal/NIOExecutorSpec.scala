@@ -11,8 +11,8 @@ object NIOExecutorSpec extends ZIOSpecDefault {
   private val clockLayer: ZLayer[NIOExecutor, Nothing, Clock]          = NIOClock.live
 
   /**
-   * Overriding the bootstrap layer allows to replace the default services (like Executor and Clock) 
-   * for all tests within this spec.
+   * Overriding the bootstrap layer allows to replace the default services (like
+   * Executor and Clock) for all tests within this spec.
    */
   override val bootstrap: ZLayer[Any, Any, TestEnvironment] =
     nIOExecutorLayer.flatMap { executorEnv =>
@@ -71,7 +71,7 @@ object NIOExecutorSpec extends ZIOSpecDefault {
         assertTrue(!blockingThread.contains("NIOExecutor-Worker"))
     },
     test("should propagate failures correctly") {
-      val error = new RuntimeException("Boom")
+      val error  = new RuntimeException("Boom")
       val effect = ZIO.fail(error)
 
       effect.exit.map(e => assert(e)(fails(equalTo(error))))

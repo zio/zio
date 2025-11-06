@@ -1,6 +1,5 @@
 package zio
 
-import zio.NIOClock
 import zio.internal.NIOExecutor
 import zio.test.Assertion._
 import zio.test._
@@ -8,8 +7,8 @@ import zio.test._
 object NIOClockSpec extends ZIOSpecDefault {
 
   /**
-   * Overriding the bootstrap layer allows to replace the default services (like Clock) 
-   * for all tests within this spec.
+   * Overriding the bootstrap layer allows to replace the default services (like
+   * Clock) for all tests within this spec.
    */
   override val bootstrap: ZLayer[Any, Any, TestEnvironment] = {
     val customClockLayer: ZLayer[Any, Config.Error, Clock] =
@@ -36,7 +35,7 @@ object NIOClockSpec extends ZIOSpecDefault {
           start <- Clock.nanoTime
           _     <- ZIO.sleep(100.millis)
           end   <- Clock.nanoTime
-          delta = Duration.fromNanos(end - start)
+          delta  = Duration.fromNanos(end - start)
         } yield assertTrue(delta >= 100.millis)
       }
     },
@@ -61,8 +60,8 @@ object NIOClockSpec extends ZIOSpecDefault {
                )
              })
         isDoneBefore <- promise.isDone
-        _           <- TestClock.adjust(50.millis)
-        isDoneAfter <- promise.isDone
+        _            <- TestClock.adjust(50.millis)
+        isDoneAfter  <- promise.isDone
       } yield assertTrue(!isDoneBefore) && assertTrue(isDoneAfter)
     }
   )
