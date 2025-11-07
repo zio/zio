@@ -5,8 +5,8 @@ import zio.internal.NIOExecutor
 import zio.logging.{consoleLogger, ConsoleLoggerConfig, LogFilter, LogFormat}
 
 /**
- * This example app shows how to construct an application that uses the NIOExecutor
- * and NIOClock classes instead of the default scheduler and clock.
+ * This example app shows how to construct an application that uses the
+ * NIOExecutor and NIOClock classes instead of the default scheduler and clock.
  */
 object NioExecutorAppExample extends ZIOAppDefault {
 
@@ -35,10 +35,10 @@ object NioExecutorAppExample extends ZIOAppDefault {
 
   def run: ZIO[Any, Throwable, Unit] =
     for {
-      _     <- ZIO.logInfo("Application starting on NIOExecutor...")
-      _     <- ZIO.logTrace("Forking a fiber...")
-      _     <- ZIO.logDebug("This is a non-blocking forked fiber.").fork
-      _     <- ZIO.logInfo("Submitting a blocking task...")
+      _ <- ZIO.logInfo("Application starting on NIOExecutor...")
+      _ <- ZIO.logTrace("Forking a fiber...")
+      _ <- ZIO.logDebug("This is a non-blocking forked fiber.").fork
+      _ <- ZIO.logInfo("Submitting a blocking task...")
       _ <- ZIO.blocking {
              ZIO.logInfo("This is a blocking task...");
              Thread.sleep(2000);

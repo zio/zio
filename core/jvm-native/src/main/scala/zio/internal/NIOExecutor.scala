@@ -31,9 +31,9 @@ import java.util.concurrent.{
 import java.util.{ArrayDeque, Deque}
 
 private[internal] object TraceLogger {
-  private var enabled: Boolean      = false
-  def setEnabled(b: Boolean): Unit  = enabled = b
-  def log(msg: => String): Unit = if (enabled) println(s"[NIO-SCHED] ${Thread.currentThread().getName} | $msg")
+  private var enabled: Boolean     = false
+  def setEnabled(b: Boolean): Unit = enabled = b
+  def log(msg: => String): Unit    = if (enabled) println(s"[NIO-SCHED] ${Thread.currentThread().getName} | $msg")
 }
 
 /**
@@ -85,12 +85,12 @@ final class NIOExecutor(val config: NIOExecutor.NIOExecutorConfig) extends Execu
 
     if (currentThread.isInstanceOf[NIOWorkerThread]) {
 
-    /**
-      * HOT PATH: The task is being submitted by one of the executor's own
+      /**
+       * HOT PATH: The task is being submitted by one of the executor's own
        * worker threads as ZIO fibers yield. The task is placed in the worker's
        * local `deferQueue` for high cache locality, ensuring it's likely to be
        * picked up immediately by the same worker.
-      */
+       */
       val worker = currentThread.asInstanceOf[NIOWorkerThread]
       TraceLogger.log(s"HOT PATH: Submitting yielded fiber to local deferQueue of ${worker.getName}.")
       worker.deferQueue.addLast(runnable)
@@ -100,13 +100,13 @@ final class NIOExecutor(val config: NIOExecutor.NIOExecutorConfig) extends Execu
     }
 
     /**
-    * COLD PATH: The task is submitted from an external thread. We must find
-    * the "least loaded" worker to maintain balanced queues.
-    *
-    * To avoid contention on a global lock, it inspects a random batch of
-    * workers and picks the one with the smallest queue size. This provides
-    * good-enough load balancing at a much lower cost.
-    */
+     * COLD PATH: The task is submitted from an external thread. We must find
+     * the "least loaded" worker to maintain balanced queues.
+     *
+     * To avoid contention on a global lock, it inspects a random batch of
+     * workers and picks the one with the smallest queue size. This provides
+     * good-enough load balancing at a much lower cost.
+     */
     TraceLogger.log("COLD PATH: Submitting new task. Finding best worker.")
     val batchStartIndex = (nextBatchIndex.getAndIncrement() * config.batchSize) % config.nThreads
     var minQueueSize    = Int.MaxValue
@@ -188,7 +188,7 @@ object NIOExecutor {
    * Class that allows configurability of the NIOExecutor class, supports the
    * parameters:
    *   - nThreads : integer that indicates the number of threads to use for
-   *              executing the work, defaults to number of processors
+   *     executing the work, defaults to number of processors
    *   - batchSize : integer that indicates the number of workers to sample for
    *     evaluation of current load, default 4
    *   - trace : boolean that indicates if trace logging has to be enabled,
@@ -212,9 +212,9 @@ object NIOExecutor {
    * Class that describes the current state of the executor worker.
    *   - taskQueue : list of the runnables that may be executed next, not
    *     started yet
-   * - queueSize : cached size of the taskQueue, used for metrics
-   * - enqueuedCount : cached size of tasks enqueued, used for metrics
-   * - dequeuedCount : cached size of tasks dequeued, used for metrics
+   *   - queueSize : cached size of the taskQueue, used for metrics
+   *   - enqueuedCount : cached size of tasks enqueued, used for metrics
+   *   - dequeuedCount : cached size of tasks dequeued, used for metrics
    */
   private class WorkerState {
     val taskQueue: LinkedBlockingQueue[Runnable] = new LinkedBlockingQueue[Runnable]()
@@ -263,11 +263,11 @@ object NIOExecutor {
     setName(s"NIOExecutor-Worker-$id")
     setDaemon(true)
 
-   /**
+    /**
      * This is a local, non-concurrent queue for tasks that were yielded by this
      * worker. Placing them here ensures they are picked up again by the same
      * thread, maximizing cache locality.
-    */
+     */
     val deferQueue: Deque[Runnable] = new ArrayDeque[Runnable]()
 
     override def run(): Unit =
@@ -293,12 +293,12 @@ object NIOExecutor {
       workerState.dequeuedCount.increment()
     }
 
-   /*
-    * Finds next task to execute. The local `deferQueue` is checked first so that
+    /*
+     * Finds next task to execute. The local `deferQueue` is checked first so that
      * recently yielded work can finish first. If empty, it polls its main work-sharing queue.
      * If that is also empty, it will block and wait for a new task to arrive in
-    * the main queue.
-    */
+     * the main queue.
+     */
     private def findTask(): Runnable = {
       var task = deferQueue.poll()
       if (task ne null) {
