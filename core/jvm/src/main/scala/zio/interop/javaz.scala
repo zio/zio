@@ -31,15 +31,15 @@ private[zio] object javaz {
         def completed(result: T, u: Any): Unit = k(Exit.succeed(result))
 
         def failed(t: Throwable, u: Any): Unit = t match {
-          case e if !Fiber.isFatal(e) => k(ZIO.fail(e))
-          case _                      => k(ZIO.die(t))
+          case e if NonFatal(e) => k(ZIO.fail(e))
+          case _                => k(ZIO.die(t))
         }
       }
 
       try {
         op(handler)
       } catch {
-        case e if !Fiber.isFatal(e) => k(ZIO.fail(e))
+        case e if NonFatal(e) => k(ZIO.fail(e))
       }
     }
 
@@ -47,7 +47,7 @@ private[zio] object javaz {
     case e: CompletionException                               => ZIO.fail(e.getCause)
     case e: ExecutionException                                => ZIO.fail(e.getCause)
     case (_: InterruptedException | _: CancellationException) => ZIO.interrupt
-    case e if !Fiber.isFatal(e)                               => ZIO.fail(e)
+    case e if NonFatal(e)                                     => ZIO.fail(e)
   }
 
   @deprecated("unwrapDone requiring isFatal is deprecated, kept only for binary compatability.", "2.1.23")

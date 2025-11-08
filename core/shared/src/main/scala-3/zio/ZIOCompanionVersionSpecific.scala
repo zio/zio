@@ -99,7 +99,7 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
       try {
         Exit.succeed(code(using Unsafe))
       } catch {
-        case t if !Fiber.isFatal(t) => ZIO.failCause(Cause.fail(t))
+        case t if NonFatal(t) => ZIO.failCause(Cause.fail(t))
       }
     }
 
@@ -153,8 +153,7 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
   inline protected def attemptOrDieZIO[R, E, A](inline effect: ZIO[R, E, A])(using Trace): ZIO[R, E, A] =
     try effect
     catch {
-      case t if !Fiber.isFatal(t) => Exit.die(t)
-      case t                      => throw t
+      case t if NonFatal(t) => Exit.die(t)
     }
 
   /**
@@ -165,8 +164,7 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
     ZIO.succeed {
       try { code(using Unsafe); () }
       catch {
-        case t if !Fiber.isFatal(t) => ()
-        case t                      => throw t
+        case t if NonFatal(t) => ()
       }
     }
 

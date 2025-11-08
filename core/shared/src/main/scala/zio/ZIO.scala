@@ -336,7 +336,7 @@ sealed trait ZIO[-R, +E, +A]
   final def catchNonFatalOrDie[R1 <: R, E2, A1 >: A](
     h: E => ZIO[R1, E2, A1]
   )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: Trace): ZIO[R1, E2, A1] =
-    self.foldZIO[R1, E2, A1](e => if (Fiber.isFatal(e)) ZIO.die(e) else h(e), ZIO.successFn)
+    self.foldZIO[R1, E2, A1](e => if (!NonFatal(e)) ZIO.die(e) else h(e), ZIO.successFn)
 
   /**
    * Recovers from some or all of the error cases.
@@ -3992,14 +3992,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   @deprecated("isFatal is deprecated, kept only for binary compatability. Do not use.", "2.1.21")
   def isFatal(implicit trace: Trace): UIO[Throwable => Boolean] =
-    ZIO.succeed(Fiber.isFatal)
+    ZIO.succeed(!NonFatal(_))
 
   /**
    * Constructs an effect based on the definition of a fatal error.
    */
   @deprecated("isFatalWith is deprecated, kept only for binary compatability. Do not use.", "2.1.21")
   def isFatalWith[R, E, A](f: (Throwable => Boolean) => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed(f(Fiber.isFatal))
+    ZIO.suspendSucceed(f(!NonFatal(_)))
 
   /**
    * Iterates with the specified effectual function. The moral equivalent of:
@@ -4864,7 +4864,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.suspendSucceed {
       try rio
       catch {
-        case t if !Fiber.isFatal(t) => Exit.Failure(Cause.fail(t))
+        case t if NonFatal(t) => Exit.Failure(Cause.fail(t))
       }
     }
 

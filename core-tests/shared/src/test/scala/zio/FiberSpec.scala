@@ -11,10 +11,6 @@ object FiberSpec extends ZIOBaseSpec {
 
   def spec =
     suite("FiberSpec")(
-      suite("isFatal")(
-        test("identify a nonFatal exception")(assertTrue(!Fiber.isFatal(new Exception))),
-        test("identify a fatal exception")(assertTrue(Fiber.isFatal(new OutOfMemoryError)))
-      ),
       suite("Create a new Fiber and")(test("scope it") {
         for {
           ref <- Ref.make(false)

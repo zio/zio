@@ -471,9 +471,6 @@ sealed abstract class Fiber[+E, +A] { self =>
 
 object Fiber extends FiberPlatformSpecific {
 
-  /** Identifies if a throwable is fatal */
-  def isFatal(t: Throwable): Boolean = t.isInstanceOf[VirtualMachineError]
-
   /**
    * A runtime fiber that is executing an effect. Runtime fibers have an
    * identity and a trace.
@@ -620,7 +617,7 @@ object Fiber extends FiberPlatformSpecific {
      * (including the log annotations and log level) may not be up-to-date.
      */
     @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
-    private[zio] final def isFatal(t: Throwable): Boolean = Fiber.isFatal(t)
+    private[zio] final def isFatal(t: Throwable): Boolean = !NonFatal(t)
 
     /**
      * Logs using the current set of loggers.

@@ -4449,16 +4449,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
               ZIO.attempt {
                 builder.clear()
                 var count = 0
-
-                try {
-                  while (count < maxChunkSize && it.hasNext) {
-                    builder += it.next()
-                    count += 1
-                  }
-                } catch {
-                  case e: Throwable if !Fiber.isFatal(e) => throw e
+                while (count < maxChunkSize && it.hasNext) {
+                  builder += it.next()
+                  count += 1
                 }
-
                 if (count > 0) {
                   builder.result()
                 } else {
@@ -4481,21 +4475,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.fromZIO(ZIO.attempt(iterator) <*> ZIO.runtime[Any]).flatMap { case (it, rt) =>
       ZStream.repeatZIOOption {
         ZIO.attempt {
-
-          val hasNext: Boolean =
-            try it.hasNext
-            catch {
-              case e: Throwable if !Fiber.isFatal(e) =>
-                throw e
-            }
-
-          if (hasNext) {
-            try it.next()
-            catch {
-              case e: Throwable if !Fiber.isFatal(e) =>
-                throw e
-            }
-          } else throw StreamEnd
+          if (it.hasNext) it.next()
+          else throw StreamEnd
         }.mapError {
           case StreamEnd => None
           case e         => Some(e)
