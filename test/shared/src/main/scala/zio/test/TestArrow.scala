@@ -3,12 +3,12 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.language.implicitConversions
-import zio.{Chunk, ChunkBuilder, Trace, ZIO}
+import zio.{Chunk, ChunkBuilder, Trace, ZIO, NonFatal}
 import zio.internal.stacktracer.SourceLocation
 import zio.test.Assertion.Arguments
 
 import scala.annotation.tailrec
-import scala.util.control.{NonFatal, TailCalls}
+import scala.util.control.TailCalls
 
 case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 
