@@ -52,10 +52,14 @@ ZStream(1,2,3).via(ZPipeline.identity[Int])
 **ZPipeline.splitOn** — A pipeline that splits strings on a delimiter:
 
 ```scala mdoc:silent:nest
-ZStream("1-2-3", "4-5", "6", "7-8-9-10")
+ZStream(
+  "5-6-7-8", 
+  "-9-10-1",
+  "1-12-13"
+)
   .via(ZPipeline.splitOn("-"))
   .map(_.toInt)
-// Ouput: 1, 2, 3, 4, 5, 6, 7, 8, 9 10
+// Ouput: 5, 6, 7, 8, 9, 10, 11, 12, 13
 ```
 
 **ZPipeline.splitLines** — A pipeline that splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`):
