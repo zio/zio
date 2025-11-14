@@ -16,6 +16,7 @@
 
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.Trace
 
 /**
