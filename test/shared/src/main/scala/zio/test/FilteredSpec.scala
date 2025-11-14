@@ -16,7 +16,6 @@
 
 package zio.test
 
-import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.Trace
 
 /**
@@ -25,32 +24,44 @@ import zio.Trace
  */
 private[zio] object FilteredSpec {
 
-  def apply[R, E](spec: Spec[R, E], args: TestArgs)(implicit trace: Trace): Spec[R, E] = {
-    val testSearchedSpec = args.testSearchTerms match {
-      case Nil => spec
-      case testSearchTerms =>
-        spec
-          .filterLabels(
-            label => testSearchTerms.exists(term => label.contains(term)),
-            prefix = "",
-            accumulatePrefix = true
-          )
-          .getOrElse(Spec.empty)
-    }
-    val tagIgnoredSpec = args.tagIgnoreTerms match {
-      case Nil => testSearchedSpec
-      case tagIgnoreTerms =>
-        testSearchedSpec
-          .filterNotTags(tag => tagIgnoreTerms.contains(tag))
-          .getOrElse(Spec.empty)
-    }
+  def apply[R, E](spec: Spec[R, E], args: TestArgs)(implicit trace: Trace): Spec[R, E] =
+    (
+      searchTermFilter[R, E](args)
+        andThen tagIgnoreFilter[R, E](args)
+        andThen tagSearchFilter[R, E](args)
+    ).apply(spec)
 
-    args.tagSearchTerms match {
-      case Nil => tagIgnoredSpec
-      case tagSearchTerms =>
-        tagIgnoredSpec
-          .filterTags(tag => tagSearchTerms.contains(tag))
-          .getOrElse(Spec.empty)
-    }
-  }
+  private def searchTermFilter[R, E](args: TestArgs)(implicit trace: Trace): Spec[R, E] => Spec[R, E] =
+    spec =>
+      args.testSearchTerms match {
+        case Nil => spec
+        case testSearchTerms =>
+          spec
+            .filterLabels(
+              label => testSearchTerms.exists(term => label.contains(term)),
+              prefix = "",
+              accumulatePrefix = true
+            )
+            .getOrElse(Spec.empty)
+      }
+
+  private def tagIgnoreFilter[R, E](args: TestArgs)(implicit trace: Trace): Spec[R, E] => Spec[R, E] =
+    spec =>
+      args.tagIgnoreTerms match {
+        case Nil => spec
+        case tagIgnoreTerms =>
+          spec
+            .filterNotTags(tag => tagIgnoreTerms.contains(tag))
+            .getOrElse(Spec.empty)
+      }
+
+  private def tagSearchFilter[R, E](args: TestArgs)(implicit trace: Trace): Spec[R, E] => Spec[R, E] =
+    spec =>
+      args.tagSearchTerms match {
+        case Nil => spec
+        case tagSearchTerms =>
+          spec
+            .filterTags(tag => tagSearchTerms.contains(tag))
+            .getOrElse(Spec.empty)
+      }
 }
