@@ -97,7 +97,8 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       spec
         .runSpecAsApp(instrumented, TestArgs.empty, Console.ConsoleLive)
         .provide(
-          Scope.default >>> (liveEnvironment >>> (TestEnvironment.live <*> ZLayer.environment[Scope]) +!+ spec.bootstrap)
+          Scope.default >>> (liveEnvironment >>> (TestEnvironment.live <*> ZLayer
+            .environment[Scope]) +!+ spec.bootstrap)
         )
     }(Trace.empty, Unsafe.unsafe).getOrThrowFiberFailure()(Unsafe.unsafe)
   }
