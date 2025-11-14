@@ -71,10 +71,10 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   /**
    * Returns an effect that models execution of this spec.
    */
-  final def execute(defaultExec: ExecutionStrategy)(implicit
+  final def execute(defExec: ExecutionStrategy)(implicit
     trace: Trace
   ): ZIO[R with Scope, Nothing, Spec[Any, E]] =
-    ZIO.environmentWithZIO(provideEnvironment(_).foreachExec(defaultExec)(Exit.failCause, ZIO.successFn))
+    ZIO.environmentWithZIO(provideEnvironment(_).foreachExec(defExec)(Exit.failCause, ZIO.successFn))
 
   /**
    * Returns a new spec with only those tests with annotations satisfying the
@@ -146,19 +146,19 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * suites, utilizing the specified default for other cases.
    */
   final def foldScoped[R1 <: R, E1, Z](
-    defaultExec: ExecutionStrategy
+    defExec: ExecutionStrategy
   )(f: SpecCase[R, E, Z] => ZIO[R1 with Scope, E1, Z])(implicit trace: Trace): ZIO[R1 with Scope, E1, Z] =
     caseValue match {
       case ExecCase(exec, spec)     => spec.foldScoped[R1, E1, Z](exec)(f).flatMap(z => f(ExecCase(exec, z)))
-      case LabeledCase(label, spec) => spec.foldScoped[R1, E1, Z](defaultExec)(f).flatMap(z => f(LabeledCase(label, z)))
+      case LabeledCase(label, spec) => spec.foldScoped[R1, E1, Z](defExec)(f).flatMap(z => f(LabeledCase(label, z)))
       case ScopedCase(scoped) =>
         scoped.foldCauseZIO(
           failure = c => f(ScopedCase(Exit.failCause(c))),
-          success = spec => spec.foldScoped[R1, E1, Z](defaultExec)(f).flatMap(z => f(ScopedCase(ZIO.succeed(z))))
+          success = spec => spec.foldScoped[R1, E1, Z](defExec)(f).flatMap(z => f(ScopedCase(ZIO.succeed(z))))
         )
       case MultipleCase(specs) =>
         ZIO
-          .foreachExec(specs)(defaultExec)(spec => ZIO.scoped[R1](spec.foldScoped[R1, E1, Z](defaultExec)(f)))
+          .foreachExec(specs)(defExec)(spec => ZIO.scoped[R1](spec.foldScoped[R1, E1, Z](defExec)(f)))
           .flatMap(zs => f(MultipleCase(zs)))
       case t: TestCase[R, E] => f(t)
     }
@@ -169,14 +169,14 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * reconstructing the spec with the same structure.
    */
   final def foreachExec[R1 <: R, E1](
-    defaultExec: ExecutionStrategy
+    defExec: ExecutionStrategy
   )(
     failure: Cause[TestFailure[E]] => ZIO[R1, TestFailure[E1], TestSuccess],
     success: TestSuccess => ZIO[R1, E1, TestSuccess]
   )(implicit
     trace: Trace
   ): ZIO[R1 with Scope, Nothing, Spec[R1, E1]] =
-    foldScoped[R1, Nothing, Spec[R1, E1]](defaultExec) {
+    foldScoped[R1, Nothing, Spec[R1, E1]](defExec) {
       case _: ExecCase[?]    => ZIO.succeed(self.asInstanceOf[Spec[R1, E1]])
       case _: LabeledCase[?] => ZIO.succeed(self.asInstanceOf[Spec[R1, E1]])
       case ScopedCase(scoped) =>
