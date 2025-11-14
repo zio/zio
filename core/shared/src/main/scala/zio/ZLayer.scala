@@ -2358,7 +2358,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
         ZIO.uninterruptibleMask { restore =>
           val innerScope = Scope.unsafe.make
           restore(layer.scope(innerScope, self)).exitWith {
-            case s: Exit.Success[B] =>
+            case s: Exit.Success[ZEnvironment[B]] =>
               scope.addFinalizerExit(innerScope.close(_)) *> s
             case e @ Exit.Failure(cause) =>
               innerScope.close(e) *> ZIO.failCause(cause)
