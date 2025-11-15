@@ -53,14 +53,23 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] extends ZLayerVersionSpecific[RIn,
   ): ZLayer[RIn, Nothing, ROut] =
     self.orDie
 
+  /**
+   * Combines this layer with the specified layer sequentially, producing a new
+   * layer that has the inputs and outputs of both.
+   */
+  final def <*>[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
+    that: => ZLayer[RIn2, E1, ROut2]
+  )(implicit tag: EnvironmentTag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+    self.zipWith(that)(_.union[ROut2](_))
+
   final def +!+[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: => ZLayer[RIn2, E1, ROut2]
   ): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     self.zipWithPar(that)(_.unionAll[ROut2](_))
 
   /**
-   * Combines this layer with the specified layer, producing a new layer that
-   * has the inputs and outputs of both.
+   * Combines this layer with the specified layer in parallel, producing a new
+   * layer that has the inputs and outputs of both.
    */
   final def ++[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: => ZLayer[RIn2, E1, ROut2]
@@ -389,9 +398,19 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] extends ZLayerVersionSpecific[RIn,
     map(_.update[A](f))
 
   /**
-   * Combines this layer the specified layer, producing a new layer that has the
-   * inputs of both, and the outputs of both combined using the specified
-   * function.
+   * Combines this layer the specified layer sequentially, producing a new layer
+   * that has the inputs of both, and the outputs of both combined using the
+   * specified function.
+   */
+  final def zipWith[E1 >: E, RIn2, ROut1 >: ROut, ROut2, ROut3](
+    that: => ZLayer[RIn2, E1, ROut2]
+  )(f: (ZEnvironment[ROut], ZEnvironment[ROut2]) => ZEnvironment[ROut3]): ZLayer[RIn with RIn2, E1, ROut3] =
+    ZLayer.suspend(ZLayer.ZipWith(self, that, f))
+
+  /**
+   * Combines this layer the specified layer in parallel, producing a new layer
+   * that has the inputs of both, and the outputs of both combined using the
+   * specified function.
    */
   final def zipWithPar[E1 >: E, RIn2, ROut1 >: ROut, ROut2, ROut3](
     that: => ZLayer[RIn2, E1, ROut2]
@@ -916,7 +935,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       out: EnvironmentTag[ROut],
       trace: Trace
     ): ZLayer[RIn, E, RIn with ROut] =
-      ZLayer.environment[RIn] ++ self
+      ZLayer.environment[RIn] <*> self
 
     /**
      * Projects out part of one of the services output by this layer using the

@@ -127,7 +127,7 @@ class ZIOTestClassRunner(descriptor: ZIOTestClassDescriptor) {
     spec
       .runSpecAsApp(instrumented, TestArgs.empty, Console.ConsoleLive, eventHandler)
       .provide(
-        Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
+        Scope.default >>> (liveEnvironment >>> TestEnvironment.live <*> ZLayer.environment[Scope]),
         spec.bootstrap
       )
   }

@@ -806,7 +806,7 @@ object TestRandom extends Serializable {
 
   val random: ZLayer[Clock, Nothing, TestRandom] = {
     implicit val trace = Tracer.newTrace
-    (ZLayer.service[Clock] ++ deterministic) >>> ZLayer {
+    (ZLayer.service[Clock] <*> deterministic) >>> ZLayer {
       for {
         random     <- ZIO.service[Random]
         testRandom <- ZIO.service[TestRandom]
