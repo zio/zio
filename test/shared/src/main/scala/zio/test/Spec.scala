@@ -248,7 +248,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   final def mapLabel(f: String => String)(implicit trace: Trace): Spec[R, E] =
     transform[R, E] {
       case LabeledCase(label, spec) => LabeledCase(f(label), spec)
-      case s                                         => s
+      case s                        => s
     }
 
   /**
