@@ -4939,7 +4939,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     tag: EnvironmentTag[ROut],
     trace: Trace
   ): ZStream[RIn with RIn2, E, ROut2] =
-    ZStream.suspend(stream.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer))
+    ZStream.suspend(stream.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] <*> layer))
 
   /**
    * Like [[unfoldZIO]], but allows the emission of values to end one step
@@ -5342,7 +5342,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       tagged: EnvironmentTag[R1],
       trace: Trace
     ): ZStream[R0, E1, A] =
-      self.asInstanceOf[ZStream[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
+      self.asInstanceOf[ZStream[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] <*> layer)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZStream[R, E, A]) extends AnyVal {
