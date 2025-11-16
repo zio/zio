@@ -107,8 +107,8 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
         ]
 
       scopeEnv: ZEnvironment[Scope] = runtime.environment
-      perTestLayer = (ZLayer.succeedEnvironment(scopeEnv) ++ liveEnvironment) >>>
-                       (TestEnvironment.live ++ ZLayer.environment[Scope])
+      perTestLayer = (ZLayer.succeedEnvironment(scopeEnv) <*> liveEnvironment) >>>
+                       (TestEnvironment.live <*> ZLayer.environment[Scope])
 
       executionEventSinkLayer = ExecutionEventSink.live(console, testArgs.testEventRenderer, testArgs.reportsParent)
       environment            <- ZIO.environment[Environment]
@@ -166,7 +166,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       TestExecutor
         .default[Environment, Any](
           ZLayer.succeedEnvironment(castedRuntime.environment),
-          testEnvironment ++ Scope.default,
+          testEnvironment <*> Scope.default,
           ZLayer.succeedEnvironment(castedRuntime.environment) >>> ExecutionEventSink.live,
           testEventHandler
         )

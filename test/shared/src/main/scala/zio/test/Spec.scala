@@ -515,7 +515,7 @@ object Spec {
       tagged: EnvironmentTag[R1],
       trace: Trace
     ): Spec[R0, E1] =
-      self.asInstanceOf[Spec[R0 with R1, E]].provideLayer(ZLayer.environment[R0] ++ layer)
+      self.asInstanceOf[Spec[R0 with R1, E]].provideLayer(ZLayer.environment[R0] <*> layer)
   }
 
   final class ProvideSomeLayerShared[R0, -R, +E](private val self: Spec[R, E]) extends AnyVal {

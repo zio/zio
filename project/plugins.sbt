@@ -12,12 +12,12 @@ addSbtPlugin("org.portable-scala"                % "sbt-scalajs-crossproject"   
 addSbtPlugin("org.scala-js"                      % "sbt-scalajs"                   % "1.20.1")
 addSbtPlugin("org.scalameta"                     % "sbt-mdoc"                      % "2.7.2")
 addSbtPlugin("org.scala-native"                  % "sbt-scala-native"              % "0.5.9")
-addSbtPlugin("org.scalameta"                     % "sbt-scalafmt"                  % "2.5.5")
+addSbtPlugin("org.scalameta"                     % "sbt-scalafmt"                  % "2.5.6")
 addSbtPlugin("pl.project13.scala"                % "sbt-jcstress"                  % "0.2.0")
 addSbtPlugin("pl.project13.scala"                % "sbt-jmh"                       % "0.4.8")
 
 addSbtPlugin("org.jetbrains.scala" % "sbt-ide-settings" % "1.1.3")
 
-libraryDependencies += "org.snakeyaml" % "snakeyaml-engine" % "2.10"
+libraryDependencies += "org.snakeyaml" % "snakeyaml-engine" % "3.0.1"
 
 addDependencyTreePlugin
