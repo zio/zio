@@ -147,9 +147,9 @@ object FrameworkSpecInstances {
     // succeeding test with `provide`
     private val suiteWithValidProvideEnv =
       (
-      suite("suite with tag and valid `provide` env")(
-        test("should be executed - 1")(ZIO.serviceWith[Int](i => assertTrue(i == 1)))
-      ).provide(ZLayer.succeed(1))
+        suite("suite with tag and valid `provide` env")(
+          test("should be executed - 1")(ZIO.serviceWith[Int](i => assertTrue(i == 1)))
+        ).provide(ZLayer.succeed(1))
       ) @@ TestAspect.tag("Executed")
 
     // failing test with `provideShared`
@@ -163,9 +163,9 @@ object FrameworkSpecInstances {
     // succeeding test with `provideShared`
     private val suiteWithValidProvideSharedEnv =
       (
-      suite("suite with tag and valid `provideShared` env")(
-        test("should be executed - 3")(ZIO.serviceWith[Int](i => assertTrue(i == 1)))
-      ).provideShared(ZLayer.succeed(1))
+        suite("suite with tag and valid `provideShared` env")(
+          test("should be executed - 3")(ZIO.serviceWith[Int](i => assertTrue(i == 1)))
+        ).provideShared(ZLayer.succeed(1))
       ) @@ TestAspect.tag("Executed")
 
     // failing test with `provideLayerShared`
@@ -179,9 +179,9 @@ object FrameworkSpecInstances {
     // succeeding test with `provideLayerShared`
     private val suiteWithValidProvideLayerSharedEnv =
       (
-      suite("suite with tag and valid `provideShared` env")(
-        test("should be executed - 5")(ZIO.serviceWith[Int](i => assertTrue(i == 1)))
-      ).provideLayerShared(ZLayer.succeed(1))
+        suite("suite with tag and valid `provideShared` env")(
+          test("should be executed - 5")(ZIO.serviceWith[Int](i => assertTrue(i == 1)))
+        ).provideLayerShared(ZLayer.succeed(1))
       ) @@ TestAspect.tag("Executed")
 
     // failing test with `provideSomeLayerShared`
