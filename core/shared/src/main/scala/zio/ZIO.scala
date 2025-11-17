@@ -326,23 +326,6 @@ sealed trait ZIO[-R, +E, +A]
     catchSomeDefect { case t => h(t) }
 
   /**
-   * Recovers from all NonFatal Throwables.
-   *
-   * {{{
-   * openFile("data.json").catchNonFatalOrDie(_ => openFile("backup.json"))
-   * }}}
-   */
-  @deprecated("Use `catchAll`", "2.1.21")
-  final def catchNonFatalOrDie[R1 <: R, E2, A1 >: A](
-    h: E => ZIO[R1, E2, A1]
-  )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: Trace): ZIO[R1, E2, A1] = {
-
-    def hh(e: E) =
-      ZIO.isFatalWith(isFatal => if (isFatal(e)) ZIO.die(e) else h(e))
-    self.foldZIO[R1, E2, A1](hh, ZIO.successFn)
-  }
-
-  /**
    * Recovers from some or all of the error cases.
    *
    * {{{

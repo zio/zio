@@ -275,22 +275,6 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assertTrue(res1.isSuccess, !res1.isInterrupted, res2.isSuccess, !res2.isInterrupted)
       } @@ TestAspect.withLiveClock
     ),
-    suite("catchNonFatalOrDie")(
-      test("recovers from NonFatal") {
-        val s   = "division by zero"
-        val zio = ZIO.fail(new IllegalArgumentException(s))
-        @nowarn("cat=deprecation")
-        val result = zio.catchNonFatalOrDie(e => ZIO.succeed(e.getMessage)).exit
-        assertZIO(result)(succeeds(equalTo(s)))
-      },
-      test("dies if fatal") {
-        val e   = new OutOfMemoryError
-        val zio = ZIO.fail(e)
-        @nowarn("cat=deprecation")
-        val result = zio.catchNonFatalOrDie(e => ZIO.succeed(e.getMessage)).exit
-        assertZIO(result)(dies(equalTo(e)))
-      } @@ jvmOnly // no fatal exceptions in JS
-    ),
     suite("catchAllDefect")(
       test("recovers from all defects") {
         val s   = "division by zero"
