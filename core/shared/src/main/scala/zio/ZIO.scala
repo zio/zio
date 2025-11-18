@@ -1055,7 +1055,11 @@ sealed trait ZIO[-R, +E, +A]
    * evaluated multiple times.
    */
   final def once(implicit trace: Trace): UIO[ZIO[R, E, Unit]] =
-    Ref.make(true).map(ref => self.whenZIO(ref.getAndSet(false)).unit)
+    ZIO.succeed {
+      val ref = Ref.unsafe.make(true)(Unsafe)
+
+      ZIO.whenDiscard(ref.unsafe.getAndSet(false)(Unsafe))(self)
+    }
 
   /**
    * Executes the specified success or error callback depending on the result of
