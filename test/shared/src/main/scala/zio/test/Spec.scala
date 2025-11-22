@@ -347,11 +347,19 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
             .flatMap(r => scoped.map(_.provideEnvironment(r)).provideSomeEnvironment[Scope](r.union[Scope]))
         )
       case MultipleCase(specs) =>
-        Spec.scoped[R0](
-          layer.memoize.flatMap(layer =>
-            layer.mapError(TestFailure.fail).build.map(_ => Spec.multiple(specs.map(_.provideLayer(layer))))
-          )
-        )
+        Spec.scoped[R0] {
+          ZIO.scopeWith { scope =>
+            ZLayer
+              .makeSome[R0, R](
+                ZLayer.succeed(scope),
+                layer.extendScope
+              )
+              .memoize
+              .map { memoizedLayer =>
+                Spec.multiple(specs.map(_.provideLayer(memoizedLayer)))
+              }
+          }
+        }
       case TestCase(test, annotations) => Spec.test(test.provideLayer(layer.mapError(TestFailure.fail)), annotations)
     }
 
@@ -515,7 +523,7 @@ object Spec {
       tagged: EnvironmentTag[R1],
       trace: Trace
     ): Spec[R0, E1] =
-      self.asInstanceOf[Spec[R0 with R1, E]].provideLayer(ZLayer.environment[R0] ++ layer)
+      self.asInstanceOf[Spec[R0 with R1, E]].provideLayer(ZLayer.environment[R0] <*> layer)
   }
 
   final class ProvideSomeLayerShared[R0, -R, +E](private val self: Spec[R, E]) extends AnyVal {
@@ -538,12 +546,19 @@ object Spec {
             }
           )
         case MultipleCase(specs) =>
-          Spec.scoped[R0](
-            layer.memoize
-              .flatMap(layer =>
-                layer.mapError(TestFailure.fail).build.map(_ => Spec.multiple(specs.map(_.provideSomeLayer[R0](layer))))
-              )
-          )
+          Spec.scoped[R0] {
+            ZIO.scopeWith { scope =>
+              ZLayer
+                .makeSome[R0, R1](
+                  ZLayer.succeed(scope),
+                  layer.extendScope
+                )
+                .memoize
+                .map { memoizedLayer =>
+                  Spec.multiple(specs.map(_.provideSomeLayer[R0](memoizedLayer)))
+                }
+            }
+          }
         case TestCase(test, annotations) =>
           Spec.test(test.provideSomeLayer(layer.mapError(TestFailure.fail)), annotations)
       }
@@ -567,4 +582,5 @@ object Spec {
     )(implicit tag: Tag[Map[Key, Service]], trace: Trace): Spec[R1, E] =
       self.provideSomeEnvironment(_.updateAt(key)(f))
   }
+
 }

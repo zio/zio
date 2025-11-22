@@ -59,13 +59,15 @@ package object test extends CompileVariants {
       ZLayer.environment[TestEnvironment](Tracer.newTrace)
     val live: ZLayer[Clock with Console with System with Random, Nothing, TestEnvironment] = {
       implicit val trace = Tracer.newTrace
-      (Annotations.live +!+ Live.default) >+>
-        (sizedLive +!+
-          TestClock.default +!+
-          configLive +!+
-          TestConsole.debug +!+
-          TestRandom.deterministic +!+
-          TestSystem.default)
+      Annotations.live <*>
+        Live.default <*>
+        sizedLive <*>
+        ((Live.default <*> Annotations.live) >>> TestClock.default) <*>
+        configLive <*>
+        ((Live.default <*> Annotations.live) >>> TestConsole.debug) <*>
+        TestRandom.deterministic <*>
+        TestSystem.default
+
     }
   }
 
@@ -88,7 +90,7 @@ package object test extends CompileVariants {
 
   val testEnvironment: ZLayer[Any, Nothing, TestEnvironment] = {
     implicit val trace = Tracer.newTrace
-    testFiberRefGen >>> liveEnvironment >>> TestEnvironment.live
+    liveEnvironment >>> (TestEnvironment.live <*> testFiberRefGen)
   }
 
   /**
@@ -932,7 +934,7 @@ package object test extends CompileVariants {
     TestRunner(
       TestExecutor.default(
         testEnvironment,
-        Scope.default +!+ testEnvironment,
+        Scope.default <*> testEnvironment,
         ExecutionEventSink.live(Console.ConsoleLive, ConsoleEventRenderer),
         ZTestEventHandler.silent // The default test runner handles its own events, writing their output to the provided sink.
       )

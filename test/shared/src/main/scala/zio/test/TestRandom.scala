@@ -805,12 +805,13 @@ object TestRandom extends Serializable {
 
   val random: ZLayer[Any, Nothing, TestRandom] = {
     implicit val trace = Tracer.newTrace
-    deterministic >>> ZLayer {
-      ZIO.serviceWithZIO[TestRandom] { testRandom =>
-        ClockLive.nanoTime
-          .flatMap(testRandom.setSeed(_))
-          .as(testRandom)
-      }
+    (ZLayer.service[Clock] <*> deterministic) >>> ZLayer {
+      for {
+        random     <- ZIO.service[Random]
+        testRandom <- ZIO.service[TestRandom]
+        time       <- Clock.nanoTime
+        _          <- TestRandom.setSeed(time)
+      } yield testRandom
     }
   }
 

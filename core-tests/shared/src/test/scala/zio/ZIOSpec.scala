@@ -2835,14 +2835,25 @@ object ZIOSpec extends ZIOBaseSpec {
       } @@ zioTag(errors)
     ),
     suite("interruption semantics") {
-      test("self-interruption triggers onInterrupt") {
+      test("interruption doesn't occur between uninterrupible boundaries") {
         for {
-          ref   <- Ref.make(false)
-          fiber <- ZIO.interrupt.onInterrupt(ref.set(true)).fork
-          _     <- fiber.await
-          value <- ref.get
-        } yield assertTrue(value == true)
-      } +
+          ref <- Ref.make(0)
+          f <- ZIO.uninterruptibleMask { restore =>
+                 restore(ZIO.uninterruptible(ref.set(-1))) *> ref.set(1)
+               }.forkDaemon
+          _ <- f.interruptFork
+          _ <- f.await
+          v <- ref.get
+        } yield assertTrue(v != -1)
+      } @@ zioTag(errors) @@ TestAspect.jvm(nonFlaky(100000)) +
+        test("self-interruption triggers onInterrupt") {
+          for {
+            ref   <- Ref.make(false)
+            fiber <- ZIO.interrupt.onInterrupt(ref.set(true)).fork
+            _     <- fiber.await
+            value <- ref.get
+          } yield assertTrue(value == true)
+        } +
         test("self-interruption can be averted") {
           for {
             ref   <- Ref.make(false)

@@ -1329,7 +1329,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       tagged: EnvironmentTag[R1],
       trace: Trace
     ): ZManaged[R0, E1, A] =
-      self.asInstanceOf[ZManaged[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
+      self.asInstanceOf[ZManaged[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] <*> layer)
   }
 
   final class UnlessManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {
@@ -2425,7 +2425,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * it is unbounded.
    */
   def parallelism(implicit trace: Trace): ZManaged[Any, Nothing, Option[Int]] =
-    ZManaged.fromZIO(ZIO.Parallelism.get)
+    ZManaged.fromZIO(FiberRef.parallelism.get)
 
   /**
    * A scope in which resources can be safely preallocated. Passing a
@@ -2456,7 +2456,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     tag: EnvironmentTag[ROut],
     trace: Trace
   ): ZManaged[RIn with RIn2, E, ROut2] =
-    managed.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer)
+    managed.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] <*> layer)
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
@@ -2741,7 +2741,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * it back to the original value as the `release` action.
    */
   def withParallism(n: => Int)(implicit trace: Trace): ZManaged[Any, Nothing, Unit] =
-    ZManaged.scoped(ZIO.Parallelism.locallyScoped(Some(n)))
+    ZManaged.scoped(FiberRef.parallelism.locallyScoped(Some(n)))
 
   /**
    * Returns a managed effect that describes setting an unbounded maximum number
@@ -2749,7 +2749,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * back to the original value as the `release` action.
    */
   def withParallismUnbounded(implicit trace: Trace): ZManaged[Any, Nothing, Unit] =
-    ZManaged.scoped(ZIO.Parallelism.locallyScoped(None))
+    ZManaged.scoped(FiberRef.parallelism.locallyScoped(None))
 
   /**
    * A `ZManagedConstructor[Input]` knows how to construct a `ZManaged` value

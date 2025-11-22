@@ -1,10 +1,8 @@
 package zio.test.sbt
 
-import sbt.testing.{Event, EventHandler, Selector, SuiteSelector, TaskDef}
+import sbt.testing.{Event, Selector, SuiteSelector, TaskDef}
 import zio.ZIO
 import zio.test.{ZIOSpecAbstract, testConsole}
-
-import scala.collection.mutable.ArrayBuffer
 
 object ExecuteSpecs {
   def getOutput(
@@ -30,26 +28,29 @@ object ExecuteSpecs {
     specs: Seq[ZIOSpecAbstract],
     args: Array[String],
     selectors: Array[Selector] = Array(new SuiteSelector)
-  ): ZIO[Any, ::[Throwable], (Seq[String], Seq[Event])] = ZIO.suspendSucceed {
-    val events = ArrayBuffer.empty[Event]
-
-    def attemptBlocking[T](f: => T): ZIO[Any, ::[Throwable], T] = ZIO
-      .attemptBlocking(f)
-      .mapError((error: Throwable) => ::(error, Nil))
+  ): ZIO[Any, ::[Throwable], (Seq[String], Seq[Event])] = {
+    def attemptBlocking[T](f: => T): ZIO[Any, ::[Throwable], T] =
+      ZIO
+        .attemptBlocking(f)
+        .mapError((error: Throwable) => ::(error, Nil))
 
     for {
-      testConsole <- testConsole
-      taskDefs: Array[TaskDef] =
-        specs
-          .map(_.getClass.getName)
-          .map(TestRunner.moduleName)
-          .map(new TaskDef(_, ZioSpecFingerprint, false, selectors))
-          .toArray
-      runner <- attemptBlocking(new ZTestFramework().runner(args))
-      tasks  <- attemptBlocking(runner.tasks(taskDefs, testConsole))
-      _      <- ZIO.validate(tasks.toList)(_.run((e: Event) => events.append(e)))
-      _      <- attemptBlocking(runner.done())
-      output <- testConsole.output
-    } yield (output, events.toSeq)
+      console <- testConsole
+      taskDefs: Seq[TaskDef] =
+        specs.map { spec =>
+          val className  = spec.getClass.getName
+          val moduleName = TestRunner.moduleName(className)
+          new TaskDef(moduleName, ZioSpecFingerprint, false, selectors)
+        }
+      v <- attemptBlocking {
+             val runner = new ZTestFramework().runner(args)
+             (runner, runner.tasks(taskDefs, console))
+           }
+      (runner, tasks) = v
+      events          = Array.newBuilder[Event]
+      _              <- ZIO.validate(tasks)(_.run((e: Event) => events += e))
+      _              <- attemptBlocking(runner.done())
+      output         <- console.output
+    } yield (output, events.result())
   }
 }

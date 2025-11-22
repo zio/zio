@@ -1,5 +1,9 @@
 name: Scala Steward
 
+env:
+  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xms2G -Xmx8G -Xss4M -XX:+UseG1GC -XX:ReservedCodeCacheSize=512M -XX:NonProfiledCodeHeapSize=256M # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
+  SBT_OPTS: -XX:+PrintCommandLineFlags -Xms2G -Xmx8G -Xss4M -XX:+UseG1GC -XX:ReservedCodeCacheSize=512M -XX:NonProfiledCodeHeapSize=256M # Needed for sbt
+
 # This workflow will launch every day at 00:00
 on:
   schedule:

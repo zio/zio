@@ -161,7 +161,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       TestExecutor
         .default[Environment, Any](
           ZLayer.succeedEnvironment(castedRuntime.environment),
-          testEnvironment +!+ Scope.default,
+          testEnvironment <*> Scope.default,
           ZLayer.succeedEnvironment(castedRuntime.environment) >>> ExecutionEventSink.live,
           testEventHandler
         )
