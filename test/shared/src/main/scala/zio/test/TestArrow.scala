@@ -3,7 +3,7 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.language.implicitConversions
-import zio.{Chunk, ChunkBuilder, Trace, ZIO, NonFatal}
+import zio.{Chunk, ChunkBuilder, Trace, ZIO, nonFatal}
 import zio.internal.stacktracer.SourceLocation
 import zio.test.Assertion.Arguments
 
@@ -228,7 +228,7 @@ object TestArrow {
     }
 
   private val onError: PartialFunction[Throwable, TailCalls.TailRec[TestTrace[Nothing]]] = {
-    case ex if NonFatal(ex) =>
+    case ex if nonFatal(ex) =>
       ex.setStackTrace(ex.getStackTrace.filterNot { (ste: StackTraceElement) =>
         ste.getClassName.startsWith("zio.test.TestArrow")
       })

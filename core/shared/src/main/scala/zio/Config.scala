@@ -64,7 +64,7 @@ sealed trait Config[+A] { self =>
     self.mapOrFail { a =>
       try Right(f(a))
       catch {
-        case ex if NonFatal(ex) => Left(Config.Error.InvalidData(Chunk.empty, ex.getMessage))
+        case ex if nonFatal(ex) => Left(Config.Error.InvalidData(Chunk.empty, ex.getMessage))
       }
     }
 
@@ -229,7 +229,7 @@ object Config {
   case object Decimal extends Primitive[BigDecimal] {
     final def parse(text: String): Either[Config.Error, BigDecimal] = try Right(BigDecimal(text))
     catch {
-      case ex if NonFatal(ex) =>
+      case ex if nonFatal(ex) =>
         Left(Config.Error.InvalidData(Chunk.empty, s"Expected a decimal value, but found ${text}"))
     }
   }
@@ -293,7 +293,7 @@ object Config {
   case object Integer extends Primitive[BigInt] {
     final def parse(text: String): Either[Config.Error, BigInt] = try Right(BigInt(text))
     catch {
-      case ex if NonFatal(ex) =>
+      case ex if nonFatal(ex) =>
         Left(Config.Error.InvalidData(Chunk.empty, s"Expected an integer value, but found ${text}"))
     }
   }
@@ -304,7 +304,7 @@ object Config {
       try
         Right(java.time.LocalDateTime.parse(text))
       catch {
-        case ex if NonFatal(ex) =>
+        case ex if nonFatal(ex) =>
           Left(Config.Error.InvalidData(Chunk.empty, s"Expected a local date-time value, but found ${text}"))
       }
   }
@@ -313,7 +313,7 @@ object Config {
       try
         Right(java.time.LocalDate.parse(text))
       catch {
-        case ex if NonFatal(ex) =>
+        case ex if nonFatal(ex) =>
           Left(Config.Error.InvalidData(Chunk.empty, s"Expected a local date value, but found ${text}"))
       }
   }
@@ -322,7 +322,7 @@ object Config {
       try
         Right(java.time.LocalTime.parse(text))
       catch {
-        case ex if NonFatal(ex) =>
+        case ex if nonFatal(ex) =>
           Left(Config.Error.InvalidData(Chunk.empty, s"Expected a local time value, but found ${text}"))
       }
   }
@@ -333,7 +333,7 @@ object Config {
       try
         Right(java.time.OffsetDateTime.parse(text))
       catch {
-        case ex if NonFatal(ex) =>
+        case ex if nonFatal(ex) =>
           Left(Config.Error.InvalidData(Chunk.empty, s"Expected an offset date-time value, but found ${text}"))
       }
   }
