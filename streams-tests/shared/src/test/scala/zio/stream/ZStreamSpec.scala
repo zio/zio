@@ -1318,7 +1318,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         },
         suite("ensuringWith")(
           test("should not throw ClassCastException when error type changes after ensuringWith") {
-            val testStream = 
+            val testStream =
               ZStream
                 .fail("boom")
                 .ensuringWith {
@@ -1335,38 +1335,36 @@ object ZStreamSpec extends ZIOBaseSpec {
                     }
                 }
                 .mapError(_.length) // Changes error type from String to Int
-            
+
             for {
               output <- testStream.runCollect.either
               // The stream should fail with the mapped error (4)
               result <- ZIO.succeed(assert(output)(isLeft(equalTo(4))))
             } yield result
           },
-          
           test("should work correctly with successful streams") {
-            val testStream = 
+            val testStream =
               ZStream
                 .succeed("success")
                 .ensuringWith {
-                  case Exit.Success(value) => 
+                  case Exit.Success(value) =>
                     Console.printLine(s"Stream succeeded with: $value").orDie
-                  case Exit.Failure(_) => 
+                  case Exit.Failure(_) =>
                     ZIO.unit
                 }
                 .map(_.toUpperCase)
-            
+
             for {
               output <- testStream.runCollect
               result <- ZIO.succeed(assert(output)(equalTo(Chunk("SUCCESS"))))
             } yield result
           },
-          
           test("should handle defects properly") {
-            val testStream = 
+            val testStream =
               ZStream
                 .dieMessage("defect")
                 .ensuringWith {
-                  case Exit.Success(_) => ZIO.unit
+                  case Exit.Success(_)     => ZIO.unit
                   case Exit.Failure(cause) =>
                     // Should be able to handle defects without ClassCastException
                     ZIO.succeed {
@@ -1377,15 +1375,14 @@ object ZStreamSpec extends ZIOBaseSpec {
                     }
                 }
                 .mapError(_ => "mapped-error")
-            
+
             for {
-              exit <- testStream.runCollect.exit
+              exit   <- testStream.runCollect.exit
               result <- ZIO.succeed(assert(exit)(dies(hasMessage(equalTo("defect")))))
             } yield result
           },
-          
           test("ZSink.ensuringWith should also work with changed error types") {
-            val sink = 
+            val sink =
               ZSink
                 .fail[String]("sink-error")
                 .ensuringWith {
@@ -1400,19 +1397,18 @@ object ZStreamSpec extends ZIOBaseSpec {
                     }
                 }
                 .mapError(_.length) // Changes error type from String to Int
-            
+
             for {
               result <- ZStream("data").run(sink).either
               // Should fail with the mapped error (10 = "sink-error".length)
               assertion <- ZIO.succeed(assert(result)(isLeft(equalTo(10))))
             } yield assertion
           },
-  
           test("should preserve finalizer execution order") {
             for {
               executed <- Ref.make[List[String]](Nil)
-              
-              stream = 
+
+              stream =
                 ZStream
                   .fail("error")
                   .ensuringWith {
@@ -1421,9 +1417,9 @@ object ZStreamSpec extends ZIOBaseSpec {
                   }
                   .ensuring(executed.update("ensuring" :: _))
                   .mapError(_.length)
-              
-              _      <- stream.runCollect.either.ignore
-              order  <- executed.get.map(_.reverse)
+
+              _     <- stream.runCollect.either.ignore
+              order <- executed.get.map(_.reverse)
             } yield assert(order)(equalTo(List("ensuringWith", "ensuring")))
           }
         ),
