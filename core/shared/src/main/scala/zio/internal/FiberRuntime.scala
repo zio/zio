@@ -1118,6 +1118,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 continuation match {
                   case flatMap: ZIO.FlatMap[Any, Any, Any, Any] =>
                     cur = flatMap.successK(value)
+                    if (cur ne null) updateLastTrace(cur.trace)
 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
@@ -1149,6 +1150,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 continuation match {
                   case flatMap: ZIO.FlatMap[Any, Any, Any, Any] =>
                     cur = flatMap.successK(value)
+                    if (cur ne null) updateLastTrace(cur.trace)
 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
@@ -1169,8 +1171,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               val first = flatmap.first
 
-              if (first eq ZIO.unit) cur = flatmap.successK(())
-              else {
+              if (first eq ZIO.unit) {
+                cur = flatmap.successK(())
+                if (cur ne null) updateLastTrace(cur.trace)
+              } else {
                 stackIndex = pushStackFrame(flatmap, stackIndex)
 
                 val result = runLoop(first, stackIndex, stackIndex, currentDepth + 1, ops)
@@ -1182,7 +1186,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 popStackFrame(stackIndex)
 
                 result match {
-                  case s: Success[Any] => cur = flatmap.successK(s.value)
+                  case s: Success[Any] =>
+                    cur = flatmap.successK(s.value)
+                    if (cur ne null) updateLastTrace(cur.trace)
                   case failure         => cur = failure
                 }
               }
