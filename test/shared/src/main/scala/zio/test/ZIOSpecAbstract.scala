@@ -103,8 +103,8 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
 
     ZIO.environmentWithZIO[TestEnvironment & Scope & Environment] { env =>
       val perTestLayer =
-        (ZLayer.succeedEnvironment[Scope](env) ++ liveEnvironment) >>>
-          (TestEnvironment.live ++ ZLayer.environment[Scope])
+        (ZLayer.succeedEnvironment[Scope](env) <*> liveEnvironment) >>>
+          (TestEnvironment.live <*> ZLayer.environment[Scope])
       val executionEventSinkLayer = ExecutionEventSink.live(console, testArgs.testEventRenderer, testArgs.reportsParent)
       val runner =
         TestRunner(

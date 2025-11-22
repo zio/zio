@@ -139,7 +139,7 @@ object TestExecutor {
                         )
                       )
                     start  <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
-                    result <- Live.live(test).either
+                    result <- Live.withLive(test)(ZIO.identityFn).either
                   } yield {
                     val end = ClockLive.unsafe.currentTime(TimeUnit.MILLISECONDS)(Unsafe)
                     ExecutionEvent
