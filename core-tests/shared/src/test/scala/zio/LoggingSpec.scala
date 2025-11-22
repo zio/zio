@@ -57,7 +57,7 @@ object LoggingSpec extends ZIOBaseSpec {
           _      <- ZIO.logInfo("")
           output <- ZTestLogger.logOutput
           logLine = output(0).call(ZLogger.default)
-        } yield assertTrue(logLine.size >= 100) && 
+        } yield assertTrue(logLine.size >= 100) &&
           assertTrue(logLine.contains("timestamp=")) &&
           assertTrue(logLine.contains("level=")) &&
           assertTrue(logLine.contains("message="))
