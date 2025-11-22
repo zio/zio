@@ -790,8 +790,8 @@ object TestRandom extends Serializable {
   def make(data: Data): Layer[Nothing, TestRandom] = {
     implicit val trace = Tracer.newTrace
     ZLayer.scoped {
-      val data0  = Ref.unsafe.make(data)(Unsafe.unsafe)
-      val buffer = Ref.unsafe.make(Buffer())(Unsafe.unsafe)
+      val data0  = Ref.unsafe.make(data)(Unsafe)
+      val buffer = Ref.unsafe.make(Buffer())(Unsafe)
       val test   = Test(data0, buffer)
       ZIO.withRandomScoped(test).as(test)
     }
@@ -803,16 +803,16 @@ object TestRandom extends Serializable {
   val deterministic: Layer[Nothing, TestRandom] =
     make(DefaultData)
 
-  val random: ZLayer[Any, Nothing, TestRandom] = {
+  val random: ZLayer[Clock, Nothing, TestRandom] = {
     implicit val trace = Tracer.newTrace
-    (ZLayer.service[Clock] <*> deterministic) >>> ZLayer {
-      for {
-        random     <- ZIO.service[Random]
-        testRandom <- ZIO.service[TestRandom]
-        time       <- Clock.nanoTime
-        _          <- TestRandom.setSeed(time)
-      } yield testRandom
+    val layer = ZLayer {
+      ZIO.fromFunctionZIO { (random: TestRandom, clock: Clock) =>
+        clock.nanoTime
+          .flatMap(TestRandom.setSeed(_))
+          .as(random)
+      }
     }
+    deterministic >>> layer
   }
 
   /**
@@ -821,7 +821,7 @@ object TestRandom extends Serializable {
    */
   def makeTest(data: Data)(implicit trace: Trace): UIO[Test] = ZIO.succeedUnsafe { implicit unsafe =>
     val data0  = Ref.unsafe.make(data)
-    val buffer = Ref.unsafe.make(Buffer())(Unsafe.unsafe)
+    val buffer = Ref.unsafe.make(Buffer())
     Test(data0, buffer)
   }
 
