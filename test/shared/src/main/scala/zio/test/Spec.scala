@@ -177,14 +177,14 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     trace: Trace
   ): ZIO[R1 with Scope, Nothing, Spec[R1, E1]] =
     foldScoped[R1, Nothing, Spec[R1, E1]](defExec) {
-      case _: ExecCase[?]    => ZIO.succeed(self.asInstanceOf[Spec[R1, E1]])
-      case _: LabeledCase[?] => ZIO.succeed(self.asInstanceOf[Spec[R1, E1]])
+      case exec: ExecCase[?]         => ZIO.succeed(Spec(exec).asInstanceOf[Spec[R1, E1]])
+      case labelCase: LabeledCase[?] => ZIO.succeed(Spec(labelCase).asInstanceOf[Spec[R1, E1]])
       case ScopedCase(scoped) =>
         scoped.foldCause(
           failure = c => Spec.test(failure(c), TestAnnotationMap.empty),
           success = t => Spec.scoped(ZIO.succeed(t))
         )
-      case _: MultipleCase[?] => ZIO.succeed(self.asInstanceOf[Spec[R1, E1]])
+      case multiple: MultipleCase[?] => ZIO.succeed(Spec(multiple).asInstanceOf[Spec[R1, E1]])
       case TestCase(test, annotations) =>
         test
           .foldCause(
