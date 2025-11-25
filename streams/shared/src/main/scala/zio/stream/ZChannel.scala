@@ -690,12 +690,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                            permits
                              .withPermit(
                                latch.succeedUnit *>
-                                 f(outElem)
-                                   .catchAllCause(cause =>
-                                     failureRef.update(_ && cause).unless(cause.isInterruptedOnly) *>
-                                       errorSignal.succeedUnit *>
+                                 f(outElem).catchAllCause { cause =>
+                                   val continue =
+                                     errorSignal.succeedUnit *>
                                        ZChannel.failLeftUnit
-                                   )
+
+                                   if (cause.isInterruptedOnly) continue
+                                   else failureRef.update(_ && cause) *> continue
+                                 }
                              )
                              .interruptible
                              .forkIn(childScope)
@@ -709,8 +711,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                                permits.withPermits(n0)(ZIO.unit).interruptible *>
                                  outgoing.offer(Fiber.fail(x.asInstanceOf[Either[Unit, OutDone]]))
                              case Right(cause) =>
-                               failureRef.update(_ && cause).unless(cause.isInterruptedOnly) *>
-                                 outgoing.offer(Fiber.done(ZChannel.failLeftUnit))
+                               val continue = outgoing.offer(Fiber.done(ZChannel.failLeftUnit))
+
+                               if (cause.isInterruptedOnly) continue
+                               else failureRef.update(_ && cause) *> continue
                            })
                            .ignore
 
@@ -772,10 +776,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                      .withPermit(
                        latch.succeedUnit *> f(outElem)
                          .foldCauseZIO(
-                           cause =>
-                             failure.update(_ && cause).unless(cause.isInterruptedOnly) *>
+                           cause => {
+                             val continue =
                                errorSignal.succeedUnit *>
-                               outgoing.offer(ZChannel.failLeftUnit),
+                                 outgoing.offer(ZChannel.failLeftUnit)
+
+                             if (cause.isInterruptedOnly) continue
+                             else failure.update(_ && cause) *> continue
+                           },
                            elem => outgoing.offer(Exit.succeed(elem))
                          )
                      )
@@ -792,8 +800,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 permits.withPermits(n.toLong)(ZIO.unit).interruptible *>
                   outgoing.offer(Exit.fail(x.asInstanceOf[Either[Unit, OutDone]]))
               case Right(cause) =>
-                failure.update(_ && cause).unless(cause.isInterruptedOnly) *>
-                  outgoing.offer(ZChannel.failLeftUnit)
+                val continue = outgoing.offer(ZChannel.failLeftUnit)
+
+                if (cause.isInterruptedOnly) continue
+                else failure.update(_ && cause) *> continue
             })
             .ignore
             .raceFirst(ZChannel.awaitErrorSignal(childScope, fiberId)(errorSignal))
@@ -2135,7 +2145,7 @@ object ZChannel {
     tag: EnvironmentTag[Env1],
     trace: Trace
   ): ZChannel[Env0 with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    ZChannel.suspend(channel.provideSomeLayer[Env0 with Env1](ZLayer.environment[Env1] ++ layer))
+    ZChannel.suspend(channel.provideSomeLayer[Env0 with Env1](ZLayer.environment[Env1] <*> layer))
 
   def readWithCause[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     in: InElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
@@ -2329,7 +2339,7 @@ object ZChannel {
     ): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
       self
         .asInstanceOf[ZChannel[Env0 with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
-        .provideLayer(ZLayer.environment[Env0] ++ layer)
+        .provideLayer(ZLayer.environment[Env0] <*> layer)
   }
 
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {

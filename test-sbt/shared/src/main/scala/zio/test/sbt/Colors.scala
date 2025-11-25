@@ -1,30 +1,24 @@
-package zio.test
-
-import zio.{UIO, URIO, ZIO}
+package zio.test.sbt
 
 import scala.annotation.tailrec
 
-package object sbt {
+object Colors {
+  def colored(code: String)(str: String): String = s"$code$str${Console.RESET}"
 
-  type SendSummary = URIO[Summary, Unit]
+  val red: String => String    = colored(Console.RED)
+  val green: String => String  = colored(Console.GREEN)
+  val cyan: String => String   = colored(Console.CYAN)
+  val blue: String => String   = colored(Console.BLUE)
+  val yellow: String => String = colored(Console.YELLOW)
 
-  object SendSummary {
-    def fromSend(send: Summary => Unit): SendSummary =
-      ZIO.serviceWithZIO(summary => ZIO.succeed(send(summary)))
-
-    def fromSendZIO(send: Summary => UIO[Unit]): SendSummary =
-      ZIO.serviceWithZIO(send)
-
-    def noop: SendSummary =
-      ZIO.unit
-  }
+  def reset(str: String): String = s"${Console.RESET}$str"
 
   /**
    * Inserts the ANSI escape code for the current color at the beginning of each
    * line of the specified string so the string will be displayed with the
    * correct color by the `SBTTestLogger`.
    */
-  private[sbt] def colored(s: String): String = {
+  def coloredLines(s: String): String = {
     @tailrec
     def loop(s: String, i: Int, color: Option[String]): String =
       if (i >= s.length) s

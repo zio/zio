@@ -16,27 +16,28 @@
 
 package zio.test.sbt
 
-import sbt.testing._
+final class ZTestFramework extends TestFramework {
+  override protected def getClassLoader: ClassLoader = null
 
-final class ZTestFramework extends Framework {
-  override def name(): String = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
-
-  override def fingerprints(): Array[Fingerprint] = Array(ZioSpecFingerprint)
-
-  override def runner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader): Runner =
-    new ZMasterTestRunner(args, remoteArgs, testClassLoader)
+  override def runner(
+    args: Array[String],
+    remoteArgs: Array[String],
+    testClassLoader: ClassLoader
+  ): TestRunner = new ZTestRunner.Master(
+    args,
+    remoteArgs,
+    testClassLoader
+  )
 
   override def slaveRunner(
     args: Array[String],
     remoteArgs: Array[String],
     testClassLoader: ClassLoader,
     send: String => Unit
-  ): Runner =
-    new ZSlaveTestRunner(
-      args,
-      remoteArgs,
-      testClassLoader,
-      SendSummary.fromSend(summary => send(SummaryProtocol.serialize(summary)))
-    )
-
+  ): TestRunner = new ZTestRunner.Slave(
+    args,
+    remoteArgs,
+    testClassLoader,
+    send
+  )
 }

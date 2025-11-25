@@ -24,6 +24,7 @@ import scala.collection.mutable
 import scala.collection.mutable.Builder
 import scala.math.log
 import scala.reflect.{ClassTag, classTag}
+import scala.util.hashing.MurmurHash3
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are usually
@@ -569,10 +570,11 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     exists
   }
 
-  override final def hashCode: Int = toArrayOption match {
-    case None        => Seq.empty[A].hashCode
-    case Some(array) => array.toSeq.hashCode
-  }
+  override final def hashCode: Int =
+    toArrayOrNull match {
+      case null  => Vector.empty[AnyRef].hashCode()
+      case array => MurmurHash3.arrayHash(array, MurmurHash3.seqSeed)
+    }
 
   /**
    * Returns the first element of this chunk. Note that this method is partial
@@ -707,9 +709,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    * improve the performance of bulk operations.
    */
   def materialize[A1 >: A]: Chunk[A1] =
-    self.toArrayOption[A1] match {
-      case None        => Chunk.Empty
-      case Some(array) => Chunk.fromArray(array)
+    self.toArrayOrNull[A1] match {
+      case null  => Chunk.Empty
+      case array => Chunk.fromArray(array)
     }
 
   /**
@@ -918,7 +920,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   override final def toString: String =
-    toArrayOption.fold("Chunk()")(_.mkString("Chunk(", ",", ")"))
+    toArrayOrNull match {
+      case null  => "Chunk()"
+      case array => array.mkString("Chunk(", ",", ")")
+    }
 
   /**
    * Zips this chunk with the specified chunk to produce a new chunk with pairs
@@ -1108,11 +1113,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   /**
    * A helper function that converts the chunk into an array if it is not empty.
    */
-  private final def toArrayOption[A1 >: A]: Option[Array[A1]] =
-    self match {
-      case Chunk.Empty => None
-      case chunk       => Some(chunk.toArray(Chunk.classTagOf(self)))
-    }
+  private final def toArrayOrNull[A1 >: A]: Array[A1] =
+    if (self eq Chunk.Empty) null
+    else self.toArray(Chunk.classTagOf(self))
 }
 
 object Chunk extends ChunkFactory with ChunkPlatformSpecific {
@@ -1545,8 +1548,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override val depth: Int =
       chunk.depth + 1
 
-    val length: Int =
-      chunk.length
+    def length: Int = chunk.length
 
     def apply(i: Int): A = {
       var j = used - 1
@@ -1822,8 +1824,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     implicit val classTag: ClassTag[A] =
       Tags.fromValue(a)
 
-    override val length =
-      1
+    override def length = 1
 
     override def apply(n: Int): A =
       if (n == 0) a
@@ -1836,17 +1837,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit =
       dest(destPos) = a
 
-    def chunkIterator: ChunkIterator[A] =
+    override def chunkIterator: ChunkIterator[A] =
       self
 
-    def hasNextAt(index: Int): Boolean =
+    override def hasNextAt(index: Int): Boolean =
       index == 0
 
-    def nextAt(index: Int): A =
+    override def nextAt(index: Int): A =
       if (index == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $index")
 
-    def sliceIterator(offset: Int, length: Int): ChunkIterator[A] =
+    override def sliceIterator(offset: Int, length: Int): ChunkIterator[A] =
       if (offset <= 0 && length >= 1) self
       else ChunkIterator.empty
   }
@@ -1862,8 +1863,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override val depth: Int =
       chunk.depth + 1
 
-    override val length: Int =
-      l
+    override def length: Int = l
 
     override def apply(n: Int): A =
       chunk.apply(offset + n)
@@ -1891,8 +1891,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     implicit val classTag: ClassTag[A] =
       Tags.fromValue(vector(0))
 
-    override val length: Int =
-      vector.length
+    override def length: Int = vector.length
 
     override def apply(n: Int): A =
       vector(n)
@@ -2441,8 +2440,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def chunkIterator: ChunkIterator[Nothing] =
       ChunkIterator.empty
 
-    override val length: Int =
-      0
+    override def length: Int = 0
 
     override def apply(n: Int): Nothing =
       throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
@@ -3192,14 +3190,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
 
     private case object Empty extends ChunkIterator[Nothing] { self =>
-      def hasNextAt(index: Int): Boolean =
-        false
-      val length: Int =
-        0
-      def nextAt(index: Int): Nothing =
-        throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $index")
-      def sliceIterator(offset: Int, length: Int): ChunkIterator[Nothing] =
-        self
+      def hasNextAt(index: Int): Boolean                                  = false
+      def length: Int                                                     = 0
+      def nextAt(index: Int): Nothing                                     = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $index")
+      def sliceIterator(offset: Int, length: Int): ChunkIterator[Nothing] = self
     }
 
     private final case class Iterator[A](iterator: scala.Iterator[A], length: Int) extends ChunkIterator[A] { self =>

@@ -358,7 +358,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     maximumLag: => Int
   )(implicit trace: Trace): ZIO[R with Scope, Nothing, Chunk[Dequeue[Take[E, A]]]] =
     for {
-      hub    <- Hub.bounded[Take[E, A]](maximumLag)
+      hub    <- ZIO.acquireRelease(Hub.bounded[Take[E, A]](maximumLag))(_.shutdown)
       queues <- ZIO.collectAll(Chunk.fill(n)(hub.subscribe))
       _      <- self.runIntoHubScoped(hub).forkScoped
     } yield queues
@@ -4528,37 +4528,40 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromIteratorSucceed[A](iterator: => Iterator[A], maxChunkSize: => Int = DefaultChunkSize)(implicit
     trace: Trace
   ): ZStream[Any, Nothing, A] = {
-
     def writeOneByOne(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
       if (iterator.hasNext)
         ZChannel.write(Chunk.single(iterator.next())) *> writeOneByOne(iterator)
       else
         ZChannel.unit
 
-    def writeChunks(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
-      ZChannel.succeed(ChunkBuilder.make[A]()).flatMap { builder =>
-        def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] = {
-          builder.clear()
-          var count = 0
-          while (count < maxChunkSize && iterator.hasNext) {
-            builder += iterator.next()
-            count += 1
-          }
-          if (count > 0)
-            ZChannel.write(builder.result()) *> loop(iterator)
-          else
-            ZChannel.unit
+    def writeChunks(iterator: Iterator[A], maxChunkSize0: Int): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] = {
+      val builder = ChunkBuilder.make[A](maxChunkSize0)
+
+      def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] = {
+        builder.clear()
+        var count = 0
+        while (count < maxChunkSize0 && iterator.hasNext) {
+          builder += iterator.next()
+          count += 1
         }
 
-        loop(iterator)
+        if (count > 0)
+          ZChannel.write(builder.result()) *> loop(iterator)
+        else
+          ZChannel.unit
       }
+
+      loop(iterator)
+    }
 
     ZStream.fromChannel {
       ZChannel.suspend {
-        if (maxChunkSize == 1)
+        val maxChunkSize0 = maxChunkSize
+
+        if (maxChunkSize0 == 1)
           writeOneByOne(iterator)
         else
-          writeChunks(iterator)
+          writeChunks(iterator, maxChunkSize0)
       }
     }
   }
@@ -4912,7 +4915,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         case (as, None)    => ZChannel.write(as) *> ZChannel.unit
       }
 
-    new ZStream(loop(s))
+    new ZStream(ZChannel.suspend(loop(s)))
   }
 
   /**
@@ -4941,7 +4944,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     tag: EnvironmentTag[ROut],
     trace: Trace
   ): ZStream[RIn with RIn2, E, ROut2] =
-    ZStream.suspend(stream.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer))
+    ZStream.suspend(stream.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] <*> layer))
 
   /**
    * Like [[unfoldZIO]], but allows the emission of values to end one step
@@ -5344,7 +5347,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       tagged: EnvironmentTag[R1],
       trace: Trace
     ): ZStream[R0, E1, A] =
-      self.asInstanceOf[ZStream[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
+      self.asInstanceOf[ZStream[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] <*> layer)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZStream[R, E, A]) extends AnyVal {

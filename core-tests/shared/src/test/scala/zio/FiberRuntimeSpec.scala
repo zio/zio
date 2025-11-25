@@ -66,6 +66,24 @@ object FiberRuntimeSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("observers")(
+      test("removed on uncompleted fiber - bug #10181") {
+        val observerCalled = Ref.unsafe.make(false)
+        for {
+          p     <- Promise.make[Nothing, Unit]
+          fiber <- ZIO.never.interruptible.onInterrupt(_ => p.succeedUnit).fork.uninterruptible
+          // Add an observer, then remove it while fiber is still running
+          _ <- ZIO.succeed {
+                 val obs: Exit[Nothing, Unit] => Unit = _ => observerCalled.unsafe.set(true)
+                 fiber.unsafe.addObserver(obs)
+                 fiber.unsafe.removeObserver(obs)
+               }
+          _      <- fiber.interruptAsFork(FiberId.None)
+          _      <- p.await
+          called <- observerCalled.get
+        } yield assertTrue(!called)
+      } @@ nonFlaky(100) @@ timeout(10.seconds)
+    ),
     suite("async")(
       test("async callback after interruption is ignored") {
         ZIO.suspendSucceed {
