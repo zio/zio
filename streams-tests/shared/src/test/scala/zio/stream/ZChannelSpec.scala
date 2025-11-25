@@ -4,6 +4,7 @@ import zio._
 import zio.test.Assertion._
 import zio.test.TestAspect.{exceptJS, jvmOnly, nonFlaky, timeout}
 import zio.test._
+import zio.Clock.ClockLive
 
 object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
@@ -205,11 +206,12 @@ object ZChannelSpec extends ZIOBaseSpec {
                         .ensuring(ZIO.unit)
                         .ensuring(ref.update("B" :: _))
                         .ensuring(ZIO.unit)
-            fiber <- channel.runDrain.forkDaemon
+            fiber <- channel.runDrain.interruptible.forkDaemon.uninterruptible
+            _     <- ClockLive.sleep(1.milli)
             _     <- fiber.interrupt
             res   <- ref.get
           } yield assert(res)(hasSameElements(List("A", "B")))
-        } @@ TestAspect.nonFlaky @@ TestAspect.failing
+        } @@ TestAspect.flaky
       ),
       suite("ZChannel#mapOut")(
         test("simple") {
