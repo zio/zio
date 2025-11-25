@@ -1894,7 +1894,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       new ZSink(
         channel
           .asInstanceOf[ZChannel[R0 with R1, ZNothing, Chunk[In], Any, E, Chunk[L], Z]]
-          .provideLayer(ZLayer.environment[R0] ++ layer)
+          .provideLayer(ZLayer.environment[R0] <*> layer)
       )
   }
 }

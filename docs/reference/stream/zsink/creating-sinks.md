@@ -47,7 +47,7 @@ val sum: ZIO[Any, Nothing, Int]                 = ZStream(1, 2, 3, 4, 5).run(sin
 // Result: 15
 ```
 
-**ZSink.take** — A sink that takes the specified number of values and result in a `Chunk` data type:
+**ZSink.take** — A sink that takes the specified number of values and results in a `Chunk` data type:
 
 ```scala mdoc:silent:nest
 val sink  : ZSink[Any, Nothing, Int, Int, Chunk[Int]] = ZSink.take[Int](3)
@@ -116,7 +116,7 @@ val stream: ZIO[Any, Nothing, Set[Int]] = ZStream(1, 3, 2, 3, 1, 5, 1).run(colle
 // Output: Set(1, 3, 2, 5)
 ```
 
-Or we can collect and merge them into a `Map[K, A]` using a merge function. In the following example, we use `(_:Int) % 3` to determine map keys and, we provide `_ + _` function to merge multiple elements with the same key:
+Or we can collect and merge them into a `Map[K, A]` using a merge function. In the following example, we use `(_:Int) % 3` to determine map keys, and we provide the `_ + _` function to merge multiple elements with the same key:
 
 ```scala mdoc:silent:nest
 val collectAllToMap: ZSink[Any, Nothing, Int, Nothing, Map[Int, Int]] = ZSink.collectAllToMap((_: Int) % 3)(_ + _)
@@ -124,7 +124,7 @@ val stream: ZIO[Any, Nothing, Map[Int, Int]] = ZStream(1, 3, 2, 3, 1, 5, 1).run(
 // Output: Map(1 -> 3, 0 -> 6, 2 -> 7)
 ```
 
-**ZSink.collectAllN** — Collects incoming values into chunk of maximum size of `n`:
+**ZSink.collectAllN** — Collects incoming values into a chunk of maximum size of `n`:
 
 ```scala mdoc:silent:nest
 ZStream(1, 2, 3, 4, 5).run(
@@ -188,17 +188,17 @@ ZStream.iterate(0)(_ + 1).run(
 ```
 
 
-**ZSink.foldWeighted** — Creates a sink that folds incoming elements until reaches the `max` worth of elements determined by the `costFn`, then the pipeline emits the computed value and restarts the folding process:
+**ZSink.foldWeighted** — Creates a sink that folds incoming elements until it reaches the `max` worth of elements determined by the `costFn`, then the pipeline emits the computed value and restarts the folding process:
 
 ```scala
 object ZSink {
-  def foldWeighted[Err, In, S](z: S)(costFn: (S, In) => Long, max: Long)(
+  def foldWeighted[In, S](z: => S)(costFn: (S, In) => Long, max: Long)(
     f: (S, In) => S
-  ): ZSink[Any, Err, In, Err, In, S] = ???
+  ): ZSink[Any, Nothing, In, In, S] = ???
 }
 ```
 
-In the following example, each time we consume a new element we return one as the weight of that element using cost function. After three times, the sum of the weights reaches to the `max` number, and the folding process restarted. So we expect this pipeline to group each three elements in one `Chunk`:
+In the following example, each time we consume a new element, we return one as the weight of that element using the cost function. After three times, the sum of the weights reaches the `max` number, and the folding process restarts. So we expect this pipeline to group each three elements in one `Chunk`:
 
 ```scala mdoc:silent:nest
 ZStream(3, 2, 4, 1, 5, 6, 2, 1, 3, 5, 6)
@@ -214,7 +214,7 @@ ZStream(3, 2, 4, 1, 5, 6, 2, 1, 3, 5, 6)
 // Output: Chunk(3,2,4),Chunk(1,5,6),Chunk(2,1,3),Chunk(5,6)
 ```
 
-Another example is when we want to group element which sum of them equal or less than a specific number:
+Another example is when we want to group elements whose sum is equal to or less than a specific number:
 
 ```scala mdoc:silent:nest
 ZStream(1, 2, 2, 4, 2, 1, 1, 1, 0, 2, 1, 2)
@@ -233,10 +233,10 @@ ZStream(1, 2, 2, 4, 2, 1, 1, 1, 0, 2, 1, 2)
 :::caution
 The `ZSink.foldWeighted` cannot decompose elements whose weight is more than the `max` number. So elements that have an individual cost larger than `max` will force the pipeline to cross the `max` cost. In the last example, if the source stream was `ZStream(1, 2, 2, 4, 2, 1, 6, 1, 0, 2, 1, 2)` the output would be `Chunk(1,2,2),Chunk(4),Chunk(2,1),Chunk(6),Chunk(1,0,2,1),Chunk(2)`. As we see, the `6` element crossed the `max` cost.
 
-To decompose these elements, we should use `ZSink.foldWeightedDecompose` function.
+To decompose these elements, we should use the `ZSink.foldWeightedDecompose` function.
 :::
 
-**ZSink.foldWeightedDecompose** — As we saw in the previous section, we need a way to decompose elements — whose cause the output aggregate cross the `max` — into smaller elements. This version of fold takes `decompose` function and enables us to do that:
+**ZSink.foldWeightedDecompose** — As we saw in the previous section, we need a way to decompose elements — whose cause the output aggregate cross the `max` — into smaller elements. This version of fold takes the `decompose` function and enables us to do that:
 
 ```scala
 object ZSink {
@@ -248,7 +248,7 @@ object ZSink {
 }
 ```
 
-In the following example, we are break down elements that are bigger than 5, using `decompose` function:
+In the following example, we are break down elements that are bigger than 5, using the `decompose` function:
 
 ```scala mdoc:silent:nest
 ZStream(1, 2, 2, 2, 1, 6, 1, 7, 2, 1, 2)
@@ -264,7 +264,7 @@ ZStream(1, 2, 2, 2, 1, 6, 1, 7, 2, 1, 2)
 // Ouput: Chunk(1,2,2),Chunk(2,1),Chunk(5),Chunk(1,1),Chunk(5),Chunk(1,1,2,1),Chunk(2)
 ```
 
-**ZSink.foldUntil** — Creates a sink that folds incoming element until specific `max` elements have been folded:
+**ZSink.foldUntil** — Creates a sink that folds incoming elements until specific `max` elements have been folded:
 
 ```scala mdoc:silent:nest
 ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
@@ -305,7 +305,7 @@ val result = ZStream("Hello", "ZIO", "World!")
 
 ### From OutputStream
 
-The `ZSink.fromOutputStream` creates a sink that consumes byte chunks and write them to the `OutputStream`:
+The `ZSink.fromOutputStream` creates a sink that consumes byte chunks and writes them to the `OutputStream`:
 
 ```scala mdoc:silent:nest
 ZStream("Application", "Error", "Logs")
@@ -319,7 +319,7 @@ ZStream("Application", "Error", "Logs")
 
 ### From Queue
 
-A queue has a finite or infinite buffer size, so they are useful in situations where we need to consume streams as fast as we can, and then do some batching operations on consumed messages. By using `ZSink.fromQueue` we can create a sink that is backed by a queue; it enqueues each element into the specified queue:
+A queue has a finite or infinite buffer size, so they are useful in situations where we need to consume streams as fast as we can and then do some batching operations on consumed messages. By using `ZSink.fromQueue`, we can create a sink that is backed by a queue; it enqueues each element into the specified queue:
 
 ```scala mdoc:silent:nest
 val myApp: IO[IOException, Unit] =
@@ -337,9 +337,9 @@ val myApp: IO[IOException, Unit] =
 
 ### From Hub
 
-`Hub` is an asynchronous data type in which publisher can publish their messages to that and subscribers can subscribe to take messages from the `Hub`. The `ZSink.fromHub` takes a `Hub` and returns a `ZSink` which publishes each element to that `Hub`.
+`Hub` is an asynchronous data type in which a publisher can publish their messages to that and subscribers can subscribe to take messages from the `Hub`. The `ZSink.fromHub` takes a `Hub` and returns a `ZSink` which publishes each element to that `Hub`.
 
-In the following example, the `sink` consumes elements of the `producer` stream and publishes them to the `hub`. We have two consumers that are subscribed to that hub and they are taking its elements forever:
+In the following example, the `sink` consumes elements of the `producer` stream and publishes them to the `hub`. We have two consumers that are subscribed to that hub, and they are taking its elements forever:
 
 ```scala mdoc:silent:nest
 val myApp: ZIO[Any, IOException, Unit] =

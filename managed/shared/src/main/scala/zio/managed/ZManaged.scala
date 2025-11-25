@@ -1329,7 +1329,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       tagged: EnvironmentTag[R1],
       trace: Trace
     ): ZManaged[R0, E1, A] =
-      self.asInstanceOf[ZManaged[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
+      self.asInstanceOf[ZManaged[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] <*> layer)
   }
 
   final class UnlessManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {
@@ -2456,7 +2456,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     tag: EnvironmentTag[ROut],
     trace: Trace
   ): ZManaged[RIn with RIn2, E, ROut2] =
-    managed.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer)
+    managed.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] <*> layer)
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
