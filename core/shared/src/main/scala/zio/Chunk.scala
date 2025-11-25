@@ -1996,7 +1996,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       val maxFullBitIndex = (maxLongIndex << bitsLog2) max minFullBitIndex
       var i               = minBitIndex
       while (i < minFullBitIndex) {
-        f(self.apply(i))
+        f(self.apply(i - minBitIndex))
         i += 1
       }
       i = minLongIndex
@@ -2006,7 +2006,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       }
       i = maxFullBitIndex
       while (i < maxBitIndex) {
-        f(self.apply(i))
+        f(self.apply(i - minBitIndex))
         i += 1
       }
     }
@@ -2067,8 +2067,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override val length: Int =
       maxBitIndex - minBitIndex
 
-    override def apply(n: Int): Boolean =
-      (bytes(n >> bitsLog2) & (1 << (bits - 1 - (n & bits - 1)))) != 0
+    override def apply(n: Int): Boolean = {
+      val bitIndex = n + minBitIndex
+      (bytes(bitIndex >> bitsLog2) & (1 << (bits - 1 - (bitIndex & bits - 1)))) != 0
+    }
 
     override protected def elementAt(n: Int): Byte = bytes(n)
 
@@ -2134,7 +2136,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         var mask       = 128
         var i          = 0
         while (i < leftovers) {
-          if (g(self.apply(offset + self.minBitIndex + i), that.apply(offset + that.minBitIndex + i)))
+          if (g(self.apply(offset + i), that.apply(offset + i)))
             last = (last | mask).asInstanceOf[Byte]
           i += 1
           mask >>= 1
@@ -2177,7 +2179,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       }
 
       if (leftovers != 0) {
-        val offset     = bytes * 8 + self.minBitIndex
+        val offset     = bytes * 8
         var last: Byte = null.asInstanceOf[Byte]
         var mask       = 128
         var i          = 0
@@ -2208,8 +2210,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override protected def elementAt(n: Int): Int =
       respectEndian(endianness, ints(n))
 
-    override def apply(n: Int): Boolean =
-      (elementAt(n >> bitsLog2) & (1 << (bits - 1 - (n & bits - 1)))) != 0
+    override def apply(n: Int): Boolean = {
+      val bitIndex = n + minBitIndex
+      (elementAt(bitIndex >> bitsLog2) & (1 << (bits - 1 - (bitIndex & bits - 1)))) != 0
+    }
 
     override protected def newBitChunk(chunk: Chunk[Int], min: Int, max: Int): BitChunk[Int] =
       BitChunkInt(chunk, endianness, min, max)
@@ -2282,8 +2286,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override protected def elementAt(n: Int): Long =
       if (endianness == BitChunk.Endianness.BigEndian) longs(n) else java.lang.Long.reverse(longs(n))
 
-    def apply(n: Int): Boolean =
-      (elementAt(n >> bitsLog2) & (1L << (bits - 1 - (n & bits - 1)))) != 0
+    def apply(n: Int): Boolean = {
+      val bitIndex = n + minBitIndex
+      (elementAt(bitIndex >> bitsLog2) & (1L << (bits - 1 - (bitIndex & bits - 1)))) != 0
+    }
 
     override protected def newBitChunk(longs: Chunk[Long], min: Int, max: Int): BitChunk[Long] =
       BitChunkLong(longs, endianness, min, max)
