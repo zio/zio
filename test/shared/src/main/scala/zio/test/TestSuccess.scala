@@ -37,11 +37,9 @@ sealed abstract class TestSuccess { self =>
 }
 
 object TestSuccess {
-  private[zio] val succeedEmptyExit = Exit.succeed(Succeeded())
-  private[zio] val ignoredEmptyExit = Exit.succeed(Ignored())
-
   final case class Succeeded(annotations: TestAnnotationMap = TestAnnotationMap.empty) extends TestSuccess
   final case class Ignored(annotations: TestAnnotationMap = TestAnnotationMap.empty)   extends TestSuccess
 
-  val ignored: TestSuccess = Ignored()
+  private[test] val ignored: TestSuccess = Ignored()
+  private[test] val succeedEmptyExit     = Exit.succeed(Succeeded())
 }
