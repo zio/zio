@@ -25,7 +25,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.time.temporal.ChronoUnit
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.collection.immutable.SortedSet
 import scala.collection.{mutable => mu}
 
@@ -295,13 +295,13 @@ object TestClock extends Serializable {
         val ref = new AtomicBoolean(false)
 
         def allSuspendedUnchanged(
-          l: collection.Map[FiberId, Fiber.Status],
-          r: collection.Map[FiberId, Fiber.Status]
+          l: collection.Map[FiberId, Fiber.Status.Suspended],
+          r: collection.Map[FiberId, Fiber.Status.Suspended]
         ): Boolean = {
           val it = r.iterator
           while (it.hasNext) {
             val rkv = it.next()
-            val lv  = l.getOrElse(rkv._1, null) // If missing, it means it transitioned to Done so we can ignore it
+            val lv  = l.getOrElse(rkv._1, null) // If missing, it wasn't previously created, so we have to return false
             if (lv != rkv._2) return false
           }
           true
@@ -321,31 +321,35 @@ object TestClock extends Serializable {
 
     /**
      * Captures a "snapshot" of the identifier and status of all fibers in this
-     * test other than the current fiber. Fails with the `Unit` value if any of
-     * these fibers are not done or suspended. Note that because we cannot
-     * synchronize on the status of multiple fibers at the same time this
-     * snapshot may not be fully consistent.
+     * test other than the current fiber that are currently suspended. Fails
+     * with the `Unit` value if any of these fibers are not done or suspended.
+     * Note that because we cannot synchronize on the status of multiple fibers
+     * at the same time, this snapshot may not be fully consistent.
      */
-    private val freeze: IO[Unit, collection.Map[FiberId, Fiber.Status]] = {
+    private val freeze: IO[Unit, collection.Map[FiberId, Fiber.Status.Suspended]] = {
       implicit val trace: Trace = Trace.empty
 
-      ZIO.fiberIdWith { fiberId =>
-        annotations.get(TestAnnotation.fibers).flatMap {
-          case _: Left[?, ?] => Exit.succeed(Map.empty)
-          case Right(refs) =>
-            val map  = mu.HashMap.empty[FiberId, Fiber.Status]
-            val it   = refs.iterator.flatMap(_.get())
-            var fail = false
-            while (it.hasNext && !fail) {
-              val f = it.next().asInstanceOf[FiberRuntime[Any, Any]]
-              if (f.id ne fiberId) f.getStatus() match {
-                case s: Fiber.Status.Suspended => map.update(f.id, s)
-                case Fiber.Status.Done         => ()
-                case _: Fiber.Status.Running   => fail = true
-              }
-            }
-            if (fail) Exit.failUnit else Exit.succeed(map)
+      def collectSuspended(
+        refs: Chunk[AtomicReference[SortedSet[Fiber.Runtime[Any, Any]]]],
+        fiberId: FiberId.Runtime
+      ): Exit[Unit, collection.Map[FiberId, Fiber.Status.Suspended]] = {
+        val map = mu.HashMap.empty[FiberId, Fiber.Status.Suspended]
+        val it  = refs.iterator.flatMap(_.get())
+
+        while (it.hasNext) {
+          val f = it.next().asInstanceOf[FiberRuntime[Any, Any]]
+          if (f.id ne fiberId) f.getStatus() match {
+            case s: Fiber.Status.Suspended => map.update(f.id, s)
+            case _: Fiber.Status.Running   => return Exit.failUnit
+            case _                         => ()
+          }
         }
+        Exit.succeed(map)
+      }
+
+      annotations.get(TestAnnotation.fibers).flatMap {
+        case _: Left[?, ?] => Exit.succeed(Map.empty)
+        case Right(refs)   => ZIO.fiberIdWith(collectSuspended(refs, _))
       }
     }
 
@@ -381,7 +385,7 @@ object TestClock extends Serializable {
             case Some((end, promise)) =>
               promise.unsafe.done(Exit.unit)(Unsafe)
               // We don't need to await for long here because we're waiting for a single fiber and it will resume instantly
-              loop(_ => end, 1.milli)
+              loop(_ => end, 2.millis)
             case _ => Exit.unit
           }
       loop(f, 5.millis)
