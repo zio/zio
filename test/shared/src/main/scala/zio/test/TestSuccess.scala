@@ -31,8 +31,8 @@ sealed abstract class TestSuccess { self =>
    */
   def annotated(annotations: TestAnnotationMap): TestSuccess =
     self match {
-      case TestSuccess.Succeeded(anns) => TestSuccess.Succeeded(anns ++ annotations)
-      case TestSuccess.Ignored(anns)   => TestSuccess.Ignored(anns ++ annotations)
+      case _: TestSuccess.Succeeded => TestSuccess.Succeeded(self.annotations ++ annotations)
+      case _: TestSuccess.Ignored   => TestSuccess.Ignored(self.annotations ++ annotations)
     }
 }
 
@@ -42,4 +42,6 @@ object TestSuccess {
 
   final case class Succeeded(annotations: TestAnnotationMap = TestAnnotationMap.empty) extends TestSuccess
   final case class Ignored(annotations: TestAnnotationMap = TestAnnotationMap.empty)   extends TestSuccess
+
+  val ignored: TestSuccess = Ignored()
 }

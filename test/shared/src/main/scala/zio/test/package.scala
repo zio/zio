@@ -950,7 +950,7 @@ package object test extends CompileVariants {
    * Creates an ignored test result.
    */
   val ignored: UIO[TestSuccess] =
-    TestSuccess.ignoredEmptyExit
+    ZIO.succeed(TestSuccess.ignored)(Trace.empty)
 
   /**
    * Passes platform specific information to the specified function, which will

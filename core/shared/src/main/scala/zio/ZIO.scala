@@ -1466,6 +1466,9 @@ sealed trait ZIO[-R, +E, +A]
       val leftFiber  = ZIO.unsafe.makeChildFiber(trace, leftEff, parentFiber, flags, leftScope)(Unsafe)
       val rightFiber = ZIO.unsafe.makeChildFiber(trace, rightEff, parentFiber, flags, rightScope)(Unsafe)
 
+      val startLeft  = leftFiber.startSuspended()(Unsafe)
+      val startRight = rightFiber.startSuspended()(Unsafe)
+
       ZIO.async[R1, E2, C](
         { cb =>
           val raceIndicator = new AtomicBoolean()
@@ -1478,8 +1481,8 @@ sealed trait ZIO[-R, +E, +A]
             complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
           }(Unsafe)
 
-          leftFiber.startConcurrently(leftEff)
-          rightFiber.startConcurrently(rightEff)
+          startLeft(leftEff)
+          startRight(rightEff)
           ()
         },
         leftFiber.id <> rightFiber.id
