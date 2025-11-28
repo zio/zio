@@ -16,19 +16,15 @@
 
 package zio.test
 
+import zio.Clock.ClockLive
+import zio.Console.ConsoleLive
+import zio.Random.RandomLive
+import zio.System.SystemLive
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.immutable.SortedSet
-import zio.test.TestAspectPoly
-import zio.System.env
-import zio.test.TestAspectAtLeastR
-import zio.Clock.ClockLive
-import zio.Console.ConsoleLive
-import zio.Random.RandomLive
-import zio.System.SystemLive
-
 import scala.collection.mutable
 
 /**
@@ -107,8 +103,50 @@ object TestAspect extends TimeoutVariants {
   val ignore: TestAspectPoly =
     new TestAspectPoly {
       def some[R, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
-        spec.when(false)
+        spec.whenZIO(Exit.`false`)
     }
+
+  /**
+   * An aspect that restores the [[zio.test.TestClock TestClock]]'s state to its
+   * starting state after the test is run. Note that this is only useful when
+   * repeating tests.
+   */
+  val restoreTestClock: TestAspectPoly =
+    restore(testClock(Trace.empty))
+
+  /**
+   * An aspect that restores the [[zio.test.TestConsole TestConsole]]'s state to
+   * its starting state after the test is run. Note that this is only useful
+   * when repeating tests.
+   */
+  val restoreTestConsole: TestAspectPoly =
+    restore(testConsole(Trace.empty))
+
+  /**
+   * An aspect that restores the [[zio.test.TestRandom TestRandom]]'s state to
+   * its starting state after the test is run. Note that this is only useful
+   * when repeating tests.
+   */
+  val restoreTestRandom: TestAspectPoly =
+    restore(testRandom(Trace.empty))
+
+  /**
+   * An aspect that restores the [[zio.test.TestSystem TestSystem]]'s state to
+   * its starting state after the test is run. Note that this is only useful
+   * when repeating tests.
+   */
+  val restoreTestSystem: TestAspectPoly =
+    restore(testSystem(Trace.empty))
+
+  /**
+   * An aspect that restores all state in the standard provided test
+   * environments ([[zio.test.TestClock TestClock]],
+   * [[zio.test.TestConsole TestConsole]], [[zio.test.TestRandom TestRandom]],
+   * and [[zio.test.TestSystem TestSystem]]) to their starting state after the
+   * test is run. Note that this is only useful when repeating tests.
+   */
+  val restoreTestEnvironment: TestAspectPoly =
+    restoreTestClock >>> restoreTestConsole >>> restoreTestRandom >>> restoreTestSystem
 
   /**
    * Constructs an aspect that runs the specified effect after every test.
@@ -862,48 +900,6 @@ object TestAspect extends TimeoutVariants {
    */
   def restore(restorable: UIO[Restorable]): TestAspectPoly =
     aroundWith(restorable.flatMap(_.save(Trace.empty))(Trace.empty))(restore => restore)
-
-  /**
-   * An aspect that restores the [[zio.test.TestClock TestClock]]'s state to its
-   * starting state after the test is run. Note that this is only useful when
-   * repeating tests.
-   */
-  def restoreTestClock: TestAspectPoly =
-    restore(testClock(Trace.empty))
-
-  /**
-   * An aspect that restores the [[zio.test.TestConsole TestConsole]]'s state to
-   * its starting state after the test is run. Note that this is only useful
-   * when repeating tests.
-   */
-  def restoreTestConsole: TestAspectPoly =
-    restore(testConsole(Trace.empty))
-
-  /**
-   * An aspect that restores the [[zio.test.TestRandom TestRandom]]'s state to
-   * its starting state after the test is run. Note that this is only useful
-   * when repeating tests.
-   */
-  def restoreTestRandom: TestAspectPoly =
-    restore(testRandom(Trace.empty))
-
-  /**
-   * An aspect that restores the [[zio.test.TestSystem TestSystem]]'s state to
-   * its starting state after the test is run. Note that this is only useful
-   * when repeating tests.
-   */
-  def restoreTestSystem: TestAspectPoly =
-    restore(testSystem(Trace.empty))
-
-  /**
-   * An aspect that restores all state in the standard provided test
-   * environments ([[zio.test.TestClock TestClock]],
-   * [[zio.test.TestConsole TestConsole]], [[zio.test.TestRandom TestRandom]],
-   * and [[zio.test.TestSystem TestSystem]]) to their starting state after the
-   * test is run. Note that this is only useful when repeating tests.
-   */
-  def restoreTestEnvironment: TestAspectPoly =
-    restoreTestClock >>> restoreTestConsole >>> restoreTestRandom >>> restoreTestSystem
 
   /**
    * An aspect that runs each test with the number of times to retry flaky tests
