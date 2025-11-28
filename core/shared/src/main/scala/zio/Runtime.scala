@@ -223,9 +223,9 @@ object Runtime extends RuntimePlatformSpecific {
       s"Runtime(environment = $environment, fiberRefs = $fiberRefs, runtimeFlags = ${RuntimeFlags.render(runtimeFlags)})"
   }
 
-  @deprecated("Custom Fatal handling is deprecated, kept only for binary compatability.", "2.1.22")
+  @deprecated("Custom Fatal handling is deprecated, kept only for binary compatibility.", "2.1.22")
   def addFatal(fatal: Class[_ <: Throwable])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
-    ZLayer.scoped(FiberRef.currentFatal.locallyScopedWith(_ | IsFatal(fatal)))
+    ZLayer(Console.printLineError("Runtime.addFatal is deprecated & inert, kept only for binary compatibility.").ignore)
 
   def addLogAnnotation(annotation: LogAnnotation)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentLogAnnotations.locallyScopedWith(_ + (annotation.key -> annotation.value)))

@@ -97,13 +97,7 @@ private[zio] trait ZIOCompanionVersionSpecific {
     ZIO.suspendSucceed {
       try Exit.succeed(code)
       catch {
-        case t: Throwable =>
-          ZIO.isFatalWith { isFatal =>
-            if (!isFatal(t))
-              ZIO.failCause(Cause.fail(t))
-            else
-              throw t
-          }
+        case t if nonFatal(t) => ZIO.failCause(Cause.fail(t))
       }
     }
 
@@ -158,11 +152,7 @@ private[zio] trait ZIOCompanionVersionSpecific {
   final protected def attemptOrDieZIO[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     try effect
     catch {
-      case t: Throwable =>
-        ZIO.isFatalWith { isFatal =>
-          if (!isFatal(t)) Exit.die(t)
-          else throw t
-        }
+      case t if nonFatal(t) => Exit.die(t)
     }
 
   /**
@@ -170,19 +160,10 @@ private[zio] trait ZIOCompanionVersionSpecific {
    * code, ignoring it success or failure.
    */
   def ignore(code: => Any)(implicit trace: Trace): UIO[Unit] =
-    ZIO.suspendSucceed {
-      try {
-        code
-
-        Exit.unit
-      } catch {
-        case t: Throwable =>
-          ZIO.isFatalWith[Any, Nothing, Unit] { isFatal =>
-            if (!isFatal(t))
-              Exit.unit
-            else
-              throw t
-          }
+    ZIO.succeed {
+      try { code; () }
+      catch {
+        case t if nonFatal(t) =>
       }
     }
 

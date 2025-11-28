@@ -4441,25 +4441,18 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
         ZStream
           .fromZIO(
-            FiberRef.currentFatal.get <*> ZIO.attempt(iterator) <*> ZIO.runtime[Any] <*> ZIO
+            ZIO.attempt(iterator) <*> ZIO.runtime[Any] <*> ZIO
               .succeed(ChunkBuilder.make[A](maxChunkSize))
           )
-          .flatMap { case (isFatal, it, rt, builder) =>
+          .flatMap { case (it, rt, builder) =>
             ZStream.repeatZIOChunkOption {
               ZIO.attempt {
                 builder.clear()
                 var count = 0
-
-                try {
-                  while (count < maxChunkSize && it.hasNext) {
-                    builder += it.next()
-                    count += 1
-                  }
-                } catch {
-                  case e: Throwable if !isFatal(e) =>
-                    throw e
+                while (count < maxChunkSize && it.hasNext) {
+                  builder += it.next()
+                  count += 1
                 }
-
                 if (count > 0) {
                   builder.result()
                 } else {
@@ -4479,30 +4472,16 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   ): ZStream[Any, Throwable, A] = {
     object StreamEnd extends Throwable
 
-    ZStream.fromZIO(FiberRef.currentFatal.get <*> ZIO.attempt(iterator) <*> ZIO.runtime[Any]).flatMap {
-      case (isFatal, it, rt) =>
-        ZStream.repeatZIOOption {
-          ZIO.attempt {
-
-            val hasNext: Boolean =
-              try it.hasNext
-              catch {
-                case e: Throwable if !isFatal(e) =>
-                  throw e
-              }
-
-            if (hasNext) {
-              try it.next()
-              catch {
-                case e: Throwable if !isFatal(e) =>
-                  throw e
-              }
-            } else throw StreamEnd
-          }.mapError {
-            case StreamEnd => None
-            case e         => Some(e)
-          }
+    ZStream.fromZIO(ZIO.attempt(iterator) <*> ZIO.runtime[Any]).flatMap { case (it, rt) =>
+      ZStream.repeatZIOOption {
+        ZIO.attempt {
+          if (it.hasNext) it.next()
+          else throw StreamEnd
+        }.mapError {
+          case StreamEnd => None
+          case e         => Some(e)
         }
+      }
     }
   }
 
