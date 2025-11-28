@@ -208,6 +208,20 @@ trait Runtime[+R] { self =>
 }
 
 object Runtime extends RuntimePlatformSpecific {
+  private[zio] sealed abstract class Internal[+R](
+    val environment: ZEnvironment[R],
+    val fiberRefs: FiberRefs,
+    val runtimeFlags: RuntimeFlags
+  ) extends Runtime[R] {
+    // Thread unsafe lazy initialization
+    protected var unsafe0: UnsafeAPI with UnsafeAPI3 = null
+    override def unsafe: UnsafeAPI with UnsafeAPI3 = {
+      if (unsafe0 eq null) unsafe0 = new UnsafeAPIV1 {}
+      unsafe0
+    }
+    override def toString: String =
+      s"Runtime(environment = $environment, fiberRefs = $fiberRefs, runtimeFlags = ${RuntimeFlags.render(runtimeFlags)})"
+  }
 
   @deprecated("Custom Fatal handling is deprecated, kept only for binary compatability.", "2.1.22")
   def addFatal(fatal: Class[_ <: Throwable])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
@@ -229,12 +243,7 @@ object Runtime extends RuntimePlatformSpecific {
     r: ZEnvironment[R],
     fiberRefs0: FiberRefs,
     runtimeFlags0: RuntimeFlags
-  ): Runtime[R] =
-    new Runtime[R] {
-      val environment           = r
-      override val fiberRefs    = fiberRefs0
-      override val runtimeFlags = runtimeFlags0
-    }
+  ): Runtime[R] = new Internal[R](r, fiberRefs0, runtimeFlags0) {}
 
   /**
    * The default [[Runtime]] for most ZIO applications. This runtime is
@@ -326,9 +335,8 @@ object Runtime extends RuntimePlatformSpecific {
   }
 
   class Proxy[+R](underlying: Runtime[R]) extends Runtime[R] {
-    def environment = underlying.environment
-    def fiberRefs   = underlying.fiberRefs
-
+    def environment  = underlying.environment
+    def fiberRefs    = underlying.fiberRefs
     def runtimeFlags = underlying.runtimeFlags
   }
 
@@ -336,11 +344,11 @@ object Runtime extends RuntimePlatformSpecific {
    * A runtime that can be shutdown to release resources allocated to it.
    */
   final case class Scoped[+R](
-    environment: ZEnvironment[R],
-    fiberRefs: FiberRefs,
-    runtimeFlags: RuntimeFlags,
+    override val environment: ZEnvironment[R],
+    override val fiberRefs: FiberRefs,
+    override val runtimeFlags: RuntimeFlags,
     shutdown0: () => Unit
-  ) extends Runtime[R] { self =>
+  ) extends Internal[R](environment, fiberRefs, runtimeFlags) { self =>
     override final def mapEnvironment[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime.Scoped[R1] =
       Scoped(f(environment), fiberRefs, runtimeFlags, shutdown0)
 
@@ -354,9 +362,10 @@ object Runtime extends RuntimePlatformSpecific {
       def shutdown()(implicit unsafe: Unsafe): Unit
     }
 
-    override def unsafe: UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 =
-      new UnsafeAPIV2 {}
-
+    override def unsafe: UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 = {
+      if (unsafe0 eq null) unsafe0 = new UnsafeAPIV2 {}
+      unsafe0.asInstanceOf[UnsafeAPI with UnsafeAPI2 with UnsafeAPI3] // Internal can't access API2
+    }
     protected abstract class UnsafeAPIV2 extends UnsafeAPIV1 with UnsafeAPI2 {
       def shutdown()(implicit unsafe: Unsafe) = shutdown0()
     }
