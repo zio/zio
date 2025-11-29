@@ -317,12 +317,11 @@ object Runtime extends RuntimePlatformSpecific {
      * [[ZIO.provide]] directly in their application entry points.
      */
     def fromLayer[R](layer: Layer[Any, R])(implicit trace: Trace, unsafe: Unsafe): Runtime.Scoped[R] = {
-      val rt = default.unsafe
-      val (runtime, shutdown) = rt.run {
+      val (runtime, shutdown) = default.unsafe.run {
         Scope.make.flatMap { scope =>
           scope.extend(layer.toRuntime).map { acquire =>
             val finalizer = { () =>
-              if (scope.size > 0) rt.run(scope.close(Exit.unit).uninterruptible).getOrThrowFiberFailure()
+              if (scope.size > 0) default.unsafe.run(scope.close(Exit.unit).uninterruptible).getOrThrowFiberFailure()
               ()
             }
             Platform.addShutdownHook(finalizer)

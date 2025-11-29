@@ -40,6 +40,6 @@ object TestSuccess {
   final case class Succeeded(annotations: TestAnnotationMap = TestAnnotationMap.empty) extends TestSuccess
   final case class Ignored(annotations: TestAnnotationMap = TestAnnotationMap.empty)   extends TestSuccess
 
-  private[test] val ignored: TestSuccess = Ignored()
-  private[test] val succeedEmptyExit     = Exit.succeed(Succeeded())
+  val ignored: TestSuccess           = Ignored()
+  private[test] val succeedEmptyExit = Exit.succeed(Succeeded())
 }

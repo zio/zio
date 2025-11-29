@@ -218,7 +218,7 @@ object TestClock extends Serializable {
           val f       = warningStart *> promise.await
           clockState.unsafe.modify { data =>
             val end = data.instant.plus(duration0)
-            (f, data.copy(sleeps = (end, promise) :: data.sleeps))
+            (f, data.withWaiter(end, promise))
           }
         }
       }
@@ -284,7 +284,7 @@ object TestClock extends Serializable {
             cancelWarning()
             WarningData.done
           }
-        case WarningData.Start => Exit.succeed(WarningData.done)
+        case _: WarningData.Start.type => Exit.succeed(WarningData.done)
       }
 
     /**
@@ -311,7 +311,7 @@ object TestClock extends Serializable {
         val f = ClockLive.sleep(waitFor) *> freeze
         f.zipWith(f)(allSuspendedUnchanged)
           .flatMap {
-            if (_) ZIO.succeed(ref.get)
+            if (_) Exit.boolean(ref.get)
             else if (ref.compareAndSet(false, true)) suspendedWarningStart *> Exit.failUnit
             else Exit.failUnit
           }
@@ -383,7 +383,7 @@ object TestClock extends Serializable {
             }
           }.flatMap {
             case Some((end, promise)) =>
-              promise.unsafe.done(Exit.unit)(Unsafe)
+              promise.unsafe.succeedUnit(implicitly, trace, Unsafe)
               // We don't need to await for long here because we're waiting for a single fiber and it will resume instantly
               loop(_ => end, 2.millis)
             case _ => Exit.unit
@@ -411,7 +411,7 @@ object TestClock extends Serializable {
      * but is not advancing the `TestClock`.
      */
     private def warningStart(implicit trace: Trace): UIO[Unit] =
-      warningState.updateSomeZIO { case WarningData.Start =>
+      warningState.updateSomeZIO { case _: WarningData.Start.type =>
         ZIO.succeedUnsafe { implicit unsafe =>
           val f      = ZIO.logWarning(warning)
           val cancel = Clock.globalScheduler.schedule(() => Runtime.default.unsafe.run(f), 5.seconds)
@@ -509,7 +509,10 @@ object TestClock extends Serializable {
     instant: Instant,
     sleeps: List[(Instant, Promise[Nothing, Unit])],
     timeZone: ZoneId
-  )
+  ) {
+    def withWaiter(instant: Instant, promise: Promise[Nothing, Unit]): Data =
+      copy(sleeps = (instant, promise) :: sleeps)
+  }
 
   /**
    * `Sleep` represents the state of a scheduled effect, including the time the
