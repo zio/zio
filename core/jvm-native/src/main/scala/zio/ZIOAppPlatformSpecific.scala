@@ -63,10 +63,10 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
 
     val exit0 =
       runtime.unsafe.run {
-        ZIO.uninterruptible {
+        ZIO.uninterruptibleMask { restore =>
           for {
             fiberId <- ZIO.fiberId
-            fiber <- workflow.interruptible.exitWith { exit0 =>
+            fiber <- restore(workflow).exitWith { exit0 =>
                        val exitCode = if (exit0.isSuccess) ExitCode.success else ExitCode.failure
                        interruptRootFibers(fiberId).as(exitCode)
                      }.fork
