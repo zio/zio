@@ -54,7 +54,6 @@ object Assertion extends AssertionVariants {
   )(
     assertion: Assertion[A]
   )(implicit sourceLocation: SourceLocation): TestResult = {
-    lazy val value0 = expr
     val completeString =
       codeString.flatMap(code =>
         assertionString.map { assertion =>
@@ -68,17 +67,21 @@ object Assertion extends AssertionVariants {
         }
       )
     TestResult(
-      (TestArrow.succeed(value0).withCode(codeString.getOrElse("input")) >>> assertion.arrow).withLocation
+      (TestArrow.succeed(expr).withCode(codeString.getOrElse("input")) >>> assertion.arrow).withLocation
         .withCompleteCode(completeString.getOrElse("<CODE>"))
     )
   }
 
-  private[test] def smartAssertZIO[R, E, A](
+  private[test] def smartAssertZIO[R, E, A](assertion: Assertion[A])(
+    effect: ZIO[R, E, A]
+  )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[R, E, TestResult] =
+    effect.map(smartAssert(_)(assertion))
+
+  @deprecated("use smartAssertZIO variant without the by-name parameter", "2.1.23")
+  private[Assertion] def smartAssertZIO[R, E, A](
     expr: => ZIO[R, E, A]
-  )(assertion: Assertion[A])(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[R, E, TestResult] = {
-    lazy val value0 = expr
-    value0.map(smartAssert(_)(assertion))
-  }
+  )(assertion: Assertion[A])(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[R, E, TestResult] =
+    smartAssertZIO(assertion)(expr)
 
   /**
    * Makes a new `Assertion` from a function.
@@ -325,7 +328,7 @@ object Assertion extends AssertionVariants {
   /**
    * Makes a new assertion that requires a value be true.
    */
-  def isTrue: Assertion[Boolean] =
+  val isTrue: Assertion[Boolean] =
     Assertion {
       TestArrow
         .make[Boolean, Boolean] { boolean =>
@@ -337,7 +340,7 @@ object Assertion extends AssertionVariants {
   /**
    * Makes a new assertion that requires a value be false.
    */
-  def isFalse: Assertion[Boolean] =
+  val isFalse: Assertion[Boolean] =
     Assertion {
       TestArrow
         .make[Boolean, Boolean] { boolean =>
