@@ -82,7 +82,7 @@ object ChunkPackedBooleanSpec extends ZIOBaseSpec {
       val drop = 2
       val take = 11
 
-      val bools = bls.drop(drop).take(take)
+      val bools  = bls.drop(drop).take(take)
       val actual = bools.toPackedByte.map(toBinaryString).mkString
 
       // Expected: bits 2-12 of "1000000110100011" = "00000110100", padded to 16 bits = "0000011010000000"
@@ -105,12 +105,12 @@ object ChunkPackedBooleanSpec extends ZIOBaseSpec {
       // Expected values computed by taking substrings and padding to 8-bit boundaries:
       val testCases = List(
         // (drop, take, expected)
-        (1, 10, "1111111000000000"), // bits 1-10 = "1111111000", padded = "1111111000000000"
-        (3, 15, "1111100000001000"), // bits 3-17 = "111110000000010", padded = "1111100000001000"
-        (7, 9, "1000000000000000"),  // bits 7-15 = "100000000", padded = "1000000000000000"
-        (8, 8, "00000000"),          // bits 8-15 = "00000000" (exactly second byte)
+        (1, 10, "1111111000000000"),         // bits 1-10 = "1111111000", padded = "1111111000000000"
+        (3, 15, "1111100000001000"),         // bits 3-17 = "111110000000010", padded = "1111100000001000"
+        (7, 9, "1000000000000000"),          // bits 7-15 = "100000000", padded = "1000000000000000"
+        (8, 8, "00000000"),                  // bits 8-15 = "00000000" (exactly second byte)
         (4, 20, "111100000000101000000000"), // bits 4-23 = "11110000000010100000", padded
-        (0, 16, "1111111100000000")  // bits 0-15 = "1111111100000000" (baseline)
+        (0, 16, "1111111100000000")          // bits 0-15 = "1111111100000000" (baseline)
       )
 
       testCases.foldLeft(assertCompletes) { case (acc, (drop, take, expected)) =>

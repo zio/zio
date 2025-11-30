@@ -77,7 +77,7 @@ object BitChunkApplyBugSpec extends ZIOBaseSpec {
         // Int 0xF0F0F0F0 = "11110000111100001111000011110000"
         val ints     = Chunk(0xf0f0f0f0)
         val bitChunk = ints.asBitsInt(Chunk.BitChunk.Endianness.BigEndian)
-        val dropped  = bitChunk.drop(4).take(8)  // Should be bits 4-11: "00001111"
+        val dropped  = bitChunk.drop(4).take(8) // Should be bits 4-11: "00001111"
 
         // Verify using direct apply() calls
         val bits = (0 until dropped.length).map(dropped(_)).toList
@@ -104,7 +104,7 @@ object BitChunkApplyBugSpec extends ZIOBaseSpec {
         // Long 0xFF00FF00FF00FF00L = "1111111100000000111111110000000011111111000000001111111100000000"
         val longs    = Chunk(0xff00ff00ff00ff00L)
         val bitChunk = longs.asBitsLong(Chunk.BitChunk.Endianness.BigEndian)
-        val dropped  = bitChunk.drop(8).take(8)  // Should be bits 8-15: "00000000"
+        val dropped  = bitChunk.drop(8).take(8) // Should be bits 8-15: "00000000"
 
         // Verify using direct apply() calls
         val bits = (0 until dropped.length).map(dropped(_)).toList
