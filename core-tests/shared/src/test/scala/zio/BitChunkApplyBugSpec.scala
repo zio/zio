@@ -3,7 +3,8 @@ package zio
 import zio.test._
 
 /**
- * Tests exposing the bug in BitChunk.apply() where minBitIndex was not accounted for.
+ * Tests exposing the bug in BitChunk.apply() where minBitIndex was not
+ * accounted for.
  *
  * The bug: BitChunk.apply(n) used 'n' directly instead of (n + minBitIndex).
  * After drop(), minBitIndex > 0, so apply(0) returned the wrong bit.

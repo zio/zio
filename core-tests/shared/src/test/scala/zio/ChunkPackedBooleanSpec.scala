@@ -60,7 +60,13 @@ object ChunkPackedBooleanSpec extends ZIOBaseSpec {
       // 0xF0000000 = "11110000 00000000 00000000 00000000"
       // After drop(4).take(8), bits 4-11 = "00000000"
       val actual =
-        Chunk(0xf0000000).asBitsInt(Chunk.BitChunk.Endianness.BigEndian).drop(4).take(8).toPackedByte.map(toBinaryString).mkString
+        Chunk(0xf0000000)
+          .asBitsInt(Chunk.BitChunk.Endianness.BigEndian)
+          .drop(4)
+          .take(8)
+          .toPackedByte
+          .map(toBinaryString)
+          .mkString
 
       assert(actual)(equalTo("00000000"))
     },
@@ -68,7 +74,13 @@ object ChunkPackedBooleanSpec extends ZIOBaseSpec {
       // 0xFF00000000000000L = "11111111 00000000 ..."
       // After drop(8).take(8), bits 8-15 = "00000000"
       val actual =
-        Chunk(0xff00000000000000L).asBitsLong(Chunk.BitChunk.Endianness.BigEndian).drop(8).take(8).toPackedByte.map(toBinaryString).mkString
+        Chunk(0xff00000000000000L)
+          .asBitsLong(Chunk.BitChunk.Endianness.BigEndian)
+          .drop(8)
+          .take(8)
+          .toPackedByte
+          .map(toBinaryString)
+          .mkString
 
       assert(actual)(equalTo("00000000"))
     },
