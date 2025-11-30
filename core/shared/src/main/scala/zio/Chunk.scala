@@ -1989,24 +1989,36 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       newBitChunk(chunk.take(toTake), minBitIndex, index)
     }
 
+    // Iterates over bits in 3 phases:
+    // 1. Prefix bits: individual bits before the first full element
+    // 2. Full elements: process entire bytes/ints/longs efficiently via foreachElement
+    // 3. Suffix bits: individual bits after the last full element
     override def foreach[A](f: Boolean => A): Unit = {
-      val minLongIndex    = (minBitIndex + bits - 1) >> bitsLog2
-      val maxLongIndex    = maxBitIndex >> bitsLog2
-      val minFullBitIndex = (minLongIndex << bitsLog2) min maxBitIndex
-      val maxFullBitIndex = (maxLongIndex << bitsLog2) max minFullBitIndex
-      var i               = minBitIndex
-      while (i < minFullBitIndex) {
-        f(self.apply(i - minBitIndex))
+      val minElementIndex = (minBitIndex + bits - 1) >> bitsLog2 // first full element index
+      val maxElementIndex = maxBitIndex >> bitsLog2              // last full element index (exclusive)
+      val minFullBitIndex = (minElementIndex << bitsLog2) min maxBitIndex
+      val maxFullBitIndex = (maxElementIndex << bitsLog2) max minFullBitIndex
+      val prefixBits      = minFullBitIndex - minBitIndex        // count of leading bits before first full element
+      val suffixBitsStart = maxFullBitIndex - minBitIndex        // 0-based index where trailing bits start
+
+      // Phase 1: prefix bits (before first full element)
+      var i = 0
+      while (i < prefixBits) {
+        f(self.apply(i))
         i += 1
       }
-      i = minLongIndex
-      while (i < maxLongIndex) {
+
+      // Phase 2: full elements (processed efficiently without bit extraction)
+      i = minElementIndex
+      while (i < maxElementIndex) {
         foreachElement(f, elementAt(i))
         i += 1
       }
-      i = maxFullBitIndex
-      while (i < maxBitIndex) {
-        f(self.apply(i - minBitIndex))
+
+      // Phase 3: suffix bits (after last full element)
+      i = suffixBitsStart
+      while (i < length) {
+        f(self.apply(i))
         i += 1
       }
     }
