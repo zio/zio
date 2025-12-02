@@ -234,7 +234,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
    * whether or not it completes).
    */
   final def ensuringWith[R1 <: R](
-    finalizer: Exit[E, Z] => URIO[R1, Any]
+    finalizer: Exit[Any, Any] => URIO[R1, Any]
   )(implicit trace: Trace): ZSink[R1, E, In, L, Z] =
     new ZSink[R1, E, In, L, Z](
       channel.ensuringWith(finalizer)
