@@ -805,7 +805,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           ZChannel.write(newChunk) *> writer(newLast)
         },
         (cause: Cause[Err]) => ZChannel.refailCause(cause),
-        (_: Any) => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     new ZPipeline(writer(None))
@@ -828,7 +828,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             ZChannel.write(newChunk) *> writer(newLast)
           },
         (cause: Cause[Err]) => ZChannel.refailCause(cause),
-        (_: Any) => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     new ZPipeline(writer(None))
@@ -937,7 +937,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                 ZChannel.write(outs) *> reader
               },
               ZChannel.refailCause,
-              (_: Any) => ZChannel.unit
+              ZChannel.unitChannelFn
             )
 
           reader
@@ -1082,7 +1082,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               else ZChannel.write(dropped) *> ZChannel.identity
             },
             (e: Cause[ZNothing]) => ZChannel.refailCause(e),
-            (_: Any) => ZChannel.unit
+            ZChannel.unitChannelFn
           )
 
       new ZPipeline(loop(n))
@@ -1147,7 +1147,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[Err, Chunk[In], Any]
         }),
       (e: Cause[Err]) => ZChannel.refailCause(e),
-      (_: Any) => ZChannel.unit
+      ZChannel.unitChannelFn
     )
 
     new ZPipeline(loop)
@@ -1700,7 +1700,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               ZChannel.write(builder.result()) *> writer(flagResult)
             },
             err => ZChannel.refailCause(err),
-            _ => ZChannel.unit
+            ZChannel.unitChannelFn
           )
 
         writer(true)
@@ -1768,7 +1768,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               }
             ),
           ZChannel.refailCause,
-          (_: Any) => ZChannel.unit
+          ZChannel.unitChannelFn
         )
 
       new ZPipeline(accumulator(s))
@@ -2403,7 +2403,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                   loop(tokens, timestamp)
               }),
             (e: Cause[Err]) => ZChannel.refailCause(e),
-            (_: Any) => ZChannel.unit
+            ZChannel.unitChannelFn
           )
 
         ZChannel.unwrap(Clock.nanoTime.map(loop(units, _)))
@@ -2464,7 +2464,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               else ZChannel.write(in) *> loop(remaining, current)
             }),
           (e: Cause[Err]) => ZChannel.refailCause(e),
-          (_: Any) => ZChannel.unit
+          ZChannel.unitChannelFn
         )
 
       ZChannel.unwrap(Clock.nanoTime.map(loop(units, _)))

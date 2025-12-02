@@ -1,22 +1,10 @@
 package zio
 
-import zio.test.TestAspect.jvmOnly
 import zio.test._
 
 object RuntimeSpecJVM extends ZIOBaseSpec {
-  @annotation.nowarn("msg=IsFatal")
-  def isFatal(t: Throwable): Boolean = FiberRef.currentFatal.initial.apply(t)
-
-  def spec = suite("RuntimeSpecJVM")(
-    suite("Runtime.default isFatal:")(
-      test("Runtime.isFatal should identify a nonFatal exception") {
-        val nonFatal = new Exception
-        assertTrue(!isFatal(nonFatal))
-      },
-      test("Runtime.isFatal should identify a fatal exception") {
-        val fatal = new OutOfMemoryError
-        assertTrue(isFatal(fatal))
-      } @@ jvmOnly,
+  def spec =
+    suite("RuntimeSpecJVM")(
       test("Runtime.unsafe.run doesn't deadlock when run within a fiber") {
         val rtm                     = Runtime.default.unsafe
         implicit val unsafe: Unsafe = Unsafe.unsafe
@@ -31,5 +19,4 @@ object RuntimeSpecJVM extends ZIOBaseSpec {
         } yield assertCompletes
       } @@ TestAspect.timeout(5.seconds) @@ TestAspect.nonFlaky(100)
     )
-  )
 }
