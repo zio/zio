@@ -464,12 +464,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             }
           }
         } catch {
-          case throwable: Throwable =>
-            if (isFatal(throwable)) {
-              effect = handleFatalError(throwable)
-            } else {
-              effect = ZIO.failCause(Cause.die(throwable))(_lastTrace)
-            }
+          case ex if nonFatal(ex) =>
+            effect = ZIO.failCause(Cause.die(ex))(_lastTrace)
+          case fatal =>
+            effect = handleFatalError(fatal)
         }
       }
 
@@ -707,9 +705,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     try {
       value = asyncRegister(callback)
     } catch {
-      case throwable: Throwable =>
-        if (isFatal(throwable)) handleFatalError(throwable)
-        else callback(Exit.Failure(Cause.die(throwable)))
+      case ex if nonFatal(ex) => callback(Exit.Failure(Cause.die(ex)))
+      case fatal              => handleFatalError(fatal)
     }
 
     value match {
@@ -823,18 +820,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     try {
       onFiber(self)
     } catch {
-      case throwable: Throwable =>
-        if (isFatal(throwable)) {
-          handleFatalError(throwable)
-        } else {
-          log(
-            () =>
-              s"An unexpected error was encountered while processing stateful fiber message with callback ${onFiber}",
-            Cause.die(throwable),
-            ZIO.someError,
-            id.location
-          )
-        }
+      case ex if nonFatal(ex) =>
+        log(
+          () => s"An unexpected error was encountered while processing stateful fiber message with callback ${onFiber}",
+          Cause.die(ex),
+          ZIO.someError,
+          id.location
+        )
+      case fatal => handleFatalError(fatal)
     }
 
   /**
@@ -961,9 +954,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           try {
             sync.eval()
           } catch {
-            case t: Throwable =>
-              if (isFatal(t)) handleFatalError(t)
-              else addInterruptedCause(Cause.die(t))
+            case ex if nonFatal(ex) => addInterruptedCause(Cause.die(ex))
+            case fatal              => handleFatalError(fatal)
           }
         }
 
@@ -1440,13 +1432,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             }
           }
         } catch {
-          case throwable: Throwable =>
-            if (isFatal(throwable)) {
-              handleFatalError(throwable)
-            } else {
-              println("An exception was thrown by a logger:")
-              throwable.printStackTrace()
-            }
+          case ex if nonFatal(ex) =>
+            println("An exception was thrown by a logger:")
+            ex.printStackTrace()
+          case fatal => handleFatalError(fatal)
         }
       case _ =>
         if (runtimeMetricsEnabled) {

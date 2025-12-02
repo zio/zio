@@ -599,7 +599,7 @@ object FiberRef {
     FiberRef.unsafe.make(Runtime.defaultBlockingExecutor)(Unsafe.unsafe)
 
   @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
-  private[zio] val currentFatal: FiberRef.WithPatch[IsFatal, IsFatal.Patch] =
+  private[FiberRef] val currentFatal: FiberRef.WithPatch[IsFatal, IsFatal.Patch] =
     FiberRef.unsafe.makeIsFatal(Runtime.defaultFatal)(Unsafe.unsafe)
 
   private[zio] val currentFiberIdGenerator: FiberRef[FiberId.Gen] =

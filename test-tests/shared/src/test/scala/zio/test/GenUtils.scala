@@ -4,27 +4,28 @@ import zio.Exit.{Failure, Success}
 import zio.stream.ZStream
 import zio.test.Assertion.{equalTo, forall}
 import zio.{Exit, UIO, URIO, ZIO}
+import zio.internal.stacktracer.SourceLocation
 
 object GenUtils {
 
   private val shrinkSize = if (TestPlatform.isJVM) 100 else 1
   private val size       = if (TestPlatform.isJVM) 100 else 10
 
-  def alwaysShrinksTo[R, A](gen: Gen[R, A])(a: A): URIO[R, TestResult] =
-    ZIO.collectAll(List.fill(shrinkSize)(shrinksTo(gen))).map(assert(_)(forall(equalTo(a))))
+  def alwaysShrinksTo[R, A](gen: Gen[R, A])(a: A)(implicit trace: SourceLocation): URIO[R, TestResult] =
+    ZIO.collectAll(Vector.fill(shrinkSize)(shrinksTo(gen))).map(assert(_)(forall(equalTo(a))))
 
   def checkFinite[A, B](
     gen: Gen[Any, A]
-  )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): UIO[TestResult] =
+  )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a)(implicit trace: SourceLocation): UIO[TestResult] =
     assertZIO(gen.sample.map(_.value).runCollect.map(xs => f(xs.toList)))(assertion)
 
   def checkSample[A, B](
     gen: Gen[Any, A],
     size: Int = size
-  )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): UIO[TestResult] =
+  )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a)(implicit trace: SourceLocation): UIO[TestResult] =
     assertZIO(provideSize(sample100(gen).map(f))(size))(assertion)
 
-  def checkShrink[A](gen: Gen[Any, A])(a: A): UIO[TestResult] =
+  def checkShrink[A](gen: Gen[Any, A])(a: A)(implicit trace: SourceLocation): UIO[TestResult] =
     provideSize(alwaysShrinksTo(gen)(a: A))(size)
 
   val deterministic: Gen[Any, Gen[Any, Int]] =
