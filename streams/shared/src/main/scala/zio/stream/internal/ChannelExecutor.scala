@@ -24,9 +24,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
     if (currInput ne null) currInput.close(exit) else Exit.unit
   }
 
-  private[this] final def popAllFinalizers(
-    exit: Exit[Any, Any]
-  )(implicit trace: Trace): URIO[Env, Any] = {
+  private[this] final def popAllFinalizersOrNull(exit: Exit[Any, Any])(implicit trace: Trace): URIO[Env, Any] = {
 
     @tailrec
     def unwind(
@@ -42,7 +40,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
       }
 
     val finalizers = unwind(List.empty)
-    val effect     = runFinalizers(finalizers, exit)
+    val effect     = runFinalizersOrNull(finalizers, exit)
     storeInProgressFinalizer(effect)
     effect
   }
@@ -67,7 +65,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
   }
 
   private[this] final def storeInProgressFinalizer(finalizer: URIO[Env, Any]): Boolean =
-    if (finalizer eq ZIO.unit) {
+    if ((finalizer eq null) || (finalizer eq ZIO.unit)) {
       clearInProgressFinalizer()
       false
     } else {
@@ -102,9 +100,9 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
     }
 
     fs(3) = ZIO.suspendSucceed {
-      val selfFinalizers = popAllFinalizers(ex)
+      val selfFinalizers = popAllFinalizersOrNull(ex)
 
-      if (selfFinalizers eq ZIO.unit) Exit.unit
+      if (selfFinalizers eq null) Exit.unit
       else selfFinalizers.ensuring(ZIO.succeed(clearInProgressFinalizer()))
     }
 
@@ -367,7 +365,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
             currentChannel = null
             ChannelState.Done
           } else {
-            val finalizerEffect = runFinalizers(finalizers.map(_.finalizer), Exit.succeed(z))
+            val finalizerEffect = runFinalizersOrNull(finalizers.map(_.finalizer), Exit.succeed(z))
             if (storeInProgressFinalizer(finalizerEffect))
               ChannelState.Effect(
                 finalizerEffect
@@ -400,7 +398,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
             currentChannel = null
             ChannelState.Done
           } else {
-            val finalizerEffect = runFinalizers(finalizers.map(_.finalizer), Exit.failCause(cause))
+            val finalizerEffect = runFinalizersOrNull(finalizers.map(_.finalizer), Exit.failCause(cause))
             if (storeInProgressFinalizer(finalizerEffect))
               ChannelState.Effect(
                 finalizerEffect
@@ -449,13 +447,13 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
   private[this] def addFinalizer(f: Finalizer[Env]): Unit =
     doneStack.push(ZChannel.Fold.Finalizer(f))
 
-  private[this] def runFinalizers(finalizers: Iterable[Finalizer[Env]], ex: Exit[Any, Any])(implicit
+  private[this] def runFinalizersOrNull(finalizers: Iterable[Finalizer[Env]], ex: Exit[Any, Any])(implicit
     trace: Trace
   ): URIO[Env, Any] =
-    if (finalizers.isEmpty) ZIO.unit
+    if (finalizers.isEmpty) null
     else
       provide(ZIO.foreach(finalizers)(_.apply(ex).exit))
-        .map(results => Exit.collectAllParDiscard(results))
+        .map(results => Exit.collectAllDiscard(results))
         .unexit
 
   private[this] def runSubexecutor()(implicit trace: Trace): ChannelState[Env, Any] =
@@ -493,7 +491,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
             else closeEffect
           }.exit
         }
-        .flatMap(Exit.collectAllParDiscard(_))
+        .flatMap(Exit.collectAllDiscard(_))
     }
 
     val state = subexecDone.foldExit(doneHalt, doneSucceed)
@@ -568,15 +566,12 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
     childExecutor: ErasedExecutor[Env],
     parentSubexecutor: Subexecutor.PullFromUpstream[Env]
   )(implicit trace: Trace): ChannelState[Env, Any] = {
-    def handleSubexecFailure(cause: Cause[Any]): ChannelState[Env, Any] = {
-      val closeEffects: Seq[Exit[Any, Any] => URIO[Env, Any]] =
-        Seq(parentSubexecutor.close, childExecutor.close)
-
+    def handleSubexecFailure(cause: Cause[Any]): ChannelState[Env, Any] =
       finishSubexecutorWithCloseEffect(
         Exit.failCause(cause),
-        closeEffects: _*
+        parentSubexecutor.close,
+        childExecutor.close
       )
-    }
 
     def finishWithDoneValue(doneValue: Any): Unit = {
       val modifiedParent =
@@ -695,10 +690,9 @@ private[zio] object ChannelExecutor {
         val fin1 = childExecutor.close(ex)
         val fin2 = parentSubexecutor.close(ex)
 
-        if ((fin1 eq null) && (fin2 eq null)) null
-        else if ((fin1 ne null) && (fin2 ne null)) fin1.exit.zipWith(fin2.exit)(_ *> _).unexit
-        else if (fin1 ne null) fin1
-        else fin2
+        if (fin1 eq null) fin2
+        else if (fin2 eq null) fin1
+        else fin1.exit.zipWith(fin2.exit)(_ *> _).unexit
       }
     }
 
@@ -977,7 +971,7 @@ private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
 
 private[zio] object SingleProducerAsyncInput {
   def make[Err, Elem, Done](implicit trace: Trace): UIO[SingleProducerAsyncInput[Err, Elem, Done]] =
-    ZIO.fiberIdWith(fiberId => ZIO.succeed(unsafe.make(fiberId)(Unsafe)))
+    ZIO.fiberIdWith(fiberId => Exit.succeed(unsafe.make(fiberId)(Unsafe)))
 
   object unsafe {
     def make[Err, Elem, Done](fiberId: FiberId)(implicit unsafe: Unsafe): SingleProducerAsyncInput[Err, Elem, Done] = {
