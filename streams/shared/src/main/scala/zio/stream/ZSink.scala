@@ -926,7 +926,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
             ch
         },
         ZChannel.refailCause,
-        _ => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     ch.toSink
@@ -953,7 +953,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
           }
         },
         ZChannel.refailCause,
-        _ => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     ch.toSink
@@ -1399,7 +1399,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       ZChannel.readWithCause(
         in => ZChannel.fromZIO(ZIO.foreachDiscard(in)(f(_))) *> process,
         halt => ZChannel.refailCause(halt),
-        _ => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     new ZSink(process)
@@ -1416,7 +1416,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       ZChannel.readWithCause(
         in => ZChannel.fromZIO(f(in)) *> process,
         halt => ZChannel.refailCause(halt),
-        _ => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     new ZSink(process)
@@ -1447,7 +1447,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       ZChannel.readWithCause(
         in => go(in, 0, in.length, process),
         halt => ZChannel.refailCause(halt),
-        _ => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     new ZSink(process)
@@ -1468,7 +1468,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
             else ZChannel.unit
           },
         (err: Cause[Err]) => ZChannel.refailCause(err),
-        (_: Any) => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     new ZSink(reader)
