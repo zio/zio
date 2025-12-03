@@ -426,7 +426,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     if (as.isEmpty) empty else int(0, as.length - 1).map(as)
 
   def empty(implicit trace: Trace): Gen[Any, Nothing] =
-    Gen(ZStream.empty)
+    emptyGen
 
   /**
    * A generator of exponentially distributed doubles with mean `1`. The
@@ -804,7 +804,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * when creating generators that refer to themselves.
    */
   def suspend[R, A](gen: => Gen[R, A])(implicit trace: Trace): Gen[R, A] =
-    fromZIO(ZIO.succeed(gen)).flatten
+    Gen(ZStream.suspend(gen.sample))
 
   /**
    * A generator of throwables.
@@ -854,7 +854,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A constant generator of the unit value.
    */
   def unit(implicit trace: Trace): Gen[Any, Unit] =
-    const(())
+    unitGen
 
   /**
    * A generator of universally unique identifiers. The returned generator will
@@ -922,4 +922,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
 
   private val defaultShrinker: Any => ZStream[Any, Nothing, Nothing] =
     _ => ZStream.empty(Trace.empty)
+
+  private val emptyGen: Gen[Any, Nothing] = Gen(ZStream.empty(Trace.empty))
+  private val unitGen: Gen[Any, Unit]     = const(())(Trace.empty)
 }

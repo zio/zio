@@ -1713,7 +1713,7 @@ object ZChannel {
   )(release: (Acquired, Exit[OutErr, OutDone]) => URIO[Env, Any])(
     use: Acquired => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone]
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] =
-    fromZIO(Ref.make[Exit[OutErr, OutDone] => URIO[Env, Any]](_ => ZIO.unit)).flatMap { ref =>
+    fromZIO(Ref.make[Exit[OutErr, OutDone] => URIO[Env, Any]](ZIO.unitZIOFn)).flatMap { ref =>
       fromZIO(acquire.tap(a => ref.set(release(a, _))).uninterruptible)
         .flatMap(use)
         .ensuringWith(ex => ref.get.flatMap(_.apply(ex)))
@@ -1920,7 +1920,7 @@ object ZChannel {
     new ScopedPartiallyApplied[R]
 
   def scopedWith[R, E, A](f: Scope => ZIO[R, E, A])(implicit trace: Trace): ZChannel[R, Any, Any, Any, E, A, Any] =
-    ZChannel.unwrapScoped(ZIO.scope.map(scope => ZChannel.fromZIO(f(scope)).flatMap(ZChannel.write)))
+    ZChannel.unwrapScoped(ZIO.scopeWith(scope => Exit.succeed(ZChannel.fromZIO(f(scope)).flatMap(ZChannel.write))))
 
   def mergeAll[Env, InErr, InElem, InDone, OutErr, OutElem](
     channels: => ZChannel[
@@ -2145,7 +2145,7 @@ object ZChannel {
     tag: EnvironmentTag[Env1],
     trace: Trace
   ): ZChannel[Env0 with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    ZChannel.suspend(channel.provideSomeLayer[Env0 with Env1](ZLayer.environment[Env1] ++ layer))
+    ZChannel.suspend(channel.provideSomeLayer[Env0 with Env1](ZLayer.environment[Env1] <*> layer))
 
   def readWithCause[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     in: InElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
@@ -2339,7 +2339,7 @@ object ZChannel {
     ): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
       self
         .asInstanceOf[ZChannel[Env0 with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
-        .provideLayer(ZLayer.environment[Env0] ++ layer)
+        .provideLayer(ZLayer.environment[Env0] <*> layer)
   }
 
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
@@ -2374,7 +2374,7 @@ object ZChannel {
       tag: Tag[Service],
       trace: Trace
     ): ZChannel[Service, Any, Any, Any, Nothing, Nothing, OutDone] =
-      ZChannel.service[Service].map(f)
+      ZChannel.fromZIO(ZIO.serviceWith[Service](f))
   }
 
   final class ServiceWithChannelPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
@@ -2392,7 +2392,7 @@ object ZChannel {
       tag: Tag[Service],
       trace: Trace
     ): ZChannel[Env, Any, Any, Any, OutErr, Nothing, OutDone] =
-      ZChannel.service[Service].mapZIO(f)
+      ZChannel.fromZIO(ZIO.serviceWithZIO[Service](f))
   }
 
   final class UnwrapScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
@@ -2427,4 +2427,6 @@ object ZChannel {
     ): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
       self.provideSomeEnvironment(_.updateAt(key)(f))
   }
+
+  private[stream] val unitChannelFn: Any => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Unit] = (_: Any) => unit
 }

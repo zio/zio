@@ -1,7 +1,7 @@
 package zio.test.sbt
 
 import zio.test._
-import zio.{ZIO, ZLayer, durationInt}
+import zio.{Scope, ZIO, ZLayer, durationInt}
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -133,6 +133,100 @@ object FrameworkSpecInstances {
         assert(1)(Assertion.equalTo(1))
       }.annotate(TestAnnotation.tagged, Set("UnitTest"))
     )
+  }
+
+  object TagsSpecWithFailingEnv extends ZIOSpecDefault {
+    // failing test with `provide`
+    private val suiteWithFailingProvideEnv =
+      (
+        suite("suite with tag and failing `provide` env")(
+          test("should not be executed - 0")(assertTrue(false))
+        ).provide(ZLayer(ZIO.fail(new RuntimeException("should not be called - 0"))))
+      ) @@ TestAspect.tag("NotExecuted")
+
+    // succeeding test with `provide`
+    private val suiteWithValidProvideEnv =
+      (
+        suite("suite with tag and valid `provide` env")(
+          test("should be executed - 1")(ZIO.serviceWith[Int](i => assertTrue(i == 1)))
+        ).provide(ZLayer.succeed(1))
+      ) @@ TestAspect.tag("Executed")
+
+    // failing test with `provideShared`
+    private val suiteWithFailingProvideSharedEnv =
+      (
+        suite("suite with tag and failing `provideShared` env")(
+          test("should not be executed - 2")(assertTrue(false))
+        ).provideShared(ZLayer(ZIO.fail(new RuntimeException("should not be called - 2"))))
+      ) @@ TestAspect.tag("NotExecuted")
+
+    // succeeding test with `provideShared`
+    private val suiteWithValidProvideSharedEnv =
+      (
+        suite("suite with tag and valid `provideShared` env")(
+          test("should be executed - 3")(ZIO.serviceWith[Int](i => assertTrue(i == 1)))
+        ).provideShared(ZLayer.succeed(1))
+      ) @@ TestAspect.tag("Executed")
+
+    // failing test with `provideLayerShared`
+    private val suiteWithFailingProvideLayerSharedEnv =
+      (
+        suite("suite with tag and failing `provideShared` env")(
+          test("should not be executed - 4")(assertTrue(false))
+        ).provideLayerShared(ZLayer(ZIO.fail(new RuntimeException("should not be called - 4"))))
+      ) @@ TestAspect.tag("NotExecuted")
+
+    // succeeding test with `provideLayerShared`
+    private val suiteWithValidProvideLayerSharedEnv =
+      (
+        suite("suite with tag and valid `provideShared` env")(
+          test("should be executed - 5")(ZIO.serviceWith[Int](i => assertTrue(i == 1)))
+        ).provideLayerShared(ZLayer.succeed(1))
+      ) @@ TestAspect.tag("Executed")
+
+    // failing test with `provideSomeLayerShared`
+    private val suiteWithFailingProvideSomeLayerSharedEnv =
+      (
+        suite("suite with tag and failing `provideShared` env")(
+          test("should not be executed - 6")(assertTrue(false))
+        ).provideSomeLayerShared[Int](
+          ZLayer.fail(new RuntimeException("should not be called - 6")): ZLayer[Int, Throwable, Any]
+        )
+      ).provide(ZLayer.succeed(1)) @@ TestAspect.tag("NotExecuted")
+
+    // succeeding test with `provideSomeLayerShared`
+    private val suiteWithValidProvideSomeLayerSharedEnv =
+      (
+        suite("suite with tag and valid `provideShared` env")(
+          test("should be executed - 7")(ZIO.serviceWith[Int](i => assertTrue(i == 1)))
+        ).provideSomeLayerShared[Int](ZLayer.service[Int])
+      ).provide(ZLayer.succeed(1)) @@ TestAspect.tag("Executed")
+
+    private val suiteWithTestWithFailingProvideEnv =
+      suite("suite with tags and with tests having invalid env")(
+        (
+          test("should not be executed - 8") {
+            assertTrue(false)
+          }.provide(ZLayer(ZIO.fail(new RuntimeException("should not be called - 8"))))
+        ) @@ TestAspect.tag("NotExecuted"),
+        test("should be executed - 9") {
+          assertTrue(true)
+        } @@ TestAspect.tag("Executed")
+      )
+
+    override def spec: Spec[TestEnvironment with Scope, Any] =
+      suite("tag suite with failing env")(
+        suiteWithFailingProvideEnv,
+        suiteWithValidProvideEnv,
+        suiteWithFailingProvideSharedEnv,
+        suiteWithValidProvideSharedEnv,
+        suiteWithFailingProvideLayerSharedEnv,
+        suiteWithValidProvideLayerSharedEnv,
+        suiteWithValidProvideSomeLayerSharedEnv,
+        suiteWithValidProvideSomeLayerSharedEnv,
+        suiteWithFailingProvideSomeLayerSharedEnv,
+        suiteWithTestWithFailingProvideEnv
+      )
   }
 
   object NestedSpec extends ZIOSpecDefault {
