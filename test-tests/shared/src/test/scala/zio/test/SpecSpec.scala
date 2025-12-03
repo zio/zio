@@ -83,28 +83,25 @@ object SpecSpec extends ZIOBaseSpec {
         trait Service {
           def open: UIO[Boolean]
         }
-        object Service {
-          val open: ZIO[Service, Nothing, Boolean] =
-            ZIO.serviceWithZIO(_.open)
-        }
         val layer =
           ZLayer {
             for {
               ref <- Ref.make(true)
               _   <- ZIO.addFinalizer(ref.set(false))
             } yield new Service {
-              def open: UIO[Boolean] =
-                ref.get
+              def open: UIO[Boolean] = ref.get
             }
           }
-        val spec = suite("suite")(
-          test("test1") {
-            assertZIO(Service.open)(isTrue)
-          },
-          test("test2") {
-            assertZIO(Service.open)(isTrue)
-          }
-        ).provideLayerShared(layer).provideLayer(Scope.default) @@ sequential
+        val spec =
+          suite("suite")(
+            test("test1") {
+              assertZIO(ZIO.serviceWithZIO[Service](_.open))(isTrue)
+            },
+            test("test2") {
+              assertZIO(ZIO.serviceWithZIO[Service](_.open))(isTrue)
+            }
+          ).provideLayerShared(layer).provideLayer(Scope.default) @@ sequential
+
         assertZIO(succeeded(spec))(isTrue)
       },
       test("propagates the scope to multiple tests") {

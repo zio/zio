@@ -1,10 +1,10 @@
 package zio.test.sbt
 
 import sbt.testing.{Status, TestSelector}
-import zio.{Scope, ZIO}
-import zio.test.{Spec, TestAspect, TestEnvironment, TestResult, ZIOSpecDefault, assertTrue}
 import zio.test.sbt.Colors.{green, red, yellow}
 import zio.test.sbt.ExecuteSpecs.{getEvents, getOutput, getOutputs}
+import zio.test.{Spec, TestAspect, TestEnvironment, TestResult, ZIOSpecDefault, assertTrue, assert}
+import zio.{Scope, ZIO}
 
 object ZTestFrameworkSpec extends ZIOSpecDefault {
   override def spec: Spec[TestEnvironment with Scope, Any] = suite("test framework")(
@@ -135,6 +135,37 @@ object ZTestFrameworkSpec extends ZIOSpecDefault {
             s"""  ${green("+")} unit test - tagged: "UnitTest"\n"""
           )
       } yield assertTrue(output.equals(expected))
+    },
+    test("do not create layers for test with ignored tag") {
+      for {
+        output <- getOutput(FrameworkSpecInstances.TagsSpecWithFailingEnv, args = Array("-ignore-tags", "NotExecuted"))
+      } yield {
+        // Verify all tests with "Executed" tag ran successfully
+        assertTrue(
+          output.exists(_.contains("""should be executed - 1 - tagged: "Executed"""")),
+          output.exists(_.contains("""should be executed - 3 - tagged: "Executed"""")),
+          output.exists(_.contains("""should be executed - 5 - tagged: "Executed"""")),
+          output.exists(_.contains("""should be executed - 7 - tagged: "Executed"""")),
+          output.exists(_.contains("""should be executed - 9 - tagged: "Executed""""))
+        ) &&
+        // Verify that tests with "NotExecuted" tag did NOT run
+        assertTrue(
+          !output.exists(_.contains("""should not be executed - 0""")),
+          !output.exists(_.contains("""should not be executed - 2""")),
+          !output.exists(_.contains("""should not be executed - 4""")),
+          !output.exists(_.contains("""should not be executed - 6""")),
+          !output.exists(_.contains("""should not be executed - 8"""))
+        ) &&
+        // Verify that layers for filtered tests were NOT constructed
+        // This is the critical assertion: if layers were built, we'd see these error messages
+        assertTrue(
+          !output.exists(_.contains("should not be called - 0")),
+          !output.exists(_.contains("should not be called - 2")),
+          !output.exists(_.contains("should not be called - 4")),
+          !output.exists(_.contains("should not be called - 6")),
+          !output.exists(_.contains("should not be called - 8"))
+        )
+      }
     },
     test("honor `TestSelector`s") {
       for {

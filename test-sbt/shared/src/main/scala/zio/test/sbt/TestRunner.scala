@@ -42,12 +42,12 @@ abstract class TestRunner(
     tasks(taskDefs, zio.Console.ConsoleLive)(Trace.empty).toArray
 
   final private[sbt] def tasks(
-    taskDefs: Array[TaskDef],
+    taskDefs: Seq[TaskDef],
     console: zio.Console
-  )(implicit trace: Trace): Array[TestTask] = {
+  )(implicit trace: Trace): Seq[TestTask] = {
     verifyNonDone()
 
-    val withSpecs: Array[(TaskDef, ZIOSpecAbstract)] = taskDefs.map(taskDef => taskDef -> loadSpec(taskDef))
+    val withSpecs: Seq[(TaskDef, ZIOSpecAbstract)] = taskDefs.map(taskDef => taskDef -> loadSpec(taskDef))
 
     // Note: maybe it is because ConsoleLive is not used on non-JVM backends that tests print more than on JVM?
     val sharedRuntime: Option[zio.Runtime.Scoped[TestOutput]] =
@@ -63,14 +63,14 @@ abstract class TestRunner(
   }
 
   private def getSharedRuntime(
-    specs: Array[ZIOSpecAbstract],
+    specs: Seq[ZIOSpecAbstract],
     console: zio.Console
   )(implicit trace: Trace): zio.Runtime.Scoped[TestOutput] = {
     val sharedTestOutputLayer: ZLayer[Any, Nothing, TestOutput] =
       ExecutionEventPrinter.live(console, testArgs.testEventRenderer, testArgs.reportsParent) >>> TestOutput.live
 
     val sharedLayerFromSpecs: ZLayer[Any, Any, Any] =
-      (Scope.default ++ ZIOAppArgs.empty) >>> specs
+      (Scope.default <*> ZIOAppArgs.empty) >>> specs
         .map(_.bootstrap)
         .foldLeft(ZLayer.empty: ZLayer[ZIOAppArgs, Any, Any])(_ +!+ _)
 
@@ -145,5 +145,8 @@ abstract class TestRunner(
 }
 
 object TestRunner {
-  def moduleName(name: String): String = name.stripSuffix("$") + "$"
+  private val suffix: String = "$"
+
+  def moduleName(name: String): String =
+    if (name endsWith suffix) name else name + suffix
 }

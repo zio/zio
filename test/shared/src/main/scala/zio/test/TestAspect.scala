@@ -24,6 +24,10 @@ import scala.collection.immutable.SortedSet
 import zio.test.TestAspectPoly
 import zio.System.env
 import zio.test.TestAspectAtLeastR
+import zio.Clock.ClockLive
+import zio.Console.ConsoleLive
+import zio.Random.RandomLive
+import zio.System.SystemLive
 
 import scala.collection.mutable
 
@@ -1178,75 +1182,55 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that runs tests with the live clock service.
    */
-  lazy val withLiveClock: TestAspectPoly =
+  val withLiveClock: TestAspectPoly =
     new TestAspectPoly {
-      def some[R, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] = {
-        val layer = ZLayer.scoped {
-          for {
-            clock <- live(ZIO.clock)
-            _     <- ZIO.withClockScoped(clock)
-          } yield ()
-        }
+      implicit private val trace: Trace = Trace.empty
+      private val layer                 = ZLayer.scoped(ZIO.withClockScoped(ClockLive))
+      def some[R, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
         spec.provideSomeLayer[R](layer)
-      }
     }
 
   /**
    * An aspect that runs tests with the live console service.
    */
-  lazy val withLiveConsole: TestAspectPoly =
+  val withLiveConsole: TestAspectPoly =
     new TestAspectPoly {
-      def some[R, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] = {
-        val layer = ZLayer.scoped {
-          for {
-            console <- live(ZIO.console)
-            _       <- ZIO.withConsoleScoped(console)
-          } yield ()
-        }
+      implicit private val trace: Trace = Trace.empty
+      private val layer                 = ZLayer.scoped(ZIO.withConsoleScoped(ConsoleLive))
+      def some[R, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
         spec.provideSomeLayer[R](layer)
-      }
     }
-
-  /**
-   * An aspect that runs tests with the live default ZIO services.
-   */
-  lazy val withLiveEnvironment: TestAspectPoly =
-    withLiveClock >>>
-      withLiveConsole >>>
-      withLiveRandom >>>
-      withLiveSystem
 
   /**
    * An aspect that runs tests with the live random service.
    */
-  lazy val withLiveRandom: TestAspectPoly =
+  val withLiveRandom: TestAspectPoly =
     new TestAspectPoly {
-      def some[R, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] = {
-        val layer = ZLayer.scoped {
-          for {
-            random <- live(ZIO.random)
-            _      <- ZIO.withRandomScoped(random)
-          } yield ()
-        }
+      implicit private val trace: Trace = Trace.empty
+      private val layer                 = ZLayer.scoped(ZIO.withRandomScoped(RandomLive))
+      def some[R, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
         spec.provideSomeLayer[R](layer)
-      }
     }
 
   /**
    * An aspect that runs tests with the live system service.
    */
-  lazy val withLiveSystem: TestAspectPoly =
+  val withLiveSystem: TestAspectPoly =
     new TestAspectPoly {
-      def some[R, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] = {
-        val layer = ZLayer.scoped {
-          for {
-            system <- live(ZIO.system)
-            _      <- ZIO.withSystemScoped(system)
-          } yield ()
-        }
+      implicit private val trace: Trace = Trace.empty
+      private val layer                 = ZLayer.scoped(ZIO.withSystemScoped(SystemLive))
+      def some[R, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
         spec.provideSomeLayer[R](layer)
-      }
     }
+
+  /**
+   * An aspect that runs tests with the live default ZIO services.
+   */
+  val withLiveEnvironment: TestAspectPoly =
+    withLiveClock >>>
+      withLiveConsole >>>
+      withLiveRandom >>>
+      withLiveSystem
 
   abstract class PerTest[+LowerR, -UpperR, +LowerE, -UpperE] extends TestAspect[LowerR, UpperR, LowerE, UpperE] {
 
