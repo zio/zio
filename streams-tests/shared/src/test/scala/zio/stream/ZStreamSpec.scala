@@ -2996,7 +2996,26 @@ object ZStreamSpec extends ZIOBaseSpec {
                   containsCause[DbError](Cause.fail(QtyTooLarge))
               )
             )
-          } @@ flaky
+          } @@ flaky,
+          test("does not freeze when output is only partially consumed (#10195)") {
+            val stream = ZStream.range(0, 100).mapZIOPar(8)(_ => ZIO.unit)
+            assertZIO(stream.take(1).runDrain.exit)(succeeds(anything))
+          } @@ TestAspect.timeout(2.seconds) @@ TestAspect.nonFlaky,
+          test("does not freeze on failure with mapZIOPar (#10088)") {
+            val stream =
+              ZStream
+                .range(0, 10000)
+                .mapZIOPar(8, bufferSize = 32)(i => ZIO.succeed(i))
+                .mapZIOPar(8, bufferSize = 32) { i =>
+                  Live.live(
+                    ZIO
+                      .fail(new RuntimeException(i.toString))
+                      .delay(10.millis)
+                  )
+                }
+
+            assertZIO(stream.runDrain.exit)(fails(anything))
+          } @@ TestAspect.timeout(2.seconds) @@ TestAspect.nonFlaky
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
@@ -3119,7 +3138,26 @@ object ZStreamSpec extends ZIOBaseSpec {
                 res <- f.join
               } yield assert(res)(equalTo(data.reverse))
             }
-          }
+          },
+          test("does not freeze when output is only partially consumed (#10195)") {
+            val stream = ZStream.range(0, 100).mapZIOParUnordered(8)(_ => ZIO.unit)
+            assertZIO(stream.take(1).runDrain.exit)(succeeds(anything))
+          } @@ TestAspect.timeout(2.seconds) @@ TestAspect.nonFlaky,
+          test("does not freeze on failure with mapZIOPar (#10088)") {
+            val stream =
+              ZStream
+                .range(0, 10000)
+                .mapZIOParUnordered(8, bufferSize = 32)(i => ZIO.succeed(i))
+                .mapZIOParUnordered(8, bufferSize = 32) { i =>
+                  Live.live(
+                    ZIO
+                      .fail(new RuntimeException(i.toString))
+                      .delay(10.millis)
+                  )
+                }
+
+            assertZIO(stream.runDrain.exit)(fails(anything))
+          } @@ TestAspect.timeout(2.seconds) @@ TestAspect.nonFlaky
         ),
         suite("mergeLeft/Right")(
           test("mergeLeft with HaltStrategy.Right terminates as soon as the right stream terminates") {
