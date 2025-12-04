@@ -43,6 +43,11 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
+  // Optimization: Rate limiting for unpark operations
+  private[this] val lastUnparkTime = new AtomicLong(0L)
+  private[this] val unparkInterval = 50000L // 50 microseconds minimum interval between unparks
+  private[this] val maxBatchUnpark = 2 // Maximum workers to unpark in one batch
+
   (0 until poolSize).foreach { workerId =>
     val worker = makeWorker()
     worker.setName(workerId)
@@ -443,17 +448,57 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       }
     }
 
+  // OPTIMIZED: Rate-limited and batch unparking to reduce LockSupport.unpark overhead
   private def maybeUnparkWorker(currentState: Int): Unit = {
     val currentSearching = currentState & 0xffff
     val currentActive    = (currentState & 0xffff0000) >> 16
+    
     if (currentActive != poolSize && currentSearching == 0) {
-      val worker = idle.poll()
-      if (worker ne null) {
-        state.getAndAdd(0x10001)
-        worker.active = true
-        LockSupport.unpark(worker)
+      val now = System.nanoTime()
+      val lastUnpark = lastUnparkTime.get()
+      
+      // Rate limiting: only unpark if enough time has passed since last unpark
+      if (now - lastUnpark >= unparkInterval && 
+          lastUnparkTime.compareAndSet(lastUnpark, now)) {
+        
+        // Calculate optimal batch size based on work pressure
+        val workPressure = estimateWorkPressure()
+        val batchSize = if (workPressure > 4) maxBatchUnpark else 1
+        
+        var unparked = 0
+        while (unparked < batchSize && currentActive + unparked < poolSize) {
+          val worker = idle.poll()
+          if (worker ne null) {
+            state.getAndAdd(0x10001)
+            worker.active = true
+            LockSupport.unpark(worker)
+            unparked += 1
+          } else {
+            // No more idle workers available
+            return
+          }
+        }
       }
     }
+  }
+
+  // Estimate work pressure to determine optimal unpark batch size
+  private def estimateWorkPressure(): Int = {
+    val globalWork = globalQueue.size()
+    if (globalWork > 8) return globalWork / 4  // High global pressure
+    
+    // Check local queue pressure
+    var localPressure = 0
+    var i = 0
+    while (i < poolSize && localPressure < 8) {
+      val worker = workers(i)
+      if (!worker.blocking && worker.localQueue.size() > 2) {
+        localPressure += worker.localQueue.size()
+      }
+      i += 1
+    }
+    
+    globalWork + localPressure / 4
   }
 
   private[this] def submitBlocking(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
