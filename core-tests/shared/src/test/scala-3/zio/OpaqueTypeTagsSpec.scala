@@ -1,6 +1,4 @@
-package zio.test
-
-import zio.*
+package zio
 
 object OpaqueTypeTagsSpec extends ZIOBaseSpec {
 

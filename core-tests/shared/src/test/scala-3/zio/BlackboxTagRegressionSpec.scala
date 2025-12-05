@@ -1,4 +1,4 @@
-package zio.managed
+package zio
 
 import zio._
 import zio.test._
