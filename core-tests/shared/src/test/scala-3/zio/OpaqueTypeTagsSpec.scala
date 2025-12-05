@@ -1,5 +1,7 @@
 package zio
 
+import zio.test.*
+
 object OpaqueTypeTagsSpec extends ZIOBaseSpec {
 
   object UserName {
