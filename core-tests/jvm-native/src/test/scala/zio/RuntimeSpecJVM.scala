@@ -21,7 +21,7 @@ object RuntimeSpecJVM extends ZIOBaseSpec {
           _ <- promise.succeed(())
           _ <- f.join
         } yield assertCompletes
-      } @@ TestAspect.timeout(5.seconds) @@ TestAspect.nonFlaky(100),
+      } @@ TestAspect.timeout(5.seconds) @@ TestAspect.nonFlaky,
       test("ZScheduler supports scala.concurrent.blocking and scala.concurrent.Await") {
         val promise = scala.concurrent.Promise[Unit]()
         val latch   = new CountDownLatch(50)
@@ -37,7 +37,7 @@ object RuntimeSpecJVM extends ZIOBaseSpec {
           _ <- ZIO.succeed(promise.trySuccess(()))
           _ <- f.join
         } yield assertCompletes
-      } @@ TestAspect.timeout(15.seconds) @@ TestAspect.nonFlaky(100),
+      } @@ TestAspect.timeout(15.seconds) @@ TestAspect.nonFlaky,
       test("ZScheduler supports scala.concurrent.blocking") {
         val promise = scala.concurrent.Promise[Unit]()
         val latch   = new CountDownLatch(50)
@@ -57,6 +57,6 @@ object RuntimeSpecJVM extends ZIOBaseSpec {
           _ <- ZIO.succeed(promise.trySuccess(()))
           _ <- f.join
         } yield assertCompletes
-      } @@ TestAspect.timeout(15.seconds) @@ TestAspect.nonFlaky(100)
+      } @@ TestAspect.timeout(15.seconds) @@ TestAspect.nonFlaky
     )
 }
