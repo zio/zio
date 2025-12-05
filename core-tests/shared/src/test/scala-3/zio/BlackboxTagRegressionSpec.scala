@@ -31,8 +31,6 @@ object BlackboxTagRegressionSpec extends ZIOSpecDefault {
         val layer  = intId.toLayer
         val effect = Module.service[Int, Any, Nothing, Int].as("voila!")
 
-        val runtime = Runtime.default
-
         effect.provide(layer).as {
           assertTrue(isExpectedType(layer))
         }
