@@ -137,7 +137,13 @@ trait Runtime[+R] { self =>
           val result = OneShot.make[Exit[E, A]]
           fiber.unsafe.addObserver(result.set)
           internal.Blocking.signalBlocking()
-          result.get()
+          try {
+            result.get()
+          } catch {
+            case t: InterruptedException =>
+              fiber.unsafe.interrupt(Cause.interrupt(FiberId.None))
+              throw t
+          }
         case Right(exit) => exit
       }
 
