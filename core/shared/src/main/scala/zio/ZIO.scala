@@ -335,12 +335,8 @@ sealed trait ZIO[-R, +E, +A]
   @deprecated("Use `catchAll`", "2.1.21")
   final def catchNonFatalOrDie[R1 <: R, E2, A1 >: A](
     h: E => ZIO[R1, E2, A1]
-  )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: Trace): ZIO[R1, E2, A1] = {
-
-    def hh(e: E) =
-      ZIO.isFatalWith(isFatal => if (isFatal(e)) ZIO.die(e) else h(e))
-    self.foldZIO[R1, E2, A1](hh, ZIO.successFn)
-  }
+  )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: Trace): ZIO[R1, E2, A1] =
+    self.foldZIO[R1, E2, A1](e => if (!nonFatal(e)) ZIO.die(e) else h(e), ZIO.successFn)
 
   /**
    * Recovers from some or all of the error cases.
@@ -1055,7 +1051,11 @@ sealed trait ZIO[-R, +E, +A]
    * evaluated multiple times.
    */
   final def once(implicit trace: Trace): UIO[ZIO[R, E, Unit]] =
-    Ref.make(true).map(ref => self.whenZIO(ref.getAndSet(false)).unit)
+    ZIO.succeed {
+      val ref = Ref.unsafe.make(true)(Unsafe)
+
+      ZIO.whenDiscard(ref.unsafe.getAndSet(false)(Unsafe))(self)
+    }
 
   /**
    * Executes the specified success or error callback depending on the result of
@@ -1462,6 +1462,9 @@ sealed trait ZIO[-R, +E, +A]
       val leftFiber  = ZIO.unsafe.makeChildFiber(trace, leftEff, parentFiber, flags, leftScope)(Unsafe)
       val rightFiber = ZIO.unsafe.makeChildFiber(trace, rightEff, parentFiber, flags, rightScope)(Unsafe)
 
+      val startLeft  = leftFiber.startSuspended()(Unsafe)
+      val startRight = rightFiber.startSuspended()(Unsafe)
+
       ZIO.async[R1, E2, C](
         { cb =>
           val raceIndicator = new AtomicBoolean()
@@ -1474,8 +1477,8 @@ sealed trait ZIO[-R, +E, +A]
             complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
           }(Unsafe)
 
-          leftFiber.startConcurrently(leftEff)
-          rightFiber.startConcurrently(rightEff)
+          startLeft(leftEff)
+          startRight(rightEff)
           ()
         },
         leftFiber.id <> rightFiber.id
@@ -3996,14 +3999,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   @deprecated("isFatal is deprecated, kept only for binary compatability. Do not use.", "2.1.21")
   def isFatal(implicit trace: Trace): UIO[Throwable => Boolean] =
-    isFatalWith(ZIO.successFn)
+    ZIO.succeed(!nonFatal(_))
 
   /**
    * Constructs an effect based on the definition of a fatal error.
    */
   @deprecated("isFatalWith is deprecated, kept only for binary compatability. Do not use.", "2.1.21")
   def isFatalWith[R, E, A](f: (Throwable => Boolean) => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    FiberRef.currentFatal.getWith(f)
+    ZIO.suspendSucceed(f(!nonFatal(_)))
 
   /**
    * Iterates with the specified effectual function. The moral equivalent of:
@@ -4868,11 +4871,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.suspendSucceed {
       try rio
       catch {
-        case t: Throwable =>
-          ZIO.isFatalWith { isFatal =>
-            if (!isFatal(t)) Exit.Failure(Cause.fail(t))
-            else throw t
-          }
+        case t if nonFatal(t) => Exit.Failure(Cause.fail(t))
       }
     }
 

@@ -2527,6 +2527,13 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield assert(exit)(not(isInterrupted))
         }
       } @@ TestAspect.withLiveClock,
+      test("timeout with interrupt doesn't cause deadlock (i10255)") {
+        ZIO.never
+          .timeout(1.second)
+          .forkDaemon
+          .flatMap(_.interrupt)
+          .as(assertCompletes)
+      } @@ TestAspect.withLiveClock @@ nonFlaky(10000),
       test("catchAllCause") {
         val io =
           for {

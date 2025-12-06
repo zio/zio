@@ -23,7 +23,7 @@ jobs:
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v5.0.0
+      uses: actions/checkout@v6.0.0
     - name: Setup Java
       uses: actions/setup-java@v5.0.0
       with:
@@ -49,7 +49,7 @@ jobs:
         scala: ['2.12.x', '2.13.x', '3.x']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.0
         with:
           fetch-depth: 0
       - name: Setup Java
@@ -81,7 +81,7 @@ jobs:
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
       - name: Checkout Current Branch
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.0
         with:
           fetch-depth: 0
       - name: Setup Java
@@ -134,7 +134,7 @@ jobs:
         platform: ['JVM']
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v5.0.0
+      uses: actions/checkout@v6.0.0
     - name: Setup Java
       uses: actions/setup-java@v5.0.0
       with:
@@ -196,7 +196,7 @@ jobs:
         executor: ['nio', 'zscheduler']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.0
       - name: Setup Java
         uses: actions/setup-java@v5.0.0
         with:
@@ -228,7 +228,7 @@ jobs:
         platform: ['JS', 'Native1', 'Native2']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.0
       - name: Install Boehm GC
         if: ${{ startsWith(matrix.platform, 'Native') }}
         run: sudo apt-get update && sudo apt-get install -y libgc-dev
@@ -265,7 +265,7 @@ jobs:
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.0
         with:
           fetch-depth: 0
       - name: Setup Java
@@ -291,7 +291,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.0
         with:
           fetch-depth: 0
       - uses: actions/download-artifact@v6
@@ -310,7 +310,7 @@ jobs:
     if: ${{ ((github.event_name == 'repository_dispatch') && (github.event.action == 'update-docs')) }}
     steps:
       - name: Git Checkout
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.0
         with:
           ref: ${{ github.head_ref }}
       - name: Commit Changes
@@ -326,13 +326,13 @@ jobs:
           git commit -m "$commit_message" || echo "No changes to commit"
       - name: Generate a token
         id: generate-tokens
-        uses: actions/create-github-app-token@v2.1.4
+        uses: actions/create-github-app-token@v2.2.0
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_SECRET }}
           owner: ${{ github.repository_owner }}
       - name: Create Pull Request to Update Docs
-        uses: peter-evans/create-pull-request@v7.0.8
+        uses: peter-evans/create-pull-request@v7.0.9
         with:
           token: ${{ steps.generate-token.outputs.token }}
           body: |-
