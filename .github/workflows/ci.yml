@@ -129,6 +129,7 @@ jobs:
       fail-fast: false
       matrix:
         scala: ['2.12.x', '2.13.x', '3.x']
+        executor: ['nio', 'zscheduler']
         java: ['17']
         platform: ['JVM']
     steps:
@@ -145,40 +146,40 @@ jobs:
     - name: Cache scala dependencies
       uses: coursier/cache-action@v7
     - name: Run tests
-      run: sbt -v ++${{ matrix.scala }} test${{ matrix.platform }}
+      run: sbt -v ++${{ matrix.scala }} test${{ matrix.platform }} -Dzio.test.executor=${{ matrix.executor }}
     - name: Upload Test Results 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
       uses: actions/upload-artifact@v5
       with:
-        name: zio-test-output-2.12
+        name: zio-test-output-2.12-${{ matrix.executor }}
         path: ./**/test-reports-zio/output.json
         overwrite: true
     - name: Upload Test Results 3
       if: ${{ startsWith(matrix.scala, '3.') }}
       uses: actions/upload-artifact@v5
       with:
-        name: zio-test-output-3
+        name: zio-test-output-3-${{ matrix.executor }}
         path: ./**/test-reports-zio/output.json
         overwrite: true
     - name: Report Test Death 2.12
       if: ${{ failure() &&  startsWith(matrix.scala, '2.12.') }}
       uses: actions/upload-artifact@v5
       with:
-        name: zio-test-debug-2.12
+        name: zio-test-debug-2.12-${{ matrix.executor }}
         path: ./**/test-reports-zio/**_debug.txt
         overwrite: true
     - name: Report Test Death 2.13
       if: ${{ failure() &&  startsWith(matrix.scala, '2.13.') }}
       uses: actions/upload-artifact@v5
       with:
-        name: zio-test-debug-2.13
+        name: zio-test-debug-2.13-${{ matrix.executor }}
         path: ./**/test-reports-zio/**_debug.txt
         overwrite: true
     - name: Report Test Death 3.x
       if: ${{ failure() &&  startsWith(matrix.scala, '3.') }}
       uses: actions/upload-artifact@v5
       with:
-        name: zio-test-debug-3.x
+        name: zio-test-debug-3.x-${{ matrix.executor }}
         path: ./**/test-reports-zio/**_debug.txt
         overwrite: true
 
@@ -192,6 +193,7 @@ jobs:
       fail-fast: false
       matrix:
         java: ['11', '21']
+        executor: ['nio', 'zscheduler']
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v5.0.0
@@ -206,12 +208,12 @@ jobs:
       - name: Cache scala dependencies
         uses: coursier/cache-action@v7
       - name: Test on different JVM versions
-        run: sbt -v testJVM
+        run: sbt -v testJVM  -Dzio.test.executor=${{ matrix.executor }}
       - name: Report Test Death JVM 11
         if: ${{ failure() &&  startsWith(matrix.java, '11') }}
         uses: actions/upload-artifact@v5
         with:
-          name: zio-test-debug-JVM-11
+          name: zio-test-debug-JVM-11-${{ matrix.executor }}
           path: ./**/test-reports-zio/**_debug.txt
           overwrite: true
 
