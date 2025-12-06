@@ -159,6 +159,8 @@ object SmartAssertMacros {
     def getSpan(term: quotes.reflect.Term): Expr[(Int, Int)] =
       Expr((term.pos.start - summon[PositionContext].start, term.pos.end - summon[PositionContext].start))
 
+    def isModule(sym: Symbol): Boolean = (sym.flags & Flags.Module) != Flags.EmptyFlags
+
     expr match {
       case '{ type t; type v; SmartAssertionOps[`t`](${ something }: `t`).is[`v`](${ Unseal(Lambda(terms, body)) }) } =>
         val lhs = transform(something).asInstanceOf[Expr[TestArrow[Any, t]]]
@@ -342,6 +344,19 @@ object SmartAssertMacros {
           case '[l] =>
             '{ ${ transform(lhs.asExprOf[Boolean]) } || { ${ transform(rhs.asExprOf[Boolean]) } } }
               .asExprOf[TestArrow[Any, A]]
+        }
+
+      // Handle extension methods (arg.method) which are represented as Companion.method(arg) https://github.com/zio/zio/issues/10165
+      case Unseal(method @ Apply(sel @ Select(companion, _), List(arg))) if isModule(companion.symbol) =>
+        val argTpe = arg.tpe.widen
+        argTpe.asType match {
+          case '[a] =>
+            val argArrow = transform(arg.asExprOf[a]).asExprOf[TestArrow[Any, a]]
+            val extensionFn = '{ (x: a) =>
+              ${ Apply(sel, List('{ x }.asTerm)).asExprOf[A] }
+            }
+            val span = getSpan(method)
+            '{ $argArrow >>> TestArrow.fromFunction[a, A]($extensionFn).span($span) }
         }
 
       case Unseal(method @ MethodCall(lhs, name, tpeArgs, args)) =>

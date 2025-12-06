@@ -1,6 +1,19 @@
 package zio.test
 
 object SmartAssertionScala3Spec extends ZIOBaseSpec {
+  import zio.test.*
+
+  // the `Out` is only necessary to make the `In` opaque to the assertTrue macro
+  type Out = Out.In
+  object Out {
+    opaque type In = Int
+    object In {
+      def make(in: Int): Either[String, Option[In]] = Right(Some(in))
+      extension (x: In) {
+        def value: Int = x
+      }
+    }
+  }
 
   override def spec =
     suite("SmartAssertionScala3Spec")(
@@ -89,7 +102,10 @@ object SmartAssertionScala3Spec extends ZIOBaseSpec {
 
           assertTrue(create.overloaded == 1)
         }
-      )
+      ),
+      test("opaque type lensing (i10165)") {
+        assertTrue(Out.In.make(42).is(_.right).get.value == 42)
+      }
     )
 
 }
