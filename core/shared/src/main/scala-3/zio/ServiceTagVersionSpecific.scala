@@ -3,10 +3,10 @@ package zio
 import scala.quoted.*
 
 private[zio] transparent trait TagVersionSpecific {
-  transparent inline def derived[A]: Tag[A] =
+  inline def derived[A]: Tag[A] =
     ${ TagMacros.materialize[A] }
 
-  implicit transparent inline def materialize[A]: Tag[A] =
+  implicit inline def materialize[A]: Tag[A] =
     ${ TagMacros.materialize[A] }
 }
 
