@@ -130,7 +130,7 @@ jobs:
       matrix:
         scala: ['2.12.x', '2.13.x', '3.x']
         executor: ['nio', 'zscheduler']
-        java: ['17']
+        java: ['25']
         platform: ['JVM']
     steps:
     - name: Checkout current branch
@@ -192,7 +192,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['11', '21']
+        java: ['11', '17', '21']
         executor: ['nio', 'zscheduler']
     steps:
       - name: Checkout current branch
@@ -224,7 +224,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['17']
+        java: ['25']
         platform: ['JS', 'Native1', 'Native2']
     steps:
       - name: Checkout current branch
