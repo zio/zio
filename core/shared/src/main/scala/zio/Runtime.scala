@@ -136,14 +136,18 @@ trait Runtime[+R] { self =>
           import internal.OneShot
           val result = OneShot.make[Exit[E, A]]
           fiber.unsafe.addObserver(result.set)
-          try {
-            scala.concurrent.blocking {
+          scala.concurrent.blocking {
+            try {
               result.get()
+            } catch {
+              case t: InterruptedException =>
+                val interrupted       = OneShot.make[Exit[Nothing, Exit[E, A]]]
+                val interruptionFiber = makeFiber(fiber.interruptAs(FiberId.None))
+                interruptionFiber.addObserver(interrupted.set)
+                interruptionFiber.start(fiber.interruptAs(FiberId.None))
+                interrupted.get()
+                throw t
             }
-          } catch {
-            case t: InterruptedException =>
-              fiber.unsafe.interrupt(Cause.interrupt(FiberId.None))
-              throw t
           }
         case Right(exit) => exit
       }
