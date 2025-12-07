@@ -322,11 +322,12 @@ object NIOExecutor {
 
   val live: ZLayer[Any, Config.Error, NIOExecutor] = {
     implicit val trace = Tracer.newTrace
-    ZLayer.fromZIO {
+    ZLayer.scoped {
       for {
         config  <- ZIO.config[NIOExecutorConfig](NIOExecutorConfig.config)
         _       <- ZIO.logTrace(s"Constructing NIOExecutor with config: $config")
         executor = new NIOExecutor(config)
+        _       <- ZIO.addFinalizer(ZIO.succeedBlocking(executor.shutdown()))
       } yield executor
     }
   }
