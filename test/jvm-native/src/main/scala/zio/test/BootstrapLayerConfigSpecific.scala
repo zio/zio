@@ -15,13 +15,13 @@ private[test] object BootstrapLayerConfigSpecific {
     TestExecutorConfig.fromSystemProperty match {
       case Some(TestExecutorConfig.ExecutorType.Default) => {
         implicit val trace: Trace = Tracer.newTrace
-        val executor = Unsafe.unsafe(implicit unsafe => Executor.makeDefault(true))
+        val executor              = Unsafe.unsafe(implicit unsafe => Executor.makeDefault(true))
         TestRuntime.setDefaultExecutor(executor)
         testEnvironment
       }
       case Some(TestExecutorConfig.ExecutorType.ZScheduler) | None => {
         implicit val trace: Trace = Tracer.newTrace
-        val executor = Unsafe.unsafe(implicit unsafe => Executor.makeDefault(false))
+        val executor              = Unsafe.unsafe(implicit unsafe => Executor.makeDefault(false))
         TestRuntime.setDefaultExecutor(executor)
         testEnvironment
       }

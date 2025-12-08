@@ -127,6 +127,6 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
                 name <- ZIO.succeed(Thread.currentThread().getName)
               } yield assertTrue(name.startsWith("ZScheduler-Worker"))
             }.provide(Runtime.enableFlags(RuntimeFlag.EagerShiftBack))
-        } @@ TestAspect.jvmOnly @@ TestAspect.ifEnvNotSet("zio.test.executor")
+        } @@ TestAspect.jvmOnly
     }
 }
