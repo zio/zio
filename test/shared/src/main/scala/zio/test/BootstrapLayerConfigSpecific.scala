@@ -4,7 +4,7 @@ import zio._
 import zio.internal.stacktracer.Tracer
 
 /**
- * Bootstrap layer for JS/Native platforms. Currently just uses the default test
+ * Bootstrap layer for Native platform. Currently just uses the default test
  * environment since custom executors are only supported on JVM.
  */
 private[test] object BootstrapLayerConfigSpecific {
