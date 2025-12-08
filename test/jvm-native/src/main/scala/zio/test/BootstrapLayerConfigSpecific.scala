@@ -15,11 +15,15 @@ private[test] object BootstrapLayerConfigSpecific {
     TestExecutorConfig.fromSystemProperty match {
       case Some(TestExecutorConfig.ExecutorType.Default) => {
         implicit val trace: Trace = Tracer.newTrace
-        Runtime.setExecutor(Unsafe.unsafe(implicit unsafe => Executor.makeDefault(true))) >>> testEnvironment
+        val executor = Unsafe.unsafe(implicit unsafe => Executor.makeDefault(true))
+        TestRuntime.setDefaultExecutor(executor)
+        testEnvironment
       }
       case Some(TestExecutorConfig.ExecutorType.ZScheduler) | None => {
         implicit val trace: Trace = Tracer.newTrace
-        Runtime.setExecutor(Unsafe.unsafe(implicit unsafe => Executor.makeDefault(false))) >>> testEnvironment
+        val executor = Unsafe.unsafe(implicit unsafe => Executor.makeDefault(false))
+        TestRuntime.setDefaultExecutor(executor)
+        testEnvironment
       }
       case Some(TestExecutorConfig.ExecutorType.NIO) => {
         implicit val trace: Trace = Tracer.newTrace
@@ -29,15 +33,14 @@ private[test] object BootstrapLayerConfigSpecific {
           }
         }
         val nioBootstrap = nioExecutorLayer.flatMap { env =>
-          val executor           = env.get
-          val runtimeConfigLayer = Runtime.setExecutor(executor)
+          val executor = env.get
+          TestRuntime.setDefaultExecutor(executor)
           val dependencies: ZLayer[Any, Nothing, Clock with Console with System with Random] =
             (ZLayer.succeed(executor) >>> zio.NIOClock.live) ++
               ZLayer.succeed(Console.ConsoleLive) ++
               ZLayer.succeed(System.SystemLive) ++
               ZLayer.succeed(Random.RandomLive)
-          val fullProvider = runtimeConfigLayer >>> dependencies
-          fullProvider >>> TestEnvironment.live
+          dependencies >>> TestEnvironment.live
         }
         nioBootstrap
       }

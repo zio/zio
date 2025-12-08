@@ -383,7 +383,7 @@ object TestClock extends Serializable {
                      .provide(ZIO.logWarning(warning).delay(5.seconds))
                      .interruptible
                      .fork
-                     .onExecutor(Runtime.defaultExecutor)
+                     .onExecutor(TestRuntime.defaultExecutor)
         } yield WarningData.pending(fiber)
       }
 

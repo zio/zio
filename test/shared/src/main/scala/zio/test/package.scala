@@ -346,8 +346,8 @@ package object test extends CompileVariants {
                             .withClock(Clock.ClockLive)
                             .interruptible
                             .forkDaemon
-                            .onExecutor(Runtime.defaultExecutor)
-                 _ <- (child.interrupt *> fiber.interrupt).forkDaemon.onExecutor(Runtime.defaultExecutor)
+                            .onExecutor(TestRuntime.defaultExecutor)
+                 _ <- (child.interrupt *> fiber.interrupt).forkDaemon.onExecutor(TestRuntime.defaultExecutor)
                } yield ()
              }
       } yield result
@@ -1124,7 +1124,7 @@ package object test extends CompileVariants {
       .live(ZIO.logWarning(warning).unlessZIODiscard(flag.get).delay(5.seconds))
       .interruptible
       .fork
-      .onExecutor(Runtime.defaultExecutor)
+      .onExecutor(TestRuntime.defaultExecutor)
       .unit
 
   private val warning =
