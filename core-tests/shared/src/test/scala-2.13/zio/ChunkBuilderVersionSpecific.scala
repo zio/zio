@@ -1,5 +1,5 @@
-import zio.ChunkBuilder
-import zio.ZIOBaseSpec
+package zio
+
 import zio.test._
 
 object ChunkBuilderVersionSpecific extends ZIOBaseSpec {

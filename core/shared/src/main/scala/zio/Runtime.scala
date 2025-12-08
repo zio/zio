@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{FiberRuntime, FiberScope, IsFatal, Platform}
+import zio.internal.{FiberRuntime, FiberScope, Platform}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
@@ -133,11 +133,12 @@ trait Runtime[+R] { self =>
     def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A] =
       runOrFork(zio) match {
         case Left(fiber) =>
-          import internal.{FiberMessage, OneShot}
+          import internal.OneShot
           val result = OneShot.make[Exit[E, A]]
           fiber.unsafe.addObserver(result.set)
-          internal.Blocking.signalBlocking()
-          result.get()
+          scala.concurrent.blocking {
+            result.get()
+          }
         case Right(exit) => exit
       }
 

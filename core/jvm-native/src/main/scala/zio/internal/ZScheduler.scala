@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import java.util.concurrent.locks.LockSupport
 import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
 import scala.collection.mutable
+import scala.concurrent.{BlockContext, CanAwait}
 
 /**
  * A `ZScheduler` is an `Executor` that is optimized for running ZIO
@@ -533,7 +534,7 @@ private object ZScheduler {
    * A `Worker` is a `Thread` that is responsible for executing actions
    * submitted to the scheduler.
    */
-  private sealed abstract class Worker extends Thread {
+  private sealed abstract class Worker extends Thread with BlockContext {
 
     val submittedLocations: Locations
 
@@ -582,5 +583,10 @@ private object ZScheduler {
 
     final def setName(i: Int): Unit =
       setName(s"ZScheduler-Worker-$i")
+
+    override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+      markAsBlocking()
+      thunk
+    }
   }
 }

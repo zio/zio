@@ -738,7 +738,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               }
             }
 
-          writer.embedInput(input)
+          writer.embedInput(input).ensuring(outgoing.shutdown)
         }
       }
     }
@@ -827,7 +827,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             }
           }
 
-        writer.embedInput(input)
+        writer.embedInput(input).ensuring(outgoing.shutdown)
       }
     }
 
