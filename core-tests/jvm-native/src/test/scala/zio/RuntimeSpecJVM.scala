@@ -3,6 +3,7 @@ package zio
 import zio.test._
 
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.Await
 import scala.concurrent.duration.SECONDS
 
@@ -57,6 +58,44 @@ object RuntimeSpecJVM extends ZIOBaseSpec {
           _ <- ZIO.succeed(promise.trySuccess(()))
           _ <- f.join
         } yield assertCompletes
-      } @@ TestAspect.timeout(15.seconds) @@ TestAspect.nonFlaky
+      } @@ TestAspect.timeout(15.seconds) @@ TestAspect.nonFlaky,
+      test("Runtime.unsafe.run passes host thread's interruption to fork and waits for fork interruption to finish") {
+        val rtm                     = Runtime.default.unsafe
+        implicit val unsafe: Unsafe = Unsafe.unsafe
+        val started                 = Promise.unsafe.make[Nothing, Unit](FiberId.None)
+        val interrupted             = Promise.unsafe.make[Nothing, Unit](FiberId.None)
+        val proceedInterrupt        = Promise.unsafe.make[Nothing, Unit](FiberId.None)
+        val threadExited            = Promise.unsafe.make[Nothing, Unit](FiberId.None)
+        val effect =
+          ZIO.uninterruptibleMask(restore =>
+            ZIO.yieldNow *> started.succeed(())
+              *> restore(ZIO.never).onInterrupt {
+                interrupted.succeed(()) *>
+                  proceedInterrupt.await
+              }
+          )
+        val threadWasBlockedUntilFinalizationDone = new AtomicReference[Boolean]()
+
+        val thread = new Thread(() =>
+          try {
+            val _ = rtm.run(effect)
+          } finally {
+            threadWasBlockedUntilFinalizationDone.set(proceedInterrupt.unsafe.isDone)
+            threadExited.unsafe.succeed(())
+            ()
+          }
+        )
+        thread.setUncaughtExceptionHandler((_, _) => ())
+
+        for {
+          _ <- ZIO.attempt(thread.start())
+          _ <- started.await
+          _ <- ZIO.attempt(thread.interrupt())
+          _ <- interrupted.await
+          _ <- proceedInterrupt.succeed(())
+          _ <- threadExited.await
+          r <- ZIO.succeed(threadWasBlockedUntilFinalizationDone.get())
+        } yield assertTrue(r)
+      } @@ TestAspect.timeout(10.seconds) @@ TestAspect.nonFlaky(5)
     )
 }
