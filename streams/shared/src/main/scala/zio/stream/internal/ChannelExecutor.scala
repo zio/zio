@@ -7,6 +7,7 @@ import zio.stream.ZChannel
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable.Stack
+import scala.collection.mutable.ArrayBuilder
 
 private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   initialChannel: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
@@ -26,16 +27,15 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
 
   private[this] final def popAllFinalizersOrNull(exit: Exit[Any, Any])(implicit trace: Trace): URIO[Env, Any] = {
 
+    // TOOD: is it faster to use an ArrayBuilder?
     @tailrec
-    def unwind(
-      acc: List[Finalizer[Env]]
-    ): List[Finalizer[Env]] =
+    def unwind(acc: List[ZChannel.Fold.Finalizer[Env, Any, Any]]): List[ZChannel.Fold.Finalizer[Env, Any, Any]] =
       if (doneStack.isEmpty) {
         acc.reverse
       } else {
         doneStack.pop() match {
-          case _: ZChannel.Fold.K[?, ?, ?, ?, ?, ?, ?, ?, ?] => unwind(acc)
-          case ZChannel.Fold.Finalizer(f)                    => unwind(f :: acc)
+          case f: ZChannel.Fold.Finalizer[Env, Any, Any] => unwind(f :: acc)
+          case _                                         => unwind(acc)
         }
       }
 
@@ -365,7 +365,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
             currentChannel = null
             ChannelState.Done
           } else {
-            val finalizerEffect = runFinalizersOrNull(finalizers.map(_.finalizer), Exit.succeed(z))
+            val finalizerEffect = runFinalizersOrNull(finalizers, Exit.succeed(z))
             if (storeInProgressFinalizer(finalizerEffect))
               ChannelState.Effect(
                 finalizerEffect
@@ -398,7 +398,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
             currentChannel = null
             ChannelState.Done
           } else {
-            val finalizerEffect = runFinalizersOrNull(finalizers.map(_.finalizer), Exit.failCause(cause))
+            val finalizerEffect = runFinalizersOrNull(finalizers, Exit.failCause(cause))
             if (storeInProgressFinalizer(finalizerEffect))
               ChannelState.Effect(
                 finalizerEffect
@@ -447,12 +447,13 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
   private[this] def addFinalizer(f: Finalizer[Env]): Unit =
     doneStack.push(ZChannel.Fold.Finalizer(f))
 
-  private[this] def runFinalizersOrNull(finalizers: Iterable[Finalizer[Env]], ex: Exit[Any, Any])(implicit
-    trace: Trace
-  ): URIO[Env, Any] =
+  private[this] def runFinalizersOrNull(
+    finalizers: Iterable[ZChannel.Fold.Finalizer[Env, Any, Any]],
+    ex: Exit[Any, Any]
+  )(implicit trace: Trace): URIO[Env, Any] =
     if (finalizers.isEmpty) null
     else
-      provide(ZIO.foreach(finalizers)(_.apply(ex).exit))
+      provide(ZIO.foreach(finalizers)(_.finalizer.apply(ex).exit))
         .map(results => Exit.collectAllDiscard(results))
         .unexit
 
