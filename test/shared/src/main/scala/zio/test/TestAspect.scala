@@ -622,7 +622,9 @@ object TestAspect extends TimeoutVariants {
   }
 
   private def flakyImpl[R, E](test: ZIO[R, TestFailure[E], TestSuccess])(n: Int)(implicit trace: Trace) =
-    test.catchAll(_ => test.tapError(_ => Annotations.annotate(TestAnnotation.retried, 1)).retryN(n - 1))
+    test.catchAll(_ =>
+      ZIO.yieldNow *> test.tapError(_ => Annotations.annotate(TestAnnotation.retried, 1)).retryN(n - 1)
+    )
 
   /**
    * An aspect that runs each test on its own separate fiber.

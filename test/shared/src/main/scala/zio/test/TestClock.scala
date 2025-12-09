@@ -308,7 +308,8 @@ object TestClock extends Serializable {
         }
 
         // Sleep to give suspended fibers a chance to resume
-        val f = ClockLive.sleep(waitFor) *> freeze
+        val freeze = this.freeze
+        val f      = ClockLive.sleep(waitFor) *> freeze
         f.zipWith(f)(allSuspendedUnchanged)
           .flatMap {
             if (_) Exit.boolean(ref.get)
@@ -316,7 +317,7 @@ object TestClock extends Serializable {
             else Exit.failUnit
           }
           .eventually
-          .flatMap(ZIO.whenDiscard(_)(suspendedWarningDone))
+          .flatMap(if (_) suspendedWarningDone else Exit.unit)
       })
 
     /**
@@ -326,7 +327,7 @@ object TestClock extends Serializable {
      * Note that because we cannot synchronize on the status of multiple fibers
      * at the same time, this snapshot may not be fully consistent.
      */
-    private val freeze: IO[Unit, collection.Map[FiberId, Fiber.Status.Suspended]] = {
+    private def freeze: IO[Unit, collection.Map[FiberId, Fiber.Status.Suspended]] = {
       implicit val trace: Trace = Trace.empty
 
       def collectSuspended(
@@ -348,8 +349,8 @@ object TestClock extends Serializable {
       }
 
       annotations.get(TestAnnotation.fibers).flatMap {
-        case _: Left[?, ?] => Exit.succeed(Map.empty)
-        case Right(refs)   => ZIO.fiberIdWith(collectSuspended(refs, _))
+        case Right(refs) => ZIO.fiberIdWith(collectSuspended(refs, _))
+        case _           => Exit.succeed(Map.empty)
       }
     }
 
