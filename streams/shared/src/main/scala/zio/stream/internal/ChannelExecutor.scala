@@ -7,6 +7,7 @@ import zio.stream.ZChannel
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable.Stack
+import scala.collection.mutable.ListBuffer
 
 private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   initialChannel: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
@@ -26,19 +27,19 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
 
   private[this] final def popAllFinalizersOrNull(exit: Exit[Any, Any])(implicit trace: Trace): URIO[Env, Any] = {
 
-    // TOOD: is it faster to use an ArrayBuilder?
     @tailrec
-    def unwind(acc: List[ZChannel.Fold.Finalizer[Env, Any, Any]]): List[ZChannel.Fold.Finalizer[Env, Any, Any]] =
-      if (doneStack.isEmpty) {
-        acc.reverse
-      } else {
+    def unwind(
+      acc: ListBuffer[ZChannel.Fold.Finalizer[Env, Any, Any]]
+    ): Iterable[ZChannel.Fold.Finalizer[Env, Any, Any]] =
+      if (doneStack.isEmpty) acc
+      else {
         doneStack.pop() match {
-          case f: ZChannel.Fold.Finalizer[Env, Any, Any] => unwind(f :: acc)
+          case f: ZChannel.Fold.Finalizer[Env, Any, Any] => unwind(acc += f)
           case _                                         => unwind(acc)
         }
       }
 
-    val finalizers = unwind(List.empty)
+    val finalizers = unwind(ListBuffer.empty)
     val effect     = runFinalizersOrNull(finalizers, exit)
     storeInProgressFinalizer(effect)
     effect
@@ -48,18 +49,18 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
     val builder = Stack.newBuilder[ZChannel.Fold.Finalizer[Env, Any, Any]]
 
     @tailrec
-    def go(): Unit =
+    def loop(): Unit =
       if (doneStack.nonEmpty) {
         doneStack.head match {
-          case _: ZChannel.Fold.K[?, ?, ?, ?, ?, ?, ?, ?, ?] =>
           case finalizer: ZChannel.Fold.Finalizer[Env, Any, Any] =>
             builder += finalizer
             doneStack.pop()
-            go()
+            loop()
+          case _ => ()
         }
       }
 
-    go()
+    loop()
     builder.result()
   }
 
