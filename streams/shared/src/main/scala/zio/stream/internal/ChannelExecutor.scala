@@ -7,7 +7,6 @@ import zio.stream.ZChannel
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable.Stack
-import scala.collection.mutable.ArrayBuilder
 
 private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   initialChannel: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
@@ -255,7 +254,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
                 if (null ne input.providedEnv)
                   mkChannel(inpAsChannel.asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]])
                 else
-                  ZChannel // todo: can we eliminate the effect evaluation here? i.e. by usingFiber.currentFiber()
+                  ZChannel // TODO: can we eliminate the effect evaluation here? i.e. by usingFiber.currentFiber()
                     .environmentWithChannel[Env] { env =>
                       mkChannel(inpAsChannel.provideEnvironment(env))
                     }
@@ -276,7 +275,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
                 input = null
 
                 lazy val drainer: URIO[Env, Any] =
-                  bridgeInput.awaitRead *> ZIO.suspendSucceed {
+                  bridgeInput.awaitRead.flatMap { _ =>
                     val state = inputExecutor.run()
 
                     state match {
@@ -726,22 +725,22 @@ private[zio] object ChannelExecutor {
             if (readStack.isEmpty) {
               if (emitEffect eq null) ZIO.suspendSucceed(onSuccess())
               else
-                emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => onSuccess())
+                emitEffect.foldCauseZIO(onFailure, _ => onSuccess())
             } else {
               val next = readStack.pop()
               if (emitEffect eq null) read(opsTillYield - 1, next)
-              else (emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => readAux(next)))
+              else (emitEffect.foldCauseZIO(onFailure, _ => readAux(next)))
             }
           case _: ChannelState.Done.type =>
             val doneEffect = current.onDone(current.upstream.getDone)
             if (readStack.isEmpty) {
               if (doneEffect eq null) ZIO.suspendSucceed(onSuccess())
               else
-                doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => onSuccess())
+                doneEffect.foldCauseZIO(onFailure, _ => onSuccess())
             } else {
               val next = readStack.pop()
               if (doneEffect eq null) read(opsTillYield - 1, next)
-              else (doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => readAux(next)))
+              else (doneEffect.foldCauseZIO(onFailure, _ => readAux(next)))
             }
           case ChannelState.Effect(zio) =>
             current
