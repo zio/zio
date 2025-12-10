@@ -1,7 +1,8 @@
 package zio.stream
 
-import zio.{ZIO, _}
+import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.stream.ZChannel.unitFn2
 import zio.stream.internal.ChannelExecutor.ChannelState
 import zio.stream.internal.{AsyncInputConsumer, AsyncInputProducer, ChannelExecutor, SingleProducerAsyncInput}
 
@@ -167,7 +168,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def concatMap[Env1 <: Env, InErr1 <: InErr, InElem1 <: InElem, InDone1 <: InDone, OutErr1 >: OutErr, OutElem2](
     f: OutElem => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any]
   )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any] =
-    concatMapWith(f)((_, _) => (), (_, _) => ())
+    concatMapWith(f)(unitFn2, unitFn2)
 
   /**
    * Returns a new channel whose outputs are fed to the specified factory
@@ -1781,7 +1782,7 @@ object ZChannel {
       Any
     ]
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any] =
-    concatAllWith(channels)((_, _) => (), (_, _) => ())
+    concatAllWith(channels)(unitFn2, unitFn2)
 
   def concatAllWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, OutDone2, OutDone3](
     channels: => ZChannel[
@@ -1936,7 +1937,7 @@ object ZChannel {
     bufferSize: => Int = 16,
     mergeStrategy: => MergeStrategy = MergeStrategy.BackPressure
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any] =
-    mergeAllWith(channels, n, bufferSize, mergeStrategy)((_, _) => ())
+    mergeAllWith(channels, n, bufferSize, mergeStrategy)(unitFn2)
 
   def mergeAllUnbounded[Env, InErr, InElem, InDone, OutErr, OutElem](
     channels: => ZChannel[
@@ -2429,4 +2430,5 @@ object ZChannel {
   }
 
   private[stream] val unitChannelFn: Any => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Unit] = (_: Any) => unit
+  private val unitFn2: (Any, Any) => Unit                                                        = (_, _) => ()
 }
