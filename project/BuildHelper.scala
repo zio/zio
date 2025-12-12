@@ -10,7 +10,7 @@ import scala.scalanative.build.{GC, Mode}
 import scala.scalanative.sbtplugin.ScalaNativePlugin.autoImport.*
 
 object BuildHelper {
-  val Scala212: String = "2.12.20"
+  val Scala212: String = "2.12.21"
   val Scala213: String = "2.13.17"
   val Scala3: String   = "3.3.7"
 
