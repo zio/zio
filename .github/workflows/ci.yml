@@ -129,7 +129,7 @@ jobs:
       fail-fast: false
       matrix:
         scala: ['2.12.x', '2.13.x', '3.x']
-        java: ['25']
+        java: ['21']
         platform: ['JVM']
     steps:
     - name: Checkout current branch
