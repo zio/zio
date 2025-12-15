@@ -210,9 +210,16 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
             case ZChannel.ConcatAll(combineSubK, combineSubKAndInner, value, k) =>
               val innerExecuteLastClose =
                 (f: URIO[Env, Any]) =>
-                  ZIO.succeed {
-                    closeLastSubstream = if (closeLastSubstream eq null) f else closeLastSubstream *> f
-                  }
+                  if ((f eq ZIO.unit) || (f eq Exit.unit)) Exit.unit
+                  else
+                    ZIO.succeed {
+                      val prevLastClose = closeLastSubstream
+                      if (prevLastClose eq null) {
+                        closeLastSubstream = f
+                      } else {
+                        closeLastSubstream = prevLastClose *> f
+                      }
+                    }
 
               val exec: ErasedExecutor[Env] = new ChannelExecutor(value, providedEnv, innerExecuteLastClose)
               exec.input = input
@@ -492,20 +499,14 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
     ChannelState.Read(
       self.upstreamExecutor,
       onEffect = (effect: ZIO[Env, Nothing, Unit]) => {
-        val closeLast = ZIO.uninterruptible {
-          val close = this.closeLastSubstream
-          closeLastSubstream = null
-          if (close ne null) close else Exit.unit
-        }
+        val close     = this.closeLastSubstream
+        val closeLast = if (close ne null) ZIO.uninterruptible(close) else ZIO.unit
         executeCloseLastSubstream(closeLast) *> effect
       },
       onEmit = { (emitted: Any) =>
-        if (this.closeLastSubstream ne null) {
-          val closeLast = ZIO.uninterruptible {
-            val close = this.closeLastSubstream
-            closeLastSubstream = null
-            if (close ne null) close else Exit.unit
-          }
+        val close = this.closeLastSubstream
+        if (close ne null) {
+          val closeLast = ZIO.uninterruptible(close)
 
           executeCloseLastSubstream(closeLast).map { _ =>
             val childExecutor: ErasedExecutor[Env] =
