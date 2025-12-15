@@ -298,7 +298,7 @@ jobs:
           path: website-artifact
 
       - name: Release to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4.7.4
+        uses: JamesIves/github-pages-deploy-action@v4.7.6
         with:
           branch: gh-pages
           folder: ./website-artifact
