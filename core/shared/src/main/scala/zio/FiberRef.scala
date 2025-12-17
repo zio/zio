@@ -114,8 +114,8 @@ sealed trait FiberRef[A] extends Serializable { self =>
    * no value was `set` or inherited from parent.
    */
   def get(implicit trace: Trace): UIO[A] =
-    modify { v =>
-      (v, v)
+    ZIO.withFiberRuntime[Any, Nothing, A] { (fiberState, _) =>
+      Exit.succeed(fiberState.getFiberRef(self))
     }
 
   /**
