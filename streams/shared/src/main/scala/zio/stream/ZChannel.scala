@@ -2325,7 +2325,7 @@ object ZChannel {
     def apply[Env1 <: Env, OutErr, OutDone](f: ZEnvironment[Env] => ZIO[Env1, OutErr, OutDone])(implicit
       trace: Trace
     ): ZChannel[Env1, Any, Any, Any, OutErr, Nothing, OutDone] =
-      ZChannel.environment.mapZIO(f)
+      ZChannel.fromZIO(ZIO.environmentWithZIO[Env1](f))
   }
 
   final class ProvideSomeLayer[Env0, -Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone](
