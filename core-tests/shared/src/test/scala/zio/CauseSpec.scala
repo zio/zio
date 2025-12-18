@@ -231,6 +231,10 @@ object CauseSpec extends ZIOBaseSpec {
               |)""".stripMargin
           ),
           (
+            Fail("Boom", StackTrace.none),
+            "Fail(Boom,StackTrace.none)"
+          ),
+          (
             Interrupt(fiberId, stackTrace),
             """Interrupt(Runtime(123,456000,),Stack trace for thread "zio-fiber-123":
               |)""".stripMargin
