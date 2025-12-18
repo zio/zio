@@ -1676,7 +1676,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * The identity pipeline, which does not modify streams in any way.
    */
   def identity[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
-    new ZPipeline(ZChannel.identity)
+    identityAny.asInstanceOf[ZPipeline[Any, Nothing, In, In]]
 
   def intersperse[Err, In](middle: => In)(implicit trace: Trace): ZPipeline[Any, Err, In, In] =
     new ZPipeline(
@@ -2808,4 +2808,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     ): ZPipeline[Env, Err, In, Out] =
       new ZPipeline(ZChannel.unwrapScoped[Env](scoped.map(_.channel)))
   }
+
+  private val identityAny: ZPipeline[Any, Nothing, Any, Any] =
+    new ZPipeline(ZChannel.identity(Trace.empty))
 }
