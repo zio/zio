@@ -1,3 +1,5 @@
+package zio.repl
+
 import zio.test._
 
 import scala.annotation.nowarn

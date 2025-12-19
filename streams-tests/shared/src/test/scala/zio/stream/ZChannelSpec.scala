@@ -4,6 +4,7 @@ import zio._
 import zio.test.Assertion._
 import zio.test.TestAspect.{exceptJS, jvmOnly, nonFlaky, timeout}
 import zio.test._
+import zio.Clock.ClockLive
 
 object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
@@ -21,6 +22,25 @@ object ZChannelSpec extends ZIOBaseSpec {
           exit <- ZChannel.fail("Uh oh!").runCollect.exit
         } yield assert(exit)(fails(equalTo("Uh oh!")))
       },
+      suite("ZChannel.fromZIO")(
+        test("ZIO.unit produces unit") {
+          for {
+            res <- ZChannel.fromZIO(ZIO.unit).run
+          } yield assert(res)(isUnit)
+        },
+        test("ZIO.unit loops are interruptible") {
+          for {
+            fiber <- ZChannel.fromZIO(ZIO.unit).repeated.runDrain.fork
+            _     <- fiber.interrupt
+          } yield assertCompletes
+        },
+        test("ZIO.unit flatMap") {
+          val channel = ZChannel.fromZIO(ZIO.unit) *> ZChannel.write(1)
+          for {
+            res <- channel.runCollect
+          } yield assert(res._1)(equalTo(Chunk(1)))
+        }
+      ),
       test("ZChannel.map") {
         for {
           tuple     <- ZChannel.succeed(1).map(_ + 1).runCollect
@@ -162,7 +182,36 @@ object ZChannelSpec extends ZIOBaseSpec {
               )
             )
           )
-        }
+        },
+        test("ensuring(ZIO.unit) does nothing") {
+          ZChannel.unit
+            .ensuring(ZIO.unit)
+            .run
+            .as(assertCompletes)
+        },
+        test("ensuring(ZIO.unit) mixed with real finalizers") {
+          Ref.make(0).flatMap { ref =>
+            ZChannel.unit
+              .ensuring(ref.update(_ + 1))
+              .ensuring(ZIO.unit)
+              .ensuring(ref.update(_ + 1))
+              .runDrain *> ref.get.map(n => assert(n)(equalTo(2)))
+          }
+        },
+        test("mixed unit and non-unit finalizers run correctly on interruption") {
+          for {
+            ref <- Ref.make(List.empty[String])
+            channel = ZChannel.never
+                        .ensuring(ref.update("A" :: _))
+                        .ensuring(ZIO.unit)
+                        .ensuring(ref.update("B" :: _))
+                        .ensuring(ZIO.unit)
+            fiber <- channel.runDrain.interruptible.forkDaemon.uninterruptible
+            _     <- ClockLive.sleep(1.milli)
+            _     <- fiber.interrupt
+            res   <- ref.get
+          } yield assert(res)(hasSameElements(List("A", "B")))
+        } @@ TestAspect.flaky
       ),
       suite("ZChannel#mapOut")(
         test("simple") {

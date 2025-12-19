@@ -28,13 +28,13 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
 
   def spec: Spec[Environment with TestEnvironment with Scope, Any]
 
-  def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment]] =
-    Chunk(TestAspect.timeoutWarning(60.seconds))
-
   def bootstrap: ZLayer[Any, Any, Environment]
 
+  def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment]] =
+    Chunk.single(TestAspect.timeoutWarning(60.seconds))
+
   final def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Summary] = {
-    implicit val trace = Trace.empty
+    implicit val trace: Trace = Trace.empty
 
     runSpec.provideSomeLayer[Environment with ZIOAppArgs with Scope](
       ZLayer.environment[Environment with ZIOAppArgs with Scope] +!+
@@ -73,14 +73,14 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       console <- ZIO.console
       testArgs = TestArgs.parse(args.getArgs.toArray)
       summary <- runSpecAsApp(spec, testArgs, console)
-      _ <- ZIO.when(testArgs.printSummary) {
+      _ <- ZIO.whenDiscard(testArgs.printSummary) {
              console.printLine(testArgs.testRenderer.renderSummary(summary)).orDie
            }
-      _ <- ZIO
-             .when(summary.status == Summary.Failure) {
-               ZIO.fail(new RuntimeException("Tests failed."))
-             }
-             .unless(testArgs.ignoreFailures)
+      showFailures = !testArgs.ignoreFailures
+      isFailure    = summary.status == Summary.Failure
+      _ <- ZIO.whenDiscard(showFailures && isFailure) {
+             ZIO.fail(new RuntimeException("Tests failed."))
+           }
     } yield summary
 
   /*
