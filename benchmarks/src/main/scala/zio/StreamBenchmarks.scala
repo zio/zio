@@ -289,7 +289,7 @@ class StreamBenchmarks {
               index += 1
               Chunk.single(1) // Use a single-element chunk for consistent overhead
             }
-          else ZIO.fail(None)
+          else Exit.failNone
         }
       }.runCount
 
