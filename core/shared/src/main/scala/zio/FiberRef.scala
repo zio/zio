@@ -438,7 +438,8 @@ object FiberRef {
         ZEnvironment.Patch.empty
       )
 
-    def makeIsFatal[A](
+    @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
+    private[zio] def makeIsFatal[A](
       initial: IsFatal
     )(implicit unsafe: Unsafe): FiberRef.WithPatch[IsFatal, IsFatal.Patch] =
       makePatch[IsFatal, IsFatal.Patch](
@@ -597,7 +598,8 @@ object FiberRef {
   private[zio] val currentBlockingExecutor: FiberRef[Executor] =
     FiberRef.unsafe.make(Runtime.defaultBlockingExecutor)(Unsafe.unsafe)
 
-  private[zio] val currentFatal: FiberRef.WithPatch[IsFatal, IsFatal.Patch] =
+  @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
+  private[FiberRef] val currentFatal: FiberRef.WithPatch[IsFatal, IsFatal.Patch] =
     FiberRef.unsafe.makeIsFatal(Runtime.defaultFatal)(Unsafe.unsafe)
 
   private[zio] val currentFiberIdGenerator: FiberRef[FiberId.Gen] =
@@ -614,6 +616,9 @@ object FiberRef {
 
   private[zio] val currentSupervisor: FiberRef.WithPatch[Supervisor[Any], Supervisor.Patch] =
     FiberRef.unsafe.makeSupervisor(Runtime.defaultSupervisor)(Unsafe.unsafe)
+
+  private[zio] val parallelism: FiberRef[Option[Int]] =
+    FiberRef.unsafe.make[Option[Int]](None)(Unsafe)
 
   private[zio] val unhandledErrorLogLevel: FiberRef[Option[LogLevel]] =
     FiberRef.unsafe.make[Option[LogLevel]](Some(LogLevel.Debug))(Unsafe.unsafe)

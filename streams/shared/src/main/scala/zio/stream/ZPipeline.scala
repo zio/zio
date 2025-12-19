@@ -805,7 +805,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           ZChannel.write(newChunk) *> writer(newLast)
         },
         (cause: Cause[Err]) => ZChannel.refailCause(cause),
-        (_: Any) => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     new ZPipeline(writer(None))
@@ -828,7 +828,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             ZChannel.write(newChunk) *> writer(newLast)
           },
         (cause: Cause[Err]) => ZChannel.refailCause(cause),
-        (_: Any) => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     new ZPipeline(writer(None))
@@ -937,7 +937,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                 ZChannel.write(outs) *> reader
               },
               ZChannel.refailCause,
-              (_: Any) => ZChannel.unit
+              ZChannel.unitChannelFn
             )
 
           reader
@@ -1082,7 +1082,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               else ZChannel.write(dropped) *> ZChannel.identity
             },
             (e: Cause[ZNothing]) => ZChannel.refailCause(e),
-            (_: Any) => ZChannel.unit
+            ZChannel.unitChannelFn
           )
 
       new ZPipeline(loop(n))
@@ -1147,7 +1147,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[Err, Chunk[In], Any]
         }),
       (e: Cause[Err]) => ZChannel.refailCause(e),
-      (_: Any) => ZChannel.unit
+      ZChannel.unitChannelFn
     )
 
     new ZPipeline(loop)
@@ -1700,7 +1700,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               ZChannel.write(builder.result()) *> writer(flagResult)
             },
             err => ZChannel.refailCause(err),
-            _ => ZChannel.unit
+            ZChannel.unitChannelFn
           )
 
         writer(true)
@@ -1768,7 +1768,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               }
             ),
           ZChannel.refailCause,
-          (_: Any) => ZChannel.unit
+          ZChannel.unitChannelFn
         )
 
       new ZPipeline(accumulator(s))
@@ -1844,8 +1844,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         chunk => {
           val size = chunk.size
 
-          if (size == 0) reader
-          else if (size == 1) {
+          if (size == 1) {
             val a = chunk.head
 
             f(a) match {
@@ -1853,13 +1852,15 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               case l: Left[Err, ?]  => ZChannel.refailCause(Cause.fail(l.value))
             }
           } else {
-            val builder: ChunkBuilder[Out] = ChunkBuilder.make[Out](chunk.size)
-            val iterator: Iterator[In]     = chunk.iterator
+            val builder: ChunkBuilder[Out] = ChunkBuilder.make[Out](size)
+            val iterator                   = chunk.chunkIterator
+            var index: Int                 = 0
             var error: Err                 = null.asInstanceOf[Err]
 
-            while (iterator.hasNext && (error == null)) {
-              val a = iterator.next()
-              f(a) match {
+            while (index < size && error == null) {
+              val in = iterator.nextAt(index)
+              index += 1
+              f(in) match {
                 case r: Right[?, Out] => builder.addOne(r.value)
                 case l: Left[Err, ?]  => error = l.value
               }
@@ -2402,7 +2403,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                   loop(tokens, timestamp)
               }),
             (e: Cause[Err]) => ZChannel.refailCause(e),
-            (_: Any) => ZChannel.unit
+            ZChannel.unitChannelFn
           )
 
         ZChannel.unwrap(Clock.nanoTime.map(loop(units, _)))
@@ -2463,7 +2464,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               else ZChannel.write(in) *> loop(remaining, current)
             }),
           (e: Cause[Err]) => ZChannel.refailCause(e),
-          (_: Any) => ZChannel.unit
+          ZChannel.unitChannelFn
         )
 
       ZChannel.unwrap(Clock.nanoTime.map(loop(units, _)))

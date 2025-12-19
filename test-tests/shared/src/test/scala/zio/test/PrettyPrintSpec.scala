@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.internal.macros.StringUtils.StringOps
-import zio.test.TestAspect.exceptScala212
+import zio.test.TestAspect.{exceptScala212, sequential}
 
 import scala.collection.mutable
 
@@ -154,7 +154,153 @@ Person(
         shouldNotHave780,
         shouldNotHave999
       )
-    } @@ TestAspect.failing
+    } @@ TestAspect.failing,
+    suite("tuples")(
+      test("Tuple1") {
+        assertTrue(
+          PrettyPrint(Tuple1(1)).unstyled == "(1)",
+          PrettyPrint(Tuple1("hello")).unstyled == "(\"hello\")"
+        )
+      },
+      test("Tuple2") {
+        assertTrue(
+          PrettyPrint((1, 2)).unstyled == "(1, 2)",
+          PrettyPrint(("hello", "world")).unstyled == "(\"hello\", \"world\")"
+        )
+      },
+      test("Tuple3") {
+        assertTrue(
+          PrettyPrint((1, 2, 3)).unstyled == "(1, 2, 3)",
+          PrettyPrint(("a", "b", "c")).unstyled == "(\"a\", \"b\", \"c\")"
+        )
+      },
+      test("Tuple4") {
+        assertTrue(
+          PrettyPrint((1, 2, 3, 4)).unstyled == "(1, 2, 3, 4)"
+        )
+      },
+      test("Tuple5") {
+        assertTrue(
+          PrettyPrint((1, 2, 3, 4, 5)).unstyled == "(1, 2, 3, 4, 5)"
+        )
+      },
+      test("Tuple6") {
+        assertTrue(
+          PrettyPrint((1, 2, 3, 4, 5, 6)).unstyled == "(1, 2, 3, 4, 5, 6)"
+        )
+      },
+      test("Tuple7") {
+        assertTrue(
+          PrettyPrint((1, 2, 3, 4, 5, 6, 7)).unstyled == "(1, 2, 3, 4, 5, 6, 7)"
+        )
+      },
+      test("Tuple8") {
+        assertTrue(
+          PrettyPrint((1, 2, 3, 4, 5, 6, 7, 8)).unstyled == "(1, 2, 3, 4, 5, 6, 7, 8)"
+        )
+      },
+      test("Tuple9") {
+        assertTrue(
+          PrettyPrint((1, 2, 3, 4, 5, 6, 7, 8, 9)).unstyled == "(1, 2, 3, 4, 5, 6, 7, 8, 9)"
+        )
+      },
+      test("Tuple10") {
+        assertTrue(
+          PrettyPrint((1, 2, 3, 4, 5, 6, 7, 8, 9, 10)).unstyled == "(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)"
+        )
+      },
+      test("Tuple11") {
+        assertTrue(
+          PrettyPrint((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)).unstyled == "(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)"
+        )
+      },
+      test("Tuple12") {
+        assertTrue(
+          PrettyPrint((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)).unstyled == "(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)"
+        )
+      },
+      test("Tuple13") {
+        assertTrue(
+          PrettyPrint(
+            (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
+          ).unstyled == "(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)"
+        )
+      },
+      test("Tuple14") {
+        assertTrue(
+          PrettyPrint(
+            (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
+          ).unstyled == "(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)"
+        )
+      },
+      test("Tuple15") {
+        assertTrue(
+          PrettyPrint(
+            (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+          ).unstyled == "(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)"
+        )
+      },
+      test("Tuple16") {
+        assertTrue(
+          PrettyPrint(
+            (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+          ).unstyled == "(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)"
+        )
+      },
+      test("Tuple17") {
+        assertTrue(
+          PrettyPrint(
+            (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)
+          ).unstyled == "(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)"
+        )
+      },
+      test("Tuple18") {
+        assertTrue(
+          PrettyPrint(
+            (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18)
+          ).unstyled == "(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18)"
+        )
+      },
+      test("Tuple19") {
+        assertTrue(
+          PrettyPrint(
+            (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19)
+          ).unstyled == "(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19)"
+        )
+      },
+      test("Tuple20") {
+        assertTrue(
+          PrettyPrint(
+            (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)
+          ).unstyled == "(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)"
+        )
+      },
+      test("Tuple21") {
+        assertTrue(
+          PrettyPrint(
+            (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21)
+          ).unstyled == "(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21)"
+        )
+      },
+      test("Tuple22") {
+        assertTrue(
+          PrettyPrint(
+            (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22)
+          ).unstyled == "(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22)"
+        )
+      },
+      test("Mixed type tuple") {
+        assertTrue(
+          PrettyPrint((1, "hello", 3.14, true, List(1, 2))).unstyled == "(1, \"hello\", 3.14, true, List(1, 2))"
+        )
+      },
+      test("Nested tuples") {
+        assertTrue(
+          PrettyPrint(((1, 2), (3, 4))).unstyled == "((1, 2), (3, 4))",
+          PrettyPrint((1, (2, 3), 4)).unstyled == "(1, (2, 3), 4)"
+        )
+      }
+    ) @@ sequential
   )
 
 }

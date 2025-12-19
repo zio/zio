@@ -58,9 +58,15 @@ object Trace {
 
       val last = location.lastIndexOf('.')
 
-      val (before, after) = if (last < 0) ("", "." + location) else location.splitAt(last)
+      val e =
+        if (last < 0) new StackTraceElement("", location, file, line)
+        else {
+          val before = location.substring(0, last)
+          val after  = location.substring(last + 1)
+          new StackTraceElement(before, after, file, line)
+        }
 
-      Some(new StackTraceElement(before, after.drop(1), file, line))
+      Some(e)
     }
   }
 

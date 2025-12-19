@@ -52,11 +52,11 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test;testRunnerJVM/Test/run;examplesJVM/Test/compile;benchmarks/Test/compile;macrosTestsJVM/test;concurrentJVM/test;managedTestsJVM/test;set ThisBuild/isSnapshot:=true;testJunitRunnerTests/test;testJunitEngineTests/test;reload"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test;examplesJVM/Test/compile;benchmarks/Test/compile;macrosTestsJVM/test;concurrentJVM/test;managedTestsJVM/test;set ThisBuild/isSnapshot:=true;testJunitRunnerTests/test;testJunitEngineTests/test;reload"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/Test/compile;testRunnerJVM/Test/run;examplesJVM/Test/compile;concurrentJVM/test;managedTestsJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/Test/compile;examplesJVM/Test/compile;concurrentJVM/test;managedTestsJVM/test"
 )
 addCommandAlias(
   "testJS",
@@ -514,7 +514,6 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
   .settings(crossProjectSettings)
-  .settings(Test / run / mainClass := Some("zio.test.sbt.TestMain"))
   .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
   .settings(scalacOptions += "-Wconf:msg=[@nowarn annotation does not suppress any warnings]:silent")
   .dependsOn(core, tests)
@@ -548,12 +547,12 @@ lazy val commonJunitTestSettings = Seq(
   libraryDependencies ++= Seq(
     "junit"                     % "junit"                          % "4.13.2" % Test,
     "org.scala-lang.modules"   %% "scala-xml"                      % "2.4.0"  % Test,
-    "org.apache.maven"          % "maven-embedder"                 % "3.9.11" % Test,
-    "org.apache.maven"          % "maven-compat"                   % "3.9.11" % Test,
+    "org.apache.maven"          % "maven-embedder"                 % "3.9.12" % Test,
+    "org.apache.maven"          % "maven-compat"                   % "3.9.12" % Test,
     "com.google.inject"         % "guice"                          % "6.0.0"  % Test,
     "org.eclipse.sisu"          % "org.eclipse.sisu.inject"        % "0.3.5"  % Test,
-    "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.24" % Test,
-    "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.24" % Test,
+    "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.25" % Test,
+    "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.25" % Test,
     "org.codehaus.plexus"       % "plexus-component-annotations"   % "2.2.0"  % Test,
     "org.slf4j"                 % "slf4j-simple"                   % "2.0.17" % Test
   )
@@ -661,14 +660,14 @@ lazy val benchmarks = project.module
         "com.twitter"               %% "util-core"     % "24.2.0",
         "com.typesafe.akka"         %% "akka-stream"   % "2.8.8",
         "io.github.timwspence"      %% "cats-stm"      % "0.13.4",
-        "io.projectreactor"          % "reactor-core"  % "3.7.8",
+        "io.projectreactor"          % "reactor-core"  % "3.8.1",
         "io.reactivex.rxjava2"       % "rxjava"        % "2.2.21",
         "org.jctools"                % "jctools-core"  % "4.0.5",
         "org.typelevel"             %% "cats-effect"   % CatsEffectVersion,
         "org.scalacheck"            %% "scalacheck"    % ScalaCheckVersion,
-        "qa.hedgehog"               %% "hedgehog-core" % "0.12.0",
+        "qa.hedgehog"               %% "hedgehog-core" % "0.13.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % nyanaVersion,
-        "org.springframework"        % "spring-core"   % "6.2.9"
+        "org.springframework"        % "spring-core"   % "7.0.2"
       )
     },
     excludeDependencies ++= {

@@ -23,9 +23,9 @@ jobs:
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v4.2.2
+      uses: actions/checkout@v6.0.1
     - name: Setup Java
-      uses: actions/setup-java@v4.7.1
+      uses: actions/setup-java@v5.1.0
       with:
         distribution: temurin
         java-version: 17
@@ -33,7 +33,7 @@ jobs:
     - name: Setup sbt
       uses: sbt/setup-sbt@v1
     - name: Cache scala dependencies
-      uses: coursier/cache-action@v6
+      uses: coursier/cache-action@v7
     - name: Lint code
       run: sbt "++2.13; check; ++3.3; check"
 
@@ -49,11 +49,11 @@ jobs:
         scala: ['2.12.x', '2.13.x', '3.x']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6.0.1
         with:
           fetch-depth: 0
       - name: Setup Java
-        uses: actions/setup-java@v4.7.1
+        uses: actions/setup-java@v5.1.0
         with:
           distribution: temurin
           java-version: 11
@@ -61,7 +61,7 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
       - name: Cache scala dependencies
-        uses: coursier/cache-action@v6
+        uses: coursier/cache-action@v7
       - name: publishLocal 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
         run: sbt --client -v "++${{ matrix.scala }}; root212/Test/compile; root212/publishLocal"
@@ -81,11 +81,11 @@ jobs:
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
       - name: Checkout Current Branch
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6.0.1
         with:
           fetch-depth: 0
       - name: Setup Java
-        uses: actions/setup-java@v4.7.1
+        uses: actions/setup-java@v5.1.0
         with:
           distribution: temurin
           java-version: 17
@@ -95,7 +95,7 @@ jobs:
         uses: sbt/setup-sbt@v1
 
       - name: Install NodeJS
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
 
@@ -112,7 +112,7 @@ jobs:
           yarn build 
 
       - name: Cache Website's Build Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: website-artifact
           path: ./website/build
@@ -129,13 +129,13 @@ jobs:
       fail-fast: false
       matrix:
         scala: ['2.12.x', '2.13.x', '3.x']
-        java: ['17']
+        java: ['21']
         platform: ['JVM']
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v4.2.2
+      uses: actions/checkout@v6.0.1
     - name: Setup Java
-      uses: actions/setup-java@v4.7.1
+      uses: actions/setup-java@v5.1.0
       with:
         distribution: temurin
         java-version: ${{ matrix.java }}
@@ -143,40 +143,40 @@ jobs:
     - name: Setup sbt
       uses: sbt/setup-sbt@v1
     - name: Cache scala dependencies
-      uses: coursier/cache-action@v6
+      uses: coursier/cache-action@v7
     - name: Run tests
       run: sbt -v ++${{ matrix.scala }} test${{ matrix.platform }}
     - name: Upload Test Results 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: zio-test-output-2.12
         path: ./**/test-reports-zio/output.json
         overwrite: true
     - name: Upload Test Results 3
       if: ${{ startsWith(matrix.scala, '3.') }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: zio-test-output-3
         path: ./**/test-reports-zio/output.json
         overwrite: true
     - name: Report Test Death 2.12
       if: ${{ failure() &&  startsWith(matrix.scala, '2.12.') }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: zio-test-debug-2.12
         path: ./**/test-reports-zio/**_debug.txt
         overwrite: true
     - name: Report Test Death 2.13
       if: ${{ failure() &&  startsWith(matrix.scala, '2.13.') }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: zio-test-debug-2.13
         path: ./**/test-reports-zio/**_debug.txt
         overwrite: true
     - name: Report Test Death 3.x
       if: ${{ failure() &&  startsWith(matrix.scala, '3.') }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: zio-test-debug-3.x
         path: ./**/test-reports-zio/**_debug.txt
@@ -191,12 +191,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['11', '21']
+        java: ['11', '17', '21']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6.0.1
       - name: Setup Java
-        uses: actions/setup-java@v4.7.1
+        uses: actions/setup-java@v5.1.0
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
@@ -204,12 +204,12 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
       - name: Cache scala dependencies
-        uses: coursier/cache-action@v6
+        uses: coursier/cache-action@v7
       - name: Test on different JVM versions
         run: sbt -v testJVM
       - name: Report Test Death JVM 11
         if: ${{ failure() &&  startsWith(matrix.java, '11') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: zio-test-debug-JVM-11
           path: ./**/test-reports-zio/**_debug.txt
@@ -222,16 +222,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['17']
+        java: ['25']
         platform: ['JS', 'Native1', 'Native2']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6.0.1
       - name: Install Boehm GC
         if: ${{ startsWith(matrix.platform, 'Native') }}
         run: sudo apt-get update && sudo apt-get install -y libgc-dev
       - name: Setup Java
-        uses: actions/setup-java@v4.7.1
+        uses: actions/setup-java@v5.1.0
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
@@ -239,7 +239,7 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
       - name: Cache scala dependencies
-        uses: coursier/cache-action@v6
+        uses: coursier/cache-action@v7
       - name: Set Swap Space
         uses: pierotofy/set-swap-space@master
         with:
@@ -263,11 +263,11 @@ jobs:
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6.0.1
         with:
           fetch-depth: 0
       - name: Setup Java
-        uses: actions/setup-java@v4.7.1
+        uses: actions/setup-java@v5.1.0
         with:
           distribution: temurin
           java-version: 11
@@ -289,16 +289,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6.0.1
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: website-artifact
           path: website-artifact
 
       - name: Release to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4.7.3
+        uses: JamesIves/github-pages-deploy-action@v4.7.6
         with:
           branch: gh-pages
           folder: ./website-artifact
@@ -308,7 +308,7 @@ jobs:
     if: ${{ ((github.event_name == 'repository_dispatch') && (github.event.action == 'update-docs')) }}
     steps:
       - name: Git Checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6.0.1
         with:
           ref: ${{ github.head_ref }}
       - name: Commit Changes
@@ -324,13 +324,13 @@ jobs:
           git commit -m "$commit_message" || echo "No changes to commit"
       - name: Generate a token
         id: generate-tokens
-        uses: actions/create-github-app-token@v2.0.6
+        uses: actions/create-github-app-token@v2.2.1
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_SECRET }}
           owner: ${{ github.repository_owner }}
       - name: Create Pull Request to Update Docs
-        uses: peter-evans/create-pull-request@v7.0.8
+        uses: peter-evans/create-pull-request@v8.0.0
         with:
           token: ${{ steps.generate-token.outputs.token }}
           body: |-

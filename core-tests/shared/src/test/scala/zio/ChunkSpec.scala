@@ -174,7 +174,6 @@ object ChunkSpec extends ZIOBaseSpec {
       test("fails if the chunk does not contain the specified index") {
         val chunk     = Chunk(1, 2, 3)
         val prepended = 0 +: chunk
-        val _         = -1 +: chunk
         assert(prepended(-1))(throwsA[IndexOutOfBoundsException])
       }
     ),
@@ -713,8 +712,8 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     test("fromIterable should works with Iterables traversing only once") {
       val traversableOnceIterable = new Iterable[Int] {
-        val it = new Iterator[Int] {
-          var c: Int                    = 3
+        private val it = new Iterator[Int] {
+          private var c: Int            = 3
           override def hasNext: Boolean = c > 0
           override def next(): Int      = { c = c - 1; c }
         }

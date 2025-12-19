@@ -20,7 +20,11 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
       (for {
         runtime <- ZIO.runtime[Environment with ZIOAppArgs]
         _       <- installSignalHandlers(runtime)
-        result  <- runtime.run(ZIO.scoped[Environment with ZIOAppArgs](run)).tapErrorCause(ZIO.logErrorCause(_))
+        result <- runtime.run(ZIO.scoped[Environment with ZIOAppArgs](run)).tapErrorCause { c =>
+                    // Don't log an interruption error if we're shutting down
+                    if (shuttingDown.get() && c.isInterruptedOnly) Exit.unit
+                    else ZIO.logErrorCause(c)
+                  }
       } yield result).provideLayer(newLayer.tapErrorCause(ZIO.logErrorCause(_)))
 
     val shutdownLatch = internal.OneShot.make[Unit]
@@ -59,10 +63,10 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
 
     val exit0 =
       runtime.unsafe.run {
-        ZIO.uninterruptible {
+        ZIO.uninterruptibleMask { restore =>
           for {
             fiberId <- ZIO.fiberId
-            fiber <- workflow.interruptible.exitWith { exit0 =>
+            fiber <- restore(workflow).exitWith { exit0 =>
                        val exitCode = if (exit0.isSuccess) ExitCode.success else ExitCode.failure
                        interruptRootFibers(fiberId).as(exitCode)
                      }.fork
