@@ -192,13 +192,13 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         trace: Trace
       ): ZIO[Env1, Nothing, (State, Out2, Decision)] =
         self.step(now, in, state._1).flatMap {
-          case (lState, out, Done) =>
+          case (lState, out, _: Done.type) =>
             that.step(now, out, state._2).map { case (rState, out2, _) =>
               ((lState, rState), out2, Done)
             }
           case (lState, out, Continue(interval)) =>
             that.step(now, out, state._2).map {
-              case (rState, out2, Done) => ((lState, rState), out2, Done)
+              case (rState, out2, _: Done.type) => ((lState, rState), out2, Done)
               case (rState, out2, Continue(interval2)) =>
                 val combined = interval max interval2
 
@@ -230,7 +230,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * by this schedule.
    */
   final def addDelay(f: Out => Duration)(implicit trace: Trace): Schedule.WithState[self.State, Env, In, Out] =
-    addDelayZIO(out => ZIO.succeed(f(out)))
+    addDelayZIO(out => Exit.succeed(f(out)))
 
   /**
    * Returns a new schedule with the given effectfully computed delay added to
@@ -309,10 +309,10 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         trace: Trace
       ): ZIO[Env1, Nothing, (State, Out, Decision)] =
         self.step(now, in, state).flatMap {
-          case (state, out, Done) => ZIO.succeed((state, out, Done))
-          case (state, out, Continue(interval)) =>
+          case done @ (_, _, _: Done.type) => Exit.succeed(done)
+          case current @ (state, out, _) =>
             test(in, out).map { b =>
-              if (b) (state, out, Continue(interval)) else (state, out, Done)
+              if (b) current else (state, out, Done)
             }
         }
     }
@@ -323,7 +323,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   final def collectAll[Out1 >: Out](implicit
     trace: Trace
   ): Schedule.WithState[(self.State, Chunk[Out1]), Env, In, Chunk[Out1]] =
-    collectWhile(_ => true)
+    collectWhileZIO(_ => Exit.`true`)
 
   /**
    * Returns a new schedule that collects the outputs of this one into a list as
@@ -332,7 +332,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   final def collectWhile[Out1 >: Out](f: Out => Boolean)(implicit
     trace: Trace
   ): Schedule.WithState[(self.State, Chunk[Out1]), Env, In, Chunk[Out1]] =
-    collectWhileZIO(out => ZIO.succeed(f(out)))
+    collectWhileZIO(out => Exit.boolean(f(out)))
 
   /**
    * Returns a new schedule that collects the outputs of this one into a list as
@@ -350,7 +350,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         val s = state._1
         val z = state._2
         self.step(now, in, s).flatMap {
-          case (s, out, Done) =>
+          case (s, out, _: Done.type) =>
             f(out).map { b =>
               if (!b) ((s, z), z, Done)
               else {
@@ -358,12 +358,12 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
                 ((s, z2), z2, Done)
               }
             }
-          case (s, out, Continue(interval)) =>
+          case (s, out, continue) =>
             f(out).map { b =>
               if (!b) ((s, z), z, Done)
               else {
                 val z2 = z :+ out
-                ((s, z2), z2, Continue(interval))
+                ((s, z2), z2, continue)
               }
 
             }
@@ -378,7 +378,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   final def collectUntil[Out1 >: Out](f: Out => Boolean)(implicit
     trace: Trace
   ): Schedule.WithState[(self.State, Chunk[Out1]), Env, In, Chunk[Out1]] =
-    collectUntilZIO(out => ZIO.succeed(f(out)))
+    collectUntilZIO(out => Exit.boolean(f(out)))
 
   /**
    * Returns a new schedule that collects the outputs of this one into a list
@@ -404,7 +404,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   final def contramap[Env1 <: Env, In2](f: In2 => In)(implicit
     trace: Trace
   ): Schedule.WithState[self.State, Env, In2, Out] =
-    self.contramapZIO(in => ZIO.succeed(f(in)))
+    self.contramapZIO(in => Exit.succeed(f(in)))
 
   /**
    * Returns a new schedule that deals with a narrower class of inputs than this
@@ -433,7 +433,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * before the start of each interval produced by this schedule.
    */
   final def delayed(f: Duration => Duration)(implicit trace: Trace): Schedule.WithState[self.State, Env, In, Out] =
-    self.delayedZIO(d => ZIO.succeed(f(d)))
+    self.delayedZIO(d => Exit.succeed(f(d)))
 
   /**
    * Returns a new schedule that outputs the delay between each occurence.
@@ -445,12 +445,11 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
       override final def step(now: OffsetDateTime, in: In, state: State)(implicit
         trace: Trace
       ): ZIO[Env, Nothing, (State, Duration, Decision)] =
-        self.step(now, in, state).flatMap {
-          case (state, _, Done) =>
-            ZIO.succeed((state, Duration.Zero, Done))
-          case (state, _, Continue(interval)) =>
+        self.step(now, in, state).map {
+          case (state, _, _: Done.type) => (state, Duration.Zero, Done)
+          case (state, _, continue @ Continue(interval)) =>
             val delay = Duration.fromInterval(now, interval.start)
-            ZIO.succeed((state, delay, Continue(interval)))
+            (state, delay, continue)
         }
     }
 
@@ -520,8 +519,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         trace: Trace
       ): ZIO[Env, Nothing, (State, Out, Decision)] =
         self.step(now, in, state).flatMap {
-          case (state, out, Done)               => finalizer.as((state, out, Done))
-          case (state, out, Continue(interval)) => ZIO.succeed((state, out, Continue(interval)))
+          case continue @ (_, _, _: Continue) => Exit.succeed(continue)
+          case done @ (_, _, _: Done.type)    => finalizer.as(done)
         }
     }
 
@@ -537,7 +536,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule that folds over the outputs of this one.
    */
   final def fold[Z](z: Z)(f: (Z, Out) => Z)(implicit trace: Trace): Schedule.WithState[(self.State, Z), Env, In, Z] =
-    foldZIO(z)((z, out) => ZIO.succeed(f(z, out)))
+    foldZIO(z)((z, out) => Exit.succeed(f(z, out)))
 
   /**
    * Returns a new schedule that effectfully folds over the outputs of this one.
@@ -554,8 +553,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         val s = state._1
         val z = state._2
         self.step(now, in, s).flatMap {
-          case (s, _, Done)                 => ZIO.succeed(((s, z), z, Done))
-          case (s, out, Continue(interval)) => f(z, out).map(z2 => ((s, z2), z, Continue(interval)))
+          case (s, _, _: Done.type)         => Exit.succeed(((s, z), z, Done))
+          case (s, out, continue: Continue) => f(z, out).map(z2 => ((s, z2), z, continue))
         }
       }
     }
@@ -572,8 +571,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         trace: Trace
       ): ZIO[Env, Nothing, (State, Out, Decision)] =
         self.step(now, in, state).flatMap {
-          case (_, _, Done)                     => step(now, in, initial)
-          case (state, out, Continue(interval)) => ZIO.succeed((state, out, Continue(interval)))
+          case (_, _, _: Done.type) => step(now, in, initial)
+          case current              => Exit.succeed(current)
         }
     }
 
@@ -675,7 +674,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * specified function.
    */
   final def map[Out2](f: Out => Out2)(implicit trace: Trace): Schedule.WithState[self.State, Env, In, Out2] =
-    self.mapZIO(out => ZIO.succeed(f(out)))
+    self.mapZIO(out => Exit.succeed(f(out)))
 
   /**
    * Returns a new schedule that maps the output of this schedule through the
@@ -714,7 +713,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         trace: Trace
       ): ZIO[Env1, Nothing, (State, Out, Decision)] =
         self.step(now, in, state).flatMap {
-          case (state, out, Done) => ZIO.succeed((state, out, Done))
+          case done @ (state, out, _: Done.type) => Exit.succeed(done)
           case (state, out, Continue(interval)) =>
             val delay = Interval(now, interval.start).size
 
@@ -807,7 +806,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   final def reconsider[Out2](
     f: (State, Out, Decision) => Either[Out2, (Out2, Interval)]
   )(implicit trace: Trace): Schedule.WithState[self.State, Env, In, Out2] =
-    reconsiderZIO { case (state, out, decision) => ZIO.succeed(f(state, out, decision)) }
+    reconsiderZIO { case (state, out, decision) => Exit.succeed(f(state, out, decision)) }
 
   /**
    * Returns a new schedule that effectfully reconsiders every decision made by
@@ -829,8 +828,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
               case Left(out2)       => (state, out2, Done)
               case Right((out2, _)) => (state, out2, Done)
             }
-          case (state, out, Continue(interval)) =>
-            f(state, out, Continue(interval)).map {
+          case (state, out, continue: Continue) =>
+            f(state, out, continue).map {
               case Left(out2)              => (state, out2, Done)
               case Right((out2, interval)) => (state, out2, Continue(interval))
             }
@@ -863,8 +862,9 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
       override final def step(now: OffsetDateTime, in: In, state: State)(implicit
         trace: Trace
       ): ZIO[Env, Nothing, (State, Out, Decision)] =
-        self.step(now, in, state).flatMap { case (state, out, decision) =>
-          if (f(out)) self.step(now, in, self.initial) else ZIO.succeed((state, out, decision))
+        self.step(now, in, state).flatMap { case continue @ (state, out, decision) =>
+          if (f(out)) self.step(now, in, self.initial)
+          else Exit.succeed(continue)
         }
     }
 
@@ -887,10 +887,10 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
       acc: Chunk[Out]
     ): URIO[Env, Chunk[Out]] =
       xs match {
-        case Nil => ZIO.succeed(acc)
+        case Nil => Exit.succeed(acc)
         case in :: xs =>
           self.step(now, in, state).flatMap {
-            case (_, out, Done)                   => ZIO.succeed(acc :+ out)
+            case (_, out, _: Done.type)           => Exit.succeed(acc :+ out)
             case (state, out, Continue(interval)) => loop(interval.start, xs, state, acc :+ out)
           }
       }
@@ -956,12 +956,12 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         val right = that.step(now, in, state._2)
 
         left.zipWith(right) {
-          case ((lstate, l, Done), (rstate, r, Done)) =>
+          case (done @ (lstate, l, _: Done.type), done2 @ (rstate, r, _: Done.type)) =>
             ((lstate, rstate), zippable.zip(l, r), Done)
-          case ((lstate, l, Done), (rstate, r, Continue(interval))) =>
-            ((lstate, rstate), zippable.zip(l, r), Continue(interval))
-          case ((lstate, l, Continue(interval)), (rstate, r, Done)) =>
-            ((lstate, rstate), zippable.zip(l, r), Continue(interval))
+          case ((lstate, l, _: Done.type), (rstate, r, continue: Continue)) =>
+            ((lstate, rstate), zippable.zip(l, r), continue)
+          case ((lstate, l, continue: Continue), (rstate, r, _: Done.type)) =>
+            ((lstate, rstate), zippable.zip(l, r), continue)
           case ((lstate, l, Continue(linterval)), (rstate, r, Continue(rinterval))) =>
             val combined = f(linterval, rinterval)
             ((lstate, rstate), zippable.zip(l, r), Continue(combined))
@@ -973,7 +973,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule that maps the output of this schedule to unit.
    */
   final def unit(implicit trace: Trace): Schedule.WithState[self.State, Env, In, Unit] =
-    self.as(())
+    self.mapZIO(ZIO.unitZIOFn)
 
   private[zio] final def unsafe: UnsafeAPI = new UnsafeAPI {
 
@@ -1005,7 +1005,6 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
 
       Schedule.Driver(next, last, reset, state)
     }
-
   }
 
   /**
@@ -1249,11 +1248,12 @@ object Schedule {
       ): ZIO[Any, Nothing, (State, Duration, Decision)] =
         ZIO.succeed {
           state match {
-            case None => (Some(now), Duration.Zero, Decision.Continue(Interval(now, OffsetDateTime.MAX)))
             case Some(start) =>
               val duration = Duration.fromInterval(start, now)
 
               (Some(start), duration, Decision.Continue(Interval(now, OffsetDateTime.MAX)))
+            case _ =>
+              (Some(now), Duration.Zero, Decision.Continue(Interval(now, OffsetDateTime.MAX)))
           }
         }
     }
@@ -1394,17 +1394,20 @@ object Schedule {
   /**
    * A schedule that always recurs, which returns inputs as outputs.
    */
-  def identity[A]: Schedule.WithState[Unit, Any, A, A] =
-    new Schedule.Internal[Any, A, A] {
+  def identity[A]: Schedule.WithState[Unit, Any, A, A] = identityAny.asInstanceOf[Schedule.WithState[Unit, Any, A, A]]
+
+  private val identityAny: Schedule[Any, Any, Any] =
+    new Schedule.Internal[Any, Any, Any] {
       override type State = Unit
       override final val initial: State = ()
 
-      override final def step(now: OffsetDateTime, in: A, state: State)(implicit
-                                                                        trace: Trace
-      ): ZIO[Any, Nothing, (State, A, Decision)] =
+      override final def step(now: OffsetDateTime, in: Any, state: State)(implicit
+        trace: Trace
+      ): ZIO[Any, Nothing, (State, Any, Decision)] =
         ZIO.succeed((state, in, Decision.Continue(Interval.after(now))))
+      
+      override def toString: String = "Schedule.Identity"
     }
-
   /**
    * A schedule that always recurs, but will repeat on a linear time interval,
    * given by `base * n` where `n` is the number of repetitions so far. Returns

@@ -1035,7 +1035,7 @@ sealed trait ZIO[-R, +E, +A]
    * Returns a new effect where boolean value of this effect is negated.
    */
   final def negate(implicit ev: A IsSubtypeOfOutput Boolean, trace: Trace): ZIO[R, E, Boolean] =
-    map(result => !ev(result))
+    flatMap(result => Exit.boolean(!ev(result)))
 
   /**
    * Requires the option produced by this value to be `None`.
