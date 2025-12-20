@@ -30,13 +30,13 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
 
   def spec: Spec[Environment with TestEnvironment with Scope, Any]
 
-  def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment]] =
-    Chunk(TestAspect.timeoutWarning(60.seconds))
-
   def bootstrap: ZLayer[Any, Any, Environment]
 
+  def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment]] =
+    Chunk.single(TestAspect.timeoutWarning(60.seconds))
+
   final def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Summary] = {
-    implicit val trace = Trace.empty
+    implicit val trace: Trace = Trace.empty
 
     runSpec.provideSomeLayer[Environment with ZIOAppArgs with Scope](
       ZLayer.environment[Environment with ZIOAppArgs with Scope] +!+
