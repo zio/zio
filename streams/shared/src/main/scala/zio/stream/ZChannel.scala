@@ -2428,7 +2428,7 @@ object ZChannel {
   private[stream] val unitChannelFn: Any => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Unit] = (_: Any) => unit
   private val unitFn2: (Any, Any) => Unit                                                        = (_, _) => ()
   private val failCauseFn: Cause[Any] => ZChannel[Any, Any, Any, Any, Any, Any, Any]             = cause => Fail(() => cause)
-  private lazy val identityAny: ZChannel[Any, Any, Any, Any, Any, Any, Any] =
+  private val identityAny: ZChannel[Any, Any, Any, Any, Any, Any, Any] =
     Read(
       (in: Any) => ZChannel.Fold(Emit(in), new ZChannel.Fold.K((_: Any) => identityAny, failCauseFn)),
       new Fold.K[Any, Any, Any, Any, Any, Any, Any, Any, Any](
