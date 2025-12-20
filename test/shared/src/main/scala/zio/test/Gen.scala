@@ -332,7 +332,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A sized generator of chunks.
    */
   def chunkOf[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Chunk[A]] =
-    listOf(g).map(Chunk.fromIterable)
+    small(chunkOfN(_)(g))
 
   /**
    * A sized generator of non-empty chunks.
@@ -340,7 +340,10 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def chunkOf1[R, A](g: Gen[R, A])(implicit
     trace: Trace
   ): Gen[R, NonEmptyChunk[A]] =
-    listOf1(g).map { case h :: t => NonEmptyChunk.fromIterable(h, t) }
+    for {
+      h <- g
+      t <- small(n => chunkOfN(n - 1 max 0)(g))
+    } yield NonEmptyChunk(h) ++ t
 
   /**
    * A generator of chunks whose size falls within the specified bounds.
@@ -354,7 +357,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of chunks of the specified size.
    */
   def chunkOfN[R, A](n: Int)(g: Gen[R, A])(implicit trace: Trace): Gen[R, Chunk[A]] =
-    listOfN(n)(g).map(Chunk.fromIterable)
+    buildN(n)(g)(Chunk.empty[A])(_ :+ _)(identity)
 
   /**
    * Composes the specified generators to create a cartesian product of elements
@@ -570,7 +573,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of lists of the specified size.
    */
   def listOfN[R, A](n: Int)(g: Gen[R, A])(implicit trace: Trace): Gen[R, List[A]] =
-    collectAll(List.fill(n)(g))
+    buildN(n)(g)(List.empty[A])((list, a) => a :: list)(_.reverse)
 
   /**
    * A generator of longs. Shrinks toward '0'.
@@ -600,7 +603,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def mapOf[R, A, B](key: Gen[R, A], value: Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, Map[A, B]] =
-    listOf(key.zip(value)).map(_.toMap)
+    small(mapOfN(_)(key, value))
 
   /**
    * A sized generator of non-empty maps.
@@ -608,15 +611,25 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def mapOf1[R, A, B](key: Gen[R, A], value: Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, Map[A, B]] =
-    listOf1(key.zip(value)).map(_.toMap)
+    small(mapOfN(_)(key, value), min = 1)
 
   /**
    * A generator of maps of the specified size.
    */
   def mapOfN[R, A, B](n: Int)(key: Gen[R, A], value: Gen[R, B])(implicit
     trace: Trace
-  ): Gen[R, Map[A, B]] =
-    setOfN(n)(key).zipWith(listOfN(n)(value))(_.zip(_).toMap)
+  ): Gen[R, Map[A, B]] = {
+    val pair = key.zip(value)
+    def loop(acc: Map[A, B]): Gen[R, Map[A, B]] =
+      if (acc.size >= n) Gen.const(acc)
+      else
+        pair.flatMap { case (k, v) =>
+          if (acc.contains(k)) Gen.empty
+          else loop(acc.updated(k, v))
+        }
+
+    loop(Map.empty)
+  }
 
   /**
    * A generator of maps whose size falls within the specified bounds.
@@ -645,7 +658,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A constant generator of the empty value.
    */
   def none(implicit trace: Trace): Gen[Any, Option[Nothing]] =
-    Gen.const(None)
+    noneGen
 
   /**
    * A generator of numeric characters. Shrinks toward '0'.
@@ -696,13 +709,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A sized generator of sets.
    */
   def setOf[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
-    listOf(gen).map(_.toSet)
+    small(setOfN(_)(gen))
 
   /**
    * A sized generator of non-empty sets.
    */
   def setOf1[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
-    listOf1(gen).map(_.toSet)
+    small(setOfN(_)(gen), min = 1)
 
   /**
    * A generator of sets whose size falls within the specified bounds.
@@ -715,13 +728,17 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of sets of the specified size.
    */
-  def setOfN[R, A](n: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
-    List.fill(n)(gen).foldLeft[Gen[R, Set[A]]](const(Set.empty)) { (acc, gen) =>
-      for {
-        set  <- acc
-        elem <- gen.filterNot(set)
-      } yield set + elem
-    }
+  def setOfN[R, A](n: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] = {
+    def loop(acc: Set[A]): Gen[R, Set[A]] =
+      if (acc.size >= n) Gen.const(acc)
+      else
+        gen.flatMap(elem =>
+          if (acc.contains(elem)) Gen.empty
+          else loop(acc + elem)
+        )
+
+    loop(Set.empty)
+  }
 
   /**
    * A generator of shorts. Shrinks toward '0'.
@@ -777,13 +794,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A sized generator of strings.
    */
   def string[R](char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
-    listOf(char).map(_.mkString)
+    small(stringN(_)(char))
 
   /**
    * A sized generator of non-empty strings.
    */
   def string1[R](char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
-    listOf1(char).map(_.mkString)
+    small(stringN(_)(char), min = 1)
 
   /**
    * A generator of strings whose size falls within the specified bounds.
@@ -797,7 +814,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of strings of the specified size.
    */
   def stringN[R](n: Int)(char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
-    listOfN(n)(char).map(_.mkString)
+    buildN(n)(char)(Chunk.empty[Char])(_ :+ _)(chunk => new String(chunk.toArray))
 
   /**
    * Lazily constructs a generator. This is useful to avoid infinite recursion
@@ -867,13 +884,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A sized generator of vectors.
    */
   def vectorOf[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
-    listOf(g).map(_.toVector)
+    small(vectorOfN(_)(g))
 
   /**
    * A sized generator of non-empty vectors.
    */
   def vectorOf1[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
-    listOf1(g).map(_.toVector)
+    small(vectorOfN(_)(g), min = 1)
 
   /**
    * A generator of vectors whose size falls within the specified bounds.
@@ -887,7 +904,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of vectors of the specified size.
    */
   def vectorOfN[R, A](n: Int)(g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
-    listOfN(n)(g).map(_.toVector)
+    buildN(n)(g)(Vector.empty[A])(_ :+ _)(identity)
 
   /**
    * A generator which chooses one of the given generators according to their
@@ -920,9 +937,20 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     else if (n > max) max
     else n
 
+  private def buildN[R, A, B, C](n: Int)(g: Gen[R, A])(zero: B)(add: (B, A) => B)(build: B => C)(implicit
+    trace: Trace
+  ): Gen[R, C] = {
+    def loop(remaining: Int, acc: B): Gen[R, C] =
+      if (remaining <= 0) Gen.const(build(acc))
+      else g.flatMap(a => loop(remaining - 1, add(acc, a)))
+
+    loop(n, zero)
+  }
+
   private val defaultShrinker: Any => ZStream[Any, Nothing, Nothing] =
     _ => ZStream.empty(Trace.empty)
 
-  private val emptyGen: Gen[Any, Nothing] = Gen(ZStream.empty(Trace.empty))
-  private val unitGen: Gen[Any, Unit]     = const(())(Trace.empty)
+  private val emptyGen: Gen[Any, Nothing]        = Gen(ZStream.empty(Trace.empty))
+  private val unitGen: Gen[Any, Unit]            = const(())(Trace.empty)
+  private val noneGen: Gen[Any, Option[Nothing]] = const(None)(Trace.empty)
 }
