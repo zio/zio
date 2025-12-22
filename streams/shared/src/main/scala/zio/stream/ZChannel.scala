@@ -1074,7 +1074,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def pipeTo[Env1 <: Env, OutErr2, OutElem2, OutDone2](
     that: => ZChannel[Env1, OutErr, OutElem, OutDone, OutErr2, OutElem2, OutDone2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr2, OutElem2, OutDone2] =
-    ZChannel.PipeTo(() => self, () => that)
+    if (self eq ZChannel.identityAny)
+      ZChannel.suspend(that.asInstanceOf[ZChannel[Env1, InErr, InElem, InDone, OutErr2, OutElem2, OutDone2]])
+    else ZChannel.PipeTo(() => self, () => that)
 
   /**
    * Returns a new channel that pipes the output of this channel into the
@@ -1084,64 +1086,67 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def pipeToOrFail[Env1 <: Env, OutErr1 >: OutErr, OutElem2, OutDone2](
     that: => ZChannel[Env1, Nothing, OutElem, OutDone, OutErr1, OutElem2, OutDone2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2] =
-    ZChannel.suspend {
+    if (self eq ZChannel.identityAny)
+      ZChannel.suspend(that.asInstanceOf[ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2]])
+    else
+      ZChannel.suspend {
 
-      class ChannelFailure(val err: Cause[OutErr1]) extends Throwable(null, null, true, false) {
-        override def getMessage: String = err.unified.headOption.fold("<unknown>")(_.message)
+        class ChannelFailure(val err: Cause[OutErr1]) extends Throwable(null, null, true, false) {
+          override def getMessage: String = err.unified.headOption.fold("<unknown>")(_.message)
 
-        override def getStackTrace(): Array[StackTraceElement] =
-          err.unified.headOption.fold[Chunk[StackTraceElement]](Chunk.empty)(_.trace).toArray
+          override def getStackTrace(): Array[StackTraceElement] =
+            err.unified.headOption.fold[Chunk[StackTraceElement]](Chunk.empty)(_.trace).toArray
 
-        override def getCause(): Throwable =
-          err.find { case Cause.Die(throwable, _) => throwable }
-            .orElse(err.find { case Cause.Fail(value: Throwable, _) => value })
-            .orNull
+          override def getCause(): Throwable =
+            err.find { case Cause.Die(throwable, _) => throwable }
+              .orElse(err.find { case Cause.Fail(value: Throwable, _) => value })
+              .orNull
 
-        def fillSuppressed()(implicit unsafe: Unsafe): Unit =
-          if (getSuppressed().length == 0) {
-            err.unified.iterator.drop(1).foreach(unified => addSuppressed(unified.toThrowable))
-          }
+          def fillSuppressed()(implicit unsafe: Unsafe): Unit =
+            if (getSuppressed().length == 0) {
+              err.unified.iterator.drop(1).foreach(unified => addSuppressed(unified.toThrowable))
+            }
 
-        override def toString =
-          err.prettyPrint
+          override def toString =
+            err.prettyPrint
+        }
+        var channelFailure: ChannelFailure = null
+
+        lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, Nothing, OutElem, OutDone] =
+          ZChannel.readWithCause(
+            elem => ZChannel.write(elem) *> reader,
+            err => {
+              channelFailure = new ChannelFailure(err)
+              ZChannel.refailCause(Cause.die(channelFailure))
+            },
+            done => ZChannel.succeedNow(done)
+          )
+
+        lazy val writer: ZChannel[Env1, OutErr1, OutElem2, OutDone2, OutErr1, OutElem2, OutDone2] =
+          ZChannel.readWithCause(
+            elem => ZChannel.write(elem) *> writer,
+            cause =>
+              ZChannel.refailCause(
+                if (channelFailure eq null)
+                  cause
+                else
+                  cause.fold[Cause[OutErr1]](
+                    Cause.empty,
+                    (e, st) => Cause.fail(e, st),
+                    (t, st) =>
+                      t match {
+                        case t: ChannelFailure if t == channelFailure =>
+                          t.err
+                        case t => Cause.die(t, st)
+                      },
+                    (fid, st) => Cause.interrupt(fid, st)
+                  )(_ ++ _, _ && _, (cause, _) => cause)
+              ),
+            done => ZChannel.succeedNow(done)
+          )
+
+        self >>> reader >>> that >>> writer
       }
-      var channelFailure: ChannelFailure = null
-
-      lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, Nothing, OutElem, OutDone] =
-        ZChannel.readWithCause(
-          elem => ZChannel.write(elem) *> reader,
-          err => {
-            channelFailure = new ChannelFailure(err)
-            ZChannel.refailCause(Cause.die(channelFailure))
-          },
-          done => ZChannel.succeedNow(done)
-        )
-
-      lazy val writer: ZChannel[Env1, OutErr1, OutElem2, OutDone2, OutErr1, OutElem2, OutDone2] =
-        ZChannel.readWithCause(
-          elem => ZChannel.write(elem) *> writer,
-          cause =>
-            ZChannel.refailCause(
-              if (channelFailure eq null)
-                cause
-              else
-                cause.fold[Cause[OutErr1]](
-                  Cause.empty,
-                  (e, st) => Cause.fail(e, st),
-                  (t, st) =>
-                    t match {
-                      case t: ChannelFailure if t == channelFailure =>
-                        t.err
-                      case t => Cause.die(t, st)
-                    },
-                  (fid, st) => Cause.interrupt(fid, st)
-                )(_ ++ _, _ && _, (cause, _) => cause)
-            ),
-          done => ZChannel.succeedNow(done)
-        )
-
-      self >>> reader >>> that >>> writer
-    }
 
   /**
    * Provides the channel with its required environment, which eliminates its

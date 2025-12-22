@@ -823,7 +823,87 @@ object ZChannelSpec extends ZIOBaseSpec {
           _        <- ZChannel.scoped(fiberRef.locallyScoped(false)).runDrain
           value    <- fiberRef.get
         } yield assertTrue(value)
-      }
+      },
+      suite("pipeTo")(
+        test("identity.pipeTo(channel) is ZChannel.Suspend(channel)") {
+          val channel = ZChannel.refailCause(Cause.empty)
+          val result  = ZChannel.identity.pipeTo(channel)
+
+          assertTrue(result match {
+            case ZChannel.Suspend(effect) => effect() == channel
+            case _                        => false
+          })
+        },
+        test("identity.pipeTo(channel) produces correct results") {
+          val channel = ZChannel.writeAll(1, 2, 3)
+          val result  = ZChannel.identity.pipeTo(channel)
+
+          result.runCollect.map { tuple =>
+            assertTrue(tuple._1 == Chunk(1, 2, 3))
+          }
+        },
+        test("identity.pipeTo(channel) produces failure") {
+          val channel = ZChannel.fail("error")
+          val result  = ZChannel.identity.pipeTo(channel)
+
+          result.runDrain.exit.map { exit =>
+            assertTrue(exit == Exit.fail("error"))
+          }
+        },
+        test("channel.pipeTo(identity) is not skipped") {
+          val channel = ZChannel.writeAll(1, 2, 3)
+          val result  = channel.pipeTo(ZChannel.identity)
+
+          assertTrue(result match {
+            case ZChannel.PipeTo(_, _) => true
+            case _                     => false
+          })
+        }
+      ),
+      suite("pipeToOrFail")(
+        test("identity.pipeToOrFail(channel) is skipped") {
+          val channel      = ZChannel.writeAll(1, 2, 3)
+          val identityChan = ZChannel.identity[Nothing, Any, Any]
+          val result       = identityChan.pipeToOrFail(channel)
+
+          assertTrue(result match {
+            case ZChannel.Suspend(effect) => effect() == channel
+            case _                        => false
+          })
+        },
+        test("identity.pipeToOrFail(channel) produces correct results") {
+          val channel = ZChannel.writeAll(1, 2, 3)
+          val identityChan: ZChannel[Any, Nothing, Any, Any, Nothing, Any, Any] =
+            ZChannel.identity[Nothing, Any, Any]
+          val result = identityChan.pipeToOrFail(channel)
+
+          result.runCollect.map { tuple =>
+            assertTrue(tuple._1 == Chunk(1, 2, 3))
+          }
+        },
+        test("identity.pipeToOrFail(channel) produces failure") {
+          val channel      = ZChannel.fail("error")
+          val identityChan = ZChannel.identity[Nothing, Any, Any]
+          val result       = identityChan.pipeToOrFail(channel)
+
+          result.runDrain.exit.map { exit =>
+            assertTrue(exit == Exit.fail("error"))
+          }
+        },
+        test("channel.pipeToOrFail(identity) is not skipped") {
+          val channel = ZChannel.writeAll(1, 2, 3)
+          val result  = channel.pipeToOrFail(ZChannel.identity)
+
+          assertTrue(result match {
+            case ZChannel.Suspend(effect) =>
+              effect() match {
+                case ZChannel.PipeTo(_, _) => true
+                case _                     => false
+              }
+            case _ => false
+          })
+        }
+      )
     )
   )
 
