@@ -124,7 +124,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && (github.actor != 'renovate[bot]') }}
     strategy:
       fail-fast: false
       matrix:
@@ -185,7 +185,7 @@ jobs:
   testJvms:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && (github.actor != 'renovate[bot]') }}
     env:
       CI_RELEASE_MODE: 1 # Run these tests with optimizations enabled
     strategy:
@@ -218,7 +218,7 @@ jobs:
   testPlatforms:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && (github.actor != 'renovate[bot]') }}
     strategy:
       fail-fast: false
       matrix:
