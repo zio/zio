@@ -890,18 +890,30 @@ object ZChannelSpec extends ZIOBaseSpec {
             assertTrue(exit == Exit.fail("error"))
           }
         },
-        test("channel.pipeToOrFail(identity) is not skipped") {
+        test("channel.pipeToOrFail(identity) is skipped") {
           val channel = ZChannel.writeAll(1, 2, 3)
           val result  = channel.pipeToOrFail(ZChannel.identity)
 
           assertTrue(result match {
-            case ZChannel.Suspend(effect) =>
-              effect() match {
-                case ZChannel.PipeTo(_, _) => true
-                case _                     => false
-              }
-            case _ => false
+            case ZChannel.Suspend(effect) => effect() == channel
+            case _                        => false
           })
+        },
+        test("channel.pipeToOrFail(identity) produces correct results") {
+          val channel = ZChannel.writeAll(1, 2, 3)
+          val result  = channel.pipeToOrFail(ZChannel.identity)
+
+          result.runCollect.map { tuple =>
+            assertTrue(tuple._1 == Chunk(1, 2, 3))
+          }
+        },
+        test("channel.pipeToOrFail(identity) produces failure") {
+          val channel = ZChannel.fail("error")
+          val result  = channel.pipeToOrFail(ZChannel.identity)
+
+          result.runDrain.exit.map { exit =>
+            assertTrue(exit == Exit.fail("error"))
+          }
         }
       )
     )

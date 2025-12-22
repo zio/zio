@@ -1086,11 +1086,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def pipeToOrFail[Env1 <: Env, OutErr1 >: OutErr, OutElem2, OutDone2](
     that: => ZChannel[Env1, Nothing, OutElem, OutDone, OutErr1, OutElem2, OutDone2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2] =
-    if (self eq ZChannel.identityAny)
-      ZChannel.suspend(that.asInstanceOf[ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2]])
-    else
-      ZChannel.suspend {
-
+    ZChannel.suspend {
+      val that0 = that
+      if (self eq ZChannel.identityAny) {
+        that0.asInstanceOf[ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2]]
+      } else if (that0 eq ZChannel.identityAny) {
+        self.asInstanceOf[ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2]]
+      } else {
         class ChannelFailure(val err: Cause[OutErr1]) extends Throwable(null, null, true, false) {
           override def getMessage: String = err.unified.headOption.fold("<unknown>")(_.message)
 
@@ -1145,8 +1147,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             done => ZChannel.succeedNow(done)
           )
 
-        self >>> reader >>> that >>> writer
+        self >>> reader >>> that0 >>> writer
       }
+    }
 
   /**
    * Provides the channel with its required environment, which eliminates its
