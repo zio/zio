@@ -9,7 +9,7 @@ import scala.collection.immutable.Queue
 import scala.collection.mutable.Stack
 import scala.collection.mutable.ListBuffer
 
-private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   initialChannel: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
   @volatile private var providedEnv: ZEnvironment[Any],
   executeCloseLastSubstream: URIO[Env, Any] => URIO[Env, Any]
@@ -65,7 +65,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
   }
 
   private[this] final def storeInProgressFinalizer(finalizer: URIO[Env, Any]): Boolean =
-    if ((finalizer eq null) || (finalizer eq ZIO.unit)) {
+    if (isNullOrZIOUnit(finalizer)) {
       clearInProgressFinalizer()
       false
     } else {
@@ -113,16 +113,11 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
 
   def getEmit: OutElem = emitted.asInstanceOf[OutElem]
 
-  def cancelWith(exit: Exit[OutErr, OutDone]): Unit =
-    cancelled = exit
-
   final def run()(implicit trace: Trace): ChannelState[Env, Any] = {
     var result: ChannelState[Env, Any] = null
 
     while (result eq null) {
-      if (cancelled ne null) {
-        result = processCancellation()
-      } else if (activeSubexecutor ne null) {
+      if (activeSubexecutor ne null) {
         result = runSubexecutor()
       } else {
         try {
@@ -191,7 +186,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
             case read: ZChannel.Read[?, ?, ?, ?, ?, ?, ?, ?, ?, ?] =>
               result = ChannelState.Read(
                 input,
-                onEffect = identity[ZIO[Env, Nothing, Unit]],
+                onEffect = ZIO.identityFn[ZIO[Env, Nothing, Unit]],
                 onEmit = { (out: Any) =>
                   try {
                     currentChannel = read.more(out)
@@ -339,8 +334,6 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
 
   private[this] var activeSubexecutor: Subexecutor[Env] = _
 
-  private[this] var cancelled: Exit[OutErr, OutDone] = _
-
   @volatile
   private[this] var closeLastSubstream: URIO[Env, Any] = _
 
@@ -409,13 +402,6 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
           }
       }
     }
-
-  private[this] def processCancellation(): ChannelState[Env, Any] = {
-    currentChannel = null
-    done = cancelled
-    cancelled = null
-    ChannelState.Done
-  }
 
   private def runBracketOut(
     bracketOut: ZChannel.BracketOut[Env, Any, Any]
@@ -498,14 +484,6 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
     val state = subexecDone.foldExit(doneHalt, doneSucceed)
     activeSubexecutor = null
     state
-  }
-
-  def finishWithExit(exit: Exit[Any, Any])(implicit trace: Trace): ZIO[Env, Any, Any] = {
-    val state = exit.foldExit(doneHalt, doneSucceed)
-    activeSubexecutor = null
-
-    if (state eq null) ZIO.unit
-    else state.effect
   }
 
   private final def pullFromUpstream(
@@ -598,7 +576,7 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
 
     ChannelState.Read(
       childExecutor,
-      onEffect = identity[ZIO[Env, Nothing, Unit]],
+      onEffect = ZIO.identityFn[ZIO[Env, Nothing, Unit]],
       onEmit = { (emitted: Any) =>
         this.activeSubexecutor = Subexecutor.Emit(emitted, this.activeSubexecutor)
         null
@@ -616,25 +594,31 @@ private[zio] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, Out
   }
 }
 
-private[zio] object ChannelExecutor {
+private[stream] object ChannelExecutor {
   type Channel[R]            = ZChannel[R, Any, Any, Any, Any, Any, Any]
   type ErasedExecutor[Env]   = ChannelExecutor[Env, Any, Any, Any, Any, Any, Any]
   type ErasedContinuation[R] = ZChannel.Fold.Continuation[R, Any, Any, Any, Any, Any, Any, Any, Any]
   type Finalizer[R]          = Exit[Any, Any] => URIO[R, Any]
 
   sealed trait ChannelState[-R, +E] { self =>
-    def effect: ZIO[R, E, Any] =
-      self match {
-        case ChannelState.Effect(zio) => zio
-        case _                        => ZIO.unit
-      }
-
     def effectOrNullIgnored(implicit trace: Trace): ZIO[R, Nothing, Unit] =
       self match {
         case ChannelState.Effect(zio) => zio.ignore
         case _                        => null
       }
   }
+
+  @inline
+  private def isNullOrZIOUnit[R, E, A](zio: ZIO[R, E, A]): Boolean =
+    (zio eq null) || (zio eq ZIO.unit)
+
+  /**
+   * The maximum number of steps that can be taken without yielding back to the
+   * Fiber runloop. After this, we will yield back to the runloop to maintain
+   * interruptability.
+   */
+  @inline
+  private def MaxSteps = 128
 
   object ChannelState {
     case object Emit                                   extends ChannelState[Any, Nothing]
@@ -651,18 +635,10 @@ private[zio] object ChannelExecutor {
     ) extends ChannelState[R, E]
   }
 
-  def maybeCloseBoth[Env](l: ZIO[Env, Nothing, Any], r: ZIO[Env, Nothing, Any])(implicit
-    trace: Trace
-  ): URIO[Env, Exit[Nothing, Any]] =
-    if ((l eq null) && (r eq null)) null
-    else if ((l ne null) && (r ne null)) l.exit.zipWith(r.exit)(_ *> _)
-    else if (l ne null) l.exit
-    else r.exit
-
-  sealed abstract class Subexecutor[-R] {
+  private[ChannelExecutor] sealed abstract class Subexecutor[-R] {
     def close(ex: Exit[Any, Any])(implicit trace: Trace): URIO[R, Any]
   }
-  object Subexecutor {
+  private[ChannelExecutor] object Subexecutor {
 
     /**
      * Execute upstreamExecutor and for each emitted element, spawn a child
@@ -711,15 +687,12 @@ private[zio] object ChannelExecutor {
     onSuccess: () => ZIO[R, E2, A],
     onFailure: Cause[E] => ZIO[R, E2, A]
   )(implicit trace: Trace): ZIO[R, E2, A] = {
-    val readStack = scala.collection.mutable.Stack
-      .empty[ChannelState.Read[Any, Any]]
+    val readStack = Stack.empty[ChannelState.Read[Any, Any]]
 
     @tailrec def read(opsTillYield: Int, current: ChannelState.Read[Any, Any]): ZIO[R, E2, A] =
-      if (current.upstream eq null) {
-        ZIO.dieMessage("Unexpected end of input for channel execution")
-      } else if (0 == opsTillYield) {
-        readAux(current)
-      } else {
+      if (current.upstream eq null) ZIO.dieMessage("Unexpected end of input for channel execution")
+      else if (0 == opsTillYield) readAux(current)
+      else {
         current.upstream.run() match {
           case _: ChannelState.Emit.type =>
             val emitEffect = current.onEmit(current.upstream.getEmit)
@@ -759,12 +732,12 @@ private[zio] object ChannelExecutor {
       }
 
     def readAux(current: ChannelState.Read[Any, Any]): ZIO[R, E2, A] =
-      ZIO.suspendSucceed(read(128, current))
+      ZIO.suspendSucceed(read(MaxSteps, current))
 
     readAux(r.asInstanceOf[ChannelState.Read[Any, Any]])
   }
 
-  private[zio] def execToPullingChannel[Env](
+  private[ChannelExecutor] def execToPullingChannel[Env](
     exec: ErasedExecutor[Env]
   )(implicit trace: Trace): ZChannel[Env, Any, Any, Any, Any, Any, Any] = {
     val MAX_STEPS = 128
@@ -782,16 +755,8 @@ private[zio] object ChannelExecutor {
         case ChannelState.Effect(zio) =>
           if (zio eq ZIO.unit) ZChannel.suspend(ch2(exec.run()))
           else ZChannel.fromZIO(zio) *> ch2(exec.run())
-        case r @ ChannelState.Read(upstream, onEffect, onEmit, onDone) =>
-          /*ZChannel.fromZIO {
-            ChannelExecutor.readUpstream[Env, Any, Any, Any](
-              r.asInstanceOf[ChannelState.Read[Env, Any]],
-              () => ZIO.unit,
-              ZIO.refailCause
-            )
-          } *> ch2(exec.run())*/
-          readChAux0(r.asInstanceOf[ChannelState.Read[Env, Any]], Stack.empty[ChannelState.Read[Env, Any]]) *>
-            ch2(exec.run())
+        case r: ChannelState.Read[Env, Any] =>
+          readChAux(r, Stack.empty[ChannelState.Read[Env, Any]]) *> ch2(exec.run())
       }
 
     def readChAux(
@@ -804,15 +769,14 @@ private[zio] object ChannelExecutor {
       current: ChannelState.Read[Env, Any],
       readStack: Stack[ChannelState.Read[Env, Any]]
     ): ZChannel[Env, Any, Any, Any, Any, Any, Any] =
-      readCh(current, readStack, MAX_STEPS)
+      readCh(current, readStack, MaxSteps)
 
     @tailrec def readCh(
       current: ChannelState.Read[Env, Any],
       readStack: Stack[ChannelState.Read[Env, Any]],
       opsTillYield: Int
     ): ZChannel[Env, Any, Any, Any, Any, Any, Any] =
-      if (0 == opsTillYield)
-        readChAux(current, readStack)
+      if (0 == opsTillYield) readChAux(current, readStack)
       else {
         current.upstream.run() match {
           case _: ChannelState.Emit.type =>
@@ -822,30 +786,21 @@ private[zio] object ChannelExecutor {
               else ZChannel.fromZIO(emitEffect)
             } else {
               val next = readStack.pop()
-              if (emitEffect eq null)
-                readCh(next, readStack, opsTillYield - 1)
-              else {
-                ZChannel.fromZIO(emitEffect) *> readChAux0(next, readStack)
-              }
+              if (emitEffect eq null) readCh(next, readStack, opsTillYield - 1)
+              else ZChannel.fromZIO(emitEffect) *> readChAux0(next, readStack)
             }
           case _: ChannelState.Done.type =>
             val doneEffect = current.onDone(current.upstream.getDone)
             if (readStack.isEmpty) {
-              if (doneEffect eq null)
-                ZChannel.unit
-              else {
-                ZChannel.fromZIO(doneEffect)
-              }
+              if (doneEffect eq null) ZChannel.unit
+              else ZChannel.fromZIO(doneEffect)
             } else {
               val next = readStack.pop()
-              if (doneEffect eq null)
-                readCh(next, readStack, opsTillYield - 1)
-              else {
-                ZChannel.fromZIO(doneEffect) *> readChAux0(next, readStack)
-              }
+              if (doneEffect eq null) readCh(next, readStack, opsTillYield - 1)
+              else ZChannel.fromZIO(doneEffect) *> readChAux0(next, readStack)
             }
           case ChannelState.Effect(zio) =>
-            ZChannel.fromZIO {
+            ZChannel.fromZIO(
               current
                 .onEffect(zio.asInstanceOf[ZIO[Any, Nothing, Unit]])
                 .catchAllCause { cause =>
@@ -853,8 +808,7 @@ private[zio] object ChannelExecutor {
                   if (doneEffect eq null) Exit.unit
                   else doneEffect
                 }
-            } *>
-              readChAux0(current, readStack)
+            ) *> readChAux0(current, readStack)
           case r2: ChannelState.Read[Env, Any] =>
             readStack.push(current)
             readCh(r2, readStack, opsTillYield - 1)
@@ -869,7 +823,7 @@ private[zio] object ChannelExecutor {
 /**
  * Consumer-side view of [[SingleProducerAsyncInput]] for variance purposes.
  */
-private[zio] trait AsyncInputConsumer[+Err, +Elem, +Done] {
+private[stream] sealed trait AsyncInputConsumer[+Err, +Elem, +Done] {
   def takeWith[A](
     onError: Cause[Err] => A,
     onElement: Elem => A,
@@ -880,7 +834,7 @@ private[zio] trait AsyncInputConsumer[+Err, +Elem, +Done] {
 /**
  * Producer-side view of [[SingleProducerAsyncInput]] for variance purposes.
  */
-private[zio] trait AsyncInputProducer[-Err, -Elem, -Done] {
+private[stream] sealed trait AsyncInputProducer[-Err, -Elem, -Done] {
   def emit(el: Elem)(implicit trace: Trace): UIO[Any]
   def done(a: Done)(implicit trace: Trace): UIO[Any]
   def error(cause: Cause[Err])(implicit trace: Trace): UIO[Any]
@@ -903,7 +857,7 @@ private[zio] trait AsyncInputProducer[-Err, -Elem, -Done] {
  *   - Trying to publish another emit/error/done after an error/done have
  *     already been published results in an interruption.
  */
-private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
+private[stream] final class SingleProducerAsyncInput[Err, Elem, Done](
   ref: Ref[SingleProducerAsyncInput.State[Err, Elem, Done]]
 ) extends AsyncInputConsumer[Err, Elem, Done]
     with AsyncInputProducer[Err, Elem, Done] {
@@ -970,7 +924,7 @@ private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
     }.flatten
 }
 
-private[zio] object SingleProducerAsyncInput {
+private[stream] object SingleProducerAsyncInput {
   def make[Err, Elem, Done](implicit trace: Trace): UIO[SingleProducerAsyncInput[Err, Elem, Done]] =
     ZIO.fiberIdWith(fiberId => Exit.succeed(unsafe.make(fiberId)(Unsafe)))
 
@@ -983,8 +937,8 @@ private[zio] object SingleProducerAsyncInput {
     }
   }
 
-  sealed trait State[Err, Elem, Done]
-  object State {
+  private[SingleProducerAsyncInput] sealed trait State[Err, Elem, Done]
+  private[SingleProducerAsyncInput] object State {
     case class Empty[Err, Elem, Done](notifyProducer: Promise[Nothing, Unit]) extends State[Err, Elem, Done]
     case class Emit[Err, Elem, Done](notifyConsumers: Queue[Promise[Err, Either[Done, Elem]]])
         extends State[Err, Elem, Done]

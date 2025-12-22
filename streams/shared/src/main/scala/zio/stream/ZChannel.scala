@@ -1227,7 +1227,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             () => self,
             null,
-            executeCloseLastSubstream = identity[URIO[Env, Any]]
+            executeCloseLastSubstream = ZIO.identityFn[URIO[Env, Any]]
           )
         )
       ) { (exec, exit: Exit[OutErr, OutDone]) =>
@@ -1652,20 +1652,18 @@ object ZChannel {
     private[zio] final case class Finalizer[Env, OutErr, OutDone](finalizer: Exit[OutErr, OutDone] => URIO[Env, Any])
         extends Continuation[Env, Any, Any, Any, OutErr, Nothing, Nothing, OutDone, Nothing]
 
-    private[this] def SuccessIdentity(implicit
-      trace: Trace
-    ): Any => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Any] =
-      ZChannel.succeedNow(_)
+    private[this] val SuccessIdentity: Any => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Any] =
+      ZChannel.succeedNow(_)(Trace.empty)
 
-    private[zio] def successIdentity[Z](implicit trace: Trace): Z => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
+    private[stream] def successIdentity[Z](implicit
+      trace: Trace
+    ): Z => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
       SuccessIdentity.asInstanceOf[Z => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z]]
 
-    private[this] def FailCauseIdentity(implicit
-      trace: Trace
-    ): Cause[Any] => ZChannel[Any, Any, Any, Any, Any, Nothing, Nothing] =
+    private[this] val FailCauseIdentity: Cause[Any] => ZChannel[Any, Any, Any, Any, Any, Nothing, Nothing] =
       ZChannel.refailCause
 
-    private[zio] def failCauseIdentity[E](implicit
+    private[stream] def failCauseIdentity[E](implicit
       trace: Trace
     ): Cause[E] => ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
       FailCauseIdentity.asInstanceOf[Cause[E] => ZChannel[Any, Any, Any, Any, E, Nothing, Nothing]]
