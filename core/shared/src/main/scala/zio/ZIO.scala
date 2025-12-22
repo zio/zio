@@ -796,7 +796,7 @@ sealed trait ZIO[-R, +E, +A]
     ZIO.uninterruptibleMask { restore =>
       def interrupt(fiber: Fiber.Runtime[Any, Any]): ZIO[Any, Nothing, Any] =
         ZIO.fiberIdWith { fiberId =>
-          if (fiberId == fiber.id) Exit.unit else fiber.interrupt
+          if (fiberId == fiber.id) Exit.unit else fiber.interruptAs(fiberId)
         }
 
       scope.fork.flatMap { child =>
