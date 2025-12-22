@@ -1906,11 +1906,7 @@ object ZChannel {
     Fail(() => cause)
 
   def identity[Err, Elem, Done](implicit trace: Trace): ZChannel[Any, Err, Elem, Done, Err, Elem, Done] =
-    readWithCause(
-      (in: Elem) => write(in) *> identity[Err, Elem, Done],
-      (err: Cause[Err]) => failCause(err),
-      (done: Done) => succeedNow(done)
-    )
+    identityAny.asInstanceOf[ZChannel[Any, Err, Elem, Done, Err, Elem, Done]]
 
   def interruptAs(fiberId: => FiberId)(implicit
     trace: Trace
@@ -2431,4 +2427,13 @@ object ZChannel {
 
   private[stream] val unitChannelFn: Any => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Unit] = (_: Any) => unit
   private val unitFn2: (Any, Any) => Unit                                                        = (_, _) => ()
+  private val failCauseFn: Cause[Any] => ZChannel[Any, Any, Any, Any, Any, Any, Any]             = cause => Fail(() => cause)
+  private val identityAny: ZChannel[Any, Any, Any, Any, Any, Any, Any] =
+    Read(
+      (in: Any) => ZChannel.Fold(Emit(in), new ZChannel.Fold.K((_: Any) => identityAny, failCauseFn)),
+      new Fold.K[Any, Any, Any, Any, Any, Any, Any, Any, Any](
+        (done: Any) => SucceedNow(done),
+        failCauseFn
+      )
+    )
 }
