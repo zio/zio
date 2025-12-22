@@ -1219,7 +1219,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             () => self,
             null,
-            executeCloseLastSubstream = identity[URIO[Env, Any]]
+            executeCloseLastSubstream = ZIO.identityFn[URIO[Env, Any]]
           )
         )
       ) { (exec, exit: Exit[OutErr, OutDone]) =>
