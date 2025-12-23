@@ -56,6 +56,8 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific {
    */
   def gracefulShutdownTimeout: Duration = Duration.Infinity
 
+  def runtime: Runtime[Any] = Runtime.default
+
   /**
    * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application
    * that executes the logic of both applications.
@@ -89,6 +91,12 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific {
       }
     }
 
+  protected[zio] def exitUnsafe(exit: Exit[Nothing, ExitCode])(implicit unsafe: Unsafe): Unit =
+    exit match {
+      case Exit.Success(code) => exitUnsafe(code)(unsafe)
+      case _                  => exitUnsafe(ExitCode.failure)(unsafe)
+    }
+
   /**
    * Invokes the main app. Designed primarily for testing.
    */
@@ -105,8 +113,6 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific {
       } yield result).provideLayer(newLayer)
     }
 
-  def runtime: Runtime[Any] = Runtime.default
-
   protected def installSignalHandlers(runtime: Runtime[Any])(implicit trace: Trace): UIO[Any] =
     ZIO.ignore {
       if (ZIOApp.installedSignals.compareAndSet(false, true)) {
@@ -119,6 +125,12 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific {
         }
       }
     }
+
+  protected[zio] def interruptRootFibers(mainFiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
+    for {
+      roots <- Fiber.roots
+      _     <- Fiber.interruptAll(roots.view.filter(fiber => fiber.isAlive() && (fiber.id != mainFiberId)))
+    } yield ()
 }
 
 object ZIOApp {

@@ -79,15 +79,6 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
       }
 
     shutdownLatch.set(())
-    exit0 match {
-      case Exit.Success(code) => exitUnsafe(code)
-      case f                  => exitUnsafe(ExitCode.failure)
-    }
+    exitUnsafe(exit0)(Unsafe)
   }
-
-  private def interruptRootFibers(mainFiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
-    for {
-      roots <- Fiber.roots
-      _     <- Fiber.interruptAll(roots.view.filter(fiber => fiber.isAlive() && (fiber.id != mainFiberId)))
-    } yield ()
 }
