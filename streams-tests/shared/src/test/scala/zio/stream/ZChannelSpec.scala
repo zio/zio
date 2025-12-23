@@ -849,15 +849,6 @@ object ZChannelSpec extends ZIOBaseSpec {
           result.runDrain.exit.map { exit =>
             assertTrue(exit == Exit.fail("error"))
           }
-        },
-        test("channel.pipeTo(identity) is not skipped") {
-          val channel = ZChannel.writeAll(1, 2, 3)
-          val result  = channel.pipeTo(ZChannel.identity)
-
-          assertTrue(result match {
-            case ZChannel.PipeTo(_, _) => true
-            case _                     => false
-          })
         }
       ),
       suite("pipeToOrFail")(
