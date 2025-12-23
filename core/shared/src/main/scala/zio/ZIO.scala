@@ -336,7 +336,7 @@ sealed trait ZIO[-R, +E, +A]
   final def catchNonFatalOrDie[R1 <: R, E2, A1 >: A](
     h: E => ZIO[R1, E2, A1]
   )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: Trace): ZIO[R1, E2, A1] =
-    self.foldZIO[R1, E2, A1](e => if (!nonFatal(e)) ZIO.die(e) else h(e), ZIO.successFn)
+    self.catchAll(h)
 
   /**
    * Recovers from some or all of the error cases.
