@@ -27,6 +27,16 @@
       "matchPackageNames": [
         "@zio.dev{/,}**"
       ]
+    },
+    {
+      "description": "Disable patch updates for non-ZIO npm packages",
+      "matchPackagePatterns": [
+        "^(?!@zio\\.dev/)"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "enabled": false
     }
   ]
 }
