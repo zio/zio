@@ -57,7 +57,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
 
   type State
 
-  sealed trait UnsafeAPI {
+  private[zio] sealed trait UnsafeAPI {
     def driver(implicit trace: Trace, unsafe: Unsafe): Schedule.Driver[self.State, Env, In, Out]
   }
 
@@ -985,18 +985,18 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
           now <- Clock.currentDateTime
           dec <- self.step(now, in, ref.get._2)
           v <- dec match {
-                 case (state, out, Done) =>
-                   ref.set((Some(out), state))
-                   Exit.failNone.asInstanceOf[Exit[None.type, Out]]
                  case (state, out, Continue(interval)) =>
                    ref.set((Some(out), state))
-                   ZIO.sleep(Duration.fromInterval(now, interval.start)) as out
+                   ZIO.sleep(Duration.fromInterval(now, interval.start)).as(out)
+                 case (state, out, _ /* Done */ ) =>
+                   ref.set((Some(out), state))
+                   Exit.failNone.asInstanceOf[Exit[None.type, Out]]
                }
         } yield v
 
       val last = ZIO.suspendSucceed(ref.get match {
-        case (None, _)    => ZIO.fail(new NoSuchElementException("There is no value left"))
         case (Some(b), _) => Exit.succeed(b)
+        case _            => ZIO.fail(new NoSuchElementException("There is no value left"))
       })
 
       val reset = ZIO.succeed(ref.set((None, self.initial)))

@@ -5024,11 +5024,25 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     effect: => ZIO[R, E, A],
     schedule: => Schedule[R, A, Any]
   )(implicit trace: Trace): ZStream[R, E, A] =
-    ZStream.fromZIO(effect).flatMap { a =>
-      val driver = schedule.unsafe.driver(trace, Unsafe)
-      ZStream.succeed(a) ++
-        ZStream.unfoldZIO(a)(driver.next(_).foldZIO(Exit.succeed, _ => effect.map(nextA => Some(nextA -> nextA))))
-    }
+    new ZStream(
+      ZChannel.unwrap {
+        val effect0 = effect
+        val driver  = schedule.unsafe.driver(trace, Unsafe)
+        def loop(a: A): ZChannel[R, Any, Any, Any, E, Chunk[A], Any] =
+          ZChannel.unwrap {
+            driver
+              .next(a)
+              .foldZIO(
+                _ => Exit.succeed(ZChannel.unit),
+                _ => effect0.map(nextA => ZChannel.write(Chunk.single(nextA)) *> loop(nextA))
+              )
+          }
+
+        effect0.map { a =>
+          ZChannel.write(Chunk.single(a)) *> loop(a)
+        }
+      }
+    )
 
   /**
    * Accesses the specified service in the environment of the effect.
