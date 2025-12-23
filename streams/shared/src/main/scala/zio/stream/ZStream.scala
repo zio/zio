@@ -2619,33 +2619,30 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def repeatElementsWith[R1 <: R, E1 >: E, B, C](
     schedule: => Schedule[R1, A, B]
   )(f: A => C, g: B => C)(implicit trace: Trace): ZStream[R1, E1, C] = new ZStream(
-    self.channel >>> ZChannel.unwrap {
-      for {
-        driver <- schedule.driver
-      } yield {
-        def feed(in: Chunk[A]): ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[C], Unit] =
-          in.headOption.fold(loop)(a => ZChannel.write(Chunk.single(f(a))) *> step(in.drop(1), a))
+    self.channel >>> {
+      val driver = schedule.unsafe.driver(trace, Unsafe)
+      def feed(in: Chunk[A]): ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[C], Unit] =
+        in.headOption.fold(loop)(a => ZChannel.write(Chunk.single(f(a))) *> step(in.drop(1), a))
 
-        def step(in: Chunk[A], a: A): ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[C], Unit] = {
-          val advance = driver.next(a).as(ZChannel.write(Chunk.single(f(a))) *> step(in, a))
-          val reset: ZIO[R1, Nothing, ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[C], Unit]] =
-            for {
-              b <- driver.last.orDie
-              _ <- driver.reset
-            } yield ZChannel.write(Chunk.single(g(b))) *> feed(in)
+      def step(in: Chunk[A], a: A): ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[C], Unit] = {
+        val advance = driver.next(a).as(ZChannel.write(Chunk.single(f(a))) *> step(in, a))
+        val reset: ZIO[R1, Nothing, ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[C], Unit]] =
+          for {
+            b <- driver.last.orDie
+            _ <- driver.reset
+          } yield ZChannel.write(Chunk.single(g(b))) *> feed(in)
 
-          ZChannel.unwrap(advance orElse reset)
-        }
-
-        lazy val loop: ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[C], Unit] =
-          ZChannel.readWithCause(
-            feed,
-            ZChannel.refailCause,
-            ZChannel.unitChannelFn
-          )
-
-        loop
+        ZChannel.unwrap(advance orElse reset)
       }
+
+      lazy val loop: ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[C], Unit] =
+        ZChannel.readWithCause(
+          feed,
+          ZChannel.refailCause,
+          ZChannel.unitChannelFn
+        )
+
+      loop
     }
   )
 
@@ -2658,25 +2655,22 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def repeatWith[R1 <: R, B, C](
     schedule: => Schedule[R1, Any, B]
   )(f: A => C, g: B => C)(implicit trace: Trace): ZStream[R1, E, C] =
-    ZStream.unwrap(
-      for {
-        driver <- schedule.driver
-      } yield {
-        val scheduleOutput = driver.last.orDie.map(g)
-        val process        = self.map(f).channel
-        lazy val loop: ZChannel[R1, Any, Any, Any, E, Chunk[C], Unit] =
-          ZChannel.unwrap(
-            driver
-              .next(())
-              .fold(
-                ZChannel.unitChannelFn,
-                _ => process *> ZChannel.unwrap(scheduleOutput.map(o => ZChannel.write(Chunk.single(o)))) *> loop
-              )
-          )
+    ZStream.suspend {
+      val driver         = schedule.unsafe.driver(trace, Unsafe)
+      val scheduleOutput = driver.last.orDie.map(g)
+      val process        = self.map(f).channel
+      lazy val loop: ZChannel[R1, Any, Any, Any, E, Chunk[C], Unit] =
+        ZChannel.unwrap(
+          driver
+            .next(())
+            .fold(
+              ZChannel.unitChannelFn,
+              _ => process *> ZChannel.unwrap(scheduleOutput.map(o => ZChannel.write(Chunk.single(o)))) *> loop
+            )
+        )
 
-        new ZStream(process *> loop)
-      }
-    )
+      new ZStream(process *> loop)
+    }
 
   /**
    * When the stream fails, retry it according to the given schedule
@@ -2695,11 +2689,10 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def retry[R1 <: R](
     schedule: => Schedule[R1, E, _]
   )(implicit trace: Trace): ZStream[R1, E, A] =
-    ZStream.unwrap {
-      for {
-        driver <- schedule.driver
-      } yield {
-        def loop: ZStream[R1, E, A] = self.catchAll { e =>
+    ZStream.suspend {
+      val driver = schedule.unsafe.driver(trace, Unsafe)
+      lazy val loop: ZStream[R1, E, A] =
+        self.catchAll { e =>
           ZStream.unwrap(
             driver
               .next(e)
@@ -2709,8 +2702,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
               )
           )
         }
-        loop
-      }
+      loop
     }
 
   /**
@@ -3077,7 +3069,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           ZChannel.succeedNow(_)
         )
 
-    new ZStream(ZChannel.fromZIO(schedule.driver).flatMap(self.channel >>> loop(_, Chunk.ChunkIterator.empty, 0)))
+    new ZStream(
+      ZChannel.suspend {
+        val driver = schedule.unsafe.driver(trace, Unsafe)
+        self.channel >>> loop(driver, Chunk.ChunkIterator.empty, 0)
+      }
+    )
   }
 
   /**
@@ -4692,7 +4689,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromSchedule[R, A](schedule: => Schedule[R, Any, A])(implicit
     trace: Trace
   ): ZStream[R, Nothing, A] =
-    unwrap(schedule.driver.map(driver => repeatZIOOption(driver.next(()))))
+    ZStream.suspend {
+      val driver = schedule.unsafe.driver(trace, Unsafe)
+      repeatZIOOption(driver.next(()))
+    }
 
   /**
    * Creates a stream from a [[zio.stm.TPriorityQueue]] of values.
@@ -5024,11 +5024,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     effect: => ZIO[R, E, A],
     schedule: => Schedule[R, A, Any]
   )(implicit trace: Trace): ZStream[R, E, A] =
-    ZStream((effect, schedule)).flatMap { case (effect, schedule) =>
-      ZStream.fromZIO(effect zip schedule.driver).flatMap { case (a, driver) =>
-        ZStream.succeed(a) ++
-          ZStream.unfoldZIO(a)(driver.next(_).foldZIO(ZIO.succeed(_), _ => effect.map(nextA => Some(nextA -> nextA))))
-      }
+    ZStream.fromZIO(effect).flatMap { a =>
+      val driver = schedule.unsafe.driver(trace, Unsafe)
+      ZStream.succeed(a) ++
+        ZStream.unfoldZIO(a)(driver.next(_).foldZIO(Exit.succeed, _ => effect.map(nextA => Some(nextA -> nextA))))
     }
 
   /**
@@ -5150,7 +5149,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         }
       }
 
-    new ZStream(loop(s))
+    new ZStream(ZChannel.suspend(loop(s)))
   }
 
   /**

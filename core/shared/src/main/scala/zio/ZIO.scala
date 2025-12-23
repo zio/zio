@@ -1607,26 +1607,24 @@ sealed trait ZIO[-R, +E, +A]
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
   )(implicit trace: Trace): ZIO[R1, E2, Either[C, B]] =
     ZIO.suspendSucceed {
-      val schedule = schedule0
+      val driver = schedule0.unsafe.driver(trace, Unsafe)
 
-      schedule.driver.flatMap { driver =>
-        def loop(a: A): ZIO[R1, E2, Either[C, B]] =
-          driver
-            .next(a)
-            .foldZIO(
-              _ => driver.last.orDie.map(Right(_)),
-              b =>
-                self.foldZIO(
-                  e => orElse(e, Some(b)).map(Left(_)),
-                  a => loop(a)
-                )
-            )
+      def loop(a: A): ZIO[R1, E2, Either[C, B]] =
+        driver
+          .next(a)
+          .foldZIO(
+            _ => driver.last.orDie.map(Right(_)),
+            b =>
+              self.foldZIO(
+                e => orElse(e, Some(b)).map(Left(_)),
+                a => loop(a)
+              )
+          )
 
-        self.foldZIO(
-          e => orElse(e, None).map(Left(_)),
-          a => loop(a)
-        )
-      }
+      self.foldZIO(
+        e => orElse(e, None).map(Left(_)),
+        a => loop(a)
+      )
     }
 
   /**
@@ -1694,8 +1692,8 @@ sealed trait ZIO[-R, +E, +A]
     policy: => Schedule[R1, E, S]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E, A] =
     ZIO.suspendSucceed {
-
-      def loop(driver: Schedule.Driver[Any, R1, E, S]): ZIO[R1, E, A] =
+      val driver = policy.unsafe.driver(trace, Unsafe)
+      def loop(): ZIO[R1, E, A] =
         self.catchAllCause { cause =>
           cause.failureOrCause.fold(
             e =>
@@ -1703,13 +1701,13 @@ sealed trait ZIO[-R, +E, +A]
                 .next(e)
                 .foldZIO(
                   _ => driver.last.orDie.flatMap(_ => Exit.failCause(cause)),
-                  _ => loop(driver)
+                  _ => loop()
                 ),
             cause => Exit.failCause(cause)
           )
         }
 
-      policy.driver.flatMap(loop(_))
+      loop()
     }
 
   /**
@@ -1751,9 +1749,8 @@ sealed trait ZIO[-R, +E, +A]
     orElse: (E, Out) => ZIO[R1, E1, B]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, Either[B, A]] =
     ZIO.suspendSucceed {
-      val schedule = schedule0
-
-      def loop(driver: Schedule.Driver[Any, R1, E, Out]): ZIO[R1, E1, Either[B, A]] =
+      val driver = schedule0.unsafe.driver(trace, Unsafe)
+      def loop(): ZIO[R1, E1, Either[B, A]] =
         self
           .map(Right(_))
           .catchAll(e =>
@@ -1761,11 +1758,11 @@ sealed trait ZIO[-R, +E, +A]
               .next(e)
               .foldZIO(
                 _ => driver.last.orDie.flatMap(out => orElse(e, out).map(Left(_))),
-                _ => loop(driver)
+                _ => loop()
               )
           )
 
-      schedule.driver.flatMap(loop(_))
+      loop()
     }
 
   /**
@@ -1875,14 +1872,12 @@ sealed trait ZIO[-R, +E, +A]
     schedule0: => Schedule[R1, A1, B]
   )(implicit trace: Trace): ZIO[R1, E, B] =
     ZIO.suspendSucceed {
-      val schedule = schedule0
+      val driver = schedule0.unsafe.driver(trace, Unsafe)
 
-      schedule.driver.flatMap { driver =>
-        def loop(a: A1): ZIO[R1, E, B] =
-          driver.next(a).foldZIO(_ => driver.last.orDie, _ => self.flatMap(loop))
+      def loop(a: A1): ZIO[R1, E, B] =
+        driver.next(a).foldZIO(_ => driver.last.orDie, _ => self.flatMap(loop))
 
-        loop(a)
-      }
+      loop(a)
     }
 
   /**
