@@ -17,10 +17,25 @@ on:
     types: [update-docs]
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      only-website-package: ${{ steps.filter.outputs.only-website-package }}
+    steps:
+      - uses: actions/checkout@v6.0.1
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            only-website-package:
+              - 'website/package.json'
+          predicate-quantifier: 'every'
+
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && (github.actor != 'renovate[bot]') }}
+    needs: [detect-changes]
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && !(github.actor == 'renovate[bot]' && needs.detect-changes.outputs.only-website-package == 'true') }}
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v6.0.1
@@ -40,7 +55,8 @@ jobs:
   publishLocal:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && (github.actor != 'renovate[bot]') }}
+    needs: [detect-changes]
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && !(github.actor == 'renovate[bot]' && needs.detect-changes.outputs.only-website-package == 'true') }}
     env:
       CI_RELEASE_MODE: 1 # Needed to enable optimizers
     strategy:
@@ -124,7 +140,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && (github.actor != 'renovate[bot]') }}
+    needs: [detect-changes]
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && !(github.actor == 'renovate[bot]' && needs.detect-changes.outputs.only-website-package == 'true') }}
     strategy:
       fail-fast: false
       matrix:
@@ -185,7 +202,8 @@ jobs:
   testJvms:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && (github.actor != 'renovate[bot]') }}
+    needs: [detect-changes]
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && !(github.actor == 'renovate[bot]' && needs.detect-changes.outputs.only-website-package == 'true') }}
     env:
       CI_RELEASE_MODE: 1 # Run these tests with optimizations enabled
     strategy:
@@ -218,7 +236,8 @@ jobs:
   testPlatforms:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && (github.actor != 'renovate[bot]') }}
+    needs: [detect-changes]
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && !(github.actor == 'renovate[bot]' && needs.detect-changes.outputs.only-website-package == 'true') }}
     strategy:
       fail-fast: false
       matrix:
@@ -250,7 +269,7 @@ jobs:
   ci:
     if: always()
     runs-on: ubuntu-latest
-    needs: [lint, publishLocal, build-website, test, testJvms, testPlatforms]
+    needs: [detect-changes, lint, publishLocal, build-website, test, testJvms, testPlatforms]
     steps:
       - uses: re-actors/alls-green@release/v1
         with:
