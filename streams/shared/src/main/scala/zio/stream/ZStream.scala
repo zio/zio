@@ -4254,7 +4254,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromChunkHubScoped[O](
     hub: => Hub[Chunk[O]]
   )(implicit trace: Trace): ZIO[Scope, Nothing, ZStream[Any, Nothing, O]] =
-    hub.subscribe.map(queue => fromChunkQueue(queue))
+    ZIO.suspendSucceed(hub.subscribe).map(queue => fromChunkQueue(queue))
 
   /**
    * Creates a stream from a subscription to a hub.

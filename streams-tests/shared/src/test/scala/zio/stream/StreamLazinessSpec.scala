@@ -2,7 +2,6 @@ package zio.stream
 
 import zio._
 import zio.test._
-import zio.test.TestAspect.failing
 import zio.metrics.MetricLabel
 import zio.internal.stacktracer.SourceLocation
 
@@ -50,9 +49,9 @@ object StreamLazinessSpec extends ZIOBaseSpec {
         lazy1("finalizer")(ZStream.finalizer(_)),
         lazy1("fromChunk")(ZStream.fromChunk(_)),
         lazy1("fromChunkHub")(ZStream.fromChunkHub(_)),
-        lazy1("fromChunkHubScoped")(ZStream.fromChunkHubScoped(_)) @@ failing,
+        lazy1("fromChunkHubScoped")(ZStream.fromChunkHubScoped(_)),
         lazy1("fromChunkHubWithShutdown")(ZStream.fromChunkHubWithShutdown(_)),
-        lazy1("fromChunkHubScopedWithShutdown")(ZStream.fromChunkHubScopedWithShutdown(_)) @@ failing,
+        lazy1("fromChunkHubScopedWithShutdown")(ZStream.fromChunkHubScopedWithShutdown(_)),
         lazy1("fromChunkQueue")(ZStream.fromChunkQueue(_)),
         lazy1("fromChunkQueueWithShutdown")(ZStream.fromChunkQueueWithShutdown(_)),
         lazy2("fromHub")(ZStream.fromHub(_, _)),
