@@ -1,32 +1,275 @@
 package zio
 
 import zio.test._
+import zio.test.TestAspect.failing
+import zio.metrics.MetricLabel
+import zio.internal.stacktracer.SourceLocation
+import scala.annotation.nowarn
 
+@nowarn("cat=deprecation")
 object ZIOLazinessSpec extends ZIOBaseSpec {
+  def lazy1[A](name: String)(f: (=> A) => Any)(implicit t: Trace, sl: SourceLocation): Spec[Any, Nothing] =
+    lazy2[A, Any](name)((a, _) => f(a))
 
-  def assertLazy(f: (=> Nothing) => Any): UIO[TestResult] =
-    ZIO.succeed {
-      val _ = f(throw new RuntimeException("not lazy"))
+  def lazy2[A, B](name: String)(f: (=> A, => B) => Any)(implicit t: Trace, sl: SourceLocation): Spec[Any, Nothing] =
+    lazy3[A, B, Any](name)((a, b, _) => f(a, b))
+
+  def lazy3[A, B, C](
+    name: String
+  )(f: (=> A, => B, => C) => Any)(implicit t: Trace, sl: SourceLocation): Spec[Any, Nothing] =
+    test(name) {
+      final class ArgumentNotLazy(n: Int) extends RuntimeException(s"Argument $n is not lazy")
+      val _ = f(
+        throw new ArgumentNotLazy(1),
+        throw new ArgumentNotLazy(2),
+        throw new ArgumentNotLazy(3)
+      )
       assertCompletes
     }
 
-  def spec = suite("ZIOLazinessSpec")(
-    test("die")(assertLazy(ZIO.die)),
-    test("dieMessage")(assertLazy(ZIO.dieMessage)),
-    test("fail")(assertLazy(ZIO.fail)),
-    test("failCause")(assertLazy(ZIO.failCause)),
-    test("fromEither")(assertLazy(ZIO.fromEither)),
-    test("fromFiber")(assertLazy(ZIO.fromFiber)),
-    test("fromOption")(assertLazy(ZIO.fromOption)),
-    test("fromTry")(assertLazy(ZIO.fromTry)),
-    test("getOrFailUnit")(assertLazy(ZIO.getOrFailUnit)),
-    test("interruptAs")(assertLazy(ZIO.interruptAs)),
-    test("left")(assertLazy(ZIO.left)),
-    test("onExecutor")(assertLazy(ZIO.onExecutor)),
-    test("provideEnvironment")(assertLazy(ZIO.provideEnvironment)),
-    test("right")(assertLazy(ZIO.right)),
-    test("sleep")(assertLazy(ZIO.sleep)),
-    test("some")(assertLazy(ZIO.some)),
-    test("succeed")(assertLazy(ZIO.succeed))
-  )
+  def spec =
+    suite("ZIOLazinessSpec")(
+      suite("ZIO companion object")(
+        lazy1[ZIO[Any, Nothing, Any]]("acquireRelease")(e => ZIO.acquireRelease(e)(_ => ZIO.unit)),
+        lazy1[ZIO[Any, Nothing, Any]]("acquireReleaseInterruptible")(e => ZIO.acquireReleaseInterruptible(e)(ZIO.unit)),
+        lazy1[ZIO[Any, Nothing, Any]]("acquireReleaseInterruptibleExit")(e =>
+          ZIO.acquireReleaseInterruptibleExit(e)(_ => ZIO.unit)
+        ),
+        lazy1[ZIO[Any, Nothing, Any]]("acquireReleaseWith")(e => ZIO.acquireReleaseWith(e)(_ => ZIO.unit)),
+        lazy1[ZIO[Any, Nothing, Unit]]("acquireReleaseExitWith")(e =>
+          ZIO.acquireReleaseExitWith(e).apply[Any, Nothing, Unit]((_, _) => ZIO.unit)(_ => ZIO.unit)
+        ),
+        lazy1("addFinalizer")(ZIO.addFinalizer(_)),
+        lazy1("absolve")(ZIO.absolve(_)),
+        lazy1("blocking")(ZIO.blocking(_)),
+        lazy1("collectAllDiscard")(ZIO.collectAllDiscard(_)),
+        lazy1("collectAllParDiscard")(ZIO.collectAllParDiscard(_)),
+        lazy3("cond")((a, b, c) => ZIO.cond(a, b, c)),
+        lazy1("debug")(ZIO.debug(_)),
+        lazy1("die")(ZIO.die),
+        lazy1("dieMessage")(ZIO.dieMessage),
+        lazy1("done")(ZIO.done(_)),
+        lazy1("fail")(ZIO.fail),
+        lazy1("failCause")(ZIO.failCause),
+        lazy1("flatten")(ZIO.flatten(_)),
+        lazy1("forkAllDiscard")(ZIO.forkAllDiscard(_)) @@ failing,
+        suite("from")(
+          lazy1[Either[Cause[Int], String]]("from(Either(Cause))")(e => ZIO.from(e)),
+          lazy1[Left[Cause[Int], String]]("from(Left(Cause))")(e => ZIO.from(e)),
+          lazy1[Right[Cause[Int], String]]("from(Right(Cause))")(e => ZIO.from(e)),
+          lazy1[Fiber[Int, String]]("from(Fiber)")(e => ZIO.from(e)),
+          lazy1[Fiber.Runtime[Int, String]]("from(Fiber.Runtime)")(e => ZIO.from(e)),
+          lazy1[Fiber.Synthetic[Int, String]]("from(Fiber.Synthetic)")(e => ZIO.from(e)),
+          lazy1[ZIO[Any, Int, Fiber[Int, String]]]("from(ZIO(Fiber))")(e => ZIO.from(e)),
+          lazy1[ZIO[Any, Int, Fiber.Runtime[Int, String]]]("from(ZIO(Fiber.Runtime))")(e => ZIO.from(e)),
+          lazy1[ZIO[Any, Int, Fiber.Synthetic[Int, String]]]("from(ZIO(Fiber.Synthetic))")(e => ZIO.from(e)),
+          lazy1[scala.concurrent.Future[String]]("from(Future)")(e => ZIO.from(e)),
+          lazy1[Option[String]]("from(Option)")(e => ZIO.from(e)),
+          lazy1[None.type]("from(None)")(e => ZIO.from(e)),
+          lazy1[Some[String]]("from(Some)")(e => ZIO.from(e)),
+          lazy1[scala.concurrent.Promise[String]]("from(Promise)")(e => ZIO.from(e)),
+          lazy1[scala.util.Try[String]]("from(Try)")(e => ZIO.from(e)),
+          lazy1[scala.util.Failure[String]]("from(Failure)")(e => ZIO.from(e)),
+          lazy1[scala.util.Success[String]]("from(Success)")(e => ZIO.from(e)),
+          lazy1[Either[Int, String]]("from(Either)")(e => ZIO.from(e)),
+          lazy1[Left[Int, String]]("from(Left)")(e => ZIO.from(e)),
+          lazy1[Right[Int, String]]("from(Right)")(e => ZIO.from(e))
+        ),
+        lazy1[ZIO[Any, Nothing, AutoCloseable]]("fromAutoCloseable")(e => ZIO.fromAutoCloseable(e)),
+        lazy1("fromEither")(ZIO.fromEither),
+        lazy1("fromEitherCause")(ZIO.fromEitherCause(_)),
+        lazy1("fromFiber")(ZIO.fromFiber),
+        lazy1("fromFiberZIO")(ZIO.fromFiberZIO(_)),
+        lazy1("fromOption")(ZIO.fromOption),
+        lazy1("fromPromiseScala")(ZIO.fromPromiseScala(_)),
+        lazy1("fromTry")(ZIO.fromTry),
+        lazy1("getOrFailUnit")(ZIO.getOrFailUnit),
+        lazy1("getOrFail")(ZIO.getOrFail(_)),
+        lazy2[Int, Option[String]]("getOrFailWith")((e, v) => ZIO.getOrFailWith(e)(v)),
+        lazy1("ifZIO")(ZIO.ifZIO(_)),
+        lazy1("interruptAs")(ZIO.interruptAs),
+        lazy1("interruptible")(ZIO.interruptible(_)),
+        lazy2[Boolean, ZIO[Any, Nothing, Any]]("whileLoop")((check, body) => ZIO.whileLoop(check)(body)(_ => ())),
+        lazy1("left")(ZIO.left),
+        lazy1("log")(ZIO.log(_)),
+        lazy1("logCause(Cause)")(ZIO.logCause(_)),
+        lazy2[String, Cause[Any]]("logCause(String, Cause)")((a, b) => ZIO.logCause(a, b)),
+        lazy2[String, String]("logAnnotate(String, String)")((a, b) => ZIO.logAnnotate(a, b)),
+        lazy1[LogAnnotation]("logAnnotate(LogAnnotation)")(e => ZIO.logAnnotate(e)),
+        lazy1[Set[LogAnnotation]]("logAnnotate(Set[LogAnnotation])")(e => ZIO.logAnnotate(e)),
+        lazy2[String, String]("logAnnotateScoped(String, String)")((a, b) => ZIO.logAnnotateScoped(a, b)),
+        lazy1[LogAnnotation]("logAnnotateScoped(LogAnnotation)")(e => ZIO.logAnnotateScoped(e)),
+        lazy1[Set[LogAnnotation]]("logAnnotateScoped(Set[LogAnnotation])")(e => ZIO.logAnnotateScoped(e)),
+        lazy1("logDebug")(ZIO.logDebug(_)),
+        lazy2[String, Cause[Any]]("logDebugCause(String, Cause)")((a, b) => ZIO.logDebugCause(a, b)),
+        lazy1("logDebugCause(Cause)")(ZIO.logDebugCause(_)),
+        lazy1("logError")(ZIO.logError(_)),
+        lazy2[String, Cause[Any]]("logErrorCause(String, Cause)")((a, b) => ZIO.logErrorCause(a, b)),
+        lazy1("logErrorCause(Cause)")(ZIO.logErrorCause(_)),
+        lazy1("logFatal")(ZIO.logFatal(_)),
+        lazy2[String, Cause[Any]]("logFatalCause(String, Cause)")((a, b) => ZIO.logFatalCause(a, b)),
+        lazy1("logFatalCause(Cause)")(ZIO.logFatalCause(_)),
+        lazy1("logInfo")(ZIO.logInfo(_)),
+        lazy2[String, Cause[Any]]("logInfoCause(String, Cause)")((a, b) => ZIO.logInfoCause(a, b)),
+        lazy1("logInfoCause(Cause)")(ZIO.logInfoCause(_)),
+        lazy1("logSpan")(ZIO.logSpan(_)),
+        lazy1("logSpanScoped")(ZIO.logSpanScoped(_)),
+        lazy1("logTrace")(ZIO.logTrace(_)),
+        lazy2[String, Cause[Any]]("logTraceCause(String, Cause)")((a, b) => ZIO.logTraceCause(a, b)),
+        lazy1("logTraceCause(Cause)")(ZIO.logTraceCause(_)),
+        lazy1("logWarning")(ZIO.logWarning(_)),
+        lazy2[String, Cause[Any]]("logWarningCause(String, Cause)")((a, b) => ZIO.logWarningCause(a, b)),
+        lazy1("logWarningCause(Cause)")(ZIO.logWarningCause(_)),
+        lazy1("noneOrFail")(ZIO.noneOrFail(_)),
+        lazy1[Option[Int]]("noneOrFailWith")(e => ZIO.noneOrFailWith(e)(identity)),
+        lazy1("not")(ZIO.not(_)),
+        lazy1[Executor]("onExecutor")(ZIO.onExecutor(_)(ZIO.unit)),
+        lazy1("onExecutorScoped")(ZIO.onExecutorScoped(_)),
+        lazy1("parallelFinalizers")(ZIO.parallelFinalizers(_)),
+        lazy1("provideEnvironment")(ZIO.provideEnvironment),
+        lazy2[ZIO[Any, Nothing, Int], Iterable[ZIO[Any, Nothing, Int]]]("reduceAll")((a, as) =>
+          ZIO.reduceAll(a, as)(_ + _)
+        ),
+        lazy2[ZIO[Any, Nothing, Int], Iterable[ZIO[Any, Nothing, Int]]]("reduceAllPar")((a, as) =>
+          ZIO.reduceAllPar(a, as)(_ + _)
+        ),
+        lazy2[Int, ZIO[Any, Nothing, Int]]("replicateZIO")((n, effect) => ZIO.replicateZIO(n)(effect)),
+        lazy2[Int, ZIO[Any, Nothing, Int]]("replicateZIODiscard")((n, effect) => ZIO.replicateZIODiscard(n)(effect)),
+        lazy1("right")(ZIO.right),
+        lazy1("sequentialFinalizers")(ZIO.sequentialFinalizers(_)),
+        lazy1("setFiberRefs")(ZIO.setFiberRefs(_)),
+        lazy1[Int]("setState")(s => ZIO.setState(s)),
+        lazy1("shift")(ZIO.shift(_)),
+        lazy1("sleep")(ZIO.sleep),
+        lazy1("some")(ZIO.some),
+        lazy1("succeed")(ZIO.succeed(_)),
+        lazy1("suspend")(ZIO.suspend(_)),
+        lazy1("suspendSucceed")(ZIO.suspendSucceed(_)),
+        lazy2[String, String]("tagged(String, String)")((a, b) => ZIO.tagged(a, b)),
+        lazy1[MetricLabel]("tagged(MetricLabel)")(e => ZIO.tagged(e)),
+        lazy1[Set[MetricLabel]]("tagged(Set[MetricLabel])")(e => ZIO.tagged(e)),
+        lazy2[String, String]("taggedScoped(String, String)")((a, b) => ZIO.taggedScoped(a, b)),
+        lazy1[MetricLabel]("taggedScoped(MetricLabel)")(e => ZIO.taggedScoped(e)),
+        lazy1[Set[MetricLabel]]("taggedScoped(Set[MetricLabel])")(e => ZIO.taggedScoped(e)),
+        lazy1("uninterruptible")(ZIO.uninterruptible(_)),
+        lazy2[Boolean, ZIO[Any, Nothing, Int]]("unless")((p, zio) => ZIO.unless(p)(zio)),
+        lazy2[Boolean, ZIO[Any, Nothing, Int]]("unlessDiscard")((p, zio) => ZIO.unlessDiscard(p)(zio)),
+        lazy1("unlessZIO")(ZIO.unlessZIO(_)),
+        lazy1("unlessZIODiscard")(ZIO.unlessZIODiscard(_)),
+        lazy1("unsandbox")(ZIO.unsandbox(_)),
+        lazy1[Iterable[Int]]("validateDiscard")(as => ZIO.validateDiscard(as)(_ => Exit.failNone)),
+        lazy1[Iterable[Int]]("validateParDiscard")(as => ZIO.validateParDiscard(as)(_ => Exit.failNone)),
+        lazy2[Boolean, ZIO[Any, Nothing, Int]]("when")((p, zio) => ZIO.when(p)(zio)),
+        lazy2[Boolean, ZIO[Any, Nothing, Int]]("whenDiscard")((p, zio) => ZIO.whenDiscard(p)(zio)),
+        lazy1[Int]("whenCase")(e => ZIO.whenCase(e) { case _ => ZIO.unit }),
+        lazy1[Int]("whenCaseDiscard")(e => ZIO.whenCaseDiscard(e) { case _ => ZIO.unit }),
+        lazy1[ZIO[Any, Nothing, Int]]("whenCaseZIO")(e => ZIO.whenCaseZIO(e) { case _ => ZIO.unit }),
+        lazy1[ZIO[Any, Nothing, Int]]("whenCaseZIODiscard")(e => ZIO.whenCaseZIODiscard(e) { case _ => ZIO.unit }),
+        lazy1("whenZIO")(ZIO.whenZIO(_)),
+        lazy1("whenZIODiscard")(ZIO.whenZIODiscard(_)),
+        lazy2[Clock, ZIO[Any, Any, Any]]("withClock")((c, z) => ZIO.withClock(c)(z)) @@ failing,
+        lazy1[Clock]("withClockScoped")(c => ZIO.withClockScoped(c)),
+        lazy2[ConfigProvider, ZIO[Any, Any, Any]]("withConfigProvider")((c, z) =>
+          ZIO.withConfigProvider(c)(z)
+        ) @@ failing,
+        lazy2[Console, ZIO[Any, Any, Any]]("withConsole")((c, z) => ZIO.withConsole(c)(z)) @@ failing,
+        lazy1[Console]("withConsoleScoped")(c => ZIO.withConsoleScoped(c)),
+        lazy2[ZLogger[String, Any], ZIO[Any, Any, Any]]("withLogger")((l, z) => ZIO.withLogger(l)(z)) @@ failing,
+        lazy1[Int]("withParallelism")(n => ZIO.withParallelism(n)(ZIO.unit)),
+        lazy1[Int]("withParallelismMask")(n => ZIO.withParallelismMask(n)(_ => ZIO.unit)),
+        lazy2[Random, ZIO[Any, Any, Any]]("withRandom")((r, z) => ZIO.withRandom(r)(z)) @@ failing,
+        lazy1[Random]("withRandomScoped")(r => ZIO.withRandomScoped(r)),
+        lazy2[System, ZIO[Any, Any, Any]]("withSystem")((s, z) => ZIO.withSystem(s)(z)) @@ failing,
+        lazy1[System]("withSystemScoped")(s => ZIO.withSystemScoped(s))
+      ),
+      suite("ZIO instance methods")(
+        lazy1[ZIO[Any, Nothing, Nothing]]("*>")(s => ZIO.unit *> s),
+        lazy1[ZIO[Any, Nothing, Nothing]]("<*")(s => ZIO.unit <* s),
+        lazy1[ZIO[Any, Nothing, Nothing]]("<*>")(s => ZIO.unit <*> s),
+        lazy1[ZIO[Any, Nothing, Nothing]]("&>")(s => ZIO.unit &> s),
+        lazy1[ZIO[Any, Nothing, Nothing]]("<&")(s => ZIO.unit <& s),
+        lazy1[ZIO[Any, Nothing, Nothing]]("<&>")(s => ZIO.unit <&> s),
+        lazy1[ZIO[Any, Int, Nothing]]("<>")(s => ZIO.fail(1) <> s),
+        lazy1[ZIO[Any, Int, Nothing]]("<+>")(s => ZIO.fail(1) <+> s),
+        lazy1[ZIO[Any, Int, Nothing]]("<|>")(s => ZIO.fail(1) <|> s),
+        lazy1("as")(ZIO.unit.as(_)),
+        lazy1("cached")(ZIO.unit.cached(_)),
+        lazy1[Int]("collect")(e => ZIO.succeed(1).collect(e) { case n => n }),
+        lazy1[Int]("collectZIO")(e => ZIO.succeed(1).collectZIO(e) { case n => ZIO.succeed(n) }),
+        lazy1[String]("debug")(ZIO.unit.debug(_)),
+        lazy1("delay")(ZIO.unit.delay(_)),
+        lazy1("ensuring")(ZIO.unit.ensuring(_)),
+        lazy1[Throwable]("filterOrDie")(t => ZIO.succeed(1).filterOrDie(_ => true)(t)),
+        lazy1[String]("filterOrDieMessage")(m => ZIO.succeed(1).filterOrDieMessage(_ => true)(m)),
+        lazy1[ZIO[Any, Nothing, Int]]("filterOrElse")(z => ZIO.succeed(1).filterOrElse(_ => true)(z)),
+        lazy1[Int]("filterOrFail")(e => ZIO.succeed(1).filterOrFail(_ => true)(e)),
+        lazy1[Iterable[ZIO[Any, Int, Int]]]("firstSuccessOf")(rest => ZIO.succeed(1).firstSuccessOf(rest)),
+        lazy1[Int]("flattenErrorOption")(e => ZIO.fail(Option(1)).flattenErrorOption(e)),
+        lazy1("forkIn")(ZIO.unit.forkIn(_)),
+        lazy1("interruptStatus")(ZIO.unit.interruptStatus(_)),
+        lazy1[Promise[Int, Int]]("intoPromise")(p => ZIO.succeed(1).intoPromise(p)),
+        lazy1[String]("logError")(ZIO.unit.logError(_)),
+        lazy1("logSpan")(ZIO.unit.logSpan(_)),
+        lazy1("onExecutor")(ZIO.unit.onExecutor(_)),
+        lazy1("onExecutionContext")(ZIO.unit.onExecutionContext(_)),
+        lazy1[UIO[Any]]("onInterrupt(effect)")(ZIO.unit.onInterrupt(_)),
+        lazy1[Set[FiberId] => UIO[Any]]("onInterrupt(Set[FiberId] => effect)")(ZIO.unit.onInterrupt(_)) @@ failing,
+        lazy1("orElseFail")(ZIO.fail(1).orElseFail(_)),
+        lazy1("orElseSucceed")(ZIO.fail(1).orElseSucceed(_)),
+        lazy1("provideEnvironment")(ZIO.environmentWith[Int](identity).provideEnvironment(_)) @@ failing,
+        lazy1[ZIO[Any, Int, Nothing]]("race")(that => ZIO.never.race(that)),
+        lazy1[ZIO[Any, Int, Nothing]]("raceAwait")(that => ZIO.never.raceAwait(that)),
+        lazy1[ZIO[Any, Int, Nothing]]("raceFirst")(that => ZIO.never.raceFirst(that)),
+        lazy1[ZIO[Any, Int, Nothing]]("raceFirstAwait")(that => ZIO.never.raceFirstAwait(that)),
+        lazy1[ZIO[Any, Int, Nothing]]("raceEither")(that => ZIO.never.raceEither(that)),
+        lazy1[ZIO[Any, Int, Nothing]]("raceWith")(that =>
+          ZIO.never.raceWith(that)(
+            (exit, fiber) => fiber.interrupt *> ZIO.done(exit),
+            (exit, fiber) => fiber.interrupt *> ZIO.done(exit)
+          )
+        ),
+        lazy1[Schedule[Any, Any, Any]]("repeat")(s => ZIO.unit.repeat(s)),
+        lazy1("repeatN")(ZIO.unit.repeatN(_)),
+        lazy1[Int]("repeatUntilEquals")(a => ZIO.succeed(1).repeatUntilEquals(a)),
+        lazy1[Int]("repeatWhileEquals")(a => ZIO.succeed(1).repeatWhileEquals(a)),
+        lazy1("replicateZIO")(ZIO.unit.replicateZIO(_)),
+        lazy1("replicateZIODiscard")(ZIO.unit.replicateZIODiscard(_)),
+        lazy1("retryN")(ZIO.fail(1).retryN(_)),
+        lazy1[Int]("retryUntilEquals")(e => ZIO.fail(1).retryUntilEquals(e)),
+        lazy1[Int]("retryWhileEquals")(e => ZIO.fail(1).retryWhileEquals(e)),
+        lazy1[Schedule[Any, Any, Any]]("schedule")(s => ZIO.unit.schedule(s)),
+        lazy1[Int]("scheduleFrom")(a => ZIO.succeed(1).scheduleFrom(a)(Schedule.stop)),
+        lazy1[Schedule[Any, Any, Any]]("scheduleFork")(s => ZIO.unit.scheduleFork(s)),
+        lazy1[Supervisor[Any]]("supervised")(s => ZIO.unit.supervised(s)),
+        lazy1[ZIO[Any, Nothing, Long]]("timedWith")(nt => ZIO.unit.timedWith(nt)),
+        lazy1("timeout")(ZIO.unit.timeout(_)),
+        lazy2[Int, Duration]("timeoutFail")((e, d) => ZIO.unit.timeoutFail(e)(d)),
+        lazy2[Cause[Int], Duration]("timeoutFailCause")((c, d) => ZIO.unit.timeoutFailCause(c)(d)),
+        lazy1[Int]("timeoutTo")(b => ZIO.unit.timeoutTo(b)),
+        lazy1("unless")(ZIO.unit.unless(_)),
+        lazy1("unlessDiscard")(ZIO.unit.unlessDiscard(_)),
+        lazy1[ZIO[Any, Nothing, Boolean]]("unlessZIO")(p => ZIO.unit.unlessZIO(p)),
+        lazy1[ZIO[Any, Nothing, Boolean]]("unlessZIODiscard")(p => ZIO.unit.unlessZIODiscard(p)),
+        lazy1[ZIO[Any, Nothing, Int]]("validatePar")(that => ZIO.succeed(1).validatePar(that)),
+        lazy1[ZIO[Any, Nothing, Int]]("validateWith")(that => ZIO.succeed(1).validateWith(that)((_, _) => 1)),
+        lazy1[ZIO[Any, Nothing, Int]]("validateWithPar")(that => ZIO.succeed(1).validateWithPar(that)((_, _) => 1)),
+        lazy1("when")(ZIO.unit.when(_)),
+        lazy1("whenDiscard")(ZIO.unit.whenDiscard(_)),
+        lazy1[FiberRef[Int]]("whenFiberRef")(ref => ZIO.unit.whenFiberRef(ref)(_ => true)) @@ failing,
+        lazy1[Ref[Int]]("whenRef")(ref => ZIO.unit.whenRef(ref)(_ => true)) @@ failing,
+        lazy1[Clock]("withClock")(c => ZIO.unit.withClock(c)),
+        lazy1[Console]("withConsole")(c => ZIO.unit.withConsole(c)),
+        lazy1[ZLogger[String, Any]]("withLogger")(l => ZIO.unit.withLogger(l)),
+        lazy1("withParallelism")(ZIO.unit.withParallelism(_)),
+        lazy1[Random]("withRandom")(r => ZIO.unit.withRandom(r)),
+        lazy1[System]("withSystem")(s => ZIO.unit.withSystem(s)),
+        lazy1[ZIO[Any, Nothing, Int]]("zip")(that => ZIO.unit.zip(that)),
+        lazy1[ZIO[Any, Nothing, Int]]("zipLeft")(that => ZIO.unit.zipLeft(that)),
+        lazy1[ZIO[Any, Nothing, Int]]("zipPar")(that => ZIO.unit.zipPar(that)),
+        lazy1[ZIO[Any, Nothing, Int]]("zipParLeft")(that => ZIO.unit.zipParLeft(that)),
+        lazy1[ZIO[Any, Nothing, Int]]("zipParRight")(that => ZIO.unit.zipParRight(that)),
+        lazy1[ZIO[Any, Nothing, Int]]("zipRight")(that => ZIO.unit.zipRight(that)),
+        lazy1[ZIO[Any, Nothing, Int]]("zipWith")(that => ZIO.unit.zipWith(that)((_, _) => 1))
+      )
+    )
 }
