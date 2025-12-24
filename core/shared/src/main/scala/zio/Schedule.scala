@@ -975,7 +975,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   final def unit(implicit trace: Trace): Schedule.WithState[self.State, Env, In, Unit] =
     self.as(())
 
-  private[zio] final val unsafe: UnsafeAPI = new UnsafeAPI {
+  private[zio] final def unsafe: UnsafeAPI = new UnsafeAPI {
 
     final def driver(implicit trace: Trace, unsafe: Unsafe): Schedule.Driver[self.State, Env, In, Out] = {
       val ref = new AtomicReference[(Option[Out], self.State)]((None, self.initial))
