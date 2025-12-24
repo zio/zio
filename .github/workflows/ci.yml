@@ -7,6 +7,8 @@ env:
 
 on:
   pull_request:
+    paths-ignore:
+      - 'website/package.json'
   push:
     branches:
       - 'series/2.x'
@@ -20,7 +22,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && (github.actor != 'renovate[bot]') }}
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v6.0.1
@@ -40,7 +42,7 @@ jobs:
   publishLocal:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && (github.actor != 'renovate[bot]') }}
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     env:
       CI_RELEASE_MODE: 1 # Needed to enable optimizers
     strategy:
@@ -124,7 +126,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && (github.actor != 'renovate[bot]') }}
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     strategy:
       fail-fast: false
       matrix:
@@ -185,7 +187,7 @@ jobs:
   testJvms:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && (github.actor != 'renovate[bot]') }}
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     env:
       CI_RELEASE_MODE: 1 # Run these tests with optimizations enabled
     strategy:
@@ -218,7 +220,7 @@ jobs:
   testPlatforms:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) && (github.actor != 'renovate[bot]') }}
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     strategy:
       fail-fast: false
       matrix:
