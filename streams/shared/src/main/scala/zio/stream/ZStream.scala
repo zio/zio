@@ -2622,7 +2622,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     self.channel >>> {
       val driver = schedule.unsafe.driver(trace, Unsafe)
       def feed(in: Chunk[A]): ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[C], Unit] =
-        in.headOption.fold(loop)(a => ZChannel.write(Chunk.single(f(a))) *> step(in.drop(1), a))
+        if (in.isEmpty) loop
+        else {
+          val a = in(0)
+          ZChannel.write(Chunk.single(f(a))) *> step(in.drop(1), a)
+        }
 
       def step(in: Chunk[A], a: A): ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[C], Unit] = {
         val advance = driver.next(a).as(ZChannel.write(Chunk.single(f(a))) *> step(in, a))
