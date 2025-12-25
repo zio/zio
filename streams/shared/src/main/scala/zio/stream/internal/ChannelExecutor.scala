@@ -508,7 +508,7 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
         if (!isNullOrZIOUnit(close)) {
           val closeLast = ZIO.uninterruptible(close)
 
-          executeCloseLastSubstream(closeLast).map { _ =>
+          executeCloseLastSubstream(closeLast).flatMap { _ =>
             val childExecutor: ErasedExecutor[Env] =
               new ChannelExecutor(
                 () => self.createChild(emitted),
@@ -518,6 +518,7 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
             childExecutor.input = input
 
             activeSubexecutor = Subexecutor.PullFromChild[Env](childExecutor, self)
+            Exit.unit
           }
         } else {
           val childExecutor: ErasedExecutor[Env] =
