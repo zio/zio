@@ -22,7 +22,7 @@
     "@docusaurus/theme-mermaid": "^3.5.2",
     "@docusaurus/theme-search-algolia": "^3.5.2",
     "@mdx-js/react": "^3.0.1",
-    "@tailwindcss/postcss": "4.1.13",
+    "@tailwindcss/postcss": "4.1.18",
     "@zio.dev/izumi-reflect": "2024.11.11-da5b828d4d6e",
     "@zio.dev/zio-amqp": "1.0.0-alpha.3",
     "@zio.dev/zio-aws": "2025.2.9-b3c92258585e",
@@ -33,8 +33,8 @@
     "@zio.dev/zio-direct": "1.0.0-RC7",
     "@zio.dev/zio-dynamodb": "1.0.0-RC24",
     "@zio.dev/zio-ftp": "0.5.2",
-    "@zio.dev/zio-json": "0.7.44",
-    "@zio.dev/zio-kafka": "3.0.0",
+    "@zio.dev/zio-json": "0.8.0",
+    "@zio.dev/zio-kafka": "3.2.0",
     "@zio.dev/zio-lambda": "1.0.5",
     "@zio.dev/zio-logging": "2.5.2",
     "@zio.dev/zio-meta": "0.0.0--21-54bc2e8b-SNAPSHOT",
@@ -51,8 +51,8 @@
     "@zio.dev/zio-sbt": "0.4.9",
     "@zio.dev/zio-schema": "1.7.5",
     "@zio.dev/zio-sqs": "2022.11.23-5a814304824c",
-    "@zio.dev/zio-streams-compress": "1.1.2",
-    "@zio.dev/zio-telemetry": "3.1.10",
+    "@zio.dev/zio-streams-compress": "1.1.3",
+    "@zio.dev/zio-telemetry": "3.1.12",
     "@zio.dev/zio2-interop-cats2": "2023.1.23-571dabdd91f9",
     "babel": "^6.23.0",
     "blended-include-code-plugin": "0.1.2",
@@ -63,12 +63,12 @@
     "prism-react-renderer": "1.3.5",
     "prism-themes": "1.9.0",
     "prismjs": "^1.29.0",
-    "react": "19.1.1",
-    "react-dom": "19.1.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-icons": "5.5.0",
     "react-markdown": "10.1.0",
     "remark-kroki-plugin": "0.1.1",
-    "tailwindcss": "4.1.13",
+    "tailwindcss": "4.1.18",
     "tslib": "^2.4.0"
   },
   "resolutions": {
@@ -88,11 +88,11 @@
   },
   "devDependencies": {
     "@tsconfig/docusaurus": "2.0.7",
-    "@types/react": "19.1.13",
+    "@types/react": "19.2.7",
     "@types/react-helmet": "6.1.11",
     "@types/react-router-dom": "5.3.3",
-    "prettier": "3.6.2",
-    "prettier-plugin-tailwindcss": "0.6.14",
-    "typescript": "5.9.2"
+    "prettier-plugin-tailwindcss": "0.7.2",
+    "prettier": "3.7.4",
+    "typescript": "5.9.3"
   }
 }
