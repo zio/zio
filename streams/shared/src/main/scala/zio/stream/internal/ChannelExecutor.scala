@@ -210,7 +210,7 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
             case ZChannel.ConcatAll(combineSubK, combineSubKAndInner, value, k) =>
               val innerExecuteLastClose =
                 (f: URIO[Env, Any]) =>
-                  if ((f eq ZIO.unit) || (f eq Exit.unit)) Exit.unit
+                  if (isNullOrZIOUnit(f)) Exit.unit
                   else
                     ZIO.succeed {
                       val prevLastClose = closeLastSubstream
@@ -499,13 +499,13 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
     ChannelState.Read(
       self.upstreamExecutor,
       onEffect = (effect: ZIO[Env, Nothing, Unit]) => {
-        val close     = this.closeLastSubstream
-        val closeLast = if (close ne null) ZIO.uninterruptible(close) else ZIO.unit
-        executeCloseLastSubstream(closeLast) *> effect
+        val close = this.closeLastSubstream
+        if (isNullOrZIOUnit(close)) effect
+        else executeCloseLastSubstream(ZIO.uninterruptible(close)) *> effect
       },
       onEmit = { (emitted: Any) =>
         val close = this.closeLastSubstream
-        if (close ne null) {
+        if (!isNullOrZIOUnit(close)) {
           val closeLast = ZIO.uninterruptible(close)
 
           executeCloseLastSubstream(closeLast).map { _ =>
@@ -563,13 +563,11 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
         )
 
       val thisClose = childExecutor.close(Exit.succeed(doneValue))
-      if (thisClose ne null) {
-        val lastClose = closeLastSubstream
-        if (lastClose ne null) {
-          closeLastSubstream = lastClose *> thisClose
-        } else {
-          closeLastSubstream = thisClose
-        }
+      val lastClose = closeLastSubstream
+      if (isNullOrZIOUnit(lastClose)) {
+        closeLastSubstream = thisClose
+      } else {
+        closeLastSubstream = lastClose *> thisClose
       }
 
       replaceSubexecutor(modifiedParent)
@@ -611,7 +609,7 @@ private[stream] object ChannelExecutor {
 
   @inline
   private def isNullOrZIOUnit[R, E, A](zio: ZIO[R, E, A]): Boolean =
-    (zio eq null) || (zio eq ZIO.unit)
+    (zio eq null) || (zio eq ZIO.unit) || (zio eq Exit.unit)
 
   /**
    * The maximum number of steps that can be taken without yielding back to the
