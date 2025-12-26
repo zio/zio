@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 @Warmup(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 1)
 @Measurement(iterations = 4, timeUnit = TimeUnit.SECONDS, time = 1)
 @Fork(4)
-class SemaphoreBenchmark {
+class TSemaphoreBenchmark {
 
   @Param(Array("1", "10"))
   var nSTM: Int = _
