@@ -526,15 +526,17 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that makes a test that failed for any reason pass. Note that if
-   * the test passes this aspect will make it fail.
+   * the test passes, this aspect will make it fail instead.
    */
   val failing: TestAspectPoly =
     failing(_ => true)
 
   /**
    * An aspect that makes a test that failed for the specified failure pass.
-   * Note that the test will fail for other failures and also if it passes
-   * correctly.
+   *
+   * Note that the test will:
+   *   1. Fail with a `RuntimeException` if the test passes.
+   *   1. Re-raise failures that don't satisfy the provided assertion.
    */
   def failing[E0](assertion: TestFailure[E0] => Boolean): TestAspect[Nothing, Any, Nothing, E0] =
     new TestAspect.PerTest[Nothing, Any, Nothing, E0] {
@@ -544,7 +546,7 @@ object TestAspect extends TimeoutVariants {
         test.foldZIO(
           failure =>
             if (assertion(failure)) TestSuccess.succeedEmptyExit
-            else Exit.fail(TestFailure.die(new RuntimeException("did not fail as expected"))),
+            else Exit.fail(failure),
           _ => Exit.fail(TestFailure.die(new RuntimeException("did not fail as expected")))
         )
     }

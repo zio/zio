@@ -399,10 +399,16 @@ object TestClock extends Serializable {
     private def suspendedWarningStart(implicit trace: Trace): UIO[Unit] =
       suspendedWarningState.updateSomeZIO { case SuspendedWarningData.Start =>
         ZIO.succeedUnsafe { implicit unsafe =>
-          val f = ZIO
-            .logWarning(suspendedWarning)
-            .zipRight(suspendedWarningState.set(SuspendedWarningData.done))
-          val cancel = Clock.globalScheduler.schedule(() => Runtime.default.unsafe.run(f), 5.seconds)
+          val cancel = Clock.globalScheduler.schedule(
+            () => {
+              val f = ZIO.suspendSucceed {
+                logMessageWithTrace(suspendedWarning)
+                suspendedWarningState.set(SuspendedWarningData.done)
+              }
+              Runtime.default.unsafe.run(f)
+            },
+            5.seconds
+          )
           SuspendedWarningData.pending(cancel)
         }
       }
@@ -413,9 +419,8 @@ object TestClock extends Serializable {
      */
     private def warningStart(implicit trace: Trace): UIO[Unit] =
       warningState.updateSomeZIO { case _: WarningData.Start.type =>
-        ZIO.succeedUnsafe { implicit unsafe =>
-          val f      = ZIO.logWarning(warning)
-          val cancel = Clock.globalScheduler.schedule(() => Runtime.default.unsafe.run(f), 5.seconds)
+        ZIO.succeed {
+          val cancel = Clock.globalScheduler.schedule(() => logMessageWithTrace(warning), 5.seconds)(Unsafe)
           WarningData.pending(cancel)
         }
       }

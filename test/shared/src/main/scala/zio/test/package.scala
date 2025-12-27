@@ -332,23 +332,19 @@ package object test extends CompileVariants {
                    .forkDaemon
         result <- promise.await
         _ <- ZIO.whenZIODiscard(child.hasChildrenAlive) {
-               implicit val unsafe: Unsafe = Unsafe
                val cancelWarning = Clock.globalScheduler.schedule(
                  () =>
-                   Runtime.default.unsafe.run(
-                     ZIO
-                       .logWarning({
-                         val quotedLabel = "\"" + label + "\""
-                         s"Warning: ZIO Test is attempting to interrupt fiber " +
-                           s"${child.id} forked in test $quotedLabel due to automatic, " +
-                           "supervision, but interruption has taken more than 10 " +
-                           "seconds to complete. This may indicate a resource leak. " +
-                           "Make sure you are not forking a fiber in an " +
-                           "uninterruptible region."
-                       })
-                   ),
+                   logMessageWithTrace({
+                     val quotedLabel = "\"" + label + "\""
+                     s"Warning: ZIO Test is attempting to interrupt fiber " +
+                       s"${child.id} forked in test $quotedLabel due to automatic, " +
+                       "supervision, but interruption has taken more than 10 " +
+                       "seconds to complete. This may indicate a resource leak. " +
+                       "Make sure you are not forking a fiber in an " +
+                       "uninterruptible region."
+                   }),
                  10.seconds
-               )
+               )(Unsafe)
                (child.interrupt *> ZIO.succeed(cancelWarning())).forkDaemon
              }
       } yield result
@@ -1126,11 +1122,8 @@ package object test extends CompileVariants {
   private def warningEmptyGen[R, E, A](
     f: (() => Boolean) => ZIO[R, E, A]
   )(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceedUnsafe { implicit unsafe =>
-      val cancel = Clock.globalScheduler.schedule(
-        () => Runtime.default.unsafe.run(ZIO.logWarning(warning)),
-        5.seconds
-      )
+    ZIO.suspendSucceed {
+      val cancel = Clock.globalScheduler.schedule(() => logMessageWithTrace(warning), 5.seconds)(Unsafe)
       f(cancel).onInterrupt(ZIO.succeed(cancel()))
     }
 
@@ -1294,5 +1287,29 @@ package object test extends CompileVariants {
       self.zipWith(that)(_ && _)
     def ||[R1 <: R, E1 >: E](that: => ZIO[R1, E1, TestResult])(implicit trace: Trace): ZIO[R1, E1, TestResult] =
       self.zipWith(that)(_ || _)
+  }
+
+  private[test] def logMessageWithTrace(message: String)(implicit trace: Trace): Unit = {
+    val sb = new StringBuilder(message.length + 128)
+
+    def appendQuoted(label: String): Unit =
+      if (label.indexOf(' ') < 0) sb.append(label)
+      else sb.append('"').append(label).append('"')
+
+    sb
+      .append("message=\"")
+      .append(message)
+      .append('"')
+
+    val parsedTrace = Trace.parseOrNull(trace)
+    if (parsedTrace ne null) {
+      sb.append(" location=")
+      appendQuoted(parsedTrace.location)
+      sb.append(" file=")
+      appendQuoted(parsedTrace.file)
+      sb.append(" line=").append(parsedTrace.line)
+    }
+
+    println(sb.toString())
   }
 }

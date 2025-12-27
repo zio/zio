@@ -17,9 +17,9 @@
 package zio.test
 
 import zio.Clock.ClockLive
+import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.ConsoleRenderer
-import zio._
 
 import java.util.concurrent.TimeUnit
 
@@ -82,31 +82,31 @@ object TestExecutor {
                       val latch = Promise.unsafe.make[Nothing, Either[Unit, Unit]](FiberId.None)
                       for {
                         timeoutOpt <- overrideShutdownTimeout.get
-                        cancelWarning = {
-                          val timeout = timeoutOpt.getOrElse(60.seconds)
-                          Clock.globalScheduler.schedule(
-                            () => {
-                              Runtime.default.unsafe.run(
-                                ZIO
-                                  .logWarning({
-                                    "Warning: ZIO Test is attempting to close the scope of suite " +
-                                      s"${labels.reverse.mkString(" - ")} in $fullyQualifiedName, " +
-                                      s"but closing the scope has taken more than ${timeout.toSeconds} seconds to " +
-                                      "complete. This may indicate a resource leak."
-                                  })
-                              )
-                              latch.unsafe.done(exitLeftUnit)
-                            },
-                            timeout
-                          )
+                        finalizer <- {
+                          val cancelWarning = {
+                            val timeout = timeoutOpt.getOrElse(60.seconds)
+                            Clock.globalScheduler.schedule(
+                              () => {
+                                logMessageWithTrace(
+                                  "Warning: ZIO Test is attempting to close the scope of suite " +
+                                    s"${labels.reverse.mkString(" - ")} in $fullyQualifiedName, " +
+                                    s"but closing the scope has taken more than ${timeout.toSeconds} seconds to " +
+                                    "complete. This may indicate a resource leak."
+                                )
+                                latch.unsafe.done(exitLeftUnit)
+                              },
+                              timeout
+                            )
+                          }
+
+                          scope
+                            .close(exit)
+                            .ensuring(ZIO.succeed {
+                              latch.unsafe.done(exitRightUnit)
+                              cancelWarning(): Unit
+                            })
+                            .forkDaemon
                         }
-                        finalizer <- scope
-                                       .close(exit)
-                                       .ensuring(ZIO.succeed {
-                                         latch.unsafe.done(exitRightUnit)
-                                         cancelWarning(): Unit
-                                       })
-                                       .forkDaemon
                         exit <- latch.await
                         _    <- finalizer.join.whenDiscard(exit.isRight)
                       } yield ()
