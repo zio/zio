@@ -39,7 +39,14 @@ object MimaSettings {
         exclude[Problem]("zio.Promise$internal*"),
         exclude[Problem]("zio.Queue#Strategy*.shutdown"),
         exclude[Problem]("zio.ZLayer$MemoMap*"),
-        exclude[DirectMissingMethodProblem]("zio.ZLayer#MemoMap*")
+        exclude[DirectMissingMethodProblem]("zio.ZLayer#MemoMap*"),
+        exclude[Problem]("zio.Queue#Strategy*.shutdown"),
+        exclude[Problem]("zio.test.TestClock#SuspendedWarningData*"),
+        exclude[Problem]("zio.test.TestClock#WarningData*"),
+        exclude[Problem]("zio.test.TestClock.SuspendedWarningData"),
+        exclude[Problem]("zio.test.TestClock.WarningData"),
+        exclude[DirectMissingMethodProblem]("zio.test.package.testFiberRefGen"),
+        exclude[IncompatibleMethTypeProblem]("zio.test.package.warningEmptyGen")
       ),
       mimaFailOnProblem := failOnProblem
     )

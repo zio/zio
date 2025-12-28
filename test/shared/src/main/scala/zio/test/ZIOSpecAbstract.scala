@@ -20,6 +20,8 @@ import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+import java.util.concurrent.ThreadLocalRandom
+
 import scala.annotation.nowarn
 
 @EnableReflectiveInstantiation
@@ -76,11 +78,10 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       _ <- ZIO.whenDiscard(testArgs.printSummary) {
              console.printLine(testArgs.testRenderer.renderSummary(summary)).orDie
            }
-      showFailures = !testArgs.ignoreFailures
-      isFailure    = summary.status == Summary.Failure
-      _ <- ZIO.whenDiscard(showFailures && isFailure) {
-             ZIO.fail(new RuntimeException("Tests failed."))
-           }
+      _ <- ZIO
+             .whenDiscard(summary.status == Summary.Failure && !testArgs.ignoreFailures) {
+               ZIO.fail(new RuntimeException("Tests failed."))
+             }
     } yield summary
 
   /*
@@ -97,34 +98,32 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   ): URIO[
     Environment with TestEnvironment with Scope,
     Summary
-  ] =
-    for {
-      runtime <- ZIO.runtime[TestEnvironment with Scope]
+  ] = {
+    val filteredSpec: Spec[Environment with TestEnvironment with Scope, Any] = FilteredSpec(spec, testArgs)
 
-      filteredSpec = FilteredSpec(spec, testArgs)
-
-      scopeEnv: ZEnvironment[Scope] = runtime.environment
-      perTestLayer = (ZLayer.succeedEnvironment(scopeEnv) <*> liveEnvironment) >>>
-                       (TestEnvironment.live <*> ZLayer.environment[Scope])
-
-      executionEventSinkLayer = ExecutionEventSink.live(console, testArgs.testEventRenderer, testArgs.reportsParent)
-      environment            <- ZIO.environment[Environment]
-      runner =
+    ZIO.environmentWithZIO[TestEnvironment & Scope & Environment] { env =>
+      val perTestLayer =
+        (ZLayer.succeedEnvironment[Scope](env) <*> liveEnvironment) >>>
+          (TestEnvironment.live <*> ZLayer.environment[Scope])
+      val executionEventSinkLayer = ExecutionEventSink.live(console, testArgs.testEventRenderer, testArgs.reportsParent)
+      val runner =
         TestRunner(
           TestExecutor
             .default[Environment, Any](
-              ZLayer.succeedEnvironment(environment),
+              ZLayer.succeedEnvironment(env),
               perTestLayer,
               executionEventSinkLayer,
               testEventHandler
             )
         )
-      randomId <- Random.RandomLive.nextInt.map("test_case_" + _)
-      summary <- runner.run(
-                   randomId,
-                   aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers: @nowarn("cat=deprecation")
-                 )
-    } yield summary
+
+      val randomId = "test_case_" + ThreadLocalRandom.current().nextInt()
+      runner.run(
+        randomId,
+        aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers: @nowarn("cat=deprecation")
+      )
+    }
+  }
 
   @deprecated("use the overload that does not take Console parameter")
   private[zio] def runSpecWithSharedRuntimeLayer(
