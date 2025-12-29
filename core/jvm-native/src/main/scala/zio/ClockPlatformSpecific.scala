@@ -24,46 +24,12 @@ import java.util.concurrent._
 private[zio] trait ClockPlatformSpecific {
   import Scheduler.CancelToken
 
-  private[zio] val globalScheduler: Scheduler = new Scheduler.Internal {
+  private[zio] val globalScheduler: Scheduler = Scheduler.fromScheduledExecutorService(makeService())
 
-    private[this] val service = makeService()
-
-    private[this] val ConstFalse = () => false
-
-    private final val MaxMillis = Long.MaxValue / 1000000L
-
-    def asScheduledExecutorService: ScheduledExecutorService =
-      service
-
-    def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): CancelToken =
-      (duration: @unchecked) match {
-        case Duration.Infinity => ConstFalse
-        case d if d.isZero || d.isNegative =>
-          task.run()
-          ConstFalse
-        case d =>
-          val millis = d.toMillis
-          val future =
-            if (millis < MaxMillis)
-              service.schedule(
-                task,
-                d.toNanos,
-                TimeUnit.NANOSECONDS
-              )
-            else
-              service.schedule(
-                task,
-                millis,
-                TimeUnit.MILLISECONDS
-              )
-
-          () => future.cancel(true)
-      }
-  }
-
-  private[this] def makeService(): ScheduledExecutorService = {
+  private[this] def makeService(): ScheduledThreadPoolExecutor = {
     val service = new ScheduledThreadPoolExecutor(1, new NamedThreadFactory("zio-timer", true))
     service.setRemoveOnCancelPolicy(true)
+    service.setMaximumPoolSize(1)
     service
   }
 }

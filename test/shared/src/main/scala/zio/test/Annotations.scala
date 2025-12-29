@@ -35,26 +35,25 @@ object Annotations {
     def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: Trace): UIO[Unit] =
       ref.update(_.annotate(key, value))
     def get[V](key: TestAnnotation[V])(implicit trace: Trace): UIO[V] =
-      ref.get.map(_.get(key))
+      ZIO.succeed(ref.unsafe.get(Unsafe).get(key))
     def withAnnotation[R, E](zio: ZIO[R, TestFailure[E], TestSuccess])(implicit
       trace: Trace
     ): ZIO[R, TestFailure[E], TestSuccess] =
-      zio.foldZIO(e => ref.get.map(e.annotated).flip, a => ref.get.map(a.annotated))
+      zio.mapBoth(_.annotated(ref.unsafe.get(Unsafe)), _.annotated(ref.unsafe.get(Unsafe)))
     def supervisedFibers(implicit trace: Trace): UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
       ZIO.fiberIdWith { fiberId =>
-        get(TestAnnotation.fibers).flatMap {
-          case Left(_) => ZIO.succeed(SortedSet.empty[Fiber.Runtime[Any, Any]])
+        get(TestAnnotation.fibers).map {
           case Right(refs) =>
-            ZIO
-              .foreach(refs)(ref => ZIO.succeed(ref.get))
-              .map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _))
-              .map(_.filter(_.id != fiberId))
+            val builder = SortedSet.newBuilder[Fiber.Runtime[Any, Any]]
+            refs.foreach(_.get().foreach(f => if (f.id != fiberId) builder += f))
+            builder.result()
+          case _ => SortedSet.empty[Fiber.Runtime[Any, Any]]
         }
       }
     private[zio] def unsafe: UnsafeAPI =
       new UnsafeAPI {
         def annotate[V](key: TestAnnotation[V], value: V)(implicit unsafe: Unsafe): Unit =
-          ref.unsafe.update(_.annotate(key, value))
+          ref.unsafe.update(_.annotate(key, value))(unsafe)
       }
   }
 
@@ -84,11 +83,9 @@ object Annotations {
   val live: ULayer[Annotations] = {
     implicit val trace = Tracer.newTrace
     ZLayer.scoped {
-      for {
-        ref        <- ZIO.succeed(Unsafe.unsafe(Ref.unsafe.make(TestAnnotationMap.empty)(_)))
-        annotations = Test(ref)
-        _          <- withAnnotationsScoped(annotations)
-      } yield annotations
+      val ref         = Unsafe.unsafe(Ref.unsafe.make(TestAnnotationMap.empty)(_))
+      val annotations = Test(ref)
+      withAnnotationsScoped(annotations).as(annotations)
     }
   }
 

@@ -330,18 +330,18 @@ object Runtime extends RuntimePlatformSpecific {
     def fromLayer[R](layer: Layer[Any, R])(implicit trace: Trace, unsafe: Unsafe): Runtime.Scoped[R] = {
       val (runtime, shutdown) = default.unsafe.run {
         Scope.make.flatMap { scope =>
-          scope.extend(layer.toRuntime).flatMap { acquire =>
-            val finalizer = () =>
-              default.unsafe.run {
-                scope.close(Exit.unit).uninterruptible.unit
-              }.getOrThrowFiberFailure()
-
-            ZIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
+          scope.extend(layer.toRuntime).map { acquire =>
+            val finalizer = { () =>
+              if (scope.size > 0) default.unsafe.run(scope.close(Exit.unit).uninterruptible).getOrThrowFiberFailure()
+              ()
+            }
+            Platform.addShutdownHook(finalizer)
+            (acquire, finalizer)
           }
         }
       }.getOrThrowFiberFailure()
 
-      Runtime.Scoped(runtime.environment, runtime.fiberRefs, runtime.runtimeFlags, () => shutdown())
+      Runtime.Scoped(runtime.environment, runtime.fiberRefs, runtime.runtimeFlags, shutdown)
     }
   }
 
