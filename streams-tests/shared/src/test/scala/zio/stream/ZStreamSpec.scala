@@ -5802,6 +5802,54 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertZIO(ZStream.blocking(ZStream.fromIterator(chunk.iterator)).runCollect)(equalTo(chunk))
           }
         },
+        suite("fromJavaIterator")(
+          test("fails on construction exception") {
+            val ex = new Exception
+            assertZIO(ZStream.fromJavaIterator(throw ex).runCollect.exit)(fails(equalTo(ex)))
+          },
+          test("with values") {
+            check(Gen.small(Gen.chunkOfN(_)(Gen.int)), Gen.small(Gen.const(_), min = 1)) { (chunk, maxChunkSize) =>
+              val javaIterator = java.util.Arrays.asList(chunk: _*).iterator()
+              assertZIO(ZStream.fromJavaIterator(javaIterator, maxChunkSize).runCollect)(equalTo(chunk))
+            }
+          },
+          test("fails on exceptions from the iterator") {
+            check(Gen.small(Gen.const(_), min = 1)) { maxChunkSize =>
+              val exception = new RuntimeException("Iterator error")
+              val failingIterator = new java.util.Iterator[Int] {
+                def hasNext: Boolean = true
+                def next(): Int      = throw exception
+              }
+              assertZIO(ZStream.fromJavaIterator(failingIterator, maxChunkSize).runCollect.exit)(
+                fails(equalTo(exception))
+              )
+            }
+          }
+        ),
+        suite("fromJavaIteratorSucceed")(
+          test("dies on construction exception") {
+            val ex = new Exception
+            assertZIO(ZStream.fromJavaIteratorSucceed(throw ex).runCollect.exit)(dies(equalTo(ex)))
+          },
+          test("with values") {
+            check(Gen.small(Gen.chunkOfN(_)(Gen.int)), Gen.small(Gen.const(_), min = 1)) { (chunk, maxChunkSize) =>
+              val javaIterator = java.util.Arrays.asList(chunk: _*).iterator()
+              assertZIO(ZStream.fromJavaIteratorSucceed(javaIterator, maxChunkSize).runCollect)(equalTo(chunk))
+            }
+          },
+          test("dies on iteration exceptions") {
+            check(Gen.small(Gen.const(_), min = 1)) { maxChunkSize =>
+              val exception = new RuntimeException("Iterator error")
+              val failingIterator = new java.util.Iterator[Int] {
+                def hasNext: Boolean = true
+                def next(): Int      = throw exception
+              }
+              assertZIO(ZStream.fromJavaIteratorSucceed(failingIterator, maxChunkSize).runCollect.exit)(
+                dies(equalTo(exception))
+              )
+            }
+          }
+        ),
         suite("fromIteratorScoped")(
           test("is safe to pull again after success") {
             for {

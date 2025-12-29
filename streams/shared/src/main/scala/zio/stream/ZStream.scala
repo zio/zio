@@ -21,12 +21,14 @@ import zio.internal.{SingleThreadedRingBuffer, UniqueKey}
 import zio.metrics.MetricLabel
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm._
-import zio.stream.ZStream.{DebounceState, HandoffSignal, zipChunks}
+import zio.stream.ZStream.{DebounceState, HandoffSignal, zipChunks, MarkerException}
 import zio.stream.internal.{ZInputStream, ZReader}
 
 import java.io.{IOException, InputStream}
 import scala.collection.mutable
 import scala.reflect.ClassTag
+import scala.util.control.NoStackTrace
+import scala.collection.AbstractIterator
 
 final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]) { self =>
 
@@ -3484,10 +3486,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    */
   def timeoutTo[R1 <: R, E1 >: E, A2 >: A](
     d: => Duration
-  )(that: => ZStream[R1, E1, A2])(implicit trace: Trace): ZStream[R1, E1, A2] = {
-    final case class StreamTimeout() extends Throwable
-    self.timeoutFailCause(Cause.die(StreamTimeout()))(d).catchSomeCause { case Cause.Die(StreamTimeout(), _) => that }
-  }
+  )(that: => ZStream[R1, E1, A2])(implicit trace: Trace): ZStream[R1, E1, A2] =
+    self.timeoutFailCause(Cause.die(MarkerException))(d).catchSomeCause { case Cause.Die(MarkerException, _) => that }
 
   /** Converts the stream to its underlying channel */
   def toChannel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any] =
@@ -4380,20 +4380,29 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     is: => InputStream,
     chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: Trace): ZStream[Any, IOException, Byte] =
-    ZStream.succeed((is, chunkSize)).flatMap { case (is, chunkSize) =>
+    ZStream.suspend {
+      val is0        = is
+      val chunkSize0 = chunkSize
       ZStream.repeatZIOChunkOption {
-        for {
-          bufArray  <- ZIO.succeed(Array.ofDim[Byte](chunkSize))
-          bytesRead <- ZIO.attemptBlockingIO(is.read(bufArray)).asSomeError
-          bytes <- if (bytesRead < 0)
-                     Exit.failNone
-                   else if (bytesRead == 0)
-                     Exit.emptyChunk
-                   else if (bytesRead < chunkSize)
-                     ZIO.succeed(Chunk.fromArray(bufArray).take(bytesRead))
-                   else
-                     ZIO.succeed(Chunk.fromArray(bufArray))
-        } yield bytes
+        ZIO.suspendSucceed {
+          val bufArray = Array.ofDim[Byte](chunkSize0)
+
+          ZIO
+            .attemptBlockingIO(is0.read(bufArray))
+            .foldZIO(
+              failure = e => Exit.fail(Some(e)),
+              success = bytesRead => {
+                if (bytesRead < 0)
+                  Exit.failNone
+                else if (bytesRead == 0)
+                  Exit.emptyChunk
+                else if (bytesRead < chunkSize)
+                  Exit.succeed(Chunk.fromArray(bufArray).take(bytesRead))
+                else
+                  Exit.succeed(Chunk.fromArray(bufArray))
+              }
+            )
+        }
       }
     }
 
@@ -4451,56 +4460,48 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromIterator[A](iterator: => Iterator[A], maxChunkSize: => Int = DefaultChunkSize)(implicit
     trace: Trace
   ): ZStream[Any, Throwable, A] =
-    ZStream.succeed(maxChunkSize).flatMap { maxChunkSize =>
-      if (maxChunkSize == 1) fromIteratorSingle(iterator)
-      else {
-        object StreamEnd extends Throwable
+    ZStream.suspend {
+      val maxChunkSize0 = maxChunkSize
+      try {
+        val it = iterator
+        if (maxChunkSize0 == 1) fromIteratorSingle(it)
+        else {
+          val builder = ChunkBuilder.make[A](maxChunkSize0)
 
-        ZStream
-          .fromZIO(
-            ZIO.attempt(iterator) <*> ZIO.runtime[Any] <*> ZIO
-              .succeed(ChunkBuilder.make[A](maxChunkSize))
-          )
-          .flatMap { case (it, rt, builder) =>
-            ZStream.repeatZIOChunkOption {
-              ZIO.attempt {
+          ZStream.repeatZIOChunkOption {
+            ZIO.suspendSucceed {
+              try {
                 builder.clear()
                 var count = 0
                 while (count < maxChunkSize && it.hasNext) {
                   builder += it.next()
                   count += 1
                 }
-                if (count > 0) {
-                  builder.result()
-                } else {
-                  throw StreamEnd
-                }
-              }.mapError {
-                case StreamEnd => None
-                case e         => Some(e)
+                if (count > 0) Exit.succeed(builder.result())
+                else throw MarkerException
+              } catch {
+                case MarkerException  => Exit.failNone
+                case e if nonFatal(e) => Exit.fail(Some(e))
               }
             }
           }
+        }
+      } catch {
+        case e if nonFatal(e) => ZStream.fail(e)
       }
     }
 
-  private def fromIteratorSingle[A](iterator: => Iterator[A])(implicit
-    trace: Trace
-  ): ZStream[Any, Throwable, A] = {
-    object StreamEnd extends Throwable
-
-    ZStream.fromZIO(ZIO.attempt(iterator) <*> ZIO.runtime[Any]).flatMap { case (it, rt) =>
-      ZStream.repeatZIOOption {
-        ZIO.attempt {
-          if (it.hasNext) it.next()
-          else throw StreamEnd
-        }.mapError {
-          case StreamEnd => None
-          case e         => Some(e)
+  private def fromIteratorSingle[A](it: Iterator[A])(implicit trace: Trace): ZStream[Any, Throwable, A] =
+    ZStream.repeatZIOChunkOption {
+      ZIO.suspendSucceed {
+        try {
+          if (it.hasNext) Exit.succeed(Chunk.single(it.next()))
+          else Exit.failNone
+        } catch {
+          case e if nonFatal(e) => Exit.fail(Some(e))
         }
       }
     }
-  }
 
   /**
    * Creates a stream from a scoped iterator
@@ -4587,16 +4588,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     iterator: => java.util.Iterator[A],
     chunkSize: Int
   )(implicit trace: Trace): ZStream[Any, Throwable, A] =
-    fromIterator(
-      {
-        val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
-        new Iterator[A] {
-          def next(): A        = it.next
-          def hasNext: Boolean = it.hasNext
-        }
-      },
-      chunkSize
-    )
+    fromIterator(new FromJavaIterator(iterator), chunkSize)
 
   /**
    * Creates a stream from a scoped iterator
@@ -4630,16 +4622,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     iterator: => java.util.Iterator[A],
     chunkSize: Int
   )(implicit trace: Trace): ZStream[Any, Nothing, A] =
-    fromIteratorSucceed(
-      {
-        val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
-        new Iterator[A] {
-          def next(): A        = it.next
-          def hasNext: Boolean = it.hasNext
-        }
-      },
-      chunkSize
-    )
+    fromIteratorSucceed(new FromJavaIterator(iterator), chunkSize)
 
   /**
    * Creates a stream from a Java iterator that may potentially throw exceptions
@@ -5026,8 +5009,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     unfoldChunkZIO(fa)(fa =>
       fa.foldZIO(
         failure = {
-          case None    => Exit.none
           case Some(e) => Exit.fail(e)
+          case _       => Exit.none
         },
         success = chunk => Exit.succeed(Some((chunk, fa)))
       )
@@ -5183,7 +5166,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZChannel.unwrap {
         f(s).map {
           case Some((as, s)) => ZChannel.write(as) *> loop(s)
-          case None          => ZChannel.unit
+          case _             => ZChannel.unit
         }
       }
 
@@ -6269,6 +6252,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       (cl.take(cr.size).zipWith(cr)(f), Left(cl.drop(cr.size)))
     else
       (cl.zipWith(cr.take(cl.size))(f), Right(cr.drop(cl.size)))
+
+  /* A static Exception thrown to indicate flow control */
+  private object MarkerException extends NoStackTrace
+
+  private final class FromJavaIterator[A](it: java.util.Iterator[A]) extends AbstractIterator[A] {
+    def next    = it.next
+    def hasNext = it.hasNext
+  }
 
   private val emptyStream: ZStream[Any, Nothing, Nothing]          = new ZStream(ZChannel.unit)
   private val emptyStreamFn: Any => ZStream[Any, Nothing, Nothing] = (_: Any) => emptyStream
