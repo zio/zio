@@ -59,4 +59,6 @@ package object zio
   }
 
   private[zio] type Callback[E, A] = (Exit[E, A], FiberRefs) => Any
+
+  private[zio] def nonFatal(t: Throwable): Boolean = !t.isInstanceOf[VirtualMachineError]
 }

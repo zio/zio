@@ -335,12 +335,8 @@ sealed trait ZIO[-R, +E, +A]
   @deprecated("Use `catchAll`", "2.1.21")
   final def catchNonFatalOrDie[R1 <: R, E2, A1 >: A](
     h: E => ZIO[R1, E2, A1]
-  )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: Trace): ZIO[R1, E2, A1] = {
-
-    def hh(e: E) =
-      ZIO.isFatalWith(isFatal => if (isFatal(e)) ZIO.die(e) else h(e))
-    self.foldZIO[R1, E2, A1](hh, ZIO.successFn)
-  }
+  )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: Trace): ZIO[R1, E2, A1] =
+    self.catchAll(h)
 
   /**
    * Recovers from some or all of the error cases.
@@ -800,7 +796,7 @@ sealed trait ZIO[-R, +E, +A]
     ZIO.uninterruptibleMask { restore =>
       def interrupt(fiber: Fiber.Runtime[Any, Any]): ZIO[Any, Nothing, Any] =
         ZIO.fiberIdWith { fiberId =>
-          if (fiberId == fiber.id) Exit.unit else fiber.interrupt
+          if (fiberId == fiber.id) Exit.unit else fiber.interruptAs(fiberId)
         }
 
       scope.fork.flatMap { child =>
@@ -1466,6 +1462,9 @@ sealed trait ZIO[-R, +E, +A]
       val leftFiber  = ZIO.unsafe.makeChildFiber(trace, leftEff, parentFiber, flags, leftScope)(Unsafe)
       val rightFiber = ZIO.unsafe.makeChildFiber(trace, rightEff, parentFiber, flags, rightScope)(Unsafe)
 
+      val startLeft  = leftFiber.startSuspended()(Unsafe)
+      val startRight = rightFiber.startSuspended()(Unsafe)
+
       ZIO.async[R1, E2, C](
         { cb =>
           val raceIndicator = new AtomicBoolean()
@@ -1478,8 +1477,8 @@ sealed trait ZIO[-R, +E, +A]
             complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
           }(Unsafe)
 
-          leftFiber.startConcurrently(leftEff)
-          rightFiber.startConcurrently(rightEff)
+          startLeft(leftEff)
+          startRight(rightEff)
           ()
         },
         leftFiber.id <> rightFiber.id
@@ -1608,26 +1607,24 @@ sealed trait ZIO[-R, +E, +A]
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
   )(implicit trace: Trace): ZIO[R1, E2, Either[C, B]] =
     ZIO.suspendSucceed {
-      val schedule = schedule0
+      val driver = schedule0.unsafe.driver(trace, Unsafe)
 
-      schedule.driver.flatMap { driver =>
-        def loop(a: A): ZIO[R1, E2, Either[C, B]] =
-          driver
-            .next(a)
-            .foldZIO(
-              _ => driver.last.orDie.map(Right(_)),
-              b =>
-                self.foldZIO(
-                  e => orElse(e, Some(b)).map(Left(_)),
-                  a => loop(a)
-                )
-            )
+      def loop(a: A): ZIO[R1, E2, Either[C, B]] =
+        driver
+          .next(a)
+          .foldZIO(
+            _ => driver.last.orDie.map(Right(_)),
+            b =>
+              self.foldZIO(
+                e => orElse(e, Some(b)).map(Left(_)),
+                a => loop(a)
+              )
+          )
 
-        self.foldZIO(
-          e => orElse(e, None).map(Left(_)),
-          a => loop(a)
-        )
-      }
+      self.foldZIO(
+        e => orElse(e, None).map(Left(_)),
+        a => loop(a)
+      )
     }
 
   /**
@@ -1695,8 +1692,8 @@ sealed trait ZIO[-R, +E, +A]
     policy: => Schedule[R1, E, S]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E, A] =
     ZIO.suspendSucceed {
-
-      def loop(driver: Schedule.Driver[Any, R1, E, S]): ZIO[R1, E, A] =
+      val driver = policy.unsafe.driver(trace, Unsafe)
+      def loop(): ZIO[R1, E, A] =
         self.catchAllCause { cause =>
           cause.failureOrCause.fold(
             e =>
@@ -1704,13 +1701,13 @@ sealed trait ZIO[-R, +E, +A]
                 .next(e)
                 .foldZIO(
                   _ => driver.last.orDie.flatMap(_ => Exit.failCause(cause)),
-                  _ => loop(driver)
+                  _ => loop()
                 ),
             cause => Exit.failCause(cause)
           )
         }
 
-      policy.driver.flatMap(loop(_))
+      loop()
     }
 
   /**
@@ -1752,9 +1749,8 @@ sealed trait ZIO[-R, +E, +A]
     orElse: (E, Out) => ZIO[R1, E1, B]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, Either[B, A]] =
     ZIO.suspendSucceed {
-      val schedule = schedule0
-
-      def loop(driver: Schedule.Driver[Any, R1, E, Out]): ZIO[R1, E1, Either[B, A]] =
+      val driver = schedule0.unsafe.driver(trace, Unsafe)
+      def loop(): ZIO[R1, E1, Either[B, A]] =
         self
           .map(Right(_))
           .catchAll(e =>
@@ -1762,11 +1758,11 @@ sealed trait ZIO[-R, +E, +A]
               .next(e)
               .foldZIO(
                 _ => driver.last.orDie.flatMap(out => orElse(e, out).map(Left(_))),
-                _ => loop(driver)
+                _ => loop()
               )
           )
 
-      schedule.driver.flatMap(loop(_))
+      loop()
     }
 
   /**
@@ -1876,14 +1872,12 @@ sealed trait ZIO[-R, +E, +A]
     schedule0: => Schedule[R1, A1, B]
   )(implicit trace: Trace): ZIO[R1, E, B] =
     ZIO.suspendSucceed {
-      val schedule = schedule0
+      val driver = schedule0.unsafe.driver(trace, Unsafe)
 
-      schedule.driver.flatMap { driver =>
-        def loop(a: A1): ZIO[R1, E, B] =
-          driver.next(a).foldZIO(_ => driver.last.orDie, _ => self.flatMap(loop))
+      def loop(a: A1): ZIO[R1, E, B] =
+        driver.next(a).foldZIO(_ => driver.last.orDie, _ => self.flatMap(loop))
 
-        loop(a)
-      }
+      loop(a)
     }
 
   /**
@@ -4000,14 +3994,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   @deprecated("isFatal is deprecated, kept only for binary compatability. Do not use.", "2.1.21")
   def isFatal(implicit trace: Trace): UIO[Throwable => Boolean] =
-    isFatalWith(ZIO.successFn)
+    ZIO.succeed(!nonFatal(_))
 
   /**
    * Constructs an effect based on the definition of a fatal error.
    */
   @deprecated("isFatalWith is deprecated, kept only for binary compatability. Do not use.", "2.1.21")
   def isFatalWith[R, E, A](f: (Throwable => Boolean) => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    FiberRef.currentFatal.getWith(f)
+    ZIO.suspendSucceed(f(!nonFatal(_)))
 
   /**
    * Iterates with the specified effectual function. The moral equivalent of:
@@ -4872,11 +4866,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.suspendSucceed {
       try rio
       catch {
-        case t: Throwable =>
-          ZIO.isFatalWith { isFatal =>
-            if (!isFatal(t)) Exit.Failure(Cause.fail(t))
-            else throw t
-          }
+        case t if nonFatal(t) => Exit.Failure(Cause.fail(t))
       }
     }
 

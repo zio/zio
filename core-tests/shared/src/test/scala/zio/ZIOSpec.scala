@@ -276,20 +276,11 @@ object ZIOSpec extends ZIOBaseSpec {
       } @@ TestAspect.withLiveClock
     ),
     suite("catchNonFatalOrDie")(
-      test("recovers from NonFatal") {
-        val s   = "division by zero"
-        val zio = ZIO.fail(new IllegalArgumentException(s))
+      test("recovers from errors") {
         @nowarn("cat=deprecation")
-        val result = zio.catchNonFatalOrDie(e => ZIO.succeed(e.getMessage)).exit
-        assertZIO(result)(succeeds(equalTo(s)))
-      },
-      test("dies if fatal") {
-        val e   = new OutOfMemoryError
-        val zio = ZIO.fail(e)
-        @nowarn("cat=deprecation")
-        val result = zio.catchNonFatalOrDie(e => ZIO.succeed(e.getMessage)).exit
-        assertZIO(result)(dies(equalTo(e)))
-      } @@ jvmOnly // no fatal exceptions in JS
+        val zio = ZIO.fail(new Exception).as(false).catchNonFatalOrDie(_ => ZIO.succeed(true))
+        zio.map(assert(_)(isTrue))
+      }
     ),
     suite("catchAllDefect")(
       test("recovers from all defects") {
@@ -2522,6 +2513,13 @@ object ZIOSpec extends ZIOBaseSpec {
           } yield assert(exit)(not(isInterrupted))
         }
       } @@ TestAspect.withLiveClock,
+      test("timeout with interrupt doesn't cause deadlock (i10255)") {
+        ZIO.never
+          .timeout(1.second)
+          .forkDaemon
+          .flatMap(_.interrupt)
+          .as(assertCompletes)
+      } @@ TestAspect.withLiveClock @@ nonFlaky(10000),
       test("catchAllCause") {
         val io =
           for {
@@ -3307,7 +3305,7 @@ object ZIOSpec extends ZIOBaseSpec {
       test("acquireReleaseExitWith use is interruptible") {
         for {
           fiber <- ZIO.acquireReleaseExitWith(ZIO.unit)((_, _: Exit[Any, Any]) => ZIO.unit)(_ => ZIO.never).fork
-          res   <- fiber.interrupt.timeoutTo(42)(_ => 0)(1.second)
+          res   <- Live.live(fiber.interrupt.timeoutTo(42)(_ => 0)(1.second))
         } yield assert(res)(equalTo(0))
       },
       test("acquireReleaseWith release called on interrupt") {
@@ -3322,7 +3320,7 @@ object ZIOSpec extends ZIOBaseSpec {
             _ <- p2.await
           } yield ()
 
-        assertZIO(io.timeoutTo(42)(_ => 0)(1.second))(equalTo(0))
+        assertZIO(Live.live(io.timeoutTo(42)(_ => 0)(1.second)))(equalTo(0))
       },
       test("acquireReleaseExitWith release called on interrupt") {
         for {
@@ -3335,7 +3333,7 @@ object ZIOSpec extends ZIOBaseSpec {
             }
 
           _ <- fiber.interrupt
-          r <- done.await.timeoutTo(42)(_ => 0)(60.second)
+          r <- Live.live(done.await.timeoutTo(42)(_ => 0)(60.second))
         } yield assert(r)(equalTo(0))
       },
       test("acquireReleaseWith acquire returns immediately on interrupt") {
@@ -3390,8 +3388,8 @@ object ZIOSpec extends ZIOBaseSpec {
                      .fork
           _      <- useLatch.await
           _      <- fiber.interrupt
-          result <- releaseLatch.await.timeoutTo(false)(_ => true)(1.second)
-        } yield assertTrue(result == true))
+          result <- Live.live(releaseLatch.await.timeoutTo(false)(_ => true)(1.second))
+        } yield assertTrue(result))
       } @@ flaky,
       test("acquireReleaseExitWith disconnect release called on interrupt in separate fiber") {
         for {

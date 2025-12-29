@@ -49,6 +49,41 @@ object ChunkPackedBooleanSpec extends ZIOBaseSpec {
         assert(actual)(equalTo(expected))
       }
     },
+    test("pack byte - BitChunkByte after drop") {
+      // 0xFF, 0x00 = "11111111 00000000"
+      // After drop(4).take(8), bits 4-11 = "11110000", packed = 0xF0
+      val actual = Chunk(0xff.toByte, 0x00.toByte).asBitsByte.drop(4).take(8).toPackedByte.map(toBinaryString).mkString
+
+      assert(actual)(equalTo("11110000"))
+    },
+    test("pack byte - BitChunkInt after drop") {
+      // 0xF0000000 = "11110000 00000000 00000000 00000000"
+      // After drop(4).take(8), bits 4-11 = "00000000"
+      val actual =
+        Chunk(0xf0000000)
+          .asBitsInt(Chunk.BitChunk.Endianness.BigEndian)
+          .drop(4)
+          .take(8)
+          .toPackedByte
+          .map(toBinaryString)
+          .mkString
+
+      assert(actual)(equalTo("00000000"))
+    },
+    test("pack byte - BitChunkLong after drop") {
+      // 0xFF00000000000000L = "11111111 00000000 ..."
+      // After drop(8).take(8), bits 8-15 = "00000000"
+      val actual =
+        Chunk(0xff00000000000000L)
+          .asBitsLong(Chunk.BitChunk.Endianness.BigEndian)
+          .drop(8)
+          .take(8)
+          .toPackedByte
+          .map(toBinaryString)
+          .mkString
+
+      assert(actual)(equalTo("00000000"))
+    },
     test("pack int") {
       check(genBoolChunk, genEndianness, genInt, genInt) { (bls, endianness, drop, take) =>
         val bools    = bls.drop(drop).take(take)

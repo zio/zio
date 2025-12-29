@@ -2,7 +2,7 @@ package zio.test.environment
 
 import zio._
 import zio.test.Assertion._
-import zio.test.TestAspect.{nonFlaky, timeout}
+import zio.test.TestAspect.{nonFlaky, timeout, parallelN}
 import zio.test.{TestClock, ZIOBaseSpec, assert, assertCompletes}
 
 import java.util.concurrent.TimeUnit
@@ -131,5 +131,5 @@ object TestClockSpecJVM extends ZIOBaseSpec {
           (TestClock.adjust(1.second) &> TestClock.adjust(1.second)).as(assertCompletes)
         } @@ timeout(10.seconds)
       )
-    ) @@ nonFlaky(10)
+    ) @@ nonFlaky(10) @@ parallelN(2)
 }

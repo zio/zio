@@ -606,6 +606,14 @@ object Fiber extends FiberPlatformSpecific {
      */
     private[zio] def getRunningExecutor(): Option[Executor]
 
+    /**
+     * Boolean flag which indicates whether the fiber contains children that are
+     * currently running
+     *
+     * '''NOTE''': This method is safe to invoke from any fiber
+     */
+    private[zio] def hasChildrenAlive(implicit trace: Trace): UIO[Boolean]
+
     private[zio] def isAlive(): Boolean
 
     /**
@@ -617,8 +625,7 @@ object Fiber extends FiberPlatformSpecific {
      * (including the log annotations and log level) may not be up-to-date.
      */
     @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
-    private[zio] final def isFatal(t: Throwable): Boolean =
-      getFiberRef(FiberRef.currentFatal).apply(t)
+    private[zio] final def isFatal(t: Throwable): Boolean = !nonFatal(t)
 
     /**
      * Logs using the current set of loggers.
