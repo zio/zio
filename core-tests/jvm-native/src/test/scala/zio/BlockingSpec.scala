@@ -142,10 +142,12 @@ object BlockingSpec extends ZIOBaseSpec {
                         } yield (exec1, exec2, exec3)
                       }
             afterExec <- ZIO.executor
-          } yield assertTrue(result._1 == blockingExec) &&
-            assertTrue(result._2 == blockingExec) &&
-            assertTrue(result._3 == blockingExec) &&
-            assertTrue(afterExec == default)
+          } yield assertTrue(
+            result._1 == blockingExec,
+            result._2 == blockingExec,
+            result._3 == blockingExec,
+            afterExec == default
+          )
         },
         test("multiple sequential blocking calls restore correctly") {
           val default = Runtime.defaultExecutor
@@ -157,12 +159,14 @@ object BlockingSpec extends ZIOBaseSpec {
             between2     <- ZIO.executor
             exec3        <- ZIO.blocking(ZIO.executor)
             after        <- ZIO.executor
-          } yield assertTrue(exec1 == blockingExec) &&
-            assertTrue(between1 == default) &&
-            assertTrue(exec2 == blockingExec) &&
-            assertTrue(between2 == default) &&
-            assertTrue(exec3 == blockingExec) &&
-            assertTrue(after == default)
+          } yield assertTrue(
+            exec1 == blockingExec,
+            between1 == default,
+            exec2 == blockingExec,
+            between2 == default,
+            exec3 == blockingExec,
+            after == default
+          )
         },
         test("skips yield when already on target executor") {
           for {
@@ -179,9 +183,14 @@ object BlockingSpec extends ZIOBaseSpec {
             _ <- ZIO.unit.onExecutor(tracking1).flatMap { _ =>
                    ZIO.unit.onExecutor(tracking2)
                  }
-          } yield assertTrue(tracking1.submitted == 1) &&
-            assertTrue(tracking2.submitted == 1)
-        }
+          } yield assertTrue(tracking1.submitted == 1, tracking2.submitted == 1)
+        },
+        test("with EagerShiftBack shifts back to original executor") {
+          val global = Executor.fromExecutionContext(scala.concurrent.ExecutionContext.global)
+          for {
+            name <- (ZIO.unit.onExecutor(global) *> ZIO.succeed(Thread.currentThread().getName))
+          } yield assertTrue(name.startsWith("ZScheduler-Worker"))
+        }.provide(Runtime.enableFlags(RuntimeFlag.EagerShiftBack))
       )
     )
 
