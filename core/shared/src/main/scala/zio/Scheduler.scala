@@ -21,37 +21,47 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 
-sealed abstract class Scheduler {
+sealed abstract class Scheduler extends SchedulerPlatformSpecific {
   def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): CancelToken
 }
 
 object Scheduler {
   type CancelToken = () => Boolean
+  private final val ConstFalse = () => false
+  private final val MaxMillis  = Long.MaxValue / 1000000L
 
   private[zio] abstract class Internal extends Scheduler
 
   def fromScheduledExecutorService(service: ScheduledExecutorService): Scheduler =
     new Scheduler {
-      val ConstFalse = () => false
+      def asScheduledExecutorService: ScheduledExecutorService =
+        service
 
-      override def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): CancelToken =
+      def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): CancelToken =
         (duration: @unchecked) match {
           case Duration.Infinity => ConstFalse
-          case Duration.Zero =>
+          case d if d.isZero || d.isNegative =>
             task.run()
-
             ConstFalse
-          case Duration.Finite(_) =>
-            val future = service.schedule(
-              new Runnable {
-                def run: Unit =
-                  task.run()
-              },
-              duration.toNanos,
-              TimeUnit.NANOSECONDS
-            )
+          case d =>
+            val millis = d.toMillis
+            val future =
+              if (millis < MaxMillis)
+                service.schedule(
+                  task,
+                  d.toNanos,
+                  TimeUnit.NANOSECONDS
+                )
+              else
+                service.schedule(
+                  task,
+                  millis,
+                  TimeUnit.MILLISECONDS
+                )
 
             () => future.cancel(true)
         }
+
+      override def toString() = s"Scheduler($service)"
     }
 }
