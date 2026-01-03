@@ -131,21 +131,49 @@ final class ZEnvironment[+R] private (
    * contained within it.
    */
   def prune[R1 >: R](implicit tagged: EnvironmentTag[R1]): ZEnvironment[R1] = {
-    val tag = taggedTagType(tagged)
 
-    // Mutable set lookups are much faster. It also iterates faster. We're better off just allocating here
-    // Why are immutable set lookups so slow???
-    val set = new mutable.HashSet ++= taggedGetServices(tag)
+    def throwError(tags: collection.Set[LightTypeTag]) =
+      throw new Error(
+        s"Defect in zio.ZEnvironment: $tags statically known to be contained within the environment are missing"
+      )
 
-    if (set.isEmpty || self.isEmpty) self
-    else {
+    // Optimized pruning for a single service
+    def pruneOne(tag: LightTypeTag): ZEnvironment[R1] = {
+      val builder = UpdateOrderLinkedMap.newBuilder[LightTypeTag, Any]
+
+      val it0 = self.map.iterator
+      while (it0.hasNext) {
+        val next    = it0.next()
+        val leftTag = next._1
+
+        if (taggedIsSubtype(leftTag, tag)) {
+          builder addOne next
+        }
+      }
+      val isScopeTag0 = isScopeTag(tag)
+      val newMap      = builder.result()
+
+      if (newMap.isEmpty && !isScopeTag0) throwError(Set(tag))
+
+      new ZEnvironment(
+        newMap,
+        cache = new ConcurrentHashMap[LightTypeTag, Any],
+        scope = if (isScopeTag0) scope else null
+      )
+    }
+
+    def pruneMany(iSet: Set[LightTypeTag]): ZEnvironment[R1] = {
+      // Mutable set lookups are much faster. It also iterates faster. We're better off just allocating here
+      // Why are immutable set lookups so slow???
+      val set     = new mutable.HashSet ++= iSet
       val builder = UpdateOrderLinkedMap.newBuilder[LightTypeTag, Any]
       val found   = new mutable.HashSet[LightTypeTag]
       found.sizeHint(set.size)
 
       val it0 = self.map.iterator
       while (it0.hasNext) {
-        val next @ (leftTag, _) = it0.next()
+        val next    = it0.next()
+        val leftTag = next._1
 
         if (set.contains(leftTag)) {
           // Exact match, no need to loop
@@ -170,7 +198,7 @@ final class ZEnvironment[+R] private (
       val newMap = builder.result()
 
       if (set.size > found.size) {
-        val missing = set -- found
+        val missing = set.subtractAll(found)
 
         // We need to check whether one of the services we added is a subtype of the missing service
         val newTags = newMap.keySet
@@ -178,10 +206,7 @@ final class ZEnvironment[+R] private (
           if (newTags.exists(taggedIsSubtype(_, tag))) missing.remove(tag)
         }
 
-        if (missing.nonEmpty)
-          throw new Error(
-            s"Defect in zio.ZEnvironment: ${missing} statically known to be contained within the environment are missing"
-          )
+        if (!missing.isEmpty) throwError(missing)
       }
 
       new ZEnvironment(
@@ -190,6 +215,13 @@ final class ZEnvironment[+R] private (
         scope = if (scopeTags.isEmpty) null else scope
       )
     }
+
+    val tag  = taggedTagType(tagged)
+    val iSet = taggedGetServices(tag)
+
+    if (iSet.isEmpty || self.isEmpty) self
+    else if (iSet.size == 1) pruneOne(iSet.head)
+    else pruneMany(iSet)
   }
 
   /**
@@ -225,8 +257,8 @@ final class ZEnvironment[+R] private (
       var newMap = self.map
       val it     = that.map.iterator
       while (it.hasNext) {
-        val (k, v) = it.next()
-        newMap = newMap.updated(k, v)
+        val kv = it.next()
+        newMap = newMap.updated(kv._1, kv._2)
       }
       val newScope = if (that.scope eq null) self.scope else that.scope
       // Reuse the cache of the right hand-side

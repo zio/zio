@@ -58,6 +58,16 @@ object ZEnvironmentSpec extends ZIOBaseSpec {
 
       assertTrue(env == pruned)
     },
+    test("pruning a tag with multiple services") {
+      trait Foo
+      final class Foo1 extends Foo
+      final class Foo2 extends Foo
+
+      val env    = ZEnvironment(new Foo1, new Foo2)
+      val pruned = env.prune[Foo]
+
+      assertTrue(env == pruned)
+    },
     test("get[Any] on an empty ZEnvironment returns Unit") {
       val value = ZEnvironment.empty.get[Any]
       assertTrue(value.isInstanceOf[Unit])

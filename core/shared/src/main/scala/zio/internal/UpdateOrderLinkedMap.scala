@@ -17,32 +17,32 @@
 package zio.internal
 
 import scala.annotation.tailrec
-import scala.collection.{AbstractIterator, mutable}
 import scala.collection.immutable.{HashMap, VectorBuilder}
+import scala.collection.{AbstractIterator, mutable}
 import scala.util.hashing.MurmurHash3
 
 private[zio] final class UpdateOrderLinkedMap[K, +V](
   fields: Vector[Any],
-  underlying: HashMap[K, (Int, V)]
+  underlying: Map[K, UpdateOrderLinkedMap.Entry[V]]
 ) extends Serializable { self =>
   import UpdateOrderLinkedMap._
 
   def size: Int = underlying.size
 
-  def isEmpty: Boolean = size == 0
+  def isEmpty: Boolean = underlying.isEmpty
 
   def keySet: Set[K] = underlying.keySet
 
   def updated[V1 >: V](key: K, value: V1): UpdateOrderLinkedMap[K, V1] = {
     val existing = underlying.getOrElse(key, null)
     if (existing eq null) {
-      new UpdateOrderLinkedMap(fields :+ key, underlying.updated(key, (fields.size, value)))
-    } else if (existing._1 == fields.size - 1) {
+      new UpdateOrderLinkedMap(fields :+ key, underlying.updated(key, Entry(fields.size, value)))
+    } else if (existing.idx == fields.size - 1) {
       // If the entry to be added is at the tail of the fields, we can just update the value
-      new UpdateOrderLinkedMap(fields, underlying.updated(key, existing.copy(_2 = value)))
+      new UpdateOrderLinkedMap(fields, underlying.updated(key, existing.copy(value = value)))
     } else {
       var fs     = fields
-      val oldIdx = existing._1
+      val oldIdx = existing.idx
 
       // Calculate next of kin
       val next = fs(oldIdx + 1) match {
@@ -72,7 +72,7 @@ private[zio] final class UpdateOrderLinkedMap[K, +V](
         fs = fs.updated(oldIdx, Tombstone(next - oldIdx))
       }
 
-      new UpdateOrderLinkedMap(fs :+ key, underlying.updated(key, (fs.length, value))).maybeReindex()
+      new UpdateOrderLinkedMap(fs :+ key, underlying.updated(key, Entry(fs.length, value))).maybeReindex()
     }
   }
 
@@ -87,7 +87,9 @@ private[zio] final class UpdateOrderLinkedMap[K, +V](
     if (self.fields.size - size > 10000) fromUnsafe(iterator0)
     else self
 
-  def iterator: Iterator[(K, V)] = iteratorLz.iterator
+  def iterator: Iterator[(K, V)] =
+    if (size == 1) underlying.iterator.map { case (k, v) => (k, v.value) }
+    else iteratorLz.iterator
 
   @transient
   private[this] lazy val iteratorLz: LzList[(K, V)] = {
@@ -110,17 +112,19 @@ private[zio] final class UpdateOrderLinkedMap[K, +V](
           k.asInstanceOf[K]
       }
 
-    override def hasNext: Boolean = slot < fieldsLength - 1
+    override final def hasNext: Boolean = slot < fieldsLength - 1
 
-    override def next(): (K, V) =
+    override final def next(): (K, V) =
       if (!hasNext) Iterator.empty.next()
       else {
         val key = findNextKey(slot + 1)
-        (key, underlying(key)._2)
+        (key, underlying(key).value)
       }
   }
 
-  def reverseIterator: Iterator[(K, V)] = reverseIteratorLz.iterator
+  def reverseIterator: Iterator[(K, V)] =
+    if (size == 1) underlying.iterator.map { case (k, v) => (k, v.value) }
+    else reverseIteratorLz.iterator
 
   @transient
   private[this] lazy val reverseIteratorLz: LzList[(K, V)] = {
@@ -147,13 +151,13 @@ private[zio] final class UpdateOrderLinkedMap[K, +V](
           k.asInstanceOf[K]
       }
 
-    override def hasNext: Boolean = remaining > 0
+    override final def hasNext: Boolean = remaining > 0
 
-    override def next(): (K, V) =
+    override final def next(): (K, V) =
       if (!hasNext) Iterator.empty.next()
       else {
         val key    = findNextKey(slot - 1)
-        val result = (key, underlying(key)._2)
+        val result = (key, underlying(key).value)
         result
       }
   }
@@ -165,25 +169,32 @@ private[zio] final class UpdateOrderLinkedMap[K, +V](
 
 private[zio] object UpdateOrderLinkedMap {
   private final case class Tombstone(distance: Int)
+  private final case class Entry[+V](idx: Int, value: V)
 
   private[this] final val EmptyMap: UpdateOrderLinkedMap[Nothing, Nothing] =
-    new UpdateOrderLinkedMap[Nothing, Nothing](Vector.empty[Nothing], HashMap.empty[Nothing, (Int, Nothing)])
+    new UpdateOrderLinkedMap[Nothing, Nothing](Vector.empty[Nothing], Map.empty[Nothing, Entry[Nothing]])
 
   def empty[K, V]: UpdateOrderLinkedMap[K, V] = EmptyMap.asInstanceOf[UpdateOrderLinkedMap[K, V]]
 
   def fromMap[K, V](map: Map[K, V]): UpdateOrderLinkedMap[K, V] = fromUnsafe(map.iterator)
+
+  def single[K, V](key: K, value: V): UpdateOrderLinkedMap[K, V] =
+    new UpdateOrderLinkedMap(
+      Vector.empty[K] :+ key, // More efficient than `Vector(key)`
+      new Map.Map1(key, Entry(0, value))
+    )
 
   /**
    * Keys in the iterator '''MUST be unique'''!
    */
   private def fromUnsafe[K, V](it: Iterator[(K, V)]): UpdateOrderLinkedMap[K, V] = {
     val vectorBuilder = new VectorBuilder[K]
-    val mapBuilder    = HashMap.newBuilder[K, (Int, V)]
+    val mapBuilder    = HashMap.newBuilder[K, Entry[V]]
     var i             = 0
     while (it.hasNext) {
       val (k, v) = it.next()
       vectorBuilder += k
-      mapBuilder += ((k, (i, v)))
+      mapBuilder += ((k, Entry(i, v)))
       i += 1
     }
     new UpdateOrderLinkedMap(vectorBuilder.result(), mapBuilder.result())
@@ -192,38 +203,31 @@ private[zio] object UpdateOrderLinkedMap {
   def newBuilder[K, V]: UpdateOrderLinkedMap.Builder[K, V] = new UpdateOrderLinkedMap.Builder[K, V]
 
   final class Builder[K, V] { self =>
-    private[this] var entries: List[(K, V)]               = Nil
-    private[this] var aliased: UpdateOrderLinkedMap[K, V] = _
+    private[this] var entries: List[(K, V)] = Nil
 
     def addOne(elem: (K, V)): UpdateOrderLinkedMap.Builder[K, V] = {
-      if (aliased ne null) {
-        aliased = aliased.updated(elem._1, elem._2)
-      } else {
-        // Place them in reverse order, we'll reverse them back during `result()`
-        entries = elem :: entries
-      }
+      entries = elem :: entries
       this
     }
 
-    def clear(): Unit = {
+    def clear(): Unit =
       entries = Nil
-      aliased = null
-    }
 
-    def result(): UpdateOrderLinkedMap[K, V] = {
-      if (aliased eq null) {
-        var reversed  = List.empty[(K, V)]
-        var remaining = entries
-        val set       = mutable.HashSet.empty[K]
-        while (remaining ne Nil) {
-          val head = remaining.head
-          if (set.add(head._1)) reversed = head :: reversed
-          remaining = remaining.tail
-        }
-        aliased = fromUnsafe(reversed.iterator)
+    def result(): UpdateOrderLinkedMap[K, V] =
+      entries match {
+        case head :: (_: Nil.type) =>
+          single(head._1, head._2)
+        case rem =>
+          var reversed  = List.empty[(K, V)]
+          var remaining = rem
+          val set       = mutable.HashSet.empty[K]
+          while (remaining ne Nil) {
+            val head = remaining.head
+            if (set.add(head._1)) reversed = head :: reversed
+            remaining = remaining.tail
+          }
+          fromUnsafe(reversed.iterator)
       }
-      aliased
-    }
   }
 
   private sealed trait LzList[+A] { self =>
