@@ -21,7 +21,7 @@ import scala.collection.immutable.{HashMap, VectorBuilder}
 import scala.collection.{AbstractIterator, mutable}
 import scala.util.hashing.MurmurHash3
 
-private[zio] final class UpdateOrderLinkedMap[K, +V](
+private[zio] final class UpdateOrderLinkedMap[K, +V] private (
   fields: Vector[Any],
   underlying: Map[K, UpdateOrderLinkedMap.Entry[V]]
 ) extends Serializable { self =>

@@ -137,6 +137,13 @@ final class ZEnvironment[+R] private (
         s"Defect in zio.ZEnvironment: $tags statically known to be contained within the environment are missing"
       )
 
+    @inline
+    def returnScopeOrThrow(): Scope =
+      scope match {
+        case null => throwError(Set(ScopeTag))
+        case s    => s
+      }
+
     // Optimized pruning for a single service
     def pruneOne(tag: LightTypeTag): ZEnvironment[R1] = {
       val builder = UpdateOrderLinkedMap.newBuilder[LightTypeTag, Any]
@@ -150,15 +157,15 @@ final class ZEnvironment[+R] private (
           builder addOne next
         }
       }
-      val isScopeTag0 = isScopeTag(tag)
-      val newMap      = builder.result()
+      val needsScope = isScopeTag(tag)
+      val newMap     = builder.result()
 
-      if (newMap.isEmpty && !isScopeTag0) throwError(Set(tag))
+      if (newMap.isEmpty && !needsScope) throwError(Set(tag))
 
       new ZEnvironment(
         newMap,
         cache = new ConcurrentHashMap[LightTypeTag, Any],
-        scope = if (isScopeTag0) scope else null
+        scope = if (needsScope) returnScopeOrThrow() else null
       )
     }
 
@@ -193,12 +200,21 @@ final class ZEnvironment[+R] private (
           }
         }
       }
-      val scopeTags = set.filter(isScopeTag)
-      scopeTags.foreach(found.add)
+
+      var needsScope = false
+      val it         = set.iterator
+      while (it.hasNext) {
+        val tag = it.next()
+        if (isScopeTag(tag)) {
+          needsScope = true
+          found.add(tag)
+        }
+      }
+
       val newMap = builder.result()
 
       if (set.size > found.size) {
-        val missing = set.subtractAll(found)
+        val missing = set --= found
 
         // We need to check whether one of the services we added is a subtype of the missing service
         val newTags = newMap.keySet
@@ -212,7 +228,7 @@ final class ZEnvironment[+R] private (
       new ZEnvironment(
         newMap,
         cache = new ConcurrentHashMap[LightTypeTag, Any],
-        scope = if (scopeTags.isEmpty) null else scope
+        scope = if (needsScope) returnScopeOrThrow() else null
       )
     }
 
@@ -458,9 +474,7 @@ object ZEnvironment {
             case AddScope(scope)          => loop(env.unsafe.addScope(scope)(Unsafe), patches.tail)
             case AddService(service, tag) => loop(env.unsafe.addService(tag, service)(Unsafe), patches.tail)
             case AndThen(first, second)   => loop(env, erase(first) :: erase(second) :: patches.tail)
-            case _: Empty[?]              => loop(env, patches.tail)
-            case _: RemoveService[?, ?]   => loop(env, patches.tail)
-            case _: UpdateService[?, ?]   => loop(env, patches.tail)
+            case _ /* Empty[?] */         => loop(env, patches.tail)
           }
 
       val env0 = environment.asInstanceOf[ZEnvironment[Out]]
