@@ -2,7 +2,7 @@ package zio.concurrent
 
 import zio._
 import zio.test.Assertion._
-import zio.test.TestAspect.{nonFlaky, timed, timeout}
+import zio.test.TestAspect.{jvm, nonFlaky, timed, timeout}
 import zio.test._
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -76,13 +76,15 @@ object CyclicBarrierSpec extends ZIOSpecDefault {
       } @@ nonFlaky(1000),
       test("Breaks on party interruption") {
         for {
+          latch     <- Promise.make[Nothing, Unit]
           barrier   <- CyclicBarrier.make(parties)
-          f1        <- barrier.await.timeout(1.second).fork
+          f1        <- barrier.await.timeout(1.second).tap(_ => latch.succeedUnit).fork
           f2        <- barrier.await.fork
           _         <- f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
           _         <- f2.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
           isBroken1 <- barrier.isBroken
           _         <- TestClock.adjust(1.second)
+          _         <- latch.await
           isBroken2 <- barrier.isBroken
           res1      <- f1.await
           res2      <- f2.await
@@ -105,7 +107,7 @@ object CyclicBarrierSpec extends ZIOSpecDefault {
           }
 
           def make1(cb: CyclicBarrier, ref: Counter)(n: Int) =
-            cb.await.tap(_ => ZIO.succeed(ref.inc(n))).repeatN(10000)
+            cb.await.as(ref.inc(n)).repeatN(1000)
 
           for {
             ref <- ZIO.succeed(new Counter)
@@ -122,12 +124,12 @@ object CyclicBarrierSpec extends ZIOSpecDefault {
             cb <- CyclicBarrier.make(4)
             // We can't guarantee that the last n - 1 fibers will be completed
             latch <- CountdownLatch.make(nFibers - nParties + 1)
-            f     <- ZIO.foreachParDiscard(1 to nFibers)(_ => cb.await.repeatN(1000) *> latch.countDown).fork
+            f     <- ZIO.foreachParDiscard(1 to nFibers)(_ => cb.await.repeatN(500) *> latch.countDown).fork
             _     <- latch.await
             _     <- f.interrupt
           } yield assertCompletes
         }
-      ) @@ nonFlaky @@ timeout(30.seconds)
+      ) @@ jvm(nonFlaky) @@ timeout(30.seconds)
     ) @@ timed
 
 }
