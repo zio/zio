@@ -145,36 +145,44 @@ final class ZEnvironment[+R] private (
       }
 
     // Optimized pruning for a single service
-    def pruneOne(tag: LightTypeTag): ZEnvironment[R1] = {
-      val builder = UpdateOrderLinkedMap.newBuilder[LightTypeTag, Any]
+    def pruneOne(tag: LightTypeTag): ZEnvironment[R1] =
+      if (isScopeTag(tag)) {
+        new ZEnvironment(
+          UpdateOrderLinkedMap.empty[LightTypeTag, Any],
+          cache = new ConcurrentHashMap[LightTypeTag, Any],
+          scope = returnScopeOrThrow()
+        )
+      } else {
+        val builder = UpdateOrderLinkedMap.newBuilder[LightTypeTag, Any]
 
-      val it0 = self.map.iterator
-      while (it0.hasNext) {
-        val next    = it0.next()
-        val leftTag = next._1
+        val it0 = self.map.iterator
+        while (it0.hasNext) {
+          val next    = it0.next()
+          val leftTag = next._1
 
-        if (taggedIsSubtype(leftTag, tag)) {
-          builder addOne next
+          if (taggedIsSubtype(leftTag, tag)) {
+            builder addOne next
+          }
         }
+        val newMap = builder.result()
+
+        if (newMap.isEmpty) throwError(Set(tag))
+
+        new ZEnvironment(
+          newMap,
+          cache = new ConcurrentHashMap[LightTypeTag, Any],
+          scope = null
+        )
       }
-      val needsScope = isScopeTag(tag)
-      val newMap     = builder.result()
-
-      if (newMap.isEmpty && !needsScope) throwError(Set(tag))
-
-      new ZEnvironment(
-        newMap,
-        cache = new ConcurrentHashMap[LightTypeTag, Any],
-        scope = if (needsScope) returnScopeOrThrow() else null
-      )
-    }
 
     def pruneMany(iSet: Set[LightTypeTag]): ZEnvironment[R1] = {
       // Mutable set lookups are much faster. It also iterates faster. We're better off just allocating here
       // Why are immutable set lookups so slow???
-      val set     = new mutable.HashSet ++= iSet
-      val builder = UpdateOrderLinkedMap.newBuilder[LightTypeTag, Any]
-      val found   = new mutable.HashSet[LightTypeTag]
+      val set        = new mutable.HashSet ++= iSet
+      val tagsAsList = iSet.toList // Lists iterate much faster than sets
+      val builder    = UpdateOrderLinkedMap.newBuilder[LightTypeTag, Any]
+      val found      = new mutable.HashSet[LightTypeTag]
+      val nil        = Nil
       found.sizeHint(set.size)
 
       val it0 = self.map.iterator
@@ -188,27 +196,29 @@ final class ZEnvironment[+R] private (
           builder addOne next
         } else {
           // Need to check whether it's a subtype
-          var loop = true
-          val it1  = set.iterator
-          while (it1.hasNext && loop) {
-            val rightTag = it1.next()
+          var rem = tagsAsList
+          while (rem ne nil) {
+            val rightTag = rem.head
             if (taggedIsSubtype(leftTag, rightTag)) {
               found.add(rightTag)
               builder addOne next
-              loop = false
+              rem = nil
+            } else {
+              rem = rem.tail
             }
           }
         }
       }
 
       var needsScope = false
-      val it         = set.iterator
-      while (it.hasNext) {
-        val tag = it.next()
+      var rem        = tagsAsList
+      while (rem ne nil) {
+        val tag = rem.head
         if (isScopeTag(tag)) {
           needsScope = true
           found.add(tag)
         }
+        rem = rem.tail
       }
 
       val newMap = builder.result()

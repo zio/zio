@@ -16,11 +16,20 @@
 
 package zio.internal
 
+import zio.BuildInfo
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.annotation.tailrec
+import scala.collection.AbstractIterator
 import scala.collection.immutable.{HashMap, VectorBuilder}
-import scala.collection.{AbstractIterator, mutable}
+import scala.collection.mutable.ListBuffer
 import scala.util.hashing.MurmurHash3
 
+/**
+ * This Map is optimized for use with ZEnvironment.
+ *
+ * '''DO NOT''' use for any other purposes.
+ */
 private[zio] final class UpdateOrderLinkedMap[K, +V] private (
   fields: Vector[Any],
   underlying: Map[K, UpdateOrderLinkedMap.Entry[V]]
@@ -88,8 +97,10 @@ private[zio] final class UpdateOrderLinkedMap[K, +V] private (
     else self
 
   def iterator: Iterator[(K, V)] =
-    if (size == 1) underlying.iterator.map { case (k, v) => (k, v.value) }
-    else iteratorLz.iterator
+    if (underlying.size == 1) {
+      val kv = underlying.head
+      Iterator.single((kv._1, kv._2.value))
+    } else iteratorLz.iterator
 
   @transient
   private[this] lazy val iteratorLz: LzList[(K, V)] = {
@@ -123,8 +134,10 @@ private[zio] final class UpdateOrderLinkedMap[K, +V] private (
   }
 
   def reverseIterator: Iterator[(K, V)] =
-    if (size == 1) underlying.iterator.map { case (k, v) => (k, v.value) }
-    else reverseIteratorLz.iterator
+    if (underlying.size == 1) {
+      val kv = underlying.head
+      Iterator.single((kv._1, kv._2.value))
+    } else reverseIteratorLz.iterator
 
   @transient
   private[this] lazy val reverseIteratorLz: LzList[(K, V)] = {
@@ -192,7 +205,9 @@ private[zio] object UpdateOrderLinkedMap {
     val mapBuilder    = HashMap.newBuilder[K, Entry[V]]
     var i             = 0
     while (it.hasNext) {
-      val (k, v) = it.next()
+      val kv = it.next()
+      val k  = kv._1
+      val v  = kv._2
       vectorBuilder += k
       mapBuilder += ((k, Entry(i, v)))
       i += 1
@@ -203,31 +218,38 @@ private[zio] object UpdateOrderLinkedMap {
   def newBuilder[K, V]: UpdateOrderLinkedMap.Builder[K, V] = new UpdateOrderLinkedMap.Builder[K, V]
 
   final class Builder[K, V] { self =>
-    private[this] var entries: List[(K, V)] = Nil
+    private[this] val entries = ListBuffer.empty[(K, V)]
 
+    /**
+     * Adds a single element to the builder.
+     *
+     * '''NOTE''': The elements added to this builder MUST be unique!
+     */
     def addOne(elem: (K, V)): UpdateOrderLinkedMap.Builder[K, V] = {
-      entries = elem :: entries
+      entries += elem
       this
     }
 
     def clear(): Unit =
-      entries = Nil
+      entries.clear()
 
-    def result(): UpdateOrderLinkedMap[K, V] =
-      entries match {
-        case head :: (_: Nil.type) =>
+    def result(): UpdateOrderLinkedMap[K, V] = {
+      val entries = this.entries
+      entries.length match {
+        case 0 =>
+          empty
+        case 1 =>
+          val head = entries.toList.head // faster than calling `entries.head`
           single(head._1, head._2)
-        case rem =>
-          var reversed  = List.empty[(K, V)]
-          var remaining = rem
-          val set       = mutable.HashSet.empty[K]
-          while (remaining ne Nil) {
-            val head = remaining.head
-            if (set.add(head._1)) reversed = head :: reversed
-            remaining = remaining.tail
-          }
-          fromUnsafe(reversed.iterator)
+        case _ =>
+          // NOTE: The compiler removes this assertion in release mode
+          assert(
+            BuildInfo.optimizationsEnabled || entries.map(_._1).distinct.size == entries.size,
+            "Entries added to UpdateOrderLinkedMap.Builder were not unique"
+          )
+          fromUnsafe(entries.toList.iterator)
       }
+    }
   }
 
   private sealed trait LzList[+A] { self =>

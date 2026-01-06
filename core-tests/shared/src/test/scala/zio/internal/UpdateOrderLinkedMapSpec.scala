@@ -24,7 +24,6 @@ object UpdateOrderLinkedMapSpec extends ZIOBaseSpec {
         UpdateOrderLinkedMap
           .newBuilder[String, Int]
           .addOne("a" -> 1)
-          .addOne("b" -> 2)
           .addOne("c" -> 3)
           .addOne("b" -> 4)
           .addOne("d" -> 5)
