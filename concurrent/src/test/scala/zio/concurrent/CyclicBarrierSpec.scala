@@ -1,8 +1,11 @@
 package zio.concurrent
 
-import zio.test.Assertion._
-import zio.test._
 import zio._
+import zio.test.Assertion._
+import zio.test.TestAspect.{nonFlaky, timed, timeout}
+import zio.test._
+
+import java.util.concurrent.atomic.AtomicInteger
 
 object CyclicBarrierSpec extends ZIOSpecDefault {
   private val parties = 100
@@ -17,7 +20,7 @@ object CyclicBarrierSpec extends ZIOSpecDefault {
         } yield assert(barrier.parties)(equalTo(parties)) &&
           assert(isBroken)(equalTo(false)) &&
           assert(waiting)(equalTo(0))
-      },
+      } @@ nonFlaky(10000),
       test("Releases the barrier") {
         for {
           barrier <- CyclicBarrier.make(2)
@@ -28,7 +31,7 @@ object CyclicBarrierSpec extends ZIOSpecDefault {
           ticket2 <- f2.join
         } yield assert(ticket1)(equalTo(1)) &&
           assert(ticket2)(equalTo(0))
-      },
+      } @@ nonFlaky(10000),
       test("Releases the barrier and performs the action") {
         for {
           promise    <- Promise.make[Nothing, Unit]
@@ -40,7 +43,7 @@ object CyclicBarrierSpec extends ZIOSpecDefault {
           _          <- f2.join
           isComplete <- promise.isDone
         } yield assert(isComplete)(isTrue)
-      },
+      } @@ nonFlaky(10000),
       test("Releases the barrier and cycles") {
         for {
           barrier <- CyclicBarrier.make(2)
@@ -58,7 +61,7 @@ object CyclicBarrierSpec extends ZIOSpecDefault {
           assert(ticket2)(equalTo(0)) &&
           assert(ticket3)(equalTo(1)) &&
           assert(ticket4)(equalTo(0))
-      },
+      } @@ nonFlaky(10000),
       test("Breaks on reset") {
         for {
           barrier <- CyclicBarrier.make(parties)
@@ -70,7 +73,7 @@ object CyclicBarrierSpec extends ZIOSpecDefault {
           res1    <- f1.await
           res2    <- f2.await
         } yield assert(res1)(fails(isUnit)) && assert(res2)(fails(isUnit))
-      },
+      } @@ nonFlaky(1000),
       test("Breaks on party interruption") {
         for {
           barrier   <- CyclicBarrier.make(parties)
@@ -87,7 +90,44 @@ object CyclicBarrierSpec extends ZIOSpecDefault {
           assert(isBroken2)(isTrue) &&
           assert(res1)(succeeds(isNone)) &&
           assert(res2)(fails(isUnit))
-      }
-    )
+      } @@ nonFlaky,
+      suite("is stable under high contention")(
+        test("when fibers == parties") {
+          final class Counter {
+            private val ref = new AtomicInteger(0)
+
+            def inc(n: Int): Unit = {
+              val newN = ref.updateAndGet(_ + n)
+              if (newN < -1 || newN > 1) throw new IllegalStateException(s"invalid ref state: $newN")
+            }
+
+            def get: Int = ref.get
+          }
+
+          def make1(cb: CyclicBarrier, ref: Counter)(n: Int) =
+            cb.await.tap(_ => ZIO.succeed(ref.inc(n))).repeatN(10000)
+
+          for {
+            ref <- ZIO.succeed(new Counter)
+            cb  <- CyclicBarrier.make(2)
+            make = make1(cb, ref)(_)
+            _   <- ZIO.collectAllParDiscard(List(make(1), make(-1)))
+            v    = ref.get
+          } yield assertTrue(v == 0)
+        },
+        test("when fibers > parties") {
+          val nFibers  = 20
+          val nParties = 4
+          for {
+            cb <- CyclicBarrier.make(4)
+            // We can't guarantee that the last n - 1 fibers will be completed
+            latch <- CountdownLatch.make(nFibers - nParties + 1)
+            f     <- ZIO.foreachParDiscard(1 to nFibers)(_ => cb.await.repeatN(1000) *> latch.countDown).fork
+            _     <- latch.await
+            _     <- f.interrupt
+          } yield assertCompletes
+        }
+      ) @@ nonFlaky @@ timeout(30.seconds)
+    ) @@ timed
 
 }
