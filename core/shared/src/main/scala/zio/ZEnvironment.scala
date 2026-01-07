@@ -124,7 +124,7 @@ final class ZEnvironment[+R] private (
     else scope
 
   override lazy val hashCode: Int =
-    MurmurHash3.productHash((map, scope))
+    MurmurHash3.productHash((map, scope)): @noinline // See https://github.com/zio/zio/pull/10363 why `@noinline`
 
   /**
    * Prunes the environment to the set of services statically known to be
