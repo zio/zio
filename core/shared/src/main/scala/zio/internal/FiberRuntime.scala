@@ -1141,10 +1141,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
 
-                  case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
-                    cur = patchRuntimeFlags(updateFlags.update, null, null)
-
-                  case _ => ()
+                  case update =>
+                    val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
+                    if (!ignoreFlagsUpdate(updateFlags.update, stackIndex)) {
+                      cur = patchRuntimeFlags(updateFlags.update, null, null)
+                    }
                 }
               }
 
@@ -1172,10 +1173,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
 
-                  case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
-                    cur = patchRuntimeFlags(updateFlags.update, null, null)
-
-                  case _ => ()
+                  case update =>
+                    val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
+                    if (!ignoreFlagsUpdate(updateFlags.update, stackIndex)) {
+                      cur = patchRuntimeFlags(updateFlags.update, null, null)
+                    }
                 }
               }
 
@@ -1229,8 +1231,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               result match {
                 case s: Success[Any] => cur = fold.successK(s.value)
-                case f: Failure[Any] =>
-                  val cause = f.cause
+                case f =>
+                  val cause = f.asInstanceOf[Failure[Any]].cause
                   if (shouldInterrupt()) cur = Exit.Failure(cause.stripFailures)
                   else cur = fold.failureK(cause)
               }
@@ -1342,8 +1344,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 popStackFrame(stackIndex)
 
                 continuation match {
-                  case _: ZIO.FlatMap[Any, Any, Any, Any] =>
-
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     if (shouldInterrupt()) {
                       cause = cause.stripFailures
@@ -1369,15 +1369,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               updateLastTrace(updateRuntimeFlags.trace)
               cur = patchRuntimeFlags(updateRuntimeFlags.update, null, Exit.unit)
 
-            case gen0: GenerateStackTrace =>
-              updateLastTrace(gen0.trace)
-              cur = Exit.succeed(generateStackTrace())
-
-            // Should be unreachable, but we keep it to be backwards compatible
-            case update0: UpdateRuntimeFlagsWithin[Any, Any, Any] =>
-              assert(DisableAssertions) // Will raise an error in tests but not in released artifact
-              cur = UpdateRuntimeFlagsWithin.DynamicNoBox(update0.trace, update0.update, update0.scope(_))
-
+            case effect =>
+              throw new MatchError("Invalid effect type in ZIO's runloop: " + effect.getClass.getName)
           }
         } catch {
           // TODO: ClosedByInterruptException (but Scala.js??)
