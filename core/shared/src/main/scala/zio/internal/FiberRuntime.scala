@@ -333,11 +333,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             cur = Exit.Failure(cause)
           }
 
-        case FiberMessage.Resume(_) =>
+        case _ =>
           assert(DisableAssertions, "It is illegal to have multiple concurrent run loops in a single fiber")
-
-        case FiberMessage.YieldNow =>
-          assert(DisableAssertions)
       }
 
       message = inbox.poll()
@@ -371,7 +368,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
           resumption = nextEffect0.asInstanceOf[ZIO.Erased]
 
-        case FiberMessage.YieldNow =>
+        case _ =>
           assert(DisableAssertions)
 
       }
@@ -509,7 +506,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         if (exit eq null) EvaluationSignal.YieldNow
         else EvaluationSignal.Continue
 
-      case FiberMessage.YieldNow =>
+      case _ =>
         // Will raise an error during tests, but assertion disappears when we publish
         // Kept just in case someone in the ecosystem as adding YieldNow messages manually
         assert(DisableAssertions)
