@@ -21,20 +21,19 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 
-sealed abstract class Scheduler {
-  def asScheduledExecutorService: ScheduledExecutorService
+sealed abstract class Scheduler extends SchedulerPlatformSpecific {
   def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): CancelToken
 }
 
 object Scheduler {
   type CancelToken = () => Boolean
+  private final val ConstFalse = () => false
+  private final val MaxMillis  = Long.MaxValue / 1000000L
 
   private[zio] abstract class Internal extends Scheduler
 
   def fromScheduledExecutorService(service: ScheduledExecutorService): Scheduler =
     new Scheduler {
-      val ConstFalse = () => false
-
       def asScheduledExecutorService: ScheduledExecutorService =
         service
 
@@ -45,13 +44,24 @@ object Scheduler {
             task.run()
             ConstFalse
           case d =>
-            val future = service.schedule(
-              task,
-              d.toNanos,
-              TimeUnit.NANOSECONDS
-            )
+            val millis = d.toMillis
+            val future =
+              if (millis < MaxMillis)
+                service.schedule(
+                  task,
+                  d.toNanos,
+                  TimeUnit.NANOSECONDS
+                )
+              else
+                service.schedule(
+                  task,
+                  millis,
+                  TimeUnit.MILLISECONDS
+                )
 
             () => future.cancel(true)
         }
+
+      override def toString() = s"Scheduler($service)"
     }
 }

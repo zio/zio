@@ -16,6 +16,7 @@
 
 package zio.test
 
+import zio.Exit
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 sealed abstract class TestSuccess { self =>
@@ -39,5 +40,6 @@ object TestSuccess {
   final case class Succeeded(annotations: TestAnnotationMap = TestAnnotationMap.empty) extends TestSuccess
   final case class Ignored(annotations: TestAnnotationMap = TestAnnotationMap.empty)   extends TestSuccess
 
-  val ignored: TestSuccess = Ignored()
+  val ignored: TestSuccess           = Ignored()
+  private[test] val succeedEmptyExit = Exit.succeed(Succeeded())
 }

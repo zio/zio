@@ -16,19 +16,15 @@
 
 package zio.test
 
+import zio.Clock.ClockLive
+import zio.Console.ConsoleLive
+import zio.Random.RandomLive
+import zio.System.SystemLive
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.immutable.SortedSet
-import zio.test.TestAspectPoly
-import zio.System.env
-import zio.test.TestAspectAtLeastR
-import zio.Clock.ClockLive
-import zio.Console.ConsoleLive
-import zio.Random.RandomLive
-import zio.System.SystemLive
-
 import scala.collection.mutable
 
 /**
@@ -107,8 +103,50 @@ object TestAspect extends TimeoutVariants {
   val ignore: TestAspectPoly =
     new TestAspectPoly {
       def some[R, E](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
-        spec.when(false)
+        spec.whenZIO(Exit.`false`)
     }
+
+  /**
+   * An aspect that restores the [[zio.test.TestClock TestClock]]'s state to its
+   * starting state after the test is run. Note that this is only useful when
+   * repeating tests.
+   */
+  val restoreTestClock: TestAspectPoly =
+    restore(testClock(Trace.empty))
+
+  /**
+   * An aspect that restores the [[zio.test.TestConsole TestConsole]]'s state to
+   * its starting state after the test is run. Note that this is only useful
+   * when repeating tests.
+   */
+  val restoreTestConsole: TestAspectPoly =
+    restore(testConsole(Trace.empty))
+
+  /**
+   * An aspect that restores the [[zio.test.TestRandom TestRandom]]'s state to
+   * its starting state after the test is run. Note that this is only useful
+   * when repeating tests.
+   */
+  val restoreTestRandom: TestAspectPoly =
+    restore(testRandom(Trace.empty))
+
+  /**
+   * An aspect that restores the [[zio.test.TestSystem TestSystem]]'s state to
+   * its starting state after the test is run. Note that this is only useful
+   * when repeating tests.
+   */
+  val restoreTestSystem: TestAspectPoly =
+    restore(testSystem(Trace.empty))
+
+  /**
+   * An aspect that restores all state in the standard provided test
+   * environments ([[zio.test.TestClock TestClock]],
+   * [[zio.test.TestConsole TestConsole]], [[zio.test.TestRandom TestRandom]],
+   * and [[zio.test.TestSystem TestSystem]]) to their starting state after the
+   * test is run. Note that this is only useful when repeating tests.
+   */
+  val restoreTestEnvironment: TestAspectPoly =
+    restoreTestClock >>> restoreTestConsole >>> restoreTestRandom >>> restoreTestSystem
 
   /**
    * Constructs an aspect that runs the specified effect after every test.
@@ -119,7 +157,7 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
         test.exit
-          .zipWith(effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))).exit)(_ <* _)
+          .zipWith(effect.catchAllCause(cause => Exit.fail(TestFailure.Runtime(cause))).exit)(_ <* _)
           .unexit
     }
 
@@ -166,7 +204,7 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: R0, E >: E0](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
-        test.tapErrorCause(_ => effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))))
+        test.tapErrorCause(_ => effect.catchAllCause(cause => Exit.fail(TestFailure.Runtime(cause))))
     }
 
   /**
@@ -178,7 +216,7 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: R0, E >: E0](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
-        test.tap(_ => effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))))
+        test.tap(_ => effect.catchAllCause(cause => Exit.fail(TestFailure.Runtime(cause))))
     }
 
   /**
@@ -201,7 +239,7 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: Trace
       ): ZIO[R, TestFailure[E], TestSuccess] =
-        ZIO.acquireReleaseWith(before.catchAllCause(c => ZIO.fail(TestFailure.Runtime(c))))(after)(_ => test)
+        ZIO.acquireReleaseWith(before.catchAllCause(c => Exit.fail(TestFailure.Runtime(c))))(after)(_ => test)
     }
 
   /**
@@ -268,7 +306,7 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: Trace
       ): ZIO[R, TestFailure[E], TestSuccess] =
-        effect.catchAllCause(cause => ZIO.fail(TestFailure.failCause(cause))) *> test
+        effect.catchAllCause(cause => Exit.fail(TestFailure.failCause(cause))) *> test
     }
 
   /**
@@ -488,15 +526,17 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that makes a test that failed for any reason pass. Note that if
-   * the test passes this aspect will make it fail.
+   * the test passes, this aspect will make it fail instead.
    */
   val failing: TestAspectPoly =
     failing(_ => true)
 
   /**
    * An aspect that makes a test that failed for the specified failure pass.
-   * Note that the test will fail for other failures and also if it passes
-   * correctly.
+   *
+   * Note that the test will:
+   *   1. Fail with a `RuntimeException` if the test passes.
+   *   1. Re-raise failures that don't satisfy the provided assertion.
    */
   def failing[E0](assertion: TestFailure[E0] => Boolean): TestAspect[Nothing, Any, Nothing, E0] =
     new TestAspect.PerTest[Nothing, Any, Nothing, E0] {
@@ -505,9 +545,9 @@ object TestAspect extends TimeoutVariants {
       ): ZIO[R, TestFailure[E], TestSuccess] =
         test.foldZIO(
           failure =>
-            if (assertion(failure)) ZIO.succeed(TestSuccess.Succeeded())
-            else ZIO.fail(TestFailure.die(new RuntimeException("did not fail as expected"))),
-          _ => ZIO.fail(TestFailure.die(new RuntimeException("did not fail as expected")))
+            if (assertion(failure)) TestSuccess.succeedEmptyExit
+            else Exit.fail(failure),
+          _ => Exit.fail(TestFailure.die(new RuntimeException("did not fail as expected")))
         )
     }
 
@@ -564,9 +604,7 @@ object TestAspect extends TimeoutVariants {
       def perTest[R, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
-        TestConfig.retries.flatMap { n =>
-          test.catchAll(_ => test.tapError(_ => Annotations.annotate(TestAnnotation.retried, 1)).retryN(n - 1))
-        }
+        TestConfig.retries.flatMap(flakyImpl(test))
     }
     restoreTestEnvironment >>> flaky
   }
@@ -580,10 +618,15 @@ object TestAspect extends TimeoutVariants {
       def perTest[R, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
-        test.catchAll(_ => test.tapError(_ => Annotations.annotate(TestAnnotation.retried, 1)).retryN(n - 1))
+        flakyImpl(test)(n)
     }
     restoreTestEnvironment >>> flaky
   }
+
+  private def flakyImpl[R, E](test: ZIO[R, TestFailure[E], TestSuccess])(n: Int)(implicit trace: Trace) =
+    test.catchAll(_ =>
+      ZIO.yieldNow *> test.tapError(_ => Annotations.annotate(TestAnnotation.retried, 1)).retryN(n - 1)
+    )
 
   /**
    * An aspect that runs each test on its own separate fiber.
@@ -752,9 +795,7 @@ object TestAspect extends TimeoutVariants {
       def perTest[R, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
-        TestConfig.repeats.flatMap { n =>
-          test *> test.tap(_ => Annotations.annotate(TestAnnotation.repeated, 1)).repeatN(n - 1)
-        }
+        TestConfig.repeats.flatMap(nonFlakyImpl(test))
     }
     restoreTestEnvironment >>> nonFlaky
   }
@@ -768,10 +809,13 @@ object TestAspect extends TimeoutVariants {
       def perTest[R, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
-        test *> test.tap(_ => Annotations.annotate(TestAnnotation.repeated, 1)).repeatN(n - 1)
+        nonFlakyImpl(test)(n)
     }
     restoreTestEnvironment >>> nonFlaky
   }
+
+  private def nonFlakyImpl[R, E](test: ZIO[R, TestFailure[E], TestSuccess])(n: Int)(implicit trace: Trace) =
+    test *> (ZIO.yieldNow *> test).tap(_ => Annotations.annotate(TestAnnotation.repeated, 1)).repeatN(n - 1)
 
   /**
    * Constructs an aspect that requires a test to not terminate within the
@@ -860,48 +904,6 @@ object TestAspect extends TimeoutVariants {
    */
   def restore(restorable: UIO[Restorable]): TestAspectPoly =
     aroundWith(restorable.flatMap(_.save(Trace.empty))(Trace.empty))(restore => restore)
-
-  /**
-   * An aspect that restores the [[zio.test.TestClock TestClock]]'s state to its
-   * starting state after the test is run. Note that this is only useful when
-   * repeating tests.
-   */
-  def restoreTestClock: TestAspectPoly =
-    restore(testClock(Trace.empty))
-
-  /**
-   * An aspect that restores the [[zio.test.TestConsole TestConsole]]'s state to
-   * its starting state after the test is run. Note that this is only useful
-   * when repeating tests.
-   */
-  def restoreTestConsole: TestAspectPoly =
-    restore(testConsole(Trace.empty))
-
-  /**
-   * An aspect that restores the [[zio.test.TestRandom TestRandom]]'s state to
-   * its starting state after the test is run. Note that this is only useful
-   * when repeating tests.
-   */
-  def restoreTestRandom: TestAspectPoly =
-    restore(testRandom(Trace.empty))
-
-  /**
-   * An aspect that restores the [[zio.test.TestSystem TestSystem]]'s state to
-   * its starting state after the test is run. Note that this is only useful
-   * when repeating tests.
-   */
-  def restoreTestSystem: TestAspectPoly =
-    restore(testSystem(Trace.empty))
-
-  /**
-   * An aspect that restores all state in the standard provided test
-   * environments ([[zio.test.TestClock TestClock]],
-   * [[zio.test.TestConsole TestConsole]], [[zio.test.TestRandom TestRandom]],
-   * and [[zio.test.TestSystem TestSystem]]) to their starting state after the
-   * test is run. Note that this is only useful when repeating tests.
-   */
-  def restoreTestEnvironment: TestAspectPoly =
-    restoreTestClock >>> restoreTestConsole >>> restoreTestRandom >>> restoreTestSystem
 
   /**
    * An aspect that runs each test with the number of times to retry flaky tests
@@ -1102,8 +1104,8 @@ object TestAspect extends TimeoutVariants {
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
         test.flatMap {
           case TestSuccess.Ignored(_) =>
-            ZIO.fail(TestFailure.Runtime(Cause.die(new RuntimeException("Test was ignored."))))
-          case x => ZIO.succeed(x)
+            Exit.fail(TestFailure.Runtime(Cause.die(new RuntimeException("Test was ignored."))))
+          case x => Exit.succeed(x)
         }
     }
 
@@ -1143,8 +1145,8 @@ object TestAspect extends TimeoutVariants {
           TestTimeoutException(s"Timeout of ${duration.render} exceeded.")
         Live
           .withLive(test)(_.either.disconnect.timeout(duration).flatMap {
-            case None         => ZIO.fail(TestFailure.Runtime(Cause.die(timeoutFailure)))
-            case Some(result) => ZIO.fromEither(result)
+            case Some(result) => Exit.fromEither(result)
+            case _            => Exit.fail(TestFailure.Runtime(Cause.die(timeoutFailure)))
           })
       }
     }
