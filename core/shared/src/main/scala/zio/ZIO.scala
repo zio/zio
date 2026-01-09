@@ -4444,10 +4444,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     getExecutor: Fiber.Runtime[?, ?] => Executor
   )(zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.withFiberRuntime[R, E, A] { (fiber, status) =>
-      val newExecutor = getExecutor(fiber)
-      val oldOverride = fiber.getFiberRefOrNull(FiberRef.overrideExecutor)
+      val newExecutor     = getExecutor(fiber)
+      val oldOverride     = fiber.getFiberRefOrNull(FiberRef.overrideExecutor)
       val isEmptyOverride = oldOverride == null || oldOverride.isEmpty
-      val isLocked    = RuntimeFlags.eagerShiftBack(status.runtimeFlags) || !isEmptyOverride
+      val isLocked        = RuntimeFlags.eagerShiftBack(status.runtimeFlags) || !isEmptyOverride
 
       val oldExecutor =
         if (isEmptyOverride) Runtime.defaultExecutor
