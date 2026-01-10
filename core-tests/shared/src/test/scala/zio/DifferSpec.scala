@@ -6,23 +6,36 @@ object DifferSpec extends ZIOBaseSpec {
 
   val smallInt = Gen.int(1, 100)
 
-  def spec = suite("DifferSpec")(
-    suite("chunk") {
-      diffLaws(Differ.chunk[Int, Int => Int](Differ.update[Int]))(Gen.chunkOf(smallInt))(_ == _)
-    },
-    suite("either") {
-      diffLaws(Differ.update[Int] <+> Differ.update[Int])(Gen.either(smallInt, smallInt))(_ == _)
-    },
-    suite("map") {
-      diffLaws(Differ.map[Int, Int, Int => Int](Differ.update[Int]))(Gen.mapOf(smallInt, smallInt))(_ == _)
-    },
-    suite("set") {
-      diffLaws(Differ.set[Int])(Gen.setOf(smallInt))(_ == _)
-    },
-    suite("tuple") {
-      diffLaws(Differ.update[Int] <*> Differ.update[Int])(smallInt <*> smallInt)(_ == _)
-    }
-  )
+  def spec =
+    suite("DifferSpec")(
+      suite("chunk") {
+        diffLaws(Differ.chunk[Int, Int => Int](Differ.update[Int]))(Gen.chunkOf(smallInt))(_ == _)
+      },
+      suite("either") {
+        diffLaws(Differ.update[Int] <+> Differ.update[Int])(Gen.either(smallInt, smallInt))(_ == _)
+      },
+      suite("map") {
+        diffLaws(Differ.map[Int, Int, Int => Int](Differ.update[Int]))(Gen.mapOf(smallInt, smallInt))(_ == _)
+      },
+      suite("set") {
+        diffLaws(Differ.set[Int])(Gen.setOf(smallInt))(_ == _)
+      },
+      suite("tuple") {
+        diffLaws(Differ.update[Int] <*> Differ.update[Int])(smallInt <*> smallInt)(_ == _)
+      },
+      suite("transform") {
+        diffLaws(Differ.update[Int].transform[String](_.toString, _.toInt))(smallInt.map(_.toString))(_ == _)
+      },
+      suite("runtimeFlags") {
+        val genFlag    = Gen.oneOf(RuntimeFlag.all.toSeq.map(Gen.const(_)): _*)
+        val genRtFlags = Gen.setOf(genFlag).map(set => RuntimeFlags(set.toSeq: _*))
+        diffLaws(Differ.runtimeFlags)(genRtFlags)(_ == _)
+      },
+      suite("environment") {
+        val genEnv = smallInt.map(i => ZEnvironment(i))
+        diffLaws(Differ.environment[Int])(genEnv)(_ == _)
+      }
+    )
 
   def diffLaws[Environment, Value, Patch](differ: Differ[Value, Patch])(
     gen: Gen[Environment, Value]

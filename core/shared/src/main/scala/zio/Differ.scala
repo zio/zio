@@ -69,7 +69,7 @@ trait Differ[Value, Patch] extends Serializable { self =>
   final def orElseEither[Value2, Patch2](
     that: Differ[Value2, Patch2]
   ): Differ[Either[Value, Value2], Differ.OrPatch[Value, Value2, Patch, Patch2]] =
-    new Differ[Either[Value, Value2], Differ.OrPatch[Value, Value2, Patch, Patch2]] {
+    new Differ.Internal[Either[Value, Value2], Differ.OrPatch[Value, Value2, Patch, Patch2]] {
       def combine(
         first: Differ.OrPatch[Value, Value2, Patch, Patch2],
         second: Differ.OrPatch[Value, Value2, Patch, Patch2]
@@ -93,7 +93,7 @@ trait Differ[Value, Patch] extends Serializable { self =>
    * the specified functions that map the new and old value types to each other.
    */
   final def transform[Value2](f: Value => Value2, g: Value2 => Value): Differ[Value2, Patch] =
-    new Differ[Value2, Patch] {
+    new Differ.Internal[Value2, Patch] {
       def combine(first: Patch, second: Patch): Patch =
         self.combine(first, second)
       def diff(oldValue: Value2, newValue: Value2): Patch =
@@ -109,7 +109,7 @@ trait Differ[Value, Patch] extends Serializable { self =>
    * knows how to diff the product of their values.
    */
   final def zip[Value2, Patch2](that: Differ[Value2, Patch2]): Differ[(Value, Value2), (Patch, Patch2)] =
-    new Differ[(Value, Value2), (Patch, Patch2)] {
+    new Differ.Internal[(Value, Value2), (Patch, Patch2)] {
       def combine(first: (Patch, Patch2), second: (Patch, Patch2)): (Patch, Patch2) =
         (self.combine(first._1, second._1), that.combine(first._2, second._2))
       def diff(oldValue: (Value, Value2), newValue: (Value, Value2)): (Patch, Patch2) =
@@ -122,13 +122,14 @@ trait Differ[Value, Patch] extends Serializable { self =>
 }
 
 object Differ {
+  private sealed abstract class Internal[Value, Patch] extends Differ[Value, Patch]
 
   /**
    * Constructs a differ that knows how to diff a `Chunk` of values given a
    * differ that knows how to diff the values.
    */
   def chunk[Value, Patch](differ: Differ[Value, Patch]): Differ[Chunk[Value], ChunkPatch[Value, Patch]] =
-    new Differ[Chunk[Value], ChunkPatch[Value, Patch]] {
+    new Internal[Chunk[Value], ChunkPatch[Value, Patch]] {
       def combine(first: ChunkPatch[Value, Patch], second: ChunkPatch[Value, Patch]): ChunkPatch[Value, Patch] =
         first.combine(second)
       def diff(oldValue: Chunk[Value], newValue: Chunk[Value]): ChunkPatch[Value, Patch] =
@@ -143,7 +144,7 @@ object Differ {
    * Constructs a differ that knows how to diff `ZEnvironment` values.
    */
   def environment[A]: Differ[ZEnvironment[A], ZEnvironment.Patch[A, A]] =
-    new Differ[ZEnvironment[A], ZEnvironment.Patch[A, A]] {
+    new Internal[ZEnvironment[A], ZEnvironment.Patch[A, A]] {
       def combine(first: ZEnvironment.Patch[A, A], second: ZEnvironment.Patch[A, A]): ZEnvironment.Patch[A, A] =
         first.combine(second)
       def diff(oldValue: ZEnvironment[A], newValue: ZEnvironment[A]): ZEnvironment.Patch[A, A] =
@@ -155,27 +156,11 @@ object Differ {
     }
 
   /**
-   * Constructs a differ that knows how to diff `IsFatal` values.
-   */
-  @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
-  def isFatal: Differ[IsFatal, IsFatal.Patch] =
-    new Differ[IsFatal, IsFatal.Patch] {
-      def combine(first: IsFatal.Patch, second: IsFatal.Patch): IsFatal.Patch =
-        first.combine(second)
-      def diff(oldValue: IsFatal, newValue: IsFatal): IsFatal.Patch =
-        IsFatal.Patch.diff(oldValue, newValue)
-      def empty: IsFatal.Patch =
-        IsFatal.Patch.empty
-      def patch(patch: IsFatal.Patch)(oldValue: IsFatal): IsFatal =
-        patch(oldValue)
-    }
-
-  /**
    * Constructs a differ that knows how to diff a `Map` of keys and values given
    * a differ that knows how to diff the values.
    */
   def map[Key, Value, Patch](differ: Differ[Value, Patch]): Differ[Map[Key, Value], MapPatch[Key, Value, Patch]] =
-    new Differ[Map[Key, Value], MapPatch[Key, Value, Patch]] {
+    new Internal[Map[Key, Value], MapPatch[Key, Value, Patch]] {
       def combine(
         first: MapPatch[Key, Value, Patch],
         second: MapPatch[Key, Value, Patch]
@@ -193,7 +178,7 @@ object Differ {
    * Constructs a differ that knows how to diff `RuntimeFlags` values.
    */
   val runtimeFlags: Differ[RuntimeFlags, RuntimeFlags.Patch] =
-    new Differ[RuntimeFlags, RuntimeFlags.Patch] {
+    new Internal[RuntimeFlags, RuntimeFlags.Patch] {
       def combine(first: RuntimeFlags.Patch, second: RuntimeFlags.Patch): RuntimeFlags.Patch =
         RuntimeFlags.Patch.andThen(first, second)
       def diff(oldValue: RuntimeFlags, newValue: RuntimeFlags): RuntimeFlags.Patch =
@@ -208,7 +193,7 @@ object Differ {
    * Constructs a differ that knows how to diff a `Set` of values.
    */
   def set[A]: Differ[Set[A], SetPatch[A]] =
-    new Differ[Set[A], SetPatch[A]] {
+    new Internal[Set[A], SetPatch[A]] {
       def combine(first: SetPatch[A], second: SetPatch[A]): SetPatch[A] =
         first combine second
       def diff(oldValue: Set[A], newValue: Set[A]): SetPatch[A] =
@@ -222,8 +207,8 @@ object Differ {
   /**
    * Constructs a differ that knows how to diff `Supervisor` values.
    */
-  def supervisor: Differ[Supervisor[Any], Supervisor.Patch] =
-    new Differ[Supervisor[Any], Supervisor.Patch] {
+  val supervisor: Differ[Supervisor[Any], Supervisor.Patch] =
+    new Internal[Supervisor[Any], Supervisor.Patch] {
       def combine(first: Supervisor.Patch, second: Supervisor.Patch): Supervisor.Patch =
         first.combine(second)
       def diff(oldValue: Supervisor[Any], newValue: Supervisor[Any]): Supervisor.Patch =
@@ -240,17 +225,35 @@ object Differ {
    * multiple updates to the value compositionally and should only be used when
    * there is no compositional way to update them.
    */
-  def update[A]: Differ[A, A => A] =
-    new Differ[A, A => A] {
-      def combine(first: A => A, second: A => A): A => A =
+  def update[A]: Differ[A, A => A] = updateAny.asInstanceOf[Differ[A, A => A]]
+
+  private val updateAny =
+    new Internal[Any, Any => Any] {
+      def combine(first: Any => Any, second: Any => Any): Any => Any =
         if (first == empty) second
         else if (second == empty) first
         else first.andThen(second)
-      def diff(oldValue: A, newValue: A): A => A =
+      def diff(oldValue: Any, newValue: Any): Any => Any =
         if (oldValue == newValue) empty else Function.const(newValue)
-      def empty: A => A =
+      def empty: Any => Any =
         ZIO.identityFn
-      def patch(patch: A => A)(oldValue: A): A =
+      def patch(patch: Any => Any)(oldValue: Any): Any =
+        patch(oldValue)
+    }
+
+  /**
+   * Constructs a differ that knows how to diff `IsFatal` values.
+   */
+  @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
+  def isFatal: Differ[IsFatal, IsFatal.Patch] =
+    new Internal[IsFatal, IsFatal.Patch] {
+      def combine(first: IsFatal.Patch, second: IsFatal.Patch): IsFatal.Patch =
+        first.combine(second)
+      def diff(oldValue: IsFatal, newValue: IsFatal): IsFatal.Patch =
+        IsFatal.Patch.diff(oldValue, newValue)
+      def empty: IsFatal.Patch =
+        IsFatal.Patch.empty
+      def patch(patch: IsFatal.Patch)(oldValue: IsFatal): IsFatal =
         patch(oldValue)
     }
 
@@ -274,7 +277,7 @@ object Differ {
             loop(chunk ++ values, patches)
           case AndThen(first, second) :: patches =>
             loop(chunk, first :: second :: patches)
-          case Empty() :: patches =>
+          case (_: Empty[_, _]) :: patches =>
             loop(chunk, patches)
           case Slice(from, until) :: patches =>
             loop(chunk.slice(from, until), patches)
@@ -304,7 +307,7 @@ object Differ {
     def diff[Value, Patch](oldValue: Chunk[Value], newValue: Chunk[Value])(
       differ: Differ[Value, Patch]
     ): ChunkPatch[Value, Patch] =
-      if (oldValue == newValue) Empty()
+      if (oldValue == newValue) empty[Value, Patch]
       else {
         var i           = 0
         val oldIterator = oldValue.chunkIterator
@@ -329,8 +332,9 @@ object Differ {
     /**
      * Constructs an empty chunk patch.
      */
-    def empty[Value, Patch]: ChunkPatch[Value, Patch] =
-      Empty()
+    def empty[Value, Patch]: ChunkPatch[Value, Patch] = emptyInstance.asInstanceOf[ChunkPatch[Value, Patch]]
+
+    private val emptyInstance: ChunkPatch[Any, Any] = Empty[Any, Any]()
 
     private final case class Append[Value, Patch](values: Chunk[Value])     extends ChunkPatch[Value, Patch]
     private final case class Slice[Value, Patch](from: Int, until: Int)     extends ChunkPatch[Value, Patch]
@@ -360,7 +364,7 @@ object Differ {
             loop(map + ((key, value)), patches)
           case AndThen(first, second) :: patches =>
             loop(map, first :: second :: patches)
-          case Empty() :: patches =>
+          case (_: Empty[_, _, _]) :: patches =>
             loop(map, patches)
           case Remove(key) :: patches =>
             loop(map - key, patches)
@@ -390,7 +394,7 @@ object Differ {
     def diff[Key, Value, Patch](oldValue: Map[Key, Value], newValue: Map[Key, Value])(
       differ: Differ[Value, Patch]
     ): MapPatch[Key, Value, Patch] =
-      if (oldValue == newValue) Empty()
+      if (oldValue == newValue) empty
       else {
         val (removed, patch) = newValue.foldLeft[(Map[Key, Value], MapPatch[Key, Value, Patch])](oldValue -> empty) {
           case ((map, patch), (key, newValue)) =>
@@ -412,7 +416,9 @@ object Differ {
      * Constructs an empty map patch.
      */
     def empty[Key, Value, Patch]: MapPatch[Key, Value, Patch] =
-      Empty()
+      emptyInstance.asInstanceOf[MapPatch[Key, Value, Patch]]
+
+    private val emptyInstance: MapPatch[Any, Any, Any] = Empty[Any, Any, Any]()
 
     private final case class Add[Key, Value, Patch](key: Key, value: Value)    extends MapPatch[Key, Value, Patch]
     private final case class Remove[Key, Value, Patch](key: Key)               extends MapPatch[Key, Value, Patch]
@@ -446,7 +452,7 @@ object Differ {
         patches match {
           case AndThen(first, second) :: patches =>
             loop(either, first :: second :: patches)
-          case Empty() :: patches =>
+          case (_: Empty[_, _, _, _]) :: patches =>
             loop(either, patches)
           case UpdateLeft(patch) :: patches =>
             either match {
@@ -491,15 +497,15 @@ object Differ {
       (oldValue, newValue) match {
         case (Left(oldValue), Left(newValue)) =>
           val valuePatch = left.diff(oldValue, newValue)
-          if (valuePatch == left.empty) Empty()
+          if (valuePatch == left.empty) empty
           else UpdateLeft(valuePatch)
         case (Right(oldValue), Right(newValue)) =>
           val valuePatch = right.diff(oldValue, newValue)
-          if (valuePatch == right.empty) Empty()
+          if (valuePatch == right.empty) empty
           else UpdateRight(valuePatch)
-        case (Left(_), Right(newValue)) =>
+        case (_: Left[?, ?], Right(newValue)) =>
           SetRight(newValue)
-        case (Right(_), Left(newValue)) =>
+        case (_: Right[?, ?], Left(newValue)) =>
           SetLeft(newValue)
       }
 
@@ -507,7 +513,9 @@ object Differ {
      * Constructs an empty or patch.
      */
     def empty[Value, Value2, Patch, Patch2]: OrPatch[Value, Value2, Patch, Patch2] =
-      Empty()
+      emptyInstance.asInstanceOf[OrPatch[Value, Value2, Patch, Patch2]]
+
+    private val emptyInstance: OrPatch[Any, Any, Any, Any] = Empty[Any, Any, Any, Any]()
 
     private final case class AndThen[Value, Value2, Patch, Patch2](
       first: OrPatch[Value, Value2, Patch, Patch2],
@@ -544,7 +552,7 @@ object Differ {
             loop(set + a, patches)
           case AndThen(first, second) :: patches =>
             loop(set, first :: second :: patches)
-          case Empty() :: patches =>
+          case (_: Empty[_]) :: patches =>
             loop(set, patches)
           case Remove(a) :: patches =>
             loop(set - a, patches)
@@ -569,7 +577,7 @@ object Differ {
      * Constructs a set patch from a new set of values.
      */
     def diff[A](oldValue: Set[A], newValue: Set[A]): SetPatch[A] =
-      if (oldValue == newValue) Empty()
+      if (oldValue == newValue) empty
       else {
         val (removed, patch) = newValue.foldLeft[(Set[A], SetPatch[A])](oldValue -> empty) { case ((set, patch), a) =>
           if (set.contains(a)) (set - a, patch)
@@ -582,7 +590,9 @@ object Differ {
      * Constructs an empty set patch.
      */
     def empty[A]: SetPatch[A] =
-      Empty()
+      emptyInstance.asInstanceOf[SetPatch[A]]
+
+    private val emptyInstance: SetPatch[Any] = Empty[Any]()
 
     private final case class Add[A](value: A)                                    extends SetPatch[A]
     private final case class AndThen[A](first: SetPatch[A], second: SetPatch[A]) extends SetPatch[A]
