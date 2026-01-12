@@ -262,18 +262,17 @@ object Semaphore {
               case queue: SemaphoreState.JobQueue =>
                 queue.dequeueOrNull match {
                   case null => acc -> SemaphoreState.FreePermits(n)
-                  case (releaseRequest, queue0) =>
-                    val jobPermits = releaseRequest.permits
-                    val rest       = n - jobPermits
+                  case (Job(promise, permits), queue0) =>
+                    val rest       = n - permits
                     if (rest > 0L) {
                       val newState = SemaphoreState.JobQueue(queue0)
-                      val newAcc   = acc *> releaseRequest.promise.succeedUnit
+                      val newAcc   = acc *> promise.succeedUnit
 
                       loop(rest, newState, newAcc)
-                    } else if (n == jobPermits)
-                      (acc *> releaseRequest.promise.succeedUnit) -> SemaphoreState.JobQueue(queue0)
-                    else {
-                      val newQueue = Job(promise = releaseRequest.promise, permits = jobPermits - n) +: queue0
+                    } else if (rest == 0L) {
+                      (acc *> promise.succeedUnit) -> SemaphoreState.JobQueue(queue0)
+                    } else {
+                      val newQueue = Job(promise = promise, permits = permits - n) +: queue0
 
                       acc -> SemaphoreState.JobQueue(newQueue)
                     }
