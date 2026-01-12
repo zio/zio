@@ -133,154 +133,157 @@ object Semaphore {
     ZIO.succeed(unsafe.make(permits)(Unsafe.unsafe))
 
   object unsafe {
-    def make(permits: Long)(implicit unsafe: Unsafe): Semaphore = new SemaphoreLive(permits)
+    def make(permits: Long)(implicit unsafe: Unsafe): Semaphore =
+      new Semaphore {
+        private val ref: Ref.Atomic[SemaphoreState] =
+          Ref.unsafe.make[SemaphoreState](SemaphoreState.FreePermits(permits))
+
+        override def available(implicit trace: Trace): UIO[Long] =
+          ref.get.map {
+            case p: SemaphoreState.FreePermits => p.permits
+            case _                             => 0L
+          }
+
+        override def awaiting(implicit trace: Trace): UIO[Long] =
+          ref.get.map {
+            case queue: SemaphoreState.JobQueue => queue.size.toLong
+            case _                              => 0L
+          }
+
+        override def stats(implicit trace: Trace): UIO[Stats] =
+          ref.get.map {
+            case p: SemaphoreState.FreePermits  => Stats(available = p.permits, awaiting = 0L)
+            case queue: SemaphoreState.JobQueue => Stats(available = 0L, awaiting = queue.size.toLong)
+          }
+
+        override def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+          withPermits(1L)(zio)
+
+        override def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+          withPermitsScoped(1L)
+
+        override def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+          ZIO.acquireReleaseWith(reserve(n))(_.release)(_.acquire *> zio)
+
+        override def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+          ZIO.acquireRelease(reserve(n))(_.release).flatMap(_.acquire)
+
+        override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+          ZIO.acquireReleaseWith(tryReserve(n)) {
+            case Some(reservation) => reservation.release
+            case _                 => Exit.unit
+          } {
+            case _: Some[?] => zio.asSome
+            case _          => Exit.none
+          }
+
+        private final case class Reservation(acquire: UIO[Unit], release: UIO[Any])
+        private object Reservation {
+          val zero = Reservation(acquire = Exit.unit, release = Exit.unit)
+        }
+
+        private def tryReserve(n: Long)(implicit trace: Trace): UIO[Option[Reservation]] =
+          if (n < 0)
+            ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
+          else if (n == 0L)
+            Exit.succeed(Some(Reservation.zero))
+          else
+            ref.modify {
+              case permits: SemaphoreState.FreePermits if permits >= n =>
+                val reservation = Reservation(acquire = Exit.unit, release = releaseN(n))
+                val newEntry    = permits - n
+
+                Some(reservation) -> newEntry
+              case other => None -> other
+            }
+
+        private def reserve(n: Long)(implicit trace: Trace): UIO[Reservation] =
+          if (n < 0)
+            ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
+          else if (n == 0L)
+            Exit.succeed(Reservation.zero)
+          else
+            ZIO.fiberIdWith { fiberId =>
+              Exit.succeed {
+                val promise = Promise.unsafe.make[Nothing, Unit](fiberId)
+
+                ref.unsafe.modify {
+                  case permits: SemaphoreState.FreePermits if permits >= n =>
+                    val reservation = Reservation(acquire = ZIO.unit, release = releaseN(n))
+                    val newEntry    = permits - n
+
+                    reservation -> newEntry
+                  case SemaphoreState.FreePermits(permits) =>
+                    val reservation = Reservation(acquire = promise.await, release = restore(promise, n))
+                    val newEntry    = SemaphoreState.JobQueue(Job(promise = promise, permits = n - permits))
+
+                    reservation -> newEntry
+                  case queue: SemaphoreState.JobQueue =>
+                    val reservation = Reservation(acquire = promise.await, release = restore(promise, n))
+                    val newEntry    = queue.enqueue(Job(promise = promise, permits = n))
+
+                    reservation -> newEntry
+                }
+              }
+            }
+
+        private def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
+          ZIO.suspendSucceed {
+            ref.unsafe.modify {
+              case permits: SemaphoreState.FreePermits => Exit.unit -> (permits + n)
+              case queueEntry @ SemaphoreState.JobQueue(queue) =>
+                val iterator = queue.iterator
+                val others   = List.newBuilder[Job]
+                others.sizeHint(queue.size - 1)
+                var foundJob: Job = null
+                while (iterator.hasNext) {
+                  val next = iterator.next()
+                  if (next.promise == promise) foundJob = next
+                  else others += next
+                }
+
+                if (foundJob ne null)
+                  releaseN(n - foundJob.permits) -> SemaphoreState.JobQueue(others.result())
+                else
+                  releaseN(n) -> queueEntry
+            }
+          }
+
+        private def releaseN(n: Long)(implicit trace: Trace): UIO[Any] = {
+
+          @tailrec
+          def loop(
+            n: Long,
+            state: SemaphoreState,
+            acc: UIO[Any]
+          ): (UIO[Any], SemaphoreState) =
+            state match {
+              case permits: SemaphoreState.FreePermits => acc -> (permits + n)
+              case queue: SemaphoreState.JobQueue =>
+                queue.dequeueOrNull match {
+                  case null => acc -> SemaphoreState.FreePermits(n)
+                  case (releaseRequest, queue0) =>
+                    val jobPermits = releaseRequest.permits
+                    val rest       = n - jobPermits
+                    if (rest > 0L) {
+                      val newState = SemaphoreState.JobQueue(queue0)
+                      val newAcc   = acc *> releaseRequest.promise.succeedUnit
+
+                      loop(rest, newState, newAcc)
+                    } else if (n == jobPermits)
+                      (acc *> releaseRequest.promise.succeedUnit) -> SemaphoreState.JobQueue(queue0)
+                    else {
+                      val newQueue = Job(promise = releaseRequest.promise, permits = jobPermits - n) +: queue0
+
+                      acc -> SemaphoreState.JobQueue(newQueue)
+                    }
+                }
+            }
+
+          ZIO.suspendSucceed(ref.unsafe.modify(loop(n, _, Exit.unit)))
+        }
+      }
   }
 
   final case class Stats(available: Long, awaiting: Long)
-}
-
-private[zio] final class SemaphoreLive(permits: Long)(implicit unsafe: Unsafe) extends Semaphore {
-  private val ref: Ref.Atomic[SemaphoreState] =
-    Ref.unsafe.make[SemaphoreState](SemaphoreState.FreePermits(permits))
-
-  override def available(implicit trace: Trace): UIO[Long] =
-    ref.get.map {
-      case p: SemaphoreState.FreePermits => p.permits
-      case _                             => 0L
-    }
-
-  override def awaiting(implicit trace: Trace): UIO[Long] =
-    ref.get.map {
-      case queue: SemaphoreState.JobQueue => queue.size.toLong
-      case _                              => 0L
-    }
-
-  override def stats(implicit trace: Trace): UIO[Stats] =
-    ref.get.map {
-      case p: SemaphoreState.FreePermits  => Stats(available = p.permits, awaiting = 0L)
-      case queue: SemaphoreState.JobQueue => Stats(available = 0L, awaiting = queue.size.toLong)
-    }
-
-  override def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    withPermits(1L)(zio)
-
-  override def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-    withPermitsScoped(1L)
-
-  override def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.acquireReleaseWith(reserve(n))(_.release)(_.acquire *> zio)
-
-  override def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-    ZIO.acquireRelease(reserve(n))(_.release).flatMap(_.acquire)
-
-  override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-    ZIO.acquireReleaseWith(tryReserve(n)) {
-      case Some(reservation) => reservation.release
-      case _                 => Exit.unit
-    } {
-      case _: Some[?] => zio.asSome
-      case _          => Exit.none
-    }
-
-  private final case class Reservation(acquire: UIO[Unit], release: UIO[Any])
-  private object Reservation {
-    val zero = Reservation(acquire = Exit.unit, release = Exit.unit)
-  }
-
-  private def tryReserve(n: Long)(implicit trace: Trace): UIO[Option[Reservation]] =
-    if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
-    else if (n == 0L) Exit.succeed(Some(Reservation.zero))
-    else
-      ref.modify {
-        case permits: SemaphoreState.FreePermits if permits >= n =>
-          val reservation = Reservation(acquire = Exit.unit, release = releaseN(n))
-          val newEntry    = permits - n
-
-          Some(reservation) -> newEntry
-        case other => None -> other
-      }
-
-  private def reserve(n: Long)(implicit trace: Trace): UIO[Reservation] =
-    if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
-    else if (n == 0L) Exit.succeed(Reservation.zero)
-    else
-      ZIO.fiberIdWith { fiberId =>
-        Exit.succeed {
-          val promise = Promise.unsafe.make[Nothing, Unit](fiberId)
-
-          ref.unsafe.modify {
-            case permits: SemaphoreState.FreePermits if permits >= n =>
-              val reservation = Reservation(acquire = ZIO.unit, release = releaseN(n))
-              val newEntry    = permits - n
-
-              reservation -> newEntry
-            case SemaphoreState.FreePermits(permits) =>
-              val reservation = Reservation(acquire = promise.await, release = restore(promise, n))
-              val newEntry    = SemaphoreState.JobQueue(Job(promise = promise, permits = n - permits))
-
-              reservation -> newEntry
-            case queue: SemaphoreState.JobQueue =>
-              val reservation = Reservation(acquire = promise.await, release = restore(promise, n))
-              val newEntry    = queue.enqueue(Job(promise = promise, permits = n))
-
-              reservation -> newEntry
-          }
-        }
-      }
-
-  private def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
-    ZIO.suspendSucceed {
-      ref.unsafe.modify {
-        case permits: SemaphoreState.FreePermits => Exit.unit -> (permits + n)
-        case queueEntry @ SemaphoreState.JobQueue(queue) =>
-          val iterator = queue.iterator
-          val others   = List.newBuilder[Job]
-          others.sizeHint(queue.size - 1)
-          var found = false
-          while (iterator.hasNext) {
-            val next    = iterator.next()
-            val similar = next.promise == promise
-            found = found || similar
-            if (!similar) others += next
-          }
-
-          if (found)
-            releaseN(n - permits) -> SemaphoreState.JobQueue(others.result())
-          else
-            releaseN(n) -> queueEntry
-      }
-    }
-
-  private def releaseN(n: Long)(implicit trace: Trace): UIO[Any] = {
-
-    @tailrec
-    def loop(
-      n0: Long,
-      state: SemaphoreState,
-      acc: UIO[Any]
-    ): (UIO[Any], SemaphoreState) =
-      state match {
-        case permits: SemaphoreState.FreePermits => acc -> (permits + n0)
-        case queue: SemaphoreState.JobQueue =>
-          queue.dequeueOrNull match {
-            case null => acc -> SemaphoreState.FreePermits(n0)
-            case (releaseRequest, queue0) =>
-              val rest = n0 - permits
-              if (rest > 0L) {
-                val newState = SemaphoreState.JobQueue(queue0)
-                val newAcc   = acc *> releaseRequest.promise.succeedUnit
-
-                loop(rest, newState, newAcc)
-              } else if (n0 == permits)
-                (acc *> releaseRequest.promise.succeedUnit) -> SemaphoreState.JobQueue(queue0)
-              else {
-                val newQueue = Job(promise = releaseRequest.promise, permits = permits - n0) +: queue0
-
-                acc -> SemaphoreState.JobQueue(newQueue)
-              }
-          }
-      }
-
-    ZIO.suspendSucceed(ref.unsafe.modify(loop(n, _, Exit.unit)))
-  }
 }
