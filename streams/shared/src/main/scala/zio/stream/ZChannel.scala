@@ -1298,7 +1298,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * value when succeeds
    */
   final def unit(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Unit] =
-    self *> ZChannel.unit
+    self.flatMap(_ => ZChannel.unit)
 
   /**
    * Updates a service in the environment of this channel.
