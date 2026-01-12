@@ -102,14 +102,14 @@ object Semaphore {
   private[zio] sealed trait SemaphoreState
   private[zio] object SemaphoreState {
     final case class JobQueue(queue: ScalaQueue[Job]) extends SemaphoreState {
-      @inline def dequeueOption: Option[(Job, ScalaQueue[Job])] = queue.dequeueOption
-      @inline def enqueue(req: Job): JobQueue                   = JobQueue(queue.enqueue(req))
-      @inline def size: Int                                     = queue.size
+      def dequeueOption: Option[(Job, ScalaQueue[Job])] = queue.dequeueOption
+      def enqueue(req: Job): JobQueue                   = JobQueue(queue.enqueue(req))
+      def size: Int                                     = queue.size
     }
     final case class FreePermits(permits: Long) extends SemaphoreState {
-      @inline def -(n: Long): FreePermits = FreePermits(permits - n)
-      @inline def +(n: Long): FreePermits = FreePermits(permits + n)
-      @inline def >=(n: Long): Boolean    = permits >= n
+      def -(n: Long): FreePermits = FreePermits(permits - n)
+      def +(n: Long): FreePermits = FreePermits(permits + n)
+      def >=(n: Long): Boolean    = permits >= n
     }
 
     object JobQueue {
