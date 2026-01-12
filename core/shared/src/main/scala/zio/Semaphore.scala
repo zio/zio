@@ -182,9 +182,9 @@ private[zio] final class SemaphoreLive(permits: Long)(implicit unsafe: Unsafe) e
       case _          => Exit.none
     }
 
-  final case class Reservation(acquire: UIO[Unit], release: UIO[Any])
-  object Reservation {
-    private[zio] val zero = Reservation(acquire = ZIO.unit, release = ZIO.unit)
+  private final case class Reservation(acquire: UIO[Unit], release: UIO[Any])
+  private object Reservation {
+    val zero = Reservation(acquire = Exit.unit, release = Exit.unit)
   }
 
   private def tryReserve(n: Long)(implicit trace: Trace): UIO[Option[Reservation]] =
@@ -193,7 +193,7 @@ private[zio] final class SemaphoreLive(permits: Long)(implicit unsafe: Unsafe) e
     else
       ref.modify {
         case permits: SemaphoreState.FreePermits if permits >= n =>
-          val reservation = Reservation(acquire = ZIO.unit, release = releaseN(n))
+          val reservation = Reservation(acquire = Exit.unit, release = releaseN(n))
           val newEntry    = permits - n
 
           Some(reservation) -> newEntry
@@ -281,6 +281,6 @@ private[zio] final class SemaphoreLive(permits: Long)(implicit unsafe: Unsafe) e
           }
       }
 
-    ZIO.suspendSucceed(ref.unsafe.modify(loop(n, _, ZIO.unit)))
+    ZIO.suspendSucceed(ref.unsafe.modify(loop(n, _, Exit.unit)))
   }
 }
