@@ -183,10 +183,8 @@ object Semaphore {
         }
 
         private def tryReserve(n: Long)(implicit trace: Trace): UIO[Option[Reservation]] =
-          if (n < 0)
-            ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
-          else if (n == 0L)
-            Exit.succeed(Some(Reservation.zero))
+          if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
+          else if (n == 0L) Exit.succeed(Some(Reservation.zero))
           else
             ref.modify {
               case permits: SemaphoreState.FreePermits if permits >= n =>
