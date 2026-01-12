@@ -189,7 +189,7 @@ private[zio] final class SemaphoreLive(permits: Long)(implicit unsafe: Unsafe) e
 
   private def tryReserve(n: Long)(implicit trace: Trace): UIO[Option[Reservation]] =
     if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
-    else if (n == 0L) ZIO.succeed(Some(Reservation.zero))
+    else if (n == 0L) Exit.succeed(Some(Reservation.zero))
     else
       ref.modify {
         case permits: SemaphoreState.FreePermits if permits >= n =>
@@ -202,7 +202,7 @@ private[zio] final class SemaphoreLive(permits: Long)(implicit unsafe: Unsafe) e
 
   private def reserve(n: Long)(implicit trace: Trace): UIO[Reservation] =
     if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
-    else if (n == 0L) ZIO.succeed(Reservation.zero)
+    else if (n == 0L) Exit.succeed(Reservation.zero)
     else
       ZIO.fiberIdWith { fiberId =>
         Exit.succeed {
