@@ -143,7 +143,7 @@ private[zio] final class SemaphoreLive(permits: Long)(implicit unsafe: Unsafe) e
   private val ref: Ref.Atomic[SemaphoreState] =
     Ref.unsafe.make[SemaphoreState](SemaphoreState.FreePermits(permits))
 
-  def available(implicit trace: Trace): UIO[Long] =
+  override def available(implicit trace: Trace): UIO[Long] =
     ref.get.map {
       case p: SemaphoreState.FreePermits => p.permits
       case _                             => 0L
