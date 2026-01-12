@@ -102,9 +102,14 @@ object Semaphore {
   private[zio] sealed trait SemaphoreState
   private[zio] object SemaphoreState {
     final case class JobQueue(queue: ScalaQueue[Job]) extends SemaphoreState {
-      def dequeueOption: Option[(Job, ScalaQueue[Job])] = queue.dequeueOption
-      def enqueue(req: Job): JobQueue                   = JobQueue(queue.enqueue(req))
-      def size: Int                                     = queue.size
+
+      /**
+       * Inspired by [[ScalaQueue.dequeueOption]]
+       * @return
+       */
+      def dequeueOrNull: (Job, ScalaQueue[Job]) = if (queue.isEmpty) null else queue.dequeue
+      def enqueue(job: Job): JobQueue           = JobQueue(queue.enqueue(job))
+      def size: Int                             = queue.size
     }
     final case class FreePermits(permits: Long) extends SemaphoreState {
       def -(n: Long): FreePermits = FreePermits(permits - n)
@@ -146,14 +151,14 @@ private[zio] final class SemaphoreLive(permits: Long)(implicit unsafe: Unsafe) e
 
   override def awaiting(implicit trace: Trace): UIO[Long] =
     ref.get.map {
-      case q: SemaphoreState.JobQueue => q.queue.size.toLong
-      case _                          => 0L
+      case queue: SemaphoreState.JobQueue => queue.size.toLong
+      case _                              => 0L
     }
 
   override def stats(implicit trace: Trace): UIO[Stats] =
     ref.get.map {
-      case p: SemaphoreState.FreePermits => Stats(available = p.permits, awaiting = 0L)
-      case q: SemaphoreState.JobQueue    => Stats(available = 0L, awaiting = q.queue.size.toLong)
+      case p: SemaphoreState.FreePermits  => Stats(available = p.permits, awaiting = 0L)
+      case queue: SemaphoreState.JobQueue => Stats(available = 0L, awaiting = queue.size.toLong)
     }
 
   override def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
@@ -256,10 +261,10 @@ private[zio] final class SemaphoreLive(permits: Long)(implicit unsafe: Unsafe) e
     ): (UIO[Any], SemaphoreState) =
       state match {
         case permits: SemaphoreState.FreePermits => acc -> (permits + n0)
-        case SemaphoreState.JobQueue(queue) =>
-          queue.dequeueOption match {
-            case None => acc -> SemaphoreState.FreePermits(n0)
-            case Some((releaseRequest, queue0)) =>
+        case queue: SemaphoreState.JobQueue =>
+          queue.dequeueOrNull match {
+            case null => acc -> SemaphoreState.FreePermits(n0)
+            case (releaseRequest, queue0) =>
               val rest = n0 - permits
               if (rest > 0L) {
                 val newState = SemaphoreState.JobQueue(queue0)
