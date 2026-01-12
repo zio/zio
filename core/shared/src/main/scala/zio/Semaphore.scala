@@ -117,7 +117,7 @@ object Semaphore {
         import zio.internal.ScalaQueueCompat._
         JobQueue(ScalaQueue.from(list))
       }
-      def apply(elem: Job): JobQueue       = JobQueue(ScalaQueue(elem))
+      def apply(elem: Job): JobQueue = JobQueue(ScalaQueue(elem))
     }
   }
 
