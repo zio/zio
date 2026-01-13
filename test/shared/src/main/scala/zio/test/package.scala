@@ -52,15 +52,18 @@ package object test extends CompileVariants {
   type TestEnvironment = Annotations with Live with Sized with TestConfig
 
   object TestEnvironment {
+    private val sizedLive  = Sized.live(100)(Trace.empty)
+    private val configLive = TestConfig.live(100, 100, 200, 1000)(Trace.empty)
+
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
       ZLayer.environment[TestEnvironment](Tracer.newTrace)
     val live: ZLayer[Clock with Console with System with Random, Nothing, TestEnvironment] = {
       implicit val trace = Tracer.newTrace
       Annotations.live <*>
         Live.default <*>
-        Sized.live(100) <*>
+        sizedLive <*>
         ((Live.default <*> Annotations.live) >>> TestClock.default) <*>
-        TestConfig.live(100, 100, 200, 1000) <*>
+        configLive <*>
         ((Live.default <*> Annotations.live) >>> TestConsole.debug) <*>
         TestRandom.deterministic <*>
         TestSystem.default
@@ -80,8 +83,10 @@ package object test extends CompileVariants {
     )
   }
 
-  private def testFiberRefGen(implicit trace: Trace): ULayer[Unit] =
+  private val testFiberRefGen: ULayer[Unit] = {
+    implicit val trace = Trace.empty
     ZLayer.scoped(FiberRef.currentFiberIdGenerator.locallyScoped(FiberId.Gen.Monotonic))
+  }
 
   val testEnvironment: ZLayer[Any, Nothing, TestEnvironment] = {
     implicit val trace = Tracer.newTrace
@@ -100,7 +105,7 @@ package object test extends CompileVariants {
    * Retrieves the `TestClock` service for this test.
    */
   def testClock(implicit trace: Trace): UIO[TestClock] =
-    testClockWith(ZIO.succeed(_))
+    testClockWith(ZIO.successFn)
 
   /**
    * Retrieves the `TestClock` service for this test and uses it to run the
@@ -113,7 +118,7 @@ package object test extends CompileVariants {
    * Retrieves the `TestConsole` service for this test.
    */
   def testConsole(implicit trace: Trace): UIO[TestConsole] =
-    testConsoleWith(ZIO.succeed(_))
+    testConsoleWith(ZIO.successFn)
 
   /**
    * Retrieves the `TestConsole` service for this test and uses it to run the
@@ -126,7 +131,7 @@ package object test extends CompileVariants {
    * Retrieves the `TestRandom` service for this test.
    */
   def testRandom(implicit trace: Trace): UIO[TestRandom] =
-    testRandomWith(ZIO.succeed(_))
+    testRandomWith(ZIO.successFn)
 
   /**
    * Retrieves the `TestRandom` service for this test and uses it to run the
@@ -139,7 +144,7 @@ package object test extends CompileVariants {
    * Retrieves the `TestSystem` service for this test.
    */
   def testSystem(implicit trace: Trace): UIO[TestSystem] =
-    testSystemWith(ZIO.succeed(_))
+    testSystemWith(ZIO.successFn)
 
   /**
    * Retrieves the `TestSystem` service for this test and uses it to run the
@@ -152,7 +157,7 @@ package object test extends CompileVariants {
    * Retrieves the `Annotations` service for this test.
    */
   def annotations(implicit trace: Trace): UIO[Annotations] =
-    annotationsWith(ZIO.succeed(_))
+    annotationsWith(ZIO.successFn)
 
   /**
    * Retrieves the `Annotations` service for this test and uses it to run the
@@ -165,7 +170,7 @@ package object test extends CompileVariants {
    * Retrieves the `Live` service for this test.
    */
   def live(implicit trace: Trace): UIO[Live] =
-    liveWith(ZIO.succeed(_))
+    liveWith(ZIO.successFn)
 
   /**
    * Retrieves the `Live` service for this test and uses it to run the specified
@@ -178,7 +183,7 @@ package object test extends CompileVariants {
    * Retrieves the `Sized` service for this test.
    */
   def sized(implicit trace: Trace): UIO[Sized] =
-    sizedWith(ZIO.succeed(_))
+    sizedWith(ZIO.successFn)
 
   /**
    * Retrieves the `Sized` service for this test and uses it to run the
@@ -191,7 +196,7 @@ package object test extends CompileVariants {
    * Retrieves the `TestConfig` service for this test.
    */
   def testConfig(implicit trace: Trace): UIO[TestConfig] =
-    testConfigWith(ZIO.succeed(_))
+    testConfigWith(ZIO.successFn)
 
   /**
    * Retrieves the `TestConfig` service for this test and uses it to run the
@@ -312,43 +317,35 @@ package object test extends CompileVariants {
     ): ZIO[R, TestFailure[E], TestSuccess] =
       for {
         promise <- Promise.make[TestFailure[E], TestSuccess]
-        child <- ZIO
-                   .suspendSucceed(assertion)
+        child <- assertion
                    .foldCauseZIO(
                      cause =>
                        cause.dieOption match {
-                         case Some(TestResult.Exit(assert)) => ZIO.fail(TestFailure.Assertion(assert))
-                         case _                             => ZIO.fail(TestFailure.Runtime(cause))
+                         case Some(TestResult.Exit(assert)) => Exit.fail(TestFailure.Assertion(assert))
+                         case _                             => Exit.fail(TestFailure.Runtime(cause))
                        },
                      assert =>
-                       if (assert.isFailure)
-                         ZIO.fail(TestFailure.Assertion(assert))
-                       else
-                         ZIO.succeed(TestSuccess.Succeeded())
+                       if (assert.isFailure) Exit.fail(TestFailure.Assertion(assert))
+                       else TestSuccess.succeedEmptyExit
                    )
                    .intoPromise(promise)
                    .forkDaemon
         result <- promise.await
-        _      <- child.inheritAll
-        _ <- ZIO.whenDiscard(child.isAlive()) {
-               for {
-                 fiber <- ZIO
-                            .logWarning({
-                              val quotedLabel = "\"" + label + "\""
-                              s"Warning: ZIO Test is attempting to interrupt fiber " +
-                                s"${child.id} forked in test $quotedLabel due to automatic, " +
-                                "supervision, but interruption has taken more than 10 " +
-                                "seconds to complete. This may indicate a resource leak. " +
-                                "Make sure you are not forking a fiber in an " +
-                                "uninterruptible region."
-                            })
-                            .delay(10.seconds)
-                            .withClock(Clock.ClockLive)
-                            .interruptible
-                            .forkDaemon
-                            .onExecutor(Runtime.defaultExecutor)
-                 _ <- (child.interrupt *> fiber.interrupt).forkDaemon.onExecutor(Runtime.defaultExecutor)
-               } yield ()
+        _ <- ZIO.whenZIODiscard(child.hasChildrenAlive) {
+               val cancelWarning = Clock.globalScheduler.schedule(
+                 () =>
+                   logMessageWithTrace({
+                     val quotedLabel = "\"" + label + "\""
+                     s"Warning: ZIO Test is attempting to interrupt fiber " +
+                       s"${child.id} forked in test $quotedLabel due to automatic, " +
+                       "supervision, but interruption has taken more than 10 " +
+                       "seconds to complete. This may indicate a resource leak. " +
+                       "Make sure you are not forking a fiber in an " +
+                       "uninterruptible region."
+                   }),
+                 10.seconds
+               )(Unsafe)
+               (child.interrupt *> ZIO.succeed(cancelWarning())).forkDaemon
              }
       } yield result
   }
@@ -929,8 +926,7 @@ package object test extends CompileVariants {
   /**
    * A `Runner` that provides a default testable environment.
    */
-  lazy val defaultTestRunner: TestRunner[TestEnvironment, Any] = {
-    implicit val trace = Trace.empty
+  lazy val defaultTestRunner: TestRunner[TestEnvironment, Any] =
     TestRunner(
       TestExecutor.default(
         testEnvironment,
@@ -939,7 +935,6 @@ package object test extends CompileVariants {
         ZTestEventHandler.silent // The default test runner handles its own events, writing their output to the provided sink.
       )
     )
-  }
 
   /**
    * Creates a failed test result with the specified runtime cause.
@@ -975,7 +970,7 @@ package object test extends CompileVariants {
       label,
       if (specs.isEmpty) Spec.empty
       else if (specs.length == 1) wrapIfLabelledCase(specs.head)
-      else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec)))
+      else Spec.multiple(Chunk.fromIterable(specs.map(spec => suiteConstructor(spec))))
     )
 
   // Ensures we render suite label when we have an individual Labeled / Exec test case
@@ -1070,16 +1065,18 @@ package object test extends CompileVariants {
     test: A => ZIO[R1, E, TestResult]
   )(implicit trace: Trace): ZIO[R1, E, TestResult] =
     testConfigWith { testConfig =>
-      val flag = Ref.unsafe.make(false)(Unsafe.unsafe)
-      warningEmptyGen(flag) *> shrinkStream {
-        stream.zipWithIndex.mapZIO { case (initial, index) =>
-          flag.set(true) *> initial.foreach(input =>
-            (test(input) @@ testConfig.checkAspect)
-              .map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index)))
-              .either
-          )
-        }
-      }(testConfig.shrinks)
+      warningEmptyGen { cancelWarning =>
+        shrinkStream {
+          stream.zipWithIndex.mapZIO { case (initial, index) =>
+            cancelWarning()
+            initial.foreach(input =>
+              (test(input) @@ testConfig.checkAspect)
+                .map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index)))
+                .either
+            )
+          }
+        }(testConfig.shrinks)
+      }
     }
 
   private def shrinkStream[R, R1 <: R, E, A](
@@ -1104,28 +1101,31 @@ package object test extends CompileVariants {
     test: A => ZIO[R1, E, TestResult]
   )(implicit trace: Trace): ZIO[R1, E, TestResult] =
     testConfigWith { testConfig =>
-      shrinkStream {
-        stream.zipWithIndex
-          .mapZIOPar(parallelism) { case (initial, index) =>
-            initial.foreach { input =>
-              (test(input) @@ testConfig.checkAspect)
-                .map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index)))
-                .either
-              // convert test failures to failures to terminate parallel tests on first failure
-            }.flatMap(sample => sample.value.fold(_ => ZIO.fail(sample), _ => ZIO.succeed(sample)))
-          // move failures back into success channel for shrinking logic
-          }
-          .catchAll(ZStream.succeed(_))
-      }(testConfig.shrinks)
+      warningEmptyGen { cancelWarning =>
+        shrinkStream {
+          stream.zipWithIndex
+            .mapZIOPar(parallelism) { case (initial, index) =>
+              cancelWarning()
+              initial.foreach { input =>
+                (test(input) @@ testConfig.checkAspect)
+                  .map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index)))
+                  .either
+                // convert test failures to failures to terminate parallel tests on first failure
+              }.flatMap(sample => sample.value.fold(_ => ZIO.fail(sample), _ => ZIO.succeed(sample)))
+            // move failures back into success channel for shrinking logic
+            }
+            .catchAll(ZStream.succeed(_))
+        }(testConfig.shrinks)
+      }
     }
 
-  private def warningEmptyGen(flag: Ref[Boolean])(implicit trace: Trace): UIO[Unit] =
-    Live
-      .live(ZIO.logWarning(warning).unlessZIODiscard(flag.get).delay(5.seconds))
-      .interruptible
-      .fork
-      .onExecutor(Runtime.defaultExecutor)
-      .unit
+  private def warningEmptyGen[R, E, A](
+    f: (() => Boolean) => ZIO[R, E, A]
+  )(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.suspendSucceed {
+      val cancel = Clock.globalScheduler.schedule(() => logMessageWithTrace(warning), 5.seconds)(Unsafe)
+      f(cancel).onInterrupt(ZIO.succeed(cancel()))
+    }
 
   private val warning =
     "Warning: A check / checkAll / checkN generator did not produce any test cases, " +
@@ -1287,5 +1287,29 @@ package object test extends CompileVariants {
       self.zipWith(that)(_ && _)
     def ||[R1 <: R, E1 >: E](that: => ZIO[R1, E1, TestResult])(implicit trace: Trace): ZIO[R1, E1, TestResult] =
       self.zipWith(that)(_ || _)
+  }
+
+  private[test] def logMessageWithTrace(message: String)(implicit trace: Trace): Unit = {
+    val sb = new StringBuilder(message.length + 128)
+
+    def appendQuoted(label: String): Unit =
+      if (label.indexOf(' ') < 0) sb.append(label)
+      else sb.append('"').append(label).append('"')
+
+    sb
+      .append("message=\"")
+      .append(message)
+      .append('"')
+
+    val parsedTrace = Trace.parseOrNull(trace)
+    if (parsedTrace ne null) {
+      sb.append(" location=")
+      appendQuoted(parsedTrace.location)
+      sb.append(" file=")
+      appendQuoted(parsedTrace.file)
+      sb.append(" line=").append(parsedTrace.line)
+    }
+
+    println(sb.toString())
   }
 }

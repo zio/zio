@@ -18,4 +18,8 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-private[zio] trait TaskPlatformSpecific
+import java.util.concurrent.ScheduledExecutorService
+
+private[zio] abstract class SchedulerPlatformSpecific {
+  def asScheduledExecutorService: ScheduledExecutorService
+}

@@ -210,9 +210,16 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
             case ZChannel.ConcatAll(combineSubK, combineSubKAndInner, value, k) =>
               val innerExecuteLastClose =
                 (f: URIO[Env, Any]) =>
-                  ZIO.succeed {
-                    closeLastSubstream = if (closeLastSubstream eq null) f else closeLastSubstream *> f
-                  }
+                  if (isNullOrZIOUnit(f)) Exit.unit
+                  else
+                    ZIO.succeed {
+                      val prevLastClose = closeLastSubstream
+                      if (prevLastClose eq null) {
+                        closeLastSubstream = f
+                      } else {
+                        closeLastSubstream = prevLastClose *> f
+                      }
+                    }
 
               val exec: ErasedExecutor[Env] = new ChannelExecutor(value, providedEnv, innerExecuteLastClose)
               exec.input = input
@@ -492,22 +499,16 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
     ChannelState.Read(
       self.upstreamExecutor,
       onEffect = (effect: ZIO[Env, Nothing, Unit]) => {
-        val closeLast = ZIO.uninterruptible {
-          val close = this.closeLastSubstream
-          closeLastSubstream = null
-          if (close ne null) close else Exit.unit
-        }
-        executeCloseLastSubstream(closeLast) *> effect
+        val close = this.closeLastSubstream
+        if (isNullOrZIOUnit(close)) effect
+        else executeCloseLastSubstream(ZIO.uninterruptible(close)) *> effect
       },
       onEmit = { (emitted: Any) =>
-        if (this.closeLastSubstream ne null) {
-          val closeLast = ZIO.uninterruptible {
-            val close = this.closeLastSubstream
-            closeLastSubstream = null
-            if (close ne null) close else Exit.unit
-          }
+        val close = this.closeLastSubstream
+        if (!isNullOrZIOUnit(close)) {
+          val closeLast = ZIO.uninterruptible(close)
 
-          executeCloseLastSubstream(closeLast).map { _ =>
+          executeCloseLastSubstream(closeLast).flatMap { _ =>
             val childExecutor: ErasedExecutor[Env] =
               new ChannelExecutor(
                 () => self.createChild(emitted),
@@ -517,6 +518,7 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
             childExecutor.input = input
 
             activeSubexecutor = Subexecutor.PullFromChild[Env](childExecutor, self)
+            Exit.unit
           }
         } else {
           val childExecutor: ErasedExecutor[Env] =
@@ -562,13 +564,11 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
         )
 
       val thisClose = childExecutor.close(Exit.succeed(doneValue))
-      if (thisClose ne null) {
-        val lastClose = closeLastSubstream
-        if (lastClose ne null) {
-          closeLastSubstream = lastClose *> thisClose
-        } else {
-          closeLastSubstream = thisClose
-        }
+      val lastClose = closeLastSubstream
+      if (isNullOrZIOUnit(lastClose)) {
+        closeLastSubstream = thisClose
+      } else {
+        closeLastSubstream = lastClose *> thisClose
       }
 
       replaceSubexecutor(modifiedParent)
@@ -610,7 +610,7 @@ private[stream] object ChannelExecutor {
 
   @inline
   private def isNullOrZIOUnit[R, E, A](zio: ZIO[R, E, A]): Boolean =
-    (zio eq null) || (zio eq ZIO.unit)
+    (zio eq null) || (zio eq ZIO.unit) || (zio eq Exit.unit)
 
   /**
    * The maximum number of steps that can be taken without yielding back to the
