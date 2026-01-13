@@ -14,10 +14,10 @@ object SemaphoreSpec extends ZIOBaseSpec {
     suite("JobQueue")(
       test("enqueue maintains FIFO order") {
         for {
-          job1 <- makeJob()
-          job2 <- makeJob()
-          job3 <- makeJob()
-          queue = SemaphoreState.JobQueue(job1).enqueue(job2).enqueue(job3)
+          job1           <- makeJob()
+          job2           <- makeJob()
+          job3           <- makeJob()
+          queue           = SemaphoreState.JobQueue(job1).enqueue(job2).enqueue(job3)
           (dequeued1, q1) = queue.dequeueOrNull
           (dequeued2, q2) = q1.dequeueOrNull
           (dequeued3, _)  = q2.dequeueOrNull
@@ -29,10 +29,10 @@ object SemaphoreSpec extends ZIOBaseSpec {
       },
       test("prepend adds to front of queue") {
         for {
-          job1 <- makeJob()
-          job2 <- makeJob()
-          job3 <- makeJob()
-          queue = SemaphoreState.JobQueue(job2).enqueue(job3).prepend(job1)
+          job1           <- makeJob()
+          job2           <- makeJob()
+          job3           <- makeJob()
+          queue           = SemaphoreState.JobQueue(job2).enqueue(job3).prepend(job1)
           (dequeued1, q1) = queue.dequeueOrNull
           (dequeued2, q2) = q1.dequeueOrNull
           (dequeued3, _)  = q2.dequeueOrNull
@@ -44,10 +44,10 @@ object SemaphoreSpec extends ZIOBaseSpec {
       },
       test("remove returns job and updated queue") {
         for {
-          job1              <- makeJob()
-          job2              <- makeJob()
-          job3              <- makeJob()
-          queue              = SemaphoreState.JobQueue(job1).enqueue(job2).enqueue(job3)
+          job1               <- makeJob()
+          job2               <- makeJob()
+          job3               <- makeJob()
+          queue               = SemaphoreState.JobQueue(job1).enqueue(job2).enqueue(job3)
           (removed, newQueue) = queue.remove(job2.promise)
         } yield assertTrue(
           removed.promise == job2.promise,
@@ -56,11 +56,11 @@ object SemaphoreSpec extends ZIOBaseSpec {
       },
       test("remove returns null for non-existent promise") {
         for {
-          job1         <- makeJob()
-          job2         <- makeJob()
-          nonExistent  <- makeJob()
-          queue         = SemaphoreState.JobQueue(job1).enqueue(job2)
-          (removed, _)  = queue.remove(nonExistent.promise)
+          job1        <- makeJob()
+          job2        <- makeJob()
+          nonExistent <- makeJob()
+          queue        = SemaphoreState.JobQueue(job1).enqueue(job2)
+          (removed, _) = queue.remove(nonExistent.promise)
         } yield assertTrue(removed == null)
       },
       test("dequeueOrNull skips tombstones (removed jobs)") {
@@ -82,8 +82,8 @@ object SemaphoreSpec extends ZIOBaseSpec {
       },
       test("dequeueOrNull returns null for empty queue") {
         for {
-          job1 <- makeJob()
-          queue = SemaphoreState.JobQueue(job1)
+          job1           <- makeJob()
+          queue           = SemaphoreState.JobQueue(job1)
           (_, emptyQueue) = queue.dequeueOrNull
         } yield assertTrue(emptyQueue.dequeueOrNull == null)
       },
@@ -112,10 +112,10 @@ object SemaphoreSpec extends ZIOBaseSpec {
       },
       test("apply(List[Job]) creates queue with correct order") {
         for {
-          job1 <- makeJob()
-          job2 <- makeJob()
-          job3 <- makeJob()
-          queue = SemaphoreState.JobQueue(List(job1, job2, job3))
+          job1           <- makeJob()
+          job2           <- makeJob()
+          job3           <- makeJob()
+          queue           = SemaphoreState.JobQueue(List(job1, job2, job3))
           (dequeued1, q1) = queue.dequeueOrNull
           (dequeued2, q2) = q1.dequeueOrNull
           (dequeued3, _)  = q2.dequeueOrNull
