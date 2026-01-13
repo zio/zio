@@ -312,8 +312,8 @@ object Semaphore {
           def loop(
             n0: Long,
             state: SemaphoreState,
-            acc: UIO[Any]
-          ): (UIO[Any], SemaphoreState) =
+            acc: List[Promise[Nothing, Unit]]
+          ): (List[Promise[Nothing, Unit]], SemaphoreState) =
             state match {
               case permits: SemaphoreState.FreePermits => acc -> (permits + n0)
               case queue: SemaphoreState.JobQueue =>
@@ -324,10 +324,9 @@ object Semaphore {
                     val permits   = job.permits
                     val available = n0 - permits
                     if (available > 0L) {
-                      val newAcc = acc *> promise.succeedUnit
-                      loop(available, queue0, newAcc)
+                      loop(available, queue0, promise :: acc)
                     } else if (available == 0L) {
-                      (acc *> promise.succeedUnit) -> queue0
+                      (promise :: acc) -> queue0
                     } else {
                       val newQueue = queue0.prepend(Job(promise = promise, permits = permits - n0))
                       acc -> newQueue
@@ -335,7 +334,11 @@ object Semaphore {
                 }
             }
 
-          ZIO.suspendSucceed(ref.unsafe.modify(loop(n, _, Exit.unit)))
+          ZIO.suspendSucceed {
+            val promises = ref.unsafe.modify(loop(n, _, Nil))
+            if (promises.isEmpty) Exit.unit
+            else ZIO.foreachDiscard(promises)(_.succeedUnit)
+          }
         }
       }
   }
