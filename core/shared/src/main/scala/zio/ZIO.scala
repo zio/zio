@@ -5390,9 +5390,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def withSystem[R, E, A <: System, B](system: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    ZIO.suspendSucceed {
-      DefaultServices.currentServices.locallyWith(_.add(system))(zio)
-    }
+    DefaultServices.currentServices.locallyWith(_.add(system))(ZIO.suspendSucceed(zio))
 
   /**
    * Sets the implementation of the system service to the specified value and
