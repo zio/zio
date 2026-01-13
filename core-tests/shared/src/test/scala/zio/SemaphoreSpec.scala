@@ -22,9 +22,9 @@ object SemaphoreSpec extends ZIOBaseSpec {
           (dequeued2, q2) = q1.dequeueOrNull
           (dequeued3, _)  = q2.dequeueOrNull
         } yield assertTrue(
-          dequeued1.promise == job1.promise,
-          dequeued2.promise == job2.promise,
-          dequeued3.promise == job3.promise
+          dequeued1 == job1,
+          dequeued2 == job2,
+          dequeued3 == job3
         )
       },
       test("prepend adds to front of queue") {
@@ -37,9 +37,9 @@ object SemaphoreSpec extends ZIOBaseSpec {
           (dequeued2, q2) = q1.dequeueOrNull
           (dequeued3, _)  = q2.dequeueOrNull
         } yield assertTrue(
-          dequeued1.promise == job1.promise,
-          dequeued2.promise == job2.promise,
-          dequeued3.promise == job3.promise
+          dequeued1 == job1,
+          dequeued2 == job2,
+          dequeued3 == job3
         )
       },
       test("remove returns job and updated queue") {
@@ -50,18 +50,23 @@ object SemaphoreSpec extends ZIOBaseSpec {
           queue               = SemaphoreState.JobQueue(job1).enqueue(job2).enqueue(job3)
           (removed, newQueue) = queue.remove(job2.promise)
         } yield assertTrue(
-          removed.promise == job2.promise,
-          newQueue.size == 2
+          removed == job2,
+          queue.size == 3,
+          newQueue.size == 2,
+          queue ne newQueue // different queue
         )
       },
       test("remove returns null for non-existent promise") {
         for {
-          job1        <- makeJob()
-          job2        <- makeJob()
-          nonExistent <- makeJob()
-          queue        = SemaphoreState.JobQueue(job1).enqueue(job2)
-          (removed, _) = queue.remove(nonExistent.promise)
-        } yield assertTrue(removed == null)
+          job1               <- makeJob()
+          job2               <- makeJob()
+          nonExistent        <- makeJob()
+          queue               = SemaphoreState.JobQueue(job1).enqueue(job2)
+          (removed, newQueue) = queue.remove(nonExistent.promise)
+        } yield assertTrue(
+          removed == null,
+          queue eq newQueue // unchanged queue
+        )
       },
       test("dequeueOrNull skips tombstones (removed jobs)") {
         for {
@@ -76,8 +81,8 @@ object SemaphoreSpec extends ZIOBaseSpec {
           // Dequeue should skip tombstone and return job3
           (dequeued2, _) = q1.dequeueOrNull
         } yield assertTrue(
-          dequeued1.promise == job1.promise,
-          dequeued2.promise == job3.promise
+          dequeued1 == job1,
+          dequeued2 == job3
         )
       },
       test("dequeueOrNull returns null for empty queue") {
@@ -85,7 +90,10 @@ object SemaphoreSpec extends ZIOBaseSpec {
           job1           <- makeJob()
           queue           = SemaphoreState.JobQueue(job1)
           (_, emptyQueue) = queue.dequeueOrNull
-        } yield assertTrue(emptyQueue.dequeueOrNull == null)
+        } yield assertTrue(
+          emptyQueue.size == 0,
+          emptyQueue.dequeueOrNull == null
+        )
       },
       test("dequeueOrNull returns null when only tombstones remain") {
         for {
@@ -95,7 +103,11 @@ object SemaphoreSpec extends ZIOBaseSpec {
           // Remove both jobs, leaving only tombstones
           (_, q1) = queue.remove(job1.promise)
           (_, q2) = q1.remove(job2.promise)
-        } yield assertTrue(q2.dequeueOrNull == null)
+        } yield assertTrue(
+          q1.size == 1,
+          q2.size == 0,
+          q2.dequeueOrNull == null
+        )
       },
       test("size returns count of active jobs excluding tombstones") {
         for {
@@ -121,17 +133,17 @@ object SemaphoreSpec extends ZIOBaseSpec {
           (dequeued3, _)  = q2.dequeueOrNull
         } yield assertTrue(
           queue.size == 3,
-          dequeued1.promise == job1.promise,
-          dequeued2.promise == job2.promise,
-          dequeued3.promise == job3.promise
+          dequeued1 == job1,
+          dequeued2 == job2,
+          dequeued3 == job3
         )
       },
       test("enqueue with duplicate promise overwrites and second occurrence becomes tombstone") {
         for {
-          job1    <- makeJob()
-          job2    <- makeJob()
-          job1Dup  = Job(job1.promise, permits = 5L) // same promise, different permits
-          queue    = SemaphoreState.JobQueue(job1).enqueue(job2).enqueue(job1Dup)
+          job1   <- makeJob()
+          job2   <- makeJob()
+          job1Dup = Job(job1.promise, permits = 5L) // same promise, different permits
+          queue   = SemaphoreState.JobQueue(job1).enqueue(job2).enqueue(job1Dup)
           // Size should be 2 (map overwrites duplicate key)
           // Order vector has 3 entries: [job1.promise, job2.promise, job1.promise]
           (dequeued1, q1) = queue.dequeueOrNull
@@ -142,9 +154,9 @@ object SemaphoreSpec extends ZIOBaseSpec {
           // Third entry (job1.promise again) is now a tombstone
         } yield assertTrue(
           queue.size == 2,
-          dequeued1.promise == job1.promise,
+          dequeued1 == job1Dup,
           dequeued1.permits == 5L, // got the updated job
-          dequeued2.promise == job2.promise,
+          dequeued2 == job2,
           q2.dequeueOrNull == null // third entry is tombstone, queue effectively empty
         )
       }
