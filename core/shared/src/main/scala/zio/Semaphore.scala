@@ -207,7 +207,7 @@ object Semaphore {
 
                 ref.unsafe.modify {
                   case permits: SemaphoreState.FreePermits if permits >= n =>
-                    val reservation = Reservation(acquire = ZIO.unit, release = releaseN(n))
+                    val reservation = Reservation(acquire = Exit.unit, release = releaseN(n))
                     val newEntry    = permits - n
 
                     reservation -> newEntry
