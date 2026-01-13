@@ -4927,7 +4927,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def loop(s: S): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
       f(s) match {
         case (as, Some(s)) => ZChannel.write(as) *> loop(s)
-        case (as, None)    => ZChannel.write(as)
+        case (as, _)       => ZChannel.write(as)
       }
 
     new ZStream(ZChannel.suspend(loop(s)))
@@ -4945,7 +4945,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZChannel.unwrap {
         f(s).map {
           case (as, Some(s)) => ZChannel.write(as) *> loop(s)
-          case (as, None)    => ZChannel.write(as)
+          case (as, _)       => ZChannel.write(as)
         }
       }
 
