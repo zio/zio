@@ -125,6 +125,28 @@ object SemaphoreSpec extends ZIOBaseSpec {
           dequeued2.promise == job2.promise,
           dequeued3.promise == job3.promise
         )
+      },
+      test("enqueue with duplicate promise overwrites and second occurrence becomes tombstone") {
+        for {
+          job1    <- makeJob()
+          job2    <- makeJob()
+          job1Dup  = Job(job1.promise, permits = 5L) // same promise, different permits
+          queue    = SemaphoreState.JobQueue(job1).enqueue(job2).enqueue(job1Dup)
+          // Size should be 2 (map overwrites duplicate key)
+          // Order vector has 3 entries: [job1.promise, job2.promise, job1.promise]
+          (dequeued1, q1) = queue.dequeueOrNull
+          // First dequeue gets job1's promise with updated permits (5L)
+          // and removes it from map, making first occurrence a tombstone
+          (dequeued2, q2) = q1.dequeueOrNull
+          // Second dequeue gets job2
+          // Third entry (job1.promise again) is now a tombstone
+        } yield assertTrue(
+          queue.size == 2,
+          dequeued1.promise == job1.promise,
+          dequeued1.permits == 5L, // got the updated job
+          dequeued2.promise == job2.promise,
+          q2.dequeueOrNull == null // third entry is tombstone, queue effectively empty
+        )
       }
     ),
     test("withPermit automatically releases the permit if the effect is interrupted") {
