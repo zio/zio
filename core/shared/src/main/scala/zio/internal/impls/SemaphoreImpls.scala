@@ -1,16 +1,13 @@
 package zio.internal.impls
 
-import zio.{UIO, Trace, ZIO, Exit}
 import zio.Semaphore.SemaphoreBase
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicReference
-import scala.annotation.tailrec
-import zio.FiberId
-import java.util.concurrent.atomic.AtomicLong
-import java.lang.invoke.MethodHandles
-import zio.Scope
+import zio.{Exit, Scope, Trace, UIO, ZIO}
 
-object SemaphoreImpls {
+import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
+import scala.annotation.tailrec
+
+private[zio] object SemaphoreImpls {
+  private val rightExitUnit = Right(Exit.unit)
 
   final class ConcurrentSemaphore(
     val initialPermits: Long,
@@ -34,6 +31,15 @@ object SemaphoreImpls {
         release(reservation)
       } { reservation =>
         await(reservation) *> zio
+      }
+
+    override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+      ZIO.acquireReleaseWith(tryReserve(n)) {
+        case Some(reservation) => release(reservation)
+        case _                 => Exit.unit
+      } {
+        case Some(reservation) => await(reservation) *> zio.map(Some(_))
+        case _                 => ZIO.none
       }
 
     def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
@@ -75,9 +81,9 @@ object SemaphoreImpls {
                   trace = trace,
                   registerCallback = cb => {
                     if (waiter.compareAndSet(Uninitialized, Waiting(cb))) {
-                      null.asInstanceOf[UIO[Unit]]
+                      null
                     } else {
-                      Exit.unit
+                      rightExitUnit
                     }
                   },
                   blockingOn = () => fiberId
@@ -123,18 +129,27 @@ object SemaphoreImpls {
       pollWaiterLoop(Nil).foreach(_.apply(Exit.unit))
     }
 
+    @tailrec
+    private def fastPath(permits: Long): Boolean = {
+      val currentPermits = waiterQueue.getVolatilePermits
+      val nextPermits    = currentPermits - permits
+      if (nextPermits >= 0) {
+        if (waiterQueue.compareAndSetPermits(currentPermits, nextPermits)) {
+          true
+        } else {
+          fastPath(permits)
+        }
+      } else {
+        false
+      }
+    }
+
     private def reserve(n: Long)(implicit trace: Trace): UIO[Reservation] = {
       def waitReserve(): Reservation = {
         val waiter = new Waiter(n)
         waiterQueue.offer(waiter)
         if (waiterQueue.peek() eq waiter) pollLoop()
         WaitReservation(waiter)
-      }
-
-      def fastPath(permits: Long): Boolean = {
-        val currentPermits = waiterQueue.getVolatilePermits
-        val nextPermits    = currentPermits - permits
-        (nextPermits >= 0) && waiterQueue.compareAndSetPermits(currentPermits, nextPermits)
       }
 
       if (n < 0)
@@ -159,6 +174,21 @@ object SemaphoreImpls {
         }
       }
     }
+
+    private def tryReserve(n: Long)(implicit trace: Trace): UIO[Option[Reservation]] =
+      if (n < 0)
+        ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
+      else if (n == 0L)
+        Exit.succeed(Some(ZeroReservation))
+      else {
+        ZIO.succeed {
+          if (fastPath(n)) {
+            Some(FastReservation(n))
+          } else {
+            None
+          }
+        }
+      }
   }
 
   private type WaiterCallback = UIO[Unit] => Unit
