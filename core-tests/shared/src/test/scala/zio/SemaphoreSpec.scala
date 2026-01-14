@@ -152,9 +152,9 @@ object SemaphoreSpec extends ZIOBaseSpec {
           // Third entry (job1.promise again) is now a tombstone, skipped
         } yield assertTrue(
           queue.size == 2,
-          dequeued1.permits == 5L,    // got the updated job
+          dequeued1.permits == 5L, // got the updated job
           dequeued2 == job2,
-          q2.dequeueOrNull == null    // tombstone skipped, queue empty
+          q2.dequeueOrNull == null // tombstone skipped, queue empty
         )
       },
       test("repeated enqueue of same promise creates tombstones cleaned lazily") {
@@ -164,16 +164,16 @@ object SemaphoreSpec extends ZIOBaseSpec {
         for {
           job <- makeJob()
           queue = SemaphoreState
-            .JobQueue(job)
-            .enqueue(Job(job.promise, permits = 2L)) // retry 1
-            .enqueue(Job(job.promise, permits = 3L)) // retry 2
-            .enqueue(Job(job.promise, permits = 4L)) // retry 3
+                    .JobQueue(job)
+                    .enqueue(Job(job.promise, permits = 2L)) // retry 1
+                    .enqueue(Job(job.promise, permits = 3L)) // retry 2
+                    .enqueue(Job(job.promise, permits = 4L)) // retry 3
           (dequeued, q1) = queue.dequeueOrNull
         } yield assertTrue(
-          queue.size == 1,           // only one job in map despite 4 enqueues
-          queue.order.size == 4,     // order vector grew
-          dequeued.permits == 4L,    // last enqueue wins
-          q1.dequeueOrNull == null   // remaining 3 entries are tombstones, skipped
+          queue.size == 1,         // only one job in map despite 4 enqueues
+          queue.order.size == 4,   // order vector grew
+          dequeued.permits == 4L,  // last enqueue wins
+          q1.dequeueOrNull == null // remaining 3 entries are tombstones, skipped
         )
       }
     ),
