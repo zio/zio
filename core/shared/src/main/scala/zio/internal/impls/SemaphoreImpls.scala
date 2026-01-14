@@ -182,8 +182,12 @@ private[zio] object SemaphoreImpls {
         Exit.succeed(Some(ZeroReservation))
       else {
         ZIO.succeed {
-          if (fastPath(n)) {
-            Some(FastReservation(n))
+          if (!fair || (waiterQueue.peek() eq null)) {
+            if (fastPath(n)) {
+              Some(FastReservation(n))
+            } else {
+              None
+            }
           } else {
             None
           }
