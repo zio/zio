@@ -1,11 +1,182 @@
 package zio
 
+import zio.Semaphore.{Job, SemaphoreState}
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
 object SemaphoreSpec extends ZIOBaseSpec {
+
+  private def makeJob(permits: Long = 1L): UIO[Job] =
+    Promise.make[Nothing, Unit].map(p => Job(p, permits))
+
   override def spec = suite("SemaphoreSpec")(
+    suite("JobQueue")(
+      test("enqueue maintains FIFO order") {
+        for {
+          job1           <- makeJob()
+          job2           <- makeJob()
+          job3           <- makeJob()
+          queue           = SemaphoreState.JobQueue(job1).enqueue(job2).enqueue(job3)
+          (dequeued1, q1) = queue.dequeueOrNull
+          (dequeued2, q2) = q1.dequeueOrNull
+          (dequeued3, _)  = q2.dequeueOrNull
+        } yield assertTrue(
+          dequeued1 == job1,
+          dequeued2 == job2,
+          dequeued3 == job3
+        )
+      },
+      test("prepend adds to front of queue") {
+        for {
+          job1           <- makeJob()
+          job2           <- makeJob()
+          job3           <- makeJob()
+          queue           = SemaphoreState.JobQueue(job2).enqueue(job3).prepend(job1)
+          (dequeued1, q1) = queue.dequeueOrNull
+          (dequeued2, q2) = q1.dequeueOrNull
+          (dequeued3, _)  = q2.dequeueOrNull
+        } yield assertTrue(
+          dequeued1 == job1,
+          dequeued2 == job2,
+          dequeued3 == job3
+        )
+      },
+      test("remove returns job and updated queue") {
+        for {
+          job1               <- makeJob()
+          job2               <- makeJob()
+          job3               <- makeJob()
+          queue               = SemaphoreState.JobQueue(job1).enqueue(job2).enqueue(job3)
+          (removed, newQueue) = queue.remove(job2.promise)
+        } yield assertTrue(
+          removed == job2,
+          queue.size == 3,
+          newQueue.size == 2,
+          queue ne newQueue // different queue
+        )
+      },
+      test("remove returns null for non-existent promise") {
+        for {
+          job1               <- makeJob()
+          job2               <- makeJob()
+          nonExistent        <- makeJob()
+          queue               = SemaphoreState.JobQueue(job1).enqueue(job2)
+          (removed, newQueue) = queue.remove(nonExistent.promise)
+        } yield assertTrue(
+          removed == null,
+          queue eq newQueue // unchanged queue
+        )
+      },
+      test("dequeueOrNull skips tombstones (removed jobs)") {
+        for {
+          job1 <- makeJob()
+          job2 <- makeJob()
+          job3 <- makeJob()
+          queue = SemaphoreState.JobQueue(job1).enqueue(job2).enqueue(job3)
+          // Remove job2, creating a tombstone in the order vector
+          (_, queueWithTombstone) = queue.remove(job2.promise)
+          // Dequeue should return job1 first
+          (dequeued1, q1) = queueWithTombstone.dequeueOrNull
+          // Dequeue should skip tombstone and return job3
+          (dequeued2, _) = q1.dequeueOrNull
+        } yield assertTrue(
+          dequeued1 == job1,
+          dequeued2 == job3
+        )
+      },
+      test("dequeueOrNull returns null for empty queue") {
+        for {
+          job1           <- makeJob()
+          queue           = SemaphoreState.JobQueue(job1)
+          (_, emptyQueue) = queue.dequeueOrNull
+        } yield assertTrue(
+          emptyQueue.size == 0,
+          emptyQueue.dequeueOrNull == null
+        )
+      },
+      test("dequeueOrNull returns null when only tombstones remain") {
+        for {
+          job1 <- makeJob()
+          job2 <- makeJob()
+          queue = SemaphoreState.JobQueue(job1).enqueue(job2)
+          // Remove both jobs, leaving only tombstones
+          (_, q1) = queue.remove(job1.promise)
+          (_, q2) = q1.remove(job2.promise)
+        } yield assertTrue(
+          q1.size == 1,
+          q2.size == 0,
+          q2.dequeueOrNull == null
+        )
+      },
+      test("size returns count of active jobs excluding tombstones") {
+        for {
+          job1 <- makeJob()
+          job2 <- makeJob()
+          job3 <- makeJob()
+          queue = SemaphoreState.JobQueue(job1).enqueue(job2).enqueue(job3)
+          // Remove job2, creating a tombstone
+          (_, queueWithTombstone) = queue.remove(job2.promise)
+        } yield assertTrue(
+          queue.size == 3,
+          queueWithTombstone.size == 2
+        )
+      },
+      test("apply(List[Job]) creates queue with correct order") {
+        for {
+          job1           <- makeJob()
+          job2           <- makeJob()
+          job3           <- makeJob()
+          queue           = SemaphoreState.JobQueue(List(job1, job2, job3))
+          (dequeued1, q1) = queue.dequeueOrNull
+          (dequeued2, q2) = q1.dequeueOrNull
+          (dequeued3, _)  = q2.dequeueOrNull
+        } yield assertTrue(
+          queue.size == 3,
+          dequeued1 == job1,
+          dequeued2 == job2,
+          dequeued3 == job3
+        )
+      },
+      test("enqueue with duplicate promise overwrites job and creates tombstone on dequeue") {
+        for {
+          job1   <- makeJob()
+          job2   <- makeJob()
+          job1Dup = Job(job1.promise, permits = 5L) // same promise, different permits
+          queue   = SemaphoreState.JobQueue(job1).enqueue(job2).enqueue(job1Dup)
+          // Size is 2 (map overwrites), but order vector has 3 entries
+          (dequeued1, q1) = queue.dequeueOrNull
+          // First dequeue gets job1's promise with updated permits (5L)
+          (dequeued2, q2) = q1.dequeueOrNull
+          // Second dequeue gets job2
+          // Third entry (job1.promise again) is now a tombstone, skipped
+        } yield assertTrue(
+          queue.size == 2,
+          dequeued1.permits == 5L, // got the updated job
+          dequeued2 == job2,
+          q2.dequeueOrNull == null // tombstone skipped, queue empty
+        )
+      },
+      test("repeated enqueue of same promise creates tombstones cleaned lazily") {
+        // When ref.modify retries under contention, the same promise may be
+        // enqueued multiple times. The map overwrites, but order vector grows.
+        // Tombstones are cleaned lazily during dequeue.
+        for {
+          job <- makeJob()
+          queue = SemaphoreState
+                    .JobQueue(job)
+                    .enqueue(Job(job.promise, permits = 2L)) // retry 1
+                    .enqueue(Job(job.promise, permits = 3L)) // retry 2
+                    .enqueue(Job(job.promise, permits = 4L)) // retry 3
+          (dequeued, q1) = queue.dequeueOrNull
+        } yield assertTrue(
+          queue.size == 1,         // only one job in map despite 4 enqueues
+          queue.order.size == 4,   // order vector grew
+          dequeued.permits == 4L,  // last enqueue wins
+          q1.dequeueOrNull == null // remaining 3 entries are tombstones, skipped
+        )
+      }
+    ),
     test("withPermit automatically releases the permit if the effect is interrupted") {
       for {
         promise   <- Promise.make[Nothing, Unit]

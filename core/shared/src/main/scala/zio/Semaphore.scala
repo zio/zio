@@ -21,7 +21,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.TSemaphore
 
 import scala.annotation.tailrec
-import scala.collection.immutable.{Queue => ScalaQueue}
 
 /**
  * An asynchronous semaphore, which is a generalization of a mutex. Semaphores
@@ -101,15 +100,68 @@ object Semaphore {
 
   private[zio] sealed trait SemaphoreState
   private[zio] object SemaphoreState {
-    final case class JobQueue(queue: ScalaQueue[Job]) extends SemaphoreState {
+
+    /**
+     * A FIFO queue of waiting jobs with O(1) lookup and removal by promise.
+     *
+     * Uses a dual data structure:
+     *   - `jobs`: Map for O(1) lookup/removal by promise identity
+     *   - `order`: Vector maintaining FIFO insertion order
+     *
+     * When a job is cancelled (via `remove`), it's removed from `jobs` but
+     * remains in `order` as a "tombstone". Tombstones are cleaned lazily during
+     * `dequeueOrNull`.
+     *
+     * Complexity (where n = number of jobs, t = number of tombstones):
+     *   - enqueue: O(1) effectively constant (eC)
+     *   - prepend: O(1) effectively constant (eC)
+     *   - remove: O(1) effectively constant (eC)
+     *   - dequeueOrNull: O(1) amortized (skips t tombstones, each cleaned
+     *     exactly once)
+     *   - size: O(1)
+     */
+    final case class JobQueue(
+      jobs: Map[Promise[Nothing, Unit], Job],
+      order: Vector[Promise[Nothing, Unit]]
+    ) extends SemaphoreState {
+
+      /** O(1) eC - appends to both map and order vector */
+      def enqueue(job: Job): JobQueue =
+        JobQueue(jobs.updated(job.promise, job), order :+ job.promise)
+
+      /** O(1) eC - prepends to both map and order vector */
+      def prepend(job: Job): JobQueue =
+        JobQueue(jobs.updated(job.promise, job), job.promise +: order)
 
       /**
-       * Inspired by [[ScalaQueue.dequeueOption]]
-       * @return
+       * O(1) eC - removes from map only; order cleaned lazily during dequeue
        */
-      def dequeueOrNull: (Job, ScalaQueue[Job]) = if (queue.isEmpty) null else queue.dequeue
-      def enqueue(job: Job): JobQueue           = JobQueue(queue.enqueue(job))
-      def size: Int                             = queue.size
+      def remove(promise: Promise[Nothing, Unit]): (Job, JobQueue) = {
+        val job = jobs.getOrElse(promise, null)
+        if (job eq null) (null, this) // avoid Map and JobQueue allocation
+        else (job, JobQueue(jobs - promise, order))
+      }
+
+      /**
+       * O(1) amortized - skips tombstones (promises removed from map but still
+       * in order)
+       */
+      def dequeueOrNull: (Job, JobQueue) = {
+        @tailrec
+        def loop(order0: Vector[Promise[Nothing, Unit]]): (Job, JobQueue) =
+          if (order0.isEmpty) null
+          else {
+            val head = order0.head
+            val tail = order0.tail
+            val job  = jobs.getOrElse(head, null)
+            if (job ne null) (job, JobQueue(jobs - head, tail))
+            else loop(tail) // skip tombstone, no JobQueue allocation
+          }
+        loop(order)
+      }
+
+      /** O(1) - returns count of active jobs (excludes tombstones) */
+      def size: Int = jobs.size
     }
     final case class FreePermits(permits: Long) extends SemaphoreState {
       def -(n: Long): FreePermits = FreePermits(permits - n)
@@ -118,11 +170,14 @@ object Semaphore {
     }
 
     object JobQueue {
-      def apply(list: List[Job]): JobQueue = {
-        import zio.internal.ScalaQueueCompat._
-        JobQueue(ScalaQueue.from(list))
-      }
-      def apply(elem: Job): JobQueue = JobQueue(ScalaQueue(elem))
+      def apply(list: List[Job]): JobQueue =
+        JobQueue(
+          list.iterator.map(j => j.promise -> j).toMap,
+          list.iterator.map(_.promise).toVector
+        )
+
+      def apply(elem: Job): JobQueue =
+        JobQueue(Map(elem.promise -> elem), Vector(elem.promise))
     }
   }
 
@@ -203,7 +258,13 @@ object Semaphore {
           else
             ZIO.fiberIdWith { fiberId =>
               Exit.succeed {
-                val promise = Promise.unsafe.make[Nothing, Unit](fiberId)
+                // Lazy promise creation: only allocated on slow path, reused across retries
+                var cachedPromise: Promise[Nothing, Unit] = null
+
+                def getOrCreatePromise(): Promise[Nothing, Unit] = {
+                  if (cachedPromise eq null) cachedPromise = Promise.unsafe.make[Nothing, Unit](fiberId)
+                  cachedPromise
+                }
 
                 ref.unsafe.modify {
                   case permits: SemaphoreState.FreePermits if permits >= n =>
@@ -212,11 +273,13 @@ object Semaphore {
 
                     reservation -> newEntry
                   case SemaphoreState.FreePermits(permits) =>
+                    val promise     = getOrCreatePromise()
                     val reservation = Reservation(acquire = promise.await, release = restore(promise, n))
                     val newEntry    = SemaphoreState.JobQueue(Job(promise = promise, permits = n - permits))
 
                     reservation -> newEntry
                   case queue: SemaphoreState.JobQueue =>
+                    val promise     = getOrCreatePromise()
                     val reservation = Reservation(acquire = promise.await, release = restore(promise, n))
                     val newEntry    = queue.enqueue(Job(promise = promise, permits = n))
 
@@ -225,59 +288,65 @@ object Semaphore {
               }
             }
 
+        /**
+         * Called when a fiber is interrupted before acquiring permits. Removes
+         * the job from the queue and releases any partial permits.
+         *
+         * Complexity: O(1) eC for the remove operation (previously O(n) with
+         * Queue)
+         */
         private def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
           ZIO.suspendSucceed {
             ref.unsafe.modify {
               case permits: SemaphoreState.FreePermits => Exit.unit -> (permits + n)
-              case queueEntry @ SemaphoreState.JobQueue(queue) =>
-                val iterator = queue.iterator
-                val others   = List.newBuilder[Job]
-                others.sizeHint(queue.size - 1)
-                var foundJob: Job = null
-                while (iterator.hasNext) {
-                  val next = iterator.next()
-                  if (next.promise == promise) foundJob = next
-                  else others += next
-                }
-
+              case queue: SemaphoreState.JobQueue =>
+                val (foundJob, newQueue) = queue.remove(promise)
                 if (foundJob ne null)
-                  releaseN(n - foundJob.permits) -> SemaphoreState.JobQueue(others.result())
+                  releaseN(n - foundJob.permits) -> newQueue
                 else
-                  releaseN(n) -> queueEntry
+                  releaseN(n) -> queue
             }
           }
 
+        /**
+         * Releases n permits, waking up waiting fibers in FIFO order.
+         *
+         * Complexity: O(k) amortized where k = number of fibers that can be
+         * woken with n permits. Each dequeue is O(1) amortized.
+         */
         private def releaseN(n: Long)(implicit trace: Trace): UIO[Any] = {
 
           @tailrec
           def loop(
-            n: Long,
+            n0: Long,
             state: SemaphoreState,
-            acc: UIO[Any]
-          ): (UIO[Any], SemaphoreState) =
+            acc: List[Promise[Nothing, Unit]]
+          ): (List[Promise[Nothing, Unit]], SemaphoreState) =
             state match {
-              case permits: SemaphoreState.FreePermits => acc -> (permits + n)
+              case permits: SemaphoreState.FreePermits => acc -> (permits + n0)
               case queue: SemaphoreState.JobQueue =>
                 queue.dequeueOrNull match {
-                  case null => acc -> SemaphoreState.FreePermits(n)
-                  case (Job(promise, permits), queue0) =>
-                    val available = n - permits
+                  case null => acc -> SemaphoreState.FreePermits(n0)
+                  case (job, queue0) =>
+                    val promise   = job.promise
+                    val permits   = job.permits
+                    val available = n0 - permits
                     if (available > 0L) {
-                      val newState = SemaphoreState.JobQueue(queue0)
-                      val newAcc   = acc *> promise.succeedUnit
-
-                      loop(available, newState, newAcc)
+                      loop(available, queue0, promise :: acc)
                     } else if (available == 0L) {
-                      (acc *> promise.succeedUnit) -> SemaphoreState.JobQueue(queue0)
+                      (promise :: acc) -> queue0
                     } else {
-                      val newQueue = Job(promise = promise, permits = permits - n) +: queue0
-
-                      acc -> SemaphoreState.JobQueue(newQueue)
+                      val newQueue = queue0.prepend(Job(promise = promise, permits = permits - n0))
+                      acc -> newQueue
                     }
                 }
             }
 
-          ZIO.suspendSucceed(ref.unsafe.modify(loop(n, _, Exit.unit)))
+          ZIO.suspendSucceed {
+            val promises = ref.unsafe.modify(loop(n, _, Nil))
+            if (promises.isEmpty) Exit.unit
+            else ZIO.foreachDiscard(promises)(_.succeedUnit)
+          }
         }
       }
   }
