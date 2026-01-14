@@ -258,7 +258,13 @@ object Semaphore {
           else
             ZIO.fiberIdWith { fiberId =>
               Exit.succeed {
-                val promise = Promise.unsafe.make[Nothing, Unit](fiberId)
+                // Lazy promise creation: only allocated on slow path, reused across retries
+                var cachedPromise: Promise[Nothing, Unit] = null
+
+                def getOrCreatePromise(): Promise[Nothing, Unit] = {
+                  if (cachedPromise eq null) cachedPromise = Promise.unsafe.make[Nothing, Unit](fiberId)
+                  cachedPromise
+                }
 
                 ref.unsafe.modify {
                   case permits: SemaphoreState.FreePermits if permits >= n =>
@@ -267,11 +273,13 @@ object Semaphore {
 
                     reservation -> newEntry
                   case SemaphoreState.FreePermits(permits) =>
+                    val promise     = getOrCreatePromise()
                     val reservation = Reservation(acquire = promise.await, release = restore(promise, n))
                     val newEntry    = SemaphoreState.JobQueue(Job(promise = promise, permits = n - permits))
 
                     reservation -> newEntry
                   case queue: SemaphoreState.JobQueue =>
+                    val promise     = getOrCreatePromise()
                     val reservation = Reservation(acquire = promise.await, release = restore(promise, n))
                     val newEntry    = queue.enqueue(Job(promise = promise, permits = n))
 
