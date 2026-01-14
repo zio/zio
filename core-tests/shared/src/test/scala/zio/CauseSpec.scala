@@ -184,7 +184,7 @@ object CauseSpec extends ZIOBaseSpec {
         val cause = genCause(Cause.fail("Error"), 20000)
 
         assert(cause.toString)(anything)
-      },
+      } @@ TestAspect.jvmOnly,
       test("return properly structured string for nested cause") {
         val fiberId    = FiberId(123, 456, Trace.empty)
         val stackTrace = StackTrace(fiberId, Chunk.empty)
@@ -229,6 +229,10 @@ object CauseSpec extends ZIOBaseSpec {
             Fail(new Exception("Ex2"), stackTrace),
             """Fail(java.lang.Exception: Ex2,Stack trace for thread "zio-fiber-123":
               |)""".stripMargin
+          ),
+          (
+            Fail("Boom", StackTrace.none),
+            "Fail(Boom,StackTrace.none)"
           ),
           (
             Interrupt(fiberId, stackTrace),

@@ -108,7 +108,7 @@ object RuntimeBootstrapTests {
       for {
         ref    <- Ref.make(0)
         latch  <- Promise.make[Nothing, Unit]
-        child   = (latch.succeed(()) *> ZIO.infinity).ensuring(ref.update(_ + 1))
+        child   = (latch.succeed(()) *> ZIO.never).ensuring(ref.update(_ + 1))
         parent <- (child.fork *> latch.await).fork
         _      <- parent.await
         count  <- ref.get
@@ -298,7 +298,7 @@ object RuntimeBootstrapTests {
   def uninterruptibleRace() =
     test("race in uninterruptible region") {
       for {
-        _ <- ZIO.unit.race(ZIO.infinity).uninterruptible
+        _ <- ZIO.unit.race(ZIO.never).uninterruptible
       } yield assert(true)
     }
 
@@ -308,7 +308,7 @@ object RuntimeBootstrapTests {
         startLatch <- Promise.make[Nothing, Unit]
         endLatch   <- Promise.make[Nothing, Unit]
         finalized  <- Ref.make(false)
-        fiber      <- (startLatch.succeed(()) *> ZIO.infinity).onInterrupt(finalized.set(true) *> endLatch.succeed(())).fork
+        fiber      <- (startLatch.succeed(()) *> ZIO.never).onInterrupt(finalized.set(true) *> endLatch.succeed(())).fork
         _          <- startLatch.await
         _          <- fiber.interrupt
         _          <- endLatch.await
@@ -324,7 +324,7 @@ object RuntimeBootstrapTests {
         exitRef             <- Ref.make[Exit[Any, Any]](Exit.succeed(()))
         pastInterruptionRef <- Ref.make(false)
         fiber <- (ZIO.uninterruptibleMask { restore =>
-                   restore(startLatch.succeed(()) *> ZIO.infinity).exit.flatMap(exitRef.set(_))
+                   restore(startLatch.succeed(()) *> ZIO.never).exit.flatMap(exitRef.set(_))
                  } *> pastInterruptionRef.set(true)).ensuring(endLatch.succeed(())).fork
         _    <- startLatch.await
         _    <- fiber.interrupt
@@ -360,7 +360,7 @@ object RuntimeBootstrapTests {
   def interruptionOfForkedRace() =
     testN(100)("interruption of forked raced") {
       def make(ref: Ref[Int], start: Promise[Nothing, Unit], done: Promise[Nothing, Unit]) =
-        (start.succeed(()) *> ZIO.infinity).onInterrupt(ref.update(_ + 1) *> done.succeed(()))
+        (start.succeed(()) *> ZIO.never).onInterrupt(ref.update(_ + 1) *> done.succeed(()))
 
       for {
         ref   <- Ref.make(0)
@@ -456,7 +456,7 @@ object RuntimeBootstrapTests {
     test("child becoming interruptible is interrupted due to auto-supervision of uninterruptible parent") {
       for {
         latch <- Promise.make[Nothing, Unit]
-        child  = ZIO.infinity.interruptible.onInterrupt(latch.succeed(())).fork
+        child  = ZIO.never.interruptible.onInterrupt(latch.succeed(())).fork
         _     <- child.fork.uninterruptible
         _     <- latch.await
       } yield assert(true)

@@ -17,7 +17,8 @@
 package zio
 
 import zio.internal.FiberScope
-import zio.metrics.{MetricLabel, Metrics}
+import zio.metrics.MetricLabel
+import zio.metrics.Metrics
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
@@ -331,14 +332,11 @@ sealed trait ZIO[-R, +E, +A]
    * openFile("data.json").catchNonFatalOrDie(_ => openFile("backup.json"))
    * }}}
    */
+  @deprecated("Use `catchAll`", "2.1.21")
   final def catchNonFatalOrDie[R1 <: R, E2, A1 >: A](
     h: E => ZIO[R1, E2, A1]
-  )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: Trace): ZIO[R1, E2, A1] = {
-
-    def hh(e: E) =
-      ZIO.isFatalWith(isFatal => if (isFatal(e)) ZIO.die(e) else h(e))
-    self.foldZIO[R1, E2, A1](hh, ZIO.successFn)
-  }
+  )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: Trace): ZIO[R1, E2, A1] =
+    self.catchAll(h)
 
   /**
    * Recovers from some or all of the error cases.
@@ -472,7 +470,13 @@ sealed trait ZIO[-R, +E, +A]
    * `FiberRef` values.
    */
   def diffFiberRefs(implicit trace: Trace): ZIO[R, E, (FiberRefs.Patch, A)] =
-    summarized(ZIO.getFiberRefs)(FiberRefs.Patch.diff)
+    ZIO.withFiberRuntime[R, E, (FiberRefs.Patch, A)] { (state, _) =>
+      val refs0 = state.getFiberRefs()
+      self.map { value =>
+        val refs1 = state.getFiberRefs()
+        (FiberRefs.Patch.diff(refs0, refs1), value)
+      }
+    }
 
   /**
    * Returns an effect that is always interruptible, but whose interruption will
@@ -569,6 +573,7 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Maps this effect to the default exit codes.
    */
+  @deprecated("This operator swallows errors and is no longer necessary to create a ZIO App.", "2.1.20")
   final def exitCode(implicit trace: Trace): URIO[R, ExitCode] =
     self.foldCause(
       _ => ExitCode.failure,
@@ -791,7 +796,7 @@ sealed trait ZIO[-R, +E, +A]
     ZIO.uninterruptibleMask { restore =>
       def interrupt(fiber: Fiber.Runtime[Any, Any]): ZIO[Any, Nothing, Any] =
         ZIO.fiberIdWith { fiberId =>
-          if (fiberId == fiber.id) Exit.unit else fiber.interrupt
+          if (fiberId == fiber.id) Exit.unit else fiber.interruptAs(fiberId)
         }
 
       scope.fork.flatMap { child =>
@@ -1046,7 +1051,11 @@ sealed trait ZIO[-R, +E, +A]
    * evaluated multiple times.
    */
   final def once(implicit trace: Trace): UIO[ZIO[R, E, Unit]] =
-    Ref.make(true).map(ref => self.whenZIO(ref.getAndSet(false)).unit)
+    ZIO.succeed {
+      val ref = Ref.unsafe.make(true)(Unsafe)
+
+      ZIO.whenDiscard(ref.unsafe.getAndSet(false)(Unsafe))(self)
+    }
 
   /**
    * Executes the specified success or error callback depending on the result of
@@ -1453,6 +1462,9 @@ sealed trait ZIO[-R, +E, +A]
       val leftFiber  = ZIO.unsafe.makeChildFiber(trace, leftEff, parentFiber, flags, leftScope)(Unsafe)
       val rightFiber = ZIO.unsafe.makeChildFiber(trace, rightEff, parentFiber, flags, rightScope)(Unsafe)
 
+      val startLeft  = leftFiber.startSuspended()(Unsafe)
+      val startRight = rightFiber.startSuspended()(Unsafe)
+
       ZIO.async[R1, E2, C](
         { cb =>
           val raceIndicator = new AtomicBoolean()
@@ -1465,8 +1477,8 @@ sealed trait ZIO[-R, +E, +A]
             complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
           }(Unsafe)
 
-          leftFiber.startConcurrently(leftEff)
-          rightFiber.startConcurrently(rightEff)
+          startLeft(leftEff)
+          startRight(rightEff)
           ()
         },
         leftFiber.id <> rightFiber.id
@@ -1595,26 +1607,24 @@ sealed trait ZIO[-R, +E, +A]
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
   )(implicit trace: Trace): ZIO[R1, E2, Either[C, B]] =
     ZIO.suspendSucceed {
-      val schedule = schedule0
+      val driver = schedule0.unsafe.driver(trace, Unsafe)
 
-      schedule.driver.flatMap { driver =>
-        def loop(a: A): ZIO[R1, E2, Either[C, B]] =
-          driver
-            .next(a)
-            .foldZIO(
-              _ => driver.last.orDie.map(Right(_)),
-              b =>
-                self.foldZIO(
-                  e => orElse(e, Some(b)).map(Left(_)),
-                  a => loop(a)
-                )
-            )
+      def loop(a: A): ZIO[R1, E2, Either[C, B]] =
+        driver
+          .next(a)
+          .foldZIO(
+            _ => driver.last.orDie.map(Right(_)),
+            b =>
+              self.foldZIO(
+                e => orElse(e, Some(b)).map(Left(_)),
+                a => loop(a)
+              )
+          )
 
-        self.foldZIO(
-          e => orElse(e, None).map(Left(_)),
-          a => loop(a)
-        )
-      }
+      self.foldZIO(
+        e => orElse(e, None).map(Left(_)),
+        a => loop(a)
+      )
     }
 
   /**
@@ -1682,8 +1692,8 @@ sealed trait ZIO[-R, +E, +A]
     policy: => Schedule[R1, E, S]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E, A] =
     ZIO.suspendSucceed {
-
-      def loop(driver: Schedule.Driver[Any, R1, E, S]): ZIO[R1, E, A] =
+      val driver = policy.unsafe.driver(trace, Unsafe)
+      def loop(): ZIO[R1, E, A] =
         self.catchAllCause { cause =>
           cause.failureOrCause.fold(
             e =>
@@ -1691,13 +1701,13 @@ sealed trait ZIO[-R, +E, +A]
                 .next(e)
                 .foldZIO(
                   _ => driver.last.orDie.flatMap(_ => Exit.failCause(cause)),
-                  _ => loop(driver)
+                  _ => loop()
                 ),
             cause => Exit.failCause(cause)
           )
         }
 
-      policy.driver.flatMap(loop(_))
+      loop()
     }
 
   /**
@@ -1739,9 +1749,8 @@ sealed trait ZIO[-R, +E, +A]
     orElse: (E, Out) => ZIO[R1, E1, B]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, Either[B, A]] =
     ZIO.suspendSucceed {
-      val schedule = schedule0
-
-      def loop(driver: Schedule.Driver[Any, R1, E, Out]): ZIO[R1, E1, Either[B, A]] =
+      val driver = schedule0.unsafe.driver(trace, Unsafe)
+      def loop(): ZIO[R1, E1, Either[B, A]] =
         self
           .map(Right(_))
           .catchAll(e =>
@@ -1749,11 +1758,11 @@ sealed trait ZIO[-R, +E, +A]
               .next(e)
               .foldZIO(
                 _ => driver.last.orDie.flatMap(out => orElse(e, out).map(Left(_))),
-                _ => loop(driver)
+                _ => loop()
               )
           )
 
-      schedule.driver.flatMap(loop(_))
+      loop()
     }
 
   /**
@@ -1863,14 +1872,12 @@ sealed trait ZIO[-R, +E, +A]
     schedule0: => Schedule[R1, A1, B]
   )(implicit trace: Trace): ZIO[R1, E, B] =
     ZIO.suspendSucceed {
-      val schedule = schedule0
+      val driver = schedule0.unsafe.driver(trace, Unsafe)
 
-      schedule.driver.flatMap { driver =>
-        def loop(a: A1): ZIO[R1, E, B] =
-          driver.next(a).foldZIO(_ => driver.last.orDie, _ => self.flatMap(loop))
+      def loop(a: A1): ZIO[R1, E, B] =
+        driver.next(a).foldZIO(_ => driver.last.orDie, _ => self.flatMap(loop))
 
-        loop(a)
-      }
+      loop(a)
     }
 
   /**
@@ -2031,7 +2038,7 @@ sealed trait ZIO[-R, +E, +A]
    * forked in the effect are reported to the specified supervisor.
    */
   final def supervised(supervisor: => Supervisor[Any])(implicit trace: Trace): ZIO[R, E, A] =
-    FiberRef.currentSupervisor.locallyWith(_ ++ supervisor)(self)
+    FiberRef.currentSupervisor.locallyWith(_.patchAdd(supervisor))(self)
 
   /**
    * Returns an effect that effectfully "peeks" at the success of this effect.
@@ -2712,8 +2719,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   /**
    * The level of parallelism for parallel operators.
    */
-  final lazy val Parallelism: FiberRef[Option[Int]] =
-    FiberRef.unsafe.make[Option[Int]](None)(Unsafe)
+  @deprecated("Use ZIO.parallelism, parallelismWith, withParallelism or withParallelismMask instead", "2.1.22")
+  def Parallelism: FiberRef[Option[Int]] =
+    FiberRef.parallelism
 
   /**
    * Submerges the error case of an `Either` into the `ZIO`. The inverse
@@ -3928,8 +3936,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Like [[never]], but fibers that running this effect won't be garbage
    * collected unless interrupted.
    */
+  @deprecated("Use `ZIO.never` instead", "2.1.20")
   def infinity(implicit trace: Trace): UIO[Nothing] =
-    ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+    ZIO.sleep(Duration.Infinity) *> ZIO.never
 
   /**
    * Inherits values from all [[FiberRef]] instances into current fiber.
@@ -3983,14 +3992,16 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   /**
    * Retrieves the definition of a fatal error.
    */
+  @deprecated("isFatal is deprecated, kept only for binary compatability. Do not use.", "2.1.21")
   def isFatal(implicit trace: Trace): UIO[Throwable => Boolean] =
-    isFatalWith(ZIO.successFn)
+    ZIO.succeed(!nonFatal(_))
 
   /**
    * Constructs an effect based on the definition of a fatal error.
    */
+  @deprecated("isFatalWith is deprecated, kept only for binary compatability. Do not use.", "2.1.21")
   def isFatalWith[R, E, A](f: (Throwable => Boolean) => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    FiberRef.currentFatal.getWith(f)
+    ZIO.suspendSucceed(f(!nonFatal(_)))
 
   /**
    * Iterates with the specified effectual function. The moral equivalent of:
@@ -4496,14 +4507,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * it is unbounded.
    */
   def parallelism(implicit trace: Trace): UIO[Option[Int]] =
-    Parallelism.get
+    FiberRef.parallelism.get
 
   /**
    * Retrieves the current maximum number of fibers for parallel operators and
    * uses it to run the specified effect.
    */
   def parallelismWith[R, E, A](f: Option[Int] => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    Parallelism.getWith(f)
+    FiberRef.parallelism.getWith(f)
 
   /**
    * Feeds elements of type `A` to a function `f` that returns an effect.
@@ -4538,7 +4549,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     zio: ZIO[ROut with RIn2, E, ROut2]
   )(implicit ev: EnvironmentTag[RIn2], tag: EnvironmentTag[ROut], trace: Trace): ZIO[RIn with RIn2, E, ROut2] =
-    zio.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer)
+    zio.provideSomeLayer[RIn with RIn2](layer)
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
@@ -4855,11 +4866,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.suspendSucceed {
       try rio
       catch {
-        case t: Throwable =>
-          ZIO.isFatalWith { isFatal =>
-            if (!isFatal(t)) Exit.Failure(Cause.fail(t))
-            else throw t
-          }
+        case t if nonFatal(t) => Exit.Failure(Cause.fail(t))
       }
     }
 
@@ -5305,7 +5312,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * parallel operators.
    */
   def withParallelism[R, E, A](n: => Int)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed(Parallelism.locally(Some(n))(zio))
+    ZIO.suspendSucceed(FiberRef.parallelism.locally(Some(n))(zio))
 
   /**
    * Runs the specified effect with the specified maximum number of fibers for
@@ -5316,9 +5323,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def withParallelismMask[R, E, A](n: => Int)(f: ZIO.ParallelismRestorer => ZIO[R, E, A])(implicit
     trace: Trace
   ): ZIO[R, E, A] =
-    Parallelism.getWith {
-      case Some(n0) => Parallelism.locally(Some(n))(f(ParallelismRestorer.MakeParallel(n0)))
-      case None     => Parallelism.locally(Some(n))(f(ParallelismRestorer.MakeParallelUnbounded))
+    FiberRef.parallelism.getWith {
+      case Some(n0) => FiberRef.parallelism.locally(Some(n))(f(ParallelismRestorer.MakeParallel(n0)))
+      case _        => FiberRef.parallelism.locally(Some(n))(f(ParallelismRestorer.MakeParallelUnbounded))
     }
 
   /**
@@ -5326,7 +5333,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * parallel operators.
    */
   def withParallelismUnbounded[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed(Parallelism.locally(None)(zio))
+    ZIO.suspendSucceed(FiberRef.parallelism.locally(None)(zio))
 
   /**
    * Runs the specified effect with an unbounded maximum number of fibers for
@@ -5337,9 +5344,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def withParallelismUnboundedMask[R, E, A](f: ZIO.ParallelismRestorer => ZIO[R, E, A])(implicit
     trace: Trace
   ): ZIO[R, E, A] =
-    Parallelism.getWith {
-      case Some(n) => Parallelism.locally(None)(f(ParallelismRestorer.MakeParallel(n)))
-      case None    => Parallelism.locally(None)(f(ParallelismRestorer.MakeParallelUnbounded))
+    FiberRef.parallelism.getWith {
+      case Some(n) => FiberRef.parallelism.locally(None)(f(ParallelismRestorer.MakeParallel(n)))
+      case None    => FiberRef.parallelism.locally(None)(f(ParallelismRestorer.MakeParallelUnbounded))
     }
 
   /**
@@ -5428,8 +5435,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       )
     }
 
-  private[zio] val unitFn: Any => Unit    = (_: Any) => ()
-  private val unitZIOFn: Any => UIO[Unit] = (_: Any) => Exit.unit
+  private[zio] val unitFn: Any => Unit         = (_: Any) => ()
+  private[zio] val unitZIOFn: Any => UIO[Unit] = (_: Any) => Exit.unit
 
   implicit final class ZIOAutoCloseableOps[R, E, A <: AutoCloseable](private val io: ZIO[R, E, A]) extends AnyVal {
 
@@ -5492,7 +5499,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       tagged: EnvironmentTag[R1],
       trace: Trace
     ): ZIO[R0, E1, A] =
-      self.asInstanceOf[ZIO[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
+      self.asInstanceOf[ZIO[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] <*> layer)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZIO[R, E, A]) extends AnyVal {
@@ -6136,9 +6143,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   private[zio] final case class Sync[A](trace: Trace, eval: () => A) extends ZIO[Any, Nothing, A]
   private[zio] final case class Async[R, E, A](
     trace: Trace,
-    registerCallback: (ZIO[R, E, A] => Unit) => ZIO[R, E, A],
+    registerCallback: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: () => FiberId
   ) extends ZIO[R, E, A]
+
   private[zio] final case class UpdateRuntimeFlags(trace: Trace, update: RuntimeFlags.Patch)
       extends Continuation
       with ZIO[Any, Nothing, Unit]

@@ -16,7 +16,7 @@
 package zio
 
 import scala.annotation.tailrec
-import scala.util.control.{NonFatal, NoStackTrace}
+import scala.util.control.NoStackTrace
 
 /**
  * A [[zio.Config]] describes the structure of some configuration data.
@@ -64,7 +64,7 @@ sealed trait Config[+A] { self =>
     self.mapOrFail { a =>
       try Right(f(a))
       catch {
-        case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, e.getMessage))
+        case ex if nonFatal(ex) => Left(Config.Error.InvalidData(Chunk.empty, ex.getMessage))
       }
     }
 
@@ -229,7 +229,8 @@ object Config {
   case object Decimal extends Primitive[BigDecimal] {
     final def parse(text: String): Either[Config.Error, BigDecimal] = try Right(BigDecimal(text))
     catch {
-      case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected a decimal value, but found ${text}"))
+      case ex if nonFatal(ex) =>
+        Left(Config.Error.InvalidData(Chunk.empty, s"Expected a decimal value, but found ${text}"))
     }
   }
   case object Duration extends Primitive[zio.Duration] {
@@ -292,7 +293,8 @@ object Config {
   case object Integer extends Primitive[BigInt] {
     final def parse(text: String): Either[Config.Error, BigInt] = try Right(BigInt(text))
     catch {
-      case NonFatal(e) => Left(Config.Error.InvalidData(Chunk.empty, s"Expected an integer value, but found ${text}"))
+      case ex if nonFatal(ex) =>
+        Left(Config.Error.InvalidData(Chunk.empty, s"Expected an integer value, but found ${text}"))
     }
   }
   final case class Described[A](config: Config[A], description: String) extends Composite[A]
@@ -302,7 +304,7 @@ object Config {
       try
         Right(java.time.LocalDateTime.parse(text))
       catch {
-        case NonFatal(e) =>
+        case ex if nonFatal(ex) =>
           Left(Config.Error.InvalidData(Chunk.empty, s"Expected a local date-time value, but found ${text}"))
       }
   }
@@ -311,7 +313,7 @@ object Config {
       try
         Right(java.time.LocalDate.parse(text))
       catch {
-        case NonFatal(e) =>
+        case ex if nonFatal(ex) =>
           Left(Config.Error.InvalidData(Chunk.empty, s"Expected a local date value, but found ${text}"))
       }
   }
@@ -320,7 +322,7 @@ object Config {
       try
         Right(java.time.LocalTime.parse(text))
       catch {
-        case NonFatal(e) =>
+        case ex if nonFatal(ex) =>
           Left(Config.Error.InvalidData(Chunk.empty, s"Expected a local time value, but found ${text}"))
       }
   }
@@ -331,7 +333,7 @@ object Config {
       try
         Right(java.time.OffsetDateTime.parse(text))
       catch {
-        case NonFatal(e) =>
+        case ex if nonFatal(ex) =>
           Left(Config.Error.InvalidData(Chunk.empty, s"Expected an offset date-time value, but found ${text}"))
       }
   }

@@ -317,3 +317,21 @@ val party = for {
 ```
 
 It goes without saying you should take a look at ZIO's own `Semaphore`, it does all this and more without wasting all those CPU cycles while waiting.
+
+## Atomic Modify with Continuation
+
+As discussed above, `Ref#modify` takes a **pure function** to atomically modify the state and compute a return value. While we shouldn't run effects inside `Ref#modify`, we can introduce a continuation—an effect that the runtime executes *after* the atomic modification:
+
+```scala
+ref.modify { state =>
+  val doThisNext = someZIO
+  val newState = computeNewState(state)
+  (doThisNext, newState)  // "doThisNext" is the continuation
+}.flatten  // flatten to execute the continuation
+```
+
+The type of `ref.modify { state => ... }` is an effect that produces another effect. Running this effect performs the atomic modification and returns the continuation effect. To execute the continuation, we must `flatten` the result.
+
+**Important:** The continuation is **not** part of the atomic modification. The state modification completes before the continuation runs, and it doesn't depend on the continuation's result. If multiple fibers execute this pattern concurrently, their continuations may be interleaved, even though their state modifications are atomic.
+
+If you need the continuation to be part of the atomic operation—ensuring no other fiber can modify the state between the modification and the continuation—use `Ref.Synchronized` instead. See [Ref.Synchronized](refsynchronized.md) for more details.

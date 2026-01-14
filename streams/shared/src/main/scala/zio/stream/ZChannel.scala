@@ -1,7 +1,8 @@
 package zio.stream
 
-import zio.{ZIO, _}
+import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.stream.ZChannel.unitFn2
 import zio.stream.internal.ChannelExecutor.ChannelState
 import zio.stream.internal.{AsyncInputConsumer, AsyncInputProducer, ChannelExecutor, SingleProducerAsyncInput}
 
@@ -167,7 +168,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def concatMap[Env1 <: Env, InErr1 <: InErr, InElem1 <: InElem, InDone1 <: InDone, OutErr1 >: OutErr, OutElem2](
     f: OutElem => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any]
   )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any] =
-    concatMapWith(f)((_, _) => (), (_, _) => ())
+    concatMapWith(f)(unitFn2, unitFn2)
 
   /**
    * Returns a new channel whose outputs are fed to the specified factory
@@ -690,12 +691,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                            permits
                              .withPermit(
                                latch.succeedUnit *>
-                                 f(outElem)
-                                   .catchAllCause(cause =>
-                                     failureRef.update(_ && cause).unless(cause.isInterruptedOnly) *>
-                                       errorSignal.succeedUnit *>
+                                 f(outElem).catchAllCause { cause =>
+                                   val continue =
+                                     errorSignal.succeedUnit *>
                                        ZChannel.failLeftUnit
-                                   )
+
+                                   if (cause.isInterruptedOnly) continue
+                                   else failureRef.update(_ && cause) *> continue
+                                 }
                              )
                              .interruptible
                              .forkIn(childScope)
@@ -709,8 +712,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                                permits.withPermits(n0)(ZIO.unit).interruptible *>
                                  outgoing.offer(Fiber.fail(x.asInstanceOf[Either[Unit, OutDone]]))
                              case Right(cause) =>
-                               failureRef.update(_ && cause).unless(cause.isInterruptedOnly) *>
-                                 outgoing.offer(Fiber.done(ZChannel.failLeftUnit))
+                               val continue = outgoing.offer(Fiber.done(ZChannel.failLeftUnit))
+
+                               if (cause.isInterruptedOnly) continue
+                               else failureRef.update(_ && cause) *> continue
                            })
                            .ignore
 
@@ -734,7 +739,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               }
             }
 
-          writer.embedInput(input)
+          writer.embedInput(input).ensuring(outgoing.shutdown)
         }
       }
     }
@@ -772,10 +777,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                      .withPermit(
                        latch.succeedUnit *> f(outElem)
                          .foldCauseZIO(
-                           cause =>
-                             failure.update(_ && cause).unless(cause.isInterruptedOnly) *>
+                           cause => {
+                             val continue =
                                errorSignal.succeedUnit *>
-                               outgoing.offer(ZChannel.failLeftUnit),
+                                 outgoing.offer(ZChannel.failLeftUnit)
+
+                             if (cause.isInterruptedOnly) continue
+                             else failure.update(_ && cause) *> continue
+                           },
                            elem => outgoing.offer(Exit.succeed(elem))
                          )
                      )
@@ -792,8 +801,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 permits.withPermits(n.toLong)(ZIO.unit).interruptible *>
                   outgoing.offer(Exit.fail(x.asInstanceOf[Either[Unit, OutDone]]))
               case Right(cause) =>
-                failure.update(_ && cause).unless(cause.isInterruptedOnly) *>
-                  outgoing.offer(ZChannel.failLeftUnit)
+                val continue = outgoing.offer(ZChannel.failLeftUnit)
+
+                if (cause.isInterruptedOnly) continue
+                else failure.update(_ && cause) *> continue
             })
             .ignore
             .raceFirst(ZChannel.awaitErrorSignal(childScope, fiberId)(errorSignal))
@@ -817,7 +828,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             }
           }
 
-        writer.embedInput(input)
+        writer.embedInput(input).ensuring(outgoing.shutdown)
       }
     }
 
@@ -1063,7 +1074,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def pipeTo[Env1 <: Env, OutErr2, OutElem2, OutDone2](
     that: => ZChannel[Env1, OutErr, OutElem, OutDone, OutErr2, OutElem2, OutDone2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr2, OutElem2, OutDone2] =
-    ZChannel.PipeTo(() => self, () => that)
+    if (self eq ZChannel.identityAny)
+      ZChannel.suspend(that.asInstanceOf[ZChannel[Env1, InErr, InElem, InDone, OutErr2, OutElem2, OutDone2]])
+    else ZChannel.PipeTo(() => self, () => that)
 
   /**
    * Returns a new channel that pipes the output of this channel into the
@@ -1074,62 +1087,68 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     that: => ZChannel[Env1, Nothing, OutElem, OutDone, OutErr1, OutElem2, OutDone2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2] =
     ZChannel.suspend {
+      val that0 = that
+      if (self eq ZChannel.identityAny) {
+        that0.asInstanceOf[ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2]]
+      } else if (that0 eq ZChannel.identityAny) {
+        self.asInstanceOf[ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2]]
+      } else {
+        class ChannelFailure(val err: Cause[OutErr1]) extends Throwable(null, null, true, false) {
+          override def getMessage: String = err.unified.headOption.fold("<unknown>")(_.message)
 
-      class ChannelFailure(val err: Cause[OutErr1]) extends Throwable(null, null, true, false) {
-        override def getMessage: String = err.unified.headOption.fold("<unknown>")(_.message)
+          override def getStackTrace(): Array[StackTraceElement] =
+            err.unified.headOption.fold[Chunk[StackTraceElement]](Chunk.empty)(_.trace).toArray
 
-        override def getStackTrace(): Array[StackTraceElement] =
-          err.unified.headOption.fold[Chunk[StackTraceElement]](Chunk.empty)(_.trace).toArray
+          override def getCause(): Throwable =
+            err.find { case Cause.Die(throwable, _) => throwable }
+              .orElse(err.find { case Cause.Fail(value: Throwable, _) => value })
+              .orNull
 
-        override def getCause(): Throwable =
-          err.find { case Cause.Die(throwable, _) => throwable }
-            .orElse(err.find { case Cause.Fail(value: Throwable, _) => value })
-            .orNull
+          def fillSuppressed()(implicit unsafe: Unsafe): Unit =
+            if (getSuppressed().length == 0) {
+              err.unified.iterator.drop(1).foreach(unified => addSuppressed(unified.toThrowable))
+            }
 
-        def fillSuppressed()(implicit unsafe: Unsafe): Unit =
-          if (getSuppressed().length == 0) {
-            err.unified.iterator.drop(1).foreach(unified => addSuppressed(unified.toThrowable))
-          }
+          override def toString =
+            err.prettyPrint
+        }
+        var channelFailure: ChannelFailure = null
 
-        override def toString =
-          err.prettyPrint
+        lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, Nothing, OutElem, OutDone] =
+          ZChannel.readWithCause(
+            elem => ZChannel.write(elem) *> reader,
+            err => {
+              channelFailure = new ChannelFailure(err)
+              ZChannel.refailCause(Cause.die(channelFailure))
+            },
+            done => ZChannel.succeedNow(done)
+          )
+
+        lazy val writer: ZChannel[Env1, OutErr1, OutElem2, OutDone2, OutErr1, OutElem2, OutDone2] =
+          ZChannel.readWithCause(
+            elem => ZChannel.write(elem) *> writer,
+            cause =>
+              ZChannel.refailCause(
+                if (channelFailure eq null)
+                  cause
+                else
+                  cause.fold[Cause[OutErr1]](
+                    Cause.empty,
+                    (e, st) => Cause.fail(e, st),
+                    (t, st) =>
+                      t match {
+                        case t: ChannelFailure if t == channelFailure =>
+                          t.err
+                        case t => Cause.die(t, st)
+                      },
+                    (fid, st) => Cause.interrupt(fid, st)
+                  )(_ ++ _, _ && _, (cause, _) => cause)
+              ),
+            done => ZChannel.succeedNow(done)
+          )
+
+        self >>> reader >>> that0 >>> writer
       }
-      var channelFailure: ChannelFailure = null
-
-      lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, Nothing, OutElem, OutDone] =
-        ZChannel.readWithCause(
-          elem => ZChannel.write(elem) *> reader,
-          err => {
-            channelFailure = new ChannelFailure(err)
-            ZChannel.refailCause(Cause.die(channelFailure))
-          },
-          done => ZChannel.succeedNow(done)
-        )
-
-      lazy val writer: ZChannel[Env1, OutErr1, OutElem2, OutDone2, OutErr1, OutElem2, OutDone2] =
-        ZChannel.readWithCause(
-          elem => ZChannel.write(elem) *> writer,
-          cause =>
-            ZChannel.refailCause(
-              if (channelFailure eq null)
-                cause
-              else
-                cause.fold[Cause[OutErr1]](
-                  Cause.empty,
-                  (e, st) => Cause.fail(e, st),
-                  (t, st) =>
-                    t match {
-                      case t: ChannelFailure if t == channelFailure =>
-                        t.err
-                      case t => Cause.die(t, st)
-                    },
-                  (fid, st) => Cause.interrupt(fid, st)
-                )(_ ++ _, _ && _, (cause, _) => cause)
-            ),
-          done => ZChannel.succeedNow(done)
-        )
-
-      self >>> reader >>> that >>> writer
     }
 
   /**
@@ -1208,7 +1227,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             () => self,
             null,
-            executeCloseLastSubstream = identity[URIO[Env, Any]]
+            executeCloseLastSubstream = ZIO.identityFn[URIO[Env, Any]]
           )
         )
       ) { (exec, exit: Exit[OutErr, OutDone]) =>
@@ -1633,20 +1652,18 @@ object ZChannel {
     private[zio] final case class Finalizer[Env, OutErr, OutDone](finalizer: Exit[OutErr, OutDone] => URIO[Env, Any])
         extends Continuation[Env, Any, Any, Any, OutErr, Nothing, Nothing, OutDone, Nothing]
 
-    private[this] def SuccessIdentity(implicit
-      trace: Trace
-    ): Any => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Any] =
-      ZChannel.succeedNow(_)
+    private[this] val SuccessIdentity: Any => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Any] =
+      ZChannel.succeedNow(_)(Trace.empty)
 
-    private[zio] def successIdentity[Z](implicit trace: Trace): Z => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
+    private[stream] def successIdentity[Z](implicit
+      trace: Trace
+    ): Z => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
       SuccessIdentity.asInstanceOf[Z => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z]]
 
-    private[this] def FailCauseIdentity(implicit
-      trace: Trace
-    ): Cause[Any] => ZChannel[Any, Any, Any, Any, Any, Nothing, Nothing] =
+    private[this] val FailCauseIdentity: Cause[Any] => ZChannel[Any, Any, Any, Any, Any, Nothing, Nothing] =
       ZChannel.refailCause
 
-    private[zio] def failCauseIdentity[E](implicit
+    private[stream] def failCauseIdentity[E](implicit
       trace: Trace
     ): Cause[E] => ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
       FailCauseIdentity.asInstanceOf[Cause[E] => ZChannel[Any, Any, Any, Any, E, Nothing, Nothing]]
@@ -1703,7 +1720,7 @@ object ZChannel {
   )(release: (Acquired, Exit[OutErr, OutDone]) => URIO[Env, Any])(
     use: Acquired => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone]
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] =
-    fromZIO(Ref.make[Exit[OutErr, OutDone] => URIO[Env, Any]](_ => ZIO.unit)).flatMap { ref =>
+    fromZIO(Ref.make[Exit[OutErr, OutDone] => URIO[Env, Any]](ZIO.unitZIOFn)).flatMap { ref =>
       fromZIO(acquire.tap(a => ref.set(release(a, _))).uninterruptible)
         .flatMap(use)
         .ensuringWith(ex => ref.get.flatMap(_.apply(ex)))
@@ -1771,7 +1788,7 @@ object ZChannel {
       Any
     ]
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any] =
-    concatAllWith(channels)((_, _) => (), (_, _) => ())
+    concatAllWith(channels)(unitFn2, unitFn2)
 
   def concatAllWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, OutDone2, OutDone3](
     channels: => ZChannel[
@@ -1895,11 +1912,7 @@ object ZChannel {
     Fail(() => cause)
 
   def identity[Err, Elem, Done](implicit trace: Trace): ZChannel[Any, Err, Elem, Done, Err, Elem, Done] =
-    readWithCause(
-      (in: Elem) => write(in) *> identity[Err, Elem, Done],
-      (err: Cause[Err]) => failCause(err),
-      (done: Done) => succeedNow(done)
-    )
+    identityAny.asInstanceOf[ZChannel[Any, Err, Elem, Done, Err, Elem, Done]]
 
   def interruptAs(fiberId: => FiberId)(implicit
     trace: Trace
@@ -1910,7 +1923,7 @@ object ZChannel {
     new ScopedPartiallyApplied[R]
 
   def scopedWith[R, E, A](f: Scope => ZIO[R, E, A])(implicit trace: Trace): ZChannel[R, Any, Any, Any, E, A, Any] =
-    ZChannel.unwrapScoped(ZIO.scope.map(scope => ZChannel.fromZIO(f(scope)).flatMap(ZChannel.write)))
+    ZChannel.unwrapScoped(ZIO.scopeWith(scope => Exit.succeed(ZChannel.fromZIO(f(scope)).flatMap(ZChannel.write))))
 
   def mergeAll[Env, InErr, InElem, InDone, OutErr, OutElem](
     channels: => ZChannel[
@@ -1926,7 +1939,7 @@ object ZChannel {
     bufferSize: => Int = 16,
     mergeStrategy: => MergeStrategy = MergeStrategy.BackPressure
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any] =
-    mergeAllWith(channels, n, bufferSize, mergeStrategy)((_, _) => ())
+    mergeAllWith(channels, n, bufferSize, mergeStrategy)(unitFn2)
 
   def mergeAllUnbounded[Env, InErr, InElem, InDone, OutErr, OutElem](
     channels: => ZChannel[
@@ -2135,7 +2148,7 @@ object ZChannel {
     tag: EnvironmentTag[Env1],
     trace: Trace
   ): ZChannel[Env0 with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    ZChannel.suspend(channel.provideSomeLayer[Env0 with Env1](ZLayer.environment[Env1] ++ layer))
+    ZChannel.suspend(channel.provideSomeLayer[Env0 with Env1](ZLayer.environment[Env1] <*> layer))
 
   def readWithCause[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     in: InElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
@@ -2314,7 +2327,7 @@ object ZChannel {
     def apply[Env1 <: Env, OutErr, OutDone](f: ZEnvironment[Env] => ZIO[Env1, OutErr, OutDone])(implicit
       trace: Trace
     ): ZChannel[Env1, Any, Any, Any, OutErr, Nothing, OutDone] =
-      ZChannel.environment.mapZIO(f)
+      ZChannel.fromZIO(ZIO.environmentWithZIO[Env1](f))
   }
 
   final class ProvideSomeLayer[Env0, -Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone](
@@ -2329,7 +2342,7 @@ object ZChannel {
     ): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
       self
         .asInstanceOf[ZChannel[Env0 with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
-        .provideLayer(ZLayer.environment[Env0] ++ layer)
+        .provideLayer(ZLayer.environment[Env0] <*> layer)
   }
 
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
@@ -2364,7 +2377,7 @@ object ZChannel {
       tag: Tag[Service],
       trace: Trace
     ): ZChannel[Service, Any, Any, Any, Nothing, Nothing, OutDone] =
-      ZChannel.service[Service].map(f)
+      ZChannel.fromZIO(ZIO.serviceWith[Service](f))
   }
 
   final class ServiceWithChannelPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
@@ -2382,7 +2395,7 @@ object ZChannel {
       tag: Tag[Service],
       trace: Trace
     ): ZChannel[Env, Any, Any, Any, OutErr, Nothing, OutDone] =
-      ZChannel.service[Service].mapZIO(f)
+      ZChannel.fromZIO(ZIO.serviceWithZIO[Service](f))
   }
 
   final class UnwrapScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
@@ -2417,4 +2430,16 @@ object ZChannel {
     ): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
       self.provideSomeEnvironment(_.updateAt(key)(f))
   }
+
+  private[stream] val unitChannelFn: Any => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Unit] = (_: Any) => unit
+  private val unitFn2: (Any, Any) => Unit                                                        = (_, _) => ()
+  private val failCauseFn: Cause[Any] => ZChannel[Any, Any, Any, Any, Any, Any, Any]             = cause => Fail(() => cause)
+  private val identityAny: ZChannel[Any, Any, Any, Any, Any, Any, Any] =
+    Read(
+      (in: Any) => ZChannel.Fold(Emit(in), new ZChannel.Fold.K((_: Any) => identityAny, failCauseFn)),
+      new Fold.K[Any, Any, Any, Any, Any, Any, Any, Any, Any](
+        (done: Any) => SucceedNow(done),
+        failCauseFn
+      )
+    )
 }

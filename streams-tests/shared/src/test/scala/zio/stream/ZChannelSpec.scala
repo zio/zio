@@ -4,6 +4,7 @@ import zio._
 import zio.test.Assertion._
 import zio.test.TestAspect.{exceptJS, jvmOnly, nonFlaky, timeout}
 import zio.test._
+import zio.Clock.ClockLive
 
 object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
@@ -21,6 +22,25 @@ object ZChannelSpec extends ZIOBaseSpec {
           exit <- ZChannel.fail("Uh oh!").runCollect.exit
         } yield assert(exit)(fails(equalTo("Uh oh!")))
       },
+      suite("ZChannel.fromZIO")(
+        test("ZIO.unit produces unit") {
+          for {
+            res <- ZChannel.fromZIO(ZIO.unit).run
+          } yield assert(res)(isUnit)
+        },
+        test("ZIO.unit loops are interruptible") {
+          for {
+            fiber <- ZChannel.fromZIO(ZIO.unit).repeated.runDrain.fork
+            _     <- fiber.interrupt
+          } yield assertCompletes
+        },
+        test("ZIO.unit flatMap") {
+          val channel = ZChannel.fromZIO(ZIO.unit) *> ZChannel.write(1)
+          for {
+            res <- channel.runCollect
+          } yield assert(res._1)(equalTo(Chunk(1)))
+        }
+      ),
       test("ZChannel.map") {
         for {
           tuple     <- ZChannel.succeed(1).map(_ + 1).runCollect
@@ -162,7 +182,36 @@ object ZChannelSpec extends ZIOBaseSpec {
               )
             )
           )
-        }
+        },
+        test("ensuring(ZIO.unit) does nothing") {
+          ZChannel.unit
+            .ensuring(ZIO.unit)
+            .run
+            .as(assertCompletes)
+        },
+        test("ensuring(ZIO.unit) mixed with real finalizers") {
+          Ref.make(0).flatMap { ref =>
+            ZChannel.unit
+              .ensuring(ref.update(_ + 1))
+              .ensuring(ZIO.unit)
+              .ensuring(ref.update(_ + 1))
+              .runDrain *> ref.get.map(n => assert(n)(equalTo(2)))
+          }
+        },
+        test("mixed unit and non-unit finalizers run correctly on interruption") {
+          for {
+            ref <- Ref.make(List.empty[String])
+            channel = ZChannel.never
+                        .ensuring(ref.update("A" :: _))
+                        .ensuring(ZIO.unit)
+                        .ensuring(ref.update("B" :: _))
+                        .ensuring(ZIO.unit)
+            fiber <- channel.runDrain.interruptible.forkDaemon.uninterruptible
+            _     <- ClockLive.sleep(1.milli)
+            _     <- fiber.interrupt
+            res   <- ref.get
+          } yield assert(res)(hasSameElements(List("A", "B")))
+        } @@ TestAspect.flaky
       ),
       suite("ZChannel#mapOut")(
         test("simple") {
@@ -774,7 +823,90 @@ object ZChannelSpec extends ZIOBaseSpec {
           _        <- ZChannel.scoped(fiberRef.locallyScoped(false)).runDrain
           value    <- fiberRef.get
         } yield assertTrue(value)
-      }
+      },
+      suite("pipeTo")(
+        test("identity.pipeTo(channel) is ZChannel.Suspend(channel)") {
+          val channel = ZChannel.refailCause(Cause.empty)
+          val result  = ZChannel.identity.pipeTo(channel)
+
+          assertTrue(result match {
+            case ZChannel.Suspend(effect) => effect() == channel
+            case _                        => false
+          })
+        },
+        test("identity.pipeTo(channel) produces correct results") {
+          val channel = ZChannel.writeAll(1, 2, 3)
+          val result  = ZChannel.identity.pipeTo(channel)
+
+          result.runCollect.map { tuple =>
+            assertTrue(tuple._1 == Chunk(1, 2, 3))
+          }
+        },
+        test("identity.pipeTo(channel) produces failure") {
+          val channel = ZChannel.fail("error")
+          val result  = ZChannel.identity.pipeTo(channel)
+
+          result.runDrain.exit.map { exit =>
+            assertTrue(exit == Exit.fail("error"))
+          }
+        }
+      ),
+      suite("pipeToOrFail")(
+        test("identity.pipeToOrFail(channel) is skipped") {
+          val channel      = ZChannel.writeAll(1, 2, 3)
+          val identityChan = ZChannel.identity[Nothing, Any, Any]
+          val result       = identityChan.pipeToOrFail(channel)
+
+          assertTrue(result match {
+            case ZChannel.Suspend(effect) => effect() == channel
+            case _                        => false
+          })
+        },
+        test("identity.pipeToOrFail(channel) produces correct results") {
+          val channel = ZChannel.writeAll(1, 2, 3)
+          val identityChan: ZChannel[Any, Nothing, Any, Any, Nothing, Any, Any] =
+            ZChannel.identity[Nothing, Any, Any]
+          val result = identityChan.pipeToOrFail(channel)
+
+          result.runCollect.map { tuple =>
+            assertTrue(tuple._1 == Chunk(1, 2, 3))
+          }
+        },
+        test("identity.pipeToOrFail(channel) produces failure") {
+          val channel      = ZChannel.fail("error")
+          val identityChan = ZChannel.identity[Nothing, Any, Any]
+          val result       = identityChan.pipeToOrFail(channel)
+
+          result.runDrain.exit.map { exit =>
+            assertTrue(exit == Exit.fail("error"))
+          }
+        },
+        test("channel.pipeToOrFail(identity) is skipped") {
+          val channel = ZChannel.writeAll(1, 2, 3)
+          val result  = channel.pipeToOrFail(ZChannel.identity)
+
+          assertTrue(result match {
+            case ZChannel.Suspend(effect) => effect() == channel
+            case _                        => false
+          })
+        },
+        test("channel.pipeToOrFail(identity) produces correct results") {
+          val channel = ZChannel.writeAll(1, 2, 3)
+          val result  = channel.pipeToOrFail(ZChannel.identity)
+
+          result.runCollect.map { tuple =>
+            assertTrue(tuple._1 == Chunk(1, 2, 3))
+          }
+        },
+        test("channel.pipeToOrFail(identity) produces failure") {
+          val channel = ZChannel.fail("error")
+          val result  = channel.pipeToOrFail(ZChannel.identity)
+
+          result.runDrain.exit.map { exit =>
+            assertTrue(exit == Exit.fail("error"))
+          }
+        }
+      )
     )
   )
 

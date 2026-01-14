@@ -12,16 +12,7 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
     implicit val trace: Trace   = Trace.empty
     implicit val unsafe: Unsafe = Unsafe
 
-    val newLayer =
-      ZLayer.succeed(ZIOAppArgs(Chunk.fromIterable(args0))) >>>
-        bootstrap +!+ ZLayer.environment[ZIOAppArgs]
-
-    val workflow =
-      (for {
-        runtime <- ZIO.runtime[Environment with ZIOAppArgs]
-        _       <- installSignalHandlers(runtime)
-        result  <- runtime.run(ZIO.scoped[Environment with ZIOAppArgs](run)).tapErrorCause(ZIO.logErrorCause(_))
-      } yield result).provideLayer(newLayer.tapErrorCause(ZIO.logErrorCause(_)))
+    val app = workflow(args0)
 
     val shutdownLatch = internal.OneShot.make[Unit]
 
@@ -59,10 +50,10 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
 
     val exit0 =
       runtime.unsafe.run {
-        ZIO.uninterruptible {
+        ZIO.uninterruptibleMask { restore =>
           for {
             fiberId <- ZIO.fiberId
-            fiber <- workflow.interruptible.exitWith { exit0 =>
+            fiber <- restore(app).exitWith { exit0 =>
                        val exitCode = if (exit0.isSuccess) ExitCode.success else ExitCode.failure
                        interruptRootFibers(fiberId).as(exitCode)
                      }.fork
@@ -75,15 +66,6 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
       }
 
     shutdownLatch.set(())
-    exit0 match {
-      case Exit.Success(code) => exitUnsafe(code)
-      case f                  => exitUnsafe(ExitCode.failure)
-    }
+    exitUnsafe(exit0)
   }
-
-  private def interruptRootFibers(mainFiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
-    for {
-      roots <- Fiber.roots
-      _     <- Fiber.interruptAll(roots.view.filter(fiber => fiber.isAlive() && (fiber.id != mainFiberId)))
-    } yield ()
 }
