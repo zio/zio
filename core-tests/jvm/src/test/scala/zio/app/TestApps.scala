@@ -36,9 +36,10 @@ object FinalizerApp extends ZIOAppDefault {
 
 object SlowFinalizerApp extends ZIOAppDefault {
   def run = for {
-    _ <- ZIO.acquireRelease(Console.printLine("ACQUIRED"))(_ =>
-      Console.printLine("FINALIZER_START").orDie *> ZIO.sleep(2.seconds) *> Console.printLine("FINALIZER_END").orDie
-    )
+    _ <-
+      ZIO.acquireRelease(Console.printLine("ACQUIRED"))(_ =>
+        Console.printLine("FINALIZER_START").orDie *> ZIO.sleep(2.seconds) *> Console.printLine("FINALIZER_END").orDie
+      )
     _ <- Console.printLine("RUNNING")
     _ <- ZIO.never
   } yield ()
@@ -59,7 +60,8 @@ object MultipleFinalizersApp extends ZIOAppDefault {
     _ <- ZIO.acquireRelease(Console.printLine("ACQUIRED_1"))(_ => Console.printLine("FINALIZED_1").orDie)
     _ <- ZIO.acquireRelease(Console.printLine("ACQUIRED_2"))(_ => Console.printLine("FINALIZED_2").orDie)
     _ <- ZIO.acquireRelease(Console.printLine("ACQUIRED_3"))(_ => Console.printLine("FINALIZED_3").orDie)
-    _ <- Console.printLine("COMPLETED")
+    _ <- Console.printLine("READY")
+    _ <- ZIO.never
   } yield ()
 }
 
@@ -68,10 +70,10 @@ object ParallelFinalizersApp extends ZIOAppDefault {
     fiber1 <- ZIO.acquireRelease(Console.printLine("ACQUIRED_1"))(_ => Console.printLine("FINALIZED_1").orDie).fork
     fiber2 <- ZIO.acquireRelease(Console.printLine("ACQUIRED_2"))(_ => Console.printLine("FINALIZED_2").orDie).fork
     fiber3 <- ZIO.acquireRelease(Console.printLine("ACQUIRED_3"))(_ => Console.printLine("FINALIZED_3").orDie).fork
-    _ <- fiber1.join
-    _ <- fiber2.join
-    _ <- fiber3.join
-    _ <- Console.printLine("COMPLETED")
+    _      <- fiber1.join
+    _      <- fiber2.join
+    _      <- fiber3.join
+    _      <- Console.printLine("COMPLETED")
   } yield ()
 }
 
@@ -87,9 +89,7 @@ object SignalFinalizerApp extends ZIOAppDefault {
 
 object HangingFinalizerApp extends ZIOAppDefault {
   def run = for {
-    _ <- ZIO.acquireRelease(Console.printLine("ACQUIRED"))(_ =>
-      Console.printLine("FINALIZER_START").orDie *> ZIO.never
-    )
+    _ <- ZIO.acquireRelease(Console.printLine("ACQUIRED"))(_ => Console.printLine("FINALIZER_START").orDie *> ZIO.never)
     _ <- Console.printLine("READY")
     _ <- ZIO.never
   } yield ()
@@ -101,9 +101,10 @@ object CustomTimeoutApp extends ZIOAppDefault {
   override def gracefulShutdownTimeout: Duration = 5.seconds
 
   def run = for {
-    _ <- ZIO.acquireRelease(Console.printLine("ACQUIRED"))(_ =>
-      Console.printLine("FINALIZER_START").orDie *> ZIO.sleep(3.seconds) *> Console.printLine("FINALIZER_END").orDie
-    )
+    _ <-
+      ZIO.acquireRelease(Console.printLine("ACQUIRED"))(_ =>
+        Console.printLine("FINALIZER_START").orDie *> ZIO.sleep(3.seconds) *> Console.printLine("FINALIZER_END").orDie
+      )
     _ <- Console.printLine("READY")
     _ <- ZIO.never
   } yield ()
@@ -122,11 +123,13 @@ object Issue9901App extends ZIOAppDefault {
 object Issue9807App extends ZIOAppDefault {
   def run = for {
     _ <- ZIO.acquireRelease(Console.printLine("ACQUIRED_FAST"))(_ =>
-      Console.printLine("FINALIZER_FAST_START").orDie *> ZIO.sleep(1.second) *> Console.printLine("FINALIZED_FAST").orDie
-    )
+           Console.printLine("FINALIZER_FAST_START").orDie *> ZIO
+             .sleep(1.second) *> Console.printLine("FINALIZED_FAST").orDie
+         )
     _ <- ZIO.acquireRelease(Console.printLine("ACQUIRED_SLOW"))(_ =>
-      Console.printLine("FINALIZER_SLOW_START").orDie *> ZIO.sleep(3.seconds) *> Console.printLine("FINALIZED_SLOW").orDie
-    )
+           Console.printLine("FINALIZER_SLOW_START").orDie *> ZIO
+             .sleep(3.seconds) *> Console.printLine("FINALIZED_SLOW").orDie
+         )
     _ <- Console.printLine("READY")
     _ <- ZIO.never
   } yield ()
@@ -154,5 +157,6 @@ object StackOverflowApp extends ZIOAppDefault {
     _ <- ZIO.attemptBlocking(boom())
   } yield ()
 
+  @annotation.nowarn("msg=does nothing other than call itself recursively")
   private def boom(): Unit = boom()
 }
