@@ -88,8 +88,15 @@ object SignalFinalizerApp extends ZIOAppDefault {
 }
 
 object HangingFinalizerApp extends ZIOAppDefault {
+  // Short graceful shutdown timeout - finalizer should be interrupted after 5 seconds
+  override def gracefulShutdownTimeout: Duration = 5.seconds
+
   def run = for {
-    _ <- ZIO.acquireRelease(Console.printLine("ACQUIRED"))(_ => Console.printLine("FINALIZER_START").orDie *> ZIO.never)
+    _ <- ZIO.acquireRelease(Console.printLine("ACQUIRED"))(_ =>
+           Console.printLine("FINALIZER_START").orDie *> ZIO.sleep(60.seconds) *> Console
+             .printLine("FINALIZER_END_SHOULD_NOT_APPEAR")
+             .orDie
+         )
     _ <- Console.printLine("READY")
     _ <- ZIO.never
   } yield ()
@@ -157,8 +164,7 @@ object StackOverflowApp extends ZIOAppDefault {
     _ <- ZIO.attemptBlocking(boom(0))
   } yield ()
 
-  private def boom(depth: Int): Unit = {
+  private def boom(depth: Int): Unit =
     // This will cause a stack overflow
     boom(depth + 1)
-  }
 }
