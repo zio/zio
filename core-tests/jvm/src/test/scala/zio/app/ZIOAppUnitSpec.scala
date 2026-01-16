@@ -23,9 +23,7 @@ object ZIOAppUnitSpec extends ZIOSpecDefault {
     compositionSuite
   ) @@ sequential
 
-  // ============================================
   // Finalizer Ordering Tests
-  // ============================================
 
   val finalizerOrderingSuite: Spec[Any, Nothing] = suite("Finalizer Ordering")(
     test("nested acquireRelease runs finalizers in reverse order") {
@@ -79,9 +77,7 @@ object ZIOAppUnitSpec extends ZIOSpecDefault {
     }
   )
 
-  // ============================================
   // Exit Code Semantics Tests
-  // ============================================
 
   val exitCodeSemanticsSuite: Spec[Any, Nothing] = suite("Exit Code Semantics")(
     test("successful ZIO effect maps to ExitCode.success") {
@@ -101,9 +97,7 @@ object ZIOAppUnitSpec extends ZIOSpecDefault {
     }
   )
 
-  // ============================================
   // Bootstrap Layer Tests
-  // ============================================
 
   val bootstrapLayerSuite: Spec[Any, Nothing] = suite("Bootstrap Layer")(
     test("bootstrap layer is available to run effect") {
@@ -129,9 +123,7 @@ object ZIOAppUnitSpec extends ZIOSpecDefault {
     }
   )
 
-  // ============================================
   // Composition Tests
-  // ============================================
 
   val compositionSuite: Spec[Any, Nothing] = suite("ZIOApp Composition")(
     test("combined apps run both effects") {

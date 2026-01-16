@@ -5,16 +5,8 @@ import zio.test._
 import zio.test.TestAspect._
 
 /**
- * Comprehensive test suite for ZIOApp behavior.
- *
- * Tests the following requirements from issue #9909:
- *   1. Correct error code is emitted 2. Application finalizers are run (except
- *      for catastrophic failures) 3. Shutdown sequence doesn't hang 4.
- *      gracefulShutdownTimeout is respected 5. Use-cases from past issues
- *      (#9901, #9807, #9240, #10122)
- *
- * @see
- *   https://github.com/zio/zio/issues/9909
+ * Tests ZIOApp behavior per issue #9909: exit codes, finalizers, shutdown,
+ * gracefulShutdownTimeout. Regressions: #9901, #9807, #9240, #10122
  */
 object ZIOAppBehaviorSpec extends ZIOSpecDefault {
 
@@ -28,9 +20,7 @@ object ZIOAppBehaviorSpec extends ZIOSpecDefault {
     regressionSuite
   ) @@ sequential @@ timeout(120.seconds) @@ withLiveClock
 
-  // ============================================
   // Exit Code Tests
-  // ============================================
 
   val exitCodeSuite: Spec[Any, Throwable] = suite("Exit Codes")(
     test("successful app exits with code 0") {
@@ -60,9 +50,7 @@ object ZIOAppBehaviorSpec extends ZIOSpecDefault {
     }
   )
 
-  // ============================================
   // Finalizer Tests
-  // ============================================
 
   val finalizerSuite: Spec[Any, Throwable] = suite("Finalizers")(
     test("finalizers run on successful completion") {
@@ -109,9 +97,7 @@ object ZIOAppBehaviorSpec extends ZIOSpecDefault {
     } @@ ifProp("os.name")(n => !n.toLowerCase.contains("win"))
   )
 
-  // ============================================
   // Signal Handling Tests
-  // ============================================
 
   val signalHandlingSuite: Spec[Any, Throwable] = suite("Signal Handling")(
     test("SIGINT triggers graceful shutdown") {
@@ -164,9 +150,7 @@ object ZIOAppBehaviorSpec extends ZIOSpecDefault {
     } @@ ifProp("os.name")(n => !n.toLowerCase.contains("win"))
   )
 
-  // ============================================
   // Graceful Shutdown Timeout Tests
-  // ============================================
 
   val gracefulShutdownSuite: Spec[Any, Throwable] = suite("Graceful Shutdown Timeout")(
     test("shutdown doesn't hang when finalizers complete quickly") {
@@ -221,9 +205,7 @@ object ZIOAppBehaviorSpec extends ZIOSpecDefault {
     } @@ ifProp("os.name")(n => !n.toLowerCase.contains("win"))
   )
 
-  // ============================================
   // Regression Tests
-  // ============================================
 
   val regressionSuite: Spec[Any, Throwable] = suite("Regression Tests")(
     suite("#9901 - Finalizers on signal shutdown")(
