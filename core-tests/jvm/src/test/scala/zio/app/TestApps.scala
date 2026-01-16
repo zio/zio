@@ -154,8 +154,11 @@ object StackOverflowApp extends ZIOAppDefault {
   def run = for {
     _ <- ZIO.acquireRelease(Console.printLine("ACQUIRED"))(_ => Console.printLine("FINALIZED_SHOULD_NOT_RUN").orDie)
     _ <- Console.printLine("READY")
-    _ <- ZIO.attemptBlocking(boom())
+    _ <- ZIO.attemptBlocking(boom(0))
   } yield ()
 
-  private def boom(): Unit = boom()
+  private def boom(depth: Int): Unit = {
+    // This will cause a stack overflow
+    boom(depth + 1)
+  }
 }
