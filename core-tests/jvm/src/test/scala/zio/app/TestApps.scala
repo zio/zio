@@ -29,7 +29,7 @@ object SuccessExitApp extends ZIOAppDefault {
 object FinalizerApp extends ZIOAppDefault {
   def run = for {
     _ <- ZIO.acquireRelease(Console.printLine("ACQUIRED"))(_ => Console.printLine("FINALIZED").orDie)
-    _ <- Console.printLine("RUNNING")
+    _ <- Console.printLine("READY")
     _ <- ZIO.never
   } yield ()
 }
