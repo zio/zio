@@ -157,6 +157,5 @@ object StackOverflowApp extends ZIOAppDefault {
     _ <- ZIO.attemptBlocking(boom())
   } yield ()
 
-  @annotation.nowarn("msg=does nothing other than call itself recursively")
   private def boom(): Unit = boom()
 }
