@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{FiberRenderer, FiberScope}
+import zio.internal.{FiberRenderer, FiberScope, FiberSet, FiberSetRef}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
@@ -475,7 +475,11 @@ object Fiber extends FiberPlatformSpecific {
    * A runtime fiber that is executing an effect. Runtime fibers have an
    * identity and a trace.
    */
-  sealed abstract class Runtime[+E, +A] extends Fiber.Internal[E, A] { self =>
+  sealed abstract class Runtime[+E, +A] extends Fiber.Internal[E, A] with FiberSetRef { self =>
+
+    var _setEpochId: Long
+    var _setIndex: Int
+    def isTerminated: Boolean
 
     private[zio] def shouldYieldBeforeFork(): Boolean
 
@@ -1036,7 +1040,11 @@ object Fiber extends FiberPlatformSpecific {
    * returned chunk is only weakly consistent.
    */
   def roots(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] =
-    ZIO.succeed(Chunk.fromIterator(_roots.iterator))
+    ZIO.succeed {
+      val builder = Chunk.newBuilder[Fiber.Runtime[_, _]]
+      _roots.foreach { fiber => builder.addOne(fiber.asInstanceOf[Fiber.Runtime[_, _]]) }
+      builder.result()
+    }
 
   /**
    * Returns a fiber that has already succeeded with the specified value.
@@ -1070,7 +1078,5 @@ object Fiber extends FiberPlatformSpecific {
   private[zio] val _currentFiber: ThreadLocal[Fiber.Runtime[_, _]] =
     new ThreadLocal[Fiber.Runtime[_, _]]()
 
-  private[zio] val _roots: WeakConcurrentBag[Fiber.Runtime[_, _]] =
-    WeakConcurrentBag[Fiber.Runtime[_, _]](10000, _.isAlive())
-      .withAutoGc(5.seconds)
+  private[zio] val _roots: FiberSet = FiberSet()
 }
