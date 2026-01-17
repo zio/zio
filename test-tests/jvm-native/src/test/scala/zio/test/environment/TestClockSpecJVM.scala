@@ -63,6 +63,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                    )
                  }
             _      <- TestClock.adjust(28.seconds)
+            _      <- ZIO.yieldNow // Allow scheduled fibers to complete
             values <- ref.get
           } yield assert(values.reverse)(equalTo(List(8L, 13L, 18L, 23L, 28L)))
         },

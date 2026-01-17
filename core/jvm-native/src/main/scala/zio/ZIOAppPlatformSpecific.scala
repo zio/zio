@@ -54,7 +54,11 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
           for {
             fiberId <- ZIO.fiberId
             fiber <- restore(app).exitWith { exit0 =>
-                       val exitCode = if (exit0.isSuccess) ExitCode.success else ExitCode.failure
+                       val exitCode = exit0 match {
+                         case Exit.Success(code: ExitCode) => code
+                         case Exit.Success(_)              => ExitCode.success
+                         case Exit.Failure(_)              => ExitCode.failure
+                       }
                        interruptRootFibers(fiberId).as(exitCode)
                      }.fork
             result <- {

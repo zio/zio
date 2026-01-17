@@ -214,7 +214,7 @@ object BuildHelper {
       projectName = prjName
     ),
     scalacOptions --= {
-      if (scalaVersion.value == Scala3)
+      if (scalaVersion.value == Scala3 || scalaVersion.value == Scala212)
         List("-Xfatal-warnings")
       else
         List()
