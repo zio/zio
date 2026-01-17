@@ -18,8 +18,8 @@ package zio.internal
 
 import java.lang.ref.ReferenceQueue
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong, AtomicReference}
+import scala.collection.mutable
 
 /**
  * Stratified Epoch Collector (SEC) - High-performance concurrent weak set for fibers.
@@ -69,8 +69,8 @@ final class FiberSet(capacity: Int = FiberSet.DefaultCapacity) {
     new ConcurrentHashMap()
 
   /** Archived epochs in reverse-chronological order */
-  private[this] val archives: ConcurrentLinkedDeque[Epoch] = 
-    new ConcurrentLinkedDeque()
+  private[this] val archives: mutable.ListBuffer[Epoch] = 
+    mutable.ListBuffer.empty
 
   /** Track archive count (ConcurrentLinkedDeque.size() is O(n)) */
   private[this] val archiveCount: AtomicInteger = 
@@ -101,10 +101,7 @@ final class FiberSet(capacity: Int = FiberSet.DefaultCapacity) {
     while (!done) {
       val epoch = activeEpoch.get()
       
-      if (epoch.state.get() != ACTIVE) {
-        // Rotation in progress, brief spin
-        Thread.onSpinWait()
-      } else {
+      if (epoch.state.get() == ACTIVE) {
         val idx = epoch.nextIndex.getAndIncrement()
         
         if (idx >= capacity) {
@@ -118,6 +115,7 @@ final class FiberSet(capacity: Int = FiberSet.DefaultCapacity) {
           done = true
         }
       }
+      // If not ACTIVE, retry with new activeEpoch
     }
   }
 
@@ -195,7 +193,7 @@ final class FiberSet(capacity: Int = FiberSet.DefaultCapacity) {
           
         case other =>
           // Unknown state - defensive spin
-          Thread.onSpinWait()
+          ()
       }
       
       attempts += 1
@@ -232,10 +230,11 @@ final class FiberSet(capacity: Int = FiberSet.DefaultCapacity) {
     }
     
     // Archives: weak refs
-    val archiveIter = archives.iterator()
+    val archiveList = archives.synchronized { archives.toList }
+    val archiveIter = archiveList.iterator
     while (archiveIter.hasNext) {
       val archive = archiveIter.next()
-      i = 0
+      var i = 0
       while (i < capacity) {
         val entry = archive.slots.get(i)
         entry match {
@@ -306,7 +305,7 @@ final class FiberSet(capacity: Int = FiberSet.DefaultCapacity) {
     
     // Mark as archived and add to archive list
     oldEpoch.state.set(ARCHIVED)
-    archives.addFirst(oldEpoch)
+    archives.synchronized { archives.prepend(oldEpoch) }
     val count = archiveCount.incrementAndGet()
     
     // Enforce memory cap via carry-forward (I5)
@@ -333,30 +332,36 @@ final class FiberSet(capacity: Int = FiberSet.DefaultCapacity) {
     
     try {
       while (archiveCount.get() > MaxArchives) {
-        val old = archives.pollLast()
-        if (old == null) return
-        
-        // Scan and rehome live fibers
-        var i = 0
-        while (i < capacity) {
-          val entry = old.slots.get(i)
-          entry match {
-            case ref: CleanupRef =>
-              val fiber = ref.get()
-              if (fiber != null && !fiber.isTerminated) {
-                // Claim slot and rehome
-                if (old.slots.compareAndSet(i, ref, null)) {
-                  addRehome(fiber)
-                }
-              }
-            case _ => // null or Fiber (shouldn't happen in ARCHIVED)
-          }
-          i += 1
+        val old = archives.synchronized {
+          if (archives.nonEmpty) {
+            val last = archives.last
+            archives.remove(archives.size - 1)
+            Some(last)
+          } else None
         }
-        
-        // Safe to retire: all live fibers rehomed
-        epochMap.remove(old.id)
-        archiveCount.decrementAndGet()
+        old.foreach { epoch =>
+          // Scan and rehome live fibers
+          var i = 0
+          while (i < capacity) {
+            val entry = epoch.slots.get(i)
+            entry match {
+              case ref: CleanupRef =>
+                val fiber = ref.get()
+                if (fiber != null && !fiber.isTerminated) {
+                  // Claim slot and rehome
+                  if (epoch.slots.compareAndSet(i, ref, null)) {
+                    addRehome(fiber)
+                  }
+                }
+              case _ => // null or Fiber (shouldn't happen in ARCHIVED)
+            }
+            i += 1
+          }
+
+          // Safe to retire: all live fibers rehomed
+          epochMap.remove(epoch.id)
+          archiveCount.decrementAndGet()
+        }
       }
     } finally {
       retireInProgress.set(false)
@@ -368,15 +373,14 @@ final class FiberSet(capacity: Int = FiberSet.DefaultCapacity) {
    *
    * Uses I3 ordering (store-then-locator). Does NOT invoke retirement
    * logic to avoid nested maintenance stacks.
-   */
+   */// Thread.onSpinWait() // Not available in all platforms
+        
   private[this] def addRehome(fiber: FiberSetRef): Unit = {
     var done = false
     while (!done) {
       val epoch = activeEpoch.get()
       
-      if (epoch.state.get() != ACTIVE) {
-        Thread.onSpinWait()
-      } else {
+      if (epoch.state.get() == ACTIVE) {
         val idx = epoch.nextIndex.getAndIncrement()
         
         if (idx >= capacity) {
@@ -391,6 +395,7 @@ final class FiberSet(capacity: Int = FiberSet.DefaultCapacity) {
           done = true
         }
       }
+      // If not ACTIVE, retry
     }
   }
 
@@ -443,7 +448,7 @@ object FiberSet {
   // === Tuning Constants ===
   
   /** Slots per epoch. Balance rotation frequency vs conversion cost. */
-  final val DefaultCapacity = 512
+  final val DefaultCapacity = 4096
   
   /** Maximum archived epochs before carry-forward. Memory bound. */
   final val MaxArchives = 8
