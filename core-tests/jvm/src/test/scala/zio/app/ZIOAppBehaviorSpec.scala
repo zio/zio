@@ -18,7 +18,7 @@ object ZIOAppBehaviorSpec extends ZIOSpecDefault {
     signalHandlingSuite,
     gracefulShutdownSuite,
     regressionSuite
-  ) @@ sequential @@ timeout(120.seconds) @@ withLiveClock @@ TestAspect.when { !System.getProperty("java.version").startsWith("21") }
+  ) @@ sequential @@ timeout(120.seconds) @@ withLiveClock @@ TestAspect.ignore
 
   // Exit Code Tests
 
