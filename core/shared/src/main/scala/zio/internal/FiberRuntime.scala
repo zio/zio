@@ -29,8 +29,7 @@ import scala.annotation.tailrec
 
 final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtimeFlags0: RuntimeFlags)
     extends Fiber.Runtime.Internal[E, A]
-    with FiberRunnable
-    with FiberSetRef {
+    with FiberRunnable {
   self =>
   type Erased = ZIO.Erased
 
@@ -94,7 +93,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     else {
       val bldr = Chunk.newBuilder[Fiber.Runtime[_, _]]
       children.foreach { child =>
-        bldr.addOne(child.asInstanceOf[Fiber.Runtime[_, _]])
+        val fiber = child.asInstanceOf[Fiber.Runtime[_, _]]
+        if (fiber.isAlive()) {
+          bldr.addOne(fiber)
+        }
       }
       bldr.result()
     }
@@ -744,10 +746,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def interruptAllChildren(): UIO[Any] =
-    if (sendInterruptSignalToAllChildren(_children)) {
+  private def interruptAllChildren(): UIO[Any] = {
+    val children0 = _children
+    if (sendInterruptSignalToAllChildren(children0)) {
       val childrenList = new java.util.ArrayList[Fiber.Runtime[_, _]]
-      _children.foreach { child => childrenList.add(child.asInstanceOf[Fiber.Runtime[_, _]]) }
+      children0.foreach { child => childrenList.add(child.asInstanceOf[Fiber.Runtime[_, _]]) }
       _children = null
 
       val iterator = childrenList.iterator()
@@ -773,6 +776,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           .whileLoop(null ne curr)(curr.await(id.location))(_ => skip())(id.location)
       } else null
     } else null
+  }
 
   private[zio] def isAlive(): Boolean =
     _exitValue eq null
@@ -1409,8 +1413,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       val cause = Cause.interrupt(fiberId)
 
       children.foreach { next =>
-        next.asInstanceOf[Fiber.Runtime[_, _]].tellInterrupt(cause)
-        told = true
+        val child = next.asInstanceOf[Fiber.Runtime[_, _]]
+        if (child.isAlive()) {
+          child.tellInterrupt(cause)
+          told = true
+        }
       }
 
       told
