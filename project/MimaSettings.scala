@@ -46,7 +46,15 @@ object MimaSettings {
         exclude[Problem]("zio.test.TestClock.SuspendedWarningData"),
         exclude[Problem]("zio.test.TestClock.WarningData"),
         exclude[DirectMissingMethodProblem]("zio.test.package.testFiberRefGen"),
-        exclude[IncompatibleMethTypeProblem]("zio.test.package.warningEmptyGen")
+        exclude[IncompatibleMethTypeProblem]("zio.test.package.warningEmptyGen"),
+        // FiberSet implementation - new abstract methods inherited by Fiber$Runtime$Internal
+        exclude[InheritedNewAbstractMethodProblem]("zio.Fiber#Runtime#Internal._setEpochId"),
+        exclude[InheritedNewAbstractMethodProblem]("zio.Fiber#Runtime#Internal._setEpochId_="),
+        exclude[InheritedNewAbstractMethodProblem]("zio.Fiber#Runtime#Internal._setIndex"),
+        exclude[InheritedNewAbstractMethodProblem]("zio.Fiber#Runtime#Internal._setIndex_="),
+        exclude[InheritedNewAbstractMethodProblem]("zio.Fiber#Runtime#Internal.isTerminated"),
+        // FiberSet implementation - changed return type of _roots method
+        exclude[IncompatibleResultTypeProblem]("zio.Fiber._roots")
       ),
       mimaFailOnProblem := failOnProblem
     )
