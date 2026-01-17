@@ -1042,7 +1042,7 @@ object Fiber extends FiberPlatformSpecific {
   def roots(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] =
     ZIO.succeed {
       val builder = Chunk.newBuilder[Fiber.Runtime[_, _]]
-      _roots.foreach { fiber => builder.addOne(fiber.asInstanceOf[Fiber.Runtime[_, _]]) }
+      _roots.foreach(fiber => builder.addOne(fiber.asInstanceOf[Fiber.Runtime[_, _]]))
       builder.result()
     }
 

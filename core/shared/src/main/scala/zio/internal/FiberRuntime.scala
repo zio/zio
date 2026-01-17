@@ -51,7 +51,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _isInterrupted  = false
 
   @volatile var _setEpochId: Long = -1L
-  @volatile var _setIndex: Int = -1
+  @volatile var _setIndex: Int    = -1
+
+  /**
+   * Check if this fiber has terminated. Used during carry-forward to avoid
+   * rehoming dead fibers.
+   */
+  def isTerminated: Boolean = _exitValue ne null
 
   private var _forksSinceYield = 0
 
@@ -107,8 +113,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   def fiberRefs(implicit trace: Trace): UIO[FiberRefs] = ZIO.succeed(_fiberRefs)
 
   def id: FiberId.Runtime = fiberId
-
-  def isTerminated: Boolean = _exitValue ne null
 
   def inheritAll(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (parentFiber, parentStatus) =>
@@ -750,10 +754,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     val children0 = _children
     if (sendInterruptSignalToAllChildren(children0)) {
       val childrenList = new java.util.ArrayList[Fiber.Runtime[_, _]]
-      children0.foreach { child => childrenList.add(child.asInstanceOf[Fiber.Runtime[_, _]]) }
+      children0.foreach(child => childrenList.add(child.asInstanceOf[Fiber.Runtime[_, _]]))
       _children = null
 
-      val iterator = childrenList.iterator()
+      val iterator                  = childrenList.iterator()
       var curr: Fiber.Runtime[_, _] = null
 
       // this finds the next operable child fiber and stores it in the `curr` variable
@@ -1433,6 +1437,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private def setExitValue(e: Exit[E, A]): Unit = {
     _exitValue = e
 
+    // Remove this fiber from the global roots set when it terminates
+    Fiber._roots.remove(this)
+
     val runtimeMetricsEnabled = RuntimeFlags.runtimeMetrics(_runtimeFlags)
 
     if (runtimeMetricsEnabled) {
@@ -1546,8 +1553,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * background, and on the correct thread pool. This can be called to "kick
    * off" execution of a fiber after it has been created.
    */
-  private[zio] def startConcurrently(effect: ZIO[_, E, A]): Unit =
+  private[zio] def startConcurrently(effect: ZIO[_, E, A]): Unit = {
+    Fiber._roots.add(this)
     tell(FiberMessage.Resume(effect))
+  }
 
   private[zio] def startSuspended()(implicit unsafe: Unsafe): ZIO[_, E, A] => Any = {
     val callback = new AsyncContWith.Callback(self)

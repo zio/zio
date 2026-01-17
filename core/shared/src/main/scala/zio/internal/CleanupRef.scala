@@ -22,30 +22,33 @@ import java.lang.ref.{ReferenceQueue, WeakReference}
  * Self-locating weak reference for FiberSet cleanup.
  *
  * When the GC collects the referenced fiber, this ref is enqueued to the
- * ReferenceQueue. The epochId and slotIndex allow O(1) cleanup:
- * we know exactly which slot to clear without scanning.
+ * ReferenceQueue. The epochId and slotIndex allow O(1) cleanup: we know exactly
+ * which slot to clear without scanning.
  *
- * == Lifecycle ==
- * 1. Created during epoch rotation (strong→weak conversion)
- * 2. Stored in archived epoch's slot
- * 3. When fiber is GC'd, ref is enqueued to cleanup queue
- * 4. drainQueue() uses epochId+slotIndex for O(1) slot clearing
+ * ==Lifecycle==
+ *   1. Created during epoch rotation (strong→weak conversion) 2. Stored in
+ *      archived epoch's slot 3. When fiber is GC'd, ref is enqueued to cleanup
+ *      queue 4. drainQueue() uses epochId+slotIndex for O(1) slot clearing
  *
- * == Memory Efficiency ==
- * Unlike wrapping every fiber in WeakReference on add(), CleanupRefs
- * are only created for fibers that survive epoch rotation ("vampires").
- * Short-lived "mayfly" fibers never allocate a CleanupRef.
+ * ==Memory Efficiency==
+ * Unlike wrapping every fiber in WeakReference on add(), CleanupRefs are only
+ * created for fibers that survive epoch rotation ("vampires"). Short-lived
+ * "mayfly" fibers never allocate a CleanupRef.
  *
- * @param fiber the fiber being tracked (weak reference)
- * @param queue the cleanup queue to enqueue to when fiber is collected
- * @param epochId which epoch this ref belongs to
- * @param slotIndex which slot in the epoch's array
+ * @param fiber
+ *   the fiber being tracked (weak reference)
+ * @param queue
+ *   the cleanup queue to enqueue to when fiber is collected
+ * @param epochId
+ *   which epoch this ref belongs to
+ * @param slotIndex
+ *   which slot in the epoch's array
  */
 private[internal] final class CleanupRef(
-    fiber: FiberSetRef,
-    queue: ReferenceQueue[FiberSetRef],
-    val epochId: Long,
-    val slotIndex: Int
+  fiber: FiberSetRef,
+  queue: ReferenceQueue[FiberSetRef],
+  val epochId: Long,
+  val slotIndex: Int
 ) extends WeakReference[FiberSetRef](fiber, queue) {
 
   /**

@@ -21,44 +21,46 @@ import java.util.concurrent.atomic.{AtomicInteger, AtomicReferenceArray}
 /**
  * Epoch represents a generation of fiber storage in the FiberSet.
  *
- * == Lifecycle ==
- * 1. Created as ACTIVE - accepts strong refs via add()
- * 2. Transitions to ROTATING when full - converts strong→weak
- * 3. Becomes ARCHIVED - only contains weak refs (CleanupRef)
- * 4. Eventually retired via carry-forward when archive cap exceeded
+ * ==Lifecycle==
+ *   1. Created as ACTIVE - accepts strong refs via add() 2. Transitions to
+ *      ROTATING when full - converts strong→weak 3. Becomes ARCHIVED - only
+ *      contains weak refs (CleanupRef) 4. Eventually retired via carry-forward
+ *      when archive cap exceeded
  *
- * == Slot Contents by State ==
- * - ACTIVE: FiberRef | null
- * - ROTATING: FiberRef | CleanupRef | null (transitional)
- * - ARCHIVED: CleanupRef | null
+ * ==Slot Contents by State==
+ *   - ACTIVE: FiberRef | null
+ *   - ROTATING: FiberRef | CleanupRef | null (transitional)
+ *   - ARCHIVED: CleanupRef | null
  *
- * == Thread Safety ==
+ * ==Thread Safety==
  * All fields are atomic. Slot access uses CAS for safe concurrent modification.
  * State transitions are single-winner via CAS.
  *
- * @param id unique epoch identifier (global counter, never wraps in practice)
- * @param capacity maximum slots in this epoch
+ * @param id
+ *   unique epoch identifier (global counter, never wraps in practice)
+ * @param capacity
+ *   maximum slots in this epoch
  */
 private[internal] final class Epoch(val id: Long, capacity: Int) {
   import FiberSet.{ACTIVE, ROTATING, ARCHIVED}
 
   /**
    * Tagged slot array. Contents depend on epoch state:
-   * - ACTIVE: slots contain FiberRef (strong) or null
-   * - ROTATING: transitional, may contain either representation
-   * - ARCHIVED: slots contain CleanupRef (weak) or null
+   *   - ACTIVE: slots contain FiberRef (strong) or null
+   *   - ROTATING: transitional, may contain either representation
+   *   - ARCHIVED: slots contain CleanupRef (weak) or null
    */
   val slots: AtomicReferenceArray[AnyRef] = new AtomicReferenceArray(capacity)
 
   /**
-   * Next available slot index. Incremented atomically on add().
-   * May exceed capacity briefly during rotation trigger.
+   * Next available slot index. Incremented atomically on add(). May exceed
+   * capacity briefly during rotation trigger.
    */
   val nextIndex: AtomicInteger = new AtomicInteger(0)
 
   /**
-   * Current epoch state. Transitions: ACTIVE → ROTATING → ARCHIVED
-   * State changes are single-winner via CAS.
+   * Current epoch state. Transitions: ACTIVE → ROTATING → ARCHIVED State
+   * changes are single-winner via CAS.
    */
   val state: AtomicInteger = new AtomicInteger(ACTIVE)
 
