@@ -25,7 +25,8 @@ object FiberSetSpec extends ZIOSpecDefault {
       val collected = scala.collection.mutable.ListBuffer.empty[TestFiber]
       set.foreach(f => collected += f.asInstanceOf[TestFiber])
 
-      assertTrue(collected.size == 10 && fibers.forall(collected.contains))
+      val allFibersPresent = fibers.forall(collected.contains)
+      assertTrue(collected.size == 10 && allFibersPresent)
     },
     test("remove fiber") {
       val set   = FiberSet()
