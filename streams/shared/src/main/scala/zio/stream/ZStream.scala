@@ -351,16 +351,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * stream is broadcast to all the provided pipelines, and the results are
    * merged into a single output stream.
    *
-   * The driver stream will only ever advance the `maximumLag` chunks before
-   * the slowest downstream pipeline.
-   *
    * @param maximumLag
    *   The maximum number of chunks to buffer
    * @param pipes
    *   The pipelines to broadcast through
    * @return
-   *   A scoped effect that produces a stream containing the merged results
-   *   from all pipelines
+   *   A scoped effect that produces a stream containing the merged results from
+   *   all pipelines
    */
   def broadcastVia[E1 >: E, B](maximumLag: => Int)(
     pipes: ZPipeline[Any, E1, A, B]*
