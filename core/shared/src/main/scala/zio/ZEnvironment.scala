@@ -120,8 +120,10 @@ final class ZEnvironment[+R] private (
    * the `ZEnvironment` is not statically known to contain a `Scope`
    */
   private[zio] def getScope(implicit ev: R <:< Scope): Scope =
-    if (scope eq null) throw new Error(s"Defect in zio.ZEnvironment: Could not find Scope inside $self")
-    else scope
+    scope match {
+      case null => throw new Error(s"Defect in zio.ZEnvironment: Could not find Scope inside $self")
+      case v    => v
+    }
 
   override lazy val hashCode: Int =
     MurmurHash3.productHash((map, scope)): @noinline // See https://github.com/zio/zio/pull/10363 why `@noinline`
