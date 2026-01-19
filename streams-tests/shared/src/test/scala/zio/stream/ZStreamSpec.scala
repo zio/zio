@@ -586,7 +586,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .range(0, 3)
                 .broadcastVia(12)(pipe1, pipe2)
                 .flatMap {
-                  _.runCollect.flatMap { result =>
+                  _.runCollect.map { result =>
                     val expected1 = Chunk(0, 2, 4)
                     val expected2 = Chunk(10, 11, 12)
                     assert(result.sorted)(equalTo((expected1 ++ expected2).sorted))
@@ -601,7 +601,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .range(0, 5)
                 .broadcastVia(12)(pipe)
                 .flatMap {
-                  _.runCollect.flatMap { result =>
+                  _.runCollect.map { result =>
                     val expected = Chunk.fromIterable(Range(0, 5).map(_ * 3))
                     assert(result)(equalTo(expected))
                   }
