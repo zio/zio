@@ -577,6 +577,51 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assertTrue(cleaned)
           }
         ) @@ TestAspect.timeout(5.seconds) @@ nonFlaky,
+        suite("broadcastVia")(
+          test("broadcasts through multiple pipelines") {
+            ZIO.scoped {
+              val pipe1 = ZPipeline.map[Int, Int](_ * 2)
+              val pipe2 = ZPipeline.map[Int, Int](_ + 10)
+              ZStream
+                .range(0, 3)
+                .broadcastVia(12)(pipe1, pipe2)
+                .flatMap {
+                  _.runCollect.flatMap { result =>
+                    val expected1 = Chunk(0, 2, 4)
+                    val expected2 = Chunk(10, 11, 12)
+                    assert(result.sorted)(equalTo((expected1 ++ expected2).sorted))
+                  }
+                }
+            }
+          },
+          test("handles single pipeline") {
+            ZIO.scoped {
+              val pipe = ZPipeline.map[Int, Int](_ * 3)
+              ZStream
+                .range(0, 5)
+                .broadcastVia(12)(pipe)
+                .flatMap {
+                  _.runCollect.flatMap { result =>
+                    val expected = Chunk.fromIterable(Range(0, 5).map(_ * 3))
+                    assert(result)(equalTo(expected))
+                  }
+                }
+            }
+          },
+          test("propagates errors from upstream") {
+            ZIO.scoped {
+              val pipe1 = ZPipeline.map[Int, Int](_ * 2)
+              val pipe2 = ZPipeline.map[Int, Int](_ + 10)
+              (ZStream.range(0, 2) ++ ZStream.fail("Boom"))
+                .broadcastVia(12)(pipe1, pipe2)
+                .flatMap {
+                  _.runCollect.either.map { result =>
+                    assert(result)(isLeft(equalTo("Boom")))
+                  }
+                }
+            }
+          }
+        ) @@ TestAspect.timeout(5.seconds) @@ nonFlaky,
         suite("buffer")(
           test("maintains elements and ordering")(check(tinyChunkOf(tinyChunkOf(Gen.int))) { chunk =>
             assertZIO(

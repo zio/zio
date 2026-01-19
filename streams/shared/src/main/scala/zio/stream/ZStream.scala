@@ -347,6 +347,31 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       .flatMap(_.map(ZStream.fromQueueWithShutdown(_).flattenTake))
 
   /**
+   * Fan out the stream through multiple pipelines. Each element from this
+   * stream is broadcast to all the provided pipelines, and the results are
+   * merged into a single output stream.
+   *
+   * The driver stream will only ever advance the `maximumLag` chunks before
+   * the slowest downstream pipeline.
+   *
+   * @param maximumLag
+   *   The maximum number of chunks to buffer
+   * @param pipes
+   *   The pipelines to broadcast through
+   * @return
+   *   A scoped effect that produces a stream containing the merged results
+   *   from all pipelines
+   */
+  def broadcastVia[E1 >: E, B](maximumLag: => Int)(
+    pipes: ZPipeline[Any, E1, A, B]*
+  )(implicit trace: Trace): ZIO[Scope with R, Nothing, ZStream[Any, E1, B]] =
+    self.broadcast(pipes.size, maximumLag).map { streams =>
+      ZStream
+        .fromChunk(streams.zipWith(Chunk.fromIterable(pipes))(_ via _))
+        .flattenParUnbounded()
+    }
+
+  /**
    * Converts the stream to a scoped list of queues. Every value will be
    * replicated to every queue with the slowest queue being allowed to buffer
    * `maximumLag` chunks before the driver is back pressured.
