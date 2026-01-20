@@ -1274,7 +1274,7 @@ sealed trait ZIO[-R, +E, +A]
    * its dependency on `R`.
    */
   final def provideEnvironment(r: => ZEnvironment[R])(implicit trace: Trace): IO[E, A] =
-    FiberRef.currentEnvironment.locally(r)(self.asInstanceOf[ZIO[Any, E, A]])
+    FiberRef.currentEnvironment.locallyWith(_ => r)(self.asInstanceOf[ZIO[Any, E, A]])
 
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
@@ -2425,18 +2425,22 @@ sealed trait ZIO[-R, +E, +A]
    * predicate.
    */
   final def whenFiberRef[S](ref: => FiberRef[S])(f: S => Boolean)(implicit trace: Trace): ZIO[R, E, (S, Option[A])] =
-    ref.getWith { s =>
-      if (f(s)) self.map(a => (s, Some(a)))
-      else Exit.succeed((s, None))
+    ZIO.suspendSucceed {
+      ref.getWith { s =>
+        if (f(s)) self.map(a => (s, Some(a)))
+        else Exit.succeed((s, None))
+      }
     }
 
   /**
    * Executes this workflow when the value of the `Ref` satisfies the predicate.
    */
   final def whenRef[S](ref: => Ref[S])(f: S => Boolean)(implicit trace: Trace): ZIO[R, E, (S, Option[A])] =
-    ref.get.flatMap { s =>
-      if (f(s)) self.map(a => (s, Some(a)))
-      else Exit.succeed((s, None))
+    ZIO.suspendSucceed {
+      ref.get.flatMap { s =>
+        if (f(s)) self.map(a => (s, Some(a)))
+        else Exit.succeed((s, None))
+      }
     }
 
   /**
@@ -3692,9 +3696,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * in cases where the results of the forked fibers are not needed.
    */
   def forkAllDiscard[R, E, A](as: => Iterable[ZIO[R, E, A]])(implicit trace: Trace): URIO[R, Fiber[E, Unit]] =
-    ZIO
-      .foreach[R, Nothing, ZIO[R, E, A], Fiber[E, A], Iterable](as)(_.fork)
-      .map(Fiber.collectAllDiscard(_))
+    ZIO.suspendSucceed {
+      ZIO.foreach[R, Nothing, ZIO[R, E, A], Fiber[E, A], Iterable](as)(_.fork)
+    }.map(Fiber.collectAllDiscard(_))
 
   /**
    * Constructs a `ZIO` value of the appropriate type for the specified input.
@@ -5267,7 +5271,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def withClock[R, E, A <: Clock, B](clock: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    DefaultServices.currentServices.locallyWith(_.add(clock))(zio)
+    DefaultServices.currentServices.locallyWith(_.add(clock))(ZIO.suspendSucceed(zio))
 
   /**
    * Sets the implementation of the clock service to the specified value and
@@ -5282,7 +5286,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def withConfigProvider[R, E, A <: ConfigProvider, B](configProvider: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    DefaultServices.currentServices.locallyWith(_.add(configProvider))(zio)
+    DefaultServices.currentServices.locallyWith(_.add(configProvider))(ZIO.suspendSucceed(zio))
 
   /**
    * Sets the configuration provider to the specified value and restores it to
@@ -5300,7 +5304,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def withConsole[R, E, A <: Console, B](console: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    DefaultServices.currentServices.locallyWith(_.add(console))(zio)
+    DefaultServices.currentServices.locallyWith(_.add(console))(ZIO.suspendSucceed(zio))
 
   /**
    * Sets the implementation of the console service to the specified value and
@@ -5315,7 +5319,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def withLogger[R, E, A <: ZLogger[String, Any], B](logger: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    FiberRef.currentLoggers.locallyWith(_ + logger)(zio)
+    FiberRef.currentLoggers.locallyWith(_ + logger)(ZIO.suspendSucceed(zio))
 
   /**
    * Adds the specified logger and removes it when the scope is closed.
@@ -5374,7 +5378,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def withRandom[R, E, A <: Random, B](random: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    DefaultServices.currentServices.locallyWith(_.add(random))(zio)
+    DefaultServices.currentServices.locallyWith(_.add(random))(ZIO.suspendSucceed(zio))
 
   /**
    * Sets the implementation of the random service to the specified value and
@@ -5404,7 +5408,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def withSystem[R, E, A <: System, B](system: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    DefaultServices.currentServices.locallyWith(_.add(system))(zio)
+    DefaultServices.currentServices.locallyWith(_.add(system))(ZIO.suspendSucceed(zio))
 
   /**
    * Sets the implementation of the system service to the specified value and
