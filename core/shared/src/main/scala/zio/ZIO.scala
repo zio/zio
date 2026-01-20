@@ -2882,7 +2882,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * on the blocking thread pool.
    */
   def blocking[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    FiberRef.currentBlockingExecutor.getWith(zio.onExecutor(_))
+    onExecutorWith(_.getFiberRef(FiberRef.currentBlockingExecutor))(zio)
 
   /**
    * Retrieves the executor for all blocking tasks.
@@ -4437,16 +4437,34 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * See [[ZIO!.onExecutor]].
    */
   def onExecutor[R, E, A](executor: => Executor)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.descriptorWith { descriptor =>
-      val oldExecutor = descriptor.executor
-      val newExecutor = executor
+    onExecutorWith(_ => executor)(zio)
 
-      if (descriptor.isLocked && oldExecutor == newExecutor)
-        zio
-      else if (descriptor.isLocked)
-        ZIO.acquireReleaseWith(ZIO.shift(newExecutor))(_ => ZIO.shift(oldExecutor))(_ => zio)
-      else
-        ZIO.acquireReleaseWith(ZIO.shift(newExecutor))(_ => ZIO.unshift)(_ => zio)
+  @inline
+  private def onExecutorWith[R, E, A](
+    getExecutor: Fiber.Runtime[?, ?] => Executor
+  )(zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.withFiberRuntime[R, E, A] { (fiber, status) =>
+      val newExecutor     = getExecutor(fiber)
+      val oldOverride     = fiber.getFiberRefOrNull(FiberRef.overrideExecutor)
+      val isEmptyOverride = oldOverride == null || oldOverride.isEmpty
+      val isLocked        = RuntimeFlags.eagerShiftBack(status.runtimeFlags) || !isEmptyOverride
+
+      val oldExecutor =
+        if (isEmptyOverride) Runtime.defaultExecutor
+        else oldOverride.get
+
+      if (isLocked && (oldExecutor eq newExecutor)) zio
+      else {
+        val shift =
+          FiberRef.overrideExecutor.locally(Some(newExecutor)) {
+            // if not already on target executor, we need to yield
+            if (fiber.getRunningExecutor().contains(newExecutor)) zio
+            else ZIO.yieldNow *> zio
+          }
+        if (isLocked)
+          shift <* (if (fiber.getRunningExecutor().contains(oldExecutor)) Exit.unit else ZIO.yieldNow)
+        else shift
+      }
     }
 
   /**
