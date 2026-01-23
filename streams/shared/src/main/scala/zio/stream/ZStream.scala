@@ -773,7 +773,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                         case (Exit.Success(Halt(cause)), previous) =>
                           previous.interrupt as ZChannel.refailCause(cause)
                         case (Exit.Success(End(_)), previous) =>
-                          previous.join.map(ZChannel.write(_) *> ZChannel.unit)
+                          previous.join.map(ZChannel.write(_))
                         case (Exit.Failure(cause), previous) =>
                           previous.interrupt as ZChannel.refailCause(cause)
                       }
@@ -1324,11 +1324,21 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     trace: Trace
   ): ZStream[R1, E1, B] =
     new ZStream(
-      channel.concatMap(as =>
-        as.foldLeft[ZChannel[R1, Any, Any, Any, E1, zio.Chunk[B], Any]](ZChannel.unit) { case (acc, a) =>
-          acc *> f(a).channel
+      channel.concatMap { as =>
+        if (as.isEmpty) ZChannel.unit
+        else {
+          val it    = as.chunkIterator
+          val first = it.nextAt(0)
+          var acc   = ZChannel.suspend(f(first).channel)
+          var index = 1
+          while (it.hasNextAt(index)) {
+            val a = it.nextAt(index)
+            index += 1
+            acc = acc *> f(a).channel
+          }
+          acc
         }
-      )
+      }
     )
 
   /**
@@ -2435,7 +2445,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
             lazy val loop: ZChannel[Any, E, Chunk[A1], Any, E1, Chunk[A1], Unit] = ZChannel.readWithCause(
               (in: Chunk[A1]) => ZChannel.fromZIO(handoff.offer(Signal.Emit(in))) *> loop,
               (e: Cause[E]) => ZChannel.fromZIO(handoff.offer(Signal.Halt(e))) *> ZChannel.refailCause(e),
-              (_: Any) => ZChannel.fromZIO(handoff.offer(Signal.End)) *> ZChannel.unit
+              (_: Any) => ZChannel.fromZIO(handoff.offer(Signal.End))
             )
 
             ZSink.fromChannel(
@@ -3178,8 +3188,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         (e: Cause[E]) => ZChannel.refailCause(e),
         (_: Any) => {
           if (leftovers.isEmpty) ZChannel.unit
-          else if (leftovers.find(f).isEmpty) ZChannel.write(Chunk.single(leftovers)) *> ZChannel.unit
-          else split(Chunk.empty)(leftovers) *> ZChannel.unit
+          else if (leftovers.find(f).isEmpty) ZChannel.write(Chunk.single(leftovers))
+          else split(Chunk.empty)(leftovers)
         }
       )
 
@@ -3255,7 +3265,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                 reader
               },
               halt = ZChannel.refailCause,
-              done = (_: Any) => ZChannel.write(queue.toChunk) *> ZChannel.unit
+              done = (_: Any) => ZChannel.write(queue.toChunk)
             )
 
           self.channel >>> reader
@@ -3382,7 +3392,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       new ZStream(
         ZChannel.fromZIO(promise.await) *> self.channel
           .pipeTo(loop)
-          .ensuring(queue.offer(Take.end).forkDaemon *> queue.awaitShutdown) *> ZChannel.unit
+          .ensuring(queue.offer(Take.end).forkDaemon *> queue.awaitShutdown)
       )
         .merge(ZStream.execute((promise.succeedUnit *> right.run(sink)).ensuring(queue.shutdown)), HaltStrategy.Both)
     }
@@ -4917,7 +4927,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def loop(s: S): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
       f(s) match {
         case (as, Some(s)) => ZChannel.write(as) *> loop(s)
-        case (as, None)    => ZChannel.write(as) *> ZChannel.unit
+        case (as, _)       => ZChannel.write(as)
       }
 
     new ZStream(ZChannel.suspend(loop(s)))
@@ -4935,7 +4945,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZChannel.unwrap {
         f(s).map {
           case (as, Some(s)) => ZChannel.write(as) *> loop(s)
-          case (as, None)    => ZChannel.write(as) *> ZChannel.unit
+          case (as, _)       => ZChannel.write(as)
         }
       }
 
@@ -5203,7 +5213,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream produced from an effect
    */
   def unwrap[R, E, A](fa: => ZIO[R, E, ZStream[R, E, A]])(implicit trace: Trace): ZStream[R, E, A] =
-    fromZIO(fa).flatten
+    new ZStream(
+      ZChannel.unwrap(
+        fa.fold(
+          e => ZChannel.fail(e),
+          a => a.channel
+        )
+      )
+    )
 
   /**
    * Creates a stream produced from a scoped [[ZIO]]
