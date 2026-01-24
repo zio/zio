@@ -8,7 +8,7 @@ import zio.test.TestAspect.{exceptJS, flaky, forked, jvmOnly, nonFlaky, scala2On
 import zio.test._
 
 import java.util.concurrent.atomic.AtomicBoolean
-import scala.annotation.tailrec
+import scala.annotation.{nowarn, tailrec}
 import scala.util.{Failure, Success, Try}
 
 object ZIOSpec extends ZIOBaseSpec {
@@ -277,7 +277,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("catchNonFatalOrDie")(
       test("recovers from errors") {
-        val zio = ZIO.fail(new Exception).as(false).catchNonFatalOrDie(_ => ZIO.succeed(true))
+        val zio = ZIO.fail(new Exception).as(false).catchNonFatalOrDie(_ => ZIO.succeed(true)): @nowarn("cat=deprecation")
         zio.map(assert(_)(isTrue))
       }
     ),

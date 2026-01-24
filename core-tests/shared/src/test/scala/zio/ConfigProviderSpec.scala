@@ -2,6 +2,7 @@ package zio
 
 import zio.test._
 import zio.test.Assertion._
+import scala.annotation.nowarn
 
 object ConfigProviderSpec extends ZIOBaseSpec {
   def provider(map: Map[String, String]): ConfigProvider = ConfigProvider.fromMap(map)
@@ -649,7 +650,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
       } +
       test("kebabCaseLegacy maintains old behavior with numbers") {
         val configProvider =
-          ConfigProvider.fromMap(Map("hey-there23cool" -> "value")).kebabCaseLegacy
+          ConfigProvider.fromMap(Map("hey-there23cool" -> "value")).kebabCaseLegacy: @nowarn("cat=deprecation")
         val config = Config.string("heyThere23Cool")
         for {
           result <- configProvider.load(config)
@@ -657,7 +658,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
       } +
       test("snakeCaseLegacy maintains old behavior with numbers") {
         val configProvider =
-          ConfigProvider.fromMap(Map("hey_there23cool" -> "value")).snakeCaseLegacy
+          ConfigProvider.fromMap(Map("hey_there23cool" -> "value")).snakeCaseLegacy: @nowarn("cat=deprecation")
         val config = Config.string("heyThere23Cool")
         for {
           result <- configProvider.load(config)

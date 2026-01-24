@@ -3,7 +3,9 @@ package zio.internal
 import zio.test.Assertion._
 import zio.test._
 import zio.ZIOBaseSpec
+import scala.annotation.nowarn
 
+@nowarn("cat=deprecation")
 object IsFatalSpec extends ZIOBaseSpec {
   def spec =
     suite("IsFatal")(

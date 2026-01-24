@@ -3,7 +3,9 @@ package zio
 import zio.test._
 import zio.metrics.MetricLabel
 import zio.internal.stacktracer.SourceLocation
+import scala.annotation.nowarn
 
+@nowarn("cat=deprecation")
 object ZIOLazinessSpec extends ZIOBaseSpec {
   def lazy1[A](name: String)(f: (=> A) => Any)(implicit t: Trace, sl: SourceLocation): Spec[Any, Nothing] =
     lazy2[A, Any](name)((a, _) => f(a))
