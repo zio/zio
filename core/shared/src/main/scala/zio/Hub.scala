@@ -118,6 +118,13 @@ object Hub {
     ZIO.fiberIdWith { fiberId =>
       Exit.succeed {
         val scope   = Scope.unsafe.make(Unsafe)
+        val promise = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
+
+        unsafeMakeHub(
+          hub,
+          Platform
+            .newConcurrentSet[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]()(Unsafe),
+          scope,
           promise,
           new AtomicReference[Cause[Nothing]](null),
           strategy
