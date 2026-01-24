@@ -142,7 +142,6 @@ object Queue extends QueuePlatformSpecific {
       queue,
       new ConcurrentDeque[Promise[Nothing, A]],
       p,
-      p,
       new AtomicReference[Cause[Nothing]](null),
       strategy
     )
@@ -336,10 +335,6 @@ object Queue extends QueuePlatformSpecific {
   private sealed abstract class Strategy[A] {
     private[this] val draining = new AtomicBoolean(false)
 
-    def handleSurplus(
-      as: Iterable[A],
-      queue: MutableConcurrentQueue[A],
-      takers: ConcurrentDeque[Promise[Nothing, A]],
     def handleSurplus(
       as: Iterable[A],
       queue: MutableConcurrentQueue[A],
