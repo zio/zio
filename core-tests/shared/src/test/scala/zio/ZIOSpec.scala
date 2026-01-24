@@ -277,7 +277,8 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("catchNonFatalOrDie")(
       test("recovers from errors") {
-        val zio = ZIO.fail(new Exception).as(false).catchNonFatalOrDie(_ => ZIO.succeed(true)): @nowarn("cat=deprecation")
+        @nowarn("cat=deprecation")
+        val zio = ZIO.fail(new Exception).as(false).catchNonFatalOrDie(_ => ZIO.succeed(true))
         zio.map(assert(_)(isTrue))
       }
     ),

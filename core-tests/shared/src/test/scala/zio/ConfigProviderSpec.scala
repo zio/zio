@@ -649,16 +649,18 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         } yield assertTrue(result == Map("camelCase" -> "camelCase"))
       } +
       test("kebabCaseLegacy maintains old behavior with numbers") {
+        @nowarn("cat=deprecation")
         val configProvider =
-          ConfigProvider.fromMap(Map("hey-there23cool" -> "value")).kebabCaseLegacy: @nowarn("cat=deprecation")
+          ConfigProvider.fromMap(Map("hey-there23cool" -> "value")).kebabCaseLegacy
         val config = Config.string("heyThere23Cool")
         for {
           result <- configProvider.load(config)
         } yield assertTrue(result == "value")
       } +
       test("snakeCaseLegacy maintains old behavior with numbers") {
+        @nowarn("cat=deprecation")
         val configProvider =
-          ConfigProvider.fromMap(Map("hey_there23cool" -> "value")).snakeCaseLegacy: @nowarn("cat=deprecation")
+          ConfigProvider.fromMap(Map("hey_there23cool" -> "value")).snakeCaseLegacy
         val config = Config.string("heyThere23Cool")
         for {
           result <- configProvider.load(config)

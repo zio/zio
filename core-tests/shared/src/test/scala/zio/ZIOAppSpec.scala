@@ -11,7 +11,6 @@ object ZIOAppSpec extends ZIOBaseSpec {
         _   <- ZIOApp.fromZIO(ref.update(_ + 1)).invoke(Chunk.empty)
         v   <- ref.get
       } yield assertTrue(v == 1)
-    },
     test("failure translates into ExitCode.failure") {
       for {
         code <- ZIOApp.fromZIO(ZIO.fail("Uh oh!")).invoke(Chunk.empty).exitCode: @nowarn("cat=deprecation")

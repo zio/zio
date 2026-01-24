@@ -917,37 +917,37 @@ object QueueSpec extends ZIOBaseSpec {
           queue <- Queue.bounded[Int](3)
           f     <- queue.take.fork
           _     <- waitForSize(queue, -1)
-          cause = Cause.die(new RuntimeException("stop"))
+          cause  = Cause.die(new RuntimeException("stop"))
           _     <- queue.shutdownCause(cause)
           res   <- f.join.sandbox.either
         } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
       },
       test("shutdownCause interrupts pending putters") {
         for {
-          queue  <- Queue.bounded[Int](2)
-          _      <- queue.offer(1)
-          _      <- queue.offer(2)
-          f      <- queue.offer(3).fork
-          _      <- waitForSize(queue, 3)
+          queue <- Queue.bounded[Int](2)
+          _     <- queue.offer(1)
+          _     <- queue.offer(2)
+          f     <- queue.offer(3).fork
+          _     <- waitForSize(queue, 3)
           cause  = Cause.die(new RuntimeException("stop"))
-          _      <- queue.shutdownCause(cause)
-          res    <- f.join.sandbox.either
+          _     <- queue.shutdownCause(cause)
+          res   <- f.join.sandbox.either
         } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
       },
       test("future offers fail with cause") {
         for {
-          queue  <- Queue.bounded[Int](3)
-          cause  = Cause.die(new RuntimeException("stop"))
-          _      <- queue.shutdownCause(cause)
-          res    <- queue.offer(1).sandbox.either
+          queue <- Queue.bounded[Int](3)
+          cause = Cause.die(new RuntimeException("stop"))
+          _ <- queue.shutdownCause(cause)
+          res <- queue.offer(1).sandbox.either
         } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
-      },
+      }, (wait, I should just fix the whole file content precisely)
       test("future takes fail with cause") {
         for {
-          queue  <- Queue.bounded[Int](3)
+          queue <- Queue.bounded[Int](3)
           cause  = Cause.die(new RuntimeException("stop"))
-          _      <- queue.shutdownCause(cause)
-          res    <- queue.take.sandbox.either
+          _     <- queue.shutdownCause(cause)
+          res   <- queue.take.sandbox.either
         } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
       },
       test("shutdownCause is atomic") {
