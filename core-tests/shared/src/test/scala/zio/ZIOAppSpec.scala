@@ -13,15 +13,17 @@ object ZIOAppSpec extends ZIOBaseSpec {
       } yield assertTrue(v == 1)
     },
     test("failure translates into ExitCode.failure") {
+      @nowarn("cat=deprecation")
+      val effect = ZIOApp.fromZIO(ZIO.fail("Uh oh!")).invoke(Chunk.empty).exitCode
       for {
-        @nowarn("cat=deprecation")
-        code <- ZIOApp.fromZIO(ZIO.fail("Uh oh!")).invoke(Chunk.empty).exitCode
+        code <- effect
       } yield assertTrue(code == ExitCode.failure)
     },
     test("success translates into ExitCode.success") {
+      @nowarn("cat=deprecation")
+      val effect = ZIOApp.fromZIO(ZIO.succeed("Hurray!")).invoke(Chunk.empty).exitCode
       for {
-        @nowarn("cat=deprecation")
-        code <- ZIOApp.fromZIO(ZIO.succeed("Hurray!")).invoke(Chunk.empty).exitCode
+        code <- effect
       } yield assertTrue(code == ExitCode.success)
     },
     test("composed app logic runs component logic") {
@@ -53,10 +55,11 @@ object ZIOAppSpec extends ZIOBaseSpec {
       }
 
       val app1 = ZIOApp(ZIO.fail("Uh oh!"), Runtime.addLogger(logger1))
+      @nowarn("cat=deprecation")
+      val effect = app1.invoke(Chunk.empty).exitCode
 
       for {
-        @nowarn("cat=deprecation")
-        c <- app1.invoke(Chunk.empty).exitCode
+        c <- effect
         v <- ZIO.succeed(counter.get())
       } yield assertTrue(c == ExitCode.failure) && assertTrue(v == 1)
     },
