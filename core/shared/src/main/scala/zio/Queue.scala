@@ -421,7 +421,7 @@ object Queue extends QueuePlatformSpecific {
             unsafeOnQueueEmptySpace(queue, takers)
             unsafeCompleteTakers(queue, takers)
             val cause = isShutdown.get
-            if (cause ne null) ZIO.interrupt else p.await
+            if (cause ne null) Exit.failCause(cause) else p.await
           }.onInterrupt(ZIO.succeed(unsafeRemove(p)))
         }
 

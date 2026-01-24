@@ -19,7 +19,7 @@ package zio
 import zio.internal.{MutableConcurrentQueue, Platform}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 /**
  * A `Hub` is an asynchronous message hub. Publishers can offer messages to the
@@ -256,15 +256,14 @@ object Hub {
       def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Unit] =
         ZIO.fiberIdWith { fiberId =>
           if (shutdownFlag.compareAndSet(null, cause)) {
-            ZIO
-              .whenZIODiscard(shutdownHook.succeedUnit) {
-                ZIO.foreachParDiscard(unsafePollAll(pollers))(_.unsafe.failCause(cause)(Unsafe)) *>
-                  Exit.succeed {
-                    subscribers.remove(subscription -> pollers)
-                    subscription.unsubscribe()
-                    strategy.unsafeOnHubEmptySpace(hub, subscribers)
-                  }
-              }
+            ZIO.whenZIODiscard(shutdownHook.succeedUnit) {
+              ZIO.foreachParDiscard(unsafePollAll(pollers))(_.failCause(cause)) *>
+                Exit.succeed {
+                  subscribers.remove(subscription -> pollers)
+                  subscription.unsubscribe()
+                  strategy.unsafeOnHubEmptySpace(hub, subscribers)
+                }
+            }
           } else Exit.unit
         }.uninterruptible
       def size(implicit trace: Trace): UIO[Int] =
@@ -431,7 +430,7 @@ object Hub {
       def shutdown(cause: Cause[Nothing])(implicit trace: Trace): UIO[Unit] =
         ZIO.fiberIdWith { fiberId =>
           ZIO.foreachParDiscard(unsafePollAll(publishers)) { case (_, promise, last) =>
-            if (last) promise.unsafe.failCause(cause)(Unsafe) else Exit.unit
+            if (last) promise.failCause(cause) else Exit.unit
           }
         }
 
