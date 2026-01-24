@@ -6241,6 +6241,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         dequeue.isShutdown
       def shutdown(implicit trace: Trace): UIO[Unit] =
         dequeue.shutdown
+      def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Unit] =
+        dequeue.shutdownCause(cause)
       def size(implicit trace: Trace): UIO[Int] =
         dequeue.size
       def take(implicit trace: Trace): UIO[B] =

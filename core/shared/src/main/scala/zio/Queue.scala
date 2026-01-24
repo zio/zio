@@ -137,7 +137,7 @@ object Queue extends QueuePlatformSpecific {
     strategy: Strategy[A],
     fiberId: FiberId
   )(implicit unsafe: Unsafe): Queue[A] = {
-    val p = Promise.unsafe.make[Nothing, Unit](fiberId)
+    val p = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
     unsafeCreate(
       queue,
       new ConcurrentDeque[Promise[Nothing, A]],
@@ -414,7 +414,7 @@ object Queue extends QueuePlatformSpecific {
         isShutdown: AtomicReference[Cause[Nothing]]
       )(implicit trace: Trace): UIO[Boolean] =
         ZIO.fiberIdWith { fiberId =>
-          val p = Promise.unsafe.make[Nothing, Boolean](fiberId)(Unsafe.unsafe)
+          val p = Promise.unsafe.make[Nothing, Boolean](fiberId)(Unsafe)
 
           ZIO.suspendSucceed {
             unsafeOffer(as, p)

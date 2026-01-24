@@ -413,7 +413,7 @@ object Hub {
       def handleSurplus(
         hub: internal.Hub[A],
         subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
-      as: Iterable[A],
+        as: Iterable[A],
         isShutDown: AtomicReference[Cause[Nothing]]
       )(implicit trace: Trace): UIO[Boolean] =
         ZIO.fiberIdWith { fiberId =>
