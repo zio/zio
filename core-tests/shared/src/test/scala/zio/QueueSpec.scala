@@ -931,7 +931,7 @@ object QueueSpec extends ZIOBaseSpec {
           _     <- waitForSize(queue, 3)
           cause  = Cause.die(new RuntimeException("stop"))
           _     <- queue.shutdownCause(cause)
-          res    <- f.join.sandbox.either
+          res   <- f.join.sandbox.either
         } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
       },
       test("future offers fail with cause") {
@@ -952,12 +952,12 @@ object QueueSpec extends ZIOBaseSpec {
       },
       test("shutdownCause is atomic") {
         for {
-          queue  <- Queue.bounded[Int](3)
+          queue <- Queue.bounded[Int](3)
           cause1 = Cause.die(new RuntimeException("stop 1"))
           cause2 = Cause.die(new RuntimeException("stop 2"))
-          _      <- queue.shutdownCause(cause1)
-          _      <- queue.shutdownCause(cause2)
-          res    <- queue.offer(1).sandbox.either
+          _     <- queue.shutdownCause(cause1)
+          _     <- queue.shutdownCause(cause2)
+          res   <- queue.offer(1).sandbox.either
         } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause1)))
       }
     )
