@@ -911,7 +911,7 @@ object QueueSpec extends ZIOBaseSpec {
         test("takeBetween with min >= 1")(testSuspension(_.takeBetween(5, 10)))
       )
     } @@ TestAspect.timeout(5.seconds),
-    suite("shutdownCause") {
+    suite("shutdownCause")(
       test("shutdownCause interrupts pending takers") {
         for {
           queue  <- Queue.bounded[Int](3)
@@ -960,7 +960,7 @@ object QueueSpec extends ZIOBaseSpec {
           res    <- queue.offer(1).sandbox.either
         } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause1)))
       }
-    }
+    )
   )
 }
 
