@@ -3,7 +3,6 @@ package zio
 import zio.test._
 import zio.metrics.MetricLabel
 import zio.internal.stacktracer.SourceLocation
-import scala.annotation.nowarn
 
 object ZIOLazinessSpec extends ZIOBaseSpec {
   def lazy1[A](name: String)(f: (=> A) => Any)(implicit t: Trace, sl: SourceLocation): Spec[Any, Nothing] =

@@ -1,7 +1,6 @@
 package zio
 
 import zio.test._
-import scala.annotation.nowarn
 
 object ZIOAppSpec extends ZIOBaseSpec {
   def spec = suite("ZIOAppSpec")(
