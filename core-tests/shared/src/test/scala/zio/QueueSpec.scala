@@ -914,23 +914,23 @@ object QueueSpec extends ZIOBaseSpec {
     suite("shutdownCause")(
       test("shutdownCause interrupts pending takers") {
         for {
-          queue  <- Queue.bounded[Int](3)
-          f      <- queue.take.fork
-          _      <- waitForSize(queue, -1)
-          cause   = Cause.die(new RuntimeException("stop"))
-          _      <- queue.shutdownCause(cause)
-          res    <- f.join.sandbox.either
+          queue <- Queue.bounded[Int](3)
+          f     <- queue.take.fork
+          _     <- waitForSize(queue, -1)
+          cause  = Cause.die(new RuntimeException("stop"))
+          _     <- queue.shutdownCause(cause)
+          res   <- f.join.sandbox.either
         } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
       },
       test("shutdownCause interrupts pending putters") {
         for {
-          queue  <- Queue.bounded[Int](2)
-          _      <- queue.offer(1)
-          _      <- queue.offer(2)
-          f      <- queue.offer(3).fork
-          _      <- waitForSize(queue, 3)
-          cause   = Cause.die(new RuntimeException("stop"))
-          _      <- queue.shutdownCause(cause)
+          queue <- Queue.bounded[Int](2)
+          _     <- queue.offer(1)
+          _     <- queue.offer(2)
+          f     <- queue.offer(3).fork
+          _     <- waitForSize(queue, 3)
+          cause  = Cause.die(new RuntimeException("stop"))
+          _     <- queue.shutdownCause(cause)
           res    <- f.join.sandbox.either
         } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
       },
