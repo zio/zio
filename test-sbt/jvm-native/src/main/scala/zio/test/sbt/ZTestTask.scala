@@ -44,9 +44,21 @@ final class ZTestTask(
       Await.result(resOutter, Duration.Inf)
     } catch {
       case throwable: Throwable =>
+        // We need to log the error because the test framework doesn't report the full stack trace
+        val msg = renderError(throwable)
+        loggers.foreach(_.error(msg))
+
         if (resOutter != null) resOutter.cancel()
         throw throwable
     }
     Array()
+  }
+
+  private def renderError(t: Throwable): String = {
+    val sw = new java.io.StringWriter
+    sw.write("Encountered an unexpected error during test invocation. Full stack trace:\n\n")
+    t.printStackTrace(new java.io.PrintWriter(sw))
+    sw.write("\n")
+    sw.toString
   }
 }

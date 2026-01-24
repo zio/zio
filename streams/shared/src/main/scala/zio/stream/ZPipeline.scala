@@ -2730,7 +2730,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         (_: Any) =>
           last match {
             case Some(value) =>
-              ZChannel.write(Chunk.single((value, None))) *> ZChannel.unit
+              ZChannel.write(Chunk.single((value, None)))
             case None =>
               ZChannel.unit
           }

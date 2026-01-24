@@ -1190,20 +1190,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               if (first eq ZIO.unit) cur = flatmap.successK(())
               else {
                 stackIndex = pushStackFrame(flatmap, stackIndex)
-
-                val result = runLoop(first, stackIndex, stackIndex, currentDepth + 1, ops)
-                ops += 1
-
-                if (null eq result) return null
-
-                stackIndex -= 1
-                popStackFrame(stackIndex)
-
-                result match {
-                  case s: Success[Any] => cur = flatmap.successK(s.value)
-                  case failure         => cur = failure
-                }
+                cur = first
               }
+
             case stateful: Stateful[Any, Any, Any] =>
               val trace = stateful.trace
               updateLastTrace(trace)
@@ -1217,22 +1206,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               updateLastTrace(fold.trace)
 
               stackIndex = pushStackFrame(fold, stackIndex)
-
-              val result = runLoop(fold.first, stackIndex, stackIndex, currentDepth + 1, ops)
-              ops += 1
-
-              if (null eq result) return null
-
-              stackIndex -= 1
-              popStackFrame(stackIndex)
-
-              result match {
-                case s: Success[Any] => cur = fold.successK(s.value)
-                case f =>
-                  val cause = f.asInstanceOf[Failure[Any]].cause
-                  if (shouldInterrupt()) cur = Exit.Failure(cause.stripFailures)
-                  else cur = fold.failureK(cause)
-              }
+              cur = fold.first
 
             case async: Async[Any, Any, Any] =>
               updateLastTrace(async.trace)
@@ -1277,22 +1251,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 val k = ZIO.UpdateRuntimeFlags(trace, revertFlags)
 
                 stackIndex = pushStackFrame(k, stackIndex)
-
-                val exit = runLoop(update0.f(oldRuntimeFlags), stackIndex, stackIndex, currentDepth + 1, ops)
-                ops += 1
-
-                if (null eq exit) return null
-
-                stackIndex -= 1
-                popStackFrame(stackIndex)
-
-                // Go backward, on the stack:
-                if (ignoreFlagsUpdate(revertFlags, stackIndex)) {
-                  cur = exit
-                } else {
-                  cur = patchRuntimeFlags(revertFlags, exit.causeOrNull, exit)
-                }
-
+                cur = update0.f(oldRuntimeFlags)
               }
 
             case iterate: WhileLoop[Any, Any, Any] =>
