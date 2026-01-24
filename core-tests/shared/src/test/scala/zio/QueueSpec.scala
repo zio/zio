@@ -917,7 +917,7 @@ object QueueSpec extends ZIOBaseSpec {
           queue <- Queue.bounded[Int](3)
           f     <- queue.take.fork
           _     <- waitForSize(queue, -1)
-          val cause = Cause.fail(new RuntimeException("stop"))
+          cause = Cause.die(new RuntimeException("stop"))
           _     <- queue.shutdownCause(cause)
           res   <- f.join.sandbox.either
         } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
@@ -929,7 +929,7 @@ object QueueSpec extends ZIOBaseSpec {
           _      <- queue.offer(2)
           f      <- queue.offer(3).fork
           _      <- waitForSize(queue, 3)
-          val cause  = Cause.fail(new RuntimeException("stop"))
+          cause  = Cause.die(new RuntimeException("stop"))
           _      <- queue.shutdownCause(cause)
           res    <- f.join.sandbox.either
         } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
@@ -937,7 +937,7 @@ object QueueSpec extends ZIOBaseSpec {
       test("future offers fail with cause") {
         for {
           queue  <- Queue.bounded[Int](3)
-          val cause  = Cause.fail(new RuntimeException("stop"))
+          cause  = Cause.die(new RuntimeException("stop"))
           _      <- queue.shutdownCause(cause)
           res    <- queue.offer(1).sandbox.either
         } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
@@ -945,7 +945,7 @@ object QueueSpec extends ZIOBaseSpec {
       test("future takes fail with cause") {
         for {
           queue  <- Queue.bounded[Int](3)
-          val cause  = Cause.fail(new RuntimeException("stop"))
+          cause  = Cause.die(new RuntimeException("stop"))
           _      <- queue.shutdownCause(cause)
           res    <- queue.take.sandbox.either
         } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
@@ -953,8 +953,8 @@ object QueueSpec extends ZIOBaseSpec {
       test("shutdownCause is atomic") {
         for {
           queue  <- Queue.bounded[Int](3)
-          val cause1 = Cause.fail(new RuntimeException("stop 1"))
-          val cause2 = Cause.fail(new RuntimeException("stop 2"))
+          cause1 = Cause.die(new RuntimeException("stop 1"))
+          cause2 = Cause.die(new RuntimeException("stop 2"))
           _      <- queue.shutdownCause(cause1)
           _      <- queue.shutdownCause(cause2)
           res    <- queue.offer(1).sandbox.either
