@@ -251,10 +251,35 @@ jobs:
       - name: Test on different Scala target platforms
         run: free --si -tmws 10 & sbt -v test${{ matrix.platform }}
 
+  testIntegration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
+    env:
+      CI_RELEASE_MODE: 1 # Run these tests with optimizations enabled
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['11', '17', '21']
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v6.0.1
+      - name: Setup Java
+        uses: actions/setup-java@v5.1.0
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          check-latest: true
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
+      - name: Cache scala dependencies
+        uses: coursier/cache-action@v7
+      - name: Test on different JVM versions
+        run: sbt -v testIntegrationJVM
   ci:
     if: always()
     runs-on: ubuntu-latest
-    needs: [lint, publishLocal, build-website, test, testJvms, testPlatforms]
+    needs: [lint, publishLocal, build-website, test, testJvms, testPlatforms, testIntegration]
     steps:
       - uses: re-actors/alls-green@release/v1
         with:

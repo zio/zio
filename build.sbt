@@ -59,6 +59,10 @@ addCommandAlias(
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/Test/compile;examplesJVM/Test/compile;concurrentJVM/test;managedTestsJVM/test"
 )
 addCommandAlias(
+  "testIntegrationJVM",
+  ";coreIntegrationJVM/assembly;coreIntegrationJVM/test"
+)
+addCommandAlias(
   "testJS",
   ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/Test/compile;macrosTestsJS/test;concurrentJS/test"
 )
@@ -70,6 +74,7 @@ addCommandAlias(
 lazy val projectsCommon = List(
   concurrent,
   core,
+  coreIntegration,
   coreTests,
   examples,
   internalMacros,
@@ -255,6 +260,44 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .nativeSettings(
     nativeSettings
   )
+
+lazy val coreIntegration = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+  .in(file("core-integration"))
+  .enablePlugins(AssemblyPlugin)
+  .dependsOn(coreTests)
+  .settings(stdSettings("core-integration"))
+  .settings(crossProjectSettings)
+  .settings(publish / skip := true)
+  .settings(
+    Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+  )
+  .settings(
+    assembly / assemblyJarName := "core-integration.jar",
+    assembly / mainClass       := Some("zio.ZIOAppDefaultIntegration"),
+    assembly / test            := {} // This skips tests during assembly
+  )
+  .settings(
+    libraryDependencies += "dev.zio" %% "zio-process" % "0.8.0",
+    Test / fork                      := true,
+    Test / javaOptions ++= {
+      val osName =
+        Option(scala.util.Try(java.lang.System.getProperty("os.name")).getOrElse("")).map(_.toLowerCase()).getOrElse("")
+      val javaHome = Option(java.lang.System.getProperty("java.home")).getOrElse("")
+
+      val isWindows   = osName.contains("win")
+      val sep         = if (isWindows) "\\" else "/"
+      val javaExeName = if (isWindows) "java.exe" else "java"
+
+      val javaPath = javaHome + sep + "bin" + sep + javaExeName
+      val jarPath  = (assembly / assemblyOutputPath).value.absolutePath
+
+      Seq(
+        s"-Dzio.coreIntegration.javaExe=$javaPath",
+        s"-Dzio.coreIntegration.jar=$jarPath"
+      )
+    }
+  )
+  .jvmSettings(replSettings)
 
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core-tests"))
