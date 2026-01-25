@@ -25,7 +25,6 @@ import java.io.IOException
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.function.IntFunction
 import scala.annotation.implicitNotFound
-import scala.collection.compat._
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
@@ -3433,7 +3432,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, E, B]
-  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] =
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] = {
+    import scala.collection.compat._
     in.sizeCompare(1) match {
       case -1 => ZIO.succeed(bf.fromSpecific(in)(Nil))
       case 0  => ZIO.suspendSucceed(f(in.head).map(b => (bf.newBuilder(in) += b).result()))
@@ -3445,6 +3445,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
         }
     }
+  }
 
   /**
    * Applies the function `f` to each element of the `Set[A]` and returns the
@@ -3554,6 +3555,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     as: => Iterable[A]
   )(f: A => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
     ZIO.suspendSucceed {
+      import scala.collection.compat._
       val as0 = as
       as0.sizeCompare(1) match {
         case -1 => Exit.unit
