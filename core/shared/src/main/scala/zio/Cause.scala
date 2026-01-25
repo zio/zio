@@ -128,21 +128,39 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Retrieve the first checked error on the `Left` if available, if there are
    * no checked errors return the rest of the `Cause` that is known to contain
    * only `Die` or `Interrupt` causes.
+   *
+   * Note: If the cause contains any defects (`Die`) or interruptions (`Interrupt`),
+   * this will return `Right` even if failures are present, because defects and
+   * interruptions take priority over recoverable failures.
    */
-  final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
-    case Some(error) => Left(error)
-    case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
-  }
+  final def failureOrCause: Either[E, Cause[Nothing]] =
+    if (isRecoverable) {
+      failureOption match {
+        case Some(error) => Left(error)
+        case None        => Right(self.asInstanceOf[Cause[Nothing]])
+      }
+    } else {
+      Right(self.asInstanceOf[Cause[Nothing]])
+    }
 
   /**
    * Retrieve the first checked error and its trace on the `Left` if available,
    * if there are no checked errors return the rest of the `Cause` that is known
    * to contain only `Die` or `Interrupt` causes.
+   *
+   * Note: If the cause contains any defects (`Die`) or interruptions (`Interrupt`),
+   * this will return `Right` even if failures are present, because defects and
+   * interruptions take priority over recoverable failures.
    */
-  final def failureTraceOrCause: Either[(E, StackTrace), Cause[Nothing]] = failureTraceOption match {
-    case Some(errorAndTrace) => Left(errorAndTrace)
-    case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
-  }
+  final def failureTraceOrCause: Either[(E, StackTrace), Cause[Nothing]] =
+    if (isRecoverable) {
+      failureTraceOption match {
+        case Some(errorAndTrace) => Left(errorAndTrace)
+        case None                => Right(self.asInstanceOf[Cause[Nothing]])
+      }
+    } else {
+      Right(self.asInstanceOf[Cause[Nothing]])
+    }
 
   /**
    * Produces a list of all recoverable errors `E` in the `Cause`.
@@ -377,6 +395,17 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * `Fail` causes.
    */
   final def isInterruptedOnly: Boolean = foldContext(())(Folder.IsInterruptedOnly)
+
+  /**
+   * Determines if the `Cause` is recoverable, meaning it contains only
+   * failures and no defects or interruptions. A cause is not recoverable
+   * if it contains any `Die` or `Interrupt` nodes.
+   *
+   * This is used by error handling methods like `catchAll` to determine
+   * whether the failure handler should be invoked. Defects and interruptions
+   * always take priority over failures.
+   */
+  final def isRecoverable: Boolean = !isDie && !isInterrupted
 
   /**
    * Determines if the `Cause` is traced.

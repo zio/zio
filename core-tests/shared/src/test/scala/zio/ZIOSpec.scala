@@ -305,6 +305,54 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)((equalTo(t)))
       }
     ) @@ zioTag(errors),
+    suite("catchAll - defect priority (#9874)")(
+      test("does not catch combined Die && Fail cause - defects take priority") {
+        val dieCause = Cause.die(new RuntimeException("defect"))
+        val combinedCause = dieCause && Cause.fail("failure")
+        
+        for {
+          exit <- ZIO.failCause(combinedCause).catchAll(_ => ZIO.succeed("caught")).exit
+        } yield assertTrue(exit.isFailure) && 
+                assertTrue(exit.causeOption.exists(_.defects.nonEmpty))
+      },
+      test("does not catch combined Interrupt && Fail cause - interrupts take priority") {
+        for {
+          fiberId <- ZIO.fiberId
+          interruptCause = Cause.interrupt(fiberId)
+          combinedCause = interruptCause && Cause.fail("failure")
+          exit <- ZIO.failCause(combinedCause).catchAll(_ => ZIO.succeed("caught")).exit
+        } yield assertTrue(exit.isFailure) && 
+                assertTrue(exit.causeOption.exists(_.isInterrupted))
+      },
+      test("still catches pure failure cause") {
+        val failCause = Cause.fail("failure")
+        
+        for {
+          result <- ZIO.failCause(failCause).catchAll(_ => ZIO.succeed("caught"))
+        } yield assertTrue(result == "caught")
+      },
+      test("foldZIO does not invoke failure handler for combined Die && Fail") {
+        val dieCause = Cause.die(new RuntimeException("defect"))
+        val combinedCause = dieCause && Cause.fail("failure")
+        
+        for {
+          exit <- ZIO.failCause(combinedCause).foldZIO(
+            _ => ZIO.succeed("failure handled"),
+            a => ZIO.succeed(a)
+          ).exit
+        } yield assertTrue(exit.isFailure) && 
+                assertTrue(exit.causeOption.exists(_.defects.nonEmpty))
+      },
+      test("either does not convert combined Die && Fail to Left") {
+        val dieCause = Cause.die(new RuntimeException("defect"))
+        val combinedCause = dieCause && Cause.fail("failure")
+        
+        for {
+          exit <- ZIO.failCause(combinedCause).either.exit
+        } yield assertTrue(exit.isFailure) && 
+                assertTrue(exit.causeOption.exists(_.defects.nonEmpty))
+      }
+    ) @@ zioTag(errors),
     suite("catchSomeCause")(
       test("catches matching cause") {
         ZIO.interrupt.catchSomeCause {

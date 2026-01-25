@@ -357,6 +357,61 @@ object CauseSpec extends ZIOBaseSpec {
           }
         }
       }
+    ),
+    suite("isRecoverable")(
+      test("pure failure is recoverable") {
+        val cause = Cause.fail("error")
+        assertTrue(cause.isRecoverable)
+      },
+      test("pure defect is not recoverable") {
+        val cause = Cause.die(new RuntimeException("boom"))
+        assertTrue(!cause.isRecoverable)
+      },
+      test("pure interrupt is not recoverable") {
+        val cause = Cause.interrupt(FiberId.None)
+        assertTrue(!cause.isRecoverable)
+      },
+      test("combined Die && Fail is not recoverable") {
+        val cause = Cause.die(new RuntimeException("boom")) && Cause.fail("error")
+        assertTrue(!cause.isRecoverable)
+      },
+      test("combined Interrupt && Fail is not recoverable") {
+        val cause = Cause.interrupt(FiberId.None) && Cause.fail("error")
+        assertTrue(!cause.isRecoverable)
+      },
+      test("combined Fail && Fail is recoverable") {
+        val cause = Cause.fail("error1") && Cause.fail("error2")
+        assertTrue(cause.isRecoverable)
+      },
+      test("empty cause is recoverable") {
+        assertTrue(Cause.empty.isRecoverable)
+      }
+    ),
+    suite("failureOrCause")(
+      test("returns Left for pure failure") {
+        val cause = Cause.fail("error")
+        assertTrue(cause.failureOrCause == Left("error"))
+      },
+      test("returns Right for pure defect") {
+        val cause = Cause.die(new RuntimeException("boom"))
+        assertTrue(cause.failureOrCause.isRight)
+      },
+      test("returns Right for pure interrupt") {
+        val cause = Cause.interrupt(FiberId.None)
+        assertTrue(cause.failureOrCause.isRight)
+      },
+      test("returns Right for combined Die && Fail (defects take priority)") {
+        val cause = Cause.die(new RuntimeException("boom")) && Cause.fail("error")
+        assertTrue(cause.failureOrCause.isRight)
+      },
+      test("returns Right for combined Interrupt && Fail (interrupts take priority)") {
+        val cause = Cause.interrupt(FiberId.None) && Cause.fail("error")
+        assertTrue(cause.failureOrCause.isRight)
+      },
+      test("returns Left for combined Fail && Fail") {
+        val cause = Cause.fail("error1") && Cause.fail("error2")
+        assertTrue(cause.failureOrCause == Left("error1"))
+      }
     )
   ) @@ samples(10)
 
