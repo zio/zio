@@ -1123,7 +1123,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         try {
           cur match {
             case success: Exit.Success[Any] =>
-              val value = success.value
+              val init  = success.value
+              var value = init
 
               cur = null
 
@@ -1140,6 +1141,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
+
+                  case map: ZIO.MapF[Any, Any, Any, Any] =>
+                    value = map.successK(value)
 
                   case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
                     cur = patchRuntimeFlags(updateFlags.update, null, null)
@@ -1149,12 +1153,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
               if (cur eq null) {
-                return success
+                return {
+                  if (init.asInstanceOf[AnyRef] eq value.asInstanceOf[AnyRef]) success
+                  else Exit.succeed(value)
+                }
               }
 
             case sync: Sync[Any] =>
               updateLastTrace(sync.trace)
-              val value = sync.eval()
+              var value = sync.eval()
 
               cur = null
 
@@ -1171,6 +1178,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
+
+                  case map: ZIO.MapF[Any, Any, Any, Any] =>
+                    value = map.successK(value)
 
                   case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
                     cur = patchRuntimeFlags(updateFlags.update, null, null)
@@ -1194,6 +1204,18 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 cur = first
               }
 
+            case fold: FoldZIO[Any, Any, Any, Any, Any] =>
+              updateLastTrace(fold.trace)
+
+              stackIndex = pushStackFrame(fold, stackIndex)
+              cur = fold.first
+
+            case map: MapF[Any, Any, Any, Any] =>
+              updateLastTrace(map.trace)
+
+              stackIndex = pushStackFrame(map, stackIndex)
+              cur = map.first
+
             case stateful: Stateful[Any, Any, Any] =>
               val trace = stateful.trace
               updateLastTrace(trace)
@@ -1202,12 +1224,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 self.asInstanceOf[FiberRuntime[Any, Any]],
                 Fiber.Status.Running(_runtimeFlags, trace)
               )
-
-            case fold: FoldZIO[Any, Any, Any, Any, Any] =>
-              updateLastTrace(fold.trace)
-
-              stackIndex = pushStackFrame(fold, stackIndex)
-              cur = fold.first
 
             case async: Async[Any, Any, Any] =>
               updateLastTrace(async.trace)
