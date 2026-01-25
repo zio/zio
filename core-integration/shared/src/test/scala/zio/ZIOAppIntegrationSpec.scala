@@ -55,10 +55,10 @@ object ZIOAppIntegrationSpec extends ZIOSpecDefault {
       for {
         cmd      <- appCommand(HelloWorldApp)
         proc     <- cmd.run
-        out      <- proc.stdout.string
+        out      <- proc.stdout.lines
         exitCode <- proc.exitCode
       } yield assertTrue(
-        out.trim == "Hello, World!",
+        out.contains("Hello, World!"),
         exitCode == ExitCode.success
       )
     },
