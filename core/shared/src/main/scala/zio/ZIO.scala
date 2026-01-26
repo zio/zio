@@ -3432,15 +3432,20 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, E, B]
-  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] =
-    if (in.isEmpty) ZIO.succeed(bf.fromSpecific(in)(Nil))
-    else
-      ZIO.suspendSucceed {
-        val iterator = in.iterator
-        val builder  = bf.newBuilder(in)
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] = {
+    import scala.collection.compat._
+    in.sizeCompare(1) match {
+      case -1 => ZIO.succeed(bf.fromSpecific(in)(Nil))
+      case 0  => ZIO.suspendSucceed(f(in.head).map(b => (bf.newBuilder(in) += b).result()))
+      case _ =>
+        ZIO.suspendSucceed {
+          val iterator = in.iterator
+          val builder  = bf.newBuilder(in)
 
-        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
-      }
+          ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
+        }
+    }
+  }
 
   /**
    * Applies the function `f` to each element of the `Set[A]` and returns the
@@ -3450,14 +3455,18 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * the results, see `foreachDiscard` for a more efficient implementation.
    */
   final def foreach[R, E, A, B](in: Set[A])(f: A => ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, Set[B]] =
-    if (in.isEmpty) ZIO.succeed(Set.empty)
-    else
-      ZIO.suspendSucceed {
-        val iterator = in.iterator
-        val builder  = Set.newBuilder[B]
+    in.size match {
+      case 0 => ZIO.succeed(Set.empty[B])
+      case 1 => ZIO.suspendSucceed(f(in.head).map(Set(_)))
+      case n =>
+        ZIO.suspendSucceed {
+          val iterator = in.iterator
+          val builder  = Set.newBuilder[B]
+          builder.sizeHint(n)
 
-        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
-      }
+          ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
+        }
+    }
 
   /**
    * Applies the function `f` to each element of the `Array[A]` and returns the
@@ -3546,11 +3555,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     as: => Iterable[A]
   )(f: A => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
     ZIO.suspendSucceed {
+      import scala.collection.compat._
       val as0 = as
-      if (as0.isEmpty) Exit.unit
-      else {
-        val iterator = as0.iterator
-        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(ZIO.unitFn)
+      as0.sizeCompare(1) match {
+        case -1 => Exit.unit
+        case 0  => f(as0.head).unit
+        case _ =>
+          val iterator = as0.iterator
+          ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(ZIO.unitFn)
       }
     }
 
