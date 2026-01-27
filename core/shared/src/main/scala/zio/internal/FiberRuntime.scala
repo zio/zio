@@ -1123,8 +1123,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         try {
           cur match {
             case success: Exit.Success[Any] =>
-              val init  = success.value
-              var value = init
+              var value = success.value
 
               cur = null
 
@@ -1142,7 +1141,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
 
-                  case map: ZIO.MapF[Any, Any, Any, Any] =>
+                  case map: ZIO.Mapped[Any, Any, Any, Any] =>
                     value = map.successK(value)
 
                   case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
@@ -1154,7 +1153,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               if (cur eq null) {
                 return {
-                  if (init.asInstanceOf[AnyRef] eq value.asInstanceOf[AnyRef]) success
+                  if (success.value.asInstanceOf[AnyRef] eq value.asInstanceOf[AnyRef]) success
                   else Exit.succeed(value)
                 }
               }
@@ -1179,7 +1178,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
 
-                  case map: ZIO.MapF[Any, Any, Any, Any] =>
+                  case map: ZIO.Mapped[Any, Any, Any, Any] =>
                     value = map.successK(value)
 
                   case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
@@ -1210,7 +1209,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               stackIndex = pushStackFrame(fold, stackIndex)
               cur = fold.first
 
-            case map: MapF[Any, Any, Any, Any] =>
+            case map: Mapped[Any, Any, Any, Any] =>
               updateLastTrace(map.trace)
 
               stackIndex = pushStackFrame(map, stackIndex)

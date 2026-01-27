@@ -979,7 +979,7 @@ sealed trait ZIO[-R, +E, +A]
    * Returns an effect whose success is mapped by the specified `f` function.
    */
   def map[B](f: A => B)(implicit trace: Trace): ZIO[R, E, B] =
-    ZIO.MapF(trace, self, f)
+    ZIO.Mapped(trace, self, f)
 
   /**
    * Returns an effect whose success is mapped by the specified side effecting
@@ -6148,7 +6148,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   ) extends Continuation
       with ZIO[R, E, A2]
 
-  private[zio] final case class MapF[R, E, A1, A2](
+  private[zio] final case class Mapped[R, E, A1, A2](
     trace: Trace,
     first: ZIO[R, E, A1],
     successK: A1 => A2
