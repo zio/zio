@@ -84,10 +84,14 @@ private[zio] trait PlatformSpecific {
     Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
 
   final def newConcurrentSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
-    ConcurrentHashMap.newKeySet[A]()
+    // Use synchronized HashSet instead of ConcurrentHashMap.newKeySet() to avoid
+    // NPE in treeifyBin under high concurrency (see https://github.com/zio/zio/issues/9681)
+    Collections.synchronizedSet(new java.util.HashSet[A]())
 
   final def newConcurrentSet[A](initialCapacity: Int)(implicit unsafe: zio.Unsafe): JSet[A] =
-    ConcurrentHashMap.newKeySet[A](initialCapacity)
+    // Use synchronized HashSet instead of ConcurrentHashMap.newKeySet() to avoid
+    // NPE in treeifyBin under high concurrency (see https://github.com/zio/zio/issues/9681)
+    Collections.synchronizedSet(new java.util.HashSet[A](initialCapacity))
 
   private def blackhole(a: Any): Unit = {
     val _ = a
