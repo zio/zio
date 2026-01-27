@@ -101,7 +101,7 @@ trait System extends Serializable { self =>
 
 object System extends SystemPlatformSpecific {
 
-  val tag: Tag[System] = Tag[System]
+  implicit val tag: Tag[System] = Tag(EnvironmentTag.tagFromTagMacro[System])
 
   object SystemLive extends System {
     def env(variable: => String)(implicit trace: Trace): IO[SecurityException, Option[String]] =
