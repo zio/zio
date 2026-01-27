@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Exit, Tag, Trace, URIO, ZIO, ZIOAspect, ZLayer}
+import zio.{EnvironmentTag, Exit, Tag, Trace, URIO, ZIO, ZIOAspect, ZLayer}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -59,7 +59,7 @@ trait TestConfig extends Serializable {
 
 object TestConfig {
 
-  val tag: Tag[TestConfig] = Tag[TestConfig]
+  implicit val tag: Tag[TestConfig] = Tag(EnvironmentTag.tagFromTagMacro[TestConfig])
 
   @deprecated("use TestV2", "2.1.8")
   final case class Test(repeats: Int, retries: Int, samples: Int, shrinks: Int) extends TestConfig

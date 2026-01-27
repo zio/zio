@@ -78,7 +78,7 @@ trait Clock extends Serializable { self =>
 
 object Clock extends ClockPlatformSpecific with ClockSyntaxPlatformSpecific with Serializable {
 
-  val tag: Tag[Clock] = Tag[Clock]
+  implicit val tag: Tag[Clock] = Tag(EnvironmentTag.tagFromTagMacro[Clock])
 
   private[this] val rightExitUnit = Right(Exit.unit)
 

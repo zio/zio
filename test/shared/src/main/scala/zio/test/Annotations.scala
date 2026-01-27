@@ -29,7 +29,7 @@ trait Annotations extends Serializable {
 
 object Annotations {
 
-  val tag: Tag[Annotations] = Tag[Annotations]
+  implicit val tag: Tag[Annotations] = Tag(EnvironmentTag.tagFromTagMacro[Annotations])
 
   final case class Test(ref: Ref.Atomic[TestAnnotationMap]) extends Annotations {
     def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: Trace): UIO[Unit] =
