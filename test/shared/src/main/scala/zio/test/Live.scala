@@ -32,7 +32,7 @@ trait Live {
 
 object Live {
 
-  val tag: Tag[Live] = Tag[Live]
+  implicit val tag: Tag[Live] = Tag(EnvironmentTag.tagFromTagMacro[Live])
 
   final case class Test(zenv: ZEnvironment[Clock with Console with System with Random]) extends Live {
     def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
