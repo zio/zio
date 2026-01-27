@@ -1326,7 +1326,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               cur = patchRuntimeFlags(updateRuntimeFlags.update, null, Exit.unit)
 
             case effect =>
-              throw new MatchError("Invalid effect type in ZIO's runloop: " + effect.getClass.getName)
+              throw new MatchError(effect)
           }
         } catch {
           // TODO: ClosedByInterruptException (but Scala.js??)
