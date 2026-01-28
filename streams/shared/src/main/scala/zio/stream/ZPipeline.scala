@@ -1010,7 +1010,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
       def decodeChunk(inBytes: Chunk[Byte]): Chunk[Char] = {
         @tailrec
-        def loop(inBytes: Chunk[Byte], acc: Chunk[Char] = Chunk.empty): Chunk[Char] = {
+        def loop(inBytes: Chunk[Byte], acc: Chunk[Char]): Chunk[Char] = {
           val remainingBytes = {
             val bufRemaining = byteBuffer.remaining
             val (decodeBytes, remainingBytes) =
@@ -1028,30 +1028,30 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           if (remainingBytes.isEmpty) out
           else loop(remainingBytes, out)
         }
-        loop(inBytes)
+        loop(inBytes, Chunk.empty)
       }
 
       def endOfInput(): Chunk[Char] = {
         @tailrec
-        def loop(acc: Chunk[Char] = Chunk.empty): Chunk[Char] = {
+        def loop(acc: Chunk[Char]): Chunk[Char] = {
           byteBuffer.flip()
           val result       = decoder.decode(byteBuffer, charBuffer, true)
           val decodedChars = handleCoderResult(result)
           val out          = acc ++ decodedChars
           if (result.isOverflow) loop(out) else out
         }
-        loop()
+        loop(Chunk.empty)
       }
 
       def flushRemaining(): Chunk[Char] = {
         @tailrec
-        def loop(acc: Chunk[Char] = Chunk.empty): Chunk[Char] = {
+        def loop(acc: Chunk[Char]): Chunk[Char] = {
           val result       = decoder.flush(charBuffer)
           val decodedChars = handleCoderResult(result)
           val out          = acc ++ decodedChars
           if (result.isOverflow) loop(out) else out
         }
-        loop()
+        loop(Chunk.empty)
       }
 
       def safely(bytes: => Chunk[Char]): IO[CharacterCodingException, Chunk[Char]] =
@@ -1060,7 +1060,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             Exit.succeed(bytes)
           } catch {
             case t: CharacterCodingException => ZIO.fail(t)
-            case t: RuntimeException         => ZIO.die(t)
+            case t if nonFatal(t)            => ZIO.die(t)
           }
         }
 
@@ -1224,7 +1224,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
       def encodeChunk(inChars: Chunk[Char]): Chunk[Byte] = {
         @tailrec
-        def loop(inChars: Chunk[Char], acc: Chunk[Byte] = Chunk.empty): Chunk[Byte] = {
+        def loop(inChars: Chunk[Char], acc: Chunk[Byte]): Chunk[Byte] = {
           val remainingChars = {
             val bufRemaining = charBuffer.remaining()
             val (decodeChars, remainingChars) =
@@ -1244,12 +1244,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           else loop(remainingChars, out)
         }
 
-        loop(inChars)
+        loop(inChars, Chunk.empty)
       }
 
       def endOfInput(): Chunk[Byte] = {
         @tailrec
-        def loop(acc: Chunk[Byte] = Chunk.empty): Chunk[Byte] = {
+        def loop(acc: Chunk[Byte]): Chunk[Byte] = {
           charBuffer.flip()
           val result       = encoder.encode(charBuffer, byteBuffer, true)
           val encodedBytes = handleCoderResult(result)
@@ -1257,19 +1257,19 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
           if (result.isOverflow) loop(out) else out
         }
-        loop()
+        loop(Chunk.empty)
       }
 
       def flushRemaining(): Chunk[Byte] = {
         @tailrec
-        def loop(acc: Chunk[Byte] = Chunk.empty): Chunk[Byte] = {
+        def loop(acc: Chunk[Byte]): Chunk[Byte] = {
           val result       = encoder.flush(byteBuffer)
           val encodedBytes = handleCoderResult(result)
           val out          = acc ++ encodedBytes
 
           if (result.isOverflow) loop(out) else out
         }
-        loop()
+        loop(Chunk.empty)
       }
 
       def safely(bytes: => Chunk[Byte]): IO[CharacterCodingException, Chunk[Byte]] =
@@ -1278,7 +1278,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             Exit.succeed(bytes)
           } catch {
             case t: CharacterCodingException => ZIO.fail(t)
-            case t: RuntimeException         => ZIO.die(t)
+            case t if nonFatal(t)            => ZIO.die(t)
           }
         }
 
