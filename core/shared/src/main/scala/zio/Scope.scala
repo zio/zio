@@ -77,6 +77,8 @@ sealed trait Scope extends Serializable { self =>
 
 object Scope {
 
+  implicit val tag: Tag[Scope] = Tag(EnvironmentTag.tagFromTagMacro[Scope])
+
   sealed trait Closeable extends Scope { self =>
 
     /**

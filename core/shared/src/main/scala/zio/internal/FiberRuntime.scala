@@ -333,11 +333,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             cur = Exit.Failure(cause)
           }
 
-        case FiberMessage.Resume(_) =>
+        case _ =>
           assert(DisableAssertions, "It is illegal to have multiple concurrent run loops in a single fiber")
-
-        case FiberMessage.YieldNow =>
-          assert(DisableAssertions)
       }
 
       message = inbox.poll()
@@ -371,7 +368,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
           resumption = nextEffect0.asInstanceOf[ZIO.Erased]
 
-        case FiberMessage.YieldNow =>
+        case _ =>
           assert(DisableAssertions)
 
       }
@@ -509,7 +506,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         if (exit eq null) EvaluationSignal.YieldNow
         else EvaluationSignal.Continue
 
-      case FiberMessage.YieldNow =>
+      case _ =>
         // Will raise an error during tests, but assertion disappears when we publish
         // Kept just in case someone in the ecosystem as adding YieldNow messages manually
         assert(DisableAssertions)
@@ -1144,10 +1141,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case map: ZIO.Mapped[Any, Any, Any, Any] =>
                     value = map.successK(value)
 
-                  case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
-                    cur = patchRuntimeFlags(updateFlags.update, null, null)
-
-                  case _ => ()
+                  case update =>
+                    val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
+                    if (!ignoreFlagsUpdate(updateFlags.update, stackIndex)) {
+                      cur = patchRuntimeFlags(updateFlags.update, null, null)
+                    }
                 }
               }
 
@@ -1181,10 +1179,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case map: ZIO.Mapped[Any, Any, Any, Any] =>
                     value = map.successK(value)
 
-                  case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
-                    cur = patchRuntimeFlags(updateFlags.update, null, null)
-
-                  case _ => ()
+                  case update =>
+                    val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
+                    if (!ignoreFlagsUpdate(updateFlags.update, stackIndex)) {
+                      cur = patchRuntimeFlags(updateFlags.update, null, null)
+                    }
                 }
               }
 
@@ -1316,8 +1315,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 popStackFrame(stackIndex)
 
                 continuation match {
-                  case _: ZIO.FlatMap[Any, Any, Any, Any] =>
-
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     if (shouldInterrupt()) {
                       cause = cause.stripFailures
@@ -1343,15 +1340,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               updateLastTrace(updateRuntimeFlags.trace)
               cur = patchRuntimeFlags(updateRuntimeFlags.update, null, Exit.unit)
 
-            case gen0: GenerateStackTrace =>
-              updateLastTrace(gen0.trace)
-              cur = Exit.succeed(generateStackTrace())
-
-            // Should be unreachable, but we keep it to be backwards compatible
-            case update0: UpdateRuntimeFlagsWithin[Any, Any, Any] =>
-              assert(DisableAssertions) // Will raise an error in tests but not in released artifact
-              cur = UpdateRuntimeFlagsWithin.DynamicNoBox(update0.trace, update0.update, update0.scope(_))
-
+            case effect =>
+              throw new MatchError(effect)
           }
         } catch {
           // TODO: ClosedByInterruptException (but Scala.js??)
