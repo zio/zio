@@ -188,7 +188,7 @@ sealed trait ZIO[-R, +E, +A]
    * Maps the success value of this effect to the specified constant value.
    */
   final def as[B](b: => B)(implicit trace: Trace): ZIO[R, E, B] =
-    self.flatMap(_ => Exit.succeed(b))
+    map(_ => b)
 
   /**
    * Maps the success value of this effect to a left value.
@@ -978,8 +978,8 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Returns an effect whose success is mapped by the specified `f` function.
    */
-  final def map[B](f: A => B)(implicit trace: Trace): ZIO[R, E, B] =
-    flatMap(a => Exit.succeed(f(a)))
+  def map[B](f: A => B)(implicit trace: Trace): ZIO[R, E, B] =
+    ZIO.Mapped(trace, self, f)
 
   /**
    * Returns an effect whose success is mapped by the specified side effecting
@@ -2259,7 +2259,7 @@ sealed trait ZIO[-R, +E, +A]
    * unit.
    */
   final def unit(implicit trace: Trace): ZIO[R, E, Unit] =
-    self.flatMap(ZIO.unitZIOFn)
+    self.map(ZIO.unitFn)
 
   /**
    * Converts a `ZIO[R, Either[E, B], A]` into a `ZIO[R, E, Either[A, B]]`. The
@@ -6160,6 +6160,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   ) extends Continuation
       with ZIO[R, E, A2]
 
+  private[zio] final case class Mapped[R, E, A1, A2](
+    trace: Trace,
+    first: ZIO[R, E, A1],
+    successK: A1 => A2
+  ) extends Continuation
+      with ZIO[R, E, A2]
+
   private[zio] sealed abstract class Continuation {
     def trace: Trace
   }
@@ -6621,6 +6628,9 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
    */
   final def isSuccess: Boolean =
     self.isInstanceOf[Success[?]]
+
+  override final def map[B](f: A => B)(implicit trace: Trace): ZIO[Any, E, B] =
+    mapExit(f)
 
   /**
    * Maps over the value type.
