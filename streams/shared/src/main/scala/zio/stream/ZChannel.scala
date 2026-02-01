@@ -663,9 +663,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * @param n
    *   The maximum number of elements to map in parallel
    * @param bufferSize
-   *   Deprecated parameter kept for backward compatibility. The buffer is now unbounded
-   *   to ensure parallelism is not artificially limited. Parallelism control is provided
-   *   by the semaphore with `n` permits.
+   *   Deprecated parameter kept for backward compatibility. The buffer is now
+   *   unbounded to ensure parallelism is not artificially limited. Parallelism
+   *   control is provided by the semaphore with `n` permits.
    */
   final def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
@@ -756,9 +756,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * @param n
    *   The maximum number of elements to map in parallel
    * @param bufferSize
-   *   Deprecated parameter kept for backward compatibility. The buffer is now unbounded
-   *   to ensure parallelism is not artificially limited. Parallelism control is provided
-   *   by the semaphore with `n` permits.
+   *   Deprecated parameter kept for backward compatibility. The buffer is now
+   *   unbounded to ensure parallelism is not artificially limited. Parallelism
+   *   control is provided by the semaphore with `n` permits.
    */
   final def mapOutZIOParUnordered[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]

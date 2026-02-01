@@ -7,8 +7,8 @@ import zio.test.TestAspect._
 import zio.test._
 
 /**
- * Tests to verify that parallelism in mapZIOPar is no longer bounded by buffer size.
- * This addresses issue #9339.
+ * Tests to verify that parallelism in mapZIOPar is no longer bounded by buffer
+ * size. This addresses issue #9339.
  */
 object ZStreamMapZIOParParallelismSpec extends ZIOBaseSpec {
 
