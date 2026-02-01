@@ -38,3 +38,6 @@ website/yarn-error.log
 website/ecosystem-sidebar.js
 .bsp/
 .vscode
+cs
+scala-cli
+.scala-build/

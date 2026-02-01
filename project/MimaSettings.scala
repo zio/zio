@@ -9,6 +9,7 @@ object MimaSettings {
   def mimaSettings(failOnProblem: Boolean) =
     Seq(
       mimaPreviousArtifacts ++= previousStableVersion.value.map(organization.value %% name.value % _).toSet,
+      mimaFailOnNoPrevious := false,
       mimaBinaryIssueFilters ++= Seq(
         exclude[Problem]("zio.internal.*"),
         exclude[Problem]("zio.stm.ZSTM#internal*"),

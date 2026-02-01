@@ -663,7 +663,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * @param n
    *   The maximum number of elements to map in parallel
    * @param bufferSize
-   *   Number of elements that can be buffered downstream
+   *   Deprecated parameter kept for backward compatibility. The buffer size is
+   *   now determined by `n` to ensure parallelism is not artificially limited
+   *   while maintaining backpressure. Parallelism control is provided by the
+   *   semaphore with `n` permits.
    */
   final def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
@@ -673,8 +676,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         val input       = SingleProducerAsyncInput.unsafe.make[InErr, InElem, InDone](fiberId)(Unsafe)
         val queueReader = ZChannel.fromInput(input)
         val n0          = n.toLong
-        val bufferSize0 = bufferSize
-        val outgoing    = Queue.unsafe.bounded[Fiber[Either[Unit, OutDone], OutElem2]](bufferSize0, fiberId)(Unsafe)
+        // Use n as the queue size to maintain backpressure while allowing full parallelism
+        // Cap at 1024 to prevent OOM with very large parallelism values
+        val queueSize   = Math.min(n, 1024)
+        val outgoing    = Queue.unsafe.bounded[Fiber[Either[Unit, OutDone], OutElem2]](queueSize, fiberId)(Unsafe)
         val errorSignal = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
         val permits     = Semaphore.unsafe.make(n0)(Unsafe)
         val failureRef  = Ref.unsafe.make[Cause[OutErr1]](Cause.empty)(Unsafe)
@@ -755,16 +760,22 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * @param n
    *   The maximum number of elements to map in parallel
    * @param bufferSize
-   *   Number of elements that can be buffered downstream
+   *   Deprecated parameter kept for backward compatibility. The buffer size is
+   *   now determined by `n` to ensure parallelism is not artificially limited
+   *   while maintaining backpressure. Parallelism control is provided by the
+   *   semaphore with `n` permits.
    */
   final def mapOutZIOParUnordered[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
     ZChannel.unwrapScopedWith { scope =>
       for {
-        input       <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
-        queueReader  = ZChannel.fromInput(input)
-        outgoing    <- Queue.bounded[Exit[Either[Unit, OutDone], OutElem2]](bufferSize)
+        input      <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
+        queueReader = ZChannel.fromInput(input)
+        // Use n as the queue size to maintain backpressure while allowing full parallelism
+        // Cap at 1024 to prevent OOM with very large parallelism values
+        queueSize    = Math.min(n, 1024)
+        outgoing    <- Queue.bounded[Exit[Either[Unit, OutDone], OutElem2]](queueSize)
         _           <- scope.addFinalizer(outgoing.shutdown)
         errorSignal <- Promise.make[Nothing, Unit]
         permits     <- Semaphore.make(n.toLong)
