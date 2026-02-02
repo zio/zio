@@ -65,19 +65,9 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
    *   exception
    */
   def get(timeout: Long): A =
-    if (value ne null) value
-    else {
-      this.lock()
-
-      try {
-        if (value eq null) this.isSetCondition.await(timeout, java.util.concurrent.TimeUnit.MILLISECONDS)
-      } finally {
-        this.unlock()
-      }
-
-      if (value eq null) throw new OneShot.TimeoutException
-
-      value
+    tryGet(timeout) match {
+      case null => throw new OneShot.TimeoutException
+      case v    => v
     }
 
   /**
