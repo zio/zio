@@ -61,7 +61,7 @@ export const ecosystemProjects = [
       'Built-in codecs for JSON, Protobuf, Avro, and Thrift',
       'Schema transformations and migrations',
     ],
-    link: '/reference/schema',
+    link: '/zio-schema',
     icon: '🧬'
   },
   {
@@ -73,7 +73,7 @@ export const ecosystemProjects = [
       'Automatic documentation generation',
       'Validation with detailed error reporting'
     ],
-    link: '/ecosystem/officials/zio-config',
+    link: '/zio-config',
     icon: '⚙️'
   },
   {
@@ -85,7 +85,7 @@ export const ecosystemProjects = [
       'Context-aware logging with MDC support',
       'Log correlation across async boundaries'
     ],
-    link: '/ecosystem/officials/zio-logging',
+    link: '/zio-logging',
     icon: '📝'
   }
 ];
