@@ -144,7 +144,7 @@ trait Random extends Serializable { self =>
 
 object Random extends Serializable {
 
-  val tag: Tag[Random] = Tag[Random]
+  implicit val tag: Tag[Random] = Tag(EnvironmentTag.tagFromTagMacro[Random])
 
   object RandomLive extends Random {
 

@@ -594,7 +594,7 @@ object ZEnvironment {
   }
 
   private val ScopeTag: LightTypeTag =
-    taggedTagType(EnvironmentTag[Scope])
+    Scope.tag.tag
 
   private val TaggedAny: LightTypeTag =
     taggedTagType(EnvironmentTag[Any])
