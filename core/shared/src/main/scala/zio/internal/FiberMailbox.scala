@@ -20,11 +20,14 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * A specialized mailbox for ZIO Fibers. * Strategy:
+ * A specialized mailbox for ZIO Fibers.
+ *
+ * Strategy:
  *   - 0-1 items: Uses a single AtomicReference (Fast Lane, Zero Allocation).
- *   - >1 items: Upgrades to a ConcurrentLinkedQueue (Slow Lane). * This
- *     optimizes for the typical ZIO fiber usage pattern (ping-pong effects)
- *     where the mailbox rarely contains more than one message.
+ *   - >1 items: Upgrades to a ConcurrentLinkedQueue (Slow Lane).
+ *
+ * This optimizes for the typical ZIO fiber usage pattern (ping-pong effects)
+ * where the mailbox rarely contains more than one message.
  */
 final class FiberMailbox {
   // state can be:
@@ -90,12 +93,10 @@ final class FiberMailbox {
           result = msg
           continue = false
         } else {
-          // The Queue is empty. We attempt to downgrade back to null to restore 0-alloc mode.
-          // Note: If a producer adds to the queue *during* this check, compareAndSet fails safely.
-          if (queue.isEmpty) {
-            state.compareAndSet(queue, null)
-            // Loop again to re-read state (it might be null now, or new data arrived)
-          }
+          // Queue is empty. We do NOT downgrade to null because it creates a race condition
+          // where a producer might be adding to this queue instance while we detach it.
+          // Staying in Queue mode is safe and still faster than standard CLQ for the lifecycle.
+          continue = false
         }
       }
     }

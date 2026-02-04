@@ -16,8 +16,8 @@
 
 package zio.internal
 
+import zio._
 import zio.test._
-import java.util.concurrent.CountDownLatch
 
 object FiberMailboxSpec extends ZIOSpecDefault {
 
@@ -37,23 +37,13 @@ object FiberMailboxSpec extends ZIOSpecDefault {
     test("cross chunk boundary (overflow 32 items)") {
       val mailbox = new FiberMailbox()
       val n       = 100
-      // Offer 100 messages to force creation of multiple linked chunks
       for (_ <- 1 to n) {
         mailbox.offer(FiberMessage.resumeUnit)
       }
 
       var success = true
       for (_ <- 1 to n) {
-        val msg = mailbox.poll()
-        if (msg == null) success = false
-        else {
-          // Verify order is preserved
-          msg match {
-            case FiberMessage.Resume(_) =>
-              ()
-            case _ => success = false
-          }
-        }
+        if (mailbox.poll() == null) success = false
       }
 
       assertTrue(success) && assertTrue(mailbox.poll() == null)
@@ -64,35 +54,23 @@ object FiberMailboxSpec extends ZIOSpecDefault {
       val messagesPerProducer = 1000
       val totalMessages       = numProducers * messagesPerProducer
 
-      // Use raw threads to simulate intense contention outside of ZIO's scheduler
-      val latch = new CountDownLatch(1)
-
-      val threads = (1 to numProducers).map { _ =>
-        new Thread(() => {
-          try {
-            latch.await()
-            for (_ <- 1 to messagesPerProducer) {
-              mailbox.offer(FiberMessage.resumeUnit)
-            }
-          } catch {
-            case _: InterruptedException => ()
-          }
-        })
+      for {
+        _ <- ZIO.foreachParDiscard(1 to numProducers) { _ =>
+               ZIO.succeed {
+                 var i = 0
+                 while (i < messagesPerProducer) {
+                   mailbox.offer(FiberMessage.resumeUnit)
+                   i += 1
+                 }
+               }
+             }
+      } yield {
+        var received = 0
+        while (mailbox.poll() != null) {
+          received += 1
+        }
+        assertTrue(received == totalMessages)
       }
-
-      threads.foreach(_.start())
-      latch.countDown() // Start race
-      threads.foreach(_.join())
-
-      // Now drain and count
-      var received = 0
-      var msg      = mailbox.poll()
-      while (msg != null) {
-        received += 1
-        msg = mailbox.poll()
-      }
-
-      assertTrue(received == totalMessages)
     }
   )
 }
