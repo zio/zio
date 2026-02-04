@@ -104,7 +104,7 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
                    } catch {
                      case _: InterruptedException =>
                        ZIO.interrupt
-                     case t if nonFatal(t)=>
+                     case t if nonFatal(t) =>
                        ZIO.fail(t)
                    } finally {
                      end.set(BoxedUnit.UNIT)
