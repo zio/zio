@@ -39,16 +39,16 @@ object FiberMailboxSpec extends ZIOSpecDefault {
       val mailbox = new FiberMailbox()
       val n       = 100
       // Offer 100 messages to force creation of multiple linked chunks
-      for (i <- 1 to n) {
-        mailbox.offer(FiberMessage.Resume(ZIO.succeed(i)))
+      for (_ <- 1 to n) {
+        mailbox.offer(FiberMessage.resumeUnit)
       }
 
       var success = true
-      for (i <- 1 to n) {
+      for (_ <- 1 to n) {
         val msg = mailbox.poll()
         if (msg == null) success = false
         else {
-          // Verify order is preserved
+          // Verify we got a Resume message (we don't check content strictly now)
           msg match {
             case FiberMessage.Resume(_) =>
               ()
