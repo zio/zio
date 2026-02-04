@@ -25,8 +25,8 @@ object FiberMailboxSpec extends ZIOSpecDefault {
   def spec = suite("FiberMailboxSpec")(
     test("single producer, single consumer (sequential)") {
       val mailbox = new FiberMailbox()
-      val msg1 = FiberMessage.resumeUnit
-      val msg2 = FiberMessage.resumeUnit
+      val msg1    = FiberMessage.resumeUnit
+      val msg2    = FiberMessage.resumeUnit
 
       mailbox.offer(msg1)
       mailbox.offer(msg2)
@@ -37,7 +37,7 @@ object FiberMailboxSpec extends ZIOSpecDefault {
     },
     test("cross chunk boundary (overflow 32 items)") {
       val mailbox = new FiberMailbox()
-      val n = 100
+      val n       = 100
       // Offer 100 messages to force creation of multiple linked chunks
       for (i <- 1 to n) {
         mailbox.offer(FiberMessage.Resume(ZIO.succeed(i)))
@@ -48,26 +48,26 @@ object FiberMailboxSpec extends ZIOSpecDefault {
         val msg = mailbox.poll()
         if (msg == null) success = false
         else {
-           // Verify order is preserved
-           msg match {
-             case FiberMessage.Resume(_) => 
-               ()
-             case _ => success = false
-           }
+          // Verify order is preserved
+          msg match {
+            case FiberMessage.Resume(_) =>
+              ()
+            case _ => success = false
+          }
         }
       }
 
       assertTrue(success) && assertTrue(mailbox.poll() == null)
     },
     test("concurrent multiple producers, single consumer") {
-      val mailbox = new FiberMailbox()
-      val numProducers = 4
+      val mailbox             = new FiberMailbox()
+      val numProducers        = 4
       val messagesPerProducer = 1000
-      val totalMessages = numProducers * messagesPerProducer
+      val totalMessages       = numProducers * messagesPerProducer
 
       // Use raw threads to simulate intense contention outside of ZIO's scheduler
       val latch = new CountDownLatch(1)
-      
+
       val threads = (1 to numProducers).map { _ =>
         new Thread(() => {
           try {
@@ -87,7 +87,7 @@ object FiberMailboxSpec extends ZIOSpecDefault {
 
       // Now drain and count
       var received = 0
-      var msg = mailbox.poll()
+      var msg      = mailbox.poll()
       while (msg != null) {
         received += 1
         msg = mailbox.poll()

@@ -35,15 +35,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   import FiberRuntime._
   import ZIO._
 
-  private var _lastTrace      = fiberId.location
-  private var _fiberRefs      = fiberRefs0
-  private var _runtimeFlags   = runtimeFlags0
-  private var _blockingOn     = FiberRuntime.notBlockingOn
-  private var _asyncContWith  = null.asInstanceOf[AsyncContWith]
-  private val running         = new AtomicBoolean(false)
-  
-  private val inbox           = new FiberMailbox() 
-  
+  private var _lastTrace     = fiberId.location
+  private var _fiberRefs     = fiberRefs0
+  private var _runtimeFlags  = runtimeFlags0
+  private var _blockingOn    = FiberRuntime.notBlockingOn
+  private var _asyncContWith = null.asInstanceOf[AsyncContWith]
+  private val running        = new AtomicBoolean(false)
+
+  private val inbox = new FiberMailbox()
+
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
@@ -444,7 +444,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     val builder = stackTraceBuilderPool.get()
 
     val stack = _stack
-    val size  = _stackSize 
+    val size  = _stackSize
 
     var last = _lastTrace
     builder += last
@@ -455,7 +455,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
         while (i >= 0) {
           val k = stack(i)
-          if (k ne null) { 
+          if (k ne null) {
             val trace = k.trace
             if (trace ne last) {
               last = trace
@@ -468,7 +468,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       val loc = id.location
       if (loc ne last)
-        builder += loc 
+        builder += loc
 
       StackTrace(self.fiberId, builder.result())
     } finally {

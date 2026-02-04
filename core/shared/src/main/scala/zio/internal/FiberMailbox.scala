@@ -20,12 +20,11 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * A specialized mailbox for ZIO Fibers.
- * * Strategy:
- * - 0-1 items: Uses a single AtomicReference (Fast Lane, Zero Allocation).
- * - >1 items: Upgrades to a ConcurrentLinkedQueue (Slow Lane).
- * * This optimizes for the typical ZIO fiber usage pattern (ping-pong effects)
- * where the mailbox rarely contains more than one message.
+ * A specialized mailbox for ZIO Fibers. * Strategy:
+ *   - 0-1 items: Uses a single AtomicReference (Fast Lane, Zero Allocation).
+ *   - >1 items: Upgrades to a ConcurrentLinkedQueue (Slow Lane). * This
+ *     optimizes for the typical ZIO fiber usage pattern (ping-pong effects)
+ *     where the mailbox rarely contains more than one message.
  */
 final class FiberMailbox {
   // state can be:
@@ -36,11 +35,11 @@ final class FiberMailbox {
 
   def offer(message: FiberMessage): Unit = {
     if (message == null) throw new NullPointerException("Cannot offer null")
-    
+
     var continue = true
     while (continue) {
       val current = state.get()
-      
+
       if (current == null) {
         // Case 1: Empty -> Single Item (Fast Path)
         if (state.compareAndSet(null, message)) {
@@ -67,11 +66,11 @@ final class FiberMailbox {
 
   def poll(): FiberMessage = {
     var result: FiberMessage = null
-    var continue = true
-    
+    var continue             = true
+
     while (continue) {
       val current = state.get()
-      
+
       if (current == null) {
         // Case 1: Empty
         continue = false
@@ -85,8 +84,8 @@ final class FiberMailbox {
       } else {
         // Case 3: Queue
         val queue = current.asInstanceOf[ConcurrentLinkedQueue[FiberMessage]]
-        val msg = queue.poll()
-        
+        val msg   = queue.poll()
+
         if (msg != null) {
           result = msg
           continue = false
@@ -94,8 +93,8 @@ final class FiberMailbox {
           // The Queue is empty. We attempt to downgrade back to null to restore 0-alloc mode.
           // Note: If a producer adds to the queue *during* this check, compareAndSet fails safely.
           if (queue.isEmpty) {
-             state.compareAndSet(queue, null)
-             // Loop again to re-read state (it might be null now, or new data arrived)
+            state.compareAndSet(queue, null)
+            // Loop again to re-read state (it might be null now, or new data arrived)
           }
         }
       }
