@@ -17,7 +17,6 @@
 package zio.internal
 
 import zio.test._
-import zio.ZIO
 import java.util.concurrent.CountDownLatch
 
 object FiberMailboxSpec extends ZIOSpecDefault {
@@ -48,7 +47,7 @@ object FiberMailboxSpec extends ZIOSpecDefault {
         val msg = mailbox.poll()
         if (msg == null) success = false
         else {
-          // Verify we got a Resume message (we don't check content strictly now)
+          // Verify order is preserved
           msg match {
             case FiberMessage.Resume(_) =>
               ()
