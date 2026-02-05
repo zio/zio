@@ -88,7 +88,7 @@
   },
   "devDependencies": {
     "@tsconfig/docusaurus": "2.0.8",
-    "@types/react": "19.2.11",
+    "@types/react": "19.2.13",
     "@types/react-helmet": "6.1.11",
     "@types/react-router-dom": "5.3.3",
     "prettier-plugin-tailwindcss": "0.7.2",
