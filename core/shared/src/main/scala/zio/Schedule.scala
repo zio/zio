@@ -520,7 +520,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
       ): ZIO[Env, Nothing, (State, Out, Decision)] =
         self.step(now, in, state).flatMap {
           case continue @ (_, _, _: Continue) => Exit.succeed(continue)
-          case done @ (_, _, _: Done.type)    => finalizer.as(done)
+          case done                           => finalizer.as(done)
         }
     }
 
@@ -713,7 +713,6 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         trace: Trace
       ): ZIO[Env1, Nothing, (State, Out, Decision)] =
         self.step(now, in, state).flatMap {
-          case done @ (state, out, _: Done.type) => Exit.succeed(done)
           case (state, out, Continue(interval)) =>
             val delay = Interval(now, interval.start).size
 
@@ -731,6 +730,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
 
               (state, out, Continue(newInterval))
             }
+          case done => Exit.succeed(done)
         }
     }
 
