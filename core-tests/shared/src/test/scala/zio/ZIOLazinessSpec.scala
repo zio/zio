@@ -1,7 +1,6 @@
 package zio
 
 import zio.test._
-import zio.test.TestAspect.failing
 import zio.metrics.MetricLabel
 import zio.internal.stacktracer.SourceLocation
 import scala.annotation.nowarn
@@ -52,7 +51,7 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
         lazy1("fail")(ZIO.fail),
         lazy1("failCause")(ZIO.failCause),
         lazy1("flatten")(ZIO.flatten(_)),
-        lazy1("forkAllDiscard")(ZIO.forkAllDiscard(_)) @@ failing,
+        lazy1("forkAllDiscard")(ZIO.forkAllDiscard(_)),
         suite("from")(
           lazy1[Either[Cause[Int], String]]("from(Either(Cause))")(e => ZIO.from(e)),
           lazy1[Left[Cause[Int], String]]("from(Left(Cause))")(e => ZIO.from(e)),
@@ -167,19 +166,17 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
         lazy1[ZIO[Any, Nothing, Int]]("whenCaseZIODiscard")(e => ZIO.whenCaseZIODiscard(e) { case _ => ZIO.unit }),
         lazy1("whenZIO")(ZIO.whenZIO(_)),
         lazy1("whenZIODiscard")(ZIO.whenZIODiscard(_)),
-        lazy2[Clock, ZIO[Any, Any, Any]]("withClock")((c, z) => ZIO.withClock(c)(z)) @@ failing,
+        lazy2[Clock, ZIO[Any, Any, Any]]("withClock")((c, z) => ZIO.withClock(c)(z)),
         lazy1[Clock]("withClockScoped")(c => ZIO.withClockScoped(c)),
-        lazy2[ConfigProvider, ZIO[Any, Any, Any]]("withConfigProvider")((c, z) =>
-          ZIO.withConfigProvider(c)(z)
-        ) @@ failing,
-        lazy2[Console, ZIO[Any, Any, Any]]("withConsole")((c, z) => ZIO.withConsole(c)(z)) @@ failing,
+        lazy2[ConfigProvider, ZIO[Any, Any, Any]]("withConfigProvider")((c, z) => ZIO.withConfigProvider(c)(z)),
+        lazy2[Console, ZIO[Any, Any, Any]]("withConsole")((c, z) => ZIO.withConsole(c)(z)),
         lazy1[Console]("withConsoleScoped")(c => ZIO.withConsoleScoped(c)),
-        lazy2[ZLogger[String, Any], ZIO[Any, Any, Any]]("withLogger")((l, z) => ZIO.withLogger(l)(z)) @@ failing,
+        lazy2[ZLogger[String, Any], ZIO[Any, Any, Any]]("withLogger")((l, z) => ZIO.withLogger(l)(z)),
         lazy1[Int]("withParallelism")(n => ZIO.withParallelism(n)(ZIO.unit)),
         lazy1[Int]("withParallelismMask")(n => ZIO.withParallelismMask(n)(_ => ZIO.unit)),
-        lazy2[Random, ZIO[Any, Any, Any]]("withRandom")((r, z) => ZIO.withRandom(r)(z)) @@ failing,
+        lazy2[Random, ZIO[Any, Any, Any]]("withRandom")((r, z) => ZIO.withRandom(r)(z)),
         lazy1[Random]("withRandomScoped")(r => ZIO.withRandomScoped(r)),
-        lazy2[System, ZIO[Any, Any, Any]]("withSystem")((s, z) => ZIO.withSystem(s)(z)) @@ failing,
+        lazy2[System, ZIO[Any, Any, Any]]("withSystem")((s, z) => ZIO.withSystem(s)(z)),
         lazy1[System]("withSystemScoped")(s => ZIO.withSystemScoped(s))
       ),
       suite("ZIO instance methods")(
@@ -213,10 +210,9 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
         lazy1("onExecutor")(ZIO.unit.onExecutor(_)),
         lazy1("onExecutionContext")(ZIO.unit.onExecutionContext(_)),
         lazy1[UIO[Any]]("onInterrupt(effect)")(ZIO.unit.onInterrupt(_)),
-        lazy1[Set[FiberId] => UIO[Any]]("onInterrupt(Set[FiberId] => effect)")(ZIO.unit.onInterrupt(_)) @@ failing,
         lazy1("orElseFail")(ZIO.fail(1).orElseFail(_)),
         lazy1("orElseSucceed")(ZIO.fail(1).orElseSucceed(_)),
-        lazy1("provideEnvironment")(ZIO.environmentWith[Int](identity).provideEnvironment(_)) @@ failing,
+        lazy1("provideEnvironment")(ZIO.environmentWith[Int](identity).provideEnvironment(_)),
         lazy1[ZIO[Any, Int, Nothing]]("race")(that => ZIO.never.race(that)),
         lazy1[ZIO[Any, Int, Nothing]]("raceAwait")(that => ZIO.never.raceAwait(that)),
         lazy1[ZIO[Any, Int, Nothing]]("raceFirst")(that => ZIO.never.raceFirst(that)),
@@ -255,8 +251,8 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
         lazy1[ZIO[Any, Nothing, Int]]("validateWithPar")(that => ZIO.succeed(1).validateWithPar(that)((_, _) => 1)),
         lazy1("when")(ZIO.unit.when(_)),
         lazy1("whenDiscard")(ZIO.unit.whenDiscard(_)),
-        lazy1[FiberRef[Int]]("whenFiberRef")(ref => ZIO.unit.whenFiberRef(ref)(_ => true)) @@ failing,
-        lazy1[Ref[Int]]("whenRef")(ref => ZIO.unit.whenRef(ref)(_ => true)) @@ failing,
+        lazy1[FiberRef[Int]]("whenFiberRef")(ref => ZIO.unit.whenFiberRef(ref)(_ => true)),
+        lazy1[Ref[Int]]("whenRef")(ref => ZIO.unit.whenRef(ref)(_ => true)),
         lazy1[Clock]("withClock")(c => ZIO.unit.withClock(c)),
         lazy1[Console]("withConsole")(c => ZIO.unit.withConsole(c)),
         lazy1[ZLogger[String, Any]]("withLogger")(l => ZIO.unit.withLogger(l)),

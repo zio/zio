@@ -77,6 +77,8 @@ sealed trait Scope extends Serializable { self =>
 
 object Scope {
 
+  implicit val tag: Tag[Scope] = Tag(EnvironmentTag.tagFromTagMacro[Scope])
+
   sealed trait Closeable extends Scope { self =>
 
     /**
@@ -105,7 +107,7 @@ object Scope {
    * Accesses a scope in the environment and adds a finalizer to it.
    */
   def addFinalizer(finalizer: => UIO[Any])(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-    ZIO.serviceWithZIO(_.addFinalizer(finalizer))
+    addFinalizerExit(_ => finalizer)
 
   /**
    * Accesses a scope in the environment and adds a finalizer to it.
@@ -113,7 +115,7 @@ object Scope {
   def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit
     trace: Trace
   ): ZIO[Scope, Nothing, Unit] =
-    ZIO.serviceWithZIO(_.addFinalizerExit(finalizer))
+    ZIO.environmentWithZIO[Scope](_.getScope.addFinalizerExit(finalizer))
 
   /**
    * A layer that constructs a scope and closes it when the workflow the layer
@@ -136,13 +138,13 @@ object Scope {
    */
   val global: Scope.Closeable =
     new Scope.Closeable {
-      def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: Trace): UIO[Unit] =
+      final def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: Trace): UIO[Unit] =
         ZIO.unit
-      def close(exit: => Exit[Any, Any])(implicit trace: Trace): UIO[Unit] =
+      final def close(exit: => Exit[Any, Any])(implicit trace: Trace): UIO[Unit] =
         ZIO.unit
-      def forkWith(executionStrategy: => ExecutionStrategy)(implicit trace: Trace): UIO[Scope.Closeable] =
+      final def forkWith(executionStrategy: => ExecutionStrategy)(implicit trace: Trace): UIO[Scope.Closeable] =
         makeWith(executionStrategy)
-      def size: Int = 0
+      final def size: Int = 0
     }
 
   /**

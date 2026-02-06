@@ -188,7 +188,7 @@ sealed trait ZIO[-R, +E, +A]
    * Maps the success value of this effect to the specified constant value.
    */
   final def as[B](b: => B)(implicit trace: Trace): ZIO[R, E, B] =
-    self.flatMap(_ => Exit.succeed(b))
+    map(_ => b)
 
   /**
    * Maps the success value of this effect to a left value.
@@ -978,8 +978,8 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Returns an effect whose success is mapped by the specified `f` function.
    */
-  final def map[B](f: A => B)(implicit trace: Trace): ZIO[R, E, B] =
-    flatMap(a => Exit.succeed(f(a)))
+  def map[B](f: A => B)(implicit trace: Trace): ZIO[R, E, B] =
+    ZIO.Mapped(trace, self, f)
 
   /**
    * Returns an effect whose success is mapped by the specified side effecting
@@ -1274,7 +1274,7 @@ sealed trait ZIO[-R, +E, +A]
    * its dependency on `R`.
    */
   final def provideEnvironment(r: => ZEnvironment[R])(implicit trace: Trace): IO[E, A] =
-    FiberRef.currentEnvironment.locally(r)(self.asInstanceOf[ZIO[Any, E, A]])
+    FiberRef.currentEnvironment.locallyWith(_ => r)(self.asInstanceOf[ZIO[Any, E, A]])
 
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
@@ -2259,7 +2259,7 @@ sealed trait ZIO[-R, +E, +A]
    * unit.
    */
   final def unit(implicit trace: Trace): ZIO[R, E, Unit] =
-    self.flatMap(ZIO.unitZIOFn)
+    self.map(ZIO.unitFn)
 
   /**
    * Converts a `ZIO[R, Either[E, B], A]` into a `ZIO[R, E, Either[A, B]]`. The
@@ -2425,18 +2425,22 @@ sealed trait ZIO[-R, +E, +A]
    * predicate.
    */
   final def whenFiberRef[S](ref: => FiberRef[S])(f: S => Boolean)(implicit trace: Trace): ZIO[R, E, (S, Option[A])] =
-    ref.getWith { s =>
-      if (f(s)) self.map(a => (s, Some(a)))
-      else Exit.succeed((s, None))
+    ZIO.suspendSucceed {
+      ref.getWith { s =>
+        if (f(s)) self.map(a => (s, Some(a)))
+        else Exit.succeed((s, None))
+      }
     }
 
   /**
    * Executes this workflow when the value of the `Ref` satisfies the predicate.
    */
   final def whenRef[S](ref: => Ref[S])(f: S => Boolean)(implicit trace: Trace): ZIO[R, E, (S, Option[A])] =
-    ref.get.flatMap { s =>
-      if (f(s)) self.map(a => (s, Some(a)))
-      else Exit.succeed((s, None))
+    ZIO.suspendSucceed {
+      ref.get.flatMap { s =>
+        if (f(s)) self.map(a => (s, Some(a)))
+        else Exit.succeed((s, None))
+      }
     }
 
   /**
@@ -2882,7 +2886,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * on the blocking thread pool.
    */
   def blocking[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    FiberRef.currentBlockingExecutor.getWith(zio.onExecutor(_))
+    onExecutorWith(_.getFiberRef(FiberRef.currentBlockingExecutor))(zio)
 
   /**
    * Retrieves the executor for all blocking tasks.
@@ -3428,15 +3432,20 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, E, B]
-  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] =
-    if (in.isEmpty) ZIO.succeed(bf.fromSpecific(in)(Nil))
-    else
-      ZIO.suspendSucceed {
-        val iterator = in.iterator
-        val builder  = bf.newBuilder(in)
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] = {
+    import scala.collection.compat._
+    in.sizeCompare(1) match {
+      case -1 => ZIO.succeed(bf.fromSpecific(in)(Nil))
+      case 0  => ZIO.suspendSucceed(f(in.head).map(b => (bf.newBuilder(in) += b).result()))
+      case _ =>
+        ZIO.suspendSucceed {
+          val iterator = in.iterator
+          val builder  = bf.newBuilder(in)
 
-        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
-      }
+          ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
+        }
+    }
+  }
 
   /**
    * Applies the function `f` to each element of the `Set[A]` and returns the
@@ -3446,14 +3455,18 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * the results, see `foreachDiscard` for a more efficient implementation.
    */
   final def foreach[R, E, A, B](in: Set[A])(f: A => ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, Set[B]] =
-    if (in.isEmpty) ZIO.succeed(Set.empty)
-    else
-      ZIO.suspendSucceed {
-        val iterator = in.iterator
-        val builder  = Set.newBuilder[B]
+    in.size match {
+      case 0 => ZIO.succeed(Set.empty[B])
+      case 1 => ZIO.suspendSucceed(f(in.head).map(Set(_)))
+      case n =>
+        ZIO.suspendSucceed {
+          val iterator = in.iterator
+          val builder  = Set.newBuilder[B]
+          builder.sizeHint(n)
 
-        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
-      }
+          ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
+        }
+    }
 
   /**
    * Applies the function `f` to each element of the `Array[A]` and returns the
@@ -3542,11 +3555,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     as: => Iterable[A]
   )(f: A => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
     ZIO.suspendSucceed {
+      import scala.collection.compat._
       val as0 = as
-      if (as0.isEmpty) Exit.unit
-      else {
-        val iterator = as0.iterator
-        ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(ZIO.unitFn)
+      as0.sizeCompare(1) match {
+        case -1 => Exit.unit
+        case 0  => f(as0.head).unit
+        case _ =>
+          val iterator = as0.iterator
+          ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(ZIO.unitFn)
       }
     }
 
@@ -3692,9 +3708,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * in cases where the results of the forked fibers are not needed.
    */
   def forkAllDiscard[R, E, A](as: => Iterable[ZIO[R, E, A]])(implicit trace: Trace): URIO[R, Fiber[E, Unit]] =
-    ZIO
-      .foreach[R, Nothing, ZIO[R, E, A], Fiber[E, A], Iterable](as)(_.fork)
-      .map(Fiber.collectAllDiscard(_))
+    ZIO.suspendSucceed {
+      ZIO.foreach[R, Nothing, ZIO[R, E, A], Fiber[E, A], Iterable](as)(_.fork)
+    }.map(Fiber.collectAllDiscard(_))
 
   /**
    * Constructs a `ZIO` value of the appropriate type for the specified input.
@@ -4437,16 +4453,34 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * See [[ZIO!.onExecutor]].
    */
   def onExecutor[R, E, A](executor: => Executor)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.descriptorWith { descriptor =>
-      val oldExecutor = descriptor.executor
-      val newExecutor = executor
+    onExecutorWith(_ => executor)(zio)
 
-      if (descriptor.isLocked && oldExecutor == newExecutor)
-        zio
-      else if (descriptor.isLocked)
-        ZIO.acquireReleaseWith(ZIO.shift(newExecutor))(_ => ZIO.shift(oldExecutor))(_ => zio)
-      else
-        ZIO.acquireReleaseWith(ZIO.shift(newExecutor))(_ => ZIO.unshift)(_ => zio)
+  @inline
+  private def onExecutorWith[R, E, A](
+    getExecutor: Fiber.Runtime[?, ?] => Executor
+  )(zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.withFiberRuntime[R, E, A] { (fiber, status) =>
+      val newExecutor     = getExecutor(fiber)
+      val oldOverride     = fiber.getFiberRefOrNull(FiberRef.overrideExecutor)
+      val isEmptyOverride = oldOverride == null || oldOverride.isEmpty
+      val isLocked        = RuntimeFlags.eagerShiftBack(status.runtimeFlags) || !isEmptyOverride
+
+      val oldExecutor =
+        if (isEmptyOverride) Runtime.defaultExecutor
+        else oldOverride.get
+
+      if (isLocked && (oldExecutor eq newExecutor)) zio
+      else {
+        val shift =
+          FiberRef.overrideExecutor.locally(Some(newExecutor)) {
+            // if not already on target executor, we need to yield
+            if (fiber.getRunningExecutor().contains(newExecutor)) zio
+            else ZIO.yieldNow *> zio
+          }
+        if (isLocked)
+          shift <* (if (fiber.getRunningExecutor().contains(oldExecutor)) Exit.unit else ZIO.yieldNow)
+        else shift
+      }
     }
 
   /**
@@ -5249,7 +5283,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def withClock[R, E, A <: Clock, B](clock: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    DefaultServices.currentServices.locallyWith(_.add(clock))(zio)
+    DefaultServices.currentServices.locallyWith(_.add(clock))(ZIO.suspendSucceed(zio))
 
   /**
    * Sets the implementation of the clock service to the specified value and
@@ -5264,7 +5298,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def withConfigProvider[R, E, A <: ConfigProvider, B](configProvider: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    DefaultServices.currentServices.locallyWith(_.add(configProvider))(zio)
+    DefaultServices.currentServices.locallyWith(_.add(configProvider))(ZIO.suspendSucceed(zio))
 
   /**
    * Sets the configuration provider to the specified value and restores it to
@@ -5282,7 +5316,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def withConsole[R, E, A <: Console, B](console: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    DefaultServices.currentServices.locallyWith(_.add(console))(zio)
+    DefaultServices.currentServices.locallyWith(_.add(console))(ZIO.suspendSucceed(zio))
 
   /**
    * Sets the implementation of the console service to the specified value and
@@ -5297,7 +5331,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def withLogger[R, E, A <: ZLogger[String, Any], B](logger: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    FiberRef.currentLoggers.locallyWith(_ + logger)(zio)
+    FiberRef.currentLoggers.locallyWith(_ + logger)(ZIO.suspendSucceed(zio))
 
   /**
    * Adds the specified logger and removes it when the scope is closed.
@@ -5356,7 +5390,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def withRandom[R, E, A <: Random, B](random: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    DefaultServices.currentServices.locallyWith(_.add(random))(zio)
+    DefaultServices.currentServices.locallyWith(_.add(random))(ZIO.suspendSucceed(zio))
 
   /**
    * Sets the implementation of the random service to the specified value and
@@ -5386,7 +5420,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def withSystem[R, E, A <: System, B](system: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    DefaultServices.currentServices.locallyWith(_.add(system))(zio)
+    DefaultServices.currentServices.locallyWith(_.add(system))(ZIO.suspendSucceed(zio))
 
   /**
    * Sets the implementation of the system service to the specified value and
@@ -6126,6 +6160,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   ) extends Continuation
       with ZIO[R, E, A2]
 
+  private[zio] final case class Mapped[R, E, A1, A2](
+    trace: Trace,
+    first: ZIO[R, E, A1],
+    successK: A1 => A2
+  ) extends Continuation
+      with ZIO[R, E, A2]
+
   private[zio] sealed abstract class Continuation {
     def trace: Trace
   }
@@ -6587,6 +6628,9 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
    */
   final def isSuccess: Boolean =
     self.isInstanceOf[Success[?]]
+
+  override final def map[B](f: A => B)(implicit trace: Trace): ZIO[Any, E, B] =
+    mapExit(f)
 
   /**
    * Maps over the value type.

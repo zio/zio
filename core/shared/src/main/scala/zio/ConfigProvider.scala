@@ -193,6 +193,11 @@ trait ConfigProvider {
 object ConfigProvider {
 
   /**
+   * The tag that describes the ConfigProvider service.
+   */
+  implicit val tag: Tag[ConfigProvider] = Tag(EnvironmentTag.tagFromTagMacro[ConfigProvider])
+
+  /**
    * A simplified config provider that knows only how to deal with flat
    * (key/value) properties. Because these providers are common, there is
    * special support for implementing them.
@@ -924,11 +929,6 @@ object ConfigProvider {
    */
   lazy val propsProvider: ConfigProvider =
     fromProps()
-
-  /**
-   * The tag that describes the ConfigProvider service.
-   */
-  lazy val tag: Tag[ConfigProvider] = Tag[ConfigProvider]
 
   private def indicesFrom(indices: Set[String]) =
     ZIO
