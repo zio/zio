@@ -275,7 +275,7 @@ jobs:
       
       - name: Remove failed label
         if: ${{ needs.ci.result == 'success' }}
-        uses: actions-ecosystem/action-remove-labels@v2
+        uses: actions-ecosystem/action-remove-labels@v1
         with:
           labels: ci-failed
       
