@@ -730,7 +730,10 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           actual.length == 5 && actual == expected
         case _ => false
       }
-    )
+    ),
+    test("assertTrueZIO works inside flatMap") {
+      ZIO.succeed(1).flatMap(result => assertTrueZIO(result == 1))
+    }
   )
 
   // The implicit trace will be used by assertTrue to report the

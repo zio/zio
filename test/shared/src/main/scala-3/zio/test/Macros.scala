@@ -31,6 +31,13 @@ object SmartAssertMacros {
   def smartAssert(exprs: Expr[Seq[Boolean]])(using Quotes): Expr[TestResult] =
     SmartAssertMacros.smartAssert_impl(exprs)
 
+  def smartAssertZIO(exprs: Expr[Seq[Boolean]], trace: Expr[Trace])(using
+    Quotes
+  ): Expr[ZIO[Any, Nothing, TestResult]] = {
+    val result = smartAssert_impl(exprs)
+    '{ TestResult.liftTestResultToZIO($result)(using $trace) }
+  }
+
   extension (using Quotes)(typeRepr: quotes.reflect.TypeRepr) {
     def typeTree: quotes.reflect.TypeTree = {
       import quotes.reflect._

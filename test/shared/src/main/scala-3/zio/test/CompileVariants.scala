@@ -45,6 +45,9 @@ trait CompileVariants {
   inline def assertTrue(inline exprs: => Boolean*): TestResult =
     ${ SmartAssertMacros.smartAssert('exprs) }
 
+  inline def assertTrueZIO(inline exprs: => Boolean*)(using trace: Trace): ZIO[Any, Nothing, TestResult] =
+    ${ SmartAssertMacros.smartAssertZIO('exprs, 'trace) }
+
   inline def assert[A](inline value: => A)(
     inline assertion: Assertion[A]
   )(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =

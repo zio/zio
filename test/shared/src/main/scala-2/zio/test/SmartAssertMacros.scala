@@ -256,6 +256,16 @@ $TestResult($ast.withCode($codeString).meta(location = $location))
 """
   }
 
+  def assertOneZIO_impl(expr: Expr[Boolean])(trace: c.Expr[zio.Trace]): c.Tree = {
+    val result = assertOne_impl(expr)
+    q"_root_.zio.test.TestResult.liftTestResultToZIO($result)($trace)"
+  }
+
+  def assertZIO_impl(expr: c.Expr[Boolean], exprs: c.Expr[Boolean]*)(trace: c.Expr[zio.Trace]): c.Tree = {
+    val result = assert_impl(expr, exprs: _*)
+    q"_root_.zio.test.TestResult.liftTestResultToZIO($result)($trace)"
+  }
+
   object UnwrapImplicit {
     def unapply(tree: c.Tree): Option[c.Tree] = tree match {
       case q"$wrapper(...$lhs)" if wrapper.symbol != null && wrapper.symbol.isImplicit =>

@@ -33,9 +33,30 @@ trait CompileVariants {
 
   /**
    * Checks the assertion holds for the given value.
+   *
+   * Note: `assertTrue` returns [[TestResult]], not `ZIO`. If you need to use it
+   * inside `flatMap`, either use a for-comprehension:
+   * {{{
+   * for {
+   *   result <- myEffect
+   * } yield assertTrue(result == expected)
+   * }}}
+   * or use [[assertTrueZIO]] which returns `ZIO[Any, Nothing, TestResult]`.
    */
   def assertTrue(expr: Boolean, exprs: Boolean*): TestResult = macro SmartAssertMacros.assert_impl
   def assertTrue(expr: Boolean): TestResult = macro SmartAssertMacros.assertOne_impl
+
+  /**
+   * Like [[assertTrue]] but returns `ZIO[Any, Nothing, TestResult]`, making it
+   * usable inside `flatMap`:
+   * {{{
+   * myEffect.flatMap(result => assertTrueZIO(result == expected))
+   * }}}
+   */
+  def assertTrueZIO(expr: Boolean)(implicit trace: Trace): ZIO[Any, Nothing, TestResult] =
+    macro SmartAssertMacros.assertOneZIO_impl
+  def assertTrueZIO(expr: Boolean, exprs: Boolean*)(implicit trace: Trace): ZIO[Any, Nothing, TestResult] =
+    macro SmartAssertMacros.assertZIO_impl
 
   /**
    * Checks the assertion holds for the given value.

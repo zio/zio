@@ -32,7 +32,7 @@ test("multiple assertions"){
 
 ## Asserting ZIO effects
 
-The `assertTrue` method can also be used to assert ZIO effects:
+The `assertTrue` method can also be used to assert ZIO effects by placing it in the `yield` of a for-comprehension:
 
 ```scala mdoc:compile-only
 import zio._
@@ -44,6 +44,17 @@ test("updating ref") {
     _ <- r.update(_ + 1)
     v <- r.get
   } yield assertTrue(v == 1)
+}
+```
+
+Note that `assertTrue` returns `TestResult`, not `ZIO`, so it cannot be used directly inside `flatMap`. If you need to use an assertion in the middle of a for-comprehension or inside `flatMap`, use `assertTrueZIO` instead, which returns `ZIO[Any, Nothing, TestResult]`:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+
+test("using assertTrueZIO inside flatMap") {
+  ZIO.succeed(42).flatMap(result => assertTrueZIO(result == 42))
 }
 ```
 
