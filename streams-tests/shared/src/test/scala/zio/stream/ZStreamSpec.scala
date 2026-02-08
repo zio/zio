@@ -616,14 +616,14 @@ object ZStreamSpec extends ZIOBaseSpec {
                          .mapZIO(i => started.update(_ :+ i).as(i))
                          .buffer(1)
               startedAfterFirst <- ZIO.scoped {
-                                    stream.toPull.flatMap { pull =>
-                                      for {
-                                        _ <- pull.map(_.head).catchAll(_ => ZIO.dieMessage("Unexpected end of stream"))
-                                        _ <- TestClock.adjust(50.millis)
-                                        s <- started.get
-                                      } yield s
-                                    }
-                                  }
+                                     stream.toPull.flatMap { pull =>
+                                       for {
+                                         _ <- pull.map(_.head).catchAll(_ => ZIO.dieMessage("Unexpected end of stream"))
+                                         _ <- TestClock.adjust(50.millis)
+                                         s <- started.get
+                                       } yield s
+                                     }
+                                   }
             } yield assert(startedAfterFirst.toList)(equalTo(List(1, 2)))
           } @@ TestAspect.timeout(5.seconds) @@ nonFlaky,
           test("buffer(2) does not run more than two elements ahead") {
@@ -634,14 +634,14 @@ object ZStreamSpec extends ZIOBaseSpec {
                          .mapZIO(i => started.update(_ :+ i).as(i))
                          .buffer(2)
               startedAfterFirst <- ZIO.scoped {
-                                    stream.toPull.flatMap { pull =>
-                                      for {
-                                        _ <- pull.map(_.head).catchAll(_ => ZIO.dieMessage("Unexpected end of stream"))
-                                        _ <- TestClock.adjust(50.millis)
-                                        s <- started.get
-                                      } yield s
-                                    }
-                                  }
+                                     stream.toPull.flatMap { pull =>
+                                       for {
+                                         _ <- pull.map(_.head).catchAll(_ => ZIO.dieMessage("Unexpected end of stream"))
+                                         _ <- TestClock.adjust(50.millis)
+                                         s <- started.get
+                                       } yield s
+                                     }
+                                   }
             } yield assert(startedAfterFirst.toList)(equalTo(List(1, 2, 3)))
           } @@ TestAspect.timeout(5.seconds) @@ nonFlaky
         ),
