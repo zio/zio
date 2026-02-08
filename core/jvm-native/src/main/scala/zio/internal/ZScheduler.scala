@@ -320,7 +320,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
             if (runnable eq null) {
               if (!searching) {
                 val currentState  = state.get
-                val currentActive = currentState & 0xffff
+                val currentActive = (currentState & 0xffff0000) >> 16
                 if (2 * currentActive < poolSize) {
                   state.getAndIncrement()
                   searching = true
