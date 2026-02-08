@@ -390,6 +390,27 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
                 maybeUnparkWorker(currentState)
               }
             }
+            // Spin for a bit before parking to avoid context switch overhead
+            var spins = 0
+            // Configurable spin limit (default 2048)
+            val spinLimit = Integer.getInteger("zio.scheduler.spins", 2048)
+            while (!active && !isInterrupted && spins < spinLimit) {
+               if ((spins & 63) == 0) {
+                 // Periodically check global queue or local queues
+                 if (!globalQueue.isEmpty()) {
+                   // Found work in global queue, become active immediately
+                   active = true
+                 } else {
+                   // Quick check for other workers' queues (random sampling optimization could go here)
+                   // For now, just rely on the existing search logic flow or simple global check
+                 }
+               }
+               if (!active) {
+                 // java.lang.Thread.onSpinWait() - removed for Scala.js compatibility
+                 spins += 1
+               }
+            }
+            
             while (!active && !isInterrupted) {
               LockSupport.park()
             }
