@@ -607,7 +607,43 @@ object ZStreamSpec extends ZIOBaseSpec {
               _  <- latch.await
               l2 <- ref.get
             } yield assert(l1.toList)(equalTo((1 to 2).toList)) && assert(l2.reverse)(equalTo((1 to 4).toList))
-          }
+          },
+          test("buffer(1) does not run more than one element ahead") {
+            for {
+              started <- Ref.make(Chunk.empty[Int])
+              stream = ZStream
+                         .fromIterable(1 to 3)
+                         .mapZIO(i => started.update(_ :+ i).as(i))
+                         .buffer(1)
+              startedAfterFirst <- ZIO.scoped {
+                                    stream.toPull.flatMap { pull =>
+                                      for {
+                                        _ <- pull.map(_.head).catchAll(_ => ZIO.dieMessage("Unexpected end of stream"))
+                                        _ <- TestClock.adjust(50.millis)
+                                        s <- started.get
+                                      } yield s
+                                    }
+                                  }
+            } yield assert(startedAfterFirst.toList)(equalTo(List(1, 2)))
+          } @@ TestAspect.timeout(5.seconds) @@ nonFlaky,
+          test("buffer(2) does not run more than two elements ahead") {
+            for {
+              started <- Ref.make(Chunk.empty[Int])
+              stream = ZStream
+                         .fromIterable(1 to 4)
+                         .mapZIO(i => started.update(_ :+ i).as(i))
+                         .buffer(2)
+              startedAfterFirst <- ZIO.scoped {
+                                    stream.toPull.flatMap { pull =>
+                                      for {
+                                        _ <- pull.map(_.head).catchAll(_ => ZIO.dieMessage("Unexpected end of stream"))
+                                        _ <- TestClock.adjust(50.millis)
+                                        s <- started.get
+                                      } yield s
+                                    }
+                                  }
+            } yield assert(startedAfterFirst.toList)(equalTo(List(1, 2, 3)))
+          } @@ TestAspect.timeout(5.seconds) @@ nonFlaky
         ),
         suite("bufferChunks")(
           test("maintains elements and ordering")(check(tinyChunkOf(tinyChunkOf(Gen.int))) { chunk =>
