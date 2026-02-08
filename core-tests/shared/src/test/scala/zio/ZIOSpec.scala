@@ -282,6 +282,17 @@ object ZIOSpec extends ZIOBaseSpec {
         zio.map(assert(_)(isTrue))
       }
     ),
+    suite("catchAll")(
+      test("does not recover from typed errors when the cause contains defects (issue 9874)") {
+        val t            = new RuntimeException("boom")
+        val dieCause     = Cause.die(t)
+        val combined     = dieCause && Cause.fail("boom")
+        val effect =
+          ZIO.failCause(combined).catchAll(_ => ZIO.succeed("handled")).exit
+
+        effect.map(exit => assert(exit)(dies(equalTo(t))))
+      }
+    ) @@ zioTag(errors),
     suite("catchAllDefect")(
       test("recovers from all defects") {
         val s   = "division by zero"
