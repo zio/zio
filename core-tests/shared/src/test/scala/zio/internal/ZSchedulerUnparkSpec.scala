@@ -88,7 +88,7 @@ object ZSchedulerUnparkSpec extends ZIOSpecDefault {
           _       <- ZIO.sleep(Duration.fromMillis(50))
           promise <- Promise.make[Nothing, Unit]
           _       <- promise.succeed(()).forkDaemon
-          _       <- promise.await.timeout(Duration.fromSeconds(1))
+          _       <- promise.await.timeoutFail(new RuntimeException("timeout"))(Duration.fromSeconds(1))
         } yield assertCompletes
       } @@ withLiveClock,
       test("burst after idle period") {
@@ -100,7 +100,7 @@ object ZSchedulerUnparkSpec extends ZIOSpecDefault {
                        if (n == 0) promise.succeed(()) else ZIO.unit
                      )
           _       <- ZIO.foreachDiscard(1 to 500)(_ => effect.forkDaemon)
-          _       <- promise.await.timeout(Duration.fromSeconds(2))
+          _       <- promise.await.timeoutFail(new RuntimeException("timeout"))(Duration.fromSeconds(2))
           final   <- ref.get
         } yield assertTrue(final == 0)
       } @@ withLiveClock
@@ -117,7 +117,7 @@ object ZSchedulerUnparkSpec extends ZIOSpecDefault {
                        if (n == 0) promise.succeed(()) else ZIO.unit
                      )
           _       <- ZIO.foreachDiscard(1 to 100)(_ => effect.forkDaemon)
-          _       <- promise.await.timeout(Duration.fromSeconds(5))
+          _       <- promise.await.timeoutFail(new RuntimeException("timeout"))(Duration.fromSeconds(5))
         } yield assertCompletes
       } @@ withLiveClock @@ nonFlaky(10),
       test("mixed blocking and non-blocking work") {
@@ -129,7 +129,7 @@ object ZSchedulerUnparkSpec extends ZIOSpecDefault {
                        if (n == 0) promise.succeed(()) else ZIO.unit
                      )
           _       <- ZIO.foreachDiscard(1 to 100)(_ => blocking.forkDaemon)
-          _       <- promise.await.timeout(Duration.fromSeconds(10))
+          _       <- promise.await.timeoutFail(new RuntimeException("timeout"))(Duration.fromSeconds(10))
         } yield assertCompletes
       } @@ withLiveClock @@ TestAspect.exceptNative,
       test("all workers busy scenario") {
@@ -147,7 +147,7 @@ object ZSchedulerUnparkSpec extends ZIOSpecDefault {
           // Stop long-running tasks
           _       <- ZIO.foreachDiscard(refs)(_.set(false))
           // Verify new work completes
-          _       <- promise.await.timeout(Duration.fromSeconds(2))
+          _       <- promise.await.timeoutFail(new RuntimeException("timeout"))(Duration.fromSeconds(2))
         } yield assertCompletes
       } @@ withLiveClock @@ flaky
     ),
@@ -172,7 +172,7 @@ object ZSchedulerUnparkSpec extends ZIOSpecDefault {
         for {
           promise <- Promise.make[Nothing, Unit]
           _       <- iterate(promise, 100).forkDaemon
-          _       <- promise.await.timeout(Duration.fromSeconds(2))
+          _       <- promise.await.timeoutFail(new RuntimeException("timeout"))(Duration.fromSeconds(2))
         } yield assertCompletes
       } @@ withLiveClock,
       test("respects pool size limits") {
@@ -185,7 +185,7 @@ object ZSchedulerUnparkSpec extends ZIOSpecDefault {
                        if (n == 0) promise.succeed(()) else ZIO.unit
                      )
           _       <- ZIO.foreachDiscard(1 to (poolSize * 10))(_ => effect.forkDaemon)
-          _       <- promise.await.timeout(Duration.fromSeconds(3))
+          _       <- promise.await.timeoutFail(new RuntimeException("timeout"))(Duration.fromSeconds(3))
         } yield assertCompletes
       } @@ withLiveClock
     ),
@@ -196,7 +196,7 @@ object ZSchedulerUnparkSpec extends ZIOSpecDefault {
           _       <- ZIO.sleep(Duration.fromMillis(50))
           promise <- Promise.make[Nothing, Unit]
           _       <- promise.succeed(()).forkDaemon
-          _       <- promise.await.timeout(Duration.fromSeconds(1))
+          _       <- promise.await.timeoutFail(new RuntimeException("timeout"))(Duration.fromSeconds(1))
         } yield assertCompletes
       } @@ withLiveClock,
       test("concurrent submits from multiple fibers") {
@@ -210,7 +210,7 @@ object ZSchedulerUnparkSpec extends ZIOSpecDefault {
           _       <- ZIO.foreachParDiscard(1 to 10)(_ =>
                        ZIO.foreachDiscard(1 to 100)(_ => effect.forkDaemon)
                      )
-          _       <- promise.await.timeout(Duration.fromSeconds(3))
+          _       <- promise.await.timeoutFail(new RuntimeException("timeout"))(Duration.fromSeconds(3))
           final   <- ref.get
         } yield assertTrue(final == 0)
       } @@ withLiveClock @@ nonFlaky(5)
