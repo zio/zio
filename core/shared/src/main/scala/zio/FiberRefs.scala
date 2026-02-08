@@ -28,7 +28,8 @@ import scala.runtime.BoxesRunTime
  * example between an asynchronous producer and consumer.
  */
 final class FiberRefs private (
-  private[zio] val fiberRefLocals: Map[FiberRef[_], FiberRefs.Value]
+  private[zio] val fiberRefLocals: Map[FiberRef[_], FiberRefs.Value],
+  private[zio] val forkableRefs: Set[FiberRef[_]]
 ) { self =>
   import FiberRef.currentRuntimeFlags
   import zio.FiberRefs.{StackEntry, Value, eqWithBoxedNumericEquality}
@@ -42,7 +43,10 @@ final class FiberRefs private (
   def delete(fiberRef: FiberRef[_]): FiberRefs = {
     val newMap = fiberRefLocals - fiberRef
     if (newMap eq fiberRefLocals) self
-    else FiberRefs(newMap)
+    else {
+      val newForkable = if (forkableRefs.contains(fiberRef)) forkableRefs - fiberRef else forkableRefs
+      new FiberRefs(newMap, newForkable)
+    }
   }
 
   /**
@@ -103,9 +107,9 @@ final class FiberRefs private (
    * individual fiber refs that make up the collection.
    */
   def forkAs(childId: FiberId.Runtime): FiberRefs =
-    if (needsTransformWhenForked) {
+    if (forkableRefs.nonEmpty) {
       val childMap = fiberRefLocals.transform { (fiberRef, entry) =>
-        if (fiberRef.hasIdentityFork) {
+        if (!forkableRefs.contains(fiberRef)) {
           entry
         } else {
           import entry.{depth, stack}
@@ -130,7 +134,7 @@ final class FiberRefs private (
         }
       }
 
-      if (childMap ne fiberRefLocals) FiberRefs(childMap)
+      if (childMap ne fiberRefLocals) new FiberRefs(childMap, forkableRefs)
       else self
     } else self
 
@@ -241,7 +245,17 @@ final class FiberRefs private (
     }
 
     if (self.fiberRefLocals eq fiberRefLocals0) self
-    else FiberRefs(fiberRefLocals0)
+    else {
+      // Recompute forkableRefs or merge them.
+      // Since we don't have the "patch" of forkable status easily, we can just Union the forkableRefs of both.
+      // Or safer: Filter the new locals. But Union is O(K).
+      val newForkable = self.forkableRefs ++ that.forkableRefs // Approximation, but generally safe as we only add.
+      // Actually, if a ref is removed from locals, it should be removed from forkable.
+      // But map.transform handles structure.
+      // Let's filter the union by the new keys to be precise.
+      val finalForkable = newForkable.filter(fiberRefLocals0.contains)
+      new FiberRefs(fiberRefLocals0, finalForkable)
+    }
   }
 
   @tailrec
@@ -307,7 +321,11 @@ final class FiberRefs private (
       }
 
     if (oldEntry eq newEntry) self
-    else FiberRefs(fiberRefLocals.updated(fiberRef, newEntry))
+    else {
+      // Maintain forkableRefs
+      val newForkable = if (!fiberRef.hasIdentityFork) forkableRefs + fiberRef else forkableRefs
+      new FiberRefs(fiberRefLocals.updated(fiberRef, newEntry), newForkable)
+    }
   }
 
   /**
@@ -357,10 +375,13 @@ object FiberRefs {
    * The empty collection of `FiberRef` values.
    */
   val empty: FiberRefs =
-    FiberRefs(Map.empty)
+    new FiberRefs(Map.empty, Set.empty)
 
-  private[zio] def apply(fiberRefLocals: Map[FiberRef[_], Value]): FiberRefs =
-    new FiberRefs(fiberRefLocals)
+  private[zio] def apply(fiberRefLocals: Map[FiberRef[_], Value]): FiberRefs = {
+    // Reconstruct forkableRefs from map (O(N), but this is rarely called directly in hotpath except reconstruction)
+    val forkable = fiberRefLocals.keySet.filterNot(_.hasIdentityFork)
+    new FiberRefs(fiberRefLocals, forkable)
+  }
 
   /**
    * Similar to `eq`, improved for cases that the type is a boxed integer.
