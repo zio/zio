@@ -27,6 +27,7 @@ import zio.stream.internal.{ZInputStream, ZReader}
 import java.io.{IOException, InputStream}
 import scala.collection.mutable
 import scala.reflect.ClassTag
+import scala.jdk.CollectionConverters._
 import scala.util.control.NoStackTrace
 import scala.collection.AbstractIterator
 
@@ -4384,25 +4385,23 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       val is0        = is
       val chunkSize0 = chunkSize
       ZStream.repeatZIOChunkOption {
-        ZIO.suspendSucceed {
-          val bufArray = Array.ofDim[Byte](chunkSize0)
+        val bufArray = Array.ofDim[Byte](chunkSize0)
 
-          ZIO
-            .attemptBlockingIO(is0.read(bufArray))
-            .foldZIO(
-              failure = e => Exit.fail(Some(e)),
-              success = bytesRead => {
-                if (bytesRead < 0)
-                  Exit.failNone
-                else if (bytesRead == 0)
-                  Exit.emptyChunk
-                else if (bytesRead < chunkSize)
-                  Exit.succeed(Chunk.fromArray(bufArray).take(bytesRead))
-                else
-                  Exit.succeed(Chunk.fromArray(bufArray))
-              }
-            )
-        }
+        ZIO
+          .attemptBlockingIO(is0.read(bufArray))
+          .foldZIO(
+            failure = e => Exit.fail(Some(e)),
+            success = bytesRead => {
+              if (bytesRead < 0)
+                Exit.failNone
+              else if (bytesRead == 0)
+                Exit.emptyChunk
+              else if (bytesRead < chunkSize0)
+                Exit.succeed(Chunk.fromArray(bufArray).take(bytesRead))
+              else
+                Exit.succeed(Chunk.fromArray(bufArray))
+            }
+          )
       }
     }
 
@@ -4473,14 +4472,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
               try {
                 builder.clear()
                 var count = 0
-                while (count < maxChunkSize && it.hasNext) {
+                while (count < maxChunkSize0 && it.hasNext) {
                   builder += it.next()
                   count += 1
                 }
                 if (count > 0) Exit.succeed(builder.result())
-                else throw MarkerException
+                else Exit.failNone
               } catch {
-                case MarkerException  => Exit.failNone
                 case e if nonFatal(e) => Exit.fail(Some(e))
               }
             }
@@ -4588,7 +4586,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     iterator: => java.util.Iterator[A],
     chunkSize: Int
   )(implicit trace: Trace): ZStream[Any, Throwable, A] =
-    fromIterator(new FromJavaIterator(iterator), chunkSize)
+    fromIterator(iterator.asScala, chunkSize)
 
   /**
    * Creates a stream from a scoped iterator
@@ -4622,7 +4620,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     iterator: => java.util.Iterator[A],
     chunkSize: Int
   )(implicit trace: Trace): ZStream[Any, Nothing, A] =
-    fromIteratorSucceed(new FromJavaIterator(iterator), chunkSize)
+    fromIteratorSucceed(iterator.asScala, chunkSize)
 
   /**
    * Creates a stream from a Java iterator that may potentially throw exceptions
@@ -6255,11 +6253,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /* A static Exception thrown to indicate flow control */
   private object MarkerException extends NoStackTrace
-
-  private final class FromJavaIterator[A](it: java.util.Iterator[A]) extends AbstractIterator[A] {
-    def next    = it.next
-    def hasNext = it.hasNext
-  }
 
   private val emptyStream: ZStream[Any, Nothing, Nothing]          = new ZStream(ZChannel.unit)
   private val emptyStreamFn: Any => ZStream[Any, Nothing, Nothing] = (_: Any) => emptyStream
