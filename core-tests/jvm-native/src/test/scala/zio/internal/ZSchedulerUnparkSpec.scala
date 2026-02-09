@@ -5,8 +5,6 @@ import zio.test._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 
-import java.util.concurrent.atomic.AtomicInteger
-
 /**
  * Test suite for issue #9878: ZScheduler unpark batching optimization
  * 
@@ -131,7 +129,7 @@ object ZSchedulerUnparkSpec extends ZIOSpecDefault {
           _       <- ZIO.foreachDiscard(1 to 100)(_ => blocking.forkDaemon)
           _       <- promise.await.timeoutFail(new RuntimeException("timeout"))(Duration.fromSeconds(10))
         } yield assertCompletes
-      } @@ withLiveClock @@ TestAspect.exceptNative,
+      } @@ withLiveClock,
       test("all workers busy scenario") {
         val poolSize = java.lang.Runtime.getRuntime.availableProcessors
         for {

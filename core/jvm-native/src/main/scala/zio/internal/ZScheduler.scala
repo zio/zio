@@ -473,18 +473,19 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     }
     
     // Batching strategy: Only unpark every 8th submit to reduce expensive unpark calls
-    // Trades slight batching delay (<10μs typical) for ~87.5% reduction in unpark ops
-    // Active workers will steal from global queue, maintaining responsiveness
+    // However, bypass batching when few workers are active to avoid latency on sparse submissions
+    // This ensures responsiveness when the scheduler is underutilized
+    val unparkThreshold = if (currentActive < poolSize / 2) 1 else 8
     val submits = submitsSinceLastUnpark.incrementAndGet()
-    val unparkThreshold = 8
     if (submits < unparkThreshold) {
       return
     }
-    submitsSinceLastUnpark.set(0)
     
     // Threshold reached, proceed to unpark a worker
     val worker = idle.poll()
     if (worker ne null) {
+      // Only reset counter when we actually unparked a worker
+      submitsSinceLastUnpark.set(0)
       state.getAndAdd(0x10001)
       worker.active = true
       LockSupport.unpark(worker)
