@@ -127,7 +127,7 @@ class UnparkFrequencyBenchmark {
  * you'd need to revert to original ZScheduler These benchmarks help quantify
  * the improvement
  */
-@State(Scope.Thread)
+@State(JmhScope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @Measurement(iterations = 10, timeUnit = TimeUnit.SECONDS, time = 2)
