@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Benchmarks for issue #9878: ZScheduler parks+unparks workers too frequently
- * 
+ *
  * These benchmarks measure the impact of reducing maybeUnparkWorker frequency
  * through batching and intelligent guards.
  */
@@ -24,18 +24,16 @@ class UnparkFrequencyBenchmark {
   val scheduler: zio.Executor = zio.Executor.makeDefault()
 
   /**
-   * Baseline: Many small tasks submitted rapidly
-   * This triggers maybeUnparkWorker on every submit
-   * Measures throughput with current (fixed) implementation
+   * Baseline: Many small tasks submitted rapidly This triggers
+   * maybeUnparkWorker on every submit Measures throughput with current (fixed)
+   * implementation
    */
   @Benchmark
   def rapidSubmitManySmallTasks(): Int = {
     val io = for {
       promise <- Promise.make[Nothing, Unit]
       ref     <- Ref.make(10000)
-      effect   = ref.updateAndGet(_ - 1).flatMap(n =>
-                   if (n == 0) promise.succeed(()) else ZIO.unit
-                 )
+      effect   = ref.updateAndGet(_ - 1).flatMap(n => if (n == 0) promise.succeed(()) else ZIO.unit)
       _       <- repeat(10000)(effect.forkDaemon)
       _       <- promise.await
     } yield 0
@@ -44,40 +42,36 @@ class UnparkFrequencyBenchmark {
   }
 
   /**
-   * Stress test: Rapid fire submissions with yields
-   * Tests submitAndYield path which also calls maybeUnparkWorker
+   * Stress test: Rapid fire submissions with yields Tests submitAndYield path
+   * which also calls maybeUnparkWorker
    */
   @Benchmark
   def rapidSubmitWithYields(): Int = {
     val io = for {
       promise <- Promise.make[Nothing, Unit]
       ref     <- Ref.make(1000)
-      effect   = repeat(100)(ZIO.yieldNow) *>
-                 ref.updateAndGet(_ - 1).flatMap(n =>
-                   if (n == 0) promise.succeed(()) else ZIO.unit
-                 )
-      _       <- repeat(1000)(effect.forkDaemon)
-      _       <- promise.await
+      effect = repeat(100)(ZIO.yieldNow) *>
+                 ref.updateAndGet(_ - 1).flatMap(n => if (n == 0) promise.succeed(()) else ZIO.unit)
+      _ <- repeat(1000)(effect.forkDaemon)
+      _ <- promise.await
     } yield 0
 
     unsafeRun(io.onExecutor(scheduler))
   }
 
   /**
-   * Burst scenario: Idle scheduler receives burst of work
-   * Tests cold start and threshold behavior
+   * Burst scenario: Idle scheduler receives burst of work Tests cold start and
+   * threshold behavior
    */
   @Benchmark
   def burstAfterIdle(): Int = {
     val io = for {
       // Let workers park
-      _       <- ZIO.sleep(Duration.fromMillis(10))
+      _ <- ZIO.sleep(Duration.fromMillis(10))
       // Burst of work
       promise <- Promise.make[Nothing, Unit]
       ref     <- Ref.make(1000)
-      effect   = ref.updateAndGet(_ - 1).flatMap(n =>
-                   if (n == 0) promise.succeed(()) else ZIO.unit
-                 )
+      effect   = ref.updateAndGet(_ - 1).flatMap(n => if (n == 0) promise.succeed(()) else ZIO.unit)
       _       <- repeat(1000)(effect.forkDaemon)
       _       <- promise.await
     } yield 0
@@ -86,8 +80,8 @@ class UnparkFrequencyBenchmark {
   }
 
   /**
-   * Mixed workload: Some workers busy, new work arriving
-   * Tests threshold logic with partial worker utilization
+   * Mixed workload: Some workers busy, new work arriving Tests threshold logic
+   * with partial worker utilization
    */
   @Benchmark
   def mixedWorkload(): Int = {
@@ -95,21 +89,19 @@ class UnparkFrequencyBenchmark {
       promise <- Promise.make[Nothing, Unit]
       ref     <- Ref.make(5000)
       // Some long-running tasks to keep workers busy
-      _       <- repeat(poolSize / 2)(ZIO.sleep(Duration.fromMillis(5)).forkDaemon)
+      _ <- repeat(poolSize / 2)(ZIO.sleep(Duration.fromMillis(5)).forkDaemon)
       // New work arriving
-      effect   = ref.updateAndGet(_ - 1).flatMap(n =>
-                   if (n == 0) promise.succeed(()) else ZIO.unit
-                 )
-      _       <- repeat(5000)(effect.forkDaemon)
-      _       <- promise.await
+      effect = ref.updateAndGet(_ - 1).flatMap(n => if (n == 0) promise.succeed(()) else ZIO.unit)
+      _     <- repeat(5000)(effect.forkDaemon)
+      _     <- promise.await
     } yield 0
 
     unsafeRun(io.onExecutor(scheduler))
   }
 
   /**
-   * Ping-pong: Heavy contention scenario
-   * Stress tests the scheduler with high park/unpark potential
+   * Ping-pong: Heavy contention scenario Stress tests the scheduler with high
+   * park/unpark potential
    */
   @Benchmark
   def pingPongContention(): Int = {
@@ -117,13 +109,11 @@ class UnparkFrequencyBenchmark {
       promise <- Promise.make[Nothing, Unit]
       ref     <- Ref.make(500)
       queue   <- Queue.bounded[Unit](1)
-      effect   = queue.offer(()).forkDaemon *>
+      effect = queue.offer(()).forkDaemon *>
                  queue.take *>
-                 ref.updateAndGet(_ - 1).flatMap(n =>
-                   if (n == 0) promise.succeed(()) else ZIO.unit
-                 )
-      _       <- repeat(500)(effect.forkDaemon)
-      _       <- promise.await
+                 ref.updateAndGet(_ - 1).flatMap(n => if (n == 0) promise.succeed(()) else ZIO.unit)
+      _ <- repeat(500)(effect.forkDaemon)
+      _ <- promise.await
     } yield 0
 
     unsafeRun(io.onExecutor(scheduler))
@@ -133,9 +123,9 @@ class UnparkFrequencyBenchmark {
 }
 
 /**
- * Comparison benchmarks: Before and after fix
- * Note: To run "before" benchmarks, you'd need to revert to original ZScheduler
- * These benchmarks help quantify the improvement
+ * Comparison benchmarks: Before and after fix Note: To run "before" benchmarks,
+ * you'd need to revert to original ZScheduler These benchmarks help quantify
+ * the improvement
  */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
@@ -148,8 +138,8 @@ class UnparkLatencyBenchmark {
   val scheduler: zio.Executor = zio.Executor.makeDefault()
 
   /**
-   * Measures latency of a single submit operation
-   * Lower = better (less overhead from unpark logic)
+   * Measures latency of a single submit operation Lower = better (less overhead
+   * from unpark logic)
    */
   @Benchmark
   def singleSubmitLatency(bh: Blackhole): Unit = {
@@ -163,14 +153,14 @@ class UnparkLatencyBenchmark {
   }
 
   /**
-   * Measures P99 latency under load
-   * Ensures batching doesn't cause latency spikes
+   * Measures P99 latency under load Ensures batching doesn't cause latency
+   * spikes
    */
   @Benchmark
   def submitUnderLoadLatency(bh: Blackhole): Unit = {
     val io = for {
       // Create background load
-      _       <- repeat(100)(ZIO.unit.forkDaemon)
+      _ <- repeat(100)(ZIO.unit.forkDaemon)
       // Measure latency of single task
       promise <- Promise.make[Nothing, Unit]
       start   <- Clock.nanoTime
