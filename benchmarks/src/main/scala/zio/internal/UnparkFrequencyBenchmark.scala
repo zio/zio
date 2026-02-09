@@ -1,6 +1,6 @@
 package zio.internal
 
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.{Scope => JmhScope, _}
 import org.openjdk.jmh.infra.Blackhole
 import zio._
 import zio.BenchmarkUtil._
@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
  * These benchmarks measure the impact of reducing maybeUnparkWorker frequency
  * through batching and intelligent guards.
  */
-@State(Scope.Thread)
+@State(JmhScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 @Measurement(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 3)

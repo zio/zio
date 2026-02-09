@@ -2,7 +2,6 @@ package zio.internal
 
 import zio._
 import zio.test._
-import zio.test.Assertion._
 import zio.test.TestAspect._
 
 /**
@@ -125,8 +124,11 @@ object ZSchedulerUnparkSpec extends ZIOSpecDefault {
         for {
           // Start poolSize long-running tasks
           refs <- ZIO.foreach(1 to poolSize)(_ => Ref.make(true))
-          _    <- ZIO.foreachDiscard(refs)(ref => ZIO.whileLoop(ref.get)(ZIO.yieldNow)(ref.get).forkDaemon)
-          _    <- ZIO.sleep(Duration.fromMillis(10))
+          // Keep workers busy by repeatedly yielding while ref is true
+          busyLoop = (ref: Ref[Boolean]) =>
+                       ref.get.flatMap(continue => if (continue) ZIO.yieldNow *> busyLoop(ref) else ZIO.unit)
+          _ <- ZIO.foreachDiscard(refs)(ref => busyLoop(ref).forkDaemon)
+          _ <- ZIO.sleep(Duration.fromMillis(10))
           // Submit new work while all busy
           promise <- Promise.make[Nothing, Unit]
           _       <- promise.succeed(()).forkDaemon
