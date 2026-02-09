@@ -121,12 +121,12 @@ object ZSchedulerUnparkSpec extends ZIOSpecDefault {
       } @@ withLiveClock,
       test("all workers busy scenario") {
         val poolSize = java.lang.Runtime.getRuntime.availableProcessors
+        def busyLoop(ref: Ref[Boolean]): UIO[Unit] =
+          ref.get.flatMap(continue => if (continue) ZIO.yieldNow *> busyLoop(ref) else ZIO.unit)
         for {
           // Start poolSize long-running tasks
           refs <- ZIO.foreach(1 to poolSize)(_ => Ref.make(true))
           // Keep workers busy by repeatedly yielding while ref is true
-          busyLoop = (ref: Ref[Boolean]) =>
-                       ref.get.flatMap(continue => if (continue) ZIO.yieldNow *> busyLoop(ref) else ZIO.unit)
           _ <- ZIO.foreachDiscard(refs)(ref => busyLoop(ref).forkDaemon)
           _ <- ZIO.sleep(Duration.fromMillis(10))
           // Submit new work while all busy
