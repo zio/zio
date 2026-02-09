@@ -157,7 +157,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         handleFullWorkerQueue(worker, runnable)
       } else ()
       val currentState = state.get
-      maybeUnparkWorker(currentState)
+      maybeUnparkWorker(currentState, fromSubmit = true)
       true
     }
   }
@@ -192,7 +192,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
       if (notify) {
         val currentState = state.get
-        maybeUnparkWorker(currentState)
+        maybeUnparkWorker(currentState, fromSubmit = true)
       }
       true
     }
@@ -447,7 +447,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       }
     }
 
-  private def maybeUnparkWorker(currentState: Int): Unit = {
+  private def maybeUnparkWorker(currentState: Int, fromSubmit: Boolean = false): Unit = {
     val currentSearching = currentState & 0xffff
     val currentActive    = (currentState & 0xffff0000) >> 16
 
@@ -475,10 +475,16 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     // Batching strategy: Only unpark every 8th submit to reduce expensive unpark calls
     // However, bypass batching when few workers are active to avoid latency on sparse submissions
     // This ensures responsiveness when the scheduler is underutilized
-    val unparkThreshold = if (currentActive < poolSize / 2) 1 else 8
-    val submits         = submitsSinceLastUnpark.incrementAndGet()
-    if (submits < unparkThreshold) {
-      return
+    // Only apply batching for actual submits (not internal scheduler state changes)
+    if (fromSubmit) {
+      val unparkThreshold = if (currentActive * 2 < poolSize) 1 else 8
+      val submits         = submitsSinceLastUnpark.incrementAndGet()
+      // Protect against integer overflow
+      if (submits <= 0) {
+        submitsSinceLastUnpark.set(0)
+      } else if (submits < unparkThreshold) {
+        return
+      }
     }
 
     // Threshold reached, proceed to unpark a worker

@@ -43,9 +43,11 @@ object ZSchedulerUnparkSpec extends ZIOSpecDefault {
       test("batching doesn't cause task loss") {
         // Submit exactly 8 tasks (batch threshold) and verify all execute
         for {
+          promise <- Promise.make[Nothing, Unit]
           counter <- Ref.make(0)
-          _       <- ZIO.foreachDiscard(1 to 8)(_ => counter.update(_ + 1).forkDaemon)
-          _       <- ZIO.sleep(Duration.fromMillis(100))
+          effect   = counter.updateAndGet(_ + 1).flatMap(n => if (n == 8) promise.succeed(()) else ZIO.unit)
+          _       <- ZIO.foreachDiscard(1 to 8)(_ => effect.forkDaemon)
+          _       <- promise.await.timeoutFail(new RuntimeException("timeout"))(Duration.fromSeconds(1))
           result  <- counter.get
         } yield assertTrue(result == 8)
       },
@@ -139,10 +141,12 @@ object ZSchedulerUnparkSpec extends ZIOSpecDefault {
       test("work stealing still functions") {
         // Verify workers steal from global queue even with batching
         for {
+          promise <- Promise.make[Nothing, Unit]
           counter <- Ref.make(0)
           tasks    = 100
-          _       <- ZIO.foreachDiscard(1 to tasks)(_ => counter.update(_ + 1).forkDaemon)
-          _       <- ZIO.sleep(Duration.fromMillis(200))
+          effect   = counter.updateAndGet(_ + 1).flatMap(n => if (n == tasks) promise.succeed(()) else ZIO.unit)
+          _       <- ZIO.foreachDiscard(1 to tasks)(_ => effect.forkDaemon)
+          _       <- promise.await.timeoutFail(new RuntimeException("timeout"))(Duration.fromSeconds(2))
           result  <- counter.get
         } yield assertTrue(result == tasks)
       } @@ withLiveClock,
