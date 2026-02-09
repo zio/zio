@@ -37,7 +37,7 @@ jobs:
     - name: Setup sbt
       uses: sbt/setup-sbt@v1
     - name: Cache scala dependencies
-      uses: coursier/cache-action@v7
+      uses: coursier/cache-action@v8
     - name: Lint code
       run: sbt "++2.13; check; ++3.3; check"
 
@@ -65,7 +65,7 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
       - name: Cache scala dependencies
-        uses: coursier/cache-action@v7
+        uses: coursier/cache-action@v8
       - name: publishLocal 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
         run: sbt --client -v "++${{ matrix.scala }}; root212/Test/compile; root212/publishLocal"
@@ -147,7 +147,7 @@ jobs:
     - name: Setup sbt
       uses: sbt/setup-sbt@v1
     - name: Cache scala dependencies
-      uses: coursier/cache-action@v7
+      uses: coursier/cache-action@v8
     - name: Run tests
       run: sbt -v ++${{ matrix.scala }} test${{ matrix.platform }}
     - name: Upload Test Results 2.12
@@ -208,7 +208,7 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
       - name: Cache scala dependencies
-        uses: coursier/cache-action@v7
+        uses: coursier/cache-action@v8
       - name: Test on different JVM versions
         run: sbt -v testJVM
       - name: Report Test Death JVM 11
@@ -243,7 +243,7 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
       - name: Cache scala dependencies
-        uses: coursier/cache-action@v7
+        uses: coursier/cache-action@v8
       - name: Set Swap Space
         uses: pierotofy/set-swap-space@master
         with:
