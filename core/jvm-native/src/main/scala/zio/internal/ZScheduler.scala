@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -447,7 +447,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   private def maybeUnparkWorker(currentState: Int): Unit = {
     val currentSearching = currentState & 0xffff
     val currentActive    = (currentState & 0xffff0000) >> 16
-    if (currentActive != poolSize && currentSearching == 0) {
+
+    if (currentActive < poolSize && currentSearching == 0 && !globalQueue.isEmpty()) {
       val worker = idle.poll()
       if (worker ne null) {
         state.getAndAdd(0x10001)
