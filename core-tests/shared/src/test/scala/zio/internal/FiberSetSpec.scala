@@ -59,7 +59,7 @@ object FiberSetSpec extends ZIOSpecDefault {
       // Concurrent adding
       val task = for {
         fibers <- ZIO.collectAll(List.fill(N)(ZIO.succeed(new Object)))
-        _      <- ZIO.foreachPar(fibers) { f =>
+        _ <- ZIO.foreachPar(fibers) { f =>
                ZIO.succeed(set.add(f))
              }
       } yield fibers
