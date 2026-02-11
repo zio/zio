@@ -13,7 +13,7 @@ object FiberSetBattleSpec extends ZIOSpecDefault {
       val fiberSet = FiberSet.make[AnyRef]()
 
       // We will spawn N fibers, each doing Random Add/Remove ops
-      val scenario = ZIO.foreachPar(0 until N_FIBERS) { id =>
+      val scenario = ZIO.foreachParDiscard(0 until N_FIBERS) { id =>
         ZIO.succeed {
           val myObj = new Object
           // Add

@@ -1,6 +1,6 @@
 package zio.internal
 
-import zio._
+
 import zio.test._
 import scala.jdk.CollectionConverters._
 import zio.test.TestAspect

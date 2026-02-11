@@ -54,7 +54,7 @@ object FiberSetSpec extends ZIOSpecDefault {
     test("handles high contention concurrently") {
       val set = FiberSet.make[AnyRef]()
       val N   = 10000
-      val T   = 10
+
 
       // Concurrent adding
       val task = for {
