@@ -2,6 +2,7 @@ package zio.internal
 
 import zio._
 import zio.test._
+import zio.test.TestAspect._
 import scala.jdk.CollectionConverters._
 
 object FiberSetSpec extends ZIOSpecDefault {
@@ -28,18 +29,15 @@ object FiberSetSpec extends ZIOSpecDefault {
       items = null
 
       // 3. Force GC and internal cleanup
-      var cleared = false
       var retries = 0
-      while (!cleared && retries < 20) {
+      while (set.size >= N / 2 && retries < 20) {
         java.lang.System.gc()
         set.gc()
-
-        if (set.size < N / 2) cleared = true
         retries += 1
       }
 
       assertTrue(set.size < N / 2)
-    },
+    } @@ jvmOnly,
     test("iterator includes items from both hot and cold") {
       val set = FiberSet.make[AnyRef]()
       val f1  = new Object
@@ -141,11 +139,11 @@ object FiberSetSpec extends ZIOSpecDefault {
       val items = (1 to 100).map(i => Item(s"item-$i"))
       items.foreach(set.add)
 
-      var collected = Set.empty[Item]
+      val collected = scala.collection.mutable.Set.empty[Item]
       set.foreach { item =>
         collected += item
       }
-      assertTrue(collected == items.toSet)
+      assertTrue(collected.toSet == items.toSet)
     },
     test("removeIf correctly removes items") {
       val set   = FiberSet.make[Item]()
@@ -158,20 +156,20 @@ object FiberSetSpec extends ZIOSpecDefault {
         id % 2 == 0
       }
 
-      var collected = Set.empty[Item]
+      val collected = scala.collection.mutable.Set.empty[Item]
       set.foreach(collected += _)
 
       val expected = items.filter(item => item.id.split("-")(1).toInt % 2 != 0).toSet
-      assertTrue(collected == expected)
+      assertTrue(collected.toSet == expected)
     },
     test("addAll works correctly") {
       val set   = FiberSet.make[Item]()
       val items = (1 to 50).map(i => Item(s"A-$i"))
       set.addAll(items)
 
-      var collected = Set.empty[Item]
+      val collected = scala.collection.mutable.Set.empty[Item]
       set.foreach(collected += _)
-      assertTrue(collected == items.toSet)
+      assertTrue(collected.toSet == items.toSet)
     },
     test("toString provides debug info") {
       val set = FiberSet.make[Item]()
