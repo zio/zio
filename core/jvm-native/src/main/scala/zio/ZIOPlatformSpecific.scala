@@ -26,6 +26,7 @@ import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
+import scala.runtime.BoxedUnit
 
 private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
   def toCompletableFuture[A1 >: A](implicit
@@ -63,68 +64,58 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
    * `attemptBlockingCancelable`.
    */
   def attemptBlockingInterrupt[A](effect: => A)(implicit trace: Trace): Task[A] =
-    ZIO.suspendSucceed {
+    ZIO.uninterruptibleMask { restore =>
+      val begin = OneShot.make[Thread]
+      val end   = OneShot.make[Object]
 
-      val lock   = new ReentrantLock()
-      val thread = new AtomicReference[Option[Thread]](None)
-      val begin  = OneShot.make[Unit]
-      val end    = OneShot.make[Unit]
-
-      def withMutex[B](b: => B): B =
-        try {
-          lock.lock(); b
-        } finally lock.unlock()
-
-      val interruptThread: UIO[Unit] =
-        ZIO.succeed {
-          begin.get()
-
-          var looping = true
+      /**
+       * Interrupts the thread running the blocking effect using thread
+       * interruption.
+       *
+       * This effect is run in the blocking threadpool because begin.get() and
+       * end.tryGet() hard-block the thread.
+       */
+      def interruptThread(): UIO[Unit] =
+        ZIO.succeedBlocking {
+          val thread  = begin.get()
+          var looping = !end.isSet
           var n       = 0L
-          val base    = 2L
+
           while (looping) {
-            withMutex(thread.get match {
-              case None         => looping = false; ()
-              case Some(thread) => thread.interrupt()
-            })
-
-            if (looping) {
-              n += 1
-              Thread.sleep(math.min(50, base * n))
+            end.lock()
+            try {
+              // `end` cannot be set while we're here, so we can safely interrupt
+              if (!end.isSet) thread.interrupt()
+            } finally {
+              end.unlock()
             }
-          }
 
-          end.get()
+            n += 1
+            looping = end.tryGet(math.min(50, 2L * n)) eq null
+          }
         }
 
-      ZIO.blocking(
-        ZIO.uninterruptibleMask(restore =>
-          for {
-            fiber <- ZIO.suspend {
-                       val current = Some(Thread.currentThread)
+      for {
+        fiber <- ZIO.blocking {
+                   begin.set(Thread.currentThread)
 
-                       withMutex(thread.set(current))
-
-                       begin.set(())
-
-                       try {
-                         val a = effect
-
-                         ZIO.succeed(a)
-                       } catch {
-                         case _: InterruptedException =>
-                           Thread.interrupted // Clear interrupt status
-                           ZIO.interrupt
-                         case t: Throwable =>
-                           ZIO.fail(t)
-                       } finally {
-                         withMutex { thread.set(None); end.set(()) }
-                       }
-                     }.forkDaemon
-            a <- restore(fiber.join).ensuring(interruptThread)
-          } yield a
-        )
-      )
+                   try {
+                     Exit.succeed(effect)
+                   } catch {
+                     case _: InterruptedException =>
+                       ZIO.interrupt
+                     case t if nonFatal(t) =>
+                       ZIO.fail(t)
+                   } finally {
+                     end.set(BoxedUnit.UNIT)
+                     Thread.interrupted() // Clear interrupt status
+                   }
+                 }.forkDaemon
+        a <- restore(fiber.await).exitWith {
+               case Exit.Success(exit)       => exit
+               case f: Exit.Failure[Nothing] => interruptThread() *> f
+             }
+      } yield a
     }
 
   def readFile(path: => Path)(implicit trace: Trace, d: DummyImplicit): ZIO[Any, IOException, String] =

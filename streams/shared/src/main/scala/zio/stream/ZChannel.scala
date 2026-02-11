@@ -484,7 +484,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ev: OutDone <:< ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2],
     trace: Trace
   ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2] =
-    self.flatMap(ev)
+    ZChannel.Fold(
+      self,
+      ZChannel.Fold.foldKIdentity[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone, OutDone2]
+    )
 
   /**
    * Folds over the result of this channel
@@ -1295,7 +1298,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * value when succeeds
    */
   final def unit(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Unit] =
-    self.as(())
+    self.flatMap(ZChannel.unitChannelFn)
 
   /**
    * Updates a service in the environment of this channel.
@@ -1667,6 +1670,16 @@ object ZChannel {
       trace: Trace
     ): Cause[E] => ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
       FailCauseIdentity.asInstanceOf[Cause[E] => ZChannel[Any, Any, Any, Any, E, Nothing, Nothing]]
+
+    private[this] val FoldKIdentity =
+      new Fold.K[Any, Any, Any, Any, Any, Any, Any, Any, Any](
+        v => v.asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]],
+        FailCauseIdentity
+      )
+
+    private[stream] def foldKIdentity[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone, OutDone2]
+      : Fold.K[Env1, InErr1, InElem1, InDone1, OutErr1, OutErr1, OutElem1, OutDone, OutDone2] =
+      FoldKIdentity.asInstanceOf[Fold.K[Env1, InErr1, InElem1, InDone1, OutErr1, OutErr1, OutElem1, OutDone, OutDone2]]
   }
 
   private[zio] final case class Bridge[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone](

@@ -240,8 +240,8 @@ Copyright 2017 - 2024 John A. De Goes and the ZIO Contributors. All rights reser
 [Badge-Codecov]: https://codecov.io/gh/zio/zio/coverage.svg?branch=master "Codecov"
 [Badge-IsItMaintained]: http://isitmaintained.com/badge/resolution/zio/zio.svg "Average time to resolve an issue"
 [Badge-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio/latest.svg "Scaladex"
-[Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio_3.svg "Sonatype Releases"
-[Badge-SonatypeSnapshots]: https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio_3.svg "Sonatype Snapshots"
+[Badge-SonatypeReleases]: https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Frepo1.maven.org%2Fmaven2%2Fdev%2Fzio%2Fzio_3%2Fmaven-metadata.xml "Sonatype Releases"
+[Badge-SonatypeSnapshots]: https://shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio_3%2Fmaven-metadata.xml "Sonatype Snapshots"
 [Badge-Discord]: https://img.shields.io/discord/629491597070827530?logo=discord "chat on discord"
 [Badge-Twitter]: https://img.shields.io/twitter/follow/zioscala.svg?style=plastic&label=follow&logo=twitter
 [Badge-Stage]: https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg
