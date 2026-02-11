@@ -5,6 +5,8 @@ import zio.test._
 import scala.jdk.CollectionConverters._
 
 object FiberSetSpec extends ZIOSpecDefault {
+  // Wrapper for tests requiring object references (JS/Native WeakRef compatibility)
+  case class Item(id: String)
 
   def spec = suite("FiberSetSpec")(
     test("allows GC of items") {
@@ -135,45 +137,45 @@ object FiberSetSpec extends ZIOSpecDefault {
       assertTrue(set.size == 0) && !assertTrue(set.iterator.hasNext)
     },
     test("foreach iterates all items without allocation") {
-      val set   = FiberSet.make[String]()
-      val items = (1 to 100).map(i => s"item-$i")
+      val set   = FiberSet.make[Item]()
+      val items = (1 to 100).map(i => Item(s"item-$i"))
       items.foreach(set.add)
 
-      var collected = Set.empty[String]
+      var collected = Set.empty[Item]
       set.foreach { item =>
         collected += item
       }
       assertTrue(collected == items.toSet)
     },
     test("removeIf correctly removes items") {
-      val set   = FiberSet.make[String]()
-      val items = (1 to 100).map(i => s"item-$i")
+      val set   = FiberSet.make[Item]()
+      val items = (1 to 100).map(i => Item(s"item-$i"))
       items.foreach(set.add)
 
       // Remove even numbered items
-      set.removeIf { s =>
-        val id = s.split("-")(1).toInt
+      set.removeIf { item =>
+        val id = item.id.split("-")(1).toInt
         id % 2 == 0
       }
 
-      var collected = Set.empty[String]
+      var collected = Set.empty[Item]
       set.foreach(collected += _)
 
-      val expected = items.filter(s => s.split("-")(1).toInt % 2 != 0).toSet
+      val expected = items.filter(item => item.id.split("-")(1).toInt % 2 != 0).toSet
       assertTrue(collected == expected)
     },
     test("addAll works correctly") {
-      val set   = FiberSet.make[String]()
-      val items = (1 to 50).map(i => s"A-$i")
+      val set   = FiberSet.make[Item]()
+      val items = (1 to 50).map(i => Item(s"A-$i"))
       set.addAll(items)
 
-      var collected = Set.empty[String]
+      var collected = Set.empty[Item]
       set.foreach(collected += _)
       assertTrue(collected == items.toSet)
     },
     test("toString provides debug info") {
-      val set = FiberSet.make[String]()
-      set.add("A")
+      val set = FiberSet.make[Item]()
+      set.add(Item("A"))
       val str = set.toString
       assertTrue(str.startsWith("FiberSet(hotSize="))
     }
