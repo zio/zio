@@ -28,10 +28,8 @@ object FiberSetSpec extends ZIOSpecDefault {
       // 3. Force GC and internal cleanup
       var cleared = false
       var retries = 0
-      while (!cleared && retries < 10) {
+      while (!cleared && retries < 20) {
         java.lang.System.gc()
-        Thread.sleep(200)
-        // trigger internal GC
         set.gc()
 
         if (set.size < N / 2) cleared = true
@@ -54,7 +52,6 @@ object FiberSetSpec extends ZIOSpecDefault {
     test("handles high contention concurrently") {
       val set = FiberSet.make[AnyRef]()
       val N   = 10000
-
 
       // Concurrent adding
       val task = for {

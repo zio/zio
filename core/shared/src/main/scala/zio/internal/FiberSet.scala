@@ -30,12 +30,11 @@ import java.lang.ref.{ReferenceQueue, WeakReference}
  *      - This path is zero-allocation in the steady state (when finding an
  *        empty slot).
  *      - Uses bitwise masking for probing indices (capacity must be power of
- *        2).
- *      2. **Cold**: A `ConcurrentHashMap` of `WeakReference`s.
+ *        2). 2. **Cold**: A `ConcurrentHashMap` of `WeakReference`s.
  *      - When the Hot buffer is full or upon eviction, fibers are moved here.
  *      - Uses `WeakReference` to allow GC of substantial number of idle fibers.
- *      3. **GC**: Uses a `ReferenceQueue` to clean up dead fibers from the Cold
- *      map.
+ *        3. **GC**: Uses a `ReferenceQueue` to clean up dead fibers from the
+ *        Cold map.
  *
  * This structure is designed to be "Loom-friendly" by avoiding `synchronized`
  * blocks and minimizing contention.
