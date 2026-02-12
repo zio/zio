@@ -242,4 +242,11 @@ object Clock extends ClockPlatformSpecific with ClockSyntaxPlatformSpecific with
   def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
     ZIO.clockWith(_.sleep(duration))
 
+  /**
+   * Get the ZoneId for current clock
+   */
+  def zoneId(implicit trace: Trace): UIO[ZoneId] =
+    ZIO.clockWith(_.javaClock.map(_.getZone))
+
+
 }
