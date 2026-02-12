@@ -94,7 +94,7 @@ trait TestClock extends Clock with Restorable {
   def setTime(instant: Instant)(implicit trace: Trace): UIO[Unit]
   def setTimeZone(zone: ZoneId)(implicit trace: Trace): UIO[Unit]
   def sleeps(implicit trace: Trace): UIO[List[Instant]]
-  def timeZone(implicit trace: Trace): UIO[ZoneId]
+  final def timeZone(implicit trace: Trace): UIO[ZoneId] = zoneId
 }
 
 object TestClock extends Serializable {
@@ -233,7 +233,7 @@ object TestClock extends Serializable {
     /**
      * Returns the time zone.
      */
-    def timeZone(implicit trace: Trace): UIO[ZoneId] =
+    def zoneId(implicit trace: Trace): UIO[ZoneId] =
       clockState.get.map(_.timeZone)
 
     override def unsafe: UnsafeAPI =
@@ -259,6 +259,9 @@ object TestClock extends Serializable {
 
         override def nanoTime()(implicit unsafe: Unsafe): Long =
           currentTime(ChronoUnit.NANOS)
+
+        override def zoneId()(implicit unsafe: Unsafe): ZoneId =
+          clockState.unsafe.get.timeZone
       }
 
     /**

@@ -43,6 +43,8 @@ trait Clock extends Serializable { self =>
 
   def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit]
 
+  def zoneId(implicit trace: Trace): UIO[ZoneId]
+
   trait UnsafeAPI extends Serializable {
     def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long
     def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long
@@ -50,6 +52,7 @@ trait Clock extends Serializable { self =>
     def instant()(implicit unsafe: Unsafe): Instant
     def localDateTime()(implicit unsafe: Unsafe): LocalDateTime
     def nanoTime()(implicit unsafe: Unsafe): Long
+    def zoneId()(implicit unsafe: Unsafe): ZoneId
   }
 
   def unsafe: UnsafeAPI =
@@ -73,6 +76,9 @@ trait Clock extends Serializable { self =>
 
       def nanoTime()(implicit unsafe: Unsafe): Long =
         Runtime.default.unsafe.run(self.nanoTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+
+      def zoneId()(implicit unsafe: Unsafe): ZoneId =
+        Runtime.default.unsafe.run(self.zoneId(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
     }
 }
 
@@ -105,6 +111,9 @@ object Clock extends ClockPlatformSpecific with ClockSyntaxPlatformSpecific with
     def scheduler(implicit trace: Trace): UIO[Scheduler] =
       ClockLive.scheduler
 
+    def zoneId(implicit trace: Trace): UIO[ZoneId] =
+      ZIO.succeed(unsafe.zoneId()(Unsafe.unsafe))
+
     override val unsafe: UnsafeAPI =
       new UnsafeAPI {
         override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
@@ -124,6 +133,9 @@ object Clock extends ClockPlatformSpecific with ClockSyntaxPlatformSpecific with
 
         override def nanoTime()(implicit unsafe: Unsafe): Long =
           currentTime(TimeUnit.NANOSECONDS)
+
+        override def zoneId()(implicit unsafe: Unsafe): ZoneId =
+          clock.getZone
       }
   }
 
@@ -175,6 +187,9 @@ object Clock extends ClockPlatformSpecific with ClockSyntaxPlatformSpecific with
       ZIO.succeed(JavaClock(ZoneId.systemDefault))
     }
 
+    def zoneId(implicit trace: Trace): UIO[ZoneId] =
+      ZIO.succeed(ZoneId.systemDefault)
+
     override val unsafe: UnsafeAPI =
       new UnsafeAPI {
         override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
@@ -194,6 +209,8 @@ object Clock extends ClockPlatformSpecific with ClockSyntaxPlatformSpecific with
 
         override def nanoTime()(implicit unsafe: Unsafe): Long =
           JSystem.nanoTime
+        override def zoneId()(implicit unsafe: Unsafe): ZoneId =
+          ZoneId.systemDefault()
       }
   }
 
@@ -241,5 +258,11 @@ object Clock extends ClockPlatformSpecific with ClockSyntaxPlatformSpecific with
    */
   def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
     ZIO.clockWith(_.sleep(duration))
+
+  /**
+   * Get the ZoneId
+   */
+  def zoneId(implicit trace: Trace): UIO[ZoneId] =
+    ZIO.clockWith(_.zoneId)
 
 }

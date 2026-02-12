@@ -192,7 +192,14 @@ object ClockSpec extends ZIOBaseSpec {
         for {
           _ <- ZIO.unit raceFirst Clock.instant
         } yield assertCompletes
-      }.provideLayer(scopedExecutor) @@ exceptJS(nonFlaky)
+      }.provideLayer(scopedExecutor) @@ exceptJS(nonFlaky),
+      test("zoneId matches what was provided through JavaClock") {
+        checkAll(Gen.elements(ZoneId.of("Europe/Paris"), ZoneId.of("America/Los_Angeles"))) { zoneId =>
+          for {
+            usedZoneId <- Clock.zoneId.withClock(ClockJava(java.time.Clock.system(zoneId)))
+          } yield assertTrue(usedZoneId == zoneId)
+        }
+      }
     )
 
   class ScopedExecutor extends Executor {
