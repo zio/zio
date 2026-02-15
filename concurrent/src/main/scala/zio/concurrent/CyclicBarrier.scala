@@ -24,7 +24,7 @@ final class CyclicBarrier private (
   import CyclicBarrier.{newPromise, trace}
 
   @volatile private var _broken: Boolean           = false
-  @volatile private var _lock: Promise[Unit, Unit] = newPromise
+  @volatile private var _lock: Promise[Unit, Unit] = newPromise()
   @volatile private var _waiting: Int              = 0
 
   private val semaphore = Semaphore.unsafe.make(1)(Unsafe)
@@ -52,7 +52,7 @@ final class CyclicBarrier private (
       _lock.unsafe.done(Exit.failUnit)(Unsafe)
       _waiting = 0
     }
-    _lock = newPromise
+    _lock = newPromise()
     _broken = false
   }
 
@@ -109,6 +109,6 @@ object CyclicBarrier {
   def make(parties: Int, action: UIO[Any]): UIO[CyclicBarrier] =
     ZIO.succeed(new CyclicBarrier(parties, action))
 
-  private def newPromise: Promise[Unit, Unit] =
+  private def newPromise(): Promise[Unit, Unit] =
     Promise.unsafe.make(FiberId.None)(Unsafe)
 }
