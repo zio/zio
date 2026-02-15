@@ -3363,38 +3363,38 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def tapSink[R1 <: R, E1 >: E](
     sink: => ZSink[R1, E1, A, Any, Any]
   )(implicit trace: Trace): ZStream[R1, E1, A] =
-    ZStream.fromZIO(Queue.bounded[Take[E1, A]](1) <*> Promise.make[Nothing, Unit]).flatMap { case (queue, promise) =>
-      val right = ZStream.fromQueue(queue, 1).flattenTake
-      lazy val loop: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
-        ZChannel.readWithCause(
-          chunk =>
-            ZChannel
-              .fromZIO(queue.offer(Take.chunk(chunk)))
-              .foldCauseChannel(
-                _ => ZChannel.write(chunk) *> ZChannel.identity,
-                _ => ZChannel.write(chunk) *> loop
+    ZStream.unwrapScoped[R1] {
+      for {
+        queue <- Queue.bounded[Take[E1, A]](1)
+        error <- Promise.make[E1, Nothing]
+        sinkFiber <- ZStream
+                       .fromQueue(queue, 1)
+                       .flattenTake
+                       .run(sink)
+                       .catchAllCause(c => error.failCause(c))
+                       .ensuring(queue.shutdown)
+                       .forkDaemon
+      } yield {
+        def loop: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
+          ZChannel.readWithCause(
+            // Fix: Use catchAllCause(_ => ZIO.unit) to swallow interruptions from closed queue
+            in =>
+              ZChannel.fromZIO(queue.offer(Take.chunk(in)).catchAllCause(_ => ZIO.unit)) *> ZChannel.write(in) *> loop,
+            cause =>
+              ZChannel.fromZIO(queue.offer(Take.failCause(cause)).catchAllCause(_ => ZIO.unit)) *> ZChannel.refailCause(
+                cause
               ),
-          cause =>
-            ZChannel
-              .fromZIO(queue.offer(Take.failCause(cause)))
-              .foldCauseChannel(
-                _ => ZChannel.refailCause(cause),
-                _ => ZChannel.refailCause(cause)
-              ),
-          _ =>
-            ZChannel
-              .fromZIO(queue.offer(Take.end))
-              .foldCauseChannel(
-                ZChannel.unitChannelFn,
-                ZChannel.unitChannelFn
-              )
-        )
-      new ZStream(
-        ZChannel.fromZIO(promise.await) *> self.channel
-          .pipeTo(loop)
-          .ensuring(queue.offer(Take.end).forkDaemon *> queue.awaitShutdown)
-      )
-        .merge(ZStream.execute((promise.succeedUnit *> right.run(sink)).ensuring(queue.shutdown)), HaltStrategy.Both)
+            _ => ZChannel.fromZIO(queue.offer(Take.end).catchAllCause(_ => ZIO.unit)) *> ZChannel.unit
+          )
+
+        ZStream
+          .fromChannel(
+            (self.channel >>> loop).ensuring(
+              (queue.offer(Take.end) *> sinkFiber.join).catchAllCause(_ => ZIO.unit)
+            )
+          )
+          .merge(ZStream.fromZIO(error.await), HaltStrategy.Left)
+      }
     }
 
   /**
