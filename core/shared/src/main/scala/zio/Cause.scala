@@ -129,20 +129,26 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * no checked errors return the rest of the `Cause` that is known to contain
    * only `Die` or `Interrupt` causes.
    */
-  final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
-    case Some(error) => Left(error)
-    case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
-  }
+  final def failureOrCause: Either[E, Cause[Nothing]] =
+    if (isDie || isInterrupted) Right(self.asInstanceOf[Cause[Nothing]])
+    else
+      failureOption match {
+        case Some(error) => Left(error)
+        case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+      }
 
   /**
    * Retrieve the first checked error and its trace on the `Left` if available,
    * if there are no checked errors return the rest of the `Cause` that is known
    * to contain only `Die` or `Interrupt` causes.
    */
-  final def failureTraceOrCause: Either[(E, StackTrace), Cause[Nothing]] = failureTraceOption match {
-    case Some(errorAndTrace) => Left(errorAndTrace)
-    case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
-  }
+  final def failureTraceOrCause: Either[(E, StackTrace), Cause[Nothing]] =
+    if (isDie || isInterrupted) Right(self.asInstanceOf[Cause[Nothing]])
+    else
+      failureTraceOption match {
+        case Some(errorAndTrace) => Left(errorAndTrace)
+        case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+      }
 
   /**
    * Produces a list of all recoverable errors `E` in the `Cause`.
