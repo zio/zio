@@ -72,6 +72,34 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     }
 
   /**
+   * Completes this promise with the result of the specified fiber. This method
+   * is more efficient than using `fiber.await.flatMap(_.foldExit(promise.failCause, promise.succeed))`
+   * because it avoids the intermediate callback allocation when the promise is awaited.
+   * If the promise has already been completed, the method will produce false.
+   * 
+   * {{{
+   * for {
+   *   promise <- Promise.make[Nothing, Int]
+   *   fiber   <- computation.fork
+   *   _       <- promise.become(fiber)
+   *   value   <- promise.await // Efficiently awaits fiber completion
+   * } yield value
+   * }}}
+   */
+  def become[E1 <: E, A1 <: A](fiber: => Fiber[E1, A1])(implicit trace: Trace): UIO[Boolean] =
+    ZIO.succeed {
+      fiber.fold(
+        runtime = runtime => unsafe.becomeFiber(runtime)(Unsafe),
+        synthetic = _ => {
+          // For synthetic fibers, fall back to the await-based approach
+          ZIO.unsafe.run(
+            fiber.await.flatMap(exit => done(exit.asInstanceOf[Exit[E, A]]))
+          )(trace, Unsafe).getOrThrowFiberFailure()
+        }
+      )
+    }
+
+  /**
    * Kills the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
@@ -175,6 +203,7 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     ZIO.succeed(unsafe.succeedUnit(ev0, trace, Unsafe))
 
   private[zio] trait UnsafeAPI extends Serializable {
+    def becomeFiber(fiber: Fiber.Runtime[_, _])(implicit unsafe: Unsafe): Boolean
     def completeWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean
     def die(e: Throwable)(implicit trace: Trace, unsafe: Unsafe): Boolean
     def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit
@@ -192,6 +221,51 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
   private[zio] def state: AtomicReference[Promise.internal.State[E, A]] =
     unsafe.asInstanceOf[AtomicReference[Promise.internal.State[E, A]]]
   private[zio] val unsafe: UnsafeAPI = new AtomicReference(Promise.internal.State.empty[E, A]) with UnsafeAPI { state =>
+    def becomeFiber(fiber: Fiber.Runtime[_, _])(implicit unsafe: Unsafe): Boolean = {
+      val exit = fiber.unsafe.poll(unsafe)
+      if (exit ne null) {
+        // Fiber already completed
+        exit match {
+          case Exit.Success(value) => 
+            completeWith(Exit.succeed(value.asInstanceOf[A]))(unsafe)
+          case Exit.Failure(cause) =>
+            completeWith(Exit.failCause(cause.asInstanceOf[Cause[E]]))(unsafe)
+        }
+      } else {
+        // Fiber not yet completed - add observer
+        @annotation.tailrec
+        def loop(): Boolean =
+          state.get match {
+            case _: Pending[?, ?] =>
+              // Promise not yet completed - add observer to fiber
+              val observer: Exit[Any, Any] => Unit = { exit =>
+                exit match {
+                  case Exit.Success(value) =>
+                    completeWith(Exit.succeed(value.asInstanceOf[A]))(unsafe)
+                  case Exit.Failure(cause) =>
+                    completeWith(Exit.failCause(cause.asInstanceOf[Cause[E]]))(unsafe)
+                }
+              }
+              fiber.unsafe.addObserver(observer)(unsafe)
+              
+              // Check if fiber completed while we were adding the observer
+              val fiberExit = fiber.unsafe.poll(unsafe)
+              if (fiberExit eq null) {
+                // Fiber still running, observer will be called
+                true
+              } else {
+                // Fiber completed - remove observer and try again
+                fiber.unsafe.removeObserver(observer)(unsafe)
+                loop()
+              }
+            case _ => 
+              // Promise already completed
+              false
+          }
+        loop()
+      }
+    }
+
     def completeWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean = {
       @annotation.tailrec
       def loop(): Boolean =
