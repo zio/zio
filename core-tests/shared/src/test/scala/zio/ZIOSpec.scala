@@ -305,6 +305,26 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)((equalTo(t)))
       }
     ) @@ zioTag(errors),
+    suite("issue #9874 - do not recover from defects/interrupts in catchAll")(
+      test("catchAll should not recover when Cause contains Die and Fail") {
+        val combined = Cause.die(new RuntimeException("Defect")) && Cause.fail("Error")
+        assertZIO(ZIO.failCause(combined).catchAll(_ => ZIO.succeed("recovered")).exit)(
+          dies(hasMessage(equalTo("Defect")))
+        )
+      },
+      test("either should not produce Right when Cause contains Die and Fail") {
+        val combined = Cause.die(new RuntimeException("Defect")) && Cause.fail("Error")
+        assertZIO(ZIO.failCause(combined).either.exit)(
+          dies(hasMessage(equalTo("Defect")))
+        )
+      },
+      test("catchSome should not recover when Cause contains Die and Fail") {
+        val combined = Cause.die(new RuntimeException("Defect")) && Cause.fail("Error")
+        assertZIO(ZIO.failCause(combined).catchSome { case "Error" => ZIO.succeed("recovered") }.exit)(
+          dies(hasMessage(equalTo("Defect")))
+        )
+      }
+    ) @@ zioTag(errors),
     suite("catchSomeCause")(
       test("catches matching cause") {
         ZIO.interrupt.catchSomeCause {
