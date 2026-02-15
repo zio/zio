@@ -2,7 +2,7 @@ package zio.concurrent
 
 import zio._
 import zio.test.Assertion._
-import zio.test.TestAspect.{jvm, nonFlaky, timed, timeout}
+import zio.test.TestAspect._
 import zio.test._
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -20,7 +20,7 @@ object CyclicBarrierSpec extends ZIOSpecDefault {
         } yield assert(barrier.parties)(equalTo(parties)) &&
           assert(isBroken)(equalTo(false)) &&
           assert(waiting)(equalTo(0))
-      } @@ nonFlaky(10000),
+      } @@ exceptJS(nonFlaky(10000)),
       test("Releases the barrier") {
         for {
           barrier <- CyclicBarrier.make(2)
@@ -31,7 +31,7 @@ object CyclicBarrierSpec extends ZIOSpecDefault {
           ticket2 <- f2.join
         } yield assert(ticket1)(equalTo(1)) &&
           assert(ticket2)(equalTo(0))
-      } @@ nonFlaky(10000),
+      } @@ exceptJS(nonFlaky(10000)),
       test("Releases the barrier and performs the action") {
         for {
           promise    <- Promise.make[Nothing, Unit]
@@ -43,7 +43,7 @@ object CyclicBarrierSpec extends ZIOSpecDefault {
           _          <- f2.join
           isComplete <- promise.isDone
         } yield assert(isComplete)(isTrue)
-      } @@ nonFlaky(10000),
+      } @@ exceptJS(nonFlaky(10000)),
       test("Releases the barrier and cycles") {
         for {
           barrier <- CyclicBarrier.make(2)
@@ -61,7 +61,7 @@ object CyclicBarrierSpec extends ZIOSpecDefault {
           assert(ticket2)(equalTo(0)) &&
           assert(ticket3)(equalTo(1)) &&
           assert(ticket4)(equalTo(0))
-      } @@ nonFlaky(10000),
+      } @@ exceptJS(nonFlaky(10000)),
       test("Breaks on reset") {
         for {
           barrier <- CyclicBarrier.make(parties)
@@ -73,7 +73,7 @@ object CyclicBarrierSpec extends ZIOSpecDefault {
           res1    <- f1.await
           res2    <- f2.await
         } yield assert(res1)(fails(isUnit)) && assert(res2)(fails(isUnit))
-      } @@ nonFlaky(1000),
+      } @@ exceptJS(nonFlaky(1000)),
       test("Breaks on party interruption") {
         for {
           latch     <- Promise.make[Nothing, Unit]
@@ -92,7 +92,7 @@ object CyclicBarrierSpec extends ZIOSpecDefault {
           assert(isBroken2)(isTrue) &&
           assert(res1)(succeeds(isNone)) &&
           assert(res2)(fails(isUnit))
-      } @@ nonFlaky,
+      } @@ exceptJS(nonFlaky),
       suite("is stable under high contention")(
         test("when fibers == parties") {
           final class Counter {

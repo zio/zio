@@ -29,7 +29,7 @@ final class CyclicBarrier private (
 
   private val semaphore = Semaphore.unsafe.make(1)(Unsafe)
 
-  private val break: UIO[Unit] =
+  private def break: UIO[Unit] =
     semaphore.withPermit(ZIO.succeed {
       _broken = true
       _lock.unsafe.done(Exit.failUnit)(Unsafe)
@@ -67,35 +67,35 @@ final class CyclicBarrier private (
           if (_broken) Exit.failUnit
           else {
             val nParties = parties
-            val n = {
-              val n0 = _waiting + 1
-              if (n0 == nParties) _waiting = 0
-              else _waiting = n0
-              n0
+            val waiting = {
+              val waiting0 = _waiting + 1
+              if (waiting0 == nParties) _waiting = 0
+              else _waiting = waiting0
+              waiting0
             }
             val f =
-              if (n == nParties) restore(_action) *> succeedAndReset
+              if (waiting == nParties) restore(_action) *> succeedAndReset
               else {
                 val lock = _lock
                 restore(lock.await).onInterrupt(break)
               }
-            val out = nParties - n
-            f.as(out)
+            val remaining = nParties - waiting
+            f.as(remaining)
           }
         }
       }.flatten
     }
 
   /** Queries if this barrier is in a broken state. */
-  val isBroken: UIO[Boolean] =
+  def isBroken: UIO[Boolean] =
     ZIO.succeed(_broken)
 
   /** The number of parties currently waiting at the barrier. */
-  val waiting: UIO[Int] =
+  def waiting: UIO[Int] =
     ZIO.succeed(_waiting)
 
   /** Resets the barrier to its initial state. Breaks any waiting party. */
-  val reset: UIO[Unit] =
+  def reset: UIO[Unit] =
     semaphore.withPermit(ZIO.succeed(resetUnsafe()))
 
 }
