@@ -2,6 +2,18 @@ import { LoadContext, PluginOptions } from '@docusaurus/types'
 import { SidebarItemConfig, SidebarItemCategoryConfig, SidebarItemCategoryLinkDoc } from '@docusaurus/plugin-content-docs/src/sidebars/types'
 import * as fs from 'fs'
 
+/**
+ * Docusaurus plugin that generates sidebar configuration for the ZIO ecosystem.
+ *
+ * Registers a CLI command called `generate-sidebar` that:
+ * 1. Copies project files from ZIO npm packages into `./docs/`
+ * 2. Aggregates sidebars from old-style and new-style projects
+ * 3. Generates an `ecosystem-sidebar.js` file with merged and sorted configuration
+ *
+ * @param context - Docusaurus plugin context
+ * @param options - Plugin configuration options
+ * @returns A Docusaurus plugin object with the command handler
+ */
 function zioEcosystemPlugin(context: LoadContext, options: PluginOptions) {
   return {
     name: 'zio-ecosystem-plugin',
