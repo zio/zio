@@ -103,10 +103,15 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 
   def flatMap[R1 <: R, B](f: A => Gen[R1, B])(implicit trace: Trace): Gen[R1, B] =
     Gen {
-      self.sample.flatMap { sample =>
-        val values  = f(sample.value).sample
-        val shrinks = Gen(sample.shrink).flatMap(f).sample
-        values.map(_.flatMap(Sample(_, shrinks)))
+      self.sample.mapZIO { outerSample =>
+        f(outerSample.value).sample.take(1).runHead.map {
+          case Some(innerSample) =>
+            Sample(innerSample.value, outerSample.shrink.flatMap(s => f(s.value).sample))
+          case None =>
+            Sample.noShrink(
+              throw new Exception("Generator produced no values")
+            ).asInstanceOf[Sample[R1, B]]
+        }
       }
     }
 
@@ -474,7 +479,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * Constructs a generator from an effect that constructs a sample.
    */
   def fromZIOSample[R, A](effect: ZIO[R, Nothing, Sample[R, A]])(implicit trace: Trace): Gen[R, A] =
-    Gen(ZStream.fromZIO(effect))
+    Gen(ZStream.repeatZIO(effect))
 
   /**
    * A generator of floats. Shrinks toward '0'.
