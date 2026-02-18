@@ -126,6 +126,40 @@ object PromiseSpec extends ZIOBaseSpec {
         d <- p.isDone
       } yield assert(d)(isTrue)
     } @@ zioTag(errors),
+    test("become completes promise with fiber success") {
+      for {
+        p     <- Promise.make[Nothing, Int]
+        fiber <- ZIO.succeed(42).fork
+        _     <- p.become(fiber)
+        v     <- p.await
+      } yield assert(v)(equalTo(42))
+    },
+    test("become completes promise with fiber failure") {
+      for {
+        p     <- Promise.make[String, Int]
+        fiber <- ZIO.fail("error").fork
+        _     <- p.become(fiber)
+        v     <- p.await.exit
+      } yield assert(v)(fails(equalTo("error")))
+    } @@ zioTag(errors),
+    test("become returns false for already completed promise") {
+      for {
+        p     <- Promise.make[Nothing, Int]
+        _     <- p.succeed(1)
+        fiber <- ZIO.succeed(42).fork
+        r     <- p.become(fiber)
+        v     <- p.await
+      } yield assert(r)(isFalse) && assert(v)(equalTo(1))
+    },
+    test("become with already completed fiber") {
+      for {
+        p     <- Promise.make[Nothing, Int]
+        fiber <- ZIO.succeed(99).fork
+        _     <- fiber.await
+        r     <- p.become(fiber)
+        v     <- p.await
+      } yield assert(r)(isTrue) && assert(v)(equalTo(99))
+    },
     test("waiter stack safety") {
       for {
         p      <- Promise.make[Nothing, Unit]
