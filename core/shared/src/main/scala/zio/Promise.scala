@@ -72,6 +72,18 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     }
 
   /**
+   * Links this promise to the specified fiber, so that when the fiber
+   * completes, this promise will be completed with the fiber's result. This
+   * eliminates the unnecessary allocations and indirection of the
+   * fork-and-await-promise pattern.
+   *
+   * Returns whether the link was established (i.e., the promise was still
+   * pending).
+   */
+  def become(fiber: Fiber.Runtime[E, A])(implicit trace: Trace): UIO[Boolean] =
+    ZIO.succeed(unsafe.become(fiber)(trace, Unsafe))
+
+  /**
    * Kills the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
@@ -175,6 +187,7 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     ZIO.succeed(unsafe.succeedUnit(ev0, trace, Unsafe))
 
   private[zio] trait UnsafeAPI extends Serializable {
+    def become(fiber: Fiber.Runtime[E, A])(implicit trace: Trace, unsafe: Unsafe): Boolean
     def completeWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean
     def die(e: Throwable)(implicit trace: Trace, unsafe: Unsafe): Boolean
     def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit
@@ -192,6 +205,14 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
   private[zio] def state: AtomicReference[Promise.internal.State[E, A]] =
     unsafe.asInstanceOf[AtomicReference[Promise.internal.State[E, A]]]
   private[zio] val unsafe: UnsafeAPI = new AtomicReference(Promise.internal.State.empty[E, A]) with UnsafeAPI { state =>
+    def become(fiber: Fiber.Runtime[E, A])(implicit trace: Trace, unsafe: Unsafe): Boolean =
+      state.get match {
+        case _: Done[_, _] => false
+        case _ =>
+          fiber.unsafe.addObserver(exit => completeWith(exit))
+          true
+      }
+
     def completeWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean = {
       @annotation.tailrec
       def loop(): Boolean =
