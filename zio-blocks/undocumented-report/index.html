@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-zio-blocks/undocumented-report" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">Documentation Coverage Report | ZIO</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://zio.dev/img/zio.png"><meta data-rh="true" name="twitter:image" content="https://zio.dev/img/zio.png"><meta data-rh="true" property="og:url" content="https://zio.dev/zio-blocks/undocumented-report"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Documentation Coverage Report | ZIO"><meta data-rh="true" name="description" content="Comprehensive analysis of documentation gaps in ZIO Blocks, combining automated scanning with manual source-code review."><meta data-rh="true" property="og:description" content="Comprehensive analysis of documentation gaps in ZIO Blocks, combining automated scanning with manual source-code review."><link data-rh="true" rel="icon" href="/img/favicon.png"><link data-rh="true" rel="canonical" href="https://zio.dev/zio-blocks/undocumented-report"><link data-rh="true" rel="alternate" href="https://zio.dev/zio-blocks/undocumented-report" hreflang="en"><link data-rh="true" rel="alternate" href="https://zio.dev/zio-blocks/undocumented-report" hreflang="x-default"><link data-rh="true" rel="preconnect" href="https://IAX8GRSWEQ-dsn.algolia.net" crossorigin="anonymous"><link rel="alternate" type="application/rss+xml" href="/blog/rss.xml" title="ZIO RSS Feed">
+<link rel="alternate" type="application/atom+xml" href="/blog/atom.xml" title="ZIO Atom Feed">
+
+<link rel="preconnect" href="https://www.google-analytics.com">
+<script>window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)},ga.l=+new Date,ga("create","UA-237088290-2","auto"),ga("set","anonymizeIp",!0),ga("send","pageview")</script>
+<script async src="https://www.google-analytics.com/analytics.js"></script>
+
+<link rel="preconnect" href="https://www.google-analytics.com">
+<link rel="preconnect" href="https://www.googletagmanager.com">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-SH0HNKLNRT"></script>
+<script>function gtag(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],gtag("js",new Date),gtag("config","G-SH0HNKLNRT",{anonymize_ip:!0})</script>
+
+
+
+<link rel="search" type="application/opensearchdescription+xml" title="ZIO" href="/opensearch.xml">
+
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&amp;display=fallback" as="style" onload="this.rel=&#39;stylesheet&#39;"><link rel="stylesheet" href="/assets/css/styles.759fb48a.css">
+<script src="/assets/js/runtime~main.967d64a2.js" defer="defer"></script>
+<script src="/assets/js/main.0281f3cd.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||"light"),document.documentElement.setAttribute("data-theme-choice",t||"light")}(),function(){try{const a=new URLSearchParams(window.location.search).entries();for(var[t,e]of a)if(t.startsWith("docusaurus-data-")){var n=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(n,e)}}catch(t){}}(),document.documentElement.setAttribute("data-announcement-bar-initially-dismissed",function(){try{return"true"===localStorage.getItem("docusaurus.announcement.dismiss")}catch(t){}return!1}())</script><div id="__docusaurus"><link rel="preload" as="image" href="/img/navbar_brand.png"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><div class="theme-announcement-bar announcementBar_mb4j" style="background-color:rgb(190, 105, 255);color:rgba(220, 173, 240, 1)" role="banner"><div class="content_knG7 announcementBarContent_xLdY">📚 <b>ZIONOMICON</b>, updated for ZIO 2.1, is out now! Grab <a href="https://zionomicon.com" target="_blank">your free copy</a> and level up your ZIO skills 🚀</div></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/"><div class="navbar__logo"><img src="/img/navbar_brand.png" alt="ZIO" class="themedComponent_mlkZ themedComponent--light_NVdE"><img src="/img/navbar_brand.png" alt="ZIO" class="themedComponent_mlkZ themedComponent--dark_xIcU"></div></a><a class="navbar__item navbar__link" href="/overview/getting-started">Overview</a><a class="navbar__item navbar__link" href="/reference/">Reference</a><a class="navbar__item navbar__link" href="/guides/">Guides</a><a class="navbar__item navbar__link" href="/ecosystem/">Ecosystem</a><a class="navbar__item navbar__link" href="/resources/">Resources</a><a class="navbar__item navbar__link" href="/events/">Events</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://chat.zio.dev" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Chat Bot</a><a class="navbar__item navbar__link" href="/blog">Blog</a><div class="navbar__item dropdown dropdown--hoverable dropdown--right"><a class="navbar__link" aria-haspopup="true" aria-expanded="false" role="button" href="/zio-blocks/undocumented-report">2.x</a><ul class="dropdown__menu"><li><a aria-current="page" class="dropdown__link dropdown__link--active" href="/zio-blocks/undocumented-report">2.x</a></li><li><a class="dropdown__link" href="/1.0.18/">1.0.18</a></li></ul></div><a href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link header-github-link" aria-label="GitHub repository"></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"><button type="button" class="DocSearch DocSearch-Button" aria-label="Search (Meta+k)" aria-keyshortcuts="Meta+k"><span class="DocSearch-Button-Container"><svg width="20" height="20" class="DocSearch-Search-Icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" fill="none" stroke-width="1.4"></circle><path d="m21 21-4.3-4.3" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg><span class="DocSearch-Button-Placeholder">Search</span></span><span class="DocSearch-Button-Keys"></span></button></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><span class="theme-doc-version-badge badge badge--secondary">Version: 2.x</span><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Documentation Coverage Report</h1></header>
+<p>Comprehensive analysis of documentation gaps in ZIO Blocks, combining automated scanning with manual source-code review.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="summary">Summary<a href="#summary" class="hash-link" aria-label="Direct link to Summary" title="Direct link to Summary" translate="no">​</a></h2>
+<table><thead><tr><th>Metric</th><th>Count</th></tr></thead><tbody><tr><td>Total public types found</td><td>552</td></tr><tr><td>Types with documentation</td><td>302</td></tr><tr><td>Types lacking documentation</td><td>250</td></tr><tr><td>Documentation coverage</td><td>54%</td></tr><tr><td>Existing reference pages</td><td>24</td></tr><tr><td>Missing methods in existing pages</td><td>~44</td></tr><tr><td>Missing examples in existing pages</td><td>~39</td></tr><tr><td>Conceptual docs (guides, how-tos)</td><td>0</td></tr></tbody></table>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="critical-missing-reference-pages">Critical: Missing Reference Pages<a href="#critical-missing-reference-pages" class="hash-link" aria-label="Direct link to Critical: Missing Reference Pages" title="Direct link to Critical: Missing Reference Pages" translate="no">​</a></h2>
+<p>These are core public API types that users interact with directly. Each needs a dedicated reference page or a substantial new section in an existing page.</p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>MediaType</code></strong> (module <code>mediatype</code>) — Public API for media type parsing and matching; essential for content negotiation. The entire <code>zio.blocks.mediatype</code> package has zero documentation. <strong>Scope: new page</strong>. Source: <code>mediatype/shared/src/main/scala/zio/blocks/mediatype/MediaType.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>MediaTypes</code></strong> (module <code>mediatype</code>) — Predefined media type instances (application/json, text/html, etc.). Should be part of the <code>MediaType</code> page. <strong>Scope: new section</strong>. Source: <code>mediatype/shared/src/main/scala/zio/blocks/mediatype/MediaTypes.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>SchemaExpr</code></strong> (module <code>schema</code>) — Core trait for expression evaluation on schema-described types; central to the validation DSL. <strong>Scope: new page</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/SchemaExpr.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>SchemaError</code></strong> (module <code>schema</code>) — Primary error type returned from schema operations (ConversionFailed, MissingField, DuplicatedField, ExpectationMismatch, UnknownCase). Users handle these constantly. <strong>Scope: new page or major section in schema.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/SchemaError.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>Into</code></strong> (module <code>schema</code>) — Core conversion type class appearing in all cross-type transformations. <strong>Scope: new page</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/Into.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>JsonPatch</code></strong> (module <code>schema</code>) — Main public API for JSON patching and diffing operations. <strong>Scope: new section in json.md or patch.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/json/JsonPatch.scala</code></li>
+</ul>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="high-priority-incomplete-coverage">High Priority: Incomplete Coverage<a href="#high-priority-incomplete-coverage" class="hash-link" aria-label="Direct link to High Priority: Incomplete Coverage" title="Direct link to High Priority: Incomplete Coverage" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="types-needing-at-least-a-dedicated-section-in-an-existing-page">Types needing at least a dedicated section in an existing page<a href="#types-needing-at-least-a-dedicated-section-in-an-existing-page" class="hash-link" aria-label="Direct link to Types needing at least a dedicated section in an existing page" title="Direct link to Types needing at least a dedicated section in an existing page" translate="no">​</a></h3>
+<p><strong>schema module — Binding subsystem:</strong></p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>BindingResolver</code></strong> — Essential for type binding resolution; critical for schema rebinding. Referenced in 6 source files. <strong>Scope: new section in binding.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/binding/BindingResolver.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>MapConstructor</code> / <code>MapDeconstructor</code></strong> — Public traits for customizing map handling in bindings. Referenced in 7 files each. <strong>Scope: new section in binding.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/binding/MapConstructor.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>ConstantConstructor</code> / <code>ConstantDeconstructor</code></strong> — Binding helpers for constant values. Referenced in 11 files each. <strong>Scope: brief section in binding.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/binding/Constructor.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>RegisterType</code></strong> — Type-safe register representation. Referenced in 5 files. <strong>Scope: brief section in registers.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/binding/RegisterType.scala</code></li>
+</ul>
+<p><strong>schema module — Derivation subsystem:</strong></p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>InstanceOverride</code></strong> — Used for customizing schema derivation. Referenced in 8 files. <strong>Scope: new section in type-class-derivation.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/derive/InstanceOverride.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>ModifierOverride</code></strong> — Used for overriding modifiers during derivation. Referenced in 3 files. <strong>Scope: new section in type-class-derivation.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/derive/ModifierOverride.scala</code></li>
+</ul>
+<p><strong>schema module — Type classes:</strong></p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>IsNumeric</code></strong> — Type class for arithmetic operations. Referenced in 3 files. <strong>Scope: brief section in schema.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/IsNumeric.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>IsCollection</code></strong> — Type class for collection operations. <strong>Scope: brief section in schema.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/IsCollection.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>IsMap</code></strong> — Type class for map operations. <strong>Scope: brief section in schema.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/IsMap.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>Reflectable</code></strong> — Trait for types with reflectable modifiers. Referenced in 3 files. <strong>Scope: brief section in reflect.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/Reflectable.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>ToStructural</code></strong> — Converts nominal to structural schemas. <strong>Scope: brief section in reflect.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/ToStructural.scala</code></li>
+</ul>
+<p><strong>schema module — JSON subsystem:</strong></p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>Keyable</code></strong> — Type class for JSON key support. Referenced in 5 files. <strong>Scope: new section in json.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/json/Keyable.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>NameMapper</code></strong> (<code>CamelCase</code>, <code>KebabCase</code>, <code>PascalCase</code>) — Public field name transformations. <strong>Scope: new section in json.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/json/NameMapper.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>JsonBinaryCodecError</code></strong> — Custom exception for JSON codec errors. Referenced in 7 files. <strong>Scope: brief section in json.md</strong>. Source: <code>schema/shared/src/main/scala/zio/blocks/schema/json/JsonBinaryCodecError.scala</code></li>
+</ul>
+<p><strong>typeid module:</strong></p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>TypeRepr</code></strong> — Central type representation (24 subtypes: ThisType, TypeLambda, Singleton, Repeated, etc.). Referenced across 4-8 files each. <strong>Scope: new section in typeid.md</strong>. Source: <code>typeid/shared/src/main/scala/zio/blocks/typeid/TypeRepr.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>TypeDefKind</code></strong> — Type definition classifier (AbstractType, EnumCase, TypeAlias, etc.). <strong>Scope: new section in typeid.md</strong>. Source: <code>typeid/shared/src/main/scala/zio/blocks/typeid/TypeDefKind.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>Kind</code></strong> and <strong><code>Arrow</code></strong> — Higher-kinded type expressions. <strong>Scope: new section in typeid.md</strong>. Source: <code>typeid/shared/src/main/scala/zio/blocks/typeid/Kind.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>Annotation</code></strong> — Type annotation metadata (ArrayArg, ClassOf, EnumValue). <strong>Scope: new section in typeid.md</strong>. Source: <code>typeid/shared/src/main/scala/zio/blocks/typeid/Annotation.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>Owner</code></strong> and <strong><code>Segment</code></strong> — Type ownership path. <strong>Scope: new section in typeid.md</strong>. Source: <code>typeid/shared/src/main/scala/zio/blocks/typeid/Owner.scala</code></li>
+</ul>
+<p><strong>context module:</strong></p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>IsNominalType</code></strong> — Type class for nominal type extraction. Referenced in 6 files. <strong>Scope: new section in context.md</strong>. Source: <code>context/shared/src/main/scala/zio/blocks/context/IsNominalType.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>IsNominalIntersection</code></strong> — Type class for intersection type handling. Referenced in 4 files. <strong>Scope: new section in context.md</strong>. Source: <code>context/shared/src/main/scala/zio/blocks/context/IsNominalIntersection.scala</code></li>
+</ul>
+<p><strong>Format codec modules:</strong></p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>BsonEncoder</code> / <code>BsonDecoder</code> / <code>BsonCodec</code></strong> (schema-bson) — Core encoding/decoding types for BSON. <strong>Scope: expand formats.md BSON section</strong>. Source: <code>schema-bson/src/main/scala/zio/blocks/schema/bson/BsonTypes.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>MessagePackBinaryCodec</code></strong> (schema-messagepack) — Public codec for MessagePack. <strong>Scope: expand formats.md MessagePack section</strong>. Source: <code>schema-messagepack/src/main/scala/zio/blocks/schema/msgpack/MessagePackBinaryCodec.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>ThriftBinaryCodec</code></strong> (schema-thrift) — Public codec for Thrift. <strong>Scope: expand formats.md Thrift section</strong>. Source: <code>schema-thrift/src/main/scala/zio/blocks/schema/thrift/ThriftBinaryCodec.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>ToonReader</code> / <code>ToonWriter</code></strong> (schema-toon) — Public codec for TOON. Referenced in 9-10 files. <strong>Scope: expand formats.md TOON section</strong>. Source: <code>schema-toon/src/main/scala/zio/blocks/schema/toon/</code></li>
+</ul>
+<p><strong>markdown module:</strong></p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>Block</code></strong> subtypes (<code>BlockQuote</code>, <code>BulletList</code>, <code>CodeBlock</code>, <code>HtmlBlock</code>, <code>OrderedList</code>, <code>ThematicBreak</code>) — Core markdown AST elements. <strong>Scope: new section in docs.md</strong>. Source: <code>markdown/shared/src/main/scala/zio/blocks/docs/Block.scala</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong><code>Inline</code></strong> subtypes (<code>Autolink</code>, <code>HtmlInline</code>, <code>Image</code>, <code>HardBreak</code>, <code>SoftBreak</code>) — Core markdown AST elements. <strong>Scope: new section in docs.md</strong>. Source: <code>markdown/shared/src/main/scala/zio/blocks/docs/Inline.scala</code></li>
+</ul>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="medium-priority-brief-mentions-needed">Medium Priority: Brief Mentions Needed<a href="#medium-priority-brief-mentions-needed" class="hash-link" aria-label="Direct link to Medium Priority: Brief Mentions Needed" title="Direct link to Medium Priority: Brief Mentions Needed" translate="no">​</a></h2>
+<p>Types that should be mentioned in related pages but don&#x27;t need dedicated sections.</p>
+<p><strong>schema module:</strong></p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>SchemaMetadata</code> / <code>Folder</code> — metadata traversal infrastructure. <strong>Mention in: schema.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>FromBinding</code> — type class for binding conversion. <strong>Mention in: binding.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>UnapplySeq</code> / <code>UnapplyMap</code> — implicit evidence for seq/map operations. <strong>Mention in: binding.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>OpticCheck</code> subtypes (<code>EmptyMap</code>, <code>MissingKey</code>, <code>SequenceIndexOutOfBounds</code>, <code>WrappingError</code>) — validation results from optic operations. <strong>Mention in: optics.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>RebindException</code> — thrown during schema rebinding. <strong>Mention in: binding.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>JsonDiffer</code> — JSON diffing utility. <strong>Mention in: json.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>JsonSchemaType</code> / <code>SchemaType</code> — JSON Schema type system. <strong>Mention in: json-schema.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>ContextDetector</code> parsing states — JSON interpolator internals. <strong>Mention in: json.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>TypeIdSchemas</code> — hand-rolled schema instances for TypeId. <strong>Mention in: typeid.md</strong></li>
+</ul>
+<p><strong>chunk module:</strong></p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>ChunkIterator</code> — streaming iterator for chunks. <strong>Mention in: chunk.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>IsText</code> — type class for chunk-to-string conversion. <strong>Mention in: chunk.md</strong></li>
+</ul>
+<p><strong>scope module:</strong></p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>InStack</code> — trait for stack-like containment. <strong>Mention in: scope.md</strong></li>
+</ul>
+<p><strong>markdown module:</strong></p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>Alignment</code> / <code>Center</code> — table column alignment. <strong>Mention in: docs.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>HeadingLevel</code> (<code>H4</code>, <code>H5</code>) — heading levels. <strong>Mention in: docs.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>TerminalRenderer</code> — ANSI terminal rendering. <strong>Mention in: docs.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>MdInterpolatorRuntime</code> — runtime support for <code>md&quot;...&quot;</code>. <strong>Mention in: docs.md</strong></li>
+</ul>
+<p><strong>schema-toon module:</strong></p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>Delimiter</code> / <code>Comma</code> / <code>Pipe</code> / <code>Tab</code> — array delimiters. <strong>Mention in: formats.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>ArrayFormat</code> — array encoding strategy. <strong>Mention in: formats.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>KeyFolding</code> / <code>PathExpansion</code> — TOON reader/writer config. <strong>Mention in: formats.md</strong></li>
+</ul>
+<p><strong>schema-bson module:</strong></p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>DiscriminatorField</code> / <code>NoDiscriminator</code> / <code>WrapperWithClassNameField</code> — sum type encoding strategies. <strong>Mention in: formats.md</strong></li>
+</ul>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="documentation-depth-issues">Documentation Depth Issues<a href="#documentation-depth-issues" class="hash-link" aria-label="Direct link to Documentation Depth Issues" title="Direct link to Documentation Depth Issues" translate="no">​</a></h2>
+<p>Existing pages that need updates — missing methods, examples, or cross-references.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="schema-schemamd">Schema (<code>schema.md</code>)<a href="#schema-schemamd" class="hash-link" aria-label="Direct link to schema-schemamd" title="Direct link to schema-schemamd" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing examples of schema serialization to JSON Schema and back</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing example of caching behavior with <code>derive(format)</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing example of using modifiers on schemas</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No mention of <code>TypeId</code> integration in schema derivation</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing reference to schema validation with <code>DynamicSchema</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="reflect-reflectmd">Reflect (<code>reflect.md</code>)<a href="#reflect-reflectmd" class="hash-link" aria-label="Direct link to reflect-reflectmd" title="Direct link to reflect-reflectmd" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>Reflect#noBinding</code> — critical for understanding serialization, not documented</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>Reflect#transform</code> — used extensively but not documented</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>Reflect.Extractors</code> — pattern matching helpers not documented</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing example of working with <code>Reflect.Unbound</code> for serialization</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing example of recursive type handling with <code>Deferred</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Should reference <code>Binding</code> more clearly for each reflect type</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="binding-bindingmd">Binding (<code>binding.md</code>)<a href="#binding-bindingmd" class="hash-link" aria-label="Direct link to binding-bindingmd" title="Direct link to binding-bindingmd" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing documentation on <code>Register</code> and <code>RegisterOffset</code> API — critical for zero-allocation architecture</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing <code>SpecializedIndexed</code> documentation for array-based performance</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No detailed example of <code>RegisterOffset</code> calculation</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No example of implementing custom <code>SeqConstructor</code> for new collection types</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No example of <code>MapConstructor</code> / <code>MapDeconstructor</code> implementation</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing explanation of why specialized constructors exist</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="chunk-chunkmd">Chunk (<code>chunk.md</code>)<a href="#chunk-chunkmd" class="hash-link" aria-label="Direct link to chunk-chunkmd" title="Direct link to chunk-chunkmd" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>Chunk.BitChunk</code> and bit operations barely documented</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No example of the <code>BitChunk</code> operations with endianness</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing performance comparison with <code>Vector</code> for various operations</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>Chunk.materialize</code> automatic triggering conditions are vague</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing <code>NonEmptyChunk#flatMap</code> documentation</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="json-jsonmd">JSON (<code>json.md</code>)<a href="#json-jsonmd" class="hash-link" aria-label="Direct link to json-jsonmd" title="Direct link to json-jsonmd" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing <code>Keyable</code> typeclass documentation</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>Json#diff</code> operation types not documented</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No example of complex querying with predicates</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No example of recursive transformation with <code>transformDown</code> vs <code>transformUp</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No example of merging strategies in detail</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Should reference <code>JsonSchema</code> more thoroughly</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="codec-codecmd">Codec (<code>codec.md</code>)<a href="#codec-codecmd" class="hash-link" aria-label="Direct link to codec-codecmd" title="Direct link to codec-codecmd" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing explanation of <code>Format</code> trait interface</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing documentation of <code>Deriver</code> pattern for custom codecs</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No example of implementing a custom <code>Format</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No example of <code>DerivationBuilder</code> advanced usage</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Codec instance caching mechanism not explained</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->JSON codec configuration incomplete — missing validation options</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="patch-patchmd">Patch (<code>patch.md</code>)<a href="#patch-patchmd" class="hash-link" aria-label="Direct link to patch-patchmd" title="Direct link to patch-patchmd" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>DynamicPatch</code> operations not fully documented</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No example of <code>modifyKey</code> on maps with type parameters</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No example of composing patches across different types</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing example of serialization and storage of patches</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Should explain relationship to <code>DynamicValue.diff</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="typeid-typeidmd">TypeId (<code>typeid.md</code>)<a href="#typeid-typeidmd" class="hash-link" aria-label="Direct link to typeid-typeidmd" title="Direct link to typeid-typeidmd" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>TypeRepr</code> subtypes barely documented (24 variants)</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>TypeDefKind</code> variants incomplete</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>Member</code> API — parameter modifiers underdocumented</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>TermPath</code> and singleton types barely covered</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No mention of Scala 2 vs Scala 3 differences in TypeId derivation</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="context-contextmd">Context (<code>context.md</code>)<a href="#context-contextmd" class="hash-link" aria-label="Direct link to context-contextmd" title="Direct link to context-contextmd" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>IsNominalType</code> typeclass not explained</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No mention of performance characteristics</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing explanation of why only nominal types are supported</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing example of context composition in larger applications</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="validation-validationmd">Validation (<code>validation.md</code>)<a href="#validation-validationmd" class="hash-link" aria-label="Direct link to validation-validationmd" title="Direct link to validation-validationmd" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Composition/chaining methods not documented</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No example of using validations directly on <code>PrimitiveType</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->No example of validation in format derivers</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing guidance on validation composition workarounds</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Missing integration examples with JSON Schema</li>
+</ul>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="conceptual-gaps">Conceptual Gaps<a href="#conceptual-gaps" class="hash-link" aria-label="Direct link to Conceptual Gaps" title="Direct link to Conceptual Gaps" translate="no">​</a></h2>
+<p>Missing guides, overviews, and tutorials — none of these exist today.</p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong>Getting Started Guide</strong> — No quick-start for new users. Should cover: adding dependencies, defining a case class, deriving a schema, encoding/decoding JSON. <strong>Scope: new page <code>docs/getting-started.md</code></strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong>Architecture Overview</strong> — No high-level design document. Should cover: module dependency graph, register-based zero-allocation architecture, the Reflect/Binding/Schema layering, and the Deriver pattern. <strong>Scope: new page <code>docs/architecture.md</code></strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong>How-To: Custom Codec</strong> — No guide for implementing a custom <code>Format</code> and its <code>Deriver</code>. <strong>Scope: new page <code>docs/how-to-custom-codec.md</code></strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong>How-To: Schema Derivation</strong> — No guide walking through <code>Schema.derived</code> vs manual schema construction. <strong>Scope: new section in schema.md or new page</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong>How-To: Working with DynamicValue</strong> — No guide on converting between typed and dynamic representations. <strong>Scope: new section in dynamic-value.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong>End-to-End Pipeline Example</strong> — No documentation showing the full Schema -&gt; Codec -&gt; Encoding -&gt; Decoding -&gt; Validation pipeline. <strong>Scope: new page or section in index.md</strong></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong>Migration Guide</strong> — No version migration docs (may not be needed yet if pre-1.0, but placeholder is useful)</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <strong>Performance Guide</strong> — No guidance on when to use <code>materialize</code> on Chunks, binding register allocation strategies, caching behavior in schema derivation, or JSON encoder/decoder performance characteristics</li>
+</ul>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="low-priority--skip">Low Priority / Skip<a href="#low-priority--skip" class="hash-link" aria-label="Direct link to Low Priority / Skip" title="Direct link to Low Priority / Skip" translate="no">​</a></h2>
+<p>Internal types that don&#x27;t need documentation.</p>
+<table><thead><tr><th>Type</th><th>Module</th><th>Reason</th></tr></thead><tbody><tr><td><code>LittleEndian</code></td><td>chunk</td><td>Endianness marker for bit operations; specialized internal</td></tr><tr><td><code>ChunkMapBuilder</code></td><td>chunk</td><td>Internal builder behind <code>ChunkMap.newBuilder</code></td></tr><tr><td><code>PlatformSpecific</code></td><td>schema</td><td>Platform-specific trait for JVM/JS split</td></tr><tr><td><code>Extractors</code></td><td>schema</td><td>Internal pattern matching helpers on <code>Reflect</code></td></tr><tr><td><code>AsLowPriorityImplicits</code></td><td>schema</td><td>Implicit resolution priority helper</td></tr><tr><td><code>IntoPrimitiveInstances</code> / <code>IntoContainerInstances</code></td><td>schema</td><td>Implicit instance providers (infrastructure)</td></tr><tr><td><code>HasInstances</code></td><td>schema</td><td>Derivation infrastructure</td></tr><tr><td><code>UnapplySeqLowPriority</code></td><td>schema</td><td>Implicit priority helper</td></tr><tr><td><code>Leaf</code> (in Doc)</td><td>schema</td><td>Internal documentation node type</td></tr><tr><td><code>Folder</code></td><td>schema</td><td>Internal metadata traversal helper</td></tr><tr><td>All <code>*Delta</code> / <code>*Dummy</code> types in <code>DynamicPatch</code></td><td>schema</td><td>Internal patch operation representations (BigDecimalDelta, ByteDelta, DoubleDelta, DurationDelta, DurationDummy, FloatDelta, InstantDelta, IntDelta, LocalDateDelta, LocalDateTimeDelta, LongDelta, PeriodDelta, PeriodDummy, ShortDelta)</td></tr><tr><td>All <code>PathParser</code> error types</td><td>schema</td><td>Internal parser errors (EmptyChar, InvalidEscape, InvalidIdentifier, InvalidSyntax, IntegerOverflow, MultiCharLiteral, UnexpectedChar, UnexpectedEnd, UnterminatedChar, UnterminatedString)</td></tr><tr><td><code>ContextDetector</code> / parsing states</td><td>schema</td><td>Internal JSON interpolator state machine (AfterValue, ExpectingColon, ExpectingKey, ExpectingValue, InString, TopLevel)</td></tr><tr><td><code>JsonSchemaToReflect</code> helpers</td><td>schema</td><td>Internal conversion types (FieldVariant, KeyVariant, MapShape, OptionOf, PrimKind)</td></tr><tr><td><code>CaseInfo</code> / <code>EnumInfo</code></td><td>schema</td><td>Internal JSON codec deriver helpers</td></tr><tr><td><code>DynamicValueMergeStrategy</code> / <code>KeepLeft</code></td><td>schema</td><td>Internal merge strategy implementation</td></tr><tr><td><code>DynamicValueSelection</code></td><td>schema</td><td>Internal selection helper</td></tr><tr><td><code>NoBinding</code></td><td>schema</td><td>Internal marker type</td></tr><tr><td><code>ReflectPrinter</code></td><td>schema</td><td>Internal debug printing</td></tr><tr><td><code>Registry</code> / <code>Registry.Entry</code></td><td>schema</td><td>Internal binding resolver storage</td></tr><tr><td><code>ObjectIdSupport</code></td><td>schema-bson</td><td>Internal BSON ObjectId helper</td></tr><tr><td><code>BsonBuilder</code> / <code>BsonTrace</code> / <code>EncoderContext</code> / <code>BsonDecoderContext</code></td><td>schema-bson</td><td>Internal codec implementation</td></tr><tr><td><code>MessagePackBinaryCodecDeriver</code></td><td>schema-messagepack</td><td>Internal deriver</td></tr><tr><td><code>MessagePackReader</code> / <code>MessagePackWriter</code></td><td>schema-messagepack</td><td>Internal binary readers/writers</td></tr><tr><td><code>Mixed</code> / <code>UniformRecords</code></td><td>schema-toon</td><td>Internal codec strategy types</td></tr><tr><td><code>ArrayHeader</code></td><td>schema-toon</td><td>Internal reader state</td></tr><tr><td><code>Off</code></td><td>schema-toon</td><td>Internal config value</td></tr><tr><td>All <code>scope/internal/*</code> types</td><td>scope</td><td>Internal error rendering (Colors, DepNode, DepStatus, ErrorMessages, Found, Missing, Pending, ProviderInfo)</td></tr><tr><td><code>Destroyed</code> / <code>Uninitialized</code></td><td>scope</td><td>Internal resource lifecycle states</td></tr><tr><td><code>FlatMap</code> / <code>ZSink</code> / <code>ZSinkFiber</code> / <code>ZSource</code> / <code>ZSourceFiber</code></td><td>streams</td><td>Experimental/WIP module</td></tr><tr><td><code>TypeIdInstances</code></td><td>typeid</td><td>Internal implicit provider trait</td></tr><tr><td><code>TypeIdPrinter</code></td><td>typeid</td><td>Internal rendering utility</td></tr><tr><td><code>Owners</code></td><td>typeid</td><td>Internal namespace helper</td></tr><tr><td>All <code>*Const</code> types in <code>TypeRepr</code></td><td>typeid</td><td>Internal literal type representations (BooleanConst, CharConst, ClassOfConst, DoubleConst, FloatConst, IntConst, LongConst, NullConst, StringConst, UnitConst)</td></tr><tr><td><code>AnyKindType</code> / <code>AnyType</code> / <code>NothingType</code> / <code>NullType</code> / <code>UnitType</code></td><td>typeid</td><td>Internal special type representations</td></tr></tbody></table>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="suggested-actions">Suggested Actions<a href="#suggested-actions" class="hash-link" aria-label="Direct link to Suggested Actions" title="Direct link to Suggested Actions" translate="no">​</a></h2>
+<p>Ordered TODO checklist grouped by module, with estimated scope.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="conceptual-documentation-highest-impact">Conceptual Documentation (highest impact)<a href="#conceptual-documentation-highest-impact" class="hash-link" aria-label="Direct link to Conceptual Documentation (highest impact)" title="Direct link to Conceptual Documentation (highest impact)" translate="no">​</a></h3>
+<ol>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Write <strong>Getting Started Guide</strong> — <code>docs/getting-started.md</code> — <em>new page</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Write <strong>Architecture Overview</strong> — <code>docs/architecture.md</code> — <em>new page</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Write <strong>End-to-End Pipeline Example</strong> — Schema -&gt; Codec -&gt; Encode -&gt; Decode -&gt; Validate — <em>new page or section</em></li>
+</ul>
+</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="module-mediatype-entirely-undocumented">Module: <code>mediatype</code> (entirely undocumented)<a href="#module-mediatype-entirely-undocumented" class="hash-link" aria-label="Direct link to module-mediatype-entirely-undocumented" title="Direct link to module-mediatype-entirely-undocumented" translate="no">​</a></h3>
+<ol start="4">
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Write <strong>MediaType reference page</strong> — <code>docs/reference/media-type.md</code> — <em>new page</em></li>
+</ul>
+</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="module-schema-core-gaps">Module: <code>schema</code> (core gaps)<a href="#module-schema-core-gaps" class="hash-link" aria-label="Direct link to module-schema-core-gaps" title="Direct link to module-schema-core-gaps" translate="no">​</a></h3>
+<ol start="5">
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Write <strong>SchemaError reference</strong> — error types, handling patterns — <em>new page or new section in schema.md</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Write <strong>SchemaExpr reference</strong> — expression DSL, validation expressions — <em>new page</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Write <strong>Into reference</strong> — cross-type conversions — <em>new page</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>BindingResolver, MapConstructor, MapDeconstructor</strong> sections to <code>binding.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>InstanceOverride, ModifierOverride</strong> sections to <code>type-class-derivation.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>IsNumeric, IsCollection, IsMap</strong> section to <code>schema.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>Keyable, NameMapper</strong> section to <code>json.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>JsonPatch operations</strong> section to <code>json.md</code> or <code>patch.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>Reflectable, ToStructural</strong> sections to <code>reflect.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Expand <strong>Register/RegisterOffset</strong> explanation in <code>binding.md</code> and <code>registers.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="module-typeid-many-subtypes-undocumented">Module: <code>typeid</code> (many subtypes undocumented)<a href="#module-typeid-many-subtypes-undocumented" class="hash-link" aria-label="Direct link to module-typeid-many-subtypes-undocumented" title="Direct link to module-typeid-many-subtypes-undocumented" translate="no">​</a></h3>
+<ol start="15">
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>TypeRepr</strong> section with key subtypes to <code>typeid.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>TypeDefKind</strong> section to <code>typeid.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>Kind/Arrow</strong> section to <code>typeid.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>Annotation</strong> subtypes section to <code>typeid.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>Owner/Segment</strong> section to <code>typeid.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="module-context">Module: <code>context</code><a href="#module-context" class="hash-link" aria-label="Direct link to module-context" title="Direct link to module-context" translate="no">​</a></h3>
+<ol start="20">
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>IsNominalType, IsNominalIntersection</strong> section to <code>context.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="module-markdown">Module: <code>markdown</code><a href="#module-markdown" class="hash-link" aria-label="Direct link to module-markdown" title="Direct link to module-markdown" translate="no">​</a></h3>
+<ol start="21">
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>Block subtypes</strong> reference section to <code>docs.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>Inline subtypes</strong> reference section to <code>docs.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>Alignment, HeadingLevel, TerminalRenderer</strong> mentions to <code>docs.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="module-chunk">Module: <code>chunk</code><a href="#module-chunk" class="hash-link" aria-label="Direct link to module-chunk" title="Direct link to module-chunk" translate="no">​</a></h3>
+<ol start="24">
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>BitChunk operations</strong> section to <code>chunk.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <strong>ChunkIterator</strong> mention to <code>chunk.md</code> — <em>update existing</em></li>
+</ul>
+</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="format-modules-expand-formatsmd">Format modules (expand <code>formats.md</code>)<a href="#format-modules-expand-formatsmd" class="hash-link" aria-label="Direct link to format-modules-expand-formatsmd" title="Direct link to format-modules-expand-formatsmd" translate="no">​</a></h3>
+<ol start="26">
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Expand <strong>BSON section</strong> in <code>formats.md</code> with BsonEncoder/BsonDecoder API — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Expand <strong>MessagePack section</strong> in <code>formats.md</code> with MessagePackBinaryCodec API — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Expand <strong>Thrift section</strong> in <code>formats.md</code> with ThriftBinaryCodec API — <em>update existing</em></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Expand <strong>TOON section</strong> in <code>formats.md</code> with ToonReader/ToonWriter, Delimiter, config — <em>update existing</em></li>
+</ul>
+</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="depth-improvements-existing-pages">Depth improvements (existing pages)<a href="#depth-improvements-existing-pages" class="hash-link" aria-label="Direct link to Depth improvements (existing pages)" title="Direct link to Depth improvements (existing pages)" translate="no">​</a></h3>
+<ol start="30">
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add missing <strong>Reflect#transform</strong> and <strong>Reflect#noBinding</strong> to <code>reflect.md</code></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add missing <strong>Format trait interface</strong> and <strong>custom Format</strong> example to <code>codec.md</code></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add missing <strong>DynamicPatch</strong> operations and <strong>patch serialization</strong> example to <code>patch.md</code></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add missing <strong>Validation composition</strong> guidance and <strong>JSON Schema integration</strong> to <code>validation.md</code></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add missing <strong>TypeRepr pattern matching</strong> and <strong>Scala 2/3 differences</strong> to <code>typeid.md</code></li>
+</ul>
+</li>
+<li class="">
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add missing <strong>Cache behavior</strong> and <strong>intersection type</strong> examples to <code>context.md</code></li>
+</ul>
+</li>
+</ol>
+<hr>
+<p><em>Report generated on 2026-02-13. Scan performed by <code>scan-undocumented.sh</code>; manual enrichment by AI review of 250 undocumented types across 12 modules and 10 existing reference pages.</em></p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/zio/zio/edit/series/2.x/docs/zio-blocks/undocumented-report.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#summary" class="table-of-contents__link toc-highlight">Summary</a></li><li><a href="#critical-missing-reference-pages" class="table-of-contents__link toc-highlight">Critical: Missing Reference Pages</a></li><li><a href="#high-priority-incomplete-coverage" class="table-of-contents__link toc-highlight">High Priority: Incomplete Coverage</a><ul><li><a href="#types-needing-at-least-a-dedicated-section-in-an-existing-page" class="table-of-contents__link toc-highlight">Types needing at least a dedicated section in an existing page</a></li></ul></li><li><a href="#medium-priority-brief-mentions-needed" class="table-of-contents__link toc-highlight">Medium Priority: Brief Mentions Needed</a></li><li><a href="#documentation-depth-issues" class="table-of-contents__link toc-highlight">Documentation Depth Issues</a><ul><li><a href="#schema-schemamd" class="table-of-contents__link toc-highlight">Schema (<code>schema.md</code>)</a></li><li><a href="#reflect-reflectmd" class="table-of-contents__link toc-highlight">Reflect (<code>reflect.md</code>)</a></li><li><a href="#binding-bindingmd" class="table-of-contents__link toc-highlight">Binding (<code>binding.md</code>)</a></li><li><a href="#chunk-chunkmd" class="table-of-contents__link toc-highlight">Chunk (<code>chunk.md</code>)</a></li><li><a href="#json-jsonmd" class="table-of-contents__link toc-highlight">JSON (<code>json.md</code>)</a></li><li><a href="#codec-codecmd" class="table-of-contents__link toc-highlight">Codec (<code>codec.md</code>)</a></li><li><a href="#patch-patchmd" class="table-of-contents__link toc-highlight">Patch (<code>patch.md</code>)</a></li><li><a href="#typeid-typeidmd" class="table-of-contents__link toc-highlight">TypeId (<code>typeid.md</code>)</a></li><li><a href="#context-contextmd" class="table-of-contents__link toc-highlight">Context (<code>context.md</code>)</a></li><li><a href="#validation-validationmd" class="table-of-contents__link toc-highlight">Validation (<code>validation.md</code>)</a></li></ul></li><li><a href="#conceptual-gaps" class="table-of-contents__link toc-highlight">Conceptual Gaps</a></li><li><a href="#low-priority--skip" class="table-of-contents__link toc-highlight">Low Priority / Skip</a></li><li><a href="#suggested-actions" class="table-of-contents__link toc-highlight">Suggested Actions</a><ul><li><a href="#conceptual-documentation-highest-impact" class="table-of-contents__link toc-highlight">Conceptual Documentation (highest impact)</a></li><li><a href="#module-mediatype-entirely-undocumented" class="table-of-contents__link toc-highlight">Module: <code>mediatype</code> (entirely undocumented)</a></li><li><a href="#module-schema-core-gaps" class="table-of-contents__link toc-highlight">Module: <code>schema</code> (core gaps)</a></li><li><a href="#module-typeid-many-subtypes-undocumented" class="table-of-contents__link toc-highlight">Module: <code>typeid</code> (many subtypes undocumented)</a></li><li><a href="#module-context" class="table-of-contents__link toc-highlight">Module: <code>context</code></a></li><li><a href="#module-markdown" class="table-of-contents__link toc-highlight">Module: <code>markdown</code></a></li><li><a href="#module-chunk" class="table-of-contents__link toc-highlight">Module: <code>chunk</code></a></li><li><a href="#format-modules-expand-formatsmd" class="table-of-contents__link toc-highlight">Format modules (expand <code>formats.md</code>)</a></li><li><a href="#depth-improvements-existing-pages" class="table-of-contents__link toc-highlight">Depth improvements (existing pages)</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Learn!</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/overview/getting-started">Getting Started!</a></li><li class="footer__item"><a class="footer__link-item" href="/reference">Reference</a></li><li class="footer__item"><a class="footer__link-item" href="/guides">Guides</a></li><li class="footer__item"><a href="https://javadoc.io/doc/dev.zio/zio_3/latest/index.html" target="_blank" rel="noopener noreferrer" class="footer__link-item">Scaladoc of ZIO<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community and Social</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" class="footer__link-item">Github<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://discord.gg/2ccFBr4" target="_blank" rel="noopener noreferrer" class="footer__link-item">Discord<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://twitter.com/zioscala" target="_blank" rel="noopener noreferrer" class="footer__link-item">Twitter<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">ZIO Newsletter</div><ul class="footer__items clean-list"><li class="footer__item">
+                <a href="https://ziverge.us21.list-manage.com/subscribe?u=320ecb1626d9d6e2f5c111cce&id=75ac6a8d09" target="_blank" style="background-color:#e73c00;color:#fff;display:inline-block;font-size:14px;font-weight:bold;line-height:30px;text-align:center;text-decoration:none;width:100px;-webkit-text-size-adjust:none;border-radius: 10px; -moz-border-radius: 10px; -webkit-border-radius: 10px;">Subscribe</a>
+              </li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Contribution</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/contributor-guidelines">Contributor Guidelines</a></li><li class="footer__item"><a class="footer__link-item" href="/contributing-to-zio-ecosystem">Contributing to ZIO Ecosystem</a></li><li class="footer__item"><a class="footer__link-item" href="/contributing-to-documentation">Contributing to The ZIO Documentation</a></li><li class="footer__item"><a class="footer__link-item" href="/coding-guidelines">Coding Guidelines</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/blog">Blog</a></li><li class="footer__item"><a class="footer__link-item" href="/faq">FAQ</a></li><li class="footer__item"><a class="footer__link-item" href="/adopters">Adopters</a></li><li class="footer__item"><a class="footer__link-item" href="/code-of-conduct">Code of Conduct</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 ZIO Maintainers - Built with <a href="https://docusaurus.io/">Docusaurus</a></div></div></div></footer><button id="chat-button" class="fixed border-0 font-sans text-xl bg-orange-400 rounded-tl-md text-black px-3 py-2 hover:scale-95 transition text-ms bottom-0 right-0">ZIO Chat!</button><div id="container" class="fixed 2xl:w-[30%] xl:w-[40%] lg:w-[50%] md:w-[100%] sm:w-[100%] bottom-0 right-0 hidden"><div id="ChatPrompt" class="dark:bg-[#242526] justify-between flex flex-col p-5 rounded-md bg-gray-100 max-h-screen"><h1 class="text-[red] text-3xl font-bold mb-6">ZIO Chat</h1><div id="scroller" class="flex flex-col space-y-4 overflow-y-scroll scroll-smooth"><div class="w-full chat-message bot-message text-base flex flex-row space-x-2" id="chat0"><svg stroke="currentColor" class="dark:fill-white w-8 h-8" width="512" height="512" stroke-width="1.2" version="1.1" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path d="m251.5 465.47c-2.2-0.79382-4.0658-1.4501-4.1462-1.4584-0.0804-8e-3 -11.213-14.603-24.738-32.433-13.526-17.83-25.783-33.355-27.239-34.5-2.5677-2.0197-3.6988-2.0819-37.881-2.0819-26.502 0-37.311-0.36376-43.615-1.4678-41.84-7.3275-73.739-38.446-83.067-81.032-1.0295-4.7003-1.3141-24.846-1.3141-93 0-87 0-87 2.3606-95.933 4.8879-18.497 12.559-32.605 24.787-45.587 9.2497-9.82 17.894-16.206 29.853-22.055 12.164-5.9487 22.475-8.7238 37-9.9582 14.341-1.2188 250.66-1.2188 265 0 14.525 1.2344 24.836 4.0095 37 9.9582 27.681 13.537 46.498 36.883 54.694 67.859 2.3061 8.7158 2.3061 8.7158 2.3061 95.716 0 91.914 0.0591 90.587-4.7047 105.5-6.7536 21.141-21.967 41.003-40.805 53.271-10.293 6.7034-17.59 10.036-29.49 13.469-8.8282 2.5465-9.7661 2.6072-49.147 3.1783-38.3 0.55544-40.249 0.67425-42.37 2.5822-1.2225 1.1-12.734 15.789-25.581 32.643-22.432 29.428-27.972 35.857-30.897 35.857-0.73782 0-1.9408 0.20627-2.6733 0.45837-0.73249 0.25211-3.1318-0.19112-5.3318-0.98494zm23.537-59.973c10.012-13.2 19.611-25.489 21.333-27.309s6.0438-4.7447 9.605-6.5c6.4748-3.1914 6.4748-3.1914 47.5-3.7939 45.163-0.66322 46.206-0.7918 60.055-7.4041 22.518-10.752 38.146-32.47 41.471-57.628 0.75544-5.7172 0.99241-33.69 0.74856-88.365-0.32659-73.226-0.50777-80.505-2.1398-85.964-7.6316-25.527-24.675-43.653-49.109-52.228-8-2.8078-8-2.8078-148.5-2.8078s-140.5 0-148.5 2.8078c-24.041 8.4376-41.205 26.366-48.686 50.854-2.2293 7.2975-2.2438 7.7874-2.5808 87.339-0.23126 54.58 0.01227 82.658 0.76639 88.365 3.3308 25.208 18.878 46.839 41.391 57.59 13.937 6.655 14.937 6.7788 60.109 7.4426 41 0.60245 41 0.60245 46.5 3.1926 3.025 1.4246 6.9095 3.7825 8.6322 5.2398 1.7227 1.4573 11.848 14.126 22.5 28.154 10.652 14.027 19.668 25.394 20.035 25.26 0.36691-0.13406 8.8583-11.044 18.87-24.244zm-113.54-158.39c-8.0155-2.0869-15.285-7.9248-19.132-15.365-0.91824-1.7757-1.8816-6.1929-2.1409-9.8161-0.7674-10.725 4.3824-20.221 13.724-25.305 18.472-10.054 40.351 2.8809 40.386 23.877 0.0238 14.063-10.461 25.41-24.837 26.879-2.75 0.28104-6.35 0.15949-8-0.2701zm87.306-0.4596c-4.9404-1.3809-6.2234-2.1606-11.678-7.0974-8.3404-7.5483-10.677-21.444-5.3274-31.684 4.7261-9.0467 14.275-14.868 24.388-14.868 19.531 0 32.73 20.777 24.459 38.5-2.5529 5.4705-9.0324 11.927-14.09 14.04-4.9964 2.0876-12.56 2.5602-17.752 1.1091zm88.987-3e-3c-6.3455-1.7731-12.159-5.9747-15.733-11.371-12.497-18.867 2.493-44.045 25.008-42.003 15.041 1.3638 25.769 13.807 24.706 28.656-0.25923 3.6232-1.2226 8.0404-2.1409 9.8161-6.175 11.941-19.731 18.285-31.84 14.902z"></path></svg><div class="w-full"><div class="px-4 py-2 space-y-2 rounded-t-lg bg-blue-600 text-white"><p>Hello! 😊 I&#x27;m your ZIO Chat Bot, designed to be your go-to resource for all things ZIO! Whether you&#x27;re new to this powerful functional effect system or a seasoned pro, I&#x27;m here to assist you. ZIO empowers you to build concurrent and resilient applications in Scala, offering referential transparency, composable data types, type-safety, and more. So, go ahead and ask me anything about ZIO – I&#x27;m here to provide the answers you need! 🤖</p></div></div><form><button type="button" title="It was helpful to me!" class="dark:bg-[#242526] bg-gray-100 feedback-button inline-block"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.2" stroke="currentColor" class="dark:stroke-white w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75A2.25 2.25 0 0116.5 4.5c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.904M14.25 9h2.25M5.904 18.75c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 01-.521-3.507c0-1.553.295-3.036.831-4.398C3.387 10.203 4.167 9.75 5 9.75h1.053c.472 0 .745.556.5.96a8.958 8.958 0 00-1.302 4.665c0 1.194.232 2.333.654 3.375z"></path></svg></button><button type="button" title="It didn&#x27;t help me at all!" class="dark:bg-[#242526] bg-gray-100 feedback-button inline-block"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.2" stroke="currentColor" class="dark:stroke-white w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 15h2.25m8.024-9.75c.011.05.028.1.052.148.591 1.2.924 2.55.924 3.977a8.96 8.96 0 01-.999 4.125m.023-8.25c-.076-.365.183-.75.575-.75h.908c.889 0 1.713.518 1.972 1.368.339 1.11.521 2.287.521 3.507 0 1.553-.295 3.036-.831 4.398C20.613 14.547 19.833 15 19 15h-1.053c-.472 0-.745-.556-.5-.96a8.95 8.95 0 00.303-.54m.023-8.25H16.48a4.5 4.5 0 01-1.423-.23l-3.114-1.04a4.5 4.5 0 00-1.423-.23H6.504c-.618 0-1.217.247-1.605.729A11.95 11.95 0 002.25 12c0 .434.023.863.068 1.285C2.427 14.306 3.346 15 4.372 15h3.126c.618 0 .991.724.725 1.282A7.471 7.471 0 007.5 19.5a2.25 2.25 0 002.25 2.25.75.75 0 00.75-.75v-.633c0-.573.11-1.14.322-1.672.304-.76.93-1.33 1.653-1.715a9.04 9.04 0 002.86-2.4c.498-.634 1.226-1.08 2.032-1.08h.384"></path></svg></button></form></div><div id="anchor"></div></div><form class="flex bottom-5 left-5 right-5 h-10 mt-4"><input type="text" id="promptInput" class="w-full px-4 py-2 border-0 rounded-md text-base text-black dark:text-white bg-gray-200 dark:bg-[#2b2e30] focus:outline-none font-sans font-normal placeholder-gray-500" placeholder="Write a question about ZIO!"><button id="generateBtn" type="submit" class="px-6 rounded-md border-0 bg-black text-base text-white hover:bg-gray-900 focus:outline-none disabled:opacity-75 disabled:cursor-not-allowed font-sans font-normal">Send</button></form></div></div></div>
+</body>
+</html>
