@@ -672,6 +672,16 @@ object GenSpec extends ZIOBaseSpec {
       val actual     = exhaustive.zipWith(exhaustive)(_ + _)
       checkFinite(actual)(equalTo(expected))
     },
+    test("fromIterable combined with random generators produces different values") {
+      // Issue #9101: Gen.fromIterable generates the same data when placed after random generators
+      val gen = for {
+        id <- Gen.uuid
+        _ <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
+      } yield id
+      for {
+        ids <- gen.runCollectN(10)
+      } yield assert(ids.distinct)(hasSize(equalTo(10)))
+    },
     test("size can be modified locally") {
       val getSize = Gen.size.sample.map(_.value).runCollect.map(_.head)
       val result = for {
