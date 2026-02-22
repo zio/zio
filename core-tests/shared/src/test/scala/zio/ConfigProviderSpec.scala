@@ -1037,6 +1037,23 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           result <- configProvider.load(config)
         } yield assertTrue(result == Nil)
       } +
+      // Test for issue #10442: failure propagation in list config with withDefault
+      test("failure propagation in list config with withDefault") {
+        final case class Person(name: String, age: Int)
+
+        // When a list element has a missing field (e.g., "agr" instead of "age"),
+        // withDefault should return an error, not the default value
+        val configProvider = ConfigProvider.fromMap(
+          Map("values[0].name" -> "John", "values[0].agr" -> "9")
+        )
+
+        val person: Config[Person] = (Config.string("name") ++ Config.int("age")).map(Person.tupled)
+        val people: Config[List[Person]] = Config.listOf("values", person).withDefault(Nil)
+
+        for {
+          exit <- configProvider.load(people).exit
+        } yield assert(exit)(failsWithA[Config.Error])
+      } +
       // FIXME: Failing test
       test("empty list within indexed list") {
         val configProvider =

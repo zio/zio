@@ -133,9 +133,12 @@ sealed trait Config[+A] { self =>
   /**
    * Returns a new config that describes the same structure as this one, but has
    * the specified default value in case the information cannot be found.
+   * Note: This will NOT use the default if the error indicates that a list element
+   * or nested field is missing (e.g., "values[0].name"). It only uses the default
+   * when the entire configuration path is truly missing.
    */
   def withDefault[A1 >: A](default: => A1): Config[A1] =
-    self.orElseIf(_.isMissingDataOnly)(Config.succeed(default))
+    self.orElseIf(e => e.isMissingDataOnly && !e.hasIndexedPath)(Config.succeed(default))
 
   /**
    * A named version of `++`.
@@ -426,6 +429,14 @@ object Config {
     final def isMissingDataOnly: Boolean =
       foldContext(())(Folder.IsMissingDataOnly)
 
+    /**
+     * Checks if the error contains any path with a numeric index (e.g., "values[0]").
+     * This is used to distinguish between "the list itself is missing" vs
+     * "the list exists but some elements are missing".
+     */
+    final def hasIndexedPath: Boolean =
+      foldContext(())(Folder.HasIndexedPath)
+
     def prefixed(prefix: Chunk[String]): Error
 
     override def getMessage(): String = toString()
@@ -487,6 +498,23 @@ object Config {
           cause: Cause[Throwable]
         ): Boolean = false
         def unsupportedCase(context: Any, path: Chunk[String], message: String): Boolean = false
+      }
+
+      case object HasIndexedPath extends Folder[Any, Boolean] {
+        private def hasIndex(path: Chunk[String]): Boolean =
+          path.exists(_.matches(".*\\[\\d+\\].*"))
+
+        def andCase(context: Any, left: Boolean, right: Boolean): Boolean                = left || right
+        def invalidDataCase(context: Any, path: Chunk[String], message: String): Boolean = hasIndex(path)
+        def missingDataCase(context: Any, path: Chunk[String], message: String): Boolean = hasIndex(path)
+        def orCase(context: Any, left: Boolean, right: Boolean): Boolean                 = left || right
+        def sourceUnavailableCase(
+          context: Any,
+          path: Chunk[String],
+          message: String,
+          cause: Cause[Throwable]
+        ): Boolean = hasIndex(path)
+        def unsupportedCase(context: Any, path: Chunk[String], message: String): Boolean = hasIndex(path)
       }
     }
   }
