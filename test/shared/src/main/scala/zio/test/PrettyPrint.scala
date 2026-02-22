@@ -110,7 +110,12 @@ ${indent(body.mkString(",\n"))}
 
       case product: Product => prettyPrintProduct(product)
 
-      case other => other.toString
+      // Handle Scala 3 wrapper classes (StringOps, SeqExtensions, etc.) that hide the actual value
+      case other =>
+        other match {
+          case stringOps: scala.collection.StringOps => PrettyPrint(stringOps.underlying)
+          case _ => other.toString
+        }
     }
 
   private def prettyPrintIterator(iterable: Iterable[_], className: String): String =
