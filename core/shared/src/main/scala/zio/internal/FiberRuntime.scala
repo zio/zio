@@ -18,11 +18,11 @@ package zio.internal
 
 import zio.Exit.{Failure, Success}
 import zio._
+import zio.internal.FiberMailbox
 import zio.internal.SpecializationHelpers.SpecializeInt
 import zio.metrics.{Metric, MetricLabel}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{Set => JavaSet}
 import scala.annotation.tailrec
@@ -42,7 +42,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _blockingOn     = FiberRuntime.notBlockingOn
   private var _asyncContWith  = null.asInstanceOf[AsyncContWith]
   private val running         = new AtomicBoolean(false)
-  private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
+  private val inbox           = new FiberMailbox[FiberMessage]()
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
@@ -130,7 +130,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       if (exit ne null) Exit.succeed(exit)
       else {
         val cause = Cause.interrupt(fiberId, StackTrace(self.fiberId, Chunk.single(trace)))
-        inbox.add(FiberMessage.InterruptSignal(cause))
+        inbox.offer(FiberMessage.InterruptSignal(cause))
 
         // If the fiber is not running (which means it's suspended), and the current thread is in the same executor as the fiber,
         // then execute the runloop on the current thread, avoiding context switching and suspension
@@ -1097,7 +1097,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     var stackIndex = startStackIndex
 
     if (currentDepth >= FiberRuntime.MaxDepthBeforeTrampoline) {
-      inbox.add(FiberMessage.Resume(effect))
+      inbox.offer(FiberMessage.Resume(effect))
 
       return null
     }
@@ -1113,7 +1113,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       if (ops > FiberRuntime.MaxOperationsBeforeYield && RuntimeFlags.cooperativeYielding(_runtimeFlags)) {
         updateLastTrace(cur.trace)
-        inbox.add(FiberMessage.Resume(cur))
+        inbox.offer(FiberMessage.Resume(cur))
 
         return null
       } else {
@@ -1299,7 +1299,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
             case yieldNow: ZIO.YieldNow =>
               updateLastTrace(yieldNow.trace)
-              inbox.add(FiberMessage.resumeUnit)
+              inbox.offer(FiberMessage.resumeUnit)
               return null
 
             case failure: Exit.Failure[Any] =>
@@ -1519,7 +1519,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * Adds a message to be processed by the fiber on the fiber.
    */
   private[zio] def tell(message: FiberMessage): Unit = {
-    inbox.add(message)
+    inbox.offer(message)
 
     // Attempt to spin up fiber, if it's not already running:
     if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor(false)
