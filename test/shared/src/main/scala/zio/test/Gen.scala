@@ -445,8 +445,21 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def fromIterable[R, A](
     as: Iterable[A],
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
-  )(implicit trace: Trace): Gen[R, A] =
-    Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
+  )(implicit trace: Trace): Gen[R, A] = {
+    val asSeq = as.toSeq
+    if (asSeq.isEmpty)
+      Gen.empty
+    else
+      Gen(
+        ZStream
+          .repeatZIO(
+            nextIntBetween(0, asSeq.size).map { index =>
+              val a = asSeq(index)
+              Sample.unfold(a)(a => (a, shrinker(a)))
+            }
+          )
+      )
+  }
 
   /**
    * Constructs a generator from a function that uses randomness. The returned

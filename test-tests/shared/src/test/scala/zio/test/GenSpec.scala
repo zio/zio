@@ -776,6 +776,19 @@ object GenSpec extends ZIOBaseSpec {
       check(Gen.setOfN(2)(Gen.fromIterable(List(1, 2, 3)))) { set =>
         assertTrue(set.size == 2)
       }
+    },
+    test("fromIterable generates different values when combined with other generators in for comprehension") {
+      // This is a regression test for https://github.com/zio/zio/issues/9101
+      // When using fromIterable in the second position of a for comprehension
+      // with another generator, the generated values should be different each time
+      val gen = for {
+        id <- Gen.uuid
+        _  <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
+      } yield id
+
+      for {
+        ids <- gen.runCollectN(100)
+      } yield assertTrue(ids.toSet.size > 1)
     }
   )
 }
