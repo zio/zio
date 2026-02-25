@@ -60,7 +60,7 @@ jobs:
         uses: actions/setup-java@v5.2.0
         with:
           distribution: temurin
-          java-version: 11
+          java-version: 17
           check-latest: true
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
@@ -195,7 +195,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['11', '17', '25']
+        java: ['17', '21', '25']
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v6.0.2
@@ -211,13 +211,6 @@ jobs:
         uses: coursier/cache-action@v8
       - name: Test on different JVM versions
         run: sbt -v testJVM
-      - name: Report Test Death JVM 11
-        if: ${{ failure() &&  startsWith(matrix.java, '11') }}
-        uses: actions/upload-artifact@v6
-        with:
-          name: zio-test-debug-JVM-11
-          path: ./**/test-reports-zio/**_debug.txt
-          overwrite: true
 
   testPlatforms:
     runs-on: ubuntu-latest
@@ -274,7 +267,7 @@ jobs:
         uses: actions/setup-java@v5.2.0
         with:
           distribution: temurin
-          java-version: 11
+          java-version: 17
           check-latest: true
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
