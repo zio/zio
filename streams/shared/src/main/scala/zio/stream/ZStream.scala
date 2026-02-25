@@ -381,14 +381,16 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                    } yield queue
     } yield subscriber
 
-      /**
+  /**
    * Allows a faster producer to progress independently of a slower consumer by
    * buffering up to `capacity` elements in a queue.
    *
    * Special-cased for `capacity == 1` to eliminate the async race.
    *
-   * @note This combinator destroys the chunking structure.
-   * @note Prefer capacities that are powers of 2 for better performance.
+   * @note
+   *   This combinator destroys the chunking structure.
+   * @note
+   *   Prefer capacities that are powers of 2 for better performance.
    */
   def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] =
     ZStream.suspend {
@@ -423,13 +425,10 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       for {
         dataQueue   <- Queue.bounded[Exit[Option[E], A]](1)
         permitQueue <- Queue.bounded[Unit](1)
-        _           <- permitQueue.offer(())                    // initial permit
-        _           <- self
-                         .mapZIO { a =>
-                           permitQueue.take *> dataQueue.offer(Exit.succeed(a))
-                         }
-                         .runDrain
-                         .forkScoped
+        _           <- permitQueue.offer(()) // initial permit
+        _ <- self.mapZIO { a =>
+               permitQueue.take *> dataQueue.offer(Exit.succeed(a))
+             }.runDrain.forkScoped
       } yield {
         lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
           ZChannel.fromZIO(dataQueue.take).flatMap { exit =>
@@ -439,14 +438,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                 .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
               value =>
                 ZChannel.write(Chunk.single(value)) *>
-                  ZChannel.fromZIO(permitQueue.offer(())) *>   // return the permit
+                  ZChannel.fromZIO(permitQueue.offer(())) *> // return the permit
                   process
             )
           }
         new ZStream(process)
       }
     }
-
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by
