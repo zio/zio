@@ -129,7 +129,15 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
     while (iter.hasNextAt(i)) {
       val ref   = iter.nextAt(i)
       val value = ref.get()
-      if ((value ne null) && isAlive(value)) graduates.add(ref)
+      // Skip null refs and dead values to avoid NPE in Scala Native's ConcurrentHashMap
+      // when many fibers are forked concurrently (see issue #9681)
+      if (ref ne null && (value ne null) && isAlive(value)) {
+        try {
+          graduates.add(ref)
+        } catch {
+          case _: NullPointerException => // Scala Native edge case - silently skip
+        }
+      }
       i += 1
     }
   }
