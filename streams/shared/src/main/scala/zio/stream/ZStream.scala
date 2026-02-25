@@ -381,7 +381,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                    } yield queue
     } yield subscriber
 
-    /**
+      /**
    * Allows a faster producer to progress independently of a slower consumer by
    * buffering up to `capacity` elements in a queue.
    *
@@ -390,43 +390,63 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * @note This combinator destroys the chunking structure.
    * @note Prefer capacities that are powers of 2 for better performance.
    */
-  def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
-    val n = capacity
-    if (n == 1) bufferOne
-    else {
-      val queue = self.toQueueOfElements(n)
-      new ZStream(
-        ZChannel.unwrapScoped[R] {
-          queue.map { queue =>
-            lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
-              ZChannel.fromZIO {
-                queue.take
-              }.flatMap { (exit: Exit[Option[E], A]) =>
-                exit.foldExit(
-                  Cause
-                    .flipCauseOption(_)
-                    .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
-                  value => ZChannel.write(Chunk.single(value)) *> process
-                )
-              }
-            process
+  def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] =
+    ZStream.suspend {
+      val n = capacity
+      if (n == 1) bufferOne
+      else {
+        val queue = self.toQueueOfElements(n)
+        new ZStream(
+          ZChannel.unwrapScoped[R] {
+            queue.map { queue =>
+              lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+                ZChannel.fromZIO(queue.take).flatMap { (exit: Exit[Option[E], A]) =>
+                  exit.foldExit(
+                    Cause
+                      .flipCauseOption(_)
+                      .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
+                    value => ZChannel.write(Chunk.single(value)) *> process
+                  )
+                }
+              process
+            }
           }
-        }
-      )
-    }
-  }
-
-  /**
-   * Special race-free implementation for `.buffer(1)`.
-   *
-   * Guarantees **exactly one** element ahead of the consumer.
-   */
-  private def bufferOne(implicit trace: Trace): ZStream[R, E, A] =
-    ZStream.fromZIO(Semaphore.make(1)).flatMap { sem =>
-      self.mapZIO { a =>
-        sem.withPermit(ZIO.succeed(a))
+        )
       }
     }
+
+  /**
+   * Special race-free implementation for `.buffer(1)` using a permit queue.
+   */
+  private def bufferOne(implicit trace: Trace): ZStream[R, E, A] =
+    ZStream.unwrapScoped[R] {
+      for {
+        dataQueue   <- Queue.bounded[Exit[Option[E], A]](1)
+        permitQueue <- Queue.bounded[Unit](1)
+        _           <- permitQueue.offer(())                    // initial permit
+        _           <- self
+                         .mapZIO { a =>
+                           permitQueue.take *> dataQueue.offer(Exit.succeed(a))
+                         }
+                         .runDrain
+                         .forkScoped
+      } yield {
+        lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+          ZChannel.fromZIO(dataQueue.take).flatMap { exit =>
+            exit.foldExit(
+              Cause
+                .flipCauseOption(_)
+                .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
+              value =>
+                ZChannel.write(Chunk.single(value)) *>
+                  ZChannel.fromZIO(permitQueue.offer(())) *>   // return the permit
+                  process
+            )
+          }
+        new ZStream(process)
+      }
+    }
+
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by
