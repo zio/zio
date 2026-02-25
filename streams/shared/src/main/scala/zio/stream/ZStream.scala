@@ -383,14 +383,17 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by
-   * buffering up to `capacity` elements in a queue.
+   * buffering up to `capacity` elements in a bounded queue.
    *
-   * Special-cased for `capacity == 1` to eliminate the async race.
+   * When `capacity == 1`, this operator is special-cased to provide strict
+   * handoff semantics using a permit queue, avoiding the async race that can
+   * occur with a single-element buffer.
    *
    * @note
-   *   This combinator destroys the chunking structure.
+   *   This combinator destroys the upstream chunking structure and emits
+   *   elements one-by-one.
    * @note
-   *   Prefer capacities that are powers of 2 for better performance.
+   *   Prefer capacities that are powers of two for better performance.
    */
   def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] =
     ZStream.suspend {
@@ -401,12 +404,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       else if (n == 1) {
         ZStream.unwrapScoped[R] {
           for {
-            dataQueue   <- Queue.bounded[Exit[Option[E], A]](1)
-            permitQueue <- Queue.bounded[Unit](1)
-            _           <- permitQueue.offer(())
+            dataQueue <- Queue.bounded[Exit[Option[E], A]](1)
+            slotQueue <- Queue.bounded[Unit](1)
+            _         <- slotQueue.offer(())
 
             _ <- self.mapZIO { a =>
-                   permitQueue.take *> dataQueue.offer(Exit.succeed(a))
+                   slotQueue.take *> dataQueue.offer(Exit.succeed(a))
                  }.runDrain.exit.flatMap { exit =>
                    val terminal: Exit[Option[E], A] =
                      exit.foldExit(
@@ -430,7 +433,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                         )(ZChannel.refailCause),
                     value =>
                       ZChannel.write(Chunk.single(value)) *>
-                        ZChannel.fromZIO(permitQueue.offer(())) *>
+                        ZChannel.fromZIO(slotQueue.offer(())) *>
                         process
                   )
                 }
