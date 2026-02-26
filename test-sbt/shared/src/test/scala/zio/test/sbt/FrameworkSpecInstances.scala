@@ -243,7 +243,7 @@ object FrameworkSpecInstances {
     val sharedDaemonLayer: ZLayer[Any, Nothing, Queue[Int]] = ZLayer.scoped {
       for {
         queue <- Queue.unbounded[Int]
-        _     <- queue.offer(1).repeat(Schedule.spaced(1.second)).forkScoped
+        _     <- queue.offer(1).repeat(Schedule.spaced(10.millis)).forkScoped
       } yield queue
     }
 
@@ -267,7 +267,7 @@ object FrameworkSpecInstances {
     val sharedDaemonLayer: ZLayer[Any, Nothing, Queue[Int]] = ZLayer.scoped {
       for {
         queue <- Queue.unbounded[Int]
-        _     <- queue.offer(1).repeat(Schedule.spaced(1.second)).forkScoped
+        _     <- queue.offer(1).repeat(Schedule.spaced(10.millis)).forkScoped
       } yield queue
     }
 
@@ -275,12 +275,14 @@ object FrameworkSpecInstances {
       test("#10491 test 1 sees daemon fiber output via provideSomeLayerShared") {
         for {
           queue <- ZIO.service[Queue[Int]]
+          _     <- queue.takeAll
           _     <- queue.take
         } yield assertTrue(true)
       },
       test("#10491 test 2 also sees daemon fiber output via provideSomeLayerShared") {
         for {
           queue <- ZIO.service[Queue[Int]]
+          _     <- queue.takeAll
           _     <- queue.take
         } yield assertTrue(true)
       }
