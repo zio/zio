@@ -243,7 +243,7 @@ object FrameworkSpecInstances {
     val sharedDaemonLayer: ZLayer[Any, Nothing, Queue[Int]] = ZLayer.scoped {
       for {
         queue <- Queue.unbounded[Int]
-        _     <- queue.offer(1).repeat(Schedule.spaced(10.millis)).forkScoped
+        _     <- queue.offer(1).repeat(Schedule.spaced(1.second)).forkScoped
       } yield queue
     }
 
@@ -267,7 +267,7 @@ object FrameworkSpecInstances {
     val sharedDaemonLayer: ZLayer[Any, Nothing, Queue[Int]] = ZLayer.scoped {
       for {
         queue <- Queue.unbounded[Int]
-        _     <- queue.offer(1).repeat(Schedule.spaced(10.millis)).forkScoped
+        _     <- queue.offer(1).repeat(Schedule.spaced(1.second)).forkScoped
       } yield queue
     }
 
