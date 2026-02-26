@@ -1,7 +1,7 @@
 package zio.test.sbt
 
 import zio.test._
-import zio.{Scope, ZIO, ZLayer, durationInt}
+import zio.{Queue, Schedule, Scope, ZIO, ZLayer, durationInt}
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -237,5 +237,53 @@ object FrameworkSpecInstances {
         }
       )
     )
+  }
+
+  object SharedLayerWithDaemonFiber extends ZIOSpecDefault {
+    val sharedDaemonLayer: ZLayer[Any, Nothing, Queue[Int]] = ZLayer.scoped {
+      for {
+        queue <- Queue.unbounded[Int]
+        _     <- queue.offer(1).repeat(Schedule.spaced(10.millis)).forkScoped
+      } yield queue
+    }
+
+    override def spec = suite("#10491 daemon fiber suite")(
+      test("#10491 test 1 sees daemon fiber output") {
+        for {
+          queue <- ZIO.service[Queue[Int]]
+          _     <- queue.take
+        } yield assertTrue(true)
+      },
+      test("#10491 test 2 also sees daemon fiber output") {
+        for {
+          queue <- ZIO.service[Queue[Int]]
+          _     <- queue.take
+        } yield assertTrue(true)
+      }
+    ).provideLayerShared(sharedDaemonLayer) @@ TestAspect.withLiveClock @@ TestAspect.sequential
+  }
+
+  object SharedLayerWithDaemonFiberSome extends ZIOSpecDefault {
+    val sharedDaemonLayer: ZLayer[Any, Nothing, Queue[Int]] = ZLayer.scoped {
+      for {
+        queue <- Queue.unbounded[Int]
+        _     <- queue.offer(1).repeat(Schedule.spaced(10.millis)).forkScoped
+      } yield queue
+    }
+
+    override def spec = suite("#10491 daemon fiber some suite")(
+      test("#10491 test 1 sees daemon fiber output via provideSomeLayerShared") {
+        for {
+          queue <- ZIO.service[Queue[Int]]
+          _     <- queue.take
+        } yield assertTrue(true)
+      },
+      test("#10491 test 2 also sees daemon fiber output via provideSomeLayerShared") {
+        for {
+          queue <- ZIO.service[Queue[Int]]
+          _     <- queue.take
+        } yield assertTrue(true)
+      }
+    ).provideSomeLayerShared[Any](sharedDaemonLayer) @@ TestAspect.withLiveClock @@ TestAspect.sequential
   }
 }

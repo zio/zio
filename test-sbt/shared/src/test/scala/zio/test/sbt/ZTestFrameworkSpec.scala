@@ -4,7 +4,7 @@ import sbt.testing.{Status, TestSelector}
 import zio.test.sbt.Colors.{green, red, yellow}
 import zio.test.sbt.ExecuteSpecs.{getEvents, getOutput, getOutputs}
 import zio.test.{Spec, TestAspect, TestEnvironment, TestResult, ZIOSpecDefault, assertTrue, assert}
-import zio.{Scope, ZIO}
+import zio.{Scope, ZIO, durationInt}
 
 object ZTestFrameworkSpec extends ZIOSpecDefault {
   override def spec: Spec[TestEnvironment with Scope, Any] = suite("test framework")(
@@ -189,6 +189,28 @@ object ZTestFrameworkSpec extends ZIOSpecDefault {
         medium <- testName("inner - test")
         long   <- testName("outer - inner - test")
       } yield verify(short) && verify(medium) && verify(long)
-    }
+    },
+    test("#10491 shared layer with daemon fibers keeps fibers alive for all tests (provideLayerShared)") {
+      for {
+        output <- getOutput(FrameworkSpecInstances.SharedLayerWithDaemonFiber)
+      } yield {
+        assertTrue(
+          output.exists(_.contains("#10491 test 1 sees daemon fiber output")),
+          output.exists(_.contains("#10491 test 2 also sees daemon fiber output")),
+          !output.exists(_.contains("Timeout"))
+        )
+      }
+    } @@ TestAspect.timeout(30.seconds),
+    test("#10491 shared layer with daemon fibers keeps fibers alive for all tests (provideSomeLayerShared)") {
+      for {
+        output <- getOutput(FrameworkSpecInstances.SharedLayerWithDaemonFiberSome)
+      } yield {
+        assertTrue(
+          output.exists(_.contains("#10491 test 1 sees daemon fiber output via provideSomeLayerShared")),
+          output.exists(_.contains("#10491 test 2 also sees daemon fiber output via provideSomeLayerShared")),
+          !output.exists(_.contains("Timeout"))
+        )
+      }
+    } @@ TestAspect.timeout(30.seconds)
   )
 }
