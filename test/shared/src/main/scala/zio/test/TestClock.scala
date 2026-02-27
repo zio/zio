@@ -233,7 +233,7 @@ object TestClock extends Serializable {
     /**
      * Returns the time zone.
      */
-    def zoneId(implicit trace: Trace): UIO[ZoneId] =
+    override def zoneId(implicit trace: Trace): UIO[ZoneId] =
       clockState.get.map(_.timeZone)
 
     override def unsafe: UnsafeAPI =
