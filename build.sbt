@@ -551,8 +551,8 @@ lazy val commonJunitTestSettings = Seq(
     "org.apache.maven"          % "maven-compat"                   % "3.9.12" % Test,
     "com.google.inject"         % "guice"                          % "6.0.0"  % Test,
     "org.eclipse.sisu"          % "org.eclipse.sisu.inject"        % "1.0.0"  % Test,
-    "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.25" % Test,
-    "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.25" % Test,
+    "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.27" % Test,
+    "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.27" % Test,
     "org.codehaus.plexus"       % "plexus-component-annotations"   % "2.2.0"  % Test,
     "org.slf4j"                 % "slf4j-simple"                   % "2.0.17" % Test
   )
@@ -662,12 +662,12 @@ lazy val benchmarks = project.module
         "io.github.timwspence"      %% "cats-stm"      % "0.13.4",
         "io.projectreactor"          % "reactor-core"  % "3.8.3",
         "io.reactivex.rxjava2"       % "rxjava"        % "2.2.21",
-        "org.jctools"                % "jctools-core"  % "4.0.5",
+        "org.jctools"                % "jctools-core"  % "4.0.6",
         "org.typelevel"             %% "cats-effect"   % CatsEffectVersion,
         "org.scalacheck"            %% "scalacheck"    % ScalaCheckVersion,
         "qa.hedgehog"               %% "hedgehog-core" % "0.13.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % nyanaVersion,
-        "org.springframework"        % "spring-core"   % "7.0.3"
+        "org.springframework"        % "spring-core"   % "7.0.5"
       )
     },
     excludeDependencies ++= {
