@@ -442,11 +442,24 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * Constructs a deterministic generator that only generates the specified
    * fixed values.
    */
+  /**
+   * Constructs a generator from an `Iterable`. The resulting generator is
+   * deterministic, but consumes a random value to ensure proper state advancement
+   * when combined with random generators (fixes #9101).
+   */
   def fromIterable[R, A](
     as: Iterable[A],
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
-  )(implicit trace: Trace): Gen[R, A] =
-    Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
+  )(implicit trace: Trace): Gen[R with Random, A] =
+    Gen {
+      // Consume a random value to ensure proper state advancement
+      // This prevents deterministic generators from affecting subsequent random generators
+      ZStream.fromRandom.flatMap { random =>
+        ZStream.fromZIO(random.nextInt).flatMap { _ =>
+          ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a))))
+        }
+      }
+    }
 
   /**
    * Constructs a generator from a function that uses randomness. The returned
