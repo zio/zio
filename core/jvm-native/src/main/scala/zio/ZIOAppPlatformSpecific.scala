@@ -5,6 +5,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
 
+  protected[zio] def registerShutdownHook(hook: () => Unit)(implicit unsafe: Unsafe): Unit =
+    Platform.addShutdownHook(hook)
+
   /**
    * The Scala main function, intended to be called only by the Scala runtime.
    */
@@ -17,7 +20,7 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
     val shutdownLatch = internal.OneShot.make[Unit]
 
     def shutdownHook(fiberId: FiberId, fiber: Fiber.Runtime[Nothing, ExitCode]): Unit =
-      Platform.addShutdownHook { () =>
+      registerShutdownHook { () =>
         if (shuttingDown.compareAndSet(false, true)) {
           if (FiberRuntime.catastrophicFailure.get) {
             println(
