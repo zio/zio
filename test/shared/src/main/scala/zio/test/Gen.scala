@@ -101,12 +101,24 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 
   def withFilter(f: A => Boolean)(implicit trace: Trace): Gen[R, A] = filter(f)
 
-  def flatMap[R1 <: R, B](f: A => Gen[R1, B])(implicit trace: Trace): Gen[R1, B] =
+  /**
+   * FlatMaps this generator with the specified function, ensuring proper
+   * random state propagation to prevent issues with deterministic generators
+   * affecting subsequent random generators (fixes #9101).
+   */
+  def flatMap[R1 <: R, B](f: A => Gen[R1, B])(implicit trace: Trace): Gen[R1 with Random, B] =
     Gen {
-      self.sample.flatMap { sample =>
-        val values  = f(sample.value).sample
-        val shrinks = Gen(sample.shrink).flatMap(f).sample
-        values.map(_.flatMap(Sample(_, shrinks)))
+      ZStream.fromRandom.flatMap { random =>
+        self.sample.flatMap { sample =>
+          // Consume a random value to ensure proper state advancement
+          // This prevents deterministic generators (like fromIterable) from
+          // causing subsequent random generators to produce the same values
+          ZStream.fromZIO(random.nextInt).flatMap { _ =>
+            val values  = f(sample.value).sample
+            val shrinks = Gen(sample.shrink).flatMap(f).sample
+            values.map(_.flatMap(Sample(_, shrinks)))
+          }
+        }
       }
     }
 
