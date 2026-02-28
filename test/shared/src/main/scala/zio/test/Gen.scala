@@ -450,13 +450,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def fromIterable[R, A](
     as: Iterable[A],
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
-  )(implicit trace: Trace): Gen[R with Random, A] = {
+  )(implicit trace: Trace): Gen[R, A] = {
     val values = as.toIndexedSeq
     if (values.isEmpty) Gen.empty
     else
       Gen(
         ZStream
-          .fromZIO(Random.nextIntBounded(values.length))
+          .fromZIO(ZIO.serviceWithZIO[Random](_.nextIntBounded(values.length)))
           .flatMap(index => ZStream.succeed(values(index)))
           .map(a => Sample.unfold(a)(a => (a, shrinker(a))))
       )
