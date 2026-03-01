@@ -18,7 +18,7 @@ object ZStreamBufferRegressionSpec extends ZIOSpecDefault {
           .fromIterable(1 to 3)
           .mapZIO(i => started.update(_ :+ i).as(i))
           .buffer(1)
-        
+
         // Pull first element and check how many have started
         startedAfterFirst <- ZIO.scoped {
           stream.toPull.flatMap { pull =>
@@ -31,7 +31,7 @@ object ZStreamBufferRegressionSpec extends ZIOSpecDefault {
         }
       } yield assert(startedAfterFirst.toList)(equalTo(List(1, 2)))
     } @@ TestAspect.timeout(5.seconds),
-    
+
     test("buffer(2) does not run more than two elements ahead") {
       for {
         started <- Ref.make(Chunk.empty[Int])
@@ -39,7 +39,7 @@ object ZStreamBufferRegressionSpec extends ZIOSpecDefault {
           .fromIterable(1 to 4)
           .mapZIO(i => started.update(_ :+ i).as(i))
           .buffer(2)
-        
+
         startedAfterFirst <- ZIO.scoped {
           stream.toPull.flatMap { pull =>
             for {
@@ -51,7 +51,7 @@ object ZStreamBufferRegressionSpec extends ZIOSpecDefault {
         }
       } yield assert(startedAfterFirst.toList)(equalTo(List(1, 2, 3)))
     } @@ TestAspect.timeout(5.seconds),
-    
+
     test("buffer(1) with slow consumer - producer should not race ahead") {
       for {
         processed <- Ref.make(0)
@@ -61,7 +61,7 @@ object ZStreamBufferRegressionSpec extends ZIOSpecDefault {
           .buffer(1)
           .runForeach(_ => ZIO.sleep(1.hour))
           .fork
-        
+
         // Wait a bit and check how many were processed
         _ <- TestClock.adjust(1.second)
         count <- processed.get

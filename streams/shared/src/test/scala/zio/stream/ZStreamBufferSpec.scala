@@ -27,12 +27,12 @@ object ZStreamBufferSpec extends ZIOSpecDefault {
           .repeatZIO(counter.updateAndGet(_ + 1))
           .take(10)
           .buffer(1)
-        
+
         result <- stream
           .tap(_ => TestClock.adjust(100.millis))
           .take(3)
           .runCollect
-        
+
         finalCount <- counter.get
       } yield assertTrue(finalCount <= 4)
     },
@@ -41,13 +41,13 @@ object ZStreamBufferSpec extends ZIOSpecDefault {
       for {
         processed <- Ref.make(List.empty[Int])
         stream = ZStream(1, 2, 3)
-          .mapZIO(i => 
+          .mapZIO(i =>
             if (i == 2) ZIO.fail(new RuntimeException("error"))
             else processed.update(_ :+ i).as(i)
           )
           .buffer(1)
           .catchAll(_ => ZStream.empty)
-        
+
         result <- stream.runCollect
         finalProcessed <- processed.get
       } yield assertTrue(finalProcessed == List(1))
