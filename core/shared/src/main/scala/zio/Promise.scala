@@ -110,6 +110,18 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     ZIO.succeed(unsafe.completeWith(io)(Unsafe))
 
   /**
+   * Links this promise to the specified fiber so that it will be completed
+   * when the fiber completes. This eliminates the intermediate allocations
+   * that arise from the common pattern of forking a fiber and then awaiting a
+   * promise that the fiber eventually completes, replacing the callback
+   * indirection with a direct observer registration on the fiber.
+   *
+   * If the promise has already been completed, this is a no-op.
+   */
+  def become(fiber: Fiber.Runtime[E, A])(implicit trace: Trace): UIO[Unit] =
+    ZIO.succeed(unsafe.become(fiber)(Unsafe))
+
+  /**
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
@@ -175,6 +187,7 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     ZIO.succeed(unsafe.succeedUnit(ev0, trace, Unsafe))
 
   private[zio] trait UnsafeAPI extends Serializable {
+    def become(fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit
     def completeWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean
     def die(e: Throwable)(implicit trace: Trace, unsafe: Unsafe): Boolean
     def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit
@@ -206,6 +219,17 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
           case _ => false
         }
       loop()
+    }
+
+    def become(fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = {
+      // Only register the observer if the promise is not yet complete.
+      // The observer directly completes this promise from the fiber's exit,
+      // eliminating allocations from the fork-then-await-promise pattern.
+      if (!isDone) {
+        fiber.unsafe.addObserver { exit =>
+          completeWith(ZIO.done(exit))
+        }
+      }
     }
 
     def die(e: Throwable)(implicit trace: Trace, unsafe: Unsafe): Boolean =
@@ -344,3 +368,4 @@ object Promise {
     def make[E, A](fiberId: FiberId)(implicit unsafe: Unsafe): Promise[E, A] = new Promise[E, A](fiberId)
   }
 }
+
