@@ -150,11 +150,25 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     } else {
       if ((worker eq null) || worker.blocking) {
         globalQueue.offer(runnable)
+        // Submitted to global queue; no local worker will pick it up automatically.
+        val currentState = state.get
+        maybeUnparkWorker(currentState)
       } else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
-      } else ()
-      val currentState = state.get
-      maybeUnparkWorker(currentState)
+        // Overflowed to global queue; notify an idle worker.
+        val currentState = state.get
+        maybeUnparkWorker(currentState)
+      } else {
+        // Happy path: enqueued into the submitting worker's local queue.
+        // The worker will pick it up in the next iteration; only notify if
+        // the scheduler appears under-staffed (more active = already covered).
+        val currentState = state.get
+        val currentActive = (currentState & 0xffff0000) >> 16
+        // Only unpark if we have spare capacity AND no one is searching.
+        // This avoids the expensive unpark when the local worker is about to
+        // consume the task anyway.
+        if (currentActive < poolSize) maybeUnparkWorker(currentState)
+      }
       true
     }
   }
@@ -446,14 +460,20 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
   private def maybeUnparkWorker(currentState: Int): Unit = {
     val currentSearching = currentState & 0xffff
-    val currentActive    = (currentState & 0xffff0000) >> 16
-    if (currentActive != poolSize && currentSearching == 0) {
-      val worker = idle.poll()
-      if (worker ne null) {
-        state.getAndAdd(0x10001)
-        worker.active = true
-        LockSupport.unpark(worker)
-      }
+    // Fast path: if there are already workers searching, no need to unpark another.
+    // This avoids the expensive LockSupport.unpark on the hot path when the
+    // scheduler is already actively looking for work.
+    if (currentSearching > 0) return
+    val currentActive = (currentState & 0xffff0000) >> 16
+    // Fast path: all workers are already active, nothing to unpark.
+    if (currentActive == poolSize) return
+    // Fast path: idle queue is empty, avoid the expensive poll + CAS.
+    if (idle.isEmpty) return
+    val worker = idle.poll()
+    if (worker ne null) {
+      state.getAndAdd(0x10001)
+      worker.active = true
+      LockSupport.unpark(worker)
     }
   }
 
@@ -590,3 +610,4 @@ private object ZScheduler {
     }
   }
 }
+
