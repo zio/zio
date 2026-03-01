@@ -14,6 +14,7 @@ object MimaSettings {
         exclude[Problem]("zio.stm.ZSTM#internal*"),
         exclude[Problem]("zio.stm.ZSTM$internal*"),
         exclude[Problem]("zio.stream.internal*"),
+        exclude[IncompatibleMethTypeProblem]("zio.stream.ZStream.buffer"),
         exclude[IncompatibleResultTypeProblem]("zio.stm.TRef.todo"),
         exclude[DirectMissingMethodProblem]("zio.stm.TRef.versioned_="),
         exclude[IncompatibleResultTypeProblem]("zio.stm.TRef.versioned"),
