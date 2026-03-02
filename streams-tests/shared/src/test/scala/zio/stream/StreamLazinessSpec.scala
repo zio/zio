@@ -59,6 +59,7 @@ object StreamLazinessSpec extends ZIOBaseSpec {
         lazy2("fromHubWithShutdown")(ZStream.fromHubWithShutdown(_, _)),
         lazy2("fromHubScopedWithShutdown")(ZStream.fromHubScopedWithShutdown(_, _)),
         lazy2("fromInputStream")(ZStream.fromInputStream(_, _)),
+        lazy2("fromInputStreamInterruptible")(ZStream.fromInputStreamInterruptible(_, _)),
         lazy2("fromInputStreamZIO")(ZStream.fromInputStreamZIO(_, _)),
         lazy2("fromInputStreamScoped")(ZStream.fromInputStreamScoped(_, _)),
         lazy2("fromIterable")(ZStream.fromIterable(_, _)),

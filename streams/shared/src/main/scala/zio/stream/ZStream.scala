@@ -4384,7 +4384,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a `java.io.InputStream`
+   * Creates a stream from a `java.io.InputStream`.
+   *
+   * Note that interruption of the stream does not interrupt a currently
+   * blocking `InputStream.read` call. Use [[fromInputStreamInterruptible]] if
+   * blocked reads need to be interruptible.
    */
   def fromInputStream(
     is: => InputStream,
@@ -4395,6 +4399,36 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         for {
           bufArray  <- ZIO.succeed(Array.ofDim[Byte](chunkSize))
           bytesRead <- ZIO.attemptBlockingIO(is.read(bufArray)).asSomeError
+          bytes <- if (bytesRead < 0)
+                     Exit.failNone
+                   else if (bytesRead == 0)
+                     Exit.emptyChunk
+                   else if (bytesRead < chunkSize)
+                     ZIO.succeed(Chunk.fromArray(bufArray).take(bytesRead))
+                   else
+                     ZIO.succeed(Chunk.fromArray(bufArray))
+        } yield bytes
+      }
+    }
+
+  /**
+   * Creates a stream from a `java.io.InputStream`.
+   *
+   * If the stream is interrupted while reading, the input stream is closed to
+   * unblock the current read.
+   */
+  def fromInputStreamInterruptible(
+    is: => InputStream,
+    chunkSize: => Int = ZStream.DefaultChunkSize
+  )(implicit trace: Trace): ZStream[Any, IOException, Byte] =
+    ZStream.succeed((is, chunkSize)).flatMap { case (is, chunkSize) =>
+      ZStream.repeatZIOChunkOption {
+        for {
+          bufArray <- ZIO.succeed(Array.ofDim[Byte](chunkSize))
+          bytesRead <- ZIO
+                         .attemptBlockingCancelable(is.read(bufArray))(ZIO.succeed(is.close()))
+                         .refineToOrDie[IOException]
+                         .asSomeError
           bytes <- if (bytesRead < 0)
                      Exit.failNone
                    else if (bytesRead == 0)

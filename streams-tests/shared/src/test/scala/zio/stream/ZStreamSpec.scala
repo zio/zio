@@ -9,9 +9,9 @@ import zio.test.Assertion._
 import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, withLiveClock}
 import zio.test._
 
-import java.io.{ByteArrayInputStream, IOException}
+import java.io.{ByteArrayInputStream, IOException, InputStream}
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import scala.concurrent.ExecutionContext
 
 object ZStreamSpec extends ZIOBaseSpec {
@@ -5748,6 +5748,46 @@ object ZStreamSpec extends ZIOBaseSpec {
               ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
             }
           }
+        ),
+        suite("fromInputStreamInterruptible")(
+          test("example 1") {
+            val chunkSize = ZStream.DefaultChunkSize
+            val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+            def is        = new ByteArrayInputStream(data)
+            ZStream.fromInputStreamInterruptible(is, chunkSize).runCollect map { bytes =>
+              assert(bytes.toArray)(equalTo(data))
+            }
+          },
+          test("interrupts a blocked read by closing the input stream") {
+            def awaitStarted(started: AtomicBoolean): UIO[Unit] =
+              ZIO.suspendSucceed {
+                if (started.get()) ZIO.unit
+                else ZIO.yieldNow *> awaitStarted(started)
+              }
+
+            val started = new AtomicBoolean(false)
+            val closed  = new AtomicBoolean(false)
+            val is = new InputStream {
+              override def read(): Int = -1
+
+              override def read(buffer: Array[Byte]): Int = {
+                started.set(true)
+                while (!closed.get()) ()
+                -1
+              }
+
+              override def close(): Unit =
+                closed.set(true)
+            }
+
+            (for {
+              fiber       <- ZStream.fromInputStreamInterruptible(is).runDrain.fork
+              _           <- awaitStarted(started)
+              interrupted <- fiber.interrupt.timeout(1.second).map(_.isDefined)
+              isClosed    <- ZIO.succeed(closed.get())
+            } yield assert(interrupted)(isTrue) && assert(isClosed)(isTrue))
+              .ensuring(ZIO.succeed(is.close()))
+          } @@ zioTag(interruption) @@ TestAspect.jvmOnly @@ withLiveClock
         ),
         test("fromIterable")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
           def lazyL = l

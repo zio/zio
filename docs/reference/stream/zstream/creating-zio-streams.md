@@ -459,7 +459,16 @@ val stream: ZStream[Any, IOException, Byte] =
   ZStream.fromInputStream(new FileInputStream("file.txt"))
 ```
 
+If interrupted while blocked on a read, `ZStream.fromInputStream` will wait for the `InputStream.read` call to return. Use `ZStream.fromInputStreamInterruptible` when blocked reads need to be interruptible.
+
 Note that the InputStream will not be explicitly closed after it is exhausted. Use `ZStream.fromInputStreamZIO`, or `ZStream.fromInputStreamScoped` instead.
+
+**ZStream.fromInputStreamInterruptible** — Creates a stream from a `java.io.InputStream` and closes it if interrupted while blocked on reading:
+
+```scala mdoc:silent:nest
+val interruptible: ZStream[Any, IOException, Byte] =
+  ZStream.fromInputStreamInterruptible(new FileInputStream("file.txt"))
+```
 
 **ZStream.fromInputStreamZIO** — Creates a stream from a `java.io.InputStream`. Ensures that the InputStream is closed after it is exhausted:
 
