@@ -11,12 +11,12 @@ object ZStreamBufferSpec extends ZIOSpecDefault {
       for {
         ref <- Ref.make(0)
         fiber <- ZStream
-          .range(1, 100)
-          .tap(_ => ref.update(_ + 1))
-          .buffer(1)
-          .runHead
-          .fork
-        _ <- TestClock.adjust(1.second)
+                   .range(1, 100)
+                   .tap(_ => ref.update(_ + 1))
+                   .buffer(1)
+                   .runHead
+                   .fork
+        _     <- TestClock.adjust(1.second)
         count <- ref.get
       } yield assertTrue(count <= 2)
     },
@@ -24,14 +24,14 @@ object ZStreamBufferSpec extends ZIOSpecDefault {
       for {
         counter <- Ref.make(0)
         stream = ZStream
-          .repeatZIO(counter.updateAndGet(_ + 1))
-          .take(10)
-          .buffer(1)
+                   .repeatZIO(counter.updateAndGet(_ + 1))
+                   .take(10)
+                   .buffer(1)
 
         result <- stream
-          .tap(_ => TestClock.adjust(100.millis))
-          .take(3)
-          .runCollect
+                    .tap(_ => TestClock.adjust(100.millis))
+                    .take(3)
+                    .runCollect
 
         finalCount <- counter.get
       } yield assertTrue(finalCount <= 4)
@@ -41,22 +41,23 @@ object ZStreamBufferSpec extends ZIOSpecDefault {
       for {
         processed <- Ref.make(List.empty[Int])
         stream = ZStream(1, 2, 3)
-          .mapZIO(i =>
-            if (i == 2) ZIO.fail(new RuntimeException("error"))
-            else processed.update(_ :+ i).as(i)
-          )
-          .buffer(1)
-          .catchAll(_ => ZStream.empty)
+                   .mapZIO(i =>
+                     if (i == 2) ZIO.fail(new RuntimeException("error"))
+                     else processed.update(_ :+ i).as(i)
+                   )
+                   .buffer(1)
+                   .catchAll(_ => ZStream.empty)
 
-        result <- stream.runCollect
+        result         <- stream.runCollect
         finalProcessed <- processed.get
       } yield assertTrue(finalProcessed == List(1))
     },
     test("buffer(1) preserves ordering") {
       for {
-        result <- ZStream.fromIterable(1 to 100)
-          .buffer(1)
-          .runCollect
+        result <- ZStream
+                    .fromIterable(1 to 100)
+                    .buffer(1)
+                    .runCollect
       } yield assertTrue(result.toList == (1 to 100).toList)
     },
     test("buffer(1) with empty stream") {
