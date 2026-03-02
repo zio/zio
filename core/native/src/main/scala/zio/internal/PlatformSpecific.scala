@@ -90,5 +90,3 @@ private[zio] trait PlatformSpecific {
     Collections.synchronizedSet(new java.util.HashSet[A](initialCapacity))
 
 }
-
-
