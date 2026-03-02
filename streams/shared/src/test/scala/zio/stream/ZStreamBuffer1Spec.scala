@@ -11,9 +11,9 @@ object ZStreamBuffer1Spec extends ZIOSpecDefault {
       for {
         values <- Ref.make(List.empty[Int])
         _ <- ZStream(1, 2, 3, 4, 5)
-               .tap(i => values.update(_ :+ i))
-               .buffer(1)
-               .runDrain
+          .tap(i => values.update(_ :+ i))
+          .buffer(1)
+          .runDrain
         result <- values.get
       } yield {
         // With buffer(1), at most 2 elements should be buffered/processed
