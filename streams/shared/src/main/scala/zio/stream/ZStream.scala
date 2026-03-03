@@ -2970,7 +2970,10 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   )(implicit trace: Trace): ZIO[R with Scope, Nothing, Unit] = {
     lazy val writer: ZChannel[R, E, Chunk[A], Any, Nothing, Exit[Option[E], A], Any] =
       ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Exit[Option[E], A], Any](
-        in => ZChannel.fromZIO(queue.offerAll(in.map(Exit.succeed(_)))) *> writer,
+        in =>
+          ZChannel.fromZIO(
+            ZIO.foreachDiscard(in)(a => queue.offer(Exit.succeed(a)))
+          ) *> writer,
         err => ZChannel.fromZIO(queue.offer(Exit.failCause(err.map(Some(_))))),
         _ => ZChannel.fromZIO(queue.offer(Exit.fail(None)))
       )

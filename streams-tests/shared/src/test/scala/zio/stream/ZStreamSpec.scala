@@ -607,6 +607,32 @@ object ZStreamSpec extends ZIOBaseSpec {
               _  <- latch.await
               l2 <- ref.get
             } yield assert(l1.toList)(equalTo((1 to 2).toList)) && assert(l2.reverse)(equalTo((1 to 4).toList))
+          },
+          test("buffer(1) should not evaluate more than one element ahead") {
+            val started = new AtomicInteger(0)
+            val chunk   = new Chunk[Int] {
+              override def length: Int = 100
+
+              override def apply(n: Int): Int =
+                n + 1
+
+              override def chunkIterator: Chunk.ChunkIterator[Int] =
+                new Chunk.ChunkIterator[Int] {
+                  override def hasNextAt(index: Int): Boolean =
+                    index < 100
+
+                  override def nextAt(index: Int): Int = {
+                    started.incrementAndGet()
+                    index + 1
+                  }
+                }
+            }
+
+            for {
+              pull <- ZStream.fromChunk(chunk).buffer(1).toPull
+              _    <- pull
+              _    <- Live.live(ZIO.sleep(200.millis))
+            } yield assertTrue(started.get() <= 2)
           }
         ),
         suite("bufferChunks")(
