@@ -1,15 +1,16 @@
 package zio.stream
 
+import zio.Clock.ClockLive
 import zio._
-import zio.stm.TQueue
 import zio.concurrent.CountdownLatch
+import zio.stm.TQueue
 import zio.stream.ZStream.HaltStrategy
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
 import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, withLiveClock}
 import zio.test._
 
-import java.io.{ByteArrayInputStream, IOException}
+import java.io.{ByteArrayInputStream, IOException, PipedInputStream, PipedOutputStream}
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.ExecutionContext
@@ -5747,7 +5748,32 @@ object ZStreamSpec extends ZIOBaseSpec {
               val is = new ByteArrayInputStream(bytes.toArray)
               ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
             }
-          }
+          },
+          test("should be interruptible") {
+            for {
+              latch1      <- Promise.make[Nothing, Unit]
+              latch2      <- Promise.make[Nothing, Unit]
+              ref         <- Ref.make[List[Byte]](List.empty)
+              inputStream  = new PipedInputStream()
+              outputStream = new PipedOutputStream(inputStream)
+              arr          = Array.ofDim[Byte](10)
+              fiber <- {
+                         latch1.succeedUnit *> ZStream
+                           .fromInputStream(inputStream)
+                           .tapChunks(i => ref.update(_ ++ i) *> latch2.succeedUnit)
+                           .runCollect
+                       }.fork
+              _      <- latch1.await
+              _       = outputStream.write(Array[Byte](2, 3, 1))
+              _       = outputStream.flush()
+              _      <- latch2.await
+              _      <- ClockLive.sleep(1.milli) // Ensure that we're blocking waiting on input
+              _      <- fiber.interrupt
+              result <- fiber.await
+              _       = outputStream.write(0)    // Ensure that the stream is still open
+              out    <- ref.get
+            } yield assert(result)(isInterrupted) && assertTrue(out == List[Byte](2, 3, 1))
+          } @@ TestAspect.timeout(10.seconds) @@ TestAspect.jvm(nonFlaky)
         ),
         test("fromIterable")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
           def lazyL = l
