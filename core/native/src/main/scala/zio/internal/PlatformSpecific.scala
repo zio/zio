@@ -24,6 +24,15 @@ import java.util.{Collections, WeakHashMap, Map => JMap, Set => JSet}
 private[zio] trait PlatformSpecific {
 
   /**
+   * Helper method to prevent unused parameter warnings on Scala Native.
+   * This is a no-op that simply evaluates its argument.
+   */
+  private def blackhole(a: Any): Unit = {
+    val _ = a
+    ()
+  }
+
+  /**
    * Adds a shutdown hook that executes the specified action on shutdown.
    *
    * This is currently a no-op on Scala Native.
