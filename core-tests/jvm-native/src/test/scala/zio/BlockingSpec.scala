@@ -7,6 +7,7 @@ import zio.test._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 object BlockingSpec extends ZIOBaseSpec {
+  private implicit val unsafe: Unsafe = Unsafe.unsafe
 
   def spec =
     suite("BlockingSpec")(
@@ -63,6 +64,42 @@ object BlockingSpec extends ZIOBaseSpec {
             _    <- Live.live(effect.timeout(50.millis))
             count = interruptCount.get()
           } yield assertTrue(count >= 5)
+        }
+      ),
+      suite("attemptBlockingInterruptOnce")(
+        test("completes successfully") {
+          assertZIO(ZIO.attemptBlockingInterruptOnce(()))(isUnit)
+        },
+        test("runs on blocking thread pool") {
+          for {
+            name <- ZIO.attemptBlockingInterruptOnce(Thread.currentThread.getName)
+          } yield assert(name)(containsString("zio-default-blocking"))
+        },
+        test("can be interrupted") {
+          assertZIO(ZIO.attemptBlockingInterruptOnce(Thread.sleep(50000)).timeout(Duration.Zero))(isNone)
+        } @@ nonFlaky,
+        test("issues only one thread interruption") {
+          val interruptCount = new AtomicInteger(0)
+          val latch          = Promise.unsafe.make[Nothing, Unit](FiberId.None)
+          val effect = ZIO.attemptBlockingInterruptOnce {
+            try {
+              latch.unsafe.done(Exit.succeed(()))
+              Thread.sleep(Long.MaxValue)
+            } catch {
+              case _: InterruptedException =>
+                interruptCount.incrementAndGet()
+                try {
+                  Thread.sleep(1000)
+                } catch {
+                  case _: InterruptedException =>
+                    interruptCount.incrementAndGet()
+                }
+            }
+          }
+          for {
+            _    <- Live.live(effect.fork.flatMap(latch.await *> _.interrupt))
+            count = interruptCount.get()
+          } yield assertTrue(count == 1)
         }
       ),
       suite("ZIO.blocking")(

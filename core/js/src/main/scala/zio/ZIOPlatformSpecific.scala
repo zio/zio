@@ -45,11 +45,48 @@ private[zio] trait ZIOCompanionPlatformSpecific { self: ZIO.type =>
    * If the returned `ZIO` is interrupted, the blocked thread running the
    * synchronous effect will be interrupted via `Thread.interrupt`.
    *
+   * `Thread.interrupt` will be called continuously every 50 milliseconds, until
+   * the target thread is unwound. This is done in attempt to guarantee thread
+   * interruption in presence of misbehaving underlying code, but is done at
+   * risk of possible resource leaks if interrupts aren't handled properly.
+   *
    * Note that this adds significant overhead. For performance sensitive
    * applications consider using `attemptBlocking` or
    * `attemptBlockingCancelable`.
+   *
+   * @see
+   *   [[attemptBlockingInterruptOnce]] for a version that uses
+   *   `Thread.interrupt` only once to avoid resource leaks.
+   *
+   * @note
+   *   On Scala.js, this method is an alias for `ZIO.attemptBlocking`
    */
   def attemptBlockingInterrupt[A](effect: => A)(implicit trace: Trace): Task[A] =
+    ZIO.attemptBlocking(effect)
+
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value.
+   *
+   * If the returned `ZIO` is interrupted, the blocked thread running the
+   * synchronous effect will be interrupted via `Thread.interrupt`.
+   *
+   * `Thread.interrupt` will be called only once on the target thread. If
+   * swallowed by misbehaving code, the thread will still linger on, but if the
+   * underlying code handles interrupts well, this would allow it to perform all
+   * necessary cleanups.
+   *
+   * Note that this adds significant overhead. For performance sensitive
+   * applications consider using `attemptBlocking` or
+   * `attemptBlockingCancelable`.
+   *
+   * @see
+   *   [[attemptBlockingInterrupt]] for a version that calls `Thread.interrupt`
+   *   continuously to attempt to rule out target thread lingering
+   *
+   * @note
+   *   On Scala.js, this method is an alias for `ZIO.attemptBlocking`
+   */
+  def attemptBlockingInterruptOnce[A](effect: => A)(implicit trace: Trace): Task[A] =
     ZIO.attemptBlocking(effect)
 
   /**

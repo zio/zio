@@ -59,11 +59,45 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
    * If the returned `ZIO` is interrupted, the blocked thread running the
    * synchronous effect will be interrupted via `Thread.interrupt`.
    *
+   * `Thread.interrupt` will be called continuously every 50 milliseconds, until
+   * the target thread is unwound. This is done in attempt to guarantee thread
+   * interruption in presence of misbehaving underlying code, but is done at
+   * risk of possible resource leaks if interrupts aren't handled properly.
+   *
    * Note that this adds significant overhead. For performance sensitive
    * applications consider using `attemptBlocking` or
    * `attemptBlockingCancelable`.
+   *
+   * @see
+   *   [[attemptBlockingInterruptOnce]] for a version that uses
+   *   `Thread.interrupt` only once to avoid resource leaks.
    */
   def attemptBlockingInterrupt[A](effect: => A)(implicit trace: Trace): Task[A] =
+    attemptBlockingInterruptImpl(once = false, effect)
+
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value.
+   *
+   * If the returned `ZIO` is interrupted, the blocked thread running the
+   * synchronous effect will be interrupted via `Thread.interrupt`.
+   *
+   * `Thread.interrupt` will be called only once on the target thread. If
+   * swallowed by misbehaving code, the thread will still linger on, but if the
+   * underlying code handles interrupts well, this would allow it to perform all
+   * necessary cleanups.
+   *
+   * Note that this adds significant overhead. For performance sensitive
+   * applications consider using `attemptBlocking` or
+   * `attemptBlockingCancelable`.
+   *
+   * @see
+   *   [[attemptBlockingInterrupt]] for a version that calls `Thread.interrupt`
+   *   continuously to attempt to rule out target thread lingering
+   */
+  def attemptBlockingInterruptOnce[A](effect: => A)(implicit trace: Trace): Task[A] =
+    attemptBlockingInterruptImpl(once = true, effect)
+
+  private[this] def attemptBlockingInterruptImpl[A](once: Boolean, effect: => A)(implicit trace: Trace): Task[A] =
     ZIO.uninterruptibleMask { restore =>
       val begin = OneShot.make[Thread]
       val end   = OneShot.make[Object]
@@ -77,21 +111,23 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
        */
       def interruptThread(): UIO[Unit] =
         ZIO.succeedBlocking {
-          val thread  = begin.get()
-          var looping = !end.isSet
-          var n       = 0L
+          val thread = begin.get()
+          if (once) thread.interrupt()
+          else {
+            var n       = 0L
+            var looping = !end.isSet
+            while (looping) {
+              end.lock()
+              try {
+                // `end` cannot be set while we're here, so we can safely interrupt
+                if (!end.isSet) thread.interrupt()
+              } finally {
+                end.unlock()
+              }
 
-          while (looping) {
-            end.lock()
-            try {
-              // `end` cannot be set while we're here, so we can safely interrupt
-              if (!end.isSet) thread.interrupt()
-            } finally {
-              end.unlock()
+              n += 1
+              looping = end.tryGet(math.min(50, 2L * n)) eq null
             }
-
-            n += 1
-            looping = end.tryGet(math.min(50, 2L * n)) eq null
           }
         }
 
