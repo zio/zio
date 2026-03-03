@@ -45,6 +45,13 @@ sealed trait Dequeue[+A] extends Serializable {
   def shutdown(implicit trace: Trace): UIO[Unit]
 
   /**
+   * Fails any fibers that are suspended on `offer` or `take` with the provided
+   * cause. Future calls to `offer*` and `take*` will fail immediately with the
+   * same cause.
+   */
+  def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Unit]
+
+  /**
    * Retrieves the size of the queue. This may be negative if fibers are
    * suspended waiting for elements to be added to the queue or greater than the
    * capacity if fibers are suspended waiting to add elements to the queue.

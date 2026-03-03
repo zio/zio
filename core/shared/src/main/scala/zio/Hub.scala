@@ -181,6 +181,8 @@ object Hub {
               scope.close(Exit.interrupt(fiberId)) *> strategy.shutdown
             }
         }.uninterruptible
+      def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Unit] =
+        shutdown
       def size(implicit trace: Trace): UIO[Int] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
@@ -258,6 +260,8 @@ object Hub {
                 }
             }
         }.uninterruptible
+      def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Unit] =
+        shutdown
       def size(implicit trace: Trace): UIO[Int] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt

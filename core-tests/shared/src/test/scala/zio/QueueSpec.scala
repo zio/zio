@@ -516,6 +516,48 @@ object QueueSpec extends ZIOBaseSpec {
         res    <- queue.size.sandbox.either
       } yield assert(res)(isLeft(equalTo(Cause.interrupt(selfId))))
     },
+    test("shutdownCause with take fiber") {
+      val cause = Cause.die(new RuntimeException("queue-shutdown-take"))
+      for {
+        queue <- Queue.bounded[Int](3)
+        f     <- queue.take.fork
+        _     <- waitForSize(queue, -1)
+        _     <- queue.shutdownCause(cause)
+        res   <- f.join.sandbox.either
+      } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause with offer fiber") {
+      val cause = Cause.die(new RuntimeException("queue-shutdown-offer"))
+      for {
+        queue <- Queue.bounded[Int](2)
+        _     <- queue.offer(1)
+        _     <- queue.offer(1)
+        f     <- queue.offer(1).fork
+        _     <- waitForSize(queue, 3)
+        _     <- queue.shutdownCause(cause)
+        res   <- f.join.sandbox.either
+      } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause applies to future queue operations") {
+      val cause = Cause.die(new RuntimeException("queue-shutdown-future-ops"))
+      for {
+        queue    <- Queue.bounded[Int](1)
+        _        <- queue.shutdownCause(cause)
+        offerRes <- queue.offer(1).sandbox.either
+        takeRes  <- queue.take.sandbox.either
+      } yield assert(offerRes.left.map(_.untraced))(isLeft(equalTo(cause))) &&
+        assert(takeRes.left.map(_.untraced))(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause preserves first cause") {
+      val cause1 = Cause.die(new RuntimeException("queue-first-cause"))
+      val cause2 = Cause.die(new RuntimeException("queue-second-cause"))
+      for {
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdownCause(cause1)
+        _     <- queue.shutdownCause(cause2)
+        res   <- queue.take.sandbox.either
+      } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause1)))
+    },
     test("back-pressured offer completes after take") {
       for {
         queue <- Queue.bounded[Int](2)
