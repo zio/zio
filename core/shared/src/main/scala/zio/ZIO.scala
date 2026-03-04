@@ -4428,6 +4428,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     async[Any, Nothing, Nothing](ZIO.unitFn)
 
   /**
+   * An effect that succeeds with a unit value.
+   */
+  val unit: UIO[Unit] =
+    ZIO.FlatMap(Trace.empty, Exit.unit, (_: Any) => Exit.unit)
+
+  /**
    * Returns an effect that succeeds with the `None` value.
    */
   val none: UIO[Option[Nothing]] =
@@ -4983,12 +4989,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.withFiberRuntime[R, E, A] { (fiberState, _) =>
       f(Grafter(fiberState))
     }
-
-  /**
-   * An effect that succeeds with a unit value.
-   */
-  val unit: UIO[Unit] =
-    succeed(())(Trace.empty)
 
   /**
    * Prefix form of `ZIO#uninterruptible`.
@@ -6181,7 +6181,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     failureK: Cause[E1] => ZIO[R, E2, A2]
   ) extends Continuation
       with ZIO[R, E2, A2]
-  private[zio] final case class Sync[A](trace: Trace, eval: () => A) extends ZIO[Any, Nothing, A]
+
   private[zio] final case class Async[R, E, A](
     trace: Trace,
     registerCallback: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],

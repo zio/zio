@@ -971,18 +971,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       // No interrupt handler
       case null => callback.completeCause(cause)
 
-      // Shortcut cases where the interruption is a simple suspended function (most common)
-      case sync: Sync[Any] =>
-        if (callback.completeCause(cause)) {
-          updateLastTrace(sync.trace)
-          try {
-            sync.eval()
-          } catch {
-            case ex if nonFatal(ex) => addInterruptedCause(Cause.die(ex))
-            case fatal              => handleFatalError(fatal)
-          }
-        }
-
       // Can't shortcut, handle onInterrupt in runloop
       case onInterrupt =>
         val f = onInterrupt.foldCauseZIO(
@@ -1156,48 +1144,90 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 }
               }
 
-            case sync: Sync[Any] =>
-              updateLastTrace(sync.trace)
-              var value = sync.eval()
-
-              cur = null
-
-              while ((cur eq null) && stackIndex > minStackIndex) {
-                stackIndex -= 1
-
-                val continuation = _stack(stackIndex)
-
-                popStackFrame(stackIndex)
-
-                continuation match {
-                  case flatMap: ZIO.FlatMap[Any, Any, Any, Any] =>
-                    cur = flatMap.successK(value)
-
-                  case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
-                    cur = foldZIO.successK(value)
-
-                  case map: ZIO.Mapped[Any, Any, Any, Any] =>
-                    value = map.successK(value)
-
-                  case update =>
-                    val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
-                    if (!ignoreFlagsUpdate(updateFlags.update, stackIndex)) {
-                      cur = patchRuntimeFlags(updateFlags.update, null, null)
-                    }
-                }
-              }
-
-              if (cur eq null) {
-                return Exit.succeed(value)
-              }
-
             case flatmap: FlatMap[Any, Any, Any, Any] =>
               updateLastTrace(flatmap.trace)
 
               val first = flatmap.first
 
-              if (first eq ZIO.unit) cur = flatmap.successK(())
-              else {
+              if (first eq Exit.unit) {
+                // This is ZIO.unit itself — the value is always ()
+                var value: Any = ()
+
+                cur = null
+
+                while ((cur eq null) && stackIndex > minStackIndex) {
+                  stackIndex -= 1
+
+                  val continuation = _stack(stackIndex)
+
+                  popStackFrame(stackIndex)
+
+                  continuation match {
+                    case flatMap: ZIO.FlatMap[Any, Any, Any, Any] =>
+                      cur = flatMap.successK(value)
+
+                    case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
+                      cur = foldZIO.successK(value)
+
+                    case map: ZIO.Mapped[Any, Any, Any, Any] =>
+                      value = map.successK(value)
+
+                    case update =>
+                      val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
+                      if (!ignoreFlagsUpdate(updateFlags.update, stackIndex)) {
+                        cur = patchRuntimeFlags(updateFlags.update, null, null)
+                      }
+                  }
+                }
+
+                if (cur eq null) {
+                  return Exit.succeed(value)
+                }
+              } else if (first eq ZIO.unit) {
+                val result = flatmap.successK(())
+
+                result match {
+                  case success: Exit.Success[Any] =>
+                    var value = success.value
+
+                    cur = null
+
+                    while ((cur eq null) && stackIndex > minStackIndex) {
+                      stackIndex -= 1
+
+                      val continuation = _stack(stackIndex)
+
+                      popStackFrame(stackIndex)
+
+                      continuation match {
+                        case flatMap: ZIO.FlatMap[Any, Any, Any, Any] =>
+                          cur = flatMap.successK(value)
+
+                        case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
+                          cur = foldZIO.successK(value)
+
+                        case map: ZIO.Mapped[Any, Any, Any, Any] =>
+                          value = map.successK(value)
+
+                        case update =>
+                          val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
+                          if (!ignoreFlagsUpdate(updateFlags.update, stackIndex)) {
+                            cur = patchRuntimeFlags(updateFlags.update, null, null)
+                          }
+                      }
+                    }
+
+                    if (cur eq null) {
+                      return {
+                        if (success.value.asInstanceOf[AnyRef] eq value.asInstanceOf[AnyRef]) success
+                        else Exit.succeed(value)
+                      }
+                    }
+
+                  case _ =>
+                    cur = result
+                }
+              } else {
                 stackIndex = pushStackFrame(flatmap, stackIndex)
                 cur = first
               }

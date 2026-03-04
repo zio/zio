@@ -172,7 +172,7 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
    * Returns an effect that models success with the specified value.
    */
   inline def succeed[A](inline a: Unsafe ?=> A)(implicit inline trace: Trace): ZIO[Any, Nothing, A] =
-    ZIO.Sync(trace, () => a(using Unsafe))
+    ZIO.FlatMap(trace, ZIO.unit, (_: Any) => Exit.succeed(a(using Unsafe)))
 
   /**
    * Returns a synchronous effect that does blocking and succeeds with the

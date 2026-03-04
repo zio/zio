@@ -161,6 +161,7 @@ object StackTracesSpec extends ZIOBaseSpec {
               |	at scala.runtime.java8.JFunction0$mcV$sp.apply
               |	at zio.StackTracesSpec$.assertThrows
               |	at zio.StackTracesSpec$.$anonfun$spec
+              |	at zio.ZIOCompanionVersionSpecific.$anonfun$succeed
               |""".stripMargin
           else
             """java.lang.String: boom
@@ -208,6 +209,7 @@ object StackTracesSpec extends ZIOBaseSpec {
               |	at scala.runtime.java8.JFunction0$mcV$sp.apply
               |	at zio.StackTracesSpec$.assertThrows
               |	at zio.StackTracesSpec$.$anonfun$spec
+              |	at zio.ZIOCompanionVersionSpecific.$anonfun$succeed
               |	at zio.internal.FiberRuntime.runLoop
               |	at zio.internal.FiberRuntime.evaluateEffect
               |	at zio.internal.FiberRuntime.evaluateMessageWhileSuspended
@@ -225,6 +227,7 @@ object StackTracesSpec extends ZIOBaseSpec {
               |	at scala.runtime.java8.JFunction0$mcV$sp.apply
               |	at zio.StackTracesSpec$.assertThrows
               |	at zio.StackTracesSpec$.$anonfun$spec
+              |	at zio.ZIOCompanionVersionSpecific.$anonfun$succeed
               |""".stripMargin
           else
             """java.lang.RuntimeException: boom
