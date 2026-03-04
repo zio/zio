@@ -19,7 +19,7 @@ package zio.internal
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, LongAdder}
 import java.util.concurrent.locks.LockSupport
 import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
 import scala.collection.mutable
@@ -43,6 +43,10 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
+  
+  // Counter to throttle maybeUnparkWorker calls to avoid excessive unparking
+  private[this] val unparkCounter = new LongAdder()
+  private[this] val UNPARK_THRESHOLD = 16
 
   (0 until poolSize).foreach { workerId =>
     val worker = makeWorker()
@@ -450,9 +454,14 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     if (currentActive != poolSize && currentSearching == 0) {
       val worker = idle.poll()
       if (worker ne null) {
-        state.getAndAdd(0x10001)
-        worker.active = true
-        LockSupport.unpark(worker)
+        // Throttle unpark calls to avoid excessive cycling in hotpath
+        unparkCounter.increment()
+        if (unparkCounter.sum() >= UNPARK_THRESHOLD) {
+          unparkCounter.reset()
+          state.getAndAdd(0x10001)
+          worker.active = true
+          LockSupport.unpark(worker)
+        }
       }
     }
   }
