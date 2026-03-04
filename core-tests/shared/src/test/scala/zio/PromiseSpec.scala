@@ -134,6 +134,19 @@ object PromiseSpec extends ZIOBaseSpec {
         _      <- ZIO.foreach(fibers)(_.await)
       } yield assertCompletes
     },
+    test("waiter stack safety under sustained forking pressure") {
+      val rounds = 30
+      for {
+        _ <- ZIO.foreach(1 to rounds) { _ =>
+          for {
+            p      <- Promise.make[Nothing, Unit]
+            fibers <- ZIO.foreach(1 to n)(_ => p.await.forkDaemon)
+            _      <- p.complete(Exit.unit)
+            _      <- ZIO.foreachDiscard(fibers)(_.await)
+          } yield ()
+        }
+      } yield assertCompletes
+    },
     suite("State")(
       suite("add")(
         test("stack safety") {
