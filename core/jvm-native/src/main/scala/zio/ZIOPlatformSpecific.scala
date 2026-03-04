@@ -97,43 +97,17 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
   def attemptBlockingInterruptOnce[A](effect: => A)(implicit trace: Trace): Task[A] =
     attemptBlockingInterruptImpl(once = true, effect)
 
-  private[this] def attemptBlockingInterruptImpl[A](once: Boolean, effect: => A)(implicit trace: Trace): Task[A] =
+  @inline private[this] def attemptBlockingInterruptImpl[A](once: Boolean, effect: => A)(implicit
+    trace: Trace
+  ): Task[A] =
     ZIO.uninterruptibleMask { restore =>
-      val begin = OneShot.make[Thread]
-      val end   = OneShot.make[Object]
-
-      /**
-       * Interrupts the thread running the blocking effect using thread
-       * interruption.
-       *
-       * This effect is run in the blocking threadpool because begin.get() and
-       * end.tryGet() hard-block the thread.
-       */
-      def interruptThread(): UIO[Unit] =
-        ZIO.succeedBlocking {
-          val thread = begin.get()
-          if (once) thread.interrupt()
-          else {
-            var n       = 0L
-            var looping = !end.isSet
-            while (looping) {
-              end.lock()
-              try {
-                // `end` cannot be set while we're here, so we can safely interrupt
-                if (!end.isSet) thread.interrupt()
-              } finally {
-                end.unlock()
-              }
-
-              n += 1
-              looping = end.tryGet(math.min(50, 2L * n)) eq null
-            }
-          }
-        }
+      val threadState =
+        if (once) new ThreadInterruptionStrategy.Once()(trace, Unsafe)
+        else new ThreadInterruptionStrategy.Continuously()
 
       for {
         fiber <- ZIO.blocking {
-                   begin.set(Thread.currentThread)
+                   threadState.signalBegin(Thread.currentThread)
 
                    try {
                      Exit.succeed(effect)
@@ -143,16 +117,76 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
                      case t if nonFatal(t) =>
                        ZIO.fail(t)
                    } finally {
-                     end.set(BoxedUnit.UNIT)
+                     threadState.signalEnd()
+
                      Thread.interrupted() // Clear interrupt status
                    }
                  }.forkDaemon
         a <- restore(fiber.await).exitWith {
                case Exit.Success(exit)       => exit
-               case f: Exit.Failure[Nothing] => interruptThread() *> f
+               case f: Exit.Failure[Nothing] => threadState.interruptThread() *> f
              }
       } yield a
     }
+
+  private[this] sealed abstract class ThreadInterruptionStrategy {
+    def signalBegin(thread: Thread): Unit
+    def signalEnd(): Unit
+    def interruptThread(): UIO[Unit]
+  }
+
+  private[this] object ThreadInterruptionStrategy {
+    final class Once()(implicit trace: Trace, unsafe: Unsafe) extends ThreadInterruptionStrategy {
+      private val begin: Promise[Nothing, Thread] = Promise.unsafe.make(FiberId.None)
+      private val end: Promise[Nothing, Unit]     = Promise.unsafe.make(FiberId.None)
+
+      override def signalBegin(thread: Thread): Unit = begin.unsafe.done(Exit.Success(thread))
+      override def signalEnd(): Unit                 = end.unsafe.succeed(())
+      override def interruptThread(): UIO[Unit] = ZIO.suspendSucceed {
+        (begin.unsafe.poll match {
+          case Some(Exit.Success(thread)) =>
+            thread.interrupt()
+            ZIO.unit
+          case None =>
+            begin.await.flatMap(thread => ZIO.succeed(thread.interrupt()))
+        }) *> end.await
+      }
+    }
+
+    final class Continuously()(implicit trace: Trace) extends ThreadInterruptionStrategy {
+      private val begin: OneShot[Thread] = OneShot.make[Thread]
+      private val end: OneShot[Object]   = OneShot.make[Object]
+
+      override def signalBegin(thread: Thread): Unit = begin.set(thread)
+      override def signalEnd(): Unit                 = end.set(BoxedUnit.UNIT)
+
+      /**
+       * Interrupts the thread running the blocking effect using thread
+       * interruption.
+       *
+       * This effect is run in the blocking threadpool because begin.get() and
+       * end.tryGet() hard-block the thread.
+       */
+      override def interruptThread(): UIO[Unit] =
+        ZIO.succeedBlocking {
+          val thread  = begin.get()
+          var n       = 0L
+          var looping = !end.isSet
+          while (looping) {
+            end.lock()
+            try {
+              // `end` cannot be set while we're here, so we can safely interrupt
+              if (!end.isSet) thread.interrupt()
+            } finally {
+              end.unlock()
+            }
+
+            n += 1
+            looping = end.tryGet(math.min(50, 2L * n)) eq null
+          }
+        }
+    }
+  }
 
   def readFile(path: => Path)(implicit trace: Trace, d: DummyImplicit): ZIO[Any, IOException, String] =
     readFile(path.toString)

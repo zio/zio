@@ -80,16 +80,16 @@ object BlockingSpec extends ZIOBaseSpec {
         } @@ nonFlaky,
         test("issues only one thread interruption") {
           val interruptCount = new AtomicInteger(0)
-          val latch          = Promise.unsafe.make[Nothing, Unit](FiberId.None)
+          val latchBegin     = Promise.unsafe.make[Nothing, Unit](FiberId.None)
           val effect = ZIO.attemptBlockingInterruptOnce {
             try {
-              latch.unsafe.done(Exit.succeed(()))
+              latchBegin.unsafe.succeed(())
               Thread.sleep(Long.MaxValue)
             } catch {
               case _: InterruptedException =>
                 interruptCount.incrementAndGet()
                 try {
-                  Thread.sleep(1000)
+                  Thread.sleep(100L)
                 } catch {
                   case _: InterruptedException =>
                     interruptCount.incrementAndGet()
@@ -97,10 +97,10 @@ object BlockingSpec extends ZIOBaseSpec {
             }
           }
           for {
-            _    <- Live.live(effect.fork.flatMap(latch.await *> _.interrupt))
+            _    <- effect.fork.flatMap(latchBegin.await *> _.interrupt)
             count = interruptCount.get()
           } yield assertTrue(count == 1)
-        }
+        } @@ nonFlaky(10)
       ),
       suite("ZIO.blocking")(
         test("runs on blocking thread pool") {
