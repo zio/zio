@@ -128,10 +128,23 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Retrieve the first checked error on the `Left` if available, if there are
    * no checked errors return the rest of the `Cause` that is known to contain
    * only `Die` or `Interrupt` causes.
+   *
+   * Note: If the cause contains both failures and defects, the full cause is
+   * returned on the `Right` to ensure defects are not silently ignored.
+   * This preserves the invariant that defects should always be prioritized.
    */
-  final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
-    case Some(error) => Left(error)
-    case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+  final def failureOrCause: Either[E, Cause[Nothing]] = {
+    failureOption match {
+      case Some(error) =>
+        // If there are defects in the cause, return the full cause
+        // to ensure defects are not silently ignored by error handlers
+        if (self.isDie) {
+          Right(self.asInstanceOf[Cause[Nothing]])
+        } else {
+          Left(error)
+        }
+      case None => Right(self.asInstanceOf[Cause[Nothing]])
+    }
   }
 
   /**
