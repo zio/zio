@@ -91,3 +91,65 @@ testPlatforms (25, Native2)	pending	0	https://github.com/zio/zio/actions/runs/22
 [2026-03-04 18:06:34] 
 === 检查完成 ===
 
+[2026-03-04 20:28:35] === ZIO PR #10517 状态检查 ===
+[2026-03-04 20:28:39] PR 标题：fix: ensure defects are not silently ignored by catchAll (#9874)
+[2026-03-04 20:28:39] 状态：[0;32mOPEN[0m
+[2026-03-04 20:28:39] 可合并：MERGEABLE
+[2026-03-04 20:28:39] 最后更新：2026-03-04T12:27:29Z
+[2026-03-04 20:28:39] 
+## CI 检查状态
+[2026-03-04 20:28:40] build-website	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036352	
+license/cla	pending	0	https://cla-assistant.io/zio/zio?pullRequest=10517	Contributor License Agreement is not signed yet.
+lint	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036355	
+publishLocal (2.12.x)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036457	
+publishLocal (2.13.x)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036417	
+publishLocal (3.x)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036399	
+test (2.12.x, 21, JVM)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036340	
+test (2.13.x, 21, JVM)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036358	
+test (3.x, 21, JVM)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036377	
+testJvms (17)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036485	
+testJvms (25)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036390	
+testPlatforms (25, JS)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036380	
+testPlatforms (25, Native1)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036389	
+testPlatforms (25, Native2)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036381	
+auto-approve-renovate-prs	skipping	0	https://github.com/zio/zio/actions/runs/22669323276/job/65709034442	
+update-docs	skipping	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036832	
+testJvms (11)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036427	
+无法获取 CI 状态
+[2026-03-04 20:28:40] 
+## 最新评论
+[2026-03-04 20:28:41] author:	CLAassistant
+[2026-03-04 20:28:41] 
+=== 检查完成 ===
+
+[2026-03-04 20:34:46] === ZIO PR #10517 状态检查 ===
+[2026-03-04 20:34:50] PR 标题：fix: ensure defects are not silently ignored by catchAll (#9874)
+[2026-03-04 20:34:50] 状态：[0;32mOPEN[0m
+[2026-03-04 20:34:50] 可合并：MERGEABLE
+[2026-03-04 20:34:50] 最后更新：2026-03-04T12:27:29Z
+[2026-03-04 20:34:50] 
+## CI 检查状态
+[2026-03-04 20:34:51] lint	fail	2m8s	https://github.com/zio/zio/actions/runs/22669324082/job/65709036355	
+test (2.12.x, 21, JVM)	fail	2m9s	https://github.com/zio/zio/actions/runs/22669324082/job/65709036340	
+test (2.13.x, 21, JVM)	fail	2m36s	https://github.com/zio/zio/actions/runs/22669324082/job/65709036358	
+test (3.x, 21, JVM)	fail	2m6s	https://github.com/zio/zio/actions/runs/22669324082/job/65709036377	
+testJvms (11)	fail	2m52s	https://github.com/zio/zio/actions/runs/22669324082/job/65709036427	
+testJvms (17)	fail	2m59s	https://github.com/zio/zio/actions/runs/22669324082/job/65709036485	
+testJvms (25)	fail	2m39s	https://github.com/zio/zio/actions/runs/22669324082/job/65709036390	
+testPlatforms (25, JS)	fail	2m21s	https://github.com/zio/zio/actions/runs/22669324082/job/65709036380	
+testPlatforms (25, Native1)	fail	2m37s	https://github.com/zio/zio/actions/runs/22669324082/job/65709036389	
+build-website	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036352	
+publishLocal (2.12.x)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036457	
+publishLocal (2.13.x)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036417	
+publishLocal (3.x)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036399	
+testPlatforms (25, Native2)	pending	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036381	
+auto-approve-renovate-prs	skipping	0	https://github.com/zio/zio/actions/runs/22669323276/job/65709034442	
+update-docs	skipping	0	https://github.com/zio/zio/actions/runs/22669324082/job/65709036832	
+license/cla	pending	0	https://cla-assistant.io/zio/zio?pullRequest=10517	Contributor License Agreement is not signed yet.
+无法获取 CI 状态
+[2026-03-04 20:34:51] 
+## 最新评论
+[2026-03-04 20:34:53] author:	CLAassistant
+[2026-03-04 20:34:53] 
+=== 检查完成 ===
+
