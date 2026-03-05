@@ -448,8 +448,6 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     val currentSearching = currentState & 0xffff
     val currentActive    = (currentState & 0xffff0000) >> 16
     if (currentActive != poolSize && currentSearching == 0) {
-      // Only unpark if we have spare capacity and no one is currently searching
-      // This reduces excessive park/unpark cycles by batching unpark operations
       val worker = idle.poll()
       if (worker ne null) {
         state.getAndAdd(0x10001)
