@@ -127,6 +127,34 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
                 name <- ZIO.succeed(Thread.currentThread().getName)
               } yield assertTrue(name.startsWith("ZScheduler-Worker"))
             }.provide(Runtime.enableFlags(RuntimeFlag.EagerShiftBack))
-        } @@ TestAspect.jvmOnly
+        } @@ TestAspect.jvmOnly +
+        suite("OpLog") {
+          test("render produces expected strings for each ZIO instruction type") {
+            import ZIO._
+
+            val syncEffect    = ZIO.succeed(1).asInstanceOf[ZIO.Erased]
+            val flatMapEffect = ZIO.succeed(1).flatMap(n => ZIO.succeed(n + 1)).asInstanceOf[ZIO.Erased]
+            val foldEffect    = ZIO.fail("err").foldZIO(_ => ZIO.succeed(0), n => ZIO.succeed(n)).asInstanceOf[ZIO.Erased]
+
+            assertTrue(render(syncEffect).startsWith("Sync(trace=")) &&
+            assertTrue(render(flatMapEffect).startsWith("FlatMap(trace=")) &&
+            assertTrue(render(flatMapEffect).contains("first=Sync(trace=")) &&
+            assertTrue(render(foldEffect).startsWith("FoldZIO(trace=")) &&
+            assertTrue(render(foldEffect).contains("first=")) &&
+            assertTrue(render(Exit.succeed(0).asInstanceOf[ZIO.Erased]) == "Exit.Success(value=0)") &&
+            assertTrue(render(Exit.fail("boom").asInstanceOf[ZIO.Erased]).startsWith("Exit.Failure(cause="))
+          } +
+            test("enabling OpLog causes effects to be logged") {
+              for {
+                _      <- ZIO.succeed(1).flatMap(n => ZIO.succeed(n + 1))
+                output <- ZTestLogger.logOutput
+              } yield {
+                val opLogMessages = output.filter(_.logLevel == LogLevel.Debug)
+                assertTrue(opLogMessages.nonEmpty) &&
+                assertTrue(opLogMessages.exists(entry => entry.message().contains("FlatMap("))) &&
+                assertTrue(opLogMessages.exists(entry => entry.message().contains("Sync(")))
+              }
+            }.provide(Runtime.enableFlags(RuntimeFlag.OpLog))
+        }
     }
 }
