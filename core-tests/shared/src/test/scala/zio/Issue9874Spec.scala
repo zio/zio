@@ -27,30 +27,30 @@ object Issue9874Spec extends ZIOSpecDefault {
         } yield assertTrue(result == "handled: error")
       },
       test("failureOrCause should return full cause when defects are present") {
-        val dieCause: Cause[String] = Cause.die(new RuntimeException("boom"))
+        val dieCause: Cause[String]  = Cause.die(new RuntimeException("boom"))
         val failCause: Cause[String] = Cause.fail("error")
-        val combined = dieCause && failCause
+        val combined                 = dieCause && failCause
 
         val result = combined.failureOrCause
-        
+
         assertTrue(result.isRight) &&
-          assertTrue(result.toOption.exists(_.isDie))
+        assertTrue(result.toOption.exists(_.isDie))
       },
       test("failureOrCause should return failure when no defects") {
         val failCause: Cause[String] = Cause.fail("error")
 
         val result = failCause.failureOrCause
-        
+
         assertTrue(result.isLeft) &&
-          assertTrue(result.left.toOption.contains("error"))
+        assertTrue(result.left.toOption.contains("error"))
       },
       test("defect-only cause should be returned by failureOrCause") {
         val dieCause: Cause[String] = Cause.die(new RuntimeException("boom"))
 
         val result = dieCause.failureOrCause
-        
+
         assertTrue(result.isRight) &&
-          assertTrue(result.toOption.exists(_.isDie))
+        assertTrue(result.toOption.exists(_.isDie))
       },
       test("catchAllDefect should still work for pure defects") {
         val dieCause: Cause[String] = Cause.die(new RuntimeException("boom"))
