@@ -26,6 +26,10 @@ import java.util.concurrent.atomic.AtomicReference
  * handles this common case with a single CAS and zero allocation (no Node
  * wrapper). A lazily-initialized ConcurrentLinkedQueue absorbs the rare
  * overflow when multiple messages are pending concurrently.
+ *
+ * Once the queue is created (first collision), all subsequent `add` calls go
+ * directly to the queue, preventing later messages from jumping ahead of
+ * messages already waiting in the queue via the head slot.
  */
 private[zio] final class FiberMailbox {
 
@@ -33,22 +37,34 @@ private[zio] final class FiberMailbox {
 
   @volatile private[this] var tail: ConcurrentLinkedQueue[FiberMessage] = null
 
-  def add(message: FiberMessage): Unit =
-    if (!head.compareAndSet(null, message))
-      ensureTail().add(message)
-
-  def poll(): FiberMessage = {
-    val h = head.getAndSet(null)
-    if (h ne null) return h
+  def add(message: FiberMessage): Unit = {
     val t = tail
-    if (t ne null) t.poll() else null
+    if (t ne null) t.add(message)
+    else if (!head.compareAndSet(null, message))
+      ensureTail().add(message)
   }
 
-  def isEmpty: Boolean =
-    (head.get() eq null) && {
-      val t = tail
-      (t eq null) || t.isEmpty
+  def poll(): FiberMessage = {
+    val t = tail
+    if (t ne null) {
+      val h = head.get()
+      if (h ne null) {
+        head.lazySet(null)
+        return h
+      }
+      return t.poll()
     }
+    head.getAndSet(null)
+  }
+
+  def isEmpty: Boolean = {
+    val t = tail
+    if (t ne null) {
+      (head.get() eq null) && t.isEmpty
+    } else {
+      head.get() eq null
+    }
+  }
 
   private[this] def ensureTail(): ConcurrentLinkedQueue[FiberMessage] = {
     var t = tail
