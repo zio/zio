@@ -15,7 +15,7 @@ object Issue9874Spec extends ZIOSpecDefault {
         for {
           result <- effect.exit
         } yield assertTrue(result.isFailure) &&
-          assertTrue(result.failureOption.exists(_.isDie))
+          assertTrue(result.causeOption.exists(_.isDie))
       },
       test("catchAll should handle pure failures normally") {
         val failCause: Cause[String] = Cause.fail("error")
