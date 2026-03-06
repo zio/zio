@@ -130,8 +130,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * only `Die` or `Interrupt` causes.
    *
    * Note: If the cause contains both failures and defects, the full cause is
-   * returned on the `Right` to ensure defects are not silently ignored.
-   * This preserves the invariant that defects should always be prioritized.
+   * returned on the `Right` to ensure defects are not silently ignored. This
+   * preserves the invariant that defects should always be prioritized.
    */
   final def failureOrCause: Either[E, Cause[Nothing]] =
     failureOption match {
