@@ -18,6 +18,8 @@ package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion.Arguments.valueArgument
+import zio.test.diff.Diff
+import zio.test.internal.OptionalImplicit
 import zio.test.{ErrorMessage => M}
 
 trait AssertionVariants extends FieldExtractorPlatformSpecific {
@@ -66,7 +68,19 @@ trait AssertionVariants extends FieldExtractorPlatformSpecific {
     }
   }
 
-  def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
+  private def renderEqualToFailure[A, B](actual: B, expected: A)(implicit diff: OptionalImplicit[Diff[A]]) =
+    diff.value match {
+      case Some(diff) if !diff.isLowPriority && expected != null && actual != null && expected.getClass.isInstance(actual) =>
+        Diff.renderAssertionFailure(expected, actual.asInstanceOf[A], Some(diff))
+      case _ if expected != null && actual != null && Diff.hasRuntimeDiff(expected, actual) =>
+        Diff.renderRuntimeAssertionFailure(expected, actual)
+      case _ if expected.isInstanceOf[Product] =>
+        M.text(diffProduct(actual, expected))
+      case _ =>
+        M.pretty(actual) + M.equals + M.pretty(expected)
+    }
+
+  def equalTo[A, B](expected: A)(implicit eql: Eql[A, B], diff: OptionalImplicit[Diff[A]]): Assertion[B] =
     Assertion[B](
       TestArrow
         .make[B, Boolean] { actual =>
@@ -76,11 +90,7 @@ trait AssertionVariants extends FieldExtractorPlatformSpecific {
             case (left, right)                             => left == right
           }
           TestTrace.boolean(result) {
-            if (expected.isInstanceOf[Product]) {
-              M.text(diffProduct(actual, expected))
-            } else {
-              M.pretty(actual) + M.equals + M.pretty(expected)
-            }
+            renderEqualToFailure(actual, expected)
           }
         }
         .withCode("equalTo", valueArgument(expected))

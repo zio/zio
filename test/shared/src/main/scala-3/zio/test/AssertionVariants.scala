@@ -17,8 +17,10 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.{ErrorMessage => M}
 import zio.test.Assertion.Arguments.valueArgument
+import zio.test.diff.Diff
+import zio.test.internal.OptionalImplicit
+import zio.test.{ErrorMessage => M}
 
 trait AssertionVariants {
   private def diffProduct[T](
@@ -65,10 +67,20 @@ trait AssertionVariants {
     }
   }
 
+  private def renderEqualToFailure[A](actual: A, expected: A)(implicit diff: OptionalImplicit[Diff[A]]) =
+    diff.value match {
+      case Some(diff) if !diff.isLowPriority =>
+        Diff.renderAssertionFailure(expected, actual, Some(diff))
+      case _ if expected.isInstanceOf[Product] =>
+        M.text(diffProduct(actual, expected))
+      case _ =>
+        M.pretty(actual) + M.equals + M.pretty(expected)
+    }
+
   /**
    * Makes a new assertion that requires a value equal the specified value.
    */
-  final def equalTo[A](expected: A): Assertion[A] =
+  final def equalTo[A](expected: A)(implicit diff: OptionalImplicit[Diff[A]]): Assertion[A] =
     Assertion[A](
       TestArrow
         .make[A, Boolean] { actual =>
@@ -78,11 +90,7 @@ trait AssertionVariants {
             case (left, right)                             => left == right
           }
           TestTrace.boolean(result) {
-            if (expected.isInstanceOf[Product]) {
-              M.text(diffProduct(actual, expected))
-            } else {
-              M.pretty(actual) + M.equals + M.pretty(expected)
-            }
+            renderEqualToFailure(actual, expected)
           }
         }
         .withCode("equalTo", valueArgument(expected))
