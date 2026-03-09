@@ -391,42 +391,23 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   Prefer capacities that are powers of 2 for better performance.
    */
   def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
-    def process(take: => UIO[Exit[Option[E], A]]): ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] = {
-      lazy val loop: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
-        ZChannel.fromZIO(take).flatMap { (exit: Exit[Option[E], A]) =>
-          exit.foldExit(
-            Cause
-              .flipCauseOption(_)
-              .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
-            value => ZChannel.write(Chunk.single(value)) *> loop
-          )
-        }
-
-      loop
-    }
-
+    val queue = self.toQueueOfElements(capacity)
     new ZStream(
       ZChannel.unwrapScoped[R] {
-        ZIO.suspendSucceed {
-          val capacity0 = capacity
-          if (capacity0 == 1)
-            for {
-              handoff <- ZStream.Handoff.make[Exit[Option[E], A]]
-              _ <- {
-                     lazy val writer: ZChannel[R, E, Chunk[A], Any, Nothing, Nothing, Any] =
-                       ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Nothing, Any](
-                         in => ZChannel.fromZIO(ZIO.foreachDiscard(in)(a => handoff.offer(Exit.succeed(a)))) *> writer,
-                         err => ZChannel.fromZIO(handoff.offer(Exit.failCause(err.map(Some(_))))),
-                         _ => ZChannel.fromZIO(handoff.offer(Exit.fail(None)))
-                       )
+        queue.map { queue =>
+          lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+            ZChannel.fromZIO {
+              queue.take
+            }.flatMap { (exit: Exit[Option[E], A]) =>
+              exit.foldExit(
+                Cause
+                  .flipCauseOption(_)
+                  .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
+                value => ZChannel.write(Chunk.single(value)) *> process
+              )
+            }
 
-                     (self.channel >>> writer).drain.runScoped
-                   }.forkScoped
-            } yield process(handoff.take)
-          else if (capacity0 > 1)
-            self.toQueueOfElements(capacity0 - 1).map(queue => process(queue.take))
-          else
-            self.toQueueOfElements(capacity0).map(queue => process(queue.take))
+          process
         }
       }
     )
