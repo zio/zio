@@ -82,7 +82,10 @@ object Diff extends DiffInstances {
       case (left: Chunk[_], right: Chunk[_]) =>
         Some(chunkDiff[Any](anyDiff[Any]).diff(left.asInstanceOf[Chunk[Any]], right.asInstanceOf[Chunk[Any]]))
       case (left: NonEmptyChunk[_], right: NonEmptyChunk[_]) =>
-        Some(nonEmptyChunk[Any](anyDiff[Any]).diff(left.asInstanceOf[NonEmptyChunk[Any]], right.asInstanceOf[NonEmptyChunk[Any]]))
+        Some(
+          nonEmptyChunk[Any](anyDiff[Any])
+            .diff(left.asInstanceOf[NonEmptyChunk[Any]], right.asInstanceOf[NonEmptyChunk[Any]])
+        )
       case (left: Array[_], right: Array[_]) =>
         Some(arrayDiff[Any](anyDiff[Any]).diff(left.asInstanceOf[Array[Any]], right.asInstanceOf[Array[Any]]))
       case (left: Seq[_], right: Seq[_]) =>

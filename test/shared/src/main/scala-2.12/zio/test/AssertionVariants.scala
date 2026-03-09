@@ -80,7 +80,7 @@ trait AssertionVariants extends FieldExtractorPlatformSpecific {
         M.pretty(actual) + M.equals + M.pretty(expected)
     }
 
-  def equalTo[A, B](expected: A)(implicit eql: Eql[A, B], diff: OptionalImplicit[Diff[A]]): Assertion[B] =
+  private def equalToWithDiff[A, B](expected: A)(implicit eql: Eql[A, B], diff: OptionalImplicit[Diff[A]]): Assertion[B] =
     Assertion[B](
       TestArrow
         .make[B, Boolean] { actual =>
@@ -95,4 +95,7 @@ trait AssertionVariants extends FieldExtractorPlatformSpecific {
         }
         .withCode("equalTo", valueArgument(expected))
     )
+
+  def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
+    equalToWithDiff(expected)(eql, OptionalImplicit.none[Diff[A]])
 }

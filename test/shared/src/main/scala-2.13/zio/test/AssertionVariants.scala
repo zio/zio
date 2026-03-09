@@ -69,7 +69,8 @@ trait AssertionVariants {
 
   private def renderEqualToFailure[A, B](actual: B, expected: A)(implicit diff: OptionalImplicit[Diff[A]]) =
     diff.value match {
-      case Some(diff) if !diff.isLowPriority && expected != null && actual != null && expected.getClass.isInstance(actual) =>
+      case Some(diff)
+          if !diff.isLowPriority && expected != null && actual != null && expected.getClass.isInstance(actual) =>
         Diff.renderAssertionFailure(expected, actual.asInstanceOf[A], Some(diff))
       case _ if expected != null && actual != null && Diff.hasRuntimeDiff(expected, actual) =>
         Diff.renderRuntimeAssertionFailure(expected, actual)
@@ -79,7 +80,9 @@ trait AssertionVariants {
         M.pretty(actual) + M.equals + M.pretty(expected)
     }
 
-  def equalTo[A, B](expected: A)(implicit eql: Eql[A, B], diff: OptionalImplicit[Diff[A]]): Assertion[B] =
+  private def equalToWithDiff[A, B](
+    expected: A
+  )(implicit eql: Eql[A, B], diff: OptionalImplicit[Diff[A]]): Assertion[B] =
     Assertion[B](
       TestArrow
         .make[B, Boolean] { actual =>
@@ -94,4 +97,7 @@ trait AssertionVariants {
         }
         .withCode("equalTo", valueArgument(expected))
     )
+
+  def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
+    equalToWithDiff(expected)(eql, OptionalImplicit.none[Diff[A]])
 }
