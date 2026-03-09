@@ -610,10 +610,10 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("buffer(1) does not prefetch a third element") {
             for {
-              permit2      <- Promise.make[Nothing, Unit]
-              permit3      <- Promise.make[Nothing, Unit]
-              started2     <- Promise.make[Nothing, Unit]
-              started3     <- Promise.make[Nothing, Unit]
+              permit2  <- Promise.make[Nothing, Unit]
+              permit3  <- Promise.make[Nothing, Unit]
+              started2 <- Promise.make[Nothing, Unit]
+              started3 <- Promise.make[Nothing, Unit]
               thirdStarted <- ZIO.scoped {
                                 for {
                                   pull <- ZStream
