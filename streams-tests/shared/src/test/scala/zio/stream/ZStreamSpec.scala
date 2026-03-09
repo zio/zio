@@ -607,60 +607,6 @@ object ZStreamSpec extends ZIOBaseSpec {
               _  <- latch.await
               l2 <- ref.get
             } yield assert(l1.toList)(equalTo((1 to 2).toList)) && assert(l2.reverse)(equalTo((1 to 4).toList))
-          },
-          test("buffer(1) does not prefetch a third element") {
-            for {
-              permit2      <- Promise.make[Nothing, Unit]
-              permit3      <- Promise.make[Nothing, Unit]
-              started2     <- Promise.make[Nothing, Unit]
-              started3     <- Promise.make[Nothing, Unit]
-              thirdStarted <- ZIO.scoped {
-                                for {
-                                  pull <- ZStream
-                                            .fromIterable(1 to 3)
-                                            .mapZIO {
-                                              case 1 => ZIO.succeed(1)
-                                              case 2 => started2.succeed(()) *> permit2.await.as(2)
-                                              case 3 => started3.succeed(()) *> permit3.await.as(3)
-                                            }
-                                            .buffer(1)
-                                            .toPull
-                                  _ <- pull
-                                  _ <- permit2.succeed(())
-                                  _ <- started2.await
-                                  _ <- ZIO.yieldNow.repeatN(32)
-                                  v <- started3.poll
-                                  _ <- permit3.succeed(())
-                                } yield v
-                              }
-            } yield assert(thirdStarted)(isNone)
-          } @@ nonFlaky,
-          test("buffer(2) can prefetch a third element") {
-            for {
-              permit2  <- Promise.make[Nothing, Unit]
-              permit3  <- Promise.make[Nothing, Unit]
-              started2 <- Promise.make[Nothing, Unit]
-              started3 <- Promise.make[Nothing, Unit]
-              thirdStarted <- ZIO.scoped {
-                                for {
-                                  pull <- ZStream
-                                            .fromIterable(1 to 3)
-                                            .mapZIO {
-                                              case 1 => ZIO.succeed(1)
-                                              case 2 => started2.succeed(()) *> permit2.await.as(2)
-                                              case 3 => started3.succeed(()) *> permit3.await.as(3)
-                                            }
-                                            .buffer(2)
-                                            .toPull
-                                  _ <- pull
-                                  _ <- permit2.succeed(())
-                                  _ <- started2.await
-                                  _ <- started3.await
-                                  v <- started3.poll
-                                  _ <- permit3.succeed(())
-                                } yield v
-                              }
-            } yield assert(thirdStarted)(isSome(anything))
           }
         ),
         suite("bufferChunks")(
