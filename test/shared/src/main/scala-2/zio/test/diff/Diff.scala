@@ -1,5 +1,7 @@
 package zio.test.diff
 
+import java.lang.reflect.{Array => JArray}
+
 import zio.internal.ansi.AnsiStringOps
 import zio.{Chunk, NonEmptyChunk}
 import zio.test.{ConsoleUtils, ErrorMessage => M, PrettyPrint}
@@ -50,6 +52,11 @@ object Diff extends DiffInstances {
   private[test] def hasRuntimeDiff(expected: Any, actual: Any): Boolean =
     runtimeDiff(expected, actual).isDefined
 
+  private def arrayElements(array: AnyRef): Vector[Any] = {
+    val length = JArray.getLength(array)
+    Vector.tabulate(length)(index => JArray.get(array, index))
+  }
+
   private def renderAssertionFailure(
     expected: Any,
     actual: Any,
@@ -87,13 +94,15 @@ object Diff extends DiffInstances {
             .diff(left.asInstanceOf[NonEmptyChunk[Any]], right.asInstanceOf[NonEmptyChunk[Any]])
         )
       case (left: Array[_], right: Array[_]) =>
-        Some(arrayDiff[Any](anyDiff[Any]).diff(left.asInstanceOf[Array[Any]], right.asInstanceOf[Array[Any]]))
+        Some(seqDiff[Any](anyDiff[Any]).diff(arrayElements(left), arrayElements(right)))
       case (left: Seq[_], right: Seq[_]) =>
         Some(seqDiff[Any](anyDiff[Any]).diff(left.asInstanceOf[Seq[Any]], right.asInstanceOf[Seq[Any]]))
       case (left: Set[_], right: Set[_]) =>
         Some(setDiff[Any](anyDiff[Any]).diff(left.asInstanceOf[Set[Any]], right.asInstanceOf[Set[Any]]))
       case (left: Map[_, _], right: Map[_, _]) =>
-        Some(mapDiff[Any, Any](anyDiff[Any]).diff(left.asInstanceOf[Map[Any, Any]], right.asInstanceOf[Map[Any, Any]]))
+        Some(
+          mapDiff[Any, Any](anyDiff[Any]).diff(left.asInstanceOf[Map[Any, Any]], right.asInstanceOf[Map[Any, Any]])
+        )
       case _ =>
         None
     }
