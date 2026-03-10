@@ -67,10 +67,13 @@ trait AssertionVariants {
     }
   }
 
-  private def renderEqualToFailure[A](actual: A, expected: A)(implicit diff: OptionalImplicit[Diff[A]]) =
+  private def renderEqualToFailure[A, B](actual: B, expected: A)(implicit diff: OptionalImplicit[Diff[A]]) =
     diff.value match {
-      case Some(diff) if !diff.isLowPriority =>
-        Diff.renderAssertionFailure(expected, actual, Some(diff))
+      case Some(diff)
+          if !diff.isLowPriority && expected != null && actual != null && expected.getClass.isInstance(actual) =>
+        Diff.renderAssertionFailure(expected, actual.asInstanceOf[A], Some(diff))
+      case _ if expected != null && actual != null && Diff.hasRuntimeDiff(expected, actual) =>
+        Diff.renderRuntimeAssertionFailure(expected, actual)
       case _ if expected.isInstanceOf[Product] =>
         M.text(diffProduct(actual, expected))
       case _ =>
@@ -80,10 +83,12 @@ trait AssertionVariants {
   /**
    * Makes a new assertion that requires a value equal the specified value.
    */
-  final def equalTo[A](expected: A)(implicit diff: OptionalImplicit[Diff[A]]): Assertion[A] =
-    Assertion[A](
+  private def equalToWithDiff[A, B](
+    expected: A
+  )(implicit eql: Eql[A, B], diff: OptionalImplicit[Diff[A]]): Assertion[B] =
+    Assertion[B](
       TestArrow
-        .make[A, Boolean] { actual =>
+        .make[B, Boolean] { actual =>
           val result = (actual, expected) match {
             case (left: Array[_], right: Array[_])         => left.sameElements[Any](right)
             case (left: CharSequence, right: CharSequence) => left.toString == right.toString
@@ -95,4 +100,7 @@ trait AssertionVariants {
         }
         .withCode("equalTo", valueArgument(expected))
     )
+
+  def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
+    equalToWithDiff(expected)(eql, OptionalImplicit.none[Diff[A]])
 }
