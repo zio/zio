@@ -673,8 +673,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         val input       = SingleProducerAsyncInput.unsafe.make[InErr, InElem, InDone](fiberId)(Unsafe)
         val queueReader = ZChannel.fromInput(input)
         val n0          = n.toLong
-        val bufferSize0 = bufferSize
-        val outgoing    = Queue.unsafe.bounded[Fiber[Either[Unit, OutDone], OutElem2]](bufferSize0, fiberId)(Unsafe)
+        // The outgoing queue is unbounded so that the parallelism level `n` is not
+        // inadvertently capped by `bufferSize`.  Actual concurrency is still bounded
+        // by the semaphore below.  `bufferSize` is retained in the signature for
+        // binary compatibility but no longer limits in-flight fibers.
+        val outgoing    = Queue.unsafe.unbounded[Fiber[Either[Unit, OutDone], OutElem2]](fiberId)(Unsafe)
         val errorSignal = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
         val permits     = Semaphore.unsafe.make(n0)(Unsafe)
         val failureRef  = Ref.unsafe.make[Cause[OutErr1]](Cause.empty)(Unsafe)
@@ -705,7 +708,16 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                              )
                              .interruptible
                              .forkIn(childScope)
-                             .flatMap(fiber => latch.await *> outgoing.offer(fiber))
+                             .flatMap { fiber =>
+                               // Offer the fiber into the ordered output queue *before*
+                               // waiting for the permit latch.  The queue is unbounded so
+                               // this never blocks; ordering is preserved because fibers are
+                               // offered in the same order they are pulled from upstream.
+                               // The latch.await afterwards provides backpressure: the main
+                               // loop only pulls the next element once a semaphore permit has
+                               // been acquired (i.e. once one of the n slots is free).
+                               outgoing.offer(fiber) *> latch.await
+                             }
                          }.forever.interruptible
                            .onError(_.failureOrCause match {
                              case Left(x: Left[OutErr, ?]) =>

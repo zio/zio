@@ -2997,6 +2997,29 @@ object ZStreamSpec extends ZIOBaseSpec {
               )
             )
           } @@ flaky,
+          test("parallelism is not bounded by bufferSize (#9339)") {
+            // Regression test: mapZIOPar(n) with a small bufferSize should still
+            // achieve n-level parallelism.  Previously the effective parallelism
+            // was min(n, bufferSize) because the bounded outgoing queue stalled
+            // the producer loop before n fibers could be in-flight.
+            val parallelism = 8
+            val bufferSize  = 2 // intentionally smaller than parallelism
+            for {
+              latch <- CountdownLatch.make(parallelism + 1)
+              f <- ZStream
+                     .range(0, 1000)
+                     .mapZIOPar(parallelism, bufferSize)(_ => latch.countDown *> latch.await)
+                     .runDrain
+                     .fork
+              // Wait until exactly `parallelism` fibers have counted down, which
+              // can only happen if all `parallelism` slots were actually used at
+              // once regardless of the small bufferSize.
+              _     <- Live.live(latch.count.delay(100.micros)).repeatUntil(_ == 1)
+              _     <- latch.countDown
+              count <- latch.count
+              _     <- f.join
+            } yield assertTrue(count == 0)
+          } @@ TestAspect.jvmOnly @@ TestAspect.nonFlaky @@ TestAspect.timeout(10.seconds),
           test("does not freeze when output is only partially consumed (#10195)") {
             val stream = ZStream.range(0, 100).mapZIOPar(8)(_ => ZIO.unit)
             assertZIO(stream.take(1).runDrain.exit)(succeeds(anything))
