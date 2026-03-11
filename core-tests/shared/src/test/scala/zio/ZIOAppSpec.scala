@@ -80,6 +80,79 @@ object ZIOAppSpec extends ZIOBaseSpec {
         _     <- app.invoke(Chunk.empty)
         value <- ref2.get
       } yield assertTrue(value)
+    },
+    // Tests for issue #9909: correct exit codes
+    test("defect results in ExitCode.failure") {
+      for {
+        code <- ZIOApp.fromZIO(ZIO.die(new RuntimeException("boom"))).invoke(Chunk.empty).exitCode: @nowarn("cat=deprecation")
+      } yield assertTrue(code == ExitCode.failure)
+    },
+    test("interruption results in ExitCode.failure") {
+      for {
+        fiber <- ZIOApp.fromZIO(ZIO.never).invoke(Chunk.empty).fork
+        _     <- fiber.interrupt
+        exit  <- fiber.await
+      } yield assertTrue(exit.isFailure)
+    },
+    // Regression tests for #9901: finalizers must run on external interruption
+    test("finalizers run when app is interrupted (regression #9901)") {
+      for {
+        started   <- Promise.make[Nothing, Unit]
+        finalized <- Ref.make(false)
+        app = ZIOAppDefault.fromZIO(
+                ZIO.acquireRelease(started.succeed(()))(_ => finalized.set(true)) *> ZIO.never
+              )
+        fiber     <- app.invoke(Chunk.empty).fork
+        _         <- started.await
+        _         <- fiber.interrupt
+        didFinalize <- finalized.get
+      } yield assertTrue(didFinalize)
+    },
+    // Regression test for #9901: bootstrap layer finalizers run on interruption
+    test("bootstrap layer finalizers run on interruption (regression #9901)") {
+      for {
+        started          <- Promise.make[Nothing, Unit]
+        bootstrapFinalized <- Ref.make(false)
+        app = new ZIOAppDefault {
+          override val bootstrap = ZLayer.scoped(
+            ZIO.acquireRelease(ZIO.unit)(_ => bootstrapFinalized.set(true))
+          )
+          val run = started.succeed(()) *> ZIO.never
+        }
+        fiber     <- app.invoke(Chunk.empty).fork
+        _         <- started.await
+        _         <- fiber.interrupt
+        didFinalize <- bootstrapFinalized.get
+      } yield assertTrue(didFinalize)
+    },
+    test("app exits immediately on success without delay") {
+      for {
+        start  <- Clock.instant
+        _      <- ZIOApp.fromZIO(ZIO.unit).invoke(Chunk.empty)
+        end    <- Clock.instant
+        elapsed = java.time.Duration.between(start, end).toMillis
+      } yield assertTrue(elapsed < 2000L)
+    },
+    test("app exits immediately on failure without delay") {
+      for {
+        start  <- Clock.instant
+        _      <- ZIOApp.fromZIO(ZIO.fail("error")).invoke(Chunk.empty).ignore
+        end    <- Clock.instant
+        elapsed = java.time.Duration.between(start, end).toMillis
+      } yield assertTrue(elapsed < 2000L)
+    },
+    test("invoke with command-line args makes args available") {
+      val args = Chunk("--foo", "bar", "--baz")
+      for {
+        received <- ZIOApp.fromZIO(ZIOAppArgs.getArgs).invoke(args)
+      } yield assertTrue(received == args)
+    },
+    test("bootstrap layer errors result in ExitCode.failure") {
+      val failingBootstrap = ZLayer.fail("bootstrap failure")
+      val app = ZIOApp(ZIO.unit, failingBootstrap)
+      for {
+        code <- app.invoke(Chunk.empty).exitCode: @nowarn("cat=deprecation")
+      } yield assertTrue(code == ExitCode.failure)
     }
   )
 }
