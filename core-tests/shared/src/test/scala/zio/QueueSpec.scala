@@ -783,6 +783,125 @@ object QueueSpec extends ZIOBaseSpec {
         _ <- f.await
       } yield assertCompletes
     } @@ exceptJS(nonFlaky),
+    suite("shutdownCause")(
+      test("shutdownCause fails blocked take with the specified cause") {
+        for {
+          queue  <- Queue.bounded[Int](3)
+          fiber  <- queue.take.sandbox.either.fork
+          _      <- waitForSize(queue, -1)
+          _      <- queue.shutdownCause(Cause.fail("connection closed"))
+          result <- fiber.join
+        } yield assert(result)(isLeft(equalTo(Cause.fail("connection closed"))))
+      },
+      test("shutdownCause returns buffered items") {
+        for {
+          queue    <- Queue.bounded[Int](10)
+          _        <- queue.offerAll(Chunk(1, 2, 3))
+          buffered <- queue.shutdownCause(Cause.fail("shutdown"))
+        } yield assert(buffered)(equalTo(Chunk(1, 2, 3)))
+      },
+      test("shutdownCause returns empty chunk when queue is empty") {
+        for {
+          queue    <- Queue.bounded[Int](10)
+          buffered <- queue.shutdownCause(Cause.fail("shutdown"))
+        } yield assert(buffered)(equalTo(Chunk.empty))
+      },
+      test("shutdownCause fails future take with the cause") {
+        for {
+          queue  <- Queue.bounded[Int](3)
+          _      <- queue.shutdownCause(Cause.fail("gone"))
+          result <- queue.take.sandbox.either
+        } yield assert(result)(isLeft)
+      },
+      test("shutdownCause fails future offer with interrupt") {
+        for {
+          queue  <- Queue.bounded[Int](3)
+          _      <- queue.shutdownCause(Cause.fail("gone"))
+          result <- queue.offer(42).sandbox.either
+        } yield assert(result)(isLeft)
+      },
+      test("shutdownCause sets isShutdown to true") {
+        for {
+          queue   <- Queue.bounded[Int](3)
+          before  <- queue.isShutdown
+          _       <- queue.shutdownCause(Cause.fail("reason"))
+          after   <- queue.isShutdown
+        } yield assert(before)(isFalse) && assert(after)(isTrue)
+      },
+      test("shutdownCauseOption returns None before shutdown") {
+        for {
+          queue <- Queue.bounded[Int](3)
+          opt   <- queue.shutdownCauseOption
+        } yield assert(opt)(isNone)
+      },
+      test("shutdownCauseOption returns Some(cause) after shutdownCause") {
+        for {
+          queue <- Queue.bounded[Int](3)
+          _     <- queue.shutdownCause(Cause.fail("reason"))
+          opt   <- queue.shutdownCauseOption
+        } yield assert(opt)(isSome(equalTo(Cause.fail("reason"): Cause[Any])))
+      },
+      test("shutdownCauseOption returns None after regular shutdown") {
+        for {
+          queue <- Queue.bounded[Int](3)
+          _     <- queue.shutdown
+          opt   <- queue.shutdownCauseOption
+        } yield assert(opt)(isNone)
+      },
+      test("shutdownCause triggers awaitShutdown") {
+        for {
+          queue <- Queue.bounded[Int](3)
+          p     <- Promise.make[Nothing, Boolean]
+          _     <- (queue.awaitShutdown *> p.succeed(true)).fork
+          _     <- queue.shutdownCause(Cause.fail("reason"))
+          v     <- p.await
+        } yield assert(v)(isTrue)
+      },
+      test("shutdownCause fails blocked back-pressured offer with cause") {
+        for {
+          queue  <- Queue.bounded[Int](1)
+          _      <- queue.offer(1)
+          fiber  <- queue.offer(2).sandbox.either.fork
+          _      <- waitForSize(queue, 2)
+          _      <- queue.shutdownCause(Cause.fail("capacity exceeded"))
+          result <- fiber.join
+        } yield assert(result)(isLeft)
+      },
+      test("shutdownWith is equivalent to shutdownCause(Cause.fail(e))") {
+        for {
+          queue  <- Queue.bounded[Int](3)
+          fiber  <- queue.take.sandbox.either.fork
+          _      <- waitForSize(queue, -1)
+          _      <- queue.shutdownWith("my error")
+          result <- fiber.join
+        } yield assert(result)(isLeft(equalTo(Cause.fail("my error"))))
+      },
+      test("second shutdownCause is idempotent (returns empty chunk)") {
+        for {
+          queue    <- Queue.bounded[Int](5)
+          _        <- queue.offerAll(Chunk(1, 2))
+          chunk1   <- queue.shutdownCause(Cause.fail("first"))
+          chunk2   <- queue.shutdownCause(Cause.fail("second"))
+        } yield assert(chunk1)(equalTo(Chunk(1, 2))) && assert(chunk2)(equalTo(Chunk.empty))
+      },
+      test("shutdownCause after shutdown is idempotent") {
+        for {
+          queue <- Queue.bounded[Int](3)
+          _     <- queue.shutdown
+          chunk <- queue.shutdownCause(Cause.fail("late"))
+        } yield assert(chunk)(equalTo(Chunk.empty))
+      },
+      test("shutdownCause with die cause propagates defect") {
+        val boom = new RuntimeException("boom")
+        for {
+          queue  <- Queue.bounded[Int](3)
+          fiber  <- queue.take.sandbox.either.fork
+          _      <- waitForSize(queue, -1)
+          _      <- queue.shutdownCause(Cause.die(boom))
+          result <- fiber.join
+        } yield assert(result)(isLeft(equalTo(Cause.die(boom): Cause[Any])))
+      }
+    ),
     suite("back-pressured bounded queue stress testing") {
       val genChunk = Gen.chunkOfBounded(20, 100)(smallInt)
       List(
