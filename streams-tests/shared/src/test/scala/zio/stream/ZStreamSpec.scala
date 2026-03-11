@@ -607,7 +607,74 @@ object ZStreamSpec extends ZIOBaseSpec {
               _  <- latch.await
               l2 <- ref.get
             } yield assert(l1.toList)(equalTo((1 to 2).toList)) && assert(l2.reverse)(equalTo((1 to 4).toList))
-          }
+          },
+          test("buffer(1) prefetches exactly 1 element - not 2") {
+            // Regression test for https://github.com/zio/zio/issues/9810
+            // With buffer(1), once element 1 is handed to the consumer the
+            // producer must not start element 3 until the consumer has requested
+            // element 2.  We block element 2 behind a permit and verify that
+            // element 3 never starts while element 1 is still being "processed".
+            for {
+              permit2      <- Promise.make[Nothing, Unit]
+              started2     <- Promise.make[Nothing, Unit]
+              started3     <- Promise.make[Nothing, Unit]
+              permit3      <- Promise.make[Nothing, Unit]
+              thirdStarted <- ZIO.scoped {
+                                for {
+                                  pull <- ZStream
+                                            .fromIterable(1 to 3)
+                                            .mapZIO {
+                                              case 1 => ZIO.succeed(1)
+                                              case 2 => started2.succeed(()) *> permit2.await.as(2)
+                                              case 3 => started3.succeed(()) *> permit3.await.as(3)
+                                            }
+                                            .buffer(1)
+                                            .toPull
+                                  // consume element 1
+                                  _ <- pull
+                                  // unblock element 2 production
+                                  _ <- permit2.succeed(())
+                                  _ <- started2.await
+                                  // yield several times – if element 3 were being
+                                  // prefetched it would have started by now
+                                  _   <- ZIO.yieldNow.repeatN(32)
+                                  res <- started3.poll
+                                  _   <- permit3.succeed(())
+                                } yield res
+                              }
+            } yield assert(thirdStarted)(isNone)
+          } @@ nonFlaky,
+          test("buffer(2) can prefetch a third element") {
+            // With buffer(2) the producer is allowed 2 elements ahead, so
+            // element 3 should start as soon as element 2 is unblocked.
+            for {
+              permit2      <- Promise.make[Nothing, Unit]
+              started2     <- Promise.make[Nothing, Unit]
+              started3     <- Promise.make[Nothing, Unit]
+              permit3      <- Promise.make[Nothing, Unit]
+              thirdStarted <- ZIO.scoped {
+                                for {
+                                  pull <- ZStream
+                                            .fromIterable(1 to 3)
+                                            .mapZIO {
+                                              case 1 => ZIO.succeed(1)
+                                              case 2 => started2.succeed(()) *> permit2.await.as(2)
+                                              case 3 => started3.succeed(()) *> permit3.await.as(3)
+                                            }
+                                            .buffer(2)
+                                            .toPull
+                                  // consume element 1
+                                  _ <- pull
+                                  // unblock element 2; element 3 should be started immediately after
+                                  _ <- permit2.succeed(())
+                                  _ <- started2.await
+                                  _ <- started3.await
+                                  res <- started3.poll
+                                  _   <- permit3.succeed(())
+                                } yield res
+                              }
+            } yield assert(thirdStarted)(isSome)
+          } @@ nonFlaky
         ),
         suite("bufferChunks")(
           test("maintains elements and ordering")(check(tinyChunkOf(tinyChunkOf(Gen.int))) { chunk =>

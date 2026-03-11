@@ -385,29 +385,64 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * Allows a faster producer to progress independently of a slower consumer by
    * buffering up to `capacity` elements in a queue.
    *
+   * Exactly `capacity` elements will be prefetched — the producer cannot advance
+   * beyond `capacity` elements ahead of the consumer. For `capacity == 1` this
+   * means a strict rendezvous-style synchronisation: the producer may only have
+   * one element ready before the consumer asks for it. For `capacity > 1` the
+   * internal bounded queue is sized at `capacity - 1` so that, when combined
+   * with the single element currently held by the consumer, the total number of
+   * in-flight elements is exactly `capacity`.
+   *
    * @note
    *   This combinator destroys the chunking structure.
    * @note
    *   Prefer capacities that are powers of 2 for better performance.
    */
   def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
-    val queue = self.toQueueOfElements(capacity)
+    // Helper: drive the consumer loop from any UIO[Exit[Option[E], A]] source.
+    def consumeLoop(take: UIO[Exit[Option[E], A]]): ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] = {
+      lazy val loop: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+        ZChannel.fromZIO(take).flatMap { (exit: Exit[Option[E], A]) =>
+          exit.foldExit(
+            Cause
+              .flipCauseOption(_)
+              .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
+            value => ZChannel.write(Chunk.single(value)) *> loop
+          )
+        }
+      loop
+    }
+
     new ZStream(
       ZChannel.unwrapScoped[R] {
-        queue.map { queue =>
-          lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
-            ZChannel.fromZIO {
-              queue.take
-            }.flatMap { (exit: Exit[Option[E], A]) =>
-              exit.foldExit(
-                Cause
-                  .flipCauseOption(_)
-                  .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
-                value => ZChannel.write(Chunk.single(value)) *> process
-              )
-            }
-
-          process
+        ZIO.suspendSucceed {
+          val cap = capacity
+          if (cap <= 1) {
+            // capacity == 1: use a synchronous Handoff so the producer can have
+            // at most 1 element ready before the consumer requests the next one.
+            // A Handoff acts as a one-slot rendezvous: offer() blocks until
+            // take() is called, ensuring no second element is produced until the
+            // first has been handed off.
+            for {
+              handoff <- ZStream.Handoff.make[Exit[Option[E], A]]
+              _ <- {
+                lazy val writer: ZChannel[R, E, Chunk[A], Any, Nothing, Nothing, Any] =
+                  ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Nothing, Any](
+                    chunk =>
+                      ZChannel.fromZIO(ZIO.foreachDiscard(chunk)(a => handoff.offer(Exit.succeed(a)))) *> writer,
+                    err =>
+                      ZChannel.fromZIO(handoff.offer(Exit.failCause(err.map(Some(_))))),
+                    _ =>
+                      ZChannel.fromZIO(handoff.offer(Exit.fail(None)))
+                  )
+                (self.channel >>> writer).drain.runScoped
+              }.forkScoped
+            } yield consumeLoop(handoff.take)
+          } else {
+            // capacity > 1: the consumer holds 1 element at a time, so we size
+            // the internal queue at (cap - 1) to keep total in-flight == cap.
+            self.toQueueOfElements(cap - 1).map(queue => consumeLoop(queue.take))
+          }
         }
       }
     )
