@@ -42,6 +42,18 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   private[this] val state           = new AtomicInteger(poolSize << 16)
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
 
+  /**
+   * Tracks the number of workers currently parked (sleeping) in LockSupport.park().
+   *
+   * This is used to avoid calling maybeUnparkWorker (and its expensive state.get()
+   * + idle.poll() path) on every task submission when no workers are parked.
+   * Workers increment this before parking and decrement it when they wake.
+   *
+   * Optimization for #9878: skip the unpark machinery entirely on the hot
+   * submission path when all workers are known to be running.
+   */
+  private[this] val parkedWorkers = new AtomicInteger(0)
+
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
   (0 until poolSize).foreach { workerId =>
@@ -153,8 +165,13 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       } else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
       } else ()
-      val currentState = state.get
-      maybeUnparkWorker(currentState)
+      // Only attempt to wake a sleeping worker if we know at least one is parked.
+      // This avoids the expensive state.get() + idle.poll() on every submission
+      // in the common case where all workers are running. See #9878.
+      if (parkedWorkers.get() > 0) {
+        val currentState = state.get
+        maybeUnparkWorker(currentState)
+      }
       true
     }
   }
@@ -188,8 +205,12 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       }
 
       if (notify) {
-        val currentState = state.get
-        maybeUnparkWorker(currentState)
+        // Only attempt to wake a sleeping worker if we know at least one is parked.
+        // See #9878.
+        if (parkedWorkers.get() > 0) {
+          val currentState = state.get
+          maybeUnparkWorker(currentState)
+        }
       }
       true
     }
@@ -285,12 +306,13 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
       final override def run(): Unit = {
         // Store parent mutable object references in stack memory to avoid fetching it from the heap every time
-        val globalQueue = parent.globalQueue
-        val workers     = parent.workers
-        val state       = parent.state
-        val cache       = parent.cache
-        val idle        = parent.idle
-        val poolSize    = ZScheduler.poolSize
+        val globalQueue   = parent.globalQueue
+        val workers       = parent.workers
+        val state         = parent.state
+        val cache         = parent.cache
+        val idle          = parent.idle
+        val parkedWorkers = parent.parkedWorkers
+        val poolSize      = ZScheduler.poolSize
 
         var currentBlocking = false
         var currentOpCount  = 0L
@@ -390,9 +412,14 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
                 maybeUnparkWorker(currentState)
               }
             }
+            // Increment parked count before parking so that submitters can see
+            // there is a sleeping worker and call maybeUnparkWorker. See #9878.
+            parkedWorkers.getAndIncrement()
             while (!active && !isInterrupted) {
               LockSupport.park()
             }
+            // Decrement parked count now that we are awake and running again.
+            parkedWorkers.getAndDecrement()
             searching = true
           } else {
             if (searching) {
@@ -526,7 +553,7 @@ private object ZScheduler {
 
   /**
    * A `Supervisor` is a `Thread` that is responsible for monitoring workers and
-   * shifting tasks from workers that are blocking to new workers.
+   * shifting tasks from blocking workers to new workers.
    */
   private sealed abstract class Supervisor extends Thread
 
