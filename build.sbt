@@ -660,7 +660,7 @@ lazy val benchmarks = project.module
         "com.twitter"               %% "util-core"     % "24.2.0",
         "com.typesafe.akka"         %% "akka-stream"   % "2.8.8",
         "io.github.timwspence"      %% "cats-stm"      % "0.13.4",
-        "io.projectreactor"          % "reactor-core"  % "3.8.3",
+        "io.projectreactor"          % "reactor-core"  % "3.8.4",
         "io.reactivex.rxjava2"       % "rxjava"        % "2.2.21",
         "org.jctools"                % "jctools-core"  % "4.0.6",
         "org.typelevel"             %% "cats-effect"   % CatsEffectVersion,
