@@ -776,6 +776,67 @@ object GenSpec extends ZIOBaseSpec {
       check(Gen.setOfN(2)(Gen.fromIterable(List(1, 2, 3)))) { set =>
         assertTrue(set.size == 2)
       }
-    }
+    },
+    suite("Gen.fromIterable does not overwrite Random seed (#9101)")(
+      test("fromIterable before uuid yields distinct UUIDs in check") {
+        // Regression test for https://github.com/zio/zio/issues/9101
+        // When fromIterable is flatMapped before uuid, uuid must still be random,
+        // not deterministic (i.e. not the same value each sample).
+        val gen = for {
+          _ <- Gen.fromIterable(1 to 5)
+          id <- Gen.uuid
+        } yield id
+
+        // Sample 10 values and assert at least 2 are distinct.
+        // Before the fix, all 10 would be the same UUID.
+        for {
+          uuids    <- gen.runCollectN(10)
+          distinct = uuids.toSet
+        } yield assertTrue(distinct.size > 1)
+      },
+      test("uuid before fromIterable still yields distinct UUIDs in check") {
+        val gen = for {
+          id <- Gen.uuid
+          _  <- Gen.fromIterable(1 to 5)
+        } yield id
+
+        for {
+          uuids <- gen.runCollectN(10)
+          distinct = uuids.toSet
+        } yield assertTrue(distinct.size > 1)
+      },
+      test("fromIterable in deterministic mode (checkAll / runCollect) enumerates all values") {
+        val gen = for {
+          i  <- Gen.fromIterable(1 to 3)
+          id <- Gen.uuid
+        } yield i
+
+        for {
+          is <- gen.runCollect
+        } yield assertTrue(is == List(1, 2, 3))
+      },
+      test("fromIterable in non-deterministic mode picks from the full range") {
+        val gen = for {
+          i <- Gen.fromIterable(1 to 10)
+        } yield i
+
+        for {
+          samples <- gen.runCollectN(50)
+          distinct = samples.toSet
+        } yield assertTrue(distinct.size > 1)
+      },
+      test("nested fromIterable generators both produce distinct values in non-deterministic mode") {
+        val gen = for {
+          i  <- Gen.fromIterable(1 to 100)
+          id <- Gen.uuid
+        } yield (i, id)
+
+        for {
+          pairs    <- gen.runCollectN(20)
+          uuidSet  = pairs.map(_._2).toSet
+          indexSet = pairs.map(_._1).toSet
+        } yield assertTrue(uuidSet.size > 1) && assertTrue(indexSet.size > 1)
+      }
+    )
   )
 }
