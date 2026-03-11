@@ -4408,6 +4408,39 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
+   * Creates a stream from a `java.io.InputStream` using
+   * `ZIO.attemptBlockingCancelable`, which allows the stream to be interrupted
+   * even when blocked on `InputStream.read`. The input stream is closed when
+   * the fiber is interrupted.
+   *
+   * Unlike [[fromInputStream]], this variant is interruptible at the cost of
+   * closing the underlying stream on interruption.
+   */
+  def fromInputStreamInterruptible(
+    is: => InputStream,
+    chunkSize: => Int = ZStream.DefaultChunkSize
+  )(implicit trace: Trace): ZStream[Any, IOException, Byte] =
+    ZStream.succeed((is, chunkSize)).flatMap { case (is, chunkSize) =>
+      ZStream.repeatZIOChunkOption {
+        for {
+          bufArray  <- ZIO.succeed(Array.ofDim[Byte](chunkSize))
+          bytesRead <- ZIO
+                         .attemptBlockingCancelable(is.read(bufArray))(ZIO.attempt(is.close()).ignore)
+                         .refineToOrDie[IOException]
+                         .asSomeError
+          bytes <- if (bytesRead < 0)
+                     Exit.failNone
+                   else if (bytesRead == 0)
+                     Exit.emptyChunk
+                   else if (bytesRead < chunkSize)
+                     ZIO.succeed(Chunk.fromArray(bufArray).take(bytesRead))
+                   else
+                     ZIO.succeed(Chunk.fromArray(bufArray))
+        } yield bytes
+      }.ensuring(ZIO.attempt(is.close()).ignore)
+    }
+
+  /**
    * Creates a stream from a `java.io.InputStream`. Ensures that the input
    * stream is closed after it is exhausted.
    */

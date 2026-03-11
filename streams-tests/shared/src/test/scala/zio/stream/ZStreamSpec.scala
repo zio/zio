@@ -5749,6 +5749,26 @@ object ZStreamSpec extends ZIOBaseSpec {
             }
           }
         ),
+        suite("fromInputStreamInterruptible")(
+          test("reads bytes correctly") {
+            val chunkSize = ZStream.DefaultChunkSize
+            val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+            def is        = new ByteArrayInputStream(data)
+            ZStream.fromInputStreamInterruptible(is, chunkSize).runCollect.map { bytes =>
+              assert(bytes.toArray)(equalTo(data))
+            }
+          },
+          test("interrupts when fiber is interrupted") {
+            val pipe = new java.io.PipedInputStream()
+            val out  = new java.io.PipedOutputStream(pipe)
+            for {
+              fiber  <- ZStream.fromInputStreamInterruptible(pipe).runDrain.fork
+              _      <- ZIO.sleep(100.milliseconds)
+              _      <- fiber.interrupt
+              result <- fiber.await
+            } yield assertTrue(result.isInterrupted)
+          } @@ TestAspect.withLiveClock
+        ),
         test("fromIterable")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
           def lazyL = l
           assertZIO(ZStream.fromIterable(lazyL).runCollect)(equalTo(l))
