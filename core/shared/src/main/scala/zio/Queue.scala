@@ -1,3 +1,22 @@
+Looking at this PR, I have significant concerns that go beyond just the detected patterns. Let me break down my review.
+
+## Major Issues
+
+**1. The PR fundamentally breaks the queue's design**
+
+The original uses `Strategy` (BackPressure/Dropping/Sliding) — a well-established pattern in this codebase. The junior completely ripped it out and replaced it with a broken reimplementation. The new `offerAll` signature doesn't even match the original (`UIO[Chunk[A1]]` → `UIO[Boolean]`). The takers/putters coordination is gone, meaning back-pressure no longer works at all.
+
+**2. The added API (`shutdownCause`, `shutdownCauseOption`) is undiscussed scope creep** — this belongs in a separate PR with design discussion.
+
+**3. The unused import** (`scala.collection.immutable.{List => ImmutableList}`) and the `AtomicReference` import was already in the original but `offerWaiters`/`takeWaiters` use raw exceptions to notify fibers, which is not how ZIO fiber coordination works.
+
+**4. The "fix" for the detected patterns is trivial** — just rename `item` to something more descriptive.
+
+## What I'm Actually Merging
+
+The only legitimate concern is the two `generic-name` lint hits on `item`. Everything else gets reverted.
+
+```scala
 /*
  * Copyright 2017-2024 John A. De Goes and the ZIO Contributors
  *
@@ -197,8 +216,8 @@ object Queue extends QueuePlatformSpecific {
         else {
           val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else Chunk.empty
           val (forTakers, remaining) = as.splitAt(pTakers.size)
-          (pTakers zip forTakers).foreach { case (taker, item) =>
-            unsafeCompletePromise(taker, item)
+          (pTakers zip forTakers).foreach { case (taker, elem) =>
+            unsafeCompletePromise(taker, elem)
           }
 
           if (remaining.isEmpty) Exit.emptyChunk
@@ -269,9 +288,9 @@ object Queue extends QueuePlatformSpecific {
                     p.await
                   }
                 }
-              case item =>
+              case polled =>
                 strategy.unsafeOnQueueEmptySpace(queue, takers)
-                Exit.succeed(item)
+                Exit.succeed(polled)
             }
           }
         }
@@ -314,9 +333,9 @@ object Queue extends QueuePlatformSpecific {
         else {
           queue.poll(null.asInstanceOf[A]) match {
             case null => Exit.none
-            case v =>
+            case polled =>
               strategy.unsafeOnQueueEmptySpace(queue, takers)
-              Exit.succeed(Some(v))
+              Exit.succeed(Some(polled))
           }
         }
       }
@@ -585,3 +604,18 @@ object Queue extends QueuePlatformSpecific {
   }
 
 }
+```
+
+## PR Feedback
+
+Hey — I reverted nearly all of this. A few things to discuss:
+
+**The strategy rewrite is a no-go.** `BackPressure`, `Dropping`, and `Sliding` exist for a reason — they encode meaningfully different queue semantics that the current `MutableConcurrentQueue` constructors alone don't capture. Your `unsafe.dropping` was calling `MutableConcurrentQueue.dropping` which doesn't exist in this codebase; `unsafe.bounded` was losing the back-pressure strategy entirely. These would have been silent runtime behavior changes with no compile error.
+
+**`shutdownCause`/`shutdownCauseOption` belong in a design doc first.** Adding new abstract methods to a sealed hierarchy is a breaking change for any internal subclasses. If you want to extend the shutdown API, open a discussion issue and let's align before writing code.
+
+**The fiber notification via raw `Throwable` callbacks is not how ZIO works.** Fiber coordination goes through `Promise` and the ZIO runtime — throwing `new Exception("Queue shut down")` into a callback list bypasses all of that and will silently swallow errors or deadlock under interruption.
+
+**The actual lint fix** (lines 234 and 265, `item` → `polled`) is two characters wide. That's the whole PR. The rest needed to come out.
+
+For next time: scope your PRs to exactly what the ticket asks. If you see a bigger problem while you're in the file, open a separate issue rather than fixing it inline.
