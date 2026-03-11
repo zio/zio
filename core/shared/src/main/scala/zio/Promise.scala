@@ -72,6 +72,46 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     }
 
   /**
+   * Links this promise to the specified fiber, so that when the fiber
+   * completes, the promise is automatically completed with the same result.
+   *
+   * This is more efficient than `fiber.join.flatMap(succeed).fork` because it
+   * registers a direct observer on `Fiber.Runtime` fibers — avoiding the
+   * allocation of an extra fiber and its associated overhead.
+   *
+   * {{{
+   * // Before
+   * for {
+   *   promise <- Promise.make[E, A]
+   *   fiber   <- effect.fork
+   *   _       <- fiber.join.intoPromise(promise).fork
+   *   result  <- promise.await
+   * } yield result
+   *
+   * // After
+   * for {
+   *   promise <- Promise.make[E, A]
+   *   fiber   <- effect.fork
+   *   _       <- promise.become(fiber)
+   *   result  <- promise.await
+   * } yield result
+   * }}}
+   *
+   * If the promise has already been completed, this is a no-op.
+   */
+  def become(fiber: Fiber[E, A])(implicit trace: Trace): UIO[Unit] =
+    fiber match {
+      case runtime: Fiber.Runtime[E, A] =>
+        ZIO.succeed {
+          runtime.unsafe.addObserver { exit =>
+            unsafe.completeWith(exit)(Unsafe)
+          }(Unsafe)
+        }
+      case _ =>
+        fiber.await.flatMap(done(_)).fork.unit
+    }
+
+  /**
    * Kills the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
@@ -327,6 +367,27 @@ object Promise {
       def empty[E, A]: State[E, A] = Empty.asInstanceOf[State[E, A]]
     }
   }
+
+  /**
+   * Creates a new promise that is automatically linked to the specified fiber.
+   * When the fiber completes, the promise will be completed with the same
+   * result.
+   *
+   * This is a convenience constructor equivalent to:
+   * {{{
+   * for {
+   *   promise <- Promise.make[E, A]
+   *   _       <- promise.become(fiber)
+   * } yield promise
+   * }}}
+   *
+   * @see [[Promise#become]]
+   */
+  def fromFiber[E, A](fiber: Fiber[E, A])(implicit trace: Trace): UIO[Promise[E, A]] =
+    for {
+      promise <- make[E, A]
+      _       <- promise.become(fiber)
+    } yield promise
 
   /**
    * Makes a new promise to be completed by the fiber creating the promise.

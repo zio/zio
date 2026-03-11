@@ -134,6 +134,69 @@ object PromiseSpec extends ZIOBaseSpec {
         _      <- ZIO.foreach(fibers)(_.await)
       } yield assertCompletes
     },
+    suite("become")(
+      test("become links a fiber's success to the promise") {
+        for {
+          promise <- Promise.make[Nothing, Int]
+          fiber   <- ZIO.succeed(42).fork
+          _       <- promise.become(fiber)
+          result  <- promise.await
+        } yield assert(result)(equalTo(42))
+      },
+      test("become links a fiber's failure to the promise") {
+        for {
+          promise <- Promise.make[String, Int]
+          fiber   <- ZIO.fail("boom").fork
+          _       <- promise.become(fiber)
+          result  <- promise.await.exit
+        } yield assert(result)(fails(equalTo("boom")))
+      } @@ zioTag(errors),
+      test("become links a fiber's interruption to the promise") {
+        for {
+          promise <- Promise.make[Nothing, Int]
+          fiber   <- ZIO.never.fork
+          _       <- fiber.interrupt
+          _       <- promise.become(fiber)
+          result  <- promise.await.exit
+        } yield assert(result)(isInterrupted)
+      } @@ zioTag(interruption),
+      test("become is a no-op when promise is already completed") {
+        for {
+          promise <- Promise.make[Nothing, Int]
+          _       <- promise.succeed(1)
+          fiber   <- ZIO.succeed(99).fork
+          _       <- promise.become(fiber)
+          result  <- promise.await
+        } yield assert(result)(equalTo(1))
+      },
+      test("multiple awaiters all resume when promise is linked via become") {
+        for {
+          latch   <- Promise.make[Nothing, Unit]
+          promise <- Promise.make[Nothing, Int]
+          fiber   <- (latch.await *> ZIO.succeed(7)).fork
+          _       <- promise.become(fiber)
+          results <- ZIO.foreachPar(1 to 5)(_ => promise.await).fork
+          _       <- latch.succeed(())
+          r       <- results.join
+        } yield assert(r)(forall(equalTo(7)))
+      }
+    ),
+    suite("fromFiber")(
+      test("fromFiber creates a promise linked to a successful fiber") {
+        for {
+          fiber   <- ZIO.succeed(100).fork
+          promise <- Promise.fromFiber(fiber)
+          result  <- promise.await
+        } yield assert(result)(equalTo(100))
+      },
+      test("fromFiber creates a promise linked to a failing fiber") {
+        for {
+          fiber   <- ZIO.fail("oops").fork
+          promise <- Promise.fromFiber[String, Int](fiber)
+          result  <- promise.await.exit
+        } yield assert(result)(fails(equalTo("oops")))
+      } @@ zioTag(errors)
+    ),
     suite("State")(
       suite("add")(
         test("stack safety") {
