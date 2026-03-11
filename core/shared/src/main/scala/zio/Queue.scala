@@ -173,12 +173,11 @@ object Queue extends QueuePlatformSpecific {
               } else false
 
             if (noRemaining) Exit.`true`
-            else {
-              if (queue.offer(a)) {
-                unsafeCompleteTakers(strategy, queue, takers)
-                Exit.`true`
-              } else strategy.handleSurplus(Chunk.single(a), queue, takers, shutdownFlag)
-            }
+            else if (queue.offer(a)) {
+              unsafeCompleteTakers(strategy, queue, takers)
+              Exit.`true`
+            } else
+              strategy.handleSurplus(Chunk.single(a), queue, takers, shutdownFlag)
           }
         }
 
@@ -195,7 +194,9 @@ object Queue extends QueuePlatformSpecific {
             if (remaining.isEmpty) Exit.emptyChunk
             else {
               val surplus = unsafeOfferAll(queue, remaining)
+
               unsafeCompleteTakers(strategy, queue, takers)
+
               if (surplus.isEmpty) Exit.emptyChunk
               else
                 strategy.handleSurplus(surplus, queue, takers, shutdownFlag).map { offered =>
@@ -208,41 +209,50 @@ object Queue extends QueuePlatformSpecific {
       def shutdown(implicit trace: Trace): UIO[Unit] =
         ZIO.fiberIdWith { fiberId =>
           ZIO.suspendSucceed {
-            if (shutdownFlag.compareAndSet(false, true)) {
-              val hook = shutdownHook.getAndSet(ZIO.unit)
-              unsafeCompletePromises(takers)
-              strategy.shutdown
-              hook
-            } else ZIO.unit
+            shutdownFlag.set(true)
+
+            val hook = shutdownHook.getAndSet(ZIO.unit)
+
+            ZIO
+              .foreachDiscard(unsafePollAll(takers)) { p =>
+                ZIO.succeed(p.unsafe.done(Exit.interrupt(fiberId))(Unsafe.unsafe))
+              }
+              .zipRight(
+                ZIO.foreachDiscard(unsafePollAll(putters)) { case (_, p, lastItem) =>
+                  if (lastItem) ZIO.succeed(p.unsafe.done(Exit.interrupt(fiberId))(Unsafe.unsafe))
+                  else ZIO.unit
+                }
+              )
+              .zipRight(strategy.shutdown)
+              .zipRight(hook)
           }
         }
 
       def size(implicit trace: Trace): UIO[Int] =
         ZIO.suspendSucceed {
-          if (shutdownFlag.get()) interruptAsNone
-          else ZIO.succeed(queue.size() - takers.size() + strategy.surplusSize)
+          if (shutdownFlag.get()) ZIO.interrupt
+          else
+            ZIO.succeed(
+              queue.size() - takers.size() + strategy.surplusSize
+            )
         }
 
       def take(implicit trace: Trace): UIO[A] =
         ZIO.fiberIdWith { fiberId =>
           ZIO.suspendSucceed {
-            if (shutdownFlag.get()) interruptAsNone
+            if (shutdownFlag.get()) ZIO.interrupt
             else {
-              unsafePollQueue(queue) match {
-                case Some(a) =>
-                  strategy.unsafeOnQueueEmptySpace(queue, takers)
-                  ZIO.succeed(a)
-                case None =>
-                  val p = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe.unsafe)
-                  ZIO.suspendSucceed {
-                    takers.offer(p)
-                    strategy.unsafeOnQueueEmptySpace(queue, takers)
-                    unsafeCompleteTakers(strategy, queue, takers)
-                    if (shutdownFlag.get()) {
-                      unsafeRemove(takers, p)
-                      interruptAsNone
-                    } else p.await
-                  }
+              val item = queue.poll(null.asInstanceOf[A])
+              if (item ne null) {
+                strategy.unsafeOnQueueEmptySpace(queue, takers)
+                Exit.succeed(item)
+              } else {
+                val p = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe.unsafe)
+                ZIO.suspendSucceed {
+                  takers.offer(p)
+                  unsafeCompleteTakers(strategy, queue, takers)
+                  if (shutdownFlag.get()) ZIO.interrupt else p.await
+                }.onInterrupt(ZIO.succeed(takers.remove(p)))
               }
             }
           }
@@ -250,21 +260,21 @@ object Queue extends QueuePlatformSpecific {
 
       def takeAll(implicit trace: Trace): UIO[Chunk[A]] =
         ZIO.suspendSucceed {
-          if (shutdownFlag.get()) interruptAsNone
+          if (shutdownFlag.get()) ZIO.interrupt
           else {
             val as = unsafePollAll(queue)
             strategy.unsafeOnQueueEmptySpace(queue, takers)
-            ZIO.succeed(as)
+            Exit.succeed(as)
           }
         }
 
       def takeUpTo(max: Int)(implicit trace: Trace): UIO[Chunk[A]] =
         ZIO.suspendSucceed {
-          if (shutdownFlag.get()) interruptAsNone
+          if (shutdownFlag.get()) ZIO.interrupt
           else {
             val as = unsafePollN(queue, max)
             strategy.unsafeOnQueueEmptySpace(queue, takers)
-            ZIO.succeed(as)
+            Exit.succeed(as)
           }
         }
     }
@@ -273,20 +283,36 @@ object Queue extends QueuePlatformSpecific {
   private def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A): Boolean =
     p.unsafe.done(Exit.succeed(a))(Unsafe.unsafe)
 
-  private def unsafeCompletePromises[A](takers: MutableConcurrentQueue[Promise[Nothing, A]]): Unit = {
-    var taker = takers.poll(null.asInstanceOf[Promise[Nothing, A]])
-    while (taker ne null) {
-      taker.unsafe.done(Exit.interrupt(FiberId.None))(Unsafe.unsafe)
-      taker = takers.poll(null.asInstanceOf[Promise[Nothing, A]])
-    }
-  }
-
   private def unsafeCompleteTakers[A](
     strategy: Strategy[A],
     queue: MutableConcurrentQueue[A],
     takers: MutableConcurrentQueue[Promise[Nothing, A]]
-  ): Unit =
-    strategy.unsafeCompleteTakers(queue, takers)
+  ): Unit = {
+    var keepPolling = true
+    while (keepPolling && !queue.isEmpty()) {
+      val taker = takers.poll(null.asInstanceOf[Promise[Nothing, A]])
+      if (taker eq null) keepPolling = false
+      else {
+        val a = queue.poll(null.asInstanceOf[A])
+        if (a ne null) {
+          unsafeCompletePromise(taker, a)
+          strategy.unsafeOnQueueEmptySpace(queue, takers)
+        } else {
+          unsafeOfferAll(takers, Chunk.single(taker))
+          keepPolling = false
+        }
+      }
+    }
+  }
+
+  private def unsafeOfferAll[A](queue: MutableConcurrentQueue[A], as: Iterable[A]): Chunk[A] = {
+    val bs = Chunk.fromIterable(as)
+    @tailrec def offerAll(i: Int): Chunk[A] =
+      if (i >= bs.size) Chunk.empty
+      else if (queue.offer(bs(i))) offerAll(i + 1)
+      else bs.drop(i)
+    offerAll(0)
+  }
 
   private def unsafePollAll[A](queue: MutableConcurrentQueue[A]): Chunk[A] = {
     val builder = ChunkBuilder.make[A]()
@@ -300,54 +326,24 @@ object Queue extends QueuePlatformSpecific {
 
   private def unsafePollN[A](queue: MutableConcurrentQueue[A], max: Int): Chunk[A] = {
     val builder = ChunkBuilder.make[A]()
-    var n       = 0
-    while (n < max) {
+    var i       = 0
+    while (i < max) {
       val a = queue.poll(null.asInstanceOf[A])
-      if (a eq null) n = max
-      else {
+      if (a ne null) {
         builder += a
-        n += 1
-      }
+        i += 1
+      } else i = max
     }
     builder.result()
   }
 
-  private def unsafeOfferAll[A](queue: MutableConcurrentQueue[A], as: Iterable[A]): Chunk[A] = {
-    val builder  = ChunkBuilder.make[A]()
-    val iterator = as.iterator
-    while (iterator.hasNext) {
-      val a = iterator.next()
-      if (!queue.offer(a)) {
-        builder += a
-        while (iterator.hasNext) builder += iterator.next()
-      }
-    }
-    builder.result()
-  }
-
-  private def unsafePollQueue[A](queue: MutableConcurrentQueue[A]): Option[A] = {
-    val a = queue.poll(null.asInstanceOf[A])
-    if (a eq null) None else Some(a)
-  }
-
-  private def unsafeRemove[A](queue: MutableConcurrentQueue[A], a: A): Unit = {
-    unsafePollAll(queue).foreach { elem =>
-      if (elem != a) queue.offer(elem)
-    }
-  }
-
-  private[zio] sealed abstract class Strategy[A] {
+  sealed abstract class Strategy[A] {
     def handleSurplus(
       as: Chunk[A],
       queue: MutableConcurrentQueue[A],
       takers: MutableConcurrentQueue[Promise[Nothing, A]],
-      shutdownFlag: AtomicBoolean
+      isShutdown: AtomicBoolean
     )(implicit trace: Trace): UIO[Boolean]
-
-    def unsafeCompleteTakers(
-      queue: MutableConcurrentQueue[A],
-      takers: MutableConcurrentQueue[Promise[Nothing, A]]
-    ): Unit
 
     def unsafeOnQueueEmptySpace(
       queue: MutableConcurrentQueue[A],
@@ -359,142 +355,119 @@ object Queue extends QueuePlatformSpecific {
     def shutdown(implicit trace: Trace): UIO[Unit]
   }
 
-  private[zio] object Strategy {
+  object Strategy {
 
-    final case class BackPressure[A]() extends Strategy[A] {
-      private val putters = MutableConcurrentQueue.unbounded[(A, Promise[Nothing, Boolean], Boolean)]
-
-      private def unsafeRemove(p: Promise[Nothing, Boolean]): Unit = {
-        val as = unsafePollAll(putters)
-        as.foreach { case (a, promise, last) =>
-          if (promise ne p) putters.offer((a, promise, last))
-        }
-      }
+    final class BackPressure[A] extends Strategy[A] {
+      // A deque of waiters, each with an item to add and a promise to complete.
+      private val putters =
+        MutableConcurrentQueue.unbounded[(A, Promise[Nothing, Boolean], Boolean)]
 
       def handleSurplus(
         as: Chunk[A],
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]],
-        shutdownFlag: AtomicBoolean
+        isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] =
         ZIO.fiberIdWith { fiberId =>
+          val p = Promise.unsafe.make[Nothing, Boolean](fiberId)(Unsafe.unsafe)
           ZIO.suspendSucceed {
-            val p = Promise.unsafe.make[Nothing, Boolean](fiberId)(Unsafe.unsafe)
-
-            ZIO.suspendSucceed {
-              unsafeOffer(as, p)
-              unsafeOnQueueEmptySpace(queue, takers)
-              unsafeCompleteTakers(queue, takers)
-              if (shutdownFlag.get()) ZIO.interrupt
-              else p.await
-            }.onInterrupt(ZIO.succeed(unsafeRemove(p)))
-          }
+            unsafeOffer(as, p)
+            unsafeOnQueueEmptySpace(queue, takers)
+            unsafeCompleteTakers(this, queue, takers)
+            if (isShutdown.get()) ZIO.interrupt else p.await
+          }.onInterrupt(ZIO.succeed(unsafeRemove(p)))
         }
-
-      private def unsafeOffer(as: Chunk[A], p: Promise[Nothing, Boolean]): Unit = {
-        val iterator = as.iterator
-        while (iterator.hasNext) {
-          val a    = iterator.next()
-          val last = !iterator.hasNext
-          putters.offer((a, p, last))
-        }
-      }
 
       def unsafeOnQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]]
       ): Unit = {
         var keepPolling = true
-        while (keepPolling && !queue.isFull()) {
+        while (keepPolling) {
           val putter = putters.poll(null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)])
           if (putter eq null) keepPolling = false
           else {
             val offered = queue.offer(putter._1)
-            if (offered && putter._3) putter._2.unsafe.done(Exit.succeed(true))(Unsafe.unsafe)
-            else if (!offered) {
-              unsafeOfferAll(putters, Chunk(putter) ++ unsafePollAll(putters))
+            if (offered || putter._3) {
+              unsafeCompletePromise(putter._2, offered)
+            } else if (!offered) {
+              unsafeOfferAll(putters, Chunk.single(putter))
               keepPolling = false
             }
           }
         }
       }
 
-      def unsafeCompleteTakers(
-        queue: MutableConcurrentQueue[A],
-        takers: MutableConcurrentQueue[Promise[Nothing, A]]
-      ): Unit = {
-        var keepPolling = true
-        while (keepPolling && !queue.isEmpty()) {
-          val taker = takers.poll(null.asInstanceOf[Promise[Nothing, A]])
-          if (taker eq null) keepPolling = false
-          else {
-            unsafePollQueue(queue).foreach(unsafeCompletePromise(taker, _))
-            unsafeOnQueueEmptySpace(queue, takers)
+      def surplusSize: Int = putters.size()
+
+      def shutdown(implicit trace: Trace): UIO[Unit] =
+        ZIO.fiberIdWith { fiberId =>
+          ZIO.succeed {
+            var putter = putters.poll(null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)])
+            while (putter ne null) {
+              putter._2.unsafe.done(Exit.interrupt(fiberId))(Unsafe.unsafe)
+              putter = putters.poll(null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)])
+            }
           }
+        }
+
+      private def unsafeOffer(as: Chunk[A], p: Promise[Nothing, Boolean]): Unit = {
+        val iterator = as.iterator
+        var hasNext  = iterator.hasNext
+        while (hasNext) {
+          val a = iterator.next()
+          hasNext = iterator.hasNext
+          putters.offer((a, p, !hasNext))
         }
       }
 
-      def surplusSize: Int = putters.size()
-
-      def shutdown(implicit trace: Trace): UIO[Unit] = {
-        val as = unsafePollAll(putters)
-        ZIO.foreachDiscard(as) { case (_, p, last) =>
-          if (last) p.interrupt else ZIO.unit
-        }
+      private def unsafeRemove(p: Promise[Nothing, Boolean]): Unit = {
+        unsafeOfferAll(
+          putters,
+          unsafePollAll(putters).filter(_._2 ne p)
+        )
+        ()
       }
     }
 
-    final case class Dropping[A]() extends Strategy[A] {
+    final class Dropping[A] extends Strategy[A] {
+      // Drops the item. Whatever we were offering is not queued anywhere, so we just
+      // lose it when the queue is full.
       def handleSurplus(
         as: Chunk[A],
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]],
-        shutdownFlag: AtomicBoolean
-      )(implicit trace: Trace): UIO[Boolean] =
-        Exit.`false`
+        isShutdown: AtomicBoolean
+      )(implicit trace: Trace): UIO[Boolean] = Exit.`false`
 
       def unsafeOnQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]]
       ): Unit = ()
 
-      def unsafeCompleteTakers(
-        queue: MutableConcurrentQueue[A],
-        takers: MutableConcurrentQueue[Promise[Nothing, A]]
-      ): Unit = {
-        var keepPolling = true
-        while (keepPolling && !queue.isEmpty()) {
-          val taker = takers.poll(null.asInstanceOf[Promise[Nothing, A]])
-          if (taker eq null) keepPolling = false
-          else unsafePollQueue(queue).foreach(unsafeCompletePromise(taker, _))
-        }
-      }
-
       def surplusSize: Int = 0
 
       def shutdown(implicit trace: Trace): UIO[Unit] = ZIO.unit
     }
 
-    final case class Sliding[A]() extends Strategy[A] {
-      private def unsafeSlidingOffer(queue: MutableConcurrentQueue[A], as: Chunk[A]): Unit = {
-        val iterator = as.iterator
-        while (iterator.hasNext) {
-          val a = iterator.next()
-          if (!queue.offer(a)) {
-            val _ = queue.poll(null.asInstanceOf[A])
-            queue.offer(a)
-          }
-        }
-      }
-
+    final class Sliding[A] extends Strategy[A] {
       def handleSurplus(
         as: Chunk[A],
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]],
-        shutdownFlag: AtomicBoolean
+        isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] = {
-        unsafeSlidingOffer(queue, as)
-        unsafeCompleteTakers(queue, takers)
+        @tailrec def unsafeSlidingOffer(as: Chunk[A]): Unit =
+          if (as.isEmpty) ()
+          else if (queue.capacity == 0) ()
+          else if (queue.offer(as.head)) unsafeSlidingOffer(as.tail)
+          else {
+            queue.poll(null.asInstanceOf[A])
+            unsafeSlidingOffer(as)
+          }
+
+        unsafeSlidingOffer(as)
+        unsafeCompleteTakers(this, queue, takers)
         Exit.`true`
       }
 
@@ -502,18 +475,6 @@ object Queue extends QueuePlatformSpecific {
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]]
       ): Unit = ()
-
-      def unsafeCompleteTakers(
-        queue: MutableConcurrentQueue[A],
-        takers: MutableConcurrentQueue[Promise[Nothing, A]]
-      ): Unit = {
-        var keepPolling = true
-        while (keepPolling && !queue.isEmpty()) {
-          val taker = takers.poll(null.asInstanceOf[Promise[Nothing, A]])
-          if (taker eq null) keepPolling = false
-          else unsafePollQueue(queue).foreach(unsafeCompletePromise(taker, _))
-        }
-      }
 
       def surplusSize: Int = 0
 
