@@ -12,11 +12,11 @@ object ZIOAppSpecJvmNative extends ZIOBaseSpec {
     // (simulates behavior when OS sends shutdown signal)
     test("finalizers run on fiber interruption") {
       for {
-        started     <- Promise.make[Nothing, Unit]
-        finalized   <- Ref.make(false)
+        started   <- Promise.make[Nothing, Unit]
+        finalized <- Ref.make(false)
         app = new ZIOAppDefault {
-          val run = ZIO.acquireRelease(started.succeed(()))(_ => finalized.set(true)) *> ZIO.never
-        }
+                val run = ZIO.acquireRelease(started.succeed(()))(_ => finalized.set(true)) *> ZIO.never
+              }
         fiber       <- app.invoke(Chunk.empty).fork
         _           <- started.await
         _           <- fiber.interrupt
@@ -49,18 +49,18 @@ object ZIOAppSpecJvmNative extends ZIOBaseSpec {
     // Verify that multiple finalizers all run on interruption (regression #9901)
     test("multiple finalizers all run on interruption (regression #9901)") {
       for {
-        started    <- Promise.make[Nothing, Unit]
-        counter    <- Ref.make(0)
+        started <- Promise.make[Nothing, Unit]
+        counter <- Ref.make(0)
         app = new ZIOAppDefault {
-          val run =
-            ZIO.acquireRelease(ZIO.unit)(_ => counter.update(_ + 1)) *>
-            ZIO.acquireRelease(started.succeed(()))(_ => counter.update(_ + 1)) *>
-            ZIO.never
-        }
-        fiber      <- app.invoke(Chunk.empty).fork
-        _          <- started.await
-        _          <- fiber.interrupt
-        count      <- counter.get
+                val run =
+                  ZIO.acquireRelease(ZIO.unit)(_ => counter.update(_ + 1)) *>
+                    ZIO.acquireRelease(started.succeed(()))(_ => counter.update(_ + 1)) *>
+                    ZIO.never
+              }
+        fiber <- app.invoke(Chunk.empty).fork
+        _     <- started.await
+        _     <- fiber.interrupt
+        count <- counter.get
       } yield assertTrue(count == 2)
     } @@ TestAspect.timeout(10.seconds)
   )
