@@ -150,7 +150,7 @@ sealed trait Config[+A] { self =>
   def zipWith[B, C](that: => Config[B])(f: (A, B) => C): Config[C] =
     self.zip(that).map(f.tupled)
 }
-object Config {
+object Config extends ConfigCompanionVersionSpecific {
   final class Secret private (private val raw: Array[Char]) { self =>
     override def equals(that: Any): Boolean =
       that match {
@@ -602,4 +602,30 @@ object Config {
     def apply[A1 >: A](that: Config[A1]): Config[A1] =
       FallbackWith(self, that, condition)
   }
+
+  // Implicit/given Config instances for primitive types.
+  // These are used by the `derived` method to automatically derive Config
+  // instances for case classes and sealed traits using the `derives` keyword
+  // in Scala 3, and can also be used directly in Scala 2 code.
+  implicit val configString: Config[String]             = string
+  implicit val configBoolean: Config[Boolean]           = boolean
+  implicit val configInt: Config[Int]                   = int
+  implicit val configLong: Config[Long]                 = long
+  implicit val configDouble: Config[Double]             = double
+  implicit val configFloat: Config[Float]               = float
+  implicit val configBigInt: Config[BigInt]             = bigInt
+  implicit val configBigDecimal: Config[BigDecimal]     = bigDecimal
+  implicit val configSecret: Config[Config.Secret]      = secret
+  implicit val configUri: Config[java.net.URI]          = uri
+  implicit val configDuration: Config[zio.Duration]     = duration
+  implicit val configLocalDate: Config[java.time.LocalDate]         = localDate
+  implicit val configLocalDateTime: Config[java.time.LocalDateTime] = localDateTime
+  implicit val configLocalTime: Config[java.time.LocalTime]         = localTime
+  implicit val configOffsetDateTime: Config[java.time.OffsetDateTime] = offsetDateTime
+  implicit val configLogLevel: Config[LogLevel]         = logLevel
+  implicit def configOption[A](implicit ev: Config[A]): Config[Option[A]] = ev.optional
+  implicit def configList[A](implicit ev: Config[A]): Config[List[A]]     = listOf(ev)
+  implicit def configChunk[A](implicit ev: Config[A]): Config[Chunk[A]]   = chunkOf(ev)
+  implicit def configSet[A](implicit ev: Config[A]): Config[Set[A]]       = setOf(ev)
+  implicit def configVector[A](implicit ev: Config[A]): Config[Vector[A]] = vectorOf(ev)
 }
