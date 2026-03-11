@@ -341,8 +341,14 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
                 layer.extendScope
               )
               .memoize
-              .map { memoizedLayer =>
-                Spec.multiple(specs.map(_.provideLayer(memoizedLayer)))
+              .flatMap { memoizedLayer =>
+                DefaultServices.currentServices.get.map { suiteServices =>
+                  val suiteClock = suiteServices.get(Clock.tag)
+                  val wrappedLayer = ZLayer.fromZIOEnvironment(
+                    Spec.buildWithClockIsolation(memoizedLayer, scope, suiteClock)
+                  )
+                  Spec.multiple(specs.map(_.provideLayer(wrappedLayer)))
+                }
               }
           }
         }
@@ -533,8 +539,14 @@ object Spec {
                   layer.extendScope
                 )
                 .memoize
-                .map { memoizedLayer =>
-                  Spec.multiple(specs.map(_.provideSomeLayer[R0](memoizedLayer)))
+                .flatMap { memoizedLayer =>
+                  DefaultServices.currentServices.get.map { suiteServices =>
+                    val suiteClock = suiteServices.get(Clock.tag)
+                    val wrappedLayer = ZLayer.fromZIOEnvironment(
+                      Spec.buildWithClockIsolation(memoizedLayer, scope, suiteClock)
+                    )
+                    Spec.multiple(specs.map(_.provideSomeLayer[R0](wrappedLayer)))
+                  }
                 }
             }
           }
@@ -561,5 +573,29 @@ object Spec {
     )(implicit tag: Tag[Map[Key, Service]], trace: Trace): Spec[R1, E] =
       self.provideSomeEnvironment(_.updateAt(key)(f))
   }
+
+  // Builds a memoized layer with clock isolation to prevent daemon fibers from
+  // interfering with per-test TestClock. Sets suite-level Clock on the build fiber
+  // so child fibers inherit it naturally, and replaces the supervisor chain with
+  // Supervisor.none to prevent TestAspect.fibers from tracking build-time fibers.
+  // Uses update+restore instead of locally on DefaultServices to preserve
+  // ZIO.memoize's diffFiberRefs patch capture.
+  private def buildWithClockIsolation[R, E, A](
+    memoizedLayer: ZLayer[R, E, A],
+    scope: Scope,
+    suiteClock: Clock
+  )(implicit trace: Trace): ZIO[R, E, ZEnvironment[A]] =
+    for {
+      testServices <- DefaultServices.currentServices.get
+      testClock     = testServices.get(Clock.tag)
+      env <- (
+               DefaultServices.currentServices.update(_.add(suiteClock)(Clock.tag)) *>
+                 FiberRef.currentSupervisor.locally(Supervisor.none)(
+                   memoizedLayer.build(scope)
+                 )
+             ).ensuring(
+               DefaultServices.currentServices.update(_.add(testClock)(Clock.tag))
+             )
+    } yield env
 
 }

@@ -121,6 +121,16 @@ object SpecSpec extends ZIOBaseSpec {
         for {
           summary <- execute(spec)
         } yield assertTrue(summary.success == 2)
+      },
+      test("shared layer with daemon fibers does not interfere with TestClock") {
+        val sharedLayer: ULayer[Unit] =
+          ZLayer(ZIO.unit.repeat(Schedule.fixed(1.second)).forkDaemon.unit)
+        val spec = suite("suite")(
+          test("test") {
+            TestClock.adjust(1.hour).as(assertCompletes)
+          }
+        ).provideLayerShared(sharedLayer) @@ TestAspect.timeout(3.seconds)
+        assertZIO(succeeded(spec))(isTrue)
       }
     ),
     suite("provideSomeLayerShared")(
@@ -260,6 +270,16 @@ object SpecSpec extends ZIOBaseSpec {
         for {
           summary <- execute(spec)
         } yield assertTrue(summary.success == 2)
+      },
+      test("shared layer with daemon fibers does not interfere with TestClock") {
+        val sharedLayer: ULayer[Unit] =
+          ZLayer(ZIO.unit.repeat(Schedule.fixed(1.second)).forkDaemon.unit)
+        val spec = suite("suite")(
+          test("test") {
+            TestClock.adjust(1.hour).as(assertCompletes)
+          }
+        ).provideSomeLayerShared[TestEnvironment](sharedLayer) @@ TestAspect.timeout(3.seconds)
+        assertZIO(succeeded(spec))(isTrue)
       }
     ),
     suite("iterable constructor") {
