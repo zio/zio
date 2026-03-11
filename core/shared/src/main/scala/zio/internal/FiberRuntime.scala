@@ -1134,12 +1134,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 continuation match {
                   case flatMap: ZIO.FlatMap[Any, Any, Any, Any] =>
                     cur = flatMap.successK(value)
+                    if (cur ne null) stackIndex = pushStackFrame(ZIO.TracePoint(flatMap.trace), stackIndex)
 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
+                    if (cur ne null) stackIndex = pushStackFrame(ZIO.TracePoint(foldZIO.trace), stackIndex)
 
                   case map: ZIO.Mapped[Any, Any, Any, Any] =>
                     value = map.successK(value)
+
+                  case _: ZIO.TracePoint => ()
 
                   case update =>
                     val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
@@ -1172,12 +1176,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 continuation match {
                   case flatMap: ZIO.FlatMap[Any, Any, Any, Any] =>
                     cur = flatMap.successK(value)
+                    if (cur ne null) stackIndex = pushStackFrame(ZIO.TracePoint(flatMap.trace), stackIndex)
 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
+                    if (cur ne null) stackIndex = pushStackFrame(ZIO.TracePoint(foldZIO.trace), stackIndex)
 
                   case map: ZIO.Mapped[Any, Any, Any, Any] =>
                     value = map.successK(value)
+
+                  case _: ZIO.TracePoint => ()
 
                   case update =>
                     val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
@@ -1196,8 +1204,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               val first = flatmap.first
 
-              if (first eq ZIO.unit) cur = flatmap.successK(())
-              else {
+              if (first eq ZIO.unit) {
+                cur = flatmap.successK(())
+                if (cur ne null) stackIndex = pushStackFrame(ZIO.TracePoint(flatmap.trace), stackIndex)
+              } else {
                 stackIndex = pushStackFrame(flatmap, stackIndex)
                 cur = first
               }
@@ -1321,6 +1331,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                     } else {
                       cur = foldZIO.failureK(cause)
                     }
+
+                  case _: ZIO.TracePoint => ()
 
                   case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
                     cause = patchRuntimeFlagsCause(updateFlags.update, cause)

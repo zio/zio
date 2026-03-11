@@ -6167,6 +6167,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   ) extends Continuation
       with ZIO[R, E, A2]
 
+  private[zio] final case class TracePoint(trace: Trace) extends Continuation
+
   private[zio] sealed abstract class Continuation {
     def trace: Trace
   }

@@ -25,6 +25,25 @@ object StackTracesSpec extends ZIOBaseSpec {
       }
     ),
     suite("captureMultiMethod")(
+      test("captures right-hand side flatMap frames") {
+        def c = ZIO.fail("Oh no!")
+        def b = ZIO.unit.flatMap(_ => c)
+        def a = ZIO.unit.flatMap(_ => b)
+
+        for {
+          cause <- a.cause
+          trace  = cause.prettyPrint
+          iC     = trace.indexOf("at zio.StackTracesSpec.spec.c")
+          iB     = trace.indexOf("at zio.StackTracesSpec.spec.b")
+          iA     = trace.indexOf("at zio.StackTracesSpec.spec.a")
+        } yield assertTrue(
+          iC >= 0,
+          iB >= 0,
+          iA >= 0,
+          iC < iB,
+          iB < iA
+        )
+      },
       test("captures a deep embedded failure") {
         val deepUnderlyingFailure =
           for {
