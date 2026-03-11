@@ -351,7 +351,20 @@ sealed trait ZIO[-R, +E, +A]
     pf: PartialFunction[E, ZIO[R1, E1, A1]]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A1] = {
     def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
-      c.failureOrCause.fold(t => pf.applyOrElse(t, (_: E) => Exit.failCause(c)), Exit.failCause)
+      c.failureOrCause.fold(
+        t =>
+          if (pf.isDefinedAt(t))
+            c.keepDefects match {
+              case Some(defects) =>
+                pf(t).foldCauseZIO(
+                  handlerCause => Exit.failCause(defects && handlerCause),
+                  _ => Exit.failCause(defects)
+                )
+              case None => pf(t)
+            }
+          else Exit.failCause(c),
+        Exit.failCause
+      )
 
     self.foldCauseZIO[R1, E1, A1](tryRescue, ZIO.successFn)
   }
@@ -363,7 +376,20 @@ sealed trait ZIO[-R, +E, +A]
     pf: PartialFunction[(E, StackTrace), ZIO[R1, E1, A1]]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A1] = {
     def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
-      c.failureTraceOrCause.fold(t => pf.applyOrElse(t, (_: (E, StackTrace)) => Exit.failCause(c)), Exit.failCause)
+      c.failureTraceOrCause.fold(
+        t =>
+          if (pf.isDefinedAt(t))
+            c.keepDefects match {
+              case Some(defects) =>
+                pf(t).foldCauseZIO(
+                  handlerCause => Exit.failCause(defects && handlerCause),
+                  _ => Exit.failCause(defects)
+                )
+              case None => pf(t)
+            }
+          else Exit.failCause(c),
+        Exit.failCause
+      )
 
     self.foldCauseZIO[R1, E1, A1](tryRescue, ZIO.successFn)
   }
@@ -722,7 +748,22 @@ sealed trait ZIO[-R, +E, +A]
     ev: CanFail[E],
     trace: Trace
   ): ZIO[R1, E2, B] =
-    foldCauseZIO(c => c.failureTraceOrCause.fold(failure, Exit.failCause), success)
+    foldCauseZIO(
+      c =>
+        c.failureTraceOrCause.fold(
+          et =>
+            c.keepDefects match {
+              case Some(defects) =>
+                failure(et).foldCauseZIO(
+                  handlerCause => Exit.failCause(defects && handlerCause),
+                  _ => Exit.failCause(defects)
+                )
+              case None => failure(et)
+            },
+          Exit.failCause
+        ),
+      success
+    )
 
   /**
    * Recovers from errors by accepting one effect to execute for the case of an
@@ -739,7 +780,22 @@ sealed trait ZIO[-R, +E, +A]
     ev: CanFail[E],
     trace: Trace
   ): ZIO[R1, E2, B] =
-    foldCauseZIO(c => c.failureOrCause.fold(failure, Exit.failCause), success)
+    foldCauseZIO(
+      c =>
+        c.failureOrCause.fold(
+          e =>
+            c.keepDefects match {
+              case Some(defects) =>
+                failure(e).foldCauseZIO(
+                  handlerCause => Exit.failCause(defects && handlerCause),
+                  _ => Exit.failCause(defects)
+                )
+              case None => failure(e)
+            },
+          Exit.failCause
+        ),
+      success
+    )
 
   /**
    * Returns a new effect that will pass the success value of this effect to the

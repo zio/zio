@@ -305,6 +305,55 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)((equalTo(t)))
       }
     ) @@ zioTag(errors),
+    suite("catchAll - defect propagation")(
+      test("catchAll propagates defects when cause contains both Fail and Die (issue #9874)") {
+        val defect        = new RuntimeException("boom defect")
+        val dieCause      = Cause.die(defect)
+        val combinedCause = dieCause && Cause.fail("boom failure")
+        for {
+          exit <- ZIO.failCause(combinedCause).catchAll(_ => ZIO.succeed("recovered")).exit
+        } yield assert(exit)(dies(equalTo(defect)))
+      },
+      test("catchAll propagates defects in Then-combined cause (Fail then Die)") {
+        val defect        = new RuntimeException("sequential defect")
+        val combinedCause = Cause.fail("fail") ++ Cause.die(defect)
+        for {
+          exit <- ZIO.failCause(combinedCause).catchAll(_ => ZIO.succeed("recovered")).exit
+        } yield assert(exit)(dies(equalTo(defect)))
+      },
+      test("catchAll without defects still recovers normally") {
+        for {
+          result <- ZIO.fail("oops").catchAll(_ => ZIO.succeed("recovered")).exit
+        } yield assert(result)(succeeds(equalTo("recovered")))
+      },
+      test("foldZIO propagates defects when cause contains both Fail and Die") {
+        val defect        = new RuntimeException("fold defect")
+        val combinedCause = Cause.die(defect) && Cause.fail("fail")
+        for {
+          exit <- ZIO.failCause(combinedCause).foldZIO(_ => ZIO.succeed("recovered"), ZIO.succeed).exit
+        } yield assert(exit)(dies(equalTo(defect)))
+      },
+      test("catchSome propagates defects when pf matches and cause contains Die") {
+        val defect        = new RuntimeException("catchSome defect")
+        val combinedCause = Cause.die(defect) && Cause.fail("catchme")
+        for {
+          exit <- ZIO
+                    .failCause(combinedCause)
+                    .catchSome { case "catchme" => ZIO.succeed("handled") }
+                    .exit
+        } yield assert(exit)(dies(equalTo(defect)))
+      },
+      test("catchSome preserves full cause when pf does not match") {
+        val defect        = new RuntimeException("unmatched defect")
+        val combinedCause = Cause.die(defect) && Cause.fail("nomatch")
+        for {
+          exit <- ZIO
+                    .failCause(combinedCause)
+                    .catchSome { case "other" => ZIO.succeed("handled") }
+                    .exit
+        } yield assert(exit)(failsCause(equalTo(combinedCause)))
+      }
+    ) @@ zioTag(errors),
     suite("catchSomeCause")(
       test("catches matching cause") {
         ZIO.interrupt.catchSomeCause {
