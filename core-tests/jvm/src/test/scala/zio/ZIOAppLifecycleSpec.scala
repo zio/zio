@@ -1,25 +1,24 @@
 package zio
 
-import zio.test.Assertion._
 import zio.test._
 
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-object ZIOAppSpec extends ZIOSpecDefault {
+object ZIOAppLifecycleSpec extends ZIOSpecDefault {
 
   // ---------------------------------------------------------------------------
   // Helpers for launching sub-processes
   // ---------------------------------------------------------------------------
 
   private val javaExecutable: String = {
-    val javaHome = System.getProperty("java.home")
+    val javaHome = java.lang.System.getProperty("java.home")
     val sep      = File.separator
     s"$javaHome${sep}bin${sep}java"
   }
 
   private val testClasspath: String =
-    System.getProperty("java.class.path")
+    java.lang.System.getProperty("java.class.path")
 
   private def launchApp(mainClass: String, extraArgs: List[String] = Nil): ProcessBuilder = {
     val cmd = List(javaExecutable, "-cp", testClasspath, mainClass) ++ extraArgs
@@ -44,7 +43,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
     timeoutSeconds: Int = 30
   ): ZIO[Any, Throwable, (Int, String, String)] =
     ZIO.attemptBlocking {
-      val process = pb.start()
+      val process  = pb.start()
       val finished = process.waitFor(timeoutSeconds.toLong, TimeUnit.SECONDS)
       if (!finished) {
         process.destroyForcibly()
@@ -61,7 +60,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
   private def runWithSigint(
     pb: ProcessBuilder,
     delayBeforeSignalMs: Long = 500L,
-    timeoutSeconds: Int       = 30
+    timeoutSeconds: Int = 30
   ): ZIO[Any, Throwable, (Int, String, String)] =
     ZIO.attemptBlocking {
       val process = pb.start()
@@ -69,7 +68,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
       Thread.sleep(delayBeforeSignalMs)
       // SIGINT via kill -INT <pid>  (Java 9+ ProcessHandle)
       val pid = process.pid()
-      Runtime.getRuntime.exec(Array("/bin/kill", "-INT", pid.toString)).waitFor()
+      java.lang.Runtime.getRuntime.exec(Array("/bin/kill", "-INT", pid.toString)).waitFor()
       val finished = process.waitFor(timeoutSeconds.toLong, TimeUnit.SECONDS)
       if (!finished) {
         process.destroyForcibly()
@@ -83,12 +82,12 @@ object ZIOAppSpec extends ZIOSpecDefault {
   // Inner ZIOApp programs (launched as sub-processes)
   // ---------------------------------------------------------------------------
 
-  /** app: exits successfully → exit code 0 */
+  /** app: exits successfully -> exit code 0 */
   object SuccessApp extends ZIOAppDefault {
     def run = Console.printLine("success")
   }
 
-  /** app: fails with a non-zero exit code → exit code 1 */
+  /** app: fails with a non-zero exit code -> exit code 1 */
   object FailureApp extends ZIOAppDefault {
     def run = ZIO.fail("boom")
   }
@@ -157,7 +156,7 @@ object ZIOAppSpec extends ZIOSpecDefault {
   // Fully-qualified class names used to spawn sub-processes
   // ---------------------------------------------------------------------------
 
-  private val pkg = "zio.ZIOAppSpec"
+  private val pkg = "zio.ZIOAppLifecycleSpec"
 
   private val successAppClass       = s"$pkg$$SuccessApp"
   private val failureAppClass       = s"$pkg$$FailureApp"
@@ -173,37 +172,37 @@ object ZIOAppSpec extends ZIOSpecDefault {
   // ---------------------------------------------------------------------------
 
   def spec: Spec[TestEnvironment with Scope, Any] =
-    suite("ZIOAppSpec")(
+    suite("ZIOAppLifecycleSpec")(
       suite("exit codes")(
         test("successful app exits with code 0") {
           for {
-            result        <- runToCompletion(launchApp(successAppClass))
+            result         <- runToCompletion(launchApp(successAppClass))
             (code, out, _) = result
           } yield assertTrue(code == 0) && assertTrue(out.contains("success"))
         },
         test("failing app exits with non-zero code") {
           for {
-            result        <- runToCompletion(launchApp(failureAppClass))
-            (code, _, _)   = result
+            result       <- runToCompletion(launchApp(failureAppClass))
+            (code, _, _) = result
           } yield assertTrue(code != 0)
         },
         test("explicit exit(42) emits exit code 42") {
           for {
-            result        <- runToCompletion(launchApp(explicitExitAppClass))
-            (code, _, _)   = result
+            result       <- runToCompletion(launchApp(explicitExitAppClass))
+            (code, _, _) = result
           } yield assertTrue(code == 42)
         }
       ),
       suite("finalizers")(
         test("finalizer runs when app receives SIGINT") {
           for {
-            result         <- runWithSigint(launchApp(foreverFinalizerClass), delayBeforeSignalMs = 800L)
-            (_, out, _)     = result
+            result      <- runWithSigint(launchApp(foreverFinalizerClass), delayBeforeSignalMs = 800L)
+            (_, out, _) = result
           } yield assertTrue(out.contains("finalizer ran"))
         },
         test("finalizer runs when app fails immediately") {
           for {
-            result         <- runToCompletion(launchApp(issue9901Class))
+            result          <- runToCompletion(launchApp(issue9901Class))
             (code, out, _)  = result
           } yield assertTrue(code != 0) && assertTrue(out.contains("9901 finalizer"))
         }
@@ -214,34 +213,34 @@ object ZIOAppSpec extends ZIOSpecDefault {
             start          <- ZIO.clockWith(_.currentTime(TimeUnit.MILLISECONDS))
             result         <- runWithSigint(launchApp(slowFinalizerClass), delayBeforeSignalMs = 800L, timeoutSeconds = 20)
             end            <- ZIO.clockWith(_.currentTime(TimeUnit.MILLISECONDS))
-            (code, out, _)  = result
-            elapsedMs       = end - start
+            (code, out, _) = result
+            elapsedMs      = end - start
           } yield
             assertTrue(code != 0) &&
-            assertTrue(out.contains("started")) &&
-            // slow finalizer (10s) should have been cut off; total wall time well under 20s
-            assertTrue(elapsedMs < 18000L)
+              assertTrue(out.contains("started")) &&
+              // slow finalizer (10s) should have been cut off; total wall time well under 20s
+              assertTrue(elapsedMs < 18000L)
         }
       ),
       suite("regression tests")(
-        test("#9807 – app that dies emits non-zero exit code") {
+        test("#9807 - app that dies emits non-zero exit code") {
           for {
             result       <- runToCompletion(launchApp(issue9807Class))
-            (code, _, _)  = result
+            (code, _, _) = result
           } yield assertTrue(code != 0)
         },
-        test("#9240 – app interrupted via SIGINT emits non-zero exit code") {
+        test("#9240 - app interrupted via SIGINT emits non-zero exit code") {
           for {
-            result       <- runWithSigint(launchApp(issue9240Class), delayBeforeSignalMs = 800L)
-            (code, out, _) = result
+            result          <- runWithSigint(launchApp(issue9240Class), delayBeforeSignalMs = 800L)
+            (code, out, _)  = result
           } yield assertTrue(code != 0) && assertTrue(out.contains("9240 started"))
         },
-        test("#9901 – app does not hang when effect fails with finalizers present") {
+        test("#9901 - app does not hang when effect fails with finalizers present") {
           // If the app hangs runToCompletion will time out and destroyForcibly;
           // we simply assert it completed within the timeout and with non-zero code.
           for {
             result       <- runToCompletion(launchApp(issue9901Class), timeoutSeconds = 15)
-            (code, _, _)  = result
+            (code, _, _) = result
           } yield assertTrue(code != 0)
         }
       )
