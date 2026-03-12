@@ -5645,24 +5645,43 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   final class TimeoutTo[-R, +E, +A, +B](self: ZIO[R, E, A], b: () => B) {
     def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
-    ): ZIO[R, E, B1] =
+    ): ZIO[R, E, B1] = {
+      val d = duration
+
       ZIO.fiberIdWith { parentFiberId =>
-        self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
-          (winner, loser) =>
-            winner.await.flatMap { exit =>
-              loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
-            },
-          (winner, loser) =>
-            winner.await.flatMap {
-              case e: Exit.Failure[Nothing] =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
-              case _ =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
-            },
-          null,
-          FiberScope.global
-        )
+        ZIO.runtime[R].flatMap { runtime =>
+          Clock.scheduler.flatMap { scheduler =>
+            ZIO.asyncInterrupt[R, E, B1] { cb =>
+              implicit val unsafe: Unsafe = Unsafe.unsafe
+
+              val completed   = new java.util.concurrent.atomic.AtomicBoolean(false)
+              val timedOut    = new java.util.concurrent.atomic.AtomicBoolean(false)
+              val selfFiber   = runtime.unsafe.fork(self)(trace, unsafe)
+              val timeoutExit = selfFiber.interruptAs(parentFiberId) *> selfFiber.inheritAll.as(b())
+
+              val cancelTimeout =
+                scheduler.schedule(
+                  () =>
+                    if (completed.compareAndSet(false, true) && timedOut.compareAndSet(false, true)) {
+                      val timeoutFiber = runtime.unsafe.fork(timeoutExit)(trace, unsafe)
+                      timeoutFiber.unsafe.addObserver(exit => cb(exit))(unsafe)
+                    },
+                  d
+                )(unsafe)
+
+              selfFiber.unsafe.addObserver { exit =>
+                if (completed.compareAndSet(false, true)) {
+                  cancelTimeout()
+                  cb(exit.mapExit(f))
+                }
+              }(unsafe)
+
+              Left(ZIO.succeed(cancelTimeout()) *> selfFiber.interruptAs(parentFiberId).unit)
+            }
+          }
+        }
       }
+    }
   }
 
   final class Acquire[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
