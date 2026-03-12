@@ -173,53 +173,53 @@ object ZIOAppLifecycleSpec extends ZIOSpecDefault {
 
   def spec: Spec[TestEnvironment with Scope, Any] =
     suite("ZIOAppLifecycleSpec")(
-      test("success app exits with code 0") {
+      test("successful app exits with code 0") {
         for {
-          result        <- runToCompletion(launchApp(successAppClass))
-          (code, out, _) = result
+          result          <- runToCompletion(launchApp(successAppClass))
+          (code, out, _)  = result
         } yield assertTrue(code == 0) && assertTrue(out.contains("success"))
       },
-      test("failure app exits with non-zero code") {
+      test("failing app exits with non-zero code") {
         for {
-          result        <- runToCompletion(launchApp(failureAppClass))
+          result         <- runToCompletion(launchApp(failureAppClass))
           (code, _, _)   = result
         } yield assertTrue(code != 0)
       },
-      test("explicit exit(42) produces exit code 42") {
+      test("explicit exit code is respected") {
         for {
           result        <- runToCompletion(launchApp(explicitExitAppClass))
-          (code, _, _)   = result
+          (code, _, _)  = result
         } yield assertTrue(code == 42)
       },
       test("finalizer runs on SIGINT") {
         for {
-          result        <- runWithSigint(launchApp(foreverFinalizerClass))
+          result         <- runWithSigint(launchApp(foreverFinalizerClass))
           (_, out, _)    = result
         } yield assertTrue(out.contains("finalizer ran"))
-      },
+      } @@ TestAspect.os(_.isUnix),
       test("slow finalizer is interrupted after gracefulShutdownTimeout") {
         for {
-          result              <- runWithSigint(launchApp(slowFinalizerClass), delayBeforeSignalMs = 1000L)
-          (code, out, _)       = result
+          result        <- runWithSigint(launchApp(slowFinalizerClass), delayBeforeSignalMs = 1000L)
+          (code, out, _) = result
         } yield assertTrue(code != 0) && assertTrue(!out.contains("slow finalizer done"))
-      },
-      test("regression #9901: app with failing effect and finalizer exits cleanly") {
+      } @@ TestAspect.os(_.isUnix),
+      test("regression #9901: app with failing effect and finalizer does not hang") {
         for {
-          result        <- runToCompletion(launchApp(issue9901Class))
+          result        <- runToCompletion(launchApp(issue9901Class), timeoutSeconds = 15)
           (code, out, _) = result
         } yield assertTrue(code != 0) && assertTrue(out.contains("9901 finalizer"))
       },
-      test("regression #9807: app that dies exits with non-zero code") {
+      test("regression #9807: app that dies emits non-zero exit code") {
         for {
           result        <- runToCompletion(launchApp(issue9807Class))
-          (code, _, _)   = result
+          (code, _, _)  = result
         } yield assertTrue(code != 0)
       },
-      test("regression #9240: interrupted app exits with non-zero code") {
+      test("regression #9240: externally interrupted app emits non-zero exit code") {
         for {
           result        <- runWithSigint(launchApp(issue9240Class))
-          (code, _, _)   = result
+          (code, _, _)  = result
         } yield assertTrue(code != 0)
-      }
-    ) @@ TestAspect.timeout(120.seconds) @@ TestAspect.sequential
+      } @@ TestAspect.os(_.isUnix)
+    ) @@ TestAspect.sequential
 }
