@@ -143,13 +143,34 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     }
   }
 
+  private def leastLoadedWorker(): ZScheduler.Worker = {
+    var i       = 0
+    var best    = null.asInstanceOf[ZScheduler.Worker]
+    var minLoad = Int.MaxValue
+    while (i < poolSize) {
+      val w = workers(i)
+      if (!w.blocking) {
+        val load = w.localQueue.size() + (if (w.nextRunnable ne null) 1 else 0)
+        if (load < minLoad) {
+          minLoad = load
+          best = w
+        }
+      }
+      i += 1
+    }
+    best
+  }
+
   def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
     val worker = workerOrNull()
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
       if ((worker eq null) || worker.blocking) {
-        globalQueue.offer(runnable)
+        val best = leastLoadedWorker()
+        if ((best eq null) || !best.localQueue.offer(runnable)) {
+          globalQueue.offer(runnable)
+        }
       } else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
       } else ()
@@ -166,7 +187,10 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     } else {
       var notify = true
       if ((worker eq null) || worker.blocking) {
-        globalQueue.offer(runnable)
+        val best = leastLoadedWorker()
+        if ((best eq null) || !best.localQueue.offer(runnable)) {
+          globalQueue.offer(runnable)
+        }
       }
       // Attempt resumption in the current Thread
       else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
