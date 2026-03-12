@@ -41,6 +41,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   private[this] val globalLocations = makeLocations()
   private[this] val state           = new AtomicInteger(poolSize << 16)
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
+  private[this] var lastUnparkNanos = 0L
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
@@ -448,11 +449,15 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     val currentSearching = currentState & 0xffff
     val currentActive    = (currentState & 0xffff0000) >> 16
     if (currentActive != poolSize && currentSearching == 0) {
-      val worker = idle.poll()
-      if (worker ne null) {
-        state.getAndAdd(0x10001)
-        worker.active = true
-        LockSupport.unpark(worker)
+      val now = java.lang.System.nanoTime()
+      if (now - lastUnparkNanos > 500_000) {
+        val worker = idle.poll()
+        if (worker ne null) {
+          lastUnparkNanos = now
+          state.getAndAdd(0x10001)
+          worker.active = true
+          LockSupport.unpark(worker)
+        }
       }
     }
   }
