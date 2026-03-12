@@ -6331,6 +6331,30 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     }
   }
 
+  private[zio] def render(zio: ZIO.Erased): String = zio match {
+    case sync: Sync[_] => s"Sync(trace=${sync.trace})"
+    case flatMap: FlatMap[_, _, _, _] =>
+      s"FlatMap(trace=${flatMap.trace}, first=${render(flatMap.first.asInstanceOf[ZIO.Erased])})"
+    case foldZIO: FoldZIO[_, _, _, _, _] =>
+      s"FoldZIO(trace=${foldZIO.trace}, first=${render(foldZIO.first.asInstanceOf[ZIO.Erased])})"
+    case mapped: Mapped[_, _, _, _] =>
+      s"Mapped(trace=${mapped.trace}, first=${render(mapped.first.asInstanceOf[ZIO.Erased])})"
+    case stateful: Stateful[_, _, _]     => s"Stateful(trace=${stateful.trace})"
+    case async: Async[_, _, _]           => s"Async(trace=${async.trace})"
+    case whileLoop: WhileLoop[_, _, _]   => s"WhileLoop(trace=${whileLoop.trace})"
+    case yieldNow: YieldNow              => s"YieldNow(trace=${yieldNow.trace}, forceAsync=${yieldNow.forceAsync})"
+    case updateFlags: UpdateRuntimeFlags => s"UpdateRuntimeFlags(trace=${updateFlags.trace})"
+    case within: UpdateRuntimeFlagsWithin.Interruptible[_, _, _] =>
+      s"Interruptible(trace=${within.trace}, effect=${render(within.effect.asInstanceOf[ZIO.Erased])})"
+    case within: UpdateRuntimeFlagsWithin.Uninterruptible[_, _, _] =>
+      s"Uninterruptible(trace=${within.trace}, effect=${render(within.effect.asInstanceOf[ZIO.Erased])})"
+    case _: UpdateRuntimeFlagsWithin.Dynamic[_, _, _]      => s"Dynamic"
+    case _: UpdateRuntimeFlagsWithin.DynamicNoBox[_, _, _] => s"DynamicNoBox"
+    case success: Exit.Success[_]                          => s"Exit.Success(value=${success.value})"
+    case failure: Exit.Failure[_]                          => s"Exit.Failure(cause=${failure.cause})"
+    case _                                                 => zio.getClass.getSimpleName
+  }
+
   private[zio] val someFatal   = Some(LogLevel.Fatal)
   private[zio] val someError   = Some(LogLevel.Error)
   private[zio] val someWarning = Some(LogLevel.Warning)
