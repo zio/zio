@@ -43,7 +43,7 @@ sealed abstract class Queue[A] extends Dequeue.Internal[A] with Enqueue.Internal
   /**
    * Shuts down the queue with the specified cause.
    */
-  def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Unit] =
+  override def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Unit] =
     shutdown
 }
 
