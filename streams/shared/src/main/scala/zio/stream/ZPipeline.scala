@@ -1533,7 +1533,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             if (l.isEmpty)
               ZChannel.readWithCause(
                 (c: Chunk[In]) => ZChannel.write(c) *> upstream,
-                ZChannel.refailCause,
+                (e: Cause[Err]) => ZChannel.refailCause(e),
                 (done: Any) => {
                   upstreamDone = true
                   ZChannel.succeedNow(done)
