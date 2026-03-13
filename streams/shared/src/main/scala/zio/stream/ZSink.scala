@@ -176,11 +176,8 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     f: Chunk[In1] => ZIO[R1, E1, Chunk[In]]
   )(implicit trace: Trace): ZSink[R1, E1, In1, L, Z] = {
     lazy val loop: ZChannel[R1, ZNothing, Chunk[In1], Any, E1, Chunk[In], Any] =
-      ZChannel.readWithCause(
-        chunk => ZChannel.fromZIO(f(chunk)).flatMap(ZChannel.write) *> loop,
-        ZChannel.refailCause,
-        ZChannel.succeedChannelFn
-      )
+      ZChannel.readInputCause(chunk => ZChannel.fromZIO(f(chunk)).flatMap(ZChannel.write) *> loop)
+
     new ZSink(loop.pipeToOrFail(self.channel))
   }
 
