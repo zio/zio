@@ -1334,44 +1334,40 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def flattenTake[Err, Out](implicit trace: Trace): ZPipeline[Any, Err, Take[Err, Out], Out] = {
 
-    lazy val channel: ZChannel[Any, ZNothing, Chunk[Take[Err, Out]], Any, Err, Chunk[Out], Any] =
-      ZChannel.readWithCause(
-        in => {
-          val chunkBuilder  = ChunkBuilder.make[Chunk[Out]]()
-          val chunkIterator = in.chunkIterator
-          var failureOption = Option.empty[Cause[Option[Err]]]
-          var index         = 0
-          var loop          = true
-          while (loop && chunkIterator.hasNextAt(index)) {
-            val take = chunkIterator.nextAt(index)
-            take match {
-              case Take(Exit.Success(chunk)) =>
-                chunkBuilder += chunk
-              case Take(Exit.Failure(cause)) =>
-                failureOption = Some(cause)
-                loop = false
+    val channel: ZChannel[Any, ZNothing, Chunk[Take[Err, Out]], Any, Err, Chunk[Out], Any] =
+      ZChannel.readInputCause { in =>
+        val chunkBuilder  = ChunkBuilder.make[Chunk[Out]]()
+        val chunkIterator = in.chunkIterator
+        var failureOption = Option.empty[Cause[Option[Err]]]
+        var index         = 0
+        var loop          = true
+        while (loop && chunkIterator.hasNextAt(index)) {
+          val take = chunkIterator.nextAt(index)
+          take match {
+            case Take(Exit.Success(chunk)) =>
+              chunkBuilder += chunk
+            case Take(Exit.Failure(cause)) =>
+              failureOption = Some(cause)
+              loop = false
+          }
+          index += 1
+        }
+        val chunk = chunkBuilder.result()
+        failureOption match {
+          case Some(cause) =>
+            Cause.flipCauseOption(cause) match {
+              case Some(err) =>
+                if (chunk.isEmpty) ZChannel.refailCause(err)
+                else ZChannel.writeChunk(chunk) *> ZChannel.refailCause(err)
+              case None =>
+                if (chunk.isEmpty) ZChannel.unit
+                else ZChannel.writeChunk(chunk)
             }
-            index += 1
-          }
-          val chunk = chunkBuilder.result()
-          failureOption match {
-            case Some(cause) =>
-              Cause.flipCauseOption(cause) match {
-                case Some(err) =>
-                  if (chunk.isEmpty) ZChannel.refailCause(err)
-                  else ZChannel.writeChunk(chunk) *> ZChannel.refailCause(err)
-                case None =>
-                  if (chunk.isEmpty) ZChannel.unit
-                  else ZChannel.writeChunk(chunk)
-              }
-            case None =>
-              if (chunk.isEmpty) channel
-              else ZChannel.writeChunk(chunk) *> channel
-          }
-        },
-        ZChannel.refailCause,
-        ZChannel.succeedChannelFn
-      )
+          case None =>
+            if (chunk.isEmpty) channel
+            else ZChannel.writeChunk(chunk) *> channel
+        }
+      }
 
     ZPipeline.fromChannel(channel)
   }
@@ -1794,7 +1790,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     f: Chunk[In] => Either[Err, Chunk[Out]]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
     lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
-      ZChannel.readInputCauseUnit(chunk =>
+      ZChannel.readInputCause(chunk =>
         f(chunk) match {
           case r: Right[?, Chunk[Out]] => ZChannel.write(r.value) *> reader
           case l: Left[Err, ?]         => ZChannel.refailCause(Cause.fail(l.value))
