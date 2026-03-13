@@ -1134,12 +1134,14 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = {
 
     lazy val loop: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Any] =
-      ZChannel.readInputCauseUnit((in: Chunk[In]) =>
-        ZChannel.unwrap(in.dropWhileZIO(p).map { leftover =>
-          val more = leftover.isEmpty
-          if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[Err, Chunk[In], Any]
-        })
-      )
+      ZChannel.readInputCauseUnit { (in: Chunk[In]) =>
+        ZChannel.unwrap {
+          in.dropWhileZIO(p).map { leftover =>
+            val more = leftover.isEmpty
+            if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[Err, Chunk[In], Any]
+          }
+        }
+      }
 
     new ZPipeline(loop)
   }
