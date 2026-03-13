@@ -2380,7 +2380,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = new ZPipeline(
     ZChannel.succeed((units, duration, burst)).flatMap { case (units, duration, burst) =>
       def loop(tokens: Long, timestamp: Long): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Any] =
-        ZChannel.readInputCauseUnit((in: Chunk[In]) =>
+        ZChannel.readInputCauseUnit { (in: Chunk[In]) =>
           ZChannel.unwrap(for {
             weight  <- costFn(in)
             current <- Clock.nanoTime
@@ -2408,7 +2408,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               ZChannel.fromZIO(Clock.sleep(delay)) *> ZChannel.write(in) *> loop(remaining, current)
             else ZChannel.write(in) *> loop(remaining, current)
           })
-        )
+        }
 
       ZChannel.unwrap(Clock.nanoTime.map(loop(units, _)))
     }
