@@ -94,6 +94,61 @@ object ZPipelineSpec extends ZIOBaseSpec {
           )(equalTo(Chunk("21", "32", "43")))
         }
       ),
+      suite("mapChunksAccum")(
+        test("threads state across chunks") {
+          val pipeline = ZPipeline.mapChunksAccum[Int, Int, Int](0) { (acc, chunk) =>
+            val newAcc = acc + chunk.sum
+            (newAcc, chunk.map(_ + acc))
+          }
+          assertZIO(
+            pipeline(ZStream.fromChunks(Chunk(1, 2), Chunk(3, 4), Chunk(5))).runCollect
+          )(equalTo(Chunk(1, 2, 6, 7, 15)))
+        },
+        test("composes with other pipelines") {
+          val pipeline =
+            ZPipeline.mapChunks[Int, Int](_.map(_ * 2)) >>>
+              ZPipeline.mapChunksAccum[Int, Int, Int](0) { (acc, chunk) =>
+                val newAcc = acc + chunk.size
+                (newAcc, chunk.map(_ + newAcc))
+              }
+          assertZIO(
+            pipeline(ZStream.fromChunks(Chunk(1, 2), Chunk(3))).runCollect
+          )(equalTo(Chunk(4, 6, 9)))
+        }
+      ),
+      suite("mapChunksAccumZIO")(
+        test("threads state across chunks") {
+          val pipeline = ZPipeline.mapChunksAccumZIO[Any, Nothing, Int, Int, Int](0) { (acc, chunk) =>
+            ZIO.succeed {
+              val newAcc = acc + chunk.sum
+              (newAcc, chunk.map(_ + acc))
+            }
+          }
+          assertZIO(
+            pipeline(ZStream.fromChunks(Chunk(1, 2), Chunk(3, 4), Chunk(5))).runCollect
+          )(equalTo(Chunk(1, 2, 6, 7, 15)))
+        },
+        test("propagates errors") {
+          val pipeline = ZPipeline.mapChunksAccumZIO[Any, String, Int, Int, Int](0) { (_, _) =>
+            ZIO.fail("Ouch")
+          }
+          pipeline(ZStream.fromChunks(Chunk(1, 2))).runCollect.either
+            .map(assert(_)(isLeft(equalTo("Ouch"))))
+        } @@ zioTag(errors),
+        test("composes with other pipelines") {
+          val pipeline =
+            ZPipeline.mapChunks[Int, Int](_.map(_ * 2)) >>>
+              ZPipeline.mapChunksAccumZIO[Any, Nothing, Int, Int, Int](0) { (acc, chunk) =>
+                ZIO.succeed {
+                  val newAcc = acc + chunk.size
+                  (newAcc, chunk.map(_ + newAcc))
+                }
+              }
+          assertZIO(
+            pipeline(ZStream.fromChunks(Chunk(1, 2), Chunk(3))).runCollect
+          )(equalTo(Chunk(4, 6, 9)))
+        }
+      ),
       suite("splitOn")(
         test("preserves data")(check(Gen.chunkOf(Gen.string.filter(!_.contains("|")).filter(_.nonEmpty))) { lines =>
           val data     = lines.mkString("|")
