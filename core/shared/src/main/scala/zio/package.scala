@@ -38,6 +38,10 @@ package object zio
   type UIO[+A]      = ZIO[Any, Nothing, A]   // Succeed with an `A`, cannot fail              , no requirements.
   type URIO[-R, +A] = ZIO[R, Nothing, A]     // Succeed with an `A`, cannot fail              , requires an `R`.
 
+  type Dequeue[+A] = ZDequeue[Nothing, A]
+  type Enqueue[-A] = ZEnqueue[Nothing, A]
+  type Queue[A]    = ZQueue[Nothing, A]
+
   type RLayer[-RIn, +ROut]  = ZLayer[RIn, Throwable, ROut]
   type URLayer[-RIn, +ROut] = ZLayer[RIn, Nothing, ROut]
   type Layer[+E, +ROut]     = ZLayer[Any, E, ROut]

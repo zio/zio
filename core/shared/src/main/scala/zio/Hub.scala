@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A `Hub` is an asynchronous message hub. Publishers can offer messages to the
  * hub and subscribers can subscribe to take messages from the hub.
  */
-sealed abstract class Hub[A] extends Enqueue.Internal[A] {
+sealed abstract class Hub[A] extends ZEnqueue.Internal[Nothing, A] {
 
   /**
    * Publishes a message to the hub, returning whether the message was published
@@ -175,10 +175,14 @@ object Hub {
         }
       def shutdown(implicit trace: Trace): UIO[Unit] =
         ZIO.fiberIdWith { fiberId =>
+          shutdownCause(Cause.interrupt(fiberId))
+        }.uninterruptible
+      def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Unit] =
+        ZIO.fiberIdWith { _ =>
           shutdownFlag.set(true)
           ZIO
             .whenZIODiscard(shutdownHook.succeedUnit) {
-              scope.close(Exit.interrupt(fiberId)) *> strategy.shutdown
+              scope.close(Exit.failCause(cause)) *> strategy.shutdown
             }
         }.uninterruptible
       def size(implicit trace: Trace): UIO[Int] =
@@ -234,36 +238,40 @@ object Hub {
     shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
   ): Dequeue[A] =
-    new Dequeue.Internal[A] { self =>
+    new Dequeue.Internal[Nothing, A] { self =>
       def awaitShutdown(implicit trace: Trace): UIO[Unit] =
         shutdownHook.await
       val capacity: Int =
         hub.capacity
       def isShutdown(implicit trace: Trace): UIO[Boolean] =
         ZIO.succeed(shutdownFlag.get)
-      def offer(a: Nothing)(implicit trace: Trace): UIO[Boolean] =
+      def offer(a: Nothing)(implicit trace: Trace): IO[Nothing, Boolean] =
         ZIO.succeed(false)
-      def offerAll[A1 <: Nothing](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
+      def offerAll[A1 <: Nothing](as: Iterable[A1])(implicit trace: Trace): IO[Nothing, Chunk[A1]] =
         ZIO.succeed(Chunk.fromIterable(as))
       def shutdown(implicit trace: Trace): UIO[Unit] =
         ZIO.fiberIdWith { fiberId =>
+          shutdownCause(Cause.interrupt(fiberId)).unit
+        }.uninterruptible
+      def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[A]] =
+        ZIO.fiberIdWith { _ =>
           shutdownFlag.set(true)
           ZIO
             .whenZIODiscard(shutdownHook.succeedUnit) {
-              ZIO.foreachParDiscard(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
+              ZIO.foreachParDiscard(unsafePollAll(pollers))(_.unsafe.done(Exit.failCause(cause))) *>
                 Exit.succeed {
                   subscribers.remove(subscription -> pollers)
                   subscription.unsubscribe()
                   strategy.unsafeOnHubEmptySpace(hub, subscribers)
                 }
-            }
+            }.as(Chunk.empty)
         }.uninterruptible
       def size(implicit trace: Trace): UIO[Int] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else Exit.succeed(subscription.size())
         }
-      def take(implicit trace: Trace): UIO[A] =
+      def take(implicit trace: Trace): IO[Nothing, A] =
         ZIO.fiberIdWith { fiberId =>
           if (shutdownFlag.get) ZIO.interrupt
           else {
@@ -284,7 +292,7 @@ object Hub {
             }
           }
         }
-      def takeAll(implicit trace: Trace): ZIO[Any, Nothing, Chunk[A]] =
+      def takeAll(implicit trace: Trace): IO[Nothing, Chunk[A]] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else {
@@ -293,7 +301,7 @@ object Hub {
             as
           }
         }
-      def takeUpTo(max: Int)(implicit trace: Trace): ZIO[Any, Nothing, Chunk[A]] =
+      def takeUpTo(max: Int)(implicit trace: Trace): IO[Nothing, Chunk[A]] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else {

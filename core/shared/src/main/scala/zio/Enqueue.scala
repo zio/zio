@@ -19,7 +19,7 @@ package zio
 /**
  * A queue that can only be enqueued.
  */
-sealed trait Enqueue[-A] extends Serializable {
+sealed trait ZEnqueue[+E, -A] extends Serializable {
 
   /**
    * Waits until the queue is shutdown. The `IO` returned by this method will
@@ -41,7 +41,7 @@ sealed trait Enqueue[-A] extends Serializable {
   /**
    * Places one value in the queue.
    */
-  def offer(a: A)(implicit trace: Trace): UIO[Boolean]
+  def offer(a: A)(implicit trace: Trace): IO[E, Boolean]
 
   /**
    * For Bounded Queue: uses the `BackPressure` Strategy, places the values in
@@ -60,13 +60,20 @@ sealed trait Enqueue[-A] extends Serializable {
    * queue but if there is no room it will not enqueue them and return the
    * leftovers.
    */
-  def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]]
+  def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): IO[E, Chunk[A1]]
 
   /**
    * Interrupts any fibers that are suspended on `offer` or `take`. Future calls
    * to `offer*` and `take*` will be interrupted immediately.
    */
   def shutdown(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Interrupts any fibers that are suspended on `offer` or `take` with the
+   * specified cause. Future calls to `offer*` and `take*` will fail with this
+   * cause.
+   */
+  def shutdownCause(cause: Cause[E])(implicit trace: Trace): UIO[Unit]
 
   /**
    * Retrieves the size of the queue. This may be negative if fibers are
@@ -88,5 +95,5 @@ sealed trait Enqueue[-A] extends Serializable {
     size.map(_ >= capacity)
 }
 private[zio] object Enqueue {
-  private[zio] trait Internal[-A] extends Enqueue[A]
+  private[zio] trait Internal[+E, -A] extends ZEnqueue[E, A]
 }

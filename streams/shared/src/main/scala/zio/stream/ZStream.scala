@@ -4683,10 +4683,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * @param maxChunkSize
    *   Maximum number of queued elements to put in one chunk in the stream
    */
-  def fromQueue[O](
-    queue: => Dequeue[O],
+  def fromQueue[E, O](
+    queue: => ZDequeue[E, O],
     maxChunkSize: => Int = DefaultChunkSize
-  )(implicit trace: Trace): ZStream[Any, Nothing, O] =
+  )(implicit trace: Trace): ZStream[Any, E, O] =
     repeatZIOChunkOption {
       val queue0 = queue
       queue0
@@ -4706,10 +4706,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * @param maxChunkSize
    *   Maximum number of queued elements to put in one chunk in the stream
    */
-  def fromQueueWithShutdown[O](
-    queue: => Dequeue[O],
+  def fromQueueWithShutdown[E, O](
+    queue: => ZDequeue[E, O],
     maxChunkSize: => Int = DefaultChunkSize
-  )(implicit trace: Trace): ZStream[Any, Nothing, O] =
+  )(implicit trace: Trace): ZStream[Any, E, O] =
     ZStream.suspend {
       val queue0 = queue
       fromQueue(queue0, maxChunkSize).ensuring(queue0.shutdown)

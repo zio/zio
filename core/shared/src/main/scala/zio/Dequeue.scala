@@ -19,7 +19,7 @@ package zio
 /**
  * A queue that can only be dequeued.
  */
-sealed trait Dequeue[+A] extends Serializable {
+sealed trait ZDequeue[+E, +A] extends Serializable {
 
   /**
    * Waits until the queue is shutdown. The `IO` returned by this method will
@@ -45,6 +45,13 @@ sealed trait Dequeue[+A] extends Serializable {
   def shutdown(implicit trace: Trace): UIO[Unit]
 
   /**
+   * Interrupts any fibers that are suspended on `offer` or `take` with the
+   * specified cause. Future calls to `offer*` and `take*` will fail with this
+   * cause.
+   */
+  def shutdownCause(cause: Cause[E])(implicit trace: Trace): UIO[Chunk[A]]
+
+  /**
    * Retrieves the size of the queue. This may be negative if fibers are
    * suspended waiting for elements to be added to the queue or greater than the
    * capacity if fibers are suspended waiting to add elements to the queue.
@@ -55,29 +62,29 @@ sealed trait Dequeue[+A] extends Serializable {
    * Removes the oldest value in the queue. If the queue is empty, this will
    * return a computation that resumes when an item has been added to the queue.
    */
-  def take(implicit trace: Trace): UIO[A]
+  def take(implicit trace: Trace): IO[E, A]
 
   /**
    * Removes all the values in the queue and returns the values. If the queue is
    * empty returns an empty collection.
    */
-  def takeAll(implicit trace: Trace): UIO[Chunk[A]]
+  def takeAll(implicit trace: Trace): IO[E, Chunk[A]]
 
   /**
    * Takes up to max number of values in the queue.
    */
-  def takeUpTo(max: Int)(implicit trace: Trace): UIO[Chunk[A]]
+  def takeUpTo(max: Int)(implicit trace: Trace): IO[E, Chunk[A]]
 
   /**
    * Checks whether the queue is currently empty.
    */
-  def isEmpty(implicit trace: Trace): UIO[Boolean] =
+  override def isEmpty(implicit trace: Trace): UIO[Boolean] =
     size.map(_ == 0)
 
   /**
    * Checks whether the queue is currently full.
    */
-  def isFull(implicit trace: Trace): UIO[Boolean] =
+  override def isFull(implicit trace: Trace): UIO[Boolean] =
     size.map(_ == capacity)
 
   /**
@@ -85,8 +92,8 @@ sealed trait Dequeue[+A] extends Serializable {
    * maximum. If there are fewer than the minimum number of elements available,
    * suspends until at least the minimum number of elements have been collected.
    */
-  final def takeBetween(min: Int, max: Int)(implicit trace: Trace): UIO[Chunk[A]] = {
-    def takeRemainder(min: Int, max: Int, acc: Chunk[A]): UIO[Chunk[A]] =
+  final def takeBetween(min: Int, max: Int)(implicit trace: Trace): IO[E, Chunk[A]] = {
+    def takeRemainder(min: Int, max: Int, acc: Chunk[A]): IO[E, Chunk[A]] =
       if (max < min) ZIO.succeed(acc)
       else
         takeUpTo(max).flatMap { bs =>
@@ -105,15 +112,15 @@ sealed trait Dequeue[+A] extends Serializable {
    * than the specified number of elements available, it suspends until they
    * become available.
    */
-  final def takeN(n: Int)(implicit trace: Trace): UIO[Chunk[A]] =
+  final def takeN(n: Int)(implicit trace: Trace): IO[E, Chunk[A]] =
     takeBetween(n, n)
 
   /**
    * Take the head option of values in the queue.
    */
-  def poll(implicit trace: Trace): UIO[Option[A]] =
+  def poll(implicit trace: Trace): IO[E, Option[A]] =
     takeUpTo(1).map(_.headOption)
 }
 private[zio] object Dequeue {
-  private[zio] abstract class Internal[+A] extends Dequeue[A]
+  private[zio] abstract class Internal[+E, +A] extends ZDequeue[E, A]
 }
