@@ -31,18 +31,19 @@ private object Deflate {
             lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
               ZChannel.readWithCause(
                 chunk =>
-                  ZChannel.succeed {
+                  ZChannel.suspend {
                     deflater.setInput(chunk.toArray)
-                    pullOutput(deflater, buffer, flushMode)
-                  }.flatMap(chunk => ZChannel.write(chunk) *> loop),
+                    val out = pullOutput(deflater, buffer, flushMode)
+                    ZChannel.write(out) *> loop
+                  },
                 ZChannel.refailCauseChannelFn,
                 done =>
-                  ZChannel.succeed {
+                  ZChannel.suspend {
                     deflater.finish()
                     val out = pullOutput(deflater, buffer, flushMode)
                     deflater.reset()
-                    out
-                  }.flatMap(chunk => ZChannel.write(chunk).as(done))
+                    ZChannel.write(out).as(done)
+                  }
               )
 
             loop

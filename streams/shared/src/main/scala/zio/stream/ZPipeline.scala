@@ -1073,7 +1073,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def drop[In](n: => Int)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     ZPipeline.suspend {
       def loop(r: Int): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
-        ZChannel.readWithCause(
+        ZChannel.readInputCauseUnit(
           (in: Chunk[In]) => {
             val dropped  = in.drop(r)
             val leftover = (r - in.length).max(0)
@@ -1081,9 +1081,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
             if (more) loop(leftover)
             else ZChannel.write(dropped) *> ZChannel.identity
-          },
-          ZChannel.refailCauseChannelFn,
-          ZChannel.unitChannelFn,
+          }
         )
 
       new ZPipeline(loop(n))
@@ -1141,12 +1139,13 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     p: In => ZIO[Env, Err, Boolean]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = {
 
-    lazy val loop: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Any] = ZChannel.readInputCauseUnit((in: Chunk[In]) =>
-      ZChannel.unwrap(in.dropWhileZIO(p).map { leftover =>
-        val more = leftover.isEmpty
-        if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[Err, Chunk[In], Any]
-      })
-    )
+    lazy val loop: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Any] =
+      ZChannel.readInputCauseUnit((in: Chunk[In]) =>
+        ZChannel.unwrap(in.dropWhileZIO(p).map { leftover =>
+          val more = leftover.isEmpty
+          if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[Err, Chunk[In], Any]
+        })
+      )
 
     new ZPipeline(loop)
   }

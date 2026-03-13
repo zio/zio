@@ -2161,9 +2161,9 @@ object ZChannel {
     )
 
   /**
-   * Like [[readInputCause]], but discards the done value (returns `Unit`).
-   * Uses a pre-cached `unitChannelFn` done handler, avoiding the
-   * `SucceedNow(done)` allocation that [[readInputCause]] incurs.
+   * Like [[readInputCause]], but discards the done value (returns `Unit`). Uses
+   * a pre-cached `unitChannelFn` done handler, avoiding the `SucceedNow(done)`
+   * allocation that [[readInputCause]] incurs.
    */
   private[zio] def readInputCauseUnit[Env, InErr, InElem, InDone, OutErr >: InErr, OutElem, OutDone](
     in: InElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
