@@ -834,8 +834,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           pf.andThen(_.map(a1 => ZChannel.write(Chunk.single(a1)) *> loop(chunkIterator, index + 1)))
             .applyOrElse(a, (_: A) => ZIO.succeed(loop(chunkIterator, index + 1)))
         }
-      else
-        ZChannel.readInputCauseUnit(elem => loop(elem.chunkIterator, 0))
+      else ZChannel.readInputCause(elem => loop(elem.chunkIterator, 0))
 
     new ZStream(self.channel >>> loop(Chunk.ChunkIterator.empty, 0))
   }
