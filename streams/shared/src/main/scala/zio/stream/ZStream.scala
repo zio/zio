@@ -1701,31 +1701,35 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           _     <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left)).runIn(scope).forkIn(scope)
           _     <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right)).runIn(scope).forkIn(scope)
         } yield {
-          def process(leftDone: Boolean, rightDone: Boolean): ZChannel[R1, E1, Boolean, Any, E1, Chunk[A1], Any] =
-            ZChannel.readInputCauseUnit(bool =>
+          def process(leftDone: Boolean, rightDone: Boolean): ZChannel[R1, E1, Boolean, Any, E1, Chunk[A1], Unit] =
+            ZChannel.readInputCauseUnit { bool =>
               (bool, leftDone, rightDone) match {
                 case (true, false, _) =>
-                  ZChannel.fromZIO(left.take).flatMap { take =>
-                    take.fold(
-                      if (rightDone) ZChannel.unit else process(true, rightDone),
-                      ZChannel.refailCause,
-                      chunk => ZChannel.write(chunk) *> process(leftDone, rightDone)
-                    )
+                  ZChannel.unwrap {
+                    left.take.map { take =>
+                      take.fold(
+                        if (rightDone) ZChannel.unit else process(true, rightDone),
+                        ZChannel.refailCause,
+                        chunk => ZChannel.write(chunk) *> process(leftDone, rightDone)
+                      )
+                    }
                   }
                 case (false, _, false) =>
-                  ZChannel.fromZIO(right.take).flatMap { take =>
-                    take.fold(
-                      if (leftDone) ZChannel.unit else process(leftDone, true),
-                      ZChannel.refailCause,
-                      chunk => ZChannel.write(chunk) *> process(leftDone, rightDone)
-                    )
+                  ZChannel.unwrap {
+                    right.take.map { take =>
+                      take.fold(
+                        if (leftDone) ZChannel.unit else process(leftDone, true),
+                        ZChannel.refailCause,
+                        chunk => ZChannel.write(chunk) *> process(leftDone, rightDone)
+                      )
+                    }
                   }
                 case _ =>
                   process(leftDone, rightDone)
               }
-            )
+            }
 
-          b.channel.concatMap(ZChannel.writeChunk(_)) >>> process(false, false)
+          b.channel.concatMap(ZChannel.writeChunk(_)) >>> process(leftDone = false, rightDone = false)
         }
       }
     )
