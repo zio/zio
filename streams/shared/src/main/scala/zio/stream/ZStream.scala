@@ -3149,7 +3149,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     def loop(leftovers: Chunk[A]): ZChannel[R, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] =
       ZChannel.readWithCause(
         (in: Chunk[A]) => split(leftovers)(in),
-        ZChannel.refailCause,
+        (e: Cause[E]) => ZChannel.refailCause(e),
         (_: Any) => {
           if (leftovers.isEmpty) ZChannel.unit
           else if (leftovers.find(f).isEmpty) ZChannel.write(Chunk.single(leftovers))
