@@ -343,7 +343,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, Nothing, OutDone] =
         ZChannel.readInputCause((out: OutElem) => ZChannel.succeed(builder += out) *> reader)
 
-      (self pipeTo reader).flatMap(z => ZChannel.succeed((builder.result(), z)))
+      (self pipeTo reader).map(z => (builder.result(), z))
     }
 
   /**
