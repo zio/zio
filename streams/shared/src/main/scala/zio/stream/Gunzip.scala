@@ -25,7 +25,7 @@ private object Gunzip {
                   ZChannel.fromZIO {
                     gunzipper.onChunk(chunk)
                   }.flatMap(chunk => ZChannel.write(chunk) *> loop),
-                ZChannel.refailCause,
+                ZChannel.refailCauseChannelFn,
                 done =>
                   ZChannel.fromZIO {
                     gunzipper.onNone
