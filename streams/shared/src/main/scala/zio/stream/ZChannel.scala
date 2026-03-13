@@ -2462,14 +2462,11 @@ object ZChannel {
   private[stream] def succeedChannelFn[Z]: Z => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
     SucceedChannelFn.asInstanceOf[Z => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z]]
 
-  private[this] val RefailCauseFn: Cause[Any] => ZChannel[Any, Any, Any, Any, Any, Nothing, Nothing] =
-    refailCause
-
   private[this] val ReadInputCauseFoldK: Fold.K[Any, Any, Any, Any, Any, Any, Nothing, Any, Any] =
-    new Fold.K(SucceedChannelFn, RefailCauseFn)
+    new Fold.K(SucceedChannelFn, refailCause)
 
   private[this] val ReadInputCauseUnitFoldK: Fold.K[Any, Any, Any, Any, Any, Any, Nothing, Any, Unit] =
-    new Fold.K(unitChannelFn, RefailCauseFn)
+    new Fold.K(unitChannelFn, refailCause)
 
   private val unitFn2: (Any, Any) => Unit                                            = (_, _) => ()
   private val failCauseFn: Cause[Any] => ZChannel[Any, Any, Any, Any, Any, Any, Any] = cause => Fail(() => cause)
