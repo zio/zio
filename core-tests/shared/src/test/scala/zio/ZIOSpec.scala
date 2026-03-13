@@ -312,11 +312,11 @@ object ZIOSpec extends ZIOBaseSpec {
           exit <- ZIO.failCause(combinedCause).catchAll(_ => ZIO.succeed("recovered")).exit
         } yield assert(exit)(dies(hasMessage(equalTo("boom"))))
       },
-      test("catchAll does not recover from interruption in combined Cause") {
+      test("catchAll recovers from failure combined with interruption (no defect)") {
         val combinedCause = Cause.interrupt(FiberId.None) && Cause.fail("fail")
         for {
-          exit <- ZIO.failCause(combinedCause).catchAll(_ => ZIO.succeed("recovered")).exit
-        } yield assert(exit)(isInterrupted)
+          result <- ZIO.failCause(combinedCause).catchAll(_ => ZIO.succeed("recovered"))
+        } yield assert(result)(equalTo("recovered"))
       },
       test("catchAll recovers from pure failure Cause") {
         for {

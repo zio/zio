@@ -129,15 +129,14 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * no checked errors return the rest of the `Cause` that is known to contain
    * only `Die` or `Interrupt` causes.
    *
-   * If the `Cause` contains both checked errors and defects or interruptions,
-   * the defects/interruptions take priority and the result will be a `Right`
-   * with the failures stripped.
+   * If the `Cause` contains both checked errors and defects, the defects take
+   * priority and the result will be a `Right` with the failures stripped.
+   * Interruptions alone do not prevent failure recovery.
    */
   final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
     case Some(error) =>
-      val stripped = stripFailures
-      if (stripped.isEmpty) Left(error)
-      else Right(stripped)
+      if (defects.nonEmpty) Right(stripFailures)
+      else Left(error)
     case None => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
   }
 
@@ -146,15 +145,14 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * if there are no checked errors return the rest of the `Cause` that is known
    * to contain only `Die` or `Interrupt` causes.
    *
-   * If the `Cause` contains both checked errors and defects or interruptions,
-   * the defects/interruptions take priority and the result will be a `Right`
-   * with the failures stripped.
+   * If the `Cause` contains both checked errors and defects, the defects take
+   * priority and the result will be a `Right` with the failures stripped.
+   * Interruptions alone do not prevent failure recovery.
    */
   final def failureTraceOrCause: Either[(E, StackTrace), Cause[Nothing]] = failureTraceOption match {
     case Some(errorAndTrace) =>
-      val stripped = stripFailures
-      if (stripped.isEmpty) Left(errorAndTrace)
-      else Right(stripped)
+      if (defects.nonEmpty) Right(stripFailures)
+      else Left(errorAndTrace)
     case None => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
   }
 

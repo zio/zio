@@ -371,9 +371,9 @@ object CauseSpec extends ZIOBaseSpec {
         val cause = Cause.die(new RuntimeException("boom")) && Cause.fail("error")
         assert(cause.failureOrCause)(isRight(anything))
       },
-      test("returns Right when cause contains both failure and interruption") {
+      test("returns Left when cause contains failure and interruption but no defect") {
         val cause = Cause.interrupt(FiberId.None) && Cause.fail("error")
-        assert(cause.failureOrCause)(isRight(anything))
+        assert(cause.failureOrCause)(isLeft(equalTo("error")))
       }
     )
   ) @@ samples(10)
