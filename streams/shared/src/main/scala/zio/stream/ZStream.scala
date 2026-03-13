@@ -3041,12 +3041,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
               _ => ZIO.succeed(ZChannel.write(Chunk.single(f(a))) *> loop(driver, chunkIterator, index + 1))
             )
         }
-      else
-        ZChannel.readWithCause(
-          chunk => loop(driver, chunk.chunkIterator, 0),
-          ZChannel.refailCause,
-          ZChannel.succeedChannelFn
-        )
+      else ZChannel.readInputCause(chunk => loop(driver, chunk.chunkIterator, 0))
 
     new ZStream(
       ZChannel.suspend {
