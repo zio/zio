@@ -1789,13 +1789,13 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapChunksEither[Env, Err, In, Out](
     f: Chunk[In] => Either[Err, Chunk[Out]]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
-    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
-      ZChannel.readInputCause(chunk =>
+    val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.readInputCause { chunk =>
         f(chunk) match {
           case r: Right[?, Chunk[Out]] => ZChannel.write(r.value) *> reader
           case l: Left[Err, ?]         => ZChannel.refailCause(Cause.fail(l.value))
         }
-      )
+      }
 
     new ZPipeline(reader)
   }
@@ -1825,8 +1825,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapEitherChunked[Env, Err, In, Out](
     f: In => Either[Err, Out]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
-    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
-      ZChannel.readInputCauseUnit { chunk =>
+    val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.readInputCause { chunk =>
         val size = chunk.size
 
         if (size == 1) {
@@ -1879,8 +1879,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             ZChannel.write(Chunk.single(a1)) *> loop(chunkIterator, index + 1)
           }
         }
-      else
-        ZChannel.readInputCauseUnit(elem => loop(elem.chunkIterator, 0))
+      else ZChannel.readInputCause(elem => loop(elem.chunkIterator, 0))
 
     new ZPipeline(loop(Chunk.ChunkIterator.empty, 0))
   }
