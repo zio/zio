@@ -2322,7 +2322,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     lazy val writer: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Any] =
       ZChannel.readWithCause(
         (in: Chunk[A]) => if (in.isEmpty) writer else ZChannel.write(in) *> ZChannel.identity[E, Chunk[A], Any],
-        ZChannel.refailCause,
+        (e: Cause[E]) => ZChannel.refailCause(e),
         (_: Any) => stream.channel
       )
 
