@@ -303,7 +303,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     f: InElem0 => ZIO[Env1, InErr, InElem]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem0, InDone, OutErr, OutElem, OutDone] = {
     lazy val reader: ZChannel[Env1, InErr, InElem0, InDone, InErr, InElem, InDone] =
-      ZChannel.readInputCause((in: InElem0) => ZChannel.fromZIO(f(in)).flatMap(ZChannel.write(_)) *> reader)
+      ZChannel.readInputCause((in: InElem0) => ZChannel.unwrap(f(in).map(ZChannel.write(_))) *> reader)
 
     reader >>> self
   }
