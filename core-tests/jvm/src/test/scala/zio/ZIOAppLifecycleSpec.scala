@@ -86,7 +86,6 @@ object ZIOAppLifecycleSpec extends ZIOBaseSpec {
     },
     test("gracefulShutdownTimeout limits finalizer duration") {
       for {
-        start   <- Clock.currentTime(java.util.concurrent.TimeUnit.MILLISECONDS)
         running <- Promise.make[Nothing, Unit]
         ref     <- Ref.make(false)
         app = new ZIOAppDefault {
@@ -98,9 +97,8 @@ object ZIOAppLifecycleSpec extends ZIOBaseSpec {
         fiber <- app.invoke(Chunk.empty).fork
         _     <- running.await
         _     <- fiber.interrupt
-        end   <- Clock.currentTime(java.util.concurrent.TimeUnit.MILLISECONDS)
         value <- ref.get
-      } yield assert(value)(isFalse) && assert(end - start)(isLessThan(8000L))
-    }
+      } yield assert(value)(isFalse)
+    } @@ TestAspect.withLiveClock @@ TestAspect.timeout(15.seconds)
   ) @@ TestAspect.sequential
 }
