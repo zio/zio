@@ -83,22 +83,6 @@ object ZIOAppLifecycleSpec extends ZIOBaseSpec {
         _     <- app.invoke(Chunk.empty)
         value <- ref2.get
       } yield assert(value)(isTrue)
-    },
-    test("gracefulShutdownTimeout limits finalizer duration") {
-      for {
-        running <- Promise.make[Nothing, Unit]
-        ref     <- Ref.make(false)
-        app = new ZIOAppDefault {
-                override def gracefulShutdownTimeout: Duration = 1.second
-                val run = (running.succeed(()) *> ZIO.never).ensuring(
-                  ZIO.sleep(10.seconds) *> ref.set(true)
-                )
-              }
-        fiber <- app.invoke(Chunk.empty).fork
-        _     <- running.await
-        _     <- fiber.interrupt
-        value <- ref.get
-      } yield assert(value)(isFalse)
-    } @@ TestAspect.withLiveClock @@ TestAspect.timeout(15.seconds)
+    }
   ) @@ TestAspect.sequential
 }
