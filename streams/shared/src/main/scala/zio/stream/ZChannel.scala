@@ -2167,11 +2167,13 @@ object ZChannel {
    */
   private[zio] def readInputCauseUnit[Env, InErr, InElem, InDone, OutErr >: InErr, OutElem, OutDone](
     in: InElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
-  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any] =
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Unit] = {
+    type F = InElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Unit]
     Read(
-      in,
-      ReadInputCauseUnitFoldK.asInstanceOf[Fold.K[Env, InErr, InElem, InDone, InErr, OutErr, OutElem, OutDone, Any]]
+      in.asInstanceOf[F],
+      ReadInputCauseUnitFoldK.asInstanceOf[Fold.K[Env, InErr, InElem, InDone, InErr, OutErr, OutElem, Unit, Unit]]
     )
+  }
 
   /**
    * Reads input elements, failing on errors and passing through the done value.
