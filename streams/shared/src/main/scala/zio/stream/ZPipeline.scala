@@ -812,15 +812,13 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = {
     def writer(last: Option[In]): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
       ZChannel.readInputCauseUnit { (chunk: Chunk[In]) =>
-        ZChannel.fromZIO {
-          chunk.foldZIO[Env, Err, (Option[In], Chunk[In])]((last, Chunk.empty)) {
-            case ((Some(o), os), o1) =>
-              f(o, o1).map(b => if (b) (Some(o1), os) else (Some(o1), os :+ o1))
-            case ((_, os), o1) =>
-              ZIO.succeed((Some(o1), os :+ o1))
-          }
-        }.flatMap { case (newLast, newChunk) =>
-          ZChannel.write(newChunk) *> writer(newLast)
+        ZChannel.unwrap {
+          chunk
+            .foldZIO[Env, Err, (Option[In], Chunk[In])]((last, Chunk.empty)) {
+              case ((Some(o), os), o1) => f(o, o1).map(b => if (b) (Some(o1), os) else (Some(o1), os :+ o1))
+              case ((_, os), o1)       => Exit.succeed((Some(o1), os :+ o1))
+            }
+            .map { case (newLast, newChunk) => ZChannel.write(newChunk) *> writer(newLast) }
         }
       }
 
