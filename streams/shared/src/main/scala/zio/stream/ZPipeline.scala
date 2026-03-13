@@ -772,7 +772,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                 bufferring(acc ++ inElem)
               }
             },
-            ZChannel.refailCause,
+            (err: Cause[Err]) => ZChannel.refailCause(err),
             (done: Any) => running(acc, Chunk.empty)
           )
 
