@@ -893,7 +893,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             .applyOrElse(a, (_: In) => ZIO.succeed(ZChannel.unit))
         }
       else
-        ZChannel.readInputCauseUnit(elem => loop(elem.chunkIterator, 0))
+        ZChannel.readInputCause(elem => loop(elem.chunkIterator, 0))
 
     new ZPipeline(loop(Chunk.ChunkIterator.empty, 0))
   }
