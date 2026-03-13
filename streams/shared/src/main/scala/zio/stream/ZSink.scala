@@ -926,7 +926,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
             ch
         },
         ZChannel.refailCauseChannelFn,
-        ZChannel.unitChannelFn
+        ZChannel.succeedChannelFn
       )
 
     ch.toSink
@@ -940,7 +940,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     p: In => ZIO[R, InErr, Boolean]
   )(implicit trace: Trace): ZSink[R, InErr, In, In, Any] = {
     lazy val ch: ZChannel[R, ZNothing, Chunk[In], Any, InErr, Chunk[In], Any] =
-      ZChannel.readInput(
+      ZChannel.readWithCause(
         in => {
           val out = in.dropWhileZIO(p)
           ZChannel.unwrap {
@@ -951,7 +951,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
                 ch
             }
           }
-        }
+        },
+        ZChannel.refailCauseChannelFn,
+        ZChannel.succeedChannelFn
       )
 
     ch.toSink
