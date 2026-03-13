@@ -241,7 +241,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     lazy val reader: ZChannel[Any, InErr, InElem, InDone0, InErr, InElem, InDone] =
       ZChannel.readWithCause(
         (in: InElem) => ZChannel.write(in) *> reader,
-        ZChannel.refailCause,
+        (err: Cause[InErr]) => ZChannel.refailCause(err),
         (done0: InDone0) => ZChannel.succeedNow(f(done0))
       )
 
