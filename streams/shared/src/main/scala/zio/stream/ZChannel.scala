@@ -318,7 +318,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     lazy val reader: ZChannel[Env1, InErr, InElem, InDone0, InErr, InElem, InDone] =
       ZChannel.readWithCause(
         (in: InElem) => ZChannel.write(in) *> reader,
-        ZChannel.refailCause,
+        (err: Cause[InErr]) => ZChannel.refailCause(err),
         (done0: InDone0) => ZChannel.fromZIO(f(done0))
       )
 
@@ -341,7 +341,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       val builder = ChunkBuilder.make[OutElem]()
 
       lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, Nothing, OutDone] =
-        ZChannel.readInputCause((out: OutElem) => ZChannel.succeed(builder += out) *> reader)
+        ZChannel.readInputCause((out: OutElem) => ZChannel.suspend { builder += out; reader })
 
       (self pipeTo reader).map(z => (builder.result(), z))
     }
