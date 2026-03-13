@@ -139,7 +139,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   ](
     f: OutErr => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone1]
   )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone1] =
-    catchAllCause((cause: Cause[OutErr]) => cause.failureOrCause.fold(f(_), ZChannel.refailCause(_)))
+    catchAllCause((cause: Cause[OutErr]) => cause.failureOrCause.fold(f(_), ZChannel.refailCause))
 
   /**
    * Returns a new channel that is the same as this one, except if this channel
@@ -241,7 +241,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     lazy val reader: ZChannel[Any, InErr, InElem, InDone0, InErr, InElem, InDone] =
       ZChannel.readWithCause(
         (in: InElem) => ZChannel.write(in) *> reader,
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         (done0: InDone0) => ZChannel.succeedNow(f(done0))
       )
 
@@ -318,7 +318,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     lazy val reader: ZChannel[Env1, InErr, InElem, InDone0, InErr, InElem, InDone] =
       ZChannel.readWithCause(
         (in: InElem) => ZChannel.write(in) *> reader,
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         (done0: InDone0) => ZChannel.fromZIO(f(done0))
       )
 
@@ -2145,7 +2145,7 @@ object ZChannel {
     error: InErr => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
     done: InDone => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    readWithCause(in, (c: Cause[InErr]) => c.failureOrCause.fold(error, ZChannel.refailCause(_)), done)
+    readWithCause(in, (c: Cause[InErr]) => c.failureOrCause.fold(error, ZChannel.refailCause), done)
 
   /**
    * Reads input elements, refailing on error causes and passing through the
@@ -2292,7 +2292,7 @@ object ZChannel {
       ): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
         ZChannel.unwrap(
           input.takeWith(
-            ZChannel.refailCause(_),
+            ZChannel.refailCause,
             ZChannel.write(_) *> fromInput(input),
             ZChannel.succeedChannelFn
           )

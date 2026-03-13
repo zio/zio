@@ -116,7 +116,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
           lazy val upstreamMarker: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
             ZChannel.readWithCause(
               (in: Chunk[In]) => ZChannel.write(in) *> upstreamMarker,
-              ZChannel.refailCause(_),
+              ZChannel.refailCause,
               (x: Any) => ZChannel.fromZIO(upstreamDoneRef.set(true)).as(x)
             )
 
@@ -162,7 +162,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     lazy val loop: ZChannel[R, ZNothing, Chunk[In1], Any, Nothing, Chunk[In], Any] =
       ZChannel.readWithCause(
         chunk => ZChannel.write(f(chunk)) *> loop,
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         ZChannel.succeedChannelFn
       )
     new ZSink(loop >>> self.channel)
@@ -178,7 +178,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     lazy val loop: ZChannel[R1, ZNothing, Chunk[In1], Any, E1, Chunk[In], Any] =
       ZChannel.readWithCause(
         chunk => ZChannel.fromZIO(f(chunk)).flatMap(ZChannel.write) *> loop,
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         ZChannel.succeedChannelFn
       )
     new ZSink(loop.pipeToOrFail(self.channel))
@@ -275,7 +275,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
           lazy val upstreamMarker: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
             ZChannel.readWithCause(
               (in: Chunk[In]) => ZChannel.write(in) *> upstreamMarker,
-              ZChannel.refailCause(_),
+              ZChannel.refailCause,
               (x: Any) => ZChannel.fromZIO(upstreamDoneRef.set(true)).as(x)
             )
 
@@ -545,7 +545,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
               ZChannel.write(left) *> ZChannel.fromZIO(leftovers.set(right))
             }
           },
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         ZChannel.succeedChannelFn
       )
 
@@ -686,7 +686,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     def loop(acc: Chunk[In]): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Nothing, Chunk[In]] =
       ZChannel.readWithCause(
         chunk => loop(acc ++ chunk),
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         _ => ZChannel.succeed(acc)
       )
 
@@ -709,7 +709,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
           else if (leftovers.isEmpty) ZChannel.succeed(acc ++ collected)
           else ZChannel.write(leftovers) *> ZChannel.succeed(acc ++ collected)
         },
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         _ => ZChannel.succeed(acc)
       )
 
@@ -842,7 +842,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
           if (leftovers.isEmpty) channel(done ++ collected)
           else ZChannel.write(leftovers) *> ZChannel.succeed(done ++ collected)
         },
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         _ => ZChannel.succeed(done)
       )
 
@@ -866,7 +866,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
             else ZChannel.write(leftovers) *> ZChannel.succeed(done ++ collected)
           }
         },
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         _ => ZChannel.succeed(done)
       )
 
@@ -925,7 +925,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
           else
             ch
         },
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         ZChannel.succeedChannelFn
       )
 
@@ -952,7 +952,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
             }
           }
         },
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         ZChannel.succeedChannelFn
       )
 
@@ -1034,7 +1034,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
               if (leftovers.nonEmpty) ZChannel.write(leftovers).as(nextS)
               else reader(nextS)
             },
-            ZChannel.refailCause(_),
+            ZChannel.refailCause,
             (_: Any) => ZChannel.succeedNow(s)
           )
 
@@ -1062,7 +1062,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
 
               reader(nextS)
             },
-            ZChannel.refailCause(_),
+            ZChannel.refailCause,
             (_: Any) => ZChannel.succeedNow(s)
           )
 
@@ -1086,7 +1086,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         else
           ZChannel.readWithCause(
             (in: Chunk[In]) => ZChannel.fromZIO(f(s, in)).flatMap(reader),
-            ZChannel.refailCause(_),
+            ZChannel.refailCause,
             (_: Any) => ZChannel.succeedNow(s)
           )
 
@@ -1247,7 +1247,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
             else if (cost > max) ZChannel.succeedNow(nextS)
             else go(nextS, nextCost, nextDirty, max)
           },
-          ZChannel.refailCause(_),
+          ZChannel.refailCause,
           (_: Any) => ZChannel.succeedNow(s)
         )
 
@@ -1314,7 +1314,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
               else go(nextS, nextCost, nextDirty, max)
             }
           },
-          ZChannel.refailCause(_),
+          ZChannel.refailCause,
           (_: Any) => ZChannel.succeedNow(s)
         )
 
@@ -1374,7 +1374,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
                   case None    => reader(nextS)
                 }
               },
-            ZChannel.refailCause(_),
+            ZChannel.refailCause,
             (_: Any) => ZChannel.succeedNow(s)
           )
 
@@ -1398,7 +1398,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     lazy val process: ZChannel[R, Err, Chunk[In], Any, Err, Nothing, Unit] =
       ZChannel.readWithCause(
         in => ZChannel.fromZIO(ZIO.foreachDiscard(in)(f(_))) *> process,
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         ZChannel.unitChannelFn
       )
 
@@ -1415,7 +1415,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     lazy val process: ZChannel[R, Err, Chunk[In], Any, Err, Nothing, Unit] =
       ZChannel.readWithCause(
         in => ZChannel.fromZIO(f(in)) *> process,
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         ZChannel.unitChannelFn
       )
 
@@ -1446,7 +1446,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     lazy val process: ZChannel[R, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
       ZChannel.readWithCause(
         in => go(in, 0, in.length, process),
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         ZChannel.unitChannelFn
       )
 
@@ -1467,7 +1467,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
             if (continue) reader
             else ZChannel.unit
           },
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         ZChannel.unitChannelFn
       )
 
@@ -1505,7 +1505,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
               },
               _ => pull(push)
             ),
-        ZChannel.refailCause(_),
+        ZChannel.refailCause,
         _ =>
           ZChannel
             .fromZIO(push(None))

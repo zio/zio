@@ -36,7 +36,7 @@ private object Deflate {
                     val out = pullOutput(deflater, buffer, flushMode)
                     ZChannel.write(out) *> loop
                   },
-                ZChannel.refailCause(_),
+                ZChannel.refailCause,
                 done =>
                   ZChannel.suspend {
                     deflater.finish()
