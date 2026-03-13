@@ -1859,7 +1859,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * `.chunks.mapAccum(...).flattenChunks` would incur.
    */
   def mapChunksAccum[S, A2](s: => S)(f: (S, Chunk[A]) => (S, Chunk[A2]))(implicit trace: Trace): ZStream[R, E, A2] =
-    ZStream.succeed(s).flatMap { s =>
+    ZStream.suspend {
       def accumulator(currS: S): ZChannel[Any, E, Chunk[A], Any, E, Chunk[A2], Unit] =
         ZChannel.readWith(
           (in: Chunk[A]) => {
