@@ -119,16 +119,16 @@ object Queue extends QueuePlatformSpecific {
   object unsafe {
 
     def bounded[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
-      createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.BackPressure(), fiberId)
+      createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), new Strategy.BackPressure(), fiberId)
 
     def dropping[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
-      createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.Dropping(), fiberId)
+      createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), new Strategy.Dropping(), fiberId)
 
     def sliding[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
-      createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.Sliding(), fiberId)
+      createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), new Strategy.Sliding(), fiberId)
 
     def unbounded[A](fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
-      createQueue(MutableConcurrentQueue.unbounded[A], Strategy.Dropping(), fiberId)
+      createQueue(MutableConcurrentQueue.unbounded[A], new Strategy.Dropping(), fiberId)
 
   }
 
@@ -138,7 +138,6 @@ object Queue extends QueuePlatformSpecific {
     fiberId: FiberId
   )(implicit unsafe: Unsafe): Queue[A] = {
     val takers       = MutableConcurrentQueue.unbounded[Promise[Nothing, A]]
-    val putters      = MutableConcurrentQueue.unbounded[(A, Promise[Nothing, Boolean], Boolean)]
     val shutdownFlag = new AtomicBoolean(false)
     val shutdownHook = new AtomicReference[UIO[Unit]](ZIO.unit)
 
@@ -148,9 +147,7 @@ object Queue extends QueuePlatformSpecific {
           ZIO.suspendSucceed {
             if (shutdownFlag.get()) ZIO.unit
             else
-              shutdownHook.updateAndGet(hook =>
-                hook.zipRight(p.succeed(()).unit)
-              ) *> p.await
+              shutdownHook.updateAndGet(hook => hook.zipRight(p.succeed(()).unit)) *> p.await
           }
         }
 
@@ -193,7 +190,7 @@ object Queue extends QueuePlatformSpecific {
 
             if (remaining.isEmpty) Exit.emptyChunk
             else {
-              val surplus = unsafeOfferAll(queue, remaining)
+              val surplus = unsafeOfferAll(queue, remaining).asInstanceOf[Chunk[A1]]
 
               unsafeCompleteTakers(strategy, queue, takers)
 
@@ -217,12 +214,6 @@ object Queue extends QueuePlatformSpecific {
               .foreachDiscard(unsafePollAll(takers)) { p =>
                 ZIO.succeed(p.unsafe.done(Exit.interrupt(fiberId))(Unsafe.unsafe))
               }
-              .zipRight(
-                ZIO.foreachDiscard(unsafePollAll(putters)) { case (_, p, lastItem) =>
-                  if (lastItem) ZIO.succeed(p.unsafe.done(Exit.interrupt(fiberId))(Unsafe.unsafe))
-                  else ZIO.unit
-                }
-              )
               .zipRight(strategy.shutdown)
               .zipRight(hook)
           }
@@ -243,7 +234,7 @@ object Queue extends QueuePlatformSpecific {
             if (shutdownFlag.get()) ZIO.interrupt
             else {
               val item = queue.poll(null.asInstanceOf[A])
-              if (item ne null) {
+              if (item.asInstanceOf[AnyRef] ne null) {
                 strategy.unsafeOnQueueEmptySpace(queue, takers)
                 Exit.succeed(item)
               } else {
@@ -252,7 +243,7 @@ object Queue extends QueuePlatformSpecific {
                   takers.offer(p)
                   unsafeCompleteTakers(strategy, queue, takers)
                   if (shutdownFlag.get()) ZIO.interrupt else p.await
-                }.onInterrupt(ZIO.succeed(takers.remove(p)))
+                }.onInterrupt(ZIO.succeed(unsafeRemoveTaker(takers, p)))
               }
             }
           }
@@ -281,7 +272,15 @@ object Queue extends QueuePlatformSpecific {
   }
 
   private def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A): Boolean =
-    p.unsafe.done(Exit.succeed(a))(Unsafe.unsafe)
+    p.unsafe.completeWith(Exit.succeed(a))(Unsafe.unsafe)
+
+  private def unsafeRemoveTaker[A](
+    takers: MutableConcurrentQueue[Promise[Nothing, A]],
+    p: Promise[Nothing, A]
+  ): Unit = {
+    unsafeOfferAll(takers, unsafePollAll(takers).filter(_ ne p))
+    ()
+  }
 
   private def unsafeCompleteTakers[A](
     strategy: Strategy[A],
@@ -294,7 +293,7 @@ object Queue extends QueuePlatformSpecific {
       if (taker eq null) keepPolling = false
       else {
         val a = queue.poll(null.asInstanceOf[A])
-        if (a ne null) {
+        if (a.asInstanceOf[AnyRef] ne null) {
           unsafeCompletePromise(taker, a)
           strategy.unsafeOnQueueEmptySpace(queue, takers)
         } else {
@@ -317,7 +316,7 @@ object Queue extends QueuePlatformSpecific {
   private def unsafePollAll[A](queue: MutableConcurrentQueue[A]): Chunk[A] = {
     val builder = ChunkBuilder.make[A]()
     var a       = queue.poll(null.asInstanceOf[A])
-    while (a ne null) {
+    while (a.asInstanceOf[AnyRef] ne null) {
       builder += a
       a = queue.poll(null.asInstanceOf[A])
     }
@@ -329,7 +328,7 @@ object Queue extends QueuePlatformSpecific {
     var i       = 0
     while (i < max) {
       val a = queue.poll(null.asInstanceOf[A])
-      if (a ne null) {
+      if (a.asInstanceOf[AnyRef] ne null) {
         builder += a
         i += 1
       } else i = max
