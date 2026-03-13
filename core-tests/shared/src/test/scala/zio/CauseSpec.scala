@@ -207,10 +207,7 @@ object CauseSpec extends ZIOBaseSpec {
         )
 
         val expected =
-          """Both(Both(Both(Stackless(Empty,true),Die(java.lang.Exception: Ex1,Stack trace for thread "zio-fiber-123":
-            |)),Empty),Both(Fail(java.lang.Exception: Ex2,Stack trace for thread "zio-fiber-123":
-            |),Then(Empty,Interrupt(Runtime(123,456000,),Stack trace for thread "zio-fiber-123":
-            |))))""".stripMargin
+          "Both(Both(Both(Stackless(Empty,true),Die(java.lang.Exception: Ex1,Stack trace for thread \"zio-fiber-123\":\n)),Empty),Both(Fail(java.lang.Exception: Ex2,Stack trace for thread \"zio-fiber-123\":\n),Then(Empty,Interrupt(Runtime(123,456000,),Stack trace for thread \"zio-fiber-123\":\n))))"
 
         assert(cause.toString)(equalTo(expected))
       },
@@ -222,13 +219,11 @@ object CauseSpec extends ZIOBaseSpec {
           (Empty, "Empty"),
           (
             Die(new Exception("Ex1"), stackTrace),
-            """Die(java.lang.Exception: Ex1,Stack trace for thread "zio-fiber-123":
-              |)""".stripMargin
+            "Die(java.lang.Exception: Ex1,Stack trace for thread \"zio-fiber-123\":\n)"
           ),
           (
             Fail(new Exception("Ex2"), stackTrace),
-            """Fail(java.lang.Exception: Ex2,Stack trace for thread "zio-fiber-123":
-              |)""".stripMargin
+            "Fail(java.lang.Exception: Ex2,Stack trace for thread \"zio-fiber-123\":\n)"
           ),
           (
             Fail("Boom", StackTrace.none),
@@ -236,8 +231,7 @@ object CauseSpec extends ZIOBaseSpec {
           ),
           (
             Interrupt(fiberId, stackTrace),
-            """Interrupt(Runtime(123,456000,),Stack trace for thread "zio-fiber-123":
-              |)""".stripMargin
+            "Interrupt(Runtime(123,456000,),Stack trace for thread \"zio-fiber-123\":\n)"
           )
         )
 

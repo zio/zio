@@ -561,8 +561,8 @@ private object ZScheduler {
    * submitted to the scheduler.
    *
    * Padding (pad* fields) separates hot fields by 128 bytes to avoid false
-   * sharing when chooseWorker() reads localQueue.size() and
-   * nextRunnable from other workers. See ZSchedulerJOLPaddingSpec.
+   * sharing when chooseWorker() reads localQueue.size() and nextRunnable from
+   * other workers. See ZSchedulerJOLPaddingSpec.
    */
   private sealed abstract class Worker extends Thread with BlockContext {
 

@@ -126,7 +126,7 @@ jobs:
         run: find ./website/build -print
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     strategy:
@@ -135,6 +135,7 @@ jobs:
         scala: ['2.12.x', '2.13.x', '3.x']
         java: ['21']
         platform: ['JVM']
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v6.0.2
@@ -150,44 +151,51 @@ jobs:
       uses: coursier/cache-action@v8
     - name: Run tests
       run: sbt -v ++${{ matrix.scala }} test${{ matrix.platform }}
+    - name: ZScheduler JOL layout and jcstress (2.13 only)
+      if: ${{ startsWith(matrix.scala, '2.13.') }}
+      shell: bash
+      run: |
+        sbt -v "++${{ matrix.scala }}; coreTestsJVM/testOnly zio.internal.ZSchedulerJOLPaddingSpec"
+        sbt -v "++${{ matrix.scala }}; coreTestsJVM/testOnly zio.internal.ZSchedulerSpec"
+        sbt -v "++${{ matrix.scala }}; coreTestsJVM/jcstress:run -t 8"
     - name: Upload Test Results 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
       uses: actions/upload-artifact@v7
       with:
-        name: zio-test-output-2.12
+        name: zio-test-output-2.12-${{ matrix.os }}
         path: ./**/test-reports-zio/output.json
         overwrite: true
     - name: Upload Test Results 3
       if: ${{ startsWith(matrix.scala, '3.') }}
       uses: actions/upload-artifact@v7
       with:
-        name: zio-test-output-3
+        name: zio-test-output-3-${{ matrix.os }}
         path: ./**/test-reports-zio/output.json
         overwrite: true
     - name: Report Test Death 2.12
       if: ${{ failure() &&  startsWith(matrix.scala, '2.12.') }}
       uses: actions/upload-artifact@v7
       with:
-        name: zio-test-debug-2.12
+        name: zio-test-debug-2.12-${{ matrix.os }}
         path: ./**/test-reports-zio/**_debug.txt
         overwrite: true
     - name: Report Test Death 2.13
       if: ${{ failure() &&  startsWith(matrix.scala, '2.13.') }}
       uses: actions/upload-artifact@v7
       with:
-        name: zio-test-debug-2.13
+        name: zio-test-debug-2.13-${{ matrix.os }}
         path: ./**/test-reports-zio/**_debug.txt
         overwrite: true
     - name: Report Test Death 3.x
       if: ${{ failure() &&  startsWith(matrix.scala, '3.') }}
       uses: actions/upload-artifact@v7
       with:
-        name: zio-test-debug-3.x
+        name: zio-test-debug-3.x-${{ matrix.os }}
         path: ./**/test-reports-zio/**_debug.txt
         overwrite: true
 
   testJvms:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     env:
@@ -196,6 +204,7 @@ jobs:
       fail-fast: false
       matrix:
         java: ['11', '17', '25']
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v6.0.2
@@ -215,7 +224,7 @@ jobs:
         if: ${{ failure() &&  startsWith(matrix.java, '11') }}
         uses: actions/upload-artifact@v7
         with:
-          name: zio-test-debug-JVM-11
+          name: zio-test-debug-JVM-11-${{ matrix.os }}
           path: ./**/test-reports-zio/**_debug.txt
           overwrite: true
 

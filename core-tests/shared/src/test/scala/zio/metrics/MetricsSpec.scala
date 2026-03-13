@@ -46,13 +46,14 @@ object MetricsSpec extends ZIOBaseSpec {
             )
           )
         str <- testSnapshot.prettyPrint
-      } yield assertTrue(
-        str == s"""test_counter(description1)  tags[x: a, y: b]  Counter[${2.0}]
-                  |test_frequency              tags[x: a, y: b]  Frequency[(strValue2 -> 1), (strValue1 -> 2)]
-                  |test_gauge(description2)    tags[x: a, y: b]  Gauge[${3.0}]
-                  |test_histogram              tags[x: a, y: b]  Histogram[buckets: [(${1.0} -> 1), (${2.0} -> 1), (${3.0} -> 2), (${1.7976931348623157e308} -> 2)], count: [2], min: [${1.0}], max: [${3.0}], sum: [${4.0}]]
-                  |test_summary                tags[x: a, y: b]  Summary[quantiles: [(0.1 -> Some(${1.0})), (0.5 -> Some(${1.0})), (0.9 -> Some(${3.0}))], count: [2], min: [${1.0}], max: [${3.0}], sum: [${4.0}]]""".stripMargin
-      )
+        expected =
+          s"""test_counter(description1)  tags[x: a, y: b]  Counter[${2.0}]
+             |test_frequency              tags[x: a, y: b]  Frequency[(strValue2 -> 1), (strValue1 -> 2)]
+             |test_gauge(description2)    tags[x: a, y: b]  Gauge[${3.0}]
+             |test_histogram              tags[x: a, y: b]  Histogram[buckets: [(${1.0} -> 1), (${2.0} -> 1), (${3.0} -> 2), (${1.7976931348623157e308} -> 2)], count: [2], min: [${1.0}], max: [${3.0}], sum: [${4.0}]]
+             |test_summary                tags[x: a, y: b]  Summary[quantiles: [(0.1 -> Some(${1.0})), (0.5 -> Some(${1.0})), (0.9 -> Some(${3.0}))], count: [2], min: [${1.0}], max: [${3.0}], sum: [${4.0}]]""".stripMargin
+        norm = (s: String) => s.replace("\r\n", "\n").replace("E308", "e308")
+      } yield assertTrue(norm(str) == norm(expected))
     }
   )
 

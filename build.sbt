@@ -266,7 +266,10 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
   )
   .jvmConfigure(_.enablePlugins(JCStressPlugin))
-  .jvmSettings(replSettings)
+  .jvmSettings(
+    replSettings,
+    libraryDependencies += "org.openjdk.jol" % "jol-core" % "0.17" % Test
+  )
   .jsSettings(
     jsSettings,
     scalacOptions ++= {
