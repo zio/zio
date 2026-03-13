@@ -2331,7 +2331,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(
       ZChannel.succeed((units, duration, burst)).flatMap { case (units, duration, burst) =>
         def loop(tokens: Long, timestamp: Long): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Any] =
-          ZChannel.readInputCauseUnit((in: Chunk[In]) =>
+          ZChannel.readInputCauseUnit { (in: Chunk[In]) =>
             ZChannel.unwrap((costFn(in) <*> Clock.nanoTime).map { case (weight, current) =>
               val elapsed = current - timestamp
               val cycles  = elapsed.toDouble / duration.toNanos
@@ -2350,7 +2350,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               else
                 loop(tokens, timestamp)
             })
-          )
+          }
 
         ZChannel.unwrap(Clock.nanoTime.map(loop(units, _)))
       }
