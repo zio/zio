@@ -1789,7 +1789,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapChunksEither[Env, Err, In, Out](
     f: Chunk[In] => Either[Err, Chunk[Out]]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
-    val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
       ZChannel.readInputCause { chunk =>
         f(chunk) match {
           case r: Right[?, Chunk[Out]] => ZChannel.write(r.value) *> reader
@@ -1825,7 +1825,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapEitherChunked[Env, Err, In, Out](
     f: In => Either[Err, Out]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
-    val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
       ZChannel.readInputCause { chunk =>
         val size = chunk.size
 
@@ -1909,7 +1909,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       if (out.nonEmpty) ZChannel.write(out) *> next else next
     }
 
-    val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
       ZChannel.readInputCause(chunk =>
         ZChannel.unwrap {
           val builder = ChunkBuilder.make[Out](chunk.size)
