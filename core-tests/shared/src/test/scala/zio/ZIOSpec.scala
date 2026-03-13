@@ -305,6 +305,25 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)((equalTo(t)))
       }
     ) @@ zioTag(errors),
+    suite("catchAll - issue 9874")(
+      test("catchAll does not recover from defects in combined Cause") {
+        val combinedCause = Cause.die(new RuntimeException("boom")) && Cause.fail("fail")
+        for {
+          exit <- ZIO.failCause(combinedCause).catchAll(_ => ZIO.succeed("recovered")).exit
+        } yield assert(exit)(dies(hasMessage(equalTo("boom"))))
+      },
+      test("catchAll does not recover from interruption in combined Cause") {
+        val combinedCause = Cause.interrupt(FiberId.None) && Cause.fail("fail")
+        for {
+          exit <- ZIO.failCause(combinedCause).catchAll(_ => ZIO.succeed("recovered")).exit
+        } yield assert(exit)(isInterrupted)
+      },
+      test("catchAll recovers from pure failure Cause") {
+        for {
+          result <- ZIO.fail("fail").catchAll(e => ZIO.succeed(e))
+        } yield assert(result)(equalTo("fail"))
+      }
+    ) @@ zioTag(errors),
     suite("catchSomeCause")(
       test("catches matching cause") {
         ZIO.interrupt.catchSomeCause {

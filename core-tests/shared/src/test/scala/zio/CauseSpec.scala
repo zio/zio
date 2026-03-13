@@ -357,6 +357,24 @@ object CauseSpec extends ZIOBaseSpec {
           }
         }
       }
+    ),
+    suite("failureOrCause - issue 9874")(
+      test("returns Left for pure failure") {
+        val cause = Cause.fail("error")
+        assert(cause.failureOrCause)(isLeft(equalTo("error")))
+      },
+      test("returns Right for pure defect") {
+        val cause = Cause.die(new RuntimeException("boom"))
+        assert(cause.failureOrCause)(isRight(anything))
+      },
+      test("returns Right when cause contains both failure and defect") {
+        val cause = Cause.die(new RuntimeException("boom")) && Cause.fail("error")
+        assert(cause.failureOrCause)(isRight(anything))
+      },
+      test("returns Right when cause contains both failure and interruption") {
+        val cause = Cause.interrupt(FiberId.None) && Cause.fail("error")
+        assert(cause.failureOrCause)(isRight(anything))
+      }
     )
   ) @@ samples(10)
 
