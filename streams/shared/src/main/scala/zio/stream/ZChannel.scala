@@ -2161,6 +2161,19 @@ object ZChannel {
     )
 
   /**
+   * Like [[readInputCause]], but discards the done value (returns `Unit`).
+   * Uses a pre-cached `unitChannelFn` done handler, avoiding the
+   * `SucceedNow(done)` allocation that [[readInputCause]] incurs.
+   */
+  private[zio] def readInputCauseUnit[Env, InErr, InElem, InDone, OutErr >: InErr, OutElem, OutDone](
+    in: InElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any] =
+    Read(
+      in,
+      ReadInputCauseUnitFoldK.asInstanceOf[Fold.K[Env, InErr, InElem, InDone, InErr, OutErr, OutElem, OutDone, Any]]
+    )
+
+  /**
    * Reads input elements, failing on errors and passing through the done value.
    * Equivalent to `readWith(in, err => ZChannel.fail(err), succeedChannelFn)`
    * but avoids allocating a `Fold.K` on every call.
@@ -2457,6 +2470,9 @@ object ZChannel {
 
   private[this] val ReadInputCauseFoldK: Fold.K[Any, Any, Any, Any, Any, Any, Nothing, Any, Any] =
     new Fold.K(SucceedChannelFn, RefailCauseChannelFn)
+
+  private[this] val ReadInputCauseUnitFoldK: Fold.K[Any, Any, Any, Any, Any, Any, Nothing, Any, Unit] =
+    new Fold.K(unitChannelFn, RefailCauseChannelFn)
 
   private val unitFn2: (Any, Any) => Unit                                            = (_, _) => ()
   private val failCauseFn: Cause[Any] => ZChannel[Any, Any, Any, Any, Any, Any, Any] = cause => Fail(() => cause)

@@ -794,7 +794,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   def changesWith[Err, In](f: (In, In) => Boolean)(implicit trace: Trace): ZPipeline[Any, Err, In, In] = {
     def writer(last: Option[In]): ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], Any] =
-      ZChannel.readInputCause { (chunk: Chunk[In]) =>
+      ZChannel.readInputCauseUnit { (chunk: Chunk[In]) =>
         val (newLast, newChunk) =
           chunk.foldLeft[(Option[In], Chunk[In])]((last, Chunk.empty)) {
             case ((Some(o), os), o1) if (f(o, o1)) => (Some(o1), os)
@@ -811,7 +811,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     f: (In, In) => ZIO[Env, Err, Boolean]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = {
     def writer(last: Option[In]): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Any] =
-      ZChannel.readInputCause((chunk: Chunk[In]) =>
+      ZChannel.readInputCauseUnit((chunk: Chunk[In]) =>
         ZChannel.fromZIO {
           chunk.foldZIO[Env, Err, (Option[In], Chunk[In])]((last, Chunk.empty)) {
             case ((Some(o), os), o1) =>
@@ -895,7 +895,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             .applyOrElse(a, (_: In) => ZIO.succeed(ZChannel.unit))
         }
       else
-        ZChannel.readInputCause(elem => loop(elem.chunkIterator, 0))
+        ZChannel.readInputCauseUnit(elem => loop(elem.chunkIterator, 0))
 
     new ZPipeline(loop(Chunk.ChunkIterator.empty, 0))
   }
@@ -911,7 +911,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           val queue = SingleThreadedRingBuffer[In](n)
 
           lazy val reader: ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], Any] =
-            ZChannel.readInputCause { (in: Chunk[In]) =>
+            ZChannel.readInputCauseUnit { (in: Chunk[In]) =>
               val outs = in.flatMap { elem =>
                 val head = queue.head
                 queue.put(elem)
@@ -1083,7 +1083,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             else ZChannel.write(dropped) *> ZChannel.identity
           },
           ZChannel.refailCauseChannelFn,
-          ZChannel.succeedChannelFn
+          ZChannel.unitChannelFn,
         )
 
       new ZPipeline(loop(n))
@@ -1141,7 +1141,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     p: In => ZIO[Env, Err, Boolean]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = {
 
-    lazy val loop: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Any] = ZChannel.readInputCause((in: Chunk[In]) =>
+    lazy val loop: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Any] = ZChannel.readInputCauseUnit((in: Chunk[In]) =>
       ZChannel.unwrap(in.dropWhileZIO(p).map { leftover =>
         val more = leftover.isEmpty
         if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[Err, Chunk[In], Any]
@@ -1680,7 +1680,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(
       ZChannel.suspend[Any, Err, Chunk[In], Any, Err, Chunk[In], Any] {
         def writer(isFirst: Boolean): ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], Any] =
-          ZChannel.readInputCause { chunk =>
+          ZChannel.readInputCauseUnit { chunk =>
             val builder    = ChunkBuilder.make[In]()
             var flagResult = isFirst
 
@@ -1762,7 +1762,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               }
             ),
           ZChannel.refailCauseChannelFn,
-          ZChannel.succeedChannelFn
+          ZChannel.unitChannelFn
         )
 
       new ZPipeline(accumulator(s))
@@ -1795,7 +1795,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     f: Chunk[In] => Either[Err, Chunk[Out]]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
     lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
-      ZChannel.readInputCause(chunk =>
+      ZChannel.readInputCauseUnit(chunk =>
         f(chunk) match {
           case r: Right[?, Chunk[Out]] => ZChannel.write(r.value) *> reader
           case l: Left[Err, ?]         => ZChannel.refailCause(Cause.fail(l.value))
@@ -1831,7 +1831,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     f: In => Either[Err, Out]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
     lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
-      ZChannel.readInputCause { chunk =>
+      ZChannel.readInputCauseUnit { chunk =>
         val size = chunk.size
 
         if (size == 1) {
@@ -1885,7 +1885,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           }
         }
       else
-        ZChannel.readInputCause(elem => loop(elem.chunkIterator, 0))
+        ZChannel.readInputCauseUnit(elem => loop(elem.chunkIterator, 0))
 
     new ZPipeline(loop(Chunk.ChunkIterator.empty, 0))
   }
@@ -1916,7 +1916,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     }
 
     lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
-      ZChannel.readInputCause(chunk =>
+      ZChannel.readInputCauseUnit(chunk =>
         ZChannel.unwrap {
           val builder = ChunkBuilder.make[Out](chunk.size)
           chunk
@@ -2359,7 +2359,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(
       ZChannel.succeed((units, duration, burst)).flatMap { case (units, duration, burst) =>
         def loop(tokens: Long, timestamp: Long): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Any] =
-          ZChannel.readInputCause((in: Chunk[In]) =>
+          ZChannel.readInputCauseUnit((in: Chunk[In]) =>
             ZChannel.unwrap((costFn(in) <*> Clock.nanoTime).map { case (weight, current) =>
               val elapsed = current - timestamp
               val cycles  = elapsed.toDouble / duration.toNanos
@@ -2408,7 +2408,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = new ZPipeline(
     ZChannel.succeed((units, duration, burst)).flatMap { case (units, duration, burst) =>
       def loop(tokens: Long, timestamp: Long): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Any] =
-        ZChannel.readInputCause((in: Chunk[In]) =>
+        ZChannel.readInputCauseUnit((in: Chunk[In]) =>
           ZChannel.unwrap(for {
             weight  <- costFn(in)
             current <- Clock.nanoTime
