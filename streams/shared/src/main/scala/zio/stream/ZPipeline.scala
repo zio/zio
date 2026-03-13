@@ -1334,7 +1334,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def flattenTake[Err, Out](implicit trace: Trace): ZPipeline[Any, Err, Take[Err, Out], Out] = {
 
-    val channel: ZChannel[Any, ZNothing, Chunk[Take[Err, Out]], Any, Err, Chunk[Out], Any] =
+    lazy val channel: ZChannel[Any, ZNothing, Chunk[Take[Err, Out]], Any, Err, Chunk[Out], Any] =
       ZChannel.readInputCause { in =>
         val chunkBuilder  = ChunkBuilder.make[Chunk[Out]]()
         val chunkIterator = in.chunkIterator

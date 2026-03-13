@@ -2152,7 +2152,7 @@ object ZChannel {
    * done value. Equivalent to `readWithCause(in, refailCause(_),
    * succeedChannelFn)` but avoids allocating a `Fold.K` on every call.
    */
-  private[zio] def readInputCause[Env, InErr, InElem, InDone, OutErr >: InErr, OutElem](
+  private[zio] def readInputCause[Env, InErr, InElem, InDone, OutErr, OutElem](
     in: InElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, InDone]
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, InDone] =
     Read(
@@ -2165,7 +2165,7 @@ object ZChannel {
    * a pre-cached `unitChannelFn` done handler, avoiding the `SucceedNow(done)`
    * allocation that [[readInputCause]] incurs.
    */
-  private[zio] def readInputCauseUnit[Env, InErr, InElem, InDone, OutErr >: InErr, OutElem, OutDone](
+  private[zio] def readInputCauseUnit[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     in: InElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Unit] = {
     type F = InElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Unit]
