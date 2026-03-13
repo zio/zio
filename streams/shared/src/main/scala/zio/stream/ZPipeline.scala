@@ -2669,7 +2669,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           val out              = chunk.collect { case Some((prev, curr)) => (prev, Some(curr)) }
           ZChannel.write(out) *> process(newLast)
         },
-        ZChannel.refailCause,
+        (err: Cause[ZNothing]) => ZChannel.refailCause(err),
         (_: Any) =>
           last match {
             case Some(value) =>
