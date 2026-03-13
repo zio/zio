@@ -2279,11 +2279,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     f: In => ZIO[Env, Err, Boolean]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = {
     lazy val read: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[In], Any] =
-      ZChannel.readWithCause(
-        elem => write(elem.chunkIterator, 0),
-        ZChannel.refailCause,
-        ZChannel.succeedChannelFn
-      )
+      ZChannel.readInputCause(elem => write(elem.chunkIterator, 0))
 
     def write(
       chunkIterator: Chunk.ChunkIterator[In],
