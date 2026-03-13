@@ -1776,7 +1776,19 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapChunksAccum[In, State, Out](
     s: => State
   )(f: (State, Chunk[In]) => (State, Chunk[Out]))(implicit trace: Trace): ZPipeline[Any, Nothing, In, Out] =
-    mapChunksAccumZIO(s)((s, in) => ZIO.succeed(f(s, in)))
+    ZPipeline.suspend {
+      def accumulator(currS: State): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[Out], Any] =
+        ZChannel.readWith(
+          (in: Chunk[In]) => {
+            val (nextS, out) = f(currS, in)
+            ZChannel.write(out) *> accumulator(nextS)
+          },
+          ZChannel.fail(_),
+          (_: Any) => ZChannel.unit
+        )
+
+      new ZPipeline(accumulator(s))
+    }
 
   /**
    * Creates a pipeline that statefully and effectfully maps chunks of
