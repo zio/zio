@@ -2177,6 +2177,16 @@ object ZChannel {
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     readWithCause(in, (c: Cause[InErr]) => c.failureOrCause.fold(error, ZChannel.refailCause(_)), done)
 
+  /**
+   * Reads input elements, refailing on errors and completing with unit on done.
+   * Equivalent to `readWithCause(in, refailCauseChannelFn, unitChannelFn)` but
+   * avoids allocating a `Fold.K` on every call.
+   */
+  private[zio] def readInput[Env, InErr, InElem, OutErr >: InErr, OutElem](
+    in: InElem => ZChannel[Env, InErr, InElem, Any, OutErr, OutElem, Any]
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, Any, OutErr, OutElem, Any] =
+    Read(in, ReadInputFoldK.asInstanceOf[Fold.K[Env, InErr, InElem, Any, InErr, OutErr, OutElem, Any, Any]])
+
   def readOrFail[E, In](e: => E)(implicit trace: Trace): ZChannel[Any, Any, In, Any, E, Nothing, In] =
     Read[Any, Any, In, Any, Any, E, Nothing, Nothing, In, In](
       in => SucceedNow(in),
@@ -2457,6 +2467,9 @@ object ZChannel {
 
   private[stream] def succeedChannelFn[Z]: Z => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
     SucceedChannelFn.asInstanceOf[Z => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z]]
+
+  private[this] val ReadInputFoldK: Fold.K[Any, Any, Any, Any, Any, Any, Nothing, Any, Any] =
+    new Fold.K(unitChannelFn, RefailCauseChannelFn)
 
   private val unitFn2: (Any, Any) => Unit                                                        = (_, _) => ()
   private val failCauseFn: Cause[Any] => ZChannel[Any, Any, Any, Any, Any, Any, Any]             = cause => Fail(() => cause)

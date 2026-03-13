@@ -916,7 +916,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Drops incoming elements as long as the predicate `p` is satisfied.
    */
   def dropWhile[In](p: In => Boolean)(implicit trace: Trace): ZSink[Any, Nothing, In, In, Any] = {
-    lazy val ch: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Unit] =
+    lazy val ch: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
       ZChannel.readWithCause(
         in => {
           val out = in.dropWhile(p)
@@ -939,8 +939,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def dropWhileZIO[R, InErr, In](
     p: In => ZIO[R, InErr, Boolean]
   )(implicit trace: Trace): ZSink[R, InErr, In, In, Any] = {
-    lazy val ch: ZChannel[R, ZNothing, Chunk[In], Any, InErr, Chunk[In], Unit] =
-      ZChannel.readWithCause(
+    lazy val ch: ZChannel[R, ZNothing, Chunk[In], Any, InErr, Chunk[In], Any] =
+      ZChannel.readInput(
         in => {
           val out = in.dropWhileZIO(p)
           ZChannel.unwrap {
@@ -951,9 +951,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
                 ch
             }
           }
-        },
-        ZChannel.refailCauseChannelFn,
-        ZChannel.unitChannelFn
+        }
       )
 
     ch.toSink
