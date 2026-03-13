@@ -2495,6 +2495,53 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk(Right(1), Right(2), Left("boom"))))
           }
         ),
+        test("mapChunksAccum") {
+          assertZIO(
+            ZStream
+              .fromChunks(Chunk(1, 2), Chunk(3, 4), Chunk(5))
+              .mapChunksAccum(0)((acc, chunk) => {
+                val newAcc = acc + chunk.sum
+                (newAcc, chunk.map(_ + acc))
+              })
+              .runCollect
+          )(equalTo(Chunk(1, 2, 6, 7, 15)))
+        },
+        suite("mapChunksAccumZIO")(
+          test("mapChunksAccumZIO happy path") {
+            assertZIO(
+              ZStream
+                .fromChunks(Chunk(1, 2), Chunk(3, 4), Chunk(5))
+                .mapChunksAccumZIO[Any, Nothing, Int, Int](0)((acc, chunk) =>
+                  ZIO.succeed {
+                    val newAcc = acc + chunk.sum
+                    (newAcc, chunk.map(_ + acc))
+                  }
+                )
+                .runCollect
+            )(equalTo(Chunk(1, 2, 6, 7, 15)))
+          },
+          test("mapChunksAccumZIO error") {
+            ZStream
+              .fromChunks(Chunk(1, 2), Chunk(3, 4))
+              .mapChunksAccumZIO(0)((_, _) => ZIO.fail("Ouch"))
+              .runCollect
+              .either
+              .map(assert(_)(isLeft(equalTo("Ouch"))))
+          } @@ zioTag(errors),
+          test("mapChunksAccumZIO threads state correctly") {
+            assertZIO(
+              ZStream
+                .fromChunks(Chunk(1), Chunk(1), Chunk(1))
+                .mapChunksAccumZIO[Any, Nothing, Int, Int](0)((acc, chunk) =>
+                  ZIO.succeed {
+                    val newAcc = acc + chunk.sum
+                    (newAcc, Chunk.single(newAcc))
+                  }
+                )
+                .runCollect
+            )(equalTo(Chunk(1, 2, 3)))
+          }
+        ),
         test("mapConcat")(check(pureStreamOfInts, Gen.function(Gen.listOf(Gen.int))) { (s, f) =>
           for {
             res1 <- s.mapConcat(f).runCollect

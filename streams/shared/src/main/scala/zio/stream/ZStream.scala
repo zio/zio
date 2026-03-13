@@ -1853,6 +1853,38 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     new ZStream(channel.mapOutZIO(f))
 
   /**
+   * Statefully transforms the chunks emitted by this stream. This is the
+   * chunk-level analog of `mapAccum`, threading state `S` through each chunk
+   * transformation without the overhead of wrapping and unwrapping that
+   * `.chunks.mapAccum(...).flattenChunks` would incur.
+   */
+  def mapChunksAccum[S, A2](s: => S)(f: (S, Chunk[A]) => (S, Chunk[A2]))(implicit trace: Trace): ZStream[R, E, A2] =
+    ZStream.succeed(s).flatMap { s =>
+      def accumulator(currS: S): ZChannel[Any, E, Chunk[A], Any, E, Chunk[A2], Unit] =
+        ZChannel.readWith(
+          (in: Chunk[A]) => {
+            val (nextS, a2s) = f(currS, in)
+            ZChannel.write(a2s) *> accumulator(nextS)
+          },
+          (err: E) => ZChannel.fail(err),
+          (_: Any) => ZChannel.unit
+        )
+
+      new ZStream(self.channel >>> accumulator(s))
+    }
+
+  /**
+   * Statefully and effectfully transforms the chunks emitted by this stream.
+   * This is the chunk-level analog of `mapAccumZIO`, threading state `S`
+   * through each chunk transformation without the overhead of wrapping and
+   * unwrapping that `.chunks.mapAccumZIO(...).flattenChunks` would incur.
+   */
+  def mapChunksAccumZIO[R1 <: R, E1 >: E, S, A2](s: => S)(f: (S, Chunk[A]) => ZIO[R1, E1, (S, Chunk[A2])])(implicit
+    trace: Trace
+  ): ZStream[R1, E1, A2] =
+    self >>> ZPipeline.mapChunksAccumZIO(s)(f)
+
+  /**
    * Maps each element to an iterable, and flattens the iterables into the
    * output of this stream.
    */

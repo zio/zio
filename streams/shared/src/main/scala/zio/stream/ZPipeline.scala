@@ -457,6 +457,24 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self >>> ZPipeline.mapChunks(f)
 
   /**
+   * Statefully transforms the chunks emitted by this pipeline.
+   */
+  def mapChunksAccum[State, Out2](
+    s: => State
+  )(f: (State, Chunk[Out]) => (State, Chunk[Out2]))(implicit trace: Trace): ZPipeline[Env, Err, In, Out2] =
+    self >>> ZPipeline.mapChunksAccum(s)(f)
+
+  /**
+   * Statefully and effectfully transforms the chunks emitted by this pipeline.
+   */
+  def mapChunksAccumZIO[Env2 <: Env, Err2 >: Err, State, Out2](
+    s: => State
+  )(f: (State, Chunk[Out]) => ZIO[Env2, Err2, (State, Chunk[Out2])])(implicit
+    trace: Trace
+  ): ZPipeline[Env2, Err2, In, Out2] =
+    self >>> ZPipeline.mapChunksAccumZIO(s)(f)
+
+  /**
    * Creates a pipeline that maps chunks of elements with the specified effect.
    */
   def mapChunksZIO[Env2 <: Env, Err2 >: Err, Out2](
@@ -1750,6 +1768,41 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     f: Chunk[In] => Chunk[Out]
   )(implicit trace: Trace): ZPipeline[Any, Nothing, In, Out] =
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(f))
+
+  /**
+   * Creates a pipeline that statefully maps chunks of elements with the
+   * specified function.
+   */
+  def mapChunksAccum[In, State, Out](
+    s: => State
+  )(f: (State, Chunk[In]) => (State, Chunk[Out]))(implicit trace: Trace): ZPipeline[Any, Nothing, In, Out] =
+    mapChunksAccumZIO(s)((s, in) => ZIO.succeed(f(s, in)))
+
+  /**
+   * Creates a pipeline that statefully and effectfully maps chunks of
+   * elements with the specified function.
+   */
+  def mapChunksAccumZIO[Env, Err, In, State, Out](
+    s: => State
+  )(f: (State, Chunk[In]) => ZIO[Env, Err, (State, Chunk[Out])])(implicit
+    trace: Trace
+  ): ZPipeline[Env, Err, In, Out] =
+    ZPipeline.suspend {
+      def accumulator(currS: State): ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
+        ZChannel.readWith(
+          (in: Chunk[In]) =>
+            ZChannel.unwrap(
+              f(currS, in).fold(
+                failure => ZChannel.fail(failure),
+                { case (nextS, out) => ZChannel.write(out) *> accumulator(nextS) }
+              )
+            ),
+          ZChannel.fail(_),
+          (_: Any) => ZChannel.unit
+        )
+
+      new ZPipeline(accumulator(s))
+    }
 
   /**
    * Creates a pipeline that maps chunks of elements with the specified effect.
