@@ -1289,8 +1289,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
             else loop(chunkIterator, index + 1)
           }
         }
-      else
-        ZChannel.readInputCauseUnit(elem => loop(elem.chunkIterator, 0))
+      else ZChannel.readInputCause(elem => loop(elem.chunkIterator, 0))
 
     new ZStream(self.channel >>> loop(Chunk.ChunkIterator.empty, 0))
   }
