@@ -3043,7 +3043,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         ZChannel.readWithCause(
           chunk => loop(driver, chunk.chunkIterator, 0),
           ZChannel.refailCause,
-          ZChannel.succeedChannelFn,
+          ZChannel.succeedChannelFn
         )
 
     new ZStream(

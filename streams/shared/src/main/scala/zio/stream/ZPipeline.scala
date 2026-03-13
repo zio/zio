@@ -793,7 +793,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     changesWith(_ == _)
 
   def changesWith[Err, In](f: (In, In) => Boolean)(implicit trace: Trace): ZPipeline[Any, Err, In, In] = {
-    def writer(last: Option[In]): ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], Any] =
+    def writer(last: Option[In]): ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
       ZChannel.readInputCauseUnit { (chunk: Chunk[In]) =>
         val (newLast, newChunk) =
           chunk.foldLeft[(Option[In], Chunk[In])]((last, Chunk.empty)) {
@@ -810,8 +810,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def changesWithZIO[Env, Err, In](
     f: (In, In) => ZIO[Env, Err, Boolean]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = {
-    def writer(last: Option[In]): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Any] =
-      ZChannel.readInputCauseUnit((chunk: Chunk[In]) =>
+    def writer(last: Option[In]): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
+      ZChannel.readInputCauseUnit { (chunk: Chunk[In]) =>
         ZChannel.fromZIO {
           chunk.foldZIO[Env, Err, (Option[In], Chunk[In])]((last, Chunk.empty)) {
             case ((Some(o), os), o1) =>
@@ -822,7 +822,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         }.flatMap { case (newLast, newChunk) =>
           ZChannel.write(newChunk) *> writer(newLast)
         }
-      )
+      }
 
     new ZPipeline(writer(None))
   }
@@ -1009,6 +1009,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           if (remainingBytes.isEmpty) out
           else loop(remainingBytes, out)
         }
+
         loop(inBytes, Chunk.empty)
       }
 
@@ -1021,6 +1022,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           val out          = acc ++ decodedChars
           if (result.isOverflow) loop(out) else out
         }
+
         loop(Chunk.empty)
       }
 
@@ -1032,6 +1034,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           val out          = acc ++ decodedChars
           if (result.isOverflow) loop(out) else out
         }
+
         loop(Chunk.empty)
       }
 
@@ -1235,6 +1238,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
           if (result.isOverflow) loop(out) else out
         }
+
         loop(Chunk.empty)
       }
 
@@ -1247,6 +1251,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
           if (result.isOverflow) loop(out) else out
         }
+
         loop(Chunk.empty)
       }
 
@@ -1584,6 +1589,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       case u if u >= 'A' && u <= 'F' => 10 + u - 'A'
       case _                         => -1
     }
+
     def decodeChannel(
       spare: Chunk[Char]
     ): ZChannel[Any, Any, Chunk[Char], Any, EncodingException, Chunk[Byte], Unit] = {
@@ -1625,6 +1631,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           }
         }
       }
+
       def err(z: Any): ZChannel[Any, Any, Chunk[Char], Any, EncodingException, Chunk[Byte], Unit] =
         ZChannel.fail(EncodingException("Input stream should be infallible"))
 
@@ -2104,6 +2111,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               case None        => ZChannel.succeed(done)
             }
         )
+
       new ZPipeline(next(None, 0))
     }
 
@@ -2571,17 +2579,17 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def usASCIIEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.US_ASCII)
 
-//    `utf*Encode` pipelines adhere to the same behavior of Java's
-//    String#getBytes(charset)`, that is:
-//      - utf8: No BOM
-//      - utf16: Has BOM (the outlier)
-//      - utf16BE & utf16LE: No BOM
-//      - All utf32 variants: No BOM
-//
-//    If BOM is required, users can use the `*WithBomEncode` variants. (As
-//    alluded above, `utf16Encode` always prepends BOM, just like
-//    `getBytes("UTF-16")` in Java. In fact, it is an alias to both
-//    `utf16BEWithBomEncode` and `utf16WithBomEncode`.
+  //    `utf*Encode` pipelines adhere to the same behavior of Java's
+  //    String#getBytes(charset)`, that is:
+  //      - utf8: No BOM
+  //      - utf16: Has BOM (the outlier)
+  //      - utf16BE & utf16LE: No BOM
+  //      - All utf32 variants: No BOM
+  //
+  //    If BOM is required, users can use the `*WithBomEncode` variants. (As
+  //    alluded above, `utf16Encode` always prepends BOM, just like
+  //    `getBytes("UTF-16")` in Java. In fact, it is an alias to both
+  //    `utf16BEWithBomEncode` and `utf16WithBomEncode`.
 
   /**
    * Creates a pipeline that converts a stream of strings into a stream of bytes
