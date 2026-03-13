@@ -143,22 +143,24 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     }
   }
 
-  private def leastLoadedWorker(): ZScheduler.Worker = {
-    var i       = 0
-    var best    = null.asInstanceOf[ZScheduler.Worker]
-    var minLoad = Int.MaxValue
-    while (i < poolSize) {
-      val w = workers(i)
-      if (!w.blocking) {
-        val load = w.localQueue.size() + (if (w.nextRunnable ne null) 1 else 0)
-        if (load < minLoad) {
-          minLoad = load
-          best = w
-        }
-      }
-      i += 1
+  private def chooseWorker(): ZScheduler.Worker = {
+    val n = poolSize
+    if (n == 1) {
+      val w = workers(0)
+      if (w.blocking) null else w
+    } else {
+      val rnd = ThreadLocalRandom.current()
+      val i   = rnd.nextInt(n)
+      var j   = rnd.nextInt(n - 1)
+      if (j >= i) j += 1
+      val w1 = workers(i)
+      val w2 = workers(j)
+      val l1 = if (w1.blocking) Int.MaxValue else w1.localQueue.size() + (if (w1.nextRunnable ne null) 1 else 0)
+      val l2 = if (w2.blocking) Int.MaxValue else w2.localQueue.size() + (if (w2.nextRunnable ne null) 1 else 0)
+      if (l1 == Int.MaxValue && l2 == Int.MaxValue) null
+      else if (l1 <= l2) w1
+      else w2
     }
-    best
   }
 
   def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
@@ -167,7 +169,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       submitBlocking(runnable)
     } else {
       if ((worker eq null) || worker.blocking) {
-        val best = leastLoadedWorker()
+        val best = chooseWorker()
         if ((best eq null) || !best.localQueue.offer(runnable)) {
           globalQueue.offer(runnable)
         }
@@ -187,7 +189,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     } else {
       var notify = true
       if ((worker eq null) || worker.blocking) {
-        val best = leastLoadedWorker()
+        val best = chooseWorker()
         if ((best eq null) || !best.localQueue.offer(runnable)) {
           globalQueue.offer(runnable)
         }
@@ -557,6 +559,10 @@ private object ZScheduler {
   /**
    * A `Worker` is a `Thread` that is responsible for executing actions
    * submitted to the scheduler.
+   *
+   * Padding (pad* fields) separates hot fields by 128 bytes to avoid false
+   * sharing when chooseWorker() reads localQueue.size() and
+   * nextRunnable from other workers. See ZSchedulerJOLPaddingSpec.
    */
   private sealed abstract class Worker extends Thread with BlockContext {
 
@@ -583,11 +589,17 @@ private object ZScheduler {
     var currentRunnable: Runnable =
       null
 
+    private var pad1_00, pad1_01, pad1_02, pad1_03, pad1_04, pad1_05, pad1_06, pad1_07 = 0L
+    private var pad1_08, pad1_09, pad1_10, pad1_11, pad1_12, pad1_13, pad1_14, pad1_15 = 0L
+
     /**
      * The local work queue for this worker.
      */
     val localQueue: RingBufferPow2[Runnable] =
       RingBufferPow2[Runnable](256)
+
+    private var pad2_00, pad2_01, pad2_02, pad2_03, pad2_04, pad2_05, pad2_06, pad2_07 = 0L
+    private var pad2_08, pad2_09, pad2_10, pad2_11, pad2_12, pad2_13, pad2_14, pad2_15 = 0L
 
     /**
      * An optional field providing fast access to the next task to be executed
@@ -595,6 +607,9 @@ private object ZScheduler {
      */
     var nextRunnable: Runnable =
       null
+
+    private var pad3_00, pad3_01, pad3_02, pad3_03, pad3_04, pad3_05, pad3_06, pad3_07 = 0L
+    private var pad3_08, pad3_09, pad3_10, pad3_11, pad3_12, pad3_13, pad3_14, pad3_15 = 0L
 
     /**
      * The number of tasks that have been executed by this worker.
