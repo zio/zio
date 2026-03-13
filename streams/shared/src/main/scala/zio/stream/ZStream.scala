@@ -402,7 +402,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
               exit.foldExit(
                 Cause
                   .flipCauseOption(_)
-                  .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCauseChannelFn),
+                  .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause(_)),
                 value => ZChannel.write(Chunk.single(value)) *> process
               )
             }
@@ -431,7 +431,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
             }.flatMap { (take: Take[E, A]) =>
               take.fold(
                 ZChannel.unit,
-                ZChannel.refailCauseChannelFn,
+                ZChannel.refailCause(_),
                 value => ZChannel.write(value) *> process
               )
             }
@@ -540,7 +540,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           ZChannel.fromZIO(promise.succeedUnit) *>
             take.fold(
               ZChannel.unit,
-              ZChannel.refailCauseChannelFn,
+              ZChannel.refailCause(_),
               value => ZChannel.write(value) *> process
             )
         }
@@ -574,7 +574,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
             }.flatMap { (take: Take[E, A]) =>
               take.fold(
                 ZChannel.unit,
-                ZChannel.refailCauseChannelFn,
+                ZChannel.refailCause(_),
                 value => ZChannel.write(value) *> process
               )
             }
@@ -1617,7 +1617,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
             )
 
           case Some(exit) =>
-            exit.foldExit(ZChannel.refailCauseChannelFn, ZChannel.unitChannelFn)
+            exit.foldExit(ZChannel.refailCause(_), ZChannel.unitChannelFn)
         }
       }
 
@@ -1708,7 +1708,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                   ZChannel.fromZIO(left.take).flatMap { take =>
                     take.fold(
                       if (rightDone) ZChannel.unit else process(true, rightDone),
-                      ZChannel.refailCauseChannelFn,
+                      ZChannel.refailCause(_),
                       chunk => ZChannel.write(chunk) *> process(leftDone, rightDone)
                     )
                   }
@@ -1716,7 +1716,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                   ZChannel.fromZIO(right.take).flatMap { take =>
                     take.fold(
                       if (leftDone) ZChannel.unit else process(leftDone, true),
-                      ZChannel.refailCauseChannelFn,
+                      ZChannel.refailCause(_),
                       chunk => ZChannel.write(chunk) *> process(leftDone, rightDone)
                     )
                   }
@@ -2321,7 +2321,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     lazy val writer: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Any] =
       ZChannel.readWithCause(
         (in: Chunk[A]) => if (in.isEmpty) writer else ZChannel.write(in) *> ZChannel.identity[E, Chunk[A], Any],
-        ZChannel.refailCauseChannelFn,
+        ZChannel.refailCause(_),
         (_: Any) => stream.channel
       )
 
@@ -3146,7 +3146,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     def loop(leftovers: Chunk[A]): ZChannel[R, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] =
       ZChannel.readWithCause(
         (in: Chunk[A]) => split(leftovers)(in),
-        ZChannel.refailCauseChannelFn,
+        ZChannel.refailCause(_),
         (_: Any) => {
           if (leftovers.isEmpty) ZChannel.unit
           else if (leftovers.find(f).isEmpty) ZChannel.write(Chunk.single(leftovers))
@@ -3225,7 +3225,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                 in.foreach(queue.put)
                 reader
               },
-              halt = ZChannel.refailCauseChannelFn,
+              halt = ZChannel.refailCause(_),
               done = (_: Any) => ZChannel.write(queue.toChunk)
             )
 

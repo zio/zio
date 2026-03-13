@@ -772,7 +772,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                 bufferring(acc ++ inElem)
               }
             },
-            ZChannel.refailCauseChannelFn,
+            ZChannel.refailCause(_),
             (done: Any) => running(acc, Chunk.empty)
           )
 
@@ -1073,7 +1073,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def drop[In](n: => Int)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     ZPipeline.suspend {
       def loop(r: Int): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
-        ZChannel.readInputCauseUnit(
+        ZChannel.readWithCause(
           (in: Chunk[In]) => {
             val dropped  = in.drop(r)
             val leftover = (r - in.length).max(0)
@@ -1081,7 +1081,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
             if (more) loop(leftover)
             else ZChannel.write(dropped) *> ZChannel.identity
-          }
+          },
+          ZChannel.refailCause(_),
+          ZChannel.unitChannelFn,
         )
 
       new ZPipeline(loop(n))
@@ -1124,7 +1126,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           if (out.isEmpty) dropWhile(f)
           else ZChannel.write(out) *> ZChannel.identity[ZNothing, Chunk[In], Any]
         },
-        ZChannel.refailCauseChannelFn,
+        ZChannel.refailCause(_),
         ZChannel.succeedChannelFn
       )
 
@@ -1371,7 +1373,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               else ZChannel.writeChunk(chunk) *> channel
           }
         },
-        ZChannel.refailCauseChannelFn,
+        ZChannel.refailCause(_),
         ZChannel.succeedChannelFn
       )
 
@@ -1510,7 +1512,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           ZChannel
             .fromZIO(push(Some(in)))
             .flatMap(out => ZChannel.write(out)) *> pull(push),
-        ZChannel.refailCauseChannelFn,
+        ZChannel.refailCause(_),
         _ => ZChannel.fromZIO(push(None)).flatMap(out => ZChannel.write(out))
       )
 
@@ -1539,7 +1541,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             if (l.isEmpty)
               ZChannel.readWithCause(
                 (c: Chunk[In]) => ZChannel.write(c) *> upstream,
-                ZChannel.refailCauseChannelFn,
+                ZChannel.refailCause(_),
                 (done: Any) => {
                   upstreamDone = true
                   ZChannel.succeedNow(done)
@@ -1557,7 +1559,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               leftover ++= elem
               writeDone
             },
-            ZChannel.refailCauseChannelFn,
+            ZChannel.refailCause(_),
             out => ZChannel.write(Chunk.single(out))
           )
 
@@ -1760,7 +1762,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                   )
               }
             ),
-          ZChannel.refailCauseChannelFn,
+          ZChannel.refailCause(_),
           ZChannel.unitChannelFn
         )
 
@@ -2213,7 +2215,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               ZChannel.write(taken) *> loop(leftover)
             else ZChannel.write(taken)
           },
-          ZChannel.refailCauseChannelFn,
+          ZChannel.refailCause(_),
           ZChannel.succeedChannelFn
         )
 
@@ -2239,7 +2241,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           if (last.isEmpty) ZChannel.write(taken) *> loop
           else ZChannel.write(taken ++ last)
         },
-        ZChannel.refailCauseChannelFn,
+        ZChannel.refailCause(_),
         ZChannel.succeedChannelFn
       )
 
@@ -2252,7 +2254,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     lazy val read: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[In], Any] =
       ZChannel.readWithCause(
         elem => write(elem.chunkIterator, 0),
-        ZChannel.refailCauseChannelFn,
+        ZChannel.refailCause(_),
         ZChannel.succeedChannelFn
       )
 
@@ -2287,7 +2289,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           if (more) ZChannel.write(taken) *> loop
           else ZChannel.write(taken)
         },
-        ZChannel.refailCauseChannelFn,
+        ZChannel.refailCause(_),
         ZChannel.succeedChannelFn
       )
 
@@ -2304,7 +2306,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     lazy val read: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[In], Any] =
       ZChannel.readWithCause(
         elem => write(elem.chunkIterator, 0),
-        ZChannel.refailCauseChannelFn,
+        ZChannel.refailCause(_),
         ZChannel.succeedChannelFn
       )
 
@@ -2696,7 +2698,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           val out              = chunk.collect { case Some((prev, curr)) => (prev, Some(curr)) }
           ZChannel.write(out) *> process(newLast)
         },
-        ZChannel.refailCauseChannelFn,
+        ZChannel.refailCause(_),
         (_: Any) =>
           last match {
             case Some(value) =>
@@ -2741,7 +2743,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               lookingForBom(data, bomSize)
             }
           },
-          halt = ZChannel.refailCauseChannelFn,
+          halt = ZChannel.refailCause(_),
           done = _ =>
             if (buffer.isEmpty) ZChannel.unit
             else {
