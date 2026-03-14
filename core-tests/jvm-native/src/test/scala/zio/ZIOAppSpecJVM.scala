@@ -21,12 +21,11 @@ object ZIOAppSpecJVM extends ZIOBaseSpec {
     test("ZIOApp can be created with custom runtime") {
       for {
         ref <- Ref.make(0)
-        runtime = Runtime.default
-        app = ZIOApp(ZIO.succeed(ref.update(_ + 1)), runtime)
+        app = ZIOApp(ZIO.succeed(ref.update(_ + 1)), ZLayer.environment)
         _   <- app.invoke(Chunk.empty)
         v   <- ref.get
       } yield assertTrue(v == 1)
-    } @@ jvm,
+    } @@ jvm(),
     test("shuttingDown flag is set during shutdown") {
       for {
         ref <- Ref.make(false)
@@ -37,14 +36,14 @@ object ZIOAppSpecJVM extends ZIOBaseSpec {
         _     <- app.invoke(Chunk.empty)
         value <- ref.get
       } yield assertTrue(!value) // Should be false after app completes
-    } @@ jvm,
+    } @@ jvm(),
     test("installSignalHandlers is called during workflow") {
       // This test verifies that signal handlers are installed
       // by checking that the app runs without errors on JVM
       for {
         code <- ZIOAppDefault.fromZIO(ZIO.unit).invoke(Chunk.empty).exitCode: @nowarn("cat=deprecation")
       } yield assertTrue(code == ExitCode.success)
-    } @@ jvm,
+    } @@ jvm(),
     test("shutdown timeout can be set to zero for immediate exit") {
       for {
         ref  <- Ref.make(false)
@@ -60,7 +59,7 @@ object ZIOAppSpecJVM extends ZIOBaseSpec {
         // With Duration.Zero, shutdown should be immediate
         value <- ref.get
       } yield assertTrue(value) // Finalizer should still run on interrupt
-    } @@ jvm,
+    } @@ jvm(),
     test("shutdown timeout can be set to infinite") {
       for {
         ref  <- Ref.make(false)
@@ -74,7 +73,7 @@ object ZIOAppSpecJVM extends ZIOBaseSpec {
         _     <- fiber.interrupt
         value <- ref.get
       } yield assertTrue(value)
-    } @@ jvm,
+    } @@ jvm(),
     test("exit with specific code via exit method") {
       for {
         code <- ZIOAppDefault
@@ -82,7 +81,7 @@ object ZIOAppSpecJVM extends ZIOBaseSpec {
                  .invoke(Chunk.empty)
                  .exitCode: @nowarn("cat=deprecation")
       } yield assertTrue(code == ExitCode(123))
-    } @@ jvm,
+    } @@ jvm(),
     test("exit method stops the app immediately") {
       for {
         ref       <- Ref.make(false)
@@ -98,7 +97,7 @@ object ZIOAppSpecJVM extends ZIOBaseSpec {
         neverDone <- neverRun.isDone
         _         <- fiber.await
       } yield assertTrue(!neverDone) // The second effect should never run
-    } @@ jvm,
+    } @@ jvm(),
     test("finalizer timeout is respected") {
       // Test that a slow finalizer doesn't block forever when timeout is set
       for {
@@ -117,7 +116,7 @@ object ZIOAppSpecJVM extends ZIOBaseSpec {
         _     <- ZIO.sleep(200.millis)
         value <- ref.get
       } yield assertTrue(value) // Finalizer should still have been attempted
-    } @@ jvm,
+    } @@ jvm(),
     test("run method can access args via getArgs") {
       for {
         ref <- Ref.make(Chunk.empty[String])
@@ -128,6 +127,6 @@ object ZIOAppSpecJVM extends ZIOBaseSpec {
         _     <- app.invoke(Chunk("test", "args"))
         value <- ref.get
       } yield assertTrue(value == Chunk("test", "args"))
-    } @@ jvm
-  ) @@ jvm
+    } @@ jvm()
+  ) @@ jvm()
 }
