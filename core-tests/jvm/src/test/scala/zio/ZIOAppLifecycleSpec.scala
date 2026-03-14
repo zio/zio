@@ -1,11 +1,10 @@
 package zio
 
-import zio.internal.FiberRuntime
 import zio.test.TestAspect.{jvmOnly, sequential}
 import zio.test._
 
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path, StandardOpenOption}
+import java.nio.file.{Files, Path}
 import java.util.concurrent.TimeUnit
 
 /**
@@ -110,9 +109,9 @@ object ZIOAppLifecycleSpec extends ZIOBaseSpec {
 
   private def startApp(mainClass: String, ready: Path, finalized: Path): ZIO[Any, Throwable, Process] =
     ZIO.attempt {
-      val javaHome = System.getProperty("java.home")
+      val javaHome = java.lang.System.getProperty("java.home")
       val javaBin  = Path.of(javaHome).resolve("bin").resolve("java").toString
-      val cp       = System.getProperty("java.class.path")
+      val cp       = java.lang.System.getProperty("java.class.path")
       new ProcessBuilder(javaBin, "-cp", cp, mainClass, ready.toString, finalized.toString)
         .redirectErrorStream(true)
         .start()
@@ -130,8 +129,8 @@ object ZIOAppLifecycleSpec extends ZIOBaseSpec {
 
   private def waitForFile(path: Path, timeout: Duration): ZIO[Any, Throwable, Unit] =
     ZIO.attemptBlocking {
-      val deadline = System.nanoTime() + timeout.toNanos
-      while (System.nanoTime() < deadline && !Files.exists(path))
+      val deadline = java.lang.System.nanoTime() + timeout.toNanos
+      while (java.lang.System.nanoTime() < deadline && !Files.exists(path))
         Thread.sleep(50L)
       if (!Files.exists(path))
         throw new RuntimeException(s"Timed out waiting for $path")
@@ -142,13 +141,13 @@ object ZIOAppLifecycleSpec extends ZIOBaseSpec {
 
   private def waitForExit(process: Process, timeout: Duration): ZIO[Any, Throwable, ProcessResult] =
     ZIO.attemptBlocking {
-      val t0   = System.nanoTime()
+      val t0   = java.lang.System.nanoTime()
       val done = process.waitFor(timeout.toMillis, TimeUnit.MILLISECONDS)
       if (!done) {
         process.destroyForcibly()
         throw new RuntimeException(s"Process did not exit within $timeout")
       }
-      val elapsed = Duration.fromNanos(System.nanoTime() - t0)
+      val elapsed = Duration.fromNanos(java.lang.System.nanoTime() - t0)
       val output  = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
       ProcessResult(process.exitValue(), output, elapsed)
     }
