@@ -4393,8 +4393,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.succeed((is, chunkSize)).flatMap { case (is, chunkSize) =>
       ZStream.repeatZIOChunkOption {
         for {
-          bufArray  <- ZIO.succeed(Array.ofDim[Byte](chunkSize))
-          bytesRead <- ZIO.attemptBlockingIO(is.read(bufArray)).asSomeError
+          bufArray <- ZIO.succeed(Array.ofDim[Byte](chunkSize))
+          bytesRead <- ZIO
+                         .attemptBlocking(is.read(bufArray))
+                         .refineOrDie {
+                           case e: IOException => e
+                           case e: Throwable   => new IOException(e)
+                         }
+                         .asSomeError
           bytes <- if (bytesRead < 0)
                      Exit.failNone
                    else if (bytesRead == 0)

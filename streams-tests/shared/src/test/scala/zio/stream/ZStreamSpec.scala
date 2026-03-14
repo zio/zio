@@ -5747,7 +5747,18 @@ object ZStreamSpec extends ZIOBaseSpec {
               val is = new ByteArrayInputStream(bytes.toArray)
               ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
             }
-          }
+          },
+          test("toInputStream + fromInputStream should not produce defects (#10380)") {
+            ZIO
+              .scoped(
+                ZStream
+                  .fail(new RuntimeException("Boom"))
+                  .toInputStream
+                  .flatMap(is => ZStream.fromInputStream(is).runCollect)
+              )
+              .exit
+              .map(exit => assert(exit)(fails(isSubtype[IOException](hasMessage(containsString("Boom"))))))
+          } @@ TestAspect.jvmOnly
         ),
         test("fromIterable")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
           def lazyL = l
