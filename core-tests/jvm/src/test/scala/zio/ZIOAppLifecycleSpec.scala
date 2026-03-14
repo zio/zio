@@ -11,18 +11,18 @@ object ZIOAppLifecycleSpec extends ZIOSpecDefault {
     timeoutMs: Long = 15000L,
     sendSigIntAfterMs: Option[Long] = None
   ): Task[(Int, String, String)] = ZIO.attemptBlocking {
-    val javaHome  = java.lang.System.getProperty("java.home")
-    val javaBin   = javaHome + File.separator + "bin" + File.separator + "java"
-    val classpath = java.lang.System.getProperty("java.class.path")
+    val javaHome                    = java.lang.System.getProperty("java.home")
+    val javaBin                     = javaHome + File.separator + "bin" + File.separator + "java"
+    val classpath                   = java.lang.System.getProperty("java.class.path")
     val cmd: java.util.List[String] = java.util.Arrays.asList(javaBin, "-cp", classpath, className)
-    val pb  = new ProcessBuilder(cmd)
+    val pb                          = new ProcessBuilder(cmd)
     pb.redirectErrorStream(false)
     val process = pb.start()
     sendSigIntAfterMs.foreach { delay =>
       val t = new Thread(new Runnable {
         def run(): Unit = {
           Thread.sleep(delay)
-          val pid = process.pid()
+          val pid       = process.pid()
           val isWindows = java.lang.System.getProperty("os.name").toLowerCase.contains("win")
           if (isWindows) {
             java.lang.Runtime.getRuntime.exec(Array("taskkill", "/PID", pid.toString)).waitFor(); ()
@@ -44,20 +44,20 @@ object ZIOAppLifecycleSpec extends ZIOSpecDefault {
 
   def spec = suite("ZIOAppLifecycleSpec")(
     test("app that succeeds exits with code 0") {
-      for { result <- runApp("zio.AppSucceeds") }
-      yield assertTrue(result._1 == 0, result._2.contains("finalizer ran"))
+      for { result <- runApp("zio.AppSucceeds") } yield assertTrue(result._1 == 0, result._2.contains("finalizer ran"))
     },
     test("app that fails exits with non-zero code") {
-      for { result <- runApp("zio.AppFails") }
-      yield assertTrue(result._1 != 0, result._2.contains("finalizer ran"))
+      for { result <- runApp("zio.AppFails") } yield assertTrue(result._1 != 0, result._2.contains("finalizer ran"))
     },
     test("finalizers run on shutdown signal - regression #9901") {
-      for { result <- runApp("zio.AppNeverWithFinalizer", sendSigIntAfterMs = Some(1000L)) }
-      yield assertTrue(result._2.contains("finalizer ran"))
+      for { result <- runApp("zio.AppNeverWithFinalizer", sendSigIntAfterMs = Some(1000L)) } yield assertTrue(
+        result._2.contains("finalizer ran")
+      )
     } @@ TestAspect.unix,
     test("gracefulShutdownTimeout is respected") {
-      for { result <- runApp("zio.AppSlowFinalizer", sendSigIntAfterMs = Some(500L)) }
-      yield assertTrue(!result._2.contains("slow finalizer done"))
+      for { result <- runApp("zio.AppSlowFinalizer", sendSigIntAfterMs = Some(500L)) } yield assertTrue(
+        !result._2.contains("slow finalizer done")
+      )
     } @@ TestAspect.unix
   ) @@ TestAspect.sequential @@ TestAspect.timeout(2.minutes)
 }
@@ -76,5 +76,7 @@ object AppNeverWithFinalizer extends ZIOAppDefault {
 
 object AppSlowFinalizer extends ZIOAppDefault {
   override val gracefulShutdownTimeout: Duration = 1.second
-  def run = ZIO.acquireRelease(ZIO.unit)(_ => ZIO.sleep(30.seconds) *> Console.printLine("slow finalizer done").orDie).flatMap(_ => ZIO.never)
+  def run = ZIO
+    .acquireRelease(ZIO.unit)(_ => ZIO.sleep(30.seconds) *> Console.printLine("slow finalizer done").orDie)
+    .flatMap(_ => ZIO.never)
 }
