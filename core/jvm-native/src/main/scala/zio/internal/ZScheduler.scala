@@ -446,14 +446,18 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
   private def maybeUnparkWorker(currentState: Int): Unit = {
     val currentSearching = currentState & 0xffff
-    val currentActive    = (currentState & 0xffff0000) >> 16
-    if (currentActive != poolSize && currentSearching == 0) {
-      val worker = idle.poll()
-      if (worker ne null) {
-        state.getAndAdd(0x10001)
-        worker.active = true
-        LockSupport.unpark(worker)
-      }
+    // If a worker is already searching for work, it will find the newly submitted
+    // task and cascade-notify if more workers are needed. Avoids redundant unparks.
+    if (currentSearching > 0) return
+    val currentActive = (currentState & 0xffff0000) >> 16
+    if (currentActive == poolSize) return
+    // Cheap isEmpty check avoids the CAS overhead of poll() when no workers are idle
+    if (idle.isEmpty) return
+    val worker = idle.poll()
+    if (worker ne null) {
+      state.getAndAdd(0x10001)
+      worker.active = true
+      LockSupport.unpark(worker)
     }
   }
 
