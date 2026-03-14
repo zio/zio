@@ -17,7 +17,10 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.internal.ansi.AnsiStringOps
 import zio.test.Assertion.Arguments.valueArgument
+import zio.test.diff.{Diff, DiffResult}
+import zio.test.internal.OptionalImplicit
 import zio.test.{ErrorMessage => M}
 
 trait AssertionVariants {
@@ -65,7 +68,7 @@ trait AssertionVariants {
     }
   }
 
-  def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
+  def equalTo[A, B](expected: A)(implicit eql: Eql[A, B], diff: OptionalImplicit[Diff[A]]): Assertion[B] =
     Assertion[B](
       TestArrow
         .make[B, Boolean] { actual =>
@@ -75,10 +78,27 @@ trait AssertionVariants {
             case (left, right)                             => left == right
           }
           TestTrace.boolean(result) {
-            if (expected.isInstanceOf[Product]) {
-              M.text(diffProduct(actual, expected))
-            } else {
-              M.pretty(actual) + M.equals + M.pretty(expected)
+            diff.value match {
+              case Some(d) if !d.isLowPriority && !result && expected != null && actual != null && expected.getClass
+                    .isInstance(actual) =>
+                val diffResult = d.diff(expected, actual.asInstanceOf[A])
+                diffResult match {
+                  case DiffResult.Different(_, _, None) =>
+                    M.pretty(actual) + M.equals + M.pretty(expected)
+                  case diffResult =>
+                    M.choice("There was no difference", "There was a difference") ++
+                      M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(expected)) ++
+                      M.custom(
+                        ConsoleUtils.underlined(
+                          "Diff"
+                        ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
+                      ) ++
+                      M.custom(scala.Console.RESET + diffResult.render)
+                }
+              case _ if expected.isInstanceOf[Product] =>
+                M.text(diffProduct(actual, expected))
+              case _ =>
+                M.pretty(actual) + M.equals + M.pretty(expected)
             }
           }
         }
