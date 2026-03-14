@@ -96,13 +96,16 @@ object ZIOAppLifecycleSpec extends ZIOBaseSpec {
     )(deleteRecursively)(f)
 
   private def deleteRecursively(root: Path): UIO[Unit] =
-    ZIO.succeed {
+    ZIO.attempt {
       if (Files.exists(root)) {
         val stream = Files.walk(root)
-        try stream.sorted(java.util.Comparator.reverseOrder()).forEach(p => Files.deleteIfExists(p))
+        try
+          stream.sorted(java.util.Comparator.reverseOrder()).forEach { p =>
+            val _ = Files.deleteIfExists(p)
+          }
         finally stream.close()
       }
-    }
+    }.orDie
 
   private def makePath(dir: Path, name: String): UIO[Path] =
     ZIO.succeed(dir.resolve(name))
@@ -137,14 +140,14 @@ object ZIOAppLifecycleSpec extends ZIOBaseSpec {
     }
 
   private def fileExists(path: Path): UIO[Boolean] =
-    ZIO.succeed(Files.exists(path))
+    ZIO.attempt(Files.exists(path)).orDie
 
   private def waitForExit(process: Process, timeout: Duration): ZIO[Any, Throwable, ProcessResult] =
     ZIO.attemptBlocking {
       val t0   = java.lang.System.nanoTime()
       val done = process.waitFor(timeout.toMillis, TimeUnit.MILLISECONDS)
       if (!done) {
-        process.destroyForcibly()
+        { val _ = process.destroyForcibly() }
         throw new RuntimeException(s"Process did not exit within $timeout")
       }
       val elapsed = Duration.fromNanos(java.lang.System.nanoTime() - t0)

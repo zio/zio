@@ -5,8 +5,9 @@ import zio.internal.FiberRuntime
 import java.nio.file.{Files, Path, StandardOpenOption}
 
 private[zio] object ZIOAppLifecycleMarker {
-  def write(path: Path, content: String): Unit =
-    Files.writeString(path, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
+  def write(path: Path, content: String): Unit = {
+    val _ = Files.writeString(path, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
+  }
 }
 
 /** Fixture: runs forever, writes finalizer marker on interrupt. */
