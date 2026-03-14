@@ -2889,6 +2889,23 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <- queue.takeAll
             } yield assert(result)(equalTo(result.sorted))
           },
+          test("mapZIOPar(1) should not prefetch upstream elements (#9999)") {
+            for {
+              ref     <- Ref.make(0)
+              started <- Promise.make[Nothing, Unit]
+              blocked <- Promise.make[Nothing, Unit]
+              fiber <- ZStream
+                         .repeatZIO(ref.updateAndGet(_ + 1))
+                         .mapZIOPar(1)(i => ZIO.when(i == 1)(started.succeed(()) *> blocked.await).as(i))
+                         .take(2)
+                         .runDrain
+                         .fork
+              _     <- started.await
+              count <- ref.get
+              _     <- blocked.succeed(())
+              _     <- fiber.join
+            } yield assertTrue(count == 1)
+          },
           test("interruption propagation") {
             for {
               interrupted <- Ref.make(false)
