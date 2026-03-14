@@ -119,9 +119,9 @@ object ZIOAppLifecycleSpec extends ZIOBaseSpec {
 
   private def sendInterrupt(process: Process): ZIO[Any, Throwable, Unit] =
     ZIO.attemptBlocking {
-      val pid = process.pid()
+      val pid    = process.pid()
       val killer = new ProcessBuilder("kill", "-INT", pid.toString).start()
-      val ok = killer.waitFor(3, TimeUnit.SECONDS)
+      val ok     = killer.waitFor(3, TimeUnit.SECONDS)
       if (!ok || killer.exitValue() != 0) {
         process.destroy()
       }
