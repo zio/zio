@@ -722,7 +722,22 @@ sealed trait ZIO[-R, +E, +A]
     ev: CanFail[E],
     trace: Trace
   ): ZIO[R1, E2, B] =
-    foldCauseZIO(c => c.failureTraceOrCause.fold(failure, Exit.failCause), success)
+    foldCauseZIO(
+      c =>
+        c.failureTraceOrCause.fold(
+          errorAndTrace =>
+            c.keepDefects match {
+              case Some(defects) =>
+                failure(errorAndTrace).foldCauseZIO(
+                  handlerCause => Exit.failCause(Cause.Then(handlerCause, defects)),
+                  _ => Exit.failCause(defects)
+                )
+              case None => failure(errorAndTrace)
+            },
+          Exit.failCause
+        ),
+      success
+    )
 
   /**
    * Recovers from errors by accepting one effect to execute for the case of an
@@ -739,7 +754,22 @@ sealed trait ZIO[-R, +E, +A]
     ev: CanFail[E],
     trace: Trace
   ): ZIO[R1, E2, B] =
-    foldCauseZIO(c => c.failureOrCause.fold(failure, Exit.failCause), success)
+    foldCauseZIO(
+      c =>
+        c.failureOrCause.fold(
+          error =>
+            c.keepDefects match {
+              case Some(defects) =>
+                failure(error).foldCauseZIO(
+                  handlerCause => Exit.failCause(Cause.Then(handlerCause, defects)),
+                  _ => Exit.failCause(defects)
+                )
+              case None => failure(error)
+            },
+          Exit.failCause
+        ),
+      success
+    )
 
   /**
    * Returns a new effect that will pass the success value of this effect to the

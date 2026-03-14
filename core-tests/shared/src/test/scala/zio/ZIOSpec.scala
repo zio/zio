@@ -305,6 +305,45 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)((equalTo(t)))
       }
     ) @@ zioTag(errors),
+    suite("catchAll")(
+      test("does not swallow defects in Cause.Both(Fail, Die)") {
+        val defect = new RuntimeException("boom-both")
+        val effect = ZIO.failCause(Cause.Both(Cause.fail("error"), Cause.die(defect)))
+
+        assertZIO(effect.catchAll(_ => ZIO.succeed("handled")).exit)(dies(equalTo(defect)))
+      },
+      test("does not swallow defects in Cause.Then(Fail, Die)") {
+        val defect = new RuntimeException("boom-then")
+        val effect = ZIO.failCause(Cause.Then(Cause.fail("error"), Cause.die(defect)))
+
+        assertZIO(effect.catchAll(_ => ZIO.succeed("handled")).exit)(dies(equalTo(defect)))
+      },
+      test("does not swallow defects in nested composite causes") {
+        val defect = new RuntimeException("boom-nested")
+        val effect = ZIO.failCause(
+          Cause.Both(
+            Cause.Then(Cause.fail("error-1"), Cause.die(defect)),
+            Cause.fail("error-2")
+          )
+        )
+
+        assertZIO(effect.catchAll(_ => ZIO.succeed("handled")).exit)(dies(equalTo(defect)))
+      },
+      test("keeps behavior unchanged when no defects are present") {
+        val effect = ZIO.failCause(Cause.Both(Cause.fail("error-1"), Cause.fail("error-2")))
+
+        assertZIO(effect.catchAll(error => ZIO.succeed(error)))(equalTo("error-1"))
+      },
+      test("foldTraceZIO does not swallow residual defects") {
+        val defect = new RuntimeException("boom-trace")
+        val effect =
+          ZIO
+            .failCause(Cause.Then(Cause.fail("error"), Cause.die(defect)))
+            .foldTraceZIO(_ => ZIO.unit, (_: Nothing) => ZIO.unit)
+
+        assertZIO(effect.exit)(dies(equalTo(defect)))
+      }
+    ) @@ zioTag(errors),
     suite("catchSomeCause")(
       test("catches matching cause") {
         ZIO.interrupt.catchSomeCause {
