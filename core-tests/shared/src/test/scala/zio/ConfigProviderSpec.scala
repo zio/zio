@@ -796,7 +796,7 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         val configProvider = ConfigProvider.fromMap(
           Map("values[0].name" -> "John", "values[0].agr" -> "9")
         )
-        val person = (Config.string("name") ++ Config.int("age")).map(Person.tupled)
+        val person = (Config.string("name") ++ Config.int("age")).map { case (a, b) => Person(a, b) }
         val people = Config.listOf("values", person).withDefault(Nil)
 
         for {
