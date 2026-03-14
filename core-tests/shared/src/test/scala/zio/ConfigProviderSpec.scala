@@ -791,6 +791,18 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           exit <- configProvider.load(config).exit
         } yield assert(exit)(failsWithA[Config.Error])
       } +
+      test("withDefault should not swallow list element errors (#10442)") {
+        final case class Person(name: String, age: Int)
+        val configProvider = ConfigProvider.fromMap(
+          Map("values[0].name" -> "John", "values[0].agr" -> "9")
+        )
+        val person = (Config.string("name") ++ Config.int("age")).map(Person.tupled)
+        val people = Config.listOf("values", person).withDefault(Nil)
+
+        for {
+          exit <- configProvider.load(people).exit
+        } yield assert(exit)(failsWithA[Config.Error])
+      } +
       test("indexed sequence of multiple products with optional fields") {
         val configProvider =
           ConfigProvider.fromMap(Map("employees[0].age" -> "1", "employees[0].id" -> "2", "employees[1].id" -> "4"))

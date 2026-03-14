@@ -135,7 +135,7 @@ sealed trait Config[+A] { self =>
    * the specified default value in case the information cannot be found.
    */
   def withDefault[A1 >: A](default: => A1): Config[A1] =
-    self.orElseIf(_.isMissingDataOnly)(Config.succeed(default))
+    self.orElseIf(e => e.isMissingDataOnly && !e.hasBracketedIndexSegment)(Config.succeed(default))
 
   /**
    * A named version of `++`.
@@ -426,6 +426,9 @@ object Config {
     final def isMissingDataOnly: Boolean =
       foldContext(())(Folder.IsMissingDataOnly)
 
+    final def hasBracketedIndexSegment: Boolean =
+      foldContext(())(Folder.HasBracketedIndexSegment)
+
     def prefixed(prefix: Chunk[String]): Error
 
     override def getMessage(): String = toString()
@@ -487,6 +490,25 @@ object Config {
           cause: Cause[Throwable]
         ): Boolean = false
         def unsupportedCase(context: Any, path: Chunk[String], message: String): Boolean = false
+      }
+
+      private val BracketedIndexPattern = """\[\d+\]""".r
+
+      case object HasBracketedIndexSegment extends Folder[Any, Boolean] {
+        private def hasIndex(path: Chunk[String]): Boolean =
+          path.exists(segment => BracketedIndexPattern.findFirstIn(segment).isDefined)
+
+        def andCase(context: Any, left: Boolean, right: Boolean): Boolean                = left || right
+        def invalidDataCase(context: Any, path: Chunk[String], message: String): Boolean = hasIndex(path)
+        def missingDataCase(context: Any, path: Chunk[String], message: String): Boolean = hasIndex(path)
+        def orCase(context: Any, left: Boolean, right: Boolean): Boolean                 = left || right
+        def sourceUnavailableCase(
+          context: Any,
+          path: Chunk[String],
+          message: String,
+          cause: Cause[Throwable]
+        ): Boolean = hasIndex(path)
+        def unsupportedCase(context: Any, path: Chunk[String], message: String): Boolean = hasIndex(path)
       }
     }
   }
