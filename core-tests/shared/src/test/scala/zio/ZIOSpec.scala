@@ -342,6 +342,16 @@ object ZIOSpec extends ZIOBaseSpec {
             .foldTraceZIO(_ => ZIO.unit, (_: Nothing) => ZIO.unit)
 
         assertZIO(effect.exit)(dies(equalTo(defect)))
+      },
+      test("defects survive even when failure handler fails") {
+        val defect = new RuntimeException("boom-handler-fail")
+        val effect = ZIO.failCause(Cause.Both(Cause.fail("error"), Cause.die(defect)))
+        val handled = effect.catchAll(_ => ZIO.fail("handler-error"))
+
+        assertZIO(handled.exit.map {
+          case Exit.Failure(cause) => cause.defects.contains(defect)
+          case _                   => false
+        })(isTrue)
       }
     ) @@ zioTag(errors),
     suite("catchSomeCause")(
