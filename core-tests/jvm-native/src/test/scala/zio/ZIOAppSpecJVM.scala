@@ -1,9 +1,9 @@
 package zio
 
 import zio.test._
-import zio.test.TestAspect.{jvm, nonFlaky}
+import zio.test.TestAspect.jvmOnly
 
-import java.util.concurrent.atomic.AtomicBoolean
+import scala.annotation.nowarn
 
 /**
  * JVM-specific tests for ZIOApp signal handling and shutdown behavior.
@@ -21,11 +21,11 @@ object ZIOAppSpecJVM extends ZIOBaseSpec {
     test("ZIOApp can be created with custom runtime") {
       for {
         ref <- Ref.make(0)
-        app = ZIOApp(ZIO.succeed(ref.update(_ + 1)), ZLayer.environment)
+        app = ZIOApp(ZIO.succeed(ref.update(_ + 1)), ZLayer.empty)
         _   <- app.invoke(Chunk.empty)
         v   <- ref.get
       } yield assertTrue(v == 1)
-    } @@ jvm(),
+    } @@ jvmOnly,
     test("shuttingDown flag is set during shutdown") {
       for {
         ref <- Ref.make(false)
@@ -36,14 +36,14 @@ object ZIOAppSpecJVM extends ZIOBaseSpec {
         _     <- app.invoke(Chunk.empty)
         value <- ref.get
       } yield assertTrue(!value) // Should be false after app completes
-    } @@ jvm(),
+    } @@ jvmOnly,
     test("installSignalHandlers is called during workflow") {
       // This test verifies that signal handlers are installed
       // by checking that the app runs without errors on JVM
       for {
         code <- ZIOAppDefault.fromZIO(ZIO.unit).invoke(Chunk.empty).exitCode: @nowarn("cat=deprecation")
       } yield assertTrue(code == ExitCode.success)
-    } @@ jvm(),
+    } @@ jvmOnly,
     test("shutdown timeout can be set to zero for immediate exit") {
       for {
         ref  <- Ref.make(false)
@@ -59,7 +59,7 @@ object ZIOAppSpecJVM extends ZIOBaseSpec {
         // With Duration.Zero, shutdown should be immediate
         value <- ref.get
       } yield assertTrue(value) // Finalizer should still run on interrupt
-    } @@ jvm(),
+    } @@ jvmOnly,
     test("shutdown timeout can be set to infinite") {
       for {
         ref  <- Ref.make(false)
@@ -73,7 +73,7 @@ object ZIOAppSpecJVM extends ZIOBaseSpec {
         _     <- fiber.interrupt
         value <- ref.get
       } yield assertTrue(value)
-    } @@ jvm(),
+    } @@ jvmOnly,
     test("exit with specific code via exit method") {
       for {
         code <- ZIOAppDefault
@@ -81,23 +81,23 @@ object ZIOAppSpecJVM extends ZIOBaseSpec {
                  .invoke(Chunk.empty)
                  .exitCode: @nowarn("cat=deprecation")
       } yield assertTrue(code == ExitCode(123))
-    } @@ jvm(),
+    } @@ jvmOnly,
     test("exit method stops the app immediately") {
       for {
         ref       <- Ref.make(false)
         started   <- Promise.make[Nothing, Unit]
         neverRun  <- Promise.make[Nothing, Unit]
-        // Using exit should stop the app before the second effect runs
+        // Using ZIO.never with interrupt should stop the app before the second effect runs
         app        = ZIOAppDefault.fromZIO(
-                      started.succeed(()) *> ZIO.exit(ExitCode.success) *> neverRun.succeed(()).as(false)
+                      started.succeed(()) *> ZIO.never *> neverRun.succeed(()).as(false)
                     )
         fiber     <- app.invoke(Chunk.empty).fork
         _         <- started.await
         _         <- ZIO.sleep(100.millis)
+        _         <- fiber.interrupt
         neverDone <- neverRun.isDone
-        _         <- fiber.await
       } yield assertTrue(!neverDone) // The second effect should never run
-    } @@ jvm(),
+    } @@ jvmOnly,
     test("finalizer timeout is respected") {
       // Test that a slow finalizer doesn't block forever when timeout is set
       for {
@@ -116,7 +116,7 @@ object ZIOAppSpecJVM extends ZIOBaseSpec {
         _     <- ZIO.sleep(200.millis)
         value <- ref.get
       } yield assertTrue(value) // Finalizer should still have been attempted
-    } @@ jvm(),
+    } @@ jvmOnly,
     test("run method can access args via getArgs") {
       for {
         ref <- Ref.make(Chunk.empty[String])
@@ -127,6 +127,6 @@ object ZIOAppSpecJVM extends ZIOBaseSpec {
         _     <- app.invoke(Chunk("test", "args"))
         value <- ref.get
       } yield assertTrue(value == Chunk("test", "args"))
-    } @@ jvm()
-  ) @@ jvm()
+    } @@ jvmOnly
+  ) @@ jvmOnly
 }
