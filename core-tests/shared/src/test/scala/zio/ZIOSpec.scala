@@ -344,8 +344,8 @@ object ZIOSpec extends ZIOBaseSpec {
         assertZIO(effect.exit)(dies(equalTo(defect)))
       },
       test("defects survive even when failure handler fails") {
-        val defect = new RuntimeException("boom-handler-fail")
-        val effect = ZIO.failCause(Cause.Both(Cause.fail("error"), Cause.die(defect)))
+        val defect  = new RuntimeException("boom-handler-fail")
+        val effect  = ZIO.failCause(Cause.Both(Cause.fail("error"), Cause.die(defect)))
         val handled = effect.catchAll(_ => ZIO.fail("handler-error"))
 
         assertZIO(handled.exit.map {
