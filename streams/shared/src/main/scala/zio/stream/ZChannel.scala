@@ -2161,8 +2161,8 @@ object ZChannel {
     )
 
   /**
-   * Like [[readInput]], but discards the done value (returns `Unit`). Uses
-   * a pre-cached `unitChannelFn` done handler, avoiding the `SucceedNow(done)`
+   * Like [[readInput]], but discards the done value (returns `Unit`). Uses a
+   * pre-cached `unitChannelFn` done handler, avoiding the `SucceedNow(done)`
    * allocation that [[readInput]] incurs.
    */
   private[zio] def readInputUnit[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
@@ -2174,7 +2174,6 @@ object ZChannel {
       ReadInputUnitFoldK.asInstanceOf[Fold.K[Env, InErr, InElem, InDone, InErr, OutErr, OutElem, Unit, Unit]]
     )
   }
-
 
   def readOrFail[E, In](e: => E)(implicit trace: Trace): ZChannel[Any, Any, In, Any, E, Nothing, In] =
     Read[Any, Any, In, Any, Any, E, Nothing, Nothing, In, In](
