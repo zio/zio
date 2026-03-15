@@ -1844,8 +1844,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     }
 
   /**
-   * Creates a pipeline that statefully and effectfully maps chunks of
-   * elements with the specified function.
+   * Creates a pipeline that statefully and effectfully maps chunks of elements
+   * with the specified function.
    */
   def mapChunksAccumZIO[Env, Err, In, State, Out](
     s: => State

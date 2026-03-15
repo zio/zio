@@ -2752,10 +2752,10 @@ object ZStreamSpec extends ZIOBaseSpec {
           assertZIO(
             ZStream
               .fromChunks(Chunk(1, 2), Chunk(3, 4), Chunk(5))
-              .mapChunksAccum(0)((acc, chunk) => {
+              .mapChunksAccum(0) { (acc, chunk) =>
                 val newAcc = acc + chunk.sum
                 (newAcc, chunk.map(_ + acc))
-              })
+              }
               .runCollect
           )(equalTo(Chunk(1, 2, 6, 7, 15)))
         },
