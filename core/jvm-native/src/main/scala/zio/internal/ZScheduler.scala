@@ -29,11 +29,12 @@ import scala.concurrent.{BlockContext, CanAwait}
  * A `ZScheduler` is an `Executor` that is optimized for running ZIO
  * applications. Inspired by "Making the Tokio Scheduler 10X Faster" by Carl
  * Lerche [[https://tokio.rs/blog/2019-10-scheduler]] and the Least-Loaded
- * scheduling strategy from Nio [[https://nurmohammed840.github.io/posts/announcing-nio/]].
+ * scheduling strategy from Nio
+ * [[https://nurmohammed840.github.io/posts/announcing-nio/]].
  *
  * External submissions are routed to the least-loaded worker via an O(N) scan
- * over per-worker load counters. Work-stealing remains active as a fallback
- * for transient imbalances caused by variable-duration tasks.
+ * over per-worker load counters. Work-stealing remains active as a fallback for
+ * transient imbalances caused by variable-duration tasks.
  */
 private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent =>
 
@@ -157,8 +158,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   }
 
   /**
-   * Selects the non-blocking worker with the lowest task count.
-   * Returns null when every worker is blocking (rare, transient).
+   * Selects the non-blocking worker with the lowest task count. Returns null
+   * when every worker is blocking (rare, transient).
    */
   private def chooseWorker(): ZScheduler.Worker = {
     var best    = null.asInstanceOf[ZScheduler.Worker]
@@ -238,7 +239,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
   /**
    * Routes a runnable to the least-loaded worker's queue. Falls back to the
-   * global queue when all workers are blocking or the chosen worker's queue is full.
+   * global queue when all workers are blocking or the chosen worker's queue is
+   * full.
    */
   private def submitToLeastLoaded(runnable: Runnable): Unit = {
     val best = chooseWorker()
@@ -650,8 +652,8 @@ private object ZScheduler {
       0L
 
     /**
-     * The index of this worker in the parent scheduler's workers array.
-     * Used to address the corresponding slot in the taskCounts array.
+     * The index of this worker in the parent scheduler's workers array. Used to
+     * address the corresponding slot in the taskCounts array.
      */
     @volatile
     var workerIndex: Int =
