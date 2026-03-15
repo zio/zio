@@ -176,7 +176,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     f: Chunk[In1] => ZIO[R1, E1, Chunk[In]]
   )(implicit trace: Trace): ZSink[R1, E1, In1, L, Z] = {
     lazy val loop: ZChannel[R1, ZNothing, Chunk[In1], Any, E1, Chunk[In], Any] =
-      ZChannel.readInputCause(chunk => ZChannel.unwrap(f(chunk).map(ZChannel.write)) *> loop)
+      ZChannel.readInput(chunk => ZChannel.unwrap(f(chunk).map(ZChannel.write)) *> loop)
 
     new ZSink(loop.pipeToOrFail(self.channel))
   }
@@ -522,7 +522,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
       written: Boolean,
       leftovers: Ref[Chunk[In1]]
     ): ZChannel[R, ZNothing, Chunk[In1], Any, E, Chunk[In1], Any] =
-      ZChannel.readInputCause { in =>
+      ZChannel.readInput { in =>
         if (in.isEmpty) splitter(written, leftovers)
         else if (written) {
           val index = in.indexWhere(f)
@@ -915,7 +915,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def dropWhile[In](p: In => Boolean)(implicit trace: Trace): ZSink[Any, Nothing, In, In, Any] = {
     lazy val ch: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Unit] =
-      ZChannel.readInputCauseUnit { in =>
+      ZChannel.readInputUnit { in =>
         val out = in.dropWhile(p)
         if (out.nonEmpty)
           ZChannel.write(out) *> ZChannel.unit
@@ -934,7 +934,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     p: In => ZIO[R, InErr, Boolean]
   )(implicit trace: Trace): ZSink[R, InErr, In, In, Any] = {
     lazy val ch: ZChannel[R, ZNothing, Chunk[In], Any, InErr, Chunk[In], Unit] =
-      ZChannel.readInputCauseUnit { in =>
+      ZChannel.readInputUnit { in =>
         val out = in.dropWhileZIO(p)
         ZChannel.unwrap {
           out.map { o =>
@@ -1386,7 +1386,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   )(implicit trace: Trace): ZSink[R, Err, In, Nothing, Unit] = {
 
     lazy val process: ZChannel[R, Err, Chunk[In], Any, Err, Nothing, Unit] =
-      ZChannel.readInputCauseUnit(in => ZChannel.fromZIO(ZIO.foreachDiscard(in)(f(_))) *> process)
+      ZChannel.readInputUnit(in => ZChannel.fromZIO(ZIO.foreachDiscard(in)(f(_))) *> process)
 
     new ZSink(process)
   }
@@ -1399,7 +1399,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     f: Chunk[In] => ZIO[R, Err, Any]
   )(implicit trace: Trace): ZSink[R, Err, In, Nothing, Unit] = {
     lazy val process: ZChannel[R, Err, Chunk[In], Any, Err, Nothing, Unit] =
-      ZChannel.readInputCauseUnit(in => ZChannel.fromZIO(f(in)) *> process)
+      ZChannel.readInputUnit(in => ZChannel.fromZIO(f(in)) *> process)
 
     new ZSink(process)
   }
@@ -1426,7 +1426,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
           .catchAll(e => ZChannel.write(chunk.drop(idx)) *> ZChannel.fail(e))
 
     lazy val process: ZChannel[R, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
-      ZChannel.readInputCauseUnit(in => go(in, 0, in.length, process))
+      ZChannel.readInputUnit(in => go(in, 0, in.length, process))
 
     new ZSink(process)
   }
@@ -1439,7 +1439,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     f: Chunk[In] => ZIO[R, Err, Boolean]
   )(implicit trace: Trace): ZSink[R, Err, In, In, Unit] = {
     lazy val reader: ZChannel[R, Err, Chunk[In], Any, Err, Nothing, Unit] =
-      ZChannel.readInputCauseUnit { (in: Chunk[In]) =>
+      ZChannel.readInputUnit { (in: Chunk[In]) =>
         ZChannel.unwrap {
           f(in).map { continue =>
             if (continue) reader
