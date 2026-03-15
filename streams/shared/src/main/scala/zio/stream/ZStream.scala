@@ -391,26 +391,68 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   Prefer capacities that are powers of 2 for better performance.
    */
   def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
-    val queue = self.toQueueOfElements(capacity)
-    new ZStream(
-      ZChannel.unwrapScoped[R] {
-        queue.map { queue =>
-          lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
-            ZChannel.fromZIO {
-              queue.take
-            }.flatMap { (exit: Exit[Option[E], A]) =>
-              exit.foldExit(
-                Cause
-                  .flipCauseOption(_)
-                  .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
-                value => ZChannel.write(Chunk.single(value)) *> process
-              )
-            }
-
-          process
+    lazy val cap = capacity
+    if (cap <= 0) self
+    else if (cap == 1) {
+      // For capacity 1, use a synchronous Handoff to ensure exactly 1 element
+      // is buffered. A bounded queue of size 1 would actually buffer 2 elements
+      // because the producer computes the next value before offering it.
+      new ZStream(
+        ZChannel.unwrapScoped[R] {
+          for {
+            handoff <- ZStream.Handoff.make[Exit[Option[E], A]]
+            _ <- {
+              lazy val writer: ZChannel[R, E, Chunk[A], Any, Nothing, Nothing, Any] =
+                ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Nothing, Any](
+                  in => {
+                    val offers = in.foldLeft[ZIO[Any, Nothing, Unit]](ZIO.unit) { (acc, a) =>
+                      acc *> handoff.offer(Exit.succeed(a))
+                    }
+                    ZChannel.fromZIO(offers) *> writer
+                  },
+                  err => ZChannel.fromZIO(handoff.offer(Exit.failCause(err.map(Some(_))))),
+                  _ => ZChannel.fromZIO(handoff.offer(Exit.fail(None)))
+                )
+              (self.channel >>> writer).drain.runScoped
+            }.forkScoped
+          } yield {
+            lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+              ZChannel.fromZIO(handoff.take).flatMap { (exit: Exit[Option[E], A]) =>
+                exit.foldExit(
+                  Cause
+                    .flipCauseOption(_)
+                    .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
+                  value => ZChannel.write(Chunk.single(value)) *> process
+                )
+              }
+            process
+          }
         }
-      }
-    )
+      )
+    } else {
+      // For capacity > 1, use a queue of size (capacity - 1) to account for
+      // the element that is computed by the producer before being offered.
+      val queue = self.toQueueOfElements(cap - 1)
+      new ZStream(
+        ZChannel.unwrapScoped[R] {
+          queue.map { queue =>
+            lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+              ZChannel.fromZIO {
+                queue.take
+              }.flatMap { (exit: Exit[Option[E], A]) =>
+                exit.foldExit(
+                  Cause
+                    .flipCauseOption(_)
+                    .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
+                  value => ZChannel.write(Chunk.single(value)) *> process
+                )
+              }
+
+            process
+          }
+        }
+      )
+    }
   }
 
   /**

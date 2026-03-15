@@ -607,7 +607,36 @@ object ZStreamSpec extends ZIOBaseSpec {
               _  <- latch.await
               l2 <- ref.get
             } yield assert(l1.toList)(equalTo((1 to 2).toList)) && assert(l2.reverse)(equalTo((1 to 4).toList))
-          }
+          },
+          test("buffer(1) buffers exactly 1 element") {
+            for {
+              ref   <- Ref.make(List[Int]())
+              latch <- Promise.make[Nothing, Unit]
+              gate  <- Promise.make[Nothing, Unit]
+              s = ZStream
+                    .fromIterable(1 to 5)
+                    .mapZIO(i => ref.update(i :: _).as(i))
+                    .buffer(1)
+              _ <- s
+                     .runForeach(i =>
+                       latch.succeed(()).when(i == 1) *> gate.await
+                     )
+                     .fork
+              _        <- latch.await
+              _        <- Live.live(ZIO.sleep(100.millis))
+              produced <- ref.get
+            } yield assert(produced.reverse)(equalTo(List(1, 2)))
+          } @@ TestAspect.timeout(5.seconds),
+          test("buffer(1) maintains elements and ordering") {
+            check(tinyChunkOf(tinyChunkOf(Gen.int))) { chunk =>
+              assertZIO(
+                ZStream
+                  .fromChunks(chunk: _*)
+                  .buffer(1)
+                  .runCollect
+              )(equalTo(chunk.flatten))
+            }
+          } @@ flaky
         ),
         suite("bufferChunks")(
           test("maintains elements and ordering")(check(tinyChunkOf(tinyChunkOf(Gen.int))) { chunk =>
