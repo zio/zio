@@ -12,9 +12,9 @@ import java.nio.file.Paths
 
 ## Introduction
 
-A `ZPipeline[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +LowerElem, -UpperElem]` is a stream transformer. Pipelines accept a stream as input, and return the transformed stream as output.
+A `ZPipeline[-Env, +Err, -In, +Out]` is a stream transformer. Pipelines accept a stream as input and return the transformed stream as output.
 
-ZPipelines can be thought of as a recipe for calling a bunch of methods on a source stream, to yield a new (transformed) stream. A nice mental model is the following type alias:
+ZPipelines can be thought of as a recipe for calling a bunch of methods on a source stream to yield a new (transformed) stream. A nice mental model is the following type alias:
 
 ```scala
 type ZPipeline[Env, Err, In, Out] = ZStream[Env, Err, In] => ZStream[Env, Err, Out]
@@ -52,10 +52,14 @@ ZStream(1,2,3).via(ZPipeline.identity[Int])
 **ZPipeline.splitOn** — A pipeline that splits strings on a delimiter:
 
 ```scala mdoc:silent:nest
-ZStream("1-2-3", "4-5", "6", "7-8-9-10")
+ZStream(
+  "5-6-7-8", 
+  "-9-10-1",
+  "1-12-13"
+)
   .via(ZPipeline.splitOn("-"))
   .map(_.toInt)
-// Ouput: 1, 2, 3, 4, 5, 6, 7, 8, 9 10
+// Ouput: 5, 6, 7, 8, 9, 10, 11, 12, 13
 ```
 
 **ZPipeline.splitLines** — A pipeline that splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`):
@@ -201,11 +205,11 @@ ZIO stream has a wide variety of pipelines to decode chunks of bytes into string
 
 ## Operations
 
-### Input Transformation (Mapping)
+### Output Transformation (Mapping)
 
 To transform the _outputs_ of the pipeline, we can use the `ZPipeline#map` combinator for the success channel, and the `ZPipeline#mapError` combinator for the failure channel. Also, the `ZPipeline.mapChunks` takes a function of type `Chunk[O] => Chunk[O2]` and transforms chunks emitted by the pipeline.
 
-### Output Transformation (Contramap)
+### Input Transformation (Contramap)
 
 To transform the _inputs_ of the pipeline, we can use the `ZPipeline#contramap` combinator. It takes a map function of type `J => I` and convert a `ZPipeline[R, E, I, O]` to `ZPipeline[R, E, J, O]`:
 

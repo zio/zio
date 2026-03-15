@@ -2,11 +2,11 @@
 
 | Project Stage | CI | Release | Snapshot | Issues |
 | --- | --- | --- | --- | --- |
-| [![Project stage][Badge-Stage]][Badge-Stage-Page] | ![CI][Badge-CI] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Snapshot Artifacts][Badge-SonatypeSnapshots]][Link-SonatypeSnapshots] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] |
+| [![Project stage][Badge-Stage]][Badge-Stage-Page] | ![CI][Badge-CI] | [![Maven Central Version](https://img.shields.io/maven-central/v/dev.zio/zio_3)][Link-SonatypeReleases] | [![Snapshot Artifacts][Badge-SonatypeSnapshots]][Link-SonatypeSnapshots] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] |
 
-| Scaladoc | Scaladex | Discord | Twitter | Gitpod |
-| --- | --- | --- | --- | --- |
-| [Scaladoc][Link-Scaladoc] | [![Badge-Scaladex-page]][Link-Scaladex-page] | [![Badge-Discord]][Link-Discord] | [![Badge-Twitter]][Link-Twitter] | [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/zio/zio) |
+| Scaladoc | Scaladex | Discord | Twitter | Gitpod | Gurubase |
+| --- | --- | --- | --- | --- | --- |
+| [Scaladoc][Link-Scaladoc] | [![Badge-Scaladex-page]][Link-Scaladex-page] | [![Badge-Discord]][Link-Discord] | [![Badge-Twitter]][Link-Twitter] | [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/zio/zio) | [![Gurubase](https://img.shields.io/badge/Gurubase-Ask%20ZIO%20Guru-006BFF)](https://gurubase.io/g/zio) |
 
 # Welcome to ZIO
 
@@ -146,6 +146,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/ser
 * [Risk Ident](https://riskident.com/)
 * [Rocker](https://rocker.com/)
 * [Rudder](https://www.rudder.io/)
+* [Samsung Food](https://samsungfood.com/)
 * [Sanjagh](https://sanjagh.pro/)
 * [Scalac](https://scalac.io/)
 * [SecurityScorecard](https://www.securityscorecard.io/)
@@ -190,10 +191,6 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/ser
 [![Ziverge][Image-Ziverge]][Link-Ziverge]
 
 [Ziverge][Link-Ziverge] is a leading contributor to ZIO.
-
-[![Scalac][Image-Scalac]][Link-Scalac]
-
-[Scalac][Link-Scalac] sponsors ZIO Hackathons and contributes work to multiple projects in ZIO ecosystem.
 
 [![Septimal Mind][Image-SeptimalMind]][Link-SeptimalMind]
 
@@ -243,14 +240,13 @@ Copyright 2017 - 2024 John A. De Goes and the ZIO Contributors. All rights reser
 [Badge-Codecov]: https://codecov.io/gh/zio/zio/coverage.svg?branch=master "Codecov"
 [Badge-IsItMaintained]: http://isitmaintained.com/badge/resolution/zio/zio.svg "Average time to resolve an issue"
 [Badge-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio/latest.svg "Scaladex"
-[Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio_3.svg "Sonatype Releases"
-[Badge-SonatypeSnapshots]: https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio_3.svg "Sonatype Snapshots"
+[Badge-SonatypeReleases]: https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Frepo1.maven.org%2Fmaven2%2Fdev%2Fzio%2Fzio_3%2Fmaven-metadata.xml "Sonatype Releases"
+[Badge-SonatypeSnapshots]: https://shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio_3%2Fmaven-metadata.xml "Sonatype Snapshots"
 [Badge-Discord]: https://img.shields.io/discord/629491597070827530?logo=discord "chat on discord"
 [Badge-Twitter]: https://img.shields.io/twitter/follow/zioscala.svg?style=plastic&label=follow&logo=twitter
 [Badge-Stage]: https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg
 [Badge-Stage-Page]: https://github.com/zio/zio/wiki/Project-Stages
 
 [Image-Ziverge]: ./website/static/img/ziverge.png "Ziverge"
-[Image-Scalac]: ./website/static/img/scalac.svg "Scalac"
 [Image-SeptimalMind]: ./website/static/img/septimal_mind.svg "Septimal Mind"
 [Image-YourKit]: ./website/static/img/yourkit.png "YourKit"

@@ -16,12 +16,10 @@
 
 package zio
 
-import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.{System => JSystem}
-import scala.annotation.nowarn
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait System extends Serializable { self =>
   def env(variable: => String)(implicit trace: Trace): IO[SecurityException, Option[String]]
@@ -46,7 +44,7 @@ trait System extends Serializable { self =>
     trace: Trace
   ): IO[Throwable, Option[String]]
 
-  trait UnsafeAPI {
+  trait UnsafeAPI extends Serializable {
     def env(variable: String)(implicit unsafe: Unsafe): Option[String]
     def envOrElse(variable: String, alt: => String)(implicit unsafe: Unsafe): String
     def envOrOption(variable: String, alt: => Option[String])(implicit unsafe: Unsafe): Option[String]
@@ -101,9 +99,9 @@ trait System extends Serializable { self =>
     }
 }
 
-object System extends Serializable {
+object System extends SystemPlatformSpecific {
 
-  val tag: Tag[System] = Tag[System]
+  implicit val tag: Tag[System] = Tag(EnvironmentTag.tagFromTagMacro[System])
 
   object SystemLive extends System {
     def env(variable: => String)(implicit trace: Trace): IO[SecurityException, Option[String]] =
@@ -137,10 +135,10 @@ object System extends Serializable {
     ): IO[Throwable, Option[String]] =
       ZIO.attempt(unsafe.propertyOrOption(prop, alt)(Unsafe.unsafe))
 
-    @transient override val unsafe: UnsafeAPI =
+    override val unsafe: UnsafeAPI =
       new UnsafeAPI {
         override def env(variable: String)(implicit unsafe: Unsafe): Option[String] =
-          Option(JSystem.getenv(variable))
+          environmentProvider.env(variable)
 
         override def envOrElse(variable: String, alt: => String)(implicit unsafe: Unsafe): String =
           envOrElseWith(variable, alt)(env)
@@ -148,14 +146,12 @@ object System extends Serializable {
         override def envOrOption(variable: String, alt: => Option[String])(implicit unsafe: Unsafe): Option[String] =
           envOrOptionWith(variable, alt)(env)
 
-        @nowarn("msg=JavaConverters")
         override def envs()(implicit unsafe: Unsafe): Map[String, String] =
-          JSystem.getenv.asScala.toMap
+          environmentProvider.envs
 
         override def lineSeparator()(implicit unsafe: Unsafe): String =
           JSystem.lineSeparator
 
-        @nowarn("msg=JavaConverters")
         override def properties()(implicit unsafe: Unsafe): Map[String, String] =
           JSystem.getProperties.asScala.toMap
 
@@ -170,6 +166,11 @@ object System extends Serializable {
         ): Option[String] =
           propertyOrOptionWith(prop, alt)(property)
       }
+  }
+
+  private[zio] trait EnvironmentProvider {
+    def env(variable: String): Option[String]
+    def envs: Map[String, String]
   }
 
   private[zio] def envOrElseWith(variable: String, alt: => String)(env: String => Option[String]): String =

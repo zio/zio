@@ -280,7 +280,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
               releaseThat(e).exit
                 .flatMap(e1 =>
                   releaseSelf(e).exit
-                    .flatMap(e2 => ZIO.done(e1 *> e2))
+                    .flatMap(e2 => e1 *> e2)
                 ),
             b
           )
@@ -522,10 +522,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
                                innerReleaseMap
                                  .releaseAll(e, ExecutionStrategy.Sequential)
                                  .exit
-                                 .zipWith(cleanup(exitEA).provideEnvironment(r1).exit)((l, r) => ZIO.done(l *> r))
+                                 .zipWith(cleanup(exitEA).provideEnvironment(r1).exit)((l, r) => l *> r)
                                  .flatten
                              }
-          a <- ZIO.done(exitEA)
+          a <- exitEA
         } yield (releaseMapEntry, a)
       }
     }
@@ -551,11 +551,11 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
                                  .provideEnvironment(r1)
                                  .exit
                                  .zipWith(innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential).exit)((l, r) =>
-                                   ZIO.done(l *> r)
+                                   l *> r
                                  )
                                  .flatten
                              }
-          a <- ZIO.done(exitEA)
+          a <- exitEA
         } yield (releaseMapEntry, a)
       }
     }
@@ -642,7 +642,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
                           c =>
                             releaseMap
                               .releaseAll(Exit.fail(c), ExecutionStrategy.Sequential) *>
-                              ZIO.refailCause(c),
+                              Exit.failCause(c),
                           { case (release, a) =>
                             ZIO.succeed(
                               ZManaged {
@@ -832,22 +832,45 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     )
 
   /**
-   * Extracts the optional value, or returns the given 'default'.
+   * Extracts the optional value, or returns the given 'default'. Superseded by
+   * `someOrElse` with better type inference. This method was left for binary
+   * compatibility.
    */
-  final def someOrElse[B](
+  protected final def someOrElse[B](
     default: => B
   )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZManaged[R, E, B] =
     map(a => ev(a).getOrElse(default))
 
   /**
-   * Extracts the optional value, or executes the effect 'default'.
+   * Extracts the optional value, or returns the given 'default'.
    */
-  final def someOrElseManaged[B, R1 <: R, E1 >: E](
+  final def someOrElse[B, C](
+    default: => C
+  )(implicit ev0: A IsSubtypeOfOutput Option[B], ev1: C <:< B, trace: Trace): ZManaged[R, E, B] =
+    map(a => ev0(a).getOrElse(default))
+
+  /**
+   * Extracts the optional value, or executes the effect 'default'. Superseded
+   * by `someOrElseManaged` with better type inference. This method was left for
+   * binary compatibility.
+   */
+  protected final def someOrElseManaged[B, R1 <: R, E1 >: E](
     default: => ZManaged[R1, E1, B]
   )(implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZManaged[R1, E1, B] =
     self.flatMap(ev(_) match {
       case Some(value) => ZManaged.succeed(value)
       case None        => default
+    })
+
+  /**
+   * Extracts the optional value, or executes the effect 'default'.
+   */
+  final def someOrElseManaged[B, R1 <: R, E1 >: E, C](
+    default: => ZManaged[R1, E1, C]
+  )(implicit ev0: A IsSubtypeOfOutput Option[B], ev1: C <:< B, trace: Trace): ZManaged[R1, E1, B] =
+    self.flatMap(ev0(_) match {
+      case Some(value) => ZManaged.succeed(value)
+      case None        => default.map(ev1)
     })
 
   /**
@@ -1306,7 +1329,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       tagged: EnvironmentTag[R1],
       trace: Trace
     ): ZManaged[R0, E1, A] =
-      self.asInstanceOf[ZManaged[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
+      self.asInstanceOf[ZManaged[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] <*> layer)
   }
 
   final class UnlessManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {
@@ -1502,7 +1525,7 @@ object ZManaged extends ZManagedPlatformSpecific {
                         .foreach(fins: Iterable[(Long, Finalizer)]) { case (_, fin) =>
                           update(fin).apply(exit).exit
                         }
-                        .flatMap(results => ZIO.done(Exit.collectAll(results) getOrElse Exit.unit)),
+                        .flatMap(Exit.collectAllDiscard),
                       Exited(nextKey, exit, update)
                     )
 
@@ -1512,7 +1535,7 @@ object ZManaged extends ZManagedPlatformSpecific {
                         .foreachPar(fins: Iterable[(Long, Finalizer)]) { case (_, finalizer) =>
                           update(finalizer)(exit).exit
                         }
-                        .flatMap(results => ZIO.done(Exit.collectAllPar(results) getOrElse Exit.unit)),
+                        .flatMap(Exit.collectAllParDiscard),
                       Exited(nextKey, exit, update)
                     )
 
@@ -1522,7 +1545,7 @@ object ZManaged extends ZManagedPlatformSpecific {
                         .foreachPar(fins: Iterable[(Long, Finalizer)]) { case (_, finalizer) =>
                           update(finalizer)(exit).exit
                         }
-                        .flatMap(results => ZIO.done(Exit.collectAllPar(results) getOrElse Exit.unit))
+                        .flatMap(Exit.collectAllParDiscard)
                         .withParallelism(n),
                       Exited(nextKey, exit, update)
                     )
@@ -1793,7 +1816,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Returns an effect from a lazily evaluated [[zio.Exit]] value.
    */
   def done[E, A](r: => Exit[E, A])(implicit trace: Trace): ZManaged[Any, E, A] =
-    ZManaged.fromZIO(ZIO.done(r))
+    ZManaged.fromZIO(r)
 
   /**
    * Accesses the whole environment of the effect.
@@ -2047,7 +2070,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def fromAutoCloseable[R, E, A <: AutoCloseable](fa: => ZIO[R, E, A])(implicit
     trace: Trace
   ): ZManaged[R, E, A] =
-    acquireReleaseWith(fa)(a => ZIO.succeed(a.close()))
+    acquireReleaseWith(fa)(a => if (a eq null) ZIO.unit else ZIO.succeed(a.close()))
 
   /**
    * Lifts an `Either` into a `ZManaged` value.
@@ -2402,14 +2425,14 @@ object ZManaged extends ZManagedPlatformSpecific {
    * it is unbounded.
    */
   def parallelism(implicit trace: Trace): ZManaged[Any, Nothing, Option[Int]] =
-    ZManaged.fromZIO(ZIO.Parallelism.get)
+    ZManaged.fromZIO(FiberRef.parallelism.get)
 
   /**
    * A scope in which resources can be safely preallocated. Passing a
    * [[ZManaged]] to the `apply` method will create (inside an effect) a managed
    * resource which is already acquired and cannot fail.
    */
-  abstract class PreallocationScope {
+  sealed abstract class PreallocationScope {
     def apply[R, E, A](managed: => ZManaged[R, E, A]): ZIO[R, E, Managed[Nothing, A]]
   }
 
@@ -2433,7 +2456,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     tag: EnvironmentTag[ROut],
     trace: Trace
   ): ZManaged[RIn with RIn2, E, ROut2] =
-    managed.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer)
+    managed.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] <*> layer)
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
@@ -2484,7 +2507,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * managed resource to the `apply` method will return an effect that allocates
    * the resource and returns it with an early-release handle.
    */
-  abstract class Scope {
+  sealed abstract class Scope {
     def apply[R, E, A](managed: => ZManaged[R, E, A]): ZIO[R, E, (ZManaged.Finalizer, A)]
   }
 
@@ -2718,7 +2741,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * it back to the original value as the `release` action.
    */
   def withParallism(n: => Int)(implicit trace: Trace): ZManaged[Any, Nothing, Unit] =
-    ZManaged.scoped(ZIO.Parallelism.locallyScoped(Some(n)))
+    ZManaged.scoped(FiberRef.parallelism.locallyScoped(Some(n)))
 
   /**
    * Returns a managed effect that describes setting an unbounded maximum number
@@ -2726,7 +2749,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * back to the original value as the `release` action.
    */
   def withParallismUnbounded(implicit trace: Trace): ZManaged[Any, Nothing, Unit] =
-    ZManaged.scoped(ZIO.Parallelism.locallyScoped(None))
+    ZManaged.scoped(FiberRef.parallelism.locallyScoped(None))
 
   /**
    * A `ZManagedConstructor[Input]` knows how to construct a `ZManaged` value

@@ -5,13 +5,14 @@ on: pull_request_target
 jobs:
   auto-approve-renovate-prs:
     runs-on: ubuntu-latest
+    if: github.actor == 'renovate[bot]'
     steps:
       - name: Git Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
-          fetch-depth: '0'
+          fetch-depth: 1000
+          fetch-tags: true
       - name: Approve PR
-        if: github.actor == 'renovate[bot]'
         run: gh pr review --approve ${{ github.event.number }}
         env:
           GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"

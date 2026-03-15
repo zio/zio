@@ -204,7 +204,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         zio.foldCauseZIO(
-          cause => update(in) *> ZIO.refailCause(cause),
+          cause => update(in) *> Exit.failCause(cause),
           a => update(in) *> ZIO.succeed(a)
         )
     }
@@ -391,7 +391,10 @@ object Metric {
     val fiberSuccesses = Metric.counter("zio_fiber_successes")
     val fiberFailures  = Metric.counter("zio_fiber_failures")
     val fiberLifetimes =
-      Metric.histogram("zio_fiber_lifetimes", MetricKeyType.Histogram.Boundaries.exponential(0.001, 2.0, 100))
+      Metric.histogram(
+        "zio_fiber_lifetimes",
+        MetricKeyType.Histogram.Boundaries.exponential(0.001, 2.0, 20)
+      ) // ~18 minutes
   }
 
   /**

@@ -16,31 +16,37 @@
 
 package zio.internal
 
-sealed trait IsFatal extends (Throwable => Boolean) { self =>
+@deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
+private[zio] sealed trait IsFatal extends (Throwable => Boolean) { self =>
   import IsFatal._
 
+  @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
   def apply(t: Throwable): Boolean =
-    if (t.isInstanceOf[StackOverflowError]) true
+    if (t.isInstanceOf[VirtualMachineError]) true
     else
       self match {
+        case _: Empty.type     => false
         case Both(left, right) => left(t) || right(t)
-        case Empty             => false
         case Single(tag)       => tag.isAssignableFrom(t.getClass)
       }
 
+  @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
   def |(that: IsFatal): IsFatal =
-    (self, that) match {
-      case (self, Empty) => self
-      case (Empty, that) => that
-      case (self, that)  => Both(self, that)
-    }
+    if (self eq Empty) that
+    else
+      that match {
+        case _: Empty.type => self
+        case _             => Both(self, that)
+      }
 }
 
-object IsFatal {
+private[zio] object IsFatal {
 
+  @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
   def apply(tag: Class[_ <: Throwable]): IsFatal =
     Single(tag)
 
+  @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
   val empty: IsFatal =
     Empty
 
@@ -48,8 +54,10 @@ object IsFatal {
   private case object Empty                                    extends IsFatal
   private final case class Both(left: IsFatal, right: IsFatal) extends IsFatal
 
+  @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
   sealed trait Patch { self =>
 
+    @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
     def apply(isFatal: IsFatal): IsFatal = {
 
       def loop(isFatal: IsFatal, patches: List[Patch]): IsFatal =
@@ -64,12 +72,13 @@ object IsFatal {
       loop(isFatal, List(self))
     }
 
+    @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
     def combine(that: Patch): Patch =
       Patch.AndThen(self, that)
   }
 
   object Patch {
-
+    @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
     def diff(oldValue: IsFatal, newValue: IsFatal): Patch =
       if (oldValue == newValue) Empty
       else {
@@ -84,6 +93,7 @@ object IsFatal {
         added.combine(removed)
       }
 
+    @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
     val empty: Patch =
       Empty
 
@@ -102,7 +112,7 @@ object IsFatal {
       }
 
   private[zio] def toSet(isFatal: IsFatal): Set[IsFatal] =
-    if (isFatal == IsFatal.empty) Set.empty
+    if (isFatal eq IsFatal.empty) Set.empty
     else
       isFatal match {
         case Both(left, right) => toSet(left) ++ toSet(right)

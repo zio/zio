@@ -16,15 +16,15 @@
 
 package zio
 
-import zio.internal.{FiberRuntime, FiberScope, IsFatal, Platform, StackTraceBuilder}
+import zio.internal.{FiberRuntime, FiberScope, Platform}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
-import java.lang.ref.WeakReference
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
  */
+@deprecatedInheritance("Use Runtime.apply", since = "2.1.18")
 trait Runtime[+R] { self =>
 
   /**
@@ -51,8 +51,8 @@ trait Runtime[+R] { self =>
     ZIO.fiberIdWith { fiberId =>
       ZIO.asyncInterrupt[Any, E, A] { callback =>
         val fiber = unsafe.fork(zio)(trace, Unsafe.unsafe)
-        fiber.unsafe.addObserver(exit => callback(ZIO.done(exit)))(Unsafe.unsafe)
-        Left(ZIO.blocking(fiber.interruptAs(fiberId)))
+        fiber.unsafe.addObserver(callback(_))(Unsafe.unsafe)
+        Left(fiber.interruptAs(fiberId))
       }
     }
 
@@ -133,12 +133,19 @@ trait Runtime[+R] { self =>
     def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A] =
       runOrFork(zio) match {
         case Left(fiber) =>
-          import internal.{FiberMessage, OneShot}
+          import internal.OneShot
           val result = OneShot.make[Exit[E, A]]
-          fiber.tell(
-            FiberMessage.Stateful(fiber => fiber.addObserver(exit => result.set(exit.asInstanceOf[Exit[E, A]])))
-          )
-          result.get()
+          fiber.unsafe.addObserver(result.set)
+          scala.concurrent.blocking {
+            try {
+              result.get()
+            } catch {
+              case t: InterruptedException =>
+                fiber.tellInterrupt(Cause.interrupt(FiberId.None, StackTrace(FiberId.None, Chunk.single(trace))))
+                result.get() // wait for interruption to finish
+                throw t
+            }
+          }
         case Right(exit) => exit
       }
 
@@ -155,13 +162,11 @@ trait Runtime[+R] { self =>
 
       if (supervisor ne Supervisor.none) {
         supervisor.onStart(environment, zio, None, fiber)
-
-        fiber.addObserver(exit => supervisor.onEnd(exit, fiber))
       }
 
       val exit = fiber.start[R](zio)
 
-      if (exit != null) Right(exit)
+      if (exit ne null) Right(exit)
       else {
         FiberScope.global.add(null, runtimeFlags, fiber)
         Left(fiber)
@@ -174,17 +179,14 @@ trait Runtime[+R] { self =>
       val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
       val fiber = makeFiber(zio)
-
       fiber.addObserver(_.foldExit(cause => p.failure(cause.squashTraceWith(identity)), p.success))
-
       fiber.startConcurrently(zio)
 
       new CancelableFuture[A](p.future) {
         def cancel(): Future[Exit[Throwable, A]] = {
           val p: scala.concurrent.Promise[Exit[Throwable, A]] = scala.concurrent.Promise[Exit[Throwable, A]]()
-          val cancelFiber                                     = makeFiber(fiber.interruptAs(FiberId.None))
-          cancelFiber.addObserver(_.foldExit(cause => p.failure(cause.squashTraceWith(identity)), p.success))
-          cancelFiber.start(fiber.interruptAs(FiberId.None))
+          fiber.unsafe.addObserver(p.success)
+          fiber.tellInterrupt(Cause.interrupt(FiberId.None, StackTrace(FiberId.None, Chunk.single(trace))))
           p.future
         }
       }
@@ -203,8 +205,6 @@ trait Runtime[+R] { self =>
 
       if (supervisor ne Supervisor.none) {
         supervisor.onStart(environment, zio, None, fiber)
-
-        fiber.addObserver(exit => supervisor.onEnd(exit, fiber))
       }
 
       fiber
@@ -213,15 +213,33 @@ trait Runtime[+R] { self =>
 }
 
 object Runtime extends RuntimePlatformSpecific {
+  private[zio] sealed abstract class Internal[+R](
+    val environment: ZEnvironment[R],
+    val fiberRefs: FiberRefs,
+    val runtimeFlags: RuntimeFlags
+  ) extends Runtime[R] {
+    // Thread unsafe lazy initialization
+    protected var unsafe0: UnsafeAPI with UnsafeAPI3 = null
+    override def unsafe: UnsafeAPI with UnsafeAPI3 = {
+      if (unsafe0 eq null) unsafe0 = new UnsafeAPIV1 {}
+      unsafe0
+    }
+    override def toString: String =
+      s"Runtime(environment = $environment, fiberRefs = $fiberRefs, runtimeFlags = ${RuntimeFlags.render(runtimeFlags)})"
+  }
 
+  @deprecated("Custom Fatal handling is deprecated, kept only for binary compatibility.", "2.1.22")
   def addFatal(fatal: Class[_ <: Throwable])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
-    ZLayer.scoped(FiberRef.currentFatal.locallyScopedWith(_ | IsFatal(fatal)))
+    ZLayer(Console.printLineError("Runtime.addFatal is deprecated & inert, kept only for binary compatibility.").ignore)
+
+  def addLogAnnotation(annotation: LogAnnotation)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped(FiberRef.currentLogAnnotations.locallyScopedWith(_ + (annotation.key -> annotation.value)))
 
   def addLogger(logger: ZLogger[String, Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(ZIO.withLoggerScoped(logger))
 
   def addSupervisor(supervisor: Supervisor[Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
-    ZLayer.scoped(FiberRef.currentSupervisor.locallyScopedWith(_ ++ supervisor))
+    ZLayer.scoped(FiberRef.currentSupervisor.locallyScopedWith(_.patchAdd(supervisor)))
 
   /**
    * Builds a new runtime given an environment `R` and a [[zio.FiberRefs]].
@@ -230,12 +248,7 @@ object Runtime extends RuntimePlatformSpecific {
     r: ZEnvironment[R],
     fiberRefs0: FiberRefs,
     runtimeFlags0: RuntimeFlags
-  ): Runtime[R] =
-    new Runtime[R] {
-      val environment           = r
-      override val fiberRefs    = fiberRefs0
-      override val runtimeFlags = runtimeFlags0
-    }
+  ): Runtime[R] = new Internal[R](r, fiberRefs0, runtimeFlags0) {}
 
   /**
    * The default [[Runtime]] for most ZIO applications. This runtime is
@@ -273,6 +286,7 @@ object Runtime extends RuntimePlatformSpecific {
   def enableRuntimeMetrics(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     enableFlags(RuntimeFlag.RuntimeMetrics)
 
+  @deprecated("Unused + unimplemented: using this flag will have no effect", "2.1.19")
   def enableWorkStealing(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     enableFlags(RuntimeFlag.WorkStealing)
 
@@ -310,25 +324,24 @@ object Runtime extends RuntimePlatformSpecific {
     def fromLayer[R](layer: Layer[Any, R])(implicit trace: Trace, unsafe: Unsafe): Runtime.Scoped[R] = {
       val (runtime, shutdown) = default.unsafe.run {
         Scope.make.flatMap { scope =>
-          scope.extend(layer.toRuntime).flatMap { acquire =>
-            val finalizer = () =>
-              default.unsafe.run {
-                scope.close(Exit.unit).uninterruptible.unit
-              }.getOrThrowFiberFailure()
-
-            ZIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
+          scope.extend(layer.toRuntime).map { acquire =>
+            val finalizer = { () =>
+              if (scope.size > 0) default.unsafe.run(scope.close(Exit.unit).uninterruptible).getOrThrowFiberFailure()
+              ()
+            }
+            Platform.addShutdownHook(finalizer)
+            (acquire, finalizer)
           }
         }
       }.getOrThrowFiberFailure()
 
-      Runtime.Scoped(runtime.environment, runtime.fiberRefs, runtime.runtimeFlags, () => shutdown())
+      Runtime.Scoped(runtime.environment, runtime.fiberRefs, runtime.runtimeFlags, shutdown)
     }
   }
 
   class Proxy[+R](underlying: Runtime[R]) extends Runtime[R] {
-    def environment = underlying.environment
-    def fiberRefs   = underlying.fiberRefs
-
+    def environment  = underlying.environment
+    def fiberRefs    = underlying.fiberRefs
     def runtimeFlags = underlying.runtimeFlags
   }
 
@@ -336,11 +349,11 @@ object Runtime extends RuntimePlatformSpecific {
    * A runtime that can be shutdown to release resources allocated to it.
    */
   final case class Scoped[+R](
-    environment: ZEnvironment[R],
-    fiberRefs: FiberRefs,
-    runtimeFlags: RuntimeFlags,
+    override val environment: ZEnvironment[R],
+    override val fiberRefs: FiberRefs,
+    override val runtimeFlags: RuntimeFlags,
     shutdown0: () => Unit
-  ) extends Runtime[R] { self =>
+  ) extends Internal[R](environment, fiberRefs, runtimeFlags) { self =>
     override final def mapEnvironment[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime.Scoped[R1] =
       Scoped(f(environment), fiberRefs, runtimeFlags, shutdown0)
 
@@ -354,9 +367,10 @@ object Runtime extends RuntimePlatformSpecific {
       def shutdown()(implicit unsafe: Unsafe): Unit
     }
 
-    override def unsafe: UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 =
-      new UnsafeAPIV2 {}
-
+    override def unsafe: UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 = {
+      if (unsafe0 eq null) unsafe0 = new UnsafeAPIV2 {}
+      unsafe0.asInstanceOf[UnsafeAPI with UnsafeAPI2 with UnsafeAPI3] // Internal can't access API2
+    }
     protected abstract class UnsafeAPIV2 extends UnsafeAPIV1 with UnsafeAPI2 {
       def shutdown()(implicit unsafe: Unsafe) = shutdown0()
     }

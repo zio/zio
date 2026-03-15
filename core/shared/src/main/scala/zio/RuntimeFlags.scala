@@ -100,6 +100,7 @@ object RuntimeFlags {
   def windDown(flags: RuntimeFlags): Boolean =
     isEnabled(flags, RuntimeFlag.WindDown.mask)
 
+  @deprecated("Unused + unimplemented: using this flag will have no effect", "2.1.19")
   def workStealing(flags: RuntimeFlags): Boolean =
     isEnabled(flags, RuntimeFlag.WorkStealing.mask)
 
@@ -128,7 +129,14 @@ object RuntimeFlags {
       RuntimeFlags.toSet(active(patch) & enabled(patch))
 
     def exclude(patch: Patch)(flag: RuntimeFlag): Patch =
-      Patch(active(patch) & flag.notMask, enabled(patch))
+      exclude(patch, flag.notMask)
+
+    /**
+     * Optimized variant of [[exclude]] that doesn't rely on the megamorphic
+     * call to `.notMask`
+     */
+    private[zio] def exclude(patch: Patch, notMask: Int): Patch =
+      Patch(active(patch) & notMask, enabled(patch))
 
     def includes(patch: Patch)(flag: RuntimeFlag): Boolean =
       ((active(patch) & flag.mask) != 0)
@@ -210,6 +218,9 @@ object RuntimeFlags {
    */
   def enable(flag: RuntimeFlag): RuntimeFlags.Patch =
     RuntimeFlags.Patch(flag.mask, flag.mask)
+
+  private[zio] val disableInterruption: RuntimeFlags.Patch = disable(RuntimeFlag.Interruption)
+  private[zio] val enableInterruption: RuntimeFlags.Patch  = enable(RuntimeFlag.Interruption)
 
   /**
    * No runtime flags.

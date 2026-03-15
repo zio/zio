@@ -1,8 +1,8 @@
 package zio.internal
 
-import zio.test._
 import zio.ZIOBaseSpec
 import zio.test.Assertion.equalTo
+import zio.test._
 
 object ConcurrentWeakHashSetSpecJVM extends ZIOBaseSpec {
 
@@ -12,7 +12,7 @@ object ConcurrentWeakHashSetSpecJVM extends ZIOBaseSpec {
 
   def spec = suite("ConcurrentWeakHashSetSpec")(
     test("check if set is thread-safe with truly concurrent race condition between add & remove") {
-      import java.util.concurrent.{ConcurrentLinkedQueue, Executors, TimeUnit, CountDownLatch}
+      import java.util.concurrent.{ConcurrentLinkedQueue, CountDownLatch, Executors, TimeUnit}
 
       val sampleSize      = 1000000
       val executorService = Executors.newFixedThreadPool(2)

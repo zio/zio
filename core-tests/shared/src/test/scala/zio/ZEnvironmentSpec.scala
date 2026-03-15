@@ -47,6 +47,77 @@ object ZEnvironmentSpec extends ZIOBaseSpec {
         f6 eq foo1,
         f7 eq foo2
       )
+    },
+    test("pruning a union on a subtype that implements multiple services") {
+      trait Foo
+      trait Bar
+      final class FooBar extends Foo with Bar
+
+      val env    = ZEnvironment(new FooBar)
+      val pruned = env.prune[Foo & Bar]
+
+      assertTrue(env == pruned)
+    },
+    test("pruning a tag with multiple services") {
+      trait Foo
+      final class Foo1 extends Foo
+      final class Foo2 extends Foo
+
+      val env    = ZEnvironment(new Foo1, new Foo2)
+      val pruned = env.prune[Foo]
+
+      assertTrue(env == pruned)
+    },
+    suite("pruning Scope when missing from the environment throws an error") {
+      final class Foo1
+      final class Foo2
+
+      def testPrune[R](implicit tagged: EnvironmentTag[R]): TestResult = {
+        val env = ZEnvironment(new Foo1, new Foo2).asInstanceOf[ZEnvironment[R]]
+        try {
+          env.prune[R]
+          assertNever("should have failed to prune scope")
+        } catch {
+          case t: Throwable =>
+            val msg = t.getMessage
+            assertTrue(msg.contains("Set(Scope) statically known to be contained within the environment are missing"))
+        }
+      }
+
+      List(
+        test("single tag")(testPrune[Scope]),
+        test("union tag")(testPrune[Scope & Foo1])
+      )
+    },
+    test("get[Any] on an empty ZEnvironment returns Unit") {
+      val value = ZEnvironment.empty.get[Any]
+      assertTrue(value.isInstanceOf[Unit])
+    },
+    test("equality") {
+      val env1 = ZEnvironment("foo", 42)
+      val env2 = ZEnvironment("foo", 42)
+      assertTrue(env1 == env2)
+    },
+    test("equality takes into account order") {
+      val env1 = ZEnvironment("foo", 42)
+      val env2 = ZEnvironment(42, "foo")
+      assertTrue(env1 != env2)
+    },
+    test("hashCode") {
+      val env1 = ZEnvironment("foo", 42)
+      val env2 = ZEnvironment("foo", 42)
+      assertTrue(env1.hashCode == env2.hashCode)
+    },
+    test("hashCode takes into account order") {
+      val env1 = ZEnvironment("foo", 42)
+      val env2 = ZEnvironment(42, "foo")
+      assertTrue(env1.hashCode != env2.hashCode)
+    },
+    test("diff on two equal environments should return an empty patch") {
+      val env1  = ZEnvironment("foo", 42)
+      val env2  = ZEnvironment("foo", 42)
+      val patch = ZEnvironment.Patch.diff(env1, env2)
+      assertTrue(patch.isEmpty)
     }
   )
 }

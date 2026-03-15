@@ -14,11 +14,11 @@ We need to add the following dependencies to our project:
 
 ```scala
 libraryDependencies ++= Seq(
-  "zio.dev"  %% "zio-http" % "3.0.0-RC6"
+  "dev.zio"  %% "zio-http" % "3.0.0-RC6"
 )
 ```
 
-For this tutorial, we will be using the _[ZIO HTTP](https://zio.dev/zio-http/)_ library, which is a library for building HTTP applications using ZIO.
+For this tutorial, we will be using the _[ZIO HTTP](https://ziohttp.com/)_ library, which is a library for building HTTP applications using ZIO.
 
 ## Introduction to The `Route` Data Type
 
@@ -81,7 +81,7 @@ We have the same constructor for failures called `Http.fail`. It creates a `Hand
 import zio._
 import zio.http._
 
-val app: Handler[Any, Response, Any, Nothing] = 
+val app: Handler[Any, Response, Any, Nothing] =
   handler(ZIO.fail(Response.internalServerError("Something went wrong")))
 ```
 
@@ -100,7 +100,7 @@ Handlers can be effectual. We have a couple of constructors that can be used to 
 - `Http.fromFunctionZIO`
 - `Http.fromFile`
 
-There are lots of other constructors, to learn more about them, please refer to the [`Handler`](https://zio.dev/zio-http/reference/handler) page in the ZIO HTTP documentation.
+There are lots of other constructors, to learn more about them, please refer to the [`Handler`](https://ziohttp.com/reference/handler) page in the ZIO HTTP documentation.
 
 ### Combining Handlers
 
@@ -157,7 +157,7 @@ Let's see an example of how to pattern match on incoming requests:
 import zio.http._
 
 val httpApp: Route[Any, Nothing] =
-  Method.GET / "greet" / string("name") -> 
+  Method.GET / "greet" / string("name") ->
     handler { (name: String, _: Request) =>
       Response.text(s"Hello $name!")
     }
@@ -170,7 +170,7 @@ import zio._
 import zio.http._
 
 val httpApp: Route[Any, Response] =
-  Method.GET / "greet" -> 
+  Method.GET / "greet" ->
     handler { (req: Request) =>
       if (req.url.queryParams.nonEmpty)
         ZIO.succeed(Response.text(s"Hello ${req.url.queryParams("name").mkString(" and ")}!"))
@@ -193,6 +193,12 @@ object Server {
 }
 ```
 
+:::note
+If you encounter a "port already in use" error, you can use `sbt-revolver` to manage server restarts more effectively. The `reStart` command will start your server and `reStop` will properly stop it, releasing the port.
+
+To enable this feature, we have included `sbt-revolver` in the project. For more details on this, refer to the [ZIO HTTP documentation on hot-reloading](https://ziohttp.com/installation#hot-reload-changes-watch-mode).
+:::
+
 ## Greeting App
 
 First, we need to define a request handler that will handle `GET` requests to the `/greet` path:
@@ -212,7 +218,7 @@ object GreetingRoutes {
               s"Hello ${req.url.queryParams("name").map(_.mkString(" and "))}!"
             )
           )
-        else 
+        else
           ZIO.fail(Response.badRequest("The name query parameter is missing!"))
       },
 

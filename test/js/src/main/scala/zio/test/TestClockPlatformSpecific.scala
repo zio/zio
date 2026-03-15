@@ -19,11 +19,11 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{Duration, Scheduler, Trace, UIO, Unsafe, ZIO}
 
-trait TestClockPlatformSpecific { self: TestClock.Test =>
+private[test] trait TestClockPlatformSpecific { self: TestClock.Test =>
 
   def scheduler(implicit trace: Trace): UIO[Scheduler] =
     ZIO.runtime[Any].map { runtime =>
-      new Scheduler {
+      new Scheduler.Internal {
         def schedule(runnable: Runnable, duration: Duration)(implicit unsafe: Unsafe): Scheduler.CancelToken = {
           val fiber =
             runtime.unsafe.fork(sleep(duration) *> ZIO.succeed(runnable.run()))

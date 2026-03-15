@@ -2,8 +2,10 @@ package zio.stream
 
 import zio._
 import zio.stream.encoding.EncodingException
-import zio.test.Assertion.{equalTo, fails}
+import zio.test.Assertion.{equalTo, fails, isEmpty}
 import zio.test._
+
+import java.nio.charset.Charset
 import scala.io.Source
 
 object ZPipelineSpec extends ZIOBaseSpec {
@@ -42,6 +44,20 @@ object ZPipelineSpec extends ZIOBaseSpec {
             .map(res => assert(res)(equalTo(Chunk[Byte](49, 50))))
         }
       ),
+      suite("encodeStringWith")(
+        test("doesn't cause OOM errors on large inputs") {
+          for {
+            bytes <- Random.RandomLive.nextString(12 * 1024 * 1024).map(_.getBytes)
+            stream = ZStream.fromIterable(bytes)
+            pipeline = ZPipeline.decodeStringWith(Charset.forName("UTF-8")) >>>
+                         ZPipeline.splitOn("\n") >>>
+                         ZPipeline.map[String, String](_.concat("\n")) >>>
+                         ZPipeline.encodeStringWith(Charset.forName("UTF-8"))
+            pipelined = stream.rechunk(1024).via(pipeline)
+            out      <- pipelined.runCollect
+          } yield assertTrue(out.dropRight(1).sameElements(bytes))
+        }
+      ) @@ TestAspect.jvmOnly,
       suite("splitLines")(
         test("preserves data")(
           check(weirdStringGenForSplitLines) { lines =>
@@ -208,6 +224,18 @@ object ZPipelineSpec extends ZIOBaseSpec {
             .exit
         )(fails(equalTo("failed!!!")))
       ),
+      test("mapErrorZIO")(
+        assertZIO(
+          ZStream(1, 2, 3)
+            .via(
+              ZPipeline
+                .fromChannel(ZChannel.fail("failed"))
+                .mapErrorZIO(v => ZIO.succeed(v + "!!!"))
+            )
+            .runCollect
+            .exit
+        )(fails(equalTo("failed!!!")))
+      ),
       suite("sample")(
         test("Works with empty input") {
           for {
@@ -337,7 +365,103 @@ object ZPipelineSpec extends ZIOBaseSpec {
           }
           .runCollect
           .map(assert(_)(equalTo(Chunk.range(1, 21))))
-      }
+      },
+      suite("mapEitherChunk")(
+        test("with empty chunk") {
+          val chunk = Chunk.empty[Int]
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapEitherChunked(i => Right(i)))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(isEmpty)
+        },
+        test("with a 1 element chunk - Right") {
+          val chunk = Chunk(1)
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapEitherChunked(i => Right(i)))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(equalTo(Chunk(1)))
+        },
+        test("with a 1 element chunk - Left") {
+          val chunk = Chunk(1)
+          for {
+            collector <- Queue.unbounded[Int]
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapEitherChunked(i => Left(i)))
+                        .run(ZSink.fromQueue(collector))
+                        .exit
+            collected <- collector.takeAll
+          } yield assert(result)(fails(equalTo(1))) && assert(collected)(isEmpty)
+        },
+        test("Keeps order and values intact") {
+          val range = 1.to(10)
+          val chunk = Chunk.fromIterable(range)
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapEitherChunked(i => Right(i)))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(equalTo(Chunk(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)))
+        },
+        test("stop at the first Left") {
+          val range = 1.to(10)
+          val chunk = Chunk.fromIterable(range)
+          for {
+            collector <- Queue.unbounded[Int]
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapEitherChunked(i => if (i == 5) Left(i) else Right(i)))
+                        .run(ZSink.fromQueue(collector))
+                        .exit
+            collected <- collector.takeAll
+          } yield assert(result)(fails(equalTo(5))) && assert(collected)(equalTo(Chunk(1, 2, 3, 4)))
+        }
+      ),
+      suite("mapChunksEither")(
+        test("with empty chunk - Right") {
+          val chunk = Chunk.empty[Int]
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapChunksEither(chunk => Right(chunk)))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(isEmpty)
+        },
+        test("with empty chunk - Left") {
+          val chunk = Chunk.empty[Int]
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapChunksEither(chunk => Left(chunk)))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(isEmpty)
+        },
+        test("fails with the err in the Left") {
+          val chunk = Chunk.range(0, 10)
+          for {
+            collector <- Queue.unbounded[Int]
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapChunksEither(_ => Left("this is an error")))
+                        .run(ZSink.fromQueue(collector))
+                        .exit
+            collected <- collector.takeAll
+          } yield assert(result)(fails(equalTo("this is an error"))) && assert(collected)(isEmpty)
+        },
+        test("returns the chunk in the Right") {
+          val chunk = Chunk.range(1, 11)
+          for {
+            result <- ZStream
+                        .fromChunk(chunk)
+                        .via(ZPipeline.mapChunksEither(chunk => Right(chunk.map(_ * 10))))
+                        .run(ZSink.collectAll)
+          } yield assert(result)(equalTo(Chunk(10, 20, 30, 40, 50, 60, 70, 80, 90, 100)))
+        }
+      )
     )
 
   val weirdStringGenForSplitLines: Gen[Any, Chunk[String]] = Gen

@@ -11,7 +11,7 @@ object MetricsSpec extends ZIOBaseSpec {
         val run =
           for {
             latch <- Promise.make[Nothing, Unit]
-            frk    = (latch.succeed(()) *> ZIO.never).provideLayer(DefaultJvmMetrics.live.unit)
+            frk    = (latch.succeed(()) *> ZIO.never).provideLayer(DefaultJvmMetrics.liveV2.unit)
             _     <- frk.forkDaemon.flatMap(f => latch.await *> f.interrupt *> f.await)
           } yield ()
 

@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.UUID
@@ -45,7 +44,7 @@ trait Random extends Serializable { self =>
     trace: Trace
   ): UIO[Collection[A]]
 
-  trait UnsafeAPI {
+  trait UnsafeAPI extends Serializable {
     def nextBoolean()(implicit unsafe: Unsafe): Boolean
     def nextBytes(length: Int)(implicit unsafe: Unsafe): Chunk[Byte]
     def nextDouble()(implicit unsafe: Unsafe): Double
@@ -145,7 +144,7 @@ trait Random extends Serializable { self =>
 
 object Random extends Serializable {
 
-  val tag: Tag[Random] = Tag[Random]
+  implicit val tag: Tag[Random] = Tag(EnvironmentTag.tagFromTagMacro[Random])
 
   object RandomLive extends Random {
 
@@ -207,7 +206,7 @@ object Random extends Serializable {
     )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: Trace): UIO[Collection[A]] =
       ZIO.succeed(unsafe.shuffle(collection)(bf, Unsafe.unsafe))
 
-    @transient override val unsafe: UnsafeAPI =
+    override val unsafe: UnsafeAPI =
       new UnsafeAPI {
         override def nextBoolean()(implicit unsafe: Unsafe): Boolean =
           scala.util.Random.nextBoolean()
@@ -335,7 +334,7 @@ object Random extends Serializable {
     )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: Trace): UIO[Collection[A]] =
       ZIO.succeed(unsafe.shuffle(collection)(bf, Unsafe.unsafe))
 
-    @transient override val unsafe: UnsafeAPI =
+    override val unsafe: UnsafeAPI =
       new UnsafeAPI {
         override def nextBoolean()(implicit unsafe: Unsafe): Boolean =
           random.nextBoolean()
@@ -536,8 +535,7 @@ object Random extends Serializable {
     ZIO.randomWith(_.nextDoubleBetween(minInclusive, maxExclusive))
 
   /**
-   * Generates a pseudo-random, uniformly distributed float between 0.0 and
-   * 1.0.
+   * Generates a pseudo-random, uniformly distributed float between 0.0 and 1.0.
    */
   def nextFloat(implicit trace: Trace): UIO[Float] =
     ZIO.randomWith(_.nextFloat)

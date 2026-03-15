@@ -46,7 +46,7 @@ package object zio
 
   type Trace = Tracer.instance.Type with Tracer.Traced
 
-  trait Tag[A] extends EnvironmentTag[A] {
+  sealed trait Tag[A] extends EnvironmentTag[A] {
     def tag: LightTypeTag
   }
 
@@ -59,4 +59,6 @@ package object zio
   }
 
   private[zio] type Callback[E, A] = (Exit[E, A], FiberRefs) => Any
+
+  private[zio] def nonFatal(t: Throwable): Boolean = !t.isInstanceOf[VirtualMachineError]
 }

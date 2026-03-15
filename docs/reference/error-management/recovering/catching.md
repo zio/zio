@@ -263,18 +263,18 @@ ZIO
 
 ## Catching Non-Fatal
 
-We can use the `ZIO#catchNonFatalOrDie` to recover from all non-fatal errors:
+We can use the `ZIO#catchAll` to recover from all non-fatal errors:
 
 ```scala
 trait ZIO[-R, +E, +A] {
-  def catchNonFatalOrDie[R1 <: R, E2, A1 >: A](
+  final def catchAll[R1 <: R, E2, A1 >: A](
     h: E => ZIO[R1, E2, A1]
-  )(implicit ev1: CanFail[E], ev2: E <:< Throwable): ZIO[R1, E2, A1]
+  )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E2, A1]
 }
 ```
 
 In case of occurring any [fatal error](#catching-traces), it will die.
 
 ```scala
-openFile("data.json").catchNonFatalOrDie(_ => openFile("backup.json"))
+openFile("data.json").catchAll(_ => openFile("backup.json"))
 ```

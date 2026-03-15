@@ -96,7 +96,7 @@ Inside the `index.md` file, the `sidebar_title` field is used to set the name of
 
 Also, we can use `@‎PROJECT_BADGES@` placeholder to add badges to the documentation. The `@‎PROJECT_BADGES@` placeholder will be replaced with the badges of the library. Also, the `@‎VERSION@` placeholder will be replaced with the latest version of the library.
 
-The `index.md` file is the primary source for generating the `README.md` file of the library. Further details on this process will be discussed in the [Generating README File](#generating-readme-file) section.
+The `index.md` file is the primary source for generating the `README.md` file of the library. Further details on this process will be discussed in the [ZIO SBT Website Plugin](#zio-sbt-website-plugin) section.
 
 ### The `sidebars.js` File
 
@@ -291,8 +291,6 @@ release-docs:
     uses: actions/checkout@v4.1.1
     with:
       fetch-depth: '0'
-  - name: Install libuv
-    run: sudo apt-get update && sudo apt-get install -y libuv1-dev
   - name: Setup NodeJs
     uses: actions/setup-node@v4
     with:
@@ -367,8 +365,6 @@ Before releasing the documentation package, it is advisable to check if everythi
 +         registry-url: https://registry.npmjs.org
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
-      - name: Install libuv
-        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Check Building Packages
         run: ./sbt +publishLocal
 +     - name: Check Website Build Process
@@ -390,8 +386,6 @@ update-readme:
     uses: actions/checkout@v4.1.1
     with:
       fetch-depth: '0'
-  - name: Install libuv
-    run: sudo apt-get update && sudo apt-get install -y libuv1-dev
   - name: Setup Scala
     uses: actions/setup-java@v4.2.1
     with:

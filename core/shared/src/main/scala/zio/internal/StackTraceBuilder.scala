@@ -18,18 +18,25 @@ package zio.internal
 
 import zio._
 
+import scala.collection.mutable.ArrayBuilder
+import scala.reflect.ClassTag
+
 private[zio] class StackTraceBuilder private () { self =>
-  private var last: Trace                  = null.asInstanceOf[Trace]
-  private val builder: ChunkBuilder[Trace] = ChunkBuilder.make()
+  private[this] val builder = new ArrayBuilder.ofRef()(ClassTag.AnyRef.asInstanceOf[ClassTag[Trace]])
 
-  def +=(trace: Trace): Unit =
-    if ((trace ne last) && (trace ne null) && (trace ne Trace.empty)) {
+  def +=(trace: Trace): Unit = {
+    if ((trace ne null) && (trace ne Trace.empty))
       builder += trace
-      last = trace
-    }
+    ()
+  }
 
-  def result(): Chunk[Trace] = builder.result()
+  def clear(): Unit =
+    builder.clear()
+
+  def result(): Chunk[Trace] =
+    Chunk.fromArray(builder.result())
 }
+
 private[zio] object StackTraceBuilder {
   def make()(unsafe: Unsafe): StackTraceBuilder = new StackTraceBuilder()
 }

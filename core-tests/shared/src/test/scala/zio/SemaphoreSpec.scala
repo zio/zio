@@ -1,6 +1,5 @@
 package zio
 
-import zio._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
@@ -17,7 +16,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
         _         <- fiber.interrupt
         permits   <- semaphore.available
       } yield assert(permits)(equalTo(1L))
-    } @@ nonFlaky,
+    },
     test("withPermit acquire is interruptible") {
       for {
         semaphore <- Semaphore.make(0L)
@@ -25,13 +24,69 @@ object SemaphoreSpec extends ZIOBaseSpec {
         fiber     <- effect.fork
         _         <- fiber.interrupt
       } yield assertCompletes
-    } @@ nonFlaky,
+    },
     test("withPermitsScoped releases same number of permits") {
       for {
         semaphore <- Semaphore.make(2L)
         _         <- ZIO.scoped(semaphore.withPermitsScoped(2))
         permits   <- semaphore.available
       } yield assertTrue(permits == 2L)
-    }
-  )
+    },
+    test("tryWithPermits acquires and releases same number of permits") {
+      for {
+        sem     <- Semaphore.make(3L)
+        ans     <- sem.tryWithPermits(2L)(ZIO.unit)
+        permits <- sem.available
+      } yield assertTrue(permits == 3L && ans.isDefined)
+    },
+    test("tryWithPermits if 0 permits requested") {
+      for {
+        sem     <- Semaphore.make(3L)
+        ans     <- sem.tryWithPermits(0L)(ZIO.succeed("I got executed"))
+        permits <- sem.available
+      } yield assertTrue(permits == 3L && ans.contains("I got executed"))
+    },
+    test("tryWithPermits returns None if no permits available") {
+      for {
+        sem     <- Semaphore.make(3L)
+        ans     <- sem.tryWithPermits(4L)(ZIO.succeed("Shouldn't get executed"))
+        permits <- sem.available
+      } yield assertTrue(permits == 3L && ans.isEmpty)
+    },
+    test("tryWithPermit acquires and releases same number of permits") {
+      for {
+        sem     <- Semaphore.make(3L)
+        ans     <- sem.tryWithPermit(ZIO.unit)
+        permits <- sem.available
+      } yield assertTrue(permits == 3L && ans.isDefined)
+    },
+    test("tryWithPermits fails if requested permits in negative number") {
+      for {
+        sem <- Semaphore.make(3L)
+        ans <- sem.tryWithPermits(-1L)(ZIO.unit).exit
+      } yield assert(ans)(dies(isSubtype[IllegalArgumentException](anything)))
+    },
+    test("tryWithPermits restores permits after failure") {
+      for {
+        sem     <- Semaphore.make(3L)
+        failure  = ZIO.fail("exception")
+        result  <- sem.tryWithPermits(2L)(failure).exit
+        permits <- sem.available
+      } yield assertTrue(
+        permits == 3L,
+        result.isFailure,
+        result == Exit.fail("exception")
+      )
+    },
+    test("awaiting returns the count of waiting fibers") {
+      for {
+        semaphore    <- Semaphore.make(1)
+        promise      <- Promise.make[Nothing, Unit]
+        _            <- ZIO.foreachDiscard(1 to 11)(_ => semaphore.withPermit(promise.await).fork)
+        waitingStart <- semaphore.awaiting.repeatUntil(_ == 10)
+        _            <- promise.succeed(())
+        waitingEnd   <- semaphore.awaiting.repeatUntil(_ == 0)
+      } yield assertTrue(waitingStart == 10, waitingEnd == 0)
+    } @@ timeout(10.seconds)
+  ) @@ exceptJS(nonFlaky)
 }

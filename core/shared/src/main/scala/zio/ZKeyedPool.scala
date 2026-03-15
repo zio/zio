@@ -18,7 +18,7 @@ package zio
 
 import zio.internal.Platform
 
-trait ZKeyedPool[+Err, -Key, Item] {
+sealed trait ZKeyedPool[+Err, -Key, Item] {
 
   /**
    * Retrieves an item from the pool belonging to the given key in a scoped
@@ -123,7 +123,7 @@ object ZKeyedPool {
                                       .extend(
                                         ZPool
                                           .make(
-                                            get(key).provideEnvironment(environment),
+                                            get(key).provideSomeEnvironment[Scope](environment.union[Scope](_)),
                                             range(key),
                                             ttl(key).getOrElse(Duration.Infinity)
                                           )

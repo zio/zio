@@ -183,8 +183,7 @@ object MainApp extends ZIOAppDefault {
   def run =
     ZIO
       .serviceWithZIO[App](_.execute)
-      // Cannot use `provide` due to this dotty bug: https://github.com/lampepfl/dotty/issues/12498
-      .provideLayer(
+      .provide(
         (((DatabaseConfig.live >>> Database.live) ++ Analytics.live >>> Users.live) ++ Analytics.live) >>> App.live
       )
 }

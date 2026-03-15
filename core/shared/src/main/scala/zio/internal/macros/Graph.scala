@@ -2,7 +2,11 @@ package zio.internal.macros
 
 import zio.internal.macros.LayerTree._
 
-final case class Graph[Key, A](nodes: List[Node[Key, A]], keyEquals: (Key, Key) => Boolean) {
+final case class Graph[Key, A](
+  nodes: List[Node[Key, A]],
+  keyEquals: (Key, Key) => Boolean,
+  unknownLayerFactory: Key => Option[Node[Key, A]]
+) {
 
   def buildComplete(outputs: List[Key]): Either[::[GraphError[Key, A]], LayerTree[A]] =
     forEach(outputs) { output =>
@@ -23,10 +27,15 @@ final case class Graph[Key, A](nodes: List[Node[Key, A]], keyEquals: (Key, Key) 
       .map(_ >>> LayerTree.succeed(node.value))
 
   def map[B](f: A => B): Graph[Key, B] =
-    Graph(nodes.map(_.map(f)), keyEquals)
+    Graph(nodes.map(_.map(f)), keyEquals, unknownLayerFactory(_).map(_.map(f)))
 
-  private def getNodeWithOutput[E](output: Key, error: E): Either[::[E], Node[Key, A]] =
-    nodes.find(_.outputs.exists(keyEquals(_, output))).toRight(::(error, Nil))
+  private val nodeWithOutputCache = new java.util.HashMap[Key, Option[Node[Key, A]]]
+
+  private def getNodeWithOutput[E](output: Key, error: => E): Either[::[E], Node[Key, A]] =
+    nodeWithOutputCache.computeIfAbsent(output, findNodeWithOutput).toRight(::(error, Nil))
+
+  private def findNodeWithOutput(output: Key): Option[Node[Key, A]] =
+    nodes.find(_.outputs.exists(keyEquals(_, output))).orElse(unknownLayerFactory(output))
 
   private def buildNode(
     node: Node[Key, A],

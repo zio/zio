@@ -16,11 +16,7 @@
 
 package zio
 
-import zio.Clock.ClockLive
-import zio.internal.stacktracer.Tracer
-import zio.Scheduler
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.Schedule.Decision._
 
 import java.lang.{System => JSystem}
 import java.time.temporal.ChronoUnit
@@ -47,7 +43,7 @@ trait Clock extends Serializable { self =>
 
   def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit]
 
-  trait UnsafeAPI {
+  trait UnsafeAPI extends Serializable {
     def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long
     def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long
     def currentDateTime()(implicit unsafe: Unsafe): OffsetDateTime
@@ -80,9 +76,11 @@ trait Clock extends Serializable { self =>
     }
 }
 
-object Clock extends ClockPlatformSpecific with Serializable {
+object Clock extends ClockPlatformSpecific with ClockSyntaxPlatformSpecific with Serializable {
 
-  val tag: Tag[Clock] = Tag[Clock]
+  implicit val tag: Tag[Clock] = Tag(EnvironmentTag.tagFromTagMacro[Clock])
+
+  private[this] val rightExitUnit = Right(Exit.unit)
 
   /**
    * An implementation of the `Clock` service backed by a `java.time.Clock`.
@@ -103,26 +101,14 @@ object Clock extends ClockPlatformSpecific with Serializable {
     def nanoTime(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafe.nanoTime()(Unsafe.unsafe))
     def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
-      ZIO.asyncInterrupt { cb =>
-        val canceler = globalScheduler.schedule(() => cb(ZIO.unit), duration)(Unsafe.unsafe)
-        Left(ZIO.succeed(canceler()))
-      }
+      ClockLive.sleep(duration)
     def scheduler(implicit trace: Trace): UIO[Scheduler] =
-      ZIO.succeed(globalScheduler)
+      ClockLive.scheduler
 
-    @transient override val unsafe: UnsafeAPI =
+    override val unsafe: UnsafeAPI =
       new UnsafeAPI {
-        override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long = {
-          val inst = instant()
-          unit match {
-            case TimeUnit.NANOSECONDS =>
-              inst.getEpochSecond * 1000000000 + inst.getNano
-            case TimeUnit.MICROSECONDS =>
-              inst.getEpochSecond * 1000000 + inst.getNano / 1000
-            case TimeUnit.MILLISECONDS => inst.toEpochMilli
-            case _                     => unit.convert(inst.toEpochMilli, TimeUnit.MILLISECONDS)
-          }
-        }
+        override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
+          currentTime(toChronoUnit(unit))
 
         override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
           unit.between(Instant.EPOCH, instant())
@@ -153,8 +139,14 @@ object Clock extends ClockPlatformSpecific with Serializable {
 
     def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
       ZIO.asyncInterrupt { cb =>
-        val canceler = globalScheduler.schedule(() => cb(ZIO.unit), duration)(Unsafe.unsafe)
-        Left(ZIO.succeed(canceler()))
+        val d = duration
+        if (d.isZero || d.isNegative) {
+          // No need to sleep, resume synchronously
+          rightExitUnit
+        } else {
+          val canceler = globalScheduler.schedule(() => cb(ZIO.unit), d)(Unsafe.unsafe)
+          Left(ZIO.succeed(canceler()))
+        }
       }
 
     def currentDateTime(implicit trace: Trace): UIO[OffsetDateTime] =
@@ -183,21 +175,10 @@ object Clock extends ClockPlatformSpecific with Serializable {
       ZIO.succeed(JavaClock(ZoneId.systemDefault))
     }
 
-    @transient override val unsafe: UnsafeAPI =
+    override val unsafe: UnsafeAPI =
       new UnsafeAPI {
-        override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long = {
-          val inst = instant()
-          // A nicer solution without loss of precision or range would be
-          // unit.toChronoUnit.between(Instant.EPOCH, inst)
-          // However, ChronoUnit is not available on all platforms
-          unit match {
-            case TimeUnit.NANOSECONDS =>
-              inst.getEpochSecond() * 1000000000 + inst.getNano()
-            case TimeUnit.MICROSECONDS =>
-              inst.getEpochSecond() * 1000000 + inst.getNano() / 1000
-            case _ => unit.convert(inst.toEpochMilli(), TimeUnit.MILLISECONDS)
-          }
-        }
+        override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
+          currentTime(toChronoUnit(unit))
 
         override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
           unit.between(Instant.EPOCH, instant())

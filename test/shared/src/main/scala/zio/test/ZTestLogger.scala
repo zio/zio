@@ -35,11 +35,11 @@ object ZTestLogger {
    * A layer which constructs a new `ZTestLogger` and runs the effect it is
    * provided to with the `Runtime` updated to add the `ZTestLogger`.
    */
-  val default: ZLayer[Any, Nothing, Any] =
+  val default: ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped {
       for {
         testLogger <- ZTestLogger.make
-        acquire    <- FiberRef.currentLoggers.locallyScopedWith(_ + testLogger)
+        _          <- FiberRef.currentLoggers.locallyScopedWith(_ + testLogger)
       } yield ()
     }
 
@@ -48,9 +48,7 @@ object ZTestLogger {
    */
   val logOutput: UIO[Chunk[ZTestLogger.LogEntry]] =
     ZIO.loggersWith { loggers =>
-      loggers.collectFirst { case testLogger: ZTestLogger[_, _] =>
-        testLogger.logOutput
-      }
+      loggers.collectFirst { case testLogger: ZTestLogger[_, _] => testLogger.logOutput }
         .getOrElse(ZIO.dieMessage("Defect: ZTestLogger is missing"))
     }
 

@@ -27,6 +27,7 @@ import scala.concurrent.ExecutionContext
  * to begin execution on a fresh stack frame.
  */
 abstract class Executor extends ExecutorPlatformSpecific { self =>
+  private val interop = new Executor.Interop(this)
 
   /**
    * Current sampled execution metrics, if available.
@@ -41,26 +42,21 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   /**
    * Views this `Executor` as a Scala `ExecutionContext`.
    */
-  lazy val asExecutionContext: ExecutionContext =
-    new ExecutionContext {
-      override def execute(r: Runnable): Unit =
-        if (!submit(r)(Unsafe.unsafe)) throw new RejectedExecutionException("Rejected: " + r.toString)
-
-      override def reportFailure(cause: Throwable): Unit =
-        cause.printStackTrace
-    }
+  def asExecutionContext: ExecutionContext = interop
 
   /**
    * Views this `Executor` as a Java `Executor`.
    */
-  lazy val asJava: java.util.concurrent.Executor =
-    command =>
-      if (submit(command)(Unsafe.unsafe)) ()
-      else throw new java.util.concurrent.RejectedExecutionException
+  def asJava: java.util.concurrent.Executor = interop
 
   /**
    * Submits an effect for execution and signals that the current fiber is ready
    * to yield.
+   *
+   * '''NOTE''': The implementation of this method in the ZScheduler will
+   * attempt to run the runnable on the current thread if the current worker's
+   * queues are empty. This leads to improved performance as we avoid
+   * unnecessary parking/un-parking of threads.
    */
   def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
     submit(runnable)
@@ -68,6 +64,10 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   /**
    * Submits an effect for execution and signals that the current fiber is ready
    * to yield or throws.
+   *
+   * @see
+   *   [[submitAndYield]] for an explanation of the implementation in
+   *   ZScheduler.
    */
   final def submitAndYieldOrThrow(runnable: Runnable)(implicit unsafe: Unsafe): Unit =
     if (!submitAndYield(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
@@ -80,9 +80,24 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
 
   private[zio] def stealWork(depth: Int): Boolean =
     false
+
+  /**
+   * Used to identify whether the current thread is part of this executor.
+   * @note
+   *   This method is only ovewritten in the ZScheduler
+   */
+  private[zio] def isCurrentThreadInExecutor: Boolean =
+    false
 }
 
 object Executor extends DefaultExecutors with Serializable {
+  private final class Interop(executor: Executor) extends java.util.concurrent.Executor with ExecutionContext {
+    override def execute(command: Runnable): Unit =
+      if (!executor.submit(command)(Unsafe)) throw new RejectedExecutionException("Rejected: " + command.toString)
+    override def reportFailure(cause: Throwable): Unit = cause.printStackTrace()
+    override def toString                              = s"Executor.Interop($executor)"
+  }
+
   def fromJavaExecutor(executor: java.util.concurrent.Executor): Executor =
     new Executor {
       override def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics] = None
@@ -93,8 +108,10 @@ object Executor extends DefaultExecutors with Serializable {
 
           true
         } catch {
-          case t: RejectedExecutionException => false
+          case _: RejectedExecutionException => false
         }
+
+      override def asJava = executor
     }
 
   /**
@@ -113,5 +130,7 @@ object Executor extends DefaultExecutors with Serializable {
         }
 
       def metrics(implicit unsafe: Unsafe) = None
+
+      override def asExecutionContext = ec
     }
 }

@@ -31,8 +31,6 @@ import java.util.zip.{DataFormatException, Inflater}
 import java.{util => ju}
 import scala.annotation.tailrec
 
-import scala.concurrent.Future
-
 private[stream] trait ZStreamPlatformSpecificConstructors {
   self: ZStream.type =>
 
@@ -42,7 +40,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
    * of the stream, by setting it to `None`.
    */
   def async[R, E, A](
-    register: ZStream.Emit[R, E, A, Future[Boolean]] => Unit,
+    register: ZStream.Emit[R, E, A, Unit] => Unit,
     outputBuffer: => Int = 16
   )(implicit trace: Trace): ZStream[R, E, A] =
     asyncMaybe(
@@ -60,7 +58,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
    * be used to signal the end of the stream, by setting it to `None`.
    */
   def asyncInterrupt[R, E, A](
-    register: ZStream.Emit[R, E, A, Future[Boolean]] => Either[URIO[R, Any], ZStream[R, E, A]],
+    register: ZStream.Emit[R, E, A, Unit] => Either[URIO[R, Any], ZStream[R, E, A]],
     outputBuffer: => Int = 16
   )(implicit trace: Trace): ZStream[R, E, A] =
     ZStream.unwrapScoped[R](for {
@@ -70,10 +68,12 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
         ZIO.succeed {
           register { k =>
             try {
-              runtime.unsafe.runToFuture(stream.Take.fromPull(k).flatMap(output.offer))(trace, Unsafe.unsafe)
+              runtime.unsafe
+                .run(stream.Take.fromPull(k).flatMap(output.offer))(trace, Unsafe.unsafe)
+              ()
             } catch {
               case FiberFailure(c) if c.isInterrupted =>
-                Future.successful(false)
+                ()
             }
           }
         }
@@ -84,7 +84,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
           lazy val loop: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
             ZChannel.unwrap(
               output.take
-                .flatMap(_.done)
+                .flatMap(_.exit)
                 .fold(
                   maybeError =>
                     ZChannel.fromZIO(output.shutdown) *>
@@ -105,7 +105,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
    * end of the stream, by setting it to `None`.
    */
   def asyncScoped[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => ZIO[R with Scope, E, Any],
+    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZIO[R with Scope, E, Any],
     outputBuffer: => Int = 16
   )(implicit trace: Trace): ZStream[R, E, A] =
     scoped[R] {
@@ -114,10 +114,11 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
         runtime <- ZIO.runtime[R]
         _ <- register { k =>
                try {
-                 runtime.unsafe.runToFuture(stream.Take.fromPull(k).flatMap(output.offer))(trace, Unsafe.unsafe)
+                 runtime.unsafe.run(stream.Take.fromPull(k).flatMap(output.offer))(trace, Unsafe.unsafe)
+                 ()
                } catch {
                  case FiberFailure(c) if c.isInterrupted =>
-                   Future.successful(false)
+                   ()
                }
              }
         done <- Ref.make(false)
@@ -125,7 +126,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
                  if (_)
                    Pull.end
                  else
-                   output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
+                   output.take.flatMap(_.exit).onError(_ => done.set(true) *> output.shutdown)
                }
       } yield pull
     }.flatMap(repeatZIOChunkOption(_))
@@ -137,7 +138,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
    * stream, by setting it to `None`.
    */
   def asyncZIO[R, E, A](
-    register: ZStream.Emit[R, E, A, Future[Boolean]] => ZIO[R, E, Any],
+    register: ZStream.Emit[R, E, A, Unit] => ZIO[R, E, Any],
     outputBuffer: => Int = 16
   )(implicit trace: Trace): ZStream[R, E, A] =
     ZStream.fromChannel(ZChannel.unwrapScoped[R](for {
@@ -145,16 +146,17 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
       runtime <- ZIO.runtime[R]
       _ <- register { k =>
              try {
-               runtime.unsafe.runToFuture(stream.Take.fromPull(k).flatMap(output.offer))(trace, Unsafe.unsafe)
+               runtime.unsafe.run(stream.Take.fromPull(k).flatMap(output.offer))(trace, Unsafe.unsafe)
+               ()
              } catch {
                case FiberFailure(c) if c.isInterrupted =>
-                 Future.successful(false)
+                 ()
              }
            }
     } yield {
       lazy val loop: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] = ZChannel.unwrap(
         output.take
-          .flatMap(_.done)
+          .flatMap(_.exit)
           .fold(
             maybeError =>
               ZChannel.fromZIO(output.shutdown) *>
@@ -173,7 +175,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
    * the end of the stream, by setting it to `None`.
    */
   def asyncMaybe[R, E, A](
-    register: ZStream.Emit[R, E, A, Future[Boolean]] => Option[ZStream[R, E, A]],
+    register: ZStream.Emit[R, E, A, Unit] => Option[ZStream[R, E, A]],
     outputBuffer: => Int = 16
   )(implicit trace: Trace): ZStream[R, E, A] =
     asyncInterrupt(k => register(k).toRight(ZIO.unit), outputBuffer)
@@ -223,7 +225,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
             ZStream.repeatZIOChunkOption(
               for {
                 bytesRead <- ZIO.attempt(channel.read(reusableBuffer)).asSomeError
-                _         <- ZIO.fail(None).when(bytesRead == -1)
+                _         <- Exit.failNone.when(bytesRead == -1)
                 chunk <- ZIO.succeed {
                            reusableBuffer.flip()
                            Chunk.fromByteBuffer(reusableBuffer)
@@ -246,9 +248,9 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
           bufArray  <- ZIO.succeed(Array.ofDim[Char](chunkSize))
           bytesRead <- ZIO.attemptBlockingIO(reader.read(bufArray)).asSomeError
           chars <- if (bytesRead < 0)
-                     ZIO.fail(None)
+                     Exit.failNone
                    else if (bytesRead == 0)
-                     ZIO.succeed(Chunk.empty)
+                     Exit.emptyChunk
                    else if (bytesRead < chunkSize)
                      ZIO.succeed(Chunk.fromArray(bufArray).take(bytesRead))
                    else
@@ -350,7 +352,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
   ): ZStream[R, Throwable, A] =
     ZStream.fromZIO(stream).flatMap(ZStream.fromJavaStream(_, chunkSize))
 
-  trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1 {
+  private[stream] trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1 {
 
     /**
      * Constructs a `ZStream[Any, Throwable, A]` from a

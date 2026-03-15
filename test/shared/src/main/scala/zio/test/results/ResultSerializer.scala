@@ -13,12 +13,12 @@ object ResultSerializer {
   object Json extends ResultSerializer {
     def render[E](executionEvent: ExecutionEvent.Test[E]): String =
       executionEvent match {
-        case ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, id, fullyQualifiedName) =>
+        case ExecutionEvent.Test(labelsReversed, test, annotations, _, duration, _, fullyQualifiedName) =>
           s"""
              |    {
              |       "name" : "$fullyQualifiedName/${labelsReversed.reverse
-            .map(s => s.replace("/", "\\/"))
-            .mkString("/")}",
+              .map(s => s.replace("/", "\\/"))
+              .mkString("/")}",
              |       "status" : "${render(test)}",
              |       "durationMillis" : "$duration",
              |       "annotations" : "${render(annotations)}",
@@ -28,12 +28,7 @@ object ResultSerializer {
       }
 
     private def render[E](test: Either[TestFailure[E], TestSuccess]): String =
-      test match {
-        case Left(value) =>
-          "Failure"
-        case Right(value) =>
-          "Success"
-      }
+      if (test.isRight) "Success" else "Failure"
 
     private[results] def render(testAnnotationMap: TestAnnotationMap): String =
       TestAnnotationRenderer.default

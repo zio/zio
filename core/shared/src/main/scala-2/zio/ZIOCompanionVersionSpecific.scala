@@ -1,10 +1,12 @@
 package zio
 
-import zio.ZIO.{Async, asyncInterrupt, blocking}
+import zio.ZIO.Async
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicReference
 
-trait ZIOCompanionVersionSpecific {
+private[zio] trait ZIOCompanionVersionSpecific {
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -21,7 +23,14 @@ trait ZIOCompanionVersionSpecific {
     register: (ZIO[R, E, A] => Unit) => Unit,
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    Async(trace, k => { register(k); null.asInstanceOf[ZIO[R, E, A]] }, () => blockingOn)
+    Async(
+      trace,
+      k => {
+        register(k)
+        null
+      },
+      () => blockingOn
+    )
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -42,24 +51,7 @@ trait ZIOCompanionVersionSpecific {
     register: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed {
-      val cancelerRef = new java.util.concurrent.atomic.AtomicReference[URIO[R, Any]](ZIO.unit)
-
-      ZIO
-        .Async[R, E, A](
-          trace,
-          { k =>
-            val result = register(k(_))
-
-            result match {
-              case Left(canceler) => cancelerRef.set(canceler); null.asInstanceOf[ZIO[R, E, A]]
-              case Right(done)    => done
-            }
-          },
-          () => blockingOn
-        )
-        .onInterrupt(cancelerRef.get())
-    }
+    ZIO.Async[R, E, A](trace, register, () => blockingOn)
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -80,7 +72,14 @@ trait ZIOCompanionVersionSpecific {
     register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    Async(trace, k => { register(k).orNull }, () => blockingOn)
+    Async(
+      trace,
+      register(_) match {
+        case Some(value) => Right(value)
+        case _           => null
+      },
+      () => blockingOn
+    )
 
   /**
    * Returns an effect that, when executed, will cautiously run the provided
@@ -98,13 +97,7 @@ trait ZIOCompanionVersionSpecific {
     ZIO.suspendSucceed {
       try Exit.succeed(code)
       catch {
-        case t: Throwable =>
-          ZIO.isFatalWith { isFatal =>
-            if (!isFatal(t))
-              ZIO.failCause(Cause.fail(t))
-            else
-              throw t
-          }
+        case t if nonFatal(t) => ZIO.failCause(Cause.fail(t))
       }
     }
 
@@ -150,23 +143,27 @@ trait ZIOCompanionVersionSpecific {
     attemptBlocking(effect).refineToOrDie[IOException]
 
   /**
+   * Wraps the provided effect in a catch-try block. Useful for handling cases
+   * where the user-provided effect might throw outside the ZIO effect, but we
+   * don't want to incur the performance penalty from the additional flatMap in
+   * `ZIO.suspend`.
+   */
+  @inline
+  final protected def attemptOrDieZIO[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    try effect
+    catch {
+      case t if nonFatal(t) => Exit.die(t)
+    }
+
+  /**
    * Returns an effect that, when executed, will cautiously run the provided
    * code, ignoring it success or failure.
    */
   def ignore(code: => Any)(implicit trace: Trace): UIO[Unit] =
-    ZIO.suspendSucceed {
-      try {
-        code
-
-        Exit.unit
-      } catch {
-        case t: Throwable =>
-          ZIO.isFatalWith[Any, Nothing, Unit] { isFatal =>
-            if (!isFatal(t))
-              Exit.unit
-            else
-              throw t
-          }
+    ZIO.succeed {
+      try { code; () }
+      catch {
+        case t if nonFatal(t) =>
       }
     }
 

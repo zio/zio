@@ -7,7 +7,7 @@ In the companion object of the `Gen` data type, there are tons of generators for
 
 ## Primitive Types Generators
 
-ZIO Test provides generators for primitive types such as `Gen.int`, `Gen.string`, `Gen.boolean`, `Gen.float`, `Gen.double`, `Gen.bigInt`, `Gen.byte`, `Gen.bigdecimal`, `Gen.long`, `Gen.char`, and `Gen.short`.
+ZIO Test provides generators for primitive types such as `Gen.int`, `Gen.string`, `Gen.boolean`, `Gen.float`, `Gen.double`, `Gen.bigInt`, `Gen.byte`, `Gen.bigDecimal`, `Gen.long`, `Gen.char`, and `Gen.short`.
 
 Let's create an `Int` generator:
 
@@ -360,7 +360,7 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
     Gen.causes(Gen.string, Gen.throwable)
   ```
 
-5. Chained effects (`Gen.chined`, `Gen.chainedN`): A generator of effects that are the result of chaining the specified effect with itself a random number of times.
+5. Chained effects (`Gen.chained`, `Gen.chainedN`): A generator of effects that are the result of chaining the specified effect with itself a random number of times.
 
 Let's see some example of chained ZIO effects:
 
@@ -370,7 +370,7 @@ Let's see some example of chained ZIO effects:
   val effect2 = ZIO(1) *> ZIO(2)
   ```
 
-By using `Gen.chaned` or `Gen.chanedN` generator, we can create generators of chained effects:
+By using `Gen.chained` or `Gen.chainedN` generator, we can create generators of chained effects:
 
   ```scala mdoc:compile-only
   val chained : Gen[Any, ZIO[Any, Nothing, Int]] = 

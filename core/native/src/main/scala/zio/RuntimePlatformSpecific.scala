@@ -16,19 +16,18 @@
 
 package zio
 
-import zio.internal.IsFatal
+import zio.internal.{Blocking, IsFatal}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-
-import scala.concurrent.ExecutionContext
 
 private[zio] trait RuntimePlatformSpecific {
 
   final val defaultExecutor: Executor =
-    Executor.fromExecutionContext(ExecutionContext.global)
+    Executor.makeDefault(autoBlocking = false)
 
   final val defaultBlockingExecutor: Executor =
-    defaultExecutor
+    Blocking.blockingExecutor
 
+  @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
   final val defaultFatal: IsFatal =
     IsFatal.empty
 
@@ -43,4 +42,9 @@ private[zio] trait RuntimePlatformSpecific {
 
   final val defaultSupervisor: Supervisor[Any] =
     Supervisor.none
+
+  def enableAutoBlockingExecutor(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.suspend {
+      Runtime.setExecutor(Executor.makeDefault(autoBlocking = true))
+    }
 }

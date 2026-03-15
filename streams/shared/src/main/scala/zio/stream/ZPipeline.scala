@@ -21,19 +21,10 @@ import zio.internal.SingleThreadedRingBuffer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.encoding.EncodingException
 import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
-import zio.stream.internal.SingleProducerAsyncInput
 
-import java.nio.{Buffer, ByteBuffer, CharBuffer}
-import java.nio.charset.{
-  CharacterCodingException,
-  Charset,
-  CharsetDecoder,
-  CoderResult,
-  MalformedInputException,
-  StandardCharsets,
-  UnmappableCharacterException
-}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.nio.charset._
+import java.nio.{ByteBuffer, CharBuffer}
+import scala.annotation.tailrec
 
 /**
  * A `ZPipeline[Env, Err, In, Out]` is a polymorphic stream transformer.
@@ -501,6 +492,25 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self >>> ZPipeline.mapZIO(f)
 
   /**
+   * Creates a pipeline that maps over elements of the stream with the specified
+   * effectful function.
+   *
+   * Unlike `mapZIO` processing is done chunk by chunk. This means that
+   * `mapZIOChunked` provides weaker guarantees than `mapZIO`. While
+   * `stream.mapZIO(f).mapZIO(g)` is guaranteed to be equivalent to
+   * `stream.mapZIO(x => f(x).flatMap(g))`, the same is not true for
+   * `mapZIOChunked`. For example, `mapZIO` guarantees that the first element of
+   * a stream will first be processed with `f` and then `g` before the second
+   * element is processed with `f`. `mapZIOChunked` may process the first two
+   * elements with `f` and only then move on to process the first element with
+   * `g`.
+   */
+  def mapZIOChunked[Env2 <: Env, Err2 >: Err, Out2](
+    f: Out => ZIO[Env2, Err2, Out2]
+  )(implicit trace: Trace): ZPipeline[Env2, Err2, In, Out2] =
+    self >>> ZPipeline.mapZIOChunked(f)
+
+  /**
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. Transformed elements
    * will be emitted in the original order.
@@ -512,10 +522,10 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
   def mapZIOPar[Env2 <: Env, Err2 >: Err, Out2](n: => Int)(f: Out => ZIO[Env2, Err2, Out2])(implicit
     trace: Trace
   ): ZPipeline[Env2, Err2, In, Out2] =
-    self >>> ZPipeline.mapZIOPar(n)(f)
+    mapZIOPar[Env2, Err2, Out2](n, 16)(f)
 
-  def mapZIOPar[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int)(f: Out => ZIO[Env2, Err2, Out2])(implicit
-    trace: Trace
+  def mapZIOPar[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int = 16)(f: Out => ZIO[Env2, Err2, Out2])(
+    implicit trace: Trace
   ): ZPipeline[Env2, Err2, In, Out2] =
     self >>> ZPipeline.mapZIOPar(n, bufferSize)(f)
 
@@ -527,13 +537,16 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
   def mapZIOParUnordered[Env2 <: Env, Err2 >: Err, Out2](n: => Int)(f: Out => ZIO[Env2, Err2, Out2])(implicit
     trace: Trace
   ): ZPipeline[Env2, Err2, In, Out2] =
-    self >>> ZPipeline.mapZIOParUnordered(n)(f)
+    mapZIOParUnordered[Env2, Err2, Out2](n, 16)(f)
 
-  def mapZIOParUnordered[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int)(
+  /**
+   * Maps over elements of the stream with the specified effectful function,
+   * executing up to `n` invocations of `f` concurrently. The element order is
+   * not enforced by this combinator, and elements may be reordered.
+   */
+  def mapZIOParUnordered[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int = 16)(
     f: Out => ZIO[Env2, Err2, Out2]
-  )(implicit
-    trace: Trace
-  ): ZPipeline[Env2, Err2, In, Out2] =
+  )(implicit trace: Trace): ZPipeline[Env2, Err2, In, Out2] =
     self >>> ZPipeline.mapZIOParUnordered(n, bufferSize)(f)
 
   /**
@@ -552,6 +565,14 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     f: Cause[Err] => Cause[Err2]
   )(implicit trace: Trace): ZPipeline[Env, Err2, In, Out] =
     new ZPipeline(self.channel.mapErrorCause(f))
+
+  /**
+   * Transforms the errors emitted by this pipeline using `f`.
+   */
+  def mapErrorZIO[Env1 <: Env, Err2](
+    f: Err => URIO[Env1, Err2]
+  )(implicit trace: Trace): ZPipeline[Env1, Err2, In, Out] =
+    new ZPipeline(self.channel.mapErrorZIO(f))
 
   /**
    * Translates pipeline failure into death of the fiber, making all failures
@@ -802,7 +823,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           ZChannel.write(newChunk) *> writer(newLast)
         },
         (cause: Cause[Err]) => ZChannel.refailCause(cause),
-        (_: Any) => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     new ZPipeline(writer(None))
@@ -825,7 +846,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             ZChannel.write(newChunk) *> writer(newLast)
           },
         (cause: Cause[Err]) => ZChannel.refailCause(cause),
-        (_: Any) => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     new ZPipeline(writer(None))
@@ -934,7 +955,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                 ZChannel.write(outs) *> reader
               },
               ZChannel.refailCause,
-              (_: Any) => ZChannel.unit
+              ZChannel.unitChannelFn
             )
 
           reader
@@ -989,75 +1010,96 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       val byteBuffer = ByteBuffer.allocate(bufSize)
       val charBuffer = CharBuffer.allocate((bufSize.toFloat * decoder.averageCharsPerByte).round)
 
-      def handleCoderResult(coderResult: CoderResult) =
+      def handleCoderResult(coderResult: CoderResult): Chunk[Char] =
         if (coderResult.isUnderflow || coderResult.isOverflow) {
-          ZIO.succeed {
-            byteBuffer.compact()
-            charBuffer.flip()
-            val array = new Array[Char](charBuffer.remaining)
-            charBuffer.get(array)
-            charBuffer.clear()
-            Chunk.fromArray(array)
-          }
+          byteBuffer.compact()
+          charBuffer.flip()
+          val array = new Array[Char](charBuffer.remaining)
+          charBuffer.get(array)
+          charBuffer.clear()
+          Chunk.fromArray(array)
         } else if (coderResult.isMalformed) {
-          ZIO.fail(new MalformedInputException(coderResult.length()))
+          throw new MalformedInputException(coderResult.length())
         } else if (coderResult.isUnmappable) {
-          ZIO.fail(new UnmappableCharacterException(coderResult.length()))
+          throw new UnmappableCharacterException(coderResult.length())
         } else {
-          ZIO.dieMessage(s"Unexpected coder result: $coderResult")
+          throw new RuntimeException(s"Unexpected coder result: $coderResult")
         }
 
-      def decodeChunk(inBytes: Chunk[Byte]): IO[CharacterCodingException, Chunk[Char]] =
-        for {
-          remainingBytes <- ZIO.succeed {
-                              val bufRemaining = byteBuffer.remaining
-                              val (decodeBytes, remainingBytes) =
-                                if (inBytes.length > bufRemaining)
-                                  inBytes.splitAt(bufRemaining)
-                                else
-                                  (inBytes, Chunk.empty)
-                              byteBuffer.put(decodeBytes.toArray)
-                              byteBuffer.flip()
-                              remainingBytes
-                            }
-          result         <- ZIO.succeed(decoder.decode(byteBuffer, charBuffer, false))
-          decodedChars   <- handleCoderResult(result)
-          remainderChars <- if (remainingBytes.isEmpty) ZIO.succeed(Chunk.empty) else decodeChunk(remainingBytes)
-        } yield decodedChars ++ remainderChars
+      def decodeChunk(inBytes: Chunk[Byte]): Chunk[Char] = {
+        @tailrec
+        def loop(inBytes: Chunk[Byte], acc: Chunk[Char]): Chunk[Char] = {
+          val remainingBytes = {
+            val bufRemaining = byteBuffer.remaining
+            val (decodeBytes, remainingBytes) =
+              if (inBytes.length > bufRemaining)
+                inBytes.splitAt(bufRemaining)
+              else
+                (inBytes, Chunk.empty)
+            byteBuffer.put(decodeBytes.toArray)
+            byteBuffer.flip()
+            remainingBytes
+          }
+          val result = decoder.decode(byteBuffer, charBuffer, false)
+          val chars  = handleCoderResult(result)
+          val out    = acc ++ chars
+          if (remainingBytes.isEmpty) out
+          else loop(remainingBytes, out)
+        }
+        loop(inBytes, Chunk.empty)
+      }
 
-      def endOfInput: IO[CharacterCodingException, Chunk[Char]] =
-        for {
-          result         <- ZIO.succeed(decoder.decode(byteBuffer, charBuffer, true))
-          decodedChars   <- handleCoderResult(result)
-          remainderChars <- if (result.isOverflow) endOfInput else ZIO.succeed(Chunk.empty)
-        } yield decodedChars ++ remainderChars
+      def endOfInput(): Chunk[Char] = {
+        @tailrec
+        def loop(acc: Chunk[Char]): Chunk[Char] = {
+          byteBuffer.flip()
+          val result       = decoder.decode(byteBuffer, charBuffer, true)
+          val decodedChars = handleCoderResult(result)
+          val out          = acc ++ decodedChars
+          if (result.isOverflow) loop(out) else out
+        }
+        loop(Chunk.empty)
+      }
 
-      def flushRemaining: IO[CharacterCodingException, Chunk[Char]] =
-        for {
-          result         <- ZIO.succeed(decoder.flush(charBuffer))
-          decodedChars   <- handleCoderResult(result)
-          remainderChars <- if (result.isOverflow) flushRemaining else ZIO.succeed(Chunk.empty)
-        } yield decodedChars ++ remainderChars
+      def flushRemaining(): Chunk[Char] = {
+        @tailrec
+        def loop(acc: Chunk[Char]): Chunk[Char] = {
+          val result       = decoder.flush(charBuffer)
+          val decodedChars = handleCoderResult(result)
+          val out          = acc ++ decodedChars
+          if (result.isOverflow) loop(out) else out
+        }
+        loop(Chunk.empty)
+      }
+
+      def safely(bytes: => Chunk[Char]): IO[CharacterCodingException, Chunk[Char]] =
+        ZIO.suspendSucceed {
+          try {
+            Exit.succeed(bytes)
+          } catch {
+            case t: CharacterCodingException => ZIO.fail(t)
+            case t if nonFatal(t)            => ZIO.die(t)
+          }
+        }
 
       val push: Option[Chunk[Byte]] => IO[CharacterCodingException, Chunk[Char]] = {
-        case Some(inChunk) => decodeChunk(inChunk)
-        case None =>
-          for {
-            _              <- ZIO.succeed(byteBuffer.flip())
-            decodedChars   <- endOfInput
-            remainingBytes <- flushRemaining
-            result          = decodedChars ++ remainingBytes
-            _ <- ZIO.succeed {
-                   byteBuffer.clear()
-                   charBuffer.clear()
-                 }
-          } yield result
+        case Some(inChunk) =>
+          safely(decodeChunk(inChunk))
+        case _ =>
+          safely {
+            val decodedChars   = endOfInput()
+            val remainingBytes = flushRemaining()
+            byteBuffer.clear()
+            charBuffer.clear()
+            decodedChars ++ remainingBytes
+          }
       }
 
       val createPush: ZIO[Any, Nothing, Option[Chunk[Byte]] => IO[CharacterCodingException, Chunk[Char]]] =
-        for {
-          _ <- ZIO.succeed(decoder.reset)
-        } yield push
+        ZIO.succeed {
+          decoder.reset
+          push
+        }
 
       ZPipeline.fromPush(createPush)
     }
@@ -1079,7 +1121,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               else ZChannel.write(dropped) *> ZChannel.identity
             },
             (e: Cause[ZNothing]) => ZChannel.refailCause(e),
-            (_: Any) => ZChannel.unit
+            ZChannel.unitChannelFn
           )
 
       new ZPipeline(loop(n))
@@ -1101,19 +1143,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def dropUntilZIO[Env, Err, In](
     p: In => ZIO[Env, Err, Boolean]
-  )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = {
-    lazy val loop: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Any] = ZChannel.readWithCause(
-      (in: Chunk[In]) =>
-        ZChannel.unwrap(in.dropUntilZIO(p).map { leftover =>
-          val more = leftover.isEmpty
-          if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[Err, Chunk[In], Any]
-        }),
-      (e: Cause[Err]) => ZChannel.refailCause(e),
-      (_: Any) => ZChannel.unit
-    )
-
-    new ZPipeline(loop)
-  }
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, In] =
+    ZPipeline.dropWhileZIO(p(_: In).negate) >>>
+      ZPipeline.drop(1)
 
   /**
    * Creates a pipeline that drops elements while the specified predicate
@@ -1154,7 +1186,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[Err, Chunk[In], Any]
         }),
       (e: Cause[Err]) => ZChannel.refailCause(e),
-      (_: Any) => ZChannel.unit
+      ZChannel.unitChannelFn
     )
 
     new ZPipeline(loop)
@@ -1192,79 +1224,100 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       val charBuffer = CharBuffer.allocate((bufferSize.toFloat / encoder.averageBytesPerChar).round)
       val byteBuffer = ByteBuffer.allocate(bufferSize)
 
-      def handleCoderResult(coderResult: CoderResult): ZIO[Any, CharacterCodingException, Chunk[Byte]] =
+      def handleCoderResult(coderResult: CoderResult): Chunk[Byte] =
         if (coderResult.isUnderflow || coderResult.isOverflow) {
-          ZIO.succeed {
-            charBuffer.compact()
-            byteBuffer.flip()
-            val array = new Array[Byte](byteBuffer.remaining())
-            byteBuffer.get(array)
-            byteBuffer.clear()
-            Chunk.fromArray(array)
-          }
+          charBuffer.compact()
+          byteBuffer.flip()
+          val array = new Array[Byte](byteBuffer.remaining())
+          byteBuffer.get(array)
+          byteBuffer.clear()
+          Chunk.fromArray(array)
         } else if (coderResult.isMalformed) {
-          ZIO.fail(new MalformedInputException(coderResult.length()))
+          throw new MalformedInputException(coderResult.length())
         } else if (coderResult.isUnmappable) {
-          ZIO.fail(new UnmappableCharacterException(coderResult.length()))
+          throw new UnmappableCharacterException(coderResult.length())
         } else {
-          ZIO.dieMessage(s"Invalid CoderResult state")
+          throw new RuntimeException("Invalid CoderResult state")
         }
 
-      def encodeChunk(inChars: Chunk[Char]): IO[CharacterCodingException, Chunk[Byte]] =
-        for {
-          remainingChars <- ZIO.succeed {
-                              val bufRemaining = charBuffer.remaining()
-                              val (decodeChars, remainingChars) = {
-                                if (inChars.length > bufRemaining) {
-                                  inChars.splitAt(bufRemaining)
-                                } else
-                                  (inChars, Chunk.empty)
-                              }
-                              charBuffer.put(decodeChars.toArray)
-                              charBuffer.flip()
-                              remainingChars
-                            }
-          result         <- ZIO.succeed(encoder.encode(charBuffer, byteBuffer, false))
-          encodedBytes   <- handleCoderResult(result)
-          remainderBytes <- if (remainingChars.isEmpty) ZIO.succeed(Chunk.empty) else encodeChunk(remainingChars)
+      def encodeChunk(inChars: Chunk[Char]): Chunk[Byte] = {
+        @tailrec
+        def loop(inChars: Chunk[Char], acc: Chunk[Byte]): Chunk[Byte] = {
+          val remainingChars = {
+            val bufRemaining = charBuffer.remaining()
+            val (decodeChars, remainingChars) =
+              if (inChars.length > bufRemaining) {
+                inChars.splitAt(bufRemaining)
+              } else
+                (inChars, Chunk.empty)
+            charBuffer.put(decodeChars.toArray)
+            charBuffer.flip()
+            remainingChars
+          }
+          val result = encoder.encode(charBuffer, byteBuffer, false)
+          val bytes  = handleCoderResult(result)
+          val out    = acc ++ bytes
 
-        } yield encodedBytes ++ remainderBytes
+          if (remainingChars.isEmpty) out
+          else loop(remainingChars, out)
+        }
 
-      def endOfInput: IO[CharacterCodingException, Chunk[Byte]] =
-        for {
-          result         <- ZIO.succeed(encoder.encode(charBuffer, byteBuffer, true))
-          encodedBytes   <- handleCoderResult(result)
-          remainderBytes <- if (result.isOverflow) endOfInput else ZIO.succeed(Chunk.empty)
-        } yield encodedBytes ++ remainderBytes
+        loop(inChars, Chunk.empty)
+      }
 
-      def flushRemaining: IO[CharacterCodingException, Chunk[Byte]] =
-        for {
-          result         <- ZIO.succeed(encoder.flush(byteBuffer))
-          encodedBytes   <- handleCoderResult(result)
-          remainderBytes <- if (result.isOverflow) flushRemaining else ZIO.succeed(Chunk.empty)
-        } yield encodedBytes ++ remainderBytes
+      def endOfInput(): Chunk[Byte] = {
+        @tailrec
+        def loop(acc: Chunk[Byte]): Chunk[Byte] = {
+          charBuffer.flip()
+          val result       = encoder.encode(charBuffer, byteBuffer, true)
+          val encodedBytes = handleCoderResult(result)
+          val out          = acc ++ encodedBytes
+
+          if (result.isOverflow) loop(out) else out
+        }
+        loop(Chunk.empty)
+      }
+
+      def flushRemaining(): Chunk[Byte] = {
+        @tailrec
+        def loop(acc: Chunk[Byte]): Chunk[Byte] = {
+          val result       = encoder.flush(byteBuffer)
+          val encodedBytes = handleCoderResult(result)
+          val out          = acc ++ encodedBytes
+
+          if (result.isOverflow) loop(out) else out
+        }
+        loop(Chunk.empty)
+      }
+
+      def safely(bytes: => Chunk[Byte]): IO[CharacterCodingException, Chunk[Byte]] =
+        ZIO.suspendSucceed {
+          try {
+            Exit.succeed(bytes)
+          } catch {
+            case t: CharacterCodingException => ZIO.fail(t)
+            case t if nonFatal(t)            => ZIO.die(t)
+          }
+        }
 
       val push: Option[Chunk[Char]] => IO[CharacterCodingException, Chunk[Byte]] = {
         case Some(inChunk: Chunk[Char]) =>
-          encodeChunk(inChunk)
+          safely(encodeChunk(inChunk))
         case None =>
-          for {
-            _              <- ZIO.succeed(charBuffer.flip())
-            encodedBytes   <- endOfInput
-            remainingBytes <- flushRemaining
-            result          = encodedBytes ++ remainingBytes
-            _ <- ZIO.succeed {
-                   charBuffer.clear()
-                   byteBuffer.clear()
-                 }
-          } yield result
+          safely {
+            val encodedBytes   = endOfInput()
+            val remainingBytes = flushRemaining()
+            charBuffer.clear()
+            byteBuffer.clear()
+            encodedBytes ++ remainingBytes
+          }
       }
 
-      val createPush: ZIO[Any, Nothing, Option[Chunk[Char]] => IO[CharacterCodingException, Chunk[Byte]]] = {
-        for {
-          _ <- ZIO.succeed(encoder.reset)
-        } yield push
-      }
+      val createPush: ZIO[Any, Nothing, Option[Chunk[Char]] => IO[CharacterCodingException, Chunk[Byte]]] =
+        ZIO.succeed {
+          encoder.reset
+          push
+        }
 
       ZPipeline.fromPush(createPush)
     }
@@ -1296,7 +1349,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * failure terminating the stream.
    */
   def flattenExit[Err, Out](implicit trace: Trace): ZPipeline[Any, Err, Exit[Err, Out], Out] =
-    ZPipeline.mapZIO(ZIO.done(_))
+    ZPipeline.mapZIO(ZIO.identityFn)
 
   /**
    * Creates a pipeline that submerges iterables into the structure of the
@@ -1662,7 +1715,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * The identity pipeline, which does not modify streams in any way.
    */
   def identity[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
-    new ZPipeline(ZChannel.identity)
+    identityAny.asInstanceOf[ZPipeline[Any, Nothing, In, In]]
 
   def intersperse[Err, In](middle: => In)(implicit trace: Trace): ZPipeline[Any, Err, In, In] =
     new ZPipeline(
@@ -1686,7 +1739,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               ZChannel.write(builder.result()) *> writer(flagResult)
             },
             err => ZChannel.refailCause(err),
-            _ => ZChannel.unit
+            ZChannel.unitChannelFn
           )
 
         writer(true)
@@ -1694,7 +1747,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     )
 
   def intersperse[In](start: => In, middle: => In, end: => In)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
-    ZPipeline.prepend(Chunk.single(start)) >>> ZPipeline.intersperse(middle) >>> ZPipeline.append(Chunk.single(end))
+    ZPipeline.intersperse(middle) >>> ZPipeline.prepend(Chunk.single(start)) >>> ZPipeline.append(Chunk.single(end))
 
   /**
    * Creates a pipeline that converts a stream of bytes into a stream of strings
@@ -1754,7 +1807,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               }
             ),
           ZChannel.refailCause,
-          (_: Any) => ZChannel.unit
+          ZChannel.unitChannelFn
         )
 
       new ZPipeline(accumulator(s))
@@ -1825,6 +1878,29 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOutZIO(f))
 
   /**
+   * Creates a pipeline that maps chunks of elements with the specified
+   * function.
+   *
+   * Will stop on the first Left found
+   */
+  def mapChunksEither[Env, Err, In, Out](
+    f: Chunk[In] => Either[Err, Chunk[Out]]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
+    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.readWithCause(
+        chunk =>
+          f(chunk) match {
+            case r: Right[?, Chunk[Out]] => ZChannel.write(r.value) *> reader
+            case l: Left[Err, ?]         => ZChannel.refailCause(Cause.fail(l.value))
+          },
+        err => ZChannel.refailCause(err),
+        done => ZChannel.succeed(done)
+      )
+
+    new ZPipeline(reader)
+  }
+
+  /**
    * Creates a pipeline that maps elements with the specified function that
    * returns a stream.
    */
@@ -1832,8 +1908,61 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     f: In => ZStream[Env, Err, Out]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     new ZPipeline(
-      ZChannel.identity[Nothing, Chunk[In], Any].concatMap(_.map(f).map(_.channel).fold(ZChannel.unit)(_ *> _))
+      ZChannel
+        .identity[Nothing, Chunk[In], Any]
+        .concatMap(
+          _.foldLeft(ZChannel.unit: ZChannel[Env, Any, Any, Any, Err, Chunk[Out], Any])((acc, elem) =>
+            acc *> f(elem).channel
+          )
+        )
     )
+
+  /**
+   * Creates a pipeline that maps elements with the specified function.
+   *
+   * Will stop on the first Left found
+   */
+  def mapEitherChunked[Env, Err, In, Out](
+    f: In => Either[Err, Out]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
+    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.readWithCause(
+        chunk => {
+          val size = chunk.size
+
+          if (size == 1) {
+            val a = chunk.head
+
+            f(a) match {
+              case r: Right[?, Out] => ZChannel.write(Chunk.single(r.value)) *> reader
+              case l: Left[Err, ?]  => ZChannel.refailCause(Cause.fail(l.value))
+            }
+          } else {
+            val builder: ChunkBuilder[Out] = ChunkBuilder.make[Out](size)
+            val iterator                   = chunk.chunkIterator
+            var index: Int                 = 0
+            var error: Err                 = null.asInstanceOf[Err]
+
+            while (index < size && error == null) {
+              val in = iterator.nextAt(index)
+              index += 1
+              f(in) match {
+                case r: Right[?, Out] => builder.addOne(r.value)
+                case l: Left[Err, ?]  => error = l.value
+              }
+            }
+
+            val values = builder.result()
+            val next   = if (error == null) reader else ZChannel.refailCause(Cause.fail(error))
+            if (values.nonEmpty) ZChannel.write(values) *> next else next
+          }
+        },
+        err => ZChannel.refailCause(err),
+        done => ZChannel.succeed(done)
+      )
+
+    new ZPipeline(reader)
+  }
 
   /**
    * Creates a pipeline that maps elements with the specified effectful
@@ -1865,6 +1994,49 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   }
 
   /**
+   * Creates a pipeline that maps over elements of the stream with the specified
+   * effectful function.
+   *
+   * Unlike `mapZIO` processing is done chunk by chunk. This means that
+   * `mapZIOChunked` provides weaker guarantees than `mapZIO`. While
+   * `stream.mapZIO(f).mapZIO(g)` is guaranteed to be equivalent to
+   * `stream.mapZIO(x => f(x).flatMap(g))`, the same is not true for
+   * `mapZIOChunked`. For example, `mapZIO` guarantees that the first element of
+   * a stream will first be processed with `f` and then `g` before the second
+   * element is processed with `f`. `mapZIOChunked` may process the first two
+   * elements with `f` and only then move on to process the first element with
+   * `g`.
+   */
+  def mapZIOChunked[Env, Err, In, Out](
+    f: In => ZIO[Env, Err, Out]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
+    def writeWithNext(
+      builder: ChunkBuilder[Out],
+      next: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any]
+    ): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] = {
+      val out = builder.result()
+      if (out.nonEmpty) ZChannel.write(out) *> next else next
+    }
+
+    lazy val reader: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.readWithCause(
+        chunk =>
+          ZChannel.unwrap {
+            val builder = ChunkBuilder.make[Out](chunk.size)
+            chunk
+              .mapZIODiscard(f(_).map(builder += _))
+              .foldCause(
+                cause => writeWithNext(builder, ZChannel.refailCause(cause)),
+                _ => writeWithNext(builder, reader)
+              )
+          },
+        err => ZChannel.refailCause(err),
+        done => ZChannel.succeed(done)
+      )
+    new ZPipeline(reader)
+  }
+
+  /**
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. Transformed elements
    * will be emitted in the original order.
@@ -1876,18 +2048,27 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapZIOPar[Env, Err, In, Out](n: => Int)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
   ): ZPipeline[Env, Err, In, Out] =
-    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
-      strm
-        .mapZIOPar(n)(f)
-    }
+    mapZIOPar(n, 16)(f)
 
-  def mapZIOPar[Env, Err, In, Out](n: => Int, bufferSize: => Int)(f: In => ZIO[Env, Err, Out])(implicit
+  /**
+   * Maps over elements of the stream with the specified effectful function,
+   * executing up to `n` invocations of `f` concurrently. Transformed elements
+   * will be emitted in the original order.
+   *
+   * @note
+   *   This combinator destroys the chunking structure. It's recommended to use
+   *   rechunk afterwards.
+   */
+  def mapZIOPar[Env, Err, In, Out](n: => Int, bufferSize: => Int = 16)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
   ): ZPipeline[Env, Err, In, Out] =
-    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
-      strm
-        .mapZIOPar(n, bufferSize)(f)
-    }
+    new ZPipeline(
+      ZChannel
+        .identity[Nothing, Chunk[In], Any]
+        .concatMap(ZChannel.writeChunk(_))
+        .mapOutZIOPar(n, bufferSize)(f)
+        .mapOut(Chunk.single)
+    )
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -1897,16 +2078,23 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapZIOParUnordered[Env, Err, In, Out](n: => Int)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
   ): ZPipeline[Env, Err, In, Out] =
-    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
-      strm.mapZIOParUnordered(n)(f)
-    }
+    mapZIOParUnordered(n, 16)(f)
 
-  def mapZIOParUnordered[Env, Err, In, Out](n: => Int, bufferSize: => Int)(f: In => ZIO[Env, Err, Out])(implicit
+  /**
+   * Maps over elements of the stream with the specified effectful function,
+   * executing up to `n` invocations of `f` concurrently. The element order is
+   * not enforced by this combinator, and elements may be reordered.
+   */
+  def mapZIOParUnordered[Env, Err, In, Out](n: => Int, bufferSize: => Int = 16)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
   ): ZPipeline[Env, Err, In, Out] =
-    ZPipeline.fromFunction { (strm: ZStream[Any, Nothing, In]) =>
-      strm.mapZIOParUnordered(n, bufferSize)(f)
-    }
+    new ZPipeline(
+      ZChannel
+        .identity[Nothing, Chunk[In], Any]
+        .concatMap(ZChannel.writeChunk(_))
+        .mapOutZIOParUnordered(n, bufferSize)(f)
+        .mapOut(Chunk.single)
+    )
 
   /**
    * Emits the provided chunk before emitting any other value.
@@ -1917,42 +2105,21 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * A pipeline that rechunks the stream into chunks of the specified size.
    */
-  def rechunk[In](n: => Int)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] = {
+  def rechunk[In](n: => Int)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
+    new ZPipeline(ZChannel.succeed(new ZStream.Rechunker[In](scala.math.max(n, 1))).flatMap { rechunker =>
+      lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, ZNothing, Chunk[In], Any] =
+        ZChannel.readWithCause(
+          (in: Chunk[In]) => {
+            val out = rechunker.rechunk(in)
+            if (out ne null) out *> loop
+            else loop
+          },
+          (cause: Cause[ZNothing]) => rechunker.done() *> ZChannel.refailCause(cause),
+          (_: Any) => rechunker.done()
+        )
 
-    def process(
-      rechunker: ZStream.Rechunker[In],
-      target: Int
-    ): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
-      ZChannel.readWithCause(
-        (chunk: Chunk[In]) =>
-          if (chunk.size == target && rechunker.isEmpty) {
-            ZChannel.write(chunk) *> process(rechunker, target)
-          } else if (chunk.size > 0) {
-            var chunks: List[Chunk[In]] = Nil
-            var result: Chunk[In]       = null
-            var i                       = 0
-
-            while (i < chunk.size) {
-              while (i < chunk.size && (result eq null)) {
-                result = rechunker.write(chunk(i))
-                i += 1
-              }
-
-              if (result ne null) {
-                chunks = result :: chunks
-                result = null
-              }
-            }
-
-            ZChannel.writeAll(chunks.reverse: _*) *> process(rechunker, target)
-          } else process(rechunker, target),
-        (cause: Cause[ZNothing]) => rechunker.emitIfNotEmpty() *> ZChannel.refailCause(cause),
-        (_: Any) => rechunker.emitIfNotEmpty()
-      )
-
-    val target = scala.math.max(n, 1)
-    new ZPipeline(ZChannel.suspend(process(new ZStream.Rechunker(target), target)))
-  }
+      loop
+    })
 
   /**
    * Creates a pipeline that randomly samples elements according to the
@@ -2322,7 +2489,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                   loop(tokens, timestamp)
               }),
             (e: Cause[Err]) => ZChannel.refailCause(e),
-            (_: Any) => ZChannel.unit
+            ZChannel.unitChannelFn
           )
 
         ZChannel.unwrap(Clock.nanoTime.map(loop(units, _)))
@@ -2383,7 +2550,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               else ZChannel.write(in) *> loop(remaining, current)
             }),
           (e: Cause[Err]) => ZChannel.refailCause(e),
-          (_: Any) => ZChannel.unit
+          ZChannel.unitChannelFn
         )
 
       ZChannel.unwrap(Clock.nanoTime.map(loop(units, _)))
@@ -2649,7 +2816,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         (_: Any) =>
           last match {
             case Some(value) =>
-              ZChannel.write(Chunk.single((value, None))) *> ZChannel.unit
+              ZChannel.write(Chunk.single((value, None)))
             case None =>
               ZChannel.unit
           }
@@ -2727,4 +2894,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     ): ZPipeline[Env, Err, In, Out] =
       new ZPipeline(ZChannel.unwrapScoped[Env](scoped.map(_.channel)))
   }
+
+  private val identityAny: ZPipeline[Any, Nothing, Any, Any] =
+    new ZPipeline(ZChannel.identity(Trace.empty))
 }

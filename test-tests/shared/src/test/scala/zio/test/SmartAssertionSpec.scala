@@ -3,6 +3,7 @@ package zio.test
 import zio._
 import zio.internal.stacktracer.SourceLocation
 import zio.test.SmartTestTypes._
+import zio.test.TestAspect.scala2Only
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
@@ -31,7 +32,11 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           val a1 = Array(1, 2, 3)
           val a2 = Array(1, 3, 2)
           assertTrue(a1 == a2)
-        } @@ failing
+        } @@ failing,
+        test("i9153") {
+          val map = Map(1 -> 2)
+          assertTrue(map.view.map { case (k, v) => k -> (v + 1) }.toMap == Map(1 -> 3))
+        }
       )
     ),
     test("multiple assertions") {
@@ -82,6 +87,19 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assertTrue(zio.Duration.fromNanos(1000) == zio.Duration.Zero)
       }
     ) @@ failing,
+    suite("class constructors")(
+      test("string constructor") {
+        val bytes: Array[Byte] = "test".getBytes
+        assertTrue(new String(bytes) == "test")
+      },
+      test("class constructor") {
+        assertTrue(new Service("serviceName").name == "serviceName")
+      },
+      test("generic class contructor") {
+        assertTrue(new GenericService[Int](52).value == 52) &&
+        assertTrue(new GenericService(52).value == 52)
+      }
+    ),
     suite("contains")(
       test("Option") {
         assertTrue(company.users.head.posts.head.publishDate.contains(LocalDateTime.MAX))
@@ -200,12 +218,33 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       val list: List[Int] = List(1, 2, 3, 4)
       assertTrue(list.filter(_ => false) == List.empty[Int])
     },
-    test("equalTo compiles when comparing different types") {
+    test("equalTo compiles when comparing different primitive types") {
       val a = 1
       val b = 1L
       assertTrue(a == b) && assertTrue(b == a)
     },
-    test("comparison compiles when comparing different types") {
+    test("equalTo compiles when comparing parent to child class") {
+      class A {
+        override def equals(o: Any): Boolean = true
+      }
+      class B extends A
+      val a = new A()
+      val b = new B()
+      assertTrue(a == b) && assertTrue(b == a)
+    },
+    test("equalTo does not compile when comparing unrelated types in Scala 2") {
+      val resultZIO = typeCheck("""
+      class A
+      class B
+      val a = new A()
+      val b = new B()
+      assertTrue(a == b) && assertTrue(b == a)
+      """)
+      for {
+        result <- resultZIO
+      } yield assertTrue(result.is(_.left).contains("type mismatch"))
+    } @@ scala2Only,
+    test("comparison compiles when comparing different primitive types") {
       val a  = 1
       val b  = 2
       val aL = 1L
@@ -214,6 +253,32 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       assertTrue(a <= bL) && assertTrue(aL <= b) &&
       assertTrue(b > aL) && assertTrue(bL > a) &&
       assertTrue(b >= aL) && assertTrue(bL >= a)
+    },
+    test("comparison compiles when comparing different primitive types without direct implicit conversion") {
+      val a: Int = 1
+      val b: Int = 2
+
+      val aL: java.lang.Long = 1
+      val bL: java.lang.Long = 2
+      assertTrue(a < bL) && assertTrue(aL < b) &&
+      assertTrue(a <= bL) && assertTrue(aL <= b) &&
+      assertTrue(b > aL) && assertTrue(bL > a) &&
+      assertTrue(b >= aL) && assertTrue(bL >= a)
+    },
+    test("comparison compiles when comparing types with ops implicit class containing compare operation") {
+      import java.time.temporal.ChronoUnit._
+
+      val duration = Duration(500, MILLIS)
+      assertTrue(duration < Duration(1, SECONDS)) &&
+      assertTrue("testing" > "test")
+    },
+    test("comparison with Ordering implicits") {
+      import java.time.Instant
+      import Ordering.Implicits._
+
+      val now     = Instant.now()
+      val earlier = now.minusSeconds(60)
+      assertTrue(earlier < now, now <= now, now > earlier, now >= now)
     },
     test("exists must succeed when at least one element of iterable satisfy specified assertion") {
       assertTrue(Seq(1, 42, 5).exists(_ == 42))
@@ -333,6 +398,9 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           NonEmptyChunk("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
         assertTrue(l1 == l2)
       } @@ failing,
+      test("Chunk and Seq diff") {
+        assertTrue(Chunk(1, 2, 3) == Seq(1, 2, 3))
+      },
       test("Set diffs") {
         val l1 = Set(1, 2, 3, 4)
         val l2 = Set(1, 2, 8, 4, 5)
@@ -570,6 +638,34 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("isSuccess on Exit[_, _] works") {
         val exit: Exit[String, Int] = Exit.succeed(1)
         assertTrue(exit.isSuccess)
+      },
+      test("class with overload - new instance") {
+        class ClassWithOverload {
+          def overloaded: Int         = 1
+          def overloaded(x: Int): Int = x
+        }
+        assertTrue(new ClassWithOverload().overloaded == 1)
+      },
+      test("class with overload with type args - new instance") {
+        class ClassWithOverload[A] {
+          def overloaded: Int         = 1
+          def overloaded(x: Int): Int = x
+        }
+        assertTrue(new ClassWithOverload[Int]().overloaded == 1)
+      },
+      test("class with overload with args - new instance") {
+        class ClassWithOverload(x: Int) {
+          def overloaded: Int         = x
+          def overloaded(x: Int): Int = x
+        }
+        assertTrue(new ClassWithOverload(1).overloaded == 1)
+      },
+      test("class with overload with args and type args - new instance") {
+        class ClassWithOverload[A](x: Int) {
+          def overloaded: Int         = x
+          def overloaded(x: Int): Int = x
+        }
+        assertTrue(new ClassWithOverload[Int](1).overloaded == 1)
       },
       test("equalTo on java.lang.Boolean works") {
         val jBool = java.lang.Boolean.FALSE

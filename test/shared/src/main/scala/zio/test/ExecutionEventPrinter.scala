@@ -17,9 +17,13 @@ private[test] object ExecutionEventPrinter {
         })
   }
 
-  def live(console: Console, eventRenderer: ReporterEventRenderer): ZLayer[Any, Nothing, ExecutionEventPrinter] =
+  def live(
+    console: Console,
+    eventRenderer: ReporterEventRenderer,
+    reportsParent: String
+  ): ZLayer[Any, Nothing, ExecutionEventPrinter] =
     ZLayer.make[ExecutionEventPrinter](
-      ResultPrinter.json,
+      ResultPrinter.json(reportsParent),
       ExecutionEventConsolePrinter.live(eventRenderer),
       TestLogger.fromConsole(console),
       ZLayer.fromFunction(Live.apply _)

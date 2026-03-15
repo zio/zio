@@ -6,17 +6,30 @@ import sbtbuildinfo.*
 import sbtbuildinfo.BuildInfoKeys.*
 import sbtcrossproject.CrossPlugin.autoImport.*
 
+import scala.scalanative.build.{GC, Mode}
+import scala.scalanative.sbtplugin.ScalaNativePlugin.autoImport.*
+
 object BuildHelper {
-  val Scala212: String = "2.12.19"
-  val Scala213: String = "2.13.13"
-  val Scala3: String   = "3.3.3"
+  val Scala212: String = "2.12.21"
+  val Scala213: String = "2.13.18"
+  val Scala3: String   = "3.3.7"
+
+  val JdkReleaseVersion: String = "11"
+
+  lazy val isRelease = {
+    val value = sys.env.contains("CI_RELEASE_MODE")
+    if (value) println("Detected CI_RELEASE_MODE envvar, enabling optimizations")
+    value
+  }
 
   private val stdOptions = Seq(
     "-deprecation",
     "-encoding",
     "UTF-8",
     "-feature",
-    "-unchecked"
+    "-unchecked",
+    "-release",
+    JdkReleaseVersion
   ) ++ {
     if (true) {
       Seq("-Xfatal-warnings")
@@ -35,17 +48,44 @@ object BuildHelper {
     "-Ywarn-value-discard"
   )
 
-  private def optimizerOptions(optimize: Boolean) =
-    if (optimize)
-      Seq(
+  private def optimizerOptions(optimize: Boolean, isScala213: Boolean, projectName: String) =
+    if (optimize) {
+      val inlineFrom = projectName match {
+        case "zio"         => List("zio.**")
+        case "zio-streams" => List("zio.stream.**", "zio.internal.**")
+        case "zio-test"    => Nil
+        case _             => List("zio.internal.**")
+      }
+      val scala213Flags =
+        if (isScala213)
+          Seq(
+            "-opt-inline-from:scala.**", // We get some weird errors when trying to inline Scala 2.12 std lib
+            "-Ybackend-parallelism:4"
+          )
+        else Nil
+      scala213Flags ++ Seq(
+        "-opt:l:method",
         "-opt:l:inline",
-        "-opt-inline-from:zio.internal.**"
-      )
-    else Nil
+        // To remove calls to `assert` in releases. Assertions are level 2000
+        "-Xelide-below",
+        "2001"
+      ) ++ inlineFrom.map(p => s"-opt-inline-from:$p")
+    } else Nil
 
   def buildInfoSettings(packageName: String) =
     Seq(
-      buildInfoKeys    := Seq[BuildInfoKey](organization, moduleName, name, version, scalaVersion, sbtVersion, isSnapshot),
+      // BuildInfoOption.ConstantValue required to disable assertions in FiberRuntime!
+      buildInfoOptions += BuildInfoOption.ConstantValue,
+      buildInfoKeys := Seq[BuildInfoKey](
+        organization,
+        moduleName,
+        name,
+        version,
+        scalaVersion,
+        sbtVersion,
+        isSnapshot,
+        BuildInfoKey("optimizationsEnabled" -> (isRelease || !isSnapshot.value))
+      ),
       buildInfoPackage := packageName
     )
 
@@ -89,19 +129,21 @@ object BuildHelper {
     Compile / console / initialCommands := initialCommandsStr
   )
 
-  def extraOptions(scalaVersion: String, optimize: Boolean) =
+  def extraOptions(scalaVersion: String, optimize: Boolean, projectName: String) =
     CrossVersion.partialVersion(scalaVersion) match {
       case Some((3, _)) =>
         Seq(
           "-language:implicitConversions",
+          "-language:noAutoTupling",
           "-Xignore-scala2-macros",
           "-Xmax-inlines:64",
           "-noindent"
         )
       case Some((2, 13)) =>
         Seq(
-          "-Ywarn-unused:params,-implicits"
-        ) ++ std2xOptions ++ optimizerOptions(optimize)
+          "-Ywarn-unused:params,-implicits",
+          "-Ybackend-parallelism:4"
+        ) ++ std2xOptions ++ optimizerOptions(optimize, isScala213 = true, projectName = projectName)
       case Some((2, 12)) =>
         Seq(
           "-opt-warnings",
@@ -118,7 +160,7 @@ object BuildHelper {
           "-Xsource:2.13",
           "-Xmax-classfile-name",
           "242"
-        ) ++ std2xOptions ++ optimizerOptions(optimize)
+        ) ++ std2xOptions ++ optimizerOptions(optimize, isScala213 = false, projectName = projectName)
       case _ => Seq.empty
     }
 
@@ -136,7 +178,7 @@ object BuildHelper {
       case Some((2, 13)) =>
         List("2.13+", "2.12-2.13")
       case Some((3, _)) =>
-        List("2.13+")
+        List("2.13+", "3")
       case _ =>
         List()
     }
@@ -166,7 +208,11 @@ object BuildHelper {
     name                     := s"$prjName",
     crossScalaVersions       := Seq(Scala212, Scala213, Scala3),
     ThisBuild / scalaVersion := Scala213,
-    scalacOptions ++= stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
+    scalacOptions ++= stdOptions ++ extraOptions(
+      scalaVersion.value,
+      optimize = isRelease || !isSnapshot.value,
+      projectName = prjName
+    ),
     scalacOptions --= {
       if (scalaVersion.value == Scala3)
         List("-Xfatal-warnings")
@@ -216,11 +262,21 @@ object BuildHelper {
   )
 
   def nativeSettings = Seq(
-    Test / fork := crossProjectPlatform.value == JVMPlatform // set fork to `true` on JVM to improve log readability, JS and Native need `false`
+    nativeConfig ~= { cfg =>
+      // For some unknown reason, we get errors when runnign test suites in debug mode
+      val os   = System.getProperty("os.name").toLowerCase
+      val cfg0 = cfg.withMode(Mode.releaseFast)
+      if (os.contains("mac")) cfg0
+      else cfg0.withGC(GC.boehm) // See https://github.com/scala-native/scala-native/issues/4032
+    },
+    scalacOptions += "-P:scalanative:genStaticForwardersForNonTopLevelObjects",
+    Test / fork := false,
+    bspEnabled  := false
   )
 
   def jsSettings: List[Def.Setting[_]] = List(
-    Test / fork := crossProjectPlatform.value == JVMPlatform // set fork to `true` on JVM to improve log readability, JS and Native need `false`
+    Test / fork := false,
+    bspEnabled  := false
   )
 
   def welcomeMessage = onLoadMessage := {

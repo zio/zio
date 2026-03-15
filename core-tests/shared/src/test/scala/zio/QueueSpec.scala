@@ -2,10 +2,10 @@ package zio
 
 import zio.QueueSpecUtil._
 import zio.test.Assertion._
-import zio.test.TestAspect.{jvm, nonFlaky}
+import zio.test.TestAspect.{exceptJS, jvm, nonFlaky, samples, sequential}
 import zio.test._
 
-import scala.collection.immutable.Range
+import java.util.concurrent.atomic.AtomicReference
 
 object QueueSpec extends ZIOBaseSpec {
   import ZIOTag._
@@ -710,6 +710,32 @@ object QueueSpec extends ZIOBaseSpec {
         t     <- queue.poll
       } yield assert(t)(isNone)
     },
+    test("interrupting poll doesn't remove item from the queue") {
+      for {
+        q  <- Queue.unbounded[String]
+        p  <- Promise.make[Nothing, Unit]
+        ref = new AtomicReference[String]
+        fib <- ZIO.uninterruptibleMask { restore =>
+                 p.unsafe.succeed(())(implicitly, Unsafe)
+                 restore(q.take).map(ref.set)
+               }.forkDaemon
+        _ <- (p.await *> fib.interrupt) zipPar q.offer("foo")
+        s  = ref.get()
+        out <- if (s eq null) {
+                 // take was cancelled, item should be in q
+                 q.poll.flatMap { item =>
+                   if (item.isEmpty) ZIO.left("incorrect item: " + item)
+                   else ZIO.right(())
+                 }
+               } else {
+                 // take was completed, q should be empty
+                 q.isEmpty.flatMap { empty =>
+                   if (!empty) ZIO.left("nonempty q after completed take")
+                   else ZIO.right(())
+                 }
+               }
+      } yield assertTrue(out.isRight)
+    } @@ jvm(nonFlaky(100000)),
     test("multiple polls") {
       for {
         queue <- Queue.bounded[Int](5)
@@ -746,7 +772,7 @@ object QueueSpec extends ZIOBaseSpec {
         _ <- q.shutdown
         _ <- f.await
       } yield assertCompletes
-    } @@ jvm(nonFlaky),
+    } @@ exceptJS(nonFlaky),
     test("shutdown race condition with take") {
       for {
         q <- Queue.bounded[Int](2)
@@ -756,18 +782,93 @@ object QueueSpec extends ZIOBaseSpec {
         _ <- q.shutdown
         _ <- f.await
       } yield assertCompletes
-    } @@ jvm(nonFlaky),
-    test("many to many") {
-      check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
-        for {
-          queue    <- Queue.bounded[Int](n)
-          offerors <- ZIO.foreach(as)(a => queue.offer(a).fork)
-          takers   <- ZIO.foreach(as)(_ => queue.take.fork)
-          _        <- ZIO.foreach(offerors)(_.join)
-          _        <- ZIO.foreach(takers)(_.join)
-        } yield assertCompletes
-      }
-    },
+    } @@ exceptJS(nonFlaky),
+    suite("back-pressured bounded queue stress testing") {
+      val genChunk = Gen.chunkOfBounded(20, 100)(smallInt)
+      List(
+        test("many to many unbounded parallelism") {
+          check(smallInt, genChunk) { (n, as) =>
+            for {
+              queue    <- Queue.bounded[Int](n)
+              offerors <- ZIO.foreach(as)(a => queue.offer(a).fork)
+              takers   <- ZIO.foreach(as)(_ => queue.take.fork)
+              _        <- ZIO.foreach(offerors)(_.join)
+              taken    <- ZIO.foreach(takers)(_.join)
+            } yield assertTrue(as.sorted == taken.sorted)
+          }
+        },
+        test("many to many bounded parallelism") {
+          check(smallInt, genChunk) { (n, as) =>
+            for {
+              queue  <- Queue.bounded[Int](n)
+              takers <- ZIO.foreachPar(as)(_ => queue.take).withParallelism(10).fork
+              _      <- ZIO.foreachPar(as)(a => queue.offer(a)).withParallelism(10)
+              taken  <- takers.join
+            } yield assertTrue(as.sorted == taken.sorted)
+          }
+        },
+        test("single to many") {
+          check(smallInt, genChunk) { (n, as) =>
+            for {
+              queue  <- Queue.bounded[Int](n)
+              takers <- ZIO.foreachPar(as)(_ => queue.take).withParallelism(10).fork
+              _      <- ZIO.foreach(as)(a => queue.offer(a))
+              taken  <- takers.join
+            } yield assertTrue(as.sorted == taken.sorted)
+          }
+        },
+        test("many to single") {
+          check(smallInt, genChunk) { (n, as) =>
+            for {
+              queue <- Queue.bounded[Int](n)
+              taker <- ZIO.foreach(as)(_ => queue.take).fork
+              _     <- ZIO.foreachPar(as)(a => queue.offer(a)).withParallelism(10)
+              taken <- taker.join
+            } yield assertTrue(as.sorted == taken.sorted)
+          }
+        },
+        test("fewer to more") {
+          check(smallInt, genChunk) { (n, as) =>
+            for {
+              queue  <- Queue.bounded[Int](n)
+              takers <- ZIO.foreachPar(as)(_ => queue.take).withParallelism(10).fork
+              _      <- ZIO.foreachPar(as)(a => queue.offer(a)).withParallelism(3)
+              taken  <- takers.join
+            } yield assertTrue(as.sorted == taken.sorted)
+          }
+        },
+        test("more to fewer") {
+          check(smallInt, genChunk) { (n, as) =>
+            for {
+              queue  <- Queue.bounded[Int](n)
+              takers <- ZIO.foreachPar(as)(_ => queue.take).withParallelism(3).fork
+              _      <- ZIO.foreachPar(as)(a => queue.offer(a)).withParallelism(10)
+              taken  <- takers.join
+            } yield assertTrue(as.sorted == taken.sorted)
+          }
+        },
+        test("offer all to many consumers") {
+          check(smallInt, genChunk) { (n, as) =>
+            for {
+              queue  <- Queue.bounded[Int](n)
+              takers <- ZIO.foreachPar(as)(_ => queue.take).withParallelism(10).fork
+              _      <- queue.offerAll(as)
+              taken  <- takers.join
+            } yield assertTrue(as.sorted == taken.sorted)
+          }
+        },
+        test("offer all to one consumers") {
+          check(smallInt, genChunk) { (n, as) =>
+            for {
+              queue  <- Queue.bounded[Int](n)
+              takers <- ZIO.foreach(as)(_ => queue.take).fork
+              _      <- queue.offerAll(as)
+              taken  <- takers.join
+            } yield assertTrue(as.sorted == taken.sorted)
+          }
+        }
+      )
+    } @@ jvm(samples(500) @@ sequential),
     test("isEmpty") {
       for {
         queue <- Queue.bounded[Int](2)
@@ -783,7 +884,33 @@ object QueueSpec extends ZIOBaseSpec {
         _     <- waitForSize(queue, 3)
         full  <- queue.isFull
       } yield assertTrue(full)
-    }
+    },
+    test("bounded queue preserves ordering") {
+      for {
+        queue   <- Queue.bounded[Int](16)
+        expected = Chunk.fromIterable(0 until 100)
+        _       <- queue.offerAll(expected).fork
+        actual  <- queue.take.replicateZIO(100).map(Chunk.fromIterable)
+      } yield assertTrue(actual == expected)
+    } @@ exceptJS(nonFlaky(1000)),
+    suite("suspension of take methods") {
+
+      def testSuspension(takeF: Queue[?] => UIO[Any]): UIO[TestResult] =
+        for {
+          q <- Queue.unbounded[String]
+          f <- takeF(q).fork
+          _ <- f.status.repeatUntil(_.isSuspended)
+          _ <- f.interrupt
+        } yield assertCompletes
+
+      List(
+        test("take")(testSuspension(_.take)),
+        test("takeN(1)")(testSuspension(_.takeN(1))),
+        test("takeN(>1)")(testSuspension(_.takeN(10))),
+        test("takeBetween with min 1")(testSuspension(_.takeBetween(1, 10))),
+        test("takeBetween with min >= 1")(testSuspension(_.takeBetween(5, 10)))
+      )
+    } @@ TestAspect.timeout(5.seconds)
   )
 }
 

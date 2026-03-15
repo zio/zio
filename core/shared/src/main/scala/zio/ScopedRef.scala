@@ -23,7 +23,7 @@ package zio
  * resources). The reference itself takes care of properly releasing resources
  * for the old value whenever a new value is obtained.
  */
-trait ScopedRef[A] {
+sealed trait ScopedRef[A] {
 
   /**
    * Sets the value of this reference to the specified resourcefully-created
@@ -88,7 +88,7 @@ object ScopedRef {
             exit     <- newScope.extend[R](acquire).exit
             result <- exit match {
                         case Exit.Failure(cause) =>
-                          newScope.close(Exit.unit).as(ZIO.refailCause(cause) -> (oldScope -> a))
+                          newScope.close(Exit.unit).as(Exit.failCause(cause) -> (oldScope -> a))
                         case Exit.Success(a) => ZIO.succeed(ZIO.unit -> (newScope -> a))
                       }
           } yield result

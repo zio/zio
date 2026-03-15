@@ -28,8 +28,8 @@ private[zio] trait RuntimePlatformSpecific {
   final val defaultBlockingExecutor: Executor =
     Blocking.blockingExecutor
 
-  final val defaultFatal: IsFatal =
-    IsFatal(classOf[VirtualMachineError])
+  @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
+  final val defaultFatal: IsFatal = IsFatal.empty
 
   final val defaultLoggers: Set[ZLogger[String, Any]] =
     Set(ZLogger.default.map(println(_)).filterLogLevel(_ >= LogLevel.Info))
@@ -48,10 +48,25 @@ private[zio] trait RuntimePlatformSpecific {
 
   def enableLoomBasedExecutor(implicit trace: Trace): ZLayer[Any, LoomNotAvailableException, Unit] =
     ZLayer.suspend {
-      LoomSupport.newVirtualThreadPerTaskExecutor() match {
-        case None           => ZLayer.fail(LoomNotAvailableException("Loom API not available", null))
-        case Some(executor) => Runtime.setExecutor(Executor.fromJavaExecutor(executor))
-      }
+      sharedLoomExecutor.fold(
+        ZLayer.fail(_),
+        Runtime.setExecutor
+      )
+    }
+
+  def enableLoomBasedBlockingExecutor(implicit trace: Trace): ZLayer[Any, LoomNotAvailableException, Unit] =
+    ZLayer.suspend {
+      sharedLoomExecutor.fold(
+        ZLayer.fail(_),
+        Runtime.setBlockingExecutor
+      )
+    }
+
+  // a single Loom executor instance that can be shared between blocking and non-blocking fibers
+  private lazy val sharedLoomExecutor: Either[LoomNotAvailableException, Executor] =
+    LoomSupport.newVirtualThreadPerTaskExecutor() match {
+      case None           => Left(LoomNotAvailableException("Loom API not available", null))
+      case Some(executor) => Right(Executor.fromJavaExecutor(executor))
     }
 
   def enableAutoBlockingExecutor(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =

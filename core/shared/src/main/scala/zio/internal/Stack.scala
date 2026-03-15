@@ -50,7 +50,7 @@ private[zio] final class Stack[A <: AnyRef]() extends Iterable[A] { self =>
 
         var result = null.asInstanceOf[A]
 
-        while (result == null && currentIndex >= 0) {
+        while ((result eq null) && currentIndex >= 0) {
           result = computeNext()
         }
 

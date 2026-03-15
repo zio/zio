@@ -1,9 +1,10 @@
 package zio.stream
 
 import zio._
-import zio.test._
 import zio.test.Assertion._
-import zio.test.TestAspect.{jvmOnly, timeout}
+import zio.test.TestAspect.{exceptJS, jvmOnly, nonFlaky, timeout}
+import zio.test._
+import zio.Clock.ClockLive
 
 object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
@@ -21,6 +22,25 @@ object ZChannelSpec extends ZIOBaseSpec {
           exit <- ZChannel.fail("Uh oh!").runCollect.exit
         } yield assert(exit)(fails(equalTo("Uh oh!")))
       },
+      suite("ZChannel.fromZIO")(
+        test("ZIO.unit produces unit") {
+          for {
+            res <- ZChannel.fromZIO(ZIO.unit).run
+          } yield assert(res)(isUnit)
+        },
+        test("ZIO.unit loops are interruptible") {
+          for {
+            fiber <- ZChannel.fromZIO(ZIO.unit).repeated.runDrain.fork
+            _     <- fiber.interrupt
+          } yield assertCompletes
+        },
+        test("ZIO.unit flatMap") {
+          val channel = ZChannel.fromZIO(ZIO.unit) *> ZChannel.write(1)
+          for {
+            res <- channel.runCollect
+          } yield assert(res._1)(equalTo(Chunk(1)))
+        }
+      ),
       test("ZChannel.map") {
         for {
           tuple     <- ZChannel.succeed(1).map(_ + 1).runCollect
@@ -125,15 +145,15 @@ object ZChannelSpec extends ZIOBaseSpec {
                   )
                 )
               ) &&
-                assert(elements)(
-                  equalTo(
-                    Chunk(
-                      Second(First(1)),
-                      Second(First(2)),
-                      Second(First(3))
-                    )
+              assert(elements)(
+                equalTo(
+                  Chunk(
+                    Second(First(1)),
+                    Second(First(2)),
+                    Second(First(3))
                   )
                 )
+              )
             }
 
           }
@@ -141,7 +161,7 @@ object ZChannelSpec extends ZIOBaseSpec {
         test("finalizer ordering 2") {
           for {
             effects <- Ref.make(List[String]())
-            push     = (i: String) => ZIO.debug(i) *> effects.update(i :: _)
+            push     = (i: String) => effects.update(i :: _)
             _ <- ZChannel
                    .writeAll(1, 2)
                    .mapOutZIO(n => push(s"pulled $n").as(n))
@@ -162,7 +182,36 @@ object ZChannelSpec extends ZIOBaseSpec {
               )
             )
           )
-        }
+        },
+        test("ensuring(ZIO.unit) does nothing") {
+          ZChannel.unit
+            .ensuring(ZIO.unit)
+            .run
+            .as(assertCompletes)
+        },
+        test("ensuring(ZIO.unit) mixed with real finalizers") {
+          Ref.make(0).flatMap { ref =>
+            ZChannel.unit
+              .ensuring(ref.update(_ + 1))
+              .ensuring(ZIO.unit)
+              .ensuring(ref.update(_ + 1))
+              .runDrain *> ref.get.map(n => assert(n)(equalTo(2)))
+          }
+        },
+        test("mixed unit and non-unit finalizers run correctly on interruption") {
+          for {
+            ref <- Ref.make(List.empty[String])
+            channel = ZChannel.never
+                        .ensuring(ref.update("A" :: _))
+                        .ensuring(ZIO.unit)
+                        .ensuring(ref.update("B" :: _))
+                        .ensuring(ZIO.unit)
+            fiber <- channel.runDrain.interruptible.forkDaemon.uninterruptible
+            _     <- ClockLive.sleep(1.milli)
+            _     <- fiber.interrupt
+            res   <- ref.get
+          } yield assert(res)(hasSameElements(List("A", "B")))
+        } @@ TestAspect.flaky
       ),
       suite("ZChannel#mapOut")(
         test("simple") {
@@ -182,6 +231,21 @@ object ZChannelSpec extends ZIOBaseSpec {
               assert(result)(equalTo(Chunk("1", "x")))
             }
         }
+      ),
+      suite("ZChannel#mapOutZIOPar")(
+        test("mapOutZIOPar in uninterruptible region") {
+          for {
+            _ <- ZChannel.unit.mapOutZIOPar(4)(_ => ZIO.unit).runDrain.uninterruptible
+          } yield assertCompletes
+        } @@ timeout(5.seconds),
+        test("mergeAllWith in uninterruptible region") {
+          for {
+            _ <- ZChannel
+                   .mergeAllWith(ZChannel.unit, 4, mergeStrategy = ZChannel.MergeStrategy.BufferSliding)((l, _) => l)
+                   .runDrain
+                   .uninterruptible
+          } yield assertCompletes
+        } @@ timeout(5.seconds)
       ),
       suite("ZChannel.concatMap")(
         test("plain") {
@@ -295,8 +359,8 @@ object ZChannelSpec extends ZIOBaseSpec {
           val conduit = ZChannel
             .writeAll(1, 2, 3)
             .mergeWith(ZChannel.writeAll(4, 5, 6))(
-              ex => ZChannel.MergeDecision.awaitConst(ZIO.done(ex)),
-              ex => ZChannel.MergeDecision.awaitConst(ZIO.done(ex))
+              ZChannel.MergeDecision.awaitConst,
+              ZChannel.MergeDecision.awaitConst
             )
 
           conduit.runCollect.map { case (chunk, _) =>
@@ -308,13 +372,13 @@ object ZChannelSpec extends ZIOBaseSpec {
           val right = ZChannel.write(2) *> ZChannel.fromZIO(ZIO.attempt(true).refineToOrDie[IllegalStateException])
 
           val merged = left.mergeWith(right)(
-            ex => ZChannel.MergeDecision.await(ex2 => ZIO.done(ex <*> ex2)),
-            ex2 => ZChannel.MergeDecision.await(ex => ZIO.done(ex <*> ex2))
+            ex => ZChannel.MergeDecision.await(ex2 => ex <*> ex2),
+            ex2 => ZChannel.MergeDecision.await(ex => ex <*> ex2)
           )
 
           merged.runCollect.map { case (chunk, result) =>
             assert(chunk.toSet)(equalTo(Set(1, 2))) &&
-              assert(result)(equalTo(("Whatever", true)))
+            assert(result)(equalTo(("Whatever", true)))
           }
         },
         test("handles polymorphic failures") {
@@ -322,8 +386,8 @@ object ZChannelSpec extends ZIOBaseSpec {
           val right = ZChannel.write(2) *> ZChannel.fail(true).as(true)
 
           val merged = left.mergeWith(right)(
-            ex => ZChannel.MergeDecision.await(ex2 => ZIO.done(ex).flip.zip(ZIO.done(ex2).flip).flip),
-            ex2 => ZChannel.MergeDecision.await(ex => ZIO.done(ex).flip.zip(ZIO.done(ex2).flip).flip)
+            ex => ZChannel.MergeDecision.await(ex2 => ex.flip.zip(ex2.flip).flip),
+            ex2 => ZChannel.MergeDecision.await(ex => ex.flip.zip(ex2.flip).flip)
           )
 
           merged.runDrain.exit.map(ex => assert(ex)(fails(equalTo(("Boom", true)))))
@@ -336,7 +400,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               val right = ZChannel.write(2) *> ZChannel.fromZIO(latch.await)
 
               val merged = left.mergeWith(right)(
-                ex => ZChannel.MergeDecision.done(ZIO.done(ex)),
+                ex => ZChannel.MergeDecision.done(ex),
                 _ => ZChannel.MergeDecision.done(interrupted.get.map(assert(_)(isTrue)))
               )
 
@@ -360,10 +424,10 @@ object ZChannelSpec extends ZIOBaseSpec {
 
           conduit.runCollect.map { case (chunk, _) =>
             assert(chunk.toSet)(equalTo(Set(1, 4, 9))) ||
-              assert(chunk.toSet)(equalTo(Set(1, 6))) ||
-              assert(chunk.toSet)(equalTo(Set(2, 3, 6))) ||
-              assert(chunk.toSet)(equalTo(Set(2, 9))) ||
-              assert(chunk.toSet)(equalTo(Set(3, 4)))
+            assert(chunk.toSet)(equalTo(Set(1, 6))) ||
+            assert(chunk.toSet)(equalTo(Set(2, 3, 6))) ||
+            assert(chunk.toSet)(equalTo(Set(2, 9))) ||
+            assert(chunk.toSet)(equalTo(Set(3, 4)))
           }
         }
       ),
@@ -455,20 +519,6 @@ object ZChannelSpec extends ZIOBaseSpec {
           }
         },
         test("pipeline") {
-          lazy val identity: ZChannel[Any, Any, Int, Any, Nothing, Int, Unit] =
-            ZChannel.readWith(
-              (i: Int) => ZChannel.write(i) *> identity,
-              (_: Any) => ZChannel.unit,
-              (_: Any) => ZChannel.unit
-            )
-
-          lazy val doubler: ZChannel[Any, Any, Int, Any, Nothing, Int, Unit] =
-            ZChannel.readWith(
-              (i: Int) => ZChannel.writeAll(i, i) *> doubler,
-              (_: Any) => ZChannel.unit,
-              (_: Any) => ZChannel.unit
-            )
-
           val effect = ZChannel.fromZIO(Ref.make[List[Int]](Nil)).flatMap { ref =>
             lazy val inner: ZChannel[Any, Any, Int, Any, Nothing, Int, Unit] =
               ZChannel.readWith(
@@ -487,7 +537,7 @@ object ZChannelSpec extends ZIOBaseSpec {
 
           conduit.runCollect.map { case (outputs, result) =>
             assert(outputs)(equalTo(Chunk(1, 1, 2, 2))) &&
-              assert(result)(equalTo(List(2, 2, 1, 1)))
+            assert(result)(equalTo(List(2, 2, 1, 1)))
           }
         },
         test("another pipeline") {
@@ -587,7 +637,7 @@ object ZChannelSpec extends ZIOBaseSpec {
 
               }
             }
-          } @@ TestAspect.nonFlaky(50),
+          } @@ exceptJS(nonFlaky(50)),
           test("nested concurrent reads") {
             val capacity      = 128
             val f: Int => Int = _ + 1
@@ -609,9 +659,9 @@ object ZChannelSpec extends ZIOBaseSpec {
                 }
               }
             }
-          } @@ TestAspect.nonFlaky(50)
+          } @@ exceptJS(nonFlaky(50))
         ),
-        suite("ZChannel#mapError") {
+        suite("ZChannel#mapError")(
           test("mapError structure confusion") {
             assertZIO(
               ZChannel
@@ -620,8 +670,17 @@ object ZChannelSpec extends ZIOBaseSpec {
                 .runCollect
                 .exit
             )(fails(equalTo(1)))
+          },
+          test("mapErrorZIO") {
+            assertZIO(
+              ZChannel
+                .fail("err")
+                .mapErrorZIO(_ => ZIO.succeed(1))
+                .runCollect
+                .exit
+            )(fails(equalTo(1)))
           }
-        }
+        )
       ),
       suite("provide")(
         test("simple provide") {
@@ -698,7 +757,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               .map(_._1)
           )(equalTo(Chunk.fromIterable(0L to N)))
         }
-      ),
+      ) @@ jvmOnly,
       test("cause is propagated on channel interruption") {
         for {
           promise  <- Promise.make[Nothing, Unit]
@@ -710,7 +769,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                  .onExit(ref.set)
                  .ensuring(finished.succeed(()))
                  .raceEither(promise.await)
-          _ <- finished.await // Note: interruption in race is now done in the background
+          _    <- finished.await // Note: interruption in race is now done in the background
           exit <- ref.get
         } yield assertTrue(exit.isInterrupted)
       },
@@ -764,7 +823,90 @@ object ZChannelSpec extends ZIOBaseSpec {
           _        <- ZChannel.scoped(fiberRef.locallyScoped(false)).runDrain
           value    <- fiberRef.get
         } yield assertTrue(value)
-      }
+      },
+      suite("pipeTo")(
+        test("identity.pipeTo(channel) is ZChannel.Suspend(channel)") {
+          val channel = ZChannel.refailCause(Cause.empty)
+          val result  = ZChannel.identity.pipeTo(channel)
+
+          assertTrue(result match {
+            case ZChannel.Suspend(effect) => effect() == channel
+            case _                        => false
+          })
+        },
+        test("identity.pipeTo(channel) produces correct results") {
+          val channel = ZChannel.writeAll(1, 2, 3)
+          val result  = ZChannel.identity.pipeTo(channel)
+
+          result.runCollect.map { tuple =>
+            assertTrue(tuple._1 == Chunk(1, 2, 3))
+          }
+        },
+        test("identity.pipeTo(channel) produces failure") {
+          val channel = ZChannel.fail("error")
+          val result  = ZChannel.identity.pipeTo(channel)
+
+          result.runDrain.exit.map { exit =>
+            assertTrue(exit == Exit.fail("error"))
+          }
+        }
+      ),
+      suite("pipeToOrFail")(
+        test("identity.pipeToOrFail(channel) is skipped") {
+          val channel      = ZChannel.writeAll(1, 2, 3)
+          val identityChan = ZChannel.identity[Nothing, Any, Any]
+          val result       = identityChan.pipeToOrFail(channel)
+
+          assertTrue(result match {
+            case ZChannel.Suspend(effect) => effect() == channel
+            case _                        => false
+          })
+        },
+        test("identity.pipeToOrFail(channel) produces correct results") {
+          val channel = ZChannel.writeAll(1, 2, 3)
+          val identityChan: ZChannel[Any, Nothing, Any, Any, Nothing, Any, Any] =
+            ZChannel.identity[Nothing, Any, Any]
+          val result = identityChan.pipeToOrFail(channel)
+
+          result.runCollect.map { tuple =>
+            assertTrue(tuple._1 == Chunk(1, 2, 3))
+          }
+        },
+        test("identity.pipeToOrFail(channel) produces failure") {
+          val channel      = ZChannel.fail("error")
+          val identityChan = ZChannel.identity[Nothing, Any, Any]
+          val result       = identityChan.pipeToOrFail(channel)
+
+          result.runDrain.exit.map { exit =>
+            assertTrue(exit == Exit.fail("error"))
+          }
+        },
+        test("channel.pipeToOrFail(identity) is skipped") {
+          val channel = ZChannel.writeAll(1, 2, 3)
+          val result  = channel.pipeToOrFail(ZChannel.identity)
+
+          assertTrue(result match {
+            case ZChannel.Suspend(effect) => effect() == channel
+            case _                        => false
+          })
+        },
+        test("channel.pipeToOrFail(identity) produces correct results") {
+          val channel = ZChannel.writeAll(1, 2, 3)
+          val result  = channel.pipeToOrFail(ZChannel.identity)
+
+          result.runCollect.map { tuple =>
+            assertTrue(tuple._1 == Chunk(1, 2, 3))
+          }
+        },
+        test("channel.pipeToOrFail(identity) produces failure") {
+          val channel = ZChannel.fail("error")
+          val result  = channel.pipeToOrFail(ZChannel.identity)
+
+          result.runDrain.exit.map { exit =>
+            assertTrue(exit == Exit.fail("error"))
+          }
+        }
+      )
     )
   )
 

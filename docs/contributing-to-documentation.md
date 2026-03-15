@@ -44,12 +44,7 @@ We encourage contributors to use GitHub's editor for making minor changes to exi
 
 ZIO contributors are encouraged to use this approach for introducing new documentation pages, or when we have lots of improvements on code snippets since we can compile check all changes locally before committing and sending a pull request to the project:
 
-1. First, we need to clone the ZIO project on our machine:
-
-```bash 
-$ git clone https://github.com/zio/zio.git
-$ cd zio
-```
+1. First, we need to fork and clone the ZIO project on our machine. Follow the [Get The Project](contributor-guidelines#get-the-project) instructions to fork the repository and clone your fork.
 
 2. The documentation source code can be found in the `docs` directory and they are all in Markdown format. Now we can begin improving the existing documentation or adding new documentation.
 
