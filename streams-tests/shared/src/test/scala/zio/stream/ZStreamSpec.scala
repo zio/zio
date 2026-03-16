@@ -610,22 +610,44 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("buffer(1) buffers exactly 1 element") {
             for {
-              ref   <- Ref.make(List[Int]())
-              latch <- Promise.make[Nothing, Unit]
-              gate  <- Promise.make[Nothing, Unit]
+              ref       <- Ref.make(List[Int]())
+              latch     <- Promise.make[Nothing, Unit]
+              gate      <- Promise.make[Nothing, Unit]
+              produced2 <- Promise.make[Nothing, Unit]
               s = ZStream
                     .fromIterable(1 to 5)
-                    .mapZIO(i => ref.update(i :: _).as(i))
+                    .mapZIO(i => ref.update(i :: _) *> produced2.succeed(()).when(i == 2).as(i))
                     .buffer(1)
               _ <- s
-                     .runForeach(i =>
-                       latch.succeed(()).when(i == 1) *> gate.await
-                     )
+                     .runForeach(i => latch.succeed(()).when(i == 1) *> gate.await)
                      .fork
               _        <- latch.await
-              _        <- Live.live(ZIO.sleep(100.millis))
+              _        <- produced2.await
               produced <- ref.get
             } yield assert(produced.reverse)(equalTo(List(1, 2)))
+          } @@ TestAspect.timeout(5.seconds),
+          test("buffer(0) is a no-op passthrough") {
+            assertZIO(
+              ZStream(1, 2, 3).buffer(0).runCollect
+            )(equalTo(Chunk(1, 2, 3)))
+          },
+          test("buffer(2) buffers exactly 2 elements") {
+            for {
+              ref       <- Ref.make(List[Int]())
+              latch     <- Promise.make[Nothing, Unit]
+              gate      <- Promise.make[Nothing, Unit]
+              produced3 <- Promise.make[Nothing, Unit]
+              s = ZStream
+                    .fromIterable(1 to 5)
+                    .mapZIO(i => ref.update(i :: _) *> produced3.succeed(()).when(i == 3).as(i))
+                    .buffer(2)
+              _ <- s
+                     .runForeach(i => latch.succeed(()).when(i == 1) *> gate.await)
+                     .fork
+              _        <- latch.await
+              _        <- produced3.await
+              produced <- ref.get
+            } yield assert(produced.reverse)(equalTo(List(1, 2, 3)))
           } @@ TestAspect.timeout(5.seconds),
           test("buffer(1) maintains elements and ordering") {
             check(tinyChunkOf(tinyChunkOf(Gen.int))) { chunk =>
