@@ -5646,22 +5646,47 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
     ): ZIO[R, E, B1] =
-      ZIO.fiberIdWith { parentFiberId =>
-        self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
-          (winner, loser) =>
-            winner.await.flatMap { exit =>
-              loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
-            },
-          (winner, loser) =>
-            winner.await.flatMap {
-              case e: Exit.Failure[Nothing] =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
-              case _ =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
-            },
-          null,
-          FiberScope.global
-        )
+      ZIO.suspendSucceed {
+        val d = duration
+        d match {
+          case Duration.Infinity =>
+            self.map(f)
+          case d if d <= Duration.Zero =>
+            Exit.succeed(b())
+          case d =>
+            ZIO.uninterruptibleMask { restore =>
+              ZIO.fiberIdWith { parentFiberId =>
+                Clock.scheduler.flatMap { scheduler =>
+                  restore(self).fork.flatMap { fiber =>
+                    ZIO.asyncInterrupt[R, E, B1](
+                      { cb =>
+                        val won = new java.util.concurrent.atomic.AtomicBoolean(false)
+
+                        val cancelTimeout = scheduler.schedule(
+                          () => {
+                            if (won.compareAndSet(false, true)) {
+                              cb(fiber.interruptAs(parentFiberId) *> fiber.inheritAll.as(b()))
+                            }
+                          },
+                          d
+                        )(Unsafe.unsafe)
+
+                        fiber.unsafe.addObserver { exit =>
+                          if (won.compareAndSet(false, true)) {
+                            cancelTimeout()
+                            cb(fiber.inheritAll *> exit.mapExit(f))
+                          }
+                        }(Unsafe.unsafe)
+
+                        Left(ZIO.succeed(cancelTimeout()) *> fiber.interruptAs(parentFiberId))
+                      },
+                      fiber.id
+                    )
+                  }
+                }
+              }
+            }
+        }
       }
   }
 
