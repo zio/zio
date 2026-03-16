@@ -41,6 +41,7 @@ object MimaSettings {
         exclude[Problem]("zio.Queue#Strategy*.shutdownWithCause"),
         exclude[ReversedMissingMethodProblem]("zio.Queue.shutdownCause"),
         exclude[DirectMissingMethodProblem]("zio.Queue.shutdownCause"),
+        exclude[DirectMissingMethodProblem]("zio.Queue#QueueImpl.this"),
         exclude[Problem]("zio.ZLayer$MemoMap*"),
         exclude[DirectMissingMethodProblem]("zio.ZLayer#MemoMap*"),
         exclude[Problem]("zio.Queue#Strategy*.shutdown"),
