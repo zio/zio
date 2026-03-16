@@ -246,6 +246,13 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     val best = chooseWorker()
     if ((best eq null) || !best.localQueue.offer(runnable)) {
       globalQueue.offer(runnable)
+    } else if (best.blocking) {
+      // The worker became blocking between chooseWorker() and offer.
+      // Remove the task and route it to the global queue instead.
+      val recovered = best.localQueue.poll(null)
+      if (recovered ne null) {
+        globalQueue.offer(recovered)
+      }
     } else {
       taskCounts.getAndIncrement(best.workerIndex * 16)
     }
