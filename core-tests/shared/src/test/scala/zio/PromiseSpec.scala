@@ -126,6 +126,42 @@ object PromiseSpec extends ZIOBaseSpec {
         d <- p.isDone
       } yield assert(d)(isTrue)
     } @@ zioTag(errors),
+    test("become a fiber that succeeds") {
+      for {
+        fiber   <- ZIO.succeed(42).fork
+        promise <- Promise.make[Nothing, Int]
+        linked  <- promise.become(fiber)
+        value   <- promise.await
+      } yield assert(linked)(isTrue) && assert(value)(equalTo(42))
+    },
+    test("become a fiber that fails") {
+      for {
+        fiber   <- ZIO.fail("error").fork
+        promise <- Promise.make[String, Int]
+        linked  <- promise.become(fiber)
+        result  <- promise.await.exit
+      } yield assert(linked)(isTrue) && assert(result)(fails(equalTo("error")))
+    } @@ zioTag(errors),
+    test("become returns false when promise already completed") {
+      for {
+        fiber   <- ZIO.succeed(42).forkDaemon
+        promise <- Promise.make[Nothing, Int]
+        _       <- promise.succeed(1)
+        linked  <- promise.become(fiber)
+        value   <- promise.await
+      } yield assert(linked)(isFalse) && assert(value)(equalTo(1))
+    },
+    test("become completes all waiting fibers") {
+      for {
+        latch   <- Promise.make[Nothing, Unit]
+        fiber   <- (latch.await *> ZIO.succeed(42)).fork
+        promise <- Promise.make[Nothing, Int]
+        _       <- promise.become(fiber)
+        awaiters <- ZIO.collectAllPar(List.fill(5)(promise.await.fork))
+        _        <- latch.succeed(())
+        results  <- ZIO.foreach(awaiters)(_.join)
+      } yield assert(results)(equalTo(List.fill(5)(42)))
+    },
     test("waiter stack safety") {
       for {
         p      <- Promise.make[Nothing, Unit]

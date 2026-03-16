@@ -86,6 +86,33 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     ZIO.succeed(unsafe.completeWith(e)(Unsafe))
 
   /**
+   * Links this promise to the specified fiber, so that when the fiber
+   * completes, this promise will be completed with the same result.
+   *
+   * Unlike `completeWith(fiber.join)`, this is more efficient for
+   * [[zio.Fiber.Runtime]] fibers as it directly observes the fiber's
+   * completion via an observer rather than creating a new join each time
+   * the promise is awaited.
+   *
+   * Returns whether the promise was successfully linked (i.e., the promise
+   * was not already completed).
+   */
+  def become(fiber: Fiber[E, A])(implicit trace: Trace): UIO[Boolean] =
+    fiber match {
+      case rt: Fiber.Runtime[_, _] =>
+        ZIO.succeed {
+          val rtTyped                      = rt.asInstanceOf[Fiber.Runtime[E, A]]
+          var linked                       = false
+          val observer: Exit[E, A] => Unit = exit => linked = unsafe.completeWith(exit)(Unsafe)
+          rtTyped.unsafe.addObserver(observer)(Unsafe)
+          if (linked) true
+          else !unsafe.isDone(Unsafe)
+        }
+      case _ =>
+        completeWith(fiber.join)
+    }
+
+  /**
    * Completes the promise with the result of the specified effect. If the
    * promise has already been completed, the method will produce false.
    *
