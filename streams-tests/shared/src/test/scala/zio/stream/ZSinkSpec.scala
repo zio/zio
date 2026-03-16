@@ -856,6 +856,9 @@ object ZSinkSpec extends ZIOBaseSpec {
             override def takeUpTo(max: Int)(implicit trace: Trace): ZIO[Any, Nothing, Chunk[A]] =
               q.takeUpTo(max)
 
+            override def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[A]] =
+              ZIO.succeed { this.isShutDown = true; Chunk.empty }
+
           }
 
           for {
