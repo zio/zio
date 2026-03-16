@@ -247,15 +247,23 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
    */
   private def submitToLeastLoaded(runnable: Runnable): Unit = {
     val best = chooseWorker()
-    if ((best eq null) || !best.localQueue.offer(runnable)) {
+    if (best eq null) {
+      globalQueue.offer(runnable)
+      return
+    }
+    // Re-check after chooseWorker(): the worker may have transitioned to
+    // blocking between the scan and this point.
+    if (best.blocking) {
+      globalQueue.offer(runnable)
+      return
+    }
+    if (!best.localQueue.offer(runnable)) {
       globalQueue.offer(runnable)
     } else if (best.blocking) {
-      // The worker became blocking between chooseWorker() and offer.
-      // Remove the task and route it to the global queue instead.
-      val recovered = best.localQueue.poll(null)
-      if (recovered ne null) {
-        globalQueue.offer(recovered)
-      }
+      // The worker became blocking between our guard above and the offer.
+      // Don't increment the load counter — markAsBlocking() will drain
+      // the queue to global and zero the counter for this slot. The
+      // replacement worker (or the drain itself) will process the task.
     } else {
       taskCounts.getAndIncrement(best.workerIndex * 16)
     }
