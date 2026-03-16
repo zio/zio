@@ -5673,8 +5673,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
                         fiber.unsafe.addObserver { exit =>
                           if (won.compareAndSet(false, true)) {
-                            cancelTimeout()
-                            cb(fiber.inheritAll *> exit.mapExit(f))
+                            cb(ZIO.succeed(cancelTimeout()) *> fiber.inheritAll *> exit.mapExit(f))
                           }
                         }(Unsafe.unsafe)
 
