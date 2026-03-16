@@ -629,6 +629,101 @@ object QueueSpec extends ZIOBaseSpec {
         res   <- p.await
       } yield assert(res)(isTrue)
     },
+    test("shutdownCause fails pending take fibers with the cause") {
+      val cause = Cause.die(new RuntimeException("worker failed"))
+      for {
+        queue    <- Queue.bounded[Int](3)
+        f        <- queue.take.fork
+        _        <- waitForSize(queue, -1)
+        buffered <- queue.shutdownCause(cause)
+        res      <- f.join.sandbox.either
+      } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause.untraced))) &&
+        assert(buffered)(isEmpty)
+    },
+    test("shutdownCause fails subsequent take with the cause") {
+      val cause = Cause.die(new RuntimeException("worker failed"))
+      for {
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdownCause(cause)
+        res   <- queue.take.sandbox.either
+      } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause.untraced)))
+    },
+    test("shutdownCause fails subsequent offer with the cause") {
+      val cause = Cause.die(new RuntimeException("worker failed"))
+      for {
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdownCause(cause)
+        res   <- queue.offer(1).sandbox.either
+      } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause.untraced)))
+    },
+    test("shutdownCause fails back-pressured offer fibers with the cause") {
+      val cause = Cause.die(new RuntimeException("worker failed"))
+      for {
+        queue    <- Queue.bounded[Int](2)
+        _        <- queue.offer(1)
+        _        <- queue.offer(2)
+        f        <- queue.offer(3).fork
+        _        <- waitForSize(queue, 3)
+        buffered <- queue.shutdownCause(cause)
+        res      <- f.join.sandbox.either
+      } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause.untraced))) &&
+        assert(buffered)(hasSize(equalTo(2)))
+    },
+    test("shutdownCause returns buffered items") {
+      val cause = Cause.die(new RuntimeException("worker failed"))
+      for {
+        queue    <- Queue.bounded[Int](10)
+        _        <- queue.offerAll(List(1, 2, 3))
+        buffered <- queue.shutdownCause(cause)
+      } yield assert(buffered)(equalTo(Chunk(1, 2, 3)))
+    },
+    test("shutdownCause marks the queue as shutdown") {
+      val cause = Cause.die(new RuntimeException("worker failed"))
+      for {
+        queue <- Queue.bounded[Int](3)
+        _     <- queue.shutdownCause(cause)
+        res   <- queue.isShutdown
+      } yield assert(res)(isTrue)
+    },
+    test("shutdownCause signals awaitShutdown") {
+      val cause = Cause.die(new RuntimeException("worker failed"))
+      for {
+        queue <- Queue.bounded[Int](3)
+        p     <- Promise.make[Nothing, Boolean]
+        _     <- (queue.awaitShutdown *> p.succeed(true)).fork
+        _     <- queue.shutdownCause(cause)
+        res   <- p.await
+      } yield assert(res)(isTrue)
+    },
+    test("shutdownCause is idempotent — second call returns empty chunk") {
+      val cause1 = Cause.die(new RuntimeException("first"))
+      val cause2 = Cause.die(new RuntimeException("second"))
+      for {
+        queue <- Queue.bounded[Int](10)
+        _     <- queue.offerAll(List(1, 2, 3))
+        b1    <- queue.shutdownCause(cause1)
+        b2    <- queue.shutdownCause(cause2)
+        res   <- queue.take.sandbox.either
+      } yield assert(b1)(equalTo(Chunk(1, 2, 3))) &&
+        assert(b2)(isEmpty) &&
+        assert(res.left.map(_.untraced))(isLeft(equalTo(cause1.untraced)))
+    },
+    test("shutdownCause fails subsequent size with the cause") {
+      val cause = Cause.die(new RuntimeException("worker failed"))
+      for {
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdownCause(cause)
+        res   <- queue.size.sandbox.either
+      } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause.untraced)))
+    },
+    test("shutdownCause fails subsequent takeAll with the cause") {
+      val cause = Cause.die(new RuntimeException("worker failed"))
+      for {
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdownCause(cause)
+        res   <- queue.takeAll.sandbox.either
+      } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause.untraced)))
+    },
     test("dropping strategy with offerAll") {
       for {
         capacity <- ZIO.succeed(4)
