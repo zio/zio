@@ -87,6 +87,134 @@ object SemaphoreSpec extends ZIOBaseSpec {
         _            <- promise.succeed(())
         waitingEnd   <- semaphore.awaiting.repeatUntil(_ == 0)
       } yield assertTrue(waitingStart == 10, waitingEnd == 0)
-    } @@ timeout(10.seconds)
+    } @@ timeout(10.seconds),
+    suite("State")(
+      test("apply creates a negative state") {
+        val state = Semaphore.State(2, 5)
+        assertTrue(state < 0)
+      },
+      test("available returns permits for positive state") {
+        assertTrue(
+          Semaphore.State.available(0L) == 0L,
+          Semaphore.State.available(5L) == 5L,
+          Semaphore.State.available(100L) == 100L
+        )
+      },
+      test("available returns 0 for negative state") {
+        val state = Semaphore.State(3, 10)
+        assertTrue(Semaphore.State.available(state) == 0L)
+      },
+      test("waiters extracts the correct waiter count") {
+        val state = Semaphore.State(3, 10)
+        assertTrue(Semaphore.State.waiters(state) == 3L)
+      },
+      test("waiters returns 0 for non-negative state") {
+        assertTrue(
+          Semaphore.State.waiters(0L) == 0L,
+          Semaphore.State.waiters(5L) == 0L,
+          Semaphore.State.waiters(100L) == 0L
+        )
+      },
+      test("demand extracts the correct permit count") {
+        val state = Semaphore.State(3, 10)
+        assertTrue(Semaphore.State.demand(state) == 10L)
+      },
+      test("demand returns 0 for non-negative state") {
+        assertTrue(
+          Semaphore.State.demand(0L) == 0L,
+          Semaphore.State.demand(5L) == 0L,
+          Semaphore.State.demand(100L) == 0L
+        )
+      },
+      test("awaited returns true for negative state") {
+        val state = Semaphore.State(3, 10)
+        assertTrue(Semaphore.State.awaited(state))
+      },
+      test("awaited returns false for non-negative state") {
+        assertTrue(
+          !Semaphore.State.awaited(0L),
+          !Semaphore.State.awaited(5L),
+          !Semaphore.State.awaited(100L)
+        )
+      },
+      test("roundtrip preserves waiters and demand") {
+        val waiters = 7L
+        val demand  = 42L
+        val state   = Semaphore.State(waiters, demand)
+        assertTrue(
+          Semaphore.State.waiters(state) == waiters,
+          Semaphore.State.demand(state) == demand
+        )
+      },
+      test("addWaiter from zero state creates state with 1 waiter") {
+        val state = Semaphore.State.addWaiter(0L)(5L)
+        assertTrue(
+          state < 0,
+          Semaphore.State.waiters(state) == 1L,
+          Semaphore.State.demand(state) == 5L
+        )
+      },
+      test("addWaiter from positive state consumes available permits") {
+        val state = Semaphore.State.addWaiter(10L)(13L)
+        assertTrue(
+          state < 0,
+          Semaphore.State.waiters(state) == 1L,
+          Semaphore.State.demand(state) == 3L
+        )
+      },
+      test("addWaiter to negative state increments waiter count and adds permits") {
+        val initial = Semaphore.State(2, 5)
+        val updated = Semaphore.State.addWaiter(initial)(3L)
+        assertTrue(
+          Semaphore.State.waiters(updated) == 3L,
+          Semaphore.State.demand(updated) == 8L
+        )
+      },
+      test("removeWaiter decrements waiter count and subtracts permits") {
+        val initial = Semaphore.State(3, 10)
+        val updated = Semaphore.State.removeWaiter(initial)(4L)
+        assertTrue(
+          Semaphore.State.waiters(updated) == 2L,
+          Semaphore.State.demand(updated) == 6L
+        )
+      },
+      test("removeWaiter returns 0 when last waiter is removed") {
+        val initial = Semaphore.State(1, 5)
+        val updated = Semaphore.State.removeWaiter(initial)(5L)
+        assertTrue(updated == 0L)
+      },
+      test("reduceDemand reduces demand without changing waiter count") {
+        val initial = Semaphore.State(2, 10)
+        val updated = Semaphore.State.reduceDemand(initial)(3L)
+        assertTrue(
+          Semaphore.State.waiters(updated) == 2L,
+          Semaphore.State.demand(updated) == 7L
+        )
+      },
+      test("release adds permits back to available pool") {
+        val result = Semaphore.State.release(5L)(3L, 100L)
+        assertTrue(result == 8L)
+      },
+      test("release caps at maxPermits") {
+        val result = Semaphore.State.release(5L)(10L, 10L)
+        assertTrue(result == 10L)
+      },
+      test("handles large waiter counts") {
+        val largeWaiters = 1000000L
+        val demand       = 5000000L
+        val state        = Semaphore.State(largeWaiters, demand)
+        assertTrue(
+          Semaphore.State.waiters(state) == largeWaiters,
+          Semaphore.State.demand(state) == demand
+        )
+      },
+      test("handles maximum values") {
+        val state = Semaphore.State(Semaphore.State.MaxWaiters, Semaphore.State.MaxDemand)
+        assertTrue(
+          Semaphore.State.waiters(state) == Semaphore.State.MaxWaiters,
+          Semaphore.State.demand(state) == Semaphore.State.MaxDemand
+        )
+      }
+    )
   ) @@ exceptJS(nonFlaky)
 }
