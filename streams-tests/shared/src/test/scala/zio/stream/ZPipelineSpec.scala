@@ -2,13 +2,14 @@ package zio.stream
 
 import zio._
 import zio.stream.encoding.EncodingException
-import zio.test.Assertion.{equalTo, fails, isEmpty}
+import zio.test.Assertion.{equalTo, fails, isEmpty, isLeft}
 import zio.test._
 
 import java.nio.charset.Charset
 import scala.io.Source
 
 object ZPipelineSpec extends ZIOBaseSpec {
+  import ZIOTag._
   def spec =
     suite("ZPipelineSpec")(
       suite("groupAdjacentBy")(
