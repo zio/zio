@@ -218,8 +218,11 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         } else {
           // Less common path, global queue is not empty, so we have to prioritize the runnable from it
           worker.nextRunnable = fromGlobal
-          worker.localQueue.offer(runnable)
-          taskCounts.getAndIncrement(worker.workerIndex * 16)
+          if (worker.localQueue.offer(runnable)) {
+            taskCounts.getAndIncrement(worker.workerIndex * 16)
+          } else {
+            handleFullWorkerQueue(worker, runnable)
+          }
         }
       }
       // We have to yield, add the runnable to the local / global queue so that it can be scheduled accordingly
