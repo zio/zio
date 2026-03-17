@@ -238,4 +238,13 @@ object FrameworkSpecInstances {
       )
     )
   }
+
+  final class ClassBasedSpec extends ZIOSpecDefault {
+    def spec =
+      suite("class-based-spec")(
+        test("should not be silently ignored") {
+          assertTrue(true)
+        }
+      )
+  }
 }

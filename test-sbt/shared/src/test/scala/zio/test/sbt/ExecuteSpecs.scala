@@ -29,6 +29,31 @@ object ExecuteSpecs {
     args: Array[String],
     selectors: Array[Selector] = Array(new SuiteSelector)
   ): ZIO[Any, ::[Throwable], (Seq[String], Seq[Event])] = {
+    val taskDefs: Seq[TaskDef] =
+      specs.map { spec =>
+        val className  = spec.getClass.getName
+        val moduleName = TestRunner.moduleName(className)
+        new TaskDef(moduleName, ZioSpecFingerprint, false, selectors)
+      }
+    runTaskDefs(taskDefs, args)
+  }
+
+  def getOutputForClassName(
+    className: String,
+    args: Array[String] = Array.empty,
+    selectors: Array[Selector] = Array(new SuiteSelector)
+  ): ZIO[Any, ::[Throwable], Seq[String]] = {
+    val taskDefs = Seq(new TaskDef(className, ZioSpecClassFingerprint, false, selectors))
+    runTaskDefs(
+      taskDefs,
+      args
+    ).map(_._1)
+  }
+
+  private def runTaskDefs(
+    taskDefs: Seq[TaskDef],
+    args: Array[String]
+  ): ZIO[Any, ::[Throwable], (Seq[String], Seq[Event])] = {
     def attemptBlocking[T](f: => T): ZIO[Any, ::[Throwable], T] =
       ZIO
         .attemptBlocking(f)
@@ -36,12 +61,6 @@ object ExecuteSpecs {
 
     for {
       console <- testConsole
-      taskDefs: Seq[TaskDef] =
-        specs.map { spec =>
-          val className  = spec.getClass.getName
-          val moduleName = TestRunner.moduleName(className)
-          new TaskDef(moduleName, ZioSpecFingerprint, false, selectors)
-        }
       v <- attemptBlocking {
              val runner = new ZTestFramework().runner(args)
              (runner, runner.tasks(taskDefs, console))

@@ -9,7 +9,7 @@ import zio.{Scope, ZIO}
 object ZTestFrameworkSpec extends ZIOSpecDefault {
   override def spec: Spec[TestEnvironment with Scope, Any] = suite("test framework")(
     test("framework fingerprints should be correct")(
-      assertTrue(new ZTestFramework().fingerprints().toSeq == Seq(ZioSpecFingerprint))
+      assertTrue(new ZTestFramework().fingerprints().toSeq == Seq(ZioSpecFingerprint, ZioSpecClassFingerprint))
     ),
     test("basic happy path")(
       for {
@@ -189,6 +189,28 @@ object ZTestFrameworkSpec extends ZIOSpecDefault {
         medium <- testName("inner - test")
         long   <- testName("outer - inner - test")
       } yield verify(short) && verify(medium) && verify(long)
+    },
+    test("reports an actionable diagnostic for class-based specs") {
+      ExecuteSpecs
+        .getOutputForClassName("zio.test.sbt.FrameworkSpecInstances$ClassBasedSpec")
+        .either
+        .map {
+          case Left(errors) =>
+            assertTrue(
+              errors.exists { error =>
+                val msg = error.getMessage
+                msg.contains("must be defined as a Scala object, not a class") &&
+                msg.contains("extends ZIOSpecDefault") &&
+                msg.contains("Change `class") &&
+                msg.contains("to `object")
+              }
+            )
+          case Right(output) =>
+            assertTrue(
+              output.exists(_.contains("must be defined as an object")) ||
+                output.exists(_.contains("class-based ZIO specs are not supported"))
+            )
+        }
     }
   )
 }
