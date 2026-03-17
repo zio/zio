@@ -394,8 +394,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   - `capacity == 1`: uses a synchronous [[ZStream.Handoff]] so the producer
    *     blocks until the consumer takes.
    *   - `capacity >= 2`: uses a bounded queue of size `capacity - 1`, which
-   *     together with the one eagerly computed element yields exactly `capacity`
-   *     elements of look-ahead.
+   *     together with the one eagerly computed element yields exactly
+   *     `capacity` elements of look-ahead.
    *
    * @note
    *   This combinator destroys the chunking structure.
