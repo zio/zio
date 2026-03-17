@@ -346,7 +346,7 @@ object Queue extends QueuePlatformSpecific {
       queue: MutableConcurrentQueue[A],
       takers: ConcurrentDeque[Promise[Nothing, A]]
     ): Unit =
-      if (!takers.isEmpty && draining.compareAndSet(false, true)) {
+      if (!takers.isEmpty() && draining.compareAndSet(false, true)) {
         try {
           var keepPolling      = !queue.isEmpty()
           val empty            = null.asInstanceOf[A]
@@ -430,7 +430,7 @@ object Queue extends QueuePlatformSpecific {
         takers: ConcurrentDeque[Promise[Nothing, A]]
       ): Unit = {
         val putters0 = putters
-        if (!putters0.isEmpty && notifying.compareAndSet(false, true)) {
+        if (!putters0.isEmpty() && notifying.compareAndSet(false, true)) {
           var keepPolling = !queue.isFull()
 
           try {
@@ -551,7 +551,7 @@ object Queue extends QueuePlatformSpecific {
     q.pollUpTo(Int.MaxValue)
 
   private def unsafePollAll[A <: AnyRef](q: ConcurrentDeque[A]): Chunk[A] = {
-    val cb   = ChunkBuilder.make[A](q.size)
+    val cb   = ChunkBuilder.make[A](q.size())
     var loop = true
     while (loop) {
       val a = q.poll()
