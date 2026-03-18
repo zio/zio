@@ -19,7 +19,7 @@ package zio.test
 import zio.Random._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZStream
-import zio.{Chunk, NonEmptyChunk, Random, Trace, UIO, URIO, ZIO, Zippable}
+import zio._
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -32,6 +32,21 @@ import scala.math.Numeric.DoubleIsFractional
  * environment `R`. Generators may be random or deterministic.
  */
 final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
+
+  /**
+   * Returns a stream of samples from this generator. When `n` is `Some`, the
+   * stream is finite (non-deterministic mode: `Gen.deterministic` FiberRef is
+   * set to `false`). When `n` is `None`, the stream runs over the generator's
+   * natural finite output (deterministic mode: `Gen.deterministic` stays
+   * `true`).
+   *
+   * This is the entry-point that separates "run all values" (`checkAll`) from
+   * "run N random values" (`check`). Dual generators such as `fromIterable`
+   * inspect the FiberRef to decide their behaviour.
+   */
+  private[test] def samples(n: Option[Int])(implicit trace: Trace): ZStream[R, Nothing, Sample[R, A]] =
+    ZStream.scoped[R](Gen.deterministic.locallyScoped(n.isEmpty)) *>
+      n.fold(sample)(sample.forever.take(_))
 
   /**
    * A symbolic alias for `concat`.
@@ -147,20 +162,20 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Runs the generator and collects all of its values in a list.
    */
   def runCollect(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).runCollect.map(_.toList)
+    samples(None).map(_.value).runCollect.map(_.toList)
 
   /**
    * Repeatedly runs the generator and collects the specified number of values
    * in a list.
    */
   def runCollectN(n: Int)(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
+    samples(Some(n)).map(_.value).runCollect.map(_.toList)
 
   /**
    * Runs the generator returning the first value of the generator.
    */
   def runHead(implicit trace: Trace): ZIO[R, Nothing, Option[A]] =
-    sample.map(_.value).runHead
+    samples(Some(1)).map(_.value).runHead
 
   /**
    * Composes this generator with the specified generator to create a cartesian
@@ -180,6 +195,35 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 }
 
 object Gen extends GenZIO with FunctionVariants with TimeVariants {
+
+  /**
+   * A `FiberRef` that tracks whether the current execution context is
+   * deterministic (i.e., running `checkAll` / consuming a finite generator's
+   * natural output) or non-deterministic (i.e., running `check` and sampling N
+   * random values).
+   *
+   * `fromIterable` (and other "dual" generators) inspect this ref so that:
+   *   - In deterministic mode they produce their values sequentially.
+   *   - In non-deterministic mode they randomly pick a single value each time,
+   *     behaving like `Gen.elements`, which does not overwrite the `Random`
+   *     state and allows subsequent generators to remain truly random.
+   */
+  private[test] val deterministic: FiberRef[Boolean] =
+    FiberRef.unsafe.make(true)(Unsafe.unsafe)
+
+  /**
+   * Constructs a "dual" generator that switches behaviour depending on whether
+   * the current execution is deterministic (`checkAll`) or non-deterministic
+   * (`check`). Dual generators can be safely composed with both deterministic
+   * and non-deterministic generators without contaminating the `Random` state.
+   */
+  def dual[R, A](
+    deterministicGen: => Gen[R, A],
+    nondeterministicGen: => Gen[R, A]
+  )(implicit trace: Trace): Gen[R, A] =
+    Gen(ZStream.unwrap {
+      deterministic.get.map(if (_) deterministicGen.sample else nondeterministicGen.sample)
+    })
 
   /**
    * A generator of alpha characters.
@@ -426,7 +470,11 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     oneOf(left.map(Left(_)), right.map(Right(_)))
 
   def elements[A](as: A*)(implicit trace: Trace): Gen[Any, A] =
-    if (as.isEmpty) empty else int(0, as.length - 1).map(as)
+    if (as.isEmpty) empty
+    else {
+      val chunk = Chunk.fromIterable(as)
+      int(0, chunk.length - 1).map(chunk)
+    }
 
   def empty(implicit trace: Trace): Gen[Any, Nothing] =
     emptyGen
@@ -438,15 +486,18 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def exponential(implicit trace: Trace): Gen[Any, Double] =
     uniform.map(n => -math.log(1 - n))
 
-  /**
-   * Constructs a deterministic generator that only generates the specified
-   * fixed values.
-   */
   def fromIterable[R, A](
     as: Iterable[A],
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
-  )(implicit trace: Trace): Gen[R, A] =
-    Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
+  )(implicit trace: Trace): Gen[R, A] = Gen.dual(
+    Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a))))),
+    if (as.isEmpty) empty
+    else
+      size.flatMap { n =>
+        val chunk = Chunk.fromIterable(as.take(n max 1))
+        int(0, chunk.length - 1).map(chunk)
+      }.reshrink(a => Sample.unfold(a)(a => (a, shrinker(a))))
+  )
 
   /**
    * Constructs a generator from a function that uses randomness. The returned
