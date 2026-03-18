@@ -501,7 +501,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
   )(implicit trace: Trace): Gen[R, A] = Gen.dual(
     Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a))))),
-    Gen.elements(Chunk.fromIterable(as): _*)
+    if (as.isEmpty) empty
+    else
+      size.flatMap { n =>
+        val chunk = Chunk.fromIterable(as.take(n max 1))
+        int(0, chunk.length - 1).map(chunk)
+      }.reshrink(a => Sample.unfold(a)(a => (a, shrinker(a))))
   )
 
   /**

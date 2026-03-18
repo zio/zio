@@ -836,6 +836,23 @@ object GenSpec extends ZIOBaseSpec {
           uuidSet  = pairs.map(_._2).toSet
           indexSet = pairs.map(_._1).toSet
         } yield assertTrue(uuidSet.size > 1) && assertTrue(indexSet.size > 1)
+      },
+      test("fromIterable random mode samples without OOM on infinite LazyList") {
+        val gen = for {
+          id <- Gen.uuid
+          _  <- Gen.fromIterable(LazyList.from(0))
+        } yield id
+
+        for {
+          uuids <- gen.runCollectN(10)
+        } yield assertTrue(uuids.toSet.size > 1)
+      },
+      test("fromIterable random mode samples within size bound") {
+        val gen = Gen.fromIterable(1 to 1000)
+
+        for {
+          samples <- provideSize(gen.runCollectN(50))(10)
+        } yield assertTrue(samples.forall(i => i >= 1 && i <= 10))
       }
     )
   )
