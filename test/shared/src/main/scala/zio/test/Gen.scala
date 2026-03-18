@@ -214,7 +214,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * Constructs a "dual" generator that switches behaviour depending on whether
    * the current execution is deterministic (`checkAll`) or non-deterministic
-   * (`check`).  Dual generators can be safely composed with both deterministic
+   * (`check`). Dual generators can be safely composed with both deterministic
    * and non-deterministic generators without contaminating the `Random` state.
    */
   def dual[R, A](
@@ -486,16 +486,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def exponential(implicit trace: Trace): Gen[Any, Double] =
     uniform.map(n => -math.log(1 - n))
 
-  /**
-   * A dual generator from the specified iterable of fixed values:
-   *   - In deterministic mode (`checkAll`): generates every value in
-   *     `as` sequentially, preserving the original enumeration behaviour.
-   *   - In non-deterministic mode (`check`): randomly picks one value per
-   *     sample using `Gen.elements`, which does NOT overwrite the `Random`
-   *     service state.  This prevents `fromIterable` from clobbering the
-   *     random seed of generators that come later in a `for`-comprehension
-   *     (fixes #9101).
-   */
+
   def fromIterable[R, A](
     as: Iterable[A],
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker

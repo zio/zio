@@ -779,18 +779,13 @@ object GenSpec extends ZIOBaseSpec {
     },
     suite("Gen.fromIterable does not overwrite Random seed (#9101)")(
       test("fromIterable before uuid yields distinct UUIDs in check") {
-        // Regression test for https://github.com/zio/zio/issues/9101
-        // When fromIterable is flatMapped before uuid, uuid must still be random,
-        // not deterministic (i.e. not the same value each sample).
         val gen = for {
-          _ <- Gen.fromIterable(1 to 5)
+          _  <- Gen.fromIterable(1 to 5)
           id <- Gen.uuid
         } yield id
 
-        // Sample 10 values and assert at least 2 are distinct.
-        // Before the fix, all 10 would be the same UUID.
         for {
-          uuids    <- gen.runCollectN(10)
+          uuids   <- gen.runCollectN(10)
           distinct = uuids.toSet
         } yield assertTrue(distinct.size > 1)
       },
@@ -801,7 +796,7 @@ object GenSpec extends ZIOBaseSpec {
         } yield id
 
         for {
-          uuids <- gen.runCollectN(10)
+          uuids   <- gen.runCollectN(10)
           distinct = uuids.toSet
         } yield assertTrue(distinct.size > 1)
       },
@@ -832,7 +827,7 @@ object GenSpec extends ZIOBaseSpec {
         } yield (i, id)
 
         for {
-          pairs    <- gen.runCollectN(20)
+          pairs   <- gen.runCollectN(20)
           uuidSet  = pairs.map(_._2).toSet
           indexSet = pairs.map(_._1).toSet
         } yield assertTrue(uuidSet.size > 1) && assertTrue(indexSet.size > 1)
