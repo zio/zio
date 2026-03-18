@@ -847,6 +847,9 @@ object ZSinkSpec extends ZIOBaseSpec {
 
             override def shutdown(implicit trace: Trace): UIO[Unit] = ZIO.succeed(this.isShutDown = true)
 
+            override def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[A]] =
+              q.shutdownCause(cause)
+
             override def size(implicit trace: Trace): UIO[Int] = q.size
 
             override def take(implicit trace: Trace): ZIO[Any, Nothing, A] = q.take
