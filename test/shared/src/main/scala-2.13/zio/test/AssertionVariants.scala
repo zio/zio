@@ -78,7 +78,7 @@ trait AssertionVariants {
             if (expected.isInstanceOf[Product]) {
               M.text(diffProduct(actual, expected))
             } else {
-              M.pretty(actual) + M.equals + M.pretty(expected)
+              M.text(diffProduct(actual, expected, rootClassName = Some(expected.getClass.getSimpleName)))
             }
           }
         }
