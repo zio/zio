@@ -119,7 +119,7 @@ object Semaphore {
       }
     }
     final class Multi(val promise: Promise[Nothing, Unit], initial: Long) extends AtomicLong(initial) with Waiter {
-      def permits: Long              = get()
+      def permits: Long = get()
       def reducedBy(n: Long): Waiter = { addAndGet(-n); this }
     }
   }
@@ -129,14 +129,14 @@ object Semaphore {
     private final val UpperShift: Int = 32
 
     final val MaxWaiters: Long = Int.MaxValue.toLong
-    final val MaxDemand: Long  = LowerMask
+    final val MaxDemand: Long = LowerMask
 
     @inline def apply(waiters: Long, demand: Long): Long =
       (-waiters << UpperShift) | (demand & LowerMask)
 
-    @inline def available(state: Long): Long  = if (state > 0) state else 0L
-    @inline def waiters(state: Long): Long    = if (state >= 0) 0L else -(state >> UpperShift)
-    @inline def demand(state: Long): Long     = if (state >= 0) 0L else state & LowerMask
+    @inline def available(state: Long): Long = if (state > 0) state else 0L
+    @inline def waiters(state: Long): Long = if (state >= 0) 0L else -(state >> UpperShift)
+    @inline def demand(state: Long): Long = if (state >= 0) 0L else state & LowerMask
     @inline def awaited(state: Long): Boolean = state < 0
 
     @inline def addWaiter(state: Long)(requested: Long): Long =
@@ -175,13 +175,20 @@ object Semaphore {
       ZIO.suspendSucceed {
         if (isZero(n)) zio
         else if (tryAcquire(n)) ensuringRelease(n)(zio)
-        else ZIO.acquireReleaseWith(acquire(n))(_ => ZIO.succeed(releaseUnsafe(n)))(_ => zio)
+        else ZIO.uninterruptibleMask { restore =>
+          acquire(n, restore) *> restore(zio).foldCauseZIO(
+            cause => { releaseUnsafe(n); ZIO.failCause(cause) },
+            a => { releaseUnsafe(n); ZIO.succeed(a) }
+          )
+        }
       }
 
     override def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
       ZIO.suspendSucceed {
-        if (isZero(n)) Exit.unit
-        else ZIO.acquireRelease(acquire(n))(_ => ZIO.succeed(releaseUnsafe(n)))
+        if (isZero(n)) ZIO.unit
+        else ZIO.uninterruptibleMask { restore =>
+          ZIO.acquireRelease(acquire(n, restore))(_ => ZIO.succeed(releaseUnsafe(n)))
+        }
       }
 
     override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
@@ -196,8 +203,8 @@ object Semaphore {
     private def ensuringRelease[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       ZIO.uninterruptibleMask { restore =>
         restore(zio).foldCauseZIO(
-          cause => { releaseUnsafe(n); Exit.failCause(cause) },
-          a => { releaseUnsafe(n); Exit.succeed(a) }
+          cause => { releaseUnsafe(n); ZIO.failCause(cause) },
+          a => { releaseUnsafe(n); ZIO.succeed(a) }
         )
       }
 
@@ -217,7 +224,7 @@ object Semaphore {
       else tryAcquire(n)
     }
 
-    private def acquire(n: Long)(implicit trace: Trace): UIO[Unit] = {
+    private def acquire(n: Long, restore: ZIO.InterruptibilityRestorer)(implicit trace: Trace): UIO[Unit] = {
       @tailrec
       def loop(n: Long): UIO[Unit] = {
         val state = get()
@@ -226,7 +233,7 @@ object Semaphore {
           else loop(n)
         } else {
           val updated = State.addWaiter(state)(n)
-          val demand  = n - State.available(state)
+          val demand = n - State.available(state)
           if (compareAndSet(state, updated)) {
             val promise = Promise.unsafe.make[Nothing, Unit](FiberId.None)(Unsafe)
             val waiter =
@@ -234,11 +241,11 @@ object Semaphore {
               else new Waiter.Multi(promise, demand)
 
             waiters.offer(waiter)
-            promise.await.onInterrupt {
+            
+            restore(promise.await).onInterrupt {
               ZIO.succeed {
-                if (promise.unsafe.completeWith(Exit.unit)(Unsafe)) {
-                  releaseUnsafe(waiter.permits)
-                }
+                promise.unsafe.completeWith(Exit.unit)(Unsafe)
+                releaseUnsafe(waiter.permits)
               }
             }
           } else loop(n)
