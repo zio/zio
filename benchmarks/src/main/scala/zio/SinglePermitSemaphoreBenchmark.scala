@@ -3,11 +3,11 @@
  * All rights reserved.
  */
 
-
 package zio
 
-import org.openjdk.jmh.annotations._
 import java.util.concurrent.TimeUnit
+
+import org.openjdk.jmh.annotations._
 
 @State(org.openjdk.jmh.annotations.Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
