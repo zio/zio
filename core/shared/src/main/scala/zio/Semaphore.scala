@@ -174,7 +174,6 @@ object Semaphore {
     override def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       ZIO.suspendSucceed {
         if (isZero(n)) zio
-        else if (tryAcquire(n)) ensuringRelease(n)(zio)
         else
           ZIO.uninterruptibleMask { restore =>
             acquire(n, restore) *> restore(zio).foldCauseZIO(
@@ -198,8 +197,17 @@ object Semaphore {
         if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
         else if (n == 0L) zio.asSome
         else if (n > permits) Exit.none
-        else if (tryAcquire(n)) ensuringRelease(n)(zio).asSome
-        else Exit.none
+        else
+          ZIO.uninterruptibleMask { restore =>
+            ZIO.suspendSucceed {
+              if (tryAcquire(n)) {
+                restore(zio).foldCauseZIO(
+                  cause => { releaseUnsafe(n); ZIO.failCause(cause) },
+                  a => { releaseUnsafe(n); ZIO.succeed(Some(a)) }
+                )
+              } else Exit.none
+            }
+          }
       }
 
     private def ensuringRelease[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
@@ -226,35 +234,37 @@ object Semaphore {
       else tryAcquire(n)
     }
 
-    private def acquire(n: Long, restore: ZIO.InterruptibilityRestorer)(implicit trace: Trace): UIO[Unit] = {
-      @tailrec
-      def loop(n: Long): UIO[Unit] = {
-        val state = get()
-        if (state >= n) {
-          if (compareAndSet(state, state - n)) Exit.unit
-          else loop(n)
-        } else {
-          val updated = State.addWaiter(state)(n)
-          val demand  = n - State.available(state)
-          if (compareAndSet(state, updated)) {
-            val promise = Promise.unsafe.make[Nothing, Unit](FiberId.None)(Unsafe)
-            val waiter =
-              if (demand == 1L) new Waiter.Single(promise)
-              else new Waiter.Multi(promise, demand)
+    private def acquire(n: Long, restore: ZIO.InterruptibilityRestorer)(implicit trace: Trace): UIO[Unit] =
+      ZIO.suspendSucceed {
+        @tailrec
+        def loop(n: Long): UIO[Unit] = {
+          val state = get()
+          if (state >= n) {
+            if (compareAndSet(state, state - n)) Exit.unit
+            else loop(n)
+          } else {
+            val updated = State.addWaiter(state)(n)
+            val demand  = n - State.available(state)
+            if (compareAndSet(state, updated)) {
+              val promise = Promise.unsafe.make[Nothing, Unit](FiberId.None)(Unsafe)
+              val waiter =
+                if (demand == 1L) new Waiter.Single(promise)
+                else new Waiter.Multi(promise, demand)
 
-            waiters.offer(waiter)
+              waiters.offer(waiter)
 
-            restore(promise.await).onInterrupt {
-              ZIO.succeed {
-                promise.unsafe.completeWith(Exit.unit)(Unsafe)
-                releaseUnsafe(waiter.permits)
+              restore(promise.await).onInterrupt {
+                ZIO.succeed {
+                  promise.unsafe.completeWith(Exit.unit)(Unsafe)
+                  // FIX: Always refund the full original request, NOT just the remaining demand!
+                  releaseUnsafe(n)
+                }
               }
-            }
-          } else loop(n)
+            } else loop(n)
+          }
         }
+        loop(n)
       }
-      loop(n)
-    }
 
     private def releaseUnsafe(n: Long): Unit = {
       @tailrec
