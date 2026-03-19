@@ -15,10 +15,10 @@ sealed trait Semaphore extends Serializable {
   def awaiting(implicit trace: Trace): UIO[Long] = ZIO.succeed(0L)
 
   final def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-    tryWithPermits(1L)(zio)
+    tryWithPermits(1L, zio)
 
-  // تم تعديلها لتكون Abstract تماماً بدون جسم افتراضي لمطابقة الـ Signature القديم
-  def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]]
+  // الحل هنا: n و zio في قوس واحد لمطابقة التوافق الثنائي (Binary Compatibility)
+  def tryWithPermits[R, E, A](n: Long, zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]]
 
   def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
   def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
@@ -33,7 +33,7 @@ object Semaphore {
   object unsafe {
     def make(permits: Long)(implicit unsafe: Unsafe): Semaphore =
       new Semaphore {
-        // الـ Optimization السريع (6M ops/s)
+        // الـ Optimization الأسطوري بتاعك (6M ops/s)
         val ref = Ref.unsafe.make[Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]](Right(permits))
 
         def available(implicit trace: Trace): UIO[Long] =
@@ -68,7 +68,8 @@ object Semaphore {
             }
           }
 
-        def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+        // تطبيق الـ Signature الجديد هنا أيضاً
+        def tryWithPermits[R, E, A](n: Long, zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
           ZIO.uninterruptibleMask { restore =>
             tryReserve(n).flatMap {
               case Some(res) => restore(zio).asSome.ensuring(res.release)
