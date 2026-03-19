@@ -174,7 +174,6 @@ object Semaphore {
     override def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       ZIO.suspendSucceed {
         if (isZero(n)) zio
-        else if (tryAcquire(n)) ensuringRelease(n)(zio)
         else
           ZIO.uninterruptibleMask { restore =>
             acquire(n, restore) *> restore(zio).foldCauseZIO(
@@ -198,7 +197,6 @@ object Semaphore {
         if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
         else if (n == 0L) zio.asSome
         else if (n > permits) Exit.none
-        else if (tryAcquire(n)) ensuringRelease(n)(zio).asSome
         else
           ZIO.uninterruptibleMask { restore =>
             ZIO.suspendSucceed {
