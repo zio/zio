@@ -11,14 +11,18 @@ import scala.collection.immutable.{Queue => ScalaQueue}
 
 sealed trait Semaphore extends Serializable {
   def available(implicit trace: Trace): UIO[Long]
-
+  
   def awaiting(implicit trace: Trace): UIO[Long] = ZIO.succeed(0L)
 
   final def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
     tryWithPermits(1L, zio)
 
-  // الحل هنا: n و zio في قوس واحد لمطابقة التوافق الثنائي (Binary Compatibility)
+  // 1. الميثود الأصلية (قوس واحد) لمطابقة الـ Bytecode القديم (MiMa Happy)
   def tryWithPermits[R, E, A](n: Long, zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]]
+
+  // 2. ميثود إضافية (قوسين) عشان الـ Tests تفضل شغالة (Tests Happy)
+  final def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+    tryWithPermits(n, zio)
 
   def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
   def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
@@ -33,7 +37,7 @@ object Semaphore {
   object unsafe {
     def make(permits: Long)(implicit unsafe: Unsafe): Semaphore =
       new Semaphore {
-        // الـ Optimization الأسطوري بتاعك (6M ops/s)
+        // الـ Optimization الأسطوري بتاعك (Ref + Queue)
         val ref = Ref.unsafe.make[Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]](Right(permits))
 
         def available(implicit trace: Trace): UIO[Long] =
@@ -68,25 +72,25 @@ object Semaphore {
             }
           }
 
-        // تطبيق الـ Signature الجديد هنا أيضاً
+        // تنفيذ الـ tryWithPermits (السرعة هنا ثابتة)
         def tryWithPermits[R, E, A](n: Long, zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-          ZIO.uninterruptibleMask { restore =>
-            tryReserve(n).flatMap {
-              case Some(res) => restore(zio).asSome.ensuring(res.release)
-              case None      => ZIO.none
+          if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
+          else if (n == 0L) zio.asSome
+          else 
+            ZIO.uninterruptibleMask { restore =>
+              tryReserve(n).flatMap {
+                case Some(res) => restore(zio).asSome.ensuring(res.release)
+                case None      => ZIO.none
+              }
             }
-          }
 
         private case class Reservation(acquire: UIO[Unit], release: UIO[Any])
 
         private def tryReserve(n: Long)(implicit trace: Trace): UIO[Option[Reservation]] =
-          if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
-          else if (n == 0L) ZIO.succeed(Some(Reservation(ZIO.unit, ZIO.unit)))
-          else
-            ref.modify {
-              case Right(p) if p >= n => (Some(Reservation(ZIO.unit, releaseN(n))), Right(p - n))
-              case other              => (None, other)
-            }
+          ref.modify {
+            case Right(p) if p >= n => (Some(Reservation(ZIO.unit, releaseN(n))), Right(p - n))
+            case other              => (None, other)
+          }
 
         private def reserve(n: Long)(implicit trace: Trace): UIO[Reservation] =
           if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
@@ -109,7 +113,7 @@ object Semaphore {
               val filtered = q.filter(_._1 != promise)
               if (filtered.size == q.size) (releaseN(n), Left(q))
               else {
-                val pending = q.find(_._1 == promise).get._2
+                val pending = q.find(_._1 == promise).map(_._2).getOrElse(0L)
                 (releaseN(n - pending), Left(filtered))
               }
             case Right(p) => (ZIO.unit, Right(p + n))
