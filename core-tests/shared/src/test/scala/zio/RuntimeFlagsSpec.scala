@@ -52,6 +52,12 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
 
             assertTrue(RuntimeFlags.diff(oneOn, bothOn) == RuntimeFlags.enable(OpLog))
 
+          } +
+          test("ExplicitRhsTraces") {
+            val flags = RuntimeFlags(ExplicitRhsTraces)
+
+            assertTrue(RuntimeFlags.isEnabled(flags)(ExplicitRhsTraces)) &&
+            assertTrue(RuntimeFlags.isDisabled(RuntimeFlags.none)(ExplicitRhsTraces))
           }
       } +
         suite("gen") {

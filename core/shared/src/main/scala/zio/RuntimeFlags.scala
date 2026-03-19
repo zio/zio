@@ -48,6 +48,9 @@ object RuntimeFlags {
   def enableAll(self: RuntimeFlags)(that: RuntimeFlags): RuntimeFlags =
     self | that
 
+  def explicitRhsTraces(flags: RuntimeFlags): Boolean =
+    isEnabled(flags, RuntimeFlag.ExplicitRhsTraces.mask)
+
   def fiberRoots(flags: RuntimeFlags): Boolean =
     isEnabled(flags, RuntimeFlag.FiberRoots.mask)
 

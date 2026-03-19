@@ -266,7 +266,44 @@ object StackTracesSpec extends ZIOBaseSpec {
               |""".stripMargin
         })
       }
-    ) @@ jvmOnly
+    ) @@ jvmOnly,
+    suite("ExplicitRhsTraces")(
+      test("RHS of flatMap is missing from trace by default (Tail Call Optimized)") {
+        def f1 = ZIO.unit.flatMap(_ => f2)
+        def f2 = ZIO.unit.flatMap(_ => f3)
+        def f3 = ZIO.fail("The failure")
+
+        for {
+          cause      <- f1.sandbox.flip
+          traceString = cause.prettyPrint
+        } yield {
+          assertTrue(
+            traceString.contains("f3"),
+            !traceString.contains("f2"),
+            !traceString.contains("f1")
+          )
+        }
+      },
+      test("RHS of flatMap is included in trace when ExplicitRhsTraces flag is enabled") {
+        def f1 = ZIO.unit.flatMap(_ => f2)
+        def f2 = ZIO.unit.flatMap(_ => f3)
+        def f3 = ZIO.fail("The failure")
+
+        val explicitTracesPatch = RuntimeFlags.enable(RuntimeFlag.ExplicitRhsTraces)
+
+        for {
+          _          <- ZIO.updateRuntimeFlags(explicitTracesPatch)
+          cause      <- f1.sandbox.flip
+          traceString = cause.prettyPrint
+        } yield {
+          assertTrue(
+            traceString.contains("f3"),
+            traceString.contains("f2"),
+            traceString.contains("f1")
+          )
+        }
+      }
+    )
   ) @@ sequential
 
   // set to true to print traces

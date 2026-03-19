@@ -39,7 +39,8 @@ object RuntimeFlag {
       FiberRoots,
       WindDown,
       CooperativeYielding,
-      EagerShiftBack
+      EagerShiftBack,
+      ExplicitRhsTraces
     )
 
   /**
@@ -170,6 +171,18 @@ object RuntimeFlag {
    */
   case object EagerShiftBack extends RuntimeFlag {
     final val index   = 9
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
+
+  /**
+   * The explicit RHS traces flag determines whether the ZIO runtime system will
+   * capture stack traces for the right-hand side of flatMap operations.
+   * Enabling this flag will defeat tail-call optimization and negatively impact
+   * performance and memory usage. Only recommended for debugging.
+   */
+  case object ExplicitRhsTraces extends RuntimeFlag {
+    final val index   = 10
     final val mask    = 1 << index
     final val notMask = ~mask
   }

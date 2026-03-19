@@ -1134,12 +1134,20 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 continuation match {
                   case flatMap: ZIO.FlatMap[Any, Any, Any, Any] =>
                     cur = flatMap.successK(value)
+                    if (RuntimeFlags.explicitRhsTraces(_runtimeFlags)) {
+                      stackIndex = pushStackFrame(ZIO.RhsTraceNode(flatMap.trace), stackIndex)
+                    }
 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
+                    if (RuntimeFlags.explicitRhsTraces(_runtimeFlags)) {
+                      stackIndex = pushStackFrame(ZIO.RhsTraceNode(foldZIO.trace), stackIndex)
+                    }
 
                   case map: ZIO.Mapped[Any, Any, Any, Any] =>
                     value = map.successK(value)
+
+                  case _: ZIO.RhsTraceNode =>
 
                   case update =>
                     val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
@@ -1172,12 +1180,20 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 continuation match {
                   case flatMap: ZIO.FlatMap[Any, Any, Any, Any] =>
                     cur = flatMap.successK(value)
+                    if (RuntimeFlags.explicitRhsTraces(_runtimeFlags)) {
+                      stackIndex = pushStackFrame(ZIO.RhsTraceNode(flatMap.trace), stackIndex)
+                    }
 
                   case foldZIO: ZIO.FoldZIO[Any, Any, Any, Any, Any] =>
                     cur = foldZIO.successK(value)
+                    if (RuntimeFlags.explicitRhsTraces(_runtimeFlags)) {
+                      stackIndex = pushStackFrame(ZIO.RhsTraceNode(foldZIO.trace), stackIndex)
+                    }
 
                   case map: ZIO.Mapped[Any, Any, Any, Any] =>
                     value = map.successK(value)
+
+                  case _: ZIO.RhsTraceNode =>
 
                   case update =>
                     val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
@@ -1196,8 +1212,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               val first = flatmap.first
 
-              if (first eq ZIO.unit) cur = flatmap.successK(())
-              else {
+              if (first eq ZIO.unit) {
+                cur = flatmap.successK(())
+                if (RuntimeFlags.explicitRhsTraces(_runtimeFlags)) {
+                  stackIndex = pushStackFrame(ZIO.RhsTraceNode(flatmap.trace), stackIndex)
+                }
+              } else {
                 stackIndex = pushStackFrame(flatmap, stackIndex)
                 cur = first
               }
@@ -1320,7 +1340,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                       cause = cause.stripFailures
                     } else {
                       cur = foldZIO.failureK(cause)
+                      if (RuntimeFlags.explicitRhsTraces(_runtimeFlags)) {
+                        stackIndex = pushStackFrame(ZIO.RhsTraceNode(foldZIO.trace), stackIndex)
+                      }
                     }
+
+                  case _: ZIO.RhsTraceNode =>
 
                   case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
                     cause = patchRuntimeFlagsCause(updateFlags.update, cause)

@@ -6192,6 +6192,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       extends Continuation
       with ZIO[Any, Nothing, Unit]
 
+  private[zio] final case class RhsTraceNode(trace: Trace) extends Continuation
+
   private[zio] sealed trait UpdateRuntimeFlagsWithin[R, E, A] extends ZIO[R, E, A] {
     def update: RuntimeFlags.Patch
     def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A]
