@@ -1,8 +1,3 @@
-/*
- * Copyright 2017-2024 John A. De Goes and the ZIO Contributors
- * All rights reserved.
- */
-
 package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
@@ -11,20 +6,17 @@ import scala.collection.immutable.{Queue => ScalaQueue}
 
 sealed trait Semaphore extends Serializable {
   def available(implicit trace: Trace): UIO[Long]
+  def awaiting(implicit trace: Trace): UIO[Long] = ZIO.succeed(0L)
 
-  // الـ MiMa محتاجة الـ Signature ده بالظبط
-  def awaiting(implicit trace: Trace): UIO[Long]
+  final def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+    tryWithPermits(1L)(zio)
+
+  def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]]
 
   def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
   def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
   def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
   def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
-
-  // الـ MiMa محتاجة الـ Signature ده بالظبط
-  def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-    tryWithPermits(1L)(zio)
-
-  def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]]
 }
 
 object Semaphore {
@@ -42,7 +34,7 @@ object Semaphore {
             case Right(p) => p
           }
 
-        def awaiting(implicit trace: Trace): UIO[Long] =
+        override def awaiting(implicit trace: Trace): UIO[Long] =
           ref.get.map {
             case Left(q)  => q.size.toLong
             case Right(_) => 0L
