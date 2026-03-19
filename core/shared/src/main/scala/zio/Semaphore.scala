@@ -9,20 +9,17 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => ScalaQueue}
 
-sealed trait Semaphore extends Serializable {
+// رجعناها abstract class عشان الـ MiMa تفرح
+sealed abstract class Semaphore extends Serializable {
   def available(implicit trace: Trace): UIO[Long]
   
   def awaiting(implicit trace: Trace): UIO[Long] = ZIO.succeed(0L)
 
   final def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-    tryWithPermits(1L, zio)
+    tryWithPermits(1L)(zio)
 
-  // 1. الميثود الأصلية (قوس واحد) لمطابقة الـ Bytecode القديم (MiMa Happy)
-  def tryWithPermits[R, E, A](n: Long, zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]]
-
-  // 2. ميثود إضافية (قوسين) عشان الـ Tests تفضل شغالة (Tests Happy)
-  final def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-    tryWithPermits(n, zio)
+  // Signature واحد بس (Curried) عشان الـ Tests وعشان نمنع الـ Double Definition
+  def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]]
 
   def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
   def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
@@ -37,7 +34,7 @@ object Semaphore {
   object unsafe {
     def make(permits: Long)(implicit unsafe: Unsafe): Semaphore =
       new Semaphore {
-        // الـ Optimization الأسطوري بتاعك (Ref + Queue)
+        // الـ Optimization الأسطوري بتاعنا (Ref + Queue)
         val ref = Ref.unsafe.make[Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]](Right(permits))
 
         def available(implicit trace: Trace): UIO[Long] =
@@ -72,8 +69,7 @@ object Semaphore {
             }
           }
 
-        // تنفيذ الـ tryWithPermits (السرعة هنا ثابتة)
-        def tryWithPermits[R, E, A](n: Long, zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+        def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
           if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
           else if (n == 0L) zio.asSome
           else 
