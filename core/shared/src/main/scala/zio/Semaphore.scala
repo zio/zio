@@ -11,18 +11,20 @@ import scala.collection.immutable.{Queue => ScalaQueue}
 
 sealed trait Semaphore extends Serializable {
   def available(implicit trace: Trace): UIO[Long]
+
+  // الـ MiMa محتاجة الـ Signature ده بالظبط
   def awaiting(implicit trace: Trace): UIO[Long]
-
-  // أضفنا الـ Default Implementation هنا عشان الـ Tests تنجح والـ Compatibility متضربش
-  def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-    tryWithPermits(1L)(zio)
-
-  def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]]
 
   def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
   def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
   def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
   def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
+
+  // الـ MiMa محتاجة الـ Signature ده بالظبط
+  def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+    tryWithPermits(1L)(zio)
+
+  def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]]
 }
 
 object Semaphore {
