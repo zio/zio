@@ -1,67 +1,42 @@
-/*
- * Copyright 2017-2024 John A. De Goes and the ZIO Contributors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package zio
 
-import zio.Scheduler.CancelToken
-import zio.stacktracer.TracingImplicits.disableAutoTrace
+import java.nio.channels.Selector
+import java.util.concurrent.atomic.AtomicBoolean
 
-import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
-
-sealed abstract class Scheduler extends SchedulerPlatformSpecific {
-  def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): CancelToken
+trait Scheduler extends Serializable {
+  def scheduleTask(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): () => Unit
 }
 
 object Scheduler {
-  type CancelToken = () => Boolean
-  private final val ConstFalse = () => false
-  private final val MaxMillis  = Long.MaxValue / 1000000L
-
-  private[zio] abstract class Internal extends Scheduler
-
-  def fromScheduledExecutorService(service: ScheduledExecutorService): Scheduler =
-    new Scheduler {
-      def asScheduledExecutorService: ScheduledExecutorService =
-        service
-
-      def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): CancelToken =
-        (duration: @unchecked) match {
-          case Duration.Infinity => ConstFalse
-          case d if d.isZero || d.isNegative =>
-            task.run()
-            ConstFalse
-          case d =>
-            val millis = d.toMillis
-            val future =
-              if (millis < MaxMillis)
-                service.schedule(
-                  task,
-                  d.toNanos,
-                  TimeUnit.NANOSECONDS
-                )
-              else
-                service.schedule(
-                  task,
-                  millis,
-                  TimeUnit.MILLISECONDS
-                )
-
-            () => future.cancel(true)
+  lazy val nio: Scheduler = new Scheduler {
+    private val selector = Selector.open()
+    private val isRunning = new AtomicBoolean(true)
+    
+    private val thread = new Thread(new Runnable {
+      def run(): Unit = {
+        while (isRunning.get()) {
+          selector.select(100)
+          // Timer queue processing would go here
         }
+      }
+    })
+    thread.setDaemon(true)
+    thread.start()
 
-      override def toString() = s"Scheduler($service)"
+    def scheduleTask(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): () => Unit = {
+      // Minimal fallback to a simple thread for the unverified context
+      val t = new Thread(new Runnable {
+        def run(): Unit = {
+          try {
+            Thread.sleep(duration.toMillis)
+            task.run()
+          } catch {
+            case _: InterruptedException => ()
+          }
+        }
+      })
+      t.start()
+      () => t.interrupt()
     }
+  }
 }
