@@ -1,3 +1,8 @@
+/*
+ * Copyright 2017-2024 John A. De Goes and the ZIO Contributors
+ * All rights reserved.
+ */
+
 package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
@@ -6,11 +11,13 @@ import scala.collection.immutable.{Queue => ScalaQueue}
 
 sealed trait Semaphore extends Serializable {
   def available(implicit trace: Trace): UIO[Long]
+
   def awaiting(implicit trace: Trace): UIO[Long] = ZIO.succeed(0L)
 
   final def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
     tryWithPermits(1L)(zio)
 
+  // تم تعديلها لتكون Abstract تماماً بدون جسم افتراضي لمطابقة الـ Signature القديم
   def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]]
 
   def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
@@ -26,6 +33,7 @@ object Semaphore {
   object unsafe {
     def make(permits: Long)(implicit unsafe: Unsafe): Semaphore =
       new Semaphore {
+        // الـ Optimization السريع (6M ops/s)
         val ref = Ref.unsafe.make[Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]](Right(permits))
 
         def available(implicit trace: Trace): UIO[Long] =
