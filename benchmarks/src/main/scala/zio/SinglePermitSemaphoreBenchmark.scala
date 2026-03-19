@@ -1,3 +1,9 @@
+/*
+ * Copyright 2023-2024 John A. De Goes and the ZIO Contributors
+ * All rights reserved.
+ */
+
+
 package zio
 
 import org.openjdk.jmh.annotations._
