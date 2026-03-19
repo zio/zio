@@ -17,13 +17,15 @@ class SinglePermitSemaphoreBenchmark {
 
   @Setup
   def setup(): Unit = {
-    implicit val unsafe: Unsafe = Unsafe.unsafe
-    semaphore = Runtime.default.unsafe.run(Semaphore.make(1L)).getOrThrow()
+    val u: Unsafe = Unsafe.unsafe
+    implicit val unsafe: Unsafe = u
+    semaphore = Runtime.default.unsafe.run(Semaphore.make(1L))(u).getOrThrow()(u)
   }
 
   @Benchmark
   def zioSemaphore(): Unit = {
-    implicit val unsafe: Unsafe = Unsafe.unsafe
-    Runtime.default.unsafe.run(semaphore.withPermit(ZIO.unit)).getOrThrow()
+    val u: Unsafe = Unsafe.unsafe
+    implicit val unsafe: Unsafe = u
+    Runtime.default.unsafe.run(semaphore.withPermit(ZIO.unit))(u).getOrThrow()(u)
   }
 }
