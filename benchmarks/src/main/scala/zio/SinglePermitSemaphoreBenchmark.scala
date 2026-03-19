@@ -11,16 +11,12 @@ class SinglePermitSemaphoreBenchmark {
   var semaphore: Semaphore = _
 
   @Setup
-  def setup(): Unit = {
-    semaphore = Unsafe.unsafe(implicit u => 
-      Runtime.default.unsafe.run(Semaphore.make(1)).getOrThrow()
-    )
-  }
+  def setup(): Unit =
+    semaphore = Unsafe.unsafe(implicit u => Runtime.default.unsafe.run(Semaphore.make(1)).getOrThrow())
 
   @Benchmark
-  def zioSemaphore(): Unit = {
+  def zioSemaphore(): Unit =
     Unsafe.unsafe { implicit u =>
       Runtime.default.unsafe.run(semaphore.withPermit(ZIO.unit)).getOrThrow()
     }
-  }
 }

@@ -36,7 +36,7 @@ object Semaphore {
 
         override def awaiting(implicit trace: Trace): UIO[Long] =
           ref.get.map {
-            case Left(q) => q.size.toLong
+            case Left(q)  => q.size.toLong
             case Right(_) => 0L
           }
 
@@ -76,7 +76,7 @@ object Semaphore {
           else
             ref.modify {
               case Right(p) if p >= n => (Some(Reservation(ZIO.unit, releaseN(n))), Right(p - n))
-              case other => (None, other)
+              case other              => (None, other)
             }
 
         def reserve(n: Long)(implicit trace: Trace): UIO[Reservation] =
