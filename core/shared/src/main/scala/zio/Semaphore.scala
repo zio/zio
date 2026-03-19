@@ -12,6 +12,13 @@ import scala.collection.immutable.{Queue => ScalaQueue}
 sealed trait Semaphore extends Serializable {
   def available(implicit trace: Trace): UIO[Long]
   def awaiting(implicit trace: Trace): UIO[Long]
+
+  // أضفنا الـ Default Implementation هنا عشان الـ Tests تنجح والـ Compatibility متضربش
+  def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+    tryWithPermits(1L)(zio)
+
+  def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]]
+
   def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
   def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
   def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
@@ -59,7 +66,24 @@ object Semaphore {
             }
           }
 
+        def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+          ZIO.uninterruptibleMask { restore =>
+            tryReserve(n).flatMap {
+              case Some(res) => restore(zio).asSome.ensuring(res.release)
+              case None      => ZIO.none
+            }
+          }
+
         private case class Reservation(acquire: UIO[Unit], release: UIO[Any])
+
+        private def tryReserve(n: Long)(implicit trace: Trace): UIO[Option[Reservation]] =
+          if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
+          else if (n == 0L) ZIO.succeed(Some(Reservation(ZIO.unit, ZIO.unit)))
+          else
+            ref.modify {
+              case Right(p) if p >= n => (Some(Reservation(ZIO.unit, releaseN(n))), Right(p - n))
+              case other              => (None, other)
+            }
 
         private def reserve(n: Long)(implicit trace: Trace): UIO[Reservation] =
           if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
