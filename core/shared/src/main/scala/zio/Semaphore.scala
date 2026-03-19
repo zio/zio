@@ -9,8 +9,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => ScalaQueue}
 
-// رجعناها abstract class عشان الـ MiMa تفرح
-sealed abstract class Semaphore extends Serializable {
+// 1. العودة إلى trait لإرضاء التوافق الثنائي (MiMa)
+sealed trait Semaphore extends Serializable {
   def available(implicit trace: Trace): UIO[Long]
 
   def awaiting(implicit trace: Trace): UIO[Long] = ZIO.succeed(0L)
@@ -18,7 +18,7 @@ sealed abstract class Semaphore extends Serializable {
   final def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
     tryWithPermits(1L)(zio)
 
-  // Signature واحد بس (Curried) عشان الـ Tests وعشان نمنع الـ Double Definition
+  // 2. Signature واحد فقط (Curried) لنجاح الاختبارات ومنع الـ Double definition
   def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]]
 
   def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
@@ -34,7 +34,7 @@ object Semaphore {
   object unsafe {
     def make(permits: Long)(implicit unsafe: Unsafe): Semaphore =
       new Semaphore {
-        // الـ Optimization الأسطوري بتاعنا (Ref + Queue)
+        // الـ Optimization السريع جداً
         val ref = Ref.unsafe.make[Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]](Right(permits))
 
         def available(implicit trace: Trace): UIO[Long] =
