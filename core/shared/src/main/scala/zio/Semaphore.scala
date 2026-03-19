@@ -12,7 +12,7 @@ import scala.collection.immutable.{Queue => ScalaQueue}
 // رجعناها abstract class عشان الـ MiMa تفرح
 sealed abstract class Semaphore extends Serializable {
   def available(implicit trace: Trace): UIO[Long]
-  
+
   def awaiting(implicit trace: Trace): UIO[Long] = ZIO.succeed(0L)
 
   final def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
@@ -72,7 +72,7 @@ object Semaphore {
         def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
           if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
           else if (n == 0L) zio.asSome
-          else 
+          else
             ZIO.uninterruptibleMask { restore =>
               tryReserve(n).flatMap {
                 case Some(res) => restore(zio).asSome.ensuring(res.release)
