@@ -97,32 +97,35 @@ object Semaphore {
         def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
           ref.modify {
             case Left(q) =>
-              q.find(_._1 == promise) match {
-                case Some((_, pending)) => (releaseN(n - pending), Left(q.filter(_._1 != promise)))
-                case None               => (releaseN(n), Left(q))
+              val filtered = q.filter(_._1 != promise)
+              if (filtered.size == q.size) (releaseN(n), Left(q))
+              else {
+                val pending = q.find(_._1 == promise).get._2
+                (releaseN(n - pending), Left(filtered))
               }
             case Right(p) => (ZIO.unit, Right(p + n))
           }.flatten
 
-        def releaseN(n: Long)(implicit trace: Trace): UIO[Any] = {
-          @tailrec
-          def loop(
-            n: Long,
-            state: Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long],
-            acc: UIO[Any]
-          ): (UIO[Any], Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]) =
-            state match {
-              case Right(p) => (acc, Right(p + n))
-              case Left(q) =>
-                q.dequeueOption match {
-                  case None => (acc, Right(n))
-                  case Some(((prom, req), rest)) =>
-                    if (n >= req) loop(n - req, Left(rest), acc *> prom.succeedUnit)
-                    else (acc, Left((prom -> (req - n)) +: rest))
-                }
-            }
-          ref.modify(loop(n, _, ZIO.unit)).flatten
-        }
+        def releaseN(n: Long)(implicit trace: Trace): UIO[Any] =
+          ref.modify {
+            case Right(p) => (ZIO.unit, Right(p + n))
+            case Left(q) =>
+              val (acc, newState) = loop(n, q, ZIO.unit)
+              (acc, newState)
+          }.flatten
+
+        @tailrec
+        private def loop(
+          n: Long,
+          q: ScalaQueue[(Promise[Nothing, Unit], Long)],
+          acc: UIO[Any]
+        )(implicit trace: Trace): (UIO[Any], Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]) =
+          if (q.isEmpty) (acc, Right(n))
+          else {
+            val ((prom, req), rest) = q.dequeue
+            if (n >= req) loop(n - req, rest, acc *> prom.succeedUnit)
+            else (acc, Left((prom -> (req - n)) +: rest))
+          }
       }
   }
 }
