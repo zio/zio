@@ -629,6 +629,70 @@ object QueueSpec extends ZIOBaseSpec {
         res   <- p.await
       } yield assert(res)(isTrue)
     },
+    test("shutdownCause fails pending take fibers with the cause") {
+      for {
+        cause <- ZIO.succeed(Cause.die(new RuntimeException("worker failed")))
+        queue <- Queue.bounded[Int](3)
+        f     <- queue.take.sandbox.fork
+        _     <- waitForSize(queue, -1)
+        _     <- queue.shutdownCause(cause)
+        res   <- f.join
+      } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause fails subsequent take with the cause") {
+      for {
+        cause <- ZIO.succeed(Cause.die(new RuntimeException("worker failed")))
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdownCause(cause)
+        res   <- queue.take.sandbox.either
+      } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause fails subsequent offer with the cause") {
+      for {
+        cause <- ZIO.succeed(Cause.die(new RuntimeException("worker failed")))
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdownCause(cause)
+        res   <- queue.offer(1).sandbox.either
+      } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause fails back-pressured offer fibers with the cause") {
+      for {
+        cause <- ZIO.succeed(Cause.die(new RuntimeException("worker failed")))
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.offer(1)
+        f     <- queue.offer(2).sandbox.fork
+        _     <- waitForSize(queue, 2)
+        _     <- queue.shutdownCause(cause)
+        res   <- f.join
+      } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause marks the queue as shutdown") {
+      for {
+        cause <- ZIO.succeed(Cause.die(new RuntimeException("worker failed")))
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdownCause(cause)
+        res   <- queue.isShutdown
+      } yield assert(res)(isTrue)
+    },
+    test("shutdownCause signals awaitShutdown") {
+      for {
+        cause <- ZIO.succeed(Cause.die(new RuntimeException("worker failed")))
+        queue <- Queue.bounded[Int](1)
+        p     <- Promise.make[Nothing, Boolean]
+        _     <- (queue.awaitShutdown *> p.succeed(true)).fork
+        _     <- queue.shutdownCause(cause)
+        res   <- p.await
+      } yield assert(res)(isTrue)
+    },
+    test("shutdownCause is idempotent") {
+      for {
+        cause <- ZIO.succeed(Cause.die(new RuntimeException("worker failed")))
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdownCause(cause)
+        _     <- queue.shutdownCause(cause)
+        res   <- queue.isShutdown
+      } yield assert(res)(isTrue)
+    },
     test("dropping strategy with offerAll") {
       for {
         capacity <- ZIO.succeed(4)
