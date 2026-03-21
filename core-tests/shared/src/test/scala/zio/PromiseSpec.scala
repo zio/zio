@@ -191,6 +191,40 @@ object PromiseSpec extends ZIOBaseSpec {
           assert(completed)(equalTo(List.range(0, n)))
         }
       )
-    )
+),
+    test("become completes promise when fiber succeeds") {
+      for {
+        promise <- Promise.make[Nothing, Int]
+        fiber   <- ZIO.succeed(42).fork
+        _       <- promise.become(fiber)
+        value   <- promise.await
+      } yield assertTrue(value == 42)
+    },
+    test("become completes promise when fiber fails") {
+      for {
+        promise <- Promise.make[String, Int]
+        fiber   <- ZIO.fail("boom").fork
+        _       <- promise.become(fiber)
+        result  <- promise.await.exit
+      } yield assertTrue(result == Exit.fail("boom"))
+    },
+    test("become is no-op if promise already completed") {
+      for {
+        promise <- Promise.make[Nothing, Int]
+        _       <- promise.succeed(1)
+        fiber   <- ZIO.succeed(2).fork
+        _       <- promise.become(fiber)
+        value   <- promise.await
+      } yield assertTrue(value == 1)
+    },
+    test("become with already-completed fiber resolves immediately") {
+      for {
+        promise <- Promise.make[Nothing, Int]
+        fiber   <- ZIO.succeed(42).fork
+        _       <- fiber.join
+        _       <- promise.become(fiber)
+        value   <- promise.await
+      } yield assertTrue(value == 42)
+    }
   )
 }

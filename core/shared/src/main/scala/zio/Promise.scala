@@ -72,6 +72,34 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     }
 
   /**
+   * Links this promise to the given fiber. When the fiber completes, this
+   * promise will be completed with the same exit value. If the promise is
+   * already completed, this is a no-op and returns false.
+   *
+   * This eliminates the intermediate callback allocation that occurs when a
+   * fiber forks work to complete a promise and then immediately awaits it.
+   *
+   * {{{
+   * // Before: indirect, allocates intermediate callback
+   * for {
+   *   promise <- Promise.make[E, A]
+   *   fiber   <- (work >>= promise.succeed).fork
+   *   result  <- promise.await
+   * } yield result
+   *
+   * // After: direct observer registration, no intermediate callback
+   * for {
+   *   promise <- Promise.make[E, A]
+   *   fiber   <- work.fork
+   *   _       <- promise.become(fiber)
+   *   result  <- promise.await
+   * } yield result
+   * }}}
+   */
+  def become(fiber: Fiber.Runtime[E, A])(implicit trace: Trace): UIO[Boolean] =
+    ZIO.succeed(unsafe.become(fiber)(Unsafe))
+
+  /**
    * Kills the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
@@ -175,6 +203,7 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     ZIO.succeed(unsafe.succeedUnit(ev0, trace, Unsafe))
 
   private[zio] trait UnsafeAPI extends Serializable {
+    def become(fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Boolean
     def completeWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean
     def die(e: Throwable)(implicit trace: Trace, unsafe: Unsafe): Boolean
     def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit
@@ -192,6 +221,15 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
   private[zio] def state: AtomicReference[Promise.internal.State[E, A]] =
     unsafe.asInstanceOf[AtomicReference[Promise.internal.State[E, A]]]
   private[zio] val unsafe: UnsafeAPI = new AtomicReference(Promise.internal.State.empty[E, A]) with UnsafeAPI { state =>
+
+    def become(fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Boolean =
+      if (!isDone) {
+        fiber.unsafe.addObserver { exit =>
+          completeWith(exit)
+        }
+        true
+      } else false
+
     def completeWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean = {
       @annotation.tailrec
       def loop(): Boolean =
@@ -300,11 +338,6 @@ object Promise {
     }
 
     private object Link {
-
-      /**
-       * Materializes the pending state into an array of waiters in reverse
-       * order.
-       */
       def materialize[E, A](pending: Pending[E, A], size: Int): Array[IO[E, A] => Any] = {
         val array   = new Array[IO[E, A] => Any](size)
         var current = pending
