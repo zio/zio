@@ -221,7 +221,6 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
   private[zio] def state: AtomicReference[Promise.internal.State[E, A]] =
     unsafe.asInstanceOf[AtomicReference[Promise.internal.State[E, A]]]
   private[zio] val unsafe: UnsafeAPI = new AtomicReference(Promise.internal.State.empty[E, A]) with UnsafeAPI { state =>
-
     def become(fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Boolean =
       if (!isDone) {
         fiber.unsafe.addObserver { exit =>

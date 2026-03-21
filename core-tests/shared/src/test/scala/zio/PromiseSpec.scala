@@ -191,7 +191,7 @@ object PromiseSpec extends ZIOBaseSpec {
           assert(completed)(equalTo(List.range(0, n)))
         }
       )
-),
+    ),
     test("become completes promise when fiber succeeds") {
       for {
         promise <- Promise.make[Nothing, Int]
