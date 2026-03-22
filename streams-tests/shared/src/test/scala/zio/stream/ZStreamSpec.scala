@@ -2954,7 +2954,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                      .take(1)
                      .runDrain
               n <- ref.get
-            } yield assert(n)(isLessThanOrEqualTo(8 + 2 + 1)) // n + bufferSize + current
+            } yield assert(n)(isLessThanEqualTo(8 + 2 + 1)) // n + bufferSize + current
           },
           test("awaits children fibers properly") {
             assertZIO(

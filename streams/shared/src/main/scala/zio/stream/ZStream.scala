@@ -2021,21 +2021,6 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. The element order is
    * not enforced by this combinator, and elements may be reordered.
-   *
-   * @param bufferSize
-   *   No longer limits concurrency; retained for compatibility. Deprecated.
-   * @note
-   *   This combinator destroys the chunking structure.
-   */
-   def mapZIOParUnordered[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: Int = 16)(f: A => ZIO[R1, E1, A2])(implicit
-    trace: Trace
-  ): ZStream[R1, E1, A2] =
-    mapZIOParUnordered[R1, E1, A2](n, 16)(f)
-
-  /**
-   * Maps over elements of the stream with the specified effectful function,
-   * executing up to `n` invocations of `f` concurrently. The element order is
-   * not enforced by this combinator, and elements may be reordered.
    */
   def mapZIOParUnordered[R1 <: R, E1 >: E, A2](n: => Int, bufferSize: => Int = 16)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
