@@ -663,7 +663,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * @param n
    *   The maximum number of elements to map in parallel
    * @param bufferSize
-   *   Number of elements that can be buffered downstream
+   *   No longer limits concurrency; retained for compatibility
    */
   final def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
@@ -674,7 +674,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         val queueReader = ZChannel.fromInput(input)
         val n0          = n.toLong
         val bufferSize0 = bufferSize
-        val outgoing    = Queue.unsafe.bounded[Fiber[Either[Unit, OutDone], OutElem2]](bufferSize0, fiberId)(Unsafe)
+        val outgoing    = Queue.unsafe.unbounded[Fiber[Either[Unit, OutDone], OutElem2]](fiberId)(Unsafe)
         val errorSignal = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
         val permits     = Semaphore.unsafe.make(n0)(Unsafe)
         val failureRef  = Ref.unsafe.make[Cause[OutErr1]](Cause.empty)(Unsafe)
@@ -705,7 +705,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                              )
                              .interruptible
                              .forkIn(childScope)
-                             .flatMap(fiber => latch.await *> outgoing.offer(fiber))
+                             .flatMap(fiber => outgoing.offer(fiber) *> latch.await)
                          }.forever.interruptible
                            .onError(_.failureOrCause match {
                              case Left(x: Left[OutErr, ?]) =>

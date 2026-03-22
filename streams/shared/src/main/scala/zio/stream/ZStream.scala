@@ -1990,6 +1990,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * executing up to `n` invocations of `f` concurrently. Transformed elements
    * will be emitted in the original order.
    *
+   * @param bufferSize
+   *   No longer limits concurrency; retained for compatibility.
    * @note
    *   This combinator destroys the chunking structure.
    */

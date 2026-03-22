@@ -2908,6 +2908,24 @@ object ZStreamSpec extends ZIOBaseSpec {
               mapZIOPar <- ZStream.fromIterable(m).mapZIOPar(n)(ZIO.succeed(_)).runCollect
             } yield assert(n)(isGreaterThan(0)) implies assert(mapZIO)(equalTo(mapZIOPar))
           }),
+          test("parallelism is not limited by bufferSize") {
+            for {
+              latch <- Promise.make[Nothing, Unit]
+              p     <- Promise.make[Nothing, Unit]
+              ref   <- Ref.make(0)
+              _ <- ZStream.range(0, 32)
+                     .mapZIOPar(32, bufferSize = 2) { _ =>
+                       ref.updateAndGet(_ + 1).flatMap { n =>
+                         if (n == 32) latch.succeed(()) *> p.await
+                         else p.await
+                       }
+                     }
+                     .runDrain
+                     .fork
+              _ <- latch.await
+              _ <- p.succeed(())
+            } yield assertCompletes
+          } @@ TestAspect.timeout(5.seconds),
           test("awaits children fibers properly") {
             assertZIO(
               ZStream

@@ -506,6 +506,17 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
   ): ZPipeline[Env2, Err2, In, Out2] =
     mapZIOPar[Env2, Err2, Out2](n, 16)(f)
 
+  /**
+   * Maps over elements of the stream with the specified effectful function,
+   * executing up to `n` invocations of `f` concurrently. Transformed elements
+   * will be emitted in the original order.
+   *
+   * @param bufferSize
+   *   No longer limits concurrency; retained for compatibility.
+   * @note
+   *   This combinator destroys the chunking structure. It's recommended to use
+   *   rechunk afterwards.
+   */
   def mapZIOPar[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int = 16)(f: Out => ZIO[Env2, Err2, Out2])(
     implicit trace: Trace
   ): ZPipeline[Env2, Err2, In, Out2] =
@@ -1990,6 +2001,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * executing up to `n` invocations of `f` concurrently. Transformed elements
    * will be emitted in the original order.
    *
+   * @param bufferSize
+   *   No longer limits concurrency; retained for compatibility.
    * @note
    *   This combinator destroys the chunking structure. It's recommended to use
    *   rechunk afterwards.
