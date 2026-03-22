@@ -767,8 +767,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
     ZChannel.unwrapScopedWith { scope =>
       for {
-        input       <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
-        queueReader  = ZChannel.fromInput(input)
+        input      <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
+        queueReader = ZChannel.fromInput(input)
         // An unbounded queue is safe here because the number of elements is
         // effectively bounded by the concurrency level `n`.
         outgoing    <- Queue.unbounded[Exit[Either[Unit, OutDone], OutElem2]]

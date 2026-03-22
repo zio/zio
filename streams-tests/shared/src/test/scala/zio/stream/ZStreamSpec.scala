@@ -2913,7 +2913,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch <- Promise.make[Nothing, Unit]
               p     <- Promise.make[Nothing, Unit]
               ref   <- Ref.make(0)
-              _ <- ZStream.range(0, 32)
+              _ <- ZStream
+                     .range(0, 32)
                      .mapZIOPar(32, bufferSize = 2) { _ =>
                        ref.updateAndGet(_ + 1).flatMap { n =>
                          if (n == 32) latch.succeed(()) *> p.await
@@ -2931,7 +2932,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch <- Promise.make[Nothing, Unit]
               p     <- Promise.make[Nothing, Unit]
               ref   <- Ref.make(0)
-              _ <- ZStream.range(0, 32)
+              _ <- ZStream
+                     .range(0, 32)
                      .mapZIOParUnordered(32, bufferSize = 2) { _ =>
                        ref.updateAndGet(_ + 1).flatMap { n =>
                          if (n == 32) latch.succeed(()) *> p.await
@@ -2947,7 +2949,8 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("partial consumption handles backpressure correctly") {
             for {
               ref <- Ref.make(0)
-              _ <- ZStream.range(0, 100)
+              _ <- ZStream
+                     .range(0, 100)
                      .mapZIOPar(8, bufferSize = 2) { _ =>
                        ref.update(_ + 1)
                      }
