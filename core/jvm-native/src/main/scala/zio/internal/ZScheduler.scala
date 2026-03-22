@@ -355,18 +355,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
             }
           }
 
-if (runnable eq null) {
-            // Spin before fully parking — absorbs short idle bursts with zero syscall cost.
-            // Same pattern used by Go runtime and Tokio scheduler.
-            val SPIN_ITERATIONS = 64
-            var spin            = 0
-            while (spin < SPIN_ITERATIONS && (runnable eq null)) {
-              Thread.onSpinWait()
-              runnable = localQueue.poll(null)
-              if (runnable eq null) runnable = globalQueue.poll(random)
-              spin += 1
-            }
-          }
+
 
           if (runnable eq null) {
             val currentState =
