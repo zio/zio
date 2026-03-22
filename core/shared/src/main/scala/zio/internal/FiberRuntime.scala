@@ -89,7 +89,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     if (children eq null) Chunk.empty
     else {
       val bldr = Chunk.newBuilder[Fiber.Runtime[_, _]]
-      val it = children.iterator
+      val it   = children.iterator
       while (it.hasNext) {
         val child = it.next()
         if ((child ne null) && child.isAlive())
@@ -1368,21 +1368,21 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       val childList = children.iterator.toList
       if (childList.isEmpty) false
       else {
-      val iterator = childList.iterator
-      var told     = false
-      val cause    = Cause.interrupt(fiberId)
+        val iterator = childList.iterator
+        var told     = false
+        val cause    = Cause.interrupt(fiberId)
 
-      while (iterator.hasNext) {
-        val next = iterator.next()
+        while (iterator.hasNext) {
+          val next = iterator.next()
 
-        if ((next ne null) && next.isAlive()) {
-          next.tellInterrupt(cause)
+          if ((next ne null) && next.isAlive()) {
+            next.tellInterrupt(cause)
 
-          told = true
+            told = true
+          }
         }
-      }
 
-      told
+        told
       }
     }
 
