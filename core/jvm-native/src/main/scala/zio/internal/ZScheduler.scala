@@ -355,8 +355,6 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
             }
           }
 
-
-
           if (runnable eq null) {
             val currentState =
               if (currentBlocking && searching) state.decrementAndGet()
