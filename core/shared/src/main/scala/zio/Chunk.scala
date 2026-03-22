@@ -1413,7 +1413,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    */
   private[zio] def classTagOf[A](chunk: Chunk[A]): ClassTag[A] =
     chunk match {
-      case _: Empty.type            => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
+      case _: Empty.type            => ClassTag.Object.asInstanceOf[ClassTag[A]]
       case x: Singleton[_]          => x.classTag.asInstanceOf[ClassTag[A]]
       case x: AnyRefArray[_]        => x.classTag.asInstanceOf[ClassTag[A]]
       case x: BooleanArray          => x.classTag.asInstanceOf[ClassTag[A]]
