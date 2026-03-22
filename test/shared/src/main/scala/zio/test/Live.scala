@@ -32,7 +32,7 @@ trait Live {
 
 object Live {
 
-  val tag: Tag[Live] = Tag[Live]
+  implicit val tag: Tag[Live] = Tag(EnvironmentTag.tagFromTagMacro[Live])
 
   final case class Test(zenv: ZEnvironment[Clock with Console with System with Random]) extends Live {
     def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
@@ -48,11 +48,10 @@ object Live {
   val default: ZLayer[Clock with Console with System with Random, Nothing, Live] = {
     implicit val trace = Tracer.newTrace
     ZLayer.scoped {
-      for {
-        zenv <- ZIO.environment[Clock with Console with System with Random]
-        live  = Test(zenv)
-        _    <- withLiveScoped(live)
-      } yield live
+      ZIO.environmentWithZIO[Clock with Console with System with Random] { zenv =>
+        val live = Test(zenv)
+        withLiveScoped(live).as(live)
+      }
     }
   }
 

@@ -58,6 +58,37 @@ object ZEnvironmentSpec extends ZIOBaseSpec {
 
       assertTrue(env == pruned)
     },
+    test("pruning a tag with multiple services") {
+      trait Foo
+      final class Foo1 extends Foo
+      final class Foo2 extends Foo
+
+      val env    = ZEnvironment(new Foo1, new Foo2)
+      val pruned = env.prune[Foo]
+
+      assertTrue(env == pruned)
+    },
+    suite("pruning Scope when missing from the environment throws an error") {
+      final class Foo1
+      final class Foo2
+
+      def testPrune[R](implicit tagged: EnvironmentTag[R]): TestResult = {
+        val env = ZEnvironment(new Foo1, new Foo2).asInstanceOf[ZEnvironment[R]]
+        try {
+          env.prune[R]
+          assertNever("should have failed to prune scope")
+        } catch {
+          case t: Throwable =>
+            val msg = t.getMessage
+            assertTrue(msg.contains("Set(Scope) statically known to be contained within the environment are missing"))
+        }
+      }
+
+      List(
+        test("single tag")(testPrune[Scope]),
+        test("union tag")(testPrune[Scope & Foo1])
+      )
+    },
     test("get[Any] on an empty ZEnvironment returns Unit") {
       val value = ZEnvironment.empty.get[Any]
       assertTrue(value.isInstanceOf[Unit])

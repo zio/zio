@@ -52,7 +52,7 @@ trait Runtime[+R] { self =>
       ZIO.asyncInterrupt[Any, E, A] { callback =>
         val fiber = unsafe.fork(zio)(trace, Unsafe.unsafe)
         fiber.unsafe.addObserver(callback(_))(Unsafe.unsafe)
-        Left(ZIO.blocking(fiber.interruptAs(fiberId)))
+        Left(fiber.interruptAs(fiberId))
       }
     }
 
@@ -141,11 +141,8 @@ trait Runtime[+R] { self =>
               result.get()
             } catch {
               case t: InterruptedException =>
-                val interrupted       = OneShot.make[Exit[Nothing, Exit[E, A]]]
-                val interruptionFiber = makeFiber(fiber.interruptAs(FiberId.None))
-                interruptionFiber.addObserver(interrupted.set)
-                interruptionFiber.start(fiber.interruptAs(FiberId.None))
-                interrupted.get()
+                fiber.tellInterrupt(Cause.interrupt(FiberId.None, StackTrace(FiberId.None, Chunk.single(trace))))
+                result.get() // wait for interruption to finish
                 throw t
             }
           }
@@ -182,17 +179,14 @@ trait Runtime[+R] { self =>
       val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
       val fiber = makeFiber(zio)
-
       fiber.addObserver(_.foldExit(cause => p.failure(cause.squashTraceWith(identity)), p.success))
-
       fiber.startConcurrently(zio)
 
       new CancelableFuture[A](p.future) {
         def cancel(): Future[Exit[Throwable, A]] = {
           val p: scala.concurrent.Promise[Exit[Throwable, A]] = scala.concurrent.Promise[Exit[Throwable, A]]()
-          val cancelFiber                                     = makeFiber(fiber.interruptAs(FiberId.None))
-          cancelFiber.addObserver(_.foldExit(cause => p.failure(cause.squashTraceWith(identity)), p.success))
-          cancelFiber.start(fiber.interruptAs(FiberId.None))
+          fiber.unsafe.addObserver(p.success)
+          fiber.tellInterrupt(Cause.interrupt(FiberId.None, StackTrace(FiberId.None, Chunk.single(trace))))
           p.future
         }
       }
@@ -330,18 +324,18 @@ object Runtime extends RuntimePlatformSpecific {
     def fromLayer[R](layer: Layer[Any, R])(implicit trace: Trace, unsafe: Unsafe): Runtime.Scoped[R] = {
       val (runtime, shutdown) = default.unsafe.run {
         Scope.make.flatMap { scope =>
-          scope.extend(layer.toRuntime).flatMap { acquire =>
-            val finalizer = () =>
-              default.unsafe.run {
-                scope.close(Exit.unit).uninterruptible.unit
-              }.getOrThrowFiberFailure()
-
-            ZIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
+          scope.extend(layer.toRuntime).map { acquire =>
+            val finalizer = { () =>
+              if (scope.size > 0) default.unsafe.run(scope.close(Exit.unit).uninterruptible).getOrThrowFiberFailure()
+              ()
+            }
+            Platform.addShutdownHook(finalizer)
+            (acquire, finalizer)
           }
         }
       }.getOrThrowFiberFailure()
 
-      Runtime.Scoped(runtime.environment, runtime.fiberRefs, runtime.runtimeFlags, () => shutdown())
+      Runtime.Scoped(runtime.environment, runtime.fiberRefs, runtime.runtimeFlags, shutdown)
     }
   }
 

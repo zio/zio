@@ -60,21 +60,14 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
    *   The maximum amount of time the thread will be blocked, in milliseconds.
    * @throws Error
    *   if the timeout is reached without the value being set.
+   * @see
+   *   [[tryGet]] for a variant that returns null instead of throwing a timeout
+   *   exception
    */
   def get(timeout: Long): A =
-    if (value ne null) value
-    else {
-      this.lock()
-
-      try {
-        if (value eq null) this.isSetCondition.await(timeout, java.util.concurrent.TimeUnit.MILLISECONDS)
-      } finally {
-        this.unlock()
-      }
-
-      if (value eq null) throw new OneShot.TimeoutException
-
-      value
+    tryGet(timeout) match {
+      case null => throw new OneShot.TimeoutException
+      case v    => v
     }
 
   /**
@@ -89,6 +82,28 @@ private[zio] final class OneShot[A] private () extends ReentrantLock(false) {
 
       try {
         while (value eq null) this.isSetCondition.await()
+      } finally {
+        this.unlock()
+      }
+
+      value
+    }
+
+  /**
+   * Attempts to retrieve the value of the variable, blocking if necessary up to
+   * the specified timeout. If the timeout is reached without the value being
+   * set, it returns null.
+   *
+   * @param timeout
+   *   The maximum amount of time the thread will be blocked, in milliseconds.
+   */
+  def tryGet(timeout: Long): A =
+    if (value ne null) value
+    else {
+      this.lock()
+
+      try {
+        if (value eq null) this.isSetCondition.await(timeout, java.util.concurrent.TimeUnit.MILLISECONDS)
       } finally {
         this.unlock()
       }

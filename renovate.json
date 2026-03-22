@@ -13,6 +13,9 @@
   "automergeType": "pr",
   "automerge": true,
   "platformAutomerge": true,
+  "baseBranchPatterns": [
+    "series/2.x"
+  ],
   "packageRules": [
     {
       "description": "Update Official ZIO Ecosystem Docs",
@@ -23,10 +26,20 @@
         "dependencies",
         "documentation"
       ],
-      "enabled": true,
       "matchPackageNames": [
-        "@zio.dev{/,}**"
-      ]
+        "^@zio\.dev\/.*"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "Disable patch updates for non-ZIO npm packages",
+      "matchPackageNames": [
+        "^(?!@zio\.dev\/)"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "enabled": false
     }
   ]
 }

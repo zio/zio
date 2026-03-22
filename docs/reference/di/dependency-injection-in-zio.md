@@ -49,7 +49,7 @@ val effect: ZIO[A, Nothing, String] =
 
 The signature of the above effect, says that in order to produce a value of type `String`, I need the `A` service from the ZIO environment.
 
-We can also use `ZIO.serviceWith`/`ZIO.srviceWithZIO` to directly access one of the service functionalities:
+We can also use `ZIO.serviceWith`/`ZIO.serviceWithZIO` to directly access one of the service functionalities:
 
 ```scala mdoc:silent
 object A {

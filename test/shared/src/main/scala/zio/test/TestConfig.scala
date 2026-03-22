@@ -16,10 +16,8 @@
 
 package zio.test
 
-import zio.{Tag, URIO, ZIO, ZLayer}
+import zio.{EnvironmentTag, Exit, Tag, Trace, URIO, ZIO, ZIOAspect, ZLayer}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.Trace
-import zio.ZIOAspect
 
 /**
  * The `TestConfig` service provides access to default configuration settings
@@ -61,7 +59,7 @@ trait TestConfig extends Serializable {
 
 object TestConfig {
 
-  val tag: Tag[TestConfig] = Tag[TestConfig]
+  implicit val tag: Tag[TestConfig] = Tag(EnvironmentTag.tagFromTagMacro[TestConfig])
 
   @deprecated("use TestV2", "2.1.8")
   final case class Test(repeats: Int, retries: Int, samples: Int, shrinks: Int) extends TestConfig
@@ -120,29 +118,29 @@ object TestConfig {
    * The number of times to repeat tests to ensure they are stable.
    */
   def repeats(implicit trace: Trace): URIO[Any, Int] =
-    testConfigWith(testConfig => ZIO.succeed(testConfig.repeats))
+    testConfigWith(testConfig => Exit.succeed(testConfig.repeats))
 
   /**
    * The number of times to retry flaky tests.
    */
   def retries(implicit trace: Trace): URIO[Any, Int] =
-    testConfigWith(testConfig => ZIO.succeed(testConfig.retries))
+    testConfigWith(testConfig => Exit.succeed(testConfig.retries))
 
   /**
    * The number of sufficient samples to check for a random variable.
    */
   def samples(implicit trace: Trace): URIO[Any, Int] =
-    testConfigWith(testConfig => ZIO.succeed(testConfig.samples))
+    testConfigWith(testConfig => Exit.succeed(testConfig.samples))
 
   /**
    * The maximum number of shrinkings to minimize large failures
    */
   def shrinks(implicit trace: Trace): URIO[Any, Int] =
-    testConfigWith(testConfig => ZIO.succeed(testConfig.shrinks))
+    testConfigWith(testConfig => Exit.succeed(testConfig.shrinks))
 
   /**
    * Action that should be performed on each check sample.
    */
   def checkAspect(implicit trace: Trace): URIO[Any, TestAspect.CheckAspect] =
-    testConfigWith(testConfig => ZIO.succeed(testConfig.checkAspect))
+    testConfigWith(testConfig => Exit.succeed(testConfig.checkAspect))
 }

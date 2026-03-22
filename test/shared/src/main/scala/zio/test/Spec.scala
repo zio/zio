@@ -362,7 +362,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
       case m: MultipleCase[Spec[R0, E]] => m
       case ScopedCase(scoped) =>
         ScopedCase[R0, E, Spec[R0, E]](
-          scoped.provideSomeEnvironment[R0 with Scope](in => f(in).add[Scope](in.get[Scope]))
+          scoped.provideSomeEnvironment[R0 with Scope](in => f(in).unsafe.addScope(in.getScope)(Unsafe))
         )
       case TestCase(test, annotations) => TestCase(test.provideSomeEnvironment(f), annotations)
     }
@@ -442,7 +442,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
         Spec.scoped[R1](
           b.foldZIO(
             failure = e => Exit.fail(TestFailure.fail(e)),
-            success = if (_) scoped else ZIO.succeed(Spec.empty)
+            success = if (_) scoped else Exit.succeed(Spec.empty)
           )
         )
       case TestCase(test, annotations) =>
