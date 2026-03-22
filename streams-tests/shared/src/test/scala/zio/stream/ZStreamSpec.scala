@@ -2926,6 +2926,36 @@ object ZStreamSpec extends ZIOBaseSpec {
               _ <- p.succeed(())
             } yield assertCompletes
           } @@ TestAspect.timeout(5.seconds),
+          test("mapZIOParUnordered is not limited by bufferSize") {
+            for {
+              latch <- Promise.make[Nothing, Unit]
+              p     <- Promise.make[Nothing, Unit]
+              ref   <- Ref.make(0)
+              _ <- ZStream.range(0, 32)
+                     .mapZIOParUnordered(32, bufferSize = 2) { _ =>
+                       ref.updateAndGet(_ + 1).flatMap { n =>
+                         if (n == 32) latch.succeed(()) *> p.await
+                         else p.await
+                       }
+                     }
+                     .runDrain
+                     .fork
+              _ <- latch.await
+              _ <- p.succeed(())
+            } yield assertCompletes
+          } @@ TestAspect.timeout(5.seconds),
+          test("partial consumption handles backpressure correctly") {
+            for {
+              ref <- Ref.make(0)
+              _ <- ZStream.range(0, 100)
+                     .mapZIOPar(8, bufferSize = 2) { _ =>
+                       ref.update(_ + 1)
+                     }
+                     .take(1)
+                     .runDrain
+              n <- ref.get
+            } yield assert(n)(isLessThanOrEqualTo(8 + 2 + 1)) // n + bufferSize + current
+          },
           test("awaits children fibers properly") {
             assertZIO(
               ZStream

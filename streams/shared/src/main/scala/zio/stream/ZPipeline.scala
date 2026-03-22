@@ -536,6 +536,9 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. The element order is
    * not enforced by this combinator, and elements may be reordered.
+   *
+   * @param bufferSize
+   *   No longer limits concurrency; retained for compatibility. Deprecated.
    */
   def mapZIOParUnordered[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int = 16)(
     f: Out => ZIO[Env2, Err2, Out2]
@@ -2032,6 +2035,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. The element order is
    * not enforced by this combinator, and elements may be reordered.
+   *
+   * @param bufferSize
+   *   No longer limits concurrency; retained for compatibility. Deprecated.
    */
   def mapZIOParUnordered[Env, Err, In, Out](n: => Int, bufferSize: => Int = 16)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace

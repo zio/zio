@@ -663,8 +663,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * @param n
    *   The maximum number of elements to map in parallel
    * @param bufferSize
-   *   No longer limits concurrency; retained for compatibility
+   *   No longer limits concurrency; retained for compatibility. Deprecated.
    */
+  @deprecated("No longer limits concurrency. Use .buffer for explicit downstream buffering.", "2.1.10")
   final def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
@@ -673,7 +674,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         val input       = SingleProducerAsyncInput.unsafe.make[InErr, InElem, InDone](fiberId)(Unsafe)
         val queueReader = ZChannel.fromInput(input)
         val n0          = n.toLong
-        val bufferSize0 = bufferSize
+        // An unbounded queue is safe here because the number of elements is
+        // effectively bounded by the concurrency level `n`. Each new upstream
+        // pull is gated by `latch.await`, ensuring that the producer cannot
+        // get arbitrarily ahead of available permits.
         val outgoing    = Queue.unsafe.unbounded[Fiber[Either[Unit, OutDone], OutElem2]](fiberId)(Unsafe)
         val errorSignal = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
         val permits     = Semaphore.unsafe.make(n0)(Unsafe)
@@ -755,8 +759,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * @param n
    *   The maximum number of elements to map in parallel
    * @param bufferSize
-   *   Number of elements that can be buffered downstream
+   *   No longer limits concurrency; retained for compatibility. Deprecated.
    */
+  @deprecated("No longer limits concurrency. Use .buffer for explicit downstream buffering.", "2.1.10")
   final def mapOutZIOParUnordered[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int, bufferSize: Int = 16)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
@@ -764,7 +769,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       for {
         input       <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
         queueReader  = ZChannel.fromInput(input)
-        outgoing    <- Queue.bounded[Exit[Either[Unit, OutDone], OutElem2]](bufferSize)
+        // An unbounded queue is safe here because the number of elements is
+        // effectively bounded by the concurrency level `n`.
+        outgoing    <- Queue.unbounded[Exit[Either[Unit, OutDone], OutElem2]]
         _           <- scope.addFinalizer(outgoing.shutdown)
         errorSignal <- Promise.make[Nothing, Unit]
         permits     <- Semaphore.make(n.toLong)
