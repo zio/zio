@@ -305,6 +305,57 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)((equalTo(t)))
       }
     ) @@ zioTag(errors),
+    suite("catchAll - issue 9874")(
+      test("does not silently drop a co-existing Die when Cause is Both(Die, Fail)") {
+        val boom     = new RuntimeException("boom")
+        val dieCause = Cause.die(boom)
+        val combined = dieCause && Cause.fail("typed-error")
+        val exit = ZIO
+          .failCause(combined)
+          .catchAll(_ => ZIO.unit)
+          .exit
+        assertZIO(exit)(dies(equalTo(boom)))
+      } @@ zioTag(errors),
+      test("does not silently drop a co-existing Die when Cause is Both(Fail, Die)") {
+        val boom     = new RuntimeException("boom")
+        val combined = Cause.fail("typed-error") && Cause.die(boom)
+        val exit = ZIO
+          .failCause(combined)
+          .catchAll(_ => ZIO.unit)
+          .exit
+        assertZIO(exit)(dies(equalTo(boom)))
+      } @@ zioTag(errors),
+      test("foldZIO does not silently drop a co-existing Die") {
+        val boom     = new RuntimeException("boom")
+        val combined = Cause.die(boom) && Cause.fail("typed-error")
+        val exit = ZIO
+          .failCause(combined)
+          .foldZIO(_ => ZIO.unit, _ => ZIO.unit)
+          .exit
+        assertZIO(exit)(dies(equalTo(boom)))
+      } @@ zioTag(errors),
+      test("either does not silently drop a co-existing Die") {
+        val boom     = new RuntimeException("boom")
+        val combined = Cause.die(boom) && Cause.fail("typed-error")
+        val exit     = ZIO.failCause(combined).either.exit
+        assertZIO(exit)(dies(equalTo(boom)))
+      } @@ zioTag(errors),
+      test("catchAll still recovers from a pure Fail cause") {
+        val exit = ZIO
+          .fail("typed-error")
+          .catchAll(_ => ZIO.succeed("recovered"))
+          .exit
+        assertZIO(exit)(succeeds(equalTo("recovered")))
+      },
+      test("catchAll with foreachPar - collateral interrupts do not block recovery") {
+        for {
+          exit <- ZIO
+                    .foreachPar(List(1, 2))(i => if (i == 1) ZIO.fail("fail") else ZIO.never)
+                    .catchAll(_ => ZIO.succeed(List.empty[Int]))
+                    .exit
+        } yield assert(exit)(succeeds(equalTo(List.empty[Int])))
+      } @@ zioTag(errors) @@ exceptJS(nonFlaky(50))
+    ) @@ zioTag(errors),
     suite("catchSomeCause")(
       test("catches matching cause") {
         ZIO.interrupt.catchSomeCause {
