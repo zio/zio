@@ -101,10 +101,14 @@ class FiberMailboxBenchmark {
     while (i < 100) { q.add(msg); bh.consume(q.poll()); i += 1 }
   }
 
-  // --- burst steady-state: repeated burst-of-2 cycles (promote → drain → demote) ---
+  // --- burst steady-state: repeated burst-of-2 cycles (promote → drain → reuse) ---
   // Models a fiber that repeatedly receives two concurrent messages (e.g. a timeout
-  // racing an upstream result).  Each cycle promotes the mailbox to CLQ, drains it,
-  // and demotes back to the single-slot path — exercising the full promote/demote loop.
+  // racing an upstream result).  The first cycle promotes the mailbox to CLQ; all
+  // subsequent cycles reuse the same CLQ object — no re-allocation per cycle.
+  //
+  // Allocation profile per cycle:
+  //   FiberMailbox — 1st cycle: 1 CLQ + 2 nodes; subsequent cycles: 2 CLQ nodes only.
+  //   ConcurrentLinkedQueue (baseline) — 2 CLQ nodes per cycle; CLQ object reused.
 
   @Benchmark
   def mailboxBurstSteadyState(bh: Blackhole): Unit = {

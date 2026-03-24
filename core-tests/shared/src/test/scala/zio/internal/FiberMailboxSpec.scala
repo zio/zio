@@ -131,6 +131,18 @@ object FiberMailboxSpec extends ZIOBaseSpec {
         // single after second drain
         m.add(msg2)
         assertTrue(m.poll() eq msg2) && assertTrue(m.isEmpty)
+      },
+      test("CLQ is reused across burst cycles") {
+        val m = new FiberMailbox {}
+        // five burst/drain cycles — CLQ allocated once on first burst, reused after
+        var correct = true
+        var i       = 0
+        while (i < 5) {
+          m.add(msg); m.add(msg2)
+          correct = correct && (m.poll() eq msg) && (m.poll() eq msg2) && m.isEmpty
+          i += 1
+        }
+        assertTrue(correct)
       }
     )
   )
