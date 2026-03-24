@@ -164,9 +164,10 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
-      var notify = true
+      var notify = false
       if ((worker eq null) || worker.blocking) {
         globalQueue.offer(runnable)
+        notify = true
       }
       // Attempt resumption in the current Thread
       else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
@@ -180,16 +181,20 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
           // Less common path, global queue is not empty, so we have to prioritize the runnable from it
           worker.nextRunnable = fromGlobal
           worker.localQueue.offer(runnable)
+          notify = true
         }
       }
       // We have to yield, add the runnable to the local / global queue so that it can be scheduled accordingly
       else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
+        notify = true
       }
 
       if (notify) {
         val currentState = state.get
-        maybeUnparkWorker(currentState)
+        // Only unpark if we have submitted work and there appears to be idle capacity
+        if ((currentState & 0xffff) > 0) 
+          maybeUnparkWorker(currentState)
       }
       true
     }
