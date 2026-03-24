@@ -385,33 +385,77 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * Allows a faster producer to progress independently of a slower consumer by
    * buffering up to `capacity` elements in a queue.
    *
+   * A value of `capacity` greater than zero bounds the number of elements that
+   * can be produced ahead of the consumer by approximately `capacity`. If
+   * `capacity <= 0` this operator is a no-op and the resulting stream is equal
+   * to the source stream. When `capacity == 1` a synchronous handoff is used so
+   * that exactly one element is buffered. For `capacity >= 2`, a queue of size
+   * `capacity - 1` is used along with the in-flight element to achieve exactly
+   * `capacity` buffered elements.
+   *
    * @note
    *   This combinator destroys the chunking structure.
    * @note
    *   Prefer capacities that are powers of 2 for better performance.
    */
-  def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
-    val queue = self.toQueueOfElements(capacity)
-    new ZStream(
-      ZChannel.unwrapScoped[R] {
-        queue.map { queue =>
-          lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
-            ZChannel.fromZIO {
-              queue.take
-            }.flatMap { (exit: Exit[Option[E], A]) =>
-              exit.foldExit(
-                Cause
-                  .flipCauseOption(_)
-                  .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
-                value => ZChannel.write(Chunk.single(value)) *> process
-              )
-            }
+  def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] =
+    ZStream.unwrap {
+      ZIO.succeed {
+        val cap = capacity
+        if (cap <= 0) self
+        else if (cap == 1) {
+          new ZStream(
+            ZChannel.unwrapScoped[R] {
+              ZIO.acquireRelease(ZStream.Handoff.make[Exit[Option[E], A]])(_.offer(Exit.fail(None))).flatMap {
+                handoff =>
+                  val producer = {
+                    lazy val writer: ZChannel[R, E, Chunk[A], Any, Nothing, Nothing, Any] =
+                      ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Nothing, Any](
+                        in => ZChannel.fromZIO(ZIO.foreachDiscard(in)(a => handoff.offer(Exit.succeed(a)))) *> writer,
+                        err => ZChannel.fromZIO(handoff.offer(Exit.failCause(err.map(Some(_))))),
+                        _ => ZChannel.fromZIO(handoff.offer(Exit.fail(None)))
+                      )
+                    (self.channel >>> writer).drain.runScoped
+                  }.forkScoped
 
-          process
+                  lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+                    ZChannel.fromZIO(handoff.take).flatMap { (exit: Exit[Option[E], A]) =>
+                      exit.foldExit(
+                        Cause
+                          .flipCauseOption(_)
+                          .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
+                        value => ZChannel.write(Chunk.single(value)) *> process
+                      )
+                    }
+
+                  producer *> ZIO.succeed(process)
+              }
+            }
+          )
+        } else {
+          val queue = self.toQueueOfElements(cap - 1)
+          new ZStream(
+            ZChannel.unwrapScoped[R] {
+              queue.map { queue =>
+                lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+                  ZChannel.fromZIO {
+                    queue.take
+                  }.flatMap { (exit: Exit[Option[E], A]) =>
+                    exit.foldExit(
+                      Cause
+                        .flipCauseOption(_)
+                        .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
+                      value => ZChannel.write(Chunk.single(value)) *> process
+                    )
+                  }
+
+                process
+              }
+            }
+          )
         }
       }
-    )
-  }
+    }
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by
