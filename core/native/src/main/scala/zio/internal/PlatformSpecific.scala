@@ -89,6 +89,10 @@ private[zio] trait PlatformSpecific {
   final def newConcurrentSet[A](initialCapacity: Int)(implicit unsafe: zio.Unsafe): JSet[A] =
     ConcurrentHashMap.newKeySet[A](initialCapacity)
 
+  final def onSpinWait(): Unit = Thread.onSpinWait()
+
+  final def threadYield(): Unit = Thread.`yield`()
+
   private def blackhole(a: Any): Unit = {
     val _ = a
     ()

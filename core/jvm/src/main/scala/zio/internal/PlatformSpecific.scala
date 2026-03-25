@@ -111,4 +111,8 @@ private[zio] trait PlatformSpecific {
       majorVersion.toInt
     }.toOption
   }
+
+  final def onSpinWait(): Unit = Thread.onSpinWait()
+
+  final def threadYield(): Unit = Thread.`yield`()
 }

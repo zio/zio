@@ -70,7 +70,7 @@ private[zio] final class FiberMailbox[A <: AnyRef](coreCapacityHint: Int = 8) {
 
       if (spinning < SpinLimit) {
         spinning += 1
-        Thread.onSpinWait()
+        Platform.onSpinWait()
       }
     }
 
@@ -86,13 +86,13 @@ private[zio] final class FiberMailbox[A <: AnyRef](coreCapacityHint: Int = 8) {
       var spins = 0
 
       while ((value eq null) && (spins < SpinLimit)) {
-        Thread.onSpinWait()
+        Platform.onSpinWait()
         spins += 1
         value = core.get(slot)
       }
 
       while (value eq null) {
-        Thread.`yield`()
+        Platform.threadYield()
         value = core.get(slot)
       }
 
