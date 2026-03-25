@@ -104,6 +104,24 @@ object FiberMailboxSpec extends ZIOBaseSpec {
         assertTrue(m.poll() eq msg3)
       }
     ),
+    suite("CLQ-state add/poll")(
+      // Once promoted to CLQ, state never returns to null. Verify that add()
+      // on an empty CLQ (post-drain) correctly enqueues and poll() retrieves.
+      test("add to empty-CLQ state enqueues and poll retrieves") {
+        val m = new FiberMailbox {}
+        m.add(msg); m.add(msg2) // triggers CLQ promotion
+        m.poll(); m.poll()      // fully drain CLQ — state is still CLQ(empty)
+        m.add(msg3)             // add to empty CLQ (not the null fast-path)
+        assertTrue((m.poll() eq msg3) && m.isEmpty)
+      },
+      test("multiple add/poll cycles on CLQ-state preserve FIFO") {
+        val m = new FiberMailbox {}
+        m.add(msg); m.add(msg2) // promote to CLQ
+        m.poll(); m.poll()      // drain
+        m.add(msg3); m.add(msg) // add two more (CLQ reuse path)
+        assertTrue((m.poll() eq msg3) && (m.poll() eq msg) && m.isEmpty)
+      }
+    ),
     suite("post-drain behaviour")(
       test("mailbox is usable after CLQ is fully drained") {
         val m = new FiberMailbox {}
