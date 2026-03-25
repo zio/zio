@@ -104,8 +104,8 @@ import scala.annotation.tailrec
  *     (their CAS will fail), so `poll()` is always called by exactly one thread
  *     at a time.
  *   - `running` is set back to `false` only after the drain loop exits, at
- *     which point the runtime re-checks [[isEmpty]] before deciding to park (see
- *     Park/unpark safety below).
+ *     which point the runtime re-checks [[isEmpty]] before deciding to park
+ *     (see Park/unpark safety below).
  *
  * Consequence: even though `FiberMailbox` itself does not prevent concurrent
  * calls to `poll()`, the surrounding `running` gate in `FiberRuntime` provides
