@@ -40,7 +40,7 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
                 println(
                   "**** WARNING ****\n" +
                     s"Timed out waiting for ZIO application to shut down after ${gracefulShutdownTimeout.render}. " +
-                    "You can adjust your application's shutdown timeout by overriding the `shutdownTimeout` method"
+                    "You can adjust your application's shutdown timeout by overriding the `gracefulShutdownTimeout` method"
                 )
               case _: Throwable =>
             }
