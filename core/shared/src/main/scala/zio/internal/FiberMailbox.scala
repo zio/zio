@@ -92,6 +92,26 @@ import scala.annotation.tailrec
  * its own 64-byte cache line and cannot be falsely shared with adjacent
  * `FiberRuntime` fields on multi-core machines.
  *
+ * ==Single-consumer guarantee==
+ *
+ * [[poll]] is only safe when called from a single consumer thread at a time.
+ * `FiberRuntime` enforces this via its `running: AtomicBoolean`:
+ *
+ *   - Before any call to `poll()`, the runtime wins a
+ *     `running.compareAndSet(false, true)` CAS, which atomically "claims" the
+ *     consumer role.
+ *   - While `running` is `true`, no other thread can claim the consumer role
+ *     (their CAS will fail), so `poll()` is always called by exactly one thread
+ *     at a time.
+ *   - `running` is set back to `false` only after the drain loop exits, at
+ *     which point the runtime re-checks [[isEmpty]] before deciding to park (see
+ *     Park/unpark safety below).
+ *
+ * Consequence: even though `FiberMailbox` itself does not prevent concurrent
+ * calls to `poll()`, the surrounding `running` gate in `FiberRuntime` provides
+ * the invariant at a higher level, making the single-consumer property a
+ * system-level guarantee rather than a per-method contract.
+ *
  * ==Park / unpark safety==
  *
  * `FiberRuntime.drainQueueOnCurrentThread` performs a volatile write on

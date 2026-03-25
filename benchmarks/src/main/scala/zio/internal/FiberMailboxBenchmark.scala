@@ -132,6 +132,32 @@ class FiberMailboxBenchmark {
     }
   }
 
+  // --- post-CLQ-promotion steady state: single add/poll after first burst ---
+  //
+  // Once promoted to CLQ, the zero-allocation fast path is permanently lost;
+  // each message costs one CLQ-node allocation.  The benchmarks above
+  // (mailboxSingleAddPoll / mailboxSteadyState) start with a *fresh* mailbox,
+  // so they always exercise the fast path.  This benchmark pre-warms the
+  // mailbox into CLQ state first, showing the honest steady-state allocation
+  // cost for a fiber that has already received a burst.
+  //
+  // The mailbox is held in a thread-local @State so JMH does not share it
+  // across threads; we keep exactly one message in it between iterations
+  // so the CLQ is never empty and state never "looks" like the null case.
+
+  val prewarmedMailbox: FiberMailbox = {
+    val m = new FiberMailbox {}
+    m.add(msg); m.add(msg) // trigger CLQ promotion
+    m.poll()               // drain one so CLQ has exactly one item
+    m
+  }
+
+  @Benchmark
+  def mailboxPostPromotionSingleAddPoll(bh: Blackhole): Unit = {
+    bh.consume(prewarmedMailbox.poll()) // poll the one message (CLQ path)
+    prewarmedMailbox.add(msg)           // re-add so next iteration is identical
+  }
+
   // --- isEmpty (called before every effect step in the run loop) ---
 
   @Benchmark
