@@ -68,7 +68,10 @@ object ProcessTestSupport {
         } catch {
           case _: Throwable =>
             // Fallback: ensure the process is at least asked to terminate.
-            ProcessHandle.of(pid).ifPresent(ph => { ph.destroy(); () })
+            ProcessHandle.of(pid).ifPresent { ph =>
+              ph.destroy()
+              ()
+            }
             -1
         }
 
@@ -103,39 +106,45 @@ object ProcessTestSupport {
     inputStream: java.io.InputStream,
     dest: StringBuilder,
     ready: Option[(String, CountDownLatch)]
-  ): Thread =
-    new Thread(() => {
-      val reader = new BufferedReader(new InputStreamReader(inputStream))
-      try {
-        var line: String = reader.readLine()
-        while (line != null) {
-          dest.synchronized {
-            dest.append(line)
-            dest.append("\n")
-          }
+  ): Thread = {
+    val t =
+      new Thread(() => {
+        val reader = new BufferedReader(new InputStreamReader(inputStream))
+        try {
+          var line: String = reader.readLine()
+          while (line != null) {
+            dest.synchronized {
+              dest.append(line)
+              dest.append("\n")
+            }
 
-          ready.foreach { case (marker, latch) =>
-            if (line.contains(marker)) latch.countDown()
-          }
+            ready.foreach { case (marker, latch) =>
+              if (line.contains(marker)) latch.countDown()
+            }
 
-          line = reader.readLine()
-        }
-      } catch {
-        case _: Throwable =>
-      } finally {
-        try reader.close()
-        catch {
+            line = reader.readLine()
+          }
+        } catch {
           case _: Throwable =>
+        } finally {
+          try reader.close()
+          catch {
+            case _: Throwable =>
+          }
         }
-      }
-    }) {
-      setDaemon(true)
-      setName("zioapp-process-drain")
-    }
+      })
+
+    t.setDaemon(true)
+    t.setName("zioapp-process-drain")
+    t
+  }
 
   private def destroyForcibly(process: Process): Unit =
     try {
-      ProcessHandle.of(process.pid()).ifPresent(ph => { ph.destroyForcibly(); () })
+      ProcessHandle.of(process.pid()).ifPresent { ph =>
+        ph.destroyForcibly()
+        ()
+      }
       process.destroyForcibly()
       ()
     } catch {
