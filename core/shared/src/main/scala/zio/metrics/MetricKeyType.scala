@@ -17,6 +17,7 @@
 package zio.metrics
 
 import zio._
+import zio.internal.metrics.MetricHook.SummaryValue
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 sealed trait MetricKeyType {
@@ -84,7 +85,7 @@ object MetricKeyType {
     error: Double,
     quantiles: Chunk[Double]
   ) extends MetricKeyType {
-    type In  = (Double, java.time.Instant)
+    type In  = SummaryValue
     type Out = MetricState.Summary
   }
 }
