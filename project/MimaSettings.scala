@@ -46,8 +46,7 @@ object MimaSettings {
         exclude[Problem]("zio.test.TestClock.SuspendedWarningData"),
         exclude[Problem]("zio.test.TestClock.WarningData"),
         exclude[DirectMissingMethodProblem]("zio.test.package.testFiberRefGen"),
-        exclude[IncompatibleMethTypeProblem]("zio.test.package.warningEmptyGen"),
-        exclude[IncompatibleResultTypeProblem]("zio.Fiber._roots")
+        exclude[IncompatibleMethTypeProblem]("zio.test.package.warningEmptyGen")
       ),
       mimaFailOnProblem := failOnProblem
     )

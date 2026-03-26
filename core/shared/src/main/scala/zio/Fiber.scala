@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{FiberRenderer, FiberScope, FiberSet}
+import zio.internal.{FiberRenderer, FiberScope, WeakConcurrentBag}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
@@ -1069,10 +1069,7 @@ object Fiber extends FiberPlatformSpecific {
   private[zio] val _currentFiber: ThreadLocal[Fiber.Runtime[_, _]] =
     new ThreadLocal[Fiber.Runtime[_, _]]()
 
-  private[zio] val _roots: FiberSet[Fiber.Runtime[_, _]] =
-    FiberSet[Fiber.Runtime[_, _]](
-      nurserySize = 10000,
-      concurrencyLevel = java.lang.Runtime.getRuntime.availableProcessors() * 4,
-      isAlive = _.isAlive()
-    )
+  private[zio] val _roots: WeakConcurrentBag[Fiber.Runtime[_, _]] =
+    WeakConcurrentBag[Fiber.Runtime[_, _]](10000, _.isAlive())
+      .withAutoGc(5.seconds)
 }
