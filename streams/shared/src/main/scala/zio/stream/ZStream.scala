@@ -391,10 +391,41 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   Prefer capacities that are powers of 2 for better performance.
    */
   def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
-    val queue = self.toQueueOfElements(capacity)
+    val actualCapacity = capacity
+    if (actualCapacity == 1) {
+      bufferOne
+    } else {
+      val queue = self.toQueueOfElements(actualCapacity)
+      new ZStream(
+        ZChannel.unwrapScoped[R] {
+          queue.map { queue =>
+            lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+              ZChannel.fromZIO {
+                queue.take
+              }.flatMap { (exit: Exit[Option[E], A]) =>
+                exit.foldExit(
+                  Cause
+                    .flipCauseOption(_)
+                    .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
+                  value => ZChannel.write(Chunk.single(value)) *> process
+                )
+              }
+
+            process
+          }
+        }
+      )
+    }
+  }
+
+  private def bufferOne(implicit trace: Trace): ZStream[R, E, A] =
     new ZStream(
       ZChannel.unwrapScoped[R] {
-        queue.map { queue =>
+        for {
+          semaphore <- Semaphore.make(1)
+          queue <- Queue.bounded[Exit[Option[E], A]](1)
+          _ <- self.runIntoQueueElementsSynchronous(queue, semaphore).forkScoped
+        } yield {
           lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
             ZChannel.fromZIO {
               queue.take
@@ -411,6 +442,36 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         }
       }
     )
+
+  private def runIntoQueueElementsSynchronous(
+    queue: Enqueue[Exit[Option[E], A]],
+    semaphore: Semaphore
+  )(implicit trace: Trace): ZIO[R with Scope, Nothing, Unit] = {
+    lazy val writer: ZChannel[R, E, Chunk[A], Any, Nothing, Nothing, Any] =
+      ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Nothing, Any](
+        in =>
+          ZChannel.fromZIO {
+            ZIO.foreach(in) { a =>
+              semaphore.withPermit {
+                queue.offer(Exit.succeed(a))
+              }
+            }
+          } *> writer,
+        err =>
+          ZChannel.fromZIO {
+            semaphore.withPermit {
+              queue.offer(Exit.failCause(err.map(Some(_))))
+            }
+          },
+        _ =>
+          ZChannel.fromZIO {
+            semaphore.withPermit {
+              queue.offer(Exit.fail(None))
+            }
+          }
+      )
+
+    (self.channel >>> writer).drain.runScoped.unit
   }
 
   /**
