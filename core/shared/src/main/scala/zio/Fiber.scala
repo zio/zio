@@ -16,12 +16,11 @@
 
 package zio
 
-import zio.internal.{FiberRenderer, FiberScope}
+import zio.internal.{FiberRenderer, FiberScope, Platform}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 import scala.concurrent.Future
-import zio.internal.WeakConcurrentBag
 
 /**
  * A fiber is a lightweight thread of execution that never consumes more than a

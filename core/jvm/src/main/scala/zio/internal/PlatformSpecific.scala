@@ -118,3 +118,78 @@ private[zio] trait PlatformSpecific {
     }.toOption
   }
 }
+
+private[zio] final class FiberSet[A] extends java.util.AbstractSet[A] {
+  private val map   = new java.util.concurrent.ConcurrentHashMap[WeakKey[A], java.lang.Boolean]()
+  private val queue = new java.lang.ref.ReferenceQueue[A]()
+
+  private def cleanup(): Unit = {
+    var ref = queue.poll()
+    while (ref != null) {
+      map.remove(ref)
+      ref = queue.poll()
+    }
+  }
+
+  override def add(a: A): Boolean = {
+    cleanup()
+    map.putIfAbsent(new WeakKey(a, queue), java.lang.Boolean.TRUE) == null
+  }
+
+  override def remove(o: Any): Boolean = {
+    cleanup()
+    map.remove(new WeakKey(o.asInstanceOf[A], null)) != null
+  }
+
+  override def contains(o: Any): Boolean = {
+    cleanup()
+    map.containsKey(new WeakKey(o.asInstanceOf[A], null))
+  }
+
+  override def iterator(): java.util.Iterator[A] = {
+    cleanup()
+    val it = map.keySet().iterator()
+    new java.util.Iterator[A] {
+      private var nextRef: A = null.asInstanceOf[A]
+
+      private def advance(): Unit = {
+        while (nextRef == null && it.hasNext) {
+          nextRef = it.next().get()
+        }
+      }
+
+      override def hasNext: Boolean = {
+        advance()
+        nextRef != null
+      }
+
+      override def next(): A = {
+        advance()
+        val res = nextRef
+        nextRef = null.asInstanceOf[A]
+        res
+      }
+    }
+  }
+
+  override def size(): Int = {
+    cleanup()
+    map.size()
+  }
+}
+
+private final class WeakKey[A](a: A, queue: java.lang.ref.ReferenceQueue[A])
+    extends java.lang.ref.WeakReference[A](a, queue) {
+  val hash = System.identityHashCode(a)
+
+  override def equals(obj: Any): Boolean =
+    obj match {
+      case other: WeakKey[_] =>
+        val a1 = get()
+        val a2 = other.get()
+        (a1 ne null) && (a2 ne null) && (a1.asInstanceOf[AnyRef] eq a2.asInstanceOf[AnyRef])
+      case _ => false
+    }
+
+  override def hashCode(): Int = hash
+}
