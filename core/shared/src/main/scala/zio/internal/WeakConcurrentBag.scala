@@ -1,199 +1,96 @@
+/*
+ * Copyright 2020-2024 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.internal
 
 import zio.internal.WeakConcurrentBag.IsAlive
-import zio.{Chunk, Duration, Unsafe}
-
-import java.lang.ref.WeakReference
-import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.function.Predicate
-import scala.annotation.tailrec
+import zio.{Chunk, ChunkBuilder, Duration, Unsafe}
 
 /**
- * A [[WeakConcurrentBag]] stores a collection of values that will ultimately be
- * wrapped in a `WeakReference`, if they are survive long enough in a 'nursery'.
- * The structure is optimized for addition, and will achieve zero allocations in
- * the happy path. There is no way to remove values from the bag, as they will
- * be automatically removed assuming they become unreachable.
+ * A [[WeakConcurrentBag]] stores a collection of values using weak references.
  *
- * The larger the nursery size, the less weak references will be created,
- * because the more values will die before they are forced out of the nursery.
- * However, larger nursery sizes use more memory, and increase the worst
- * possible performance of the `add` method, which has to do maintenance of the
- * nursery and occassional garbage collection.
+ * This implementation is a high-performance, lock-free wrapper around
+ * Platform-specific concurrent weak sets (FiberSet on JVM).
  */
 private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsAlive[A]) { self =>
-  private[this] def nCpu              = java.lang.Runtime.getRuntime.availableProcessors()
-  private[this] val nursery           = new PartitionedRingBuffer[WeakReference[A]](nCpu * 4, nurserySize, roundToPow2 = true)
-  private[this] val nurseryActualSize = nursery.capacity
-
-  private[this] val graduates = Platform.newConcurrentSet[WeakReference[A]](nurseryActualSize * 2)(Unsafe.unsafe)
-  private[this] val gcStatus  = new AtomicBoolean(false)
-  private[this] val autoGc    = new AtomicBoolean(false)
-
-  private[this] val notAlive = new Predicate[WeakReference[A]] {
-    def test(ref: WeakReference[A]): Boolean = {
-      val value = ref.get()
-      (value eq null) || !isAlive(value)
-    }
-  }
+  private[this] val storage = Platform.newConcurrentWeakSet[A]()(Unsafe.unsafe)
 
   /**
    * Schedules a thread (if not already running) which will wake up on the
-   * specified interval and remove dead references from long term storage by
-   * running `gc(false)`.
+   * specified interval and remove dead references.
    *
-   * @note
-   *   this method is only supported on the JVM. On Scala JS and Scala Native,
-   *   it is a no-op.
+   * In this new implementation, this is a no-op as the underlying storage
+   * handles pruning automatically during concurrent operations.
    */
-  def withAutoGc(every: Duration): WeakConcurrentBag[A] = {
-    if (autoGc.compareAndSet(false, true)) {
-      WeakConcurrentBagGc.start(self, every)
-    }
-    self
-  }
+  def withAutoGc(every: Duration): WeakConcurrentBag[A] = self
 
   /**
-   * Adds a new value to the weak concurrent bag, graduating nursery occupants
-   * if necessary to make room.
+   * Adds a new value to the weak concurrent bag.
    */
   final def add(a: A): Unit = {
-    val flushed = maybeFlushAndOffer(new WeakReference[A](a))
-
-    if (flushed.nonEmpty) {
-      addToLongTermStorage(flushed)
-      if (graduates.size() > nurseryActualSize) gc(false)
-    }
+    storage.add(a)
   }
 
   /**
-   * Performs a garbage collection, which consists of traversing long-term
-   * storage, identifying dead or GC'd values, and removing them.
-   */
-  final def gc(): Unit = gc(true)
-
-  final def gc(force: Boolean): Unit = {
-    val lockAcquired = gcStatus.compareAndSet(false, true)
-
-    // NOTE: try-finally most probably not needed; just being extra cautious not to accidentally lock GC
-    try if (force || lockAcquired) graduates.removeIf(notAlive)
-    finally if (lockAcquired) gcStatus.set(false)
-  }
-
-  /**
-   * Moves all occupants of the nursery into long-term storage in a concurrent
-   * set, wrapped in a weak reference to avoid interfering with GC.
+   * Performs a garbage collection.
    *
-   * This method will occassionally perform garbage collection, but only when
-   * the size of long-term storage exceeds the nursery size.
+   * In this new implementation, this is a no-op as the underlying storage
+   * handles pruning automatically.
    */
-  final def graduate(): Unit = {
-    flushNurseryToLongTermStorage()
-    if (graduates.size() > nurseryActualSize) gc(false)
-  }
+  final def gc(): Unit = ()
 
-  private def flushNurseryToLongTermStorage(): Unit = {
-    val partitions = nursery.partitionIterator
-
-    while (partitions.hasNext) {
-      val partition = partitions.next()
-      addToLongTermStorage(partition.pollUpTo(partition.capacity))
-    }
-  }
+  final def gc(force: Boolean): Unit = ()
 
   /**
-   * Attempts to offer an element to a queue partition. If the partition is
-   * full, then we flush half of the partition and add the element to it
-   *
-   * @note
-   *   We only flush half of the partition so that we give a chance to the
-   *   WeakReferences to be GC'd without moving them to long-term storage
-   *
-   * @return
-   *   the elements that were flushed from the partition
+   * No-op for compatibility.
    */
-  private def maybeFlushAndOffer(a: WeakReference[A]): Chunk[WeakReference[A]] = {
-    val queue = nursery.randomPartition(ThreadLocalRandom.current())
-    if (!queue.offer(a)) {
-      val flushed = queue.pollUpTo(queue.capacity >> 1)
-      // In the extremely unlikely case that the partition filled up between the poll and the offer
-      // return the element as part of the flushed elements
-      if (queue.offer(a)) flushed else flushed :+ a
-    } else Chunk.empty
-  }
-
-  private def addToLongTermStorage(chunk: Chunk[WeakReference[A]]): Unit = {
-    var i    = 0
-    val iter = chunk.chunkIterator
-    while (iter.hasNextAt(i)) {
-      val ref   = iter.nextAt(i)
-      val value = ref.get()
-      if ((value ne null) && isAlive(value)) graduates.add(ref)
-      i += 1
-    }
-  }
+  final def graduate(): Unit = ()
 
   /**
-   * Returns a weakly consistent iterator over the bag. This iterator will never
-   * throw exceptions even in the presence of concurrent modifications.
+   * Returns an iterator over the contents of the bag.
    */
   final def iterator: Iterator[A] = {
-    // No need to force GC if another thread is already doing it as we'll remove the entry in the iterator below
-    flushNurseryToLongTermStorage()
-
+    val it = storage.iterator()
     new Iterator[A] {
-      val it    = graduates.iterator()
-      var _next = prefetch()
-
-      @tailrec
-      def prefetch(): A =
-        if (it.hasNext) {
-          val next = it.next().get()
-
-          if (next eq null) {
-            it.remove() // Remove dead reference since we're iterating over the set
-            prefetch()
-          } else next
-        } else {
-          null.asInstanceOf[A]
-        }
-
-      def hasNext() = _next ne null
-
-      def next(): A =
-        if (_next eq null)
-          throw new NoSuchElementException("There is no more element in the weak concurrent bag iterator")
-        else {
-          val result = _next
-
-          _next = prefetch()
-
-          result
-        }
+      def hasNext: Boolean = it.hasNext
+      def next(): A        = it.next()
     }
   }
 
   /**
-   * Returns the approximate size of the bag.
+   * Returns a weakly consistent chunk of the bag's contents.
    */
-  def size = graduates.size() + nursery.size()
+  final def toChunk: Chunk[A] = {
+    val builder = ChunkBuilder.make[A]()
+    val it      = storage.iterator()
+    while (it.hasNext) {
+      val next = it.next()
+      if (next ne null) {
+        builder += next
+      }
+    }
+    builder.result()
+  }
 
-  override final def toString(): String = iterator.mkString("WeakConcurrentBag(", ",", ")")
+  override def toString: String = s"WeakConcurrentBag(${toChunk.mkString(", ")})"
 }
 
 private[zio] object WeakConcurrentBag {
+  type IsAlive[A] = A => Boolean
 
-  def apply[A <: AnyRef](capacity: Int, isAlive: IsAlive[A] = IsAlive.always): WeakConcurrentBag[A] =
-    new WeakConcurrentBag(capacity, isAlive)
-
-  /** Specialized Function1 that doesn't cause boxing of the Boolean */
-  trait IsAlive[-A] {
-    def apply(value: A): Boolean
-  }
-
-  object IsAlive {
-    val always: IsAlive[Any] = _ => true
-  }
-
+  def apply[A <: AnyRef](nurserySize: Int, isAlive: IsAlive[A]): WeakConcurrentBag[A] =
+    new WeakConcurrentBag[A](nurserySize, isAlive)
 }

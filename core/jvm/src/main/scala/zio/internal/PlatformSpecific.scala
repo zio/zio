@@ -138,23 +138,25 @@ private[zio] final class FiberSet[A] extends java.util.AbstractSet[A] {
 
   override def remove(o: Any): Boolean = {
     cleanup()
-    map.remove(new WeakKey(o.asInstanceOf[A], null)) != null
+    if (o == null) false
+    else map.remove(new WeakKey(o.asInstanceOf[AnyRef], null)) != null
   }
 
   override def contains(o: Any): Boolean = {
     cleanup()
-    map.containsKey(new WeakKey(o.asInstanceOf[A], null))
+    if (o == null) false
+    else map.containsKey(new WeakKey(o.asInstanceOf[AnyRef], null))
   }
 
   override def iterator(): java.util.Iterator[A] = {
     cleanup()
     val it = map.keySet().iterator()
     new java.util.Iterator[A] {
-      private var nextRef: A = null.asInstanceOf[A]
+      private var nextRef: AnyRef = null
 
       private def advance(): Unit = {
         while (nextRef == null && it.hasNext) {
-          nextRef = it.next().get()
+          nextRef = it.next().get().asInstanceOf[AnyRef]
         }
       }
 
@@ -166,8 +168,8 @@ private[zio] final class FiberSet[A] extends java.util.AbstractSet[A] {
       override def next(): A = {
         advance()
         val res = nextRef
-        nextRef = null.asInstanceOf[A]
-        res
+        nextRef = null
+        res.asInstanceOf[A]
       }
     }
   }
@@ -178,16 +180,16 @@ private[zio] final class FiberSet[A] extends java.util.AbstractSet[A] {
   }
 }
 
-private final class WeakKey[A](a: A, queue: java.lang.ref.ReferenceQueue[A])
-    extends java.lang.ref.WeakReference[A](a, queue) {
+private final class WeakKey(a: AnyRef, queue: java.lang.ref.ReferenceQueue[AnyRef])
+    extends java.lang.ref.WeakReference[AnyRef](a, queue) {
   val hash = System.identityHashCode(a)
 
   override def equals(obj: Any): Boolean =
     obj match {
-      case other: WeakKey[_] =>
+      case other: WeakKey =>
         val a1 = get()
         val a2 = other.get()
-        (a1 ne null) && (a2 ne null) && (a1.asInstanceOf[AnyRef] eq a2.asInstanceOf[AnyRef])
+        (a1 ne null) && (a2 ne null) && (a1 eq a2)
       case _ => false
     }
 
