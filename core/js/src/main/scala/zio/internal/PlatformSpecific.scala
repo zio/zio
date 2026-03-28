@@ -95,5 +95,11 @@ private[zio] trait PlatformSpecific {
 
   final def newConcurrentMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] = new HashMap[A, B]()
 
+  final def javaIteratorToScalaIterator[A](iterator: java.util.Iterator[A]): Iterator[A] =
+    new Iterator[A] {
+      def hasNext: Boolean = iterator.hasNext()
+      def next(): A = iterator.next()
+    }
+
   final def newWeakReference[A](value: A)(implicit unsafe: zio.Unsafe): () => A = { () => value }
 }
