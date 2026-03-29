@@ -211,6 +211,20 @@ object StackTracesSpec extends ZIOBaseSpec {
             |	at zio.StackTracesSpec.spec
             |""".stripMargin
         })
+      },
+      test("captures error handler call site in catchAll chain") {
+        def rethrow: IO[String, Nothing]  = ZIO.fail("rethrown")
+        def a: IO[String, Nothing]        = ZIO.fail("original").catchAll(_ => rethrow)
+
+        for {
+          cause <- a.cause
+        } yield assert(cause)(causeHasTrace {
+          """java.lang.String: rethrown
+            |	at zio.StackTracesSpec.spec.rethrow
+            |	at zio.StackTracesSpec.spec.a
+            |	at zio.StackTracesSpec.spec
+            |""".stripMargin
+        })
       }
     ),
     suite("getOrThrow")(

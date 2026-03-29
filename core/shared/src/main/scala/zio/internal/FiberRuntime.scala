@@ -1330,6 +1330,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                       cause = cause.stripFailures
                     } else {
                       cur = foldZIO.failureK(cause)
+                      stackIndex = pushStackFrame(ZIO.TracePoint(foldZIO.trace), stackIndex)
                     }
 
                   case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
