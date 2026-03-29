@@ -44,6 +44,9 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
     storage.add(a)
   }
 
+  final def size: Int =
+    storage.size()
+
   /**
    * Performs a garbage collection.
    *
@@ -90,6 +93,9 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
 
 private[zio] object WeakConcurrentBag {
   type IsAlive[A] = A => Boolean
+
+  def apply[A <: AnyRef](nurserySize: Int): WeakConcurrentBag[A] =
+    new WeakConcurrentBag[A](nurserySize, _ => true)
 
   def apply[A <: AnyRef](nurserySize: Int, isAlive: IsAlive[A]): WeakConcurrentBag[A] =
     new WeakConcurrentBag[A](nurserySize, isAlive)

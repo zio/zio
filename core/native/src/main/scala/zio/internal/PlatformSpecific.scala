@@ -89,10 +89,10 @@ private[zio] trait PlatformSpecific {
   final def newConcurrentSet[A](initialCapacity: Int)(implicit unsafe: zio.Unsafe): JSet[A] =
     ConcurrentHashMap.newKeySet[A](initialCapacity)
 
-  final def javaIteratorToScalaIterator[A](iterator: java.util.Iterator[A]): Iterator[A] =
+  final def javaIteratorToScalaIterator[A](javaIterator: java.util.Iterator[A]): Iterator[A] =
     new Iterator[A] {
-      def hasNext: Boolean = iterator.hasNext
-      def next(): A = iterator.next()
+      def hasNext: Boolean = javaIterator.hasNext
+      def next(): A        = javaIterator.next()
     }
 
   private def blackhole(a: Any): Unit = {
