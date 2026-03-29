@@ -120,7 +120,7 @@ private[zio] trait PlatformSpecific {
 }
 
 private[zio] final class FiberSet[A] extends java.util.AbstractSet[A] {
-  private val map   = new java.util.concurrent.ConcurrentHashMap[WeakKey[A], java.lang.Boolean]()
+  private val map   = new java.util.concurrent.ConcurrentHashMap[WeakKey, java.lang.Boolean]()
   private val queue = new java.lang.ref.ReferenceQueue[A]()
 
   private def cleanup(): Unit = {
