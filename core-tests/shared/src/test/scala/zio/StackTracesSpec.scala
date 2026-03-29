@@ -213,8 +213,8 @@ object StackTracesSpec extends ZIOBaseSpec {
         })
       },
       test("captures error handler call site in catchAll chain") {
-        def rethrow: IO[String, Nothing]  = ZIO.fail("rethrown")
-        def a: IO[String, Nothing]        = ZIO.fail("original").catchAll(_ => rethrow)
+        def rethrow: IO[String, Nothing] = ZIO.fail("rethrown")
+        def a: IO[String, Nothing]       = ZIO.fail("original").catchAll(_ => rethrow)
 
         for {
           cause <- a.cause
@@ -288,8 +288,8 @@ object StackTracesSpec extends ZIOBaseSpec {
               |	at zio.Unsafe$.unsafe
               |	at zio.StackTracesSpec$.subcall
               |	at zio.StackTracesSpec$.call
-              |	at zio.StackTracesSpec$.spec$$anonfun$9$$anonfun
-              |	at zio.StackTracesSpec$.spec$$anonfun$9$$anonfun$adapted
+              |	at zio.StackTracesSpec$.spec$$anonfun$10$$anonfun
+              |	at zio.StackTracesSpec$.spec$$anonfun$10$$anonfun$adapted
               |	at zio.StackTracesSpec$.assertThrows
               |	at zio.StackTracesSpec$.spec$$anonfun
               |	at zio.test.TestConstructor$.apply$$anonfun$1$$anonfun
@@ -306,8 +306,8 @@ object StackTracesSpec extends ZIOBaseSpec {
               |	at zio.Unsafe$.unsafe
               |	at zio.StackTracesSpec$.subcall
               |	at zio.StackTracesSpec$.call
-              |	at zio.StackTracesSpec$.spec$$anonfun$9$$anonfun
-              |	at zio.StackTracesSpec$.spec$$anonfun$9$$anonfun$adapted
+              |	at zio.StackTracesSpec$.spec$$anonfun$10$$anonfun
+              |	at zio.StackTracesSpec$.spec$$anonfun$10$$anonfun$adapted
               |	at zio.StackTracesSpec$.assertThrows
               |	at zio.StackTracesSpec$.spec$$anonfun
               |	at zio.test.TestConstructor$.apply$$anonfun$1$$anonfun
