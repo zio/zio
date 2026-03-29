@@ -274,8 +274,8 @@ object StackTracesSpec extends ZIOBaseSpec {
               |	at zio.Unsafe$.unsafe
               |	at zio.StackTracesSpec$.subcall
               |	at zio.StackTracesSpec$.call
-              |	at zio.StackTracesSpec$.spec$$anonfun$7$$anonfun
-              |	at zio.StackTracesSpec$.spec$$anonfun$7$$anonfun$adapted
+              |	at zio.StackTracesSpec$.spec$$anonfun$9$$anonfun
+              |	at zio.StackTracesSpec$.spec$$anonfun$9$$anonfun$adapted
               |	at zio.StackTracesSpec$.assertThrows
               |	at zio.StackTracesSpec$.spec$$anonfun
               |	at zio.test.TestConstructor$.apply$$anonfun$1$$anonfun
@@ -292,8 +292,8 @@ object StackTracesSpec extends ZIOBaseSpec {
               |	at zio.Unsafe$.unsafe
               |	at zio.StackTracesSpec$.subcall
               |	at zio.StackTracesSpec$.call
-              |	at zio.StackTracesSpec$.spec$$anonfun$7$$anonfun
-              |	at zio.StackTracesSpec$.spec$$anonfun$7$$anonfun$adapted
+              |	at zio.StackTracesSpec$.spec$$anonfun$9$$anonfun
+              |	at zio.StackTracesSpec$.spec$$anonfun$9$$anonfun$adapted
               |	at zio.StackTracesSpec$.assertThrows
               |	at zio.StackTracesSpec$.spec$$anonfun
               |	at zio.test.TestConstructor$.apply$$anonfun$1$$anonfun

@@ -6196,9 +6196,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * A lightweight continuation that carries only a [[Trace]] with no
    * effect-execution semantics. It is pushed onto the continuation stack
    * whenever a `FlatMap` or `FoldZIO` continuation is popped and its
-   * right-hand-side effect is about to run, so that the call-site trace
-   * remains visible to [[zio.internal.FiberRuntime#generateStackTrace]] for
-   * the lifetime of the produced effect.
+   * right-hand-side effect is about to run, so that the call-site trace remains
+   * visible to [[zio.internal.FiberRuntime#generateStackTrace]] for the
+   * lifetime of the produced effect.
    */
   private[zio] final case class TracePoint(trace: Trace) extends Continuation
 
