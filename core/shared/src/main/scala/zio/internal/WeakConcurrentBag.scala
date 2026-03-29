@@ -40,9 +40,8 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
   /**
    * Adds a new value to the weak concurrent bag.
    */
-  final def add(a: A): Unit = {
+  final def add(a: A): Unit =
     storage.add(a)
-  }
 
   final def size: Int =
     storage.size()

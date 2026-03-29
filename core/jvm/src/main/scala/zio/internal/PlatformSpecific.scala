@@ -154,11 +154,10 @@ private[zio] final class FiberSet[A <: AnyRef] extends java.util.AbstractSet[A] 
     new java.util.Iterator[A] {
       private var nextRef: AnyRef = null
 
-      private def advance(): Unit = {
+      private def advance(): Unit =
         while (nextRef == null && it.hasNext) {
           nextRef = it.next().get().asInstanceOf[AnyRef]
         }
-      }
 
       override def hasNext: Boolean = {
         advance()
