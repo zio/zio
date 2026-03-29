@@ -99,7 +99,7 @@ private[zio] trait PlatformSpecific {
 
   final def javaIteratorToScalaIterator[A](iterator: java.util.Iterator[A]): Iterator[A] =
     new Iterator[A] {
-      def hasNext: Boolean = iterator.hasNext()
+      def hasNext: Boolean = iterator.hasNext
       def next(): A = iterator.next()
     }
 
@@ -120,7 +120,7 @@ private[zio] trait PlatformSpecific {
 }
 
 private[zio] final class FiberSet[A <: AnyRef] extends java.util.AbstractSet[A] {
-  private val map   = new java.util.concurrent.ConcurrentHashMap[WeakKey, java.lang.Boolean]()
+  private val map   = new java.util.concurrent.ConcurrentHashMap[WeakKey[_], java.lang.Boolean]()
   private val queue = new java.lang.ref.ReferenceQueue[A]()
 
   private def cleanup(): Unit = {
@@ -180,13 +180,13 @@ private[zio] final class FiberSet[A <: AnyRef] extends java.util.AbstractSet[A] 
   }
 }
 
-private final class WeakKey(a: AnyRef, queue: java.lang.ref.ReferenceQueue[AnyRef])
-    extends java.lang.ref.WeakReference[AnyRef](a, queue) {
+private final class WeakKey[A <: AnyRef](a: A, queue: java.lang.ref.ReferenceQueue[A])
+    extends java.lang.ref.WeakReference[A](a, queue) {
   val hash = System.identityHashCode(a)
 
   override def equals(obj: Any): Boolean =
     obj match {
-      case other: WeakKey =>
+      case other: WeakKey[_] =>
         val a1 = get()
         val a2 = other.get()
         (a1 ne null) && (a2 ne null) && (a1 eq a2)

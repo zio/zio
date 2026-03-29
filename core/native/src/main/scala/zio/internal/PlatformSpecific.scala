@@ -91,7 +91,7 @@ private[zio] trait PlatformSpecific {
 
   final def javaIteratorToScalaIterator[A](iterator: java.util.Iterator[A]): Iterator[A] =
     new Iterator[A] {
-      def hasNext: Boolean = iterator.hasNext()
+      def hasNext: Boolean = iterator.hasNext
       def next(): A = iterator.next()
     }
 
