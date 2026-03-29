@@ -81,6 +81,16 @@ sealed trait Dequeue[+A] extends Serializable {
     size.map(_ == capacity)
 
   /**
+   * Shuts down the queue with a cause, returning all buffered items to the
+   * caller. Subsequent calls to queue operations will fail with the cause.
+   * If the queue has already been shutdown, returns an empty chunk.
+   * This method implements atomic "first caller wins" semantics - the first
+   * caller to invoke shutdownCause will receive the buffered items, while
+   * concurrent callers will receive empty chunks.
+   */
+  def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[A]]
+
+  /**
    * Takes a number of elements from the queue between the specified minimum and
    * maximum. If there are fewer than the minimum number of elements available,
    * suspends until at least the minimum number of elements have been collected.

@@ -86,6 +86,16 @@ sealed trait Enqueue[-A] extends Serializable {
    */
   def isFull(implicit trace: Trace): UIO[Boolean] =
     size.map(_ >= capacity)
+
+  /**
+   * Shuts down the queue with a cause, returning all buffered items to the
+   * caller. Subsequent calls to queue operations will fail with the cause.
+   * If the queue has already been shutdown, returns an empty chunk.
+   * This method implements atomic "first caller wins" semantics - the first
+   * caller to invoke shutdownCause will receive the buffered items, while
+   * concurrent callers will receive empty chunks.
+   */
+  def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[A]]
 }
 private[zio] object Enqueue {
   private[zio] trait Internal[-A] extends Enqueue[A]
