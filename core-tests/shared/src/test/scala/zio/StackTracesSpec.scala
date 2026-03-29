@@ -179,6 +179,40 @@ object StackTracesSpec extends ZIOBaseSpec {
         })
       }
     ) @@ jvmOnly,
+    suite("rhsFlatMapStackTrace")(
+      test("captures full chain when failure is on RHS of ZIO.unit.flatMap") {
+        def c: IO[String, Nothing] = ZIO.fail("The failure")
+        def b: IO[String, Nothing] = ZIO.unit.flatMap(_ => c)
+        def a: IO[String, Nothing] = ZIO.unit.flatMap(_ => b)
+
+        for {
+          cause <- a.cause
+        } yield assert(cause)(causeHasTrace {
+          """java.lang.String: The failure
+            |	at zio.StackTracesSpec.spec.c
+            |	at zio.StackTracesSpec.spec.b
+            |	at zio.StackTracesSpec.spec.a
+            |	at zio.StackTracesSpec.spec
+            |""".stripMargin
+        })
+      },
+      test("captures full chain when failure is on RHS of non-unit flatMap") {
+        def c: IO[String, Nothing] = ZIO.fail("The failure")
+        def b: IO[String, Nothing] = ZIO.succeed(()).flatMap(_ => c)
+        def a: IO[String, Nothing] = ZIO.succeed(()).flatMap(_ => b)
+
+        for {
+          cause <- a.cause
+        } yield assert(cause)(causeHasTrace {
+          """java.lang.String: The failure
+            |	at zio.StackTracesSpec.spec.c
+            |	at zio.StackTracesSpec.spec.b
+            |	at zio.StackTracesSpec.spec.a
+            |	at zio.StackTracesSpec.spec
+            |""".stripMargin
+        })
+      }
+    ),
     suite("getOrThrow")(
       test("fills in the external stack trace (as suppressed)") {
         def call(): Unit = subcall()

@@ -6192,6 +6192,16 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       extends Continuation
       with ZIO[Any, Nothing, Unit]
 
+  /**
+   * A lightweight continuation that carries only a [[Trace]] with no
+   * effect-execution semantics. It is pushed onto the continuation stack
+   * whenever a `FlatMap` or `FoldZIO` continuation is popped and its
+   * right-hand-side effect is about to run, so that the call-site trace
+   * remains visible to [[zio.internal.FiberRuntime#generateStackTrace]] for
+   * the lifetime of the produced effect.
+   */
+  private[zio] final case class TracePoint(trace: Trace) extends Continuation
+
   private[zio] sealed trait UpdateRuntimeFlagsWithin[R, E, A] extends ZIO[R, E, A] {
     def update: RuntimeFlags.Patch
     def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A]
