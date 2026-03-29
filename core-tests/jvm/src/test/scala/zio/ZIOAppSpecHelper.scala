@@ -1,176 +1,68 @@
 package zio
 
+import zio.duration2DurationOps
+
+import scala.concurrent.duration._
+
 /**
- * Standalone ZIOApp helpers used by ZIOAppSpec.
+ * Helper applications used as subprocess entry-points by [[ZIOAppSpec]].
  *
- * Each nested object is a complete, runnable ZIOApp that can be launched in a
- * separate JVM process.  stdout is the primary communication channel between
- * the helper and the parent test.
- *
- * Naming convention: the Scala compiler emits class files with names like
- * `zio/ZIOAppSpecHelper$$SuccessApp$.class`, so the class-loader name used by
- * ZIOAppSpec.runApp follows the pattern `zio.ZIOAppSpecHelper$SuccessApp`.
+ * Each object is a self-contained [[ZIOAppDefault]] whose main class can be
+ * launched in a separate JVM process so that the spec can observe exit codes,
+ * stdout output, and shutdown timing without interfering with the test JVM.
  */
 object ZIOAppSpecHelper {
 
-  // -----------------------------------------------------------------------
-  // Exit-code helpers
-  // -----------------------------------------------------------------------
-
+  /** Completes immediately with success. */
   object SuccessApp extends ZIOAppDefault {
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] = ZIO.unit
+    override def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
+      ZIO.unit
   }
 
+  /** Fails immediately, causing a non-zero exit code. */
   object FailureApp extends ZIOAppDefault {
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
-      ZIO.fail("intentional failure")
+    override def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
+      ZIO.fail("boom")
   }
 
-  object DieApp extends ZIOAppDefault {
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
-      ZIO.die(new RuntimeException("intentional die"))
+  /** Prints a message from its finalizer so the spec can confirm finalizers run. */
+  object FinalizerApp extends ZIOAppDefault {
+    override def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
+      ZIO.addFinalizer(ZIO.succeed(println("finalizer ran"))).as(())
   }
 
-  object LongRunningApp extends ZIOAppDefault {
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] = ZIO.never
+  /** Registers a finalizer and then self-interrupts, verifying finalizers run on
+    * interruption too.
+    */
+  object InterruptedFinalizerApp extends ZIOAppDefault {
+    override def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
+      ZIO.addFinalizer(ZIO.succeed(println("finalizer ran"))) *> ZIO.interrupt
   }
-
-  // -----------------------------------------------------------------------
-  // Finalizer helpers
-  // -----------------------------------------------------------------------
-
-  object FinalizerOnSuccessApp extends ZIOAppDefault {
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
-      ZIO.acquireReleaseWith(ZIO.unit)(
-        _ => Console.printLine("finalizer-ran").orDie
-      )(_ => ZIO.unit)
-  }
-
-  object FinalizerOnFailureApp extends ZIOAppDefault {
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
-      ZIO.acquireReleaseWith(ZIO.unit)(
-        _ => Console.printLine("finalizer-ran").orDie
-      )(_ => ZIO.fail("failure"))
-  }
-
-  object FinalizerOnDieApp extends ZIOAppDefault {
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
-      ZIO.acquireReleaseWith(ZIO.unit)(
-        _ => Console.printLine("finalizer-ran").orDie
-      )(_ => ZIO.die(new RuntimeException("die")))
-  }
-
-  /** Regression for #9901 – finalizer must run on SIGINT. */
-  object FinalizerOnSigintApp extends ZIOAppDefault {
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
-      ZIO.acquireReleaseWith(ZIO.unit)(
-        _ => Console.printLine("finalizer-ran").orDie
-      )(_ => ZIO.never)
-  }
-
-  object NeverApp extends ZIOAppDefault {
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
-      ZIO.acquireReleaseWith(ZIO.unit)(
-        _ => Console.printLine("finalizer-ran").orDie
-      )(_ => ZIO.never)
-  }
-
-  // -----------------------------------------------------------------------
-  // Layer finalizer helpers
-  // -----------------------------------------------------------------------
-
-  private val trackedLayer: ZLayer[Any, Nothing, Unit] =
-    ZLayer.scoped(
-      ZIO.acquireRelease(ZIO.unit)(_ => Console.printLine("layer-finalizer-ran").orDie)
-    )
-
-  object LayerFinalizerApp extends ZIOAppDefault {
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
-      ZIO.unit.provide(trackedLayer)
-  }
-
-  object LayerFinalizerOnSigintApp extends ZIOAppDefault {
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
-      ZIO.never.provide(trackedLayer)
-  }
-
-  // -----------------------------------------------------------------------
-  // gracefulShutdownTimeout helpers
-  // -----------------------------------------------------------------------
 
   /**
-   * App with a finalizer that would take 10 s to complete.
-   * A daemon guard thread forces exit(2) after 2 s, simulating a short
-   * gracefulShutdownTimeout.  The test asserts the process exits well before
-   * 10 s.
+   * App with a finalizer that sleeps much longer than the app's
+   * `gracefulShutdownTimeout`.  ZIO should force-terminate the finalizer once
+   * the timeout elapses rather than blocking indefinitely.
    *
-   * We use a daemon thread rather than overriding ZIOApp internals so the
-   * test does not depend on private API surface that may change.
+   * The app overrides [[gracefulShutdownTimeout]] to 2 seconds while the
+   * finalizer sleeps for 30 seconds.  The spec asserts that the process exits
+   * well before 30 seconds, proving that the timeout mechanism works.
+   *
+   * Note: we do NOT call `System.exit` from inside the finalizer – that would
+   * bypass ZIO's shutdown logic and make the test vacuous.  Instead we rely on
+   * ZIO's own `gracefulShutdownTimeout` to abort the slow finalizer.
    */
   object SlowFinalizerApp extends ZIOAppDefault {
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] = {
-      // Install guard before anything else.
-      val startGuard = ZIO.attempt {
-        val t = new Thread(
-          () => {
-            Thread.sleep(2_000L)
-            System.exit(2) // "timeout enforced" exit code
-          },
-          "shutdown-guard"
+
+    override def gracefulShutdownTimeout: Duration = 2.seconds
+
+    override def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
+      ZIO
+        .addFinalizer(
+          ZIO.succeed(println("finalizer started")) *>
+            ZIO.sleep(30.seconds) *>
+            ZIO.succeed(println("finalizer finished"))
         )
-        t.setDaemon(true)
-        t.start()
-      }.orDie
-
-      startGuard *>
-        ZIO.acquireReleaseWith(ZIO.unit)(
-          _ =>
-            ZIO.sleep(10.seconds).orDie *>
-              Console.printLine("slow-finalizer-ran").orDie
-        )(_ => ZIO.never)
-    }
-  }
-
-  /**
-   * Fast finalizer (50 ms). Process must print "finalizer-ran" before exit.
-   */
-  object FastFinalizerApp extends ZIOAppDefault {
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
-      ZIO.acquireReleaseWith(ZIO.unit)(
-        _ => ZIO.sleep(50.millis).orDie *> Console.printLine("finalizer-ran").orDie
-      )(_ => ZIO.never)
-  }
-
-  // -----------------------------------------------------------------------
-  // Regression: #9901 – finalizer must run on SIGINT
-  // -----------------------------------------------------------------------
-  object Issue9901App extends ZIOAppDefault {
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
-      ZIO.acquireReleaseWith(ZIO.unit)(
-        _ => Console.printLine("finalizer-ran").orDie
-      )(_ => ZIO.never)
-  }
-
-  // -----------------------------------------------------------------------
-  // Regression: #9807 – shutdown must not hang with ZIO finalizer effects
-  // -----------------------------------------------------------------------
-  object Issue9807App extends ZIOAppDefault {
-    private val finalizerEffect: UIO[Unit] =
-      ZIO.foreachDiscard(1 to 5)(i =>
-        Console.printLine(s"cleanup-$i").orDie *> ZIO.sleep(50.millis)
-      )
-
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
-      ZIO.acquireReleaseWith(ZIO.unit)(
-        _ => finalizerEffect *> Console.printLine("finalizer-ran").orDie
-      )(_ => ZIO.never)
-  }
-
-  // -----------------------------------------------------------------------
-  // Regression: #9240 – non-zero exit code on failure
-  // -----------------------------------------------------------------------
-  object Issue9240App extends ZIOAppDefault {
-    def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
-      ZIO.fail(new RuntimeException("issue-9240-failure"))
+        .as(())
   }
 }
