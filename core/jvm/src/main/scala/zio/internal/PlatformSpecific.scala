@@ -85,7 +85,7 @@ private[zio] trait PlatformSpecific {
   final def newConcurrentMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] =
     new ConcurrentHashMap[A, B]()
 
-  final def newConcurrentWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
+  final def newConcurrentWeakSet[A <: AnyRef]()(implicit unsafe: zio.Unsafe): JSet[A] =
     new FiberSet[A]()
 
   final def newWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
@@ -119,7 +119,7 @@ private[zio] trait PlatformSpecific {
   }
 }
 
-private[zio] final class FiberSet[A] extends java.util.AbstractSet[A] {
+private[zio] final class FiberSet[A <: AnyRef] extends java.util.AbstractSet[A] {
   private val map   = new java.util.concurrent.ConcurrentHashMap[WeakKey, java.lang.Boolean]()
   private val queue = new java.lang.ref.ReferenceQueue[A]()
 
