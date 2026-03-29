@@ -724,6 +724,18 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           exit <- configProvider.load(config).exit
         } yield assert(exit)(failsWithA[Config.Error])
       } +
+      test("indexed sequence with missing field does not trigger withDefault") {
+        // A typo in a field name (e.g. "idd" instead of "id") produces a
+        // MissingData error for the wrong key.  withDefault on the surrounding
+        // listOf must NOT swallow that error and return Nil; it should fail.
+        val configProvider = ConfigProvider.fromMap(Map("employees[0].age" -> "1", "employees[0].idd" -> "2"))
+        val product        = Config.int("age").zip(Config.int("id"))
+        val config         = Config.listOf("employees", product).withDefault(Nil)
+
+        for {
+          exit <- configProvider.load(config).exit
+        } yield assert(exit)(failsWithA[Config.Error])
+      } +
       test("indexed sequence of multiple products") {
         val configProvider = ConfigProvider.fromMap(
           Map(
