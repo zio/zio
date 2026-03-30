@@ -26,6 +26,7 @@ import java.util.UUID
 import scala.collection.immutable.SortedMap
 import scala.jdk.CollectionConverters._
 import scala.math.Numeric.DoubleIsFractional
+import zio.test.TestConfig
 
 /**
  * A `Gen[R, A]` represents a generator of values of type `A`, which requires an
