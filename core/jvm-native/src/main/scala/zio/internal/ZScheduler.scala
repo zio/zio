@@ -151,8 +151,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
   /**
    * NIO: Choose the worker with the least load using Least-Loaded scheduling.
-   * Scans all workers and returns the one with the minimum number of pending tasks.
-   * Returns null if all workers are blocking.
+   * Scans all workers and returns the one with the minimum number of pending
+   * tasks. Returns null if all workers are blocking.
    */
   private def chooseWorker(): ZScheduler.Worker = {
     val n = poolSize
