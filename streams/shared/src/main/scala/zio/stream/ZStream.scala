@@ -3578,9 +3578,35 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     capacity: => Int = 2
   )(implicit trace: Trace): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
     for {
-      queue <- ZIO.acquireRelease(Queue.bounded[Take[E, A]](capacity))(_.shutdown)
-      _     <- self.runIntoQueueScoped(queue).forkScoped
-    } yield queue
+      cap         <- ZIO.succeed(capacity)
+      queue       <- ZIO.acquireRelease(Queue.bounded[Take[E, A]](cap))(_.shutdown)
+      permitQueue <- ZIO.acquireRelease(Queue.bounded[Unit](cap))(_.shutdown)
+      _ <- self
+             .runIntoQueueScoped(
+               new Enqueue[Take[E, A]] {
+                 def awaitShutdown(implicit trace: Trace): UIO[Unit] = queue.awaitShutdown
+                 def capacity: Int                                   = cap
+                 def isShutdown(implicit trace: Trace): UIO[Boolean] = queue.isShutdown
+                 def offer(a: Take[E, A])(implicit trace: Trace): UIO[Boolean] =
+                   permitQueue.offer(()) *> queue.offer(a)
+                 def offerAll[A1 <: Take[E, A]](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
+                   permitQueue.offerAll(as.map(_ => ())) *> queue.offerAll(as)
+                 def shutdown(implicit trace: Trace): UIO[Unit] = queue.shutdown
+                 def size(implicit trace: Trace): UIO[Int]      = queue.size
+               }
+             )
+             .forkScoped
+    } yield new Dequeue[Take[E, A]] {
+      def awaitShutdown(implicit trace: Trace): UIO[Unit]                = queue.awaitShutdown
+      def capacity: Int                                                  = cap
+      def isShutdown(implicit trace: Trace): UIO[Boolean]                 = queue.isShutdown
+      def shutdown(implicit trace: Trace): UIO[Unit]                    = queue.shutdown
+      def size(implicit trace: Trace): UIO[Int]                         = queue.size
+      def take(implicit trace: Trace): UIO[Take[E, A]]                   = queue.take <* permitQueue.take
+      def takeAll(implicit trace: Trace): UIO[Chunk[Take[E, A]]]         = queue.takeAll.flatMap(as => permitQueue.takeUpTo(as.size).as(as))
+      def takeUpTo(max: Int)(implicit trace: Trace): UIO[Chunk[Take[E, A]]] =
+        queue.takeUpTo(max).flatMap(as => permitQueue.takeUpTo(as.size).as(as))
+    }
 
   /**
    * Converts the stream to a dropping scoped queue of chunks. After the scope
@@ -3603,9 +3629,35 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     capacity: => Int = 2
   )(implicit trace: Trace): ZIO[R with Scope, Nothing, Dequeue[Exit[Option[E], A]]] =
     for {
-      queue <- ZIO.acquireRelease(Queue.bounded[Exit[Option[E], A]](capacity))(_.shutdown)
-      _     <- self.runIntoQueueElementsScoped(queue).forkScoped
-    } yield queue
+      cap         <- ZIO.succeed(capacity)
+      queue       <- ZIO.acquireRelease(Queue.bounded[Exit[Option[E], A]](cap))(_.shutdown)
+      permitQueue <- ZIO.acquireRelease(Queue.bounded[Unit](cap))(_.shutdown)
+      _ <- self
+             .runIntoQueueElementsScoped(
+               new Enqueue[Exit[Option[E], A]] {
+                 def awaitShutdown(implicit trace: Trace): UIO[Unit] = queue.awaitShutdown
+                 def capacity: Int                                   = cap
+                 def isShutdown(implicit trace: Trace): UIO[Boolean] = queue.isShutdown
+                 def offer(a: Exit[Option[E], A])(implicit trace: Trace): UIO[Boolean] =
+                   permitQueue.offer(()) *> queue.offer(a)
+                 def offerAll[A1 <: Exit[Option[E], A]](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
+                   permitQueue.offerAll(as.map(_ => ())) *> queue.offerAll(as)
+                 def shutdown(implicit trace: Trace): UIO[Unit] = queue.shutdown
+                 def size(implicit trace: Trace): UIO[Int]      = queue.size
+               }
+             )
+             .forkScoped
+    } yield new Dequeue[Exit[Option[E], A]] {
+      def awaitShutdown(implicit trace: Trace): UIO[Unit]                = queue.awaitShutdown
+      def capacity: Int                                                  = cap
+      def isShutdown(implicit trace: Trace): UIO[Boolean]                 = queue.isShutdown
+      def shutdown(implicit trace: Trace): UIO[Unit]                    = queue.shutdown
+      def size(implicit trace: Trace): UIO[Int]                         = queue.size
+      def take(implicit trace: Trace): UIO[Exit[Option[E], A]]           = queue.take <* permitQueue.take
+      def takeAll(implicit trace: Trace): UIO[Chunk[Exit[Option[E], A]]] = queue.takeAll.flatMap(as => permitQueue.takeUpTo(as.size).as(as))
+      def takeUpTo(max: Int)(implicit trace: Trace): UIO[Chunk[Exit[Option[E], A]]] =
+        queue.takeUpTo(max).flatMap(as => permitQueue.takeUpTo(as.size).as(as))
+    }
 
   /**
    * Converts the stream to a sliding scoped queue of chunks. After the scope is
