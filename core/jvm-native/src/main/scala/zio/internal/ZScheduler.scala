@@ -488,8 +488,6 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
       // NOTE: Synchronized block in case the supervisor attempts to mark the worker as blocking at the same time
       // as an external call
-      // NOTE: Synchronized block in case the supervisor attempts to mark the worker as blocking at the same time
-      // as an external call
       final def markAsBlocking(): Unit = synchronized {
         if (blocking) ()
         else {
@@ -618,7 +616,7 @@ private object ZScheduler {
    *
    * Padding (pad* fields) separates hot fields by 128 bytes to avoid false
    * sharing when chooseWorker() reads localQueue.size() and nextRunnable from
-   * other workers. See ZSchedulerJOLPaddingSpec.
+   * other workers.
    */
   private sealed abstract class Worker extends Thread with BlockContext {
 
