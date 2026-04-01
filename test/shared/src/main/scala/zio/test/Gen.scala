@@ -103,11 +103,11 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 
   def flatMap[R1 <: R, B](f: A => Gen[R1, B])(implicit trace: Trace): Gen[R1, B] =
     Gen {
-      self.sample.map { sample =>
+      self.sample.flatMap { sample =>
         val values  = f(sample.value).sample
         val shrinks = Gen(sample.shrink).flatMap(f).sample
         values.map(_.flatMap(Sample(_, shrinks)))
-      }.flatten
+      }
     }
 
   def flatten[R1 <: R, B](implicit ev: A <:< Gen[R1, B], trace: Trace): Gen[R1, B] =
@@ -154,7 +154,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * in a list.
    */
   def runCollectN(n: Int)(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
+    sample.forever.take(n.toLong).map(_.value).runCollect.map(_.toList)
 
   /**
    * Runs the generator returning the first value of the generator.
@@ -954,3 +954,4 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   private val unitGen: Gen[Any, Unit]            = const(())(Trace.empty)
   private val noneGen: Gen[Any, Option[Nothing]] = const(None)(Trace.empty)
 }
+
