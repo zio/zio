@@ -212,7 +212,7 @@ object TQueue {
       def takeUpTo(max: Int): ZSTM[Any, E, Chunk[A]] =
         ZSTM.Effect { (journal, fiberId, _) =>
           checkShutdown(journal, fiberId)
-          val queue = ref.unsafeGet(journal)
+          val queue               = ref.unsafeGet(journal)
           val (toTake, remaining) = queue.splitAt(max)
           ref.unsafeSet(journal, remaining)
           Chunk.fromIterable(toTake)

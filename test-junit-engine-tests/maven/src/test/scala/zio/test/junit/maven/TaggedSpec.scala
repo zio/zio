@@ -17,6 +17,6 @@ object TaggedSpec extends ZIOSpecDefault {
     } @@ TestAspect.tag("b"),
     test("should run for tag a b tagged") {
       assert(12)(equalTo(12))
-    } @@ TestAspect.tag("a")  @@ TestAspect.tag("b"),
+    } @@ TestAspect.tag("a") @@ TestAspect.tag("b")
   ) @@ TestAspect.tag("tagged")
 }

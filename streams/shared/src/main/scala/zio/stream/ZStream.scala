@@ -4382,10 +4382,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       val hub0 = hub
       hub0.subscribe.map(queue => fromQueue(queue, maxChunkSize)).ensuring(hub0.shutdown)
     }
-    ZIO.suspendSucceed {
-      val hub0 = hub
-      fromHubScoped(hub0, maxChunkSize).map(_.ensuring(hub0.shutdown))
-    }
+  ZIO.suspendSucceed {
+    val hub0 = hub
+    fromHubScoped(hub0, maxChunkSize).map(_.ensuring(hub0.shutdown))
+  }
 
   /**
    * Creates a stream from a `java.io.InputStream`

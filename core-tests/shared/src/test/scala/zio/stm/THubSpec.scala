@@ -454,18 +454,18 @@ object THubSpec extends ZIOBaseSpec {
         }.exit.map(assert(_)(fails(equalTo("error")))),
         test("shutdown(e) propagates error to subscription take") {
           for {
-            hub <- THub.bounded[Int](5).commit
+            hub          <- THub.bounded[Int](5).commit
             subscription <- hub.subscribe.commit
-            _   <- hub.shutdown("error").commit
-            _   <- subscription.take.commit
+            _            <- hub.shutdown("error").commit
+            _            <- subscription.take.commit
           } yield ()
         }.exit.map(assert(_)(fails(equalTo("error")))),
         test("subscription shutdown(e) propagates error to take") {
           for {
-            hub <- THub.bounded[Int](5).commit
+            hub          <- THub.bounded[Int](5).commit
             subscription <- hub.subscribe.commit
-            _   <- subscription.shutdown("error").commit
-            _   <- subscription.take.commit
+            _            <- subscription.shutdown("error").commit
+            _            <- subscription.take.commit
           } yield ()
         }.exit.map(assert(_)(fails(equalTo("error")))),
         test("shutdown (no args) interrupts") {

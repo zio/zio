@@ -25,7 +25,7 @@ class QueueParallelBenchmark {
 
   var zioQ: Queue[Int]                      = _
   var fs2Q: cats.effect.std.Queue[CIO, Int] = _
-  var zioTQ: TQueue[Int, Nothing]                    = _
+  var zioTQ: TQueue[Int, Nothing]           = _
 
   @Setup(Level.Trial)
   def createQueues(): Unit = {

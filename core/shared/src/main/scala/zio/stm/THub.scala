@@ -239,7 +239,16 @@ object THub {
           else hubSize.unsafeGet(journal)
         }
       def subscribe: ZSTM[Any, E, TDequeue[A, E]] =
-        makeSubscription(hubSize, publisherHead, publisherTail, requestedCapacity, strategy, subscriberCount, subscribers, shutdownRef)
+        makeSubscription(
+          hubSize,
+          publisherHead,
+          publisherTail,
+          requestedCapacity,
+          strategy,
+          subscriberCount,
+          subscribers,
+          shutdownRef
+        )
     }
 
   private def makeSubscription[A, E](
@@ -253,8 +262,8 @@ object THub {
     shutdownRef: TRef[Option[Any]]
   ): ZSTM[Any, E, TDequeue[A, E]] =
     for {
-      error <- shutdownRef.get
-      _     <- error.fold[ZSTM[Any, E, Unit]](ZSTM.unit)(_ => ZSTM.interrupt)
+      error                  <- shutdownRef.get
+      _                      <- error.fold[ZSTM[Any, E, Unit]](ZSTM.unit)(_ => ZSTM.interrupt)
       currentPublisherTail   <- publisherTail.get
       subscriberHead         <- TRef.make(currentPublisherTail)
       subscriberShutdownRef  <- TRef.make[Option[Any]](None)
@@ -310,8 +319,8 @@ object THub {
         ZSTM.Effect { (journal, fiberId, _) =>
           checkShutdown(journal, fiberId)
           var currentSubscriberHead = subscriberHead.unsafeGet(journal)
-          var a    = null.asInstanceOf[A]
-          var loop = true
+          var a                     = null.asInstanceOf[A]
+          var loop                  = true
           while (loop) {
             val node = currentSubscriberHead.unsafeGet(journal)
             if (node eq null) throw ZSTM.RetryException
@@ -332,8 +341,8 @@ object THub {
         ZSTM.Effect { (journal, fiberId, _) =>
           checkShutdown(journal, fiberId)
           var currentSubscriberHead = subscriberHead.unsafeGet(journal)
-          var a    = null.asInstanceOf[Option[A]]
-          var loop = true
+          var a                     = null.asInstanceOf[Option[A]]
+          var loop                  = true
           while (loop) {
             val node = currentSubscriberHead.unsafeGet(journal)
             if (node eq null) {
@@ -398,8 +407,8 @@ object THub {
         ZSTM.Effect { (journal, fiberId, _) =>
           checkShutdown(journal, fiberId)
           var currentSubscriberHead = subscriberHead.unsafeGet(journal)
-          var loop = true
-          var size = 0
+          var loop                  = true
+          var size                  = 0
           while (loop) {
             val node = currentSubscriberHead.unsafeGet(journal)
             if (node eq null) loop = false
@@ -421,8 +430,8 @@ object THub {
         ZSTM.Effect { (journal, fiberId, _) =>
           checkShutdown(journal, fiberId)
           var currentSubscriberHead = subscriberHead.unsafeGet(journal)
-          var a    = null.asInstanceOf[A]
-          var loop = true
+          var a                     = null.asInstanceOf[A]
+          var loop                  = true
           while (loop) {
             val node = currentSubscriberHead.unsafeGet(journal)
             if (node eq null) throw ZSTM.RetryException
@@ -457,8 +466,8 @@ object THub {
         ZSTM.Effect { (journal, fiberId, _) =>
           checkShutdown(journal, fiberId)
           var currentSubscriberHead = subscriberHead.unsafeGet(journal)
-          val builder = ChunkBuilder.make[A]()
-          var n       = 0
+          val builder               = ChunkBuilder.make[A]()
+          var n                     = 0
           while (n != max) {
             val node = currentSubscriberHead.unsafeGet(journal)
             if (node eq null) {

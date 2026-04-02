@@ -114,7 +114,9 @@ object Hub {
   /**
    * Creates a hub with the specified strategy.
    */
-  private def makeHub[A](hub: internal.Hub[A], strategy: Strategy[A, Nothing])(implicit trace: Trace): UIO[Hub[A, Nothing]] =
+  private def makeHub[A](hub: internal.Hub[A], strategy: Strategy[A, Nothing])(implicit
+    trace: Trace
+  ): UIO[Hub[A, Nothing]] =
     ZIO.fiberIdWith { fiberId =>
       Exit.succeed {
         val scope   = Scope.unsafe.make(Unsafe)
@@ -262,7 +264,9 @@ object Hub {
           if (shutdownError.compareAndSet(null.asInstanceOf[Cause[E]], cause)) {
             ZIO
               .whenZIODiscard(shutdownHook.succeedUnit) {
-                ZIO.foreachParDiscard(unsafePollAll(pollers))(p => ZIO.succeed(p.unsafe.completeWith(Exit.failCause(cause))(Unsafe))) *>
+                ZIO.foreachParDiscard(unsafePollAll(pollers))(p =>
+                  ZIO.succeed(p.unsafe.completeWith(Exit.failCause(cause))(Unsafe))
+                ) *>
                   ZIO.succeed {
                     subscribers.remove(subscription -> pollers)
                     subscription.unsubscribe()
@@ -292,7 +296,7 @@ object Hub {
                   subscribers.add(subscription -> pollers)
                   strategy.unsafeCompletePollers(hub, subscribers, subscription, pollers)
                   val cause = shutdownError.get
-          if (cause ne null) ZIO.failCause(cause) else promise.await
+                  if (cause ne null) ZIO.failCause(cause) else promise.await
                 }.onInterrupt(ZIO.succeed(unsafeRemove(pollers, promise)))
               case a =>
                 strategy.unsafeOnHubEmptySpace(hub, subscribers)

@@ -74,8 +74,8 @@ sealed trait Enqueue[-A, +E] extends Serializable {
   def shutdown(e: E)(implicit trace: Trace): UIO[Unit] = shutdownCause(Cause.fail(e)).unit
 
   /**
-   * Shuts down the queue with a specific cause. Future calls to `offer*` and `take*`
-   * will fail with the specified cause.
+   * Shuts down the queue with a specific cause. Future calls to `offer*` and
+   * `take*` will fail with the specified cause.
    */
   def shutdownCause(cause: Cause[E])(implicit trace: Trace): UIO[Chunk[Any]]
 

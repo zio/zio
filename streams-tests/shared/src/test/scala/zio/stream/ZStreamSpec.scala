@@ -5670,7 +5670,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("TQueue") {
             trait A
-            lazy val tQueue: TQueue[A, Nothing]                  = ???
+            lazy val tQueue: TQueue[A, Nothing]         = ???
             lazy val actual                             = ZStream.from(tQueue)
             lazy val expected: ZStream[Any, Nothing, A] = actual
             lazy val _                                  = expected
