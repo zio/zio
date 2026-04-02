@@ -1,0 +1,19 @@
+﻿build-website	fail	5m58s	https://github.com/zio/zio/actions/runs/23914292207/job/69744046309	
+ci	fail	3s	https://github.com/zio/zio/actions/runs/23914292207/job/69744966668	
+lint	fail	1m53s	https://github.com/zio/zio/actions/runs/23914292207/job/69744046397	
+publishLocal (2.12.x)	fail	6m34s	https://github.com/zio/zio/actions/runs/23914292207/job/69744046303	
+publishLocal (2.13.x)	fail	6m8s	https://github.com/zio/zio/actions/runs/23914292207/job/69744046323	
+publishLocal (3.x)	fail	5m54s	https://github.com/zio/zio/actions/runs/23914292207/job/69744046300	
+test (2.12.x, 21, JVM)	fail	1m14s	https://github.com/zio/zio/actions/runs/23914292207/job/69744046305	
+test (2.13.x, 21, JVM)	fail	1m28s	https://github.com/zio/zio/actions/runs/23914292207/job/69744046335	
+test (3.x, 21, JVM)	fail	1m27s	https://github.com/zio/zio/actions/runs/23914292207/job/69744046288	
+testJvms (11)	fail	1m28s	https://github.com/zio/zio/actions/runs/23914292207/job/69744046351	
+testJvms (17)	fail	1m13s	https://github.com/zio/zio/actions/runs/23914292207/job/69744046370	
+testJvms (25)	fail	1m9s	https://github.com/zio/zio/actions/runs/23914292207/job/69744046359	
+testPlatforms (25, JS)	fail	1m16s	https://github.com/zio/zio/actions/runs/23914292207/job/69744046332	
+testPlatforms (25, Native1)	fail	1m36s	https://github.com/zio/zio/actions/runs/23914292207/job/69744046352	
+testPlatforms (25, Native2)	fail	1m38s	https://github.com/zio/zio/actions/runs/23914292207/job/69744046360	
+auto-approve-renovate-prs	skipping	0	https://github.com/zio/zio/actions/runs/23914292195/job/69744046394	
+publish	skipping	0	https://github.com/zio/zio/actions/runs/23914292207/job/69744982357	
+publish-website	skipping	0	https://github.com/zio/zio/actions/runs/23914292207/job/69744982563	
+update-docs	skipping	0	https://github.com/zio/zio/actions/runs/23914292207/job/69744046655	

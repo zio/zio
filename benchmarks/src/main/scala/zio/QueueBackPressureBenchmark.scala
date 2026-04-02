@@ -26,7 +26,7 @@ class QueueBackPressureBenchmark {
 
   var zioQ: Queue[Int]                      = _
   var fs2Q: cats.effect.std.Queue[CIO, Int] = _
-  var zioTQ: TQueue[Int]                    = _
+  var zioTQ: TQueue[Int, Nothing]                    = _
   // var monixQ: monix.catnap.ConcurrentQueue[MTask, Int] = _
 
   @Setup(Level.Trial)

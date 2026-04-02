@@ -224,7 +224,7 @@ class HubBenchmarks {
       }
 
     def zioTQueueBounded[A](capacity: Int): UIO[ZIOHubLike[A]] =
-      TRef.make(0L).commit.zipWith(TRef.make[Map[Long, TQueue[A]]](Map.empty).commit) { (key, ref) =>
+      TRef.make(0L).commit.zipWith(TRef.make[Map[Long, TQueue[A, Nothing]]](Map.empty).commit) { (key, ref) =>
         new ZIOHubLike[A] {
           def publish(a: A): UIO[Any] =
             ref.get.flatMap(map => ZSTM.foreach(map.values)(_.offer(a))).commit
@@ -238,7 +238,7 @@ class HubBenchmarks {
       }
 
     def zioTQueueUnbounded[A]: UIO[ZIOHubLike[A]] =
-      TRef.make(0L).commit.zipWith(TRef.make[Map[Long, TQueue[A]]](Map.empty).commit) { (key, ref) =>
+      TRef.make(0L).commit.zipWith(TRef.make[Map[Long, TQueue[A, Nothing]]](Map.empty).commit) { (key, ref) =>
         new ZIOHubLike[A] {
           def publish(a: A): UIO[Any] =
             ref.get.flatMap(map => ZSTM.foreach(map.values)(_.offer(a))).commit

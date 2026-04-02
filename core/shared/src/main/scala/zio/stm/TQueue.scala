@@ -26,7 +26,7 @@ import scala.collection.immutable.{Queue => ScalaQueue}
  * A `TQueue` is a transactional queue. Offerors can offer values to the queue
  * and takers can take values from the queue.
  */
-sealed trait TQueue[A, E] extends TDequeue.Internal[A, E] with TEnqueue.Internal[A, E] {
+sealed trait TQueue[A, +E] extends TDequeue.Internal[A, E] with TEnqueue.Internal[A, E] {
   override private[zio] def checkShutdown(journal: Journal, fiberId: FiberId): Unit
 
   override final def awaitShutdown: ZSTM[Any, E, Unit] =

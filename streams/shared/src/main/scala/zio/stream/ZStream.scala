@@ -5562,10 +5562,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Constructs a `ZStream[Any, Nothing, A]` from a `TQueue[A]`.
      */
-    implicit def TQueueConstructor[A]: WithOut[TQueue[A], ZStream[Any, Nothing, A]] =
-      new ZStreamConstructor[TQueue[A]] {
+    implicit def TQueueConstructor[A]: WithOut[TQueue[A, Nothing], ZStream[Any, Nothing, A]] =
+      new ZStreamConstructor[TQueue[A, Nothing]] {
         type Out = ZStream[Any, Nothing, A]
-        def make(input: => TQueue[A])(implicit trace: Trace): ZStream[Any, Nothing, A] =
+        def make(input: => TQueue[A, Nothing])(implicit trace: Trace): ZStream[Any, Nothing, A] =
           ZStream.fromTQueue(input)
       }
   }
