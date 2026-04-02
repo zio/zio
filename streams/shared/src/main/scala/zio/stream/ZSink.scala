@@ -1532,16 +1532,16 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * Create a sink which enqueues each element into the specified queue.
    */
-  def fromQueue[I](queue: => Enqueue[I])(implicit trace: Trace): ZSink[Any, Nothing, I, Nothing, Unit] =
+  def fromQueue[E, I](queue: => Enqueue[E, I])(implicit trace: Trace): ZSink[Any, E, I, Nothing, Unit] =
     ZSink.unwrap(ZIO.succeed(queue).map(queue => foreachChunk(queue.offerAll)))
 
   /**
    * Create a sink which enqueues each element into the specified queue. The
    * queue will be shutdown once the stream is closed.
    */
-  def fromQueueWithShutdown[I](queue: => Enqueue[I])(implicit
+  def fromQueueWithShutdown[E, I](queue: => Enqueue[E, I])(implicit
     trace: Trace
-  ): ZSink[Any, Nothing, I, Nothing, Unit] =
+  ): ZSink[Any, E, I, Nothing, Unit] =
     ZSink.unwrapScoped(
       ZIO.acquireRelease(ZIO.succeed(queue))(_.shutdown).map(fromQueue[I](_))
     )
@@ -1549,18 +1549,18 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * Create a sink which publishes each element to the specified hub.
    */
-  def fromHub[I](hub: => Hub[I])(implicit
+  def fromHub[E, I](hub: => Hub[I, E])(implicit
     trace: Trace
-  ): ZSink[Any, Nothing, I, Nothing, Unit] =
+  ): ZSink[Any, E, I, Nothing, Unit] =
     fromQueue(hub)
 
   /**
    * Create a sink which publishes each element to the specified hub. The hub
    * will be shutdown once the stream is closed.
    */
-  def fromHubWithShutdown[I](hub: => Hub[I])(implicit
+  def fromHubWithShutdown[E, I](hub: => Hub[I, E])(implicit
     trace: Trace
-  ): ZSink[Any, Nothing, I, Nothing, Unit] =
+  ): ZSink[Any, E, I, Nothing, Unit] =
     fromQueueWithShutdown(hub)
 
   /**

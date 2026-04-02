@@ -1882,13 +1882,13 @@ object ZChannel {
   ): ZChannel[Any, Any, Any, Any, E, Nothing, A] =
     ZChannel.suspend(either.fold(ZChannel.fail(_), ZChannel.succeed(_)))
 
-  def fromHub[Err, Done, Elem](
-    hub: => Hub[Either[Exit[Err, Done], Elem]]
+  def fromHub[E, Err, Done, Elem](
+    hub: => Hub[Either[Exit[Err, Done], Elem], E]
   )(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
     ZChannel.unwrapScoped(hub.subscribe.map(fromQueue(_)))
 
-  def fromHubScoped[Err, Done, Elem](
-    hub: => Hub[Either[Exit[Err, Done], Elem]]
+  def fromHubScoped[E, Err, Done, Elem](
+    hub: => Hub[Either[Exit[Err, Done], Elem], E]
   )(implicit trace: Trace): ZIO[Scope, Nothing, ZChannel[Any, Any, Any, Any, Err, Elem, Done]] =
     hub.subscribe.map(fromQueue(_))
 
@@ -1899,11 +1899,11 @@ object ZChannel {
       option.fold[ZChannel[Any, Any, Any, Any, None.type, Nothing, A]](ZChannel.fail(None))(ZChannel.succeed(_))
     )
 
-  def fromQueue[Err, Done, Elem](
-    queue: => Dequeue[Either[Exit[Err, Done], Elem]]
+  def fromQueue[E, Err, Done, Elem](
+    queue: => TDequeue[Either[Exit[Err, Done], Elem], E]
   )(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
     ZChannel.suspend {
-      def fromQueue(queue: Dequeue[Either[Exit[Err, Done], Elem]]): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
+      def fromQueue(queue: TDequeue[Either[Exit[Err, Done], Elem], E]): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
         ZChannel.fromZIO(queue.take).flatMap {
           case Right(elem) => write(elem) *> fromQueue(queue)
           case Left(exit) =>
@@ -2252,17 +2252,17 @@ object ZChannel {
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.concatAllWith(ZChannel.scopedWith(f))((d, _) => d, (d, _) => d)
 
-  def toHub[Err, Done, Elem](
-    hub: => Hub[Either[Exit[Err, Done], Elem]]
+  def toHub[E, Err, Done, Elem](
+    hub: => Hub[Either[Exit[Err, Done], Elem], E]
   )(implicit trace: Trace): ZChannel[Any, Err, Elem, Done, Nothing, Nothing, Any] =
     toQueue(hub)
 
-  def toQueue[Err, Done, Elem](
-    queue: => Enqueue[Either[Exit[Err, Done], Elem]]
+  def toQueue[E, Err, Done, Elem](
+    queue: => Enqueue[E, Either[Exit[Err, Done], Elem]]
   )(implicit trace: Trace): ZChannel[Any, Err, Elem, Done, Nothing, Nothing, Any] =
     ZChannel.suspend {
       def toQueue(
-        queue: Enqueue[Either[Exit[Err, Done], Elem]]
+        queue: Enqueue[E, Either[Exit[Err, Done], Elem]]
       ): ZChannel[Any, Err, Elem, Done, Nothing, Nothing, Any] =
         ZChannel.readWithCause(
           (in: Elem) => ZChannel.fromZIO(queue.offer(Right(in))) *> toQueue(queue),

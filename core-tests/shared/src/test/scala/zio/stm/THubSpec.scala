@@ -443,6 +443,38 @@ object THubSpec extends ZIOBaseSpec {
               assert(values2.filter(_ < 0))(equalTo(as.map(-_)))
           }
         }
+      ),
+      suite("shutdown")(
+        test("shutdown(e) propagates error to publish") {
+          for {
+            hub <- THub.bounded[Int](5).commit
+            _   <- hub.shutdown("error").commit
+            _   <- hub.publish(1).commit
+          } yield ()
+        }.exit.map(assert(_)(fails(equalTo("error")))),
+        test("shutdown(e) propagates error to subscription take") {
+          for {
+            hub <- THub.bounded[Int](5).commit
+            subscription <- hub.subscribe.commit
+            _   <- hub.shutdown("error").commit
+            _   <- subscription.take.commit
+          } yield ()
+        }.exit.map(assert(_)(fails(equalTo("error")))),
+        test("subscription shutdown(e) propagates error to take") {
+          for {
+            hub <- THub.bounded[Int](5).commit
+            subscription <- hub.subscribe.commit
+            _   <- subscription.shutdown("error").commit
+            _   <- subscription.take.commit
+          } yield ()
+        }.exit.map(assert(_)(fails(equalTo("error")))),
+        test("shutdown (no args) interrupts") {
+          for {
+            hub <- THub.bounded[Int](5).commit
+            _   <- hub.shutdown.commit
+            _   <- hub.publish(1).commit
+          } yield ()
+        }.exit.map(assert(_)(isInterrupted))
       )
     ) @@ exceptJS(nonFlaky(20))
 }

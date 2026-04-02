@@ -25,4 +25,9 @@ package object stm extends EitherCompat {
   type STM[+E, +A]   = ZSTM[Any, E, A]
   type USTM[+A]      = ZSTM[Any, Nothing, A]
   type TaskSTM[+A]   = ZSTM[Any, Throwable, A]
+
+  type TQueue[A]    = zio.stm.TQueue[A, Nothing]
+  type TDequeue[+A] = zio.stm.TDequeue[A, Nothing]
+  type TEnqueue[-A] = zio.stm.TEnqueue[A, Nothing]
+  type THub[A]      = zio.stm.THub[A, Nothing]
 }

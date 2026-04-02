@@ -44,6 +44,11 @@ package object zio
   type ULayer[+ROut]        = ZLayer[Any, Nothing, ROut]
   type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
 
+  type Queue[A]    = zio.Queue[A, Nothing]
+  type Dequeue[+A] = zio.Dequeue[Nothing, A]
+  type Enqueue[-A] = zio.Enqueue[Nothing, A]
+  type Hub[A]      = zio.Hub[A, Nothing]
+
   type Trace = Tracer.instance.Type with Tracer.Traced
 
   sealed trait Tag[A] extends EnvironmentTag[A] {

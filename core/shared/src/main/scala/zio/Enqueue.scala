@@ -19,7 +19,7 @@ package zio
 /**
  * A queue that can only be enqueued.
  */
-sealed trait Enqueue[-A] extends Serializable {
+sealed trait Enqueue[-A, +E] extends Serializable {
 
   /**
    * Waits until the queue is shutdown. The `IO` returned by this method will
@@ -41,7 +41,7 @@ sealed trait Enqueue[-A] extends Serializable {
   /**
    * Places one value in the queue.
    */
-  def offer(a: A)(implicit trace: Trace): UIO[Boolean]
+  def offer(a: A)(implicit trace: Trace): IO[E, Boolean]
 
   /**
    * For Bounded Queue: uses the `BackPressure` Strategy, places the values in
@@ -60,7 +60,7 @@ sealed trait Enqueue[-A] extends Serializable {
    * queue but if there is no room it will not enqueue them and return the
    * leftovers.
    */
-  def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]]
+  def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): IO[E, Chunk[A1]]
 
   /**
    * Interrupts any fibers that are suspended on `offer` or `take`. Future calls
@@ -69,30 +69,35 @@ sealed trait Enqueue[-A] extends Serializable {
   def shutdown(implicit trace: Trace): UIO[Unit]
 
   /**
+   * Shuts down the queue with a specific error.
+   */
+  def shutdown(e: E)(implicit trace: Trace): UIO[Unit] = shutdownCause(Cause.fail(e)).unit
+
+  /**
    * Shuts down the queue with a specific cause. Future calls to `offer*` and `take*`
    * will fail with the specified cause.
    */
-  def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[Any]]
+  def shutdownCause(cause: Cause[E])(implicit trace: Trace): UIO[Chunk[Any]]
 
   /**
    * Retrieves the size of the queue. This may be negative if fibers are
    * suspended waiting for elements to be added to the queue or greater than the
    * capacity if fibers are suspended waiting to add elements to the queue.
    */
-  def size(implicit trace: Trace): UIO[Int]
+  def size(implicit trace: Trace): IO[E, Int]
 
   /**
    * Checks whether the queue is currently empty.
    */
-  def isEmpty(implicit trace: Trace): UIO[Boolean] =
+  def isEmpty(implicit trace: Trace): IO[E, Boolean] =
     size.map(_ <= 0)
 
   /**
    * Checks whether the queue is currently full.
    */
-  def isFull(implicit trace: Trace): UIO[Boolean] =
+  def isFull(implicit trace: Trace): IO[E, Boolean] =
     size.map(_ >= capacity)
 }
 private[zio] object Enqueue {
-  private[zio] trait Internal[-A] extends Enqueue[A]
+  private[zio] trait Internal[-A, +E] extends Enqueue[A, E]
 }

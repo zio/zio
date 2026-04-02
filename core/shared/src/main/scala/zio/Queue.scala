@@ -26,25 +26,25 @@ import scala.annotation.tailrec
  * A `Queue` is a lightweight, asynchronous queue into which values can be
  * enqueued and of which elements can be dequeued.
  */
-sealed abstract class Queue[A] extends Dequeue.Internal[A] with Enqueue.Internal[A] {
+sealed abstract class Queue[A, +E] extends Dequeue.Internal[A, E] with Enqueue.Internal[A, E] {
 
   /**
    * Checks whether the queue is currently empty.
    */
-  override final def isEmpty(implicit trace: Trace): UIO[Boolean] =
+  override final def isEmpty(implicit trace: Trace): IO[E, Boolean] =
     size.map(_ <= 0)
 
   /**
    * Checks whether the queue is currently full.
    */
-  override final def isFull(implicit trace: Trace): UIO[Boolean] =
+  override final def isFull(implicit trace: Trace): IO[E, Boolean] =
     size.map(_ >= capacity)
 }
 
 object Queue extends QueuePlatformSpecific {
   private val interruptAsNone = ZIO.interruptAs(FiberId.None)(Trace.empty)
 
-  private[zio] abstract class Internal[A] extends Queue[A]
+  private[zio] abstract class Internal[A, +E] extends Queue[A, E]
 
   /**
    * Makes a new bounded queue. When the capacity of the queue is reached, any
@@ -61,9 +61,9 @@ object Queue extends QueuePlatformSpecific {
    * @tparam A
    *   type of the `Queue`
    * @return
-   *   `UIO[Queue[A]]`
+   *   `UIO[Queue[A, Nothing]]`
    */
-  def bounded[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A]] =
+  def bounded[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A, Nothing]] =
     ZIO.fiberId.map(unsafe.bounded(requestedCapacity, _)(Unsafe.unsafe))
 
   /**
@@ -80,9 +80,9 @@ object Queue extends QueuePlatformSpecific {
    * @tparam A
    *   type of the `Queue`
    * @return
-   *   `UIO[Queue[A]]`
+   *   `UIO[Queue[A, Nothing]]`
    */
-  def dropping[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A]] =
+  def dropping[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A, Nothing]] =
     ZIO.fiberId.map(unsafe.dropping(requestedCapacity, _)(Unsafe.unsafe))
 
   /**
@@ -100,9 +100,9 @@ object Queue extends QueuePlatformSpecific {
    * @tparam A
    *   type of the `Queue`
    * @return
-   *   `UIO[Queue[A]]`
+   *   `UIO[Queue[A, Nothing]]`
    */
-  def sliding[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A]] =
+  def sliding[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A, Nothing]] =
     ZIO.fiberId.map(unsafe.sliding(requestedCapacity, _)(Unsafe.unsafe))
 
   /**
@@ -111,32 +111,32 @@ object Queue extends QueuePlatformSpecific {
    * @tparam A
    *   type of the `Queue`
    * @return
-   *   `UIO[Queue[A]]`
+   *   `UIO[Queue[A, Nothing]]`
    */
-  def unbounded[A](implicit trace: Trace): UIO[Queue[A]] =
+  def unbounded[A](implicit trace: Trace): UIO[Queue[A, Nothing]] =
     ZIO.fiberId.map(unsafe.unbounded(_)(Unsafe.unsafe))
 
   object unsafe {
 
-    def bounded[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
+    def bounded[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A, Nothing] =
       createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.BackPressure(), fiberId)
 
-    def dropping[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
+    def dropping[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A, Nothing] =
       createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.Dropping(), fiberId)
 
-    def sliding[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
+    def sliding[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A, Nothing] =
       createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.Sliding(), fiberId)
 
-    def unbounded[A](fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
+    def unbounded[A](fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A, Nothing] =
       createQueue(MutableConcurrentQueue.unbounded[A], Strategy.Dropping(), fiberId)
 
   }
 
   private def createQueue[A](
     queue: MutableConcurrentQueue[A],
-    strategy: Strategy[A],
+    strategy: Strategy[A, Nothing],
     fiberId: FiberId
-  )(implicit unsafe: Unsafe): Queue[A] = {
+  )(implicit unsafe: Unsafe): Queue[A, Nothing] = {
     val p = Promise.unsafe.make[Nothing, Unit](fiberId)
     unsafeCreate(
       queue,
@@ -147,21 +147,21 @@ object Queue extends QueuePlatformSpecific {
     )
   }
 
-  private def unsafeCreate[A](
+  private def unsafeCreate[A, E](
     queue: MutableConcurrentQueue[A],
     takers: ConcurrentDeque[Promise[Nothing, A]],
     shutdownHook: Promise[Nothing, Unit],
-    shutdownError: AtomicReference[Cause[Nothing]],
-    strategy: Strategy[A]
-  ): Queue[A] = new QueueImpl[A](queue, takers, shutdownHook, shutdownError, strategy)
+    shutdownError: AtomicReference[Cause[E]],
+    strategy: Strategy[A, E]
+  ): Queue[A, E] = new QueueImpl[A, E](queue, takers, shutdownHook, shutdownError, strategy)
 
-  private final class QueueImpl[A](
+  private final class QueueImpl[A, +E](
     queue: MutableConcurrentQueue[A],
     takers: ConcurrentDeque[Promise[Nothing, A]],
     shutdownHook: Promise[Nothing, Unit],
-    shutdownError: AtomicReference[Cause[Nothing]],
-    strategy: Strategy[A]
-  ) extends Queue[A] {
+    shutdownError: AtomicReference[Cause[E]],
+    strategy: Strategy[A, E]
+  ) extends Queue[A, E] {
 
     override def capacity: Int = queue.capacity
 
@@ -221,7 +221,7 @@ object Queue extends QueuePlatformSpecific {
 
     override def awaitShutdown(implicit trace: Trace): UIO[Unit] = shutdownHook.await
 
-    override def size(implicit trace: Trace): UIO[Int] =
+    override def size(implicit trace: Trace): IO[E, Int] =
       ZIO.suspendSucceed {
         val cause = shutdownError.get
         if (cause ne null)
@@ -235,9 +235,9 @@ object Queue extends QueuePlatformSpecific {
         shutdownCause(Cause.interrupt(fiberId)).unit
       }
 
-    override def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[A]] =
+    override def shutdownCause(cause: Cause[E])(implicit trace: Trace): UIO[Chunk[A]] =
       ZIO.suspendSucceed {
-        if (shutdownError.compareAndSet(null, cause)) {
+        if (shutdownError.compareAndSet(null.asInstanceOf[Cause[E]], cause)) {
           implicit val unsafe: Unsafe = Unsafe
           shutdownHook.unsafe.succeedUnit
           val it = unsafePollAll(takers).iterator
@@ -286,7 +286,7 @@ object Queue extends QueuePlatformSpecific {
         }
       }
 
-    override def takeAll(implicit trace: Trace): UIO[Chunk[A]] =
+    override def takeAll(implicit trace: Trace): IO[E, Chunk[A]] =
       ZIO.suspendSucceed {
         val cause = shutdownError.get
         if (cause ne null)
@@ -302,7 +302,7 @@ object Queue extends QueuePlatformSpecific {
         }
       }
 
-    override def takeUpTo(max: Int)(implicit trace: Trace): UIO[Chunk[A]] =
+    override def takeUpTo(max: Int)(implicit trace: Trace): IO[E, Chunk[A]] =
       ZIO.suspendSucceed {
         val cause = shutdownError.get
         if (cause ne null)
@@ -318,7 +318,7 @@ object Queue extends QueuePlatformSpecific {
         }
       }
 
-    override def poll(implicit trace: Trace): UIO[Option[A]] =
+    override def poll(implicit trace: Trace): IO[E, Option[A]] =
       ZIO.suspendSucceed {
         val cause = shutdownError.get
         if (cause ne null)
@@ -334,15 +334,15 @@ object Queue extends QueuePlatformSpecific {
       }
   }
 
-  private sealed abstract class Strategy[A] {
+  private sealed abstract class Strategy[A, +E] {
     private[this] val draining = new AtomicBoolean(false)
 
     def handleSurplus(
       as: Iterable[A],
       queue: MutableConcurrentQueue[A],
       takers: ConcurrentDeque[Promise[Nothing, A]],
-      isShutdown: AtomicReference[Cause[Nothing]]
-    )(implicit trace: Trace): UIO[Boolean]
+      isShutdown: AtomicReference[Cause[E]]
+    )(implicit trace: Trace): IO[E, Boolean]
 
     def unsafeOnQueueEmptySpace(
       queue: MutableConcurrentQueue[A],
@@ -351,7 +351,7 @@ object Queue extends QueuePlatformSpecific {
 
     def surplusSize: Int
 
-    def shutdown(cause: Cause[Nothing])(implicit trace: Trace, unsafe: Unsafe): Unit
+    def shutdown(cause: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Unit
 
     @tailrec
     final def unsafeCompleteTakers(
@@ -398,7 +398,7 @@ object Queue extends QueuePlatformSpecific {
 
   private object Strategy {
 
-    final case class BackPressure[A]() extends Strategy[A] {
+    final case class BackPressure[A, E]() extends Strategy[A, E] {
       private[this] val notifying = new AtomicBoolean(false)
 
       // A is an item to add
@@ -413,8 +413,8 @@ object Queue extends QueuePlatformSpecific {
         as: Iterable[A],
         queue: MutableConcurrentQueue[A],
         takers: ConcurrentDeque[Promise[Nothing, A]],
-        isShutdown: AtomicBoolean
-      )(implicit trace: Trace): UIO[Boolean] =
+        isShutdown: AtomicReference[Cause[E]]
+      )(implicit trace: Trace): IO[E, Boolean] =
         ZIO.fiberIdWith { fiberId =>
           val p = Promise.unsafe.make[Nothing, Boolean](fiberId)(Unsafe.unsafe)
 
@@ -477,7 +477,7 @@ object Queue extends QueuePlatformSpecific {
 
       def surplusSize: Int = putters.size()
 
-      def shutdown(cause: Cause[Nothing])(implicit trace: Trace, unsafe: Unsafe): Unit = {
+      def shutdown(cause: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Unit = {
         var next = putters.poll()
         while (next ne null) {
           val (_, promise, isLast) = next
@@ -487,14 +487,14 @@ object Queue extends QueuePlatformSpecific {
       }
     }
 
-    final case class Dropping[A]() extends Strategy[A] {
+    final case class Dropping[A, E]() extends Strategy[A, E] {
       // do nothing, drop the surplus
       def handleSurplus(
         as: Iterable[A],
         queue: MutableConcurrentQueue[A],
         takers: ConcurrentDeque[Promise[Nothing, A]],
-        isShutdown: AtomicBoolean
-      )(implicit trace: Trace): UIO[Boolean] = Exit.`false`
+        isShutdown: AtomicReference[Cause[E]]
+      )(implicit trace: Trace): IO[E, Boolean] = Exit.`false`
 
       def unsafeOnQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
@@ -503,16 +503,16 @@ object Queue extends QueuePlatformSpecific {
 
       def surplusSize: Int = 0
 
-      def shutdown(cause: Cause[Nothing])(implicit trace: Trace, unsafe: Unsafe): Unit = ()
+      def shutdown(cause: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Unit = ()
     }
 
-    final case class Sliding[A]() extends Strategy[A] {
+    final case class Sliding[A, E]() extends Strategy[A, E] {
       def handleSurplus(
         as: Iterable[A],
         queue: MutableConcurrentQueue[A],
         takers: ConcurrentDeque[Promise[Nothing, A]],
-        isShutdown: AtomicBoolean
-      )(implicit trace: Trace): UIO[Boolean] = {
+        isShutdown: AtomicReference[Cause[E]]
+      )(implicit trace: Trace): IO[E, Boolean] = {
         def unsafeSlidingOffer(as: Iterable[A]): Unit =
           if (!as.isEmpty && queue.capacity > 0) {
             val iterator = as.iterator
@@ -544,7 +544,7 @@ object Queue extends QueuePlatformSpecific {
 
       def surplusSize: Int = 0
 
-      def shutdown(cause: Cause[Nothing])(implicit trace: Trace, unsafe: Unsafe): Unit = ()
+      def shutdown(cause: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Unit = ()
     }
   }
 

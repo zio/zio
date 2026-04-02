@@ -4336,10 +4336,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a subscription to a hub.
    */
-  def fromHub[A](
-    hub: => Hub[A],
+  def fromHub[E, A](
+    hub: => THub[A, E],
     maxChunkSize: => Int = DefaultChunkSize
-  )(implicit trace: Trace): ZStream[Any, Nothing, A] =
+  )(implicit trace: Trace): ZStream[Any, E, A] =
     scoped(hub.subscribe).flatMap(queue => fromQueue(queue, maxChunkSize))
 
   /**
@@ -4347,10 +4347,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * effect. The scoped effect describes subscribing to receive messages from
    * the hub while the stream describes taking messages from the hub.
    */
-  def fromHubScoped[A](
-    hub: => Hub[A],
+  def fromHubScoped[E, A](
+    hub: => THub[A, E],
     maxChunkSize: => Int = DefaultChunkSize
-  )(implicit trace: Trace): ZIO[Scope, Nothing, ZStream[Any, Nothing, A]] =
+  )(implicit trace: Trace): ZIO[Scope, Nothing, ZStream[Any, E, A]] =
     ZIO.suspendSucceed(hub.subscribe.map(queue => fromQueueWithShutdown(queue, maxChunkSize)))
 
   /**
@@ -4358,10 +4358,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    *
    * The hub will be shut down once the stream is closed.
    */
-  def fromHubWithShutdown[A](
-    hub: => Hub[A],
+  def fromHubWithShutdown[E, A](
+    hub: => THub[A, E],
     maxChunkSize: => Int = DefaultChunkSize
-  )(implicit trace: Trace): ZStream[Any, Nothing, A] =
+  )(implicit trace: Trace): ZStream[Any, E, A] =
     ZStream.suspend {
       val hub0 = hub
       fromHub(hub0, maxChunkSize).ensuring(hub0.shutdown)
@@ -4374,10 +4374,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    *
    * The hub will be shut down once the stream is closed.
    */
-  def fromHubScopedWithShutdown[A](
-    hub: => Hub[A],
+  def fromHubScopedWithShutdown[E, A](
+    hub: => THub[A, E],
     maxChunkSize: => Int = DefaultChunkSize
-  )(implicit trace: Trace): ZIO[Scope, Nothing, ZStream[Any, Nothing, A]] =
+  )(implicit trace: Trace): ZIO[Scope, Nothing, ZStream[Any, E, A]] =
+    ZIO.suspendSucceed {
+      val hub0 = hub
+      hub0.subscribe.map(queue => fromQueue(queue, maxChunkSize)).ensuring(hub0.shutdown)
+    }
     ZIO.suspendSucceed {
       val hub0 = hub
       fromHubScoped(hub0, maxChunkSize).map(_.ensuring(hub0.shutdown))
@@ -4683,10 +4687,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * @param maxChunkSize
    *   Maximum number of queued elements to put in one chunk in the stream
    */
-  def fromQueue[O](
-    queue: => Dequeue[O],
+  def fromQueue[E, O](
+    queue: => TDequeue[O, E],
     maxChunkSize: => Int = DefaultChunkSize
-  )(implicit trace: Trace): ZStream[Any, Nothing, O] =
+  )(implicit trace: Trace): ZStream[Any, E, O] =
     repeatZIOChunkOption {
       val queue0 = queue
       queue0
@@ -4706,10 +4710,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * @param maxChunkSize
    *   Maximum number of queued elements to put in one chunk in the stream
    */
-  def fromQueueWithShutdown[O](
-    queue: => Dequeue[O],
+  def fromQueueWithShutdown[E, O](
+    queue: => TDequeue[O, E],
     maxChunkSize: => Int = DefaultChunkSize
-  )(implicit trace: Trace): ZStream[Any, Nothing, O] =
+  )(implicit trace: Trace): ZStream[Any, E, O] =
     ZStream.suspend {
       val queue0 = queue
       fromQueue(queue0, maxChunkSize).ensuring(queue0.shutdown)
@@ -4737,7 +4741,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a [[zio.stm.TQueue]] of values.
    */
-  def fromTQueue[A](queue: => TDequeue[A])(implicit trace: Trace): ZStream[Any, Nothing, A] =
+  def fromTQueue[E, A](queue: => TDequeue[A, E])(implicit trace: Trace): ZStream[Any, E, A] =
     repeatZIOChunk(queue.take.map(Chunk.single(_)).commit)
 
   /**

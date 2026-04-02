@@ -154,6 +154,32 @@ object TQueueSpec extends ZIOBaseSpec {
         } yield (qb1, qb2)
         assertZIO(tx.commit)(equalTo((true, false)))
       }
+    ),
+    suite("shutdown")(
+      test("shutdown(e) propagates error") {
+        val tx = for {
+          tq <- TQueue.bounded[Int](5)
+          _  <- tq.shutdown("error")
+          _  <- tq.offer(1)
+        } yield ()
+        assertZIO(tx.commit.exit)(fails(equalTo("error")))
+      },
+      test("shutdown(e) propagates error to take") {
+        val tx = for {
+          tq <- TQueue.bounded[Int](5)
+          _  <- tq.shutdown("error")
+          _  <- tq.take
+        } yield ()
+        assertZIO(tx.commit.exit)(fails(equalTo("error")))
+      },
+      test("shutdown (no args) interrupts") {
+        val tx = for {
+          tq <- TQueue.bounded[Int](5)
+          _  <- tq.shutdown
+          _  <- tq.take
+        } yield ()
+        assertZIO(tx.commit.exit)(isInterrupted)
+      }
     )
   )
 }

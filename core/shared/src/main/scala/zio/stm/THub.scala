@@ -17,25 +17,26 @@
 package zio.stm
 
 import zio._
+import zio.stm.ZSTM.internal.Journal
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `THub` is a transactional message hub. Publishers can publish messages to
  * the hub and subscribers can subscribe to take messages from the hub.
  */
-sealed abstract class THub[A] extends TEnqueue.Internal[A] {
+sealed abstract class THub[A, E] extends TEnqueue.Internal[A, E] {
 
   /**
    * Publishes a message to the hub, returning whether the message was published
    * to the hub.
    */
-  def publish(a: A): USTM[Boolean]
+  def publish(a: A): ZSTM[Any, E, Boolean]
 
   /**
    * Publishes all of the specified messages to the hub, returning whether they
    * were published to the hub.
    */
-  def publishAll(as: Iterable[A]): USTM[Boolean]
+  def publishAll(as: Iterable[A]): ZSTM[Any, E, Boolean]
 
   /**
    * Subscribes to receive messages from the hub. The resulting subscription can
@@ -43,27 +44,27 @@ sealed abstract class THub[A] extends TEnqueue.Internal[A] {
    * caller is responsible for unsubscribing from the hub by shutting down the
    * queue.
    */
-  def subscribe: USTM[TDequeue[A]]
+  def subscribe: ZSTM[Any, E, TDequeue[A, E]]
 
-  override final def awaitShutdown: USTM[Unit] =
+  override final def awaitShutdown: ZSTM[Any, E, Unit] =
     isShutdown.flatMap(b => if (b) ZSTM.unit else ZSTM.retry)
 
   /**
    * Checks if the queue is empty.
    */
-  override final def isEmpty: USTM[Boolean] =
+  override final def isEmpty: ZSTM[Any, E, Boolean] =
     size.map(_ == 0)
 
   /**
    * Checks if the queue is at capacity.
    */
-  override final def isFull: USTM[Boolean] =
+  override final def isFull: ZSTM[Any, E, Boolean] =
     size.map(_ == capacity)
 
-  final def offer(a: A): USTM[Boolean] =
+  final def offer(a: A): ZSTM[Any, E, Boolean] =
     publish(a)
 
-  final def offerAll(as: Iterable[A]): USTM[Boolean] =
+  final def offerAll(as: Iterable[A]): ZSTM[Any, E, Boolean] =
     publishAll(as)
 
   /**
@@ -71,8 +72,8 @@ sealed abstract class THub[A] extends TEnqueue.Internal[A] {
    * be evaluated multiple times within the scope to take a message from the hub
    * each time.
    */
-  final def subscribeScoped(implicit trace: Trace): ZIO[Scope, Nothing, TDequeue[A]] =
-    ZIO.acquireRelease(subscribe.commit)(_.shutdown.commit)
+  final def subscribeScoped(implicit trace: Trace): ZIO[Scope, E, TDequeue[A, E]] =
+    ZIO.acquireRelease(subscribe.commit)(_.shutdown.commit.ignore)
 }
 
 object THub {
@@ -82,14 +83,14 @@ object THub {
    * messages until they have been taken by all subscribers, applying back
    * pressure to publishers if the hub is at capacity.
    */
-  def bounded[A](requestedCapacity: => Int): USTM[THub[A]] =
+  def bounded[A](requestedCapacity: => Int): USTM[THub[A, Nothing]] =
     makeHub(requestedCapacity, Strategy.BackPressure)
 
   /**
    * Creates a bounded hub with the dropping strategy. The hub will drop new
    * messages if the hub is at capacity.
    */
-  def dropping[A](requestedCapacity: => Int): USTM[THub[A]] =
+  def dropping[A](requestedCapacity: => Int): USTM[THub[A, Nothing]] =
     makeHub(requestedCapacity, Strategy.Dropping)
 
   /**
@@ -98,19 +99,19 @@ object THub {
    *
    * For best performance use capacities that are powers of two.
    */
-  def sliding[A](requestedCapacity: => Int): USTM[THub[A]] =
+  def sliding[A](requestedCapacity: => Int): USTM[THub[A, Nothing]] =
     makeHub(requestedCapacity, Strategy.Sliding)
 
   /**
    * Creates an unbounded hub.
    */
-  def unbounded[A]: USTM[THub[A]] =
+  def unbounded[A]: USTM[THub[A, Nothing]] =
     makeHub(Int.MaxValue, Strategy.Dropping)
 
   /**
    * Creates a hub with the specified strategy.
    */
-  private def makeHub[A](requestedCapacity: => Int, strategy: => Strategy): USTM[THub[A]] =
+  private def makeHub[A](requestedCapacity: => Int, strategy: => Strategy): USTM[THub[A, Nothing]] =
     for {
       empty           <- TRef.make[Node[A]](null)
       hubSize         <- TRef.make(0)
@@ -118,6 +119,7 @@ object THub {
       publisherTail   <- TRef.make(empty)
       subscriberCount <- TRef.make(0)
       subscribers     <- TRef.make[Set[TRef[TRef[Node[A]]]]](Set.empty)
+      shutdownRef     <- TRef.make[Option[Any]](None)
     } yield unsafeMakeHub(
       hubSize,
       publisherHead,
@@ -125,31 +127,59 @@ object THub {
       requestedCapacity,
       strategy,
       subscriberCount,
-      subscribers
+      subscribers,
+      shutdownRef
     )
 
   /**
    * Unsafely creates a hub with the specified strategy.
    */
-  private def unsafeMakeHub[A](
+  private def unsafeMakeHub[A, E](
     hubSize: TRef[Int],
     publisherHead: TRef[TRef[Node[A]]],
     publisherTail: TRef[TRef[Node[A]]],
     requestedCapacity: Int,
     strategy: Strategy,
     subscriberCount: TRef[Int],
-    subscribers: TRef[Set[TRef[TRef[Node[A]]]]]
-  ): THub[A] =
-    new THub[A] {
+    subscribers: TRef[Set[TRef[TRef[Node[A]]]]],
+    shutdownRef: TRef[Option[Any]]
+  ): THub[A, E] =
+    new THub[A, E] {
       def capacity: Int =
         requestedCapacity
-      def isShutdown: USTM[Boolean] =
-        ZSTM.Effect { (journal, _, _) =>
-          val currentPublisherTail = publisherTail.unsafeGet(journal)
-          currentPublisherTail eq null
+      def isShutdown: ZSTM[Any, E, Boolean] =
+        shutdownRef.get.map(_.isDefined)
+      override private[zio] def checkShutdown(journal: Journal, fiberId: FiberId): Unit = {
+        val error = shutdownRef.unsafeGet(journal).asInstanceOf[Option[E]]
+        if (error.isDefined) {
+          val e = error.get
+          if (e != null) throw ZSTM.FailException(e)
+          else throw ZSTM.InterruptException(fiberId)
         }
-      def publish(a: A): USTM[Boolean] =
+      }
+
+      private def unsafeShutdown[E1 >: E](journal: Journal, e: E1): Unit = {
+        val error = shutdownRef.unsafeGet(journal)
+        if (error.isEmpty) {
+          shutdownRef.unsafeSet(journal, Some(e.asInstanceOf[Any]))
+          val currentPublisherTail = publisherTail.unsafeGet(journal)
+          if (currentPublisherTail ne null) {
+            publisherTail.unsafeSet(journal, null)
+            val currentSubscribers = subscribers.unsafeGet(journal)
+            currentSubscribers.foreach(_.unsafeSet(journal, null))
+            subscribers.unsafeSet(journal, Set.empty)
+          }
+        }
+      }
+
+      val shutdown: ZSTM[Any, E, Unit] =
+        ZSTM.Effect((journal, _, _) => unsafeShutdown(journal, null.asInstanceOf[E]))
+      def shutdown[E1 >: E](e1: E1): ZSTM[Any, E1, Unit] =
+        ZSTM.Effect((journal, _, _) => unsafeShutdown(journal, e1))
+
+      def publish(a: A): ZSTM[Any, E, Boolean] =
         ZSTM.Effect { (journal, fiberId, _) =>
+          checkShutdown(journal, fiberId)
           val currentPublisherTail = publisherTail.unsafeGet(journal)
           if (currentPublisherTail eq null) throw ZSTM.InterruptException(fiberId)
           else {
@@ -199,39 +229,35 @@ object THub {
             }
           }
         }
-      def publishAll(as: Iterable[A]): USTM[Boolean] =
+      def publishAll(as: Iterable[A]): ZSTM[Any, E, Boolean] =
         ZSTM.foreach(as)(publish).map(_.forall(identity))
-      def shutdown: USTM[Unit] =
-        ZSTM.Effect { (journal, _, _) =>
-          val currentPublisherTail = publisherTail.unsafeGet(journal)
-          if (currentPublisherTail ne null) {
-            publisherTail.unsafeSet(journal, null)
-            val currentSubscribers = subscribers.unsafeGet(journal)
-            currentSubscribers.foreach(_.unsafeSet(journal, null))
-            subscribers.unsafeSet(journal, Set.empty)
-          }
-        }
-      def size: USTM[Int] =
+      def size: ZSTM[Any, E, Int] =
         ZSTM.Effect { (journal, fiberId, _) =>
+          checkShutdown(journal, fiberId)
           val currentPublisherTail = publisherTail.unsafeGet(journal)
           if (currentPublisherTail eq null) throw ZSTM.InterruptException(fiberId)
           else hubSize.unsafeGet(journal)
         }
-      def subscribe: USTM[TDequeue[A]] =
-        makeSubscription(hubSize, publisherHead, publisherTail, requestedCapacity, subscriberCount, subscribers)
+      def subscribe: ZSTM[Any, E, TDequeue[A, E]] =
+        makeSubscription(hubSize, publisherHead, publisherTail, requestedCapacity, strategy, subscriberCount, subscribers, shutdownRef)
     }
 
-  private def makeSubscription[A](
+  private def makeSubscription[A, E](
     hubSize: TRef[Int],
     publisherHead: TRef[TRef[Node[A]]],
     publisherTail: TRef[TRef[Node[A]]],
     requestedCapacity: Int,
+    strategy: Strategy,
     subscriberCount: TRef[Int],
-    subscribers: TRef[Set[TRef[TRef[Node[A]]]]]
-  ): USTM[TDequeue[A]] =
+    subscribers: TRef[Set[TRef[TRef[Node[A]]]]],
+    shutdownRef: TRef[Option[Any]]
+  ): ZSTM[Any, E, TDequeue[A, E]] =
     for {
+      error <- shutdownRef.get
+      _     <- error.fold[ZSTM[Any, E, Unit]](ZSTM.unit)(_ => ZSTM.interrupt)
       currentPublisherTail   <- publisherTail.get
       subscriberHead         <- TRef.make(currentPublisherTail)
+      subscriberShutdownRef  <- TRef.make[Option[Any]](None)
       currentSubscriberCount <- subscriberCount.get
       currentSubscribers     <- subscribers.get
       _                      <- subscriberCount.set(currentSubscriberCount + 1)
@@ -242,77 +268,99 @@ object THub {
       requestedCapacity,
       subscriberHead,
       subscriberCount,
-      subscribers
+      subscribers,
+      shutdownRef,
+      subscriberShutdownRef
     )
 
-  private def unsafeMakeSubscription[A](
+  private def unsafeMakeSubscription[A, E](
     hubSize: TRef[Int],
     publisherHead: TRef[TRef[Node[A]]],
     requestedCapacity: Int,
     subscriberHead: TRef[TRef[Node[A]]],
     subscriberCount: TRef[Int],
-    subscribers: TRef[Set[TRef[TRef[Node[A]]]]]
-  ): TDequeue[A] =
-    new TDequeue.Internal[A] {
+    subscribers: TRef[Set[TRef[TRef[Node[A]]]]],
+    hubShutdownRef: TRef[Option[Any]],
+    subscriberShutdownRef: TRef[Option[Any]]
+  ): TDequeue[A, E] =
+    new TDequeue.Internal[A, E] {
       override def capacity: Int =
         requestedCapacity
-      override def isShutdown: USTM[Boolean] =
-        ZSTM.Effect { (journal, _, _) =>
-          val currentSubscriberHead = subscriberHead.unsafeGet(journal)
-          currentSubscriberHead eq null
+      override def isShutdown: ZSTM[Any, E, Boolean] =
+        for {
+          hubShutdown <- hubShutdownRef.get
+          subShutdown <- subscriberShutdownRef.get
+        } yield hubShutdown.isDefined || subShutdown.isDefined
+      override private[zio] def checkShutdown(journal: Journal, fiberId: FiberId): Unit = {
+        val hubError = hubShutdownRef.unsafeGet(journal).asInstanceOf[Option[E]]
+        val subError = subscriberShutdownRef.unsafeGet(journal).asInstanceOf[Option[E]]
+        if (hubError.isDefined) {
+          val e = hubError.get
+          if (e != null) throw ZSTM.FailException(e)
+          else throw ZSTM.InterruptException(fiberId)
         }
-      override def peek: ZSTM[Any, Nothing, A] =
-        ZSTM.Effect { (journal, fiberId, _) =>
-          var currentSubscriberHead = subscriberHead.unsafeGet(journal)
-          if (currentSubscriberHead eq null) throw ZSTM.InterruptException(fiberId)
-          else {
-            var a    = null.asInstanceOf[A]
-            var loop = true
-            while (loop) {
-              val node = currentSubscriberHead.unsafeGet(journal)
-              if (node eq null) throw ZSTM.RetryException
-              else {
-                val head = node.head
-                val tail = node.tail
-                if (head != null) {
-                  a = node.head
-                  loop = false
-                } else {
-                  currentSubscriberHead = tail
-                }
-              }
-            }
-            a
-          }
+        if (subError.isDefined) {
+          val e = subError.get
+          if (e != null) throw ZSTM.FailException(e)
+          else throw ZSTM.InterruptException(fiberId)
         }
-      override def peekOption: ZSTM[Any, Nothing, Option[A]] =
+      }
+
+      override def peek: ZSTM[Any, E, A] =
         ZSTM.Effect { (journal, fiberId, _) =>
+          checkShutdown(journal, fiberId)
           var currentSubscriberHead = subscriberHead.unsafeGet(journal)
-          if (currentSubscriberHead eq null) throw ZSTM.InterruptException(fiberId)
-          else {
-            var a    = null.asInstanceOf[Option[A]]
-            var loop = true
-            while (loop) {
-              val node = currentSubscriberHead.unsafeGet(journal)
-              if (node eq null) {
-                a = None
+          var a    = null.asInstanceOf[A]
+          var loop = true
+          while (loop) {
+            val node = currentSubscriberHead.unsafeGet(journal)
+            if (node eq null) throw ZSTM.RetryException
+            else {
+              val head = node.head
+              val tail = node.tail
+              if (head != null) {
+                a = node.head
                 loop = false
               } else {
-                val head = node.head
-                val tail = node.tail
-                if (head != null) {
-                  a = Some(node.head)
-                  loop = false
-                } else {
-                  currentSubscriberHead = tail
-                }
+                currentSubscriberHead = tail
               }
             }
-            a
           }
+          a
         }
-      override def shutdown: USTM[Unit] =
-        ZSTM.Effect { (journal, _, _) =>
+      override def peekOption: ZSTM[Any, E, Option[A]] =
+        ZSTM.Effect { (journal, fiberId, _) =>
+          checkShutdown(journal, fiberId)
+          var currentSubscriberHead = subscriberHead.unsafeGet(journal)
+          var a    = null.asInstanceOf[Option[A]]
+          var loop = true
+          while (loop) {
+            val node = currentSubscriberHead.unsafeGet(journal)
+            if (node eq null) {
+              a = None
+              loop = false
+            } else {
+              val head = node.head
+              val tail = node.tail
+              if (head != null) {
+                a = Some(node.head)
+                loop = false
+              } else {
+                currentSubscriberHead = tail
+              }
+            }
+          }
+          a
+        }
+      override def shutdown: ZSTM[Any, E, Unit] =
+        ZSTM.Effect((journal, _, _) => unsafeShutdown(journal, null.asInstanceOf[E]))
+      override def shutdown[E1 >: E](e1: E1): ZSTM[Any, E1, Unit] =
+        ZSTM.Effect((journal, _, _) => unsafeShutdown(journal, e1))
+
+      private def unsafeShutdown[E1 >: E](journal: Journal, e: E1): Unit = {
+        val subError = subscriberShutdownRef.unsafeGet(journal)
+        if (subError.isEmpty) {
+          subscriberShutdownRef.unsafeSet(journal, Some(e))
           var currentSubscriberHead = subscriberHead.unsafeGet(journal)
           if (currentSubscriberHead ne null) {
             subscriberHead.unsafeSet(journal, null)
@@ -325,15 +373,15 @@ object THub {
                 val head = node.head
                 val tail = node.tail
                 if (head != null) {
-                  val subscribers = node.subscribers
-                  if (subscribers == 1) {
+                  val currentSubscribers = node.subscribers
+                  if (currentSubscribers == 1) {
                     val size        = hubSize.unsafeGet(journal)
                     val updatedNode = node.copy(head = null.asInstanceOf[A], subscribers = 0)
                     currentSubscriberHead.unsafeSet(journal, updatedNode)
                     publisherHead.unsafeSet(journal, tail)
                     hubSize.unsafeSet(journal, size - 1)
                   } else {
-                    val updatedNode = node.copy(subscribers = subscribers - 1)
+                    val updatedNode = node.copy(subscribers = currentSubscribers - 1)
                     currentSubscriberHead.unsafeSet(journal, updatedNode)
                   }
                 }
@@ -345,104 +393,100 @@ object THub {
             subscribers.unsafeSet(journal, subscribers.unsafeGet(journal) - subscriberHead)
           }
         }
-      override def size: USTM[Int] =
+      }
+      override def size: ZSTM[Any, E, Int] =
         ZSTM.Effect { (journal, fiberId, _) =>
+          checkShutdown(journal, fiberId)
           var currentSubscriberHead = subscriberHead.unsafeGet(journal)
-          if (currentSubscriberHead eq null) throw ZSTM.InterruptException(fiberId)
-          else {
-            var loop = true
-            var size = 0
-            while (loop) {
-              val node = currentSubscriberHead.unsafeGet(journal)
-              if (node eq null) loop = false
-              else {
-                val head = node.head
-                val tail = node.tail
-                if (head != null) {
-                  size += 1
-                  if (size == Int.MaxValue) {
-                    loop = false
-                  }
-                }
-                currentSubscriberHead = tail
-              }
-            }
-            size
-          }
-        }
-      override def take: ZSTM[Any, Nothing, A] =
-        ZSTM.Effect { (journal, fiberId, _) =>
-          var currentSubscriberHead = subscriberHead.unsafeGet(journal)
-          if (currentSubscriberHead eq null) throw ZSTM.InterruptException(fiberId)
-          else {
-            var a    = null.asInstanceOf[A]
-            var loop = true
-            while (loop) {
-              val node = currentSubscriberHead.unsafeGet(journal)
-              if (node eq null) throw ZSTM.RetryException
-              else {
-                val head = node.head
-                val tail = node.tail
-                if (head != null) {
-                  val subscribers = node.subscribers
-                  if (subscribers == 1) {
-                    val size        = hubSize.unsafeGet(journal)
-                    val updatedNode = node.copy(head = null.asInstanceOf[A], subscribers = 0)
-                    currentSubscriberHead.unsafeSet(journal, updatedNode)
-                    publisherHead.unsafeSet(journal, tail)
-                    hubSize.unsafeSet(journal, size - 1)
-                  } else {
-                    val updatedNode = node.copy(subscribers = subscribers - 1)
-                    currentSubscriberHead.unsafeSet(journal, updatedNode)
-                  }
-                  subscriberHead.unsafeSet(journal, tail)
-                  a = head
+          var loop = true
+          var size = 0
+          while (loop) {
+            val node = currentSubscriberHead.unsafeGet(journal)
+            if (node eq null) loop = false
+            else {
+              val head = node.head
+              val tail = node.tail
+              if (head != null) {
+                size += 1
+                if (size == Int.MaxValue) {
                   loop = false
-                } else {
-                  currentSubscriberHead = tail
                 }
               }
+              currentSubscriberHead = tail
             }
-            a
           }
+          size
         }
-      override def takeAll: ZSTM[Any, Nothing, Chunk[A]] =
-        takeUpTo(Int.MaxValue)
-      override def takeUpTo(max: Int): ZSTM[Any, Nothing, Chunk[A]] =
+      override def take: ZSTM[Any, E, A] =
         ZSTM.Effect { (journal, fiberId, _) =>
+          checkShutdown(journal, fiberId)
           var currentSubscriberHead = subscriberHead.unsafeGet(journal)
-          if (currentSubscriberHead eq null) throw ZSTM.InterruptException(fiberId)
-          else {
-            val builder = ChunkBuilder.make[A]()
-            var n       = 0
-            while (n != max) {
-              val node = currentSubscriberHead.unsafeGet(journal)
-              if (node eq null) {
-                n = max
-              } else {
-                val head = node.head
-                val tail = node.tail
-                if (head != null) {
-                  val subscribers = node.subscribers
-                  if (subscribers == 1) {
-                    val size        = hubSize.unsafeGet(journal)
-                    val updatedNode = node.copy(head = null.asInstanceOf[A], subscribers = 0)
-                    currentSubscriberHead.unsafeSet(journal, updatedNode)
-                    publisherHead.unsafeSet(journal, tail)
-                    hubSize.unsafeSet(journal, size - 1)
-                  } else {
-                    val updatedNode = node.copy(subscribers = subscribers - 1)
-                    currentSubscriberHead.unsafeSet(journal, updatedNode)
-                  }
-                  builder += head
-                  n += 1
+          var a    = null.asInstanceOf[A]
+          var loop = true
+          while (loop) {
+            val node = currentSubscriberHead.unsafeGet(journal)
+            if (node eq null) throw ZSTM.RetryException
+            else {
+              val head = node.head
+              val tail = node.tail
+              if (head != null) {
+                val currentSubscribers = node.subscribers
+                if (currentSubscribers == 1) {
+                  val size        = hubSize.unsafeGet(journal)
+                  val updatedNode = node.copy(head = null.asInstanceOf[A], subscribers = 0)
+                  currentSubscriberHead.unsafeSet(journal, updatedNode)
+                  publisherHead.unsafeSet(journal, tail)
+                  hubSize.unsafeSet(journal, size - 1)
+                } else {
+                  val updatedNode = node.copy(subscribers = currentSubscribers - 1)
+                  currentSubscriberHead.unsafeSet(journal, updatedNode)
                 }
+                subscriberHead.unsafeSet(journal, tail)
+                a = head
+                loop = false
+              } else {
                 currentSubscriberHead = tail
               }
             }
-            subscriberHead.unsafeSet(journal, currentSubscriberHead)
-            builder.result()
           }
+          a
+        }
+      override def takeAll: ZSTM[Any, E, Chunk[A]] =
+        takeUpTo(Int.MaxValue)
+      override def takeUpTo(max: Int): ZSTM[Any, E, Chunk[A]] =
+        ZSTM.Effect { (journal, fiberId, _) =>
+          checkShutdown(journal, fiberId)
+          var currentSubscriberHead = subscriberHead.unsafeGet(journal)
+          val builder = ChunkBuilder.make[A]()
+          var n       = 0
+          while (n != max) {
+            val node = currentSubscriberHead.unsafeGet(journal)
+            if (node eq null) {
+              n = max
+            } else {
+              val head = node.head
+              val tail = node.tail
+              if (head != null) {
+                val currentSubscribers = node.subscribers
+                if (currentSubscribers == 1) {
+                  val size        = hubSize.unsafeGet(journal)
+                  val updatedNode = node.copy(head = null.asInstanceOf[A], subscribers = 0)
+                  currentSubscriberHead.unsafeSet(journal, updatedNode)
+                  publisherHead.unsafeSet(journal, tail)
+                  hubSize.unsafeSet(journal, size - 1)
+                } else {
+                  val updatedNode = node.copy(subscribers = currentSubscribers - 1)
+                  currentSubscriberHead.unsafeSet(journal, updatedNode)
+                }
+                subscriberHead.unsafeSet(journal, tail)
+                builder += head
+                n += 1
+              }
+              currentSubscriberHead = tail
+            }
+          }
+          subscriberHead.unsafeSet(journal, currentSubscriberHead)
+          builder.result()
         }
     }
 
