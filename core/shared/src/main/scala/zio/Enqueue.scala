@@ -69,6 +69,12 @@ sealed trait Enqueue[-A] extends Serializable {
   def shutdown(implicit trace: Trace): UIO[Unit]
 
   /**
+   * Shuts down the queue with a specific cause. Future calls to `offer*` and `take*`
+   * will fail with the specified cause.
+   */
+  def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[Any]]
+
+  /**
    * Retrieves the size of the queue. This may be negative if fibers are
    * suspended waiting for elements to be added to the queue or greater than the
    * capacity if fibers are suspended waiting to add elements to the queue.

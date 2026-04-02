@@ -464,6 +464,15 @@ object QueueSpec extends ZIOBaseSpec {
         res    <- f.join.sandbox.either
       } yield assert(res.left.map(_.untraced))(isLeft(equalTo(Cause.interrupt(selfId))))
     },
+    test("shutdownCause with take fiber") {
+      for {
+        queue  <- Queue.bounded[Int](3)
+        f      <- queue.take.fork
+        _      <- waitForSize(queue, -1)
+        _      <- queue.shutdownCause(Cause.fail("die"))
+        res    <- f.join.sandbox.either
+      } yield assert(res.left.map(_.untraced))(isLeft(equalTo(Cause.fail("die"))))
+    },
     test("shutdown with offer fiber") {
       for {
         selfId <- ZIO.fiberId
