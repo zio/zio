@@ -460,7 +460,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
               } else {
                 // Safety net: after a park, if we still have no work and no wake-up,
                 // use a timed park to periodically re-check
-                LockSupport.parkNanos(10_000_000L) // 10ms
+                LockSupport.parkNanos(10000000L) // 10ms
               }
             }
 
