@@ -166,6 +166,16 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     ZIO.succeed(unsafe.succeed(a)(trace, Unsafe))
 
   /**
+   * Links this promise to the specified fiber, completing the promise when the
+   * fiber completes. This avoids unnecessary allocations and indirection when
+   * a fiber's result is used to complete a promise.
+   *
+   * If the promise has already been completed, the method will produce false.
+   */
+  def become(fiber: Fiber[E, A])(implicit trace: Trace): UIO[Boolean] =
+    fiber.await.intoPromise(this)
+
+  /**
    * Internally, you can use this method instead of calling
    * `myPromise.succeed(())`
    *
