@@ -159,9 +159,9 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
   }
 
   /**
-   * Attempts to execute a pending task on the current worker thread.
-   * Checks `nextRunnable`, then local queue, then global queue.
-   * If the task is a [[FiberRunnable]], runs it with the given depth.
+   * Attempts to execute a pending task on the current worker thread. Checks
+   * `nextRunnable`, then local queue, then global queue. If the task is a
+   * [[FiberRunnable]], runs it with the given depth.
    */
   override def stealWork(depth: Int): Boolean = {
     val worker = currentWorker()
@@ -223,9 +223,9 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
   }
 
   /**
-   * Submits a task and signals that the current fiber is willing to yield.
-   * On a non-blocking worker with empty queues, the task is placed directly
-   * into `nextRunnable` for immediate execution (bypassing the queue).
+   * Submits a task and signals that the current fiber is willing to yield. On a
+   * non-blocking worker with empty queues, the task is placed directly into
+   * `nextRunnable` for immediate execution (bypassing the queue).
    */
   override def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
     if (shutdown) return false
