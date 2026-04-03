@@ -80,7 +80,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
   private[this] val workers     = Array.ofDim[NioScheduler.Worker](poolSize)
   private[this] val state       = new AtomicInteger(poolSize << 16)
 
-  @volatile private[this] var shutdown                            = false
+  @volatile private[this] var _shutdown                          = false
   @volatile private[this] var supervisor: NioScheduler.Supervisor = _
 
   // Initialize workers
@@ -204,7 +204,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
    * routes to the least-loaded worker via [[submitToLeastLoaded]].
    */
   def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
-    if (shutdown) return false
+    if (_shutdown) return false
 
     val worker = currentWorker()
 
@@ -229,7 +229,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
    * `nextRunnable` for immediate execution (bypassing the queue).
    */
   override def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
-    if (shutdown) return false
+    if (_shutdown) return false
 
     val worker = currentWorker()
 
@@ -338,7 +338,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
     new NioScheduler.Supervisor {
       override def run(): Unit = {
         val previousOpCounts = Array.fill(poolSize)(-1L)
-        while (!isInterrupted && !shutdown) {
+        while (!isInterrupted && !_shutdown) {
           var workerId = 0
           while (workerId < poolSize) {
             val currentWorker = workers(workerId)
@@ -372,7 +372,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
         var runnable: Runnable = null
         var searching          = false
 
-        while (!isInterrupted && !shutdown) {
+        while (!isInterrupted && !_shutdown) {
           // Try to get from nextRunnable first
           if (nextRunnable ne null) {
             runnable = nextRunnable
@@ -448,7 +448,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
             // Park until woken up. Use parkNanos with a timeout as a safety net
             // against missed unparks that could leave tasks stranded.
             var parked = false
-            while (!active && !isInterrupted && !shutdown) {
+            while (!active && !isInterrupted && !_shutdown) {
               // Double-check for work to avoid race condition
               if (!globalQueue.isEmpty || !localQueue.isEmpty()) {
                 // Found work, don't park - increment state to become active again
@@ -512,7 +512,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
    * Shuts down the scheduler gracefully.
    */
   def shutdown(): Unit = {
-    this.shutdown = true
+    this._shutdown = true
     if (supervisor ne null) {
       supervisor.interrupt()
     }
