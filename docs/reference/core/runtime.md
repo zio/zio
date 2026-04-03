@@ -277,6 +277,84 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
+### Enabling the NIO Scheduler
+
+ZIO 2.1 introduces an alternative scheduler implementation called **NioScheduler** that uses a **least-loaded scheduling** algorithm instead of the default work-stealing approach.
+
+The NioScheduler assigns new tasks to the worker with the least workload, which can provide better performance in certain scenarios:
+
+- **Low-latency workloads** where task distribution matters
+- **Scenarios with uneven task durations** where work-stealing overhead is noticeable  
+- **Applications where predictable load balancing** is preferred
+
+#### Using the NIO Scheduler
+
+To enable the NIO scheduler for your application:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  override val bootstrap = 
+    Runtime.enableNioScheduler
+
+  override def run = ZIO.attempt {
+    println(s"Running on NIO scheduler: ${Thread.currentThread().getName()}")
+  }
+}
+```
+
+You can also enable it with automatic blocking detection:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  // Enables NIO scheduler with auto-blocking detection
+  // The scheduler will spawn replacement workers when blocking is detected
+  override val bootstrap = 
+    Runtime.enableNioSchedulerWithAutoBlocking
+
+  override def run = ZIO.attempt {
+    println(s"Running on NIO scheduler with auto-blocking")
+  }
+}
+```
+
+#### Programmatic Usage
+
+You can also create an NIO scheduler directly for use with specific effects:
+
+```scala mdoc:compile-only
+import zio._
+
+val nioExecutor = Executor.makeNio()
+
+val program = for {
+  _ <- ZIO.log("Running on NIO scheduler")
+} yield ()
+
+// Run a specific effect on the NIO scheduler
+Unsafe.unsafe { implicit unsafe =>
+  program.onExecutor(nioExecutor)
+}
+```
+
+#### When to Use NIO Scheduler
+
+Consider using the NIO scheduler when:
+
+1. **Your workload has variable task durations** - The least-loaded algorithm handles uneven work better
+2. **You experience work-stealing overhead** - NIO scheduler eliminates the need for workers to steal from each other
+3. **You want simpler load balancing semantics** - Tasks are always assigned to the least busy worker
+
+The default work-stealing scheduler (ZScheduler) may perform better when:
+- Tasks are uniform in duration
+- Workloads benefit from locality (related tasks on the same worker)
+- Cache warmth is important for your workload
+
 ## Top-level Runtime Configuration
 
 When we write a ZIO application using the `ZIOAppDefault` trait, a default top-level runtime is created and used to run the application automatically under the hood. Further, we can customize the rest of the ZIO application by providing locally scoped configuration layers using [`provideXYZ` operations](#configuring-runtime-by-providing-configuration-layers) or [`bootstrap` layer](#configuring-runtime-using-bootstrap-layer).

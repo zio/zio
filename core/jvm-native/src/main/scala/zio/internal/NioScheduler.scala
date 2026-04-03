@@ -19,21 +19,22 @@ package zio.internal
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.LockSupport
 import java.util.concurrent.ConcurrentLinkedQueue
 import scala.concurrent.BlockContext
 import scala.concurrent.CanAwait
 
 /**
- * A `NioScheduler` is an `Executor` that uses a Least-Loaded scheduling algorithm.
+ * A `NioScheduler` is an `Executor` that uses a Least-Loaded scheduling
+ * algorithm.
  *
- * Unlike the work-stealing scheduler (ZScheduler), this scheduler assigns new tasks
- * to the worker with the least workload. This approach:
- * - Eliminates the complexity of work-stealing
- * - Reduces contention on shared queues
- * - Provides natural load balancing
- * - Is simpler to implement and maintain
+ * Unlike the work-stealing scheduler (ZScheduler), this scheduler assigns new
+ * tasks to the worker with the least workload. This approach:
+ *   - Eliminates the complexity of work-stealing
+ *   - Reduces contention on shared queues
+ *   - Provides natural load balancing
+ *   - Is simpler to implement and maintain
  *
  * Inspired by the Nio async runtime for Rust.
  * [[https://nurmohammed840.github.io/posts/announcing-nio/]]
@@ -56,6 +57,13 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
     workers(workerId) = worker
   }
   workers.foreach(_.start())
+
+  if (autoBlocking) {
+    val supervisor = makeSupervisor()
+    supervisor.setName("NioScheduler-Supervisor")
+    supervisor.setDaemon(true)
+    supervisor.start()
+  }
 
   override private[zio] def isCurrentThreadInExecutor: Boolean =
     Thread.currentThread().isInstanceOf[NioScheduler.Worker]
@@ -194,15 +202,16 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
   }
 
   /**
-   * Submits a runnable to the worker with the least workload.
-   * This is the core of the Least-Loaded scheduling algorithm.
+   * Submits a runnable to the worker with the least workload. This is the core
+   * of the Least-Loaded scheduling algorithm.
    */
   private def submitToLeastLoaded(runnable: Runnable): Unit = {
     var leastLoadedWorker: NioScheduler.Worker = null
     var minLoad                                = Int.MaxValue
+    var found                                  = false
 
     var i = 0
-    while (i < poolSize) {
+    while (i < poolSize && !found) {
       val worker = workers(i)
       if (!worker.blocking) {
         val load = worker.localQueue.size()
@@ -210,7 +219,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
           minLoad = load
           leastLoadedWorker = worker
           // Early exit if we find an empty worker
-          if (load == 0) i = poolSize // break
+          found = load == 0
         }
       }
       i += 1
@@ -220,6 +229,8 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
       if (!leastLoadedWorker.localQueue.offer(runnable)) {
         globalQueue.offer(runnable)
       }
+      // Wake up the specific worker that received the task
+      unparkWorker(leastLoadedWorker)
     } else {
       // All workers are busy or blocking, use global queue
       globalQueue.offer(runnable)
@@ -232,9 +243,19 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
       case _                      => null
     }
 
+  /**
+   * Wakes up a specific worker if it is idle.
+   */
+  private def unparkWorker(worker: NioScheduler.Worker): Unit =
+    if (!worker.active && !worker.blocking) {
+      state.getAndAdd(0x10001)
+      worker.active = true
+      LockSupport.unpark(worker)
+    }
+
   private def maybeUnparkWorker(): Unit = {
-    val currentState   = state.get
-    val currentActive  = (currentState & 0xffff0000) >> 16
+    val currentState     = state.get
+    val currentActive    = (currentState & 0xffff0000) >> 16
     val currentSearching = currentState & 0xffff
 
     if (currentActive < poolSize && currentSearching == 0) {
@@ -253,18 +274,43 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
     }
   }
 
+  private def makeSupervisor(): NioScheduler.Supervisor =
+    new NioScheduler.Supervisor {
+      override def run(): Unit = {
+        val previousOpCounts = Array.fill(poolSize)(-1L)
+        while (!isInterrupted && !shutdown) {
+          var workerId = 0
+          while (workerId < poolSize) {
+            val currentWorker = workers(workerId)
+            if (currentWorker.active) {
+              val currentOpCount  = currentWorker.opCount
+              val previousOpCount = previousOpCounts(workerId)
+              if (currentOpCount == previousOpCount) {
+                currentWorker.markAsBlocking()
+              } else {
+                previousOpCounts(workerId) = currentOpCount
+              }
+            } else {
+              previousOpCounts(workerId) = -1L
+            }
+            workerId += 1
+          }
+          Thread.sleep(100)
+        }
+      }
+    }
+
   private def makeWorker(): NioScheduler.Worker =
     new NioScheduler.Worker {
       self =>
-
       final override def run(): Unit = {
         val globalQueue = parent.globalQueue
         val workers     = parent.workers
         val state       = parent.state
 
-        var currentOpCount = 0L
+        var currentOpCount     = 0L
         var runnable: Runnable = null
-        var searching = false
+        var searching          = false
 
         while (!isInterrupted && !shutdown) {
           // Try to get from nextRunnable first
@@ -280,11 +326,11 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
               runnable = globalQueue.poll()
             }
 
-            // If still empty and we're searching, try to help other workers
+            // If still empty and not yet searching, become a searching worker
             if ((runnable eq null) && !searching) {
-              val currentState = state.get
-              val currentActive = currentState & 0xffff
-              if (2 * currentActive < poolSize) {
+              val currentState     = state.get
+              val currentSearching = currentState & 0xffff
+              if (2 * currentSearching < poolSize) {
                 state.getAndIncrement()
                 searching = true
               }
@@ -296,11 +342,11 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
               while (i < poolSize && (runnable eq null)) {
                 val otherWorker = workers(i)
                 if ((otherWorker ne self) && !otherWorker.blocking) {
-                  val size = otherWorker.localQueue.size()
-                  if (size > 1) {
+                  val sz = otherWorker.localQueue.size()
+                  if (sz > 1) {
                     // Steal half of the tasks
-                    val toSteal = size / 2
-                    val stolen = otherWorker.localQueue.pollUpTo(toSteal)
+                    val toSteal = sz / 2
+                    val stolen  = otherWorker.localQueue.pollUpTo(toSteal)
                     if (!stolen.isEmpty) {
                       val iter = stolen.iterator
                       runnable = iter.next()
@@ -339,15 +385,22 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
               }
             }
 
-            // Park until woken up, but double-check for work before parking
+            // Park until woken up. Use parkNanos with a timeout as a safety net
+            // against missed unparks that could leave tasks stranded.
+            var parked = false
             while (!active && !isInterrupted && !shutdown) {
               // Double-check for work to avoid race condition
               if (!globalQueue.isEmpty || !localQueue.isEmpty()) {
                 // Found work, don't park - increment state to become active again
                 state.getAndAdd(0x10001)
                 active = true
-              } else {
+              } else if (!parked) {
                 LockSupport.park()
+                parked = true
+              } else {
+                // Safety net: after a park, if we still have no work and no wake-up,
+                // use a timed park to periodically re-check
+                LockSupport.parkNanos(10_000_000L) // 10ms
               }
             }
 
@@ -384,7 +437,8 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
           }
           runnables.foreach(globalQueue.offer)
 
-          // Spawn a replacement worker
+          // Spawn a replacement worker and increment state to account for it
+          state.getAndAdd(0x10001)
           val newWorker = makeWorker()
           newWorker.setName(idx)
           newWorker.setDaemon(true)
@@ -407,14 +461,21 @@ private object NioScheduler {
   private val poolSize: Int = java.lang.Runtime.getRuntime.availableProcessors
 
   /**
-   * Marks the current worker as blocking if the current thread is a NioScheduler worker.
+   * Marks the current worker as blocking if the current thread is a
+   * NioScheduler worker.
    */
-  def markCurrentWorkerAsBlocking(): Unit = {
+  def markCurrentWorkerAsBlocking(): Unit =
     Thread.currentThread() match {
       case w: NioScheduler.Worker => w.markAsBlocking()
       case _                      => ()
     }
-  }
+
+  /**
+   * A `Supervisor` is a thread that monitors workers for blocking operations.
+   * If a worker's opCount hasn't changed since the last check, it is marked as
+   * blocking.
+   */
+  private abstract class Supervisor extends Thread
 
   /**
    * A `Worker` is a `Thread` that executes tasks submitted to the scheduler.
