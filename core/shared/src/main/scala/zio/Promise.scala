@@ -36,6 +36,28 @@ import java.util.concurrent.atomic.AtomicReference
  *   value   <- promise.await // Resumes when forked fiber completes promise
  * } yield value
  * }}}
+ *
+ * ==Relationship with Fiber.Runtime==
+ *
+ * While both `Promise` and [[Fiber.Runtime]] share superficial similarities
+ * (single completion semantics, observer pattern for awaiters, `await` and
+ * `poll` methods), they serve fundamentally different purposes:
+ *
+ *   - '''Promise''' is a ''data structure'' - a write-once async cell that can
+ *     be completed externally. It stores an `IO[E, A]` effect and completes via
+ *     explicit calls like `succeed`, `fail`, or `complete`.
+ *
+ *   - '''Fiber.Runtime''' is an ''actor'' - an effect executor with its own
+ *     runloop, stack, children, and FiberRefs. It stores an `Exit[E, A]` result
+ *     and completes itself internally when its runloop finishes.
+ *
+ * For this reason, the two types remain separate and cannot be merged without
+ * significant performance regression and API confusion.
+ *
+ * @see
+ *   [[Fiber.Runtime]] for the fiber abstraction
+ * @see
+ *   [[zio.ZIO#intoPromise]] for completing a promise with an effect
  */
 final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
   import Promise.internal._
