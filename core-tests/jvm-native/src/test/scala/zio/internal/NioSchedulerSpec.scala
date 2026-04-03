@@ -187,11 +187,13 @@ object NioSchedulerSpec extends ZIOBaseSpec {
       },
       test("interruption works correctly") {
         for {
-          ref <- Ref.make(false)
-          fiber <- (ZIO.never)
+          started <- Promise.make[Nothing, Unit]
+          ref     <- Ref.make(false)
+          fiber <- (started.succeed(()) *> ZIO.never)
                      .onInterrupt(ref.set(true))
                      .fork
                      .provide(Runtime.enableNioScheduler(Trace.empty))
+          _       <- started.await // Wait for fiber to start
           _       <- fiber.interrupt
           outcome <- ref.get
         } yield assert(outcome)(isTrue)

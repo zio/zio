@@ -80,7 +80,8 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
   private[this] val workers     = Array.ofDim[NioScheduler.Worker](poolSize)
   private[this] val state       = new AtomicInteger(poolSize << 16)
 
-  @volatile private[this] var shutdown = false
+  @volatile private[this] var shutdown                            = false
+  @volatile private[this] var supervisor: NioScheduler.Supervisor = _
 
   // Initialize workers
   (0 until poolSize).foreach { workerId =>
@@ -92,7 +93,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
   workers.foreach(_.start())
 
   if (autoBlocking) {
-    val supervisor = makeSupervisor()
+    supervisor = makeSupervisor()
     supervisor.setName("NioScheduler-Supervisor")
     supervisor.setDaemon(true)
     supervisor.start()
@@ -512,6 +513,9 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
    */
   def shutdown(): Unit = {
     this.shutdown = true
+    if (supervisor ne null) {
+      supervisor.interrupt()
+    }
     workers.foreach(_.interrupt())
   }
 }
