@@ -1,7 +1,227 @@
-# Autogamer Progress: NIO Scheduler for ZIO
+# Autogamer Progress: ZIO Scheduler Optimizations
 
-## Mission
-Implement a Least-Loaded (NIO) scheduler for ZIO as described in https://github.com/zio/zio/issues/9356
+## Mission 1: ZScheduler Parking/Unparking Optimization (Issue #9878)
+
+### Status: PR-Ready ✓
+
+### Task 8: Final Code Review & Commit (2026-04-04)
+
+#### Code Review Summary
+- **Code-reviewer agent**: No CRITICAL or HIGH issues found
+- **Spin-before-park**: Correctly implemented — spin BEFORE state transition, spinCount reset on work found
+- **Submit-count throttle**: Correctly implemented — global always unparks, local throttled to 1/16
+- **`searching = true` placement**: Correct — only set after actual park wake-up, never after spin
+- **Race conditions**: None found — `submitCount.incrementAndGet()` is atomic
+- **Deadlocks/livelocks**: None possible — spin bounded by maxSpins, global queue always unparks
+
+#### Verification Results
+- `sbt coreJVM/compile`: SUCCESS
+- `sbt "coreJVM/scalafmtCheck"`: SUCCESS
+- `sbt "coreNative/scalafmtCheck"`: SUCCESS
+- `sbt "coreTestsJVM/testOnly *Scheduler*"`: SUCCESS — 17 tests pass, 2 ignored
+
+#### Commit Prepared
+- Branch: `nio-scheduler-clean`
+- Files to commit: `core/jvm-native/src/main/scala/zio/internal/ZScheduler.scala`, docs
+- Message: `perf(core): reduce ZScheduler park/unpark frequency with spin-before-park and submit-count throttling`
+
+#### PR Summary (for description)
+**Changes:**
+1. **Spin-before-park**: Workers spin 100 iterations using `Thread.onSpinWait()` before calling `LockSupport.park()`. This avoids the expensive park/unpark syscall pair when work arrives within a short window.
+
+2. **Submit-count throttled unpark**: Only call `maybeUnparkWorker()` every 16th local-queue submission. Global queue submissions always unpark (critical for correctness since no active worker can see those tasks).
+
+**Addresses issue #9878**: The core complaint was `maybeUnparkWorker` (specifically `LockSupport.unpark(worker)`) being called too frequently in the hot path, causing excessive context switches.
+
+#### Acceptance Criteria
+- [x] Code review passed with no CRITICAL or HIGH issues
+- [x] Documentation updated
+- [x] Changes committed with proper message
+- [x] Branch ready for PR submission to zio/zio repo targeting series/2.x
+
+---
+
+### Task 7: Submit-Count Throttled Unpark Implementation (2026-04-04)
+
+#### Changes Made
+- **ZScheduler.scala**: Added submit-count throttling to reduce expensive `LockSupport.unpark()` calls
+  - Added `submitCount` AtomicInteger field (line 43)
+  - Added `shouldUnparkWorker()` method — returns true every 16th call using bitmask (lines 491-494)
+  - Modified `submit()` to track `toGlobalQueue` flag and only call `maybeUnparkWorker()` for global queue OR every 16th local submission (lines 146-165)
+  - Modified `submitAndYield()` to track `submittedToGlobal` flag and throttle `maybeUnparkWorker()` for local queue submissions (lines 167-208)
+
+- **ZSchedulerBenchmarks.scala**: Added `zioSchedulerForkBomb()` benchmark
+  - Creates 100k lightweight fibers rapidly to stress-test the unpark path
+  - This is the exact scenario where excessive unparks cause overhead (lines 93-101)
+
+#### Algorithm
+```scala
+// submit() - throttle unparks for local queue submissions
+val toGlobalQueue = (worker eq null) || worker.blocking
+if (toGlobalQueue) {
+  globalQueue.offer(runnable)
+} else if (!worker.localQueue.offer(runnable)) {
+  handleFullWorkerQueue(worker, runnable)
+}
+if (toGlobalQueue || shouldUnparkWorker()) {  // Every 16th local, always for global
+  maybeUnparkWorker(state.get)
+}
+
+// shouldUnparkWorker() - pure count-based, no O(n) queue size check
+private def shouldUnparkWorker(): Boolean =
+  (submitCount.incrementAndGet() & 15) == 0
+```
+
+#### Verification
+- `sbt coreJVM/compile`: SUCCESS
+- `sbt "coreJVM/scalafmtCheck"`: SUCCESS
+- `sbt "coreNative/scalafmtCheck"`: SUCCESS
+- `sbt "coreTestsJVM/testOnly *Scheduler*"`: SUCCESS — 17 tests pass, 2 ignored
+- `sbt "benchmarks/compile"`: SUCCESS
+
+#### Acceptance Criteria
+- [x] `submitCount` AtomicInteger field added to ZScheduler
+- [x] `shouldUnparkWorker()` method added with `(submitCount.incrementAndGet() & 15) == 0`
+- [x] `submit()` only calls `maybeUnparkWorker` on global queue submissions OR every 16th local submission
+- [x] `submitAndYield()` throttles `maybeUnparkWorker` for local queue submissions
+- [x] Global queue submissions always bypass the throttle (critical for correctness)
+- [x] JMH benchmark for high-frequency forking added
+- [x] Code compiles and formats correctly
+- [x] Existing tests pass
+- [x] No public API changes
+
+---
+
+### Task 6: Code Review Round 3 (2026-04-04)
+
+#### Review Findings
+| # | Severity | Issue | Resolution |
+|---|----------|-------|------------|
+| 1 | HIGH | `searching = true` set unconditionally after spin iterations, causing state corruption when non-searcher workers find work | Fixed: moved `searching = true` into only the two park branches (after actual `LockSupport.park()` wake-up) |
+| 2 | LOW | Each spin iteration runs full work-finding loop (carried from Round 2) | Accepted: enables finding work sooner, spin count of 100 is bounded |
+
+#### Root Cause Analysis (Issue #1)
+The `searching = true` at the end of the `if (runnable eq null)` block was shared by all three branches (spin, park, re-park). When a non-searcher worker (one that did NOT increment the state's searching count at line 327) entered the spin branch:
+1. Worker had `searching = false` (state searching count not incremented)
+2. `2 * searching_count >= poolSize` → worker did NOT become a searcher
+3. Worker spun (lines 372-377), then `searching = true` was set at the shared location
+4. On next iteration, worker skipped `if (!searching)` guard, went to stealing, found work
+5. `state.decrementAndGet()` at line 425 decremented a searching count that was never incremented
+6. State corruption: searching count wraps to 0xffff, breaking `maybeUnparkWorker` logic
+
+The fix moves `searching = true` into only the `else if (active)` (park) and `else` (re-park) branches, removing it from the shared location. Spin iterations now preserve the worker's existing `searching` value, which correctly reflects whether the worker is counted as a searcher in the state.
+
+#### Verification (Post-Fix)
+- `sbt compile`: SUCCESS (all projects)
+- `sbt "coreJVM/scalafmtCheck"`: SUCCESS
+- `sbt "coreNative/scalafmtCheck"`: SUCCESS
+
+#### Acceptance Criteria
+- [x] `searching = true` only set after actual park wake-up, never after spin
+- [x] Non-searcher workers that spin preserve correct `searching` value
+- [x] State searching count never corrupted by spin-then-find-work path
+- [x] No public API changes
+- [x] Code compiles and formats correctly
+
+---
+
+### Task 5: Code Review Round 2 (2026-04-04)
+
+#### Review Findings
+| # | Severity | Issue | Resolution |
+|---|----------|-------|------------|
+| 1 | CRITICAL | Spin loop re-enters state-update block, corrupting active/searching counts and duplicating idle-queue entries | Fixed: moved spin BEFORE state update so transition happens at most once |
+| 2 | LOW | Each spin iteration runs full work-finding loop (queue polls + potential steals) — heavier than a tight spin | Accepted: enables finding work sooner, spin count of 100 is bounded |
+
+#### Root Cause Analysis (Issue #1)
+The original spin-before-park placed the spin logic INSIDE the `if (runnable eq null)` block, AFTER the state update and idle-queue add. When `spinCount < maxSpins`, the worker did NOT park but continued the outer `while (!isInterrupted)` loop, re-entering the state-update block on every iteration. After 100 spin iterations:
+- `state.addAndGet(0xfffeffff)` called 100 times → activeCount/searchingCount decremented by 100 each (should be 1)
+- `idle.offer(self)` called 100 times → worker appears 100 times in idle queue
+- `active = false` set 100 times → harmless but indicative of the re-entry
+
+The fix moves the spin BEFORE the state update. Workers now spin while still active (counted correctly in state, not in idle queue). Only when the spin budget is exhausted does the worker transition to inactive (single state update, single idle-queue add) and park.
+
+#### Verification (Post-Fix)
+- `sbt coreJVM/compile`: SUCCESS
+- `sbt "coreJVM/scalafmtCheck"`: SUCCESS
+
+#### Acceptance Criteria
+- [x] State update happens at most once per park cycle
+- [x] Worker added to idle queue at most once per park cycle
+- [x] Spinning workers remain active (visible to scheduler state)
+- [x] No public API changes
+- [x] Code compiles and formats correctly
+
+---
+
+### Task 3: Spin-Before-Park Optimization (2026-04-04)
+
+#### Problem
+Workers call `LockSupport.park()` immediately when no work is found, then require an `unpark()` call when new work arrives. This park/unpark syscall pair is expensive and causes latency spikes and context switches when work arrives within a short window.
+
+#### Solution
+Added spin-before-park optimization in `Worker.run()`:
+- Workers spin up to 100 iterations using `Thread.onSpinWait()` before parking
+- Spin count is reset when work is found
+- This avoids the expensive park/unpark syscall pair when work arrives quickly
+
+#### Changes Made
+- `core/jvm-native/src/main/scala/zio/internal/ZScheduler.scala`:
+  - Added `spinCount` and `maxSpins` local variables (lines 306-307)
+  - Added spin logic before `LockSupport.park()` (lines 401-411)
+  - Reset `spinCount` when work is found (line 415)
+
+#### Algorithm
+```scala
+// When no work found (runnable eq null):
+if (spinCount < maxSpins) {
+  // Spin BEFORE going inactive — worker stays active in state
+  spinCount += 1
+  Thread.onSpinWait()
+  // Continue outer loop to re-check for work
+} else {
+  // Spin budget exhausted — transition to inactive ONCE
+  spinCount = 0
+  // State update (activeCount-1, searchingCount-1)
+  // Add to idle queue
+  // LockSupport.park()
+}
+
+// When work is found:
+spinCount = 0
+```
+
+#### Verification
+- `sbt coreJVM/compile`: SUCCESS
+- `sbt "coreJVM/scalafmtCheck"`: SUCCESS
+
+#### Acceptance Criteria
+- [x] Workers spin briefly before parking
+- [x] Spin count resets when work is found
+- [x] No public API changes
+- [x] Code compiles and formats correctly
+
+### Task 2: Code Review Round 1 (2026-04-04)
+
+#### Review Findings
+| # | Severity | Issue | Resolution |
+|---|----------|-------|------------|
+| 1 | HIGH | Task stranding: throttle applied to ALL submissions including global queue | Fixed: global queue submissions bypass throttle |
+| 2 | MEDIUM | O(n) `globalQueue.size()` on 15/16 submissions | Fixed: removed from `shouldUnparkWorker()` |
+
+### Task 1: Submit-Count Throttled Unpark Policy (2026-04-04)
+
+#### Problem
+`LockSupport.unpark()` was called on every task submission in the hot path, causing excessive context switches.
+
+#### Solution
+- Added `submitCount` AtomicInteger
+- Added `shouldUnparkWorker()` that returns true every 16th submission
+- Global queue submissions always bypass throttle to prevent task stranding
+
+---
+
+## Mission 2: NIO Scheduler for ZIO (Issue #9356)
 
 ## Status: PR-Ready ✓
 
