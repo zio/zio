@@ -5,6 +5,25 @@ Implement a Least-Loaded (NIO) scheduler for ZIO as described in https://github.
 
 ## Status: PR-Ready, Verified Clean
 
+### Task 13: Final Verification & Test Fix (2026-04-03)
+
+#### Issue Found & Fixed
+- **Interruption test failure**: Test "interruption works correctly" was flaky because it didn't wait for the fiber to start before interrupting
+- **Fix**: Added `started` Promise to ensure fiber is running before interruption, following the pattern used in other ZIO tests (e.g., CancelableFutureSpec, FiberSpec)
+- **Additional fix**: Store supervisor as class field to properly interrupt it on shutdown
+
+#### Final Verification
+- `sbt coreTestsNative/testOnly *NioSchedulerSpec*`: SUCCESS — 17 tests pass (2 stress tests ignored), 0 failures
+- `sbt scalafmtCheckAll`: SUCCESS
+- All tests now pass reliably
+
+#### Acceptance Criteria
+- [x] All tests pass
+- [x] Formatting passes
+- [x] Branch is clean and ready for PR
+
+---
+
 ### Task 12: Final Documentation & PR Readiness (2026-04-03)
 
 #### ScalaDoc Review
