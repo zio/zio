@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 399 200">
+    <defs>
+        <style>
+            .cls-1{fill:#039147;}.cls-2{fill:#4d4e4f;}.cls-3,.cls-4,.cls-5,.cls-6{fill-rule:evenodd;}.cls-3{fill:url(#linear-gradient);}.cls-4{fill:url(#linear-gradient-2);}.cls-5{fill:url(#linear-gradient-3);}.cls-6{fill:url(#linear-gradient-4);}
+        </style>
+        <linearGradient id="linear-gradient" x1="46.14" y1="76.98" x2="69.82" y2="45.87"
+                        gradientTransform="matrix(1, 0, 0, -1, 0, 202)" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#018b45"></stop>
+            <stop offset="0.51" stop-color="#016a37"></stop>
+            <stop offset="1" stop-color="#1d4c36"></stop>
+        </linearGradient>
+        <linearGradient id="linear-gradient-2" x1="139.16" y1="150.86" x2="161.91" y2="121.62"
+                        gradientTransform="matrix(1, 0, 0, -1, 0, 202)" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#125936"></stop>
+            <stop offset="0.51" stop-color="#026837"></stop>
+            <stop offset="1" stop-color="#1f4b36"></stop>
+        </linearGradient>
+        <linearGradient id="linear-gradient-3" x1="175.07" y1="118.9" x2="183" y2="146.23"
+                        gradientTransform="matrix(1, 0, 0, -1, 0, 202)" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#016a37"></stop>
+            <stop offset="0.51" stop-color="#059046"></stop>
+            <stop offset="1" stop-color="#1ca54a"></stop>
+        </linearGradient>
+        <linearGradient id="linear-gradient-4" x1="87.9" y1="34.96" x2="125.92" y2="166.05"
+                        gradientTransform="matrix(1, 0, 0, -1, 0, 202)" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#006535"></stop>
+            <stop offset="0.51" stop-color="#039147"></stop>
+            <stop offset="1" stop-color="#19a14a"></stop>
+        </linearGradient>
+    </defs>
+    <g id="typo">
+        <path class="cls-1"
+              d="M263.38,124h8.11v29c0,2.79,1.91,2.74,3.59,2.74h14.53v6.79H272.18c-4.57,0-8.8-1.58-8.8-7.47V124Z"></path>
+        <path class="cls-1"
+              d="M308.4,124h9.21l13.78,38.53h-8.63l-3-8.53h-13.9l-3.06,8.53H294.1Zm9.44,23.48-4.75-13.79L308,147.52Z"></path>
+        <path class="cls-1"
+              d="M336.32,124h17.49c8.74,0,11.93,4.74,11.93,10.32,0,3.52-1.68,7.52-5.79,8.21,3.53.58,6.48,3.79,6.48,8.68,0,7.16-3.59,11.32-12.51,11.32h-17.6Zm17,15.27c2.95,0,4.46-1.64,4.46-4.37,0-3.58-2.38-4.37-4.46-4.37h-8.86v8.73h8.86Zm.35,16.73c2.43,0,4.69-1,4.69-5.1,0-2.85-1.28-5.42-4.69-5.42h-9.21V156Z"></path>
+        <path class="cls-2" d="M104,123.91h8.11v38.53H104Z"></path>
+        <path class="cls-2"
+              d="M118.64,123.91h18.53c6.66,0,11.58,2.79,11.58,12,0,9.53-4.4,10.68-6.78,11.37L150,162.44h-9.15l-7-14.58-7.12-.74v15.32h-8.11V123.91Zm17.78,17.42c2.78,0,4.17-.74,4.17-5.42,0-4.37-1.63-5.47-4.17-5.47h-9.61v10.89Z"></path>
+        <path class="cls-2" d="M153.22,123.91h31.33v6.79H172.79v31.74h-8.1V130.7H153.22v-6.79Z"></path>
+        <path class="cls-2"
+              d="M189.67,123.91h8.1v21.68c0,8.79,2.15,10.32,8.22,10.32,5.39,0,7.88-1.79,7.88-10.32V123.91H222v21.68c0,17-9,17.11-16,17.11-7.87,0-16.32.42-16.32-17.11V123.91Z"></path>
+        <path class="cls-2"
+              d="M227.58,133.54c0-7.63,5-9.84,11.47-9.95a71.47,71.47,0,0,1,16.38,1.53v5.79c-3.7-.32-12.1-.53-14.18-.53-3.53,0-5.56.16-5.56,3.74V136c0,3.06,1.27,3.69,4.51,3.69h6.72c8.34,0,10,6,10,10.21v2.58c0,8.74-6,10.37-11.7,10.37-7.24,0-12-.42-16.38-1.58v-5.79c2.31.21,9.38.58,14.76.58,2.43,0,5.21-.37,5.21-3.32V150.7c0-2.21-.69-3.63-3.82-3.63h-6.48c-10.25,0-10.95-6.85-10.95-10.21Z"></path>
+    </g>
+    <g id="symbol">
+        <path class="cls-3" d="M32.29,114l31.54,52.27h9.9l-20.2-49.5Z"></path>
+        <path class="cls-4" d="M159.67,79.92,110.58,45.45l40-10.69L175.52,81.5Z"></path>
+        <polygon class="cls-5" points="188.22 58.53 159.68 79.92 175.52 81.5 198.51 58.53 188.22 58.53"></polygon>
+        <path class="cls-6" d="M73.73,166.24,150.58,34.76l-40,10.69L63.83,166.24Z"></path>
+    </g>
+</svg>

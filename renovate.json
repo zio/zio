@@ -1,0 +1,45 @@
+{
+  "extends": [
+    "config:recommended",
+    ":disableDependencyDashboard"
+  ],
+  "includePaths": [
+    "website/package.json"
+  ],
+  "enabledManagers": [
+    "npm"
+  ],
+  "branchPrefix": "renovate/",
+  "automergeType": "pr",
+  "automerge": true,
+  "platformAutomerge": true,
+  "baseBranchPatterns": [
+    "series/2.x"
+  ],
+  "packageRules": [
+    {
+      "description": "Update Official ZIO Ecosystem Docs",
+      "matchBaseBranches": [
+        "series/2.x"
+      ],
+      "labels": [
+        "dependencies",
+        "documentation"
+      ],
+      "matchPackageNames": [
+        "^@zio\.dev\/.*"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "Disable patch updates for non-ZIO npm packages",
+      "matchPackageNames": [
+        "^(?!@zio\.dev\/)"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "enabled": false
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   version="1.1"
+   width="288.90927"
+   height="141.86414"
+   id="svg3362"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="Deutsche_Telekom.svg">
+  <metadata
+     id="metadata2999">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="640"
+     inkscape:window-height="480"
+     id="namedview2997"
+     showgrid="false"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     inkscape:zoom="0.46311557"
+     inkscape:cx="-114.95727"
+     inkscape:cy="70.932062"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs3364" />
+  <g
+     transform="translate(-449.88641,-505.46578)"
+     id="layer1">
+    <path
+       d="m 709.97094,570.75354 28.82473,0 0,28.82473 -28.82473,0 z m -86.46935,0 28.8199,0 0,28.82473 -28.8199,0 z m -86.47418,0 28.82473,0 0,28.82473 -28.82473,0 z m -18.34804,46.24869 c 0,9.14413 1.33452,15.07963 4.0132,17.81612 2.26435,2.3318 6.12337,3.7675 11.53374,4.30227 1.60433,0.13497 4.35527,0.19734 8.2384,0.19734 l 0,8.01195 -69.453,0 0,-8.01195 c 5.57898,0 9.68853,-0.26479 12.34796,-0.79976 5.38143,-1.13217 8.77315,-4.26854 10.16548,-9.40909 0.72749,-2.66425 1.09846,-6.70153 1.09846,-12.10706 l 0,-104.72395 c -11.78427,0.33263 -21.00065,4.23482 -27.65401,11.71201 -6.32091,7.15437 -10.17513,18.10518 -11.5771,32.85719 l -7.50609,-1.29598 1.39715,-50.08554 112.90929,0 1.40196,50.08554 -7.51573,1.29598 C 556.68195,542.09529 552.794,531.14448 546.449,523.99011 539.76194,516.51292 530.50219,512.61054 518.67937,512.2781 l 0,104.72395 z m -68.6561,-46.24869 28.82473,0 0,28.82473 -28.82473,0 z"
+       id="path108"
+       style="fill:#e2007a;fill-opacity:1;fill-rule:nonzero;stroke:none"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cccccccccccccccsccccccccscccccccccccsccccc" />
+  </g>
+</svg>

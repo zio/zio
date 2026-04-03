@@ -1,0 +1,239 @@
+{
+  "overview_sidebar": [
+    {
+      "type": "category",
+      "label": "Overview",
+      "collapsed": true,
+      "items": [
+        "overview/overview_index",
+        "overview/overview_creating_effects",
+        "overview/overview_basic_operations",
+        "overview/overview_handling_errors",
+        "overview/overview_handling_resources",
+        "overview/overview_basic_concurrency",
+        "overview/overview_testing_effects",
+        "overview/overview_running_effects",
+        "overview/overview_background",
+        "overview/overview_performance",
+        "overview/overview_platforms"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Reference",
+      "link": {
+        "type": "doc",
+        "id": "reference/index"
+      },
+      "collapsed": true,
+      "items": [
+        {
+          "type": "category",
+          "label": "Core Data Types",
+          "link": {
+            "type": "doc",
+            "id": "reference/core/index"
+          },
+          "collapsed": true,
+          "items": [
+            "reference/core/zio",
+            "reference/core/uio",
+            "reference/core/urio",
+            "reference/core/task",
+            "reference/core/rio",
+            "reference/core/io",
+            "reference/core/exit",
+            "reference/core/cause",
+            "reference/core/runtime"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Contextual Types",
+          "link": {
+            "type": "doc",
+            "id": "reference/contextual/index"
+          },
+          "collapsed": true,
+          "items": [
+            "reference/contextual/has",
+            "reference/contextual/zlayer",
+            "reference/contextual/rlayer",
+            "reference/contextual/ulayer",
+            "reference/contextual/layer",
+            "reference/contextual/urlayer",
+            "reference/contextual/tasklayer"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Fiber Primitives",
+          "link": {
+            "type": "doc",
+            "id": "reference/fiber/index"
+          },
+          "collapsed": true,
+          "items": [
+            "reference/fiber/fiber",
+            "reference/fiber/fiberref",
+            "reference/fiber/fiberid",
+            "reference/fiber/fiberstatus"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Concurrency Primitives",
+          "link": {
+            "type": "doc",
+            "id": "reference/concurrency/index"
+          },
+          "collapsed": true,
+          "items": [
+            "reference/concurrency/zref",
+            "reference/concurrency/ref",
+            "reference/concurrency/zrefm",
+            "reference/concurrency/refm",
+            "reference/concurrency/promise",
+            "reference/concurrency/queue",
+            "reference/concurrency/hub",
+            "reference/concurrency/semaphore"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "STM",
+          "link": {
+            "type": "doc",
+            "id": "reference/stm/index"
+          },
+          "collapsed": true,
+          "items": [
+            "reference/concurrency/zref",
+            "reference/concurrency/ref",
+            "reference/concurrency/zrefm",
+            "reference/concurrency/refm",
+            "reference/concurrency/promise",
+            "reference/concurrency/queue",
+            "reference/concurrency/hub",
+            "reference/concurrency/semaphore"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Resource Safety",
+          "link": {
+            "type": "doc",
+            "id": "reference/resource/index"
+          },
+          "collapsed": true,
+          "items": [
+            "reference/resource/zmanaged",
+            "reference/resource/managed",
+            "reference/resource/task-managed",
+            "reference/resource/rmanaged",
+            "reference/resource/umanaged",
+            "reference/resource/urmanaged"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Streaming",
+          "link": {
+            "type": "doc",
+            "id": "reference/stream/index"
+          },
+          "collapsed": true,
+          "items": [
+            "reference/stream/zstream",
+            "reference/stream/stream",
+            "reference/stream/ustream",
+            "reference/stream/ztransducer",
+            "reference/stream/transducer",
+            "reference/stream/zsink",
+            "reference/stream/sink",
+            "reference/stream/subscription-ref"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Miscellaneous",
+          "link": {
+            "type": "doc",
+            "id": "reference/misc/index"
+          },
+          "collapsed": true,
+          "items": [
+            "reference/misc/chunk",
+            "reference/misc/schedule",
+            "reference/misc/supervisor"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Services",
+      "link": {
+        "type": "doc",
+        "id": "reference/services/index"
+      },
+      "collapsed": true,
+      "items": [
+        "reference/services/console",
+        "reference/services/clock",
+        "reference/services/random",
+        "reference/services/blocking",
+        "reference/services/system"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Guides",
+      "link": {
+        "type": "doc",
+        "id": "guides/index"
+      },
+      "collapsed": true,
+      "items": [
+        {
+          "type": "category",
+          "label": "How to",
+          "link": {
+            "type": "doc",
+            "id": "guides/index"
+          },
+          "collapsed": true,
+          "items": [
+            "guides/use-test-assertions",
+            "guides/test-effects",
+            "guides/mock-services",
+            "guides/handle-errors",
+            "guides/access-system-information",
+            "guides/use-zio-macros"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Interop",
+          "link": {
+            "type": "doc",
+            "id": "guides/index"
+          },
+          "collapsed": true,
+          "items": [
+            "guides/interop/with-cats-effect",
+            "guides/interop/with-future",
+            "guides/interop/with-java",
+            "guides/interop/with-javascript",
+            "guides/interop/with-monix",
+            "guides/interop/with-scalaz-7x",
+            "guides/interop/with-reactive-streams",
+            "guides/interop/with-twitter",
+            "guides/interop/with-guava"
+          ]
+        },
+        "guides/migrate/from-monix"
+      ]
+    }
+  ]
+}
