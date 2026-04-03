@@ -41,6 +41,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   private[this] val globalLocations = makeLocations()
   private[this] val state           = new AtomicInteger(poolSize << 16)
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
+  private[this] val submitCount     = new AtomicInteger(0)
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
@@ -148,13 +149,16 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
-      if ((worker eq null) || worker.blocking) {
+      val toGlobalQueue = (worker eq null) || worker.blocking
+      if (toGlobalQueue) {
         globalQueue.offer(runnable)
       } else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
       } else ()
-      val currentState = state.get
-      maybeUnparkWorker(currentState)
+      if (toGlobalQueue || shouldUnparkWorker()) {
+        val currentState = state.get
+        maybeUnparkWorker(currentState)
+      }
       true
     }
   }
@@ -164,9 +168,11 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
-      var notify = true
+      var notify            = true
+      var submittedToGlobal = false
       if ((worker eq null) || worker.blocking) {
         globalQueue.offer(runnable)
+        submittedToGlobal = true
       }
       // Attempt resumption in the current Thread
       else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
@@ -187,7 +193,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         handleFullWorkerQueue(worker, runnable)
       }
 
-      if (notify) {
+      if (notify && (submittedToGlobal || shouldUnparkWorker())) {
         val currentState = state.get
         maybeUnparkWorker(currentState)
       }
@@ -297,6 +303,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         val random          = ThreadLocalRandom.current
         var runnable        = null.asInstanceOf[Runnable]
         var searching       = false
+        var spinCount       = 0
+        val maxSpins        = 100
 
         while (!isInterrupted) {
           currentBlocking = blocking
@@ -390,11 +398,21 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
                 maybeUnparkWorker(currentState)
               }
             }
-            while (!active && !isInterrupted) {
-              LockSupport.park()
+            // Spin-before-park: avoid expensive park/unpark syscall pair when work
+            // arrives within a short window. This reduces latency and context switches.
+            if (spinCount < maxSpins) {
+              spinCount += 1
+              Thread.onSpinWait()
+            } else {
+              spinCount = 0
+              while (!active && !isInterrupted) {
+                LockSupport.park()
+              }
             }
             searching = true
           } else {
+            // Reset spin count when work is found
+            spinCount = 0
             if (searching) {
               searching = false
               val currentState = state.decrementAndGet()
@@ -455,6 +473,17 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         LockSupport.unpark(worker)
       }
     }
+  }
+
+  /**
+   * Throttled unpark check to reduce excessive LockSupport.unpark() calls. Only
+   * returns true every Nth submission. This is only used when the submitting
+   * thread is an active worker (local queue path) — global queue submissions
+   * always bypass this throttle to prevent task stranding.
+   */
+  private def shouldUnparkWorker(): Boolean = {
+    val count = submitCount.incrementAndGet()
+    (count & 15) == 0
   }
 
   private[this] def submitBlocking(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
