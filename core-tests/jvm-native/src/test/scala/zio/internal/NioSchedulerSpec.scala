@@ -288,7 +288,6 @@ object NioSchedulerSpec extends ZIOBaseSpec {
           counter  <- ZIO.succeed(new AtomicInteger(0))
           numTasks  = 100000
           latch    <- ZIO.succeed(new CountDownLatch(numTasks))
-          start    <- ZIO.succeed(java.lang.System.nanoTime())
           _ <- ZIO.succeed(Unsafe.unsafe { implicit unsafe =>
                  var ii = 0
                  while (ii < numTasks) {
@@ -296,10 +295,8 @@ object NioSchedulerSpec extends ZIOBaseSpec {
                    ii += 1
                  }
                })
-          _       <- ZIO.succeed(latch.await(30, TimeUnit.SECONDS))
-          elapsed <- ZIO.succeed((java.lang.System.nanoTime() - start) / 1_000_000.0)
-          value   <- ZIO.succeed(counter.get())
-          _       <- ZIO.succeed(println(s"Completed $value tasks in ${elapsed}ms (${value * 1000.0 / elapsed} tasks/sec)"))
+          _     <- ZIO.succeed(latch.await(30, TimeUnit.SECONDS))
+          value <- ZIO.succeed(counter.get())
         } yield assert(value)(equalTo(numTasks))
       } @@ TestAspect.timeout(60.seconds) @@ TestAspect.ignore,
       test("fiber creation under load") {

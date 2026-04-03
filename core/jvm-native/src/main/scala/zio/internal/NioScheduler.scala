@@ -26,15 +26,48 @@ import scala.concurrent.BlockContext
 import scala.concurrent.CanAwait
 
 /**
- * A `NioScheduler` is an `Executor` that uses a Least-Loaded scheduling
+ * A `NioScheduler` is an [[Executor]] that uses a '''Least-Loaded scheduling'''
  * algorithm.
  *
- * Unlike the work-stealing scheduler (ZScheduler), this scheduler assigns new
- * tasks to the worker with the least workload. This approach:
+ * Unlike the work-stealing scheduler ([[ZScheduler]]), this scheduler assigns
+ * new tasks to the worker with the least workload. This approach:
  *   - Eliminates the complexity of work-stealing
  *   - Reduces contention on shared queues
  *   - Provides natural load balancing
  *   - Is simpler to implement and maintain
+ *
+ * ==Threading Model==
+ *
+ * The scheduler creates a pool of daemon worker threads (one per available
+ * processor). Each worker has a local [[RingBufferPow2]] queue (capacity 256).
+ * Tasks that overflow local queues spill to a global [[ConcurrentLinkedQueue]].
+ *
+ * When a worker runs out of local and global work, it enters ''searching'' mode
+ * and attempts to steal half of another worker's tasks. If no work is found,
+ * the worker parks until signaled or a 10ms safety-net timeout expires.
+ *
+ * ==Auto-Blocking==
+ *
+ * When `autoBlocking` is enabled, a supervisor thread monitors workers every
+ * 100ms. Workers whose operation count hasn't changed are marked as blocking. A
+ * blocked worker's remaining tasks migrate to the global queue, and a fresh
+ * replacement worker is spawned in its place.
+ *
+ * ==State Encoding==
+ *
+ * An [[AtomicInteger]] tracks two 16-bit counters packed into one word:
+ *   - Bits 16–31: count of ''active'' workers
+ *   - Bits 0–15 : count of ''searching'' workers
+ *
+ * ==Usage==
+ *
+ * {{{
+ * // Enable via bootstrap layer
+ * override val bootstrap = Runtime.enableNioScheduler
+ *
+ * // Or create directly
+ * val executor = Executor.makeNio()
+ * }}}
  *
  * Inspired by the Nio async runtime for Rust.
  * [[https://nurmohammed840.github.io/posts/announcing-nio/]]
@@ -92,6 +125,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
           val worker = workers(i)
           enqueued += worker.opCount
           enqueued += worker.localQueue.size()
+          if (worker.nextRunnable ne null) enqueued += 1
           i += 1
         }
         enqueued += globalQueue.size()
@@ -104,6 +138,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
         while (i != poolSize) {
           val worker = workers(i)
           size += worker.localQueue.size()
+          if (worker.nextRunnable ne null) size += 1
           i += 1
         }
         size += globalQueue.size()
@@ -204,6 +239,10 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
   /**
    * Submits a runnable to the worker with the least workload. This is the core
    * of the Least-Loaded scheduling algorithm.
+   *
+   * Scans all non-blocking workers and selects the one with the smallest local
+   * queue. Early-exits if an empty worker is found. Falls back to the global
+   * queue when all workers are busy or blocking.
    */
   private def submitToLeastLoaded(runnable: Runnable): Unit = {
     var leastLoadedWorker: NioScheduler.Worker = null
@@ -461,8 +500,11 @@ private object NioScheduler {
   private val poolSize: Int = java.lang.Runtime.getRuntime.availableProcessors
 
   /**
-   * Marks the current worker as blocking if the current thread is a
-   * NioScheduler worker.
+   * Marks the current thread as blocking if it is an [[NioScheduler.Worker]].
+   * Called by [[Blocking.signalBlocking()]] to handle blocking operations
+   * detected at the ZIO runtime level. When a worker is marked blocking, its
+   * remaining tasks migrate to the global queue and a replacement worker is
+   * spawned.
    */
   def markCurrentWorkerAsBlocking(): Unit =
     Thread.currentThread() match {
@@ -471,14 +513,26 @@ private object NioScheduler {
     }
 
   /**
-   * A `Supervisor` is a thread that monitors workers for blocking operations.
-   * If a worker's opCount hasn't changed since the last check, it is marked as
-   * blocking.
+   * A supervisor thread that monitors workers for blocking operations.
+   * Periodically checks each active worker's `opCount`; if unchanged since the
+   * last check, the worker is marked as blocking via
+   * [[Worker.markAsBlocking()]].
+   *
+   * Only created when `autoBlocking = true`.
    */
   private abstract class Supervisor extends Thread
 
   /**
-   * A `Worker` is a `Thread` that executes tasks submitted to the scheduler.
+   * A worker thread that executes tasks submitted to the scheduler.
+   *
+   * Each worker has:
+   *   - A local [[RingBufferPow2]] queue (capacity 256) for fast task access
+   *   - A `nextRunnable` field for single-task bypass of the queue
+   *   - An `opCount` counter for blocking detection by the supervisor
+   *
+   * Workers integrate with Scala's [[BlockContext]] so that blocking Scala
+   * constructs (e.g., `Await.result`) automatically trigger
+   * [[markAsBlocking()]].
    */
   private sealed abstract class Worker extends Thread with BlockContext {
 
