@@ -80,7 +80,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
   private[this] val workers     = Array.ofDim[NioScheduler.Worker](poolSize)
   private[this] val state       = new AtomicInteger(poolSize << 16)
 
-  @volatile private[this] var _shutdown                          = false
+  @volatile private[this] var _shutdown                           = false
   @volatile private[this] var supervisor: NioScheduler.Supervisor = _
 
   // Initialize workers
