@@ -40,7 +40,6 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   private[this] val idle            = new ConcurrentLinkedQueue[ZScheduler.Worker]()
   private[this] val globalLocations = makeLocations()
   private[this] val state           = new AtomicInteger(poolSize << 16)
-  private[this] val submitCount     = new AtomicInteger(0)
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
@@ -149,16 +148,13 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
-      val toGlobalQueue = (worker eq null) || worker.blocking
-      if (toGlobalQueue) {
+      if ((worker eq null) || worker.blocking) {
         globalQueue.offer(runnable)
       } else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
       } else ()
-      if (toGlobalQueue || shouldUnparkWorker()) {
-        val currentState = state.get
-        maybeUnparkWorker(currentState)
-      }
+      val currentState = state.get
+      maybeUnparkWorker(currentState)
       true
     }
   }
@@ -168,10 +164,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
-      var notify            = true
-      var submittedToGlobal = false
+      var notify = true
       if ((worker eq null) || worker.blocking) {
-        submittedToGlobal = true
         globalQueue.offer(runnable)
       }
       // Attempt resumption in the current Thread
@@ -193,7 +187,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         handleFullWorkerQueue(worker, runnable)
       }
 
-      if (notify && (submittedToGlobal || shouldUnparkWorker())) {
+      if (notify) {
         val currentState = state.get
         maybeUnparkWorker(currentState)
       }
@@ -487,13 +481,6 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       }
     }
   }
-
-  /**
-   * Returns true every 16th call to throttle unnecessary unpark operations.
-   * Uses a bitmask for efficiency instead of modulo.
-   */
-  private def shouldUnparkWorker(): Boolean =
-    (submitCount.incrementAndGet() & 15) == 0
 
   private[this] def submitBlocking(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
     Blocking.blockingExecutor.submit(runnable)
